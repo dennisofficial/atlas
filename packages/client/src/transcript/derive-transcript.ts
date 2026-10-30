@@ -10,6 +10,7 @@ import {
   type InFlightStep,
 } from './in-flight-steps'
 import { sandboxNoticeOf, type TranscriptSandbox } from './sandbox-notice'
+import { persistedFailureOf } from './persisted-failure'
 import { revealedText, type RevealGate } from './reveal-gate'
 import { modelEntries } from './model-entries'
 import { liveToolRuns, type LiveToolRun } from './tool-runs'
@@ -31,7 +32,11 @@ const failureOf = (steps: readonly InFlightStep[]): StepFailure | null => {
 function saidInStep(args: { step: InFlightStep; reveal: RevealGate | null }): TranscriptEntry[] {
   return modelEntries({
     runs: args.step.blocks.map((block) => {
-      const key = runKey({ stepId: args.step.stepId, kind: block.kind, id: block.id })
+      const key = runKey({
+        stepId: args.step.stepId,
+        kind: block.kind,
+        id: block.id,
+      })
       return {
         key,
         text: revealedText({ key, text: block.text, gate: args.reveal }),
@@ -112,6 +117,7 @@ export function assembleTranscript(args: {
   sandbox?: TranscriptSandbox | null | undefined
   outputs?: ReadonlyMap<CallId, string> | undefined
   working?: boolean | undefined
+  persistedFailure?: StepFailure | null | undefined
 }): TranscriptModel {
   const reveal = args.reveal ?? null
   const pending = args.pendingTldr ?? null
@@ -135,7 +141,7 @@ export function assembleTranscript(args: {
     ...sandboxNoticeOf(args.sandbox ?? null),
   ]
   const streaming = args.live.some((step) => step.end === null) || args.working === true
-  const failure = failureOf(args.live)
+  const failure = failureOf(args.live) ?? (streaming ? null : (args.persistedFailure ?? null))
 
   if (entries.length === 0 && !streaming && failure === null) {
     return EMPTY_TRANSCRIPT
@@ -158,6 +164,7 @@ export function deriveTranscript(args: {
 }): TranscriptModel {
   return assembleTranscript({
     durable: durableEntries({ events: args.events, turns: args.turns }),
+    persistedFailure: persistedFailureOf(args.events),
     live: liveSteps({
       steps: stepsOfSignalsAt({ signals: args.signals, now: args.now }),
       events: args.events,

@@ -146,3 +146,73 @@ describe('HandleStore find', () => {
     expect(made.get('beta')?.closed).toBe(true)
   })
 })
+
+describe('HandleStore token source and live config', () => {
+  const httpSpec = (name: string, url = `https://${name}.example.com/mcp`): LoadedMcpSpec =>
+    spec(name, { transport: { kind: 'http', url } })
+
+  it('retries a NeedsAuth server once the source yields a token', async () => {
+    let token: string | undefined
+    const seenAuth: (string | null)[] = []
+    const server = Bun.serve({
+      port: 0,
+      fetch: async (request) => {
+        const body = (await request.json()) as { id: string; method: string }
+        seenAuth.push(request.headers.get('authorization'))
+        if (request.headers.get('authorization') !== 'Bearer tok')
+          return new Response('no', { status: 401 })
+        const result =
+          body.method === 'initialize' ? { capabilities: { tools: {} } } : { tools: [] }
+        return Response.json({ jsonrpc: '2.0', id: body.id, result })
+      },
+    })
+    try {
+      const store = new HandleStore({
+        specs: [httpSpec('posthog', `http://localhost:${server.port}/mcp`)],
+        tokenSource: { currentToken: async () => token, reject: () => undefined },
+      })
+      await store.connectAll()
+      expect(store.statusOf({ serverId: 'posthog' })?.state.status).toBe(EMcpServerStatus.NeedsAuth)
+
+      await store.retryNeedsAuth()
+      expect(store.statusOf({ serverId: 'posthog' })?.state.status).toBe(EMcpServerStatus.NeedsAuth)
+
+      token = 'tok'
+      await store.retryNeedsAuth()
+      expect(store.statusOf({ serverId: 'posthog' })?.state.status).toBe(EMcpServerStatus.Connected)
+      expect(seenAuth.at(-1)).toBe('Bearer tok')
+    } finally {
+      void server.stop(true)
+    }
+  })
+
+  it('reconciles added, removed and changed specs', async () => {
+    const transports = new Map<string, InMemoryTransport>()
+    const store = new HandleStore({
+      specs: [spec('keep'), spec('gone'), spec('edit')],
+      transportFactory: (s) => {
+        const transport = new InMemoryTransport()
+        transports.set(`${s.name}:${JSON.stringify(s.transport)}`, transport)
+        return transport
+      },
+    })
+    await store.connectAll()
+    const keepTransport = [...transports.entries()].find(([key]) => key.startsWith('keep'))?.[1]
+
+    await store.reconcile({
+      specs: [
+        spec('keep'),
+        spec('edit', { transport: { kind: 'stdio', command: 'other' } }),
+        spec('fresh'),
+      ],
+    })
+
+    expect(store.statusOf({ serverId: 'gone' })).toBeUndefined()
+    expect(store.statusOf({ serverId: 'fresh' })?.state.status).toBe(EMcpServerStatus.Connected)
+    expect(store.statusOf({ serverId: 'edit' })?.spec.transport).toEqual({
+      kind: 'stdio',
+      command: 'other',
+    })
+    expect(keepTransport?.closed).toBe(false)
+  })
+})

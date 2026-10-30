@@ -2,27 +2,17 @@ import {
   createSessionContextReader,
   type ContextReader,
   ERuntimeKind,
-  MirroredContextFiles,
-  RemoteContextFiles,
   type CloudBridge,
-  type CloudChannel,
   type CloudStores,
+  type PodSession,
+  type PodThread,
   type RuntimeBinding,
   type SessionRuntime,
-  type TurnRunner,
 } from '@dltech/atlas-harness'
-import { SANDBOX_WORKSPACE_PATH } from '@dltech/atlas-wire'
-import {
-  projectDirectoryOf,
-  repoOf,
-  type ThreadId,
-  type WorkspaceIdentity,
-} from '@dltech/atlas-core'
+import { projectDirectoryOf, repoOf, type WorkspaceIdentity } from '@dltech/atlas-core'
 
-import { cloudRuntimeParts } from './cloud/cloud-app'
 import { publishPrStateReader } from './cloud/pr-state-reader-holder'
 import { publishSubscriptionRegistry } from './cloud/subscription-registry-holder'
-import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
 
@@ -34,7 +24,7 @@ export type CloudAttachment = {
   context: ContextReaders
   bridge: CloudBridge
   stores: CloudStores
-  session: CloudSession
+  session: PodSession
   /** The root local app beneath the cloud binding — the stores that read this machine's log. */
   local: AtlasApp
   /** The quiet background wake: the session's own, joining one already in flight. */
@@ -65,66 +55,33 @@ export const cloudAttachmentOf = (binding: Binding | undefined): CloudAttachment
   return held?.kind === 'cloud' ? held : undefined
 }
 
-export async function cloudAnchorOf(args: {
-  stores: CloudStores
-  threadId: ThreadId
-  opened: OpenedConversation
-}): Promise<WorkspaceIdentity> {
-  const held = await args.stores.threads.find({ threadId: args.threadId }).catch(() => undefined)
-  const events = args.opened.events
-  const launch = held?.workspace ?? SANDBOX_WORKSPACE_PATH
-  return {
-    workspace: projectDirectoryOf({ events, launchDirectory: launch }),
-    repo: repoOf({ events, launchRepo: held?.repo ?? null }),
-  }
-}
-
-const cloudContextOf = (args: {
-  channel: CloudChannel
-  opened: OpenedConversation
-}): ContextReaders => {
-  const local = createSessionContextReader({ threadId: args.opened.threadId })
-  const remote = new RemoteContextFiles({ channel: args.channel })
-  return new MirroredContextFiles({
-    channel: args.channel,
-    local,
-    remote,
-    threadId: args.opened.threadId,
-  })
-}
-
-const NOTHING_TO_SETTLE = (): void => undefined
-
 export const cloudBindingOf = (args: {
   local: AtlasApp
-  anchor: WorkspaceIdentity
-  channel: CloudChannel
-  stores: CloudStores
   bridge: CloudBridge
-  runner: TurnRunner
-  opened: OpenedConversation
-  session: CloudSession
-  settleOpen?: (() => void) | undefined
-}): Binding => ({
-  kind: ERuntimeKind.Cloud,
-  cwd: args.anchor.workspace,
-  adapters: {
-    ...cloudRuntimeParts(args),
-    workspace: args.anchor,
-    attachment: {
-      kind: 'cloud',
-      opened: args.opened,
-      context: cloudContextOf(args),
-      bridge: args.bridge,
-      stores: args.stores,
-      session: args.session,
-      local: args.local,
-      wakeInBackground: args.session.wake,
-      settleOpen: args.settleOpen ?? NOTHING_TO_SETTLE,
+  pod: PodThread<OpenedConversation>
+}): Binding => {
+  const { pod } = args
+  return {
+    kind: ERuntimeKind.Cloud,
+    cwd: pod.anchor.workspace,
+    adapters: {
+      ...pod.runtime,
+      workspace: pod.anchor,
+      attachment: {
+        kind: 'cloud',
+        opened: pod.opened,
+        context: pod.context,
+        bridge: args.bridge,
+        stores: pod.attachment.stores,
+        session: pod.session,
+        local: args.local,
+        wakeInBackground: pod.session.wake,
+        settleOpen: pod.settleOpen,
+      },
     },
-  },
-  close: () => args.session.close(),
-})
+    close: pod.close,
+  }
+}
 
 export const localAnchorOf = (args: {
   local: AtlasApp

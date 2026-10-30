@@ -7,7 +7,7 @@ backup actions copy them to/from the API. Signing in transfers Atlas-native prov
 renewal to dedicated cloud-owned connections. Local sessions and assigned sandboxes retrieve
 access tokens, never refresh tokens, from that authority. Persistent ownership survives signout
 and outages; a stale local seed is never a fallback refresher. Model requests still go directly
-to providers. MCP OAuth is separate and remains local; memory is never a synced domain.
+to providers. Cloud MCP OAuth grants are personal and API-held (`src/api/cloud/mcp-oauth`): the API brokers sign-in and refresh, sandboxes only receive access tokens; local TUI sessions keep the loopback flow. Memory is never a synced domain.
 
 Every Atlas-owned client calls the API through tRPC under `/v1/trpc` (`threads.create`,
 `sandboxSelf.*`, `models.list` and the rest of the generated `AppRouter`). Only the GitHub webhook
@@ -54,7 +54,8 @@ thread discovery, backup sync and PR/CI webhooks.
 user's accounts and, when they hold an active OpenAI OAuth connection, replaces the static OpenAI list with
 the live Codex list (`CodexModelsCatalogue`, cached per user in memory for 300 s, revalidated with
 `If-None-Match`; a Codex failure returns the static list plus `liveError`). The code lives in harness behind
-the one subpath `@dltech/atlas-harness/models`, which the API may import and nothing else of harness;
+the subpath `@dltech/atlas-harness/models`. The API may import only the harness subpaths `models`, `titling`,
+`skill-specs` and `mcp-oauth` (the OAuth protocol helpers behind `src/api/cloud/mcp-oauth`) and nothing else of harness;
 `src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce it, and harness's own subpath guard spec
 keeps `node:*`, Bun and the provider SDKs out of everything reachable from it.
 

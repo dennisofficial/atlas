@@ -38,7 +38,10 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
 type SandboxIdentity = { threadId: string; name: string }
 
 async function identityOf(ctx: SandboxTrpcCtx): Promise<SandboxIdentity> {
-  const sessionId = await podSessionOf({ reader: db, threadId: ctx.sandbox.threadId })
+  const sessionId = await podSessionOf({
+    reader: db,
+    threadId: ctx.sandbox.threadId,
+  })
   const row = await db.orm.public.CloudSandbox.where({ sessionId }).select('name').first()
   if (row === null) throw new NotFoundException('sandbox not found')
   return { threadId: ctx.sandbox.threadId, name: row.name }
@@ -88,7 +91,11 @@ export class SandboxSelfRouter {
       userId: ctx.sandbox.userId,
       threadId: input.threadId,
     })
-    return applyPodEvents({ threadId, events: input.events, signals: this.signals })
+    return applyPodEvents({
+      threadId,
+      events: input.events,
+      signals: this.signals,
+    })
   }
 
   @Mutation({ input: podEventsTruncateSchema, output: podEventsReplySchema })
@@ -101,7 +108,11 @@ export class SandboxSelfRouter {
       userId: ctx.sandbox.userId,
       threadId: input.threadId,
     })
-    return truncatePodEvents({ threadId, toSeq: input.toSeq, signals: this.signals })
+    return truncatePodEvents({
+      threadId,
+      toSeq: input.toSeq,
+      signals: this.signals,
+    })
   }
 
   @Mutation({ input: podChildRegisterSchema, output: podEventsReplySchema })
@@ -129,7 +140,7 @@ export class SandboxSelfRouter {
       userId: ctx.sandbox.userId,
       threadId: requested,
     })
-    const changed = await applyThreadActivity({ threadId, activity })
-    if (changed) await this.signals.listChangedForOwner({ threadId })
+    const applied = await applyThreadActivity({ threadId, activity })
+    if (applied !== null) await this.signals.listChangedForOwner({ threadId, activity: applied })
   }
 }

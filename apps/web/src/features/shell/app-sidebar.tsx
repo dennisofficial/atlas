@@ -19,6 +19,7 @@ import { SearchPalette } from './search-palette'
 import { ShellBottomNav } from './shell-bottom-nav'
 import { ShellSidebarContent } from './shell-sidebar-content'
 import { ShellTopBar } from './shell-top-bar'
+import { SidebarVersion } from './sidebar-version'
 import type { EAppNav } from './shell-types'
 import { useOpenSearchRequests } from './search-events'
 import { useSearchHotkey } from './use-search-hotkey'
@@ -57,6 +58,7 @@ export function AppSidebar({ activeThreadId, activeNav }: AppSidebarProps) {
               <AccountMenu user={user} initials={initials} />
             </SidebarMenuItem>
           </SidebarMenu>
+          <SidebarVersion />
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>

@@ -23,6 +23,54 @@ import { bindAccounts } from './account-bindings'
 import { bindSettingsPolicy } from './policy-bindings'
 import type { SettingsBinding } from './settings-binding'
 
+export const STARTUP_UPLOAD_BUDGET_MS = 5_000
+
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+const warnOf =
+  (args: { notice: NoticePort; key: string }) =>
+  (text: string): void =>
+    args.notice.notify({
+      key: args.key,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text,
+    })
+
+async function uploadAtStartup(args: { cloud: CloudService; notice: NoticePort }): Promise<void> {
+  const warn = warnOf({ notice: args.notice, key: 'cloud:local-upload' })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = new Promise<'late'>((resolve) => {
+    timer = setTimeout(() => resolve('late'), STARTUP_UPLOAD_BUDGET_MS)
+  })
+  const work = args.cloud.uploadLocalCredentials().then(
+    () => 'done' as const,
+    (error: unknown) => {
+      warn(
+        `This machine's accounts and secrets did not upload to Atlas Cloud (${messageOf(error)}). Atlas retries on the next start.`,
+      )
+      return 'done' as const
+    },
+  )
+  await Promise.race([work, late])
+  clearTimeout(timer)
+}
+
+async function bootAccountList(args: {
+  accounts: AccountStorePort
+  notice: NoticePort
+}): Promise<readonly Account[]> {
+  try {
+    return await args.accounts.list()
+  } catch (error) {
+    warnOf({ notice: args.notice, key: 'cloud:accounts-unavailable' })(
+      `Atlas Cloud accounts did not load (${messageOf(error)}). Model access fills in when the cloud answers.`,
+    )
+    return []
+  }
+}
+
 const LEGACY_ACCOUNTS_NOTICE =
   'Atlas found no local accounts, but a cloud sign-in may still hold them. Pull them down with a cloud download from settings; Atlas never fetches them on its own.'
 
@@ -66,6 +114,10 @@ export async function bindCredentials(args: {
     ...(args.cloudBacked === undefined ? {} : { cloudBacked: args.cloudBacked }),
   })
 
+  if (args.cloudBacked === true && args.reconcileHostSources && cloud.session() !== null) {
+    await uploadAtStartup({ cloud, notice })
+  }
+
   const session = cloud.session()
   if (
     args.reconcileHostSources &&
@@ -94,7 +146,7 @@ export async function bindCredentials(args: {
     cwd: args.anchor,
   })
 
-  const accountList = await accountStore.list()
+  const accountList = await bootAccountList({ accounts: accountStore, notice })
   if (args.cloudBacked !== true && accountList.length === 0 && cloud.session() !== null) {
     notice.notify({
       key: 'cloud:legacy-accounts',

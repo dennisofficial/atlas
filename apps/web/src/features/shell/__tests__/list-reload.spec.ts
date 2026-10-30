@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EThreadListFrame } from '@dltech/atlas-wire/web'
+
 import type { Schedule } from '@/features/threads/data/thread-signals'
 
 import { createListReloader, createListSignals, type ListSignalHandlers } from '../list-reload'
@@ -27,7 +29,10 @@ describe('createListReloader', () => {
   it('collapses frames inside the debounce window into one reload', () => {
     const timers = fakeSchedule()
     let reloads = 0
-    const reloader = createListReloader({ reload: () => (reloads += 1), schedule: timers.schedule })
+    const reloader = createListReloader({
+      reload: () => (reloads += 1),
+      schedule: timers.schedule,
+    })
 
     reloader.handleFrame()
     reloader.handleFrame()
@@ -41,7 +46,10 @@ describe('createListReloader', () => {
   it('reloads again for a frame after the window', () => {
     const timers = fakeSchedule()
     let reloads = 0
-    const reloader = createListReloader({ reload: () => (reloads += 1), schedule: timers.schedule })
+    const reloader = createListReloader({
+      reload: () => (reloads += 1),
+      schedule: timers.schedule,
+    })
 
     reloader.handleFrame()
     timers.flush()
@@ -63,6 +71,8 @@ describe('createListSignals', () => {
         return { unsubscribe: () => undefined }
       },
       reload: () => (reloads += 1),
+      onActivity: () => undefined,
+      resumed: false,
       schedule: timers.schedule,
     })
 
@@ -75,5 +85,60 @@ describe('createListSignals', () => {
 
     expect(handlers).toHaveLength(2)
     expect(reloads).toBe(1)
+  })
+
+  it('reloads on the first connect after the page was hidden and shown again', () => {
+    const timers = fakeSchedule()
+    const handlers: ListSignalHandlers[] = []
+    let reloads = 0
+    const signals = createListSignals({
+      subscribe: (given) => {
+        handlers.push(given)
+        return { unsubscribe: () => undefined }
+      },
+      reload: () => (reloads += 1),
+      onActivity: () => undefined,
+      resumed: true,
+      schedule: timers.schedule,
+    })
+
+    signals.start()
+    handlers[0]?.onStarted()
+
+    expect(reloads).toBe(1)
+  })
+
+  it('applies a frame carrying activity without reloading the list', () => {
+    const timers = fakeSchedule()
+    const handlers: ListSignalHandlers[] = []
+    const applied: unknown[] = []
+    let reloads = 0
+    const signals = createListSignals({
+      subscribe: (given) => {
+        handlers.push(given)
+        return { unsubscribe: () => undefined }
+      },
+      reload: () => (reloads += 1),
+      onActivity: (update) => applied.push(update),
+      resumed: false,
+      schedule: timers.schedule,
+    })
+    const activity = {
+      working: false,
+      awaiting: null,
+      lastOutcome: 'completed' as const,
+    }
+
+    signals.start()
+    handlers[0]?.onStarted()
+    handlers[0]?.onData({
+      type: EThreadListFrame.Changed,
+      threadId: 'thr-1',
+      activity,
+    })
+    timers.flush()
+
+    expect(applied).toEqual([{ threadId: 'thr-1', activity }])
+    expect(reloads).toBe(0)
   })
 })

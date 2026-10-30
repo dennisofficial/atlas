@@ -11,7 +11,7 @@ import {
 } from '@dltech/atlas-core'
 import { CHANNEL_PROTOCOL_VERSION } from '@dltech/atlas-wire'
 
-import { eventFromWire, wireDraftOf, type WireEvent } from '../session-wire'
+import { eventFromWire, eventsFromWire, wireDraftOf, type WireEvent } from '../session-wire'
 
 const review: CodeQualityReviewedBody = {
   type: 'code-quality-reviewed',
@@ -56,5 +56,18 @@ describe('a client that predates the event body', () => {
     expect(() =>
       eventFromWire(wireEventOf({ type: 'code-quality-reviewed-from-the-future', body })),
     ).toThrow()
+  })
+})
+
+describe('reading a thread that holds an event type this client does not know', () => {
+  it('skips the unknown event and loads the rest of the thread', () => {
+    const body = JSON.stringify({ type: 'event-from-the-future', detail: 'x' })
+    const known = wireEventOf(wireDraftOf(review))
+    const unknown = { ...wireEventOf({ type: 'event-from-the-future', body }), seq: 2 }
+    const after = { ...wireEventOf(wireDraftOf(review)), seq: 3 }
+
+    const events = eventsFromWire([known, unknown, after])
+
+    expect(events.map((event) => event.seq)).toEqual([1, 3])
   })
 })

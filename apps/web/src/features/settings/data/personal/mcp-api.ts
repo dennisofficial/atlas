@@ -8,7 +8,7 @@ import { api, cloudCall } from '@/lib/api-client'
 
 import { EMcpTransport, type McpServer } from '../../fixtures/settings-mcp'
 import { splitCommandLine } from '../command-line'
-import { targetOf, transportOfDraft } from '../shared/mcp-mapping'
+import { signInFieldOf, targetOf, transportOfDraft } from '../shared/mcp-mapping'
 
 export function transportOf(
   draft: Pick<McpServer, 'transport' | 'target'> & { extra?: string },
@@ -32,6 +32,7 @@ export function toMcpServer(wire: McpServerWire): McpServer {
       wire.transport?.kind === EMcpTransportKind.Http ? EMcpTransport.Http : EMcpTransport.Stdio,
     target: targetOf(wire.transport),
     enabled: wire.disabled !== true,
+    ...signInFieldOf(wire.transport),
   }
 }
 

@@ -123,7 +123,10 @@ export async function finishServeBoot(args: {
     log,
     idleStop: () => idleStop,
     emitLifecycle,
-    beforeTurn: refreshCloudState.refresh,
+    beforeTurn: async () => {
+      await refreshCloudState.refresh()
+      await app.mcp?.refresh()
+    },
   })
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
   const unsubscribeWake = subscribeLegacyWake({
@@ -155,6 +158,7 @@ export async function finishServeBoot(args: {
     prStates: app.prStates,
     subscriptions: app.subscriptions,
     commands: app.commands,
+    mcp: app.mcp,
     rewind: app.rewind,
     compaction: app.compaction,
     agents: app.agents,

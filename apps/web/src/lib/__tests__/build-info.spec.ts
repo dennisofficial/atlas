@@ -1,29 +1,29 @@
 import { describe, expect, it } from 'bun:test'
 
-import { versionLine } from '../build-info'
+import { versionLines } from '../build-info'
 
 const SHA = '0123456789abcdef0123456789abcdef01234567'
 
-describe('versionLine', () => {
-  it('shows the Mac version beside the web build', () => {
-    expect(versionLine({ web: { commit: SHA, version: '1.42.0' }, desktopVersion: '1.41.0' })).toBe(
-      'Atlas for Mac 1.41.0 · web v1.42.0 0123456',
-    )
+describe('versionLines', () => {
+  it('puts the Mac version on its own line above the web build', () => {
+    expect(
+      versionLines({ web: { commit: SHA, version: '1.42.0' }, desktopVersion: '1.41.0' }),
+    ).toEqual(['Atlas for Mac 1.41.0', 'web v1.42.0 · 0123456'])
   })
 
-  it('shows only the web commit on plain web', () => {
-    expect(versionLine({ web: { commit: SHA, version: '' }, desktopVersion: null })).toBe(
+  it('shows only the web line on plain web', () => {
+    expect(versionLines({ web: { commit: SHA, version: '' }, desktopVersion: null })).toEqual([
       'web 0123456',
-    )
+    ])
   })
 
   it('shows the Mac version alone when the web build is unstamped', () => {
-    expect(versionLine({ web: { commit: '', version: '' }, desktopVersion: '1.41.0' })).toBe(
+    expect(versionLines({ web: { commit: '', version: '' }, desktopVersion: '1.41.0' })).toEqual([
       'Atlas for Mac 1.41.0',
-    )
+    ])
   })
 
-  it('is null when nothing is known', () => {
-    expect(versionLine({ web: { commit: '', version: '' }, desktopVersion: '' })).toBeNull()
+  it('is empty when nothing is known', () => {
+    expect(versionLines({ web: { commit: '', version: '' }, desktopVersion: '' })).toEqual([])
   })
 })

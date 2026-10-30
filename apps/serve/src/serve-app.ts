@@ -8,7 +8,12 @@ import type {
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
 import type { ServeProcesses } from './process-requests'
-import type { CommandSkillWire, PrStateWire, RosterWire } from '@dltech/atlas-wire'
+import type {
+  CommandSkillWire,
+  McpServerStatusWire,
+  PrStateWire,
+  RosterWire,
+} from '@dltech/atlas-wire'
 
 import type {
   AgentRegistryPort,
@@ -67,6 +72,11 @@ export type ServePrStates = {
 
 export type ServeCommands = {
   skills: (args: { reload: boolean }) => Promise<readonly CommandSkillWire[]>
+}
+
+export type ServeMcp = {
+  list: (args: { refresh: boolean }) => Promise<readonly McpServerStatusWire[]>
+  refresh: () => Promise<void>
 }
 
 export type ServeSubscriptions = {
@@ -218,6 +228,7 @@ export type ServeApp = {
   prStates?: ServePrStates | undefined
   subscriptions?: ServeSubscriptions | undefined
   commands?: ServeCommands | undefined
+  mcp?: ServeMcp | undefined
   expandContext?: ExpandContext | undefined
   /** Absent in a fake without registries: a drain pause halts the parent's turn only. */
   family?: ServeFamily | undefined

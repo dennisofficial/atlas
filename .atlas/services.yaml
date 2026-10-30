@@ -10,6 +10,8 @@ services:
     health: /v1/health
     env:
       ATLAS_POSTGRES_PORT: ${services.postgres.port}
+      WEB_ORIGIN: ${services.web.publicUrl}
+      TRUSTED_ORIGINS: ${services.web.publicUrl}
     setup:
       - bun install
       - bun run db:migrate
@@ -17,8 +19,6 @@ services:
     command: bun run dev -H 0.0.0.0
     cwd: apps/web
     health: /
-    env:
-      ATLAS_API_ORIGIN: ${services.api.url}
     portal:
       title: Atlas web
   storybook:

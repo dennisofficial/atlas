@@ -11,6 +11,18 @@ const HOP_BY_HOP = [
   'content-length',
 ]
 
+const BROWSER_PROVENANCE = [
+  'origin',
+  'referer',
+  'sec-fetch-site',
+  'sec-fetch-mode',
+  'sec-fetch-dest',
+  'sec-fetch-user',
+]
+
+const SESSION_TOKEN_HEADER = 'set-auth-token'
+const SIGN_IN_PREFIX = '/api/auth/sign-in/'
+
 export function isProxyPath(pathname: string): boolean {
   return (
     pathname.startsWith('/api/') ||
@@ -30,7 +42,7 @@ function forwardHeaders({
   const headers = new Headers(incoming)
   for (const name of HOP_BY_HOP) headers.delete(name)
   headers.delete('accept-encoding')
-  headers.delete('origin')
+  for (const name of BROWSER_PROVENANCE) headers.delete(name)
   if (bearer === undefined) return headers
   headers.delete('cookie')
   headers.set('authorization', `Bearer ${bearer}`)
@@ -51,10 +63,12 @@ export async function proxyToApi({
   request,
   apiOrigin,
   bearer,
+  onSignIn,
 }: {
   request: Request
   apiOrigin: string
   bearer?: (() => string | undefined) | undefined
+  onSignIn?: ((token: string) => Promise<void>) | undefined
 }): Promise<Response> {
   const source = new URL(request.url)
   const target = `${apiOrigin.replace(/\/+$/, '')}${source.pathname}${source.search}`
@@ -67,6 +81,10 @@ export async function proxyToApi({
       redirect: 'manual',
       signal: request.signal,
     })
+    const freshToken = upstream.headers.get(SESSION_TOKEN_HEADER)
+    if (upstream.ok && freshToken && source.pathname.startsWith(SIGN_IN_PREFIX)) {
+      await onSignIn?.(freshToken)
+    }
     return new Response(upstream.body, {
       status: upstream.status,
       statusText: upstream.statusText,

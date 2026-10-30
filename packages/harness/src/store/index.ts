@@ -39,7 +39,9 @@ export {
   sessionLockFile,
   sessionMetaFile,
   threadMetaFile,
+  threadReadCursorFile,
 } from './sessions/paths'
+export { FileThreadReadCursor } from './sessions/read-cursor'
 export { claimSession, releaseSession, ESessionClaim, type SessionClaim } from './sessions/lock'
 export { SessionRegistry, registryFor } from './sessions/registry'
 export {

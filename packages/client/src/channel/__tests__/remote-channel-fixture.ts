@@ -51,6 +51,7 @@ export const harness = (options?: {
   unwrittenRequestTimeoutMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
   unattached?: boolean | undefined
+  readsWake?: boolean | undefined
 }) => {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
@@ -62,6 +63,7 @@ export const harness = (options?: {
     lastEventSeq: options?.lastEventSeqAsync ?? (() => options?.lastEventSeq ?? 0),
     maxAttempts: options?.maxAttempts,
     wakeSandbox: options?.wakeSandbox,
+    readsWake: options?.readsWake,
     requestTimeoutMs: options?.requestTimeoutMs,
     unwrittenRequestTimeoutMs: options?.unwrittenRequestTimeoutMs,
     interruptAckTimeoutMs: options?.interruptAckTimeoutMs,

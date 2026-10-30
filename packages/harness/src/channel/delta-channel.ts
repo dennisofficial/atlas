@@ -237,6 +237,11 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
           const state = threads.get(threadId)
           if (state === undefined) return
 
+          if (events.length > 0 && events.every((event) => event.type === 'turn-failed')) {
+            notify({ state, signal: { type: 'events-appended' } })
+            return
+          }
+
           const durable = durableAssistantEvent(events)
           const ended = endStep({
             threadId,

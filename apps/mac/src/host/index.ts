@@ -82,7 +82,13 @@ export function createDesktopHost({
         }
         return desktopRouter(request, pathname)
       }
-      if (isProxyPath(pathname)) return proxyToApi({ request, apiOrigin: origin, bearer })
+      if (isProxyPath(pathname))
+        return proxyToApi({
+          request,
+          apiOrigin: origin,
+          bearer,
+          onSignIn: authService.adopt,
+        })
       return serveStatic({ webRoot, pathname })
     },
   })

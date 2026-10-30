@@ -160,6 +160,12 @@ export type EventBody =
   | { type: 'nudge'; text: string; lifetimeSteps: number }
   | { type: 'sandbox-setup-reported'; text: string; failed: boolean }
   | {
+      type: 'turn-failed'
+      message: string
+      modelId?: string | undefined
+      providerId?: string | undefined
+    }
+  | {
       type: 'loop-watch-verdict'
       consulted: boolean
       looping: boolean

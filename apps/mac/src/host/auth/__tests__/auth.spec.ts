@@ -18,6 +18,7 @@ let exchanges: unknown[]
 let exchangeStatus: number
 let upstreamSeen: { path: string; authorization: string | null }[]
 let seenProxy: Headers | undefined
+let signInStatus: number
 
 beforeAll(() => {
   upstream = Bun.serve({
@@ -39,6 +40,12 @@ beforeAll(() => {
       if (path === '/api/auth/get-session') {
         return Response.json({ user: { email: 'd@example.com' } })
       }
+      if (path === '/api/auth/sign-in/email') {
+        seenProxy = request.headers
+        if (signInStatus !== 200) return Response.json({}, { status: signInStatus })
+        return Response.json({ ok: true }, { headers: { 'set-auth-token': 'tok-fresh' } })
+      }
+      if (path === '/api/auth/sign-out') return Response.json({ success: true })
       seenProxy = request.headers
       return Response.json({ ok: true })
     },
@@ -69,6 +76,7 @@ beforeEach(async () => {
   opened = []
   exchanges = []
   exchangeStatus = 200
+  signInStatus = 200
   upstreamSeen = []
   seenProxy = undefined
 })
@@ -180,6 +188,50 @@ describe('proxy auth', () => {
     expect(seenProxy?.get('authorization')).toBe('Bearer tok-3')
     expect(seenProxy?.get('cookie')).toBeNull()
     expect(seenProxy?.get('origin')).toBeNull()
+  })
+
+  test('drops Referer and Fetch Metadata so better-auth sees no foreign browser origin', async () => {
+    createTokenStore({ home: HOME }).save({ token: 'tok-3' })
+    await fetch(`${host.url}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        referer: `http://127.0.0.1:${host.port}/settings/secrets`,
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-dest': 'empty',
+      },
+      body: '{}',
+    })
+    for (const name of [
+      'origin',
+      'referer',
+      'sec-fetch-site',
+      'sec-fetch-mode',
+      'sec-fetch-dest',
+    ]) {
+      expect(seenProxy?.get(name)).toBeNull()
+    }
+  })
+
+  test('a proxied sign-in adopts the fresh session token and revokes the old one', async () => {
+    createTokenStore({ home: HOME }).save({ token: 'tok-old' })
+    upstreamSeen = []
+    const res = await fetch(`${host.url}/api/auth/sign-in/email`, { method: 'POST', body: '{}' })
+    expect(res.status).toBe(200)
+    expect(createTokenStore({ home: HOME }).token()).toBe('tok-fresh')
+    expect(createTokenStore({ home: HOME }).email()).toBe('d@example.com')
+    expect(upstreamSeen).toContainEqual({
+      path: '/api/auth/sign-out',
+      authorization: 'Bearer tok-old',
+    })
+  })
+
+  test('a failed sign-in keeps the stored token', async () => {
+    createTokenStore({ home: HOME }).save({ token: 'tok-old' })
+    signInStatus = 401
+    await fetch(`${host.url}/api/auth/sign-in/email`, { method: 'POST', body: '{}' })
+    expect(createTokenStore({ home: HOME }).token()).toBe('tok-old')
   })
 
   test('without a token keeps Cookie but drops Origin', async () => {

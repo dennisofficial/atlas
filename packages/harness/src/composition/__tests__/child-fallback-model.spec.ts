@@ -9,6 +9,8 @@ import {
   type ProviderIdentity,
 } from '@dltech/atlas-core'
 
+import { CredentialError, ECredentialFailure } from '../../credentials/credential-error'
+import { ModelStreamError } from '../../model/errors'
 import { childFallbackModel } from '../child-fallback-model'
 
 const ASSEMBLED = { messages: [], instructions: [], trace: [] } as unknown as Assembled
@@ -26,6 +28,9 @@ const authFault = (status: number): APICallError =>
     requestBodyValues: {},
     statusCode: status,
   })
+
+const credentialFault = (failure: ECredentialFailure): CredentialError =>
+  new CredentialError({ failure, message: `credential ${failure}` })
 
 class StubModel extends ModelPort {
   readonly identity: ProviderIdentity
@@ -166,6 +171,70 @@ describe('a child model that falls back to the session model', () => {
     expect(await stepping(port)).toBe(REPLIED)
     expect(parent.steps).toBe(0)
     expect(port.identity).toEqual(primary.identity)
+  })
+
+  describe('when the credential port fails before any request reaches the provider', () => {
+    it.each([
+      ECredentialFailure.NotFound,
+      ECredentialFailure.Expired,
+      ECredentialFailure.Unreadable,
+      ECredentialFailure.Unsupported,
+    ])('falls back to the parent on a %s credential', async (failure) => {
+      const primary = new StubModel({
+        id: 'openai',
+        modelId: 'gpt',
+        fault: credentialFault(failure),
+      })
+      const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
+      const switched: unknown[] = []
+
+      const port = childFallbackModel({
+        primary,
+        parentFor: () => parent,
+        onFallback: (fault) => switched.push(fault),
+      })
+
+      expect(await stepping(port)).toBe(REPLIED)
+      expect(parent.steps).toBe(1)
+      expect(switched).toHaveLength(1)
+    })
+
+    it('falls back when the credential error is wrapped in a stream error cause', async () => {
+      const wrapped = new ModelStreamError({
+        message: 'stream failed',
+        cause: credentialFault(ECredentialFailure.NotFound),
+      })
+      const primary = new StubModel({ id: 'openai', modelId: 'gpt', fault: wrapped })
+      const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
+
+      const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
+
+      expect(await stepping(port)).toBe(REPLIED)
+      expect(parent.steps).toBe(1)
+    })
+
+    it.each([ECredentialFailure.StoreUnavailable, ECredentialFailure.RefreshFailed])(
+      'rethrows a transient %s failure without touching the parent',
+      async (failure) => {
+        const fault = credentialFault(failure)
+        const primary = new StubModel({ id: 'openai', modelId: 'gpt', fault })
+        const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
+
+        const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
+
+        await expect(stepping(port)).rejects.toBe(fault)
+        expect(parent.steps).toBe(0)
+      },
+    )
+
+    it('rethrows the credential error when there is no parent to fall to', async () => {
+      const fault = credentialFault(ECredentialFailure.NotFound)
+      const primary = new StubModel({ id: 'openai', modelId: 'gpt', fault })
+
+      const port = childFallbackModel({ primary, parentFor: () => undefined, onFallback: () => {} })
+
+      await expect(stepping(port)).rejects.toBe(fault)
+    })
   })
 
   describe('when the retry loop gives up on a retryable fault', () => {

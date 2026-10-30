@@ -74,13 +74,15 @@ function SheetBody(props: { data: ProcessesData; opened: Opened }) {
     <>
       <SheetHeader>
         <SheetTitle className="truncate font-mono">{opened.name}</SheetTitle>
-        <SheetDescription className="flex min-w-0 items-center gap-1.5">
-          <span className="shrink-0">{opened.readout(now)}</span>
-          {opened.command === undefined ? null : (
-            <span className="truncate font-mono" title={opened.command}>
-              {opened.command}
-            </span>
-          )}
+        <SheetDescription>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="shrink-0">{opened.readout(now)}</span>
+            {opened.command === undefined ? null : (
+              <span className="truncate font-mono" title={opened.command}>
+                {opened.command}
+              </span>
+            )}
+          </span>
         </SheetDescription>
         {opened.running ? (
           <div className="pt-1">

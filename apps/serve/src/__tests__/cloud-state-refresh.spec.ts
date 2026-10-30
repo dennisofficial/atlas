@@ -152,6 +152,7 @@ describe('per-turn Cloud refresh', () => {
     await refresh.boot()
     expect(env.DATABASE_URL).toBe('postgres://a')
     expect(env.INHERITED).toBe('from-image')
+    expect(refresh.exportedEnvNames()).toEqual(['DATABASE_URL'])
 
     state.config = {
       ...configWith(50),
@@ -164,6 +165,7 @@ describe('per-turn Cloud refresh', () => {
     await refresh.refresh()
     expect(env.DATABASE_URL).toBeUndefined()
     expect(env.INHERITED).toBe('from-image')
+    expect(refresh.exportedEnvNames()).toEqual([])
     await cloud.stop()
   })
 })

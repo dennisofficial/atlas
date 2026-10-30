@@ -963,6 +963,7 @@ export function fakeApp(args: {
     pullRequests: args.pullRequests ?? null,
     prEventSink: null,
     mcp: () => [],
+    mcpRefresh: async () => undefined,
     mcpSignIn: undefined,
     threadOpened: async ({ projectDirectory }) => {
       openedDirectories.push(projectDirectory)

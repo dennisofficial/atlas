@@ -80,6 +80,8 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     snapshot,
     prStates: prStatesSnapshot,
     commands: args.commands,
+    mcp: args.mcp,
+    admissionClosed,
     send: (sent) => {
       mutations.observe(sent.frame)
       send(sent)
