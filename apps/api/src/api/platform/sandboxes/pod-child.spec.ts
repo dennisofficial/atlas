@@ -5,7 +5,12 @@ import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import { recordingSignals } from '../sessions/thread-signals.fixture'
 import { registerPodChild } from './pod-child'
 
-const register = (input: { threadId: string; spawnedBy: string; agentType?: string }) =>
+const register = (input: {
+  threadId: string
+  spawnedBy: string
+  agentType?: string
+  title?: string
+}) =>
   registerPodChild({
     rootThreadId: 'thr-1',
     userId: 'usr-1',
@@ -65,6 +70,32 @@ describe('registerPodChild', () => {
     await expect(register({ threadId: 'thr-c3', spawnedBy: 'thr-x' })).rejects.toMatchObject({
       status: 403,
     })
+  })
+
+  it('titles a new teammate session from the registration', async () => {
+    await register({ threadId: 'thr-m1', spawnedBy: 'thr-1', agentType: 'teammate', title: 'mate' })
+
+    const thread = await db.orm.public.Thread.where({ id: 'thr-m1' }).first()
+    const session = await db.orm.public.Session.where({ id: thread?.sessionId ?? '' }).first()
+    expect(session?.title).toBe('mate')
+  })
+
+  it('backfills an untitled teammate session on re-registration without overwriting a title', async () => {
+    await register({ threadId: 'thr-m1', spawnedBy: 'thr-1', agentType: 'teammate' })
+    const thread = await db.orm.public.Thread.where({ id: 'thr-m1' }).first()
+    const sessionTitle = async () =>
+      (await db.orm.public.Session.where({ id: thread?.sessionId ?? '' }).first())?.title
+
+    expect(await sessionTitle()).toBeNull()
+    await register({ threadId: 'thr-m1', spawnedBy: 'thr-1', agentType: 'teammate', title: 'mate' })
+    expect(await sessionTitle()).toBe('mate')
+    await register({
+      threadId: 'thr-m1',
+      spawnedBy: 'thr-1',
+      agentType: 'teammate',
+      title: 'other',
+    })
+    expect(await sessionTitle()).toBe('mate')
   })
 
   it('refuses to adopt a thread row owned by another user', async () => {
