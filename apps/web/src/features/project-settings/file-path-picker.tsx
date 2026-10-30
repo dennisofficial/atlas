@@ -30,6 +30,9 @@ export function FilePathPicker({
   const [highlighted, setHighlighted] = useState<string | undefined>(undefined)
   const choices = pickerChoices({ entries, query: path })
   const showing = open && choices.length > 0
+  console.log(
+    `[picker] render path=${path} open=${open} choices=${choices.length} showing=${showing}`,
+  )
 
   const handleOpenChange = (next: boolean, details: { reason: string }) => {
     console.log(`[picker] onOpenChange open=${next} reason=${details.reason}`)
