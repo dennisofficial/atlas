@@ -1,6 +1,12 @@
+import type { RunFailure, RunId } from '@dltech/atlas-core'
+
 import type { TranscriptEntry } from './transcript-model'
 
-export type StepFailure = { message: string | null }
+export type StepFailure = {
+  message: string | null
+  failure: RunFailure | null
+  runId: RunId | null
+}
 
 export type TranscriptModel = {
   entries: readonly TranscriptEntry[]

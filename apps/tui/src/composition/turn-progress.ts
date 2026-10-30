@@ -72,7 +72,7 @@ const failureNaming = (args: {
   said: string | null
 }): StepFailure | null => {
   if (typeof args.reported?.message === 'string') return args.reported
-  if (args.said !== null) return { message: args.said }
+  if (args.said !== null) return { message: args.said, failure: null, runId: null }
   return args.reported
 }
 

@@ -11,6 +11,7 @@ import {
 } from './in-flight-steps'
 import { sandboxNoticeOf, type TranscriptSandbox } from './sandbox-notice'
 import { revealedText, type RevealGate } from './reveal-gate'
+import { latestRunFailure, type DurableRunFailure } from './run-failure'
 import { modelEntries } from './model-entries'
 import { liveToolRuns, type LiveToolRun } from './tool-runs'
 import {
@@ -23,9 +24,22 @@ import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './tran
 import { EMPTY_TRANSCRIPT, type StepFailure, type TranscriptModel } from './transcript-snapshot'
 import type { TurnSpend } from './turn-spend'
 
-const failureOf = (steps: readonly InFlightStep[]): StepFailure | null => {
-  const failed = steps.filter((step) => step.end === EStepEnd.Failed).at(-1)
-  return failed === undefined ? null : { message: failed.errorMessage }
+const failureOf = (args: {
+  steps: readonly InFlightStep[]
+  durable: DurableRunFailure | null
+}): StepFailure | null => {
+  const retried = args.steps.some((step) => step.end !== EStepEnd.Failed)
+  if (args.durable !== null) {
+    if (retried) return null
+    return {
+      message: args.durable.failure.message,
+      failure: args.durable.failure,
+      runId: args.durable.runId,
+    }
+  }
+
+  const failed = args.steps.filter((step) => step.end === EStepEnd.Failed).at(-1)
+  return failed === undefined ? null : { message: failed.errorMessage, failure: null, runId: null }
 }
 
 function saidInStep(args: { step: InFlightStep; reveal: RevealGate | null }): TranscriptEntry[] {
@@ -112,6 +126,7 @@ export function assembleTranscript(args: {
   sandbox?: TranscriptSandbox | null | undefined
   outputs?: ReadonlyMap<CallId, string> | undefined
   working?: boolean | undefined
+  durableFailure?: DurableRunFailure | null | undefined
 }): TranscriptModel {
   const reveal = args.reveal ?? null
   const pending = args.pendingTldr ?? null
@@ -135,7 +150,7 @@ export function assembleTranscript(args: {
     ...sandboxNoticeOf(args.sandbox ?? null),
   ]
   const streaming = args.live.some((step) => step.end === null) || args.working === true
-  const failure = failureOf(args.live)
+  const failure = failureOf({ steps: args.live, durable: args.durableFailure ?? null })
 
   if (entries.length === 0 && !streaming && failure === null) {
     return EMPTY_TRANSCRIPT
@@ -158,6 +173,7 @@ export function deriveTranscript(args: {
 }): TranscriptModel {
   return assembleTranscript({
     durable: durableEntries({ events: args.events, turns: args.turns }),
+    durableFailure: latestRunFailure(args.events),
     live: liveSteps({
       steps: stepsOfSignalsAt({ signals: args.signals, now: args.now }),
       events: args.events,

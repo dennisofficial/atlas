@@ -86,7 +86,7 @@ describe('a step that failed', () => {
 
     const model = deriveTranscript({ events: [], signals })
 
-    expect(model.failure).toEqual({ message: 'overloaded' })
+    expect(model.failure).toEqual({ message: 'overloaded', failure: null, runId: null })
     expect(model.entries.map((entry) => entry.text)).toEqual(['partial'])
     expect(model.streaming).toBe(false)
   })
@@ -97,7 +97,11 @@ describe('a step that failed', () => {
       ended({ stepId: stepOne, end: EStepEnd.Failed, supersededBy: null }),
     ]
 
-    expect(deriveTranscript({ events: [], signals }).failure).toEqual({ message: null })
+    expect(deriveTranscript({ events: [], signals }).failure).toEqual({
+      message: null,
+      failure: null,
+      runId: null,
+    })
   })
 
   it('clears the failure once the next step starts', () => {

@@ -148,7 +148,11 @@ export function createConversationStore(args: {
   }
 
   const sameFailure = (left: StepFailure | null, right: StepFailure | null): boolean =>
-    left === right || (left !== null && right !== null && left.message === right.message)
+    left === right ||
+    (left !== null &&
+      right !== null &&
+      left.message === right.message &&
+      left.failure === right.failure)
 
   const settled = (derived: TranscriptModel): TranscriptModel => {
     const entries = stabilisedEntries({

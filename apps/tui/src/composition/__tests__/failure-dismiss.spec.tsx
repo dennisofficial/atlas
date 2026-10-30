@@ -83,7 +83,7 @@ describe('dismissing a transient failure', () => {
       await act(async () => readNotice().setTurnFailure('the turn paused'))
       await frameShowing({ setup, text: 'the turn paused' })
       expect(readNotice().dismissalFor(null)).toBeNull()
-      expect(readNotice().dismissalFor({ message: null })).toBeNull()
+      expect(readNotice().dismissalFor({ message: null, failure: null, runId: null })).toBeNull()
       expect(readNotice().failure).toBe('the turn paused')
       await act(async () => readNotice().setFailure('compaction failed'))
       await frameShowing({ setup, text: 'compaction failed' })
@@ -95,8 +95,8 @@ describe('dismissing a transient failure', () => {
 
   const reportedFailures: readonly (StepFailure | null)[] = [
     null,
-    { message: null },
-    { message: 'the turn failed' },
+    { message: null, failure: null, runId: null },
+    { message: 'the turn failed', failure: null, runId: null },
   ]
   for (const reported of reportedFailures) {
     it(`offers dismissal only when the visible failure is transient: ${JSON.stringify(reported)}`, async () => {
