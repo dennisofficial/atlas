@@ -19,10 +19,11 @@ export async function readCachedCloudTranscript(args: {
     const wire = await args.app.cloud
       .sessionsClient({ session })
       .readEvents({ threadId: args.threadId })
-    if (wire.length === 0) return null
+    const events = eventsFromWire(wire)
+    if (events.length === 0) return null
 
     const snapshot = snapshotOf({
-      events: eventsFromWire(wire),
+      events,
       effects: args.effects,
       digest: transcriptIdentityDigest,
     })
