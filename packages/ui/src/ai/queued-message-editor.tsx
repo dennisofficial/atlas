@@ -65,6 +65,7 @@ export function QueuedMessageEditor({ initial, onSave, onCancel }: QueuedMessage
             ref={inputRef}
             value={text}
             aria-label="Edit queued message"
+            autoCorrect="off"
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             className="field-sizing-content w-full resize-none bg-transparent leading-relaxed outline-none"
