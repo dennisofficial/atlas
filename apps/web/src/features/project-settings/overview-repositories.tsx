@@ -1,14 +1,12 @@
 'use client'
 
-import { ArrowUpRightIcon, FolderGit2Icon, PlusIcon, XIcon } from 'lucide-react'
+import { ArrowUpRightIcon, PlusIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@dltech/atlas-ui/components/input-group'
 
+import { useGithubRepos } from '@/features/projects/use-github-repos'
+
+import { AdditionalRepositoryField } from './additional-repository-field'
 import type { ProjectIdentity } from './data/project-mapping'
 
 export function RepositoryControls({ identity }: { identity: ProjectIdentity }) {
@@ -31,12 +29,16 @@ export function RepositoryControls({ identity }: { identity: ProjectIdentity }) 
 }
 
 export function AdditionalRepositories({
+  mainRepository,
   repositories,
   onChange,
 }: {
+  mainRepository: string | null
   repositories: readonly string[]
   onChange: (next: readonly string[]) => void
 }) {
+  const githubRepos = useGithubRepos().data ?? []
+  const taken = mainRepository === null ? repositories : [mainRepository, ...repositories]
   const handleRemove = (index: number) => {
     onChange(repositories.filter((_, position) => position !== index))
   }
@@ -46,28 +48,15 @@ export function AdditionalRepositories({
   return (
     <>
       {repositories.map((repo, index) => (
-        <InputGroup key={index}>
-          <InputGroupAddon>
-            <FolderGit2Icon />
-          </InputGroupAddon>
-          <InputGroupInput
-            aria-label={`Additional repository ${index + 1}`}
-            className="font-mono"
-            placeholder="owner/repo"
-            value={repo}
-            onChange={(event) => handleEdit({ index, value: event.target.value })}
-          />
-          <InputGroupAddon align="inline-end">
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={`Remove ${repo || 'repository'}`}
-              onClick={() => handleRemove(index)}
-            >
-              <XIcon />
-            </Button>
-          </InputGroupAddon>
-        </InputGroup>
+        <AdditionalRepositoryField
+          key={index}
+          label={`Additional repository ${index + 1}`}
+          repo={repo}
+          repos={githubRepos}
+          taken={taken}
+          onChange={(value) => handleEdit({ index, value })}
+          onRemove={() => handleRemove(index)}
+        />
       ))}
       <Button
         variant="outline"
