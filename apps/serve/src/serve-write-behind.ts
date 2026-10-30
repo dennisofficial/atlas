@@ -1,7 +1,8 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import { agentLabel, type ThreadId } from '@dltech/atlas-core'
 import type { DeltaChannel } from '@dltech/atlas-harness'
 import { isApiProvisioned, mirrorsThreadState } from '@dltech/atlas-wire'
 
+import { bindChildActivity } from './serve-activity-binding'
 import type { ServeApp } from './serve-app'
 import {
   createChildMirror,
@@ -43,6 +44,7 @@ async function persistedChildren(args: {
         threadId: child.id,
         spawnedBy: child.agent?.spawnedBy ?? parent,
         agentType: child.agent?.type ?? 'agent',
+        title: child.title,
       })
     }
   }
@@ -85,6 +87,8 @@ export function bindServeWriteBehind(args: {
       remote,
       refusalSettles,
       log,
+      bindActivity: (threadId) =>
+        bindChildActivity({ threadId, channel: app.channel, remote, log }),
     })
     children.set(child.threadId, mirror)
     void mirror.flush()
@@ -93,7 +97,12 @@ export function bindServeWriteBehind(args: {
   const discover = () => {
     discovery = discovery.then(async () => {
       for (const agent of app.roster?.snapshot().agents ?? []) {
-        adopt({ threadId: agent.agentId, spawnedBy: agent.spawnedBy, agentType: agent.agentType })
+        adopt({
+          threadId: agent.agentId,
+          spawnedBy: agent.spawnedBy,
+          agentType: agent.agentType,
+          title: agentLabel({ agentType: agent.agentType, intent: agent.intent }),
+        })
       }
       if (app.threads === undefined) return
       try {

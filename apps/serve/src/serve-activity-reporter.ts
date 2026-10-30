@@ -10,10 +10,12 @@ export type ActivityReporter = {
   whenIdle: () => Promise<void>
 }
 
-export const httpSendActivity = (remote: ApiRemote) => {
-  const client = createApiClient(remote)
+export const httpSendActivity = (args: { remote: ApiRemote; threadId?: string | undefined }) => {
+  const client = createApiClient(args.remote)
   return async (state: ActivityState): Promise<void> => {
-    await client.sandboxSelf.activity.mutate(state)
+    await client.sandboxSelf.activity.mutate(
+      args.threadId === undefined ? state : { ...state, threadId: args.threadId },
+    )
   }
 }
 

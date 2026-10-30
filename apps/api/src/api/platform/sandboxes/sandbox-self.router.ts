@@ -123,8 +123,13 @@ export class SandboxSelfRouter {
     meta: meta({ podReachable: true }),
   })
   async activity(@Input() input: SandboxActivityPost, @Ctx() ctx: SandboxTrpcCtx): Promise<void> {
-    const { threadId } = ctx.sandbox
-    const changed = await applyThreadActivity({ threadId, activity: input })
+    const { threadId: requested, ...activity } = input
+    const threadId = await assertWithinSandboxFamily({
+      rootThreadId: ctx.sandbox.threadId,
+      userId: ctx.sandbox.userId,
+      threadId: requested,
+    })
+    const changed = await applyThreadActivity({ threadId, activity })
     if (changed) await this.signals.listChangedForOwner({ threadId })
   }
 }

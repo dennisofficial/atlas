@@ -17,19 +17,24 @@ export async function registerPodChild(args: {
   const { rootThreadId, userId, input } = args
   await assertWithinSandboxFamily({ rootThreadId, userId, threadId: input.spawnedBy })
 
-  const stored = async (): Promise<PodEventsReply | null> => {
+  const stored = async (): Promise<(PodEventsReply & { sessionId: string }) | null> => {
     const row = await db.orm.public.Thread.where({ id: input.threadId })
-      .select('userId', 'spawnerThreadId', 'head')
+      .select('userId', 'spawnerThreadId', 'head', 'sessionId')
       .first()
     if (row === null) return null
     if (row.userId !== userId || row.spawnerThreadId !== input.spawnedBy) {
       throw new ConflictException('thread is already registered under a different spawner')
     }
-    return { head: row.head }
+    return { head: row.head, sessionId: row.sessionId }
   }
 
   const existing = await stored()
-  if (existing !== null) return existing
+  if (existing !== null) {
+    if (await backfillTeammateTitle({ input, sessionId: existing.sessionId })) {
+      await args.signals.listChanged({ userId, threadId: input.threadId })
+    }
+    return { head: existing.head }
+  }
 
   const spawnerSession = await sessionOfThread({ reader: db, threadId: input.spawnedBy })
   const at = new Date()
@@ -67,9 +72,23 @@ export async function registerPodChild(args: {
   } catch (error) {
     if (!isUniqueViolation(error)) throw error
     const raced = await stored()
-    if (raced !== null) return raced
+    if (raced !== null) return { head: raced.head }
     throw error
   }
   await args.signals.listChanged({ userId, threadId: input.threadId })
   return { head: 0 }
+}
+
+async function backfillTeammateTitle(args: {
+  input: PodChildRegister
+  sessionId: string
+}): Promise<boolean> {
+  const { input, sessionId } = args
+  if (input.agentType !== TEAMMATE_AGENT_TYPE || input.title === undefined) return false
+  const session = await db.orm.public.Session.where({ id: sessionId }).select('title').first()
+  if (session === null || session.title !== null) return false
+  await db.orm.public.Session.where({ id: sessionId })
+    .select('id')
+    .update({ title: input.title, updatedAt: new Date() })
+  return true
 }

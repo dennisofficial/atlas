@@ -14,9 +14,10 @@ export interface ThreadRowProps {
 
 export function ThreadRow({ session, projectName, activeThreadId }: ThreadRowProps) {
   const teammates = mainThreadsOf(session.teammates)
-  const holdsActive = teammates.some((teammate) => teammate.id === activeThreadId)
-  const folder = useFollowActive(holdsActive)
   const thread = session.mainThread
+  const sessionActive =
+    thread.id === activeThreadId || teammates.some((teammate) => teammate.id === activeThreadId)
+  const folder = useFollowActive(sessionActive)
   return (
     <SidebarMenuItem>
       <ThreadRowBody

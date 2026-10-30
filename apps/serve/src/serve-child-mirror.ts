@@ -12,7 +12,12 @@ import {
 } from './serve-event-flush'
 import { EServeEvent, type ServeLog } from './serve-log'
 
-export type ChildIdentity = { threadId: ThreadId; spawnedBy: ThreadId; agentType: string }
+export type ChildIdentity = {
+  threadId: ThreadId
+  spawnedBy: ThreadId
+  agentType: string
+  title?: string | undefined
+}
 
 export type ChildMirror = Pick<EventFlusher, 'flush' | 'rebase'> & { detach: () => void }
 
@@ -22,7 +27,9 @@ export function httpRegisterChild(remote: ApiRemote): RegisterChild {
   const client = createApiClient(remote)
   return async (child) => {
     try {
-      return (await client.sandboxSelf.registerChild.mutate(child)).head
+      const { title, ...identity } = child
+      const titled = title === undefined || title === '' ? identity : { ...identity, title }
+      return (await client.sandboxSelf.registerChild.mutate(titled)).head
     } catch (failure) {
       throw failedWith(failure)
     }
@@ -42,9 +49,12 @@ export function createChildMirror(args: {
   remote: ApiRemote
   refusalSettles: boolean
   log: ServeLog
+  bindActivity?: ((threadId: ThreadId) => { detach: () => void }) | undefined
 }): ChildMirror {
   const { child, log } = args
   let flusher: EventFlusher | undefined
+  let activity: { detach: () => void } | undefined
+  let detached = false
   let chain: Promise<unknown> = Promise.resolve()
 
   const ensureFlusher = async (): Promise<EventFlusher | undefined> => {
@@ -60,6 +70,7 @@ export function createChildMirror(args: {
         refusalSettles: args.refusalSettles,
         log,
       })
+      if (!detached) activity = args.bindActivity?.(child.threadId)
       return flusher
     } catch (failure) {
       const reason = failure instanceof Error ? failure.message : String(failure)
@@ -92,6 +103,10 @@ export function createChildMirror(args: {
   return {
     flush,
     rebase: (given) => run((ready) => ready.rebase(given), args.refusalSettles),
-    detach: unsubscribe,
+    detach: () => {
+      detached = true
+      unsubscribe()
+      activity?.detach()
+    },
   }
 }

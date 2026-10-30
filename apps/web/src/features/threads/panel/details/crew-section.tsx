@@ -84,13 +84,22 @@ function CrewRows(props: {
           key={row.id}
           icon={<AgentStatusIcon display={row.display} />}
           label={
-            <span
-              className={cn(row.reading === ESubagentReading.Settled && 'text-muted-foreground')}
-            >
-              {row.title}
+            <span className="flex min-w-0 justify-between gap-2">
+              <span
+                className={cn(
+                  'truncate',
+                  row.reading === ESubagentReading.Settled && 'text-muted-foreground',
+                )}
+              >
+                {row.title}
+              </span>
+              {row.state === '' ? null : (
+                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                  {row.state}
+                </span>
+              )}
             </span>
           }
-          meta={row.state === '' ? undefined : row.state}
           detail={<RowDetail row={row} />}
           current={row.selected}
           onClick={() => props.onOpen(row)}
