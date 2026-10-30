@@ -183,7 +183,7 @@ describe('createLocalThread', () => {
     expect(deliverHeldFirstMessage({ threadId: 'brn_1', send: () => true })).toBe(false)
   })
 
-  test('the held first message carries its uploads to the live channel', () => {
+  it('the held first message carries its uploads to the live channel', () => {
     const upload = {
       uploadId: '00000000-0000-4000-8000-000000000001',
       pathname: 'uploads/notes.txt',
