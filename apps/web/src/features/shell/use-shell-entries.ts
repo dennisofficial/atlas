@@ -13,17 +13,16 @@ import { hasThread, type ProjectThreads } from './thread-partition'
 
 async function loadShellEntries(): Promise<ProjectThreads[]> {
   const projects = await fetchProjects()
-  const [lists, pods] = await Promise.all([
+  const [lists, projectless, pods] = await Promise.all([
     Promise.all(projects.map((project) => fetchSessions(project.id))),
+    fetchSessions(null),
     listLocalPods(),
   ])
-  return withLocalPods({
-    entries: projects.map((project, index) => ({
-      project,
-      sessions: lists[index] ?? [],
-    })),
-    pods,
-  })
+  const entries: ProjectThreads[] = [
+    ...projects.map((project, index) => ({ project, sessions: lists[index] ?? [] })),
+    { project: null, sessions: projectless },
+  ]
+  return withLocalPods({ entries, pods })
 }
 
 export function useShellEntries(activeThreadId: string | null): CloudQuery<ProjectThreads[]> {

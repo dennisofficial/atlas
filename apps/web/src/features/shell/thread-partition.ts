@@ -10,10 +10,17 @@ export enum EThreadBucket {
   Archived = 'archived',
 }
 
+export const NO_PROJECT_KEY = '__no-project__'
+export const NO_PROJECT_NAME = 'No project'
+
 export interface ProjectThreads {
-  project: Project
+  project: Project | null
   sessions: SessionNode[]
 }
+
+export const projectKeyOf = (project: Project | null): string => project?.id ?? NO_PROJECT_KEY
+
+export const projectNameOf = (project: Project | null): string => project?.name ?? NO_PROJECT_NAME
 
 export interface ThreadPartition {
   groups: ProjectThreads[]
@@ -69,7 +76,7 @@ export function partitionThreads(args: {
     archived.push({ project, sessions: byBucket[EThreadBucket.Archived] })
   }
   return {
-    groups,
+    groups: groups.filter((entry) => entry.project !== null || entry.sessions.length > 0),
     inactive: withSessions(inactive),
     archived: withSessions(archived),
   }

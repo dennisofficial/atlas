@@ -40,14 +40,14 @@ export const podStatusOf = (pod: LocalPod): PodStatus => ({
 })
 
 export function withLocalPods<
-  T extends { project: { id: string }; sessions: WireSessionNode[] },
+  T extends { project: { id: string } | null; sessions: WireSessionNode[] },
 >(args: { entries: T[]; pods: readonly LocalPod[] }): T[] {
   if (args.pods.length === 0) return args.entries
   return args.entries.map((entry) => ({
     ...entry,
     sessions: [
       ...entry.sessions,
-      ...args.pods.filter((pod) => pod.projectId === entry.project.id).map(localSessionOf),
+      ...args.pods.filter((pod) => pod.projectId === entry.project?.id).map(localSessionOf),
     ],
   }))
 }

@@ -10,7 +10,7 @@ import type { ApiPrStatesSubscribe } from './api-pr-states-source'
 
 export const fetchProjects = () => cloudCall(api.projects.list.query())
 
-export const fetchSessions = (projectId: string) =>
+export const fetchSessions = (projectId: string | null) =>
   cloudCall(api.sessions.list.query({ projectId }))
 
 export type SessionNode = Awaited<ReturnType<typeof fetchSessions>>[number]
