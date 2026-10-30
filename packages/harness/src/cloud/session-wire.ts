@@ -41,6 +41,18 @@ export function wireDraftOf(draft: EventDraft): WireDraft {
 }
 
 export function eventFromWire(wire: WireEvent): Event {
+  const event = readableEventFromWire(wire)
+  if (event === null) throw new Error(`unreadable wire event ${wire.id} of type ${wire.type}`)
+  return event
+}
+
+export function eventsFromWire(wire: readonly WireEvent[]): Event[] {
+  return wire.flatMap((row) => readableEventFromWire(row) ?? [])
+}
+
+export function readableEventFromWire(wire: WireEvent): Event | null {
+  const body = parsedBodyOf(wire.body)
+  if (body === null) return null
   const envelope: EventEnvelope = {
     id: toEventId(wire.id),
     seq: wire.seq,
@@ -50,8 +62,16 @@ export function eventFromWire(wire: WireEvent): Event {
     at: wire.at,
     ...(wire.parentRunId === undefined ? {} : { parentRunId: toRunId(wire.parentRunId) }),
   }
-  const draft = eventBodySchema.parse(JSON.parse(wire.body))
-  return stampEvent({ draft, envelope })
+  return stampEvent({ draft: body, envelope })
+}
+
+function parsedBodyOf(body: string): EventDraft | null {
+  try {
+    const parsed = eventBodySchema.safeParse(JSON.parse(body))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
 }
 
 export function threadFromWire(wire: WireThread): ThreadSummary {

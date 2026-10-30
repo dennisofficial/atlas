@@ -8,7 +8,7 @@ import {
 
 import { EClientRequest, readEventsReplySchema } from './channel-wire'
 import type { RemoteDeltaChannel } from './remote-delta-channel'
-import { eventFromWire } from './session-wire'
+import { eventsFromWire } from './session-wire'
 
 /**
  * The cloud transcript's read half: the sandbox's serve owns the on-disk JSONL log, so a read is a
@@ -93,6 +93,6 @@ export class RemoteEventLog extends EventLogPort {
         },
       }),
     )
-    return reply.events.map(eventFromWire)
+    return eventsFromWire(reply.events)
   }
 }
