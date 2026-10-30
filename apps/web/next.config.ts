@@ -2,10 +2,13 @@ import type { NextConfig } from 'next'
 
 import { resolveApiOrigin } from './src/lib/api-origin'
 
+const ATLAS_PREVIEW_ORIGINS = ['*.byatlas.dev']
+
 const publicUrl = process.env.PUBLIC_URL ?? ''
 const publicHosts = URL.canParse(publicUrl) ? [new URL(publicUrl).hostname] : []
 
 const devOrigins = [
+  ...ATLAS_PREVIEW_ORIGINS,
   ...(process.env.ATLAS_WEB_DEV_ORIGINS ?? '')
     .split(',')
     .map((origin) => origin.trim())

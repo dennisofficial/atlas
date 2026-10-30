@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { ANTHROPIC_OAUTH, OPENAI_OAUTH } from '@dltech/atlas-harness/provider-oauth'
 import { EOauthProvider } from '@dltech/atlas-wire'
 import { OauthIssuer, OauthRateLimitedError, OauthRejectedError } from './oauth-connections.types'
 
@@ -13,12 +14,12 @@ interface IssuerEndpoint {
 
 const ENDPOINTS: Record<EOauthProvider, IssuerEndpoint> = {
   [EOauthProvider.Anthropic]: {
-    url: 'https://platform.claude.com/v1/oauth/token',
-    clientId: '9d1c250a-e61b-44d9-88ed-5944d1962f5e',
+    url: ANTHROPIC_OAUTH.tokenUrl,
+    clientId: ANTHROPIC_OAUTH.clientId,
   },
   [EOauthProvider.OpenAI]: {
-    url: 'https://auth.openai.com/oauth/token',
-    clientId: 'app_EMoamEEZ73f0CkXaXp7hrann',
+    url: OPENAI_OAUTH.tokenUrl,
+    clientId: OPENAI_OAUTH.clientId,
   },
 }
 
