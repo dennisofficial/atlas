@@ -1,0 +1,13 @@
+// use prisma-8
+model ProjectFileMount {
+  id             String               @id
+  projectId      String
+  path           String
+  sealedContents String
+  mode           Int                  @default(384)
+  createdAt      TimestamptzJsDate(3) @default(now())
+  updatedAt      TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  project        Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "ProjectFileMount_projectId_path_key")
+
+  @@unique([projectId, path], map: "ProjectFileMount_projectId_path_key")
+}

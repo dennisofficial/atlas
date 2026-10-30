@@ -12,6 +12,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { cloudConfigAccessOf } from '../cloud/cloud-config-access'
 import { AgentRegistryPort } from '../agents/registry/port'
 import { withDeltaPublishing } from '../channel/publishing-event-log'
 import { ExecutionLocationToken } from '../composition/execution-location-state'
@@ -24,8 +25,11 @@ import {
 import { OperatorInputPort } from '../operator-input/port'
 import {
   DeltaChannelToken,
+  ClientVersionToken,
+  CloudSessionStoreToken,
   DockerEngineToken,
   SecretsStoreToken,
+  ServeSessionToken,
   SessionRegistryToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -52,6 +56,7 @@ import { ExecutionLocationTool } from './builtin/execution-location'
 import { ExitWorktreeTool } from './builtin/exit-worktree'
 import { GlobTool } from './builtin/glob'
 import { GrepTool } from './builtin/grep'
+import { CloudConfigTool } from './builtin/cloud-config'
 import { McpEditTool } from './builtin/mcp-edit'
 import { MultiEditTool } from './builtin/multi-edit'
 import { ReadTool } from './builtin/read'
@@ -195,6 +200,23 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   })
   container.register(portToken(ToolDefinition), { useClass: SkillInstallTool })
   container.register(portToken(ToolDefinition), { useClass: McpEditTool })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new CloudConfigTool(
+        cloudConfigAccessOf({
+          serveSession: resolver.isRegistered(ServeSessionToken, true)
+            ? resolver.resolve(ServeSessionToken)
+            : null,
+          sessionStore: resolver.isRegistered(CloudSessionStoreToken, true)
+            ? resolver.resolve(CloudSessionStoreToken)
+            : null,
+          threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
+          clientVersion: resolver.isRegistered(ClientVersionToken, true)
+            ? resolver.resolve(ClientVersionToken)
+            : 'dev',
+        }),
+      ),
+  })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new AgentSpawnTool(agentRegistry(resolver), resolver.resolve(AgentTypesToken)),

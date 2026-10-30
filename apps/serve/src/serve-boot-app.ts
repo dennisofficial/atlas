@@ -7,7 +7,8 @@ import { bootReporterFor, strictBootSinkFor, trackAgentStep } from './serve-boot
 import { composeBootApp } from './serve-compose-boot'
 import { hydrateWhenRegistered } from './serve-hydrate'
 import { bindServeWriteBehind } from './serve-write-behind'
-import type { LoggingNoticePort, ServeLog } from './serve-log'
+import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
+import { fileMountNoticeOf } from './file-mount-notice'
 import { createServeRotationRecovery } from './serve-rotation-recovery'
 
 export async function bootServeApp(args: {
@@ -34,19 +35,20 @@ export async function bootServeApp(args: {
     log,
   })
   const collected = collectNotices(notice)
-  const { workspace, activeCwd, spec, identity, refreshCloudState } = await bootServeFiles({
-    env,
-    threadId,
-    cwd,
-    atlasHome,
-    log,
-    ensureWorkspace: serveArgs.ensureWorkspace,
-    profile: serveArgs.profile,
-    contextFiles: serveArgs.contextFiles,
-    reporter,
-    notice: collected.port,
-    ...remote,
-  })
+  const { workspace, activeCwd, spec, identity, refreshCloudState, fileMounts } =
+    await bootServeFiles({
+      env,
+      threadId,
+      cwd,
+      atlasHome,
+      log,
+      ensureWorkspace: serveArgs.ensureWorkspace,
+      profile: serveArgs.profile,
+      contextFiles: serveArgs.contextFiles,
+      reporter,
+      notice: collected.port,
+      ...remote,
+    })
   let hydrated: { remoteHead: number } | undefined
   const app = await trackAgentStep({
     reporter,
@@ -85,6 +87,29 @@ export async function bootServeApp(args: {
     remote,
     log,
   })
+  const mountNotice = fileMounts === null ? null : fileMountNoticeOf(fileMounts)
+  if (mountNotice !== null) {
+    try {
+      await app.log.append({
+        threadId,
+        runId: app.ids.nextRunId(),
+        drafts: [
+          {
+            type: 'context-loaded',
+            slot: 'project-file-mounts',
+            key: 'boot',
+            content: mountNotice,
+          },
+        ],
+      })
+      app.channel.publisherFor({ threadId }).eventsAppended()
+    } catch (failure) {
+      log({
+        event: EServeEvent.FileMountNoticeFailed,
+        reason: failure instanceof Error ? failure.message : String(failure),
+      })
+    }
+  }
   return {
     app,
     recovery,

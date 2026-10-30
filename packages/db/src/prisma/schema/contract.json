@@ -100,6 +100,10 @@
       "model": "Project",
       "namespace": "public"
     },
+    "ProjectFileMount": {
+      "model": "ProjectFileMount",
+      "namespace": "public"
+    },
     "ProjectMcpServer": {
       "model": "ProjectMcpServer",
       "namespace": "public"
@@ -3026,6 +3030,21 @@
                   "namespace": "public"
                 }
               },
+              "fileMounts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectFileMount",
+                  "namespace": "public"
+                }
+              },
               "mcpServers": {
                 "cardinality": "1:N",
                 "on": {
@@ -3147,6 +3166,110 @@
               },
               "namespaceId": "public",
               "table": "Project"
+            }
+          },
+          "ProjectFileMount": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mode": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "path": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "projectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sealedContents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "project": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Project",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "mode": {
+                  "column": "mode"
+                },
+                "path": {
+                  "column": "path"
+                },
+                "projectId": {
+                  "column": "projectId"
+                },
+                "sealedContents": {
+                  "column": "sealedContents"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ProjectFileMount"
             }
           },
           "ProjectMcpServer": {
@@ -8390,6 +8513,100 @@
               },
               "uniques": []
             },
+            "ProjectFileMount": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "mode": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 384
+                  },
+                  "nullable": false
+                },
+                "path": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "projectId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sealedContents": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "projectId",
+                      "path"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "projectId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProjectFileMount"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Project"
+                  }
+                }
+              ],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "projectId",
+                    "path"
+                  ],
+                  "name": "ProjectFileMount_projectId_path_key"
+                }
+              ]
+            },
             "ProjectMcpServer": {
               "columns": {
                 "createdAt": {
@@ -10025,10 +10242,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a81a3193f0178f2224163adb9fff0d54f35cc4c56dfe45ff7afe1c194562efd7"
+    "storageHash": "e07ae9a598861423b56f58f537da83035af72b4444e26e28b3f1a1617fd53574"
   },
   "execution": {
-    "executionHash": "0f1ea8c488602161383a2653ee08481911f3cb5f2aa8cce158610734a6a5c80d",
+    "executionHash": "2ab833cac7ff7ec81f28e078c305fa2d528bd999a302d6a4bca8a421241647c0",
     "mutations": {
       "defaults": [
         {
@@ -10314,6 +10531,21 @@
           },
           "ref": {
             "entry": "Project",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "ProjectFileMount",
             "field": "updatedAt",
             "namespace": "public"
           }

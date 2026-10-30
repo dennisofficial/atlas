@@ -1,4 +1,5 @@
 import type { INestApplication, Provider } from '@nestjs/common'
+import { GithubRepoReads } from '../github/github-repo-reads'
 import { GithubService } from '../github/github.service'
 import {
   buildSessionTrpcApp,
@@ -6,6 +7,7 @@ import {
   trpcMutation,
   type PrincipalFixture,
 } from '../session-trpc-test-app'
+import { ProjectFileMountsService } from './project-file-mounts.service'
 import { ProjectResourcesRouter } from './project-resources.router'
 import { ProjectResourcesService } from './project-resources.service'
 import { ProjectSettingsService } from './project-settings.service'
@@ -23,6 +25,8 @@ export const PROJECT_BODY = {
 export const projectProviders = (githubTokens: Record<string, string> = {}): Provider[] => [
   ProjectsService,
   ProjectResourcesService,
+  ProjectFileMountsService,
+  GithubRepoReads,
   ProjectSettingsService,
   ProjectsRouter,
   ProjectResourcesRouter,
