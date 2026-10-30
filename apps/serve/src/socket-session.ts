@@ -79,6 +79,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     log,
     snapshot,
     prStates: prStatesSnapshot,
+    commands: args.commands,
     send: (sent) => {
       mutations.observe(sent.frame)
       send(sent)

@@ -20,3 +20,5 @@ export {
 } from './install-writer'
 export { LiveSkillRegistry, type SkillSources } from './live-registry'
 export { registerSkills } from './register-skills'
+export { skillContextOf } from './expand-mentions'
+export { skillExpander } from './skill-expander'

@@ -1,7 +1,7 @@
 import { toThreadId, type EventDraft } from '@dltech/atlas-core'
 import { EClientFrame, ETurnStatus } from '@dltech/atlas-harness'
 
-import { ECommandEffect } from '../commands/local-command'
+import { ECommandEffect } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React, { useRef } from 'react'

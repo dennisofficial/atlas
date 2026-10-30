@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { EClientFrame, ETurnStatus } from '@dltech/atlas-harness'
 
-import { ECommandEffect } from '../commands/local-command'
+import { ECommandEffect } from '@dltech/atlas-core'
 import { dismissNotice } from '../../ui/notice-store'
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { fakeApp, scriptedModelPort } from './fake-app'

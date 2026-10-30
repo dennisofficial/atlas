@@ -6,7 +6,7 @@ import { EExecutionLocation, type ActiveWorktree, type ThreadId } from '@dltech/
 import { probeWorkspace, releaseWorktree } from '@dltech/atlas-harness'
 
 import { expandHome } from '../ui/paths'
-import { ECommandEffect, type CommandEffect } from './commands/local-command'
+import { ECommandEffect, type CommandEffect } from '@dltech/atlas-core'
 import type { AtlasApp } from './compose'
 import { stateOfDirectory, workspaceRefusal } from './workspace-directory'
 

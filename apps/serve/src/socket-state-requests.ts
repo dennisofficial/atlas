@@ -25,6 +25,7 @@ export const isReadOnlyFrame = (frame: ClientFrame): boolean =>
   frame.kind === EClientFrame.Request &&
   (isTranscriptReadOp(frame.op) ||
     frame.op === EClientRequest.ListRoster ||
+    frame.op === EClientRequest.ListCommands ||
     frame.op === EClientRequest.ListSubscriptions ||
     frame.op === EClientRequest.ReadRuntimeCheckpoint ||
     frame.op === EClientRequest.ListContextFiles ||

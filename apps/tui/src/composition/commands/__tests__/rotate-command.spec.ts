@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { dispatchSubmission, EDispatch } from '../dispatch'
-import { ECommandTiming } from '../local-command'
-import { instructionsOfArgument } from '../rotation'
+import { ECommandTiming, instructionsOfArgument } from '@dltech/atlas-core'
+
 import { localCommands } from '../registry'
 import { handlers } from './local-handlers'
 

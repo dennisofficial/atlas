@@ -1,3 +1,4 @@
+import { ECapability } from '@dltech/atlas-wire'
 import { EExecutionLocation, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
 import {
   createRemoteDeltaChannel,
@@ -103,8 +104,15 @@ export function wire(app: FakeApp, options: { wakesInto?: boolean } = {}) {
       socket.handlers.handleOpen()
     },
     park: (): void => receive(encodeFrame({ kind: EServeFrame.Parked, reason: 'idle' })),
-    ready: (turnInFlight: boolean): void =>
-      receive(encodeFrame({ kind: EServeFrame.Ready, seq: 1, turnInFlight })),
+    ready: (turnInFlight: boolean, capabilities?: readonly ECapability[]): void =>
+      receive(
+        encodeFrame({
+          kind: EServeFrame.Ready,
+          seq: 1,
+          turnInFlight,
+          ...(capabilities === undefined ? {} : { capabilities }),
+        }),
+      ),
     signal,
     fail: (message: string): void => receive(encodeFrame({ kind: EServeFrame.Error, message })),
     acknowledgeInterrupt: (): void =>

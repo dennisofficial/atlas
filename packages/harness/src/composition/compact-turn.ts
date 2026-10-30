@@ -1,6 +1,8 @@
 import {
+  ECompactScope,
   ECompactionAnchor,
   planCompaction,
+  scopeOfArgument,
   type Event,
   type EventLogPort,
   type ThreadId,
@@ -27,10 +29,7 @@ export type Summariser = (args: {
   signal?: AbortSignal | undefined
 }) => Promise<string | null>
 
-export enum ECompactScope {
-  Recent = 'recent',
-  Everything = 'everything',
-}
+export { ECompactScope, scopeOfArgument }
 
 /**
  * An explicit request is not the automatic trigger and must not inherit its recency budget: keeping
@@ -139,11 +138,4 @@ async function marked({
     fromSeq: outcome.fromSeq,
     throughSeq: outcome.throughSeq,
   }
-}
-
-export const scopeOfArgument = (argumentText: string): ECompactScope | null => {
-  const asked = argumentText.trim().toLowerCase()
-  if (asked === '') return ECompactScope.Recent
-  if (asked === 'all') return ECompactScope.Everything
-  return null
 }

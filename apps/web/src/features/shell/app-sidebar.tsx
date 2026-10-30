@@ -19,6 +19,7 @@ import { ShellBottomNav } from './shell-bottom-nav'
 import { ShellSidebarContent } from './shell-sidebar-content'
 import { ShellTopBar } from './shell-top-bar'
 import type { EAppNav } from './shell-types'
+import { useOpenSearchRequests } from './search-events'
 import { useSearchHotkey } from './use-search-hotkey'
 import { useShellEntries } from './use-shell-entries'
 
@@ -34,8 +35,9 @@ export function AppSidebar({ activeThreadId, activeNav }: AppSidebarProps) {
   const initials = user === null ? '?' : initialsOf(user.name)
 
   const handleToggleSearch = useCallback(() => setSearchOpen((open) => !open), [])
-  const handleOpenSearch = () => setSearchOpen(true)
+  const handleOpenSearch = useCallback(() => setSearchOpen(true), [])
   useSearchHotkey(handleToggleSearch)
+  useOpenSearchRequests(handleOpenSearch)
 
   return (
     <>

@@ -1,7 +1,5 @@
+import { RAN, refused, type CommandEffect } from '@dltech/atlas-core'
 import { EConnectionView } from '@dltech/atlas-harness'
-
-import { RAN, type CommandEffect } from './local-command'
-import { refused } from './registry'
 
 export const NOT_IN_THE_CLOUD = 'this conversation is not parked in the cloud'
 

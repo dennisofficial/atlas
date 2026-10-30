@@ -59,8 +59,11 @@ export function createTurnCommit(args: {
       await intake.commit({ threadId, append: writeDrafts })
       return
     }
+    const held = said.context ?? []
+    const expanded = app.expandContext?.({ text: said.text, context: held }) ?? []
     await writeDrafts([
-      ...(said.context ?? []),
+      ...held,
+      ...expanded,
       saidBody({
         text: said.text,
         requestId: said.requestId,

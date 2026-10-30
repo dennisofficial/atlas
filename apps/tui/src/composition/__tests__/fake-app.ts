@@ -80,7 +80,7 @@ import {
   type ShellSnapshot,
 } from '@dltech/atlas-harness'
 
-import { FileBrowser } from '@dltech/atlas-harness'
+import { FileBrowser, skillContextOf } from '@dltech/atlas-harness'
 import { moveLocalPlacement } from '@dltech/atlas-harness'
 
 import { MessageIntake, operatorSource } from '@dltech/atlas-harness'
@@ -814,7 +814,11 @@ export function fakeApp(args: {
   const threads = fakeThreadStore({ log, workspace: workspace.workspace, repo: workspace.repo })
   const ids = new RandomIds()
   const ledger = fakeLedger()
-  const pending = createPendingQueues<QueuedSettled>()
+  const skillRegistry = fakeSkillRegistry({ skills: args.skills ?? [] })
+  const pending = createPendingQueues<QueuedSettled>({
+    expandContext: ({ text, context }) =>
+      skillContextOf({ text, skills: skillRegistry.all(), already: context }),
+  })
   const intake =
     args.intake === true
       ? new MessageIntake({
@@ -825,7 +829,6 @@ export function fakeApp(args: {
   const shells = fakeShellRegistry()
   const agents = fakeAgentRegistry({ threads })
   const services = fakeServiceRegistry()
-  const skillRegistry = fakeSkillRegistry({ skills: args.skills ?? [] })
   let drainFailures = args.drainFailures ?? 0
   const runner = new PublishingTurnRunner({
     channel,
@@ -835,6 +838,8 @@ export function fakeApp(args: {
       ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: FAKE_CONFIG.cwd }),
       spend: { ledger, clock: new SystemClock() },
+      expandContext: ({ text, context }) =>
+        skillContextOf({ text, skills: skillRegistry.all(), already: context }),
       drainPending: async ({ threadId }) => {
         if (drainFailures > 0) {
           drainFailures -= 1
