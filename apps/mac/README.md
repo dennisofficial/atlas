@@ -27,7 +27,7 @@ Hutch is Electrobun 2.x's build tool: it downloads the pinned Electrobun core an
 
 ## Auto-update
 
-`src/main/auto-update.ts` checks on launch and every 4h via Electrobun's `Updater` against `https://github.com/dennisofficial/atlas/releases/latest/download` (`<channel>-<os>-<arch>-update.json`, patches and `.tar.zst` artifacts must be uploaded as release assets). Downloads in the background, then prompts "Restart to update".
+`src/main/auto-update.ts` checks on launch and every 5 minutes via Electrobun's `Updater` against `https://github.com/dennisofficial/atlas/releases/latest/download` (`<channel>-<os>-<arch>-update.json`, patches and `.tar.zst` artifacts must be uploaded as release assets). Downloads in the background, then prompts "Restart to update". **Atlas → Check for Updates…** runs the same check immediately and offers to restart when an update is ready.
 
 ## Serve version pin
 

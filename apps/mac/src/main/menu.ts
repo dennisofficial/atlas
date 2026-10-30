@@ -2,6 +2,7 @@ import { ApplicationMenu } from 'electrobun/main'
 
 export enum EMenuAction {
   Settings = 'open-settings',
+  CheckForUpdates = 'check-for-updates',
   Reload = 'reload',
   ToggleDevTools = 'toggle-devtools',
 }
@@ -14,6 +15,7 @@ export function installApplicationMenu(): void {
       label: 'Atlas',
       submenu: [
         { role: 'about' },
+        { label: 'Check for Updates…', action: EMenuAction.CheckForUpdates },
         { type: 'separator' },
         { label: 'Settings…', action: EMenuAction.Settings, accelerator: ',' },
         { type: 'separator' },
