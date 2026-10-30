@@ -1,0 +1,268 @@
+[
+  {
+    "id": "table.McpOauthGrant",
+    "label": "Create table \"McpOauthGrant\"",
+    "summary": "Creates table \"McpOauthGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "McpOauthGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"McpOauthGrant\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"McpOauthGrant\"",
+        "sql": "CREATE TABLE \"public\".\"McpOauthGrant\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"generation\" int4 DEFAULT 0 NOT NULL,\n  \"id\" text NOT NULL,\n  \"refreshAttempt\" text,\n  \"refreshStartedAt\" timestamptz(3),\n  \"sealed\" text NOT NULL,\n  \"serverUrl\" text NOT NULL,\n  \"status\" text DEFAULT 'active' NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"McpOauthGrant\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthGrant\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.McpOauthPending",
+    "label": "Create table \"McpOauthPending\"",
+    "summary": "Creates table \"McpOauthPending\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "McpOauthPending"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"McpOauthPending\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthPending\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"McpOauthPending\"",
+        "sql": "CREATE TABLE \"public\".\"McpOauthPending\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"expiresAt\" timestamptz(3) NOT NULL,\n  \"id\" text NOT NULL,\n  \"returnTo\" text NOT NULL,\n  \"sealed\" text NOT NULL,\n  \"serverUrl\" text NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"McpOauthPending\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthPending\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.McpOauthGrant.McpOauthGrant_userId_serverUrl_key",
+    "label": "Add unique constraint on \"McpOauthGrant\" (userId, serverUrl)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "McpOauthGrant_userId_serverUrl_key",
+        "table": "McpOauthGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"McpOauthGrant_userId_serverUrl_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpOauthGrant_userId_serverUrl_key",
+          "public",
+          "\"public\".\"McpOauthGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"McpOauthGrant_userId_serverUrl_key\"",
+        "sql": "ALTER TABLE \"public\".\"McpOauthGrant\" ADD CONSTRAINT \"McpOauthGrant_userId_serverUrl_key\" UNIQUE (\"userId\", \"serverUrl\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"McpOauthGrant_userId_serverUrl_key\" exists on (userId, serverUrl)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "McpOauthGrant_userId_serverUrl_key",
+          "public",
+          "\"public\".\"McpOauthGrant\"",
+          "u",
+          "[\"userId\",\"serverUrl\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.McpOauthPending.McpOauthPending_userId_idx",
+    "label": "Create index \"McpOauthPending_userId_idx\" on \"McpOauthPending\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "McpOauthPending_userId_idx",
+        "table": "McpOauthPending"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"McpOauthPending_userId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthPending_userId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"McpOauthPending_userId_idx\"",
+        "sql": "CREATE INDEX \"McpOauthPending_userId_idx\" ON \"public\".\"McpOauthPending\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"McpOauthPending_userId_idx\" exists on \"McpOauthPending\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthPending_userId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"McpOauthPending\"",
+          "btree",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.McpOauthGrant.McpOauthGrant_userId_fkey",
+    "label": "Add foreign key \"McpOauthGrant_userId_fkey\" on \"McpOauthGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "McpOauthGrant_userId_fkey",
+        "table": "McpOauthGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"McpOauthGrant_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpOauthGrant_userId_fkey",
+          "public",
+          "\"public\".\"McpOauthGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"McpOauthGrant_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"McpOauthGrant\"\nADD CONSTRAINT \"McpOauthGrant_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"McpOauthGrant_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "McpOauthGrant_userId_fkey",
+          "public",
+          "\"public\".\"McpOauthGrant\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.McpOauthPending.McpOauthPending_userId_fkey",
+    "label": "Add foreign key \"McpOauthPending_userId_fkey\" on \"McpOauthPending\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "McpOauthPending_userId_fkey",
+        "table": "McpOauthPending"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"McpOauthPending_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpOauthPending_userId_fkey",
+          "public",
+          "\"public\".\"McpOauthPending\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"McpOauthPending_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"McpOauthPending\"\nADD CONSTRAINT \"McpOauthPending_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"McpOauthPending_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "McpOauthPending_userId_fkey",
+          "public",
+          "\"public\".\"McpOauthPending\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

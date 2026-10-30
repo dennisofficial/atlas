@@ -9,7 +9,13 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { asRecord, type McpJson, type McpToolInfo, type ServerTransport } from '../transport'
+import {
+  asRecord,
+  McpUnauthorizedError,
+  type McpJson,
+  type McpToolInfo,
+  type ServerTransport,
+} from '../transport'
 
 // MCP tool results arrive as loose JSON from a server Atlas does not own, so blocks are narrowed
 // individually rather than cast to a pre-formed shape, per the 2025-06-18 tool-result schema.
@@ -95,6 +101,8 @@ function renderContent(raw: unknown): {
   }
 }
 
+export type UnauthorizedHandler = (args: { serverId: string; transport: ServerTransport }) => void
+
 export type TransportLookup = (serverId: string) => ServerTransport | undefined
 
 export class McpBridgeTool extends ToolDefinition {
@@ -107,13 +115,20 @@ export class McpBridgeTool extends ToolDefinition {
   readonly toolName: string
   private readonly info: McpToolInfo
   private readonly lookup: TransportLookup
+  private readonly onUnauthorized: UnauthorizedHandler | undefined
 
-  constructor(args: { serverId: string; info: McpToolInfo; transportOf: TransportLookup }) {
+  constructor(args: {
+    serverId: string
+    info: McpToolInfo
+    transportOf: TransportLookup
+    onUnauthorized?: UnauthorizedHandler
+  }) {
     super()
     this.serverId = args.serverId
     this.toolName = args.info.name
     this.info = args.info
     this.lookup = args.transportOf
+    this.onUnauthorized = args.onUnauthorized
     this.effect = effectOf(args.info.annotations)
     this.name = `${MCP_NAME_PREFIX}${args.serverId}__${args.info.name}`
     this.description = args.info.description ?? this.name
@@ -136,6 +151,8 @@ export class McpBridgeTool extends ToolDefinition {
     try {
       result = await transport.callTool({ name: this.info.name, input: args.input })
     } catch (error) {
+      if (error instanceof McpUnauthorizedError)
+        this.onUnauthorized?.({ serverId: this.serverId, transport })
       return {
         ok: false,
         reason: `the '${this.serverId}' MCP server rejected the call: ${(error as Error).message}`,
