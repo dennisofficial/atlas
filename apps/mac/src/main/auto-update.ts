@@ -6,6 +6,7 @@ export interface IUpdaterPort {
   checkForUpdate: () => Promise<{ updateAvailable: boolean; error: string }>
   downloadUpdate: () => Promise<void>
   updateInfo: () => { updateReady: boolean; version: string }
+  applyUpdate: () => Promise<void>
 }
 
 export type TOnReady = (args: { version: string }) => void
@@ -31,6 +32,17 @@ export async function runUpdateCycle({
   } catch (error) {
     writeLog({ label: 'auto-update', error })
   }
+}
+
+export async function restartToLatest({
+  updater,
+  onReady,
+}: {
+  updater: IUpdaterPort
+  onReady: TOnReady
+}): Promise<void> {
+  await runUpdateCycle({ updater, onReady })
+  await updater.applyUpdate()
 }
 
 export function startAutoUpdate({

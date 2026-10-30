@@ -1,5 +1,5 @@
 import { Updater, Utils } from 'electrobun/main'
-import { checkNow, EManualCheckOutcome, type TOnReady } from './auto-update'
+import { checkNow, EManualCheckOutcome, restartToLatest, type TOnReady } from './auto-update'
 
 const RESTART_BUTTON = 0
 
@@ -34,5 +34,5 @@ export async function runCheckForUpdates({ onReady }: { onReady: TOnReady }): Pr
     defaultId: RESTART_BUTTON,
     cancelId: 1,
   })
-  if (response === RESTART_BUTTON) await Updater.applyUpdate()
+  if (response === RESTART_BUTTON) await restartToLatest({ updater: Updater, onReady })
 }
