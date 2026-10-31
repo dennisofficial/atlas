@@ -3,21 +3,22 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import {
-  failedAgentsOf,
   runAttentionCopy,
   runAttentionOf,
   type InFlightStep,
 } from '@dltech/atlas-client/transcript'
-import { providerLabelOf, type Event } from '@dltech/atlas-core'
+import { ERunRemedy, providerLabelOf, type Event } from '@dltech/atlas-core'
 import type { RunAttentionStripProps } from '@dltech/atlas-ui/ai/run-attention-strip'
 
 import { PROVIDERS_HREF } from '@/features/settings/settings-nav'
 
 import type { ThreadPanelValue } from '../panel/thread-panel-context'
 import { runAttentionActionsOf } from './run-attention-actions'
+import { attentionKeyOf } from './run-attention-pending'
 import { runFailedLabelOf } from './run-failed-label'
 import type { ThreadSource } from './thread-source'
 import { useAccountLabel } from './use-account-label'
+import { usePendingRemedy } from './use-pending-remedy'
 
 export const RETRY_LOST = 'Could not reach the sandbox to retry the run'
 export const RESUME_LOST = 'Could not reach the sandbox to resume the run'
@@ -55,12 +56,24 @@ export function useRunAttention(args: {
     [events, live, working, channelReady],
   )
 
+  const attentionKey =
+    attention === null
+      ? null
+      : attentionKeyOf({ failureSeq: attention.failureSeq, runId: attention.runId })
+  const { pending, begin, clear } = usePendingRemedy({ key: attentionKey, working })
+
   const handleRetry = useCallback(() => {
-    if (!retry()) toast.error(RETRY_LOST)
-  }, [retry])
+    if (!begin(ERunRemedy.Retry)) return
+    if (retry()) return
+    clear()
+    toast.error(RETRY_LOST)
+  }, [begin, clear, retry])
   const handleResume = useCallback(() => {
-    if (!retry({ resume: true })) toast.error(RESUME_LOST)
-  }, [retry])
+    if (!begin(ERunRemedy.Resume)) return
+    if (retry({ resume: true })) return
+    clear()
+    toast.error(RESUME_LOST)
+  }, [begin, clear, retry])
   const handleFixCredential = useCallback(() => router.push(PROVIDERS_HREF), [router])
 
   return useMemo(() => {
@@ -72,7 +85,7 @@ export function useRunAttention(args: {
       providerLabel: providerLabelOf(failure?.providerId),
       accountLabel: accountId === undefined ? undefined : accountLabelOf(accountId),
     })
-    const agentId = failure?.agent?.agentId ?? failedAgentsOf(events).at(-1)?.agentId
+    const agentId = failure?.agent?.agentId
     const handleDismiss = () => {
       if (failureSeq === null) return
       if (!dismissFailure({ failureSeq })) toast.error(DISMISS_UNSUPPORTED)
@@ -83,6 +96,7 @@ export function useRunAttention(args: {
         actions: runAttentionActionsOf({
           attention,
           agentId,
+          pending,
           handlers: {
             retry: handleRetry,
             resume: handleResume,
@@ -101,6 +115,7 @@ export function useRunAttention(args: {
     attention,
     events,
     accountLabelOf,
+    pending,
     dismissFailure,
     handleRetry,
     handleResume,

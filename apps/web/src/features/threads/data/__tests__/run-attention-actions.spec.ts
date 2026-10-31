@@ -69,4 +69,45 @@ describe('runAttentionActionsOf', () => {
     withAgent[0]?.onSelect()
     expect(calls).toEqual(['agent:agt_1'])
   })
+
+  it('offers View agent alone for a failed sub-agent attention and opens that id', () => {
+    const actions = actionsOf([[ERunRemedy.OpenAgent, true]], 'agt_9')
+    expect(actions.map((a) => [a.label, a.primary, a.disabled])).toEqual([
+      ['View agent', true, false],
+    ])
+    calls.length = 0
+    actions[0]?.onSelect()
+    expect(calls).toEqual(['agent:agt_9'])
+  })
+
+  it('renders a pending retry as disabled with the pending label and a no-op click', () => {
+    const actions = runAttentionActionsOf({
+      attention: attentionOf([[ERunRemedy.Retry, true]]),
+      agentId: undefined,
+      pending: ERunRemedy.Retry,
+      handlers,
+    })
+    calls.length = 0
+    actions[0]?.onSelect()
+    expect(actions.map((a) => [a.pending, a.pendingLabel, a.disabled])).toEqual([
+      [true, 'Retrying…', true],
+    ])
+    expect(calls).toEqual([])
+  })
+
+  it('renders a pending resume with its own label and leaves other actions alone', () => {
+    const actions = runAttentionActionsOf({
+      attention: attentionOf([
+        [ERunRemedy.Resume, true],
+        [ERunRemedy.SwitchModel, true],
+      ]),
+      agentId: undefined,
+      pending: ERunRemedy.Resume,
+      handlers,
+    })
+    expect(actions.map((a) => [a.pendingLabel, a.disabled])).toEqual([
+      ['Resuming…', true],
+      [undefined, false],
+    ])
+  })
 })

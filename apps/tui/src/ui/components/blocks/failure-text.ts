@@ -3,7 +3,7 @@ import {
   type RunAttention,
   type RunAttentionRemedy,
 } from '@dltech/atlas-client/transcript'
-import { ERunRemedy, providerLabelOf } from '@dltech/atlas-core'
+import { ERunFailureKind, ERunRemedy, providerLabelOf } from '@dltech/atlas-core'
 
 import type { StepFailure } from '../../../store'
 
@@ -44,6 +44,19 @@ export const failureView = (args: {
   return {
     ...(legacy ? {} : { title: copy.title }),
     message: legacy ? (failure.message ?? attention.message) : copy.detail,
+    remedies: attention.remedies,
+    busyReason: attention.busyReason,
+  }
+}
+
+export const isAgentFailed = (attention: RunAttention | null): attention is RunAttention =>
+  attention?.failure?.kind === ERunFailureKind.AgentFailed
+
+export const agentFailureView = (attention: RunAttention): FailureView => {
+  const copy = runAttentionCopy({ attention })
+  return {
+    title: copy.title,
+    message: copy.detail,
     remedies: attention.remedies,
     busyReason: attention.busyReason,
   }

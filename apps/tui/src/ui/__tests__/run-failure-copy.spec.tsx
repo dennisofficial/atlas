@@ -11,7 +11,12 @@ import {
 } from '@dltech/atlas-core'
 
 import type { TranscriptModel } from '../../store'
-import { COMPACT_HINT, SETTINGS_HINT, SWITCH_MODEL_HINT } from '../components/blocks/error-block'
+import {
+  COMPACT_HINT,
+  OPEN_AGENT_HINT,
+  SETTINGS_HINT,
+  SWITCH_MODEL_HINT,
+} from '../components/blocks/error-block'
 import { Transcript } from '../components/transcript'
 import { grammarsReady, teardown } from '../markdown/__tests__/harness'
 import { CWD, FAILED_WITH_A_REASON, FINISHED, HEIGHT, NOW } from './transcript-fixture'
@@ -31,6 +36,7 @@ const frameOf = async (args: {
   attention?: RunAttention
   onRetry?: () => void
   onResume?: () => void
+  onDismissFailure?: () => void
 }): Promise<string> => {
   const setup = await testRender(
     <box flexDirection="column" width={WIDTH} height={HEIGHT}>
@@ -44,6 +50,9 @@ const frameOf = async (args: {
         {...(args.attention === undefined ? {} : { attention: args.attention })}
         {...(args.onRetry === undefined ? {} : { onRetry: args.onRetry })}
         {...(args.onResume === undefined ? {} : { onResume: args.onResume })}
+        {...(args.onDismissFailure === undefined
+          ? {}
+          : { onDismissFailure: args.onDismissFailure })}
       />
     </box>,
     { width: WIDTH, height: HEIGHT },
@@ -171,5 +180,47 @@ describe('the failed block from the shared attention', () => {
       await frameOf({ model: idle, attention: resumeOnly, onResume: () => undefined }),
     ).toContain('ctrl+r resume')
     expect(await frameOf({ model: idle, onResume: () => undefined })).not.toContain('ctrl+r resume')
+  })
+})
+
+describe('the failed block for attentions without a run failure', () => {
+  const idle = { ...FAILED_WITH_A_REASON, failure: null }
+
+  it('names the failed sub-agent intent, the open hint and a close', async () => {
+    const failure: RunFailure = {
+      kind: ERunFailureKind.AgentFailed,
+      message: 'boom',
+      agent: { agentId: 'agt_1', agentType: 'explore', intent: 'map the repo' },
+    }
+    const frame = await frameOf({
+      model: idle,
+      attention: attentionOf({ failure, enabled: true }),
+      onDismissFailure: () => undefined,
+    })
+    expect(frame).toContain('explore failed')
+    expect(frame).toContain('map the repo')
+    expect(frame).toContain(OPEN_AGENT_HINT)
+    expect(frame).not.toContain('ctrl+r retry')
+    expect(frame).toContain('[close]')
+  })
+
+  it('draws a close beside resume when the resume attention is dismissible', async () => {
+    const resumeOnly: RunAttention = {
+      failure: null,
+      message: 'stopped',
+      failureSeq: 4,
+      runId: null,
+      remedies: [{ remedy: ERunRemedy.Resume, enabled: true }],
+      dismissible: true,
+      busyReason: null,
+    }
+    const frame = await frameOf({
+      model: idle,
+      attention: resumeOnly,
+      onResume: () => undefined,
+      onDismissFailure: () => undefined,
+    })
+    expect(frame).toContain('ctrl+r resume')
+    expect(frame).toContain('[close]')
   })
 })

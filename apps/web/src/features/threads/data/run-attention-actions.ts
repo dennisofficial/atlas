@@ -2,6 +2,8 @@ import type { RunAttention } from '@dltech/atlas-client/transcript'
 import { ERunRemedy } from '@dltech/atlas-core'
 import type { RunAttentionAction } from '@dltech/atlas-ui/ai/run-attention-strip'
 
+import { isPendingRemedy, PENDING_LABELS, type PendingRemedy } from './run-attention-pending'
+
 export type RunRemedyHandlers = {
   retry: () => void
   resume: () => void
@@ -23,9 +25,10 @@ const LABELS: Record<ERunRemedy, string> = {
 export function runAttentionActionsOf(args: {
   attention: RunAttention
   agentId: string | undefined
+  pending?: PendingRemedy | null
   handlers: RunRemedyHandlers
 }): RunAttentionAction[] {
-  const { attention, agentId, handlers } = args
+  const { attention, agentId, handlers, pending = null } = args
   const selectors: Record<ERunRemedy, (() => void) | null> = {
     [ERunRemedy.Retry]: handlers.retry,
     [ERunRemedy.Resume]: handlers.resume,
@@ -38,7 +41,19 @@ export function runAttentionActionsOf(args: {
     .flatMap((entry) => {
       const onSelect = selectors[entry.remedy]
       if (onSelect === null) return []
-      return [{ id: entry.remedy, label: LABELS[entry.remedy], disabled: !entry.enabled, onSelect }]
+      const base = { id: entry.remedy, label: LABELS[entry.remedy], disabled: !entry.enabled }
+      if (isPendingRemedy(entry.remedy) && entry.remedy === pending) {
+        return [
+          {
+            ...base,
+            disabled: true,
+            pending: true,
+            pendingLabel: PENDING_LABELS[entry.remedy],
+            onSelect: () => undefined,
+          },
+        ]
+      }
+      return [{ ...base, onSelect }]
     })
     .map((action, index) => ({ ...action, primary: index === 0 }))
 }

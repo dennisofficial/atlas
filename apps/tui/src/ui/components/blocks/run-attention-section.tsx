@@ -4,7 +4,7 @@ import React from 'react'
 import type { TranscriptModel } from '../../../store'
 import type { TurnClock } from '../../turn-clock'
 import { ErrorBlock } from './error-block'
-import { failureView, isResumeOnly } from './failure-text'
+import { agentFailureView, failureView, isAgentFailed, isResumeOnly } from './failure-text'
 import { ResumeBlock } from './resume-block'
 
 export function RunAttentionSection(props: {
@@ -35,6 +35,16 @@ export function RunAttentionSection(props: {
       />
     )
   }
-  if (model.streaming || onResume === undefined || !isResumeOnly(props.attention)) return null
-  return <ResumeBlock onResume={onResume} />
+  if (model.streaming) return null
+  if (props.attention !== null && isAgentFailed(props.attention)) {
+    return (
+      <ErrorBlock
+        {...agentFailureView(props.attention)}
+        width={props.width}
+        {...(onDismiss === undefined ? {} : { onDismiss })}
+      />
+    )
+  }
+  if (onResume === undefined || !isResumeOnly(props.attention)) return null
+  return <ResumeBlock onResume={onResume} {...(onDismiss === undefined ? {} : { onDismiss })} />
 }

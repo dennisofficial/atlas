@@ -16,7 +16,7 @@ const HEADING = 'failed'
 export const SETTINGS_HINT = 'fix the key: ctrl+a or /auth'
 export const SWITCH_MODEL_HINT = 'switch model: ctrl+p or /model'
 export const COMPACT_HINT = 'compact the conversation: /compact'
-export const OPEN_AGENT_HINT = 'open the failed agent: ctrl+g'
+export const OPEN_AGENT_HINT = 'walk to the failed sub-agent: ctrl+g'
 
 const STATIC_HINTS: Partial<Record<ERunRemedy, string>> = {
   [ERunRemedy.FixCredential]: SETTINGS_HINT,
