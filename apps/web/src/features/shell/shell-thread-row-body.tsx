@@ -51,7 +51,7 @@ export function ThreadRowBody({ thread, projectName, active, trailing }: ThreadR
         <NamingTitle
           title={naming.title}
           naming={naming.naming}
-          className={cn(isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}
+          className={cn('flex-1', isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}
         />
         {thread.runner === 'local' ? <LocalPodIcon /> : null}
       </SidebarMenuButton>

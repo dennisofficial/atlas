@@ -118,3 +118,24 @@ describe('the fake thread store records what a thread was created as', () => {
     expect(forked.forkMode).toBe(EForkMode.Reference)
   })
 })
+
+describe('the fake thread store archives like the real one', () => {
+  it('stamps archivedAt, keeps the first stamp, and clears it on unarchive', async () => {
+    const threads = fakeThreadStore({ existing: [threadId] })
+
+    expect(await threads.setArchived({ threadId, archived: true })).toBe(true)
+    const stamp = threads.peekRow({ threadId })?.archivedAt
+    expect(stamp).toBeString()
+    await threads.setArchived({ threadId, archived: true })
+    expect(threads.peekRow({ threadId })?.archivedAt).toBe(stamp)
+
+    expect(await threads.setArchived({ threadId, archived: false })).toBe(true)
+    expect(threads.peekRow({ threadId })?.archivedAt).toBeNull()
+  })
+
+  it('reports false for a thread it does not hold', async () => {
+    const threads = fakeThreadStore({})
+
+    expect(await threads.setArchived({ threadId, archived: true })).toBe(false)
+  })
+})

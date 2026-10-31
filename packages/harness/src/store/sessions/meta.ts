@@ -82,6 +82,7 @@ export const threadMetaSchema = z.object({
   modelRef: z.string().nullable(),
   modelEffort: z.string().nullable(),
   executionLocation: z.string().nullable(),
+  archivedAt: z.iso.datetime().nullish(),
   runner: z.string().nullish(),
   projectId: z.string().nullish(),
   placement: z
@@ -238,6 +239,9 @@ export async function writeMeta({ file, meta }: { file: string; meta: unknown })
     eventsFile: file,
     run: async () => {
       const current = await readMeta({ file, schema: threadMetaSchema })
+      if (current !== undefined && typeof meta === 'object' && meta !== null) {
+        meta = { ...meta, archivedAt: current.archivedAt }
+      }
       if (
         current === undefined ||
         (current.titleSource === undefined && (current.titleRevision ?? 0) === 0) ||

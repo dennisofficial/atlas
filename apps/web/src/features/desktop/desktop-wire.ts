@@ -13,6 +13,7 @@ export const localPodSchema = z.object({
   model: z.string().optional(),
   effort: z.string().optional(),
   title: z.string().optional(),
+  archivedAt: z.iso.datetime().nullish(),
   createdAt: z.iso.datetime(),
   state: z.enum(ELocalPodState),
 })
@@ -114,6 +115,18 @@ export async function getLocalPod(threadId: string): Promise<LocalPod | null> {
     if (failure instanceof DesktopError && failure.status === NOT_FOUND) return null
     throw failure
   }
+}
+
+export async function setLocalThreadArchived(args: {
+  threadId: string
+  archived: boolean
+}): Promise<void> {
+  const response = await fetch(`/desktop/threads/${encodeURIComponent(args.threadId)}/archive`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ archived: args.archived }),
+  })
+  if (!response.ok) throw await errorOf(response)
 }
 
 export const createLocalPod = (input: CreatePodInput) =>
