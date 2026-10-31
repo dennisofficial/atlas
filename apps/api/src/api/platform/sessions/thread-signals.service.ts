@@ -9,12 +9,14 @@ import {
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { ProcessBackgroundWork } from '../../../_lib/background-work/background-work.providers'
-import { trackThreadChange } from './thread-changes-pending'
-import { bumpAndEnrichThread } from './thread-changed'
 import { DrainStateService } from '../health/drain-state.service'
+import { ThreadChangeRunner } from './thread-change-runner'
+import { ThreadSubscription } from './thread-subscription'
 import {
   InProcessThreadSignalBus,
   isListSignal,
+  isProjectChangedSignal,
+  isProjectRemovedSignal,
   isThreadChangedSignal,
   parseThreadSignal,
   ThreadSignalBus,
@@ -22,6 +24,9 @@ import {
   type ThreadChangedSignal,
   type ThreadSignal,
 } from './thread-signal.bus'
+import { ThreadLiveWatches, type LiveSignal } from './thread-live-watch'
+
+export type { LiveSignal }
 
 export type ThreadSignalPublisher = Pick<
   ThreadSignalsService,
@@ -62,8 +67,9 @@ export class ThreadSignalsService implements OnModuleDestroy {
   private readonly streams = new Map<string, Set<OpenStream>>()
   private readonly listStreams = new Map<string, Set<OpenListStream>>()
   private readonly changeWatches = new Map<string, Set<OpenChangeWatch>>()
-  private readonly changing = new Map<string, { dirty: boolean; done: Promise<void> }>()
-  private subscribed = false
+  private readonly liveWatches = new ThreadLiveWatches()
+  private readonly changeRunner = new ThreadChangeRunner()
+  private readonly subscription: ThreadSubscription
 
   constructor(
     drain: DrainStateService,
@@ -71,6 +77,11 @@ export class ThreadSignalsService implements OnModuleDestroy {
     @Inject(BackgroundWork)
     private readonly background: BackgroundWork = new ProcessBackgroundWork(),
   ) {
+    this.subscription = new ThreadSubscription({
+      bus,
+      onMessage: (raw) => this.handleMessage({ raw }),
+      onFailure: () => this.closeAll(),
+    })
     drain.onDrain(() => this.closeAll())
   }
 
@@ -94,7 +105,7 @@ export class ThreadSignalsService implements OnModuleDestroy {
       this.streams.set(args.threadId, entries)
     }
     entries.add(entry)
-    this.ensureSubscribed()
+    this.subscription.ensureSubscribed()
     return () => {
       entries.delete(entry)
       if (entries.size === 0) this.streams.delete(args.threadId)
@@ -116,7 +127,7 @@ export class ThreadSignalsService implements OnModuleDestroy {
       this.listStreams.set(args.userId, entries)
     }
     entries.add(entry)
-    this.ensureSubscribed()
+    this.subscription.ensureSubscribed()
     return () => {
       entries.delete(entry)
       if (entries.size === 0) this.listStreams.delete(args.userId)
@@ -134,48 +145,34 @@ export class ThreadSignalsService implements OnModuleDestroy {
       this.changeWatches.set(args.userId, entries)
     }
     entries.add(entry)
-    this.ensureSubscribed()
+    this.subscription.ensureSubscribed()
     return () => {
       entries.delete(entry)
       if (entries.size === 0) this.changeWatches.delete(args.userId)
     }
   }
 
+  watchLive(args: {
+    userId: string
+    onSignal: (signal: LiveSignal) => void
+    onClosed?: () => void
+  }): () => void {
+    return this.liveWatches.watchLive({
+      ...args,
+      ensureSubscribed: () => this.subscription.ensureSubscribed(),
+    })
+  }
+
   threadChanged(args: { threadId: string }): void {
-    const running = this.changing.get(args.threadId)
-    if (running !== undefined) {
-      running.dirty = true
-      return
-    }
-    const entry = { dirty: false, done: Promise.resolve() }
-    this.changing.set(args.threadId, entry)
-    entry.done = this.runChanges({ threadId: args.threadId, entry })
-    trackThreadChange(entry.done)
-    this.background.keepAlive(entry.done)
+    this.changeRunner.threadChanged({
+      threadId: args.threadId,
+      background: this.background,
+      publish: (signal) => this.publish(signal),
+    })
   }
 
-  async changesSettled(): Promise<void> {
-    while (this.changing.size > 0) {
-      await Promise.all([...this.changing.values()].map((entry) => entry.done))
-    }
-  }
-
-  private async runChanges(args: { threadId: string; entry: { dirty: boolean } }): Promise<void> {
-    try {
-      do {
-        args.entry.dirty = false
-        try {
-          const changed = await bumpAndEnrichThread({
-            threadId: args.threadId,
-          })
-          if (changed !== null) await this.publish(changed)
-        } catch (failure) {
-          this.logger.warn(`publishing the change of ${args.threadId} failed: ${String(failure)}`)
-        }
-      } while (args.entry.dirty)
-    } finally {
-      this.changing.delete(args.threadId)
-    }
+  changesSettled(): Promise<void> {
+    return this.changeRunner.changesSettled()
   }
 
   async publish(args: ThreadSignal): Promise<void> {
@@ -237,11 +234,13 @@ export class ThreadSignalsService implements OnModuleDestroy {
     const entries = [
       ...[...this.streams.values()].flatMap((open) => [...open]),
       ...[...this.listStreams.values()].flatMap((open) => [...open]),
+      ...this.liveWatches.closedEntries(),
     ]
     this.streams.clear()
     this.listStreams.clear()
     this.changeWatches.clear()
-    this.subscribed = false
+    this.liveWatches.clear()
+    this.subscription.reset()
     void this.bus.close().catch((failure: unknown) => {
       this.logger.warn(`closing the thread signal subscriber failed: ${String(failure)}`)
     })
@@ -254,10 +253,8 @@ export class ThreadSignalsService implements OnModuleDestroy {
     }
   }
 
-  private ensureSubscribed(): void {
-    if (this.subscribed) return
-    this.subscribed = true
-    this.bus.subscribe({ onMessage: (raw) => this.handleMessage({ raw }) })
+  awaitSubscription(): Promise<void> {
+    return this.subscription.awaitSubscription()
   }
 
   private handleMessage(args: { raw: string }): void {
@@ -274,6 +271,11 @@ export class ThreadSignalsService implements OnModuleDestroy {
           this.logger.warn(`a change watcher failed: ${String(failure)}`)
         }
       }
+      this.liveWatches.fanOut({ signal })
+      return
+    }
+    if (isProjectChangedSignal(signal) || isProjectRemovedSignal(signal)) {
+      this.liveWatches.fanOut({ signal })
       return
     }
     if (isListSignal(signal)) {

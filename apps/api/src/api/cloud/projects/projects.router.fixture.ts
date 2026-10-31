@@ -1,6 +1,8 @@
 import type { INestApplication, Provider } from '@nestjs/common'
 import { GithubRepoReads } from '../github/github-repo-reads'
 import { GithubService } from '../github/github.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import {
   buildSessionTrpcApp,
   dataOf,
@@ -24,6 +26,7 @@ export const PROJECT_BODY = {
 
 export const projectProviders = (githubTokens: Record<string, string> = {}): Provider[] => [
   ProjectsService,
+  { provide: ThreadSignalsService, useValue: inertSignals() },
   ProjectResourcesService,
   ProjectFileMountsService,
   GithubRepoReads,
