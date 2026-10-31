@@ -23,11 +23,10 @@ describe('the shared home', () => {
     const { threads } = sharedStore()
     const fromTui = await threads.create({ workspace: '/Users/dennis/atlas', repo: null })
     await threads.chooseRunner({ threadId: fromTui.id, runner: ERunner.Local })
-    await threads.chooseProject({ threadId: fromTui.id, projectId: 'p2' })
     const listed = (await (await call({ path: '/desktop/threads' })).json()) as {
-      threads: { threadId: string; projectId: string }[]
+      threads: { threadId: string; projectId: string | null }[]
     }
-    expect(listed.threads.map((thread) => thread.threadId)).toContain(fromTui.id)
+    expect(listed.threads.find((thread) => thread.threadId === fromTui.id)?.projectId).toBeNull()
   })
 })
 
@@ -83,22 +82,6 @@ describe('thread history and read state', () => {
       body: { seq: 1 },
     })
     expect(await back.json()).toEqual({ seq: 3 })
-  })
-
-  test('rename lands in the shared record', async () => {
-    await create()
-    const renamed = await call({
-      path: `/desktop/threads/${THREAD}/rename`,
-      method: 'POST',
-      body: { title: 'From the Mac' },
-    })
-    expect(renamed.status).toBe(204)
-    const record = await sharedStore().threads.find({ threadId: toThreadId(THREAD) })
-    expect(record?.title).toBe('From the Mac')
-    expect(
-      (await call({ path: '/desktop/threads/nope/rename', method: 'POST', body: { title: 'x' } }))
-        .status,
-    ).toBe(404)
   })
 })
 

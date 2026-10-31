@@ -93,12 +93,12 @@ export const localThreadOf = ({
   record,
   readSeq,
 }: {
-  record: PodRecord
+  record: ThreadSummary
   readSeq: number | undefined
 }): LocalThread => ({
   threadId: record.id,
   ...(record.title === undefined ? {} : { title: record.title }),
-  projectId: record.projectId,
+  projectId: record.projectId ?? null,
   head: record.head,
   readSeq: readSeq ?? null,
   ...(record.model === undefined ? {} : { model: record.model.ref, effort: record.model.effort }),

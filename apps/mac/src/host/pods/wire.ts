@@ -72,5 +72,3 @@ export type ThreadEventsReply = z.infer<typeof threadEventsReplySchema>
 export const markReadInputSchema = z.object({ seq: z.number().int().nonnegative() })
 
 export const readCursorReplySchema = z.object({ seq: z.number().int().nonnegative().nullable() })
-
-export const renameInputSchema = z.object({ title: z.string().trim().min(1).max(200) })
