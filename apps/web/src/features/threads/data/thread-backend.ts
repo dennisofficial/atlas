@@ -2,7 +2,6 @@ import type { PodStatus, WireEvent } from '@dltech/atlas-wire/web'
 
 import { fetchSpawned } from './agents-api'
 import type { EventsFetcher } from './events-reader'
-import { fetchStoredThread, fetchTranscriptEvents } from './transcript-history'
 import { connectPod, type PodConnectResult } from './pod-connect'
 import type { LiveSend } from './live-thread-view'
 import type { SubscribeThreadStream } from './thread-signals'
@@ -29,7 +28,6 @@ export type ThreadBackend = {
   fetchPod: (threadId: string) => Promise<PodStatus>
   fetchEvents: EventsFetcher
   fetchSeed: (threadId: string) => Promise<WireEvent[]>
-  readStoredThread: (threadId: string) => Promise<CloudThread>
   fetchSpawned: (threadId: string) => Promise<SpawnedThreads>
   mint: (threadId: string) => Promise<PodConnectResult>
   postMessage: typeof postMessage
@@ -48,8 +46,7 @@ export const cloudThreadBackend: ThreadBackend = {
   fetchThread,
   fetchPod,
   fetchEvents,
-  fetchSeed: fetchTranscriptEvents,
-  readStoredThread: fetchStoredThread,
+  fetchSeed: (threadId) => fetchEvents({ threadId }),
   fetchSpawned,
   mint: connectPod,
   postMessage,

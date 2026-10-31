@@ -53,6 +53,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   globalThis.fetch = realFetch
+  Reflect.deleteProperty(window, 'atlasDesktop')
   document.body.innerHTML = ''
 })
 
@@ -83,43 +84,28 @@ describe('useDesktop', () => {
     expect(calls).toEqual([])
   })
 
-  it('is absent when capabilities 404s (Vercel)', async () => {
+  it('is absent when capabilities 404s', async () => {
+    Reflect.set(window, 'atlasDesktop', { vibrancy: false })
     const read = await probe()
     expect(read()).toMatchObject({ ready: true, present: false })
   })
 
   it('is absent on invalid JSON', async () => {
+    Reflect.set(window, 'atlasDesktop', { vibrancy: false })
     routes['GET /desktop/capabilities'] = () => new Response('<html>', { status: 200 })
     const read = await probe()
     expect(read()?.present).toBe(false)
   })
 
-  it('is present with docker flag and reason once the Mac bridge is up', async () => {
+  it.each([
+    { docker: false, reason: 'Docker is not running' },
+    { docker: true, reason: undefined },
+  ])('probes the Mac host once and exposes $docker / $reason', async (capabilities) => {
     Reflect.set(window, 'atlasDesktop', { vibrancy: false })
-    try {
-      routes['GET /desktop/capabilities'] = () =>
-        Response.json({ docker: false, reason: 'Docker is not running' })
-      const read = await probe()
-      expect(read()).toMatchObject({
-        present: true,
-        docker: false,
-        reason: 'Docker is not running',
-      })
-    } finally {
-      Reflect.deleteProperty(window, 'atlasDesktop')
-    }
-  })
-
-  it('probes the host once the Mac bridge is present', async () => {
-    Reflect.set(window, 'atlasDesktop', { vibrancy: false })
-    try {
-      routes['GET /desktop/capabilities'] = () => Response.json({ docker: true, reason: undefined })
-      const read = await probe()
-      expect(read()).toMatchObject({ present: true, docker: true })
-      expect(calls.map((call) => call.path)).toEqual(['/desktop/capabilities'])
-    } finally {
-      Reflect.deleteProperty(window, 'atlasDesktop')
-    }
+    routes['GET /desktop/capabilities'] = () => Response.json(capabilities)
+    const read = await probe()
+    expect(read()).toMatchObject({ present: true, ...capabilities })
+    expect(calls.map((call) => call.path)).toEqual(['/desktop/capabilities'])
   })
 })
 

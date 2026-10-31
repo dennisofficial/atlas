@@ -20,6 +20,7 @@ import {
   type ThreadModelChoice,
 } from './live-thread-view'
 import { useThreadBackend } from './use-thread-backend'
+import type { TranscriptHistory } from './transcript-history'
 
 const CHAT_THROTTLE_MS = 16
 const NOT_LIVE: LiveSend = () => false
@@ -37,11 +38,13 @@ export const INTERRUPT_LOST =
 
 export function useLiveThread(args: {
   threadId: string
+  history: TranscriptHistory
   active: boolean
   onModelChanged?: ((model: ThreadModelChoice) => void) | undefined
 }): LiveThreadView {
-  const { threadId, active } = args
+  const { threadId, active, history } = args
   const backend = useThreadBackend()
+  useEffect(() => history.retain(), [history])
   const [state, setState] = useState<LiveThreadState>(IDLE_LIVE_THREAD)
   const [idleChat] = useState(() => new Chat<AtlasStepMessage>({}))
   const [session, setSession] = useState<LiveChatSession | null>(null)
@@ -60,17 +63,24 @@ export function useLiveThread(args: {
 
   useEffect(() => {
     if (!active) return undefined
+    let publishedEvents = IDLE_LIVE_THREAD.events
     const next = createLiveChatSession({
       threadId,
       mint: () => backend.mint(threadId),
-      readSeed: () => backend.fetchSeed(threadId),
-      catchUpOnConnect: backend.local,
+      readSeed: history.readSeed,
+      catchUpOnConnect: true,
       ...(backend.local
         ? {}
         : {
-            readStoredModel: async () => (await backend.readStoredThread(threadId)).model,
+            readStoredModel: async () => (await backend.fetchThread(threadId)).model,
           }),
-      onChange: setState,
+      onChange: (next) => {
+        if (next.events !== publishedEvents) {
+          publishedEvents = next.events
+          if (next.channel !== null) history.replace(next.events)
+        }
+        setState({ ...next, events: history.snapshot() ?? next.events })
+      },
       onModelChanged: (model) => modelChangedRef.current?.(model),
       onInterruptLost: () => toast.error(INTERRUPT_LOST),
     })
@@ -97,7 +107,7 @@ export function useLiveThread(args: {
       setSession(null)
       setState(IDLE_LIVE_THREAD)
     }
-  }, [threadId, active, backend])
+  }, [threadId, active, backend, history])
 
   const chat = session?.chat ?? idleChat
   const { messages } = useChat({ chat, throttle: CHAT_THROTTLE_MS })

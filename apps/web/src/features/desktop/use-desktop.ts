@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 
 import { isDesktopHost } from './desktop-attributes'
 import { desktopCapabilities, type DesktopCapabilities } from './desktop-wire'
@@ -25,15 +25,16 @@ const ABSENT: Desktop = {
   reason: undefined,
 }
 
+const subscribeToHost = () => () => undefined
+const readHost = () => isDesktopHost(window)
+const readServerHost = () => null
+
 export function useDesktop(): Desktop {
-  const [found, setFound] = useState<DesktopCapabilities | null | undefined>(() => {
-    if (typeof window === 'undefined') return undefined
-    if (!isDesktopHost(window)) return null
-    return undefined
-  })
+  const host = useSyncExternalStore(subscribeToHost, readHost, readServerHost)
+  const [found, setFound] = useState<DesktopCapabilities | null | undefined>(undefined)
 
   useEffect(() => {
-    if (found !== undefined) return undefined
+    if (host !== true || found !== undefined) return undefined
     let current = true
     void desktopCapabilities().then((next) => {
       if (current) setFound(next)
@@ -41,8 +42,10 @@ export function useDesktop(): Desktop {
     return () => {
       current = false
     }
-  }, [found])
+  }, [host, found])
 
+  if (host === null) return PENDING
+  if (!host) return ABSENT
   if (found === undefined) return PENDING
   if (found === null) return ABSENT
   return {

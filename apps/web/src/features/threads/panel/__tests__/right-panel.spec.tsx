@@ -14,6 +14,8 @@ import { EMPTY_DETAILS } from '../details/details-input'
 const panel = (pod: PodStatus | null): ThreadPanelValue => ({
   threadId: 'thr_1',
   channel: null,
+  loaded: false,
+  error: null,
   pod,
   working: false,
   changesPath: undefined,

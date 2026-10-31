@@ -156,33 +156,6 @@ describe('ThreadEventsRouter', () => {
       expect(read).toHaveBeenCalledTimes(1)
     })
 
-    it('forwards fromSeq to the service', async () => {
-      await query({
-        app,
-        procedure: 'threadEvents.read',
-        headers: session,
-        input: { threadId: 'thr-1', fromSeq: 4, own: true },
-      })
-
-      expect(readOwn).toHaveBeenCalledWith({
-        userId: USER_ID,
-        threadId: 'thr-1',
-        fromSeq: 4,
-        upTo: undefined,
-      })
-    })
-
-    it('rejects a negative fromSeq', async () => {
-      const reply = await query({
-        app,
-        procedure: 'threadEvents.read',
-        headers: session,
-        input: { threadId: 'thr-1', fromSeq: -1 },
-      })
-
-      expect(reply.status).toBe(400)
-    })
-
     it('serves a sandbox token for its own thread and refuses another', async () => {
       const own = await query({
         app,

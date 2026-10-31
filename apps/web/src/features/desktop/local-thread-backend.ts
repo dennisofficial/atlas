@@ -1,6 +1,5 @@
 import type { ThreadBackend } from '@/features/threads/data/thread-backend'
 
-import { fetchThread } from '../threads/data/threads-api'
 import { deliverHeldFirstMessage } from './first-message'
 import { ELocalPodState, getLocalPod, wakeLocalPod, type LocalPod } from './desktop-wire'
 import { localThreadOf, podStatusOf } from './local-thread'
@@ -29,7 +28,6 @@ export const localThreadBackend: ThreadBackend = {
   },
   fetchEvents: async () => [],
   fetchSeed: async () => [],
-  readStoredThread: fetchThread,
   fetchSpawned: async () => [],
   mint: mintLocalPod,
   postMessage: async () => {
