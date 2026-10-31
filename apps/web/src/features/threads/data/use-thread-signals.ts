@@ -18,6 +18,7 @@ export function useThreadSignals(threadId: string): ThreadSignalHub {
       subscribe: subscribeStream,
       onHead: hub.emitHead,
       onPod: hub.emitPod,
+      onMeta: hub.emitMeta,
       onTitle: hub.emitTitle,
       onStarted: hub.emitStarted,
     })

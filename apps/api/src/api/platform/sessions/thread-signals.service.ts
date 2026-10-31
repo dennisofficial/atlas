@@ -1,7 +1,7 @@
 import { db } from '@dltech/atlas-db'
 import {
-  EThreadListFrame,
   EThreadStreamFrame,
+  wireThreadSchema,
   type ThreadListActivity,
   type ThreadListFrame,
   type ThreadStreamFrame,
@@ -11,7 +11,14 @@ import { BackgroundWork } from '../../../_core/ports/background-work'
 import { ProcessBackgroundWork } from '../../../_lib/background-work/background-work.providers'
 import { DrainStateService } from '../health/drain-state.service'
 import { ThreadChangeRunner } from './thread-change-runner'
+import { PodChangePublisher } from './pod-change-publisher'
 import { ThreadSubscription } from './thread-subscription'
+import {
+  listFrameOf,
+  type OpenStream,
+  type OpenListStream,
+  type OpenChangeWatch,
+} from './thread-signal-entries'
 import {
   InProcessThreadSignalBus,
   isListSignal,
@@ -20,7 +27,6 @@ import {
   isThreadChangedSignal,
   parseThreadSignal,
   ThreadSignalBus,
-  type ListSignal,
   type ThreadChangedSignal,
   type ThreadSignal,
 } from './thread-signal.bus'
@@ -38,29 +44,6 @@ export type ThreadSignalPublisher = Pick<
   | 'threadChanged'
 >
 
-type OpenStream = {
-  onFrame: (frame: ThreadStreamFrame) => void
-  onClosed: (() => void) | undefined
-}
-
-type OpenListStream = {
-  onFrame: (frame: ThreadListFrame) => void
-  onClosed: (() => void) | undefined
-}
-
-type OpenChangeWatch = {
-  onChanged: (signal: ThreadChangedSignal) => void
-}
-
-const listFrameOf = (signal: ListSignal): ThreadListFrame =>
-  signal.activity === undefined
-    ? { type: EThreadListFrame.Changed, threadId: signal.threadId }
-    : {
-        type: EThreadListFrame.Changed,
-        threadId: signal.threadId,
-        activity: signal.activity,
-      }
-
 @Injectable()
 export class ThreadSignalsService implements OnModuleDestroy {
   private readonly logger = new Logger(ThreadSignalsService.name)
@@ -69,6 +52,7 @@ export class ThreadSignalsService implements OnModuleDestroy {
   private readonly changeWatches = new Map<string, Set<OpenChangeWatch>>()
   private readonly liveWatches = new ThreadLiveWatches()
   private readonly changeRunner = new ThreadChangeRunner()
+  private readonly podPublisher = new PodChangePublisher()
   private readonly subscription: ThreadSubscription
 
   constructor(
@@ -210,12 +194,12 @@ export class ThreadSignalsService implements OnModuleDestroy {
     this.threadChanged({ threadId })
   }
 
-  async podChanged(args: { threadId: string }): Promise<void> {
-    await this.publish({
+  podChanged(args: { threadId: string }): Promise<void> {
+    return this.podPublisher.publish({
       threadId: args.threadId,
-      frame: { type: EThreadStreamFrame.Pod },
+      publish: (signal) => this.publish(signal),
+      listChanged: () => this.listChangedForOwner(args),
     })
-    await this.listChangedForOwner(args)
   }
 
   async listChangedForOwner(args: {
@@ -272,6 +256,14 @@ export class ThreadSignalsService implements OnModuleDestroy {
         }
       }
       this.liveWatches.fanOut({ signal })
+      this.fanOut({
+        threadId: signal.threadId,
+        frame: {
+          type: EThreadStreamFrame.Meta,
+          thread: wireThreadSchema.parse(signal.thread),
+          rev: signal.rev,
+        },
+      })
       return
     }
     if (isProjectChangedSignal(signal) || isProjectRemovedSignal(signal)) {
@@ -288,6 +280,10 @@ export class ThreadSignalsService implements OnModuleDestroy {
       }
       return
     }
+    this.fanOut(signal)
+  }
+
+  private fanOut(signal: { threadId: string; frame: ThreadStreamFrame }): void {
     for (const entry of this.streams.get(signal.threadId) ?? []) {
       try {
         entry.onFrame(signal.frame)

@@ -49,6 +49,7 @@ describe('the thread stream wire', () => {
       { type: EThreadStreamFrame.Events, fromSeq: 4, events: [] },
       { type: EThreadStreamFrame.Reset, head: 2 },
       { type: EThreadStreamFrame.Pod, status: { state: 'running', steps: [] } },
+      { type: EThreadStreamFrame.Pod, status: { state: 'running', steps: [] }, rev: 7 },
     ]
     for (const frame of frames) {
       const parsed = threadStreamFrameSchema.safeParse(frame)
@@ -62,6 +63,18 @@ describe('the thread stream wire', () => {
     expect(
       threadStreamFrameSchema.safeParse({ type: 'events', fromSeq: -1, events: [] }).success,
     ).toBe(false)
+  })
+
+  it('keeps Pod rev optional and rejects invalid revisions', () => {
+    for (const rev of [0, 7]) {
+      const frame = { type: EThreadStreamFrame.Pod, rev } as const
+      expect(threadStreamFrameSchema.parse(frame)).toEqual(frame)
+    }
+    for (const rev of [-1, 1.5, '1', null]) {
+      expect(threadStreamFrameSchema.safeParse({ type: EThreadStreamFrame.Pod, rev }).success).toBe(
+        false,
+      )
+    }
   })
 
   it('rejects a head frame without an integer head and an unknown kind', () => {

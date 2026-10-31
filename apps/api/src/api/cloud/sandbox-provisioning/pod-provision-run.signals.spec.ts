@@ -1,4 +1,4 @@
-import { EThreadStreamFrame } from '@dltech/atlas-wire'
+import { EPodState, EThreadStreamFrame } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
@@ -31,7 +31,12 @@ describe('runPodProvision signals', () => {
       deps: runDepsWith({ boot: fakeBoot().boot, signals }),
     })
 
-    expect(frames).toContainEqual({ type: EThreadStreamFrame.Pod })
+    expect(frames).toContainEqual(
+      expect.objectContaining({
+        type: EThreadStreamFrame.Pod,
+        status: expect.objectContaining({ state: EPodState.Running }),
+      }),
+    )
   })
 
   it('signals a pod change when provisioning fails', async () => {
@@ -43,7 +48,12 @@ describe('runPodProvision signals', () => {
 
     await runPodProvision({ payload: await payloadOf(), deps: runDepsWith({ boot, signals }) })
 
-    expect(frames).toContainEqual({ type: EThreadStreamFrame.Pod })
+    expect(frames).toContainEqual(
+      expect.objectContaining({
+        type: EThreadStreamFrame.Pod,
+        status: expect.objectContaining({ state: EPodState.Failed }),
+      }),
+    )
   })
 
   it('signals nothing when the claim was superseded', async () => {
@@ -72,6 +82,11 @@ describe('runPodProvision signals', () => {
 
     await failPodProvision({ payload: await payloadOf(), signals })
 
-    expect(frames).toEqual([{ type: EThreadStreamFrame.Pod }])
+    expect(frames).toEqual([
+      expect.objectContaining({
+        type: EThreadStreamFrame.Pod,
+        status: expect.objectContaining({ state: EPodState.Failed }),
+      }),
+    ])
   })
 })

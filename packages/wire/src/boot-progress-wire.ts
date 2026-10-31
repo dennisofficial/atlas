@@ -285,6 +285,7 @@ export type PodResizeReply = z.infer<typeof podResizeReplySchema>
 
 export const podStatusSchema = z.object({
   state: z.enum(EPodState),
+  rev: z.number().int().nonnegative().optional(),
   resources: podResourcesSchema.optional(),
   steps: z.array(recordedBootStepSchema),
   history: z.array(recordedBootStepSchema).optional(),

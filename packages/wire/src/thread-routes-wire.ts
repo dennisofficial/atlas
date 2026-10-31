@@ -215,7 +215,11 @@ export const threadStreamFrameSchema = z.discriminatedUnion('type', [
     type: z.literal(EThreadStreamFrame.Head),
     head: z.number().int(),
   }),
-  z.object({ type: z.literal(EThreadStreamFrame.Pod), status: podStatusSchema.optional() }),
+  z.object({
+    type: z.literal(EThreadStreamFrame.Pod),
+    status: podStatusSchema.optional(),
+    rev: seqSchema.optional(),
+  }),
   z.object({ type: z.literal(EThreadStreamFrame.Heartbeat) }),
   z.object({ type: z.literal(EThreadStreamFrame.Title) }),
   z.object({

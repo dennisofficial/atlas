@@ -66,7 +66,16 @@ describe('SandboxSelfRouter signals', () => {
     })
 
     expect(reply.status).toBe(200)
-    expect(frames).toEqual([{ type: EThreadStreamFrame.Pod }])
+    expect(frames).toContainEqual(
+      expect.objectContaining({
+        type: EThreadStreamFrame.Pod,
+        status: expect.objectContaining({
+          steps: [
+            expect.objectContaining({ step: EBootStep.Clone, state: EBootStepState.Running }),
+          ],
+        }),
+      }),
+    )
   })
 
   it('events signals the moved head', async () => {
