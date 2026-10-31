@@ -1,6 +1,15 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { db } from '@dltech/atlas-db'
 import { beforeEach, describe, expect, it } from 'bun:test'
+import {
+  EThreadStreamFrame,
+  EPodState,
+  wireThreadSchema,
+  type ThreadStreamFrame,
+} from '@dltech/atlas-wire'
+import { waitFor } from '../../../../test/fake-timers'
+import { readThreadMetadata } from './thread-stream-state'
+import { attachThreadStream } from './thread-stream'
 import { seedThreadRow, seedUsers, USER_A } from '../../../../test/session-seed'
 import { DrainStateService } from '../health/drain-state.service'
 import { InProcessThreadSignalBus, type ThreadChangedSignal } from './thread-signal.bus'
@@ -31,12 +40,69 @@ describe('threadChanged', () => {
 
   it('bumps rev and publishes the enriched thread to the owner', async () => {
     const { signals, seen } = watching()
+    const frames: ThreadStreamFrame[] = []
+    const foreign: ThreadStreamFrame[] = []
+    signals.openStream({ threadId: 'thr-1', onFrame: (frame) => frames.push(frame) })
+    signals.openStream({ threadId: 'thr-other', onFrame: (frame) => foreign.push(frame) })
     signals.threadChanged({ threadId: 'thr-1' })
     await signals.changesSettled()
+    expect(frames).toEqual([
+      { type: EThreadStreamFrame.Meta, rev: 1, thread: wireThreadSchema.parse(seen[0]?.thread) },
+    ])
+    expect(foreign).toEqual([])
     expect(seen).toHaveLength(1)
     expect(seen[0]?.rev).toBe(1)
     expect(seen[0]?.userId).toBe(USER_A)
     expect(seen[0]?.thread.title).toBe('first')
+  })
+
+  it('reads current enriched metadata without bumping the revision', async () => {
+    await db.orm.public.Thread.where({ id: 'thr-1' }).update({
+      rev: 9,
+      modelRef: 'model-1',
+      modelEffort: 'high',
+    })
+    const frame = await readThreadMetadata({ threadId: 'thr-1' })
+    expect(frame).toMatchObject({
+      type: EThreadStreamFrame.Meta,
+      rev: 9,
+      thread: {
+        id: 'thr-1',
+        title: 'first',
+        model: { ref: 'model-1', effort: 'high' },
+        status: { podState: EPodState.None },
+      },
+    })
+    expect((await db.orm.public.Thread.where({ id: 'thr-1' }).all().firstOrThrow()).rev).toBe(9)
+  })
+
+  it('reconnects with the current metadata and lifecycle instead of a remembered snapshot', async () => {
+    const { signals } = watching()
+    const connect = async () => {
+      const frames: ThreadStreamFrame[] = []
+      const detach = attachThreadStream({
+        signals,
+        threadId: 'thr-1',
+        readHead: async () => 0,
+        sink: { push: (frame) => frames.push(frame), close: () => {} },
+      })
+      await waitFor(() => expect(frames).toHaveLength(3))
+      detach()
+      return frames
+    }
+    expect(await connect()).toMatchObject([
+      { type: EThreadStreamFrame.Head, head: 0 },
+      { type: EThreadStreamFrame.Meta, rev: 0, thread: { title: 'first' } },
+      { type: EThreadStreamFrame.Pod, status: { state: EPodState.None } },
+    ])
+    await db.orm.public.Session.where({ mainThreadId: 'thr-1' }).update({ title: 'latest' })
+    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ rev: 5 })
+    expect((await connect())[1]).toMatchObject({
+      type: EThreadStreamFrame.Meta,
+      rev: 5,
+      thread: { title: 'latest' },
+    })
+    signals.closeAll()
   })
 
   it('keeps rev strictly monotonic under concurrent bumps', async () => {

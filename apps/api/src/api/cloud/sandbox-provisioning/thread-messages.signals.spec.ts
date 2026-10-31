@@ -7,7 +7,7 @@ import { messagesWith, seedThread, sessionRow } from './sandbox-provisioning.fix
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 const head = (value: number) => ({ type: EThreadStreamFrame.Head, head: value }) as const
-const pod = { type: EThreadStreamFrame.Pod } as const
+const pod = expect.objectContaining({ type: EThreadStreamFrame.Pod, status: expect.any(Object) })
 
 describe('ThreadMessagesService signals', () => {
   useTestDatabase()

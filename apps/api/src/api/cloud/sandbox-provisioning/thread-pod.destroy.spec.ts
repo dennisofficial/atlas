@@ -1,4 +1,4 @@
-import { EThreadStreamFrame } from '@dltech/atlas-wire'
+import { EPodState, EThreadStreamFrame } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { waitFor } from '../../../../test/fake-timers'
@@ -45,7 +45,12 @@ describe('ThreadPodService.destroy', () => {
       name: 'atlas-thread-1',
     })
     expect(await sandboxRows()).toHaveLength(0)
-    expect(podFrames()).toContainEqual({ type: EThreadStreamFrame.Pod })
+    expect(podFrames()).toContainEqual(
+      expect.objectContaining({
+        type: EThreadStreamFrame.Pod,
+        status: expect.objectContaining({ state: EPodState.None }),
+      }),
+    )
   })
 
   it('still deletes the row when Vercel says the sandbox is already gone', async () => {

@@ -1,5 +1,7 @@
 import { EThreadStreamFrame, type ThreadStreamFrame } from '@dltech/atlas-wire/web'
 
+import type { ThreadMetadata, ThreadPodSignal } from './thread-signal-hub'
+
 export const RECONNECT_BASE_MS = 1000
 export const RECONNECT_CEILING_MS = 30000
 export const HEALTHY_LIFETIME_MS = 5000
@@ -32,7 +34,8 @@ export function createThreadSignals(args: {
   threadId: string
   subscribe: SubscribeThreadStream
   onHead: (head: number) => void
-  onPod: () => void
+  onPod: (payload: ThreadPodSignal) => void
+  onMeta?: (metadata: ThreadMetadata) => void
   onTitle: () => void
   onStarted: () => void
   schedule?: Schedule
@@ -84,7 +87,10 @@ export function createThreadSignals(args: {
       if (!isCurrent()) return
       framed = true
       if (frame.type === EThreadStreamFrame.Head) args.onHead(frame.head)
-      if (frame.type === EThreadStreamFrame.Pod) args.onPod()
+      if (frame.type === EThreadStreamFrame.Pod)
+        args.onPod({ status: frame.status, rev: frame.rev })
+      if (frame.type === EThreadStreamFrame.Meta)
+        args.onMeta?.({ thread: frame.thread, rev: frame.rev })
       if (frame.type === EThreadStreamFrame.Title) args.onTitle()
     }
 
