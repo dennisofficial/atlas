@@ -1,5 +1,7 @@
 export * from '../memory-wire'
 export * from '../project-wire'
+export * from '../session-node-wire'
+export * from '../thread-live-wire'
 export * from '../github-repos-wire'
 export * from '../github-wire'
 export * from './mcp-wire'
