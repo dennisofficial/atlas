@@ -18,4 +18,5 @@ model AgentAccount {
   user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "AgentAccount_userId_provider_idx")
 
   @@index([userId, provider], map: "AgentAccount_userId_provider_idx")
+  @@index([userId, provider], unique: true, where: sql`("kind" = 'api-key')`, name: "AgentAccount_api_key_per_provider")
 }
