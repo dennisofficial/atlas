@@ -274,7 +274,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     handleTakeBackPending,
     attention: runAttention.attention,
     handleRetry: runAttention.handleRetry,
-    handleDismissFailure: runAttention.handleDismiss ?? dismissalFor(),
+    handleDismissFailure: dismissalFor() ?? runAttention.handleDismiss,
     handleResume: runAttention.handleResume,
     readEvents,
     loadOlderHistory: view.loadOlder,
