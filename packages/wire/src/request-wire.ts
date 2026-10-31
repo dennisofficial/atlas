@@ -31,6 +31,31 @@ export const readThreadParamsSchema = z.object({
 })
 export type ReadThreadParams = z.infer<typeof readThreadParamsSchema>
 
+export const readActivityParamsSchema = z.strictObject({ threadId: threadIdWireSchema })
+export type ReadActivityParams = z.infer<typeof readActivityParamsSchema>
+
+export const readActivityReplySchema = z.strictObject({
+  runtimeId: z.string().min(1),
+  revision: seqSchema,
+  turnEpoch: seqSchema,
+  working: z.boolean(),
+  awaiting: z.enum(['approval', 'input']).nullable(),
+  observedOutcome: z
+    .strictObject({
+      identity: z.discriminatedUnion('kind', [
+        z.strictObject({ kind: z.literal('run'), runId: z.string().min(1) }),
+        z.strictObject({
+          kind: z.literal('driver-failure'),
+          runtimeId: z.string().min(1),
+          revision: seqSchema,
+        }),
+      ]),
+      outcome: z.enum(['completed', 'failed', 'stopped']),
+    })
+    .nullable(),
+})
+export type ReadActivityReply = z.infer<typeof readActivityReplySchema>
+
 export const readTurnsParamsSchema = z.object({ threadId: threadIdWireSchema })
 export type ReadTurnsParams = z.infer<typeof readTurnsParamsSchema>
 

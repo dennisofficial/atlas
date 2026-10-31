@@ -7,6 +7,8 @@ export type ThreadFrameSink<TFrame = ThreadStreamFrame> = {
 
 export async function* threadStreamFrames<TFrame = ThreadStreamFrame>(args: {
   signal: AbortSignal | undefined
+  queueLimit?: number
+  onOverflow?: () => void
   attach: (sink: ThreadFrameSink<TFrame>) => () => void
 }): AsyncGenerator<TFrame> {
   const queue: TFrame[] = []
@@ -24,6 +26,12 @@ export async function* threadStreamFrames<TFrame = ThreadStreamFrame>(args: {
   const detach = args.attach({
     push: (frame) => {
       if (closed) return
+      if (args.queueLimit !== undefined && queue.length >= args.queueLimit) {
+        queue.length = 0
+        args.onOverflow?.()
+        close()
+        return
+      }
       queue.push(frame)
       notify()
     },

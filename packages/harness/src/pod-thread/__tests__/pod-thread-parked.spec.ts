@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { RemoteSessionActivity } from '../../activity/remote-session-activity'
+import { unavailableActivity } from '../../composition/__tests__/fakes'
 
 import { toRunId, type Event, type ThreadId } from '@dltech/atlas-core'
 import { harness, THREAD } from '@dltech/atlas-client/channel-fixture'
@@ -63,6 +65,7 @@ const parkedRig = (status: CloudSandboxStatus | undefined) => {
           log: new RemoteEventLog({ channel: live.channel }),
           threads: new RemoteThreadStore({ channel: live.channel }),
           ledger: new RemoteTurnLedger({ channel: live.channel }),
+          activity: new RemoteSessionActivity({ channel: live.channel }),
         },
       }
     },
@@ -79,6 +82,7 @@ const parkedRig = (status: CloudSandboxStatus | undefined) => {
       events: await runtime.log.read({ threadId: THREAD }),
     }),
     local: {
+      activity: unavailableActivity(),
       log: fixture.log,
       threads: fixture.threads,
       ledger: new JsonlTurnLedger({

@@ -214,8 +214,13 @@ export const threadStreamFrameSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal(EThreadStreamFrame.Head),
     head: z.number().int(),
+    historyRev: seqSchema.optional(),
   }),
-  z.object({ type: z.literal(EThreadStreamFrame.Pod), status: podStatusSchema.optional() }),
+  z.object({
+    type: z.literal(EThreadStreamFrame.Pod),
+    status: podStatusSchema.optional(),
+    rev: seqSchema.optional(),
+  }),
   z.object({ type: z.literal(EThreadStreamFrame.Heartbeat) }),
   z.object({ type: z.literal(EThreadStreamFrame.Title) }),
   z.object({
@@ -227,8 +232,13 @@ export const threadStreamFrameSchema = z.discriminatedUnion('type', [
     type: z.literal(EThreadStreamFrame.Events),
     fromSeq: seqSchema,
     events: z.array(wireEventSchema),
+    historyRev: seqSchema.optional(),
   }),
-  z.object({ type: z.literal(EThreadStreamFrame.Reset), head: z.number().int() }),
+  z.object({
+    type: z.literal(EThreadStreamFrame.Reset),
+    head: z.number().int(),
+    historyRev: seqSchema.optional(),
+  }),
 ])
 export type ThreadStreamFrame = z.infer<typeof threadStreamFrameSchema>
 
@@ -241,6 +251,8 @@ export const threadStreamInputSchema = z.strictObject({
   threadId: z.string().min(1),
 })
 export type ThreadStreamInput = z.infer<typeof threadStreamInputSchema>
+
+export * from './thread-events-wire'
 
 export enum EThreadListFrame {
   Changed = 'changed',

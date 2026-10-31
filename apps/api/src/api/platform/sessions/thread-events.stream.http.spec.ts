@@ -19,6 +19,9 @@ import { EventsService } from './events.service'
 import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
 import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadSignalsService } from './thread-signals.service'
+import * as streamState from './thread-stream-state'
+import * as podSnapshot from './pod-snapshot'
+import { metadataFrame, podSnapshotFrame } from './thread-stream.fixture'
 
 const SANDBOX_TOKEN = 'sandbox-token'
 const OWNER_BEARER = 'owner-bearer'
@@ -71,6 +74,10 @@ describe('threadEvents.stream over a real http server', () => {
 
   beforeAll(async () => {
     vi.useRealTimers()
+    vi.spyOn(streamState, 'readThreadMetadata').mockImplementation(async ({ threadId }) =>
+      metadataFrame({ threadId }),
+    )
+    vi.spyOn(podSnapshot, 'readPodFrame').mockResolvedValue(podSnapshotFrame())
     const drain = new DrainStateService()
     signals = new ThreadSignalsService(drain)
     const events = {
@@ -126,21 +133,33 @@ describe('threadEvents.stream over a real http server', () => {
 
   afterAll(async () => {
     await app.close()
+    vi.restoreAllMocks()
   })
 
   it('streams the current head, then a head frame after threadEvents.append', async () => {
     const { frames } = subscribe({ threadId: OWNED, token: undefined })
-    await waitFor(() => expect(frames).toEqual([HEAD(head)]))
+    await waitFor(() =>
+      expect(frames).toEqual([HEAD(head), metadataFrame({ threadId: OWNED }), podSnapshotFrame()]),
+    )
 
     await append({ threadId: OWNED })
 
-    await waitFor(() => expect(frames).toEqual([HEAD(head - 1), HEAD(head)]))
+    await waitFor(() =>
+      expect(frames).toEqual([
+        HEAD(head - 1),
+        metadataFrame({ threadId: OWNED }),
+        podSnapshotFrame(),
+        HEAD(head),
+      ]),
+    )
   })
 
   it('streams the head to an owner authenticating with a bearer session token', async () => {
     const { frames, failures } = subscribe({ threadId: OWNED, token: OWNER_BEARER })
 
-    await waitFor(() => expect(frames).toEqual([HEAD(head)]))
+    await waitFor(() =>
+      expect(frames).toEqual([HEAD(head), metadataFrame({ threadId: OWNED }), podSnapshotFrame()]),
+    )
 
     expect(failures).toEqual([])
   })

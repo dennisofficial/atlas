@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 
+import { RemoteSessionActivity } from '../../activity/remote-session-activity'
 import { EResizeApplies } from '../cloud-bridge'
 import { podNameFor } from '../local-pod/pod-create'
 import { ECloudSandboxState } from '../sandbox-client'
@@ -11,14 +12,15 @@ const threadId = toThreadId('thread-pod-ops')
 const name = podNameFor({ threadId })
 
 describe('createLocalPodBridge attach', () => {
-  it('hands back a channel and the three remote stores', () => {
+  it('hands back the channel, remote stores and registered activity reader', () => {
     const { driver } = fakePodDriver({ created: false })
     const bridge = podBridgeWith({ driver })
 
     const attachment = bridge.attach({ threadId, url: 'http://127.0.0.1:1', token: 'tok' })
 
     expect(typeof attachment.channel.send).toBe('function')
-    expect(Object.keys(attachment.stores).sort()).toEqual(['ledger', 'log', 'threads'])
+    expect(Object.keys(attachment.stores).sort()).toEqual(['activity', 'ledger', 'log', 'threads'])
+    expect(attachment.stores.activity).toBeInstanceOf(RemoteSessionActivity)
     attachment.channel.close?.()
   })
 })

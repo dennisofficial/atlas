@@ -10,7 +10,7 @@ import {
   type ThreadLaunch,
   type ThreadLaunchReply,
 } from '../../../_core/ports/thread-launcher'
-import { appendWithin, nextRunId } from '../../platform/sessions/append'
+import { appendStoredWithin, nextRunId } from '../../platform/sessions/append'
 import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { toThreadDto } from '../../platform/sessions/rows'
 import { threadProjectColumn } from '../../platform/sessions/thread-project'
@@ -45,7 +45,7 @@ export class ThreadLaunchService extends ThreadLauncher {
       this.pod.credentialsOf({ userId }),
     ])
 
-    const { threadId, claim, existing } = await db.transaction(async (tx) => {
+    const { threadId, claim, existing, appended } = await db.transaction(async (tx) => {
       await lockFirstMessage({ tx, userId, sendId: firstMessage.sendId })
       const prior = await findFirstMessageThread({
         reader: tx,
@@ -63,7 +63,7 @@ export class ThreadLaunchService extends ThreadLauncher {
         if (taken !== null) throw new ConflictException('thread id is already in use')
       }
       const thread = await this.threads.createWithin({ tx, userId, draft, project })
-      await appendWithin({
+      const { appended } = await appendStoredWithin({
         tx,
         threadId: thread.id,
         userId,
@@ -72,10 +72,10 @@ export class ThreadLaunchService extends ThreadLauncher {
       })
       if (gap !== null) {
         await this.pod.reportGap({ writer: tx, threadId: thread.id, failure: gap })
-        return { threadId: thread.id, claim: null, existing: false }
+        return { threadId: thread.id, claim: null, existing: false, appended }
       }
       const claimed: RowClaim | null = await this.pod.claim({ writer: tx, thread, existing: null })
-      return { threadId: thread.id, claim: claimed, existing: false }
+      return { threadId: thread.id, claim: claimed, existing: false, appended }
     })
 
     const dispatching =
@@ -89,7 +89,7 @@ export class ThreadLaunchService extends ThreadLauncher {
     ])
     const thread = toThreadDto({ thread: row, session })
     if (!existing) {
-      await this.threads.announceCreated({ userId, threadId })
+      await this.threads.announceCreated({ userId, threadId, appended })
       this.background.keepAlive(
         this.titling.titleFirstMessage({
           userId,

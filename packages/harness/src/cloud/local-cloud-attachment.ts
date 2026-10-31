@@ -1,6 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { createRemoteDeltaChannel } from './remote-delta-channel'
+import { RemoteSessionActivity } from '../activity/remote-session-activity'
 import { RemoteEventLog } from './remote-event-log'
 import { RemoteThreadStore } from './remote-thread-store'
 import { RemoteTurnLedger } from './remote-turn-ledger'
@@ -47,6 +48,7 @@ export const attachmentOf =
         log: new RemoteEventLog({ channel }),
         threads: new RemoteThreadStore({ channel }),
         ledger: new RemoteTurnLedger({ channel }),
+        activity: new RemoteSessionActivity({ channel }),
       },
     }
   }

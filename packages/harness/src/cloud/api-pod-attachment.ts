@@ -1,6 +1,7 @@
 import type { PodConnectReply } from '@dltech/atlas-wire'
 import type { ThreadId } from '@dltech/atlas-core'
 
+import { RemoteSessionActivity } from '../activity/remote-session-activity'
 import type { CloudBridge } from './cloud-bridge'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 import { createRemoteDeltaChannel, type SandboxWake } from './remote-delta-channel'
@@ -39,6 +40,7 @@ export const apiPodAttachmentOf =
         log: new RemoteEventLog({ channel }),
         threads: new RemoteThreadStore({ channel }),
         ledger: new RemoteTurnLedger({ channel }),
+        activity: new RemoteSessionActivity({ channel }),
       },
     }
   }

@@ -1,32 +1,29 @@
-'use client'
-
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
-import { localThreadOf } from '@/features/desktop/local-thread'
-import { subscribeLocalThreadMetadata } from '@/features/desktop/local-thread-feed'
-import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
-import { usePageVisible } from '@/lib/use-page-visible'
+import type { ThreadSignalHub } from './thread-signal-hub'
 
-import type { ThreadDisplay } from './thread-display'
-import { useThreadBackend } from './use-thread-backend'
-
-export function useThreadMetadata(threadId: string): CloudQuery<ThreadDisplay> {
-  const backend = useThreadBackend()
+export function useThreadMetadata(args: { threadId: string; signals: ThreadSignalHub }) {
+  const { threadId, signals } = args
   const client = useQueryClient()
-  const visible = usePageVisible()
-  const key = `thread:${threadId}`
-  const query = useCloudQuery({ key, load: () => backend.fetchThread(threadId) })
+  const held = useRef({ threadId, rev: -1 })
 
   useEffect(() => {
-    if (!backend.local || !visible) return undefined
-    return subscribeLocalThreadMetadata({
-      threadId,
-      listener: (thread) => {
-        client.setQueryData([key], { value: localThreadOf(thread) })
+    if (held.current.threadId !== threadId) held.current = { threadId, rev: -1 }
+    let active = true
+    const unlisten = signals.listen({
+      onMeta: async ({ thread, rev }) => {
+        if (!active || thread.id !== threadId || rev <= held.current.rev) return
+        held.current.rev = rev
+        const queryKey = [`thread:${threadId}`]
+        await client.cancelQueries({ queryKey, exact: true })
+        if (!active || rev !== held.current.rev) return
+        client.setQueryData(queryKey, { value: thread })
       },
     })
-  }, [backend.local, client, key, threadId, visible])
-
-  return query
+    return () => {
+      active = false
+      unlisten()
+    }
+  }, [threadId, signals, client])
 }

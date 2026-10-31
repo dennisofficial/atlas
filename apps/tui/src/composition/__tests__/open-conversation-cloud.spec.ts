@@ -1,4 +1,5 @@
 import { stat } from 'node:fs/promises'
+import { unavailableActivity } from './fake-session-runtime'
 
 import { describe, expect, it } from 'bun:test'
 
@@ -98,6 +99,7 @@ const refusingCloudStores = (args: { events: readonly Event[] }) => {
   return {
     channel,
     stores: {
+      activity: unavailableActivity(),
       threads: new RemoteThreadStore({ channel }),
       log: new RemoteEventLog({ channel }),
       ledger: new RemoteTurnLedger({ channel }),

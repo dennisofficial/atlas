@@ -4,6 +4,7 @@ import {
   NoLocalPodCopyError,
   openParkedPodThread,
   openPodThread,
+  UnavailableSessionActivity,
   type CloudBridge,
   type CloudReload,
 } from '@dltech/atlas-harness'
@@ -43,7 +44,12 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
     try {
       const parked = await openParkedPodThread({
         ...ports,
-        local: { log: app.log, threads: app.threads, ledger: app.ledger },
+        local: {
+          log: app.log,
+          threads: app.threads,
+          ledger: app.ledger,
+          activity: new UnavailableSessionActivity(),
+        },
       })
       return cloudBindingOf({ local: app, bridge, pod: parked })
     } catch (error) {

@@ -3,6 +3,7 @@ import {
   assemblePodThread,
   NoLocalPodCopyError,
   openParkedPodThread,
+  UnavailableSessionActivity,
   type CloudBridge,
   type CloudChannel,
   type PodThread,
@@ -44,7 +45,12 @@ export function createPodThreads({
     localCopy: { home: store.home, threads: store.threads },
   })
 
-  const local = { log: store.log, threads: store.threads, ledger: store.ledger }
+  const local = {
+    log: store.log,
+    threads: store.threads,
+    ledger: store.ledger,
+    activity: new UnavailableSessionActivity(),
+  }
 
   const opened = async (threadId: ThreadId): Promise<HeldPod> => {
     const ports = portsFor(threadId)

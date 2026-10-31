@@ -15,7 +15,7 @@ import { notConfiguredOf } from './data/not-configured'
 import { restoredDraftOf } from './data/take-back'
 import type { ModelSelection } from './data/model-selection'
 import { useThreadBackend } from './data/use-thread-backend'
-import { useThreadMetadata } from './data/use-thread-metadata'
+import { useThreadQuery } from './data/use-thread-query'
 import { useThreadNaming } from './data/use-thread-naming'
 import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf } from './data/transcript'
@@ -34,7 +34,7 @@ import { usePullRequests } from './data/use-pull-requests'
 import { userRewindPoints } from './data/rewind'
 import { useRewind } from './data/use-rewind'
 import { useMarkRead } from './data/use-mark-read'
-import { useTitleRefresh } from './data/use-title-refresh'
+import { useThreadMetadata } from './data/use-thread-metadata'
 import { useThreadSignals } from './data/use-thread-signals'
 import { useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -59,15 +59,11 @@ const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…
 
 export function ThreadView({ threadId }: { threadId: string }) {
   const backend = useThreadBackend()
-  const thread = useThreadMetadata(threadId)
+  const thread = useThreadQuery(threadId)
   const [liveEligible, setLiveEligible] = useState(false)
   const model = useThreadModel({ threadId, stored: thread.data?.model })
   const signals = useThreadSignals(threadId)
-  useTitleRefresh({
-    signals,
-    titled: thread.data?.title != null,
-    reload: thread.reload,
-  })
+  useThreadMetadata({ threadId, signals })
   useMarkRead({ threadId, signals, head: thread.data?.head })
   const source = useThreadSource({
     threadId,

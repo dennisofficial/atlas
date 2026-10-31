@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { fakeActivityLifecycle } from '../../../composition/__tests__/fakes'
 import type { MockLanguageModelV4 } from 'ai/test'
 import { z } from 'zod'
 
@@ -90,6 +91,7 @@ async function spawn(args: {
     agentTypes: [args.agentType],
     runners: childRunnerSource({
       deps: () => ({
+        activity: fakeActivityLifecycle(),
         turn: {
           log: harness.log,
           model: harness.model,

@@ -22,6 +22,7 @@ export enum ECapability {
   CommandList = 'command-list',
   /** The serve reads a dismiss-failure frame; an older serve refuses an unknown frame by closing the socket, so clients gate on this. */
   DismissFailure = 'dismiss-failure',
+  ReadActivity = 'read-activity',
 }
 
 export const capabilitySchema = z.enum(ECapability)
@@ -49,4 +50,5 @@ export const SERVE_CAPABILITIES: readonly ECapability[] = [
   ECapability.SandboxSessionIdentity,
   ECapability.CommandList,
   ECapability.DismissFailure,
+  ECapability.ReadActivity,
 ]

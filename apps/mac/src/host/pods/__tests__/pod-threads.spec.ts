@@ -69,6 +69,10 @@ describe('held pod channel lookup', () => {
     expect(pods.channel({ threadId })).toBeUndefined()
     const pod = await opening
     expect(pods.channel({ threadId })).toBe(pod.attachment.channel)
+    expect(pod.runtime.activity).toBe(pod.attachment.stores.activity)
+    await expect(pod.runtime.activity.read({ threadId })).rejects.toThrow(
+      'this serve does not support activity reads',
+    )
     const releasing = pods.release({ threadId })
     expect(pods.channel({ threadId })).toBeUndefined()
     await releasing

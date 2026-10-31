@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client'
 
 import { useThreadSignals } from '@/features/threads/data/use-thread-signals'
 import { useThreadSource, type ThreadSource } from '@/features/threads/data/use-thread-source'
-import { useThreadMetadata } from '@/features/threads/data/use-thread-metadata'
+import { useThreadQuery } from '@/features/threads/data/use-thread-query'
 import { ThreadBackendProvider } from '@/features/threads/data/use-thread-backend'
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 
@@ -112,9 +112,9 @@ for (const resource of Object.values(EResourceReading)) {
       },
     }
     let source: ThreadSource | undefined
-    let metadata: ReturnType<typeof useThreadMetadata> | undefined
+    let metadata: ReturnType<typeof useThreadQuery> | undefined
     function Probe() {
-      metadata = useThreadMetadata('brn_1')
+      metadata = useThreadQuery('brn_1')
       const signals = useThreadSignals('brn_1')
       source = useThreadSource({ threadId: 'brn_1', signals, liveEligible: false })
       return null

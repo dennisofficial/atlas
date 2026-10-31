@@ -21,8 +21,22 @@ export function useThreadSource(args: {
   const { threadId } = args
   const backend = useThreadBackend()
   const history = useMemo(
-    () => createTranscriptHistory({ threadId, fetchSeed: backend.fetchSeed }),
+    () =>
+      createTranscriptHistory({
+        threadId,
+        fetchSeed: backend.fetchSeed,
+        fetchSnapshot: backend.fetchSnapshot,
+      }),
     [threadId, backend],
+  )
+  useEffect(
+    () =>
+      args.signals.listen({
+        onCheckpoint: history.expectEpoch,
+        onReset: history.expectEpoch,
+        onEvents: history.expectEpoch,
+      }),
+    [args.signals, history],
   )
   const live = useLiveThread({
     threadId,

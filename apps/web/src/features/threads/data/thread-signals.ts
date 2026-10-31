@@ -1,5 +1,9 @@
 import { EThreadStreamFrame, type ThreadStreamFrame } from '@dltech/atlas-wire/web'
 
+import type { ThreadMetadata, ThreadPodSignal } from './thread-signal-hub'
+import type { EventsBatch, EventsCheckpoint } from './events-snapshot'
+import { headOf } from './live-events'
+
 export const RECONNECT_BASE_MS = 1000
 export const RECONNECT_CEILING_MS = 30000
 export const HEALTHY_LIFETIME_MS = 5000
@@ -26,13 +30,21 @@ export type ThreadStreamHandlers = {
 export type SubscribeThreadStream = (args: {
   threadId: string
   handlers: ThreadStreamHandlers
+  lastEventId?: string | undefined
+  onCursor?: ((cursor: string) => void) | undefined
 }) => { unsubscribe: () => void }
 
 export function createThreadSignals(args: {
   threadId: string
   subscribe: SubscribeThreadStream
   onHead: (head: number) => void
-  onPod: () => void
+  onCheckpoint?: (checkpoint: EventsCheckpoint) => void
+  onEvents?: (batch: EventsBatch) => void
+  onReset?: (checkpoint: EventsCheckpoint) => void
+  lastEventId?: string | undefined
+  onCursor?: (cursor: string) => void
+  onPod: (payload: ThreadPodSignal) => void
+  onMeta?: (metadata: ThreadMetadata) => void
   onTitle: () => void
   onStarted: () => void
   schedule?: Schedule
@@ -40,6 +52,7 @@ export function createThreadSignals(args: {
 }) {
   const schedule = args.schedule ?? timeoutSchedule
   const now = args.now ?? Date.now
+  let lastEventId = args.lastEventId
   let stopped = false
   let generation = 0
   let failures = 0
@@ -83,8 +96,20 @@ export function createThreadSignals(args: {
     const handleData = (frame: ThreadStreamFrame) => {
       if (!isCurrent()) return
       framed = true
-      if (frame.type === EThreadStreamFrame.Head) args.onHead(frame.head)
-      if (frame.type === EThreadStreamFrame.Pod) args.onPod()
+      if (frame.type === EThreadStreamFrame.Head) {
+        if (args.onCheckpoint) args.onCheckpoint(frame)
+        else args.onHead(frame.head)
+      }
+      if (frame.type === EThreadStreamFrame.Events)
+        args.onEvents?.({
+          ...frame,
+          head: Math.max(headOf(frame.events), frame.fromSeq),
+        })
+      if (frame.type === EThreadStreamFrame.Reset) args.onReset?.(frame)
+      if (frame.type === EThreadStreamFrame.Pod)
+        args.onPod({ status: frame.status, rev: frame.rev })
+      if (frame.type === EThreadStreamFrame.Meta)
+        args.onMeta?.({ thread: frame.thread, rev: frame.rev })
       if (frame.type === EThreadStreamFrame.Title) args.onTitle()
     }
 
@@ -95,6 +120,12 @@ export function createThreadSignals(args: {
 
     const subscription = args.subscribe({
       threadId: args.threadId,
+      lastEventId,
+      onCursor: (cursor) => {
+        if (!isCurrent()) return
+        lastEventId = cursor
+        args.onCursor?.(cursor)
+      },
       handlers: {
         onStarted: handleStarted,
         onData: handleData,

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { fakeActivityLifecycle } from '../../../composition/__tests__/fakes'
 import { z } from 'zod'
 
 import {
@@ -289,6 +290,7 @@ describe("a teammate's session", () => {
       agentTypes: [TEAMMATE],
       runners: childRunnerSource({
         deps: () => ({
+          activity: fakeActivityLifecycle(),
           turn: {
             log: harness.log,
             model: harness.model,

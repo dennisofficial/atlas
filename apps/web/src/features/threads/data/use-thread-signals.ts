@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { usePageVisible } from '@/lib/use-page-visible'
 
@@ -8,7 +8,11 @@ import { useThreadBackend } from './use-thread-backend'
 
 export function useThreadSignals(threadId: string): ThreadSignalHub {
   const { subscribeStream } = useThreadBackend()
-  const [hub] = useState(createThreadSignalHub)
+  const state = useMemo<{ threadId: string; hub: ThreadSignalHub; cursor: string | undefined }>(
+    () => ({ threadId, hub: createThreadSignalHub(), cursor: undefined }),
+    [threadId],
+  )
+  const { hub } = state
   const visible = usePageVisible()
 
   useEffect(() => {
@@ -17,13 +21,21 @@ export function useThreadSignals(threadId: string): ThreadSignalHub {
       threadId,
       subscribe: subscribeStream,
       onHead: hub.emitHead,
+      onCheckpoint: hub.emitCheckpoint,
+      onEvents: hub.emitEvents,
+      onReset: hub.emitReset,
+      lastEventId: state.cursor,
+      onCursor: (cursor) => {
+        state.cursor = cursor
+      },
       onPod: hub.emitPod,
+      onMeta: hub.emitMeta,
       onTitle: hub.emitTitle,
       onStarted: hub.emitStarted,
     })
     signals.start()
     return signals.stop
-  }, [threadId, hub, visible, subscribeStream])
+  }, [threadId, hub, state, visible, subscribeStream])
 
   return hub
 }

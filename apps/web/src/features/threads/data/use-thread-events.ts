@@ -20,10 +20,10 @@ export function useThreadEvents(args: {
   history?: TranscriptHistory
 }): PolledThreadEvents {
   const { threadId, signals, enabled } = args
-  const { fetchEvents, fetchSeed, local } = useThreadBackend()
+  const { fetchEvents, fetchSeed, fetchSnapshot, local } = useThreadBackend()
   const history = useMemo(
-    () => args.history ?? createTranscriptHistory({ threadId, fetchSeed }),
-    [args.history, threadId, fetchSeed],
+    () => args.history ?? createTranscriptHistory({ threadId, fetchSeed, fetchSnapshot }),
+    [args.history, threadId, fetchSeed, fetchSnapshot],
   )
   useEffect(() => history.retain(), [history])
   const [state, setState] = useState({ history, value: INITIAL_THREAD_EVENTS })
@@ -40,15 +40,31 @@ export function useThreadEvents(args: {
     const reader = createEventsReader({
       threadId,
       localCopy: local,
-      fetchSeed: history.readSeed,
+      fetchSeed: history.readSnapshot,
       fetchEvents,
+      fetchSnapshot: history.fetchSnapshot,
+      onAccept: history.replaceSnapshot,
       onUpdate: (update) => {
         current = update(current)
-        if (current.loaded) history.replace(current.events)
         setState({ history, value: current })
       },
     })
-    const unlisten = signals.listen({ onHead: reader.handleHead })
+    const unlisten = local
+      ? signals.listen({ onHead: reader.handleHead })
+      : signals.listen({
+          onCheckpoint: (checkpoint) => {
+            history.expectEpoch(checkpoint)
+            reader.handleCheckpoint(checkpoint)
+          },
+          onEvents: (batch) => {
+            history.expectEpoch(batch)
+            reader.handleEvents(batch)
+          },
+          onReset: (checkpoint) => {
+            history.expectEpoch(checkpoint)
+            reader.handleReset(checkpoint)
+          },
+        })
     pokeRef.current = reader.poke
     reader.start()
     if (cached !== undefined) reader.poke()
@@ -57,7 +73,7 @@ export function useThreadEvents(args: {
       unlisten()
       reader.stop()
     }
-  }, [threadId, signals, reading, fetchEvents, history, local])
+  }, [threadId, signals, reading, fetchEvents, fetchSnapshot, history, local])
 
   const poke = useCallback(() => pokeRef.current(), [])
   const current = state.history === history ? state.value : INITIAL_THREAD_EVENTS

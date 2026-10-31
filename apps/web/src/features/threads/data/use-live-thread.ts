@@ -90,6 +90,17 @@ export function useLiveThread(args: {
       onModelChanged: (model) => modelChangedRef.current?.(model),
       onInterruptLost: () => toast.error(INTERRUPT_LOST),
     })
+    const { controller } = next
+    const unlistenEpoch = history.onEpochChange(() => {
+      if (!('resetHistory' in controller)) return
+      void controller.resetHistory({
+        readSeed: async () => {
+          const snapshot = await history.readSnapshot()
+          history.replaceSnapshot(snapshot)
+          return snapshot.events
+        },
+      })
+    })
     sendRef.current = next.controller.send
     chooseRef.current = next.controller.chooseModel
     takeBackRef.current = next.controller.takeBackPending
@@ -111,6 +122,7 @@ export function useLiveThread(args: {
       rewindRef.current = NOT_REWINDING
       rosterRef.current = NOT_READING_ROSTER
       prepareRef.current = undefined
+      unlistenEpoch()
       next.controller.stop()
       setSession(null)
       setState(IDLE_LIVE_THREAD)

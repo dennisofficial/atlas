@@ -4,6 +4,9 @@ import { copyFileSync, cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { EventSource } from 'eventsource'
+import { EThreadStreamFrame, type ThreadEventsLiveFrame } from '@dltech/atlas-wire'
+import { createApiClient } from '../../../packages/api-router/src/client'
 import { freePort } from '../test/bun-api-process'
 import {
   type BundleApi,
@@ -105,7 +108,12 @@ describeLive('vercel bundle (built output served from a read-only container)', (
     const seed = `
       INSERT INTO "User" (id, name, email, "updatedAt") VALUES ('usr_bundle', 'Bundle Spec', 'bundle@spec.test', now());
       INSERT INTO "AuthSession" (id, token, "expiresAt", "updatedAt", "userId")
-        VALUES ('ses_bundle', '${SESSION_TOKEN}', now() + interval '1 day', now(), 'usr_bundle');`
+        VALUES ('ses_bundle', '${SESSION_TOKEN}', now() + interval '1 day', now(), 'usr_bundle');
+      INSERT INTO "Session" (id, "userId", "createdAt", "updatedAt")
+        VALUES ('session_bundle_thread', 'usr_bundle', now(), now());
+      INSERT INTO "Thread" (id, "userId", "sessionId", "createdAt", "updatedAt")
+        VALUES ('thread_bundle', 'usr_bundle', 'session_bundle_thread', now(), now());
+      UPDATE "Session" SET "mainThreadId" = 'thread_bundle' WHERE id = 'session_bundle_thread';`
     docker([
       'exec',
       names.postgres,
@@ -175,6 +183,25 @@ describeLive('vercel bundle (built output served from a read-only container)', (
     const text = await response.text()
     expect(response.status, withOutput(text)).toBe(200)
     expect(JSON.parse(text)).toEqual({ result: { data: { secrets: [] } } })
+  })
+
+  it('preserves tracked SSE ids and payloads through the production bundle', async () => {
+    const client = createApiClient({ baseUrl: baseUrl(), token: SESSION_TOKEN, EventSource })
+    const first = Promise.withResolvers<ThreadEventsLiveFrame>()
+    const timeout = setTimeout(() => first.reject(new Error(withOutput('SSE timed out'))), 4000)
+    const subscription = client.threadEvents.live.subscribe(
+      { threadId: 'thread_bundle' },
+      { onData: first.resolve, onError: first.reject },
+    )
+    try {
+      expect(await first.promise).toEqual({
+        id: 'v1:0:0',
+        data: { type: EThreadStreamFrame.Head, head: 0, historyRev: 0 },
+      })
+    } finally {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   })
 
   it('validates a tRPC input with zod', async () => {

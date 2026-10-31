@@ -28,8 +28,9 @@ describe('local thread source', () => {
     let log = [event(1)]
     const reads: (number | undefined)[] = []
     let held: ThreadSource | null = null
+    const { fetchSnapshot: cloudSnapshot, ...cloudWithoutSnapshot } = cloudThreadBackend
     const backend: ThreadBackend = {
-      ...cloudThreadBackend,
+      ...cloudWithoutSnapshot,
       local: true,
       fetchSeed: async () => {
         seeds += 1

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { fakeActivityLifecycle } from '../../composition/__tests__/fakes'
 
 import {
   defaultPipeline,
@@ -67,6 +68,7 @@ function bindChildRunner({ container }: { container: DependencyContainer }): voi
       const prompts = container.resolve(registeredPortToken(PromptRegistry))
 
       return {
+        activity: fakeActivityLifecycle(),
         turn: {
           log: container.resolve(registeredPortToken(EventLogPort)),
           model: modelPort,

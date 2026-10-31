@@ -56,7 +56,12 @@ export async function openCloudConversation(args: {
 }): Promise<OpenedConversation> {
   try {
     return await attachCloudSession({
-      stores: { threads: args.app.threads, log: args.app.log, ledger: args.app.ledger },
+      stores: {
+        threads: args.app.threads,
+        log: args.app.log,
+        ledger: args.app.ledger,
+        activity: args.app.activity,
+      },
       threadId: args.threadId,
       effects: (name) => args.app.tools.find(name)?.effect,
     })

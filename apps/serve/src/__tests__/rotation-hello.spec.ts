@@ -28,6 +28,11 @@ const driver = {
 
 const rig = () => {
   const handlers = createSessionHandlers({
+    activity: {
+      read: async () => {
+        throw new Error('activity is not initialized')
+      },
+    },
     threadId: served,
     buffer: createFrameBuffer({ capacity: 16 }),
     inFlight: () => [],
@@ -71,6 +76,11 @@ describe('hello admission', () => {
     let closed = false
     const runs: boolean[] = []
     const gated = createSessionHandlers({
+      activity: {
+        read: async () => {
+          throw new Error('activity is not initialized')
+        },
+      },
       threadId: served,
       buffer: createFrameBuffer({ capacity: 16 }),
       inFlight: () => [],
@@ -138,6 +148,11 @@ describe('hello admission', () => {
       },
     } as unknown as RotationPort
     const handlers = createSessionHandlers({
+      activity: {
+        read: async () => {
+          throw new Error('activity is not initialized')
+        },
+      },
       threadId: served,
       buffer: createFrameBuffer({ capacity: 16 }),
       inFlight: () => [],

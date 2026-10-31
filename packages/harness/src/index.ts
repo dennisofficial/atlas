@@ -1,5 +1,13 @@
 export const HARNESS_PACKAGE_NAME = '@dltech/atlas-harness'
 
+export {
+  SessionActivityPort,
+  UnavailableSessionActivity,
+  RuntimeSessionActivity,
+  RemoteSessionActivity,
+  ActivityTurnRunner,
+  type ActivityLifecycle,
+} from './activity'
 export * from './browser'
 export * from './changes'
 export * from './channel'

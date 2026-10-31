@@ -24,7 +24,7 @@ import { headerStateOf } from '../header-model'
 import { activityUnavailableReason, type ThreadDisplay } from '../thread-display'
 import { ThreadBackendProvider } from '../use-thread-backend'
 import { cloudThreadBackend } from '../thread-backend'
-import { useThreadMetadata } from '../use-thread-metadata'
+import { useThreadQuery } from '../use-thread-query'
 
 beforeAll(() => {
   GlobalRegistrator.register()
@@ -47,7 +47,7 @@ afterEach(async () => {
 })
 
 function Header() {
-  const thread = useThreadMetadata('brn_1')
+  const thread = useThreadQuery('brn_1')
   const reason = activityUnavailableReason(thread.data)
   return (
     <ThreadHeader
@@ -90,6 +90,7 @@ it('refreshes the actual header for availability and reason-only changes on a qu
     feed.subscribeMetadata,
   )
   const notify = spyOn(toast, 'error').mockImplementation(() => 'unexpected-toast')
+  notify.mockClear()
   const client = createTestQueryClient()
   const container = document.createElement('div')
   root = createRoot(container)
@@ -170,7 +171,7 @@ it('does not subscribe local metadata or poke Cloud queries for a Cloud thread o
     },
   }
   function Probe() {
-    useThreadMetadata('cloud')
+    useThreadQuery('cloud')
     return null
   }
   root = createRoot(document.createElement('div'))

@@ -11,6 +11,7 @@ export const PASSIVE_REQUESTS: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.ReadThread,
   EClientRequest.ReadThreads,
   EClientRequest.ReadTurns,
+  EClientRequest.ReadActivity,
   EClientRequest.ReadTranscriptIdentity,
   EClientRequest.ReadRuntimeCheckpoint,
   EClientRequest.ListContextFiles,

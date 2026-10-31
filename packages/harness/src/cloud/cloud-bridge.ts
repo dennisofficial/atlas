@@ -3,6 +3,7 @@ import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
 import type { ChannelConnection, ChannelReload, RemoteDeltaChannel } from './remote-delta-channel'
 import { ECloudSandboxState, type WorkspaceSpec } from './sandbox-client'
 import type { SettleWaitNotice, RuntimeCheckpoint } from '@dltech/atlas-wire'
+import type { SessionActivityPort } from '../activity/port'
 import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { ThreadStorePort } from '../store/thread-store'
 
@@ -75,6 +76,7 @@ export type CloudStores = {
   log: EventLogPort
   threads: ThreadStorePort
   ledger: TurnLedgerPort
+  activity: SessionActivityPort
 }
 
 export type CloudConnection = ChannelConnection

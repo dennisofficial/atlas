@@ -66,7 +66,16 @@ describe('SandboxSelfRouter signals', () => {
     })
 
     expect(reply.status).toBe(200)
-    expect(frames).toEqual([{ type: EThreadStreamFrame.Pod }])
+    expect(frames).toContainEqual(
+      expect.objectContaining({
+        type: EThreadStreamFrame.Pod,
+        status: expect.objectContaining({
+          steps: [
+            expect.objectContaining({ step: EBootStep.Clone, state: EBootStepState.Running }),
+          ],
+        }),
+      }),
+    )
   })
 
   it('events signals the moved head', async () => {
@@ -81,6 +90,14 @@ describe('SandboxSelfRouter signals', () => {
     })
 
     expect(reply.status).toBe(200)
-    expect(frames).toEqual([{ type: EThreadStreamFrame.Head, head: 1 }])
+    expect(frames).toEqual([
+      {
+        type: EThreadStreamFrame.Events,
+        fromSeq: 1,
+        historyRev: 0,
+        events: [expect.objectContaining({ threadId: 'thr-1', seq: 1, body: '{}' })],
+      },
+      { type: EThreadStreamFrame.Head, head: 1, historyRev: 0 },
+    ])
   })
 })

@@ -39,6 +39,12 @@ describe('opening a local pod thread', () => {
     expect(bridge.created).toEqual([])
     expect(bridge.parkedAttaches).toEqual([threadId])
     expect(cloudAttachmentOf(binding)?.opened.events.length).toBeGreaterThan(0)
+    const attachment = cloudAttachmentOf(binding)
+    if (attachment === undefined) throw new Error('missing cloud attachment')
+    expect(binding.adapters.activity).not.toBe(app.activity)
+    expect(binding.adapters.activity).toBe(attachment.stores.activity)
+    await expect(binding.adapters.activity.read({ threadId })).rejects.toThrow()
+    expect(bridge.created).toEqual([])
     binding.close?.()
   })
 
