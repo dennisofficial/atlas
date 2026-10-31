@@ -1,6 +1,7 @@
 'use client'
 
 import { FolderGit2Icon, XIcon } from 'lucide-react'
+import { useState } from 'react'
 
 import type { GithubRepoSummary } from '@dltech/atlas-wire/web'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -36,6 +37,8 @@ export function AdditionalRepositoryField({
   onRemove: () => void
 }) {
   const choices = additionalRepoChoices({ repos, query: repo, taken })
+  const [open, setOpen] = useState(autoOpen)
+  const handleOpenChange = (next: boolean) => setOpen(next)
   const handleValueChange = (next: string | null) => {
     if (next !== null) onChange(next)
   }
@@ -49,7 +52,8 @@ export function AdditionalRepositoryField({
       items={choices}
       filter={null}
       autoHighlight
-      defaultOpen={autoOpen}
+      open={open}
+      onOpenChange={handleOpenChange}
       value={repo === '' ? null : repo}
       onValueChange={handleValueChange}
       inputValue={repo}
