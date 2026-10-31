@@ -99,6 +99,11 @@ export function createRemoteDeltaChannel(
       return upstream.request(request)
     },
 
+    requestIfConnected: (request) => {
+      if (state.abandoned || facts.view().state !== EConnectionView.Connected) return undefined
+      return upstream.requestIfAttached(request)
+    },
+
     connection: () => facts.view(),
     onConnection: (listener) => facts.onView(listener),
     onReload: (listener) => on.reloads.add(listener),
