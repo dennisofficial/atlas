@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EShipBehavior } from '@dltech/atlas-wire/web'
+
 import {
+  additionalReposOf,
   canContinueFromRepository,
   createBodyOf,
   emptyDraft,
@@ -9,6 +12,7 @@ import {
   nextStep,
   previousStep,
   repoOf,
+  sandboxOf,
   stepPosition,
   suggestedName,
 } from '../new-project-draft'
@@ -89,6 +93,7 @@ describe('createBodyOf', () => {
       baseBranch: null,
       additionalRepos: [],
       description: 'Slack triage',
+      shipBehavior: EShipBehavior.OpenPullRequest,
     })
   })
 
@@ -102,5 +107,46 @@ describe('createBodyOf', () => {
     const body = createBodyOf({ draft, name: 'x' })
     expect(body.repo).toBeNull()
     expect(body.baseBranch).toBeNull()
+  })
+})
+
+describe('additionalReposOf', () => {
+  it('normalizes pasted links and skips blank rows', () => {
+    const draft = {
+      ...EXISTING,
+      additionalRepos: ['https://github.com/compai/docs.git', '  ', 'compai/api'],
+    }
+    expect(additionalReposOf(draft)).toEqual(['compai/docs', 'compai/api'])
+    expect(createBodyOf({ draft, name: 'x' }).additionalRepos).toEqual([
+      { repo: 'compai/docs' },
+      { repo: 'compai/api' },
+    ])
+  })
+
+  it('rejects an unparseable row', () => {
+    expect(additionalReposOf({ ...EXISTING, additionalRepos: ['gitlab.com/a/b'] })).toBeNull()
+  })
+
+  it('rejects a repo name that clashes with the main repo or another row', () => {
+    expect(additionalReposOf({ ...EXISTING, additionalRepos: ['other/csa'] })).toBeNull()
+    expect(additionalReposOf({ ...EXISTING, additionalRepos: ['a/docs', 'b/DOCS'] })).toBeNull()
+  })
+
+  it('sends none when there is no main repository', () => {
+    const draft = { ...EXISTING, source: EProjectSource.NoRepo, additionalRepos: ['a/b'] }
+    expect(createBodyOf({ draft, name: 'x' }).additionalRepos).toEqual([])
+  })
+})
+
+describe('sandboxOf', () => {
+  it('saves nothing when the defaults are kept', () => {
+    expect(sandboxOf({ ...emptyDraft(), setupScript: '  ' })).toBeNull()
+  })
+
+  it('carries a chosen size and a trimmed setup script', () => {
+    expect(sandboxOf({ ...emptyDraft(), vcpus: 4, setupScript: ' bun install \n' })).toEqual({
+      vcpus: 4,
+      setupScript: 'bun install',
+    })
   })
 })

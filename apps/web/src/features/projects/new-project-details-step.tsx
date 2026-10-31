@@ -3,6 +3,8 @@ import { Input } from '@dltech/atlas-ui/components/input'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 import { ENameError, NAME_ERROR_MESSAGES } from './new-project-draft'
+import { RepositoryOptions } from './new-project-options'
+import { SandboxOptions } from './new-project-sandbox'
 import type { DraftPatch, ProjectDraft } from './new-project-types'
 
 export function DetailsStep({
@@ -45,6 +47,8 @@ export function DetailsStep({
           rows={2}
         />
       </Field>
+      <RepositoryOptions draft={draft} patch={patch} />
+      <SandboxOptions draft={draft} patch={patch} />
     </div>
   )
 }

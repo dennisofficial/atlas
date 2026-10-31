@@ -23,6 +23,7 @@ export function AdditionalRepositoryField({
   repo,
   repos,
   taken,
+  autoOpen = false,
   onChange,
   onRemove,
 }: {
@@ -30,6 +31,7 @@ export function AdditionalRepositoryField({
   repo: string
   repos: readonly GithubRepoSummary[]
   taken: readonly string[]
+  autoOpen?: boolean
   onChange: (next: string) => void
   onRemove: () => void
 }) {
@@ -47,6 +49,7 @@ export function AdditionalRepositoryField({
       items={choices}
       filter={null}
       autoHighlight
+      defaultOpen={autoOpen}
       value={repo === '' ? null : repo}
       onValueChange={handleValueChange}
       inputValue={repo}
@@ -54,6 +57,7 @@ export function AdditionalRepositoryField({
     >
       <ComboboxInput
         aria-label={label}
+        autoFocus={autoOpen}
         className="font-mono"
         placeholder="Search, or paste a GitHub URL or owner/name"
         autoComplete="off"
@@ -75,7 +79,9 @@ export function AdditionalRepositoryField({
         </InputGroupAddon>
       </ComboboxInput>
       <ComboboxContent>
-        <ComboboxEmpty>No repositories match.</ComboboxEmpty>
+        <ComboboxEmpty>
+          {repo.trim() ? 'No repositories match.' : 'Paste a GitHub URL or owner/name.'}
+        </ComboboxEmpty>
         <ComboboxList>
           {(name: string) => (
             <ComboboxItem key={name} value={name} className="font-mono text-xs">

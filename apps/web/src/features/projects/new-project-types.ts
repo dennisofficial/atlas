@@ -1,3 +1,5 @@
+import type { EShipBehavior } from '@dltech/atlas-wire/web'
+
 export enum ENewProjectStep {
   Source = 'Source',
   Repository = 'Repository',
@@ -17,6 +19,10 @@ export interface ProjectDraft {
   name: string
   nameTouched: boolean
   description: string
+  additionalRepos: readonly string[]
+  shipBehavior: EShipBehavior
+  vcpus: number | null
+  setupScript: string
 }
 
 export type DraftPatch = (patch: Partial<ProjectDraft>) => void
