@@ -12,9 +12,11 @@ import { ProcessBackgroundWork } from '../../../_lib/background-work/background-
 import { DrainStateService } from '../health/drain-state.service'
 import { ThreadChangeRunner } from './thread-change-runner'
 import { PodChangePublisher } from './pod-change-publisher'
+import { publishEventChange, type EventsAppended, type EventsReset } from './event-change-publisher'
 import { ThreadSubscription } from './thread-subscription'
 import {
   listFrameOf,
+  registerFrameStream,
   type OpenStream,
   type OpenListStream,
   type OpenChangeWatch,
@@ -37,6 +39,8 @@ export type { LiveSignal }
 export type ThreadSignalPublisher = Pick<
   ThreadSignalsService,
   | 'headMoved'
+  | 'eventsAppended'
+  | 'eventsReset'
   | 'podChanged'
   | 'titleChanged'
   | 'listChanged'
@@ -79,21 +83,9 @@ export class ThreadSignalsService implements OnModuleDestroy {
     onFrame: (frame: ThreadStreamFrame) => void
     onClosed?: () => void
   }): () => void {
-    const entry: OpenStream = {
-      onFrame: args.onFrame,
-      onClosed: args.onClosed,
-    }
-    let entries = this.streams.get(args.threadId)
-    if (entries === undefined) {
-      entries = new Set()
-      this.streams.set(args.threadId, entries)
-    }
-    entries.add(entry)
+    const detach = registerFrameStream({ ...args, streams: this.streams, key: args.threadId })
     this.subscription.ensureSubscribed()
-    return () => {
-      entries.delete(entry)
-      if (entries.size === 0) this.streams.delete(args.threadId)
-    }
+    return detach
   }
 
   openListStream(args: {
@@ -101,21 +93,9 @@ export class ThreadSignalsService implements OnModuleDestroy {
     onFrame: (frame: ThreadListFrame) => void
     onClosed?: () => void
   }): () => void {
-    const entry: OpenListStream = {
-      onFrame: args.onFrame,
-      onClosed: args.onClosed,
-    }
-    let entries = this.listStreams.get(args.userId)
-    if (entries === undefined) {
-      entries = new Set()
-      this.listStreams.set(args.userId, entries)
-    }
-    entries.add(entry)
+    const detach = registerFrameStream({ ...args, streams: this.listStreams, key: args.userId })
     this.subscription.ensureSubscribed()
-    return () => {
-      entries.delete(entry)
-      if (entries.size === 0) this.listStreams.delete(args.userId)
-    }
+    return detach
   }
 
   watchThreadChanges(args: {
@@ -173,6 +153,22 @@ export class ThreadSignalsService implements OnModuleDestroy {
       frame: { type: EThreadStreamFrame.Head, head: args.head },
     })
     this.threadChanged({ threadId: args.threadId })
+  }
+
+  eventsAppended(change: EventsAppended): Promise<void> {
+    return publishEventChange({
+      change,
+      publish: (signal) => this.publish(signal),
+      threadChanged: () => this.threadChanged({ threadId: change.threadId }),
+    })
+  }
+
+  eventsReset(change: EventsReset): Promise<void> {
+    return publishEventChange({
+      change,
+      publish: (signal) => this.publish(signal),
+      threadChanged: () => this.threadChanged({ threadId: change.threadId }),
+    })
   }
 
   titleChanged(args: { threadId: string }): Promise<void> {

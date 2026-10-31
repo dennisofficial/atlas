@@ -6,7 +6,7 @@ import type { EventDto } from './sessions.types'
 import { toEventDto } from './rows'
 import { planSegments, type SessionReader } from './fork-chain'
 import { createSessionWithMainThread } from './create-session'
-import { advanceHead } from './thread-head'
+import { advanceHead, lockThread } from './thread-head'
 
 export const nextEventId = (): string => `evt_${randomUUID()}`
 export const nextThreadId = (): string => `brn_${randomUUID()}`
@@ -23,9 +23,6 @@ const identityOf = (draft: EventDraftInput): Identity | undefined => {
   return { slot: contextSlot, key: contextKey, digest: contextDigest }
 }
 
-// The key (the absolute path) is deliberately out of the match: a relocation re-loads the same
-// file from a new path, and key-bearing identity turned every lift/descend into a duplicate
-// injection of byte-identical instructions. Same slot, same digest is the same context.
 const identityKeyOf = (identity: Identity): string => `${identity.slot} ${identity.digest}`
 
 const sameIdentity = (row: Row<'Event'>, identity: Identity): boolean =>
@@ -143,7 +140,9 @@ function planAppend(args: {
   }
 }
 
-export async function appendWithin(args: {
+export type StoredAppend = { events: EventDto[]; head: number; historyRev: number }
+
+type AppendWithin = {
   tx: Tx
   threadId: string
   userId: string
@@ -151,11 +150,20 @@ export async function appendWithin(args: {
   parentRunId?: string | undefined
   depth?: number | undefined
   drafts: readonly EventDraftInput[]
-}): Promise<EventDto[]> {
-  if (args.drafts.length === 0) return []
+}
+
+export async function appendWithin(args: AppendWithin): Promise<EventDto[]> {
+  return (await appendStoredWithin(args)).events
+}
+
+export async function appendStoredWithin(
+  args: AppendWithin,
+): Promise<{ events: EventDto[]; appended?: StoredAppend }> {
+  if (args.drafts.length === 0) return { events: [] }
 
   const at = new Date()
   await claimThread({ tx: args.tx, threadId: args.threadId, userId: args.userId, at })
+  await lockThread({ tx: args.tx, threadId: args.threadId })
 
   const reusable = await loadReusable({
     tx: args.tx,
@@ -164,7 +172,7 @@ export async function appendWithin(args: {
     drafts: args.drafts,
   })
   const plan = planAppend({ drafts: args.drafts, reusable })
-  if (plan.fresh.length === 0) return plan.resolve([])
+  if (plan.fresh.length === 0) return { events: plan.resolve([]) }
 
   const head = await advanceHead({
     tx: args.tx,
@@ -191,7 +199,12 @@ export async function appendWithin(args: {
   }))
   await args.tx.orm.public.Event.createAndCount(rows)
 
-  return plan.resolve(rows.map(toEventDto))
+  const stored = rows.map(toEventDto)
+  const thread = await args.tx.orm.public.Thread.where({ id: args.threadId }).firstOrThrow()
+  return {
+    events: plan.resolve(stored),
+    appended: { events: stored, head, historyRev: thread.historyRev },
+  }
 }
 
 export async function readOwnRows(args: {

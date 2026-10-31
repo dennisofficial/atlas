@@ -9,6 +9,7 @@ import { readEventsParamsSchema, type WireEvent } from '@dltech/atlas-wire/web'
 import { act } from 'react'
 
 import { cloudThreadBackend } from '../thread-backend'
+import { fetchSnapshot } from '../threads-api'
 import { EPodConnectOutcome, type PodConnectResult } from '../pod-connect'
 import { createThreadSignalHub } from '../thread-signal-hub'
 import { useThreadSource, type ThreadSource } from '../use-thread-source'
@@ -51,7 +52,15 @@ export class TestWebSocket {
   }
 }
 
-export function threadCacheRig(args?: { live?: boolean; local?: boolean; deferred?: boolean }) {
+export function threadCacheRig(args?: {
+  live?: boolean
+  local?: boolean
+  deferred?: boolean
+  deferredMint?: boolean
+  snapshot?: boolean
+  afterSnapshot?: () => Promise<void>
+}) {
+  let historyRev = 0
   let log = [event(1), event(2)]
   let latest: ThreadSource | undefined
   const renders: ThreadSource[] = []
@@ -60,18 +69,33 @@ export function threadCacheRig(args?: { live?: boolean; local?: boolean; deferre
   const released = new Promise<void>((resolve) => {
     release = resolve
   })
+  const mintReady = Promise.withResolvers<void>()
   const calls = fakeFetch(() => {
     const url = new URL(calls.at(-1)!.url, 'https://atlas.test')
     const { fromSeq } = readEventsParamsSchema.parse(JSON.parse(url.searchParams.get('input')!))
     reads.push(fromSeq)
-    return trpcOk(log.filter((entry) => fromSeq === undefined || entry.seq >= fromSeq))
+    const events = log.filter((entry) => fromSeq === undefined || entry.seq >= fromSeq)
+    return trpcOk(args?.snapshot ? { events, historyRev, head: log.at(-1)?.seq ?? 0 } : events)
   })
   const rawSeed = cloudThreadBackend.fetchSeed
+  const { fetchSnapshot: cloudSnapshot, ...legacyBackend } = cloudThreadBackend
   const backend = {
-    ...cloudThreadBackend,
+    ...legacyBackend,
+    ...(args?.snapshot
+      ? {
+          fetchSnapshot: async (request: Parameters<typeof fetchSnapshot>[0]) => {
+            if (args.deferred) await released
+            const snapshot = await fetchSnapshot(request)
+            await args.afterSnapshot?.()
+            return snapshot
+          },
+        }
+      : {}),
     local: args?.local ?? false,
-    mint: async (): Promise<PodConnectResult> =>
-      args?.live ? ticketOf('open-ticket') : { outcome: EPodConnectOutcome.NotRunning },
+    mint: async (): Promise<PodConnectResult> => {
+      if (args?.deferredMint) await mintReady.promise
+      return args?.live ? ticketOf('open-ticket') : { outcome: EPodConnectOutcome.NotRunning }
+    },
     fetchThread: async (): Promise<never> => {
       throw new Error('no stored model')
     },
@@ -127,6 +151,10 @@ export function threadCacheRig(args?: { live?: boolean; local?: boolean; deferre
     socket,
     renders,
     release: () => release?.(),
+    releaseMint: () => mintReady.resolve(),
+    setEpoch: (rev: number) => {
+      historyRev = rev
+    },
     setLog: (events: WireEvent[]) => {
       log = events
     },

@@ -62,6 +62,8 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   let reminted = 0
   let connected = false
   let modelChoices = 0
+  let historyGeneration = 0
+  let historyRefreshing = false
   let interruptPending = false
   const releases: (() => void)[] = []
 
@@ -110,7 +112,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     threadId: args.threadId,
     channel: () => channel,
     events: () => state.events,
-    closed: () => stopped || fellBack,
+    closed: () => stopped || fellBack || historyRefreshing,
     onEvents: (events) => commit(settleInto({ ...state, events })),
     onFailure: fallBack,
   })
@@ -229,7 +231,13 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
 
   const start = async () => {
     try {
-      const [seed, minted] = await Promise.all([args.readSeed(), args.mint()])
+      let seedGeneration = historyGeneration
+      const [initialSeed, minted] = await Promise.all([args.readSeed(), args.mint()])
+      let seed = initialSeed
+      while (!stopped && seedGeneration !== historyGeneration) {
+        seedGeneration = historyGeneration
+        seed = await args.readSeed()
+      }
       if (stopped) return
       if (minted.outcome === EPodConnectOutcome.NotRunning) return fallBack()
       open({ url: minted.ticket.url, token: minted.ticket.token }, seed)
@@ -255,6 +263,21 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
 
   return {
     chatTransport: signalTransport.transport,
+    resetHistory: async (reset: { readSeed: () => Promise<WireEvent[]> }) => {
+      historyGeneration += 1
+      const mine = historyGeneration
+      historyRefreshing = true
+      eventReader.invalidate()
+      try {
+        const events = await reset.readSeed()
+        if (stopped || fellBack || mine !== historyGeneration) return
+        commit(settleInto({ ...state, events }))
+        historyRefreshing = false
+        eventReader.read()
+      } catch {
+        if (mine === historyGeneration) fallBack()
+      }
+    },
     start: () => void start(),
     send,
     ...actions,

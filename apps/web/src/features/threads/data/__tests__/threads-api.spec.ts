@@ -6,6 +6,7 @@ import { fakeFetch, mutationUrl, queryUrl, trpcFailure, trpcOk } from './trpc-fa
 
 import {
   fetchEvents,
+  fetchSnapshot,
   fetchPod,
   fetchThread,
   fetchSessions,
@@ -90,6 +91,17 @@ describe('thread reads', () => {
         input: { threadId: 'thr_1', own: true, fromSeq: 7 },
       }),
     )
+  })
+
+  it('reads one atomic snapshot with an optional inclusive delta floor', async () => {
+    const snapshot = { events: [], historyRev: 4, head: 9 }
+    const calls = fakeFetch(() => trpcOk(snapshot))
+    expect(await fetchSnapshot({ threadId: 'thr_1' })).toEqual(snapshot)
+    expect(await fetchSnapshot({ threadId: 'thr_1', fromSeq: 7 })).toEqual(snapshot)
+    expect(calls.map((call) => call.url)).toEqual([
+      queryUrl({ procedure: 'threadEvents.snapshot', input: { threadId: 'thr_1' } }),
+      queryUrl({ procedure: 'threadEvents.snapshot', input: { threadId: 'thr_1', fromSeq: 7 } }),
+    ])
   })
 
   it('reads the pod through threadPod.status', async () => {
