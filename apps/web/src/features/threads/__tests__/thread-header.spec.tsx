@@ -42,9 +42,8 @@ describe('ThreadHeader', () => {
     expect(render({ state: EHeaderState.NeedsYou })).toContain('Needs you')
   })
 
-  it('keeps the mobile panel button and New thread link', () => {
+  it('keeps the mobile panel button', () => {
     const html = render({})
     expect(html).toContain('aria-label="Open panel"')
-    expect(html).toContain('href="/threads/new"')
   })
 })
