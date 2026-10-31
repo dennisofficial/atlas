@@ -43,3 +43,15 @@ export function legacyFailureOf(events: readonly Event[]): LegacyFailure | null 
   if (dismissedSeqs(events).has(latest.seq)) return null
   return liveAfter({ events, seq: latest.seq }) ? latest : null
 }
+
+export function failureDismissedForTail(events: readonly Event[]): boolean {
+  let latestSeq = 0
+  for (const event of events) {
+    if ((event.type === 'run-failed' || event.type === 'turn-failed') && event.seq >= latestSeq) {
+      latestSeq = event.seq
+    }
+  }
+  return (
+    latestSeq > 0 && dismissedSeqs(events).has(latestSeq) && liveAfter({ events, seq: latestSeq })
+  )
+}

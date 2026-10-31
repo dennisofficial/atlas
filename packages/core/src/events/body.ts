@@ -1,27 +1,17 @@
-import type { EReportKind } from '../agents/report'
-import type { EAgentRestart } from '../agents/restart'
-import type { EAgentStart } from '../agents/start'
-import type { EAgentStatus } from '../agents/status'
 import type { EExecutionLocation } from '../execution/location'
-import type { JsonValue } from '../json/value'
 import type { FilePart, ImagePart, ReasoningPart, TextPart } from '../message/parts'
-import type { ERiskDimension } from '../policy/classifier/dimension'
 import type { CodeQualityReviewedBody } from '../quality/schema'
-import type { EGrantScope, GrantOffer } from '../policy/classifier/grant'
-import type { EClassifierMode, ETriage } from '../policy/classifier/triage'
-import type { EJudgment, EVerdictFault } from '../policy/classifier/verdict'
 import type { EServiceStatus } from '../services/status'
-import type {
-  ESubscriptionActor,
-  ESubscriptionEnd,
-  ESubscriptionStatus,
-} from '../subscriptions/subscription'
 import type { EKilledBy } from '../shells/status'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
 import type { NoticeStamp } from './notice-stage'
-import type { ERunFailureKind, RunFailure } from './run-failure'
+import type { RunFailure } from './run-failure'
+import type { AgentEventBody } from './agent-body'
+import type { PolicyEventBody } from './policy-body'
+import type { PrEventBody } from './pr-body'
 import type { BackgroundShellEventBody } from './shell-body'
+import type { SubscriptionEventBody } from './subscription-body'
 
 export enum ECompactionAnchor {
   Prefix = 'prefix',
@@ -221,31 +211,11 @@ export type EventBody =
       bytes?: number | undefined
     }
   | { type: 'directory-changed'; path: string; repo?: string | null | undefined }
-  | {
-      type: 'pull-request-linked'
-      number: number
-      url: string
-      repo: string
-      branch: string
-      worktreePath?: string | undefined
-    }
-  | {
-      type: 'pr-event'
-      repo: string
-      prNumber: number
-      kind: EPrEventKind
-      url: string
-      authorLogin?: string | undefined
-      body?: string | undefined
-      verdict?: EPrVerdict | undefined
-      headSha?: string | undefined
-      edited?: boolean | undefined
-      settled?: boolean | undefined
-      mergeable?: boolean | undefined
-      state?: string | undefined
-      reviewState?: EPrReviewState | undefined
-    }
   | BackgroundShellEventBody
+  | AgentEventBody
+  | PolicyEventBody
+  | SubscriptionEventBody
+  | PrEventBody
   | {
       type: 'service-started'
       serviceId: string
@@ -270,78 +240,12 @@ export type EventBody =
       notice?: NoticeStamp | undefined
     }
   | {
-      type: 'agent-spawned'
-      agentId: ThreadId
-      agentType: string
-      intent: string
-      mode: EAgentStart
-    }
-  | {
-      type: 'agent-ended'
-      agentId: ThreadId
-      agentType: string
-      intent: string
-      status: EAgentStatus
-      killedBy?: EKilledBy | undefined
-      prose: string
-      failureCause?: string | undefined
-      failureKind?: ERunFailureKind | undefined
-      turns: number
-      toolCalls: number
-      /** False for a bookkeeping ending that never wakes the parent or reaches the model; older logs also wrote it for a child that still held live work. */
-      relayed?: boolean | undefined
-      leftServices?: readonly string[] | undefined
-      notice?: NoticeStamp | undefined
-    }
-  | {
-      type: 'agent-restarted'
-      agentId: ThreadId
-      agentType: string
-      intent: string
-      via: EAgentRestart
-    }
-  | {
-      type: 'agent-reported'
-      agentId: ThreadId
-      agentType: string
-      intent: string
-      prose: string
-      kind?: EReportKind | undefined
-      notice?: NoticeStamp | undefined
-    }
-  | {
       type: 'history-compacted'
       anchor: ECompactionAnchor
       fromSeq: number
       throughSeq: number
       summary: string
       replaced: number
-    }
-  | {
-      type: 'classifier-judged'
-      callId: CallId
-      mode: EClassifierMode
-      triage: ETriage
-      judgment: EJudgment
-      dimensions: readonly ERiskDimension[]
-      judgedDimension?: ERiskDimension | undefined
-      verdictFault?: EVerdictFault | undefined
-      judgeFault?: string | undefined
-      signalIds: readonly string[]
-      details?: readonly string[] | undefined
-      grantables?: readonly GrantOffer[] | undefined
-      reason: string
-      consulted: boolean
-      wouldAsk?: boolean | undefined
-      elapsedMs: number
-    }
-  | {
-      type: 'permission-granted'
-      grantId: string
-      dimensions: readonly ERiskDimension[]
-      scope: EGrantScope
-      subject: string
-      reason: string
     }
   | { type: 'permission-revoked'; grantId: string }
   | CodeQualityReviewedBody
@@ -352,27 +256,6 @@ export type EventBody =
       text: string
       modelId: string
       status?: ETldrStatus | undefined
-    }
-  | {
-      type: 'subscription-created'
-      subscriptionId: string
-      provider: string
-      target: JsonValue
-      label: string
-      createdBy: ESubscriptionActor
-      expiresAt?: string | undefined
-    }
-  | {
-      type: 'subscription-changed'
-      subscriptionId: string
-      status: ESubscriptionStatus
-      by: ESubscriptionActor
-    }
-  | {
-      type: 'subscription-ended'
-      subscriptionId: string
-      reason: ESubscriptionEnd
-      by: ESubscriptionActor
     }
   | { type: 'run-failed'; failure: RunFailure }
   | { type: 'run-failure-dismissed'; failureSeq: number }

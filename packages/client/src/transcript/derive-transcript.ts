@@ -13,7 +13,7 @@ import { sandboxNoticeOf, type TranscriptSandbox } from './sandbox-notice'
 import { persistedFailureOf } from './persisted-failure'
 import { pickFailure } from './pick-failure'
 import { revealedText, type RevealGate } from './reveal-gate'
-import { latestRunFailure, type DurableRunFailure } from './run-failure'
+import { failureDismissedForTail, latestRunFailure, type DurableRunFailure } from './run-failure'
 import { modelEntries } from './model-entries'
 import { liveToolRuns, type LiveToolRun } from './tool-runs'
 import {
@@ -30,12 +30,14 @@ const stepFailureOf = (args: {
   steps: readonly InFlightStep[]
   durable: DurableRunFailure | null
   persisted: StepFailure | null
+  dismissed: boolean
   streaming: boolean
 }): StepFailure | null => {
   const picked = pickFailure({
     steps: args.steps,
     durable: args.durable,
     legacy: args.persisted?.message == null ? null : { message: args.persisted.message, seq: null },
+    dismissed: args.dismissed,
     streaming: args.streaming,
   })
   return picked === null
@@ -133,6 +135,7 @@ export function assembleTranscript(args: {
   working?: boolean | undefined
   durableFailure?: DurableRunFailure | null | undefined
   persistedFailure?: StepFailure | null | undefined
+  failureDismissed?: boolean | undefined
 }): TranscriptModel {
   const reveal = args.reveal ?? null
   const pending = args.pendingTldr ?? null
@@ -160,6 +163,7 @@ export function assembleTranscript(args: {
     steps: args.live,
     durable: args.durableFailure ?? null,
     persisted: args.persistedFailure ?? null,
+    dismissed: args.failureDismissed ?? false,
     streaming,
   })
 
@@ -186,6 +190,7 @@ export function deriveTranscript(args: {
     durable: durableEntries({ events: args.events, turns: args.turns }),
     durableFailure: latestRunFailure(args.events),
     persistedFailure: persistedFailureOf(args.events),
+    failureDismissed: failureDismissedForTail(args.events),
     live: liveSteps({
       steps: stepsOfSignalsAt({ signals: args.signals, now: args.now }),
       events: args.events,

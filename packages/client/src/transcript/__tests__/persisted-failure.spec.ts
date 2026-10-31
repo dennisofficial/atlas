@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ERunFailureKind } from '@dltech/atlas-core'
+
 import { EStepEnd } from '../../channel'
 
 import { deriveTranscript } from '../derive-transcript'
@@ -48,6 +50,22 @@ describe('a persisted failed turn', () => {
       signals: [started(stepOne)],
     })
 
+    expect(model.failure).toBeNull()
+  })
+
+  it('shows no failure for a live Failed step once the durable failure is dismissed', () => {
+    const events = log([
+      { type: 'user-said', text: 'go' },
+      { type: 'run-failed', failure: { kind: ERunFailureKind.Auth, message: 'bad' } },
+      { type: 'run-failure-dismissed', failureSeq: 2 },
+    ])
+    const model = deriveTranscript({
+      events,
+      signals: [
+        started(stepOne),
+        ended({ stepId: stepOne, end: EStepEnd.Failed, supersededBy: null }),
+      ],
+    })
     expect(model.failure).toBeNull()
   })
 })

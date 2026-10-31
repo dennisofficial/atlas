@@ -3,6 +3,7 @@ import {
   ERunFailureKind,
   ERunRemedy,
   isResumable,
+  isTurnTaking,
   remediesOf,
   runFailureCopy,
   type Event,
@@ -12,7 +13,7 @@ import {
 
 import type { InFlightStep } from './in-flight-steps'
 import { failureKindOf, pickFailure } from './pick-failure'
-import { latestRunFailure, legacyFailureOf } from './run-failure'
+import { failureDismissedForTail, latestRunFailure, legacyFailureOf } from './run-failure'
 
 export type RunAttentionRemedy = { remedy: ERunRemedy; enabled: boolean }
 
@@ -65,6 +66,7 @@ export function runAttentionOf(args: {
     steps: args.live,
     durable: latestRunFailure(args.events),
     legacy: legacyFailureOf(args.events),
+    dismissed: failureDismissedForTail(args.events),
     streaming: args.working,
   })
 
@@ -79,14 +81,58 @@ export function runAttentionOf(args: {
     }
   }
 
+  const agentFailure = agentFailureAttention({
+    events: args.events,
+    settled: !args.working && !args.turnInFlight,
+  })
+  if (agentFailure !== null) return agentFailure
+
   if (!idleAndReady || !isResumable(args.events)) return null
+  const resumeSeq = lastTurnTakingSeq(args.events)
+  if (resumeSeq === null || dismissedAfter({ events: args.events, seq: resumeSeq })) return null
   return {
     failure: null,
     message: INTERRUPTED_TITLE,
-    failureSeq: null,
+    failureSeq: resumeSeq,
     runId: null,
     remedies: [{ remedy: ERunRemedy.Resume, enabled: true }],
-    dismissible: false,
+    dismissible: true,
+    busyReason: null,
+  }
+}
+
+const lastTurnTakingSeq = (events: readonly Event[]): number | null =>
+  events.filter(isTurnTaking).at(-1)?.seq ?? null
+
+const dismissedAfter = (args: { events: readonly Event[]; seq: number }): boolean =>
+  args.events.some((event) => event.type === 'run-failure-dismissed' && event.seq > args.seq)
+
+function agentFailureAttention(args: {
+  events: readonly Event[]
+  settled: boolean
+}): RunAttention | null {
+  if (!args.settled) return null
+  const lastUser = args.events.findLastIndex((event) => event.type === 'user-said')
+  const ended = args.events
+    .slice(lastUser + 1)
+    .findLast((event) => event.type === 'agent-ended' && event.status === EAgentStatus.Failed)
+  if (ended === undefined || ended.type !== 'agent-ended') return null
+  const dismissed = args.events.some(
+    (event) => event.type === 'run-failure-dismissed' && event.failureSeq === ended.seq,
+  )
+  if (dismissed) return null
+  const message = ended.failureCause ?? 'A sub-agent failed'
+  return {
+    failure: {
+      kind: ERunFailureKind.AgentFailed,
+      message,
+      agent: { agentId: ended.agentId, agentType: ended.agentType, intent: ended.intent },
+    },
+    message,
+    failureSeq: ended.seq,
+    runId: null,
+    remedies: remediesFor({ kind: ERunFailureKind.AgentFailed, idleAndReady: true }),
+    dismissible: true,
     busyReason: null,
   }
 }

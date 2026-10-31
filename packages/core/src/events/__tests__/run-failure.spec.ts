@@ -84,7 +84,7 @@ describe('runFailureCopy', () => {
     [ERunFailureKind.FinishFault, [ERunRemedy.Retry]],
     [ERunFailureKind.Crashed, [ERunRemedy.Retry]],
     [ERunFailureKind.Other, [ERunRemedy.Retry]],
-    [ERunFailureKind.AgentFailed, [ERunRemedy.OpenAgent, ERunRemedy.Retry]],
+    [ERunFailureKind.AgentFailed, [ERunRemedy.OpenAgent]],
   ])('orders remedies for %s', (kind, remedies) => {
     expect(remediesOf(kind)).toEqual(remedies)
   })
@@ -114,7 +114,7 @@ describe('run-failed schema', () => {
       },
     }
     expect(eventBodySchema.parse(body)).toEqual(body)
-    expect(runFailureSchema.safeParse({ kind: 'bogus', message: '' }).success).toBe(false)
+    expect(runFailureSchema.safeParse({ kind: ERunFailureKind.Auth }).success).toBe(false)
   })
 })
 
@@ -137,5 +137,33 @@ describe('run-failure-dismissed schema', () => {
       },
     }
     expect(eventBodySchema.parse(body)).toEqual(body)
+  })
+})
+
+describe('unknown failure kinds', () => {
+  it('parses an unknown run-failed kind as Other and keeps the event', () => {
+    const parsed = eventBodySchema.parse({
+      type: 'run-failed',
+      failure: { kind: 'from-the-future', message: 'x' },
+    })
+    expect(parsed).toEqual({
+      type: 'run-failed',
+      failure: { kind: ERunFailureKind.Other, message: 'x' },
+    })
+  })
+
+  it('parses an unknown agent-ended failureKind as Other and keeps the event', () => {
+    const parsed = eventBodySchema.parse({
+      type: 'agent-ended',
+      agentId: 'a1',
+      agentType: 'explore',
+      intent: 'look',
+      status: 'failed',
+      failureKind: 'from-the-future',
+      prose: '',
+      turns: 0,
+      toolCalls: 0,
+    })
+    expect(parsed).toMatchObject({ type: 'agent-ended', failureKind: ERunFailureKind.Other })
   })
 })

@@ -96,9 +96,7 @@ describe('runAttentionOf failures', () => {
 
   it('is hidden by its own dismissal, with no live signals', () => {
     const events = failedLog([{ type: 'run-failure-dismissed', failureSeq: 2 }])
-    const value = attention({ events })
-    expect(value?.failure).toBeNull()
-    expect(value?.failureSeq).toBeNull()
+    expect(attention({ events })).toBeNull()
   })
 
   it('ignores a dismissal of a different seq', () => {
@@ -119,6 +117,15 @@ describe('runAttentionOf failures', () => {
       dismissible: true,
     })
     expect(value?.remedies).toEqual([{ remedy: ERunRemedy.Retry, enabled: true }])
+  })
+
+  it('shows nothing for a live Failed step once its durable failure is dismissed', () => {
+    const signals = [
+      started(stepOne),
+      ended({ stepId: stepOne, end: EStepEnd.Failed, supersededBy: null }),
+    ]
+    const events = failedLog([{ type: 'run-failure-dismissed', failureSeq: 2 }])
+    expect(attention({ events, signals })).toBeNull()
   })
 
   it('treats a live-only failure as not dismissible', () => {
@@ -145,12 +152,35 @@ describe('runAttentionOf interrupted runs', () => {
 
   it('offers Resume when resumable and idle', () => {
     const value = attention({ events: interrupted() })
-    expect(value).toMatchObject({ failure: null, failureSeq: null, dismissible: false })
+    expect(value).toMatchObject({ failure: null, failureSeq: 3, dismissible: true })
     expect(value?.remedies).toEqual([{ remedy: ERunRemedy.Resume, enabled: true }])
     expect(runAttentionCopy({ attention: value as RunAttention })).toEqual({
       title: 'The run stopped before finishing',
       detail: 'Resume continues from the last finished step; nothing is rerun.',
     })
+  })
+
+  it('makes the Resume strip dismissible at the last turn-taking event', () => {
+    expect(attention({ events: interrupted() })).toMatchObject({ failureSeq: 3, dismissible: true })
+  })
+
+  it('closes the Resume strip with a dismissal and re-enables after a user-said', () => {
+    const closed = log([
+      { type: 'user-said', text: 'go' },
+      { type: 'run-failure-dismissed', failureSeq: 1 },
+    ])
+    expect(attention({ events: closed })).toBeNull()
+    const again = log([
+      { type: 'user-said', text: 'go' },
+      { type: 'run-failure-dismissed', failureSeq: 1 },
+      { type: 'user-said', text: 'more' },
+    ])
+    expect(attention({ events: again })?.failureSeq).toBe(3)
+  })
+
+  it('closes a failure on a resumable log to nothing, not a Resume strip', () => {
+    const events = failedLog([{ type: 'run-failure-dismissed', failureSeq: 2 }])
+    expect(attention({ events })).toBeNull()
   })
 
   it('returns null when resumable but working', () => {
@@ -198,6 +228,48 @@ describe('failedAgentsOf', () => {
         failureCause: 'no credit',
       },
     ])
+    expect(attention({ events })?.failure?.kind).toBe(ERunFailureKind.AgentFailed)
+  })
+})
+
+describe('runAttentionOf failed sub-agents', () => {
+  const childFailed = (): EventDraft[] => [
+    { type: 'user-said', text: 'go' },
+    {
+      type: 'agent-ended',
+      agentId: toThreadId('child'),
+      agentType: 'explore',
+      intent: 'look',
+      status: EAgentStatus.Failed,
+      failureCause: 'no credit',
+      failureKind: ERunFailureKind.Quota,
+      prose: '',
+      turns: 0,
+      toolCalls: 0,
+      relayed: false,
+    },
+  ]
+
+  it('surfaces the failed agent with OpenAgent only', () => {
+    expect(attention({ events: log(childFailed()) })).toMatchObject({
+      failure: {
+        kind: ERunFailureKind.AgentFailed,
+        message: 'no credit',
+        agent: { agentId: 'child', agentType: 'explore', intent: 'look' },
+      },
+      failureSeq: 2,
+      dismissible: true,
+      remedies: [{ remedy: ERunRemedy.OpenAgent, enabled: true }],
+    })
+  })
+
+  it('is hidden by a dismissal of that ending', () => {
+    const events = log([...childFailed(), { type: 'run-failure-dismissed', failureSeq: 2 }])
+    expect(attention({ events })).toBeNull()
+  })
+
+  it('is superseded by a later user-said', () => {
+    const events = log([...childFailed(), { type: 'user-said', text: 'next' }])
     expect(attention({ events })?.failure).toBeNull()
   })
 })

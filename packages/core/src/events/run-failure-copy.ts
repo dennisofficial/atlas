@@ -84,12 +84,15 @@ function wordsOf(args: {
         title: `${subject} ended the reply early`,
         detail: `${subject} ended the reply with an error, a safety filter or an empty answer: ${failure.message} Retry, rephrase the request, or switch model.`,
       }
-    case ERunFailureKind.AgentFailed:
+    case ERunFailureKind.AgentFailed: {
+      const { agent } = failure
+      const name = agent === undefined ? 'A sub-agent' : `The ${agent.agentType} sub-agent`
+      const task = agent === undefined || agent.intent === '' ? '' : ` (${agent.intent})`
       return {
-        title:
-          failure.agent === undefined ? 'A sub-agent failed' : `${failure.agent.agentType} failed`,
-        detail: `A sub-agent this run depended on failed: ${failure.message} Open the agent to see why, then retry.`,
+        title: agent === undefined ? 'A sub-agent failed' : `${agent.agentType} failed`,
+        detail: `${name}${task} failed: ${failure.message} Open it to see why.`,
       }
+    }
     case ERunFailureKind.Crashed:
       return {
         title: 'The run crashed',

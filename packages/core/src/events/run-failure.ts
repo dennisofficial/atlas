@@ -32,7 +32,7 @@ export type RunFailure = {
 }
 
 export const runFailureSchema: z.ZodType<RunFailure> = z.object({
-  kind: z.enum(ERunFailureKind),
+  kind: z.enum(ERunFailureKind).catch(ERunFailureKind.Other),
   message: z.string(),
   statusCode: z.number().int().optional(),
   providerCode: z.string().optional(),
@@ -112,7 +112,7 @@ export function remediesOf(kind: ERunFailureKind): readonly ERunRemedy[] {
     case ERunFailureKind.ContextOverflow:
       return [ERunRemedy.Compact, ERunRemedy.SwitchModel]
     case ERunFailureKind.AgentFailed:
-      return [ERunRemedy.OpenAgent, ERunRemedy.Retry]
+      return [ERunRemedy.OpenAgent]
     case ERunFailureKind.Network:
     case ERunFailureKind.Stalled:
     case ERunFailureKind.ExchangeFault:

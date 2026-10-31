@@ -19,6 +19,7 @@ export function pickFailure(args: {
   steps: readonly InFlightStep[]
   durable: DurableRunFailure | null
   legacy: { message: string; seq: number | null } | null
+  dismissed: boolean
   streaming: boolean
 }): PickedFailure | null {
   if (args.steps.some((step) => step.end !== EStepEnd.Failed)) return null
@@ -31,6 +32,7 @@ export function pickFailure(args: {
       runId: durable.runId,
     }
   }
+  if (args.dismissed) return null
   const failed = args.steps.filter((step) => step.end === EStepEnd.Failed).at(-1)
   if (failed !== undefined) {
     return { failure: null, message: failed.errorMessage, failureSeq: null, runId: null }
