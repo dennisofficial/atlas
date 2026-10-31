@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
+import { rateLimitOf } from './github-rate-limit'
 import type {
   PullRequestCacheFields,
   RestCheckRun,
@@ -15,11 +16,15 @@ const DETAIL_CAP = 300
 const GITHUB_REQUEST_TIMEOUT_MS = 8_000
 
 export class GithubUserReadFailed extends Error {
+  readonly rateLimited: boolean
+
   constructor(
     message: string,
     readonly status: number,
+    rateLimited?: boolean,
   ) {
     super(message)
+    this.rateLimited = rateLimited ?? status === 429
   }
 }
 
@@ -258,6 +263,7 @@ export class GithubUserReads {
       throw new GithubUserReadFailed(
         `github answered ${response.status} for ${args.path}: ${detail}`,
         response.status,
+        rateLimitOf(response) !== null,
       )
     }
     return (await response.json()) as T

@@ -26,6 +26,11 @@ import { GithubService } from './github.service'
  */
 const REANCHOR_AFTER_MS = 10 * 60 * 1_000
 
+// A merged PR cannot change state again, and a closed one can only reopen — which GitHub
+// delivers as a `pull_request` `reopened` webhook — so a terminal row never needs a REST
+// re-anchor. https://docs.github.com/en/webhooks/webhook-events-and-payloads#pull_request
+const TERMINAL_STATES = new Set(['merged', 'closed'])
+
 @Injectable()
 export class GithubPollSweeperService {
   private readonly logger = new Logger(GithubPollSweeperService.name)
@@ -67,31 +72,44 @@ export class GithubPollSweeperService {
         branch: subscription.branch,
       })
       if (prNumber === null) continue
-      await this.pollOne({
+      const outcome = await this.pollOne({
         userId: subscription.userId,
         repoFullName: subscription.repoFullName,
         prNumber,
       })
+      if (outcome === 'rate-limited') {
+        this.logger.warn('github rate limit hit; aborting the rest of the poll sweep')
+        break
+      }
     }
 
     const hookBacked = await db.orm.public.GithubSubscription.where({ pollBacked: false })
       .where((subscription) => subscription.prNumber.isNotNull())
       .where(subscriptionLiveWhere({ now }))
       .all()
+    const reanchored = new Set<string>()
     for (const subscription of hookBacked) {
       if (subscription.prNumber === null) continue
+      const key = `${subscription.repoFullName}#${subscription.prNumber}`
+      if (reanchored.has(key)) continue
       const state = await db.orm.public.GithubPrState.first({
         repoFullName: subscription.repoFullName,
         prNumber: subscription.prNumber,
       })
-      if (state !== null && now.getTime() - state.updatedAt.getTime() < REANCHOR_AFTER_MS) {
-        continue
+      if (state !== null) {
+        if (TERMINAL_STATES.has(state.state)) continue
+        if (now.getTime() - state.updatedAt.getTime() < REANCHOR_AFTER_MS) continue
       }
-      await this.pollOne({
+      reanchored.add(key)
+      const outcome = await this.pollOne({
         userId: subscription.userId,
         repoFullName: subscription.repoFullName,
         prNumber: subscription.prNumber,
       })
+      if (outcome === 'rate-limited') {
+        this.logger.warn('github rate limit hit; aborting the rest of the hook-backed pass')
+        break
+      }
     }
   }
 
@@ -163,9 +181,9 @@ export class GithubPollSweeperService {
     userId: string
     repoFullName: string
     prNumber: number
-  }): Promise<void> {
+  }): Promise<'polled' | 'skipped' | 'rate-limited'> {
     const token = await this.github.findToken({ userId: args.userId })
-    if (token === undefined) return
+    if (token === undefined) return 'skipped'
 
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
     let pushed: {
@@ -208,7 +226,9 @@ export class GithubPollSweeperService {
         prior,
       }
     } catch (failure) {
-      if (failure instanceof GithubUserReadFailed) return
+      if (failure instanceof GithubUserReadFailed) {
+        return failure.rateLimited ? 'rate-limited' : 'skipped'
+      }
       throw failure
     }
 
@@ -219,7 +239,7 @@ export class GithubPollSweeperService {
         routing: pushed.routing,
       }),
     ).all()
-    if (subscribers.length === 0) return
+    if (subscribers.length === 0) return 'polled'
 
     const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
     this.fanout.push({ userIds, state: pushed.state })
@@ -230,5 +250,6 @@ export class GithubPollSweeperService {
       row: pushed.row,
       userIds,
     })
+    return 'polled'
   }
 }
