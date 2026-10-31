@@ -1,121 +1,18 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import type { PodBridgeDriver } from '@dltech/atlas-harness'
-import { createDesktopHost, type IDesktopHost } from '../../index'
-import { SESSION_COOKIE } from '../../guard'
-import { createTokenStore } from '../../auth/token-store'
-import { POD_INDEX_NAME } from '../pod-index'
+import { describe, expect, test } from 'bun:test'
+import {
+  call,
+  useDesktopHost,
+  create,
+  failLeaseWith,
+  host,
+  leaseBodies,
+  leaseHeaders,
+  state,
+  stopDocker,
+  THREAD,
+} from './pods-host-fixture'
 
-const SECRET = 'b'.repeat(64)
-const SESSION = 'better-auth.session_token=abc123'
-const THREAD = 'thread-1'
-
-interface IFakeState {
-  running: Set<string>
-  destroyed: string[]
-  created: string[]
-}
-
-const HOME = mkdtempSync(join(tmpdir(), 'atlas-mac-pods-'))
-let host: IDesktopHost
-let upstream: ReturnType<typeof Bun.serve>
-let leaseHeaders: { authorization: string | null; cookie: string | null; origin: string | null }[]
-let leaseBodies: unknown[]
-let leaseStatus: number
-let dockerUp: boolean
-let state: IFakeState
-
-function fakeDriver(): PodBridgeDriver {
-  return {
-    createOrResume: async ({ name, token }) => {
-      state.running.add(name)
-      state.created.push(name)
-      return { url: 'http://127.0.0.1:41000', state: 'running', created: true, token: token ?? '' }
-    },
-    inspect: async ({ name }) =>
-      state.running.has(name) ? { state: 'running', url: 'http://127.0.0.1:41000' } : undefined,
-    writeBootstrapFile: async () => undefined,
-    readResources: async () => ({}),
-    updateResources: async () => undefined,
-    destroy: async ({ name }) => {
-      state.running.delete(name)
-      state.destroyed.push(name)
-    },
-  }
-}
-
-beforeAll(() => {
-  upstream = Bun.serve({
-    port: 0,
-    hostname: '127.0.0.1',
-    async fetch(request) {
-      leaseHeaders.push({
-        authorization: request.headers.get('authorization'),
-        cookie: request.headers.get('cookie'),
-        origin: request.headers.get('origin'),
-      })
-      leaseBodies.push(await request.json())
-      if (leaseStatus !== 200) {
-        return Response.json(
-          {
-            error: {
-              message: 'no',
-              code: -32001,
-              data: { code: 'UNAUTHORIZED', httpStatus: leaseStatus },
-            },
-          },
-          { status: leaseStatus },
-        )
-      }
-      return Response.json({ result: { data: null } })
-    },
-  })
-  host = createDesktopHost({
-    webRoot: '/nonexistent',
-    secret: SECRET,
-    apiOrigin: `http://127.0.0.1:${upstream.port}`,
-    pods: {
-      home: HOME,
-      serveVersion: '1.2.3',
-      driverWith: fakeDriver,
-      ping: async () => (dockerUp ? undefined : 'socket missing'),
-    },
-  })
-})
-
-afterAll(async () => {
-  await host.stop()
-  upstream.stop(true)
-})
-
-beforeEach(() => {
-  rmSync(join(HOME, POD_INDEX_NAME), { force: true })
-  leaseHeaders = []
-  createTokenStore({ home: HOME }).save({ token: 'bearer-tok' })
-  leaseBodies = []
-  leaseStatus = 200
-  dockerUp = true
-  state = { running: new Set(), destroyed: [], created: [] }
-})
-
-const call = ({ path, method = 'GET', body }: { path: string; method?: string; body?: unknown }) =>
-  fetch(`${host.url}${path}`, {
-    method,
-    headers: {
-      cookie: `${SESSION_COOKIE}=${SECRET}; ${SESSION}`,
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    body: body === undefined ? null : JSON.stringify(body),
-  })
-
-const create = () =>
-  call({
-    path: '/desktop/pods',
-    method: 'POST',
-    body: { threadId: THREAD, projectId: 'p1', model: 'm', effort: 'high' },
-  })
+useDesktopHost()
 
 describe('guard', () => {
   test('pod routes without the session cookie are 403', async () => {
@@ -130,7 +27,7 @@ describe('capabilities', () => {
   })
 
   test('docker unreachable carries the reason', async () => {
-    dockerUp = false
+    stopDocker()
     expect(await (await call({ path: '/desktop/capabilities' })).json()).toEqual({
       docker: false,
       reason: 'socket missing',
@@ -166,7 +63,7 @@ describe('pods', () => {
   })
 
   test('lease rejection is 502 and indexes nothing', async () => {
-    leaseStatus = 401
+    failLeaseWith(401)
     expect((await create()).status).toBe(502)
     const listed = (await (await call({ path: '/desktop/pods' })).json()) as { pods: unknown[] }
     expect(listed.pods).toHaveLength(0)

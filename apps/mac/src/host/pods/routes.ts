@@ -1,11 +1,18 @@
 import { createPodService, type IPodService } from './service'
+import { NotAPodThreadError } from './pod-records'
+import { createThreadsHandler } from './thread-routes'
 import type { IPodHostConfig } from './config'
 import { createPodInputSchema, POD_NOT_RUNNING_CODE } from './wire'
 
 const COLLECTION = '/desktop/pods'
 const CAPABILITIES = '/desktop/capabilities'
 
-export type PodsHandler = (request: Request, pathname: string) => Promise<Response | undefined>
+export type PodsHandler = ((
+  request: Request,
+  pathname: string,
+) => Promise<Response | undefined>) & {
+  close: () => void
+}
 
 const failed = (error: unknown): Response =>
   Response.json(
@@ -25,8 +32,11 @@ export function createPodsHandler({
   bearer: () => string | undefined
 }): PodsHandler {
   const pods = service ?? createPodService({ config, bearer })
+  const threads = createThreadsHandler({ reads: pods })
 
-  return async (request, pathname) => {
+  const handle = async (request: Request, pathname: string): Promise<Response | undefined> => {
+    const threaded = await threads(request, pathname)
+    if (threaded !== undefined) return threaded
     const { method } = request
     if (pathname === CAPABILITIES) {
       return method === 'GET' ? Response.json(await pods.capabilities()) : undefined
@@ -39,6 +49,12 @@ export function createPodsHandler({
       try {
         return Response.json(await pods.create({ input: parsed.data }))
       } catch (error) {
+        if (error instanceof NotAPodThreadError) {
+          return Response.json(
+            { code: 'not-a-pod-thread', message: error.message },
+            { status: 409 },
+          )
+        }
         return failed(error)
       }
     }
@@ -52,8 +68,7 @@ export function createPodsHandler({
         return pod === undefined ? notFound() : Response.json(pod)
       }
       if (action === undefined && method === 'DELETE') {
-        await pods.destroy({ threadId })
-        return new Response(null, { status: 204 })
+        return (await pods.destroy({ threadId })) ? new Response(null, { status: 204 }) : notFound()
       }
       if (action === 'wake' && method === 'POST') {
         const pod = await pods.wake({ threadId })
@@ -72,4 +87,5 @@ export function createPodsHandler({
     }
     return undefined
   }
+  return Object.assign(handle, { close: () => pods.close() })
 }
