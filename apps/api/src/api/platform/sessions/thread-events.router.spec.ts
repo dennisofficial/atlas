@@ -119,7 +119,12 @@ describe('ThreadEventsRouter', () => {
       })
 
       expect(reply.status).toBe(200)
-      expect(read).toHaveBeenCalledWith({ userId: USER_ID, threadId: 'thr-1', upTo: 3 })
+      expect(read).toHaveBeenCalledWith({
+        userId: USER_ID,
+        threadId: 'thr-1',
+        fromSeq: undefined,
+        upTo: 3,
+      })
       expect(readOwn).not.toHaveBeenCalled()
     })
 
@@ -131,7 +136,12 @@ describe('ThreadEventsRouter', () => {
         input: { threadId: 'thr-1', own: true },
       })
 
-      expect(readOwn).toHaveBeenCalledWith({ userId: USER_ID, threadId: 'thr-1', upTo: undefined })
+      expect(readOwn).toHaveBeenCalledWith({
+        userId: USER_ID,
+        threadId: 'thr-1',
+        fromSeq: undefined,
+        upTo: undefined,
+      })
       expect(read).not.toHaveBeenCalled()
     })
 

@@ -14,11 +14,13 @@ export function useThreadPanelValue(args: {
   channel: ServeChannel | null
   pod: PodStatus | null
   details: DetailsInput
+  loaded: boolean
+  error: Error | null
   working: boolean
   rightPanel: RightPanelState
   refresh: () => void
 }): ThreadPanelValue {
-  const { threadId, channel, pod, details, working, rightPanel, refresh } = args
+  const { threadId, channel, pod, details, loaded, error, working, rightPanel, refresh } = args
   const {
     changesPath,
     agentId,
@@ -40,6 +42,8 @@ export function useThreadPanelValue(args: {
       channel,
       pod,
       details,
+      loaded,
+      error,
       working,
       changesPath,
       agentId,
@@ -59,6 +63,8 @@ export function useThreadPanelValue(args: {
       channel,
       pod,
       details,
+      loaded,
+      error,
       working,
       changesPath,
       agentId,

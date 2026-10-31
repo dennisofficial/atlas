@@ -53,6 +53,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   globalThis.fetch = realFetch
+  Reflect.deleteProperty(window, 'atlasDesktop')
   document.body.innerHTML = ''
 })
 
@@ -77,26 +78,34 @@ const probe = async () => {
 }
 
 describe('useDesktop', () => {
-  it('is absent when capabilities 404s (Vercel)', async () => {
+  it('never probes the host outside the Mac app', async () => {
+    const read = await probe()
+    expect(read()).toMatchObject({ ready: true, present: false })
+    expect(calls).toEqual([])
+  })
+
+  it('is absent when capabilities 404s', async () => {
+    Reflect.set(window, 'atlasDesktop', { vibrancy: false })
     const read = await probe()
     expect(read()).toMatchObject({ ready: true, present: false })
   })
 
   it('is absent on invalid JSON', async () => {
+    Reflect.set(window, 'atlasDesktop', { vibrancy: false })
     routes['GET /desktop/capabilities'] = () => new Response('<html>', { status: 200 })
     const read = await probe()
     expect(read()?.present).toBe(false)
   })
 
-  it('is present with docker flag and reason', async () => {
-    routes['GET /desktop/capabilities'] = () =>
-      Response.json({ docker: false, reason: 'Docker is not running' })
+  it.each([
+    { docker: false, reason: 'Docker is not running' },
+    { docker: true, reason: undefined },
+  ])('probes the Mac host once and exposes $docker / $reason', async (capabilities) => {
+    Reflect.set(window, 'atlasDesktop', { vibrancy: false })
+    routes['GET /desktop/capabilities'] = () => Response.json(capabilities)
     const read = await probe()
-    expect(read()).toMatchObject({
-      present: true,
-      docker: false,
-      reason: 'Docker is not running',
-    })
+    expect(read()).toMatchObject({ present: true, ...capabilities })
+    expect(calls.map((call) => call.path)).toEqual(['/desktop/capabilities'])
   })
 })
 

@@ -137,6 +137,40 @@ describe('EventsService', () => {
     expect(capped.map((event) => event.seq)).toEqual([1])
   })
 
+  it('readOwn serves only rows at or after fromSeq', async () => {
+    await service.append({
+      userId: USER_A,
+      threadId: 'brn_one',
+      draft: {
+        runId: 'run_1',
+        drafts: [draft('user-said'), draft('assistant-said'), draft('user-said')],
+      },
+    })
+
+    const delta = await service.readOwn({ userId: USER_A, threadId: 'brn_one', fromSeq: 2 })
+    expect(delta.map((event) => event.seq)).toEqual([2, 3])
+  })
+
+  it('read applies fromSeq across a reference fork chain', async () => {
+    await seedThreadRow({ id: 'brn_parent', head: 3 })
+    await seedThreadRow({
+      id: 'brn_child',
+      head: 3,
+      createdAt: new Date('2026-09-15T00:01:00.000Z'),
+      updatedAt: new Date('2026-09-15T00:01:00.000Z'),
+      parentThreadId: 'brn_parent',
+      forkSeq: 2,
+      forkMode: 'reference',
+    })
+    for (const seq of [1, 2, 3]) {
+      await seedEventRow({ id: `evt_p${seq}`, threadId: 'brn_parent', seq, runId: 'run_p' })
+    }
+    await seedEventRow({ id: 'evt_c3', threadId: 'brn_child', seq: 3, runId: 'run_p' })
+
+    const delta = await service.read({ userId: USER_A, threadId: 'brn_child', fromSeq: 3 })
+    expect(delta.map((event) => event.id)).toEqual(['evt_c3'])
+  })
+
   it('head and reads answer not-found for another user', async () => {
     await service.append({
       userId: USER_A,
