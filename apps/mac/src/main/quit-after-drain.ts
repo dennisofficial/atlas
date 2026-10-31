@@ -25,6 +25,6 @@ export function createQuitAfterDrain({
   return function handleBeforeQuit(event) {
     if (drained) return
     event.response = { allow: false }
-    draining ??= drainThenQuit().catch(onError)
+    if (draining === undefined) draining = drainThenQuit().catch(onError)
   }
 }
