@@ -11,6 +11,7 @@ import { ERunRemedy, providerLabelOf, type Event } from '@dltech/atlas-core'
 import type { RunAttentionStripProps } from '@dltech/atlas-ui/ai/run-attention-strip'
 
 import { PROVIDERS_HREF } from '@/features/settings/settings-nav'
+import type { RunFailureCardProps } from '../transcript/run-failure-card'
 
 import type { ThreadPanelValue } from '../panel/thread-panel-context'
 import { runAttentionActionsOf } from './run-attention-actions'
@@ -26,10 +27,11 @@ export const DISMISS_UNSUPPORTED = 'Could not dismiss the failure — the sandbo
 
 export type RunAttentionView = {
   strip: RunAttentionStripProps | null
+  card: RunFailureCardProps | null
   failedLabel: string | null
 }
 
-const NONE: RunAttentionView = { strip: null, failedLabel: null }
+const NONE: RunAttentionView = { strip: null, card: null, failedLabel: null }
 
 export function useRunAttention(args: {
   events: readonly Event[]
@@ -109,6 +111,13 @@ export function useRunAttention(args: {
         busyReason: attention.busyReason,
         ...(attention.dismissible ? { onDismiss: handleDismiss } : {}),
       },
+      card:
+        failure === null
+          ? null
+          : {
+              ...copy,
+              ...(attention.dismissible ? { onDismiss: handleDismiss } : {}),
+            },
       failedLabel: failure === null ? null : runFailedLabelOf({ events, failureSeq }),
     }
   }, [

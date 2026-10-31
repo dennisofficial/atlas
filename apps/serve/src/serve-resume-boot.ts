@@ -1,5 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { ETurnStatus } from '@dltech/atlas-harness'
+import { ETurnStatus, runFailureOf } from '@dltech/atlas-harness'
 import { writesBehind } from '@dltech/atlas-wire'
 
 import type { ServeApp } from './serve-app'
@@ -40,13 +40,18 @@ const recordFailedBootResume = async (args: {
   await args.driver.settled()
   const outcome = args.driver.outcome()
   const crashed = args.driver.failure()
-  const message = outcome?.status === ETurnStatus.Failed ? outcome.message : crashed?.message
-  if (message === undefined) return
+  const failed =
+    outcome?.status === ETurnStatus.Failed
+      ? { message: outcome.message, cause: outcome.cause }
+      : crashed === null
+        ? undefined
+        : { message: crashed.message, cause: crashed }
+  if (failed === undefined) return
   try {
     await args.app.log.append({
       threadId: args.threadId,
       runId: args.app.ids.nextRunId(),
-      drafts: [{ type: 'assistant-said', parts: [{ type: 'text', text: message }] }],
+      drafts: [{ type: 'run-failed', failure: runFailureOf(failed) }],
     })
     args.app.channel.publisherFor({ threadId: args.threadId }).eventsAppended()
   } catch (failure) {
