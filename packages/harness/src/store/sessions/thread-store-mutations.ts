@@ -1,5 +1,7 @@
 import { locationOfPlacement, type ThreadId } from '@dltech/atlas-core'
 
+import { withMirrorLock } from '../../cloud/mirror-lock'
+import { writeMetaFile } from './meta-file'
 import type { WritePlacementArgs } from '../thread-store'
 import { tryReadThreadMeta } from './listing'
 import { newThreadMeta, writeMeta, type ThreadMeta } from './meta'
@@ -58,6 +60,35 @@ export async function writePlacementMeta({
       home: locationOfPlacement(record.placement),
     })
   }
+}
+
+export async function setThreadArchivedMeta({
+  context,
+  threadId,
+  archived,
+}: {
+  context: ThreadStoreContext
+  threadId: ThreadId
+  archived: boolean
+}): Promise<boolean> {
+  const { registry } = context
+  const sessionDir = await registry.sessionDirOf({ threadId })
+  if (sessionDir === undefined) return false
+  const file = threadMetaFile({ sessionDir, threadId })
+  return registry.enqueue({
+    handle: registry.handleFor({ sessionDir }),
+    run: () =>
+      withMirrorLock({
+        eventsFile: file,
+        run: async () => {
+          const meta = tryReadThreadMeta({ file })
+          if (meta === undefined) return false
+          const archivedAt = archived ? (meta.archivedAt ?? context.clock.now()) : null
+          await writeMetaFile({ file, meta: { ...meta, archivedAt } })
+          return true
+        },
+      }),
+  })
 }
 
 export async function updateThreadMeta({

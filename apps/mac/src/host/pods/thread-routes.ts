@@ -1,5 +1,10 @@
 import type { IThreadReads } from './thread-reads'
-import { markReadInputSchema, renameInputSchema, threadEventsQuerySchema } from './wire'
+import {
+  archiveInputSchema,
+  markReadInputSchema,
+  renameInputSchema,
+  threadEventsQuerySchema,
+} from './wire'
 
 const THREADS = '/desktop/threads'
 
@@ -24,6 +29,12 @@ export function createThreadsHandler({ reads }: { reads: IThreadReads }) {
     const [threadId, action, ...rest] = pathname.slice(THREADS.length + 1).split('/')
     if (threadId === undefined || threadId.length === 0 || rest.length > 0) return undefined
     try {
+      if (action === 'archive' && method === 'POST') {
+        const parsed = archiveInputSchema.safeParse(await bodyOf(request))
+        if (!parsed.success) return invalid()
+        const changed = await reads.setArchived({ threadId, archived: parsed.data.archived })
+        return changed ? new Response(null, { status: 204 }) : notFound()
+      }
       if (action === 'rename' && method === 'POST') {
         const parsed = renameInputSchema.safeParse(await bodyOf(request))
         if (!parsed.success) return invalid()
