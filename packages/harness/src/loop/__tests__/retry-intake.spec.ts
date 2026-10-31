@@ -293,7 +293,7 @@ describe('an interrupt that lands while a retry is waiting to re-ask', () => {
     expect(steps).toBe(1)
     expect(opened.model.doStreamCalls).toHaveLength(0)
     const events = await harnessLog(harness, threadId)
-    expect(typesOf(events)).toEqual(['user-said'])
+    expect(typesOf(events)).toEqual(['user-said', 'run-failed'])
   })
 })
 

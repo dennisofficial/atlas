@@ -2,6 +2,7 @@ import {
   autoCompactAfterTurn,
   contextPressure,
   EAutoCompact,
+  ERunFailureKind,
   ENoticeTone,
   emptyTurnBlocked,
   emptyTurnRefusal,
@@ -18,6 +19,8 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
+import { runFailureOf } from '../model/run-failure'
+import { TurnFault } from '../model/turn-fault'
 import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 import {
   ESuppress,
@@ -181,12 +184,19 @@ export function createTurnPolicyRunner(args: {
 
     acknowledgedStreaks.add(threadId)
     warn({ key: 'no-content-blocked', text: emptyTurnRefusal() })
-    return {
-      status: ETurnStatus.Failed,
-      runId: ids.nextRunId(),
-      message: emptyTurnRefusal(),
-      cause: { noContentStreak: noContentStreak(owned) },
-    }
+    const runId = ids.nextRunId()
+    const message = emptyTurnRefusal()
+    const cause = new TurnFault({
+      kind: ERunFailureKind.FinishFault,
+      message,
+      detail: { noContentStreak: noContentStreak(owned) },
+    })
+    await log.append({
+      threadId,
+      runId,
+      drafts: [{ type: 'run-failed', failure: runFailureOf({ message, cause }) }],
+    })
+    return { status: ETurnStatus.Failed, runId, message, cause }
   }
 
   return {

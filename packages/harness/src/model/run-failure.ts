@@ -7,12 +7,21 @@ import { CredentialError, ECredentialFailure } from '../credentials/credential-e
 import { failureAccountOf } from '../providers/failure-account'
 import { MissingKeyError } from '../providers/provider-key'
 import { ModelStreamError, StreamStallError } from './errors'
-import { modelFailureOf } from './failure'
+import { networkFailureOf } from './network-failure'
 import { providerErrorOf } from './provider-error'
 import { TurnFault } from './turn-fault'
 
 const MAX_MESSAGE_CHARS = 500
-const SECRET_SHAPES = /\b(?:sk|pk|rk|key)-[A-Za-z0-9_-]{6,}|Bearer\s+[A-Za-z0-9._~+/=-]+/gi
+const SECRET_SHAPES = new RegExp(
+  [
+    String.raw`\b(?:sk|pk|rk|key)-[A-Za-z0-9_-]{6,}`,
+    String.raw`Bearer\s+[A-Za-z0-9._~+/=-]+`,
+    'AIza[0-9A-Za-z_-]{20,}',
+    String.raw`eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+`,
+  ].join('|'),
+  'gi',
+)
+const SECRET_QUERY_PARAM = /\b(api_key|apikey|key|token|access_token)=[^&\s]+/gi
 
 const statusOf = (error: unknown): number | undefined => {
   if (error instanceof ModelStreamError) return statusOf(error.cause)
@@ -22,8 +31,11 @@ const statusOf = (error: unknown): number | undefined => {
   return undefined
 }
 
-const safeMessageOf = (message: string): string =>
-  message.replace(SECRET_SHAPES, '[redacted]').slice(0, MAX_MESSAGE_CHARS)
+export const safeFailureMessage = (message: string): string =>
+  message
+    .replace(SECRET_QUERY_PARAM, '$1=[redacted]')
+    .replace(SECRET_SHAPES, '[redacted]')
+    .slice(0, MAX_MESSAGE_CHARS)
 
 const unwrapped = (error: unknown): unknown =>
   error instanceof ModelStreamError && error.cause !== undefined ? unwrapped(error.cause) : error
@@ -50,7 +62,7 @@ export function runFailureOf(args: {
 }): RunFailure {
   const { providerCode, providerType } = providerErrorOf(args.cause)
   const statusCode = statusOf(args.cause)
-  const dropped = modelFailureOf(args.cause) !== null && statusCode === undefined
+  const dropped = statusCode === undefined && networkFailureOf(args.cause)
   const accountId = failureAccountOf(args.cause)
 
   const classified = runFailureKindOf({ statusCode, providerCode, providerType, dropped })
@@ -62,7 +74,7 @@ export function runFailureOf(args: {
 
   return {
     kind,
-    message: safeMessageOf(args.message),
+    message: safeFailureMessage(args.message),
     ...(statusCode === undefined ? {} : { statusCode }),
     ...(providerCode === undefined ? {} : { providerCode: String(providerCode) }),
     ...(args.providerId === undefined ? {} : { providerId: args.providerId }),

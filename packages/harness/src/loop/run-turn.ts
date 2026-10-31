@@ -33,6 +33,7 @@ import type { RetryDeps } from './retrying-step'
 import type { SleepPrevention } from '../power/sleep-prevention'
 import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps } from '../ledger/record-turn-spend'
 import { runFailureOf } from '../model/run-failure'
+import { recordEscapedFailure, recordRunFailure } from './recorded-failures'
 import { appendResumeDrafts } from './resume-turn'
 import { createSettlePending, type OnToolOutputNotice } from './settle-pending'
 import { runTrackedTurn, type TrackedTurnDeps } from './tracked-turn'
@@ -262,23 +263,28 @@ export class LoopTurnRunner extends TurnRunner {
       )
       status = outcome.status
       if (outcome.status === ETurnStatus.Failed) {
-        await this.log.append({
+        await recordRunFailure({
+          log: this.log,
           threadId,
           runId,
-          drafts: [
-            {
-              type: 'run-failed',
-              failure: runFailureOf({
-                message: outcome.message,
-                cause: outcome.cause,
-                providerId: this.model.identity.id,
-                modelId: this.model.identity.modelId,
-              }),
-            },
-          ],
+          failure: runFailureOf({
+            message: outcome.message,
+            cause: outcome.cause,
+            providerId: this.model.identity.id,
+            modelId: this.model.identity.modelId,
+          }),
         })
       }
       return outcome
+    } catch (error) {
+      await recordEscapedFailure({
+        log: this.log,
+        threadId,
+        runId,
+        error,
+        identity: this.model.identity,
+      })
+      throw error
     } finally {
       releaseSleepAssertion?.()
       await spend.settle({ threadId, runId, status })

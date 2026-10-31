@@ -1,5 +1,6 @@
 import {
   EFinishReason,
+  ERunFailureKind,
   noContentDraft,
   toRunId,
   toThreadId,
@@ -105,6 +106,14 @@ describe('a main session whose turns keep ending with <no content>', () => {
     expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(/send again/i)
     expect(inner.turns).toBe(0)
     expect(notices.posts.some((post) => post.key === 'no-content-blocked')).toBe(true)
+    const failed = (await fixture.log.read({ threadId: THREAD })).filter(
+      (event) => event.type === 'run-failed',
+    )
+    expect(failed).toHaveLength(1)
+    expect(failed[0]).toMatchObject({
+      runId: outcome.runId,
+      failure: { kind: ERunFailureKind.FinishFault },
+    })
     await fixture.close()
   })
 

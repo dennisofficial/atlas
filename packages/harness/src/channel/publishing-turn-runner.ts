@@ -11,6 +11,7 @@ import type {
 
 import type { PauseSignal } from '../loop/pause-signal'
 
+import { failureRecorded } from '../loop/recorded-failures'
 import { runFailureOf } from '../model/run-failure'
 import { ETurnStatus, LoopTurnRunner, TurnRunner, type TurnDeps, type TurnOutcome } from '../loop'
 import type { ThreadPublisher, DeltaChannel } from './delta-channel'
@@ -56,16 +57,18 @@ async function publishing(args: {
     args.publisher.close({ end: endFor(outcome) })
     return outcome
   } catch (error) {
-    await failed(
-      runFailureOf({
-        message: error instanceof Error ? error.message : String(error),
-        cause: error,
-        escaped: true,
-        providerId: args.identity.id,
-        modelId: args.identity.modelId,
-      }),
-      args.runId(),
-    )
+    if (!failureRecorded(error)) {
+      await failed(
+        runFailureOf({
+          message: error instanceof Error ? error.message : String(error),
+          cause: error,
+          escaped: true,
+          providerId: args.identity.id,
+          modelId: args.identity.modelId,
+        }),
+        args.runId(),
+      )
+    }
     args.publisher.close({ end: EStepEnd.Failed })
     throw error
   } finally {

@@ -23,6 +23,16 @@ describe('wireOutcomeOf', () => {
     expect(turnOutcomeWireSchema.safeParse(wire).success).toBe(true)
   })
 
+  it('names the served model on the failure', () => {
+    const wire = wireOutcomeOf(
+      { status: ETurnStatus.Failed, runId: toRunId('run-3'), message: 'boom', cause: undefined },
+      { providerId: 'anthropic', modelId: 'claude-opus-5' },
+    )
+    expect(wire).toMatchObject({
+      failure: { providerId: 'anthropic', modelId: 'claude-opus-5' },
+    })
+  })
+
   it('passes non-failed outcomes through', () => {
     const outcome = {
       status: ETurnStatus.Idle,

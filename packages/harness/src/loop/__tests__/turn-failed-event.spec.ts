@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 import { APICallError } from '@ai-sdk/provider'
 
-import { defaultPipeline, EMPTY_PROMPT, ERunFailureKind, type ModelPort } from '@dltech/atlas-core'
+import {
+  defaultPipeline,
+  EMPTY_PROMPT,
+  ERunFailureKind,
+  toRunId,
+  type ModelPort,
+} from '@dltech/atlas-core'
 
 import { LoopTurnRunner } from '..'
 import { ModelStreamError } from '../../model/errors'
@@ -117,5 +123,37 @@ describe('a failed turn is persisted', () => {
     expect(types.filter((type) => type === 'run-failed' || type === 'turn-failed')).toEqual([
       'run-failed',
     ])
+  })
+
+  it('records a thrown turn once, under the run that threw, as crashed', async () => {
+    const opened = await openSteerable({ script: [{ text: 'unused' }] })
+    const log = opened.harness.log
+    const brokenLog = {
+      ...log,
+      read: async (args: Parameters<typeof log.read>[0]) => {
+        const events = await log.read(args)
+        if (events.some((event) => event.type === 'user-said')) throw new Error('disk gone')
+        return events
+      },
+      append: log.append.bind(log),
+    }
+    const runner = new LoopTurnRunner({
+      log: brokenLog as typeof log,
+      model: opened.harness.model,
+      ids: opened.harness.ids,
+      assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),
+    })
+    await log.append({
+      threadId: opened.threadId,
+      runId: toRunId('seed'),
+      drafts: [{ type: 'user-said', text: 'hi' }],
+    })
+
+    await expect(runner.runTurn({ threadId: opened.threadId })).rejects.toThrow('disk gone')
+
+    const failed = await turnFailedIn(opened)
+    expect(failed).toHaveLength(1)
+    expect(failed[0]).toMatchObject({ failure: { kind: ERunFailureKind.Crashed } })
+    expect(failed[0]?.runId).not.toBe(toRunId('seed'))
   })
 })

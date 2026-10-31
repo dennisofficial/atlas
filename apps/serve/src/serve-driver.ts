@@ -41,7 +41,10 @@ export function createServeDriver(args: {
     onOutcome: (outcome) => {
       activity.turnOutcome(outcome)
       log({ event: EServeEvent.TurnEnded, status: outcome.status })
-      args.emitLifecycle({ kind: EServeFrame.TurnEnded, outcome: wireOutcomeOf(outcome) })
+      args.emitLifecycle({
+        kind: EServeFrame.TurnEnded,
+        outcome: wireOutcomeOf(outcome, app.modelBridge?.identity?.()),
+      })
     },
     onFailure: (reason) => {
       activity.turnFailed()

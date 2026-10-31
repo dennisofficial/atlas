@@ -9,7 +9,8 @@ import { modelFailureOf } from '../failure'
 import { CredentialError, ECredentialFailure } from '../../credentials/credential-error'
 import { MissingKeyError } from '../../providers/provider-key'
 import { StreamStallError } from '../errors'
-import { runFailureOf } from '../run-failure'
+import { droppedByMessageHeuristic } from '../dropped-by-message'
+import { runFailureOf, safeFailureMessage } from '../run-failure'
 import { TurnFault } from '../turn-fault'
 
 const unauthorized = (): APICallError =>
@@ -43,9 +44,62 @@ describe('runFailureOf', () => {
     expect(JSON.stringify(failure)).not.toContain('sk-live')
   })
 
-  it('treats a dropped connection as network', () => {
-    const failure = runFailureOf({ message: 'fetch failed', cause: new Error('fetch failed') })
-    expect(failure.kind).toBe(ERunFailureKind.Network)
+  const withCode = (code: string): Error => Object.assign(new Error('boom'), { code })
+
+  it.each([
+    'ECONNRESET',
+    'ECONNREFUSED',
+    'ETIMEDOUT',
+    'EPIPE',
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'UND_ERR_SOCKET',
+  ])('classifies code %s as network, even wrapped', (code) => {
+    const cause = new ModelStreamError({ message: 'x', cause: withCode(code) })
+    expect(runFailureOf({ message: 'x', cause }).kind).toBe(ERunFailureKind.Network)
+  })
+
+  it('classifies a fetch TypeError by its cause code', () => {
+    const cause = new TypeError('fetch failed', { cause: withCode('ECONNRESET') })
+    expect(runFailureOf({ message: 'x', cause }).kind).toBe(ERunFailureKind.Network)
+    expect(runFailureOf({ message: 'x', cause: new TypeError('fetch failed') }).kind).toBe(
+      ERunFailureKind.Network,
+    )
+  })
+
+  it('classifies timeout and abort errors by name', () => {
+    const named = (name: string) => Object.assign(new Error('x'), { name })
+    expect(runFailureOf({ message: 'x', cause: named('TimeoutError') }).kind).toBe(
+      ERunFailureKind.Network,
+    )
+    expect(runFailureOf({ message: 'x', cause: named('AbortError') }).kind).toBe(
+      ERunFailureKind.Network,
+    )
+  })
+
+  it('does not read network from message text of a plain error', () => {
+    for (const message of ['socket hang up', 'fetch failed', 'terminated', 'econnreset']) {
+      expect(runFailureOf({ message, cause: new Error(message) }).kind).toBe(ERunFailureKind.Other)
+    }
+  })
+
+  it('reads a stream ended without a finish reason through the named heuristic only', () => {
+    const message = 'Response stream ended without a finish reason.'
+    expect(droppedByMessageHeuristic(new Error(message))).toBe(true)
+    expect(droppedByMessageHeuristic(new Error('socket hang up'))).toBe(false)
+    const cause = new ModelStreamError({ message, cause: new Error(message) })
+    expect(runFailureOf({ message, cause }).kind).toBe(ERunFailureKind.Network)
+  })
+
+  it('keeps an HTTP status ahead of any network signal', () => {
+    const cause = new APICallError({
+      message: 'x',
+      url: 'https://x',
+      requestBodyValues: {},
+      statusCode: 400,
+      cause: withCode('ECONNRESET'),
+    })
+    expect(runFailureOf({ message: 'x', cause }).kind).toBe(ERunFailureKind.Other)
   })
 
   it('treats a non-model failure as other', () => {
@@ -102,5 +156,15 @@ describe('runFailureOf', () => {
     expect(runFailureOf({ message: 'boom', cause: new Error('boom'), escaped: true }).kind).toBe(
       ERunFailureKind.Crashed,
     )
+  })
+
+  it.each([
+    ['key AIzaSyA1234567890abcdefghij', 'key [redacted]'],
+    ['jwt eyJhbGciOi.eyJzdWIiOi.c2lnbmF0dXJl end', 'jwt [redacted] end'],
+    ['GET /v1?api_key=abc123&x=1', 'GET /v1?api_key=[redacted]&x=1'],
+    ['GET /v1?token=abc123 failed', 'GET /v1?token=[redacted] failed'],
+    ['GET /v1?access_token=abc&apikey=def', 'GET /v1?access_token=[redacted]&apikey=[redacted]'],
+  ])('redacts %s', (input, expected) => {
+    expect(safeFailureMessage(input)).toBe(expected)
   })
 })
