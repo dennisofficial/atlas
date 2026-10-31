@@ -11,7 +11,7 @@ import {
   latestAttemptOf,
   readBootSteps,
 } from '../../platform/sandboxes/sandbox-boot-steps'
-import { appendWithin, nextRunId } from '../../platform/sessions/append'
+import { appendStoredWithin, nextRunId, type StoredAppend } from '../../platform/sessions/append'
 import { findUserSaid, userSaidDraftOf } from './first-message'
 
 const agentStarted = (step: RecordedBootStep): boolean =>
@@ -28,6 +28,8 @@ export async function servesLiveIn(args: { tx: Tx; threadId: string }): Promise<
   return agentStartedIn(args)
 }
 
+export type QueuedAppend = { head?: number; appended?: StoredAppend }
+
 export async function appendUserSaid(args: {
   tx: Tx
   threadId: string
@@ -36,15 +38,15 @@ export async function appendUserSaid(args: {
   text: string
   images?: readonly SaidImageWire[] | undefined
   uploads?: readonly SaidUploadWire[] | undefined
-}): Promise<{ head?: number }> {
+}): Promise<QueuedAppend> {
   const { tx, threadId, userId, sendId, text, images, uploads } = args
   if ((await findUserSaid({ reader: tx, threadId, sendId })) !== null) return {}
-  const [appended] = await appendWithin({
+  const { appended } = await appendStoredWithin({
     tx,
     threadId,
     userId,
     runId: nextRunId(),
     drafts: [userSaidDraftOf({ sendId, text, images, uploads })],
   })
-  return appended === undefined ? {} : { head: appended.seq }
+  return appended === undefined ? {} : { head: appended.head, appended }
 }

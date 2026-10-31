@@ -12,7 +12,8 @@ import type {
   OpenThreadInput,
   RenameThreadInput,
 } from '@dltech/atlas-wire'
-import { appendWithin, nextThreadId } from './append'
+import { appendStoredWithin, nextThreadId, type StoredAppend } from './append'
+import { lockThread } from './thread-head'
 import { withSessions } from './thread-with-session'
 import { sessionOfThread } from './session-of-thread'
 import { listMainThreads, THREAD_LISTING_LIMIT } from './main-thread-listing'
@@ -39,25 +40,25 @@ export class ThreadsService {
       userId: args.userId,
       projectId: args.draft.projectId,
     })
-    const columns = createColumnsOf({
-      userId: args.userId,
-      draft: args.draft,
-      project,
-    })
+    const columns = createColumnsOf({ userId: args.userId, draft: args.draft, project })
     const created = await db.transaction(async (tx) => {
       const taken = await tx.orm.public.Thread.where({ id: columns.thread.id }).select('id').first()
       if (taken !== null) throw new ConflictException('thread id is already in use')
       return createDraftThread({ tx, ...columns })
     })
-    await this.signals.listChanged({
-      userId: args.userId,
-      threadId: created.thread.id,
-    })
+    await this.signals.listChanged({ userId: args.userId, threadId: created.thread.id })
     return toThreadDto(created)
   }
 
-  async announceCreated(args: { userId: string; threadId: string }): Promise<void> {
-    await this.signals.listChanged(args)
+  async announceCreated(args: {
+    userId: string
+    threadId: string
+    appended?: StoredAppend | undefined
+  }): Promise<void> {
+    if (args.appended !== undefined) {
+      await this.signals.eventsAppended({ threadId: args.threadId, ...args.appended })
+    }
+    await this.signals.listChanged({ userId: args.userId, threadId: args.threadId })
   }
 
   async createWithin(args: {
@@ -89,8 +90,8 @@ export class ThreadsService {
         draft: args.draft,
         threadId,
       })
-      if (reopened.moved) {
-        await this.signals.headMoved({ threadId, head: reopened.thread.head })
+      if (reopened.appended !== undefined) {
+        await this.signals.eventsAppended({ threadId, ...reopened.appended })
       }
       return { thread: reopened.thread, events: reopened.events }
     }
@@ -123,7 +124,7 @@ export class ThreadsService {
           updatedAt: at,
         },
       })
-      const events = await appendWithin({
+      const { events, appended } = await appendStoredWithin({
         tx,
         threadId,
         userId: args.userId,
@@ -134,24 +135,21 @@ export class ThreadsService {
       return {
         thread: toThreadDto({ thread: row, session: created.session }),
         events,
+        appended,
       }
     })
-    await this.signals.listChanged({ userId: args.userId, threadId })
-    return opened
+    await this.announceCreated({ userId: args.userId, threadId, appended: opened.appended })
+    return { thread: opened.thread, events: opened.events }
   }
 
-  /**
-   * A transfer that already landed is replayed whole by the caller — the edge may have timed out
-   * after the commit — so re-opening appends only what the stored log has not seen and refuses a
-   * draft list that no longer has that log as its prefix.
-   */
   private async reopen(args: {
     userId: string
     confinedTo: string | undefined
     draft: OpenThreadDraft
     threadId: string
-  }): Promise<{ thread: ThreadDto; events: EventDto[]; moved: boolean }> {
+  }): Promise<{ thread: ThreadDto; events: EventDto[]; appended: StoredAppend | undefined }> {
     return db.transaction(async (tx) => {
+      await lockThread({ tx, threadId: args.threadId })
       const row = await tx.orm.public.Thread.where({ id: args.threadId }).all().firstOrThrow()
       if (row.userId !== args.userId) throw new ForbiddenException('thread belongs to another user')
       if (!withinFamily({ row, confinedTo: args.confinedTo })) {
@@ -183,25 +181,19 @@ export class ThreadsService {
       }
 
       const novel = args.draft.drafts.slice(storedCount)
-      if (novel.length > 0) {
-        await appendWithin({
-          tx,
-          threadId: args.threadId,
-          userId: args.userId,
-          runId: args.draft.runId,
-          drafts: novel,
-        })
-      }
+      const { appended } = await appendStoredWithin({
+        tx,
+        threadId: args.threadId,
+        userId: args.userId,
+        runId: args.draft.runId,
+        drafts: novel,
+      })
 
-      const updated = await tx.orm.public.Thread.where({
-        id: args.threadId,
-      }).update({
+      const updated = await tx.orm.public.Thread.where({ id: args.threadId }).update({
         updatedAt: new Date(),
       })
       if (updated === null) throw new NotFoundException('thread not found')
-      const session = await tx.orm.public.Session.where({
-        id: updated.sessionId,
-      }).update({
+      const session = await tx.orm.public.Session.where({ id: updated.sessionId }).update({
         updatedAt: new Date(),
         ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
         ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
@@ -212,16 +204,11 @@ export class ThreadsService {
       })
       if (session === null) throw new NotFoundException('thread not found')
 
-      const events = await tx.orm.public.Event.where({
-        threadId: args.threadId,
-      })
+      const events = await tx.orm.public.Event.where({ threadId: args.threadId })
         .orderBy((event) => event.seq.asc())
         .all()
-      return {
-        thread: toThreadDto({ thread: updated, session }),
-        events: events.map(toEventDto),
-        moved: novel.length > 0,
-      }
+      const thread = toThreadDto({ thread: updated, session })
+      return { thread, events: events.map(toEventDto), appended }
     })
   }
 
@@ -229,7 +216,7 @@ export class ThreadsService {
     const [thread] = await enrichThreads({
       rows: await withSessions({
         reader: db,
-        threads: [await this.ownedThread(args)],
+        threads: [await requireOwnedThread({ reader: db, ...args })],
       }),
       viewerId: args.userId,
     })
@@ -238,7 +225,7 @@ export class ThreadsService {
   }
 
   async spawned(args: { userId: string; threadId: string }): Promise<ThreadDto[]> {
-    await this.ownedThread(args)
+    await requireOwnedThread({ reader: db, ...args })
     const rows = await db.orm.public.Thread.where({
       spawnerThreadId: args.threadId,
       userId: args.userId,
@@ -277,19 +264,11 @@ export class ThreadsService {
     threadId: string
     draft: Omit<RenameThreadInput, 'threadId'>
   }): Promise<void> {
-    await this.ownedThread(args)
-    const session = await sessionOfThread({
-      reader: db,
-      threadId: args.threadId,
-    })
-    await db.orm.public.Session.where({ id: session.id }).update({
-      title: args.draft.title,
-    })
+    await requireOwnedThread({ reader: db, ...args })
+    const session = await sessionOfThread({ reader: db, threadId: args.threadId })
+    await db.orm.public.Session.where({ id: session.id }).update({ title: args.draft.title })
     await this.signals.titleChanged({ threadId: args.threadId })
-    await this.signals.listChanged({
-      userId: args.userId,
-      threadId: args.threadId,
-    })
+    await this.signals.listChanged({ userId: args.userId, threadId: args.threadId })
   }
 
   async chooseModel(args: {
@@ -297,7 +276,7 @@ export class ThreadsService {
     threadId: string
     draft: Omit<ChooseThreadModelInput, 'threadId'>
   }): Promise<void> {
-    await this.ownedThread(args)
+    await requireOwnedThread({ reader: db, ...args })
     await db.orm.public.Thread.where({ id: args.threadId }).update({
       modelRef: args.draft.ref,
       modelEffort: args.draft.effort,
@@ -310,23 +289,12 @@ export class ThreadsService {
     threadId: string
     draft: Omit<AdoptThreadInput, 'threadId'>
   }): Promise<void> {
-    await this.ownedThread(args)
-    const session = await sessionOfThread({
-      reader: db,
-      threadId: args.threadId,
-    })
+    await requireOwnedThread({ reader: db, ...args })
+    const session = await sessionOfThread({ reader: db, threadId: args.threadId })
     await db.orm.public.Session.where({ id: session.id }).update({
       workspace: args.draft.workspace,
       ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
     })
     this.signals.threadChanged({ threadId: args.threadId })
-  }
-
-  private ownedThread(args: { userId: string; threadId: string }) {
-    return requireOwnedThread({
-      reader: db,
-      userId: args.userId,
-      threadId: args.threadId,
-    })
   }
 }
