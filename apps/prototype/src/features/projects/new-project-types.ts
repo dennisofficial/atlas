@@ -1,3 +1,5 @@
+import type { SecretPair } from './new-project-secrets'
+
 export enum ENewProjectStep {
   Source = 'Source',
   Repository = 'Repository',
@@ -7,11 +9,6 @@ export enum ENewProjectStep {
 export enum EProjectSource {
   Existing = 'Existing',
   NoRepo = 'NoRepo',
-}
-
-export enum EShipBehavior {
-  OpenPullRequest = 'open-pr',
-  Push = 'push',
 }
 
 export interface GithubRepoSummary {
@@ -30,9 +27,7 @@ export interface ProjectDraft {
   nameTouched: boolean
   description: string
   additionalRepos: readonly string[]
-  shipBehavior: EShipBehavior
-  vcpus: number | null
-  setupScript: string
+  secrets: readonly SecretPair[]
 }
 
 export type DraftPatch = (patch: Partial<ProjectDraft>) => void

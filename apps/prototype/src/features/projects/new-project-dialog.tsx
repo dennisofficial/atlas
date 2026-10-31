@@ -11,6 +11,8 @@ import {
   DialogTitle,
 } from '@dltech/atlas-ui/components/dialog'
 
+import { secretsErrorOf } from './new-project-secrets'
+
 import { DetailsStep } from './new-project-details-step'
 import {
   additionalReposOf,
@@ -59,7 +61,10 @@ function NewProjectBody({ onClose }: { onClose: () => void }) {
   const position = stepPosition({ step, source: draft.source })
   const name = draft.nameTouched ? draft.name : suggestedName(draft) || draft.name
   const nameError = nameErrorOf({ name, takenNames: TAKEN_NAMES })
-  const canCreate = nameError === null && additionalReposOf(draft) !== null
+  const canCreate =
+    nameError === null &&
+    additionalReposOf(draft) !== null &&
+    secretsErrorOf(draft.secrets) === null
 
   const handleSelectSource = (source: EProjectSource) => {
     patch({ source })

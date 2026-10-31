@@ -1,14 +1,8 @@
 import { ERepoInputKind, parseRepoInput } from './new-project-repos'
-import {
-  ENewProjectStep,
-  EProjectSource,
-  EShipBehavior,
-  type ProjectDraft,
-} from './new-project-types'
+import { ENewProjectStep, EProjectSource, type ProjectDraft } from './new-project-types'
 
 export const MAX_PROJECT_NAME_LENGTH = 100
 export const MAX_ADDITIONAL_REPOS = 10
-export const MAX_SETUP_SCRIPT_LENGTH = 20000
 
 export enum ENameError {
   Empty = 'Empty',
@@ -35,9 +29,7 @@ export function emptyDraft(): ProjectDraft {
     nameTouched: false,
     description: '',
     additionalRepos: [],
-    shipBehavior: EShipBehavior.OpenPullRequest,
-    vcpus: null,
-    setupScript: '',
+    secrets: [],
   }
 }
 

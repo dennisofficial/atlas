@@ -1,9 +1,4 @@
-import {
-  EShipBehavior,
-  MAX_PROJECT_NAME_LENGTH,
-  type Project,
-  type ProjectSandbox,
-} from '@dltech/atlas-wire/web'
+import { MAX_PROJECT_NAME_LENGTH, type Project } from '@dltech/atlas-wire/web'
 
 import type { CreateProjectBody } from '@/features/project-settings/data/project-api'
 
@@ -32,9 +27,7 @@ export function emptyDraft(): ProjectDraft {
     nameTouched: false,
     description: '',
     additionalRepos: [],
-    shipBehavior: EShipBehavior.OpenPullRequest,
-    vcpus: null,
-    setupScript: '',
+    secrets: [],
   }
 }
 
@@ -140,12 +133,5 @@ export function createBodyOf({
     baseBranch: repo === null ? null : draft.branch,
     additionalRepos: (additionalReposOf(draft) ?? []).map((entry) => ({ repo: entry })),
     description: draft.description.trim(),
-    shipBehavior: draft.shipBehavior,
   }
-}
-
-export function sandboxOf(draft: ProjectDraft): ProjectSandbox | null {
-  const setupScript = draft.setupScript.trim()
-  if (draft.vcpus === null && setupScript === '') return null
-  return { vcpus: draft.vcpus, setupScript }
 }

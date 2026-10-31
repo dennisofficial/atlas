@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EShipBehavior } from '@dltech/atlas-wire/web'
-
 import {
   additionalReposOf,
   canContinueFromRepository,
@@ -12,7 +10,6 @@ import {
   nextStep,
   previousStep,
   repoOf,
-  sandboxOf,
   stepPosition,
   suggestedName,
 } from '../new-project-draft'
@@ -93,7 +90,6 @@ describe('createBodyOf', () => {
       baseBranch: null,
       additionalRepos: [],
       description: 'Slack triage',
-      shipBehavior: EShipBehavior.OpenPullRequest,
     })
   })
 
@@ -138,15 +134,13 @@ describe('additionalReposOf', () => {
   })
 })
 
-describe('sandboxOf', () => {
-  it('saves nothing when the defaults are kept', () => {
-    expect(sandboxOf({ ...emptyDraft(), setupScript: '  ' })).toBeNull()
-  })
-
-  it('carries a chosen size and a trimmed setup script', () => {
-    expect(sandboxOf({ ...emptyDraft(), vcpus: 4, setupScript: ' bun install \n' })).toEqual({
-      vcpus: 4,
-      setupScript: 'bun install',
-    })
+describe('creation scope', () => {
+  it('does not submit secrets, ship behavior, or sandbox settings as project fields', () => {
+    const draft = { ...EXISTING, secrets: [{ name: 'TOKEN', value: 'private' }] }
+    const body = createBodyOf({ draft, name: 'x' })
+    expect(body).not.toHaveProperty('secrets')
+    expect(body).not.toHaveProperty('shipBehavior')
+    expect(body).not.toHaveProperty('vcpus')
+    expect(body).not.toHaveProperty('setupScript')
   })
 })

@@ -62,18 +62,3 @@ export const NEW_PROJECT_BRANCHES: readonly string[] = [
   'fix/serve-reconnect',
   'release/0.12',
 ]
-
-export const SANDBOX_SIZES = [
-  { id: 'default', vcpus: null, label: 'Account default' },
-  ...[2, 4, 6, 8].map((vcpus) => ({
-    id: `${vcpus}-vcpu`,
-    vcpus,
-    label: `${vcpus} vCPU · ${vcpus * 2} GB RAM`,
-  })),
-] as const
-
-export const sizeIdOf = (vcpus: number | null): string =>
-  vcpus === null ? 'default' : `${vcpus}-vcpu`
-
-export const vcpusOfSizeId = (id: string): number | null =>
-  SANDBOX_SIZES.find((size) => size.id === id)?.vcpus ?? null

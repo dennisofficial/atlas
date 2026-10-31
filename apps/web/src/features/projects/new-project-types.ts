@@ -1,4 +1,4 @@
-import type { EShipBehavior } from '@dltech/atlas-wire/web'
+import type { SecretPair } from './new-project-secrets'
 
 export enum ENewProjectStep {
   Source = 'Source',
@@ -20,9 +20,7 @@ export interface ProjectDraft {
   nameTouched: boolean
   description: string
   additionalRepos: readonly string[]
-  shipBehavior: EShipBehavior
-  vcpus: number | null
-  setupScript: string
+  secrets: readonly SecretPair[]
 }
 
 export type DraftPatch = (patch: Partial<ProjectDraft>) => void
