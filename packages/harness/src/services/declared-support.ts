@@ -20,35 +20,38 @@ export class DeclaredServicesSupport {
   private readonly ensuring = new Map<string, Promise<EnsuredService>>()
   private readonly setupDone = new Set<string>()
   private watcher: FSWatcher | undefined
+  private watchedRoot: string | undefined
 
   constructor(
     private readonly args: {
       services: ServiceRegistryPort
       processes: ProcessPort
-      root: string
+      root: () => string | Promise<string>
       options: DeclaredEnsureOptions | undefined
       onChange: () => void
     },
   ) {}
 
-  private load() {
-    return (this.args.options?.load ?? loadDeclaredServices)({ root: this.args.root })
+  private async load() {
+    const root = await this.args.root()
+    return (this.args.options?.load ?? loadDeclaredServices)({ root })
   }
 
-  ensure({
+  async ensure({
     threadId,
     names,
   }: {
     threadId: ThreadId
     names?: readonly string[] | undefined
   }): Promise<readonly EnsuredService[]> {
-    this.attach()
+    const root = await this.args.root()
+    this.attach(root)
     return ensureDeclaredServices({
       threadId,
       names,
       services: this.args.services,
       processes: this.args.processes,
-      root: this.args.root,
+      root,
       inflight: this.ensuring,
       setupDone: this.setupDone,
       options: this.args.options,
@@ -66,7 +69,7 @@ export class DeclaredServicesSupport {
     crashLooping: (name: string) => boolean
     list: () => readonly ServiceSnapshot[]
   }): Promise<DeclaredServicesView> {
-    this.attach()
+    this.attach(await this.args.root())
     return buildDeclaredView({
       read: await this.load(),
       snapshots: list(),
@@ -107,7 +110,7 @@ export class DeclaredServicesSupport {
     const context: DeclaredContext = {
       services: this.args.services,
       processes: this.args.processes,
-      root: this.args.root,
+      root: await this.args.root(),
       threadId: entry.threadId,
       options: this.args.options,
     }
@@ -115,21 +118,26 @@ export class DeclaredServicesSupport {
     return launched.ok ? { ok: true, snapshot: launched.snapshot } : launched
   }
 
-  attach(): void {
-    if (this.watcher !== undefined) return
+  attach(root: string): void {
+    if (this.watcher !== undefined && this.watchedRoot === root) return
+    const moved = this.watchedRoot !== undefined
+    this.detach()
+    this.watchedRoot = root
     try {
-      this.watcher = watch(join(this.args.root, '.atlas'), (_event, filename) => {
+      this.watcher = watch(join(root, '.atlas'), (_event, filename) => {
         if (filename === null || String(filename) === 'services.yaml') this.args.onChange()
       })
       this.watcher.on('error', () => this.detach())
     } catch {
       this.watcher = undefined
     }
+    if (moved) this.args.onChange()
   }
 
   private detach(): void {
     this.watcher?.close()
     this.watcher = undefined
+    this.watchedRoot = undefined
   }
 
   close(): void {

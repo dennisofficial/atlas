@@ -9,6 +9,9 @@ import {
   type InjectionToken,
 } from '../container/injection'
 import { DeltaChannelToken, WorkspaceRoot } from '../container/tokens'
+import { ExecutionLocationToken } from '../composition/execution-location-state'
+import { threadProjectDirectory } from '../files/thread-project-directory'
+import { ThreadStorePort } from '../store/thread-store'
 import { atlasBinDirectory, atlasServicesDirectory } from '../store/paths'
 import { tryEnsureAtlasSvcShim } from './atlas-svc-shim'
 import { BunServiceRegistry, ServiceRegistryPort } from './service-registry'
@@ -37,7 +40,19 @@ export function registerServices({ container }: { container: DependencyContainer
           }),
       })
       live = new BunServiceRegistry({
-        root: resolver.resolve(WorkspaceRoot),
+        root: async () => {
+          const launchDirectory = resolver.resolve(WorkspaceRoot)
+          const threadId = resolver.isRegistered(ExecutionLocationToken, true)
+            ? resolver.resolve(ExecutionLocationToken).state.activeThread()
+            : undefined
+          if (threadId === undefined) return launchDirectory
+          return threadProjectDirectory({
+            threadId,
+            log: resolver.resolve(registeredPortToken(EventLogPort)),
+            threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
+            launchDirectory,
+          })
+        },
         clock: resolver.resolve(registeredPortToken(ClockPort)),
         logsDirectory: atlasServicesDirectory(),
         processes: resolver.resolve(registeredPortToken(ProcessPort)),
