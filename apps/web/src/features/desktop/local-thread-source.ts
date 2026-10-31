@@ -4,12 +4,21 @@ import { connectLocalPod, getLocalPod, wakeLocalPod, ELocalPodState } from './de
 
 export async function mintLocalPod(threadId: string): Promise<PodConnectResult> {
   const pod = await getLocalPod(threadId)
-  if (pod === null) return { outcome: EPodConnectOutcome.NotRunning }
-  if (pod.state === ELocalPodState.Stopped) await wakeLocalPod(threadId)
+  if (pod === null || pod.state !== ELocalPodState.Running) {
+    return { outcome: EPodConnectOutcome.NotRunning }
+  }
   const ticket = await connectLocalPod(threadId)
   return ticket === null
     ? { outcome: EPodConnectOutcome.NotRunning }
     : { outcome: EPodConnectOutcome.Ready, ticket }
 }
 
-export const readLocalSeed = async () => []
+export async function wakeAndConnectLocalPod(threadId: string): Promise<PodConnectResult> {
+  await wakeLocalPod(threadId)
+  const ticket = await connectLocalPod(threadId)
+  return ticket === null
+    ? { outcome: EPodConnectOutcome.NotRunning }
+    : { outcome: EPodConnectOutcome.Ready, ticket }
+}
+
+export { readLocalSeed } from './local-thread-history'

@@ -57,6 +57,12 @@ export type LiveApplyRewind = (args: {
 
 export type LiveReadRoster = () => Promise<RosterWire | null>
 
+export type LivePrepareRewind = () => Promise<{
+  events: readonly WireEvent[]
+  working: boolean
+  roster: RosterWire
+}>
+
 export type LiveThreadView = LiveThreadState & {
   steps: InFlightStep[]
   send: LiveSend
@@ -67,6 +73,7 @@ export type LiveThreadView = LiveThreadState & {
   dismissFailure: LiveDismissFailure
   applyRewind: LiveApplyRewind
   readRoster: LiveReadRoster
+  prepareRewind?: LivePrepareRewind | undefined
 }
 
 export const IDLE_LIVE_THREAD: LiveThreadState = {

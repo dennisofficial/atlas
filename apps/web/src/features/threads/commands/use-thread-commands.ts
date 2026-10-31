@@ -6,6 +6,7 @@ import { surfaceCommands, type CommandSpec } from '@dltech/atlas-core'
 import { EConnectionView, type RemoteDeltaChannel } from '@dltech/atlas-client/channel'
 
 import { requestOpenSearch } from '../../shell/search-events'
+import { useThreadBackend } from '../data/use-thread-backend'
 import { ERightTab } from '../panel/right-tab'
 import type { RightPanelState } from '../panel/use-right-panel'
 import { dispatchSubmission, EDispatch } from './dispatch'
@@ -21,7 +22,9 @@ export function useThreadCommands(args: {
   rightPanel: Pick<RightPanelState, 'setTab' | 'setSheetOpen'>
   retryBoot: (threadId: string) => Promise<void>
   refresh: () => void
+  onRenamed: () => void
 }) {
+  const backend = useThreadBackend()
   const [modelOpen, setModelOpen] = useState(false)
   const router = useRouter()
   const list = useCommandList({
@@ -29,7 +32,8 @@ export function useThreadCommands(args: {
     live: args.live,
     projectId: args.projectId,
   })
-  const { channel, threadId, retryBoot, refresh } = args
+  const { channel, threadId, retryBoot, refresh, onRenamed } = args
+  const rename = backend.local ? backend.rename : undefined
   const { setTab, setSheetOpen } = args.rightPanel
   const openModelPicker = useCallback(() => setModelOpen(true), [])
   const openDetails = useCallback(() => {
@@ -57,8 +61,16 @@ export function useThreadCommands(args: {
         navigate: (href) => router.push(href),
         wake,
         reloadSkills: list.reload,
+        ...(rename === undefined
+          ? {}
+          : {
+              rename: async (target: { threadId: string; title: string }) => {
+                await rename(target)
+                onRenamed()
+              },
+            }),
       }),
-    [channel, threadId, openModelPicker, openDetails, wake, router, list.reload],
+    [channel, threadId, openModelPicker, openDetails, wake, router, list.reload, rename, onRenamed],
   )
   const commands = useMemo(() => surfaceCommands({ handlers }), [handlers])
   const specs = useMemo<readonly CommandSpec[]>(

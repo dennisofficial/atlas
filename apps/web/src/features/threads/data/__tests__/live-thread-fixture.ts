@@ -44,9 +44,12 @@ export const ticketOf = (token: string): PodConnectResult => ({
 export function rig(options?: {
   mints?: PodConnectResult[]
   seed?: WireEvent[]
+  readSeed?: () => Promise<WireEvent[]>
   onModelChanged?: (model: { ref: string; effort: string }) => void
   readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
   onInterruptLost?: () => void
+  wake?: () => Promise<PodConnectResult>
+  readFreshSeed?: () => Promise<WireEvent[]>
 }) {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
@@ -64,7 +67,9 @@ export function rig(options?: {
       if (next === undefined) throw new Error('no more tickets')
       return next
     },
-    readSeed: async () => options?.seed ?? [event(1), event(2)],
+    readSeed: options?.readSeed ?? (async () => options?.seed ?? [event(1), event(2)]),
+    ...(options?.wake === undefined ? {} : { wake: options.wake }),
+    ...(options?.readFreshSeed === undefined ? {} : { readFreshSeed: options.readFreshSeed }),
     ...(options?.onModelChanged === undefined ? {} : { onModelChanged: options.onModelChanged }),
     ...(options?.readStoredModel === undefined ? {} : { readStoredModel: options.readStoredModel }),
     ...(options?.onInterruptLost === undefined ? {} : { onInterruptLost: options.onInterruptLost }),

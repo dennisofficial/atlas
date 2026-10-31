@@ -27,7 +27,7 @@ export function useThreadSource(args: {
   const live = useLiveThread({
     threadId,
     history,
-    active: args.liveEligible,
+    active: backend.local || args.liveEligible,
     onModelChanged: args.onModelChanged,
   })
   const polled = useThreadEvents({

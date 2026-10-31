@@ -95,7 +95,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
     events,
     podState: pod?.state ?? null,
     setDraft,
-    onRestoreUploads: (uploads) => images.restore({ uploads, images: [] }),
+    source,
+    onRestore: (taken) => images.restore({ uploads: taken.uploads, images: taken.images }),
   })
   const parsed = useMemo(() => eventsFromWire(visible), [visible])
   const durable = useMemo(() => durableTranscriptOf({ events: parsed }), [parsed])
@@ -162,6 +163,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     rightPanel,
     retryBoot,
     refresh,
+    onRenamed: thread.reload,
   })
   const handleSubmit = useThreadSubmit({
     threadId,

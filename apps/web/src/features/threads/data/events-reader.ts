@@ -14,6 +14,7 @@ export type EventsFetcher = (args: {
 
 export function createEventsReader(args: {
   threadId: string
+  localCopy?: boolean
   fetchSeed: () => Promise<WireEvent[]>
   fetchEvents: EventsFetcher
   onUpdate: (update: (current: ThreadEvents) => ThreadEvents) => void
@@ -67,7 +68,8 @@ export function createEventsReader(args: {
         )
         const missingAnchor = held.length > 0 && !delta.some((event) => event.seq === floor)
         const fresh = delta.filter((event) => event.seq > floor)
-        const contiguous = fresh.every((event, index) => event.seq === floor + index + 1)
+        const contiguous =
+          args.localCopy || fresh.every((event, index) => event.seq === floor + index + 1)
         const merged = appendEvents({ current: held, incoming: delta })
         const short = target !== null && target > headOf(merged)
         if (missingAnchor || retracted || !contiguous || short) {

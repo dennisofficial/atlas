@@ -176,32 +176,37 @@ describe('successful live attachment through the real transcript cache', () => {
     }
   })
 
-  it('keeps the Mac REST seed empty and catches up through serve on connection', async () => {
+  it('shares the Mac stored seed and retains live progress through passive parked refresh', async () => {
     const test = threadCacheRig({ live: true, local: true })
     const mounted = await test.mount()
     try {
       await settle()
+      expect(test.state().events).toEqual([event(1), event(2)])
       await ready({ test, answer: false })
       const request = test.socket().requests().at(-1)!
-      expect(request.params).toEqual({ threadId: 'thr_1', fromSeq: 0, own: true })
+      expect(request.params).toEqual({ threadId: 'thr_1', fromSeq: 2, own: true })
       await act(async () =>
         test.socket().receive({
           kind: EServeFrame.Reply,
           replyTo: request.id,
           ok: true,
-          data: { events: [event(1), event(2)] },
+          data: { events: [event(2), event(3)] },
         }),
       )
       expect(test.state().live).toBe(true)
-      expect(test.state().events).toEqual([event(1), event(2)])
+      expect(test.state().events).toEqual([event(1), event(2), event(3)])
+      test.setLog([event(1), event(2), event(3), event(4)])
       await act(async () => test.socket().receive({ kind: EServeFrame.Parked, reason: 'idle' }))
       await settle()
-      expect(test.state().events).toEqual([event(1), event(2)])
+      expect(test.state().events).toEqual([event(1), event(2), event(3), event(4)])
       await act(async () => test.state().refreshEvents())
       await settle()
-      expect(test.state().events).toEqual([event(1), event(2)])
-      expect(test.reads).toEqual([])
+      expect(test.state().events).toEqual([event(1), event(2), event(3), event(4)])
+      expect(test.reads).toEqual([undefined, 3, 4])
       expect(test.calls).toHaveLength(0)
+      expect(test.wakeCount()).toBe(0)
+      expect(test.state().channel).toBeNull()
+      expect(TestWebSocket.sockets).toHaveLength(1)
     } finally {
       await mounted.unmount()
     }

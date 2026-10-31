@@ -11,6 +11,7 @@ import {
 import { toThreadId } from '@dltech/atlas-core'
 import { readThreadReplySchema, type WireEvent } from '@dltech/atlas-wire/web'
 
+import { createLocalThreadController } from './local-thread-controller'
 import { createLiveEventReader } from './live-event-reader'
 import { headOf, keepThrough } from './live-events'
 import { absorbInto, isStepSignal, RELEASED_FIELDS, settleInto } from './live-signals'
@@ -22,22 +23,21 @@ import {
   type ServeChannel,
 } from './live-thread-view'
 import { EPodConnectOutcome, type PodConnectResult } from './pod-connect'
-
 export type LiveChannelOptions = Pick<
   RemoteDeltaChannelOptions,
   'scheduleRetry' | 'scheduleTimeout' | 'scheduleKeepalive' | 'socketFactory' | 'backoffMs'
 >
-
 export const MAX_REMINTS = 4
 const REMINT_BASE_MS = 500
 const REMINT_CEILING_MS = 30_000
 
 export const remintDelayMs = (attempt: number): number =>
   attempt === 0 ? 0 : Math.min(REMINT_CEILING_MS, REMINT_BASE_MS * 2 ** (attempt - 1))
-
 export type LiveThreadControllerArgs = {
   threadId: string
   mint: () => Promise<PodConnectResult>
+  wake?: () => Promise<PodConnectResult>
+  readFreshSeed?: () => Promise<WireEvent[]>
   readSeed: () => Promise<WireEvent[]>
   onChange: (state: LiveThreadState) => void
   onModelChanged?: (model: { ref: string; effort: string }) => void
@@ -49,8 +49,8 @@ export type LiveThreadControllerArgs = {
   channelOptions?: LiveChannelOptions
   scheduleReconnect?: (task: { delayMs: number; run: () => void }) => void
 }
-
 export function createLiveThreadController(args: LiveThreadControllerArgs) {
+  if (args.wake) return createLocalThreadController({ ...args, wake: args.wake })
   const threadId = toThreadId(args.threadId)
   const signalTransport = createSignalChatTransport({ now: () => new Date() })
   let state: LiveThreadState = IDLE_LIVE_THREAD
@@ -64,13 +64,11 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   let modelChoices = 0
   let interruptPending = false
   const releases: (() => void)[] = []
-
   const update = (change: Partial<LiveThreadState>) => {
     if (stopped) return
     state = { ...state, ...change }
     args.onChange(state)
   }
-
   const release = () => {
     for (const undo of releases.splice(0)) undo()
   }
@@ -258,6 +256,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     start: () => void start(),
     send,
     ...actions,
+    prepareRewind: undefined,
     interrupt: () => {
       const sent = actions.interrupt()
       if (sent) interruptPending = true

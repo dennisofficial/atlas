@@ -9,13 +9,15 @@ import { routeIdAfter } from '@/lib/route-id'
 
 import { ThreadBackendProvider } from './data/use-thread-backend'
 import { ThreadView } from './thread-view'
+import { ThreadLoadError } from './thread-load-error'
 
 export function ThreadRoute() {
   const threadId = routeIdAfter({
     pathname: usePathname(),
     segment: 'threads',
   })
-  const home = useThreadHome({ threadId, desktop: useDesktop() })
+  const { home, error } = useThreadHome({ threadId, desktop: useDesktop() })
+  if (error !== null) return <ThreadLoadError error={error} />
   if (home === EThreadHome.Loading) return null
   if (home === EThreadHome.ThisMac) {
     return (

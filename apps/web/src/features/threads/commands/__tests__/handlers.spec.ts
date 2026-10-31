@@ -14,7 +14,14 @@ import { EClientRequest } from '@dltech/atlas-client/channel'
 import { dispatchSubmission, EDispatch, SETTLED_WHILE_WORKING } from '../dispatch'
 import { NOT_CONNECTED, webCommandHandlers, type CommandDeps } from '../web-command-handlers'
 
-const rig = (reply: unknown = { type: 'compacted', replaced: 4, fromSeq: 1, throughSeq: 4 }) => {
+const rig = (
+  reply: unknown = {
+    type: 'compacted',
+    replaced: 4,
+    fromSeq: 1,
+    throughSeq: 4,
+  },
+) => {
   const calls: { op: EClientRequest; params: unknown }[] = []
   const navigated: string[] = []
   const deps: CommandDeps = {
@@ -68,6 +75,31 @@ describe('web dispatch', () => {
     expect(test.calls[0]?.op).toBe(EClientRequest.RenameThread)
   })
 
+  it('renames through the host without a connected channel or wake', async () => {
+    const test = rig()
+    const renamed: { threadId: string; title: string }[] = []
+    const handlers = webCommandHandlers({
+      ...test.deps,
+      request: () => null,
+      rename: async (args) => {
+        renamed.push(args)
+      },
+      wake: async () => {
+        throw new Error('rename must not wake')
+      },
+    })
+    const result = await dispatchSubmission({
+      text: '/rename  Local title  ',
+      handlers,
+      commands: surfaceCommands({ handlers }),
+      skills: [],
+      working: false,
+    })
+    expect(result.type).toBe(EDispatch.Ran)
+    expect(renamed).toEqual([{ threadId: 'thr_1', title: 'Local title' }])
+    expect(test.calls).toEqual([])
+  })
+
   it('refuses unsupported commands', async () => {
     const test = rig()
     expect(await test.run('/cd /tmp')).toEqual({
@@ -109,11 +141,19 @@ describe('web dispatch', () => {
   it('reports skill counts', async () => {
     const test = rig()
     const skillsRun = (reloadSkills: () => Promise<number>) =>
-      surfaceCommands({ handlers: webCommandHandlers({ ...test.deps, reloadSkills }) })
+      surfaceCommands({
+        handlers: webCommandHandlers({ ...test.deps, reloadSkills }),
+      })
         .find((c) => c.name === 'skills')
         ?.run({ argumentText: '' })
-    expect(await skillsRun(async () => 1)).toEqual({ type: ECommandEffect.Ran, notice: '1 skill' })
-    expect(await skillsRun(async () => 3)).toEqual({ type: ECommandEffect.Ran, notice: '3 skills' })
+    expect(await skillsRun(async () => 1)).toEqual({
+      type: ECommandEffect.Ran,
+      notice: '1 skill',
+    })
+    expect(await skillsRun(async () => 3)).toEqual({
+      type: ECommandEffect.Ran,
+      notice: '3 skills',
+    })
   })
 
   it('refuses requests when disconnected', async () => {
@@ -125,6 +165,9 @@ describe('web dispatch', () => {
         throw new Error('missing')
       })
     )({ argumentText: '' })
-    expect(effect).toEqual({ type: ECommandEffect.Refused, reason: NOT_CONNECTED })
+    expect(effect).toEqual({
+      type: ECommandEffect.Refused,
+      reason: NOT_CONNECTED,
+    })
   })
 })

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { getLocalPod } from './desktop-wire'
+import { getLocalThread } from './local-thread-wire'
 import type { Desktop } from './use-desktop'
 
 export enum EThreadHome {
@@ -11,26 +11,31 @@ export enum EThreadHome {
   ThisMac = 'this-mac',
 }
 
-export function useThreadHome(args: { threadId: string; desktop: Desktop }): EThreadHome {
+export type ThreadHome = { home: EThreadHome; error: Error | null }
+
+export function useThreadHome(args: { threadId: string; desktop: Desktop }): ThreadHome {
   const { threadId, desktop } = args
-  const [found, setFound] = useState<{
-    threadId: string
-    home: EThreadHome
-  } | null>(null)
+  const [found, setFound] = useState<(ThreadHome & { threadId: string }) | null>(null)
 
   useEffect(() => {
     if (!desktop.present) return undefined
     let current = true
-    getLocalPod(threadId).then(
+    getLocalThread(threadId).then(
       (pod) => {
-        if (current)
-          setFound({
-            threadId,
-            home: pod === null ? EThreadHome.Cloud : EThreadHome.ThisMac,
-          })
+        if (!current) return
+        setFound({
+          threadId,
+          home: pod === null ? EThreadHome.Cloud : EThreadHome.ThisMac,
+          error: null,
+        })
       },
-      () => {
-        if (current) setFound({ threadId, home: EThreadHome.Cloud })
+      (failure: unknown) => {
+        if (!current) return
+        setFound({
+          threadId,
+          home: EThreadHome.Loading,
+          error: failure instanceof Error ? failure : new Error(String(failure)),
+        })
       },
     )
     return () => {
@@ -38,7 +43,8 @@ export function useThreadHome(args: { threadId: string; desktop: Desktop }): ETh
     }
   }, [threadId, desktop.present])
 
-  if (!desktop.ready) return EThreadHome.Loading
-  if (!desktop.present) return EThreadHome.Cloud
-  return found?.threadId === threadId ? found.home : EThreadHome.Loading
+  if (!desktop.ready) return { home: EThreadHome.Loading, error: null }
+  if (!desktop.present) return { home: EThreadHome.Cloud, error: null }
+  if (found?.threadId !== threadId) return { home: EThreadHome.Loading, error: null }
+  return { home: found.home, error: found.error }
 }

@@ -39,6 +39,7 @@ export function useThreadEvents(args: {
     setState({ history, value: current })
     const reader = createEventsReader({
       threadId,
+      localCopy: local,
       fetchSeed: history.readSeed,
       fetchEvents,
       onUpdate: (update) => {
@@ -47,10 +48,10 @@ export function useThreadEvents(args: {
         setState({ history, value: current })
       },
     })
-    const unlisten = local ? NOT_READING : signals.listen({ onHead: reader.handleHead })
-    pokeRef.current = local ? NOT_READING : reader.poke
+    const unlisten = signals.listen({ onHead: reader.handleHead })
+    pokeRef.current = reader.poke
     reader.start()
-    if (cached !== undefined && !local) reader.poke()
+    if (cached !== undefined) reader.poke()
     return () => {
       pokeRef.current = NOT_READING
       unlisten()

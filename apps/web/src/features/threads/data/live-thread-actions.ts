@@ -21,6 +21,7 @@ export function createLiveThreadActions(args: {
   threadId: string
   liveChannel: () => RemoteDeltaChannel | null
   onModelChosen: () => void
+  retained?: boolean
 }): {
   chooseModel: LiveChooseModel
   takeBackPending: LiveTakeBackPending
@@ -37,9 +38,11 @@ export function createLiveThreadActions(args: {
     return live
   }
 
+  const actionChannel = () => (args.retained ? args.liveChannel() : connected())
+
   const chooseModel: LiveChooseModel = async (model) => {
     args.onModelChosen()
-    const live = connected()
+    const live = actionChannel()
     if (live === null) return false
     await live.request({
       op: EClientRequest.SetThreadModel,
@@ -49,7 +52,7 @@ export function createLiveThreadActions(args: {
   }
 
   const takeBackPending: LiveTakeBackPending = async () => {
-    const live = connected()
+    const live = actionChannel()
     if (live === null) throw new Error('the sandbox is not connected')
     const reply = await live.request({
       op: EClientRequest.TakeBackPending,
@@ -81,7 +84,7 @@ export function createLiveThreadActions(args: {
   }
 
   const applyRewind: LiveApplyRewind = async ({ cuts, toSeq }) => {
-    const live = connected()
+    const live = actionChannel()
     if (live === null) throw new Error('the sandbox is not connected')
     await requestRewindApply({
       channel: live,
@@ -90,8 +93,17 @@ export function createLiveThreadActions(args: {
   }
 
   const readRoster: LiveReadRoster = async () => {
-    const live = connected()
-    if (live === null) return null
+    const live = actionChannel()
+    if (live === null) {
+      if (args.retained) throw new Error('the sandbox is not connected')
+      return null
+    }
+    if (args.retained) {
+      if (live.connection().state !== EConnectionView.Connected) live.reconnect()
+      return rosterWireSchema.parse(
+        await live.request({ op: EClientRequest.ListRoster, params: {} }),
+      )
+    }
     try {
       return rosterWireSchema.parse(
         await live.request({ op: EClientRequest.ListRoster, params: {} }),

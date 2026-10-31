@@ -11,6 +11,7 @@ import {
   type LiveChooseModel,
   type LiveDismissFailure,
   type LiveInterrupt,
+  type LivePrepareRewind,
   type LiveReadRoster,
   type LiveRetry,
   type LiveSend,
@@ -42,8 +43,9 @@ export function useLiveThread(args: {
   active: boolean
   onModelChanged?: ((model: ThreadModelChoice) => void) | undefined
 }): LiveThreadView {
-  const { threadId, active, history } = args
+  const { threadId, history } = args
   const backend = useThreadBackend()
+  const active = backend.local || args.active
   useEffect(() => history.retain(), [history])
   const [state, setState] = useState<LiveThreadState>(IDLE_LIVE_THREAD)
   const [idleChat] = useState(() => new Chat<AtlasStepMessage>({}))
@@ -56,6 +58,7 @@ export function useLiveThread(args: {
   const dismissRef = useRef<LiveDismissFailure>(NOT_DISMISSIBLE)
   const rewindRef = useRef<LiveApplyRewind>(NOT_REWINDING)
   const rosterRef = useRef<LiveReadRoster>(NOT_READING_ROSTER)
+  const prepareRef = useRef<LivePrepareRewind | undefined>(undefined)
   const modelChangedRef = useRef(args.onModelChanged)
   useEffect(() => {
     modelChangedRef.current = args.onModelChanged
@@ -63,11 +66,14 @@ export function useLiveThread(args: {
 
   useEffect(() => {
     if (!active) return undefined
+    const wake = backend.wake
     let publishedEvents = IDLE_LIVE_THREAD.events
     const next = createLiveChatSession({
       threadId,
       mint: () => backend.mint(threadId),
       readSeed: history.readSeed,
+      ...(wake ? { wake: () => wake(threadId) } : {}),
+      ...(backend.local ? { readFreshSeed: () => backend.fetchEvents({ threadId }) } : {}),
       catchUpOnConnect: true,
       ...(backend.local
         ? {}
@@ -92,6 +98,7 @@ export function useLiveThread(args: {
     dismissRef.current = next.controller.dismissFailure
     rewindRef.current = next.controller.applyRewind
     rosterRef.current = next.controller.readRoster
+    prepareRef.current = next.controller.prepareRewind
     setSession(next)
     next.controller.start()
     return () => {
@@ -103,6 +110,7 @@ export function useLiveThread(args: {
       dismissRef.current = NOT_DISMISSIBLE
       rewindRef.current = NOT_REWINDING
       rosterRef.current = NOT_READING_ROSTER
+      prepareRef.current = undefined
       next.controller.stop()
       setSession(null)
       setState(IDLE_LIVE_THREAD)
@@ -128,6 +136,14 @@ export function useLiveThread(args: {
   )
   const applyRewind = useMemo<LiveApplyRewind>(() => (picked) => rewindRef.current(picked), [])
   const readRoster = useMemo<LiveReadRoster>(() => () => rosterRef.current(), [])
+  const prepareRewind = useMemo<LivePrepareRewind>(
+    () => () => {
+      const prepare = prepareRef.current
+      if (!prepare) return Promise.reject(new Error('the local sandbox is not available'))
+      return prepare()
+    },
+    [],
+  )
   return {
     ...state,
     steps,
@@ -139,5 +155,6 @@ export function useLiveThread(args: {
     dismissFailure,
     applyRewind,
     readRoster,
+    prepareRewind: backend.local ? prepareRewind : undefined,
   }
 }

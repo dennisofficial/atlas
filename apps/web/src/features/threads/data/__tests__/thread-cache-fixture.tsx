@@ -8,7 +8,7 @@ import {
 import { readEventsParamsSchema, type WireEvent } from '@dltech/atlas-wire/web'
 import { act } from 'react'
 
-import { cloudThreadBackend } from '../thread-backend'
+import { cloudThreadBackend, type ThreadBackend } from '../thread-backend'
 import { EPodConnectOutcome, type PodConnectResult } from '../pod-connect'
 import { createThreadSignalHub } from '../thread-signal-hub'
 import { useThreadSource, type ThreadSource } from '../use-thread-source'
@@ -53,6 +53,7 @@ export class TestWebSocket {
 
 export function threadCacheRig(args?: { live?: boolean; local?: boolean; deferred?: boolean }) {
   let log = [event(1), event(2)]
+  let wakes = 0
   let latest: ThreadSource | undefined
   const renders: ThreadSource[] = []
   const reads: (number | undefined)[] = []
@@ -67,16 +68,27 @@ export function threadCacheRig(args?: { live?: boolean; local?: boolean; deferre
     return trpcOk(log.filter((entry) => fromSeq === undefined || entry.seq >= fromSeq))
   })
   const rawSeed = cloudThreadBackend.fetchSeed
-  const backend = {
+  const backend: ThreadBackend = {
     ...cloudThreadBackend,
     local: args?.local ?? false,
+    ...(args?.local
+      ? {
+          wake: async () => {
+            wakes += 1
+            return ticketOf('wake-ticket')
+          },
+        }
+      : {}),
     mint: async (): Promise<PodConnectResult> =>
       args?.live ? ticketOf('open-ticket') : { outcome: EPodConnectOutcome.NotRunning },
     fetchThread: async (): Promise<never> => {
       throw new Error('no stored model')
     },
     fetchSeed: args?.local
-      ? async () => []
+      ? async () => {
+          reads.push(undefined)
+          return log
+        }
       : async (threadId: string) => {
           if (args?.deferred) await released
           return rawSeed(threadId)
@@ -84,7 +96,7 @@ export function threadCacheRig(args?: { live?: boolean; local?: boolean; deferre
     fetchEvents: args?.local
       ? async ({ fromSeq }: Parameters<typeof cloudThreadBackend.fetchEvents>[0]) => {
           reads.push(fromSeq)
-          return []
+          return log.filter((entry) => fromSeq === undefined || entry.seq >= fromSeq)
         }
       : cloudThreadBackend.fetchEvents,
   }
@@ -126,6 +138,7 @@ export function threadCacheRig(args?: { live?: boolean; local?: boolean; deferre
     state,
     socket,
     renders,
+    wakeCount: () => wakes,
     release: () => release?.(),
     setLog: (events: WireEvent[]) => {
       log = events
