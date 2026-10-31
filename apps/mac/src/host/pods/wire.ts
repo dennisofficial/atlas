@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { wireEventSchema } from '@dltech/atlas-wire'
+import { podResizeInputSchema, wireEventSchema, wireThreadSchema } from '@dltech/atlas-wire'
+import { ELocalActivityState } from '@dltech/atlas-harness/activity'
 
 export enum ELocalPodState {
   Running = 'running',
@@ -34,17 +35,44 @@ export type DesktopCapabilities = z.infer<typeof capabilitiesSchema>
 
 export const POD_NOT_RUNNING_CODE = 'pod-not-running'
 
-export const localThreadSchema = z.object({
+export const resizePodInputSchema = podResizeInputSchema.omit({ threadId: true })
+
+const localThreadBase = {
   threadId: z.string().min(1),
   title: z.string().optional(),
   projectId: z.string().nullable(),
   head: z.number().int().nonnegative(),
-  readSeq: z.number().int().nonnegative().nullable(),
+  lastAssistantSeq: z.number().int().nonnegative().nullable(),
   model: z.string().optional(),
   effort: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
-})
+}
+
+const readSeqSchema = z.number().int().nonnegative().nullable()
+export const localThreadSchema = z
+  .discriminatedUnion('activityState', [
+    z.strictObject({
+      ...localThreadBase,
+      activityState: z.literal(ELocalActivityState.Available),
+      readSeq: readSeqSchema,
+      status: wireThreadSchema.shape.status.unwrap(),
+    }),
+    z.strictObject({
+      ...localThreadBase,
+      activityState: z.literal(ELocalActivityState.Unavailable),
+      readSeq: readSeqSchema.optional(),
+      reason: z.string().min(1),
+    }),
+  ])
+  .refine(
+    (thread) =>
+      thread.activityState !== ELocalActivityState.Available ||
+      (thread.lastAssistantSeq !== null &&
+        thread.lastAssistantSeq === thread.status.lastAssistantSeq &&
+        thread.readSeq === thread.status.readSeq),
+    { message: 'Local activity facts disagree' },
+  )
 export type LocalThread = z.infer<typeof localThreadSchema>
 
 export const threadListSchema = z.object({ threads: z.array(localThreadSchema) })

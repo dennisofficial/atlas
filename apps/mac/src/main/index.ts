@@ -12,6 +12,7 @@ import { DESKTOP_PRELOAD } from './preload'
 import { runLogged, writeLog } from './crash-log'
 import { type IExternalLinkRouter, routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
+import { createQuitAfterDrain } from './quit-after-drain'
 import { readDoubleClickAction, runTitlebarAction } from './titlebar-action'
 
 await runLogged(async () => {
@@ -82,7 +83,12 @@ await runLogged(async () => {
     if (action === EMenuAction.ToggleDevTools) win.webview.toggleDevTools()
   })
 
-  Electrobun.events.on('before-quit', () => {
-    void host.stop()
-  })
+  Electrobun.events.on(
+    'before-quit',
+    createQuitAfterDrain({
+      stop: () => host.stop(),
+      quit: () => void Utils.quit(),
+      onError: (error) => writeLog({ label: 'before-quit', error }),
+    }),
+  )
 })

@@ -18,7 +18,12 @@ export function createThreadsHandler({ reads }: { reads: IThreadReads }) {
   return async (request: Request, pathname: string): Promise<Response | undefined> => {
     const { method } = request
     if (pathname === THREADS) {
-      return method === 'GET' ? Response.json({ threads: await reads.threads() }) : undefined
+      if (method !== 'GET') return undefined
+      try {
+        return Response.json({ threads: await reads.threads() })
+      } catch (error) {
+        return failed(error)
+      }
     }
     if (!pathname.startsWith(`${THREADS}/`)) return undefined
     const [threadId, action, ...rest] = pathname.slice(THREADS.length + 1).split('/')

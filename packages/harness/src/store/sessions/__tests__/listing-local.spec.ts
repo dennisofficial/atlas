@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 import { EExecutionLocation, ERunner, toThreadId } from '@dltech/atlas-core'
 
 import { openStoreFixture, type StoreFixture } from '../../__tests__/harness'
 import { listLocalPodThreads } from '../listing-local'
+import { sessionsDirectory } from '../paths'
 
 const fixtures: StoreFixture[] = []
 
@@ -18,6 +21,18 @@ const open = (): StoreFixture => {
 }
 
 describe('listing the local pod threads in a home', () => {
+  it('propagates root listing errors when the sessions path is a regular file', async () => {
+    const { home } = open()
+    await writeFile(sessionsDirectory({ home }), 'not a directory')
+    await expect(listLocalPodThreads({ home })).rejects.toMatchObject({ code: 'ENOTDIR' })
+  })
+
+  it('treats a missing sessions directory or missing home as an empty collection', async () => {
+    const { home } = open()
+    expect(await listLocalPodThreads({ home })).toEqual([])
+    expect(await listLocalPodThreads({ home: join(home, 'missing-home') })).toEqual([])
+  })
+
   it('returns every root thread on a local runner, whatever folder it came from', async () => {
     const { home, threads } = open()
     const fromTui = await threads.create({

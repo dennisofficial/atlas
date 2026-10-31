@@ -92,6 +92,35 @@ describe('held pod channel lookup', () => {
     expect(pods.channel({ threadId })).toBeUndefined()
   })
 
+  test('closeAll waits for the existing held pod copy barrier', async () => {
+    const { pods, threadId } = await fixture()
+    const pod = await pods.hold({ threadId })
+    const entered = Promise.withResolvers<void>()
+    const copy = Promise.withResolvers<void>()
+    spyOn(pod, 'copySettled').mockImplementation(() => {
+      entered.resolve()
+      return copy.promise
+    })
+    const closing = pods.closeAll()
+    try {
+      expect(closing).toBeInstanceOf(Promise)
+      await entered.promise
+      let finished = false
+      void closing.then(() => {
+        finished = true
+      })
+      await Promise.resolve()
+      expect(finished).toBe(false)
+      expect(pods.channel({ threadId })).toBeUndefined()
+      copy.resolve()
+      await closing
+      expect(finished).toBe(true)
+    } finally {
+      copy.resolve()
+      await closing
+    }
+  })
+
   test('a failed older opening cannot evict a newer held channel', async () => {
     const { store, pods, threadId } = await fixture()
     const gate = Promise.withResolvers<void>()

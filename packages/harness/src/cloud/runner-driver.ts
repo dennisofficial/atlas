@@ -30,7 +30,10 @@ export type PodProvisionArgs<THandle> = {
 
 export type RunnerDriver<THandle = RunnerPodHandle> = {
   createOrResume(args: PodProvisionArgs<THandle>): Promise<PodPlacement>
-  inspect(args: { name: string }): Promise<PodObservation | undefined>
+  inspect(args: {
+    name: string
+    signal?: AbortSignal | undefined
+  }): Promise<PodObservation | undefined>
   writeBootstrapFile(args: {
     name: string
     path: string

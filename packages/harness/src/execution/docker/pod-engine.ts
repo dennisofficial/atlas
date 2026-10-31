@@ -65,11 +65,15 @@ export class DockerPodEngine {
     })
   }
 
-  async inspectPod(args: { id: string }): Promise<PodDetails | undefined> {
+  async inspectPod(args: {
+    id: string
+    signal?: AbortSignal | undefined
+  }): Promise<PodDetails | undefined> {
     const found = await request({
       socketPath: this.socketPath,
       method: 'GET',
       path: `/containers/${encodeURIComponent(args.id)}/json`,
+      ...(args.signal === undefined ? {} : { signal: args.signal }),
     }).catch((error: unknown) => {
       if (missing(error)) return undefined
       throw error

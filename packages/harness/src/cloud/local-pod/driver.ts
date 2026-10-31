@@ -140,8 +140,14 @@ export class DockerPodDriver implements RunnerDriver {
     })
   }
 
-  async inspect(args: { name: string }): Promise<PodObservation | undefined> {
-    const pod = await this.engine.inspectPod({ id: args.name })
+  async inspect(args: {
+    name: string
+    signal?: AbortSignal | undefined
+  }): Promise<PodObservation | undefined> {
+    const pod = await this.engine.inspectPod({
+      id: args.name,
+      ...(args.signal === undefined ? {} : { signal: args.signal }),
+    })
     if (pod === undefined) return undefined
     const state = stateOf(pod.status)
     if (state !== 'running') return { state }

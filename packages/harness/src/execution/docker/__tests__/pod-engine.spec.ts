@@ -281,3 +281,29 @@ describe('DockerPodEngine execSh', () => {
     expect(inspects).toBe(settled)
   })
 })
+
+describe('DockerPodEngine.inspectPod cancellation', () => {
+  it('aborts a hung daemon request through the forwarded signal and still inspects without one', async () => {
+    const entered = Promise.withResolvers<void>()
+    const { engine } = await serveDaemon(async (request) => {
+      if (request.path === '/containers/hung/json') {
+        entered.resolve()
+        await new Promise(() => undefined)
+      }
+      return Response.json({
+        Id: 'abc',
+        Name: '/pod',
+        State: { Status: 'running', Running: true },
+        Config: { Labels: {} },
+        HostConfig: {},
+        NetworkSettings: { Ports: {} },
+      })
+    })
+    const controller = new AbortController()
+    const pending = engine.inspectPod({ id: 'hung', signal: controller.signal })
+    await entered.promise
+    controller.abort()
+    await expect(pending).rejects.toBeDefined()
+    expect((await engine.inspectPod({ id: 'ok' }))?.id).toBe('abc')
+  })
+})

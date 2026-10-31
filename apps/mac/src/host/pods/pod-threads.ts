@@ -20,7 +20,7 @@ export interface IPodThreads {
   wake: (args: { threadId: ThreadId }) => Promise<HeldPod>
   dial: (args: { threadId: ThreadId; url: string; token: string }) => Promise<void>
   release: (args: { threadId: ThreadId }) => Promise<void>
-  closeAll: () => void
+  closeAll: () => Promise<void>
 }
 
 const QUIET_NOTICES = { notify: () => undefined }
@@ -109,8 +109,8 @@ export function createPodThreads({
         pod.attachment.channel.wake({ url, token })
     },
     release,
-    closeAll: () => {
-      for (const threadId of [...held.keys()]) void release({ threadId })
+    closeAll: async () => {
+      await Promise.all([...held.keys()].map((threadId) => release({ threadId })))
     },
   }
 }

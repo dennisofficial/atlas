@@ -58,7 +58,10 @@ export type CloudSandboxes = {
      */
     onSettleWait?: ((notice: SettleWaitNotice) => void) | undefined
   }): Promise<CloudSandbox>
-  find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
+  find(args: {
+    threadId: ThreadId
+    signal?: AbortSignal | undefined
+  }): Promise<CloudSandboxStatus | undefined>
   /** The live allocation as the provider reports it; fields absent when the provider doesn't say. */
   readResources(args: { threadId: ThreadId }): Promise<{ vcpus?: number; memoryMb?: number }>
   /** Resizes the live sandbox. Touches the running sandbox only — never the stored default. */
