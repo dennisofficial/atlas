@@ -17,10 +17,11 @@ import {
   InputGroupInput,
 } from '@dltech/atlas-ui/components/input-group'
 
+import { NewProjectDialog } from './new-project-dialog'
 import { ProjectRow } from './project-row'
 import { filterProjects, PROJECTS } from './projects.fixtures'
 
-function ProjectsHeader() {
+function ProjectsHeader({ onNewProject }: { onNewProject: () => void }) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
       <Breadcrumb>
@@ -38,7 +39,7 @@ function ProjectsHeader() {
         <Button variant="outline" size="icon" aria-label="Copy link to this view">
           <LinkIcon />
         </Button>
-        <Button>
+        <Button onClick={onNewProject}>
           <PlusIcon data-icon="inline-start" />
           New project
         </Button>
@@ -61,11 +62,13 @@ function EmptyResults({ query }: { query: string }) {
 
 export function ProjectsView() {
   const [query, setQuery] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
   const projects = filterProjects({ projects: PROJECTS, query })
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ProjectsHeader />
+      <ProjectsHeader onNewProject={() => setDialogOpen(true)} />
+      <NewProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[760px] flex-col gap-4 px-6 py-8">
           <InputGroup>

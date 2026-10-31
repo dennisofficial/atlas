@@ -1,7 +1,9 @@
 'use client'
 
 import { ArrowUpRightIcon, PlusIcon } from 'lucide-react'
+import { useState } from 'react'
 
+import { MAX_ADDITIONAL_REPOS } from '@dltech/atlas-wire/web'
 import { Button } from '@dltech/atlas-ui/components/button'
 
 import { useGithubRepos } from '@/features/projects/use-github-repos'
@@ -38,8 +40,14 @@ export function AdditionalRepositories({
   onChange: (next: readonly string[]) => void
 }) {
   const githubRepos = useGithubRepos().data ?? []
+  const [addedIndex, setAddedIndex] = useState<number | null>(null)
   const taken = mainRepository === null ? repositories : [mainRepository, ...repositories]
+  const handleAdd = () => {
+    setAddedIndex(repositories.length)
+    onChange([...repositories, ''])
+  }
   const handleRemove = (index: number) => {
+    setAddedIndex(null)
     onChange(repositories.filter((_, position) => position !== index))
   }
   const handleEdit = ({ index, value }: { index: number; value: string }) => {
@@ -54,6 +62,7 @@ export function AdditionalRepositories({
           repo={repo}
           repos={githubRepos}
           taken={taken}
+          autoOpen={index === addedIndex}
           onChange={(value) => handleEdit({ index, value })}
           onRemove={() => handleRemove(index)}
         />
@@ -62,7 +71,8 @@ export function AdditionalRepositories({
         variant="outline"
         size="sm"
         className="self-start"
-        onClick={() => onChange([...repositories, ''])}
+        disabled={repositories.length >= MAX_ADDITIONAL_REPOS}
+        onClick={handleAdd}
       >
         <PlusIcon data-icon="inline-start" />
         Add repository

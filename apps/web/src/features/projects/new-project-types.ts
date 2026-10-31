@@ -1,3 +1,5 @@
+import type { SecretPair } from './new-project-secrets'
+
 export enum ENewProjectStep {
   Source = 'Source',
   Repository = 'Repository',
@@ -17,6 +19,8 @@ export interface ProjectDraft {
   name: string
   nameTouched: boolean
   description: string
+  additionalRepos: readonly string[]
+  secrets: readonly SecretPair[]
 }
 
 export type DraftPatch = (patch: Partial<ProjectDraft>) => void

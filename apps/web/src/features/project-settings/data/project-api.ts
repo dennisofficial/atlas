@@ -22,7 +22,8 @@ export type SaveProjectBody = {
   shipBehavior: EShipBehavior
 }
 
-export type CreateProjectBody = Omit<SaveProjectBody, 'shipBehavior'>
+export type CreateProjectBody = Omit<SaveProjectBody, 'shipBehavior'> &
+  Partial<Pick<SaveProjectBody, 'shipBehavior'>>
 
 export const createProject = (body: CreateProjectBody): Promise<ProjectView> =>
   cloudCall(api.projects.create.mutate(body))

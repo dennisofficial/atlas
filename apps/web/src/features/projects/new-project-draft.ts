@@ -2,6 +2,7 @@ import { MAX_PROJECT_NAME_LENGTH, type Project } from '@dltech/atlas-wire/web'
 
 import type { CreateProjectBody } from '@/features/project-settings/data/project-api'
 
+import { ERepoInputKind, parseRepoInput } from './new-project-repos'
 import { ENewProjectStep, EProjectSource, type ProjectDraft } from './new-project-types'
 
 export enum ENameError {
@@ -25,6 +26,8 @@ export function emptyDraft(): ProjectDraft {
     name: '',
     nameTouched: false,
     description: '',
+    additionalRepos: [],
+    secrets: [],
   }
 }
 
@@ -57,6 +60,25 @@ export function visibleNameError({
 }): ENameError | null {
   if (error === ENameError.Empty && !touched) return null
   return error
+}
+
+export const BAD_ADDITIONAL_REPOS_MESSAGE =
+  'Each additional repository must be a GitHub URL or owner/name, and not repeat another.'
+
+export function additionalReposOf(draft: ProjectDraft): string[] | null {
+  if (repoOf(draft) === null) return []
+  const seen = new Set([repoOf(draft)?.split('/')[1]?.toLowerCase()])
+  const repos: string[] = []
+  for (const entry of draft.additionalRepos) {
+    const parsed = parseRepoInput(entry)
+    if (parsed.kind === ERepoInputKind.Empty) continue
+    if (parsed.kind === ERepoInputKind.Invalid) return null
+    const name = parsed.repo.split('/')[1]?.toLowerCase()
+    if (seen.has(name)) return null
+    seen.add(name)
+    repos.push(parsed.repo)
+  }
+  return repos
 }
 
 export const canContinueFromRepository = (draft: ProjectDraft): boolean => draft.repo !== null
@@ -109,7 +131,7 @@ export function createBodyOf({
     name: name.trim(),
     repo,
     baseBranch: repo === null ? null : draft.branch,
-    additionalRepos: [],
+    additionalRepos: (additionalReposOf(draft) ?? []).map((entry) => ({ repo: entry })),
     description: draft.description.trim(),
   }
 }
