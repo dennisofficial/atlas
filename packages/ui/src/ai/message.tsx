@@ -15,7 +15,7 @@ import {
 import { Bubble, BubbleContent } from '#components/bubble'
 import { Button } from '#components/button'
 import { Marker, MarkerContent, MarkerIcon } from '#components/marker'
-import { Message, MessageContent, MessageFooter, MessageHeader } from '#components/message'
+import { Message, MessageContent, MessageFooter } from '#components/message'
 import { Tooltip, TooltipContent, TooltipTrigger } from '#components/tooltip'
 
 import { MessageImages, type MessageImage } from './message-images'
@@ -38,6 +38,7 @@ export interface UserMessageProps {
   timestamp?: string
   attachments?: MessageAttachment[]
   images?: readonly MessageImage[]
+  copyText?: string
   onEdit?: () => void
   onRewind?: () => void
 }
@@ -105,14 +106,20 @@ function CopyAction({ text }: { text: string }) {
   )
 }
 
-function Meta({ author, timestamp }: Pick<UserMessageProps, 'author' | 'timestamp'>) {
-  if (!author && !timestamp) return null
-  return (
-    <MessageHeader>
-      {author ? <span>{author}</span> : null}
-      {timestamp ? <span className="font-normal tabular-nums">{timestamp}</span> : null}
-    </MessageHeader>
-  )
+function SpeakerName({ author }: { author: string | undefined }) {
+  return author ? <span className="sr-only">{author}</span> : null
+}
+
+function Timestamp({ children }: { children: string }) {
+  return <span className="font-normal tabular-nums whitespace-nowrap">{children}</span>
+}
+
+function FooterRow({ children }: { children: ReactNode }) {
+  return <div className="flex items-center gap-2">{children}</div>
+}
+
+function ActionGroup({ children }: { children: ReactNode }) {
+  return <div className="flex items-center">{children}</div>
 }
 
 export function UserMessage({
@@ -121,13 +128,17 @@ export function UserMessage({
   timestamp,
   attachments = [],
   images = [],
+  copyText,
   onEdit,
   onRewind,
 }: UserMessageProps) {
+  const userCopyText = copyText?.trim() ? copyText : undefined
+  const hasActions = Boolean(onEdit || userCopyText || onRewind)
+
   return (
     <Message align="end">
       <MessageContent>
-        <Meta author={author} timestamp={timestamp} />
+        <SpeakerName author={author} />
         <MessageImages images={images} />
         {children === undefined || children === null ? null : (
           <Bubble align="end" variant="muted">
@@ -146,18 +157,26 @@ export function UserMessage({
             ))}
           </div>
         ) : null}
-        {onEdit || onRewind ? (
+        {timestamp || hasActions ? (
           <MessageFooter>
-            {onEdit ? (
-              <ActionButton label="Edit" onClick={onEdit}>
-                <PencilIcon />
-              </ActionButton>
-            ) : null}
-            {onRewind ? (
-              <ActionButton label="Rewind to here" onClick={onRewind}>
-                <HistoryIcon />
-              </ActionButton>
-            ) : null}
+            <FooterRow>
+              {timestamp ? <Timestamp>{timestamp}</Timestamp> : null}
+              {hasActions ? (
+                <ActionGroup>
+                  {onEdit ? (
+                    <ActionButton label="Edit" onClick={onEdit}>
+                      <PencilIcon />
+                    </ActionButton>
+                  ) : null}
+                  {userCopyText ? <CopyAction text={userCopyText} /> : null}
+                  {onRewind ? (
+                    <ActionButton label="Rewind to here" onClick={onRewind}>
+                      <HistoryIcon />
+                    </ActionButton>
+                  ) : null}
+                </ActionGroup>
+              ) : null}
+            </FooterRow>
           </MessageFooter>
         ) : null}
       </MessageContent>
@@ -176,12 +195,12 @@ export function AgentMessage({
   onFeedback,
   onRetry,
 }: AgentMessageProps) {
-  const hasActions = Boolean(copyText || onFeedback || onRetry)
+  const showActions = Boolean(copyText || onFeedback || onRetry) && !streaming
 
   return (
     <Message>
       <MessageContent>
-        <Meta author={author} timestamp={timestamp} />
+        <SpeakerName author={author} />
         <div className="text-sm leading-relaxed text-pretty">
           {children}
           {streaming && caret ? (
@@ -191,32 +210,39 @@ export function AgentMessage({
             />
           ) : null}
         </div>
-        {hasActions && !streaming ? (
+        {timestamp || showActions ? (
           <MessageFooter>
-            {copyText ? <CopyAction text={copyText} /> : null}
-            {onFeedback ? (
-              <>
-                <ActionButton
-                  label="Good response"
-                  pressed={feedback === EFeedback.Good}
-                  onClick={() => onFeedback(EFeedback.Good)}
-                >
-                  <ThumbsUpIcon />
-                </ActionButton>
-                <ActionButton
-                  label="Bad response"
-                  pressed={feedback === EFeedback.Bad}
-                  onClick={() => onFeedback(EFeedback.Bad)}
-                >
-                  <ThumbsDownIcon />
-                </ActionButton>
-              </>
-            ) : null}
-            {onRetry ? (
-              <ActionButton label="Retry" onClick={onRetry}>
-                <RefreshCcwIcon />
-              </ActionButton>
-            ) : null}
+            <FooterRow>
+              {showActions ? (
+                <ActionGroup>
+                  {copyText ? <CopyAction text={copyText} /> : null}
+                  {onFeedback ? (
+                    <>
+                      <ActionButton
+                        label="Good response"
+                        pressed={feedback === EFeedback.Good}
+                        onClick={() => onFeedback(EFeedback.Good)}
+                      >
+                        <ThumbsUpIcon />
+                      </ActionButton>
+                      <ActionButton
+                        label="Bad response"
+                        pressed={feedback === EFeedback.Bad}
+                        onClick={() => onFeedback(EFeedback.Bad)}
+                      >
+                        <ThumbsDownIcon />
+                      </ActionButton>
+                    </>
+                  ) : null}
+                  {onRetry ? (
+                    <ActionButton label="Retry" onClick={onRetry}>
+                      <RefreshCcwIcon />
+                    </ActionButton>
+                  ) : null}
+                </ActionGroup>
+              ) : null}
+              {timestamp ? <Timestamp>{timestamp}</Timestamp> : null}
+            </FooterRow>
           </MessageFooter>
         ) : null}
       </MessageContent>
