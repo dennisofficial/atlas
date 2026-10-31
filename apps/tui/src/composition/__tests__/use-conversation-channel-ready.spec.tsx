@@ -38,7 +38,7 @@ function ConversationProbe(props: {
 afterEach(() => dismissNotice())
 
 describe('a conversation whose cloud channel is down', () => {
-  it('offers retry for a failed turn while the channel is ready', async () => {
+  it('offers close but no retry for a local problem notice while the channel is ready', async () => {
     const app = fakeApp({
       model: scriptedModelPort({ script: { thinking: '', reply: 'done' } }),
       open: { mode: EOpenMode.New },
@@ -67,7 +67,8 @@ describe('a conversation whose cloud channel is down', () => {
       await setup.flush()
 
       expect(probe.conversation?.model.failure).not.toBeNull()
-      expect(probe.conversation?.handleRetry).not.toBeNull()
+      expect(probe.conversation?.handleRetry).toBeNull()
+      expect(probe.conversation?.handleDismissFailure).not.toBeNull()
     } finally {
       await teardown(setup)
     }

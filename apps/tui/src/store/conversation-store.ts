@@ -1,80 +1,46 @@
-import type { CallId, ThreadId, Event } from '@dltech/atlas-core'
-import type { ChannelSignal, DeltaChannel, TurnSpend, Unsubscribe } from '@dltech/atlas-harness'
-
-import { durableOpLog } from '../composition/durable-op-log'
-import { IDLE_TURN, type TurnClock } from '../ui/turn-clock'
+import type { Event } from '@dltech/atlas-core'
+import type { ChannelSignal, TurnSpend, Unsubscribe } from '@dltech/atlas-harness'
 import {
   assembleTranscript,
-  durableEntries,
   persistedFailureOf,
   SHIPPED_THINKING,
   type EThinkingVisibility,
   type RevealGate,
-  type StepFailure,
-  type TranscriptEntry,
   type TranscriptModel,
 } from '@dltech/atlas-client/transcript'
-import type { LogAccumulator, ToolEffects } from './log-accumulator'
+
+import { IDLE_TURN, type TurnClock } from '../ui/turn-clock'
+import type { ConversationStore, ConversationStoreArgs } from './conversation-store-types'
+import { createDurableCache } from './durable-cache'
+import type { LogAccumulator } from './log-accumulator'
 import { createLogWindow, sameLogSummary, type LogSummary } from './log-window'
-import { advancedGate, attachedGate, FRAME_MS, gateIsDraining } from './reveal'
+import { logSummaryOf } from './log-summary-of'
+import { createOutputTails } from './output-tails'
+import { watchPendingTldr } from './pending-tldr-watch'
+import { createRepaintTimers } from './repaint-timers'
+import { advancedGate, attachedGate, gateIsDraining } from './reveal'
+import { sameEvents, sameTurns } from './same-log'
+import { watchSandbox } from './sandbox-source'
+import { settledModel } from './settled-model'
 import {
-  sameSidebar,
   sidebarFoldFrom,
   sidebarFrom,
+  sameSidebar,
   type SidebarContainer,
   type SidebarModel,
 } from './sidebar-model'
-import { transcriptSandboxOf } from './transcript-sandbox'
-import { watchSandbox, type SandboxStatusSource } from './sandbox-source'
-import { pendingTldrOf, subscribeTldrFeed } from '../ui/tldr-feed-store'
-import { sameEvents, sameTurns } from './same-log'
-import type { ModelPriceLookup } from './sidebar-spend'
-import { stabilisedEntries } from './stable-entries'
+import { isInertSignal } from './inert-signal'
 import { createStepTracker } from './step-tracker'
+import { traceSetName } from './trace-set-name'
+import { transcriptSandboxOf } from './transcript-sandbox'
+import { pendingTldrOf, type PendingTldr } from '../ui/tldr-feed-store'
 import { IDLE_PROGRESS, turnObserved, type TurnProgress } from './turn-progress'
 
-export type ConversationStore = {
-  subscribe(listener: () => void): Unsubscribe
-  getSnapshot(): TranscriptModel
-  getSidebar(): SidebarModel
-  getTurn(): TurnClock
-  getLogSummary(): LogSummary
-  setEvents(args: { events: readonly Event[]; turns?: readonly TurnSpend[] | undefined }): void
-  resetLog(args: {
-    events: readonly Event[]
-    base: LogAccumulator
-    turns?: readonly TurnSpend[] | undefined
-  }): void
-  republish(): void
-  stampTurn(advance: (progress: TurnProgress) => TurnProgress): void
-  supersedeFailure(): void
-  resetSteps(): void
-  setThinking(thinking: EThinkingVisibility): void
-  setTldrStatus(tldrStatus: boolean): void
-  setName(name: string | null): void
-  dispose(): void
-}
+export type { ConversationStore, ConversationStoreArgs } from './conversation-store-types'
 
 const NO_TURNS: readonly TurnSpend[] = Object.freeze([])
 
-/** A running command's panel reads only its freshest lines, so the tail itself stays shallow. */
-const MAX_TAIL_CHARACTERS = 60_000
-
-export function createConversationStore(args: {
-  channel: DeltaChannel
-  threadId: ThreadId
-  events?: readonly Event[]
-  turns?: readonly TurnSpend[]
-  base?: LogAccumulator
-  effects?: ToolEffects
-  paceReveal?: boolean
-  thinking?: EThinkingVisibility
-  name?: string | null
-  priceOf?: ModelPriceLookup | undefined
-  projectEvents?: ((args: { events: readonly Event[] }) => void) | undefined
-  sandbox?: SandboxStatusSource | undefined
-  readClock?: (() => number) | undefined
-}): ConversationStore {
+export function createConversationStore(args: ConversationStoreArgs): ConversationStore {
   const paceReveal = args.paceReveal ?? false
   const readClock = args.readClock ?? Date.now
   let thinking: EThinkingVisibility = args.thinking ?? SHIPPED_THINKING
@@ -87,44 +53,19 @@ export function createConversationStore(args: {
   let gate: RevealGate | null = null
   let sandbox: SidebarContainer | null = args.sandbox?.current() ?? null
   let channelWorking = false
-  let pendingTldr = pendingTldrOf(args.threadId) ?? null
-  let frame: ReturnType<typeof setTimeout> | undefined
-  let queuedRepaint: ReturnType<typeof setTimeout> | undefined
+  let pendingTldr: PendingTldr | null = pendingTldrOf(args.threadId) ?? null
   const tracker = createStepTracker()
-  const tails = new Map<CallId, string>()
-  let durable: {
-    events: readonly Event[]
-    turns: readonly TurnSpend[]
-    entries: TranscriptEntry[]
-  } | null = null
+  const tails = createOutputTails()
+  const durableOf = createDurableCache()
   let projected: readonly Event[] | null = null
 
   const logWindow = createLogWindow({ effects: args.effects ?? (() => undefined) })
   logWindow.seed({ events, ...(args.base === undefined ? {} : { base: args.base }) })
 
-  const summaryNow = (): LogSummary => {
-    const { opening, tokens, treeMutations, worktree, home, repo } = logWindow.acc
-    return {
-      opening,
-      tokens,
-      treeMutations,
-      worktree,
-      home,
-      repo,
-      windowStartSeq: events[0]?.seq ?? 0,
-    }
-  }
+  const summaryNow = (): LogSummary => logSummaryOf({ acc: logWindow.acc, events })
   let logSummary = summaryNow()
 
-  const durableNow = (): readonly TranscriptEntry[] => {
-    if (durable !== null && durable.events === events && durable.turns === turns) {
-      return durable.entries
-    }
-
-    const entries = durableEntries({ events, turns })
-    durable = { events, turns, entries }
-    return entries
-  }
+  const durableNow = () => durableOf({ events, turns })
 
   const sidebarNow = (): SidebarModel =>
     sidebarFrom({ fold: sidebarFoldFrom(logWindow.acc), turn, turns, priceOf: args.priceOf, name })
@@ -149,48 +90,15 @@ export function createConversationStore(args: {
     for (const listener of [...listeners]) listener()
   }
 
-  const sameFailure = (left: StepFailure | null, right: StepFailure | null): boolean =>
-    left === right || (left !== null && right !== null && left.message === right.message)
-
-  const settled = (derived: TranscriptModel): TranscriptModel => {
-    const entries = stabilisedEntries({
-      previous: model.entries,
-      next: derived.entries,
-    })
-    const unchanged =
-      entries === model.entries &&
-      derived.isEmpty === model.isEmpty &&
-      derived.streaming === model.streaming &&
-      sameFailure(derived.failure, model.failure)
-
-    return unchanged ? model : { ...derived, entries }
-  }
-
-  const pruneTails = () => {
-    if (tails.size === 0) return
-
-    const called = new Set<CallId>()
-    const settledIds = new Set<CallId>()
-    for (const event of events) {
-      if (event.type === 'tool-called') called.add(event.callId)
-      if (event.type === 'tool-result' || event.type === 'tool-denied') {
-        settledIds.add(event.callId)
-      }
-    }
-
-    for (const callId of [...tails.keys()]) {
-      if (settledIds.has(callId) || !called.has(callId)) tails.delete(callId)
-    }
-  }
-
   const republish = () => {
     turn = progress.clock
     tracker.pruneSuperseded(events)
-    pruneTails()
+    tails.prune(events)
     const nextSummary = summaryNow()
     if (!sameLogSummary(logSummary, nextSummary)) logSummary = nextSummary
-    model = settled(
-      assembleTranscript({
+    model = settledModel({
+      previous: model,
+      derived: assembleTranscript({
         durable: durableNow(),
         persistedFailure: persistedFailureOf(events),
         live: tracker.live(events),
@@ -199,10 +107,10 @@ export function createConversationStore(args: {
         pendingTldr,
         tldrStatus,
         sandbox: transcriptSandboxOf(sandbox),
-        outputs: tails,
+        outputs: tails.map,
         working: channelWorking,
       }),
-    )
+    })
     const nextSidebar = sidebarNow()
     if (!sameSidebar(sidebar, nextSidebar)) sidebar = nextSidebar
     if (projected !== events) {
@@ -212,32 +120,18 @@ export function createConversationStore(args: {
     wake()
   }
 
-  const scheduleFrame = () => {
-    if (frame !== undefined) return
+  const timers = createRepaintTimers({ republish })
 
-    frame = setTimeout(() => {
-      frame = undefined
+  const scheduleFrame = () =>
+    timers.scheduleFrame(() => {
       const tail = tracker.tailRun(events)
       gate = advancedGate({ gate, tail })
       republish()
       if (gateIsDraining({ gate, tail })) scheduleFrame()
-    }, FRAME_MS)
-  }
-
-  const scheduleRepaint = () => {
-    if (queuedRepaint !== undefined) return
-
-    queuedRepaint = setTimeout(() => {
-      queuedRepaint = undefined
-      republish()
-    }, FRAME_MS)
-  }
+    })
 
   const repaintNow = () => {
-    if (queuedRepaint !== undefined) {
-      clearTimeout(queuedRepaint)
-      queuedRepaint = undefined
-    }
+    timers.cancelRepaint()
     republish()
   }
 
@@ -252,23 +146,15 @@ export function createConversationStore(args: {
       return
     }
 
-    if (signal.type === 'events-appended' || signal.type === 'retry-cleared') return
-    if (signal.type === 'operator-input' || signal.type === 'rotation-changed') return
-    if (signal.type === 'session-files-changed') return
-    // Pending rows are rendered from use-conversation's onPendingChanged subscription; the
-    // tracker only models step progress.
-    if (signal.type === 'pending-changed') return
+    if (isInertSignal(signal)) return
     if (signal.type === 'retry-waiting') {
       republish()
       return
     }
 
     if (signal.type === 'tool-output') {
-      tails.set(
-        signal.callId,
-        ((tails.get(signal.callId) ?? '') + signal.text).slice(-MAX_TAIL_CHARACTERS),
-      )
-      scheduleRepaint()
+      tails.append({ callId: signal.callId, text: signal.text })
+      timers.scheduleRepaint()
       return
     }
 
@@ -281,7 +167,7 @@ export function createConversationStore(args: {
     }
 
     if (signal.type === 'chunk') {
-      scheduleRepaint()
+      timers.scheduleRepaint()
       return
     }
 
@@ -294,19 +180,13 @@ export function createConversationStore(args: {
     listener: handleSignal,
   })
 
-  const unsubscribeFromFeed = subscribeTldrFeed(() => {
-    const next = pendingTldrOf(args.threadId) ?? null
-    if (next === null && pendingTldr === null) return
-    if (
-      next !== null &&
-      pendingTldr !== null &&
-      next.anchorSeq === pendingTldr.anchorSeq &&
-      next.text === pendingTldr.text
-    ) {
-      return
-    }
-    pendingTldr = next
-    republish()
+  const unsubscribeFromFeed = watchPendingTldr({
+    threadId: args.threadId,
+    current: () => pendingTldr,
+    onChange: (next) => {
+      pendingTldr = next
+      republish()
+    },
   })
 
   const unsubscribeFromSandbox = watchSandbox({
@@ -363,6 +243,10 @@ export function createConversationStore(args: {
       if (clockMoved) republish()
     },
 
+    liveSteps() {
+      return tracker.live(events)
+    },
+
     supersedeFailure() {
       if (!tracker.dropFailedTail(events)) return
 
@@ -388,24 +272,14 @@ export function createConversationStore(args: {
     },
 
     setName(next) {
-      if (process.env.ATLAS_TRACE_TITLING !== undefined) {
-        durableOpLog()?.info({
-          source: 'titling.trace',
-          message: 'conversation-store setName',
-          threadId: args.threadId,
-          data: { from: name, to: next },
-        })
-      }
+      traceSetName({ threadId: args.threadId, from: name, to: next })
       if (next === name) return
       name = next
       republish()
     },
 
     dispose() {
-      if (frame !== undefined) clearTimeout(frame)
-      frame = undefined
-      if (queuedRepaint !== undefined) clearTimeout(queuedRepaint)
-      queuedRepaint = undefined
+      timers.dispose()
       unsubscribeFromChannel?.()
       unsubscribeFromChannel = undefined
       unsubscribeFromFeed()

@@ -5,7 +5,7 @@ import { EEffort, EImageTier, type CredentialPort, type ModelCard } from '@dltec
 
 import { apiKeyCredential } from '../../credentials/testing'
 import { InferenceAdapter, INFERENCE_PROVIDER_ID } from '../inference-adapter'
-import { recordingFetch } from './recording-fetch'
+import { recordingFetch, refusingFirstFetch } from './recording-fetch'
 
 const RESPONSE_JSON = JSON.stringify({
   id: 'chatcmpl_stub',
@@ -83,5 +83,33 @@ describe('the inference adapter merging provider options', () => {
 
     expect(recorder.requests[0]?.body).toMatchObject({ prompt_cache_key: 'thread-1' })
     expect(recorder.requests[0]?.body).not.toHaveProperty('reasoning_effort')
+  })
+})
+
+describe('the inference adapter tagging a failure with its account', () => {
+  it('names the account resolved at request time on a 401', async () => {
+    const { toAccountId } = await import('@dltech/atlas-core')
+    const { failureAccountOf } = await import('../failure-account')
+    const { modelFailureOf } = await import('../../model/failure')
+    const recorder = refusingFirstFetch({
+      body: RESPONSE_JSON,
+      refusalBody: '{"error":{"message":"Invalid API key","code":"invalid_api_key"}}',
+    })
+    const adapter = new InferenceAdapter({
+      credentials: {
+        read: async () => apiKeyCredential({ apiKey: 'sk-test', accountId: toAccountId('acct-9') }),
+        discard: async () => undefined,
+      },
+      cards: [card],
+      fetch: recorder.fetch,
+    })
+    const model = adapter.model({ card, effort: () => EEffort.High })
+
+    const error = await generateText({ model, prompt: 'ping', maxRetries: 0 }).catch(
+      (caught: unknown) => caught,
+    )
+
+    expect(failureAccountOf(error)).toBe(toAccountId('acct-9'))
+    expect(modelFailureOf(error)).toEqual({ status: 401 })
   })
 })

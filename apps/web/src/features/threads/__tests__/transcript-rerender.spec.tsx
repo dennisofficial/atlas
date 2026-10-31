@@ -100,7 +100,7 @@ const setup = async () => {
           <ThreadPanelProvider value={panel}>
             <ThreadTranscript
               items={rows}
-              failure={null}
+              failedLabel={null}
               pod={null}
               working={working}
               onRetryBoot={() => undefined}

@@ -6,7 +6,9 @@ import type { PolledThreadEvents } from './use-thread-events'
 import type {
   LiveApplyRewind,
   LiveChooseModel,
+  LiveDismissFailure,
   LiveInterrupt,
+  LiveRetry,
   LiveReadRoster,
   LiveSend,
   LiveTakeBackPending,
@@ -33,6 +35,8 @@ export type ThreadSource = {
   waitingOnOperator: boolean
   takeBackPending: LiveTakeBackPending
   interrupt: LiveInterrupt
+  retry: LiveRetry
+  dismissFailure: LiveDismissFailure
   applyRewind: LiveApplyRewind
   readRoster: LiveReadRoster
   refreshEvents: () => void
@@ -70,6 +74,8 @@ export function threadSourceOf(args: {
       waitingOnOperator: live.operatorInput !== null,
       takeBackPending: live.takeBackPending,
       interrupt: live.interrupt,
+      retry: live.retry,
+      dismissFailure: live.dismissFailure,
       applyRewind: live.applyRewind,
       readRoster: live.readRoster,
       refreshEvents: STREAMED,
@@ -94,6 +100,8 @@ export function threadSourceOf(args: {
     waitingOnOperator: false,
     takeBackPending: live.takeBackPending,
     interrupt: live.interrupt,
+    retry: live.retry,
+    dismissFailure: live.dismissFailure,
     applyRewind: live.applyRewind,
     readRoster: live.readRoster,
   }

@@ -112,6 +112,26 @@ describe('interrupt', () => {
   })
 })
 
+describe('retry', () => {
+  const runs = (test: ReturnType<typeof rig>) =>
+    test.sockets.flatMap((socket) => socket.sent.filter((frame) => frame.kind === EClientFrame.Run))
+
+  it('sends the run frame over a connected live channel', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    expect(test.controller.retry()).toBe(true)
+
+    expect(runs(test)).toEqual([{ kind: EClientFrame.Run }])
+  })
+
+  it('returns false without a connected channel', () => {
+    expect(rig().controller.retry()).toBe(false)
+  })
+})
+
 describe('rewind', () => {
   const cuts = [{ kind: 'shell' as const, shellId: 'sh_1', command: 'bun run dev' }]
 
@@ -207,5 +227,34 @@ describe('rewind', () => {
   it('answers null without a connected channel', async () => {
     const test = rig()
     expect(await test.controller.readRoster()).toBeNull()
+  })
+})
+
+describe('resume and dismissFailure', () => {
+  const frames = (test: ReturnType<typeof rig>) => test.sockets.flatMap((socket) => socket.sent)
+
+  it('sends run with resume over a connected channel', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    expect(test.controller.retry({ resume: true })).toBe(true)
+
+    expect(frames(test)).toContainEqual({ kind: EClientFrame.Run, resume: true })
+  })
+
+  it('is false for dismissFailure without a connection', () => {
+    expect(rig().controller.dismissFailure({ failureSeq: 2 })).toBe(false)
+  })
+
+  it('is false when the serve lacks the dismiss capability and sends nothing', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    expect(test.controller.dismissFailure({ failureSeq: 2 })).toBe(false)
+    expect(frames(test).some((frame) => frame.kind === EClientFrame.DismissFailure)).toBe(false)
   })
 })

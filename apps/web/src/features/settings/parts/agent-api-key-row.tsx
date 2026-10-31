@@ -21,6 +21,7 @@ export function ApiKeyRow({
   onRemove: () => void
 }) {
   const prefix = KEY_PREFIXES[provider.id]
+  const placeholder = prefix.length > 0 ? `${prefix}…` : 'Paste your API key'
   return (
     <SettingsRow
       media={<BrandMark brand={provider.brand} />}
@@ -40,7 +41,7 @@ export function ApiKeyRow({
           <>
             <KeyDialog
               providerName={provider.name}
-              placeholder={`${prefix}…`}
+              placeholder={placeholder}
               triggerLabel="Replace"
               onSave={onSave}
             />
@@ -51,7 +52,7 @@ export function ApiKeyRow({
         ) : (
           <KeyDialog
             providerName={provider.name}
-            placeholder={`${prefix}…`}
+            placeholder={placeholder}
             triggerLabel="Add key"
             onSave={onSave}
           />

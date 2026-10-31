@@ -338,30 +338,40 @@ describe('what the transcript is shown while a turn is in flight', () => {
       failure: 'the credential expired mid-turn',
     })
 
-    expect(model.failure).toEqual({ message: 'the credential expired mid-turn' })
+    expect(model.failure).toEqual({
+      message: 'the credential expired mid-turn',
+      failure: null,
+      runId: null,
+    })
   })
 
   it('leaves a failure the channel already reported alone', () => {
     const reported: TranscriptModel = {
       ...EMPTY_TRANSCRIPT,
-      failure: { message: 'overloaded_error' },
+      failure: { message: 'overloaded_error', failure: null, runId: null },
     }
 
     expect(
       transcriptOfTurn({ model: reported, working: false, failure: 'something else' }).failure,
-    ).toEqual({ message: 'overloaded_error' })
+    ).toEqual({ message: 'overloaded_error', failure: null, runId: null })
   })
 
   it('names the reason the turn reported when the channel failed without one', () => {
-    const unexplained: TranscriptModel = { ...EMPTY_TRANSCRIPT, failure: { message: null } }
+    const unexplained: TranscriptModel = {
+      ...EMPTY_TRANSCRIPT,
+      failure: { message: null, failure: null, runId: null },
+    }
 
     expect(
       transcriptOfTurn({ model: unexplained, working: false, failure: 'overloaded_error' }).failure,
-    ).toEqual({ message: 'overloaded_error' })
+    ).toEqual({ message: 'overloaded_error', failure: null, runId: null })
   })
 
   it('keeps a failure the channel reported without a reason when nothing else knows one', () => {
-    const unexplained: TranscriptModel = { ...EMPTY_TRANSCRIPT, failure: { message: null } }
+    const unexplained: TranscriptModel = {
+      ...EMPTY_TRANSCRIPT,
+      failure: { message: null, failure: null, runId: null },
+    }
 
     expect(transcriptOfTurn({ model: unexplained, working: false, failure: null })).toBe(
       unexplained,

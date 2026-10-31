@@ -12,6 +12,7 @@ export type ServeTurnDriver = {
   run: (options?: TurnRunOptions) => void
   sayOrRun: () => boolean
   interrupt: () => void
+  dismissFailure: (args: { failureSeq: number }) => Promise<void>
   pause: () => void
   beginRelocation: () => Promise<void>
   beginRotation: () => RotationSettle

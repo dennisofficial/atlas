@@ -47,6 +47,14 @@ describe('eventsFromWire', () => {
     expect(events.map((event) => event.seq)).toEqual([5])
   })
 
+  it('decodes a run-failed row', () => {
+    const failure = { kind: 'quota', message: 'out of credit', providerId: 'openai' }
+    const [event] = eventsFromWire([
+      wire({ seq: 1, type: 'run-failed', body: JSON.stringify({ type: 'run-failed', failure }) }),
+    ])
+    expect(event).toMatchObject({ type: 'run-failed', failure, seq: 1 })
+  })
+
   it('carries the parent run through', () => {
     const [event] = eventsFromWire([{ ...said(1, 'x'), parentRunId: 'run_0' }])
     expect(event?.parentRunId).toBe('run_0')

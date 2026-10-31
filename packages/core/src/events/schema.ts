@@ -1,19 +1,6 @@
 import { z } from 'zod'
 
-import { EReportKind } from '../agents/report'
-import { MAX_UPLOAD_BYTES } from '../uploads/limits'
-import { EAgentRestart } from '../agents/restart'
-import { EAgentStart } from '../agents/start'
-import { EAgentStatus } from '../agents/status'
 import { EExecutionLocation } from '../execution/location'
-import { ERiskDimension } from '../policy/classifier/dimension'
-import { EGrantScope } from '../policy/classifier/grant'
-import { EClassifierMode, ETriage } from '../policy/classifier/triage'
-import { EVerdictFault } from '../policy/classifier/verdict'
-import { EJudgment } from '../policy/classifier/verdict'
-import type { ProviderOptions } from '../provider'
-import { EServiceStatus } from '../services/status'
-import { EKilledBy, EShellStatus } from '../shells/status'
 import { ETldrStatus } from '../tldr/status'
 import {
   EAssistantPlaceholder,
@@ -22,14 +9,22 @@ import {
   ELocationChangeCause,
   EMessageOrigin,
   EOperatorInputOutcome,
-  EPrEventKind,
-  EPrReviewState,
-  EPrVerdict,
   EWorktreeExit,
   type EventBody,
 } from './body'
 import type { EventEnvelope } from './envelope'
-import { ENoticeStage } from './notice-stage'
+import {
+  assistantPartSchema,
+  saidFileSchema,
+  saidImageSchema,
+  saidUploadSchema,
+  toolResultPartSchema,
+} from './part-schema'
+import { agentEventSchemas } from './agent-schema'
+import { policyEventSchemas } from './policy-schema'
+import { prEventSchemas } from './pr-schema'
+import { shellEventSchemas } from './shell-schema'
+import { runFailureSchema } from './run-failure'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
 import {
   codeQualityReviewedSchema,
@@ -44,7 +39,7 @@ import {
   subscriptionEndedSchema,
 } from '../subscriptions/schema'
 
-const noticeStampSchema = z.object({ id: z.string().min(1), stage: z.enum(ENoticeStage) })
+export { saidUploadSchema }
 
 export const eventEnvelopeSchema: z.ZodType<EventEnvelope> = z.object({
   id: eventIdSchema,
@@ -54,74 +49,6 @@ export const eventEnvelopeSchema: z.ZodType<EventEnvelope> = z.object({
   parentRunId: runIdSchema.optional(),
   depth: z.number().int().nonnegative(),
   at: z.string().min(1),
-})
-
-const providerOptionsSchema = z.custom<ProviderOptions>(
-  (value) => typeof value === 'object' && value !== null && !Array.isArray(value),
-)
-
-const assistantPartSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('text'),
-    text: z.string(),
-    providerOptions: providerOptionsSchema.optional(),
-  }),
-  z.object({
-    type: z.literal('reasoning'),
-    text: z.string(),
-    providerOptions: providerOptionsSchema.optional(),
-  }),
-])
-
-const toolResultPartSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('text'),
-    text: z.string(),
-    providerOptions: providerOptionsSchema.optional(),
-  }),
-  z.object({
-    type: z.literal('image'),
-    data: z.string(),
-    mediaType: z.string(),
-    source: z.string().optional(),
-    providerOptions: providerOptionsSchema.optional(),
-  }),
-  z.object({
-    type: z.literal('file'),
-    data: z.string(),
-    mediaType: z.string(),
-    filename: z.string().optional(),
-    source: z.string().optional(),
-    providerOptions: providerOptionsSchema.optional(),
-  }),
-])
-
-const saidImageSchema = z.object({
-  path: z.string(),
-  mediaType: z.string(),
-  data: z.string(),
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-})
-
-const saidFileSchema = z.object({
-  path: z.string(),
-  mediaType: z.string(),
-  data: z.string(),
-  filename: z.string().optional(),
-})
-
-export const saidUploadSchema = z.object({
-  uploadId: z.uuid(),
-  pathname: z.string().max(500),
-  name: z.string().min(1).max(200),
-  size: z.number().int().nonnegative().max(MAX_UPLOAD_BYTES),
-  mediaType: z.string().max(200),
-})
-
-const grantOfferSchema = z.object({
-  subject: z.string().min(1),
-  dimensions: z.array(z.enum(ERiskDimension)),
 })
 
 export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type', [
@@ -290,188 +217,12 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     repo: z.string().min(1).nullable().optional(),
   }),
   z.object({
-    type: z.literal('pull-request-linked'),
-    number: z.number().int().positive(),
-    url: z.string().min(1),
-    repo: z.string().min(1),
-    branch: z.string().min(1),
-    worktreePath: z.string().min(1).optional(),
-  }),
-  z.object({
-    type: z.literal('pr-event'),
-    repo: z.string().min(1),
-    prNumber: z.number().int().positive(),
-    kind: z.enum(EPrEventKind),
-    url: z.string().min(1),
-    authorLogin: z.string().optional(),
-    body: z.string().optional(),
-    verdict: z.enum(EPrVerdict).optional(),
-    headSha: z.string().optional(),
-    edited: z.boolean().optional(),
-    settled: z.boolean().optional(),
-    mergeable: z.boolean().optional(),
-    state: z.string().optional(),
-    reviewState: z.enum(EPrReviewState).optional(),
-  }),
-  z.object({
-    type: z.literal('background-shell-started'),
-    shellId: z.string().min(1),
-    command: z.string(),
-    description: z.string().optional(),
-    bootId: z.string().min(1).optional(),
-    outputPath: z.string().min(1).optional(),
-  }),
-  z.object({
-    type: z.literal('background-shell-ended'),
-    shellId: z.string().min(1),
-    command: z.string(),
-    description: z.string().optional(),
-    bootId: z.string().min(1).optional(),
-    status: z.enum(EShellStatus),
-    killedBy: z.enum(EKilledBy).optional(),
-    exitCode: z.number().int().optional(),
-    output: z.string(),
-    droppedCharacters: z.number().int().nonnegative(),
-    remainingCharacters: z.number().int().nonnegative(),
-    outputPath: z.string().min(1).optional(),
-    outputStart: z.number().int().nonnegative().optional(),
-    outputEnd: z.number().int().nonnegative().optional(),
-    notice: noticeStampSchema.optional(),
-  }),
-  z.object({
-    type: z.literal('background-shell-awaiting-input'),
-    shellId: z.string().min(1),
-    command: z.string(),
-    description: z.string().optional(),
-    bootId: z.string().min(1).optional(),
-    output: z.string(),
-    droppedCharacters: z.number().int().nonnegative(),
-    remainingCharacters: z.number().int().nonnegative(),
-    inputSupported: z.boolean().optional(),
-    outputPath: z.string().min(1).optional(),
-    outputStart: z.number().int().nonnegative().optional(),
-    outputEnd: z.number().int().nonnegative().optional(),
-    notice: noticeStampSchema.optional(),
-  }),
-  z.object({
-    type: z.literal('background-shell-matched'),
-    shellId: z.string().min(1),
-    command: z.string(),
-    description: z.string().optional(),
-    bootId: z.string().min(1).optional(),
-    pattern: z.string().min(1),
-    lines: z.string(),
-    matchCount: z.number().int().nonnegative(),
-    watchDisarmed: z.boolean().optional(),
-    outputPath: z.string().min(1).optional(),
-    outputStart: z.number().int().nonnegative().optional(),
-    outputEnd: z.number().int().nonnegative().optional(),
-    notice: noticeStampSchema.optional(),
-  }),
-  z.object({
-    type: z.literal('background-shell-still-running'),
-    shellId: z.string().min(1),
-    command: z.string(),
-    description: z.string().optional(),
-    runningForMs: z.number().int().nonnegative(),
-    silentForMs: z.number().int().nonnegative(),
-    checkInMs: z.number().int().positive(),
-    tail: z.string(),
-  }),
-  z.object({
-    type: z.literal('service-started'),
-    serviceId: z.string().min(1),
-    name: z.string().min(1).optional(),
-    port: z.number().int().optional(),
-    declarationHash: z.string().min(1).optional(),
-    command: z.string(),
-    description: z.string().optional(),
-    bootId: z.string().min(1).optional(),
-  }),
-  z.object({
-    type: z.literal('service-ended'),
-    serviceId: z.string().min(1),
-    command: z.string(),
-    description: z.string().optional(),
-    bootId: z.string().min(1).optional(),
-    status: z.enum(EServiceStatus),
-    killedBy: z.enum(EKilledBy).optional(),
-    exitCode: z.number().int().optional(),
-    logPath: z.string().min(1).optional(),
-    tail: z.string(),
-    notice: noticeStampSchema.optional(),
-  }),
-  z.object({
-    type: z.literal('agent-spawned'),
-    agentId: threadIdSchema,
-    agentType: z.string().min(1),
-    intent: z.string(),
-    mode: z.enum(EAgentStart),
-  }),
-  z.object({
-    type: z.literal('agent-ended'),
-    agentId: threadIdSchema,
-    agentType: z.string().min(1),
-    intent: z.string(),
-    status: z.enum(EAgentStatus),
-    killedBy: z.enum(EKilledBy).optional(),
-    failureCause: z.string().optional(),
-    prose: z.string(),
-    turns: z.number().int().nonnegative(),
-    toolCalls: z.number().int().nonnegative(),
-    relayed: z.boolean().optional(),
-    leftServices: z.array(z.string()).optional(),
-    notice: noticeStampSchema.optional(),
-  }),
-  z.object({
-    type: z.literal('agent-restarted'),
-    agentId: threadIdSchema,
-    agentType: z.string().min(1),
-    intent: z.string(),
-    via: z.enum(EAgentRestart),
-  }),
-  z.object({
-    type: z.literal('agent-reported'),
-    agentId: threadIdSchema,
-    agentType: z.string().min(1),
-    intent: z.string(),
-    prose: z.string(),
-    kind: z.enum(EReportKind).optional(),
-    notice: noticeStampSchema.optional(),
-  }),
-  z.object({
     type: z.literal('history-compacted'),
     anchor: z.enum(ECompactionAnchor),
     fromSeq: z.number().int().positive(),
     throughSeq: z.number().int().positive(),
     summary: z.string(),
     replaced: z.number().int().nonnegative(),
-  }),
-  z.object({
-    type: z.literal('classifier-judged'),
-    callId: callIdSchema,
-    mode: z.enum(EClassifierMode),
-    triage: z.enum(ETriage),
-    judgment: z.enum(EJudgment),
-    dimensions: z.array(z.enum(ERiskDimension)),
-    judgedDimension: z.enum(ERiskDimension).optional(),
-    verdictFault: z.enum(EVerdictFault).optional(),
-    judgeFault: z.string().optional(),
-    signalIds: z.array(z.string()),
-    details: z.array(z.string()).optional(),
-    grantables: z.array(grantOfferSchema).optional(),
-    reason: z.string(),
-    consulted: z.boolean(),
-    wouldAsk: z.boolean().optional(),
-    elapsedMs: z.number().int().nonnegative(),
-  }),
-  z.object({
-    type: z.literal('permission-granted'),
-    grantId: z.string().min(1),
-    dimensions: z.array(z.enum(ERiskDimension)),
-    scope: z.enum(EGrantScope),
-    subject: z.string().min(1),
-    reason: z.string(),
   }),
   z.object({ type: z.literal('permission-revoked'), grantId: z.string().min(1) }),
   z.object({
@@ -482,7 +233,16 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     modelId: z.string().min(1),
     status: z.enum(ETldrStatus).optional(),
   }),
+  ...agentEventSchemas,
+  ...shellEventSchemas,
+  ...prEventSchemas,
+  ...policyEventSchemas,
   subscriptionCreatedSchema,
   subscriptionChangedSchema,
   subscriptionEndedSchema,
+  z.object({ type: z.literal('run-failed'), failure: runFailureSchema }),
+  z.object({
+    type: z.literal('run-failure-dismissed'),
+    failureSeq: z.number().int().nonnegative(),
+  }),
 ])

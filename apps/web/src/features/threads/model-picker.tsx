@@ -4,11 +4,11 @@ import { useRouter } from 'next/navigation'
 
 import { ModelSelector } from '@dltech/atlas-ui/ai/model-selector'
 
+import { PROVIDERS_HREF } from '@/features/settings/settings-nav'
+
 import type { ModelPicker } from './data/use-model-picker'
 import type { ModelSelection } from './data/model-selection'
 import { selectionAfterPick } from './data/model-selection'
-
-const PROVIDERS_HREF = '/settings/providers'
 
 export function ModelPickerControls({
   picker,

@@ -36,6 +36,8 @@ export const REWIND_DISPOSITION = {
   'subscription-created': ERewindDisposition.Discard,
   'subscription-changed': ERewindDisposition.Discard,
   'subscription-ended': ERewindDisposition.Discard,
+  'run-failed': ERewindDisposition.Discard,
+  'run-failure-dismissed': ERewindDisposition.Discard,
   'worktree-entered': ERewindDisposition.Discard,
   'worktree-exited': ERewindDisposition.Discard,
   'agent-spawned': ERewindDisposition.Discard,

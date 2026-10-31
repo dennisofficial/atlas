@@ -136,6 +136,7 @@ export type ServeRewind = {
  */
 export type ServeModelBridge = {
   effort: () => string
+  identity?: (() => { providerId: string; modelId: string }) | undefined
   select: (next: { ref: string; effort: string }) => void
 }
 

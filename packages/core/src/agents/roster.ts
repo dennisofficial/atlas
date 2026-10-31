@@ -1,3 +1,4 @@
+import type { ERunFailureKind } from '../events/run-failure'
 import type { AssistantPart, EventDraft } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
 import type { ThreadId } from '../events/ids'
@@ -31,6 +32,7 @@ export type RosteredAgent = {
   prose: string
   killedBy: EKilledBy | undefined
   failureCause: string | undefined
+  failureKind: ERunFailureKind | undefined
   spawnedAt: string | undefined
   endedAt: string | undefined
 }
@@ -64,6 +66,7 @@ export function agentRoster({
         prose: prior?.prose ?? '',
         killedBy: undefined,
         failureCause: undefined,
+        failureKind: undefined,
         spawnedAt: prior?.spawnedAt ?? event.at,
         endedAt: undefined,
       })
@@ -82,6 +85,7 @@ export function agentRoster({
         prose: previous?.prose ?? '',
         killedBy: undefined,
         failureCause: undefined,
+        failureKind: undefined,
         spawnedAt: previous?.spawnedAt ?? event.at,
         endedAt: undefined,
       })
@@ -100,6 +104,7 @@ export function agentRoster({
       prose: event.prose,
       killedBy: event.killedBy,
       failureCause: event.failureCause,
+      failureKind: event.failureKind,
       spawnedAt: held.get(event.agentId)?.spawnedAt,
       endedAt: event.at,
     })

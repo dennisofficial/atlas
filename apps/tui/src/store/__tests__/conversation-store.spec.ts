@@ -46,7 +46,11 @@ describe('the conversation store', () => {
       ]),
     })
 
-    expect(store.getSnapshot().failure).toEqual({ message: 'InvalidApiKey' })
+    expect(store.getSnapshot().failure).toEqual({
+      message: 'InvalidApiKey',
+      failure: null,
+      runId: null,
+    })
   })
 
   it('returns the same snapshot until something changes', () => {
@@ -251,7 +255,11 @@ describe('a failure the store is holding on screen', () => {
   it('stays put while nothing has superseded it', () => {
     failAStep()
 
-    expect(store.getSnapshot().failure).toEqual({ message: 'The operation timed out.' })
+    expect(store.getSnapshot().failure).toEqual({
+      message: 'The operation timed out.',
+      failure: null,
+      runId: null,
+    })
   })
 
   it('is retired the moment a retry takes over, so the working line can show', () => {

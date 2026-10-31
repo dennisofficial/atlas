@@ -16,11 +16,13 @@ import type { ModelSelection } from './data/model-selection'
 import { useThreadBackend } from './data/use-thread-backend'
 import { useThreadNaming } from './data/use-thread-naming'
 import { eventsFromWire } from './data/events-from-wire'
-import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
+import { durableTranscriptOf } from './data/transcript'
 import { useDetailsInput } from './data/use-details-input'
 import { useComposerDock } from './data/use-composer-dock'
 import { useComposerAttachments } from './data/use-composer-attachments'
 import { useComposerHandoff } from './data/use-composer-handoff'
+import { useRunAttention } from './data/use-run-attention'
+import { useTranscriptView } from './data/use-transcript-view'
 import { useOperatorInput } from './data/use-operator-input'
 import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
@@ -41,6 +43,7 @@ import { useThreadCommands } from './commands/use-thread-commands'
 import { ThreadMainSlot } from './context-viewer/main-slot'
 import { ComposerContext, ComposerDock } from './composer-dock'
 import { ModelPickerControls } from './model-picker'
+import { RunAttentionDock } from './run-attention-dock'
 import { NotConfiguredAlert } from './not-configured-alert'
 import { OperatorInputCard } from './operator-input-card'
 import { ThreadPanelProvider } from './panel/thread-panel-context'
@@ -104,10 +107,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const durable = useMemo(() => durableTranscriptOf({ events: parsed }), [parsed])
   const live = useMemo(() => liveSteps({ steps, events: parsed }), [steps, parsed])
   const reveal = useReveal({ steps, events: parsed })
-  const view = useMemo(
-    () => transcriptViewOf({ durable, live, outputs, reveal }),
-    [durable, live, outputs, reveal],
-  )
+  const view = useTranscriptView({ durable, live, outputs, reveal })
   const dock = useComposerDock({
     threadId,
     visible,
@@ -193,6 +193,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
     toast.error('Could not reach the sandbox to stop the turn')
   }
 
+  const attention = useRunAttention({ events: parsed, live, source, commands, panel })
+
   const naming = useThreadNaming({
     threadId,
     loading: thread.state === EQueryState.Loading,
@@ -254,6 +256,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
                   onConfirm={() => void rewind.handleConfirm()}
                 />
                 <ComposerDock dock={dock} />
+                <RunAttentionDock strip={attention.strip} />
                 <ThreadComposer
                   value={draft}
                   onValueChange={setDraft}
@@ -280,7 +283,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
           >
             <ThreadTranscript
               items={view.items}
-              failure={view.failure}
+              failedLabel={attention.failedLabel}
               pod={pod}
               working={working}
               onRetryBoot={() => void handleRetryBoot()}

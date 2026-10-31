@@ -3,6 +3,7 @@ import {
   type SaidImage,
   attributedStop,
   EAgentStatus,
+  type ERunFailureKind,
   type AssistantPart,
   type EKilledBy,
   type EMessageOrigin,
@@ -28,6 +29,7 @@ export type ChildState = {
   lastText: string
   lastFullText: string
   failureCause: string | undefined
+  failureKind: ERunFailureKind | undefined
   startedAt: string
   steppingSince: string | undefined
   endedAt: string | undefined
@@ -89,6 +91,7 @@ export function freshChild({
     lastText: '',
     lastFullText: '',
     failureCause: undefined,
+    failureKind: undefined,
     startedAt: at,
     steppingSince: undefined,
     endedAt: undefined,
@@ -125,6 +128,7 @@ export function recoveredChild({
     lastText: boundedTail(agent.prose),
     lastFullText: agent.prose,
     failureCause: agent.failureCause,
+    failureKind: agent.failureKind,
     startedAt: agent.spawnedAt ?? at,
     steppingSince: undefined,
     endedAt: agent.endedAt,
@@ -156,6 +160,7 @@ export function reviseFromTransfer({
   child.lastText = boundedTail(agent.prose)
   child.lastFullText = agent.prose
   child.failureCause = agent.failureCause
+  child.failureKind = agent.failureKind
   child.startedAt = agent.spawnedAt ?? child.startedAt
   child.steppingSince = undefined
   child.endedAt = agent.endedAt
@@ -178,6 +183,7 @@ export function snapshotOf(child: ChildState): AgentSnapshot {
     toolCalls: child.toolCalls,
     lastTool: child.lastTool,
     ...(child.failureCause === undefined ? {} : { failureCause: child.failureCause }),
+    ...(child.failureKind === undefined ? {} : { failureKind: child.failureKind }),
     startedAt: child.startedAt,
     ...(child.steppingSince === undefined ? {} : { steppingSince: child.steppingSince }),
     endedAt: child.endedAt,
@@ -202,6 +208,7 @@ export function agentEndedDraft(child: ChildState): EventDraft & { type: 'agent-
     killedBy: attributedStop({ status: child.status, killedBy: child.killedBy }),
     prose: child.lastFullText,
     ...(child.failureCause === undefined ? {} : { failureCause: child.failureCause }),
+    ...(child.failureKind === undefined ? {} : { failureKind: child.failureKind }),
     turns: child.turns,
     toolCalls: child.toolCalls,
   }

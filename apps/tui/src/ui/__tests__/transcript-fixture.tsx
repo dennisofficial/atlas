@@ -171,13 +171,14 @@ export const INTERRUPTED = model([
 
 export const PARTIAL_REPLY = 'the partial reply that must survive'
 
+const messageOnly = (message: string | null) => ({ message, failure: null, runId: null })
 export const FAILED_WITH_A_REASON = model(
   [operatorSaid('u1', 'go'), modelSaid('a1', PARTIAL_REPLY)],
-  { failure: { message: 'overloaded_error: the model is overloaded' } },
+  { failure: messageOnly('overloaded_error: the model is overloaded') },
 )
 
 export const FAILED_SILENTLY = model([operatorSaid('u1', 'go'), modelSaid('a1', 'partial')], {
-  failure: { message: null },
+  failure: messageOnly(null),
 })
 
 export const RUNNING: TurnClock = {

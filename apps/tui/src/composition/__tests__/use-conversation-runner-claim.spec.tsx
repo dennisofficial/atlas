@@ -50,6 +50,7 @@ function RemountedView(props: {
     opened: { threadId: RESUME_THREAD, started: true, events: [], turns: [], name: null },
     turnDriver: driver,
     moving: false,
+    resumable: false,
   })
   props.probe.driver = driver
   props.probe.failure = failure

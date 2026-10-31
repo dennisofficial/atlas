@@ -273,7 +273,7 @@ export function useTurnDriver(args: {
     handleResume,
     handleResumeFresh,
     handleRewindTo,
-    isResumable: !remote.settling && isResumable(events),
+    settling: remote.settling,
     settle,
     whenSettled,
     lastOutcome: driven.lastOutcome,

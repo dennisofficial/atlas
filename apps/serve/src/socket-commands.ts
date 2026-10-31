@@ -81,6 +81,19 @@ export function createTurnCommands(args: {
       return
     }
 
+    if (frame.kind === EClientFrame.DismissFailure) {
+      void driver.dismissFailure({ failureSeq: frame.failureSeq }).catch((error: unknown) => {
+        send({
+          socket,
+          frame: {
+            kind: EServeFrame.Error,
+            message: messageOf(error, 'the failure was not dismissed'),
+          },
+        })
+      })
+      return
+    }
+
     if (frame.kind === EClientFrame.Pause) {
       void (async () => driver.beginRelocation())().catch((error: unknown) => {
         send({

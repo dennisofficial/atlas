@@ -1,4 +1,4 @@
-import { contextTokens, type Event, type ModelUsage, type ThreadId } from '@dltech/atlas-core'
+import type { Event } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { RemoteTurnRunner, sessionDigest, threadHandle } from '@dltech/atlas-harness'
@@ -20,8 +20,13 @@ import { useResumeOnOpen } from './use-conversation-resume'
 import { usePlacementMoving, useRemotePending, useSendingChannel } from './use-conversation-send'
 import { useMainWake } from './use-main-wake'
 import { useSessionName } from './use-session-name'
-import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
+import { EThreadRows, useThreadView } from './use-thread-view'
 import { useThreadSwap } from './use-thread-swap'
+import { useRunAttention } from './use-run-attention'
+import { useAdopt } from './use-adopt'
+import { useDriveRefusal } from './use-drive-refusal'
+import { useThreadSeed } from './use-thread-seed'
+import { useReportedUsage } from './use-reported-usage'
 import { useTurnDriver } from './use-turn-driver'
 import { useTickingNow } from './use-turn-clock'
 
@@ -31,14 +36,13 @@ export function useConversation(args: ConversationArgs): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
   const [opened, setOpened] = useState<OpenedConversation>(args.opened)
   const { failure, setFailure, setTurnFailure, dismissalFor } = useFailureNotice()
-  const [reported, setReported] = useState<{ threadId: ThreadId; usage: ModelUsage } | null>(null)
   const { pendingMove, pendingMoveRef, holdMove } = usePendingMove()
   const startedRef = useRef(args.opened.started)
 
-  const forgetUsage = useCallback(() => setReported(null), [])
   const cancelRotationRef = useRef<() => boolean>(() => false)
 
   const threadId = opened.threadId
+  const { setReported, forgetUsage, usedTokens } = useReportedUsage({ threadId })
   const moving = usePlacementMoving({ app, threadId })
 
   const clock = useMemo(() => createAwakeClock(), [])
@@ -46,16 +50,7 @@ export function useConversation(args: ConversationArgs): Conversation {
 
   const projectEvents = useProjectEvents({ app })
 
-  const initial = useCallback(
-    (): ThreadSeed => ({
-      events: opened.events,
-      turns: opened.turns,
-      ...(opened.base === undefined ? {} : { base: opened.base }),
-      ...(opened.identity === undefined ? {} : { identity: opened.identity }),
-      ...(opened.appliedEvents === undefined ? {} : { appliedEvents: opened.appliedEvents }),
-    }),
-    [opened],
-  )
+  const initial = useThreadSeed(opened)
 
   const pending = useMemo(() => app.pending.forThread({ threadId }), [app.pending, threadId])
   const cloudRunner = useMemo(
@@ -63,15 +58,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     [app.runner],
   )
 
-  const localDriveRefusal = useCallback((): string | null => {
-    const owned = app.sessionOwner.snapshot()
-    if (owned.bound) return null
-    return 'the sandbox is still connecting — your message sends once the channel is open'
-  }, [app.sessionOwner])
-  const driveRefusal = useCallback(
-    (): string | null => localDriveRefusal() ?? args.driveRefusal?.() ?? null,
-    [localDriveRefusal, args.driveRefusal],
-  )
+  const driveRefusal = useDriveRefusal({ app, extra: args.driveRefusal })
 
   const sending = useSendingChannel({ app, cloudRunner, opened })
   const { drainSettledCommands, handleQueueSettled } = useSettledCommands({ pending })
@@ -142,7 +129,24 @@ export function useConversation(args: ConversationArgs): Conversation {
     sending,
   })
 
-  useResumeOnOpen({ app, opened, turnDriver, moving })
+  const channelReady = args.channelReady !== false
+  const runAttention = useRunAttention({
+    app,
+    threadId,
+    view,
+    turnDriver,
+    remote: cloudRunner !== null,
+    moving,
+    channelReady,
+    onFailure: setFailure,
+  })
+  useResumeOnOpen({
+    app,
+    opened,
+    turnDriver,
+    moving,
+    resumable: runAttention.handleResume !== null,
+  })
 
   const { working, drive } = turnDriver
   const { compacting } = compaction
@@ -162,20 +166,17 @@ export function useConversation(args: ConversationArgs): Conversation {
     intake: app.intake,
   })
 
-  const adopt = useCallback(
-    (next: OpenedConversation) => {
-      turnDriver.settle()
-      setFailure(null)
-      setReported(null)
-      holdMove(null)
-      startedRef.current = next.started
-      setEvents(next.events)
-      setName(next.name)
-      setOpened(next)
-      args.onLocalOpened?.(next)
-    },
-    [args.onLocalOpened, holdMove, setEvents, setName, turnDriver],
-  )
+  const adopt = useAdopt({
+    turnDriver,
+    setFailure,
+    setReported,
+    holdMove,
+    startedRef,
+    setEvents,
+    setName,
+    setOpened,
+    onLocalOpened: args.onLocalOpened,
+  })
   const { handleNewConversation, handleOpenThread } = useThreadSwap({
     app,
     threadId,
@@ -229,13 +230,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     (): Promise<readonly Event[]> => app.log.read({ threadId }),
     [app.log, threadId],
   )
-  const used = useMemo(
-    () =>
-      reported === null || reported.threadId !== threadId
-        ? logSummary.tokens
-        : contextTokens({ reported: reported.usage, events: [] }),
-    [reported, threadId, logSummary],
-  )
+  const used = usedTokens(logSummary.tokens)
   const delegatedToolCalls = useDelegatedToolCalls({ agents: app.agents, threadId })
   const rows = usePendingRows({
     queued,
@@ -245,10 +240,6 @@ export function useConversation(args: ConversationArgs): Conversation {
   })
 
   const model = transcriptOfTurn({ model: derived, working, failure })
-  const channelReady = args.channelReady !== false
-  const idleAndReady = !working && !turnDriver.turnInFlight() && !moving && channelReady
-  const retryable = model.failure !== null && idleAndReady
-  const resumable = model.failure === null && idleAndReady && turnDriver.isResumable
 
   return {
     rewindConfirm: turnDriver.rewindConfirm,
@@ -281,9 +272,10 @@ export function useConversation(args: ConversationArgs): Conversation {
     handleQueueSettled,
     refresh,
     handleTakeBackPending,
-    handleRetry: retryable ? turnDriver.handleRetry : null,
-    handleDismissFailure: dismissalFor(derived.failure),
-    handleResume: resumable ? turnDriver.handleResume : null,
+    attention: runAttention.attention,
+    handleRetry: runAttention.handleRetry,
+    handleDismissFailure: dismissalFor() ?? runAttention.handleDismiss,
+    handleResume: runAttention.handleResume,
     readEvents,
     loadOlderHistory: view.loadOlder,
     hasOlderHistory: logSummary.windowStartSeq > 1,

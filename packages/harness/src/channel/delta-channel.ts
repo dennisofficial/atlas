@@ -237,7 +237,15 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
           const state = threads.get(threadId)
           if (state === undefined) return
 
-          if (events.length > 0 && events.every((event) => event.type === 'turn-failed')) {
+          if (
+            events.length > 0 &&
+            events.every(
+              (event) =>
+                event.type === 'turn-failed' ||
+                event.type === 'run-failed' ||
+                event.type === 'run-failure-dismissed',
+            )
+          ) {
             notify({ state, signal: { type: 'events-appended' } })
             return
           }

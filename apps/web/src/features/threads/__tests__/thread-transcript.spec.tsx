@@ -71,7 +71,7 @@ const mount = async (rewind: TranscriptRewind | null, rows: TranscriptRow[] = it
         <ThreadPanelProvider value={panel}>
           <ThreadTranscript
             items={rows}
-            failure={null}
+            failedLabel={null}
             pod={null}
             working={false}
             onRetryBoot={() => undefined}

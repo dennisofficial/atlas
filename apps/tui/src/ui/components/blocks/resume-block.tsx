@@ -3,6 +3,7 @@ import React from 'react'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { EKeyGroup, EKeyLayer, spellChord, useKeyBindings, type KeyDeclaration } from '../../keys'
 import { glyph, theme } from '../../theme'
+import { CloseButton } from '../close-button'
 import { Spans } from '../spans'
 import type { Span } from '../spans'
 
@@ -17,7 +18,10 @@ const spansFor = (args: { hovered: boolean }): readonly Span[] => [
   { text: ` ${RESUME.hint}`, fg: args.hovered ? theme.hover : theme.hint },
 ]
 
-export function ResumeBlock(props: { onResume: () => void }): React.ReactNode {
+export function ResumeBlock(props: {
+  onResume: () => void
+  onDismiss?: () => void
+}): React.ReactNode {
   const region = useClickRegion(props.onResume)
 
   useKeyBindings([
@@ -29,6 +33,8 @@ export function ResumeBlock(props: { onResume: () => void }): React.ReactNode {
       <text {...region.handlers}>
         <Spans spans={spansFor({ hovered: region.hovered })} />
       </text>
+      <box flexGrow={1} />
+      {props.onDismiss === undefined ? null : <CloseButton onClose={props.onDismiss} />}
     </box>
   )
 }

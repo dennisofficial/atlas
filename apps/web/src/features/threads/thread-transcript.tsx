@@ -1,11 +1,11 @@
 'use client'
 
 import { useMemo, type ReactNode } from 'react'
-import { CircleAlertIcon, CirclePauseIcon } from 'lucide-react'
+import { CirclePauseIcon } from 'lucide-react'
 
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
-import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
+import { RunFailedMarker } from '@dltech/atlas-ui/ai/run-failed-marker'
 import { Trace, TraceIcon, TraceLine, TraceTitle } from '@dltech/atlas-ui/components/trace'
 import type { PodStatus } from '@dltech/atlas-wire/web'
 
@@ -67,14 +67,14 @@ function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => vo
 
 export function ThreadTranscript({
   items,
-  failure,
+  failedLabel,
   pod,
   working,
   onRetryBoot,
   rewind,
 }: {
   items: readonly TranscriptRow[]
-  failure: string | null
+  failedLabel: string | null
   pod: PodStatus | null
   working: boolean
   onRetryBoot: () => void
@@ -112,13 +112,9 @@ export function ThreadTranscript({
         </ChatItem>,
         ...bootAfter(index),
       ])}
-      {failure === null ? null : (
+      {failedLabel === null ? null : (
         <ChatItem id="turn-failure">
-          <Alert variant="destructive">
-            <CircleAlertIcon />
-            <AlertTitle>The run failed</AlertTitle>
-            <AlertDescription>{failure}</AlertDescription>
-          </Alert>
+          <RunFailedMarker label={failedLabel} />
         </ChatItem>
       )}
     </Chat>

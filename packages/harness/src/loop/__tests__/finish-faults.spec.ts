@@ -36,11 +36,7 @@ describe('a step the provider did not let finish cleanly', () => {
     expect(outcome.status).toBe(ETurnStatus.Failed)
     expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(/content-filter/)
     const events = await harness.log.read({ threadId: thread.id })
-    expect(events.map((event) => event.type)).toEqual([
-      'user-said',
-      'assistant-said',
-      'turn-failed',
-    ])
+    expect(events.map((event) => event.type)).toEqual(['user-said', 'assistant-said', 'run-failed'])
   })
 
   it('fails the turn when the provider ends the reply with an error finish', async () => {

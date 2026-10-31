@@ -51,11 +51,17 @@ function ResumeOnOpenProbe(props: {
       props.probe.resumedFresh += 1
     },
     handleRewindTo: () => undefined,
-    isResumable: true,
+    settling: false,
     settle: () => undefined,
     whenSettled: async () => undefined,
   }
-  useResumeOnOpen({ app: props.app, opened: props.opened, turnDriver: driver, moving: false })
+  useResumeOnOpen({
+    app: props.app,
+    opened: props.opened,
+    turnDriver: driver,
+    moving: false,
+    resumable: true,
+  })
   return <text>probe</text>
 }
 

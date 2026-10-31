@@ -59,6 +59,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   interrupt(): void
   pause(): void
   resume(): void
+  dismissFailure(args: { failureSeq: number }): boolean
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
   connection(): ChannelConnection
   onConnection(listener: (connection: ChannelConnection) => void): Unsubscribe

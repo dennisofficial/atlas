@@ -37,6 +37,7 @@ const untouchedDriver = (touched: string[]): ServeTurnDriver => {
     run: touch('run'),
     sayOrRun: touch('sayOrRun'),
     interrupt: touch('interrupt'),
+    dismissFailure: () => touch('dismissFailure')(),
     pause: touch('pause'),
     beginRelocation: touch('beginRelocation'),
     relocationResumable: () => false,

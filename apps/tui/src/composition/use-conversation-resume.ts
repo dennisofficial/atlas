@@ -10,8 +10,9 @@ export function useResumeOnOpen(args: {
   opened: OpenedConversation
   turnDriver: TurnDriver
   moving: boolean
+  resumable: boolean
 }): void {
-  const { app, opened, turnDriver, moving } = args
+  const { app, opened, turnDriver, moving, resumable } = args
   const resumeAtLaunch = useRef(app.config.open.mode !== EOpenMode.New)
   const resumeOnArrival = useRef(opened.resumeOnArrival === true)
 
@@ -30,6 +31,6 @@ export function useResumeOnOpen(args: {
 
     if (!resumeAtLaunch.current) return
     resumeAtLaunch.current = false
-    if (turnDriver.isResumable) turnDriver.handleResume()
-  }, [moving, turnDriver])
+    if (resumable) turnDriver.handleResume()
+  }, [moving, resumable, turnDriver])
 }

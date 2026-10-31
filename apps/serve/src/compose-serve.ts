@@ -89,6 +89,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           : undefined
         const modelBridge: ServeModelBridge = {
           effort: () => model.choice().effort,
+          identity: () => model.choice().ref,
           select: (next) => {
             const ref = parseRef(next.ref)
             if (ref === undefined) return

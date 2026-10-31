@@ -17,6 +17,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
+import { failingAs, withFailureAccount } from './failure-account'
 import { openaiCacheOptions } from './openai-cache'
 import { withOpenAiCompatibleReasoning } from './openai-reasoning'
 import { generationFromStream } from './stream-generation'
@@ -136,6 +137,7 @@ export function createOpenAiModel(args: {
     try {
       return await call(authorized)
     } catch (error) {
+      withFailureAccount({ error, accountId: authorized.credential.accountId })
       if (!wasRefused(error)) throw error
 
       await args.credentials.discard(authorized.credential)
@@ -143,7 +145,7 @@ export function createOpenAiModel(args: {
       const retried = await authorizedModel()
       if (secretOf(retried.credential) === secretOf(authorized.credential)) throw error
 
-      return await call(retried)
+      return await failingAs({ accountId: retried.credential.accountId, run: () => call(retried) })
     }
   }
 

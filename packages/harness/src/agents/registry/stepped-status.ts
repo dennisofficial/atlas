@@ -1,5 +1,6 @@
 import { EAgentStatus } from '@dltech/atlas-core'
 
+import { runFailureOf, safeFailureMessage } from '../../model/run-failure'
 import type { PauseSignal } from '../../loop/pause-signal'
 import { ETurnStatus } from '../../loop/turn-outcome'
 import type { TurnRunner } from '../../loop/turn-runner.port'
@@ -26,12 +27,17 @@ export async function steppedStatus({
       const built = runnerFor()
       runner = built instanceof Promise ? await built : built
     } catch (error) {
-      child.lastFullText = error instanceof Error ? error.message : String(error)
+      child.lastFullText = safeFailureMessage(
+        error instanceof Error ? error.message : String(error),
+      )
       return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed
     }
     if (signal.aborted) return EAgentStatus.Stopped
     const outcome = await step({ runner, signal, pause })
-    if (outcome.status === ETurnStatus.Failed) child.failureCause = outcome.message
+    if (outcome.status === ETurnStatus.Failed) {
+      child.failureCause = safeFailureMessage(outcome.message)
+      child.failureKind = runFailureOf({ message: outcome.message, cause: outcome.cause }).kind
+    }
     return statusOf(outcome)
   } catch {
     return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed

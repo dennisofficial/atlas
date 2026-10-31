@@ -15,6 +15,7 @@ import {
 import { INFERENCE_LABEL, INFERENCE_PROVIDER_ID } from '../models/provider-ids'
 import { ProviderAdapter } from './adapter'
 import { inferenceEffortOptions } from './inference-effort'
+import { failingAs } from './failure-account'
 import { providerKey } from './provider-key'
 
 export { INFERENCE_PROVIDER_ID }
@@ -57,14 +58,14 @@ export class InferenceAdapter extends ProviderAdapter {
     effort: () => EEffort
     accountId?: AccountId | undefined
   }): LanguageModelV4 {
-    const authorized = async (): Promise<LanguageModelV4> => {
+    const authorized = async (): Promise<{ model: LanguageModelV4; accountId: AccountId }> => {
       const credential = await this.credentials.read({
         provider: EAuthProvider.Inference,
         accountId: args.accountId,
       })
       const apiKey = providerKey({ credential, label: this.label })
 
-      return createOpenAICompatible({
+      const model = createOpenAICompatible({
         name: INFERENCE_PROVIDER_ID,
         baseURL: INFERENCE_BASE_URL,
         apiKey,
@@ -73,6 +74,7 @@ export class InferenceAdapter extends ProviderAdapter {
         supportsStructuredOutputs: true,
         ...(this.fetch === undefined ? {} : { fetch: this.fetch }),
       }).chatModel(args.card.ref.modelId)
+      return { model, accountId: credential.accountId }
     }
 
     const withEffort = (options: Parameters<LanguageModelV4['doStream']>[0]) => {
@@ -97,8 +99,14 @@ export class InferenceAdapter extends ProviderAdapter {
         baseURL: INFERENCE_BASE_URL,
         supportsStructuredOutputs: true,
       }).chatModel(args.card.ref.modelId).supportedUrls,
-      doGenerate: async (options) => (await authorized()).doGenerate(withEffort(options)),
-      doStream: async (options) => (await authorized()).doStream(withEffort(options)),
+      doGenerate: async (options) => {
+        const { model, accountId } = await authorized()
+        return failingAs({ accountId, run: () => model.doGenerate(withEffort(options)) })
+      },
+      doStream: async (options) => {
+        const { model, accountId } = await authorized()
+        return failingAs({ accountId, run: () => model.doStream(withEffort(options)) })
+      },
     }
   }
 }

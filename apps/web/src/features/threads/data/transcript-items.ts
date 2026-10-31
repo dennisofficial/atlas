@@ -3,11 +3,9 @@ import {
   durableEntries,
   EEntryKind,
   EThinkingVisibility,
-  persistedFailureOf,
   type InFlightStep,
   type OperatorSaidEntry,
   type RevealGate,
-  type StepFailure,
   type ToolCall,
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
@@ -23,7 +21,7 @@ import {
 } from './transcript-agents'
 import { ENoticeTone, ETranscriptKind } from './transcript-kind'
 import { noticeItemOf, type NoticeContext, type NoticeItem } from './transcript-notices'
-import { FAILED_FALLBACK, toolCallItemOf, type ToolCallItem } from './transcript-tools'
+import { toolCallItemOf, type ToolCallItem } from './transcript-tools'
 
 export { ENoticeTone, ETranscriptKind }
 export type { NoticeContext, NoticeItem }
@@ -64,7 +62,6 @@ export type TranscriptRow = TranscriptItem | SpawnItem | ReportItem
 export type ThreadTranscriptView = {
   items: TranscriptRow[]
   streaming: boolean
-  failure: string | null
 }
 
 function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
@@ -158,7 +155,6 @@ function atOf(args: {
 
 export type DurableTranscript = {
   entries: TranscriptEntry[]
-  failure: StepFailure | null
   stamps: ReadonlyMap<string, string>
   spawns: SpawnItem[]
   reports: ReportItem[]
@@ -166,7 +162,6 @@ export type DurableTranscript = {
 
 export const durableTranscriptOf = (args: { events: readonly Event[] }): DurableTranscript => ({
   entries: durableEntries({ events: args.events }),
-  failure: persistedFailureOf(args.events),
   stamps: new Map(args.events.map((event) => [event.id as string, event.at])),
   spawns: spawnItemsOf(args.events),
   reports: [...reportItemsOf(args.events).values()],
@@ -180,7 +175,6 @@ export function transcriptViewOf(args: {
 }): ThreadTranscriptView {
   const model = assembleTranscript({
     durable: args.durable.entries,
-    persistedFailure: args.durable.failure,
     live: args.live,
     outputs: args.outputs,
     thinking: EThinkingVisibility.Stream,
@@ -201,7 +195,6 @@ export function transcriptViewOf(args: {
       inserted: [...pool.values(), ...args.durable.reports],
     }),
     streaming: model.streaming,
-    failure: model.failure === null ? null : (model.failure.message ?? FAILED_FALLBACK),
   }
 }
 

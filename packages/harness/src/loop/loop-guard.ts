@@ -3,6 +3,7 @@ import {
   EDeed,
   EReadConfidence,
   EToolEffect,
+  ERunFailureKind,
   loopCutNoticeDraft,
   loopCutPlan,
   toCallId,
@@ -17,6 +18,7 @@ import {
 
 import { SHELL_TOOL_NAME, toolLensFor } from '../classifier/tool-lens'
 import type { ApplyLoopCut } from '../store/sessions/ops/cut-loop'
+import { TurnFault } from '../model/turn-fault'
 import { loopReport } from './turn-faults'
 
 export const MAX_LOOP_CUTS_PER_TURN = 2
@@ -108,7 +110,12 @@ export async function guardRepeatLoop({
   if (cut === undefined) return { kind: 'none' }
 
   if (loopCuts >= MAX_LOOP_CUTS_PER_TURN) {
-    return { kind: 'failed', message: loopReport(cut), cause: cut }
+    const message = loopReport(cut)
+    return {
+      kind: 'failed',
+      message,
+      cause: new TurnFault({ kind: ERunFailureKind.LoopGuard, message, detail: cut }),
+    }
   }
 
   const applied = await applyLoopCut({

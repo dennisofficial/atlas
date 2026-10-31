@@ -8,7 +8,12 @@ import { runtimeCheckpointSchema } from './runtime-checkpoint'
 import { channelSignalSchema } from './signal-wire'
 import { subscriptionsWireSchema } from './subscription-wire'
 import { terminalExitWireSchema, terminalOutputWireSchema } from './terminal-wire'
+import { saidFileWireSchema, saidImageWireSchema } from './said-wire'
+import { sendIdWireSchema, turnOutcomeWireSchema } from './turn-outcome-wire'
 import { MAX_MESSAGE_UPLOADS, saidUploadWireSchema } from './upload-wire'
+
+export * from './said-wire'
+export * from './turn-outcome-wire'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
 
@@ -91,6 +96,7 @@ export enum EClientFrame {
   Settings = 'settings',
   Request = 'request',
   Pong = 'pong',
+  DismissFailure = 'dismiss-failure',
 }
 
 export enum EClientRequest {
@@ -145,91 +151,6 @@ export enum EClientRequest {
   EnsureDeclaredServices = 'ensure-declared-services',
   RestartService = 'restart-service',
 }
-
-export enum ETurnStatus {
-  Completed = 'completed',
-  Paused = 'paused',
-  Idle = 'idle',
-  Interrupted = 'interrupted',
-  RelocationPaused = 'relocation-paused',
-  Failed = 'failed',
-}
-
-const runIdWireSchema = z.string().min(1).brand<'RunId'>()
-const callIdWireSchema = z.string().min(1).brand<'CallId'>()
-const sendIdWireSchema = z.string().min(1).brand<'SendId'>()
-
-export type SendId = z.infer<typeof sendIdWireSchema>
-
-export const toSendId = (value: string): SendId => sendIdWireSchema.parse(value)
-
-export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
-  z.object({ status: z.literal(ETurnStatus.Completed), runId: runIdWireSchema }),
-  z.object({
-    status: z.literal(ETurnStatus.Paused),
-    runId: runIdWireSchema,
-    callId: callIdWireSchema,
-    reason: z.string(),
-  }),
-  z.object({ status: z.literal(ETurnStatus.Idle), runId: runIdWireSchema }),
-  z.object({
-    status: z.literal(ETurnStatus.Interrupted),
-    runId: runIdWireSchema,
-    committed: z.boolean(),
-  }),
-  z.object({
-    status: z.literal(ETurnStatus.RelocationPaused),
-    runId: runIdWireSchema,
-  }),
-  z.object({
-    status: z.literal(ETurnStatus.Failed),
-    runId: runIdWireSchema,
-    message: z.string(),
-  }),
-])
-
-export type TurnOutcomeWire = z.infer<typeof turnOutcomeWireSchema>
-
-export const saidImageWireSchema = z.object({
-  path: z.string(),
-  mediaType: z.string(),
-  data: z.string(),
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-})
-
-export type SaidImageWire = z.infer<typeof saidImageWireSchema>
-
-const saidFileWireSchema = z.object({
-  path: z.string(),
-  mediaType: z.string(),
-  data: z.string(),
-  filename: z.string().optional(),
-})
-
-export type SaidFileWire = z.infer<typeof saidFileWireSchema>
-
-export const takeBackPendingReplySchema = z.object({
-  taken: z
-    .object({
-      text: z.string(),
-      images: z.array(saidImageWireSchema).readonly(),
-      files: z.array(saidFileWireSchema).readonly(),
-      uploads: z.array(saidUploadWireSchema).readonly().optional(),
-      context: z.array(z.unknown()).readonly().optional(),
-    })
-    .nullable(),
-})
-export type TakeBackPendingReply = z.infer<typeof takeBackPendingReplySchema>
-
-export const sayToAgentParamsSchema = z.object({
-  threadId: threadIdWireSchema,
-  agentId: threadIdWireSchema,
-  text: z.string(),
-  images: z.array(saidImageWireSchema).readonly().optional(),
-  files: z.array(saidFileWireSchema).readonly().optional(),
-})
-export type SayToAgentParams = z.infer<typeof sayToAgentParamsSchema>
 
 export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -316,6 +237,10 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     params: z.unknown(),
   }),
   z.object({ kind: z.literal(EClientFrame.Pong) }),
+  z.object({
+    kind: z.literal(EClientFrame.DismissFailure),
+    failureSeq: z.number().int().nonnegative(),
+  }),
 ])
 
 export type ClientFrame = z.infer<typeof clientFrameSchema>

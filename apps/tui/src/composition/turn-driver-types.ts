@@ -18,7 +18,7 @@ export type TurnDriver = {
   handleResume: () => void
   handleResumeFresh: () => void
   handleRewindTo: (toSeq: number) => void
-  isResumable: boolean
+  settling: boolean
   settle: () => void
   whenSettled: () => Promise<void>
   lastOutcome: RefObject<TurnOutcome | null>

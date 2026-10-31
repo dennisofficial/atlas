@@ -127,6 +127,7 @@ describe('snapshotOf failureCause', () => {
       spawnedAt: '2026-01-01T00:00:00.000Z',
       endedAt: '2026-01-01T00:01:00.000Z',
       failureCause: 'provider inference.net returned 402: credit exhausted',
+      failureKind: undefined,
     }
 
     const state = recoveredChild({
@@ -152,6 +153,7 @@ describe('recoveredChild lastText', () => {
       prose: beyondCap(),
       killedBy: undefined,
       failureCause: undefined,
+      failureKind: undefined,
       spawnedAt: '2026-01-01T00:00:00.000Z',
       endedAt: '2026-01-01T00:01:00.000Z',
     }
@@ -177,6 +179,7 @@ describe('recoveredChild lastText', () => {
       prose: beyondCap(),
       killedBy: undefined,
       failureCause: undefined,
+      failureKind: undefined,
       spawnedAt: '2026-01-01T00:00:00.000Z',
       endedAt: '2026-01-01T00:01:00.000Z',
     }
