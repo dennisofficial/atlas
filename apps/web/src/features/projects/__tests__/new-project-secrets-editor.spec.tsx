@@ -4,7 +4,9 @@ import { act, useState } from 'react'
 import type { Root } from 'react-dom/client'
 
 import { emptyDraft } from '../new-project-draft'
-import { SecretsEditor } from '../new-project-secrets-editor'
+import { SecretsEditor as WebSecretsEditor } from '../new-project-secrets-editor'
+import { SecretsEditor as PrototypeSecretsEditor } from '../../../../../prototype/src/features/projects/new-project-secrets-editor'
+import { emptyDraft as emptyPrototypeDraft } from '../../../../../prototype/src/features/projects/new-project-draft'
 import type { ProjectDraft } from '../new-project-types'
 
 let root: Root | null = null
@@ -27,7 +29,7 @@ afterAll(async () => {
   await GlobalRegistrator.unregister()
 })
 
-function Editor() {
+function Editor({ SecretsEditor }: { SecretsEditor: typeof WebSecretsEditor }) {
   const [draft, setDraft] = useState(emptyDraft)
   current = draft
   return (
@@ -38,12 +40,23 @@ function Editor() {
   )
 }
 
-async function mount() {
+function PrototypeEditor({ draft, patch }: React.ComponentProps<typeof WebSecretsEditor>) {
+  return (
+    <PrototypeSecretsEditor
+      draft={{ ...emptyPrototypeDraft(), secrets: draft.secrets }}
+      patch={(changes) => {
+        if (changes.secrets !== undefined) patch({ secrets: changes.secrets })
+      }}
+    />
+  )
+}
+
+async function mount(SecretsEditor: typeof WebSecretsEditor) {
   const { createRoot } = await import('react-dom/client')
   container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)
-  await act(async () => root?.render(<Editor />))
+  await act(async () => root?.render(<Editor SecretsEditor={SecretsEditor} />))
 }
 
 async function click(label: string) {
@@ -62,9 +75,12 @@ async function paste(text: string) {
   await act(async () => textarea.dispatchEvent(event))
 }
 
-describe('SecretsEditor interactions', () => {
+describe.each([
+  ['web', WebSecretsEditor],
+  ['prototype', PrototypeEditor],
+])('%s SecretsEditor interactions', (_app, SecretsEditor) => {
   it('adds and removes manual rows', async () => {
-    await mount()
+    await mount(SecretsEditor)
     await click('Add value')
     await click('Add value')
     expect(current.secrets).toEqual([
@@ -77,7 +93,7 @@ describe('SecretsEditor interactions', () => {
   })
 
   it('pastes multiple values, masks them immediately, and flags duplicates', async () => {
-    await mount()
+    await mount(SecretsEditor)
     await click('Paste .env')
     await paste('API_KEY=private\nTOKEN=secret')
     expect(current.secrets).toEqual([
@@ -85,7 +101,21 @@ describe('SecretsEditor interactions', () => {
       { name: 'TOKEN', value: 'secret' },
     ])
     expect(container?.querySelector('textarea')).toBeNull()
-    expect(container?.querySelectorAll('input[type=password]').length).toBe(2)
+    expect(container?.querySelectorAll('input[type=password]').length).toBe(0)
+    const value = container?.querySelector<HTMLInputElement>('#project-secret-value-0')
+    expect(value?.type).toBe('text')
+    expect(value?.value).toBe('private')
+    expect(value?.getAttribute('class')).toContain('disc')
+    await click('Reveal value 1')
+    expect(value?.getAttribute('class')).toContain('none')
+    expect(value?.value).toBe('private')
+    expect(
+      container?.querySelector('[aria-label="Hide value 1"]')?.getAttribute('aria-pressed'),
+    ).toBe('true')
+    await click('Hide value 1')
+    expect(value?.getAttribute('class')).toContain('disc')
+    expect(value?.value).toBe('private')
+    expect(current.secrets[0]?.value).toBe('private')
     expect(container?.textContent).not.toContain('private')
     await click('Paste .env')
     await paste('TOKEN=another')
@@ -95,7 +125,7 @@ describe('SecretsEditor interactions', () => {
   })
 
   it('does not partially import malformed pasted text or display its values', async () => {
-    await mount()
+    await mount(SecretsEditor)
     await click('Paste .env')
     await paste('API_KEY=private\nmalformed')
     expect(current.secrets).toEqual([])

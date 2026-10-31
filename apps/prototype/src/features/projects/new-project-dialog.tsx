@@ -80,11 +80,11 @@ function NewProjectBody({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <DialogHeader>
+      <DialogHeader className="shrink-0">
         <DialogTitle>{copy.title}</DialogTitle>
         <DialogDescription>{copy.description}</DialogDescription>
       </DialogHeader>
-      <div className="-mx-4 max-h-[min(32rem,calc(100dvh-14rem))] min-h-64 overflow-y-auto px-4 py-1">
+      <div className="-mx-4 min-h-0 overflow-y-auto px-4 py-1">
         {step === ENewProjectStep.Source ? <SourceStep onSelect={handleSelectSource} /> : null}
         {step === ENewProjectStep.Repository ? (
           <RepositoryStep draft={draft} patch={patch} />
@@ -97,7 +97,7 @@ function NewProjectBody({ onClose }: { onClose: () => void }) {
           />
         ) : null}
       </div>
-      <DialogFooter className="items-center">
+      <DialogFooter className="grid shrink-0 grid-cols-[1fr_auto] items-center sm:grid-cols-[1fr_auto_auto]">
         <span className="mr-auto font-mono text-xs tabular-nums text-muted-foreground">
           Step {position.current} of {position.total}
         </span>
@@ -105,20 +105,22 @@ function NewProjectBody({ onClose }: { onClose: () => void }) {
           Cancel
         </Button>
         {step === ENewProjectStep.Source ? null : (
-          <Button variant="outline" onClick={handleBack}>
-            Back
-          </Button>
+          <div className="col-span-2 flex justify-end gap-2 sm:col-span-1">
+            <Button variant="outline" onClick={handleBack}>
+              Back
+            </Button>
+            {step === ENewProjectStep.Repository ? (
+              <Button onClick={handleContinue} disabled={!canContinueFromRepository(draft)}>
+                Continue
+              </Button>
+            ) : null}
+            {step === ENewProjectStep.Details ? (
+              <Button onClick={handleCreate} disabled={!canCreate}>
+                Create project
+              </Button>
+            ) : null}
+          </div>
         )}
-        {step === ENewProjectStep.Repository ? (
-          <Button onClick={handleContinue} disabled={!canContinueFromRepository(draft)}>
-            Continue
-          </Button>
-        ) : null}
-        {step === ENewProjectStep.Details ? (
-          <Button onClick={handleCreate} disabled={!canCreate}>
-            Create project
-          </Button>
-        ) : null}
       </DialogFooter>
     </>
   )
@@ -134,7 +136,7 @@ export function NewProjectDialog({
   const handleClose = () => onOpenChange(false)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-lg">
         <NewProjectBody onClose={handleClose} />
       </DialogContent>
     </Dialog>

@@ -146,36 +146,38 @@ function NewProjectBody({
 
   return (
     <>
-      <DialogHeader>
+      <DialogHeader className="shrink-0">
         <DialogTitle>{copy.title}</DialogTitle>
         <DialogDescription>{copy.description}</DialogDescription>
       </DialogHeader>
-      {saveError ? (
-        <p role="alert" className="text-sm text-destructive">
-          Project created. Unsaved values:{' '}
-          {progress.current.remaining.map((pair) => pair.name).join(', ') || 'none'}. Retry to
-          finish without creating another project.
-        </p>
-      ) : null}
-      <fieldset
-        disabled={submitting || progress.current.projectId !== null}
-        className="min-w-0 border-0 p-0"
-      >
-        <div className="-mx-4 max-h-[min(32rem,calc(100dvh-14rem))] min-h-64 overflow-y-auto px-4 py-1">
-          {step === ENewProjectStep.Source ? <SourceStep onSelect={handleSelectSource} /> : null}
-          {step === ENewProjectStep.Repository ? (
-            <RepositoryStep draft={draft} patch={patch} />
-          ) : null}
-          {step === ENewProjectStep.Details ? (
-            <DetailsStep
-              draft={{ ...draft, name }}
-              patch={patch}
-              nameError={visibleNameError({ error: nameError, touched: draft.nameTouched })}
-            />
-          ) : null}
-        </div>
-      </fieldset>
-      <DialogFooter className="items-center">
+      <div className="-mx-4 min-h-0 overflow-y-auto px-4 py-1">
+        {saveError ? (
+          <p role="alert" className="text-sm text-destructive">
+            Project created. Unsaved values:{' '}
+            {progress.current.remaining.map((pair) => pair.name).join(', ') || 'none'}. Retry to
+            finish without creating another project.
+          </p>
+        ) : null}
+        <fieldset
+          disabled={submitting || progress.current.projectId !== null}
+          className="min-w-0 border-0 p-0"
+        >
+          <div>
+            {step === ENewProjectStep.Source ? <SourceStep onSelect={handleSelectSource} /> : null}
+            {step === ENewProjectStep.Repository ? (
+              <RepositoryStep draft={draft} patch={patch} />
+            ) : null}
+            {step === ENewProjectStep.Details ? (
+              <DetailsStep
+                draft={{ ...draft, name }}
+                patch={patch}
+                nameError={visibleNameError({ error: nameError, touched: draft.nameTouched })}
+              />
+            ) : null}
+          </div>
+        </fieldset>
+      </div>
+      <DialogFooter className="grid shrink-0 grid-cols-[1fr_auto] items-center sm:grid-cols-[1fr_auto_auto]">
         <span className="mr-auto font-mono text-xs tabular-nums text-muted-foreground">
           Step {position.current} of {position.total}
         </span>
@@ -183,25 +185,27 @@ function NewProjectBody({
           {progress.current.projectId === null ? 'Cancel' : 'Open secrets settings'}
         </Button>
         {step === ENewProjectStep.Source ? null : (
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={submitting || progress.current.projectId !== null}
-          >
-            Back
-          </Button>
+          <div className="col-span-2 flex justify-end gap-2 sm:col-span-1">
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              disabled={submitting || progress.current.projectId !== null}
+            >
+              Back
+            </Button>
+            {step === ENewProjectStep.Repository ? (
+              <Button onClick={handleContinue} disabled={!canContinueFromRepository(draft)}>
+                Continue
+              </Button>
+            ) : null}
+            {step === ENewProjectStep.Details ? (
+              <Button onClick={handleCreate} disabled={!canCreate}>
+                {submitting ? <Spinner data-icon="inline-start" /> : null}
+                {progress.current.projectId === null ? 'Create project' : 'Retry saving values'}
+              </Button>
+            ) : null}
+          </div>
         )}
-        {step === ENewProjectStep.Repository ? (
-          <Button onClick={handleContinue} disabled={!canContinueFromRepository(draft)}>
-            Continue
-          </Button>
-        ) : null}
-        {step === ENewProjectStep.Details ? (
-          <Button onClick={handleCreate} disabled={!canCreate}>
-            {submitting ? <Spinner data-icon="inline-start" /> : null}
-            {progress.current.projectId === null ? 'Create project' : 'Retry saving values'}
-          </Button>
-        ) : null}
       </DialogFooter>
     </>
   )
@@ -218,7 +222,7 @@ export function NewProjectDialog({ open, onOpenChange, ...body }: NewProjectDial
   }
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-lg">
         <NewProjectBody {...body} onClose={handleClose} onDismissibleChange={setDismissible} />
       </DialogContent>
     </Dialog>

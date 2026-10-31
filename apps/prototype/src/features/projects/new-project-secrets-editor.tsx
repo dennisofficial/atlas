@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PlusIcon, XIcon } from 'lucide-react'
+import { EyeIcon, EyeOffIcon, PlusIcon, XIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 import {
@@ -18,6 +18,7 @@ import type { DraftPatch, ProjectDraft } from './new-project-types'
 
 export function SecretsEditor({ draft, patch }: { draft: ProjectDraft; patch: DraftPatch }) {
   const [pasting, setPasting] = useState(false)
+  const [revealedIndex, setRevealedIndex] = useState<number | null>(null)
   const [pasteError, setPasteError] = useState<string | null>(null)
   const error = secretsErrorOf(draft.secrets)
   const handleChange = ({ index, changes }: { index: number; changes: Partial<SecretPair> }) =>
@@ -31,6 +32,7 @@ export function SecretsEditor({ draft, patch }: { draft: ProjectDraft; patch: Dr
       setPasteError(`Fix lines ${invalid.join(', ')}: expected NAME=value. No values were added.`)
       return
     }
+    setRevealedIndex(null)
     patch({ secrets: [...draft.secrets, ...pairs] })
     setPasteError(null)
     setPasting(false)
@@ -43,34 +45,68 @@ export function SecretsEditor({ draft, patch }: { draft: ProjectDraft; patch: Dr
       </FieldLegend>
       <FieldDescription>Encrypted values available to threads in this project.</FieldDescription>
       {draft.secrets.map((pair, index) => (
-        <div key={index} className="flex items-end gap-2">
+        <div
+          key={index}
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+        >
           <Field className="min-w-0 flex-1">
             <FieldLabel htmlFor={`project-secret-name-${index}`}>Name</FieldLabel>
             <Input
               id={`project-secret-name-${index}`}
-              className="font-mono text-xs"
+              className="font-mono md:text-xs"
               autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
               spellCheck={false}
+              data-1p-ignore
+              data-lpignore="true"
               value={pair.name}
               placeholder="API_KEY"
               onChange={(event) => handleChange({ index, changes: { name: event.target.value } })}
             />
           </Field>
-          <Field className="min-w-0 flex-1">
+          <Field className="col-start-1 row-start-2 min-w-0 sm:col-start-2 sm:row-start-1">
             <FieldLabel htmlFor={`project-secret-value-${index}`}>Value</FieldLabel>
-            <Input
-              id={`project-secret-value-${index}`}
-              type="password"
-              autoComplete="new-password"
-              value={pair.value}
-              onChange={(event) => handleChange({ index, changes: { value: event.target.value } })}
-            />
+            <div className="flex items-center gap-1">
+              <Input
+                id={`project-secret-value-${index}`}
+                type="text"
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                data-1p-ignore
+                data-lpignore="true"
+                className={
+                  revealedIndex === index
+                    ? '[-webkit-text-security:none]'
+                    : '[-webkit-text-security:disc]'
+                }
+                value={pair.value}
+                onChange={(event) =>
+                  handleChange({ index, changes: { value: event.target.value } })
+                }
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`${revealedIndex === index ? 'Hide' : 'Reveal'} value ${index + 1}`}
+                aria-pressed={revealedIndex === index}
+                onClick={() => setRevealedIndex(revealedIndex === index ? null : index)}
+              >
+                {revealedIndex === index ? <EyeOffIcon /> : <EyeIcon />}
+              </Button>
+            </div>
           </Field>
           <Button
             variant="ghost"
             size="icon"
+            className="col-start-2 row-start-1 sm:col-start-3"
             aria-label={`Remove ${pair.name || 'value'} ${index + 1}`}
-            onClick={() => patch({ secrets: draft.secrets.filter((_, row) => row !== index) })}
+            onClick={() => {
+              setRevealedIndex(null)
+              patch({ secrets: draft.secrets.filter((_, row) => row !== index) })
+            }}
           >
             <XIcon />
           </Button>
@@ -102,6 +138,11 @@ export function SecretsEditor({ draft, patch }: { draft: ProjectDraft; patch: Dr
             onChange={() => undefined}
             onPaste={handlePaste}
             autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            data-1p-ignore
+            data-lpignore="true"
             placeholder="Paste your .env here; values will be masked immediately."
             rows={2}
             aria-invalid={pasteError ? true : undefined}

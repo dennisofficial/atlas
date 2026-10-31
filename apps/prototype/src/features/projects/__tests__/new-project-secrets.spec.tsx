@@ -68,7 +68,17 @@ describe('creation secrets', () => {
         patch={() => undefined}
       />,
     )
-    expect(html).toContain('type="password"')
+    expect(html).toContain('type="text"')
+    expect(html).not.toContain('type="password"')
+    expect(html).toContain('-webkit-text-security:disc')
+    expect(html).toContain('autoComplete="off"')
+    expect(html).toContain('autoCapitalize="none"')
+    expect(html).toContain('autoCorrect="off"')
+    expect(html).toContain('spellCheck="false"')
+    expect(html).toContain('data-1p-ignore="true"')
+    expect(html).toContain('data-lpignore="true"')
+    expect(html).toContain('Reveal value 1')
+    expect(html).toContain('aria-pressed="false"')
     expect(html).toContain('value="TOKEN"')
     expect(html).toContain('Remove TOKEN')
     expect(html).toContain('Paste .env')

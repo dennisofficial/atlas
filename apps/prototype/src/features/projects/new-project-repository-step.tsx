@@ -27,13 +27,13 @@ function RecentTiles({ draft, patch }: PickerProps) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs font-medium text-muted-foreground">Recent repositories</p>
-      <ul className="grid grid-cols-2 gap-2">
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {NEW_PROJECT_REPOS.slice(0, RECENT_REPO_COUNT).map((repo) => {
           const selected = draft.repo === repo.fullName
           const handleClick = () =>
             patch({ repo: repo.fullName, repoQuery: repo.fullName, branch: null })
           return (
-            <li key={repo.fullName}>
+            <li key={repo.fullName} className="min-w-0">
               <button
                 type="button"
                 aria-pressed={selected}
@@ -43,7 +43,7 @@ function RecentTiles({ draft, patch }: PickerProps) {
                   selected && 'border-primary/40 bg-primary/5 hover:bg-primary/10',
                 )}
               >
-                <span className="flex items-center gap-1.5 text-sm">
+                <span className="flex min-w-0 items-center gap-1.5 text-sm">
                   <FolderGit2Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate font-mono text-xs font-medium">{repo.fullName}</span>
                 </span>
