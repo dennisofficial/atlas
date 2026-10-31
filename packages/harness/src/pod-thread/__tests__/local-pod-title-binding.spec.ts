@@ -4,6 +4,7 @@ import { readied, THREAD } from '@dltech/atlas-client/channel-fixture'
 
 import { EClientRequest, EServeFrame } from '../../cloud/channel-wire'
 import { ECloudSandboxState, type CloudBridge } from '../../cloud/cloud-bridge'
+import { RemoteSessionActivity } from '../../activity/remote-session-activity'
 import { RemoteThreadStore } from '../../cloud/remote-thread-store'
 import { JsonlTurnLedger } from '../../ledger/jsonl/jsonl-turn-ledger'
 import { registryFor } from '../../store/sessions/registry'
@@ -46,6 +47,7 @@ describe('local title authority in an assembled pod thread', () => {
     const attachment = {
       channel: live.channel,
       stores: {
+        activity: new RemoteSessionActivity({ channel: live.channel }),
         log: home.log,
         threads: new RemoteThreadStore({ channel: live.channel }),
         ledger: new JsonlTurnLedger({

@@ -31,6 +31,7 @@ for (const op of [EClientRequest.Rewind, EClientRequest.SayToAgent]) {
     let summaries = 0
     const responses = new Map<string, (reply: ServeFrame) => void>()
     const router = createRequestRouter({
+      activity: app.activity,
       threadId,
       driver,
       files: app.files,

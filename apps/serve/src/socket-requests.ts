@@ -1,8 +1,10 @@
 import type { ThreadId } from '@dltech/atlas-core'
+import type { SessionActivityPort } from '@dltech/atlas-harness/activity'
 import { EClientRequest, EServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 import type { RotationStateWire } from '@dltech/atlas-wire'
 
+import { routeActivityRead } from './activity-requests'
 import { isAgentSteerOp } from './agent-steer'
 import { routeAgentSteerRequest } from './agent-steer-routing'
 import { createCompactionRequests, isCompactionOp } from './compaction-requests'
@@ -34,6 +36,7 @@ import { routeTranscriptRead, routeTranscriptWrite } from './transcript-routing'
 import type { ServeTurnDriver } from './turn-driver'
 
 export function createRequestRouter(args: {
+  activity: SessionActivityPort
   threadId: ThreadId
   driver: ServeTurnDriver
   files: Pick<FileBrowser, 'list'>
@@ -93,6 +96,16 @@ export function createRequestRouter(args: {
 
   const route = (routed: { socket: SessionSocket; frame: RequestFrame }): void => {
     const { socket, frame } = routed
+    if (
+      routeActivityRead({
+        frame,
+        root: threadId,
+        activity: args.activity,
+        threads: transcript?.threads,
+        reply: (reply) => send({ socket, frame: reply }),
+      })
+    )
+      return
     if (isCompactionOp(frame.op)) {
       void compact.answer(frame).then((reply) => send({ socket, frame: reply }))
       return

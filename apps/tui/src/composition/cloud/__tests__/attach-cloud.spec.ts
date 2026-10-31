@@ -1,4 +1,5 @@
 import { stat } from 'node:fs/promises'
+import { unavailableActivity } from '../../__tests__/fake-session-runtime'
 
 import { describe, expect, it } from 'bun:test'
 
@@ -102,6 +103,7 @@ const fakeChannel = (args: { events: readonly Event[] }) => ({
 const attachOver = (args: { events: readonly Event[] }) => {
   const channel = fakeChannel(args)
   const stores = {
+    activity: unavailableActivity(),
     threads: new RemoteThreadStore({ channel }),
     log: new RemoteEventLog({ channel }),
     ledger: new RemoteTurnLedger({ channel }),
@@ -155,6 +157,7 @@ describe('attaching to a cloud session', () => {
       throw new Error(`unexpected channel op ${request.op}`)
     }
     const stores = {
+      activity: unavailableActivity(),
       threads: new RemoteThreadStore({ channel }),
       log: new RemoteEventLog({ channel }),
       ledger: new RemoteTurnLedger({ channel }),
@@ -178,6 +181,7 @@ describe('attaching to a cloud session', () => {
       throw new Error(`unexpected channel op ${request.op}`)
     }
     const stores = {
+      activity: unavailableActivity(),
       threads: new RemoteThreadStore({ channel }),
       log: new RemoteEventLog({ channel }),
       ledger: new RemoteTurnLedger({ channel }),

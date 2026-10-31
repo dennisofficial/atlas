@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { unavailableActivity } from './fake-session-runtime'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -952,7 +953,9 @@ export function fakeApp(args: {
   const executionLocation = createExecutionLocationState({ initial: EExecutionLocation.Host })
   executionLocation.bind({ threads, workspace: args.workspaceRoot ?? FAKE_CONFIG.cwd, repo: null })
 
+  const activity = unavailableActivity()
   return {
+    activity,
     skills: skillRegistry.all(),
     skillRegistry,
     operatorInput: fakeOperatorInput(),
@@ -1074,6 +1077,7 @@ export function fakeApp(args: {
         cwd: workspace.workspace,
         adapters: {
           runner: countingRunner,
+          activity,
           channel,
           log,
           threads,

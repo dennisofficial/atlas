@@ -315,6 +315,11 @@ export function fakeServeApp(args: {
 
   return {
     channel,
+    activity: {
+      read: async () => {
+        throw new Error('fake activity is not initialized')
+      },
+    },
 
     runner: {
       runTurn: (given) => run(given),

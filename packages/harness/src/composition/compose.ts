@@ -309,33 +309,34 @@ export async function composeHarness<
   })
   const pending = createPendingQueues<Command>({ expandContext: skillExpander({ skillRegistry }) })
 
-  const { runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
-    container,
-    workspace,
-    executionLocation,
-    models,
-    model,
-    modelPort,
-    prompts,
-    declarations: () => container.resolve(registeredPortToken(ToolRegistry)).declarations(),
-    pending,
-    pluginSources: [...plugins.intakeSources, subscriptions.intakeSource],
-    channel,
-    notice,
-    summarise: utility.summarise,
-    settings,
-    decisionsEnabled: utility.decisionsEnabled,
-    stopSandbox: sandbox.stop,
-    settled,
-    sleepPrevention: container.resolve(SleepPreventionToken),
-    wake: container.resolve(WakeSignalToken),
-    tldr: {
-      feed: surface.tldrFeed,
-      model: utility.tldrModel,
-      modelId: () => utility.tldrModel.modelId,
-    },
-    titler: utility.titler,
-  })
+  const { runner, activity, turnPolicy, titling, recordTeardownEndings, intake } =
+    wireTurn<Command>({
+      container,
+      workspace,
+      executionLocation,
+      models,
+      model,
+      modelPort,
+      prompts,
+      declarations: () => container.resolve(registeredPortToken(ToolRegistry)).declarations(),
+      pending,
+      pluginSources: [...plugins.intakeSources, subscriptions.intakeSource],
+      channel,
+      notice,
+      summarise: utility.summarise,
+      settings,
+      decisionsEnabled: utility.decisionsEnabled,
+      stopSandbox: sandbox.stop,
+      settled,
+      sleepPrevention: container.resolve(SleepPreventionToken),
+      wake: container.resolve(WakeSignalToken),
+      tldr: {
+        feed: surface.tldrFeed,
+        model: utility.tldrModel,
+        modelId: () => utility.tldrModel.modelId,
+      },
+      titler: utility.titler,
+    })
 
   const compaction = new LocalCompaction({
     log,
@@ -361,6 +362,7 @@ export async function composeHarness<
     log,
     threads,
     ledger,
+    activity,
     intake,
     shells,
     agents,
@@ -397,6 +399,7 @@ export async function composeHarness<
     log,
     threads,
     ledger,
+    activity,
     ids,
     pending,
     intake,

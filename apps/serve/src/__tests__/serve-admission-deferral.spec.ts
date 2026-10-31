@@ -60,6 +60,11 @@ const rig = () => {
     settled: async () => undefined,
   } as unknown as ServeTurnDriver
   const handlers = createSessionHandlers({
+    activity: {
+      read: async () => {
+        throw new Error('activity is not initialized')
+      },
+    },
     threadId,
     buffer: createFrameBuffer({ capacity: 16 }),
     inFlight: () => [],

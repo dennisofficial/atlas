@@ -153,6 +153,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
 
   return {
     channel: app.channel,
+    activity: app.activity,
     runner: app.runner,
     turnPolicy: app.turnPolicy,
     log: app.surface.log,

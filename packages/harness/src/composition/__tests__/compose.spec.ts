@@ -109,6 +109,24 @@ describe('composeHarness', () => {
     expect(app.mcp()).toEqual([])
     expect(app.skills.length).toBeGreaterThan(0)
     expect(typeof app.runner.runTurn).toBe('function')
+    expect(app.sessionOwner.require().adapters.activity).toBe(app.activity)
+    const threadId = (await app.threads.create({})).id
+    expect(await app.activity.read({ threadId })).toMatchObject({
+      turnEpoch: 0,
+      observedOutcome: null,
+    })
+    await app.runner.runTurn({ threadId })
+    expect(await app.activity.read({ threadId })).toMatchObject({
+      turnEpoch: 1,
+      working: false,
+      observedOutcome: null,
+    })
+    await app.turnPolicy.onCrashed({ threadId })
+    expect(await app.activity.read({ threadId })).toMatchObject({
+      turnEpoch: 1,
+      working: false,
+      observedOutcome: { identity: { kind: 'driver-failure' }, outcome: 'failed' },
+    })
 
     await expect(app.close()).resolves.toBeUndefined()
   })

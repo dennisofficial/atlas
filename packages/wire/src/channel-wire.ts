@@ -115,6 +115,7 @@ export enum EClientRequest {
   ReadThread = 'read-thread',
   ReadThreads = 'read-threads',
   ReadTurns = 'read-turns',
+  ReadActivity = 'read-activity',
   ReadTranscriptIdentity = 'read-transcript-identity',
   RenameThread = 'rename-thread',
   SetThreadModel = 'set-thread-model',

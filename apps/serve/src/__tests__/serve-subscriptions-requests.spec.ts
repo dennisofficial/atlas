@@ -87,6 +87,11 @@ const fakeSubscriptions = (args?: { rows?: SubscriptionView[]; outcome?: Subscri
 
 const greeted = async (subscriptions?: ServeSubscriptions) => {
   const handlers = createSessionHandlers({
+    activity: {
+      read: async () => {
+        throw new Error('activity is not initialized')
+      },
+    },
     threadId,
     buffer: createFrameBuffer({ capacity: 16 }),
     inFlight: () => [],

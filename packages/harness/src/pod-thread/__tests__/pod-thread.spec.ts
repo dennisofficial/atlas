@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { RemoteSessionActivity } from '../../activity/remote-session-activity'
 
 import type { Event, ThreadId } from '@dltech/atlas-core'
 import { harness, THREAD } from '@dltech/atlas-client/channel-fixture'
@@ -56,6 +57,7 @@ const podRig = (args: { createFails?: Error | undefined; homeProject?: string | 
           log: new RemoteEventLog({ channel: live.channel }),
           threads: remoteThreads,
           ledger: new RemoteTurnLedger({ channel: live.channel }),
+          activity: new RemoteSessionActivity({ channel: live.channel }),
         },
       }
     },

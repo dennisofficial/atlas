@@ -1,5 +1,6 @@
 import type { ComposedPortBindings } from '@dltech/atlas-core'
 
+import { RemoteSessionActivity } from '../activity/remote-session-activity'
 import { RemoteAccountStore } from '../cloud/remote-account-store'
 import { RemoteEventLog } from '../cloud/remote-event-log'
 import { RemoteThreadStore } from '../cloud/remote-thread-store'
@@ -11,6 +12,7 @@ import { RemoteTurnLedger } from '../cloud/remote-turn-ledger'
  * composition site spreads this and overrides only the keys its surface genuinely re-binds.
  */
 export const sharedPortBindings = {
+  SessionActivityPort: { runtime: 'shared', transport: RemoteSessionActivity },
   ClockPort: { runtime: 'shared', transport: null },
   IdPort: { runtime: 'shared', transport: null },
   TelemetryPort: { runtime: 'shared', transport: null },

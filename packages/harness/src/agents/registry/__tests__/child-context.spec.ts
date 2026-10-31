@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { fakeActivityLifecycle } from '../../../composition/__tests__/fakes'
 
 import {
   defaultPipeline,
@@ -214,6 +215,7 @@ async function openRealChild(): Promise<RealChild> {
     agentTypes: [agentTypeNamed({ name: 'explore' })],
     runners: childRunnerSource({
       deps: () => ({
+        activity: fakeActivityLifecycle(),
         turn: parentTurn,
         tools: new InMemoryToolRegistry([]),
         hooks: new HookChain({}),

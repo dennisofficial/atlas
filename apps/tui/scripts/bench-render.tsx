@@ -51,6 +51,7 @@ import {
   fakeOperatorInput,
   fakeSkillRegistry,
 } from '../src/composition/__tests__/fake-app'
+import { unavailableActivity } from '../src/composition/__tests__/fake-session-runtime'
 import { fakeServiceRegistry } from '../src/composition/__tests__/fake-services'
 import { createPendingQueues } from '../src/store'
 import type { QueuedSettled } from '../src/composition/commands'
@@ -102,10 +103,12 @@ const benchApp = (args: {
   const agents = fakeAgentRegistry()
   const services = fakeServiceRegistry()
   const operatorInput = fakeOperatorInput()
+  const activity = unavailableActivity()
   const executionLocation = createExecutionLocationState({ initial: EExecutionLocation.Host })
 
   return {
     pods: false,
+    activity,
     config: {
       model: undefined,
       open: { mode: EOpenMode.New },
@@ -194,6 +197,7 @@ const benchApp = (args: {
         cwd: args.root,
         adapters: {
           runner: args.runner,
+          activity,
           channel: args.channel,
           log: args.harness.log,
           threads: args.harness.threads,
