@@ -1,5 +1,7 @@
 import type { WireThread } from '@dltech/atlas-wire/web'
 
+import { ELocalActivityState, type ThreadDisplay } from '@/features/threads/data/thread-display'
+
 import { EThreadStatus } from '../thread-status'
 import { threadOf } from './fixtures'
 
@@ -24,7 +26,7 @@ const pr = (number: number, state: string) => ({
 })
 
 export interface ThreadRowState {
-  thread: WireThread
+  thread: ThreadDisplay
   expected: EThreadStatus
   unread: boolean
 }
@@ -51,6 +53,19 @@ const row = (args: {
 })
 
 export const THREAD_ROW_STATES: ThreadRowState[] = [
+  {
+    thread: {
+      ...threadOf({ id: 'unavailable', title: 'Activity unsupported' }),
+      localAvailability: {
+        activityState: ELocalActivityState.Unavailable,
+        lastAssistantSeq: 5,
+        readSeq: null,
+        reason: 'Unsupported',
+      },
+    },
+    expected: EThreadStatus.Unavailable,
+    unread: true,
+  },
   row({
     id: 'awaiting',
     title: 'Needs your approval',

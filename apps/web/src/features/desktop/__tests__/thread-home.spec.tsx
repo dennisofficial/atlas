@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client'
 import { DesktopError, resetDesktopCapabilities } from '../desktop-wire'
 import { useDesktop } from '../use-desktop'
 import { EThreadHome, useThreadHome } from '../use-local-pod'
+import { localSummary } from './local-thread-fixture'
 
 beforeAll(() => {
   GlobalRegistrator.register()
@@ -82,6 +83,8 @@ describe('thread home lookup', () => {
               threadId: 'brn_projectless',
               projectId: null,
               head: 8,
+              activityState: 'available',
+              lastAssistantSeq: 8,
               readSeq: 3,
               createdAt: '2026-10-31T10:00:00.000Z',
               updatedAt: '2026-10-31T11:00:00.000Z',
@@ -110,6 +113,33 @@ describe('thread home lookup', () => {
     const container = document.createElement('div')
     document.body.append(container)
     const root = createRoot(container)
+    roots.push(root)
+    await act(async () => root.render(<Probe />))
+    expect(latest).toEqual({ home: EThreadHome.ThisMac, error: null })
+    expect(calls).toEqual(['/desktop/threads'])
+  })
+
+  it('keeps unsupported local activity classified as This Mac without a history error', async () => {
+    Reflect.set(window, 'atlasDesktop', {})
+    const { status, readSeq, ...base } = localSummary
+    const unavailable = { ...base, activityState: 'unavailable', reason: 'Activity unsupported' }
+    const calls: string[] = []
+    globalThis.fetch = Object.assign(
+      async (input: Parameters<typeof fetch>[0]) => {
+        calls.push(String(input))
+        return Response.json({ threads: [unavailable] })
+      },
+      { preconnect: realFetch.preconnect },
+    )
+    let latest: ReturnType<typeof useThreadHome> | undefined
+    function Probe() {
+      latest = useThreadHome({
+        threadId: 'brn_1',
+        desktop: { ready: true, present: true, docker: true, reason: undefined },
+      })
+      return null
+    }
+    const root = createRoot(document.createElement('div'))
     roots.push(root)
     await act(async () => root.render(<Probe />))
     expect(latest).toEqual({ home: EThreadHome.ThisMac, error: null })

@@ -1,4 +1,8 @@
+import { ELocalActivityState, type LocalThread } from '../local-thread-wire'
+
 export const localSummary = {
+  activityState: ELocalActivityState.Available,
+  lastAssistantSeq: 3,
   threadId: 'brn_1',
   title: 'Host title',
   projectId: null,
@@ -16,7 +20,7 @@ export const localSummary = {
     lastAssistantSeq: 3,
     readSeq: 1,
   },
-}
+} satisfies LocalThread
 
 export const localEvent = (seq: number) => ({
   id: `event_${seq}`,

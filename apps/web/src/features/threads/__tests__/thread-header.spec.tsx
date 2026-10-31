@@ -42,6 +42,14 @@ describe('ThreadHeader', () => {
     expect(render({ state: EHeaderState.NeedsYou })).toContain('Needs you')
   })
 
+  it('uses the existing secondary badge for unavailable activity and an accessible reason', () => {
+    const html = render({ state: EHeaderState.Unavailable, activityReason: 'Activity unsupported' })
+    expect(html).toContain('data-variant="secondary"')
+    expect(html).toContain('>Activity unavailable</span>')
+    expect(html).toContain('title="Activity unavailable: Activity unsupported"')
+    expect(html).toContain('aria-label="Activity unavailable: Activity unsupported"')
+  })
+
   it('keeps the mobile panel button', () => {
     const html = render({})
     expect(html).toContain('aria-label="Open panel"')

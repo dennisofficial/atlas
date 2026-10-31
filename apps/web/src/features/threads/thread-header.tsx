@@ -21,6 +21,7 @@ export type ThreadHeaderProps = {
   title: string | null
   naming?: boolean | undefined
   state: EHeaderState
+  activityReason?: string | undefined
   parent?: HeaderParent | undefined
   local?: boolean | undefined
   onOpenPanel: () => void
@@ -31,6 +32,7 @@ const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary
   [EHeaderState.NeedsYou]: 'default',
   [EHeaderState.Running]: 'secondary',
   [EHeaderState.Idle]: 'secondary',
+  [EHeaderState.Unavailable]: 'secondary',
 }
 
 function ParentCrumb({ parent }: { parent: HeaderParent }) {
@@ -75,6 +77,10 @@ export function LocalPodIcon() {
 
 export function ThreadHeader(props: ThreadHeaderProps) {
   const { title, naming = false, state, parent, local = false, onOpenPanel } = props
+  const description =
+    state === EHeaderState.Unavailable && props.activityReason !== undefined
+      ? `${STATE_LABEL[state]}: ${props.activityReason}`
+      : undefined
   return (
     <header
       data-chrome="titlebar"
@@ -93,7 +99,9 @@ export function ThreadHeader(props: ThreadHeaderProps) {
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {local ? <LocalPodIcon /> : null}
-        <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
+        <Badge variant={BADGE_VARIANT[state]} title={description} aria-label={description}>
+          {STATE_LABEL[state]}
+        </Badge>
         <Button
           variant="ghost"
           size="icon-lg"

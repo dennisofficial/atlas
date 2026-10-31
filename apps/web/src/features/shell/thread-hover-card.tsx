@@ -7,7 +7,10 @@ import {
   HoverCardTrigger,
 } from '@dltech/atlas-ui/components/hover-card'
 import { Separator } from '@dltech/atlas-ui/components/separator'
-import type { WireThread } from '@dltech/atlas-wire/web'
+import {
+  activityUnavailableReason,
+  type ThreadDisplay,
+} from '@/features/threads/data/thread-display'
 
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
 import { UNTITLED } from '@/features/threads/data/untitled'
@@ -21,7 +24,14 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
   )
 }
 
-function ThreadHoverCardBody({ thread, projectName }: { thread: WireThread; projectName: string }) {
+function ThreadHoverCardBody({
+  thread,
+  projectName,
+}: {
+  thread: ThreadDisplay
+  projectName: string
+}) {
+  const reason = activityUnavailableReason(thread)
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-0.5">
@@ -33,6 +43,11 @@ function ThreadHoverCardBody({ thread, projectName }: { thread: WireThread; proj
       </div>
       <Separator />
       <div className="flex flex-col gap-1.5">
+        {reason === undefined ? null : (
+          <DetailRow label="Activity">
+            <span className="text-xs text-muted-foreground">Activity unavailable: {reason}</span>
+          </DetailRow>
+        )}
         {thread.model === undefined ? null : (
           <DetailRow label="Model">
             <span className="truncate">{thread.model.ref}</span>
@@ -53,7 +68,7 @@ export function ThreadHoverCard({
   className,
   children,
 }: {
-  thread: WireThread
+  thread: ThreadDisplay
   projectName: string
   className?: string
   children: ReactNode

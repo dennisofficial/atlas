@@ -148,34 +148,60 @@ it('does not revive an unsubscribed callback when the same listener subscribes a
   stopAgain()
 })
 
-it('waits for all passive status requests to settle before scheduling another poll', async () => {
+it('keeps summary polls independent, deduplicates pending pod reads and retains known pod state on failure', async () => {
   const feed = makeFeed()
-  const first = feed.subscribeStream({ threadId: 'brn_1', handlers: handlersOf([]) })
+  const frames: ThreadStreamFrame[] = []
+  const failures: unknown[] = []
+  const first = feed.subscribeStream({
+    threadId: 'brn_1',
+    handlers: {
+      ...handlersOf(frames),
+      onError: (failure) => {
+        failures.push(failure)
+      },
+    },
+  })
   const second = feed.subscribeStream({ threadId: 'brn_2', handlers: handlersOf([]) })
   await flush()
   tick()
   await flush()
+  expect(frames).toContainEqual({
+    type: EThreadStreamFrame.Pod,
+    status: { state: 'parked', steps: [] },
+  })
+  frames.length = 0
   let release: () => void = () => undefined
   const pending = new Promise<void>((resolve) => {
     release = resolve
   })
+  let resourcesUnavailable = true
   globalThis.fetch = Object.assign(
     async (input: Parameters<typeof fetch>[0]) => {
       const path = String(input)
       calls.push(path)
       if (path === '/desktop/threads') return Response.json({ threads: [summary] })
-      if (path.includes('brn_1')) return Response.json({ message: 'Unavailable' }, { status: 503 })
+      if (path.includes('brn_1') && resourcesUnavailable)
+        return Response.json({ message: 'Unavailable' }, { status: 503 })
       await pending
       return Response.json({ state: 'parked', steps: [] })
     },
     { preconnect: realFetch.preconnect },
   )
+  const secondReads = calls.filter((path) => path.includes('brn_2')).length
   tick()
   await flush()
-  expect(timers.size).toBe(0)
+  expect(timers.size).toBe(1)
+  tick()
+  await flush()
+  expect(calls.filter((path) => path.includes('brn_2'))).toHaveLength(secondReads + 1)
+  expect(failures).toEqual([])
+  expect(frames).toEqual([])
   release()
   await flush()
-  expect(timers.size).toBe(1)
+  resourcesUnavailable = false
+  tick()
+  await flush()
+  expect(frames).toEqual([])
   first.unsubscribe()
   second.unsubscribe()
 })

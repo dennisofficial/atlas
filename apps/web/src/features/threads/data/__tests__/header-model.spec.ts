@@ -50,6 +50,20 @@ describe('branchOf', () => {
 })
 
 describe('headerStateOf', () => {
+  it('shows unavailable activity only below actual failure and positive live work or input', () => {
+    const quiet = {
+      failed: false,
+      working: false,
+      waitingOnOperator: false,
+      activityUnavailable: true,
+    }
+    expect(headerStateOf(quiet)).toBe(EHeaderState.Unavailable)
+    expect(STATE_LABEL[EHeaderState.Unavailable]).toBe('Activity unavailable')
+    expect(headerStateOf({ ...quiet, failed: true })).toBe(EHeaderState.Failed)
+    expect(headerStateOf({ ...quiet, working: true })).toBe(EHeaderState.Running)
+    expect(headerStateOf({ ...quiet, waitingOnOperator: true })).toBe(EHeaderState.NeedsYou)
+  })
+
   it('lets a failed pod win over a working turn', () => {
     expect(headerStateOf({ failed: true, working: true, waitingOnOperator: true })).toBe(
       EHeaderState.Failed,

@@ -1,7 +1,6 @@
 import { ERunner } from '@dltech/atlas-core'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
-import { withLocalThreads } from '@/features/desktop/local-thread'
 import type { LocalThread } from '@/features/desktop/local-thread-wire'
 
 import { applyActivityOverrides, type ActivityOverrides } from './activity-overrides'
@@ -24,50 +23,19 @@ export function shellEntriesOf(args: {
   return applyActivityOverrides({ entries, overrides })
 }
 
-type ShellLoad = {
-  entries: ProjectThreads[]
-  startedAt: number
-  localThreads: readonly LocalThread[]
-  localError: unknown
-  cloudError: unknown
-}
+export type LocalEntriesLoad = { threads: readonly LocalThread[]; error: unknown }
 
-type ShellSources = {
-  cloud: () => Promise<ProjectThreads[]>
-  local: () => Promise<readonly LocalThread[]>
-}
-
-export function createShellEntriesLoader(args: ShellSources): () => Promise<ShellLoad> {
-  let previousLocal: readonly LocalThread[] = []
-  return () =>
-    loadShellEntries({
-      ...args,
-      previousLocal,
-      local: async () => {
-        const threads = await args.local()
-        previousLocal = threads
-        return threads
-      },
-    })
-}
-
-export async function loadShellEntries(
-  args: ShellSources & {
-    previousLocal?: readonly LocalThread[]
-  },
-): Promise<ShellLoad> {
-  const startedAt = Date.now()
-  const [cloud, local] = await Promise.allSettled([args.cloud(), args.local()])
-  const threads = local.status === 'fulfilled' ? local.value : (args.previousLocal ?? [])
-  if (cloud.status === 'rejected' && local.status === 'fulfilled' && threads.length === 0) {
-    throw cloud.reason
-  }
-  const entries = cloud.status === 'fulfilled' ? cloud.value : []
-  return {
-    entries: withLocalThreads({ entries, threads }),
-    startedAt,
-    localThreads: threads,
-    localError: local.status === 'rejected' ? local.reason : null,
-    cloudError: cloud.status === 'rejected' ? cloud.reason : null,
+export function createLocalEntriesLoader(args: {
+  load: () => Promise<readonly LocalThread[]>
+  previousThreads?: readonly LocalThread[] | undefined
+}): () => Promise<LocalEntriesLoad> {
+  let threads = args.previousThreads ?? []
+  return async () => {
+    try {
+      threads = await args.load()
+      return { threads, error: null }
+    } catch (error) {
+      return { threads, error }
+    }
   }
 }

@@ -5,15 +5,17 @@ import { toast } from 'sonner'
 
 import { liveSteps } from '@dltech/atlas-client/transcript'
 
-import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
+import { EQueryState } from '@/lib/use-cloud-query'
 
 import { headerStateOf, spawnerIdOf } from './data/header-model'
+import { activityUnavailableReason } from './data/thread-display'
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
 import { notConfiguredOf } from './data/not-configured'
 import { restoredDraftOf } from './data/take-back'
 import type { ModelSelection } from './data/model-selection'
 import { useThreadBackend } from './data/use-thread-backend'
+import { useThreadMetadata } from './data/use-thread-metadata'
 import { useThreadNaming } from './data/use-thread-naming'
 import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf } from './data/transcript'
@@ -57,10 +59,7 @@ const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…
 
 export function ThreadView({ threadId }: { threadId: string }) {
   const backend = useThreadBackend()
-  const thread = useCloudQuery({
-    key: `thread:${threadId}`,
-    load: () => backend.fetchThread(threadId),
-  })
+  const thread = useThreadMetadata(threadId)
   const [liveEligible, setLiveEligible] = useState(false)
   const model = useThreadModel({ threadId, stored: thread.data?.model })
   const signals = useThreadSignals(threadId)
@@ -215,7 +214,9 @@ export function ThreadView({ threadId }: { threadId: string }) {
         failed,
         working,
         waitingOnOperator: source.waitingOnOperator,
+        activityUnavailable: activityUnavailableReason(thread.data) !== undefined,
       })}
+      activityReason={activityUnavailableReason(thread.data)}
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       local={backend.local}
       onOpenPanel={() => rightPanel.setSheetOpen(true)}

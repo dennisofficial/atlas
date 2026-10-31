@@ -7,6 +7,7 @@ export enum EHeaderState {
   NeedsYou = 'needs-you',
   Running = 'running',
   Idle = 'idle',
+  Unavailable = 'unavailable',
 }
 
 export type ChecksTally = { running: number; passed: number; failed: number }
@@ -16,6 +17,7 @@ export const STATE_LABEL: Record<EHeaderState, string> = {
   [EHeaderState.NeedsYou]: 'Needs you',
   [EHeaderState.Running]: 'Running',
   [EHeaderState.Idle]: 'Idle',
+  [EHeaderState.Unavailable]: 'Activity unavailable',
 }
 
 export function sandboxSettingsHrefOf(
@@ -30,10 +32,12 @@ export function headerStateOf(args: {
   failed: boolean
   working: boolean
   waitingOnOperator: boolean
+  activityUnavailable?: boolean
 }): EHeaderState {
   if (args.failed) return EHeaderState.Failed
   if (args.waitingOnOperator) return EHeaderState.NeedsYou
-  return args.working ? EHeaderState.Running : EHeaderState.Idle
+  if (args.working) return EHeaderState.Running
+  return args.activityUnavailable ? EHeaderState.Unavailable : EHeaderState.Idle
 }
 
 export function spawnerIdOf(thread: WireThread | undefined): string | undefined {

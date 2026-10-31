@@ -5,7 +5,10 @@ import type { ReactNode } from 'react'
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { SidebarMenuButton } from '@dltech/atlas-ui/components/sidebar'
 import { cn } from '@dltech/atlas-ui/lib/utils'
-import type { WireThread } from '@dltech/atlas-wire/web'
+import {
+  activityUnavailableReason,
+  type ThreadDisplay,
+} from '@/features/threads/data/thread-display'
 
 import { rowNamingOf, useThreadNaming } from './active-naming'
 import { LocalPodIcon } from '@/features/threads/thread-header'
@@ -17,7 +20,7 @@ import { isUnread, isWorking, threadStatusOf } from './thread-status'
 import { UnreadDot } from './unread-dot'
 
 export interface ThreadRowBodyProps {
-  thread: WireThread
+  thread: ThreadDisplay
   projectName: string
   active: boolean
   trailing?: ReactNode
@@ -47,7 +50,10 @@ export function ThreadRowBody({ thread, projectName, active, trailing }: ThreadR
         render={<Link href={`/threads/${encodeURIComponent(thread.id)}`} />}
         className="min-w-0 flex-1 text-sm"
       >
-        <ThreadStatusIcon status={threadStatusOf(thread)} />
+        <ThreadStatusIcon
+          status={threadStatusOf(thread)}
+          reason={activityUnavailableReason(thread)}
+        />
         <NamingTitle
           title={naming.title}
           naming={naming.naming}

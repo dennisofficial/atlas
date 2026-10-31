@@ -4,10 +4,15 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { createLocalThreadFeed } from '@/features/desktop/local-thread-feed'
-import { listLocalThreads, type LocalThread } from '@/features/desktop/local-thread-wire'
+import {
+  ELocalActivityState,
+  listLocalThreads,
+  type LocalThread,
+} from '@/features/desktop/local-thread-wire'
+import { withLocalThreads } from '@/features/desktop/local-thread'
 import { usePageVisible } from '@/lib/use-page-visible'
 
-import { loadShellEntries } from '../load-shell-entries'
+import { createLocalEntriesLoader } from '../load-shell-entries'
 import { EThreadStatus, isUnread, threadStatusOf } from '../thread-status'
 import { useLocalListSignals } from '../use-local-list-signals'
 
@@ -34,6 +39,8 @@ describe('passive native sidebar refresh', () => {
   it('refreshes host title, head, status and read cursor during a Cloud outage without waking', async () => {
     Reflect.set(window, 'atlasDesktop', {})
     let stored: LocalThread = {
+      activityState: ELocalActivityState.Available,
+      lastAssistantSeq: 17,
       threadId: 'local-1',
       projectId: null,
       title: 'Stored title',
@@ -67,15 +74,11 @@ describe('passive native sidebar refresh', () => {
         }
       },
     })
-    let loaded: Awaited<ReturnType<typeof loadShellEntries>> | undefined
+    const load = createLocalEntriesLoader({ load: listLocalThreads })
+    let loaded: ReturnType<typeof withLocalThreads> | undefined
     const reload = () => {
-      void loadShellEntries({
-        cloud: async () => {
-          throw new Error('Cloud unavailable')
-        },
-        local: listLocalThreads,
-      }).then((value) => {
-        loaded = value
+      void load().then((value) => {
+        loaded = withLocalThreads({ entries: [], threads: value.threads })
       })
     }
     function Probe() {
@@ -84,24 +87,25 @@ describe('passive native sidebar refresh', () => {
     }
     root = createRoot(document.createElement('div'))
     await act(async () => root?.render(<Probe />))
-    const first = loaded?.entries[0]?.sessions[0]?.mainThread
+    const first = loaded?.[0]?.sessions[0]?.mainThread
     expect(first).toMatchObject({ title: 'Stored title', head: 29 })
     expect(first && isUnread({ thread: first, active: false })).toBe(true)
 
     stored = {
       ...stored,
       head: 35,
+      lastAssistantSeq: 33,
       title: 'Renamed on host',
       status: { ...stored.status, working: true, podState: 'running', lastAssistantSeq: 33 },
     }
     await act(async () => tick?.())
-    const running = loaded?.entries[0]?.sessions[0]?.mainThread
+    const running = loaded?.[0]?.sessions[0]?.mainThread
     expect(running).toMatchObject({ title: 'Renamed on host', head: 35 })
     expect(running && threadStatusOf(running)).toBe(EThreadStatus.Running)
 
     stored = { ...stored, readSeq: 35, status: { ...stored.status, working: false, readSeq: 35 } }
     await act(async () => tick?.())
-    const read = loaded?.entries[0]?.sessions[0]?.mainThread
+    const read = loaded?.[0]?.sessions[0]?.mainThread
     expect(read?.status?.readSeq).toBe(35)
     expect(read && isUnread({ thread: read, active: false })).toBe(false)
     expect(read && threadStatusOf(read)).toBe(EThreadStatus.Idle)

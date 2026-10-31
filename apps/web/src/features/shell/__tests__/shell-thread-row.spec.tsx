@@ -4,6 +4,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
+import { localSummary } from '@/features/desktop/__tests__/local-thread-fixture'
+import { localThreadOf } from '@/features/desktop/local-thread'
+import { ELocalActivityState } from '@/features/desktop/local-thread-wire'
+
 import { ThreadRow } from '../shell-thread-row'
 import { ThreadActionsContext } from '../thread-actions-context'
 import { sessionOf, threadOf } from './fixtures'
@@ -38,6 +42,25 @@ const render = (activeThreadId: string | null, session = manager): string =>
   )
 
 describe('ThreadRow with teammates', () => {
+  it('keeps unavailable local rows linked, muted, accessible and independently unread', () => {
+    const { status, ...base } = localSummary
+    const thread = localThreadOf({
+      ...base,
+      activityState: ELocalActivityState.Unavailable,
+      reason: 'Activity unsupported',
+    })
+    const html = render(null, sessionOf(thread))
+    expect(html).toContain('href="/threads/brn_1"')
+    expect(html).toContain('aria-label="Activity unavailable: Activity unsupported"')
+    expect(html).toContain('<title>Activity unavailable: Activity unsupported</title>')
+    expect(html).toContain('lucide-circle-alert')
+    expect(html).toContain('size-4 shrink-0 text-muted-foreground')
+    expect(html).toContain('Unread')
+    expect(html).not.toContain('shimmer')
+    expect(html).not.toContain('animate-spin')
+    expect(html).not.toContain('text-destructive')
+  })
+
   it('collapses the folder and flags attention when nothing inside is active', () => {
     const html = render(null)
     expect(html).toContain('Show 3 teammates')

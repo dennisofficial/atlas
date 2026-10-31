@@ -1,29 +1,33 @@
 import { describe, expect, it } from 'bun:test'
 
 import { localSessionOf, localThreadOf, withLocalThreads } from '@/features/desktop/local-thread'
+import { ELocalActivityState, type LocalThread } from '@/features/desktop/local-thread-wire'
 
 import { isUnread, threadStatusOf, EThreadStatus } from '../thread-status'
 import { projectOf, sessionOf, threadOf } from './fixtures'
 
-const summary = () => ({
-  threadId: 'local-1',
-  projectId: 'p1',
-  title: 'Stored title',
-  head: 29,
-  readSeq: 5,
-  model: 'provider/model',
-  effort: 'high',
-  createdAt: '2026-10-24T10:00:00.000Z',
-  updatedAt: '2026-10-30T12:00:00.000Z',
-  status: {
-    working: false,
-    awaiting: null,
-    lastOutcome: null,
-    podState: 'parked' as const,
+const summary = () =>
+  ({
+    activityState: ELocalActivityState.Available,
     lastAssistantSeq: 17,
+    threadId: 'local-1',
+    projectId: 'p1',
+    title: 'Stored title',
+    head: 29,
     readSeq: 5,
-  },
-})
+    model: 'provider/model',
+    effort: 'high',
+    createdAt: '2026-10-24T10:00:00.000Z',
+    updatedAt: '2026-10-30T12:00:00.000Z',
+    status: {
+      working: false,
+      awaiting: null,
+      lastOutcome: null,
+      podState: 'parked' as const,
+      lastAssistantSeq: 17,
+      readSeq: 5,
+    },
+  }) satisfies LocalThread
 
 describe('local thread list projection', () => {
   it('uses the durable summary for head, title, dates, model and status', () => {
@@ -40,6 +44,7 @@ describe('local thread list projection', () => {
       workspace: null,
       repo: null,
       status: stored.status,
+      localAvailability: { activityState: 'available', lastAssistantSeq: 17, readSeq: 5 },
     })
     expect(localSessionOf(stored)).toMatchObject({
       id: 'local_local-1',
@@ -53,7 +58,11 @@ describe('local thread list projection', () => {
     expect(isUnread({ thread: localThreadOf(stored), active: false })).toBe(true)
     const read = { ...stored, readSeq: 29, status: { ...stored.status, readSeq: 29 } }
     expect(isUnread({ thread: localThreadOf(read), active: false })).toBe(false)
-    const userOnly = { ...stored, status: { ...stored.status, lastAssistantSeq: 0 } }
+    const userOnly = {
+      ...stored,
+      lastAssistantSeq: 0,
+      status: { ...stored.status, lastAssistantSeq: 0 },
+    }
     expect(isUnread({ thread: localThreadOf(userOnly), active: false })).toBe(false)
     expect(threadStatusOf(localThreadOf(stored))).toBe(EThreadStatus.Idle)
     const working = { ...stored, status: { ...stored.status, working: true } }

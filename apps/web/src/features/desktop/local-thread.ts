@@ -1,17 +1,30 @@
 import { ERunner } from '@dltech/atlas-core'
-import type { WireThread } from '@dltech/atlas-wire/web'
+import type { ThreadDisplay } from '@/features/threads/data/thread-display'
 
 import type { SessionNode as WireSessionNode } from '@/features/threads/data/threads-api'
 
-import type { LocalThread } from './local-thread-wire'
+import { ELocalActivityState, type LocalThread } from './local-thread-wire'
 
-export function localThreadOf(thread: LocalThread): WireThread {
+export function localThreadOf(thread: LocalThread): ThreadDisplay {
   return {
     id: thread.threadId,
     head: thread.head,
     createdAt: thread.createdAt,
     updatedAt: thread.updatedAt,
-    status: thread.status,
+    ...(thread.activityState === ELocalActivityState.Available ? { status: thread.status } : {}),
+    localAvailability:
+      thread.activityState === ELocalActivityState.Available
+        ? {
+            activityState: thread.activityState,
+            lastAssistantSeq: thread.lastAssistantSeq,
+            readSeq: thread.readSeq,
+          }
+        : {
+            activityState: thread.activityState,
+            lastAssistantSeq: thread.lastAssistantSeq,
+            ...(thread.readSeq === undefined ? {} : { readSeq: thread.readSeq }),
+            reason: thread.reason,
+          },
     workspace: null,
     repo: null,
     projectId: thread.projectId,

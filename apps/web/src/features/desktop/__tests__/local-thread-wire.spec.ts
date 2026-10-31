@@ -13,10 +13,12 @@ beforeAll(() => GlobalRegistrator.register())
 afterAll(() => GlobalRegistrator.unregister())
 const realFetch = globalThis.fetch
 let status: number
+let summaries: unknown[]
 let calls: { path: string; method: string; body: unknown }[]
 beforeEach(() => {
   Reflect.set(window, 'atlasDesktop', {})
   status = 200
+  summaries = [localSummary]
   calls = []
   globalThis.fetch = Object.assign(
     async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
@@ -28,7 +30,7 @@ beforeEach(() => {
       if (String(input).endsWith('/rename')) return new Response(null, { status: 204 })
       if (String(input).endsWith('/read')) return Response.json({ seq: 3 })
       return Response.json(
-        status === 200 ? { threads: [localSummary] } : { message: 'Host unavailable' },
+        status === 200 ? { threads: summaries } : { message: 'Host unavailable' },
         { status },
       )
     },
@@ -44,6 +46,22 @@ it('discovers projectless roots with authoritative head, dates and status', asyn
   expect(await listLocalThreads()).toEqual([localSummary])
   expect(await getLocalThread('brn_1')).toEqual(localSummary)
   expect(calls.map((call) => call.path)).toEqual(['/desktop/threads', '/desktop/threads'])
+})
+
+it('keeps healthy and unavailable roots in one collection with cursor knowledge intact', async () => {
+  const { status, readSeq, ...base } = localSummary
+  const unavailable = {
+    ...base,
+    threadId: 'unsupported',
+    activityState: 'unavailable',
+    reason: 'Activity unsupported',
+  }
+  summaries = [localSummary, unavailable, { ...unavailable, threadId: 'no-cursor', readSeq: null }]
+  const listed = await listLocalThreads()
+  expect(listed).toEqual(summaries)
+  expect(listed[1]).not.toHaveProperty('readSeq')
+  expect(listed[2]?.readSeq).toBeNull()
+  expect(await getLocalThread('unsupported')).toEqual(unavailable)
 })
 
 it('distinguishes genuinely absent ids from unavailable and malformed hosts', async () => {

@@ -11,17 +11,20 @@ import { holdFirstMessage } from '../first-message'
 import { localThreadBackend, NOT_CONNECTED, UNSUPPORTED_ON_MAC } from '../local-thread-backend'
 import { invalidateLocalThreadHistory } from '../local-thread-history'
 import { localEvent, localSummary } from './local-thread-fixture'
+import { ELocalActivityState, type LocalThread } from '../local-thread-wire'
 
 beforeAll(() => GlobalRegistrator.register())
 afterAll(() => GlobalRegistrator.unregister())
 const realFetch = globalThis.fetch
 let calls: string[]
 let state: string
+let summary: LocalThread
 const ticket = { url: 'ws://127.0.0.1:1/', token: 't', expiresAt: '2026-10-29T10:00:00.000Z' }
 
 beforeEach(() => {
   calls = []
   state = 'running'
+  summary = localSummary
   Reflect.set(window, 'atlasDesktop', {})
   invalidateLocalThreadHistory()
   resetDesktopCapabilities()
@@ -31,11 +34,12 @@ beforeEach(() => {
       const call = `${init?.method ?? 'GET'} ${path}`
       calls.push(call)
       const pod = { threadId: 'brn_1', projectId: 'p1', createdAt: localSummary.createdAt, state }
-      if (path === '/desktop/threads') return Response.json({ threads: [localSummary] })
+      if (path === '/desktop/threads') return Response.json({ threads: [summary] })
       if (path.includes('/events?'))
         return Response.json({ events: [localEvent(3)], head: 3, nextAfter: null })
       if (path.endsWith('/status'))
         return Response.json({ state: state === 'running' ? 'running' : 'parked', steps: [] })
+      if (path.endsWith('/read')) return Response.json({ seq: 3 })
       if (path.endsWith('/connect')) return Response.json(ticket)
       if (path.endsWith('/wake')) return Response.json({ ...pod, state: 'running' })
       return Response.json(pod)
@@ -75,6 +79,34 @@ describe('localThreadBackend', () => {
     })
     expect((await localThreadBackend.fetchPod('brn_1')).state).toBe(EPodState.Parked)
     expect(calls).toEqual(['GET /desktop/threads', 'GET /desktop/pods/brn_1/status'])
+  })
+
+  it('does not block local history, cursor, rename or explicit wake for unavailable activity', async () => {
+    const { status, readSeq, ...base } = localSummary
+    summary = {
+      ...base,
+      activityState: ELocalActivityState.Unavailable,
+      reason: 'Activity unsupported',
+    }
+    state = 'stopped'
+    const thread = await localThreadBackend.fetchThread('brn_1')
+    expect(thread).not.toHaveProperty('status')
+    expect(thread.localAvailability).not.toHaveProperty('readSeq')
+    expect(thread.localAvailability).toMatchObject({ reason: 'Activity unsupported' })
+    expect(await localThreadBackend.fetchSeed('brn_1')).toEqual([localEvent(3)])
+    expect(calls).toEqual([
+      'GET /desktop/threads',
+      'GET /desktop/threads/brn_1/events?after=0&limit=500',
+    ])
+    expect(await localThreadBackend.markRead({ threadId: 'brn_1', seq: 3 })).toEqual({ seq: 3 })
+    await localThreadBackend.rename?.({ threadId: 'brn_1', title: 'Renamed' })
+    expect((await localThreadBackend.wake?.('brn_1'))?.outcome).toBe(EPodConnectOutcome.Ready)
+    expect(calls.slice(-4)).toEqual([
+      'POST /desktop/threads/brn_1/read',
+      'POST /desktop/threads/brn_1/rename',
+      'POST /desktop/pods/brn_1/wake',
+      'POST /desktop/pods/brn_1/connect',
+    ])
   })
 
   it('shares concurrent full seeds from the shared home without retaining a completed read', async () => {

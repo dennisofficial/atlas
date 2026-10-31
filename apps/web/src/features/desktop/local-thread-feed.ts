@@ -13,6 +13,12 @@ import { listLocalThreads, type LocalThread } from './local-thread-wire'
 
 const POLL_INTERVAL_MS = 1000
 
+type MetadataListener = {
+  threadId: string
+  listener: (thread: LocalThread) => void
+  signature?: string
+}
+
 type Stream = {
   threadId: string
   handlers: ThreadStreamHandlers
@@ -25,15 +31,42 @@ export function createLocalThreadFeed(args: { schedule?: Schedule } = {}) {
   const schedule = args.schedule ?? timeoutSchedule
   const listeners = new Set<{ listener: () => void; signature?: string }>()
   const streams = new Set<Stream>()
+  const metadataListeners = new Set<MetadataListener>()
+  const readingPods = new Set<string>()
   let running = false
   let cancel: (() => void) | undefined
-  const active = () => listeners.size > 0 || streams.size > 0
+  const active = () => listeners.size > 0 || streams.size > 0 || metadataListeners.size > 0
+
+  const refreshPods = (recipients: readonly Stream[]) => {
+    const threadIds = new Set(
+      recipients.filter((stream) => streams.has(stream)).map((stream) => stream.threadId),
+    )
+    for (const threadId of threadIds) {
+      if (readingPods.has(threadId)) continue
+      const recipientsForThread = recipients.filter((stream) => stream.threadId === threadId)
+      readingPods.add(threadId)
+      void fetchLocalPodStatus(threadId)
+        .then((pod) => {
+          const signature = JSON.stringify(pod)
+          for (const stream of recipientsForThread) {
+            if (!streams.has(stream) || stream.pod === signature) continue
+            stream.pod = signature
+            stream.handlers.onData({ type: EThreadStreamFrame.Pod, status: pod })
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          readingPods.delete(threadId)
+        })
+    }
+  }
 
   const poll = async () => {
     if (running || !active()) return
     running = true
     const recipients = [...streams]
     const listRecipients = [...listeners]
+    const metadataRecipients = [...metadataListeners]
     try {
       const threads = await listLocalThreads()
       const signature = JSON.stringify(threads)
@@ -42,19 +75,15 @@ export function createLocalThreadFeed(args: { schedule?: Schedule } = {}) {
         recipient.signature = signature
         recipient.listener()
       }
-      const threadIds = [
-        ...new Set(
-          recipients.filter((stream) => streams.has(stream)).map((stream) => stream.threadId),
-        ),
-      ]
-      const results = await Promise.allSettled(
-        threadIds.map(async (threadId) => [threadId, await fetchLocalPodStatus(threadId)] as const),
-      )
-      const rejected = results.find((result) => result.status === 'rejected')
-      if (rejected?.status === 'rejected') throw rejected.reason
-      const pods = new Map(
-        results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : [])),
-      )
+      for (const recipient of metadataRecipients) {
+        if (!metadataListeners.has(recipient)) continue
+        const thread = threads.find((item) => item.threadId === recipient.threadId)
+        if (thread === undefined) continue
+        const signature = JSON.stringify(thread)
+        if (recipient.signature === signature) continue
+        recipient.signature = signature
+        recipient.listener(thread)
+      }
       for (const stream of recipients) {
         if (!streams.has(stream)) continue
         const thread = threads.find((item) => item.threadId === stream.threadId)
@@ -70,14 +99,9 @@ export function createLocalThreadFeed(args: { schedule?: Schedule } = {}) {
         if (thread !== undefined && thread.title !== stream.thread?.title) {
           stream.handlers.onData({ type: EThreadStreamFrame.Title })
         }
-        const pod = pods.get(stream.threadId)
-        const podSignature = JSON.stringify(pod)
-        if (streams.has(stream) && pod !== undefined && podSignature !== stream.pod) {
-          stream.handlers.onData({ type: EThreadStreamFrame.Pod, status: pod })
-        }
         stream.thread = thread
-        stream.pod = podSignature
       }
+      refreshPods(recipients)
     } catch (failure) {
       for (const stream of recipients) if (streams.has(stream)) stream.handlers.onError(failure)
       for (const recipient of listRecipients) {
@@ -130,9 +154,23 @@ export function createLocalThreadFeed(args: { schedule?: Schedule } = {}) {
       },
     }
   }
-  return { subscribeChanges, subscribeStream }
+  const subscribeMetadata = (args: {
+    threadId: string
+    listener: (thread: LocalThread) => void
+  }): (() => void) => {
+    if (!hasDesktopHost()) return () => undefined
+    const recipient: MetadataListener = { ...args }
+    metadataListeners.add(recipient)
+    start()
+    return () => {
+      metadataListeners.delete(recipient)
+      stopIfIdle()
+    }
+  }
+  return { subscribeChanges, subscribeStream, subscribeMetadata }
 }
 
 const localThreadFeed = createLocalThreadFeed()
 export const subscribeLocalThreadChanges = localThreadFeed.subscribeChanges
 export const subscribeLocalThreadStream = localThreadFeed.subscribeStream
+export const subscribeLocalThreadMetadata = localThreadFeed.subscribeMetadata

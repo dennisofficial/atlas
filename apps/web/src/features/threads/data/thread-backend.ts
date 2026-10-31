@@ -19,12 +19,13 @@ import {
   takeBackMessage,
 } from './threads-api'
 
-type CloudThread = Awaited<ReturnType<typeof fetchThread>>
+import type { ThreadDisplay } from './thread-display'
+
 type SpawnedThreads = Awaited<ReturnType<typeof fetchSpawned>>
 
 export type ThreadBackend = {
   local: boolean
-  fetchThread: (threadId: string) => Promise<CloudThread>
+  fetchThread: (threadId: string) => Promise<ThreadDisplay>
   fetchPod: (threadId: string) => Promise<PodStatus>
   fetchEvents: EventsFetcher
   fetchSeed: (threadId: string) => Promise<WireEvent[]>

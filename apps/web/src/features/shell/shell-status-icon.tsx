@@ -19,6 +19,11 @@ interface StatusPresentation {
 }
 
 const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
+  [EThreadStatus.Unavailable]: {
+    label: 'Activity unavailable',
+    className: 'text-muted-foreground',
+    Icon: CircleAlert,
+  },
   [EThreadStatus.Running]: {
     label: 'Running',
     className: 'animate-spin text-foreground',
@@ -64,10 +69,17 @@ const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
 export function ThreadStatusIcon({
   status,
   className,
+  reason,
 }: {
   status: EThreadStatus
   className?: string
+  reason?: string | undefined
 }) {
   const { label, className: tone, Icon } = PRESENTATION[status]
-  return <Icon role="img" aria-label={label} className={cn('size-4 shrink-0', tone, className)} />
+  const description = reason === undefined ? label : `${label}: ${reason}`
+  return (
+    <Icon role="img" aria-label={description} className={cn('size-4 shrink-0', tone, className)}>
+      {reason === undefined ? null : <title>{description}</title>}
+    </Icon>
+  )
 }

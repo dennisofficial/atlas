@@ -1,4 +1,4 @@
-import type { WireThread } from '@dltech/atlas-wire/web'
+import { ELocalActivityState, type ThreadDisplay } from '@/features/threads/data/thread-display'
 
 export enum EThreadStatus {
   Awaiting = 'awaiting',
@@ -9,12 +9,13 @@ export enum EThreadStatus {
   PrOpen = 'pr-open',
   PrClosed = 'pr-closed',
   Idle = 'idle',
+  Unavailable = 'unavailable',
 }
 
 const MERGED = 'merged'
 const CLOSED = 'closed'
 
-function pullRequestStatusOf(thread: WireThread): EThreadStatus {
+function pullRequestStatusOf(thread: ThreadDisplay): EThreadStatus {
   const pullRequests = (thread.pullRequests ?? []).filter(
     (pullRequest) => pullRequest.via === undefined,
   )
@@ -30,7 +31,10 @@ function pullRequestStatusOf(thread: WireThread): EThreadStatus {
   return EThreadStatus.Idle
 }
 
-export function threadStatusOf(thread: WireThread): EThreadStatus {
+export function threadStatusOf(thread: ThreadDisplay): EThreadStatus {
+  if (thread.localAvailability?.activityState === ELocalActivityState.Unavailable) {
+    return EThreadStatus.Unavailable
+  }
   const status = thread.status
   if (status !== undefined) {
     if (status.awaiting !== null) return EThreadStatus.Awaiting
@@ -43,11 +47,24 @@ export function threadStatusOf(thread: WireThread): EThreadStatus {
   return pullRequestStatusOf(thread)
 }
 
-export function isWorking(thread: WireThread): boolean {
+export function isWorking(thread: ThreadDisplay): boolean {
+  if (thread.localAvailability?.activityState === ELocalActivityState.Unavailable) return false
   return thread.status?.working === true
 }
 
-export function isUnread(args: { thread: WireThread; active: boolean }): boolean {
+export function isUnread(args: { thread: ThreadDisplay; active: boolean }): boolean {
+  const local = args.thread.localAvailability
+  if (local !== undefined) {
+    if (args.active || local.lastAssistantSeq === null || local.lastAssistantSeq <= 0) return false
+    if (!('readSeq' in local) || local.readSeq === undefined) return false
+    if (
+      local.activityState === ELocalActivityState.Available &&
+      args.thread.status?.working &&
+      args.thread.status.awaiting === null
+    )
+      return false
+    return local.lastAssistantSeq > (local.readSeq ?? -1)
+  }
   const status = args.thread.status
   if (args.active || status === undefined) return false
   if (status.lastAssistantSeq <= 0) return false
