@@ -79,6 +79,7 @@ export const harness = (options?: {
           fake.sent.push(frame)
         },
         close: () => void (fake.closed = true),
+        isOpen: () => !fake.closed,
       }
     },
   })

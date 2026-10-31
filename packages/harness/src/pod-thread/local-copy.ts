@@ -97,8 +97,6 @@ export function startPodLocalCopy(args: {
       homeThreads.find({ threadId }),
     ])
     if (stopped || pod === undefined || held === undefined) return
-    if (pod.title !== undefined && pod.title !== held.title)
-      await homeThreads.rename({ threadId, title: pod.title })
     if (pod.model !== undefined && !sameModel({ held: held.model, pod: pod.model }))
       await homeThreads.chooseModel({ threadId, model: pod.model })
   }
