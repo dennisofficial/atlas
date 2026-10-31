@@ -21,6 +21,7 @@ import {
   InputGroupTextarea,
 } from '#components/input-group'
 import { Spinner } from '#components/spinner'
+import { useIsMobile } from '#hooks/use-mobile'
 
 import { type PromptAttachment, PromptAttachmentChip } from './prompt-attachment-chip'
 
@@ -110,6 +111,7 @@ export function PromptInput({
   textareaAria,
   children,
 }: PromptInputProps) {
+  const isMobile = useIsMobile()
   const [draft, setDraft] = useState(defaultValue)
   const formRef = useRef<HTMLFormElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -209,7 +211,7 @@ export function PromptInput({
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          autoCorrect="off"
+          autoCorrect={isMobile ? 'on' : 'off'}
           readOnly={sending}
           aria-busy={sending}
           className={sending ? 'text-muted-foreground' : undefined}

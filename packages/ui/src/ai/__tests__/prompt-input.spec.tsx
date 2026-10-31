@@ -24,7 +24,7 @@ describe('PromptInput', () => {
     expect(html).not.toContain('aria-label="Send"')
   })
 
-  it('turns off autocorrect but keeps spellcheck so acronyms survive', () => {
+  it('defaults to autocorrect off during server rendering without disabling spellcheck', () => {
     const field = renderToStaticMarkup(<PromptInput />).match(/<textarea[^>]*>/)?.[0] ?? ''
 
     expect(field).not.toContain('spellCheck="false"')
