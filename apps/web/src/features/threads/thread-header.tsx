@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronRightIcon, LaptopIcon, PanelRightIcon, PlusIcon } from 'lucide-react'
+import { ChevronRightIcon, LaptopIcon, PanelRightIcon } from 'lucide-react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -102,16 +102,6 @@ export function ThreadHeader(props: ThreadHeaderProps) {
           onClick={onOpenPanel}
         >
           <PanelRightIcon />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label="New thread"
-          nativeButton={false}
-          render={<Link href="/threads/new" />}
-        >
-          <PlusIcon />
-          <span className="hidden sm:inline">New thread</span>
         </Button>
       </div>
     </header>
