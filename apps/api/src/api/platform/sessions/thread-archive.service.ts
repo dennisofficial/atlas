@@ -28,7 +28,7 @@ export class ThreadArchiveService {
     const archivedAt = archived ? new Date() : null
     const session = await sessionOfThread({ reader: db, threadId })
     await db.orm.public.Session.where({ id: session.id }).update({ archivedAt })
-    await this.signals.listChanged({ userId, threadId })
+    this.signals.threadChanged({ threadId })
     if (archivedAt === null) return
     await this.dispatchCleanup({ threadId, archivedAt: archivedAt.toISOString() })
   }

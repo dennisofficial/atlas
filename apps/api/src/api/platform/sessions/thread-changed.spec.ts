@@ -146,10 +146,9 @@ describe('threadChanged', () => {
     expect(other).toEqual([])
   })
 
-  it('is reached by headMoved, listChanged, podChanged, chooseModel and adopt', async () => {
+  it('is reached by headMoved, podChanged, chooseModel and adopt', async () => {
     const { signals, seen } = watching()
     await signals.headMoved({ threadId: 'thr-1', head: 1 })
-    await signals.listChanged({ userId: USER_A, threadId: 'thr-1' })
     await signals.podChanged({ threadId: 'thr-1' })
     await signals.changesSettled()
     const service = new ThreadsService(signals)

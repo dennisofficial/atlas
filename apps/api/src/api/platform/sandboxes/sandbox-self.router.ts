@@ -141,6 +141,6 @@ export class SandboxSelfRouter {
       threadId: requested,
     })
     const applied = await applyThreadActivity({ threadId, activity })
-    if (applied !== null) await this.signals.listChangedForOwner({ threadId, activity: applied })
+    if (applied !== null) this.signals.threadChanged({ threadId })
   }
 }

@@ -88,7 +88,7 @@ export async function applyPodEvents(args: {
     }
   })
   if (appended !== undefined) await args.signals.eventsAppended({ threadId, ...appended })
-  if (assistantMoved) await args.signals.listChangedForOwner({ threadId })
+  if (assistantMoved) args.signals.threadChanged({ threadId })
   return { head, assistantMoved }
 }
 
@@ -121,6 +121,6 @@ export async function truncatePodEvents(args: {
     }
   })
   if (historyRev !== undefined) await args.signals.eventsReset({ threadId, head, historyRev })
-  if (assistantMoved) await args.signals.listChangedForOwner({ threadId })
+  if (assistantMoved) args.signals.threadChanged({ threadId })
   return { head, assistantMoved }
 }

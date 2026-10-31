@@ -41,15 +41,14 @@ describe('ThreadMessagesService signals', () => {
     expect(frames).toContainEqual(pod)
   })
 
-  it('a send to an archived thread unarchives it and signals the list', async () => {
+  it('a send to an archived thread unarchives it and signals the thread change', async () => {
     await db.orm.public.Session.where({ id: 'ses_thr-1' }).update({ archivedAt: new Date() })
-    const { signals, listFramesOf } = recordingSignals()
-    const listFrames = listFramesOf('usr-1')
+    const { signals, changedThreads } = recordingSignals()
 
     await messagesWith({ signals }).service.send(ARGS)
 
     expect((await sessionRow())?.archivedAt).toBeNull()
-    expect(listFrames.length).toBeGreaterThan(0)
+    expect(changedThreads).toContain('thr-1')
   })
 
   it('a live send to an archived thread unarchives it too', async () => {

@@ -1,4 +1,3 @@
-import { EThreadListFrame } from '@dltech/atlas-wire'
 import { EThreadStreamFrame, type ThreadStreamFrame } from '@dltech/atlas-wire'
 import { describe, expect, it } from 'bun:test'
 import { DrainStateService } from '../health/drain-state.service'
@@ -165,34 +164,5 @@ describe('ThreadSignalsService', () => {
     await signals.headMoved({ threadId: 'thr_1', head: 2 })
 
     expect(seen).toEqual([HEAD(2)])
-  })
-})
-
-describe('ThreadSignalsService list streams', () => {
-  it('delivers a list signal to its user only, over the one bus subscription', async () => {
-    const bus = new FakeBus()
-    const signals = new ThreadSignalsService(new DrainStateService(), bus)
-    const a: unknown[] = []
-    const b: unknown[] = []
-    signals.openListStream({ userId: 'usr_a', onFrame: (frame) => a.push(frame) })
-    signals.openListStream({ userId: 'usr_b', onFrame: (frame) => b.push(frame) })
-    signals.openStream({ threadId: 'thr_1', onFrame: () => {} })
-
-    await signals.listChanged({ userId: 'usr_a', threadId: 'thr_1' })
-    bus.receive(JSON.stringify(bus.published[0]))
-
-    expect(bus.subscriptions).toHaveLength(1)
-    expect(a).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr_1' }])
-    expect(b).toEqual([])
-  })
-
-  it('closes list streams on closeAll', () => {
-    const signals = new ThreadSignalsService(new DrainStateService())
-    let closed = 0
-    signals.openListStream({ userId: 'usr_a', onFrame: () => {}, onClosed: () => (closed += 1) })
-
-    signals.closeAll()
-
-    expect(closed).toBe(1)
   })
 })
