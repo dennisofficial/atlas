@@ -14,45 +14,85 @@ export type ApiPrStatesSubscribe = (handlers: {
   onComplete: () => void
 }) => { unsubscribe: () => void }
 
-export function subscribeApiPrStates(args: {
-  subscribe: ApiPrStatesSubscribe
-  onStates: (states: readonly PrStateWire[]) => void
-}): () => void {
+type StatesListener = (states: readonly PrStateWire[]) => void
+type PrStatesSource = ReturnType<typeof createSource>
+
+const sources = new WeakMap<ApiPrStatesSubscribe, PrStatesSource>()
+
+function createSource(subscribe: ApiPrStatesSubscribe) {
   const byKey = new Map<string, PrStateWire>()
+  const listeners = new Set<StatesListener>()
+  let states: readonly PrStateWire[] = []
   let stopped = false
+  let generation = 0
   let failures = 0
   let current: { unsubscribe: () => void } | undefined
   let retry: ReturnType<typeof setTimeout> | undefined
 
-  const handleData = (frame: GithubPrStatesFrame) => {
-    failures = 0
-    if (frame.type !== EGithubPrStatesFrame.PrState) return
-    const state = prStateWireOfApi(frame.state)
-    if (state === undefined) return
-    byKey.set(pullRequestKeyOf(state), state)
-    args.onStates([...byKey.values()])
-  }
-
   const open = () => {
     if (stopped) return
-    current = args.subscribe({
-      onData: handleData,
-      onError: handleEnded,
-      onComplete: handleEnded,
-    })
+    generation += 1
+    const mine = generation
+    const isCurrent = () => !stopped && mine === generation
+
+    const handleEnded = () => {
+      if (!isCurrent()) return
+      generation += 1
+      current?.unsubscribe()
+      current = undefined
+      failures += 1
+      retry = setTimeout(open, reconnectDelayMs(failures))
+    }
+
+    const handleData = (frame: GithubPrStatesFrame) => {
+      if (!isCurrent()) return
+      failures = 0
+      if (frame.type !== EGithubPrStatesFrame.PrState) return
+      const state = prStateWireOfApi(frame.state)
+      if (state === undefined) return
+      byKey.set(pullRequestKeyOf(state), state)
+      states = [...byKey.values()]
+      for (const listener of listeners) listener(states)
+    }
+
+    try {
+      const subscription = subscribe({
+        onData: handleData,
+        onError: handleEnded,
+        onComplete: handleEnded,
+      })
+      if (isCurrent()) current = subscription
+      else subscription.unsubscribe()
+    } catch {
+      handleEnded()
+    }
   }
 
-  function handleEnded() {
-    if (stopped) return
-    current?.unsubscribe()
-    failures += 1
-    retry = setTimeout(open, reconnectDelayMs(failures))
+  return {
+    add: (listener: StatesListener) => {
+      listeners.add(listener)
+      if (states.length > 0) listener(states)
+      if (listeners.size === 1) open()
+      return () => {
+        if (!listeners.delete(listener) || listeners.size > 0) return
+        stopped = true
+        generation += 1
+        clearTimeout(retry)
+        current?.unsubscribe()
+        sources.delete(subscribe)
+      }
+    },
   }
+}
 
-  open()
-  return () => {
-    stopped = true
-    clearTimeout(retry)
-    current?.unsubscribe()
+export function subscribeApiPrStates(args: {
+  subscribe: ApiPrStatesSubscribe
+  onStates: StatesListener
+}): () => void {
+  let source = sources.get(args.subscribe)
+  if (source === undefined) {
+    source = createSource(args.subscribe)
+    sources.set(args.subscribe, source)
   }
+  return source.add((states) => args.onStates(states))
 }

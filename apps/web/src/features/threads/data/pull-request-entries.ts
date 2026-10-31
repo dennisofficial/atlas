@@ -1,4 +1,4 @@
-import type { PrStateWire, WireThread } from '@dltech/atlas-wire/web'
+import { GITHUB_REPO_PATTERN, type PrStateWire, type WireThread } from '@dltech/atlas-wire/web'
 
 export type PullRequestEntry = {
   repo: string
@@ -6,6 +6,7 @@ export type PullRequestEntry = {
   url: string
   branch: string
   state: string | undefined
+  title?: string | undefined
   checksRunning: number | undefined
   checksPassed: number | undefined
   checksFailed: number | undefined
@@ -14,12 +15,30 @@ export type PullRequestEntry = {
   via: { threadId: string; title: string | null } | undefined
 }
 
-const GITHUB_HOST_PREFIX = /^github\.com\//i
-
-const repoIdentityOf = (repo: string): string => repo.replace(GITHUB_HOST_PREFIX, '').toLowerCase()
+function repoIdentityOf(repo: string): string | undefined {
+  let path = repo.trim()
+  if (path.includes('://')) {
+    try {
+      const url = new URL(path)
+      if (
+        url.hostname.toLowerCase() !== 'github.com' ||
+        !['https:', 'http:', 'ssh:', 'git:'].includes(url.protocol)
+      ) {
+        return undefined
+      }
+      path = url.pathname.replace(/^\//, '')
+    } catch {
+      return undefined
+    }
+  } else {
+    path = path.replace(/^(?:github\.com\/|git@github\.com:)/i, '')
+  }
+  path = path.replace(/\/+$/, '').replace(/\.git$/i, '')
+  return GITHUB_REPO_PATTERN.test(path) ? path.toLowerCase() : undefined
+}
 
 export const pullRequestKeyOf = (pullRequest: { repo: string; number: number }): string =>
-  `${repoIdentityOf(pullRequest.repo)}#${pullRequest.number}`
+  `${repoIdentityOf(pullRequest.repo) ?? pullRequest.repo.toLowerCase()}#${pullRequest.number}`
 
 function entryOf(args: {
   repo: string
@@ -27,6 +46,11 @@ function entryOf(args: {
   url: string
   branch: string
   state?: string | undefined
+  title?: string | undefined
+  checksRunning?: number | undefined
+  checksPassed?: number | undefined
+  checksFailed?: number | undefined
+  mergeable?: boolean | null | undefined
   via?: { threadId: string; title: string | null } | undefined
   live: PrStateWire | undefined
   currentBranch: string | undefined
@@ -38,10 +62,11 @@ function entryOf(args: {
     url: live?.url ?? args.url,
     branch,
     state: live?.state ?? args.state,
-    checksRunning: live?.checksRunning,
-    checksPassed: live?.checksPassed,
-    checksFailed: live?.checksFailed,
-    mergeable: live?.mergeable,
+    title: live?.title ?? args.title,
+    checksRunning: live?.checksRunning ?? args.checksRunning,
+    checksPassed: live?.checksPassed ?? args.checksPassed,
+    checksFailed: live?.checksFailed ?? args.checksFailed,
+    mergeable: live === undefined ? args.mergeable : live.mergeable,
     current: currentBranch !== undefined && branch === currentBranch,
     via: args.via,
   }
@@ -64,11 +89,22 @@ export function pullRequestEntriesOf(args: {
   )
   if (currentBranch === undefined) return linked
 
+  const discoveryRepos =
+    thread.repo === null || thread.repo === undefined
+      ? linked.filter((pr) => pr.via === undefined).map((pr) => repoIdentityOf(pr.repo))
+      : [repoIdentityOf(thread.repo)]
+  const knownRepos = new Set(discoveryRepos.filter((repo) => repo !== undefined))
   const linkedIdentities = new Set(linked.map(pullRequestKeyOf))
   const unlinked = states
-    .filter(
-      (state) => state.branch === currentBranch && !linkedIdentities.has(pullRequestKeyOf(state)),
-    )
+    .filter((state) => {
+      const repo = repoIdentityOf(state.repo)
+      return (
+        repo !== undefined &&
+        knownRepos.has(repo) &&
+        state.branch === currentBranch &&
+        !linkedIdentities.has(pullRequestKeyOf(state))
+      )
+    })
     .map((state) => entryOf({ ...state, live: state, currentBranch }))
   return [...linked, ...unlinked]
 }

@@ -24,6 +24,11 @@ export const wireThreadSchema = z.object({
         repo: z.string(),
         branch: z.string(),
         state: z.string().optional(),
+        title: z.string().optional(),
+        checksRunning: z.number().int().nonnegative().optional(),
+        checksPassed: z.number().int().nonnegative().optional(),
+        checksFailed: z.number().int().nonnegative().optional(),
+        mergeable: z.boolean().nullable().optional(),
         via: z.object({ threadId: z.string(), title: z.string().nullable() }).optional(),
       }),
     )

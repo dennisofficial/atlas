@@ -16,16 +16,28 @@ export async function withPullRequestStates(
   const numbers = [...new Set(linked.map((pr) => pr.number))]
   const rows = await db.orm.public.GithubPrState.where((pr) => pr.repoFullName.in(repos))
     .where((pr) => pr.prNumber.in(numbers))
-    .select('repoFullName', 'prNumber', 'state')
+    .select(
+      'repoFullName',
+      'prNumber',
+      'state',
+      'title',
+      'checksRunning',
+      'checksPassed',
+      'checksFailed',
+      'mergeable',
+    )
     .all()
-  const stateByKey = new Map(
-    rows.map((row) => [keyOf({ repo: row.repoFullName, number: row.prNumber }), row.state]),
+  const metadataByKey = new Map(
+    rows.map(({ repoFullName, prNumber, ...metadata }) => [
+      keyOf({ repo: repoFullName, number: prNumber }),
+      metadata,
+    ]),
   )
 
   return groups.map((group) =>
     group.map((pr) => {
-      const state = stateByKey.get(keyOf(pr))
-      return state === undefined ? pr : { ...pr, state }
+      const metadata = metadataByKey.get(keyOf(pr))
+      return metadata === undefined ? pr : { ...pr, ...metadata }
     }),
   )
 }

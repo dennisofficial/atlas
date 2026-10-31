@@ -1,6 +1,7 @@
 import {
   Circle,
   CircleAlert,
+  CircleDashed,
   CircleX,
   GitMerge,
   GitPullRequest,
@@ -20,14 +21,19 @@ interface StatusPresentation {
 
 const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
   [EThreadStatus.Running]: {
-    label: 'Running',
-    className: 'animate-spin text-foreground',
+    label: 'Working',
+    className: 'animate-spin motion-reduce:animate-none text-primary',
     Icon: LoaderCircle,
   },
   [EThreadStatus.Idle]: {
     label: 'Idle',
-    className: 'text-muted-foreground',
+    className: 'text-foreground',
     Icon: Circle,
+  },
+  [EThreadStatus.Parked]: {
+    label: 'Parked',
+    className: 'text-muted-foreground/60',
+    Icon: CircleDashed,
   },
   [EThreadStatus.Awaiting]: {
     label: 'Waiting for you',
@@ -46,8 +52,8 @@ const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
   },
   [EThreadStatus.Starting]: {
     label: 'Starting pod',
-    className: 'animate-spin text-muted-foreground',
-    Icon: LoaderCircle,
+    className: 'animate-spin motion-reduce:animate-none text-muted-foreground',
+    Icon: CircleDashed,
   },
   [EThreadStatus.Failed]: {
     label: 'Failed',

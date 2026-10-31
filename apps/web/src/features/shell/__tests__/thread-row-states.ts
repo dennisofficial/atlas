@@ -98,21 +98,27 @@ export const THREAD_ROW_STATES: ThreadRowState[] = [
   row({
     id: 'merged',
     title: 'Shipped the fix',
-    expected: EThreadStatus.PrMerged,
+    expected: EThreadStatus.Idle,
     pullRequests: [pr(1, 'merged')],
   }),
   row({
     id: 'open',
     title: 'Review requested',
-    expected: EThreadStatus.PrOpen,
+    expected: EThreadStatus.Idle,
     unread: true,
     pullRequests: [pr(2, 'open')],
   }),
   row({
     id: 'closed',
     title: 'Abandoned approach',
-    expected: EThreadStatus.PrClosed,
+    expected: EThreadStatus.Idle,
     pullRequests: [pr(3, 'closed')],
+  }),
+  row({
+    id: 'parked',
+    title: 'Sleeping pod',
+    expected: EThreadStatus.Parked,
+    status: { podState: 'parked' },
   }),
   row({ id: 'idle', title: 'Quiet thread', expected: EThreadStatus.Idle }),
   row({

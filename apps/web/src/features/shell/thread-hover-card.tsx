@@ -1,71 +1,122 @@
-import { Folder } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Info } from 'lucide-react'
+import { useId, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from 'react'
 
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
 } from '@dltech/atlas-ui/components/hover-card'
-import { Separator } from '@dltech/atlas-ui/components/separator'
-import type { WireThread } from '@dltech/atlas-wire/web'
-
-import { relativeTime } from '@/features/settings/data/personal/relative-time'
-import { UNTITLED } from '@/features/threads/data/untitled'
-
-function DetailRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 text-xs">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="flex min-w-0 items-center gap-1.5 text-foreground">{children}</span>
-    </div>
-  )
-}
-
-function ThreadHoverCardBody({ thread, projectName }: { thread: WireThread; projectName: string }) {
-  return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex flex-col gap-0.5">
-        <p className="text-sm leading-snug font-medium text-pretty">{thread.title ?? UNTITLED}</p>
-        <p className="text-xs text-muted-foreground">
-          Created {relativeTime({ from: thread.createdAt })}, updated{' '}
-          {relativeTime({ from: thread.updatedAt })}
-        </p>
-      </div>
-      <Separator />
-      <div className="flex flex-col gap-1.5">
-        {thread.model === undefined ? null : (
-          <DetailRow label="Model">
-            <span className="truncate">{thread.model.ref}</span>
-          </DetailRow>
-        )}
-        <DetailRow label="Project">
-          <Folder className="size-3.5 text-muted-foreground" />
-          <span className="truncate">{projectName}</span>
-        </DetailRow>
-      </div>
-    </div>
-  )
-}
+import {
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@dltech/atlas-ui/components/popover'
+import { cn } from '@dltech/atlas-ui/lib/utils'
+import { ThreadDetails, type ThreadDetailsProps } from './thread-details'
 
 export function ThreadHoverCard({
-  thread,
-  projectName,
   className,
   children,
-}: {
-  thread: WireThread
-  projectName: string
+  actions,
+  hasDisclosure = false,
+  ...details
+}: ThreadDetailsProps & {
   className?: string
   children: ReactNode
+  actions?: ReactNode
+  hasDisclosure?: boolean
 }) {
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const previewDismissed = useRef(false)
+  const detailsButton = useRef<HTMLButtonElement>(null)
+  const detailsId = useId()
+  const handlePreviewChange = (next: boolean) => {
+    if (next && (detailsOpen || previewDismissed.current)) return
+    setPreviewOpen(next)
+  }
+  const handleDetailsChange = (next: boolean) => {
+    previewDismissed.current = true
+    setPreviewOpen(false)
+    setDetailsOpen(next)
+  }
+  const handleFocus = (event: FocusEvent) => {
+    if (detailsOpen || event.target === detailsButton.current) return
+    previewDismissed.current = false
+    setPreviewOpen(true)
+  }
+  const handleMouseLeave = () => {
+    previewDismissed.current = false
+  }
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape') return
+    previewDismissed.current = true
+    setPreviewOpen(false)
+    event.stopPropagation()
+  }
   return (
-    <HoverCard>
-      <HoverCardTrigger delay={350} closeDelay={100} render={<div className={className} />}>
-        {children}
-      </HoverCardTrigger>
-      <HoverCardContent side="right" align="start" sideOffset={8} alignOffset={-6} className="w-72">
-        <ThreadHoverCardBody thread={thread} projectName={projectName} />
-      </HoverCardContent>
-    </HoverCard>
+    <Popover open={detailsOpen} onOpenChange={handleDetailsChange}>
+      <HoverCard open={previewOpen && !detailsOpen} onOpenChange={handlePreviewChange}>
+        <HoverCardTrigger
+          delay={350}
+          closeDelay={100}
+          render={
+            <fieldset
+              aria-label={details.thread.title ?? 'Thread'}
+              className={className}
+              onFocus={handleFocus}
+              onMouseLeave={handleMouseLeave}
+              onKeyDown={handleKeyDown}
+            />
+          }
+        >
+          {children}
+          <div
+            className={cn(
+              'absolute top-1 flex items-center opacity-0 pointer-events-none group-hover/thread:opacity-100 group-hover/thread:pointer-events-auto group-focus-within/thread:opacity-100 group-focus-within/thread:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto group-data-[collapsible=icon]:hidden',
+              hasDisclosure ? 'right-10' : 'right-1',
+            )}
+          >
+            {actions}
+            <PopoverTrigger
+              ref={detailsButton}
+              aria-label="Thread details"
+              aria-controls={detailsId}
+              render={
+                <button
+                  type="button"
+                  className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-hidden hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                />
+              }
+            >
+              <Info className="size-3.5" />
+            </PopoverTrigger>
+          </div>
+        </HoverCardTrigger>
+        <HoverCardContent
+          side="right"
+          align="start"
+          sideOffset={8}
+          alignOffset={-6}
+          className="w-80 max-w-full"
+        >
+          <ThreadDetails {...details} />
+        </HoverCardContent>
+      </HoverCard>
+      <PopoverContent
+        id={detailsId}
+        side="right"
+        align="start"
+        sideOffset={8}
+        alignOffset={-6}
+        finalFocus={detailsButton}
+        className="w-80 max-w-full"
+        aria-label="Thread details"
+      >
+        <PopoverTitle className="sr-only">Thread details</PopoverTitle>
+        <ThreadDetails {...details} />
+      </PopoverContent>
+    </Popover>
   )
 }

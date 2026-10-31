@@ -73,6 +73,81 @@ describe('pullRequestEntriesOf', () => {
     expect(entries[1]?.checksPassed).toBe(4)
   })
 
+  it('keeps persisted metadata before live state arrives', () => {
+    const thread = threadOf({
+      id: 't',
+      pullRequests: [
+        {
+          ...linked(7, 'b', 'draft'),
+          title: 'Persisted PR title',
+          checksRunning: 2,
+          checksPassed: 3,
+          checksFailed: 1,
+          mergeable: false,
+        },
+      ],
+    })
+    expect(pullRequestEntriesOf({ thread, states: [] })[0]).toMatchObject({
+      title: 'Persisted PR title',
+      state: 'draft',
+      checksRunning: 2,
+      checksPassed: 3,
+      checksFailed: 1,
+      mergeable: false,
+    })
+  })
+
+  it('lets live zero check counts and unknown mergeability replace persisted values', () => {
+    const thread = threadOf({
+      id: 't',
+      pullRequests: [
+        {
+          ...linked(7, 'b', 'draft'),
+          title: 'Persisted PR title',
+          checksRunning: 2,
+          checksPassed: 3,
+          checksFailed: 1,
+          mergeable: false,
+        },
+      ],
+    })
+    const entries = pullRequestEntriesOf({
+      thread,
+      states: [live({ number: 7, checksPassed: 6 })],
+    })
+    expect(entries[0]).toMatchObject({
+      title: 'Persisted PR title',
+      state: 'open',
+      checksRunning: 0,
+      checksPassed: 6,
+      checksFailed: 0,
+      mergeable: null,
+    })
+  })
+
+  it('replaces a stale persisted title with the available live title', () => {
+    const thread = threadOf({
+      id: 't',
+      pullRequests: [{ ...linked(7, 'b'), title: 'Old title' }],
+    })
+    const entries = pullRequestEntriesOf({
+      thread,
+      states: [live({ number: 7, title: 'Updated title' })],
+    })
+    expect(entries[0]?.title).toBe('Updated title')
+  })
+
+  it('leaves absent metadata unknown rather than passing', () => {
+    const thread = threadOf({ id: 't', pullRequests: [linked(7, 'b')] })
+    const [entry] = pullRequestEntriesOf({ thread, states: [] })
+    expect(entry?.title).toBeUndefined()
+    expect(entry?.state).toBeUndefined()
+    expect(entry?.checksRunning).toBeUndefined()
+    expect(entry?.checksPassed).toBeUndefined()
+    expect(entry?.checksFailed).toBeUndefined()
+    expect(entry?.mergeable).toBeUndefined()
+  })
+
   it('marks the entry on the worktree branch as current', () => {
     const thread = threadOf({
       id: 't',
