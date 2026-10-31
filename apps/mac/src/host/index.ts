@@ -7,6 +7,7 @@ import { createDesktopRouter } from './desktop-routes'
 import { isAuthorized, startSession } from './guard'
 import { isProxyPath, proxyToApi } from './proxy'
 import type { IPodHostConfig } from './pods/config'
+import { defaultDesktopHome } from './pods/config'
 import { createPodsHandler } from './pods/routes'
 import { serveStatic } from './static'
 import type { IDesktopUpdatesPort } from './update-routes'
@@ -45,21 +46,22 @@ export function createDesktopHost({
 }: ICreateDesktopHostOptions): IDesktopHost {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
   const authService = createAuthService({
-    config: { ...auth, home: auth?.home ?? pods?.home ?? '' },
+    config: { ...auth, home: auth?.home ?? defaultDesktopHome() },
     apiOrigin: origin,
     webOrigin: auth?.webOrigin ?? resolveWebOrigin(process.env),
     port: () => server.port as number,
   })
   const bearer = () => authService.token()
+  const podsHandler =
+    pods === undefined
+      ? undefined
+      : createPodsHandler({ config: { apiOrigin: origin, ...pods }, bearer })
   const desktopRouter = createDesktopRouter({
     updates,
     window,
     app,
     auth: createAuthHandler({ auth: authService }),
-    pods:
-      pods === undefined
-        ? undefined
-        : createPodsHandler({ config: { apiOrigin: origin, ...pods }, bearer }),
+    pods: podsHandler,
   })
 
   const server = Bun.serve({
@@ -97,6 +99,9 @@ export function createDesktopHost({
   return {
     url: `http://127.0.0.1:${boundPort}`,
     port: boundPort,
-    stop: () => server.stop(true),
+    stop: () => {
+      podsHandler?.close()
+      return server.stop(true)
+    },
   }
 }

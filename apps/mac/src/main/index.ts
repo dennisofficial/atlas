@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import Electrobun, { ApplicationMenu, BrowserWindow, PATHS, Updater, Utils } from 'electrobun/main'
 import { createDesktopHost } from '../host'
-import { podConfigFromEnv } from '../host/pods/config'
+import { defaultDesktopHome, podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
 import { EMenuAction, installApplicationMenu } from './menu'
 import { restartToLatest, startAutoUpdate } from './auto-update'
@@ -32,7 +32,7 @@ await runLogged(async () => {
     secret,
     pods: podConfig,
     app: { version: localInfo.version, channel: localInfo.channel },
-    auth: { home: podConfig.home, openExternal: (url) => Utils.openExternal(url) },
+    auth: { home: defaultDesktopHome(), openExternal: (url) => Utils.openExternal(url) },
     updates: {
       status: updateState.status,
       restart: () => restartToLatest({ updater: Updater, onReady: updateState.markReady }),
