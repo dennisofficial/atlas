@@ -1,5 +1,8 @@
 import { EThreadStreamFrame } from '@dltech/atlas-wire'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
+import { DrainStateService } from '../health/drain-state.service'
+import { attachLiveStream } from './thread-live-stream'
+import { ThreadSignalsService } from './thread-signals.service'
 import type { RedisService } from '../../../_lib/redis/redis.service'
 import {
   InProcessThreadSignalBus,
@@ -42,7 +45,9 @@ function fakeRedis(status = 'ready') {
   const published: Array<{ channel: string; raw: string }> = []
   const handlers: Record<string, (...args: string[]) => void> = {}
   const subscribed: string[] = []
+  const acknowledgment = { promise: Promise.resolve() }
   const quit = { calls: 0 }
+  const disconnected = { calls: 0 }
   const subscriber = {
     status,
     on(event: string, handler: (...args: string[]) => void) {
@@ -51,9 +56,13 @@ function fakeRedis(status = 'ready') {
     },
     async subscribe(channel: string) {
       subscribed.push(channel)
+      await acknowledgment.promise
     },
     async quit() {
       quit.calls += 1
+    },
+    disconnect() {
+      disconnected.calls += 1
     },
   }
   const redis = {
@@ -64,7 +73,7 @@ function fakeRedis(status = 'ready') {
     }),
     duplicate: () => subscriber,
   } as unknown as RedisService
-  return { redis, published, handlers, subscribed, quit }
+  return { redis, published, handlers, subscribed, quit, acknowledgment, disconnected }
 }
 
 describe('RedisThreadSignalBus', () => {
@@ -99,14 +108,74 @@ describe('RedisThreadSignalBus', () => {
   })
 
   it('does not wait on a subscriber that never connected', async () => {
-    const { redis, quit } = fakeRedis('wait')
+    const { redis, quit, disconnected } = fakeRedis('wait')
     const bus = new RedisThreadSignalBus(redis)
     bus.subscribe({ onMessage: () => {} })
 
     await bus.close()
 
     expect(quit.calls).toBe(0)
+    expect(disconnected.calls).toBe(1)
   })
+
+  it('resolves readiness only after Redis acknowledges the channel subscription', async () => {
+    const { redis, acknowledgment } = fakeRedis()
+    const gate = Promise.withResolvers<void>()
+    acknowledgment.promise = gate.promise
+    const ready = mock(() => {})
+    const bus = new RedisThreadSignalBus(redis)
+    const subscribed = bus.subscribe({ onMessage: () => {} }).then(ready)
+    await Promise.resolve()
+    expect(ready).not.toHaveBeenCalled()
+    gate.resolve()
+    await subscribed
+    expect(ready).toHaveBeenCalledTimes(1)
+    await bus.close()
+  })
+
+  it('handles a rejected acknowledgment for callers that do not await subscribe', async () => {
+    const { redis, acknowledgment } = fakeRedis()
+    acknowledgment.promise = Promise.reject(new Error('Redis unavailable'))
+    const closed = mock(() => {})
+    const bus = new RedisThreadSignalBus(redis)
+    bus.subscribe({ onMessage: () => {}, onClosed: closed })
+    for (let index = 0; index < 5; index += 1) await Promise.resolve()
+    expect(closed).toHaveBeenCalledTimes(1)
+    await bus.close()
+  })
+
+  for (const event of ['close', 'reconnecting', 'end', 'error']) {
+    it(`closes live streams on Redis ${event} and ignores subsequent frames`, async () => {
+      const { redis, handlers } = fakeRedis()
+      const signals = new ThreadSignalsService(
+        new DrainStateService(),
+        new RedisThreadSignalBus(redis),
+      )
+      const closed = mock(() => {})
+      const pushed = mock(() => {})
+      const detach = attachLiveStream({
+        signals,
+        userId: 'user',
+        readSnapshot: async () => ({ rows: [], projects: [] }),
+        sink: { push: pushed, close: closed },
+      })
+      try {
+        await signals.awaitSubscription()
+        for (let index = 0; index < 5; index += 1) await Promise.resolve()
+        pushed.mockClear()
+        handlers[event]?.('connection lost')
+        handlers.message?.(
+          THREAD_SIGNAL_CHANNEL,
+          JSON.stringify({ userId: 'user', projectId: 'project', removed: true }),
+        )
+        expect(closed).toHaveBeenCalledTimes(1)
+        expect(pushed).not.toHaveBeenCalled()
+      } finally {
+        detach()
+        await signals.onModuleDestroy()
+      }
+    })
+  }
 })
 
 describe('parseThreadSignal', () => {
