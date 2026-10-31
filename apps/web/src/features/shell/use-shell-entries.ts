@@ -2,56 +2,20 @@
 
 import { useEffect, useMemo, useRef } from 'react'
 
-import { listLocalPods } from '@/features/desktop/desktop-wire'
-import { withLocalPods } from '@/features/desktop/local-thread'
-import { fetchProjects, fetchSessions } from '@/features/threads/data/threads-api'
-import { EQueryState, useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
+import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
-import {
-  activityOverrides,
-  applyActivityOverrides,
-  useActivityOverrides,
-} from './activity-overrides'
-import { createdThreads, useCreatedThreads, withCreatedThreads } from './created-threads'
-import { useListSignals } from './use-list-signals'
+import { applyActivityOverrides, useActivityOverrides } from './activity-overrides'
+import { useCreatedThreads, withCreatedThreads } from './created-threads'
 import { hasThread, type ProjectThreads } from './thread-partition'
-import { SHELL_THREADS_KEY } from '@/lib/cloud-keys'
-
-type ShellLoad = { entries: ProjectThreads[]; startedAt: number }
-
-async function loadShellEntries(): Promise<ShellLoad> {
-  const startedAt = Date.now()
-  const projects = await fetchProjects()
-  const [lists, projectless, pods] = await Promise.all([
-    Promise.all(projects.map((project) => fetchSessions(project.id))),
-    fetchSessions(null),
-    listLocalPods(),
-  ])
-  const entries: ProjectThreads[] = [
-    ...projects.map((project, index) => ({
-      project,
-      sessions: lists[index] ?? [],
-    })),
-    { project: null, sessions: projectless },
-  ]
-  return { entries: withLocalPods({ entries, pods }), startedAt }
-}
+import { useLiveList } from './use-live-list'
 
 export function useShellEntries(activeThreadId: string | null): CloudQuery<ProjectThreads[]> {
-  const query = useCloudQuery({ key: SHELL_THREADS_KEY, load: loadShellEntries })
+  const query = useLiveList()
   const created = useCreatedThreads()
   const overrides = useActivityOverrides()
   const reloadedFor = useRef<string | null>(null)
   const { reload } = query
-  const loaded = query.data
-  const data = loaded?.entries
-  useListSignals({ reload })
-
-  useEffect(() => {
-    if (loaded === undefined) return
-    createdThreads.forgetListed(loaded.entries)
-    activityOverrides.settleBefore(loaded.startedAt)
-  }, [loaded])
+  const data = query.data
 
   useEffect(() => {
     if (data === undefined || activeThreadId === null) return
