@@ -1,7 +1,7 @@
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import { createCoalescedRunner } from './coalesced-runner'
-import { appendEvents, headOf, keepThrough } from './live-events'
+import { appendEvents, headOf } from './live-events'
 
 export type ThreadEvents = { events: WireEvent[]; loaded: boolean; error: Error | null }
 
@@ -20,68 +20,68 @@ export function createEventsReader(args: {
   onUpdate: (update: (current: ThreadEvents) => ThreadEvents) => void
 }) {
   let stopped = false
-  let readHead: number | null = null
   let wantedHead: number | null = null
+  let generation = 0
+  let fullReadRequired = false
   let seeded = false
   let held: WireEvent[] = []
-  let resetPending = false
-  let generation = 0
 
-  const publish = (events: WireEvent[], target: number | null) => {
+  const publish = (events: WireEvent[]) => {
     held = events
-    readHead = target
     args.onUpdate(() => ({ events, loaded: true, error: null }))
   }
 
   const runner = createCoalescedRunner({
     run: async () => {
       const target = wantedHead
-      const started = generation
+      const readGeneration = generation
+      const superseded = () => stopped || readGeneration !== generation
       try {
-        if (resetPending) {
+        if (fullReadRequired) {
           const events = await args.fetchEvents({ threadId: args.threadId })
-          if (stopped || started !== generation) return
-          resetPending = false
-          publish(events, target)
+          if (superseded()) return
+          seeded = true
+          fullReadRequired = false
+          publish(events)
           return
         }
         if (!seeded) {
           const seed = await args.fetchSeed()
-          if (stopped || started !== generation) return
+          if (superseded()) return
           seeded = true
-          if (args.localCopy && target !== null && target < headOf(seed)) {
-            resetPending = true
+          if (wantedHead !== null && headOf(seed) > wantedHead) {
+            fullReadRequired = true
             runner.trigger()
             return
           }
-          publish(seed, target)
-          if (target !== null && target > headOf(seed)) runner.trigger()
+          publish(seed)
+          if (wantedHead !== null && wantedHead > headOf(seed)) runner.trigger()
           return
         }
-        const floorEvent = held.at(-1)
-        const floor = floorEvent?.seq ?? 0
+        const floor = held.at(-1)?.seq ?? 0
         const delta = await args.fetchEvents({ threadId: args.threadId, fromSeq: floor })
-        if (stopped || started !== generation) return
+        if (superseded()) return
         const retracted = delta.some(
           (incoming) =>
             incoming.seq <= floor &&
             held.find((event) => event.seq === incoming.seq)?.id !== incoming.id,
         )
+        const missingAnchor = held.length > 0 && !delta.some((event) => event.seq === floor)
         const fresh = delta.filter((event) => event.seq > floor)
         const contiguous =
           args.localCopy || fresh.every((event, index) => event.seq === floor + index + 1)
         const merged = appendEvents({ current: held, incoming: delta })
         const short = target !== null && target > headOf(merged)
-        if (retracted || !contiguous || short) {
+        if (missingAnchor || retracted || !contiguous || short) {
           const events = await args.fetchEvents({ threadId: args.threadId })
-          if (stopped || started !== generation) return
-          publish(events, target)
+          if (superseded()) return
+          publish(events)
           return
         }
-        publish(merged, target)
+        publish(merged)
       } catch (failure) {
-        if (stopped || started !== generation) return
-        if (wantedHead === target) wantedHead = resetPending ? null : readHead
+        if (superseded()) return
+        if (wantedHead === target) wantedHead = null
         const error = failure instanceof Error ? failure : new Error(String(failure))
         args.onUpdate((current) => ({ ...current, error }))
       }
@@ -89,21 +89,11 @@ export function createEventsReader(args: {
   })
 
   const handleHead = (head: number) => {
-    if (stopped) return
-    const shrinking = args.localCopy ? head < headOf(held) : readHead !== null && head < readHead
-    if (shrinking && seeded) {
-      publish(keepThrough({ events: held, seq: head }), head)
-      if (args.localCopy) {
-        generation += 1
-        wantedHead = head
-        resetPending = true
-        runner.trigger()
-        return
-      }
-      if (wantedHead !== null && wantedHead <= head) wantedHead = readHead
-      return
+    if (stopped || head === wantedHead) return
+    if ((wantedHead !== null && head < wantedHead) || head < headOf(held)) {
+      generation += 1
+      fullReadRequired = true
     }
-    if (head === wantedHead) return
     wantedHead = head
     runner.trigger()
   }

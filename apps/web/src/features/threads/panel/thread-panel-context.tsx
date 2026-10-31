@@ -12,6 +12,8 @@ export type ThreadPanelValue = {
   channel: ServeChannel | null
   pod: PodStatus | null
   details: DetailsInput
+  loaded: boolean
+  error: Error | null
   working: boolean
   changesPath: string | undefined
   agentId: string | undefined

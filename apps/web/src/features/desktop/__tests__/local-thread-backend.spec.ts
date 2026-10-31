@@ -71,17 +71,10 @@ describe('localThreadBackend', () => {
       head: 3,
       updatedAt: localSummary.updatedAt,
       status: localSummary.status,
+      model: { ref: localSummary.model, effort: localSummary.effort },
     })
     expect((await localThreadBackend.fetchPod('brn_1')).state).toBe(EPodState.Parked)
-    expect(await localThreadBackend.readStoredThread('brn_1')).toMatchObject({
-      id: 'brn_1',
-      head: 3,
-    })
-    expect(calls).toEqual([
-      'GET /desktop/threads',
-      'GET /desktop/pods/brn_1/status',
-      'GET /desktop/threads',
-    ])
+    expect(calls).toEqual(['GET /desktop/threads', 'GET /desktop/pods/brn_1/status'])
   })
 
   it('seeds history from the shared home with one full read', async () => {

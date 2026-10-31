@@ -1,6 +1,7 @@
 'use client'
 
 import { FolderGit2Icon, XIcon } from 'lucide-react'
+import { useState } from 'react'
 
 import type { GithubRepoSummary } from '@dltech/atlas-wire/web'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -23,6 +24,7 @@ export function AdditionalRepositoryField({
   repo,
   repos,
   taken,
+  autoOpen = false,
   onChange,
   onRemove,
 }: {
@@ -30,10 +32,13 @@ export function AdditionalRepositoryField({
   repo: string
   repos: readonly GithubRepoSummary[]
   taken: readonly string[]
+  autoOpen?: boolean
   onChange: (next: string) => void
   onRemove: () => void
 }) {
   const choices = additionalRepoChoices({ repos, query: repo, taken })
+  const [open, setOpen] = useState(autoOpen)
+  const handleOpenChange = (next: boolean) => setOpen(next)
   const handleValueChange = (next: string | null) => {
     if (next !== null) onChange(next)
   }
@@ -47,6 +52,8 @@ export function AdditionalRepositoryField({
       items={choices}
       filter={null}
       autoHighlight
+      open={open}
+      onOpenChange={handleOpenChange}
       value={repo === '' ? null : repo}
       onValueChange={handleValueChange}
       inputValue={repo}
@@ -54,6 +61,7 @@ export function AdditionalRepositoryField({
     >
       <ComboboxInput
         aria-label={label}
+        autoFocus={autoOpen}
         className="font-mono"
         placeholder="Search, or paste a GitHub URL or owner/name"
         autoComplete="off"
@@ -75,7 +83,9 @@ export function AdditionalRepositoryField({
         </InputGroupAddon>
       </ComboboxInput>
       <ComboboxContent>
-        <ComboboxEmpty>No repositories match.</ComboboxEmpty>
+        <ComboboxEmpty>
+          {repo.trim() ? 'No repositories match.' : 'Paste a GitHub URL or owner/name.'}
+        </ComboboxEmpty>
         <ComboboxList>
           {(name: string) => (
             <ComboboxItem key={name} value={name} className="font-mono text-xs">

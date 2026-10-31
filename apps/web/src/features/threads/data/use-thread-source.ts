@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { activityOverrides } from '@/features/shell/activity-overrides'
 
+import { createTranscriptHistory } from './transcript-history'
+import { useThreadBackend } from './use-thread-backend'
 import { useLiveThread } from './use-live-thread'
 import { useThreadEvents } from './use-thread-events'
-import { useThreadBackend } from './use-thread-backend'
 import type { ThreadModelChoice } from './live-thread-view'
 import type { ThreadSignalHub } from './thread-signal-hub'
 import { pollingEnabledFor, threadSourceOf, type ThreadSource } from './thread-source'
@@ -19,13 +20,19 @@ export function useThreadSource(args: {
 }): ThreadSource {
   const { threadId } = args
   const backend = useThreadBackend()
+  const history = useMemo(
+    () => createTranscriptHistory({ threadId, fetchSeed: backend.fetchSeed }),
+    [threadId, backend],
+  )
   const live = useLiveThread({
     threadId,
+    history,
     active: backend.local || args.liveEligible,
     onModelChanged: args.onModelChanged,
   })
   const polled = useThreadEvents({
     threadId,
+    history,
     signals: args.signals,
     enabled: pollingEnabledFor(live),
   })

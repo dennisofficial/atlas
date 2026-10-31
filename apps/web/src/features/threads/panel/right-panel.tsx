@@ -50,8 +50,8 @@ function TabBody(props: {
 }
 
 export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProps) {
-  const { threadId, channel, working } = useThreadPanel()
-  const agents = useAgents({ threadId, channel, working })
+  const { threadId, channel, working, details, loaded, error } = useThreadPanel()
+  const agents = useAgents({ threadId, channel, working, events: details.events, loaded, error })
   const running = activeAgentCount(agents.agents)
   const subscriptions = useSubscriptions({ threadId, channel })
   const previews = usePreviews(channel)

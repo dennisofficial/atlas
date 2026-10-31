@@ -27,7 +27,6 @@ export const localThreadBackend: ThreadBackend = {
   fetchPod: fetchLocalPodStatus,
   fetchEvents: readLocalEvents,
   fetchSeed: readLocalSeed,
-  readStoredThread: readStoredLocalThread,
   rename: renameLocalThread,
   fetchSpawned: async () => [],
   mint: mintLocalPod,

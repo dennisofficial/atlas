@@ -9,14 +9,11 @@ import {
   type SandboxAttachment,
 } from '@dltech/atlas-client/channel'
 import { toThreadId } from '@dltech/atlas-core'
-import {
-  readEventsReplySchema,
-  readThreadReplySchema,
-  type WireEvent,
-} from '@dltech/atlas-wire/web'
+import { readThreadReplySchema, type WireEvent } from '@dltech/atlas-wire/web'
 
 import { createLocalThreadController } from './local-thread-controller'
-import { appendEvents, headOf, keepThrough } from './live-events'
+import { createLiveEventReader } from './live-event-reader'
+import { headOf, keepThrough } from './live-events'
 import { absorbInto, isStepSignal, RELEASED_FIELDS, settleInto } from './live-signals'
 import { createLiveThreadActions } from './live-thread-actions'
 import {
@@ -66,8 +63,6 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   let connected = false
   let modelChoices = 0
   let interruptPending = false
-  let reading = false
-  let readAgain = false
   const releases: (() => void)[] = []
   const update = (change: Partial<LiveThreadState>) => {
     if (stopped) return
@@ -109,34 +104,14 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     return { url: minted.ticket.url, token: minted.ticket.token }
   }
 
-  const readFromHead = async (live: RemoteDeltaChannel) => {
-    if (reading) {
-      readAgain = true
-      return
-    }
-    reading = true
-    try {
-      do {
-        readAgain = false
-        const reply = await live.request({
-          op: EClientRequest.ReadEvents,
-          params: { threadId: args.threadId, fromSeq: headOf(state.events), own: true },
-        })
-        if (stopped || fellBack) return
-        const { events } = readEventsReplySchema.parse(reply)
-        commit(
-          settleInto({
-            ...state,
-            events: appendEvents({ current: state.events, incoming: events }),
-          }),
-        )
-      } while (readAgain)
-    } catch {
-      fallBack()
-    } finally {
-      reading = false
-    }
-  }
+  const eventReader = createLiveEventReader({
+    threadId: args.threadId,
+    channel: () => channel,
+    events: () => state.events,
+    closed: () => stopped || fellBack,
+    onEvents: (events) => commit(settleInto({ ...state, events })),
+    onFailure: fallBack,
+  })
 
   const recheckModel = async (live: RemoteDeltaChannel) => {
     const read = args.readStoredModel
@@ -161,11 +136,11 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     }
   }
 
-  const handleSignal = (live: RemoteDeltaChannel) => (signal: ChannelSignal) => {
+  const handleSignal = (signal: ChannelSignal) => {
     if (signal.type === 'chunk' && signal.chunk.type === 'finish' && signal.chunk.usage) {
       update({ reported: signal.chunk.usage })
     }
-    if (signal.type === 'events-appended') void readFromHead(live)
+    if (signal.type === 'events-appended') eventReader.read()
     if (signal.type === 'turn-working') update({ working: signal.working })
     if (isStepSignal(signal) && signalTransport.absorb(signal).opened) args.onStepOpened?.()
     commit(absorbInto({ state, signal }))
@@ -193,7 +168,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       reminted = 0
       update({ live: true })
       if (!connected) void recheckModel(live)
-      if (!connected && args.catchUpOnConnect) void readFromHead(live)
+      if (!connected && args.catchUpOnConnect) eventReader.read()
       connected = true
       return
     }
@@ -217,7 +192,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     update({ pending: live.pendingEntries(), channel: live })
     releases.push(
       live.onPendingChanged((entries) => update({ pending: entries })),
-      live.subscribe({ threadId, listener: handleSignal(live) }),
+      live.subscribe({ threadId, listener: handleSignal }),
       live.onConnection(() => handleConnection(live)),
       live.onThreadModelChanged((changed) => args.onModelChanged?.(changed.model)),
       live.onThreadTitling((frame) => {
@@ -236,6 +211,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
         args.onInterruptLost?.()
       }),
       live.onReload(({ sinceEventSeq }) => {
+        eventReader.invalidate()
         signalTransport.dropAll()
         args.onReset?.()
         commit(
@@ -244,7 +220,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
             events: keepThrough({ events: state.events, seq: sinceEventSeq }),
           }),
         )
-        void readFromHead(live)
+        eventReader.read()
       }),
     )
   }

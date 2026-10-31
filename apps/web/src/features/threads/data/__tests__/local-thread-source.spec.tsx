@@ -24,12 +24,21 @@ describe('local thread source', () => {
   it('mounts the retained session despite pod ineligibility without waking passive panels', async () => {
     let mints = 0
     let wakes = 0
+    let seeds = 0
+    let log = [event(1)]
+    const reads: (number | undefined)[] = []
     let held: ThreadSource | null = null
     const backend: ThreadBackend = {
       ...cloudThreadBackend,
       local: true,
-      fetchSeed: async () => [event(1)],
-      fetchEvents: async () => [event(1)],
+      fetchSeed: async () => {
+        seeds += 1
+        return log
+      },
+      fetchEvents: async ({ fromSeq }) => {
+        reads.push(fromSeq)
+        return log.filter((entry) => fromSeq === undefined || entry.seq >= fromSeq)
+      },
       mint: async () => {
         mints += 1
         return { outcome: EPodConnectOutcome.NotRunning }
@@ -64,6 +73,18 @@ describe('local thread source', () => {
     expect(source().events.map((entry) => entry.seq)).toEqual([1])
     expect(source().channel).toBeNull()
     expect(typeof source().prepareRewind).toBe('function')
+    expect(seeds).toBe(1)
+
+    log = [event(1), event(4)]
+    await act(async () => hub.emitHead(4))
+    expect(source().events).toEqual(log)
+    expect(reads).toEqual([1])
+    log = [{ ...event(1), id: 'evt_rewritten' }]
+    await act(async () => hub.emitHead(1))
+    expect(source().events).toEqual(log)
+    expect(reads).toEqual([1, undefined])
+    expect(wakes).toBe(0)
+    expect(seeds).toBe(1)
 
     await act(async () => {
       expect(source().sendLive({ text: 'go', requestId: 'req_local' })).toBe(true)

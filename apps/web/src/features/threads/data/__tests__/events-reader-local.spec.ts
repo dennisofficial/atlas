@@ -40,6 +40,28 @@ describe('local stored history reader', () => {
     reader.stop()
   })
 
+  it('replaces sparse history when a delta omits its stored anchor', async () => {
+    const reads: (number | undefined)[] = []
+    let state: ThreadEvents = INITIAL_THREAD_EVENTS
+    const reader = createEventsReader({
+      threadId: 'thr_local',
+      localCopy: true,
+      fetchSeed: async () => [event(1), event(4)],
+      fetchEvents: async ({ fromSeq }) => {
+        reads.push(fromSeq)
+        return fromSeq === undefined ? [event(1), event(7)] : [event(7)]
+      },
+      onUpdate: (update) => (state = update(state)),
+    })
+    reader.start()
+    await flush()
+    reader.handleHead(7)
+    await flush()
+    expect(reads).toEqual([4, undefined])
+    expect(state.events.map((row) => row.seq)).toEqual([1, 7])
+    reader.stop()
+  })
+
   it('resets a seed ahead of the first observed host head', async () => {
     let state: ThreadEvents = INITIAL_THREAD_EVENTS
     const reader = createEventsReader({
