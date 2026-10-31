@@ -9,6 +9,7 @@ import {
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { ProcessBackgroundWork } from '../../../_lib/background-work/background-work.providers'
+import { trackThreadChange } from './thread-changes-pending'
 import { bumpAndEnrichThread } from './thread-changed'
 import { DrainStateService } from '../health/drain-state.service'
 import {
@@ -149,6 +150,7 @@ export class ThreadSignalsService implements OnModuleDestroy {
     const entry = { dirty: false, done: Promise.resolve() }
     this.changing.set(args.threadId, entry)
     entry.done = this.runChanges({ threadId: args.threadId, entry })
+    trackThreadChange(entry.done)
     this.background.keepAlive(entry.done)
   }
 
