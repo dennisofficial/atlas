@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { db, type Row } from '@dltech/atlas-db'
+import { db, isUniqueViolation, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import {
   EAccountStatus,
@@ -113,36 +113,103 @@ export class AccountsService {
 
   async add(args: { userId: string; draft: CreateAccountInput }): Promise<AccountDto> {
     const secret = toAccountSecret(args.draft.secret)
+    if (secret.kind === EAuthKind.ApiKey) return this.upsertApiKey({ ...args, secret })
+    const row = await this.insertRow({ ...args, secret })
+    await this.activateIfNone(row)
+    return toAccountDto(row)
+  }
+
+  private async upsertApiKey(args: {
+    userId: string
+    draft: CreateAccountInput
+    secret: AccountSecretDto
+  }): Promise<AccountDto> {
+    const { userId, secret } = args
+    const existing = await this.apiKeyRow({ userId, provider: args.draft.provider })
+    if (existing !== null) await this.overwriteSecret({ accountId: existing.id, secret })
+    const row = existing ?? (await this.insertApiKeyOrReplaceWinner(args))
+    await this.pointActiveAt(row)
+    return toAccountDto(await this.ownedRow({ userId, accountId: row.id }))
+  }
+
+  private async insertApiKeyOrReplaceWinner(args: {
+    userId: string
+    draft: CreateAccountInput
+    secret: AccountSecretDto
+  }): Promise<Row<'AgentAccount'>> {
+    try {
+      return await this.insertRow(args)
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error
+      const winner = await this.apiKeyRow({ userId: args.userId, provider: args.draft.provider })
+      if (winner === null) throw error
+      await this.overwriteSecret({ accountId: winner.id, secret: args.secret })
+      return winner
+    }
+  }
+
+  private apiKeyRow(args: { userId: string; provider: string }) {
+    return db.orm.public.AgentAccount.first({
+      userId: args.userId,
+      provider: args.provider,
+      kind: EAuthKind.ApiKey,
+    })
+  }
+
+  private insertRow(args: {
+    userId: string
+    draft: CreateAccountInput
+    secret: AccountSecretDto
+  }): Promise<Row<'AgentAccount'>> {
     const at = new Date()
-    const row = await db.orm.public.AgentAccount.create({
+    return db.orm.public.AgentAccount.create({
       id: `acc_${randomUUID()}`,
       provider: args.draft.provider,
-      kind: secret.kind,
+      kind: args.secret.kind,
       origin: args.draft.origin,
       label: args.draft.label,
       status: EAccountStatus.Active,
       email: args.draft.email ?? null,
       subscription: args.draft.subscription ?? null,
       importedFrom: args.draft.importedFrom ?? null,
-      sealedSecret: this.sealSecret(secret),
+      sealedSecret: this.sealSecret(args.secret),
       userId: args.userId,
       createdAt: at,
       updatedAt: at,
     })
+  }
 
+  private async activateIfNone(row: Row<'AgentAccount'>): Promise<void> {
     const pointer = await db.orm.public.ActiveAccount.first({
-      userId: args.userId,
+      userId: row.userId,
       provider: row.provider,
     })
-    if (pointer === null) {
-      await db.orm.public.ActiveAccount.create({
-        userId: args.userId,
-        provider: row.provider,
-        accountId: row.id,
-      })
-    }
+    if (pointer !== null) return
+    await this.pointActiveAt(row)
+  }
 
-    return toAccountDto(row)
+  private async pointActiveAt(row: Row<'AgentAccount'>): Promise<void> {
+    await db.orm.public.ActiveAccount.upsert({
+      create: { userId: row.userId, provider: row.provider, accountId: row.id },
+      update: { accountId: row.id },
+      conflictOn: { userId: row.userId, provider: row.provider },
+    })
+  }
+
+  private async overwriteSecret(args: {
+    accountId: string
+    secret: AccountSecretDto
+  }): Promise<void> {
+    const statement = db.raw.sql`UPDATE "AgentAccount"
+      SET "sealedSecret" = ${this.sealSecret(args.secret)},
+          "kind" = ${args.secret.kind},
+          "status" = ${EAccountStatus.Active},
+          "secretVersion" = "secretVersion" + 1,
+          "updatedAt" = now()
+      WHERE "id" = ${args.accountId}`
+      .affectedCount()
+      .build()
+    await db.execute(statement)
   }
 
   async replaceSecret(args: {
@@ -152,16 +219,7 @@ export class AccountsService {
   }): Promise<void> {
     await this.ownedRow(args)
     const secret = toAccountSecret(args.secret)
-    const statement = db.raw.sql`UPDATE "AgentAccount"
-      SET "sealedSecret" = ${this.sealSecret(secret)},
-          "kind" = ${secret.kind},
-          "status" = ${EAccountStatus.Active},
-          "secretVersion" = "secretVersion" + 1,
-          "updatedAt" = now()
-      WHERE "id" = ${args.accountId}`
-      .affectedCount()
-      .build()
-    await db.execute(statement)
+    await this.overwriteSecret({ accountId: args.accountId, secret })
   }
 
   async setStatus(args: {

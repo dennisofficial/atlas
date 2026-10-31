@@ -39,6 +39,15 @@ function draftOf(secret: SecretInput): CreateAccountInput {
   }
 }
 
+function apiKeyDraft(apiKey: string): CreateAccountInput {
+  return {
+    provider: EAuthProvider.Inference,
+    label: 'Inference.net api key',
+    origin: EAccountOrigin.Login,
+    secret: { kind: EAuthKind.ApiKey, apiKey },
+  }
+}
+
 describe('AccountsService', () => {
   const database = useTestDatabase()
   const accounts = () => db.orm.public.AgentAccount.where((row) => row.id.neq('')).all()
@@ -185,5 +194,48 @@ describe('AccountsService', () => {
       service.add({ userId: USER_A, draft: draftOf({ kind: EAuthKind.ApiKey }) }),
     ).rejects.toBeInstanceOf(BadRequestException)
     expect(await accounts()).toHaveLength(0)
+  })
+
+  it('add keeps one api-key account per provider: the second key replaces the first and is active', async () => {
+    const first = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-old') })
+    await service.setStatus({ userId: USER_A, accountId: first.id, status: EAccountStatus.Expired })
+    const second = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-new') })
+
+    expect(second.id).toBe(first.id)
+    expect(second.status).toBe(EAccountStatus.Active)
+    expect(await accounts()).toHaveLength(1)
+    const stored = await service.read({ userId: USER_A, accountId: first.id })
+    expect(stored.secret).toEqual({ kind: EAuthKind.ApiKey, apiKey: 'sk-new' })
+    expect(await service.activeFor({ userId: USER_A, provider: 'inference' })).toEqual({
+      accountId: first.id,
+    })
+  })
+
+  it('add replaces the secret under concurrent api-key adds', async () => {
+    await Promise.all(
+      ['sk-1', 'sk-2', 'sk-3'].map((key) =>
+        service.add({ userId: USER_A, draft: apiKeyDraft(key) }),
+      ),
+    )
+
+    expect(await accounts()).toHaveLength(1)
+  })
+
+  it('add keeps api-key accounts of different users and providers apart', async () => {
+    await service.add({ userId: USER_A, draft: apiKeyDraft('sk-a') })
+    await service.add({ userId: USER_B, draft: apiKeyDraft('sk-b') })
+    await service.add({
+      userId: USER_A,
+      draft: { ...apiKeyDraft('sk-o'), provider: EAuthProvider.OpenAI },
+    })
+
+    expect(await accounts()).toHaveLength(3)
+  })
+
+  it('add still allows several oauth accounts for one provider', async () => {
+    await service.add({ userId: USER_A, draft: draftOf(oauthSecret('at-1')) })
+    await service.add({ userId: USER_A, draft: draftOf(oauthSecret('at-2')) })
+
+    expect(await accounts()).toHaveLength(2)
   })
 })
