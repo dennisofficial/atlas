@@ -9,9 +9,13 @@ import type { SessionOrSandboxTrpcCtx } from './session-or-sandbox.middleware'
 import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadSignalsService } from './thread-signals.service'
 import { THREAD_STREAM_HEARTBEAT_INTERVAL_MS, THREAD_STREAM_LIFETIME_MS } from './thread-stream'
+import * as streamState from './thread-stream-state'
+import * as podSnapshot from './pod-snapshot'
+import { metadataFrame, podSnapshotFrame } from './thread-stream.fixture'
 
 const HEAD = (head: number): ThreadStreamFrame => ({ type: EThreadStreamFrame.Head, head })
-const POD: ThreadStreamFrame = { type: EThreadStreamFrame.Pod }
+const POD = podSnapshotFrame()
+const INITIAL = [HEAD(7), metadataFrame({ threadId: 'thr_1' }), POD]
 const HEARTBEAT: ThreadStreamFrame = { type: EThreadStreamFrame.Heartbeat }
 
 const ctxFor = (extra: Partial<SessionOrSandboxTrpcCtx> = {}): SessionOrSandboxTrpcCtx => ({
@@ -49,8 +53,19 @@ const consume = (frames: AsyncGenerator<ThreadStreamFrame>) => {
 }
 
 describe('ThreadEventsRouter.stream', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.spyOn(streamState, 'readThreadMetadata').mockImplementation(async ({ threadId }) =>
+      metadataFrame({ threadId }),
+    )
+    vi.spyOn(podSnapshot, 'readPodFrame').mockImplementation(async ({ bumpRev }) =>
+      podSnapshotFrame({ rev: bumpRev ? 1 : 0 }),
+    )
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
 
   it('opens with the current head, then relays head and pod signals of that thread', async () => {
     const { router, signals } = routerWith()
@@ -59,12 +74,12 @@ describe('ThreadEventsRouter.stream', () => {
       await router.stream({ threadId: 'thr_1' }, ctxFor(), optionsFor(controller.signal)),
     )
 
-    await waitFor(() => expect(seen).toEqual([HEAD(7)]))
+    await waitFor(() => expect(seen).toEqual(INITIAL))
     await signals.headMoved({ threadId: 'thr_1', head: 9 })
     await signals.headMoved({ threadId: 'thr_other', head: 1 })
     await signals.podChanged({ threadId: 'thr_1' })
 
-    await waitFor(() => expect(seen).toEqual([HEAD(7), HEAD(9), POD]))
+    await waitFor(() => expect(seen).toEqual([...INITIAL, HEAD(9), podSnapshotFrame({ rev: 1 })]))
     controller.abort()
     await finished
   })
@@ -111,11 +126,11 @@ describe('ThreadEventsRouter.stream', () => {
     const { seen, finished } = consume(
       await router.stream({ threadId: 'thr_1' }, ctxFor(), optionsFor(controller.signal)),
     )
-    await waitFor(() => expect(seen).toEqual([HEAD(7)]))
+    await waitFor(() => expect(seen).toEqual(INITIAL))
 
     await advanceTimersByTimeAsync(THREAD_STREAM_HEARTBEAT_INTERVAL_MS)
 
-    await waitFor(() => expect(seen).toEqual([HEAD(7), HEARTBEAT]))
+    await waitFor(() => expect(seen).toEqual([...INITIAL, HEARTBEAT]))
     controller.abort()
     await finished
   })
@@ -138,7 +153,7 @@ describe('ThreadEventsRouter.stream', () => {
     const { seen, finished } = consume(
       await router.stream({ threadId: 'thr_1' }, ctxFor(), optionsFor()),
     )
-    await waitFor(() => expect(seen).toEqual([HEAD(7)]))
+    await waitFor(() => expect(seen).toEqual(INITIAL))
 
     drain.beginDrain()
 
@@ -151,13 +166,13 @@ describe('ThreadEventsRouter.stream', () => {
     const { seen, finished } = consume(
       await router.stream({ threadId: 'thr_1' }, ctxFor(), optionsFor(controller.signal)),
     )
-    await waitFor(() => expect(seen).toEqual([HEAD(7)]))
+    await waitFor(() => expect(seen).toEqual(INITIAL))
 
     controller.abort()
     await finished
     await signals.headMoved({ threadId: 'thr_1', head: 99 })
 
-    expect(seen).toEqual([HEAD(7)])
+    expect(seen).toEqual(INITIAL)
   })
 
   it('does not lose a signal that lands while the first head is being read', async () => {
@@ -181,7 +196,14 @@ describe('ThreadEventsRouter.stream', () => {
     await signals.podChanged({ threadId: 'thr_1' })
     release({ head: 8 })
 
-    await waitFor(() => expect(seen).toEqual([HEAD(8), POD]))
+    await waitFor(() =>
+      expect(seen).toEqual([
+        HEAD(8),
+        metadataFrame({ threadId: 'thr_1' }),
+        POD,
+        podSnapshotFrame({ rev: 1 }),
+      ]),
+    )
     controller.abort()
     await finished
   })

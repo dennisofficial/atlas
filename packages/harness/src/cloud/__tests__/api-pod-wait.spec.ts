@@ -67,6 +67,28 @@ describe('waitForPodRunning', () => {
     expect(fake.unsubscribed()).toBe(1)
   })
 
+  it('ignores metadata and accepts an enriched pod frame without changing legacy reads', async () => {
+    const fake = createFakePodApi({ statuses: [booting, statusOf(EPodState.Running)] })
+    const { outcome } = waiting(fake)
+    await settle()
+    fake.streams[0]?.onData?.({
+      type: EThreadStreamFrame.Meta,
+      rev: 4,
+      thread: {
+        id: 'thr_1',
+        head: 0,
+        createdAt: '',
+        updatedAt: '',
+        workspace: null,
+        repo: null,
+      },
+    })
+    expect(fake.statusReads()).toBe(1)
+    fake.streams[0]?.onData?.({ type: EThreadStreamFrame.Pod, status: booting, rev: 5 })
+    expect(await outcome).toBe('running')
+    expect(fake.statusReads()).toBe(2)
+  })
+
   it('reads the status again when the stream reports it started', async () => {
     const fake = createFakePodApi({ statuses: [booting, statusOf(EPodState.Running)] })
     const { outcome } = waiting(fake)
