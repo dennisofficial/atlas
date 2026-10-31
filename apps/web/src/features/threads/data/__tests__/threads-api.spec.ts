@@ -75,9 +75,20 @@ describe('thread reads', () => {
 
   it('reads own events through threadEvents.read', async () => {
     const calls = fakeFetch(() => trpcOk([]))
-    expect(await fetchEvents('thr_1')).toEqual([])
+    expect(await fetchEvents({ threadId: 'thr_1' })).toEqual([])
     expect(calls[0]?.url).toBe(
       queryUrl({ procedure: 'threadEvents.read', input: { threadId: 'thr_1', own: true } }),
+    )
+  })
+
+  it('passes fromSeq to threadEvents.read', async () => {
+    const calls = fakeFetch(() => trpcOk([]))
+    expect(await fetchEvents({ threadId: 'thr_1', fromSeq: 7 })).toEqual([])
+    expect(calls[0]?.url).toBe(
+      queryUrl({
+        procedure: 'threadEvents.read',
+        input: { threadId: 'thr_1', own: true, fromSeq: 7 },
+      }),
     )
   })
 

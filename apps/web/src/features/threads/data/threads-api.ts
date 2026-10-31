@@ -36,8 +36,14 @@ export const postMessage = (args: {
   uploads?: SaidUpload[]
 }) => cloudCall(api.threadMessages.send.mutate(args))
 
-export const fetchEvents = (threadId: string) =>
-  cloudCall(api.threadEvents.read.query({ threadId, own: true }))
+export const fetchEvents = (args: { threadId: string; fromSeq?: number | undefined }) =>
+  cloudCall(
+    api.threadEvents.read.query({
+      threadId: args.threadId,
+      own: true,
+      ...(args.fromSeq === undefined ? {} : { fromSeq: args.fromSeq }),
+    }),
+  )
 
 export const patchThreadModel = (args: {
   threadId: string

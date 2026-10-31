@@ -253,9 +253,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
 
   const start = async () => {
     try {
-      const seed = await args.readSeed()
-      if (stopped) return
-      const minted = await args.mint()
+      const [seed, minted] = await Promise.all([args.readSeed(), args.mint()])
       if (stopped) return
       if (minted.outcome === EPodConnectOutcome.NotRunning) return fallBack()
       open({ url: minted.ticket.url, token: minted.ticket.token }, seed)

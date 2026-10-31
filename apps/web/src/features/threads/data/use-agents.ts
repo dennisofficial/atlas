@@ -36,7 +36,7 @@ export function useAgents(args: {
     key: threadId,
     refreshKey,
     enabled: true,
-    load: () => fetchEvents(threadId),
+    load: () => fetchEvents({ threadId }),
   })
   const spawned = useRefetched({
     key: threadId,

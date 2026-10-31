@@ -151,6 +151,7 @@ export const replaceEventsInputSchema = threadIdInputSchema.extend({
 export type ReplaceEventsInput = z.infer<typeof replaceEventsInputSchema>
 
 export const readEventsInputSchema = threadIdInputSchema.extend({
+  fromSeq: z.number().int().min(0).optional(),
   upTo: z.number().int().min(0).optional(),
   own: z.boolean().optional(),
 })
