@@ -6,20 +6,31 @@ import {
   type ThreadListFrame,
   type ThreadStreamFrame,
 } from '@dltech/atlas-wire'
-import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
+import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
+import { BackgroundWork } from '../../../_core/ports/background-work'
+import { ProcessBackgroundWork } from '../../../_lib/background-work/background-work.providers'
+import { trackThreadChange } from './thread-changes-pending'
+import { bumpAndEnrichThread } from './thread-changed'
 import { DrainStateService } from '../health/drain-state.service'
 import {
   InProcessThreadSignalBus,
   isListSignal,
+  isThreadChangedSignal,
   parseThreadSignal,
   ThreadSignalBus,
   type ListSignal,
+  type ThreadChangedSignal,
   type ThreadSignal,
 } from './thread-signal.bus'
 
 export type ThreadSignalPublisher = Pick<
   ThreadSignalsService,
-  'headMoved' | 'podChanged' | 'titleChanged' | 'listChanged' | 'listChangedForOwner'
+  | 'headMoved'
+  | 'podChanged'
+  | 'titleChanged'
+  | 'listChanged'
+  | 'listChangedForOwner'
+  | 'threadChanged'
 >
 
 type OpenStream = {
@@ -30,6 +41,10 @@ type OpenStream = {
 type OpenListStream = {
   onFrame: (frame: ThreadListFrame) => void
   onClosed: (() => void) | undefined
+}
+
+type OpenChangeWatch = {
+  onChanged: (signal: ThreadChangedSignal) => void
 }
 
 const listFrameOf = (signal: ListSignal): ThreadListFrame =>
@@ -46,11 +61,15 @@ export class ThreadSignalsService implements OnModuleDestroy {
   private readonly logger = new Logger(ThreadSignalsService.name)
   private readonly streams = new Map<string, Set<OpenStream>>()
   private readonly listStreams = new Map<string, Set<OpenListStream>>()
+  private readonly changeWatches = new Map<string, Set<OpenChangeWatch>>()
+  private readonly changing = new Map<string, { dirty: boolean; done: Promise<void> }>()
   private subscribed = false
 
   constructor(
     drain: DrainStateService,
     private readonly bus: ThreadSignalBus = new InProcessThreadSignalBus(),
+    @Inject(BackgroundWork)
+    private readonly background: BackgroundWork = new ProcessBackgroundWork(),
   ) {
     drain.onDrain(() => this.closeAll())
   }
@@ -104,6 +123,61 @@ export class ThreadSignalsService implements OnModuleDestroy {
     }
   }
 
+  watchThreadChanges(args: {
+    userId: string
+    onChanged: (signal: ThreadChangedSignal) => void
+  }): () => void {
+    const entry: OpenChangeWatch = { onChanged: args.onChanged }
+    let entries = this.changeWatches.get(args.userId)
+    if (entries === undefined) {
+      entries = new Set()
+      this.changeWatches.set(args.userId, entries)
+    }
+    entries.add(entry)
+    this.ensureSubscribed()
+    return () => {
+      entries.delete(entry)
+      if (entries.size === 0) this.changeWatches.delete(args.userId)
+    }
+  }
+
+  threadChanged(args: { threadId: string }): void {
+    const running = this.changing.get(args.threadId)
+    if (running !== undefined) {
+      running.dirty = true
+      return
+    }
+    const entry = { dirty: false, done: Promise.resolve() }
+    this.changing.set(args.threadId, entry)
+    entry.done = this.runChanges({ threadId: args.threadId, entry })
+    trackThreadChange(entry.done)
+    this.background.keepAlive(entry.done)
+  }
+
+  async changesSettled(): Promise<void> {
+    while (this.changing.size > 0) {
+      await Promise.all([...this.changing.values()].map((entry) => entry.done))
+    }
+  }
+
+  private async runChanges(args: { threadId: string; entry: { dirty: boolean } }): Promise<void> {
+    try {
+      do {
+        args.entry.dirty = false
+        try {
+          const changed = await bumpAndEnrichThread({
+            threadId: args.threadId,
+          })
+          if (changed !== null) await this.publish(changed)
+        } catch (failure) {
+          this.logger.warn(`publishing the change of ${args.threadId} failed: ${String(failure)}`)
+        }
+      } while (args.entry.dirty)
+    } finally {
+      this.changing.delete(args.threadId)
+    }
+  }
+
   async publish(args: ThreadSignal): Promise<void> {
     try {
       await this.bus.publish(args)
@@ -112,11 +186,12 @@ export class ThreadSignalsService implements OnModuleDestroy {
     }
   }
 
-  headMoved(args: { threadId: string; head: number }): Promise<void> {
-    return this.publish({
+  async headMoved(args: { threadId: string; head: number }): Promise<void> {
+    await this.publish({
       threadId: args.threadId,
       frame: { type: EThreadStreamFrame.Head, head: args.head },
     })
+    this.threadChanged({ threadId: args.threadId })
   }
 
   titleChanged(args: { threadId: string }): Promise<void> {
@@ -126,15 +201,16 @@ export class ThreadSignalsService implements OnModuleDestroy {
     })
   }
 
-  listChanged(args: {
+  async listChanged(args: {
     userId: string
     threadId: string
     activity?: ThreadListActivity
   }): Promise<void> {
     const { userId, threadId, activity } = args
-    return this.publish(
+    await this.publish(
       activity === undefined ? { userId, threadId } : { userId, threadId, activity },
     )
+    this.threadChanged({ threadId })
   }
 
   async podChanged(args: { threadId: string }): Promise<void> {
@@ -164,6 +240,7 @@ export class ThreadSignalsService implements OnModuleDestroy {
     ]
     this.streams.clear()
     this.listStreams.clear()
+    this.changeWatches.clear()
     this.subscribed = false
     void this.bus.close().catch((failure: unknown) => {
       this.logger.warn(`closing the thread signal subscriber failed: ${String(failure)}`)
@@ -187,6 +264,16 @@ export class ThreadSignalsService implements OnModuleDestroy {
     const signal = parseThreadSignal({ raw: args.raw })
     if (signal === undefined) {
       this.logger.warn('ignoring a malformed thread signal')
+      return
+    }
+    if (isThreadChangedSignal(signal)) {
+      for (const entry of this.changeWatches.get(signal.userId) ?? []) {
+        try {
+          entry.onChanged(signal)
+        } catch (failure) {
+          this.logger.warn(`a change watcher failed: ${String(failure)}`)
+        }
+      }
       return
     }
     if (isListSignal(signal)) {

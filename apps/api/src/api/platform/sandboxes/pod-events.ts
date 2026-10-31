@@ -80,10 +80,15 @@ export async function applyPodEvents(args: {
       lastAssistantSeq,
       updatedAt: new Date(),
     })
-    return { head, moved: true, assistantMoved: lastAssistantSeq !== thread.lastAssistantSeq }
+    return {
+      head,
+      moved: true,
+      assistantMoved: lastAssistantSeq !== thread.lastAssistantSeq,
+    }
   })
   if (moved) await args.signals.headMoved({ threadId, head })
   if (assistantMoved) await args.signals.listChangedForOwner({ threadId })
+  if (moved) args.signals.threadChanged({ threadId })
   return { head, assistantMoved }
 }
 
@@ -107,9 +112,14 @@ export async function truncatePodEvents(args: {
       lastAssistantSeq,
       updatedAt: new Date(),
     })
-    return { head, moved: true, assistantMoved: lastAssistantSeq !== thread.lastAssistantSeq }
+    return {
+      head,
+      moved: true,
+      assistantMoved: lastAssistantSeq !== thread.lastAssistantSeq,
+    }
   })
   if (moved) await args.signals.headMoved({ threadId, head })
   if (assistantMoved) await args.signals.listChangedForOwner({ threadId })
+  if (moved) args.signals.threadChanged({ threadId })
   return { head, assistantMoved }
 }

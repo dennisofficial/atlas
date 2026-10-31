@@ -68,20 +68,34 @@ export class ThreadsHistoryService {
     threadId: string
     draft: Omit<RewindThreadInput, 'threadId'>
   }): Promise<void> {
-    await requireOwnedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+    await requireOwnedThread({
+      reader: db,
+      userId: args.userId,
+      threadId: args.threadId,
+    })
     const at = new Date()
     await db.transaction(async (tx) => {
-      await tx.orm.public.Event.where({ threadId: args.threadId, userId: args.userId })
+      await tx.orm.public.Event.where({
+        threadId: args.threadId,
+        userId: args.userId,
+      })
         .where((event) => event.seq.gt(args.draft.toSeq))
         .deleteAndCount()
-      await dropRewoundChildren({ tx, userId: args.userId, agentIds: args.draft.cutAgents ?? [] })
+      await dropRewoundChildren({
+        tx,
+        userId: args.userId,
+        agentIds: args.draft.cutAgents ?? [],
+      })
       await tx.orm.public.Thread.where({ id: args.threadId }).update({
         head: args.draft.toSeq,
         updatedAt: at,
       })
       await bumpMainSession({ tx, threadId: args.threadId, at })
     })
-    await this.signals.headMoved({ threadId: args.threadId, head: args.draft.toSeq })
+    await this.signals.headMoved({
+      threadId: args.threadId,
+      head: args.draft.toSeq,
+    })
   }
 
   async compact(args: {
@@ -97,7 +111,11 @@ export class ThreadsHistoryService {
     threadId: string
     draft: Omit<SummariseThreadInput, 'threadId'>
   }): Promise<{ replaced: number }> {
-    return this.mark({ ...args, cutAgents: args.draft.cutAgents ?? [], discardRows: true })
+    return this.mark({
+      ...args,
+      cutAgents: args.draft.cutAgents ?? [],
+      discardRows: true,
+    })
   }
 
   async fork(args: {
@@ -118,7 +136,10 @@ export class ThreadsHistoryService {
 
     const at = new Date()
     const into = nextThreadId()
-    const sourceSession = await sessionOfThread({ reader: db, threadId: args.threadId })
+    const sourceSession = await sessionOfThread({
+      reader: db,
+      threadId: args.threadId,
+    })
     const row = await db.transaction(async (tx) => {
       const created = await createSessionWithMainThread({
         tx,
@@ -176,11 +197,18 @@ export class ThreadsHistoryService {
     discardRows: boolean
     cutAgents: readonly string[]
   }): Promise<{ replaced: number }> {
-    await requireOwnedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+    await requireOwnedThread({
+      reader: db,
+      userId: args.userId,
+      threadId: args.threadId,
+    })
     const at = new Date()
 
     const marked = await db.transaction(async (tx) => {
-      const covered = tx.orm.public.Event.where({ threadId: args.threadId, userId: args.userId })
+      const covered = tx.orm.public.Event.where({
+        threadId: args.threadId,
+        userId: args.userId,
+      })
         .where((event) => event.seq.gte(args.draft.fromSeq))
         .where((event) => event.seq.lte(args.draft.throughSeq))
         .where((event) => event.type.notIn(SURVIVES_SUMMARY))
@@ -193,7 +221,11 @@ export class ThreadsHistoryService {
       const replaced = vacated.length
       if (args.discardRows) {
         await covered.deleteAndCount()
-        await dropRewoundChildren({ tx, userId: args.userId, agentIds: args.cutAgents })
+        await dropRewoundChildren({
+          tx,
+          userId: args.userId,
+          agentIds: args.cutAgents,
+        })
       }
 
       const standIn = args.discardRows
@@ -228,13 +260,18 @@ export class ThreadsHistoryService {
         contextDigest: null,
         userId: args.userId,
       })
-      await tx.orm.public.Thread.where({ id: args.threadId }).update({ updatedAt: at })
+      await tx.orm.public.Thread.where({ id: args.threadId }).update({
+        updatedAt: at,
+      })
       await bumpMainSession({ tx, threadId: args.threadId, at })
 
       const thread = await tx.orm.public.Thread.where({ id: args.threadId }).all().firstOrThrow()
       return { replaced, head: thread.head }
     })
-    await this.signals.headMoved({ threadId: args.threadId, head: marked.head })
+    await this.signals.headMoved({
+      threadId: args.threadId,
+      head: marked.head,
+    })
     return { replaced: marked.replaced }
   }
 }
