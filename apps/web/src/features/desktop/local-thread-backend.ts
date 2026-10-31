@@ -4,7 +4,7 @@ import { deliverHeldFirstMessage } from './first-message'
 import { fetchLocalPodStatus, resizeLocalPod, wakeLocalPod } from './desktop-wire'
 import { localThreadOf } from './local-thread'
 import { mintLocalPod, wakeAndConnectLocalPod } from './local-thread-source'
-import { readLocalEvents, readLocalSeed } from './local-thread-history'
+import { readLocalEvents } from './local-thread-history'
 import { subscribeLocalThreadStream } from './local-thread-feed'
 import { getLocalThread, markLocalThreadRead, renameLocalThread } from './local-thread-wire'
 
@@ -26,7 +26,7 @@ export const localThreadBackend: ThreadBackend = {
   fetchThread: readStoredLocalThread,
   fetchPod: fetchLocalPodStatus,
   fetchEvents: readLocalEvents,
-  fetchSeed: readLocalSeed,
+  fetchSeed: (threadId) => readLocalEvents({ threadId }),
   rename: renameLocalThread,
   fetchSpawned: async () => [],
   mint: mintLocalPod,

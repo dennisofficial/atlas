@@ -77,10 +77,18 @@ describe('localThreadBackend', () => {
     expect(calls).toEqual(['GET /desktop/threads', 'GET /desktop/pods/brn_1/status'])
   })
 
-  it('seeds history from the shared home with one full read', async () => {
-    expect(await localThreadBackend.fetchSeed('brn_1')).toEqual([localEvent(3)])
-    expect(await localThreadBackend.fetchSeed('brn_1')).toEqual([localEvent(3)])
+  it('shares concurrent full seeds from the shared home without retaining a completed read', async () => {
+    const seeds = await Promise.all([
+      localThreadBackend.fetchSeed('brn_1'),
+      localThreadBackend.fetchSeed('brn_1'),
+    ])
+    expect(seeds).toEqual([[localEvent(3)], [localEvent(3)]])
     expect(calls).toEqual(['GET /desktop/threads/brn_1/events?after=0&limit=500'])
+    expect(await localThreadBackend.fetchSeed('brn_1')).toEqual([localEvent(3)])
+    expect(calls).toEqual([
+      'GET /desktop/threads/brn_1/events?after=0&limit=500',
+      'GET /desktop/threads/brn_1/events?after=0&limit=500',
+    ])
   })
 
   it('only explicit wake posts wake and then connects', async () => {
