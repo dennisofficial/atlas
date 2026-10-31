@@ -1,11 +1,4 @@
-import { db } from '@dltech/atlas-db'
-import {
-  EThreadStreamFrame,
-  wireThreadSchema,
-  type ThreadListActivity,
-  type ThreadListFrame,
-  type ThreadStreamFrame,
-} from '@dltech/atlas-wire'
+import { EThreadStreamFrame, wireThreadSchema, type ThreadStreamFrame } from '@dltech/atlas-wire'
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { ProcessBackgroundWork } from '../../../_lib/background-work/background-work.providers'
@@ -14,16 +7,9 @@ import { ThreadChangeRunner } from './thread-change-runner'
 import { PodChangePublisher } from './pod-change-publisher'
 import { publishEventChange, type EventsAppended, type EventsReset } from './event-change-publisher'
 import { ThreadSubscription } from './thread-subscription'
-import {
-  listFrameOf,
-  registerFrameStream,
-  type OpenStream,
-  type OpenListStream,
-  type OpenChangeWatch,
-} from './thread-signal-entries'
+import { registerFrameStream, type OpenStream, type OpenChangeWatch } from './thread-signal-entries'
 import {
   InProcessThreadSignalBus,
-  isListSignal,
   isProjectChangedSignal,
   isProjectRemovedSignal,
   isThreadChangedSignal,
@@ -38,21 +24,13 @@ export type { LiveSignal }
 
 export type ThreadSignalPublisher = Pick<
   ThreadSignalsService,
-  | 'headMoved'
-  | 'eventsAppended'
-  | 'eventsReset'
-  | 'podChanged'
-  | 'titleChanged'
-  | 'listChanged'
-  | 'listChangedForOwner'
-  | 'threadChanged'
+  'headMoved' | 'eventsAppended' | 'eventsReset' | 'podChanged' | 'threadChanged'
 >
 
 @Injectable()
 export class ThreadSignalsService implements OnModuleDestroy {
   private readonly logger = new Logger(ThreadSignalsService.name)
   private readonly streams = new Map<string, Set<OpenStream>>()
-  private readonly listStreams = new Map<string, Set<OpenListStream>>()
   private readonly changeWatches = new Map<string, Set<OpenChangeWatch>>()
   private readonly liveWatches = new ThreadLiveWatches()
   private readonly changeRunner = new ThreadChangeRunner()
@@ -84,16 +62,6 @@ export class ThreadSignalsService implements OnModuleDestroy {
     onClosed?: () => void
   }): () => void {
     const detach = registerFrameStream({ ...args, streams: this.streams, key: args.threadId })
-    this.subscription.ensureSubscribed()
-    return detach
-  }
-
-  openListStream(args: {
-    userId: string
-    onFrame: (frame: ThreadListFrame) => void
-    onClosed?: () => void
-  }): () => void {
-    const detach = registerFrameStream({ ...args, streams: this.listStreams, key: args.userId })
     this.subscription.ensureSubscribed()
     return detach
   }
@@ -171,53 +139,20 @@ export class ThreadSignalsService implements OnModuleDestroy {
     })
   }
 
-  titleChanged(args: { threadId: string }): Promise<void> {
-    return this.publish({
-      threadId: args.threadId,
-      frame: { type: EThreadStreamFrame.Title },
-    })
-  }
-
-  async listChanged(args: {
-    userId: string
-    threadId: string
-    activity?: ThreadListActivity
-  }): Promise<void> {
-    const { userId, threadId, activity } = args
-    await this.publish(
-      activity === undefined ? { userId, threadId } : { userId, threadId, activity },
-    )
-    this.threadChanged({ threadId })
-  }
-
   podChanged(args: { threadId: string }): Promise<void> {
     return this.podPublisher.publish({
       threadId: args.threadId,
       publish: (signal) => this.publish(signal),
-      listChanged: () => this.listChangedForOwner(args),
+      threadChanged: () => this.threadChanged({ threadId: args.threadId }),
     })
-  }
-
-  async listChangedForOwner(args: {
-    threadId: string
-    activity?: ThreadListActivity
-  }): Promise<void> {
-    try {
-      const row = await db.orm.public.Thread.where({ id: args.threadId }).select('userId').first()
-      if (row !== null) await this.listChanged({ ...args, userId: row.userId })
-    } catch (failure) {
-      this.logger.warn(`resolving the owner of ${args.threadId} failed: ${String(failure)}`)
-    }
   }
 
   closeAll(): void {
     const entries = [
       ...[...this.streams.values()].flatMap((open) => [...open]),
-      ...[...this.listStreams.values()].flatMap((open) => [...open]),
       ...this.liveWatches.closedEntries(),
     ]
     this.streams.clear()
-    this.listStreams.clear()
     this.changeWatches.clear()
     this.liveWatches.clear()
     this.subscription.reset()
@@ -264,16 +199,6 @@ export class ThreadSignalsService implements OnModuleDestroy {
     }
     if (isProjectChangedSignal(signal) || isProjectRemovedSignal(signal)) {
       this.liveWatches.fanOut({ signal })
-      return
-    }
-    if (isListSignal(signal)) {
-      for (const entry of this.listStreams.get(signal.userId) ?? []) {
-        try {
-          entry.onFrame(listFrameOf(signal))
-        } catch (failure) {
-          this.logger.warn(`a list stream handler failed: ${String(failure)}`)
-        }
-      }
       return
     }
     this.fanOut(signal)

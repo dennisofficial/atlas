@@ -2,10 +2,10 @@ import type { Row } from '@dltech/atlas-db'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 
 export async function announceSubscriberThreads(args: {
-  signals: Pick<ThreadSignalsService, 'listChanged'>
-  subscribers: readonly Pick<Row<'GithubSubscription'>, 'userId' | 'threadId'>[]
+  signals: Pick<ThreadSignalsService, 'threadChanged'>
+  subscribers: readonly Pick<Row<'GithubSubscription'>, 'threadId'>[]
 }): Promise<void> {
-  for (const { userId, threadId } of args.subscribers) {
-    if (threadId !== null) await args.signals.listChanged({ userId, threadId })
+  for (const { threadId } of args.subscribers) {
+    if (threadId !== null) args.signals.threadChanged({ threadId })
   }
 }

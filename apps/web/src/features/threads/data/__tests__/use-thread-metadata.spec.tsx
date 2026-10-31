@@ -113,12 +113,10 @@ describe('useThreadMetadata', () => {
     }
   })
 
-  it('keeps initial and manual GETs but never reloads for Title or Started pokes', async () => {
+  it('keeps initial and manual GETs but never reloads for Started pokes', async () => {
     const test = await mount()
     try {
       await act(async () => {
-        test.hub.emitTitle()
-        test.hub.emitTitle()
         test.hub.emitStarted()
       })
       expect(test.reads).toEqual(['thr_1'])

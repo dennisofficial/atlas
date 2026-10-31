@@ -1,4 +1,3 @@
-import { EThreadListFrame } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
@@ -31,18 +30,18 @@ describe('ThreadReadService.markRead', () => {
     await seedThreadRow({ id: 'thr-1', userId: USER_A, head: 5 })
   })
 
-  it('signals the reader list after marking read', async () => {
-    const frames = recorder.listFramesOf(USER_A)
+  it('signals the thread change after marking read', async () => {
+    const frames = recorder.changedThreads
     frames.length = 0
 
     await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 2 })
 
-    expect(frames).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr-1' }])
+    expect(frames).toEqual(['thr-1'])
   })
 
   it('does not signal when the stored marker does not move', async () => {
     await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 3 })
-    const frames = recorder.listFramesOf(USER_A)
+    const frames = recorder.changedThreads
     frames.length = 0
 
     await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 3 })
@@ -53,12 +52,12 @@ describe('ThreadReadService.markRead', () => {
 
   it('signals once when the marker advances', async () => {
     await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 3 })
-    const frames = recorder.listFramesOf(USER_A)
+    const frames = recorder.changedThreads
     frames.length = 0
 
     await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 4 })
 
-    expect(frames).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr-1' }])
+    expect(frames).toEqual(['thr-1'])
   })
 
   it('is monotonic and clamped to head', async () => {

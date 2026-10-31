@@ -15,6 +15,3 @@ export const wireSessionNodeSchema: z.ZodType<WireSessionNode> = z.lazy(() =>
     teammates: z.array(wireSessionNodeSchema),
   }),
 )
-
-export const sessionsListInputSchema = z.strictObject({ projectId: z.string().nullable() })
-export type SessionsListInput = z.infer<typeof sessionsListInputSchema>

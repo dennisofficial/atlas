@@ -12,7 +12,7 @@ export async function registerPodChild(args: {
   rootThreadId: string
   userId: string
   input: PodChildRegister
-  signals: Pick<ThreadSignalPublisher, 'listChanged'>
+  signals: Pick<ThreadSignalPublisher, 'threadChanged'>
 }): Promise<PodEventsReply> {
   const { rootThreadId, userId, input } = args
   await assertWithinSandboxFamily({ rootThreadId, userId, threadId: input.spawnedBy })
@@ -31,7 +31,7 @@ export async function registerPodChild(args: {
   const existing = await stored()
   if (existing !== null) {
     if (await backfillTeammateTitle({ input, sessionId: existing.sessionId })) {
-      await args.signals.listChanged({ userId, threadId: input.threadId })
+      args.signals.threadChanged({ threadId: input.threadId })
     }
     return { head: existing.head }
   }
@@ -75,7 +75,7 @@ export async function registerPodChild(args: {
     if (raced !== null) return { head: raced.head }
     throw error
   }
-  await args.signals.listChanged({ userId, threadId: input.threadId })
+  args.signals.threadChanged({ threadId: input.threadId })
   return { head: 0 }
 }
 

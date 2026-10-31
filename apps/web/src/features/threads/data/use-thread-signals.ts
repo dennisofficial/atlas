@@ -30,7 +30,6 @@ export function useThreadSignals(threadId: string): ThreadSignalHub {
       },
       onPod: hub.emitPod,
       onMeta: hub.emitMeta,
-      onTitle: hub.emitTitle,
       onStarted: hub.emitStarted,
     })
     signals.start()

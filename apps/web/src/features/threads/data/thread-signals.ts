@@ -45,7 +45,6 @@ export function createThreadSignals(args: {
   onCursor?: (cursor: string) => void
   onPod: (payload: ThreadPodSignal) => void
   onMeta?: (metadata: ThreadMetadata) => void
-  onTitle: () => void
   onStarted: () => void
   schedule?: Schedule
   now?: () => number
@@ -110,7 +109,6 @@ export function createThreadSignals(args: {
         args.onPod({ status: frame.status, rev: frame.rev })
       if (frame.type === EThreadStreamFrame.Meta)
         args.onMeta?.({ thread: frame.thread, rev: frame.rev })
-      if (frame.type === EThreadStreamFrame.Title) args.onTitle()
     }
 
     const handleStarted = () => {

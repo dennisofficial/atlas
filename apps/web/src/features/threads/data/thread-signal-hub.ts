@@ -11,7 +11,6 @@ export type ThreadSignalListener = {
   onReset?: (checkpoint: EventsCheckpoint) => void
   onPod?: (payload: ThreadPodSignal) => void
   onMeta?: (metadata: ThreadMetadata) => void
-  onTitle?: () => void
   onStarted?: () => void
 }
 
@@ -70,9 +69,6 @@ export function createThreadSignalHub() {
     },
     emitMeta: (metadata: ThreadMetadata) => {
       for (const listener of [...listeners]) listener.onMeta?.(metadata)
-    },
-    emitTitle: () => {
-      for (const listener of [...listeners]) listener.onTitle?.()
     },
     emitStarted: () => {
       for (const listener of [...listeners]) listener.onStarted?.()

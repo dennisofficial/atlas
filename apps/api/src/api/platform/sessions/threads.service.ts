@@ -46,7 +46,7 @@ export class ThreadsService {
       if (taken !== null) throw new ConflictException('thread id is already in use')
       return createDraftThread({ tx, ...columns })
     })
-    await this.signals.listChanged({ userId: args.userId, threadId: created.thread.id })
+    this.signals.threadChanged({ threadId: created.thread.id })
     return toThreadDto(created)
   }
 
@@ -58,7 +58,7 @@ export class ThreadsService {
     if (args.appended !== undefined) {
       await this.signals.eventsAppended({ threadId: args.threadId, ...args.appended })
     }
-    await this.signals.listChanged({ userId: args.userId, threadId: args.threadId })
+    this.signals.threadChanged({ threadId: args.threadId })
   }
 
   async createWithin(args: {
@@ -267,8 +267,7 @@ export class ThreadsService {
     await requireOwnedThread({ reader: db, ...args })
     const session = await sessionOfThread({ reader: db, threadId: args.threadId })
     await db.orm.public.Session.where({ id: session.id }).update({ title: args.draft.title })
-    await this.signals.titleChanged({ threadId: args.threadId })
-    await this.signals.listChanged({ userId: args.userId, threadId: args.threadId })
+    this.signals.threadChanged({ threadId: args.threadId })
   }
 
   async chooseModel(args: {

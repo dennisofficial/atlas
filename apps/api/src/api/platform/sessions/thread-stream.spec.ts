@@ -71,7 +71,7 @@ describe('attachThreadStream state bootstrap', () => {
     await publishMeta(1)
     await publishMeta(2)
     await publishMeta(3)
-    await signals.publish({ threadId: 'thr_1', frame: { type: EThreadStreamFrame.Title } })
+    await signals.publish({ threadId: 'thr_1', frame: { type: EThreadStreamFrame.Heartbeat } })
     gate.resolve(metadataFrame({ threadId: 'thr_1', rev: 2 }))
     await flush()
     await publishMeta(2)
@@ -82,7 +82,7 @@ describe('attachThreadStream state bootstrap', () => {
       metadataFrame({ threadId: 'thr_1', rev: 2 }),
       pod,
       metadataFrame({ threadId: 'thr_1', rev: 3 }),
-      { type: EThreadStreamFrame.Title },
+      { type: EThreadStreamFrame.Heartbeat },
       metadataFrame({ threadId: 'thr_1', rev: 4 }),
     ])
   })
@@ -164,7 +164,7 @@ describe('attachThreadStream state bootstrap', () => {
     const { signals, frames, close } = open({ readMetadata: () => gate.promise })
     await flush()
     for (let i = 0; i <= THREAD_STREAM_BUFFER_LIMIT; i += 1)
-      await signals.publish({ threadId: 'thr_1', frame: { type: EThreadStreamFrame.Title } })
+      await signals.publish({ threadId: 'thr_1', frame: { type: EThreadStreamFrame.Heartbeat } })
     expect(close).toHaveBeenCalledTimes(1)
     gate.resolve(metadataFrame({ threadId: 'thr_1' }))
     await flush()

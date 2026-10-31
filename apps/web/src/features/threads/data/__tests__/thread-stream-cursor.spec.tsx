@@ -58,7 +58,6 @@ describe('tracked stream adapter and cursors', () => {
       },
       onHead: noop,
       onPod: noop,
-      onTitle: noop,
       onStarted: noop,
       onCheckpoint: (value) => checkpoints.push(value),
       onEvents: (value) => batches.push(value),
