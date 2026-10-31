@@ -24,6 +24,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^21.0.4",
     "@tailwindcss/postcss": "^4",
     "@types/bun": "latest",
     "@types/node": "^26.3.0",
