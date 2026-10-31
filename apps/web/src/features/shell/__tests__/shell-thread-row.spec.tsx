@@ -45,13 +45,13 @@ describe('ThreadRow with teammates', () => {
     expect(html).not.toContain('Port folder')
   })
 
-  it('opens on an active teammate, lists live first and folds done', () => {
+  it('opens on an active teammate, lists attention first and includes completed teammates', () => {
     const html = render('run')
     expect(html).toContain('Hide 3 teammates')
     expect(html).toContain('href="/threads/run"')
     expect(html.indexOf('Fix types')).toBeLessThan(html.indexOf('Port folder'))
-    expect(html).toContain('1 done')
-    expect(html).not.toContain('Write specs')
+    expect(html).not.toContain('1 done')
+    expect(html).toContain('Write specs')
   })
 
   it('opens the folder when the session main thread is active', () => {
@@ -60,7 +60,7 @@ describe('ThreadRow with teammates', () => {
     expect(html).toContain('Port folder')
   })
 
-  it('opens the done group when the active teammate is done', () => {
+  it('keeps completed teammates first class when selected', () => {
     expect(render('fin')).toContain('Write specs')
   })
 

@@ -5,6 +5,8 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { Kbd } from '@dltech/atlas-ui/components/kbd'
 import { SidebarHeader } from '@dltech/atlas-ui/components/sidebar'
 
+import { ShellDisplayOptions } from './shell-display-options'
+
 export function ShellTopBar({ onSearch }: { onSearch: () => void }) {
   return (
     <SidebarHeader className="flex-row items-center group-data-[collapsible=icon]:flex-col">
@@ -18,6 +20,7 @@ export function ShellTopBar({ onSearch }: { onSearch: () => void }) {
         <span className="truncate group-data-[collapsible=icon]:hidden">Search</span>
         <Kbd className="ml-auto group-data-[collapsible=icon]:hidden">⌘K</Kbd>
       </button>
+      <ShellDisplayOptions />
       <Button
         size="icon-sm"
         aria-label="New thread"

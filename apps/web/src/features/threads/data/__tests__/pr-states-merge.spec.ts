@@ -5,6 +5,7 @@ import { EPullRequestStateWire, type GithubPrState, type PrStateWire } from '@dl
 import { threadOf } from '@/features/shell/__tests__/fixtures'
 
 import { mergePrStates, prStateWireOfApi } from '../pr-states-merge'
+import { pullRequestEntriesOf } from '../pull-request-entries'
 import { pullRequestListOf } from '../pull-request-rows'
 
 const apiState = (over: Partial<GithubPrState> = {}): GithubPrState => ({
@@ -41,6 +42,7 @@ describe('prStateWireOfApi', () => {
     expect(prStateWireOfApi(apiState())).toEqual({
       repo: 'o/r',
       number: 760,
+      title: 'fix',
       url: 'https://github.com/o/r/pull/760',
       branch: 'dennis/fix',
       state: EPullRequestStateWire.Open,
@@ -49,6 +51,21 @@ describe('prStateWireOfApi', () => {
       checksFailed: 2,
       mergeable: true,
     })
+  })
+
+  it('carries an actual API title onto a newly branch-discovered sidebar PR', () => {
+    const state = prStateWireOfApi(apiState({ title: 'Newly discovered PR' }))
+    const thread = threadOf({
+      id: 't',
+      repo: 'o/r',
+      worktree: { path: '/w', branch: 'dennis/fix' },
+    })
+    const entries = pullRequestEntriesOf({
+      thread,
+      states: state === undefined ? [] : [state],
+    })
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.title).toBe('Newly discovered PR')
   })
 
   it('drops states the wire does not know', () => {
@@ -75,6 +92,21 @@ describe('mergePrStates', () => {
       [760, 9],
       [761, 9],
     ])
+  })
+
+  it('retains an available API title when an older pod sends no title', () => {
+    const api = prStateWireOfApi(apiState({ title: 'Available API title' }))
+    const states = mergePrStates({ live: [podState()], api: api === undefined ? [] : [api] })
+    expect(states[0]?.title).toBe('Available API title')
+    expect(states[0]?.checksPassed).toBe(9)
+  })
+
+  it('prefers a title supplied by the live pod over the API fallback', () => {
+    const states = mergePrStates({
+      live: [podState({ title: 'Latest live title' })],
+      api: [podState({ title: 'API fallback' })],
+    })
+    expect(states[0]?.title).toBe('Latest live title')
   })
 
   it('keeps a terminal api state over a stale non-terminal live state', () => {

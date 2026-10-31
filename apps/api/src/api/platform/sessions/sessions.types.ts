@@ -20,14 +20,7 @@ export type ThreadWorktreeDto = {
   branch: string
 }
 
-export type LinkedPullRequestDto = {
-  number: number
-  url: string
-  repo: string
-  branch: string
-  state?: string | undefined
-  via?: { threadId: string; title: string | null } | undefined
-}
+export type LinkedPullRequestDto = NonNullable<WireThread['pullRequests']>[number]
 
 export type ThreadDraft = {
   id?: string | undefined
