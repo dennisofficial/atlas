@@ -43,7 +43,7 @@ describe('ThreadMessagesService.takeBack', () => {
     await service.takeBack(target)
 
     expect(await eventsOf()).toHaveLength(0)
-    expect((await threadRow())?.head).toBe(0)
+    expect(await threadRow()).toMatchObject({ head: 0, historyRev: 1 })
   })
 
   it('lets the next send reuse the freed seq', async () => {
@@ -56,6 +56,7 @@ describe('ThreadMessagesService.takeBack', () => {
     expect(
       (await eventsOf()).map((event) => [event.seq, JSON.parse(event.body).requestId]),
     ).toEqual([[1, 'snd-2']])
+    expect(await threadRow()).toMatchObject({ head: 1, historyRev: 1 })
   })
 
   it('refuses with 409 when a later core event exists', async () => {
@@ -71,6 +72,7 @@ describe('ThreadMessagesService.takeBack', () => {
       message: TAKE_BACK_TOO_LATE_MESSAGE,
     })
     expect(await eventsOf()).toHaveLength(2)
+    expect(await threadRow()).toMatchObject({ historyRev: 0 })
   })
 
   it('refuses with 409 when a serve is running for the thread', async () => {
@@ -97,6 +99,7 @@ describe('ThreadMessagesService.takeBack', () => {
     const { service } = messagesWith()
 
     await expect(service.takeBack(target)).rejects.toMatchObject({ status: 404 })
+    expect(await threadRow()).toMatchObject({ historyRev: 0 })
   })
 
   it('answers 404 for a message that is not a user-said', async () => {
@@ -104,6 +107,7 @@ describe('ThreadMessagesService.takeBack', () => {
     const { service } = messagesWith()
 
     await expect(service.takeBack(target)).rejects.toMatchObject({ status: 404 })
+    expect(await threadRow()).toMatchObject({ historyRev: 0 })
   })
 
   it("does not take back on another user's thread", async () => {

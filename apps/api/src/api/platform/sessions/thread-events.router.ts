@@ -5,6 +5,13 @@ import {
   readEventsInputSchema,
   replaceEventsInputSchema,
   threadHeadReplySchema,
+  threadEventsLiveInputSchema,
+  threadEventsLiveOutputSchema,
+  threadEventsSnapshotInputSchema,
+  threadEventsSnapshotOutputSchema,
+  type ThreadEventsLiveInput,
+  type ThreadEventsSnapshotInput,
+  type ThreadEventsSnapshot,
   threadIdInputSchema,
   threadStreamInputSchema,
   threadStreamOutputSchema,
@@ -44,6 +51,8 @@ import type { EventDto } from './sessions.types'
 import { ThreadSignalsService } from './thread-signals.service'
 import { attachThreadStream } from './thread-stream'
 import { threadStreamFrames } from './thread-stream.frames'
+import { readThreadEventsSnapshot } from './thread-events-snapshot'
+import { orderedThreadEvents } from './thread-events-live'
 
 const readMeta = meta({ throttle: { limit: CLIENT_READ_LIMIT_PER_MINUTE, ttlMs: 60_000 } })
 const unthrottledMeta = meta({ throttle: false })
@@ -83,6 +92,49 @@ export class ThreadEventsRouter {
     }
     if (input.own === true) return this.events.readOwn(args)
     return this.events.read(args)
+  }
+
+  @Query({
+    input: threadEventsSnapshotInputSchema,
+    output: threadEventsSnapshotOutputSchema,
+    meta: unthrottledMeta,
+  })
+  snapshot(
+    @Input() input: ThreadEventsSnapshotInput,
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+  ): Promise<ThreadEventsSnapshot> {
+    return readThreadEventsSnapshot({ ...input, userId: ctx.auth.userId })
+  }
+
+  @Subscription({
+    input: threadEventsLiveInputSchema,
+    output: threadEventsLiveOutputSchema,
+    meta: readMeta,
+  })
+  async live(
+    @Input() input: ThreadEventsLiveInput,
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Options() opts: ProcedureOptions,
+  ) {
+    if (ctx.sandbox !== undefined || ctx.pod !== undefined) {
+      throw new ForbiddenException('only the thread owner can subscribe to a thread')
+    }
+    if (this.drain.isDraining()) {
+      throw new ServiceUnavailableException('the api is restarting — retry the stream')
+    }
+    await this.events.head({ userId: ctx.auth.userId, threadId: input.threadId })
+    return orderedThreadEvents({
+      threadId: input.threadId,
+      lastEventId: input.lastEventId,
+      signal: opts.signal,
+      signals: this.signals,
+      readSnapshot: (options) =>
+        readThreadEventsSnapshot({
+          ...options,
+          threadId: input.threadId,
+          userId: ctx.auth.userId,
+        }),
+    })
   }
 
   @Mutation({ input: importEventsInputSchema, output: podEventsReplySchema, meta: readMeta })

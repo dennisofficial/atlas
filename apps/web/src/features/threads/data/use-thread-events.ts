@@ -20,10 +20,10 @@ export function useThreadEvents(args: {
   history?: TranscriptHistory
 }): PolledThreadEvents {
   const { threadId, signals, enabled } = args
-  const { fetchEvents, fetchSeed, local } = useThreadBackend()
+  const { fetchEvents, fetchSeed, fetchSnapshot, local } = useThreadBackend()
   const history = useMemo(
-    () => args.history ?? createTranscriptHistory({ threadId, fetchSeed }),
-    [args.history, threadId, fetchSeed],
+    () => args.history ?? createTranscriptHistory({ threadId, fetchSeed, fetchSnapshot }),
+    [args.history, threadId, fetchSeed, fetchSnapshot],
   )
   useEffect(() => history.retain(), [history])
   const [state, setState] = useState({ history, value: INITIAL_THREAD_EVENTS })
@@ -39,15 +39,31 @@ export function useThreadEvents(args: {
     setState({ history, value: current })
     const reader = createEventsReader({
       threadId,
-      fetchSeed: history.readSeed,
+      fetchSeed: history.readSnapshot,
       fetchEvents,
+      fetchSnapshot: history.fetchSnapshot,
+      onAccept: history.replaceSnapshot,
       onUpdate: (update) => {
         current = update(current)
-        if (current.loaded) history.replace(current.events)
         setState({ history, value: current })
       },
     })
-    const unlisten = local ? NOT_READING : signals.listen({ onHead: reader.handleHead })
+    const unlisten = local
+      ? NOT_READING
+      : signals.listen({
+          onCheckpoint: (checkpoint) => {
+            history.expectEpoch(checkpoint)
+            reader.handleCheckpoint(checkpoint)
+          },
+          onEvents: (batch) => {
+            history.expectEpoch(batch)
+            reader.handleEvents(batch)
+          },
+          onReset: (checkpoint) => {
+            history.expectEpoch(checkpoint)
+            reader.handleReset(checkpoint)
+          },
+        })
     pokeRef.current = local ? NOT_READING : reader.poke
     reader.start()
     if (cached !== undefined && !local) reader.poke()
@@ -56,7 +72,7 @@ export function useThreadEvents(args: {
       unlisten()
       reader.stop()
     }
-  }, [threadId, signals, reading, fetchEvents, history, local])
+  }, [threadId, signals, reading, fetchEvents, fetchSnapshot, history, local])
 
   const poke = useCallback(() => pokeRef.current(), [])
   const current = state.history === history ? state.value : INITIAL_THREAD_EVENTS

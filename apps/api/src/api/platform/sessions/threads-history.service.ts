@@ -10,8 +10,9 @@ import { createSessionWithMainThread } from './create-session'
 import { sessionOfThread } from './session-of-thread'
 import { nextEventId, nextRunId, nextSessionId, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
-import { toThreadDto } from './rows'
-import { advanceHead, bumpMainSession } from './thread-head'
+import { toEventDto, toThreadDto } from './rows'
+import { bumpHistoryRevision } from './history-revision'
+import { advanceHead, bumpMainSession, lockThread } from './thread-head'
 import { ThreadSignalsService } from './thread-signals.service'
 import { SUBSCRIPTION_EVENT_TYPES } from './thread-subscriptions'
 import type { ThreadDto } from './sessions.types'
@@ -74,7 +75,8 @@ export class ThreadsHistoryService {
       threadId: args.threadId,
     })
     const at = new Date()
-    await db.transaction(async (tx) => {
+    const historyRev = await db.transaction(async (tx) => {
+      const historyRev = await bumpHistoryRevision({ tx, threadId: args.threadId })
       await tx.orm.public.Event.where({
         threadId: args.threadId,
         userId: args.userId,
@@ -91,10 +93,12 @@ export class ThreadsHistoryService {
         updatedAt: at,
       })
       await bumpMainSession({ tx, threadId: args.threadId, at })
+      return historyRev
     })
-    await this.signals.headMoved({
+    await this.signals.eventsReset({
       threadId: args.threadId,
       head: args.draft.toSeq,
+      historyRev,
     })
   }
 
@@ -205,6 +209,8 @@ export class ThreadsHistoryService {
     const at = new Date()
 
     const marked = await db.transaction(async (tx) => {
+      await lockThread({ tx, threadId: args.threadId })
+      if (args.discardRows) await bumpHistoryRevision({ tx, threadId: args.threadId })
       const covered = tx.orm.public.Event.where({
         threadId: args.threadId,
         userId: args.userId,
@@ -238,7 +244,7 @@ export class ThreadsHistoryService {
         seq = await advanceHead({ tx, threadId: args.threadId, by: 1, at })
       }
 
-      await tx.orm.public.Event.create({
+      const event = await tx.orm.public.Event.create({
         id: nextEventId(),
         threadId: args.threadId,
         seq,
@@ -266,12 +272,16 @@ export class ThreadsHistoryService {
       await bumpMainSession({ tx, threadId: args.threadId, at })
 
       const thread = await tx.orm.public.Thread.where({ id: args.threadId }).all().firstOrThrow()
-      return { replaced, head: thread.head }
+      return {
+        replaced,
+        head: thread.head,
+        historyRev: thread.historyRev,
+        event: toEventDto(event),
+      }
     })
-    await this.signals.headMoved({
-      threadId: args.threadId,
-      head: marked.head,
-    })
+    const checkpoint = { threadId: args.threadId, head: marked.head, historyRev: marked.historyRev }
+    if (args.discardRows) await this.signals.eventsReset(checkpoint)
+    else await this.signals.eventsAppended({ ...checkpoint, events: [marked.event] })
     return { replaced: marked.replaced }
   }
 }

@@ -90,6 +90,14 @@ describe('SandboxSelfRouter signals', () => {
     })
 
     expect(reply.status).toBe(200)
-    expect(frames).toEqual([{ type: EThreadStreamFrame.Head, head: 1 }])
+    expect(frames).toEqual([
+      {
+        type: EThreadStreamFrame.Events,
+        fromSeq: 1,
+        historyRev: 0,
+        events: [expect.objectContaining({ threadId: 'thr-1', seq: 1, body: '{}' })],
+      },
+      { type: EThreadStreamFrame.Head, head: 1, historyRev: 0 },
+    ])
   })
 })
