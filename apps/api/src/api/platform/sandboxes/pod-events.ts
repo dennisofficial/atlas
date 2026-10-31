@@ -2,6 +2,8 @@ import { ConflictException } from '@nestjs/common'
 import { POD_EVENT_CONFLICT_CODE, type PodEvent, type PodEventsReply } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { nextEventId } from '../sessions/append'
+import { bumpHistoryRevision } from '../sessions/history-revision'
+import { toEventDto } from '../sessions/rows'
 import { lockThread } from '../sessions/thread-head'
 import type { ThreadSignalPublisher } from '../sessions/thread-signals.service'
 
@@ -30,7 +32,7 @@ export async function applyPodEvents(args: {
   signals: ThreadSignalPublisher
 }): Promise<PodEventsReply & { assistantMoved: boolean }> {
   const { threadId, events } = args
-  const { head, moved, assistantMoved } = await db.transaction(async (tx) => {
+  const { head, appended, assistantMoved } = await db.transaction(async (tx) => {
     await lockThread({ tx, threadId })
     const thread = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
     const seqs = events.map((event) => event.seq)
@@ -53,24 +55,23 @@ export async function applyPodEvents(args: {
       fresh.push(event)
     }
 
-    if (fresh.length === 0) return { head: thread.head, moved: false, assistantMoved: false }
-    await tx.orm.public.Event.createAndCount(
-      fresh.map((event) => ({
-        id: nextEventId(),
-        threadId,
-        seq: event.seq,
-        runId: event.runId,
-        parentRunId: event.parentRunId ?? null,
-        depth: event.depth,
-        at: new Date(event.at),
-        type: event.type,
-        body: event.body,
-        contextSlot: event.contextSlot ?? null,
-        contextKey: event.contextKey ?? null,
-        contextDigest: event.contextDigest ?? null,
-        userId: thread.userId,
-      })),
-    )
+    if (fresh.length === 0) return { head: thread.head, assistantMoved: false }
+    const rows = fresh.map((event) => ({
+      id: nextEventId(),
+      threadId,
+      seq: event.seq,
+      runId: event.runId,
+      parentRunId: event.parentRunId ?? null,
+      depth: event.depth,
+      at: new Date(event.at),
+      type: event.type,
+      body: event.body,
+      contextSlot: event.contextSlot ?? null,
+      contextKey: event.contextKey ?? null,
+      contextDigest: event.contextDigest ?? null,
+      userId: thread.userId,
+    }))
+    await tx.orm.public.Event.createAndCount(rows)
     const head = Math.max(thread.head, previous)
     const lastAssistantSeq = fresh
       .filter((event) => event.type === ASSISTANT_SAID)
@@ -82,13 +83,12 @@ export async function applyPodEvents(args: {
     })
     return {
       head,
-      moved: true,
+      appended: { events: rows.map(toEventDto), head, historyRev: thread.historyRev },
       assistantMoved: lastAssistantSeq !== thread.lastAssistantSeq,
     }
   })
-  if (moved) await args.signals.headMoved({ threadId, head })
-  if (assistantMoved) await args.signals.listChangedForOwner({ threadId })
-  if (moved) args.signals.threadChanged({ threadId })
+  if (appended !== undefined) await args.signals.eventsAppended({ threadId, ...appended })
+  if (assistantMoved) args.signals.threadChanged({ threadId })
   return { head, assistantMoved }
 }
 
@@ -98,14 +98,16 @@ export async function truncatePodEvents(args: {
   signals: ThreadSignalPublisher
 }): Promise<PodEventsReply & { assistantMoved: boolean }> {
   const { threadId, toSeq } = args
-  const { head, moved, assistantMoved } = await db.transaction(async (tx) => {
+  const { head, historyRev, assistantMoved } = await db.transaction(async (tx) => {
     await lockThread({ tx, threadId })
     const thread = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
-    await tx.orm.public.Event.where({ threadId })
-      .where((row) => row.seq.gt(toSeq))
-      .deleteAndCount()
     const head = Math.min(thread.head, toSeq)
-    if (head === thread.head) return { head, moved: false, assistantMoved: false }
+    const tail = tx.orm.public.Event.where({ threadId }).where((row) => row.seq.gt(toSeq))
+    if (head === thread.head && (await tail.select('id').first()) === null) {
+      return { head, assistantMoved: false }
+    }
+    const historyRev = await bumpHistoryRevision({ tx, threadId })
+    await tail.deleteAndCount()
     const lastAssistantSeq = Math.min(thread.lastAssistantSeq, head)
     await tx.orm.public.Thread.where({ id: threadId }).update({
       head,
@@ -114,12 +116,11 @@ export async function truncatePodEvents(args: {
     })
     return {
       head,
-      moved: true,
+      historyRev,
       assistantMoved: lastAssistantSeq !== thread.lastAssistantSeq,
     }
   })
-  if (moved) await args.signals.headMoved({ threadId, head })
-  if (assistantMoved) await args.signals.listChangedForOwner({ threadId })
-  if (moved) args.signals.threadChanged({ threadId })
+  if (historyRev !== undefined) await args.signals.eventsReset({ threadId, head, historyRev })
+  if (assistantMoved) args.signals.threadChanged({ threadId })
   return { head, assistantMoved }
 }

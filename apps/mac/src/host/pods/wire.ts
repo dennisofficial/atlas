@@ -13,6 +13,7 @@ export const localPodSchema = z.object({
   model: z.string().optional(),
   effort: z.string().optional(),
   title: z.string().optional(),
+  archivedAt: z.iso.datetime().nullish(),
   createdAt: z.iso.datetime(),
   state: z.enum(ELocalPodState),
 })
@@ -44,6 +45,7 @@ export const localThreadSchema = z.object({
   effort: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  archivedAt: z.iso.datetime().nullish(),
 })
 export type LocalThread = z.infer<typeof localThreadSchema>
 
@@ -68,6 +70,10 @@ export const threadEventsReplySchema = z.object({
   nextAfter: z.number().int().nonnegative().nullable(),
 })
 export type ThreadEventsReply = z.infer<typeof threadEventsReplySchema>
+
+export const archiveInputSchema = z.object({ archived: z.boolean() })
+
+export const renameInputSchema = z.object({ title: z.string().trim().min(1).max(200) })
 
 export const markReadInputSchema = z.object({ seq: z.number().int().nonnegative() })
 

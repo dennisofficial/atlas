@@ -4529,6 +4529,13 @@
                   "kind": "scalar"
                 }
               },
+              "historyRev": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -4796,6 +4803,9 @@
                 },
                 "head": {
                   "column": "head"
+                },
+                "historyRev": {
+                  "column": "historyRev"
                 },
                 "id": {
                   "column": "id"
@@ -10171,6 +10181,15 @@
                   },
                   "nullable": false
                 },
+                "historyRev": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -11000,7 +11019,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "06b0868cd9f1f9bab0fb176034cd5d996206647b20d9c30172a3c44e53c98595"
+    "storageHash": "8c06c16b9fa177877b5bb7b893f77c96e2f071c40b5f85bc4e5a4bfd8b0d102a"
   },
   "execution": {
     "executionHash": "e5139d1de8d5766e0bfebef978a82018efb9a20a4c75ca8470538fe80225e0c7",

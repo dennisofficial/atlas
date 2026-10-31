@@ -6,8 +6,9 @@ import { recordingSignals } from '../../platform/sessions/thread-signals.fixture
 import { messagesWith, seedThread, sessionRow } from './sandbox-provisioning.fixture'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
-const head = (value: number) => ({ type: EThreadStreamFrame.Head, head: value }) as const
-const pod = { type: EThreadStreamFrame.Pod } as const
+const head = (args: { head: number; historyRev: number }) =>
+  ({ type: EThreadStreamFrame.Head, ...args }) as const
+const pod = expect.objectContaining({ type: EThreadStreamFrame.Pod, status: expect.any(Object) })
 
 describe('ThreadMessagesService signals', () => {
   useTestDatabase()
@@ -22,7 +23,13 @@ describe('ThreadMessagesService signals', () => {
 
     await messagesWith({ signals }).service.send(ARGS)
 
-    expect(frames).toContainEqual(head(1))
+    expect(frames).toContainEqual(head({ head: 1, historyRev: 0 }))
+    expect(frames).toContainEqual({
+      type: EThreadStreamFrame.Events,
+      fromSeq: 1,
+      historyRev: 0,
+      events: [expect.objectContaining({ seq: 1, type: 'user-said' })],
+    })
   })
 
   it('a send that launches a pod also signals a pod change', async () => {
@@ -34,15 +41,14 @@ describe('ThreadMessagesService signals', () => {
     expect(frames).toContainEqual(pod)
   })
 
-  it('a send to an archived thread unarchives it and signals the list', async () => {
+  it('a send to an archived thread unarchives it and signals the thread change', async () => {
     await db.orm.public.Session.where({ id: 'ses_thr-1' }).update({ archivedAt: new Date() })
-    const { signals, listFramesOf } = recordingSignals()
-    const listFrames = listFramesOf('usr-1')
+    const { signals, changedThreads } = recordingSignals()
 
     await messagesWith({ signals }).service.send(ARGS)
 
     expect((await sessionRow())?.archivedAt).toBeNull()
-    expect(listFrames.length).toBeGreaterThan(0)
+    expect(changedThreads).toContain('thr-1')
   })
 
   it('a live send to an archived thread unarchives it too', async () => {
@@ -75,6 +81,9 @@ describe('ThreadMessagesService signals', () => {
 
     await service.takeBack({ userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1' })
 
-    expect(frames).toEqual([head(0)])
+    expect(frames).toEqual([
+      { type: EThreadStreamFrame.Reset, head: 0, historyRev: 1 },
+      head({ head: 0, historyRev: 1 }),
+    ])
   })
 })

@@ -1,13 +1,16 @@
-import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
-import { dirname } from 'node:path'
 
 import { z } from 'zod'
 
 import type { LogPort, ThreadId } from '@dltech/atlas-core'
 import { runtimeCheckpointSchema, transcriptCheckpointSchema } from '@dltech/atlas-wire'
 
+import { withMirrorLock } from '../../cloud/mirror-lock'
 import { logFieldsOf } from '../logs'
+import { THREAD_META_FILE_SUFFIX } from './paths'
+import { EThreadTitleSource } from './local-title-state'
+import { writeMetaFile } from './meta-file'
 import { canMigrateToCurrent, migrateSessionDirectory } from './migrations'
 
 export const SESSION_FORMAT_VERSION = 1
@@ -64,6 +67,8 @@ export const threadMetaSchema = z.object({
   v: z.number().optional().default(THREAD_META_VERSION),
   id: z.string(),
   title: z.string().nullable(),
+  titleSource: z.enum(EThreadTitleSource).optional(),
+  titleRevision: z.number().int().nonnegative().optional(),
   head: z.number(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -77,6 +82,7 @@ export const threadMetaSchema = z.object({
   modelRef: z.string().nullable(),
   modelEffort: z.string().nullable(),
   executionLocation: z.string().nullable(),
+  archivedAt: z.iso.datetime().nullish(),
   runner: z.string().nullish(),
   projectId: z.string().nullish(),
   placement: z
@@ -227,21 +233,38 @@ function errorCodeOf({ error }: { error: unknown }): string | undefined {
   return typeof code === 'string' ? code : undefined
 }
 
-let tmpSequence = 0
-
 export async function writeMeta({ file, meta }: { file: string; meta: unknown }): Promise<void> {
-  await mkdir(dirname(file), { recursive: true })
-  tmpSequence += 1
-  const tmp = `${file}.${process.pid}.${tmpSequence}.tmp`
-  const handle = await open(tmp, 'w')
-  try {
-    await handle.writeFile(JSON.stringify(meta, null, 2))
-    await handle.sync()
-  } catch (error) {
-    await handle.close().catch(() => {})
-    await unlink(tmp).catch(() => {})
-    throw error
-  }
-  await handle.close()
-  await rename(tmp, file)
+  if (!file.endsWith(THREAD_META_FILE_SUFFIX)) return writeMetaFile({ file, meta })
+  await withMirrorLock({
+    eventsFile: file,
+    run: async () => {
+      const current = await readMeta({ file, schema: threadMetaSchema })
+      if (current !== undefined && typeof meta === 'object' && meta !== null) {
+        meta = { ...meta, archivedAt: current.archivedAt }
+      }
+      if (
+        current === undefined ||
+        (current.titleSource === undefined && (current.titleRevision ?? 0) === 0) ||
+        typeof meta !== 'object' ||
+        meta === null
+      )
+        return writeMetaFile({ file, meta })
+      const incoming = threadMetaSchema.safeParse(meta)
+      if (
+        incoming.success &&
+        incoming.data.titleSource !== undefined &&
+        (incoming.data.titleRevision ?? 0) > (current.titleRevision ?? 0)
+      )
+        return writeMetaFile({ file, meta })
+      await writeMetaFile({
+        file,
+        meta: {
+          ...meta,
+          title: current.title,
+          titleSource: current.titleSource,
+          titleRevision: current.titleRevision,
+        },
+      })
+    },
+  })
 }

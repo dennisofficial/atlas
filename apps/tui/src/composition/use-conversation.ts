@@ -1,7 +1,7 @@
 import type { Event } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import { RemoteTurnRunner, sessionDigest, threadHandle } from '@dltech/atlas-harness'
+import { RemoteTurnRunner, threadHandle } from '@dltech/atlas-harness'
 
 import { useDelegatedToolCalls } from '../ui/hooks/use-delegated-tool-calls'
 import { createAwakeClock } from './awake-clock'
@@ -20,6 +20,7 @@ import { useResumeOnOpen } from './use-conversation-resume'
 import { usePlacementMoving, useRemotePending, useSendingChannel } from './use-conversation-send'
 import { useMainWake } from './use-main-wake'
 import { useSessionName } from './use-session-name'
+import { titleDigestReader } from './title-digest'
 import { EThreadRows, useThreadView } from './use-thread-view'
 import { useThreadSwap } from './use-thread-swap'
 import { useRunAttention } from './use-run-attention'
@@ -85,7 +86,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     threads: args.threads ?? app.threads,
     threadId,
     started: startedRef,
-    readDigest: async () => sessionDigest(await app.log.read({ threadId })),
+    readDigest: titleDigestReader({ app, threads: args.threads, threadId }),
     initial: args.opened.name,
   })
 

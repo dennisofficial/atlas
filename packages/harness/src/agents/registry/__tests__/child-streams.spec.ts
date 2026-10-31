@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { fakeActivityLifecycle } from '../../../composition/__tests__/fakes'
 
 import { defaultPipeline, EMPTY_PROMPT, type ThreadId } from '@dltech/atlas-core'
 
@@ -65,6 +66,7 @@ async function childTurnWatched(): Promise<{
     observeModel: () => undefined,
     steering: () => ({ peek: () => [], acknowledge: () => undefined }),
     deps: {
+      activity: fakeActivityLifecycle(),
       turn: {
         log: harness.log,
         model: harness.model,

@@ -6,14 +6,13 @@ import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from '../data/events-from-wire'
-import { durableTranscriptOf, transcriptViewOf } from '../data/transcript-items'
-
-import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
-import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
-import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
-import { EMPTY_DETAILS } from '../panel/details/details-input'
-import { ThreadTranscript, type TranscriptRewind } from '../thread-transcript'
-import type { RunFailureCardProps } from '../transcript/run-failure-card'
+import {
+  durableTranscriptOf,
+  ETranscriptKind,
+  transcriptViewOf,
+  type TranscriptRow,
+} from '../data/transcript-items'
+import { mount, mountWith, rewindButton } from './transcript-mount'
 import { installVirtuaViewport } from './virtua-viewport'
 
 let restoreViewport = () => {}
@@ -33,75 +32,14 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-const panel: ThreadPanelValue = {
-  threadId: 'thr_1',
-  channel: null,
-  loaded: true,
-  error: null,
-  pod: null,
-  working: false,
-  changesPath: undefined,
-  agentId: undefined,
-  openChanges: () => undefined,
-  openAgent: () => undefined,
-  openDetails: () => undefined,
-  details: EMPTY_DETAILS,
-  clearAgent: () => undefined,
-  contextPath: undefined,
-  openContextFile: () => undefined,
-  closeContextFile: () => undefined,
-  closePanel: () => undefined,
-  refreshPod: () => undefined,
-}
-
-const items: TranscriptRow[] = [
-  {
-    kind: ETranscriptKind.User,
-    id: 'evt_2',
-    text: 'try again',
-    at: '2026-10-28T10:00:00.000Z',
-  },
-]
-
-const mount = async (rewind: TranscriptRewind | null, rows: TranscriptRow[] = items) =>
-  mountWith({ rewind, rows })
-
-const mountWith = async (args: {
-  rewind: TranscriptRewind | null
-  rows?: TranscriptRow[]
-  failureCard?: RunFailureCardProps | null
-  failedLabel?: string | null
-}) => {
-  const { createRoot } = await import('react-dom/client')
-  const container = document.createElement('div')
-  document.body.append(container)
-  const root = createRoot(container)
-  await act(async () =>
-    root.render(
-      <TestQueryProvider client={createTestQueryClient()}>
-        <ThreadPanelProvider value={panel}>
-          <ThreadTranscript
-            items={args.rows ?? items}
-            failureCard={args.failureCard ?? null}
-            failedLabel={args.failedLabel ?? null}
-            pod={null}
-            working={false}
-            onRetryBoot={() => undefined}
-            rewind={args.rewind}
-          />
-        </ThreadPanelProvider>
-      </TestQueryProvider>,
-    ),
-  )
-}
-
-const rewindButton = () => document.body.querySelector('button[aria-label="Rewind to here"]')
-
 describe('ThreadTranscript failure card', () => {
   it('renders the card instead of the plain marker when a card is given', async () => {
     await mountWith({
       rewind: null,
-      failureCard: { title: 'Anthropic rejected the API key', detail: 'bad key' },
+      failureCard: {
+        title: 'Anthropic rejected the API key',
+        detail: 'bad key',
+      },
       failedLabel: 'run failed after 2s',
     })
 

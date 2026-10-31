@@ -97,7 +97,7 @@ export function ThreadRowBody({
             <NamingTitle
               title={naming.title}
               naming={naming.naming}
-              className={cn(isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}
+              className={cn('flex-1', isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}
             />
           </span>
           {thread.runner === 'local' ? (

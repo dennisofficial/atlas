@@ -50,7 +50,6 @@ const inputSchema = z.strictObject({
   timeoutMs: z.number().int().positive().optional(),
   runInBackground: z.boolean().optional(),
   watch: z.string().min(1).optional(),
-  outputLimitBytes: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
 })
 
 const description = bashDescription({
@@ -87,7 +86,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     cwd: string
     watch?: string | undefined
     timeoutMs?: number | undefined
-    outputLimitBytes?: number | undefined
   }): Promise<ToolOutcome> {
     const started = await this.shells.start(args)
     if (!started.ok) return started
@@ -105,7 +103,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         outputPath: started.snapshot.outputPath,
         ...(args.watch === undefined ? {} : { watch: args.watch }),
         ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
-        outputLimitBytes: args.outputLimitBytes ?? 5 * 1024 ** 3,
       },
       modelText: [
         `Started in the background as shell ${shellId}, and it outlives this turn.`,
@@ -151,14 +148,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       }
     }
 
-    if (input.outputLimitBytes !== undefined && input.runInBackground !== true) {
-      return {
-        ok: false,
-        reason:
-          'outputLimitBytes is the durable background command’s kernel file-size cap; use runInBackground to configure it',
-      }
-    }
-
     if (input.workdir !== undefined) {
       const directory = await this.files.stat({ path: input.workdir }).catch(() => undefined)
       if (directory === undefined) {
@@ -184,7 +173,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         cwd,
         watch: input.watch,
         timeoutMs,
-        outputLimitBytes: input.outputLimitBytes,
       })
     }
 

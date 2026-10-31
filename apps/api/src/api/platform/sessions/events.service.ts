@@ -7,7 +7,8 @@ import type {
   ReplaceEventsInput,
 } from '@dltech/atlas-wire'
 import { applyPodEvents } from '../sandboxes/pod-events'
-import { appendWithin, nextEventId, readComposedRows, readOwnRows } from './append'
+import { appendStoredWithin, nextEventId, readComposedRows, readOwnRows } from './append'
+import { bumpHistoryRevision } from './history-revision'
 import { ownedThread } from './ownership'
 import { ThreadSignalsService } from './thread-signals.service'
 import { toEventDto } from './rows'
@@ -22,8 +23,8 @@ export class EventsService {
     threadId: string
     draft: Omit<AppendEventsInput, 'threadId'>
   }): Promise<EventDto[]> {
-    const events = await db.transaction((tx) =>
-      appendWithin({
+    const { events, appended } = await db.transaction((tx) =>
+      appendStoredWithin({
         tx,
         threadId: args.threadId,
         userId: args.userId,
@@ -33,9 +34,8 @@ export class EventsService {
         drafts: args.draft.drafts,
       }),
     )
-    if (events.length > 0) {
-      const head = Math.max(...events.map((event) => event.seq))
-      await this.signals.headMoved({ threadId: args.threadId, head })
+    if (appended !== undefined) {
+      await this.signals.eventsAppended({ threadId: args.threadId, ...appended })
     }
     return events
   }
@@ -45,11 +45,8 @@ export class EventsService {
     threadId: string
     draft: Omit<ReplaceEventsInput, 'threadId'>
   }): Promise<EventDto[]> {
-    const events = await this.replaceWithin(args)
-    await this.signals.headMoved({
-      threadId: args.threadId,
-      head: events.length,
-    })
+    const { events, historyRev } = await this.replaceWithin(args)
+    await this.signals.eventsReset({ threadId: args.threadId, head: events.length, historyRev })
     return events
   }
 
@@ -57,8 +54,9 @@ export class EventsService {
     userId: string
     threadId: string
     draft: Omit<ReplaceEventsInput, 'threadId'>
-  }): Promise<EventDto[]> {
+  }): Promise<{ events: EventDto[]; historyRev: number }> {
     return db.transaction(async (tx) => {
+      const historyRev = await bumpHistoryRevision({ tx, threadId: args.threadId })
       const thread = await tx.orm.public.Thread.where({
         id: args.threadId,
       }).first()
@@ -94,7 +92,7 @@ export class EventsService {
         updatedAt: at,
       })
 
-      return rows.map(toEventDto)
+      return { events: rows.map(toEventDto), historyRev }
     })
   }
 

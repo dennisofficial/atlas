@@ -1,4 +1,5 @@
 import type { ServerWebSocket } from 'bun'
+import type { SessionActivityPort } from '@dltech/atlas-harness/activity'
 
 import type { ThreadId } from '@dltech/atlas-core'
 import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
@@ -61,6 +62,7 @@ export type SessionHandlers = {
 export type HelloFrame = Extract<ClientFrame, { kind: EClientFrame.Hello }>
 
 export type SessionHandlersArgs = {
+  activity: SessionActivityPort
   threadId: ThreadId
   buffer: FrameBuffer
   inFlight: () => readonly SignalFrame[]

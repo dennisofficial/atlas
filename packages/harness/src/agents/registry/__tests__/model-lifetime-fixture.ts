@@ -1,4 +1,5 @@
 import { simulateReadableStream } from 'ai'
+import { fakeActivityLifecycle } from '../../../composition/__tests__/fakes'
 import { MockLanguageModelV4 } from 'ai/test'
 
 import {
@@ -173,6 +174,7 @@ export async function openLifetimeSupervisor(args: {
   const persistedBeforeBuild: ThreadId[] = []
   const runners = childRunnerSource({
     deps: () => ({
+      activity: fakeActivityLifecycle(),
       turn: {
         log: harness.log,
         model: harness.model,

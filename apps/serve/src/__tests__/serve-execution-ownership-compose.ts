@@ -140,6 +140,12 @@ export async function composeOwnershipApp(args: {
 
   const runners = childRunnerSource({
     deps: () => ({
+      activity: {
+        turnStarted: () => undefined,
+        turnOutcome: () => undefined,
+        turnFailed: () => undefined,
+        turnEnded: () => undefined,
+      },
       turn: {
         log,
         model: childModel,
@@ -205,6 +211,11 @@ export async function composeOwnershipApp(args: {
 
   return {
     serveApp: {
+      activity: {
+        read: async () => {
+          throw new Error('activity is not initialized')
+        },
+      },
       channel,
       runner,
       log,

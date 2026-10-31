@@ -27,6 +27,7 @@ export type ThreadSummary = {
   head: number
   createdAt: string
   updatedAt: string
+  archivedAt?: string | null | undefined
   parent?: { threadId: ThreadId; forkSeq: number } | undefined
   forkMode?: EForkMode | undefined
   agent?: SupervisedAgent | undefined
@@ -81,6 +82,11 @@ export abstract class ThreadStorePort {
   }
 
   onRewound?(listener: RewoundListener): Unsubscribe
+
+  async setArchived(args: { threadId: ThreadId; archived: boolean }): Promise<boolean> {
+    void args
+    throw new Error('this thread store does not support archiving')
+  }
 
   async chooseRunner(args: { threadId: ThreadId; runner: ERunner }): Promise<void> {
     void args

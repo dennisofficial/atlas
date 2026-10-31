@@ -1,38 +1,12 @@
-import type { Project, ProjectRepo, ProjectSave, ProjectWorkspace } from '@dltech/atlas-wire'
-import { projectRepoSchema } from '@dltech/atlas-wire'
-import { EShipBehavior } from '@dltech/atlas-wire/web'
+import type { Project, ProjectSave, ProjectWorkspace } from '@dltech/atlas-wire'
+import { reposOf, toProject } from '../../platform/sessions/live-project'
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { z } from 'zod'
 import { db, type Row } from '@dltech/atlas-db'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { GithubService } from '../github/github.service'
 import { assertProjectRules } from './projects.rules'
 
 export const PROJECT_NOT_FOUND = 'project not found'
-
-const repoListSchema = z.array(projectRepoSchema)
-
-const reposOf = (row: Row<'Project'>): ProjectRepo[] => {
-  const parsed = repoListSchema.safeParse(row.additionalRepos)
-  return parsed.success ? parsed.data : []
-}
-
-const shipBehaviorOf = (stored: string): EShipBehavior =>
-  Object.values(EShipBehavior).find((candidate) => candidate === stored) ??
-  EShipBehavior.OpenPullRequest
-
-function toProject(row: Row<'Project'>): Project {
-  return {
-    id: row.id,
-    name: row.name,
-    repo: row.repo,
-    baseBranch: row.baseBranch,
-    additionalRepos: reposOf(row),
-    description: row.description,
-    shipBehavior: shipBehaviorOf(row.shipBehavior),
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  }
-}
 
 function columnsOf(input: ProjectSave) {
   const additionalRepos = input.additionalRepos.map((entry) =>
@@ -51,7 +25,10 @@ function columnsOf(input: ProjectSave) {
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly github: GithubService) {}
+  constructor(
+    private readonly github: GithubService,
+    private readonly signals: ThreadSignalsService,
+  ) {}
 
   async list(args: { userId: string }): Promise<Project[]> {
     const rows = await db.orm.public.Project.where({ ownerUserId: args.userId })
@@ -66,7 +43,9 @@ export class ProjectsService {
       ownerUserId: args.userId,
       createdById: args.userId,
     })
-    return toProject(row)
+    const project = toProject(row)
+    await this.projectChanged({ userId: args.userId, project })
+    return project
   }
 
   async read(args: { userId: string; projectId: string }): Promise<Project> {
@@ -78,12 +57,19 @@ export class ProjectsService {
     await this.editable(args)
     const row = await db.orm.public.Project.where({ id: args.projectId }).update(columns)
     if (row === null) throw new NotFoundException(PROJECT_NOT_FOUND)
-    return toProject(row)
+    const project = toProject(row)
+    await this.projectChanged({ userId: args.userId, project })
+    return project
   }
 
   async remove(args: { userId: string; projectId: string }): Promise<void> {
     await this.editable(args)
     await db.orm.public.Project.where({ id: args.projectId }).delete()
+    await this.signals.publish({ userId: args.userId, projectId: args.projectId, removed: true })
+  }
+
+  private async projectChanged(args: { userId: string; project: Project }): Promise<void> {
+    await this.signals.publish({ userId: args.userId, project: args.project })
   }
 
   async workspace(args: { userId: string; projectId: string }): Promise<ProjectWorkspace> {

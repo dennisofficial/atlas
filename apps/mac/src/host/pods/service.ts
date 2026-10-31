@@ -53,6 +53,7 @@ const localPodOf = ({ record, state }: { record: PodRecord; state: ELocalPodStat
   projectId: record.projectId,
   ...(record.model === undefined ? {} : { model: record.model.ref, effort: record.model.effort }),
   ...(record.title === undefined ? {} : { title: record.title }),
+  archivedAt: record.archivedAt,
   createdAt: record.createdAt,
   state,
 })
@@ -112,7 +113,7 @@ export function createPodService({
   const recordOf = (threadId: string) => findPodRecord({ store, threadId: toThreadId(threadId) })
 
   return {
-    ...createThreadReads({ store }),
+    ...createThreadReads({ store, pods }),
     capabilities: async () => {
       const reason = await (config.ping ?? (() => pingDocker({ socketPath })))()
       return reason === undefined ? { docker: true } : { docker: false, reason }

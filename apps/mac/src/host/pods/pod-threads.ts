@@ -3,7 +3,9 @@ import {
   assemblePodThread,
   NoLocalPodCopyError,
   openParkedPodThread,
+  UnavailableSessionActivity,
   type CloudBridge,
+  type CloudChannel,
   type PodThread,
   type PodThreadPorts,
 } from '@dltech/atlas-harness'
@@ -13,6 +15,7 @@ type Transcript = { events: readonly Event[] }
 type HeldPod = PodThread<Transcript>
 
 export interface IPodThreads {
+  channel: (args: { threadId: ThreadId }) => CloudChannel | undefined
   hold: (args: { threadId: ThreadId }) => Promise<HeldPod>
   wake: (args: { threadId: ThreadId }) => Promise<HeldPod>
   dial: (args: { threadId: ThreadId; url: string; token: string }) => Promise<void>
@@ -30,6 +33,7 @@ export function createPodThreads({
   bridge: () => CloudBridge
 }): IPodThreads {
   const held = new Map<ThreadId, Promise<HeldPod>>()
+  const resolved = new Map<ThreadId, HeldPod>()
 
   const portsFor = (threadId: ThreadId): PodThreadPorts<Transcript> => ({
     bridge: bridge(),
@@ -41,7 +45,12 @@ export function createPodThreads({
     localCopy: { home: store.home, threads: store.threads },
   })
 
-  const local = { log: store.log, threads: store.threads, ledger: store.ledger }
+  const local = {
+    log: store.log,
+    threads: store.threads,
+    ledger: store.ledger,
+    activity: new UnavailableSessionActivity(),
+  }
 
   const opened = async (threadId: ThreadId): Promise<HeldPod> => {
     const ports = portsFor(threadId)
@@ -64,21 +73,30 @@ export function createPodThreads({
     if (existing !== undefined) return existing
     const opening = opened(threadId)
     held.set(threadId, opening)
-    opening.catch(() => {
-      if (held.get(threadId) === opening) held.delete(threadId)
-    })
+    void opening.then(
+      (pod) => {
+        if (held.get(threadId) === opening) resolved.set(threadId, pod)
+      },
+      () => {
+        if (held.get(threadId) !== opening) return
+        held.delete(threadId)
+        resolved.delete(threadId)
+      },
+    )
     return opening
   }
 
   const release = async ({ threadId }: { threadId: ThreadId }): Promise<void> => {
     const existing = held.get(threadId)
     held.delete(threadId)
+    resolved.delete(threadId)
     const pod = await existing?.catch(() => undefined)
     pod?.close()
     await pod?.copySettled()
   }
 
   return {
+    channel: ({ threadId }) => resolved.get(threadId)?.attachment.channel,
     hold,
     wake: async ({ threadId }) => {
       const pod = await hold({ threadId })

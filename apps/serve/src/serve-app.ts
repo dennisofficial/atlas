@@ -7,6 +7,7 @@ import type {
   ThreadId,
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
+import type { SessionActivityPort } from '@dltech/atlas-harness/activity'
 import type { ServeProcesses } from './process-requests'
 import type {
   CommandSkillWire,
@@ -144,6 +145,7 @@ export type ServeAgentSteer = Pick<AgentRegistryPort, 'say' | 'resume' | 'stop'>
 
 /** The composed session as serve consumes it: everything a socket can reach and nothing else. */
 export type ServeApp = {
+  activity: SessionActivityPort
   channel: DeltaChannel
   runner: Pick<TurnRunner, 'runTurn' | 'resume'>
   /** The between-turns rules the shared root composed — absent in fakes, which run no policy. */

@@ -1,8 +1,8 @@
 import {
-  threadListActivitySchema,
+  projectSchema,
   threadStreamFrameSchema,
   wireThreadSchema,
-  type ThreadListActivity,
+  type Project,
   type ThreadStreamFrame,
 } from '@dltech/atlas-wire'
 import { Logger, type Provider } from '@nestjs/common'
@@ -14,45 +14,70 @@ import { RedisService } from '../../../_lib/redis/redis.service'
 export const THREAD_SIGNAL_CHANNEL = 'atlas:thread-signals'
 
 export type ThreadFrameSignal = { threadId: string; frame: ThreadStreamFrame }
-export type ListSignal = {
-  userId: string
-  threadId: string
-  activity?: ThreadListActivity | undefined
-}
 export type ThreadChangedSignal = {
   userId: string
   threadId: string
   rev: number
   thread: ThreadDto
+  session: ThreadChangedSession
 }
-export type ThreadSignal = ThreadFrameSignal | ListSignal | ThreadChangedSignal
+export type ThreadChangedSession = {
+  id: string
+  projectId: string | null
+  managedBySessionId: string | null
+  mainThreadId: string | null
+  updatedAt: string
+}
+export type ProjectChangedSignal = { userId: string; project: Project }
+export type ProjectRemovedSignal = { userId: string; projectId: string; removed: true }
+export type ThreadSignal =
+  | ThreadFrameSignal
+  | ThreadChangedSignal
+  | ProjectChangedSignal
+  | ProjectRemovedSignal
 
 const threadFrameSignalSchema = z.strictObject({
   threadId: z.string().min(1),
   frame: threadStreamFrameSchema,
 })
-const listSignalSchema = z.strictObject({
-  userId: z.string().min(1),
-  threadId: z.string().min(1),
-  activity: threadListActivitySchema.optional(),
+const threadChangedSessionSchema = z.strictObject({
+  id: z.string().min(1),
+  projectId: z.string().nullable(),
+  managedBySessionId: z.string().nullable(),
+  mainThreadId: z.string().nullable(),
+  updatedAt: z.string(),
 })
 const threadChangedSignalSchema = z.strictObject({
   userId: z.string().min(1),
   threadId: z.string().min(1),
   rev: z.number().int().nonnegative(),
   thread: wireThreadSchema.extend({ forkMode: z.string().optional() }),
+  session: threadChangedSessionSchema,
+})
+const projectChangedSignalSchema = z.strictObject({
+  userId: z.string().min(1),
+  project: projectSchema,
+})
+const projectRemovedSignalSchema = z.strictObject({
+  userId: z.string().min(1),
+  projectId: z.string().min(1),
+  removed: z.literal(true),
 })
 const threadSignalSchema = z.union([
   threadFrameSignalSchema,
-  listSignalSchema,
   threadChangedSignalSchema,
+  projectChangedSignalSchema,
+  projectRemovedSignalSchema,
 ])
 
 export const isThreadChangedSignal = (signal: ThreadSignal): signal is ThreadChangedSignal =>
   'thread' in signal
 
-export const isListSignal = (signal: ThreadSignal): signal is ListSignal =>
-  !('frame' in signal) && !('thread' in signal)
+export const isProjectChangedSignal = (signal: ThreadSignal): signal is ProjectChangedSignal =>
+  'project' in signal
+
+export const isProjectRemovedSignal = (signal: ThreadSignal): signal is ProjectRemovedSignal =>
+  'removed' in signal
 
 export function parseThreadSignal(args: { raw: string }): ThreadSignal | undefined {
   try {
@@ -63,10 +88,15 @@ export function parseThreadSignal(args: { raw: string }): ThreadSignal | undefin
   }
 }
 
+export type ThreadSignalSubscription = {
+  onMessage: (raw: string) => void
+  onClosed?: () => void
+}
+
 export abstract class ThreadSignalBus {
   abstract readonly distributed: boolean
   abstract publish(args: ThreadSignal): Promise<void>
-  abstract subscribe(args: { onMessage: (raw: string) => void }): void
+  abstract subscribe(args: ThreadSignalSubscription): void | Promise<void>
   abstract close(): Promise<void>
 }
 
@@ -101,23 +131,39 @@ export class RedisThreadSignalBus extends ThreadSignalBus {
     await this.redis.client().publish(THREAD_SIGNAL_CHANNEL, JSON.stringify(args))
   }
 
-  subscribe(args: { onMessage: (raw: string) => void }): void {
+  subscribe(args: ThreadSignalSubscription): Promise<void> {
     const subscriber = this.redis.duplicate()
     this.subscriber = subscriber
-    subscriber.on('message', (_channel: string, raw: string) => args.onMessage(raw))
+    let interrupted = false
+    const handleClosed = (): void => {
+      if (interrupted || this.subscriber !== subscriber) return
+      interrupted = true
+      args.onClosed?.()
+    }
+    subscriber.on('message', (_channel: string, raw: string) => {
+      if (!interrupted && this.subscriber === subscriber) args.onMessage(raw)
+    })
     subscriber.on('error', (failure: Error) => {
       this.logger.warn(`the thread signal subscriber errored: ${failure.message}`)
+      handleClosed()
     })
-    subscriber.subscribe(THREAD_SIGNAL_CHANNEL).catch((failure: unknown) => {
+    for (const event of ['close', 'reconnecting', 'end']) subscriber.on(event, handleClosed)
+    const ready = subscriber.subscribe(THREAD_SIGNAL_CHANNEL).then(() => {})
+    void ready.catch((failure: unknown) => {
       this.logger.warn(`subscribing to ${THREAD_SIGNAL_CHANNEL} failed: ${String(failure)}`)
+      handleClosed()
     })
+    return ready
   }
 
   async close(): Promise<void> {
     const subscriber = this.subscriber
     this.subscriber = undefined
-    // ioredis: quit() on a lazyConnect client still in 'wait' never resolves.
-    if (subscriber === undefined || subscriber.status === 'wait') return
+    if (subscriber === undefined) return
+    if (subscriber.status !== 'ready') {
+      subscriber.disconnect()
+      return
+    }
     await subscriber.quit().catch(() => subscriber.disconnect())
   }
 }

@@ -1,4 +1,3 @@
-import { EThreadListFrame } from '@dltech/atlas-wire'
 import { POD_EVENT_CONFLICT_CODE, type PodEvent } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -281,18 +280,18 @@ describe('applyPodEvents list signals', () => {
     await seedThreadRow({ id: 'thr-1', userId: 'user-a', head: 0 })
   })
 
-  it('signals the owner list only when the assistant moved', async () => {
+  it('signals the thread change again only when the assistant moved', async () => {
     const recorder = recordingSignals()
-    const frames = recorder.listFramesOf('user-a')
+    const changed = recorder.changedThreads
 
     await applyPodEvents({
       threadId: 'thr-1',
       events: [eventAt(1, { type: 'user-said' })],
       signals: recorder.signals,
     })
-    expect(frames).toEqual([])
+    expect(changed).toEqual(['thr-1'])
 
     await applyPodEvents({ threadId: 'thr-1', events: [eventAt(2)], signals: recorder.signals })
-    expect(frames).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr-1' }])
+    expect(changed).toEqual(['thr-1', 'thr-1', 'thr-1'])
   })
 })

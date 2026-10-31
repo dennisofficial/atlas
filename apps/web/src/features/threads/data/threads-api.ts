@@ -1,19 +1,21 @@
 import type { SaidUpload } from '@dltech/atlas-core'
-import { createThreadReplySchema, type SaidImageWire } from '@dltech/atlas-wire/web'
+import {
+  createThreadReplySchema,
+  type SaidImageWire,
+  type WireSessionNode,
+} from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 
 import type { CreateThreadBody } from './create-thread'
-import type { SubscribeListSignals } from '@/features/shell/list-reload'
+import type { SubscribeThreadsLive } from '@/features/shell/live-stream'
 import type { SubscribeThreadStream } from './thread-signals'
 import type { ApiPrStatesSubscribe } from './api-pr-states-source'
+import { trackedThreadStreamHandlers } from './thread-stream-adapter'
 
 export const fetchProjects = () => cloudCall(api.projects.list.query())
 
-export const fetchSessions = (projectId: string | null) =>
-  cloudCall(api.sessions.list.query({ projectId }))
-
-export type SessionNode = Awaited<ReturnType<typeof fetchSessions>>[number]
+export type SessionNode = WireSessionNode
 
 export const createThread = async (body: CreateThreadBody) =>
   createThreadReplySchema.parse(await cloudCall(api.threads.create.mutate(body)))
@@ -45,6 +47,9 @@ export const fetchEvents = (args: { threadId: string; fromSeq?: number | undefin
     }),
   )
 
+export const fetchSnapshot = (args: { threadId: string; fromSeq?: number | undefined }) =>
+  cloudCall(api.threadEvents.snapshot.query(args))
+
 export const patchThreadModel = (args: {
   threadId: string
   model: { ref: string; effort: string }
@@ -56,11 +61,19 @@ export const rewindThread = (args: { threadId: string; toSeq: number; cutAgents:
 export const setThreadArchived = (args: { threadId: string; archived: boolean }) =>
   cloudCall(api.threads.archive.mutate(args))
 
-export const subscribeThreadStream: SubscribeThreadStream = ({ threadId, handlers }) =>
-  api.threadEvents.stream.subscribe({ threadId }, handlers)
+export const subscribeThreadStream: SubscribeThreadStream = ({
+  threadId,
+  handlers,
+  lastEventId,
+  onCursor,
+}) =>
+  api.threadEvents.live.subscribe(
+    { threadId, lastEventId },
+    trackedThreadStreamHandlers({ handlers, onCursor }),
+  )
 
-export const subscribeListSignals: SubscribeListSignals = (handlers) =>
-  api.threads.listSignals.subscribe(undefined, handlers)
+export const subscribeThreadsLive: SubscribeThreadsLive = (handlers) =>
+  api.threads.live.subscribe(undefined, handlers)
 
 export const subscribePrStatesFromApi: ApiPrStatesSubscribe = (handlers) =>
   api.githubPrs.states.subscribe(undefined, handlers)

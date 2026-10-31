@@ -26,6 +26,17 @@ describe('pod resources wire', () => {
     )
   })
 
+  it('accepts an optional read revision and rejects invalid revisions', () => {
+    const status = { state: EPodState.Running, steps: [] }
+    expect(podStatusSchema.parse(status)).toEqual(status)
+    for (const rev of [0, 6]) {
+      expect(podStatusSchema.parse({ ...status, rev })).toEqual({ ...status, rev })
+    }
+    for (const rev of [-1, 1.5, '6', null]) {
+      expect(podStatusSchema.safeParse({ ...status, rev }).success).toBe(false)
+    }
+  })
+
   it('resizes only to the vCPU steps the project setting allows', () => {
     const parse = (vcpus: number) =>
       podResizeInputSchema.safeParse({ threadId: 't', vcpus }).success

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'06b0868cd9f1f9bab0fb176034cd5d996206647b20d9c30172a3c44e53c98595'>;
+  StorageHashBase<'8c06c16b9fa177877b5bb7b893f77c96e2f071c40b5f85bc4e5a4bfd8b0d102a'>;
 export type ExecutionHash =
   ExecutionHashBase<'e5139d1de8d5766e0bfebef978a82018efb9a20a4c75ca8470538fe80225e0c7'>;
 export type ProfileHash =
@@ -723,6 +723,7 @@ export namespace Models {
     forkMode: FieldOutputTypes['public']['Thread']['forkMode'];
     forkSeq: FieldOutputTypes['public']['Thread']['forkSeq'];
     head: FieldOutputTypes['public']['Thread']['head'];
+    historyRev: FieldOutputTypes['public']['Thread']['historyRev'];
     id: FieldOutputTypes['public']['Thread']['id'];
     lastAssistantSeq: FieldOutputTypes['public']['Thread']['lastAssistantSeq'];
     lastOutcome: FieldOutputTypes['public']['Thread']['lastOutcome'];
@@ -4178,6 +4179,16 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly head: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly historyRev: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: false;
@@ -7714,6 +7725,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly historyRev: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -7889,6 +7904,7 @@ type ContractBase = Omit<
                 readonly forkMode: { readonly column: 'forkMode' };
                 readonly forkSeq: { readonly column: 'forkSeq' };
                 readonly head: { readonly column: 'head' };
+                readonly historyRev: { readonly column: 'historyRev' };
                 readonly id: { readonly column: 'id' };
                 readonly lastAssistantSeq: { readonly column: 'lastAssistantSeq' };
                 readonly lastOutcome: { readonly column: 'lastOutcome' };

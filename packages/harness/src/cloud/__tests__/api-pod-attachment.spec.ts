@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 import { EPodState } from '@dltech/atlas-wire'
 
+import { RemoteSessionActivity } from '../../activity/remote-session-activity'
 import { createApiPodBridge } from '../api-pod-bridge'
 import { EConnectionView } from '../connection-view'
 import { createFakePodApi, statusOf } from './api-pod-fixture'
@@ -92,9 +93,12 @@ describe('attach', () => {
   })
 
   it('hands back remote stores over the channel', () => {
-    const attachment = attached(createFakePodApi())
+    const fake = createFakePodApi()
+    const attachment = attached(fake)
 
-    expect(Object.keys(attachment.stores).sort()).toEqual(['ledger', 'log', 'threads'])
+    expect(Object.keys(attachment.stores).sort()).toEqual(['activity', 'ledger', 'log', 'threads'])
+    expect(attachment.stores.activity).toBeInstanceOf(RemoteSessionActivity)
+    expect(fake.calls).toEqual([])
     attachment.channel.close()
   })
 })

@@ -6,9 +6,9 @@ import { fakeFetch, mutationUrl, queryUrl, trpcFailure, trpcOk } from './trpc-fa
 
 import {
   fetchEvents,
+  fetchSnapshot,
   fetchPod,
   fetchThread,
-  fetchSessions,
   patchThreadModel,
   provisionSandbox,
   setThreadArchived,
@@ -54,19 +54,6 @@ describe('thread reads', () => {
     repo: null,
   }
 
-  it('lists a project through sessions.list', async () => {
-    const node = { id: 'ses_1', mainThread: thread, teammates: [] }
-    const calls = fakeFetch(() => trpcOk([node]))
-    expect(await fetchSessions('proj 1')).toEqual([node])
-    expect(calls).toEqual([
-      {
-        url: queryUrl({ procedure: 'sessions.list', input: { projectId: 'proj 1' } }),
-        method: 'GET',
-        body: undefined,
-      },
-    ])
-  })
-
   it('gets a thread through threads.get', async () => {
     const calls = fakeFetch(() => trpcOk(thread))
     expect(await fetchThread('thr_1')).toEqual(thread)
@@ -90,6 +77,17 @@ describe('thread reads', () => {
         input: { threadId: 'thr_1', own: true, fromSeq: 7 },
       }),
     )
+  })
+
+  it('reads one atomic snapshot with an optional inclusive delta floor', async () => {
+    const snapshot = { events: [], historyRev: 4, head: 9 }
+    const calls = fakeFetch(() => trpcOk(snapshot))
+    expect(await fetchSnapshot({ threadId: 'thr_1' })).toEqual(snapshot)
+    expect(await fetchSnapshot({ threadId: 'thr_1', fromSeq: 7 })).toEqual(snapshot)
+    expect(calls.map((call) => call.url)).toEqual([
+      queryUrl({ procedure: 'threadEvents.snapshot', input: { threadId: 'thr_1' } }),
+      queryUrl({ procedure: 'threadEvents.snapshot', input: { threadId: 'thr_1', fromSeq: 7 } }),
+    ])
   })
 
   it('reads the pod through threadPod.status', async () => {

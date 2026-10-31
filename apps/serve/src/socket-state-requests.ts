@@ -29,6 +29,7 @@ export const isReadOnlyFrame = (frame: ClientFrame): boolean =>
     frame.op === EClientRequest.ListMcpServers ||
     frame.op === EClientRequest.ListSubscriptions ||
     frame.op === EClientRequest.ReadRuntimeCheckpoint ||
+    frame.op === EClientRequest.ReadActivity ||
     frame.op === EClientRequest.ListContextFiles ||
     frame.op === EClientRequest.ReadContextFile ||
     frame.op === EClientRequest.ListMentionFiles ||

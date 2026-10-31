@@ -11,6 +11,7 @@ export function localThreadOf(pod: LocalPod): WireThread {
     head: 0,
     createdAt: pod.createdAt,
     updatedAt: pod.createdAt,
+    archivedAt: pod.archivedAt,
     workspace: null,
     repo: null,
     projectId: pod.projectId,

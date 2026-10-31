@@ -4,6 +4,7 @@ import {
   NoLocalPodCopyError,
   openParkedPodThread,
   openPodThread,
+  UnavailableSessionActivity,
   type CloudBridge,
   type CloudReload,
 } from '@dltech/atlas-harness'
@@ -26,7 +27,9 @@ type OpenArgs = {
 }
 
 export const localCopyFor = (args: { app: AtlasApp; runner: ERunner | undefined }) =>
-  args.runner === ERunner.Local ? { home: atlasDirectory(), threads: args.app.threads } : undefined
+  args.runner === ERunner.Local
+    ? { home: atlasDirectory(), threads: args.app.threads, log: args.app.log }
+    : undefined
 
 export async function openCloudThread(args: OpenArgs): Promise<Binding> {
   const { app, bridge, threadId, move } = args
@@ -41,7 +44,12 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
     try {
       const parked = await openParkedPodThread({
         ...ports,
-        local: { log: app.log, threads: app.threads, ledger: app.ledger },
+        local: {
+          log: app.log,
+          threads: app.threads,
+          ledger: app.ledger,
+          activity: new UnavailableSessionActivity(),
+        },
       })
       return cloudBindingOf({ local: app, bridge, pod: parked })
     } catch (error) {

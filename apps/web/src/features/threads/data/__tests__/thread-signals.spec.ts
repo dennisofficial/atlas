@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EThreadStreamFrame } from '@dltech/atlas-wire/web'
+import { EPodState, EThreadStreamFrame } from '@dltech/atlas-wire/web'
+
+import type { ThreadMetadata, ThreadPodSignal } from '../thread-signal-hub'
 
 import {
   createThreadSignals,
@@ -12,7 +14,9 @@ import {
 function rig() {
   const subscriptions: { handlers: ThreadStreamHandlers; unsubscribed: boolean }[] = []
   const tasks: { delayMs: number; run: () => void; cancelled: boolean }[] = []
-  const seen = { heads: [] as number[], pods: 0, titles: 0, starts: 0 }
+  const seen = { heads: [] as number[], pods: 0, starts: 0 }
+  const metadata: ThreadMetadata[] = []
+  const statuses: ThreadPodSignal[] = []
   let clock = 0
   const signals = createThreadSignals({
     threadId: 'thr_1',
@@ -26,12 +30,11 @@ function rig() {
       }
     },
     onHead: (head) => seen.heads.push(head),
-    onPod: () => {
+    onPod: (payload) => {
       seen.pods += 1
+      statuses.push(payload)
     },
-    onTitle: () => {
-      seen.titles += 1
-    },
+    onMeta: (frame) => metadata.push(frame),
     onStarted: () => {
       seen.starts += 1
     },
@@ -49,6 +52,8 @@ function rig() {
     subscriptions,
     tasks,
     seen,
+    metadata,
+    statuses,
     advance: (ms: number) => {
       clock += ms
     },
@@ -73,9 +78,50 @@ describe('createThreadSignals', () => {
     handlers?.onData({ type: EThreadStreamFrame.Head, head: 4 })
     handlers?.onData({ type: EThreadStreamFrame.Heartbeat })
     handlers?.onData({ type: EThreadStreamFrame.Pod })
-    handlers?.onData({ type: EThreadStreamFrame.Title })
 
-    expect(test.seen).toEqual({ heads: [4], pods: 1, titles: 1, starts: 1 })
+    expect(test.seen).toEqual({ heads: [4], pods: 1, starts: 1 })
+  })
+
+  it('propagates metadata and Pod payloads while ignoring superseded and stopped frames', () => {
+    const test = rig()
+    test.signals.start()
+    const handlers = test.latest()?.handlers
+    const metadata = {
+      thread: {
+        id: 'thr_1',
+        head: 0,
+        workspace: null,
+        repo: null,
+        createdAt: '2026-10-31T00:00:00.000Z',
+        updatedAt: '2026-10-31T00:00:00.000Z',
+      },
+      rev: 4,
+    }
+    const frame = { type: EThreadStreamFrame.Meta, ...metadata }
+    const status = { state: EPodState.Running, steps: [] }
+    handlers?.onData(frame)
+    handlers?.onData({ type: EThreadStreamFrame.Pod, status, rev: 6 })
+    handlers?.onData({ type: EThreadStreamFrame.Pod, status })
+    handlers?.onData({ type: EThreadStreamFrame.Pod })
+    expect(test.metadata).toEqual([metadata])
+    expect(test.statuses).toEqual([
+      { status, rev: 6 },
+      { status, rev: undefined },
+      { status: undefined, rev: undefined },
+    ])
+    handlers?.onError(new Error('offline'))
+    handlers?.onData(frame)
+    handlers?.onData({ type: EThreadStreamFrame.Pod, status })
+    test.tasks.at(-1)?.run()
+    test.signals.stop()
+    test.latest()?.handlers.onData(frame)
+    test.latest()?.handlers.onData({ type: EThreadStreamFrame.Pod, status })
+    expect(test.metadata).toEqual([metadata])
+    expect(test.statuses).toEqual([
+      { status, rev: 6 },
+      { status, rev: undefined },
+      { status: undefined, rev: undefined },
+    ])
   })
 
   it('resubscribes at once when a healthy stream completes', () => {

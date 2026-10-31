@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, setSystemTime, spyOn, vi }
 import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 import * as sessionOf from '../../platform/sessions/session-of-thread'
+import * as bootSteps from '../../platform/sandboxes/sandbox-boot-steps'
+import { EPodState } from '@dltech/atlas-wire'
+import { readPodFrame } from '../../platform/sessions/pod-snapshot'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { podLaunchWith } from './sandbox-provisioning.fixture'
 import { podServiceOver, RecordingBackground, realEndpoints } from './thread-pod.fixture'
@@ -77,14 +80,51 @@ describe('ThreadPodService status cost', () => {
     expect(readResources).toHaveBeenCalledTimes(2)
   })
 
+  it('returns the coherent current revision with resources after an older publication was captured', async () => {
+    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ rev: 4 })
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
+      state: 'resuming',
+      wakeClaim: new Date(),
+    })
+    const delayed = await readPodFrame({ threadId: 'thr-1', bumpRev: true })
+    expect(delayed).toMatchObject({ rev: 5, status: { state: EPodState.Booting, rev: 5 } })
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
+      state: 'running',
+      serveUrl: 'https://serve.example.test',
+      wakeClaim: null,
+    })
+    await readPodFrame({ threadId: 'thr-1', bumpRev: true })
+    const { vercel } = vercelCounting()
+    const current = await podServiceOver(realEndpoints(), vercel).status(scope)
+    expect(current).toMatchObject({
+      state: EPodState.Running,
+      rev: 6,
+      resources: { sandboxId: 'sbx-9', vcpus: 2 },
+    })
+    expect(current.rev).toBeGreaterThan(delayed.rev)
+    expect((await db.orm.public.Thread.where({ id: 'thr-1' }).all().firstOrThrow()).rev).toBe(6)
+  })
+
   it('resolves the pod session once per request', async () => {
     const { vercel } = vercelCounting()
     const podSession = spyOn(sessionOf, 'podSessionOf')
-    const bootStepReads = spyOn(db.orm.public.SandboxBootStep, 'where')
+    const readSteps = bootSteps.readBootSteps
+    let stepQueryCount = 0
+    const bootStepReads = spyOn(bootSteps, 'readBootSteps').mockImplementation(async (args) => {
+      const reader = args.reader ?? db
+      const queries = spyOn(reader.orm.public.SandboxBootStep, 'where')
+      try {
+        return await readSteps(args)
+      } finally {
+        stepQueryCount += queries.mock.calls.length
+        queries.mockRestore()
+      }
+    })
 
     await podServiceOver(realEndpoints(), vercel).status(scope)
 
     expect(podSession).toHaveBeenCalledTimes(1)
     expect(bootStepReads).toHaveBeenCalledTimes(1)
+    expect(stepQueryCount).toBe(1)
   })
 })

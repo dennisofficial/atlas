@@ -26,7 +26,20 @@ export function bumpAndEnrichThread(args: {
     const row = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
     const rows = await withSessions({ reader: tx, threads: [row] })
     const [thread] = await enrichThreads({ rows, viewerId: bumped.userId })
-    if (thread === undefined) return null
-    return { userId: bumped.userId, threadId, rev: bumped.rev, thread }
+    const session = rows[0]?.session
+    if (thread === undefined || session === undefined) return null
+    return {
+      userId: bumped.userId,
+      threadId,
+      rev: bumped.rev,
+      thread,
+      session: {
+        id: session.id,
+        projectId: session.projectId,
+        managedBySessionId: session.managedBySessionId,
+        mainThreadId: session.mainThreadId,
+        updatedAt: session.updatedAt.toISOString(),
+      },
+    }
   })
 }

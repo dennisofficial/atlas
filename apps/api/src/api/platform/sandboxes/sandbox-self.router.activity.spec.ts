@@ -1,4 +1,3 @@
-import { EThreadListFrame } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { INestApplication } from '@nestjs/common'
@@ -138,8 +137,8 @@ describe('SandboxSelfRouter.activity list signals', () => {
     })
   })
 
-  it('signals the owner list on a change and not on an unchanged report', async () => {
-    const frames = routerSignals.listFramesOf('usr-1')
+  it('signals the thread change on a change and not on an unchanged report', async () => {
+    const frames = routerSignals.changedThreads
     frames.length = 0
     const send = () =>
       request(app.getHttpServer())
@@ -150,12 +149,6 @@ describe('SandboxSelfRouter.activity list signals', () => {
     await send()
     await send()
 
-    expect(frames).toEqual([
-      {
-        type: EThreadListFrame.Changed,
-        threadId: 'thr-1',
-        activity: { working: true, awaiting: null, lastOutcome: null },
-      },
-    ])
+    expect(frames).toEqual(['thr-1'])
   })
 })

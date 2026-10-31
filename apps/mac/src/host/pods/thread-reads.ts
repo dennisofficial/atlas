@@ -1,11 +1,14 @@
 import { ERunner, toThreadId, type ThreadId } from '@dltech/atlas-core'
-import { listLocalPodThreads, wireEventOf } from '@dltech/atlas-harness'
+import { createLocalPodTitles, listLocalPodThreads, wireEventOf } from '@dltech/atlas-harness'
 import type { ILocalStore } from './local-store'
 import { localThreadOf } from './pod-records'
+import type { IPodThreads } from './pod-threads'
 import type { LocalThread, ThreadEventsQuery, ThreadEventsReply } from './wire'
 
 export interface IThreadReads {
   threads: () => Promise<LocalThread[]>
+  setArchived: (args: { threadId: string; archived: boolean }) => Promise<boolean>
+  rename: (args: { threadId: string; title: string }) => Promise<boolean>
   events: (args: {
     threadId: string
     query: ThreadEventsQuery
@@ -14,7 +17,13 @@ export interface IThreadReads {
   markRead: (args: { threadId: string; seq: number }) => Promise<number | undefined>
 }
 
-export function createThreadReads({ store }: { store: ILocalStore }): IThreadReads {
+export function createThreadReads({
+  store,
+  pods,
+}: {
+  store: ILocalStore
+  pods: Pick<IPodThreads, 'channel'>
+}): IThreadReads {
   const known = async (threadId: string): Promise<ThreadId | undefined> => {
     const record = await store.threads.find({ threadId: toThreadId(threadId) })
     return record?.runner === ERunner.Local ? record.id : undefined
@@ -28,6 +37,21 @@ export function createThreadReads({ store }: { store: ILocalStore }): IThreadRea
           localThreadOf({ record, readSeq: await store.cursor.readSeq({ threadId: record.id }) }),
         ),
       )
+    },
+    setArchived: async ({ threadId, archived }) => {
+      const id = await known(threadId)
+      if (id === undefined) return false
+      return store.threads.setArchived({ threadId: id, archived })
+    },
+    rename: async ({ threadId, title }) => {
+      const id = await known(threadId)
+      if (id === undefined) return false
+      await createLocalPodTitles({
+        home: store.home,
+        threadId: id,
+        channel: () => pods.channel({ threadId: id }),
+      }).rename({ title })
+      return true
     },
     events: async ({ threadId, query }) => {
       const id = await known(threadId)

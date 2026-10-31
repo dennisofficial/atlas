@@ -18,6 +18,9 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { ActivityTurnRunner } from '../activity/activity-turn-runner'
+import type { RuntimeSessionActivity } from '../activity/runtime-session-activity'
+import { bindActivity, withActivityFailures } from './activity-binding'
 import { withDeltaPublishing } from '../channel/publishing-event-log'
 import { PublishingTurnRunner } from '../channel/publishing-turn-runner'
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -63,6 +66,7 @@ const asClockJumps = (wake: WakeSignal): ClockJumpDetector => ({
 
 export type TurnWiring = {
   turn: TurnDeps
+  activity: RuntimeSessionActivity
   runner: TurnRunner
   turnPolicy: TurnPolicy
   titling: TitlingTurnRunner
@@ -84,6 +88,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   } = args
 
   container.register(DeltaChannelToken, { useValue: args.channel })
+  const activity = bindActivity({ container, channel: args.channel })
 
   const log = container.resolve(registeredPortToken(EventLogPort))
   const logPort = container.resolve(registeredPortToken(LogPort))
@@ -189,6 +194,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   container.register(ChildRunnerDepsToken, {
     useValue: (): ChildRunnerDeps => ({
       turn,
+      activity,
       tools: container.resolve(registeredPortToken(ToolRegistry)),
       hooks: container.resolve(HookChainToken),
       quality: container.isRegistered(registeredPortToken(QualityReviewPort), true)
@@ -280,5 +286,13 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     readClock: () => Date.now(),
   })
 
-  return { turn, runner: turnPolicy, turnPolicy, titling, recordTeardownEndings, intake }
+  return {
+    turn,
+    activity,
+    runner: new ActivityTurnRunner({ inner: turnPolicy, lifecycle: activity }),
+    turnPolicy: withActivityFailures({ policy: turnPolicy, activity }),
+    titling,
+    recordTeardownEndings,
+    intake,
+  }
 }

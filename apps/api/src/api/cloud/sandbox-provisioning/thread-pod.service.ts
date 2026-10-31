@@ -2,13 +2,11 @@ import { ConflictException, Inject, Injectable, Logger, NotFoundException } from
 import {
   ESandboxProvisionState,
   EPodResizeApplies,
-  EPodState,
   type PodResizeReply,
   type PodResources,
   type PodConnectReply,
   type PodStatus,
   mintChannelTicket,
-  type RecordedBootStep,
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { BackgroundWork } from '../../../_core/ports/background-work'
@@ -18,15 +16,12 @@ import {
   VercelSandboxClient,
 } from '../../platform/sandboxes/vercel-sandbox.client'
 import { podSessionOf } from '../../platform/sessions/session-of-thread'
-import {
-  hasBootSteps,
-  latestAttemptOf,
-  readBootSteps,
-} from '../../platform/sandboxes/sandbox-boot-steps'
+import { hasBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
+import { readPodSnapshot } from '../../platform/sessions/pod-snapshot'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { dispatchFailure, PodLaunchService } from './pod-launch.service'
-import { podStateOf, standingStateOf } from '../../platform/sandboxes/pod-state'
+import { standingStateOf } from '../../platform/sandboxes/pod-state'
 import { SANDBOX_BUSY_MESSAGE } from './sandbox-provisioning-rows'
 import { PodResourcesCache } from './pod-resources-cache'
 
@@ -55,14 +50,10 @@ export class ThreadPodService {
   async status(args: { userId: string; threadId: string }): Promise<PodStatus> {
     const { userId, threadId } = args
     await ownedThread({ reader: db, userId, threadId })
-    const sessionId = await podSessionOf({ reader: db, threadId })
-    const row = await db.orm.public.CloudSandbox.first({ sessionId })
-    const steps = await readBootSteps({ threadId, sessionId })
+    const { row, status } = await readPodSnapshot({ threadId })
     return {
-      state: podStateOf({ row, lastBootStepState: steps.at(-1)?.state }),
+      ...status,
       ...(row === null ? {} : { resources: await this.resourcesOf({ row, threadId }) }),
-      steps: latestAttemptOf(steps),
-      history: steps,
     }
   }
 

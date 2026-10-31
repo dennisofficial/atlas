@@ -20,6 +20,7 @@ import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { lockThread, retreatHead } from '../../platform/sessions/thread-head'
+import { bumpHistoryRevision } from '../../platform/sessions/history-revision'
 import { failureText } from '../github/github-sandbox-wake-boot'
 import { findUserSaid } from './first-message'
 import { DISPATCH_FAILED_MESSAGE, PodLaunchService } from './pod-launch.service'
@@ -31,7 +32,12 @@ import {
   SANDBOX_BUSY_MESSAGE,
 } from './sandbox-provisioning-rows'
 import { SERVE_SEND, ServeProtocolRefusedError, type ServeSend } from './serve-send'
-import { agentStartedIn, appendUserSaid, servesLiveIn } from './thread-message-queue'
+import {
+  agentStartedIn,
+  appendUserSaid,
+  servesLiveIn,
+  type QueuedAppend,
+} from './thread-message-queue'
 
 export const DELIVERY_FAILED_MESSAGE = "Couldn't hand the message to the sandbox. Try again."
 const OUTDATED_SERVE_PARK_REASON = "the sandbox is restarting to pick up this Atlas's serve"
@@ -76,7 +82,9 @@ export class ThreadMessagesService {
         uploads,
       })
       if (queued !== null) {
-        if (queued.head !== undefined) await this.signals.headMoved({ threadId, head: queued.head })
+        if (queued.appended !== undefined) {
+          await this.signals.eventsAppended({ threadId, ...queued.appended })
+        }
         return { state: EThreadMessageState.Queued }
       }
       const parkReason = await this.deliver({
@@ -91,7 +99,7 @@ export class ThreadMessagesService {
       return this.relaunchParked({ thread, userId, sendId, text, images, uploads, parkReason })
     }
 
-    const { existing, relaunch, head } = await this.appendOnce({
+    const { existing, relaunch, appended } = await this.appendOnce({
       userId,
       threadId,
       sendId,
@@ -99,7 +107,7 @@ export class ThreadMessagesService {
       images,
       uploads,
     })
-    if (head !== undefined) await this.signals.headMoved({ threadId, head })
+    if (appended !== undefined) await this.signals.eventsAppended({ threadId, ...appended })
     if (!relaunch) return { state: EThreadMessageState.Queued }
     const { dispatchFailed } = await this.pod.launch({ thread, existing })
     if (dispatchFailed) {
@@ -148,11 +156,11 @@ export class ThreadMessagesService {
     const row = await db.orm.public.CloudSandbox.first({ sessionId })
     if (row === null) throw new BadGatewayException(DELIVERY_FAILED_MESSAGE)
     await this.sandboxes.park({ row, threadId, reason: parkReason })
-    const { head } = await db.transaction(async (tx) => {
+    const { appended } = await db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
       return appendUserSaid({ tx, threadId, userId, sendId, text, images, uploads })
     })
-    if (head !== undefined) await this.signals.headMoved({ threadId, head })
+    if (appended !== undefined) await this.signals.eventsAppended({ threadId, ...appended })
     const { dispatchFailed } = await this.pod.launch({ thread, existing: row })
     if (dispatchFailed) {
       return { state: EThreadMessageState.Queued, error: DISPATCH_FAILED_MESSAGE }
@@ -163,15 +171,15 @@ export class ThreadMessagesService {
   private async unarchive(args: { userId: string; threadId: string }): Promise<void> {
     const session = await sessionOfThread({ reader: db, threadId: args.threadId })
     await db.orm.public.Session.where({ id: session.id }).update({ archivedAt: null })
-    await this.signals.listChanged(args)
+    this.signals.threadChanged({ threadId: args.threadId })
   }
 
   async takeBack(args: { userId: string; threadId: string; sendId: string }): Promise<void> {
     const { userId, threadId, sendId } = args
     await ownedThread({ reader: db, userId, threadId })
     const endpoint = await this.endpoints.runningEndpoint({ userId, threadId })
-    const head = await db.transaction(async (tx) => {
-      await lockThread({ tx, threadId })
+    const reset = await db.transaction(async (tx) => {
+      const historyRev = await bumpHistoryRevision({ tx, threadId })
       if (endpoint !== null && (await servesLiveIn({ tx, threadId }))) {
         throw new ConflictException(TAKE_BACK_TOO_LATE_MESSAGE)
       }
@@ -184,9 +192,9 @@ export class ThreadMessagesService {
       }
       await tx.orm.public.Event.where({ id: event.id }).delete()
       await retreatHead({ tx, threadId, at: new Date() })
-      return thread.head - 1
+      return { head: thread.head - 1, historyRev }
     })
-    await this.signals.headMoved({ threadId, head })
+    await this.signals.eventsReset({ threadId, ...reset })
   }
 
   private queueUntilAgentStarts(args: {
@@ -196,7 +204,7 @@ export class ThreadMessagesService {
     text: string
     images?: readonly SaidImageWire[] | undefined
     uploads?: readonly SaidUploadWire[] | undefined
-  }): Promise<{ head?: number } | null> {
+  }): Promise<QueuedAppend | null> {
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId: args.threadId })
       if (await servesLiveIn({ tx, threadId: args.threadId })) return null
@@ -211,7 +219,7 @@ export class ThreadMessagesService {
     text: string
     images?: readonly SaidImageWire[] | undefined
     uploads?: readonly SaidUploadWire[] | undefined
-  }): Promise<{ existing: Row<'CloudSandbox'> | null; relaunch: boolean; head?: number }> {
+  }): Promise<{ existing: Row<'CloudSandbox'> | null; relaunch: boolean } & QueuedAppend> {
     const { userId, threadId, sendId, text, images, uploads } = args
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId })

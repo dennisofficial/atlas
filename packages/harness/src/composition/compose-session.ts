@@ -1,5 +1,6 @@
 import type { EventLogPort, WorkspaceIdentity } from '@dltech/atlas-core'
 
+import type { SessionActivityPort } from '../activity/port'
 import type { AgentRegistryPort } from '../agents/registry/port'
 import type { DeltaChannel } from '../channel/delta-channel'
 import { holdFamilyIntake } from './freeze-family'
@@ -29,6 +30,7 @@ export function localSessionOwner(args: {
   log: EventLogPort
   threads: ThreadStorePort
   ledger: TurnLedgerPort
+  activity: SessionActivityPort
   intake: MessageIntake | undefined
   shells: ShellRegistryPort
   agents: AgentRegistryPort

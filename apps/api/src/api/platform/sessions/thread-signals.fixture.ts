@@ -1,14 +1,17 @@
-import type { ThreadListFrame, ThreadStreamFrame } from '@dltech/atlas-wire'
+import type { ThreadStreamFrame } from '@dltech/atlas-wire'
 import { DrainStateService } from '../health/drain-state.service'
 import { ThreadSignalsService } from './thread-signals.service'
 
 export function recordingSignals(): {
   signals: ThreadSignalsService
   framesOf: (threadId: string) => ThreadStreamFrame[]
-  listFramesOf: (userId: string) => ThreadListFrame[]
+  changedThreads: string[]
 } {
   const signals = new ThreadSignalsService(new DrainStateService())
-  signals.threadChanged = () => {}
+  const changedThreads: string[] = []
+  signals.threadChanged = (args) => {
+    changedThreads.push(args.threadId)
+  }
   const seen = new Map<string, ThreadStreamFrame[]>()
   const framesOf = (threadId: string): ThreadStreamFrame[] => {
     const known = seen.get(threadId)
@@ -18,16 +21,7 @@ export function recordingSignals(): {
     signals.openStream({ threadId, onFrame: (frame) => frames.push(frame) })
     return frames
   }
-  const listSeen = new Map<string, ThreadListFrame[]>()
-  const listFramesOf = (userId: string): ThreadListFrame[] => {
-    const known = listSeen.get(userId)
-    if (known !== undefined) return known
-    const frames: ThreadListFrame[] = []
-    listSeen.set(userId, frames)
-    signals.openListStream({ userId, onFrame: (frame) => frames.push(frame) })
-    return frames
-  }
-  return { signals, framesOf, listFramesOf }
+  return { signals, framesOf, changedThreads }
 }
 
 export const inertSignals = (): ThreadSignalsService => recordingSignals().signals

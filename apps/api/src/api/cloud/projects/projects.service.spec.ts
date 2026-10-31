@@ -4,6 +4,17 @@ import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import type { GithubService } from '../github/github.service'
 import type { ProjectSave } from '@dltech/atlas-wire'
+import { EShipBehavior } from '@dltech/atlas-wire/web'
+import { liveSnapshot } from '../../platform/sessions/live-snapshot'
+import { DrainStateService } from '../../platform/health/drain-state.service'
+import {
+  InProcessThreadSignalBus,
+  isProjectChangedSignal,
+  isProjectRemovedSignal,
+  type ThreadSignal,
+} from '../../platform/sessions/thread-signal.bus'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { ProjectsService } from './projects.service'
 
 const USER_A = 'user-a'
@@ -33,7 +44,7 @@ describe('ProjectsService', () => {
     for (const id of [USER_A, USER_B, USER_C]) await seedUser({ db: database().db, id })
     tokens = { [USER_A]: 'gho_user-a' }
     const github = { findToken: vi.fn(async (args: { userId: string }) => tokens[args.userId]) }
-    service = new ProjectsService(github as unknown as GithubService)
+    service = new ProjectsService(github as unknown as GithubService, inertSignals())
   })
 
   it('creates, reads, lists, replaces and removes a project', async () => {
@@ -147,6 +158,22 @@ describe('ProjectsService', () => {
     )
   })
 
+  it('serializes projects identically in CRUD and live snapshots, including stored fallbacks', async () => {
+    const created = await service.create({
+      userId: USER_A,
+      input: input({ description: 'project description', shipBehavior: EShipBehavior.Push }),
+    })
+    expect((await liveSnapshot({ userId: USER_A })).projects).toEqual([created])
+    await db.orm.public.Project.where({ id: created.id }).update({
+      additionalRepos: { malformed: true },
+      shipBehavior: 'unknown',
+    })
+    const read = await service.read({ userId: USER_A, projectId: created.id })
+    expect(read.additionalRepos).toEqual([])
+    expect(read.shipBehavior).toBe(EShipBehavior.OpenPullRequest)
+    expect((await liveSnapshot({ userId: USER_A })).projects).toEqual([read])
+  })
+
   it('rejects additional repos without a primary repo', async () => {
     await expect(
       service.create({ userId: USER_A, input: input({ repo: null, baseBranch: null }) }),
@@ -197,6 +224,35 @@ describe('ProjectsService', () => {
       await expect(service.read(foreign)).rejects.toBeInstanceOf(NotFoundException)
       await expect(service.remove(foreign)).rejects.toBeInstanceOf(NotFoundException)
       expect(await projectRows()).toHaveLength(1)
+    })
+  })
+
+  describe('publishing', () => {
+    it('publishes project upserts on create and replace and a removal on remove', async () => {
+      const bus = new InProcessThreadSignalBus()
+      const signals = new ThreadSignalsService(new DrainStateService(), bus)
+      const published: ThreadSignal[] = []
+      bus.subscribe({
+        onMessage: (raw) => {
+          const parsed = JSON.parse(raw) as ThreadSignal
+          published.push(parsed)
+        },
+      })
+      const publishing = new ProjectsService(
+        { findToken: async () => undefined } as unknown as GithubService,
+        signals,
+      )
+
+      const created = await publishing.create({ userId: USER_A, input: input() })
+      await publishing.replace({ userId: USER_A, projectId: created.id, input: input() })
+      await publishing.remove({ userId: USER_A, projectId: created.id })
+
+      const upserts = published.filter(isProjectChangedSignal)
+      expect(upserts).toHaveLength(2)
+      expect(upserts[0]?.project.id).toBe(created.id)
+      const removals = published.filter(isProjectRemovedSignal)
+      expect(removals).toEqual([{ userId: USER_A, projectId: created.id, removed: true }])
+      signals.closeAll()
     })
   })
 })

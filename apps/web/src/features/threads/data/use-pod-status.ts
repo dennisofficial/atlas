@@ -19,7 +19,13 @@ export function usePodStatus(args: { threadId: string; signals: ThreadSignalHub 
 
   useEffect(() => {
     const reader = createPodStatusReader({ threadId, fetchPod, onPod: setPod })
-    const unlisten = signals.listen({ onPod: reader.refresh, onStarted: reader.refresh })
+    setPod(null)
+    const unlisten = signals.listen({
+      onPod: ({ status, rev }) => {
+        if (status === undefined) reader.refresh()
+        else reader.apply({ status, rev })
+      },
+    })
     refreshRef.current = reader.refresh
     reader.refresh()
     return () => {

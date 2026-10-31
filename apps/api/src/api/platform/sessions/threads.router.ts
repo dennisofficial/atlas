@@ -16,7 +16,7 @@ import {
   rewindThreadInputSchema,
   summariseThreadInputSchema,
   threadIdInputSchema,
-  threadListOutputSchema,
+  threadLiveOutputSchema,
   wireThreadSchema,
   type AdoptThreadInput,
   type ArchiveThreadInput,
@@ -34,7 +34,7 @@ import {
   type SummariseThreadInput,
   type SupervisedAgentInput,
   type ThreadIdInput,
-  type ThreadListFrame,
+  type ThreadLiveFrame,
 } from '@dltech/atlas-wire'
 import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common'
 import {
@@ -60,8 +60,9 @@ import {
 import type { EventDto, ThreadDto } from './sessions.types'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadReadService } from './thread-read.service'
+import { liveSnapshot } from './live-snapshot'
 import { ThreadSignalsService } from './thread-signals.service'
-import { attachListStream } from './thread-list-stream'
+import { attachLiveStream } from './thread-live-stream'
 import { threadStreamFrames } from './thread-stream.frames'
 import { ThreadsHistoryService } from './threads-history.service'
 import { ThreadsService } from './threads.service'
@@ -197,20 +198,27 @@ export class ThreadsRouter {
     await this.reads.markRead({ userId: ctx.auth.userId, threadId: input.threadId, seq: input.seq })
   }
 
-  @Subscription({ output: threadListOutputSchema, meta: readMeta })
-  listSignals(
+  @Subscription({ output: threadLiveOutputSchema, meta: readMeta })
+  live(
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
     @Options() opts: ProcedureOptions,
-  ): AsyncGenerator<ThreadListFrame> {
+  ): AsyncGenerator<ThreadLiveFrame> {
     if (ctx.sandbox !== undefined || ctx.pod !== undefined) {
-      throw new ForbiddenException('only the thread owner can subscribe to the thread list')
+      throw new ForbiddenException('only the thread owner can subscribe to the live list')
     }
     if (this.drain.isDraining()) {
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
     }
-    return threadStreamFrames<ThreadListFrame>({
+    const userId = ctx.auth.userId
+    return threadStreamFrames<ThreadLiveFrame>({
       signal: opts.signal,
-      attach: (sink) => attachListStream({ signals: this.signals, userId: ctx.auth.userId, sink }),
+      attach: (sink) =>
+        attachLiveStream({
+          signals: this.signals,
+          userId,
+          readSnapshot: () => liveSnapshot({ userId }),
+          sink,
+        }),
     })
   }
 
