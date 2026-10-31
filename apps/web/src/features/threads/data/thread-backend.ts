@@ -32,6 +32,8 @@ export type ThreadBackend = {
   readStoredThread: (threadId: string) => Promise<CloudThread>
   fetchSpawned: (threadId: string) => Promise<SpawnedThreads>
   mint: (threadId: string) => Promise<PodConnectResult>
+  wake?: (threadId: string) => Promise<PodConnectResult>
+  rename?: (args: { threadId: string; title: string }) => Promise<void>
   postMessage: typeof postMessage
   takeBack: typeof takeBackMessage
   patchModel: typeof patchThreadModel

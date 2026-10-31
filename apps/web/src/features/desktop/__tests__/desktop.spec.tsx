@@ -7,9 +7,10 @@ import { EPodConnectOutcome } from '@/features/threads/data/pod-connect'
 import { createLocalThread } from '../create-local-thread'
 import { resetDesktopCapabilities } from '../desktop-wire'
 import { deliverHeldFirstMessage, holdFirstMessage } from '../first-message'
-import { localThreadOf, withLocalPods } from '../local-thread'
+import { localThreadOf, withLocalThreads } from '../local-thread'
 import { mintLocalPod } from '../local-thread-source'
 import { ERunnerChoice, RunnerToggle } from '../runner-toggle'
+import { localSummary } from './local-thread-fixture'
 import { useDesktop, type Desktop } from '../use-desktop'
 import { EThreadHome, useThreadHome } from '../use-local-pod'
 
@@ -54,6 +55,7 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = realFetch
   document.body.innerHTML = ''
+  Reflect.deleteProperty(window, 'atlasDesktop')
 })
 
 const mount = async (element: ReactElement) => {
@@ -81,11 +83,6 @@ describe('useDesktop', () => {
     const read = await probe()
     expect(read()).toMatchObject({ ready: true, present: false })
     expect(calls).toEqual([])
-  })
-
-  it('is absent when capabilities 404s (Vercel)', async () => {
-    const read = await probe()
-    expect(read()).toMatchObject({ ready: true, present: false })
   })
 
   it('is absent on invalid JSON', async () => {
@@ -172,6 +169,7 @@ describe('RunnerToggle', () => {
 
 describe('createLocalThread', () => {
   it('posts the pod and holds the first message until the channel is live', async () => {
+    Reflect.set(window, 'atlasDesktop', {})
     routes['POST /desktop/pods'] = () => Response.json(pod())
     const id = await createLocalThread({
       threadId: 'brn_1',
@@ -228,6 +226,7 @@ describe('createLocalThread', () => {
 })
 
 describe('data-source routing', () => {
+  beforeEach(() => Reflect.set(window, 'atlasDesktop', {}))
   const present: Desktop = {
     ready: true,
     present: true,
@@ -236,7 +235,7 @@ describe('data-source routing', () => {
   }
 
   function Home({ desktop, onValue }: { desktop: Desktop; onValue: (home: EThreadHome) => void }) {
-    onValue(useThreadHome({ threadId: 'brn_1', desktop }))
+    onValue(useThreadHome({ threadId: 'brn_1', desktop }).home)
     return null
   }
   const homeOf = async (desktop: Desktop) => {
@@ -245,12 +244,13 @@ describe('data-source routing', () => {
     return latest
   }
 
-  it('routes a thread in the pod index to This Mac', async () => {
-    routes['GET /desktop/pods/brn_1'] = () => Response.json(pod())
+  it('routes a thread in the shared-home summary index to This Mac', async () => {
+    routes['GET /desktop/threads'] = () => Response.json({ threads: [localSummary] })
     expect(await homeOf(present)).toBe(EThreadHome.ThisMac)
   })
 
   it('keeps unknown threads on Cloud', async () => {
+    routes['GET /desktop/threads'] = () => Response.json({ threads: [] })
     expect(await homeOf(present)).toBe(EThreadHome.Cloud)
   })
 
@@ -266,24 +266,10 @@ describe('data-source routing', () => {
     expect(calls).toEqual([])
   })
 
-  it('wakes a stopped pod before connecting', async () => {
-    const ticket = {
-      url: 'ws://127.0.0.1:1',
-      token: 't',
-      expiresAt: '2026-10-29T10:01:00.000Z',
-    }
+  it('keeps a stopped pod passive during mint', async () => {
     routes['GET /desktop/pods/brn_1'] = () => Response.json(pod('stopped'))
-    routes['POST /desktop/pods/brn_1/wake'] = () => Response.json(pod())
-    routes['POST /desktop/pods/brn_1/connect'] = () => Response.json(ticket)
-    expect(await mintLocalPod('brn_1')).toEqual({
-      outcome: EPodConnectOutcome.Ready,
-      ticket,
-    })
-    expect(calls.map((call) => call.path)).toEqual([
-      '/desktop/pods/brn_1',
-      '/desktop/pods/brn_1/wake',
-      '/desktop/pods/brn_1/connect',
-    ])
+    expect(await mintLocalPod('brn_1')).toEqual({ outcome: EPodConnectOutcome.NotRunning })
+    expect(calls.map((call) => call.path)).toEqual(['/desktop/pods/brn_1'])
   })
 
   it('reports not-running on 409 pod-not-running', async () => {
@@ -295,18 +281,18 @@ describe('data-source routing', () => {
     })
   })
 
-  it('merges local pods into their project with a local runner', () => {
+  it('merges local thread summaries into their project with a local runner', () => {
     const entries = [
       { project: { id: 'p1' }, sessions: [] },
       { project: { id: 'p2' }, sessions: [] },
     ]
-    const merged = withLocalPods({
+    const merged = withLocalThreads({
       entries,
-      pods: [{ ...pod(), state: 'running' as never }],
+      threads: [{ ...localSummary, projectId: 'p1' }],
     })
     expect(merged[0]?.sessions[0]?.mainThread.id).toBe('brn_1')
     expect(merged[0]?.sessions[0]?.mainThread.runner).toBe('local')
     expect(merged[1]?.sessions).toEqual([])
-    expect(localThreadOf({ ...pod(), state: 'running' as never }).projectId).toBe('p1')
+    expect(localThreadOf({ ...localSummary, projectId: 'p1' }).projectId).toBe('p1')
   })
 })

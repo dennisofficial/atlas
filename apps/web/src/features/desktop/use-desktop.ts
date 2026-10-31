@@ -44,7 +44,10 @@ export function useDesktop(): Desktop {
   }, [found])
 
   if (found === undefined) return PENDING
-  if (found === null) return ABSENT
+  if (found === null) {
+    if (typeof window === 'undefined' || !isDesktopHost(window)) return ABSENT
+    return { ready: true, present: true, docker: false, reason: 'This Mac host is unavailable' }
+  }
   return {
     ready: true,
     present: true,

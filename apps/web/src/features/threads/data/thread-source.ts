@@ -8,6 +8,7 @@ import type {
   LiveChooseModel,
   LiveDismissFailure,
   LiveInterrupt,
+  LivePrepareRewind,
   LiveRetry,
   LiveReadRoster,
   LiveSend,
@@ -39,6 +40,7 @@ export type ThreadSource = {
   dismissFailure: LiveDismissFailure
   applyRewind: LiveApplyRewind
   readRoster: LiveReadRoster
+  prepareRewind?: LivePrepareRewind | undefined
   refreshEvents: () => void
 }
 
@@ -78,6 +80,7 @@ export function threadSourceOf(args: {
       dismissFailure: live.dismissFailure,
       applyRewind: live.applyRewind,
       readRoster: live.readRoster,
+      prepareRewind: live.prepareRewind,
       refreshEvents: STREAMED,
     }
   }
@@ -104,5 +107,6 @@ export function threadSourceOf(args: {
     dismissFailure: live.dismissFailure,
     applyRewind: live.applyRewind,
     readRoster: live.readRoster,
+    prepareRewind: live.prepareRewind,
   }
 }

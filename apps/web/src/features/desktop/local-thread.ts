@@ -1,53 +1,62 @@
 import { ERunner } from '@dltech/atlas-core'
-import { EPodState, type PodStatus, type WireThread } from '@dltech/atlas-wire/web'
+import type { WireThread } from '@dltech/atlas-wire/web'
 
 import type { SessionNode as WireSessionNode } from '@/features/threads/data/threads-api'
 
-import { ELocalPodState, type LocalPod } from './desktop-wire'
+import type { LocalThread } from './local-thread-wire'
 
-export function localThreadOf(pod: LocalPod): WireThread {
+export function localThreadOf(thread: LocalThread): WireThread {
   return {
-    id: pod.threadId,
-    head: 0,
-    createdAt: pod.createdAt,
-    updatedAt: pod.createdAt,
+    id: thread.threadId,
+    head: thread.head,
+    createdAt: thread.createdAt,
+    updatedAt: thread.updatedAt,
+    status: thread.status,
     workspace: null,
     repo: null,
-    projectId: pod.projectId,
+    projectId: thread.projectId,
     runner: ERunner.Local,
-    ...(pod.title === undefined ? {} : { title: pod.title }),
-    ...(pod.model === undefined || pod.effort === undefined
+    ...(thread.title === undefined ? {} : { title: thread.title }),
+    ...(thread.model === undefined || thread.effort === undefined
       ? {}
-      : { model: { ref: pod.model, effort: pod.effort } }),
+      : { model: { ref: thread.model, effort: thread.effort } }),
   }
 }
 
-export const localSessionOf = (pod: LocalPod): WireSessionNode => ({
-  id: `local_${pod.threadId}`,
-  mainThread: localThreadOf(pod),
+export const localSessionOf = (thread: LocalThread): WireSessionNode => ({
+  id: `local_${thread.threadId}`,
+  mainThread: localThreadOf(thread),
   teammates: [],
 })
 
-const POD_STATE: Record<ELocalPodState, EPodState> = {
-  [ELocalPodState.Running]: EPodState.Running,
-  [ELocalPodState.Stopped]: EPodState.Parked,
-  [ELocalPodState.Missing]: EPodState.Failed,
-}
+type ProjectlessEntry = { project: null; sessions: WireSessionNode[] }
 
-export const podStatusOf = (pod: LocalPod): PodStatus => ({
-  state: POD_STATE[pod.state],
-  steps: [],
-})
-
-export function withLocalPods<
+export function withLocalThreads<
   T extends { project: { id: string } | null; sessions: WireSessionNode[] },
->(args: { entries: T[]; pods: readonly LocalPod[] }): T[] {
-  if (args.pods.length === 0) return args.entries
-  return args.entries.map((entry) => ({
+>(args: { entries: T[]; threads: readonly LocalThread[] }): (T | ProjectlessEntry)[] {
+  if (args.threads.length === 0) return args.entries
+  const roots = new Map(args.threads.map((thread) => [thread.threadId, thread]))
+  const withoutMirrors = (sessions: WireSessionNode[]): WireSessionNode[] =>
+    sessions
+      .filter((session) => !roots.has(session.mainThread.id))
+      .map((session) => ({
+        ...session,
+        teammates: withoutMirrors(session.teammates),
+      }))
+  const entries: (T | ProjectlessEntry)[] = args.entries.map((entry) => ({
     ...entry,
-    sessions: [
-      ...entry.sessions,
-      ...args.pods.filter((pod) => pod.projectId === entry.project?.id).map(localSessionOf),
-    ],
+    sessions: withoutMirrors(entry.sessions),
   }))
+  for (const thread of roots.values()) {
+    let target = entries.find(
+      (entry) => entry.project !== null && entry.project.id === thread.projectId,
+    )
+    target ??= entries.find((entry) => entry.project === null)
+    if (target === undefined) {
+      target = { project: null, sessions: [] }
+      entries.push(target)
+    }
+    target.sessions.push(localSessionOf(thread))
+  }
+  return entries
 }

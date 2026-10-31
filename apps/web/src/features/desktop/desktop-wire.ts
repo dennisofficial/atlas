@@ -1,5 +1,15 @@
-import { podConnectReplySchema, type PodConnectReply } from '@dltech/atlas-wire/web'
+import {
+  podConnectReplySchema,
+  podStatusSchema,
+  podResizeInputSchema,
+  podResizeReplySchema,
+  type PodConnectReply,
+} from '@dltech/atlas-wire/web'
 import { z } from 'zod'
+
+import { desktopCall as call, DesktopError, hasDesktopHost } from './desktop-http'
+
+export { DesktopError } from './desktop-http'
 
 export enum ELocalPodState {
   Running = 'running',
@@ -38,55 +48,28 @@ export const POD_NOT_RUNNING_CODE = 'pod-not-running'
 const NOT_FOUND = 404
 const CONFLICT = 409
 
-export class DesktopError extends Error {
-  readonly status: number
-  readonly code: string | undefined
-
-  constructor(args: {
-    message: string
-    status: number
-    code?: string | undefined
-  }) {
-    super(args.message)
-    this.status = args.status
-    this.code = args.code
-  }
-}
-
-async function errorOf(response: Response): Promise<DesktopError> {
-  const body: unknown = await response.json().catch(() => null)
-  const record = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {}
-  return new DesktopError({
-    message: typeof record.message === 'string' ? record.message : response.statusText,
-    status: response.status,
-    code: typeof record.code === 'string' ? record.code : undefined,
-  })
-}
-
-async function call<T>(args: {
-  path: string
-  schema: z.ZodType<T>
-  method?: 'GET' | 'POST'
-  body?: unknown
-}): Promise<T> {
-  const response = await fetch(args.path, {
-    method: args.method ?? 'GET',
-    ...(args.body === undefined
-      ? {}
-      : {
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(args.body),
-        }),
-  })
-  if (!response.ok) throw await errorOf(response)
-  return args.schema.parse(await response.json())
-}
-
 const podPath = (threadId: string) => `/desktop/pods/${encodeURIComponent(threadId)}`
+
+export const fetchLocalPodStatus = (threadId: string) =>
+  call({
+    path: `${podPath(threadId)}/status`,
+    schema: podStatusSchema,
+  })
+
+export const resizeLocalPod = (args: { threadId: string; vcpus: number }) => {
+  const input = podResizeInputSchema.parse(args)
+  return call({
+    path: `${podPath(input.threadId)}/resize`,
+    method: 'POST',
+    body: { vcpus: input.vcpus },
+    schema: podResizeReplySchema,
+  })
+}
 
 let capabilities: Promise<DesktopCapabilities | null> | null = null
 
 export function desktopCapabilities(): Promise<DesktopCapabilities | null> {
+  if (!hasDesktopHost()) return Promise.resolve(null)
   capabilities ??= call({
     path: '/desktop/capabilities',
     schema: capabilitiesSchema,
@@ -99,12 +82,8 @@ export function resetDesktopCapabilities(): void {
 }
 
 export async function listLocalPods(): Promise<LocalPod[]> {
-  if ((await desktopCapabilities()) === null) return []
-  try {
-    return (await call({ path: '/desktop/pods', schema: podListSchema })).pods
-  } catch {
-    return []
-  }
+  if (!hasDesktopHost()) return []
+  return (await call({ path: '/desktop/pods', schema: podListSchema })).pods
 }
 
 export async function getLocalPod(threadId: string): Promise<LocalPod | null> {
@@ -131,13 +110,29 @@ export const wakeLocalPod = (threadId: string) =>
     method: 'POST',
   })
 
+function validateLocalTicket(ticket: PodConnectReply): PodConnectReply {
+  const url = new URL(ticket.url)
+  if (
+    !['ws:', 'wss:', 'http:', 'https:'].includes(url.protocol) ||
+    !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) ||
+    url.username !== '' ||
+    url.password !== '' ||
+    url.search !== '' ||
+    url.hash !== ''
+  )
+    throw new Error('Invalid local pod ticket URL')
+  return ticket
+}
+
 export async function connectLocalPod(threadId: string): Promise<PodConnectReply | null> {
   try {
-    return await call({
-      path: `${podPath(threadId)}/connect`,
-      schema: podConnectReplySchema,
-      method: 'POST',
-    })
+    return validateLocalTicket(
+      await call({
+        path: `${podPath(threadId)}/connect`,
+        schema: podConnectReplySchema,
+        method: 'POST',
+      }),
+    )
   } catch (failure) {
     if (
       failure instanceof DesktopError &&

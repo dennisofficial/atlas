@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePageVisible } from '@/lib/use-page-visible'
 
 import { createEventsReader, INITIAL_THREAD_EVENTS, type ThreadEvents } from './events-reader'
-import { fetchTranscriptEvents } from './transcript-history'
 import type { ThreadSignalHub } from './thread-signal-hub'
 import { useThreadBackend } from './use-thread-backend'
 
@@ -19,7 +18,7 @@ export function useThreadEvents(args: {
   enabled: boolean
 }): PolledThreadEvents {
   const { threadId, signals, enabled } = args
-  const { fetchEvents, fetchSeed } = useThreadBackend()
+  const { fetchEvents, fetchSeed, local } = useThreadBackend()
   const [state, setState] = useState(INITIAL_THREAD_EVENTS)
   const pokeRef = useRef<() => void>(NOT_READING)
   const visible = usePageVisible()
@@ -29,6 +28,7 @@ export function useThreadEvents(args: {
     if (!reading) return undefined
     const reader = createEventsReader({
       threadId,
+      localCopy: local,
       fetchSeed: () => fetchSeed(threadId),
       fetchEvents,
       onUpdate: (update) => setState(update),
@@ -41,7 +41,7 @@ export function useThreadEvents(args: {
       unlisten()
       reader.stop()
     }
-  }, [threadId, signals, reading, fetchEvents, fetchSeed])
+  }, [threadId, signals, reading, fetchEvents, fetchSeed, local])
 
   const poke = useCallback(() => pokeRef.current(), [])
   return { ...state, poke }

@@ -35,9 +35,13 @@ export type CommandDeps = {
   navigate: (href: string) => void
   wake: () => Promise<void>
   reloadSkills: () => Promise<number>
+  rename?: (args: { threadId: string; title: string }) => Promise<void>
 }
 
-const ran = (notice: string): CommandEffect => ({ type: ECommandEffect.Ran, notice })
+const ran = (notice: string): CommandEffect => ({
+  type: ECommandEffect.Ran,
+  notice,
+})
 
 export function webCommandHandlers(deps: CommandDeps): CommandHandlers {
   const ask = (args: { op: ClientRequestOp; params: unknown }) => deps.request(args)
@@ -77,6 +81,10 @@ export function webCommandHandlers(deps: CommandDeps): CommandHandlers {
     [ECommand.Rename]: async ({ argumentText }) => {
       const title = argumentText.trim()
       if (title === '') return refused(NOTHING_SAID_YET)
+      if (deps.rename !== undefined) {
+        await deps.rename({ threadId: deps.threadId, title })
+        return RAN
+      }
       const pending = ask({
         op: EClientRequest.RenameThread,
         params: { threadId: deps.threadId, title },
@@ -120,7 +128,10 @@ export function webCommandHandlers(deps: CommandDeps): CommandHandlers {
     [ECommand.Restart]: UNSUPPORTED,
     [ECommand.Mcp]: async ({ argumentText }) => {
       if (isSignInArgument(argumentText)) return ran(MCP_SETTINGS_HINT)
-      const pending = ask({ op: EClientRequest.ListMcpServers, params: { refresh: true } })
+      const pending = ask({
+        op: EClientRequest.ListMcpServers,
+        params: { refresh: true },
+      })
       if (pending === null) return refused(NOT_CONNECTED)
       return ran(mcpNoticeOf(await pending))
     },
