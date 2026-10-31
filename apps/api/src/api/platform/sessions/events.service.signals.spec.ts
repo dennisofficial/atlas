@@ -1,4 +1,4 @@
-import { EThreadStreamFrame } from '@dltech/atlas-wire'
+import { EThreadStreamFrame, type ThreadStreamFrame } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedThreadRow, seedUsers, USER_A } from '../../../../test/session-seed'
@@ -15,7 +15,7 @@ const podEvent = (seq: number) => ({
   type: 'assistant-said',
   body: '{}',
 })
-const head = (value: number) => ({ type: EThreadStreamFrame.Head, head: value })
+const head = (value: number): ThreadStreamFrame => ({ type: EThreadStreamFrame.Head, head: value })
 
 describe('head-moving writes publish headMoved after commit', () => {
   useTestDatabase()
