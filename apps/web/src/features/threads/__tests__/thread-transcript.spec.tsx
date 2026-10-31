@@ -13,6 +13,7 @@ import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-
 import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
 import { EMPTY_DETAILS } from '../panel/details/details-input'
 import { ThreadTranscript, type TranscriptRewind } from '../thread-transcript'
+import type { RunFailureCardProps } from '../transcript/run-failure-card'
 import { installVirtuaViewport } from './virtua-viewport'
 
 let restoreViewport = () => {}
@@ -60,7 +61,15 @@ const items: TranscriptRow[] = [
   },
 ]
 
-const mount = async (rewind: TranscriptRewind | null, rows: TranscriptRow[] = items) => {
+const mount = async (rewind: TranscriptRewind | null, rows: TranscriptRow[] = items) =>
+  mountWith({ rewind, rows })
+
+const mountWith = async (args: {
+  rewind: TranscriptRewind | null
+  rows?: TranscriptRow[]
+  failureCard?: RunFailureCardProps | null
+  failedLabel?: string | null
+}) => {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
   document.body.append(container)
@@ -70,12 +79,13 @@ const mount = async (rewind: TranscriptRewind | null, rows: TranscriptRow[] = it
       <TestQueryProvider client={createTestQueryClient()}>
         <ThreadPanelProvider value={panel}>
           <ThreadTranscript
-            items={rows}
-            failedLabel={null}
+            items={args.rows ?? items}
+            failureCard={args.failureCard ?? null}
+            failedLabel={args.failedLabel ?? null}
             pod={null}
             working={false}
             onRetryBoot={() => undefined}
-            rewind={rewind}
+            rewind={args.rewind}
           />
         </ThreadPanelProvider>
       </TestQueryProvider>,
@@ -84,6 +94,21 @@ const mount = async (rewind: TranscriptRewind | null, rows: TranscriptRow[] = it
 }
 
 const rewindButton = () => document.body.querySelector('button[aria-label="Rewind to here"]')
+
+describe('ThreadTranscript failure card', () => {
+  it('renders the card instead of the plain marker when a card is given', async () => {
+    await mountWith({
+      rewind: null,
+      failureCard: { title: 'Anthropic rejected the API key', detail: 'bad key' },
+      failedLabel: 'run failed after 2s',
+    })
+
+    const text = document.body.textContent ?? ''
+    expect(text).toContain('Anthropic rejected the API key')
+    expect(text).toContain('bad key')
+    expect(text).not.toContain('run failed after 2s')
+  })
+})
 
 describe('ThreadTranscript rewind', () => {
   it('renders the rewind action on a user turn and reports the event id', async () => {

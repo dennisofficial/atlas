@@ -41,22 +41,16 @@ import { useThreadSubmit } from './data/use-thread-submit'
 import { useTakeBackEscape } from './data/use-take-back-escape'
 import { useThreadCommands } from './commands/use-thread-commands'
 import { ThreadMainSlot } from './context-viewer/main-slot'
-import { ComposerContext, ComposerDock } from './composer-dock'
-import { ModelPickerControls } from './model-picker'
-import { RunAttentionDock } from './run-attention-dock'
-import { NotConfiguredAlert } from './not-configured-alert'
-import { OperatorInputCard } from './operator-input-card'
+import { ComposerFooter } from './composer-footer'
 import { ThreadPanelProvider } from './panel/thread-panel-context'
 import { useRightPanel } from './panel/use-right-panel'
 import { useThreadPanelValue } from './panel/use-thread-panel-value'
 import { isBootStarting } from './sandbox-boot-props'
-import { ThreadComposer } from './thread-composer'
 import { ThreadHeader } from './thread-header'
 import { ThreadLayout } from './thread-layout'
 import { ThreadLoadError } from './thread-load-error'
 import { ThreadMissing } from './thread-missing'
 import { ThreadTranscript } from './thread-transcript'
-import { RewindDialog } from './transcript/rewind-dialog'
 
 const NOT_FOUND = 404
 const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…'
@@ -239,50 +233,45 @@ export function ThreadView({ threadId }: { threadId: string }) {
           {error !== null && !loaded ? <ThreadLoadError error={error} /> : null}
           <ThreadMainSlot
             footer={
-              <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
-                {notConfigured === null ? null : <NotConfiguredAlert error={notConfigured.error} />}
-                {operator.request === null ? null : (
-                  <OperatorInputCard
-                    key={operator.request.requestId}
-                    request={operator.request}
-                    submitting={operator.submitting}
-                    onSubmit={(value) => void operator.handleSubmit(value)}
-                  />
-                )}
-                <RewindDialog
-                  pick={rewind.pick}
-                  applying={rewind.applying}
-                  onCancel={rewind.handleCancel}
-                  onConfirm={() => void rewind.handleConfirm()}
-                />
-                <ComposerDock dock={dock} />
-                <RunAttentionDock strip={attention.strip} />
-                <ThreadComposer
-                  value={draft}
-                  onValueChange={setDraft}
-                  onSubmit={handleSubmit}
-                  onEscape={() => void handleEscape()}
-                  sending={sending || handoff.waiting || images.uploading}
-                  working={working}
-                  onStop={handleStop}
-                  {...images.composerProps}
-                  commandSpecs={commands.specs}
-                  placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
-                >
-                  <ModelPickerControls
-                    picker={model.picker}
-                    selection={model.selection}
-                    onSelectionChange={handleModelChange}
-                    open={commands.modelOpen}
-                    onOpenChange={commands.setModelOpen}
-                  />
-                  <ComposerContext usage={dock.usage} />
-                </ThreadComposer>
-              </div>
+              <ComposerFooter
+                notConfigured={notConfigured}
+                operator={{
+                  request: operator.request,
+                  submitting: operator.submitting,
+                  onSubmit: (value) => void operator.handleSubmit(value),
+                }}
+                rewind={{
+                  pick: rewind.pick,
+                  applying: rewind.applying,
+                  onCancel: rewind.handleCancel,
+                  onConfirm: () => void rewind.handleConfirm(),
+                }}
+                dock={dock}
+                strip={attention.strip}
+                usage={dock.usage}
+                modelPicker={{
+                  picker: model.picker,
+                  selection: model.selection,
+                  onSelectionChange: handleModelChange,
+                  open: commands.modelOpen,
+                  onOpenChange: commands.setModelOpen,
+                }}
+                value={draft}
+                onValueChange={setDraft}
+                onSubmit={handleSubmit}
+                onEscape={() => void handleEscape()}
+                sending={sending || handoff.waiting || images.uploading}
+                working={working}
+                onStop={handleStop}
+                {...images.composerProps}
+                commandSpecs={commands.specs}
+                placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
+              />
             }
           >
             <ThreadTranscript
               items={view.items}
+              failureCard={attention.card}
               failedLabel={attention.failedLabel}
               pod={pod}
               working={working}

@@ -100,6 +100,7 @@ const setup = async () => {
           <ThreadPanelProvider value={panel}>
             <ThreadTranscript
               items={rows}
+              failureCard={null}
               failedLabel={null}
               pod={null}
               working={working}

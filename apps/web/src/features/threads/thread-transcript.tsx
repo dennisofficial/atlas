@@ -21,6 +21,7 @@ import { useNow, useNowEvery } from './data/use-now'
 import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
+import { RunFailureCard, type RunFailureCardProps } from './transcript/run-failure-card'
 import { TurnView, type TranscriptRewind } from './transcript/transcript-turn'
 
 export type { TranscriptRewind }
@@ -67,6 +68,7 @@ function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => vo
 
 export function ThreadTranscript({
   items,
+  failureCard,
   failedLabel,
   pod,
   working,
@@ -74,6 +76,7 @@ export function ThreadTranscript({
   rewind,
 }: {
   items: readonly TranscriptRow[]
+  failureCard: RunFailureCardProps | null
   failedLabel: string | null
   pod: PodStatus | null
   working: boolean
@@ -112,7 +115,11 @@ export function ThreadTranscript({
         </ChatItem>,
         ...bootAfter(index),
       ])}
-      {failedLabel === null ? null : (
+      {failureCard !== null ? (
+        <ChatItem id="turn-failure">
+          <RunFailureCard {...failureCard} />
+        </ChatItem>
+      ) : failedLabel === null ? null : (
         <ChatItem id="turn-failure">
           <RunFailedMarker label={failedLabel} />
         </ChatItem>

@@ -72,7 +72,7 @@ const eventually = async (check: () => Promise<boolean> | boolean): Promise<void
 }
 
 describe('a boot-resumed turn whose model step fails', () => {
-  it('leaves an assistant-said error event that write-behind ships to Postgres', async () => {
+  it('ships a run-failed event to Postgres and never an assistant-said one', async () => {
     const home = mkdtempSync(join(tmpdir(), 'atlas-serve-boot-failed-'))
     homes.push(home)
     heldAtlasHome = process.env.ATLAS_HOME
@@ -107,12 +107,12 @@ describe('a boot-resumed turn whose model step fails', () => {
     await eventually(() =>
       postgres.rows.some(
         (row) =>
-          row.type === 'assistant-said' &&
+          row.type === 'run-failed' &&
           String(row.body).includes('Atlas Cloud holds no such OAuth connection'),
       ),
     )
     const local = await store.log.read({ threadId })
     const spoken = local.filter((event) => event.type === 'assistant-said')
-    expect(spoken).toHaveLength(1)
+    expect(spoken).toHaveLength(0)
   })
 })
