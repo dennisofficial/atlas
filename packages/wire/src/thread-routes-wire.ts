@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { podStatusSchema } from './boot-progress-wire'
 import { podEventsPostSchema } from './pod-events-wire'
 import {
   createThreadReplySchema,
@@ -201,16 +202,32 @@ export enum EThreadStreamFrame {
   Pod = 'pod',
   Heartbeat = 'heartbeat',
   Title = 'title',
+  Meta = 'meta',
+  Events = 'events',
+  Reset = 'reset',
 }
+
+const seqSchema = z.number().int().min(0)
 
 export const threadStreamFrameSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal(EThreadStreamFrame.Head),
     head: z.number().int(),
   }),
-  z.object({ type: z.literal(EThreadStreamFrame.Pod) }),
+  z.object({ type: z.literal(EThreadStreamFrame.Pod), status: podStatusSchema.optional() }),
   z.object({ type: z.literal(EThreadStreamFrame.Heartbeat) }),
   z.object({ type: z.literal(EThreadStreamFrame.Title) }),
+  z.object({
+    type: z.literal(EThreadStreamFrame.Meta),
+    thread: wireThreadSchema,
+    rev: seqSchema,
+  }),
+  z.object({
+    type: z.literal(EThreadStreamFrame.Events),
+    fromSeq: seqSchema,
+    events: z.array(wireEventSchema),
+  }),
+  z.object({ type: z.literal(EThreadStreamFrame.Reset), head: z.number().int() }),
 ])
 export type ThreadStreamFrame = z.infer<typeof threadStreamFrameSchema>
 
