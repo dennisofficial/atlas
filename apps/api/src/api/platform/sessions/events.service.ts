@@ -101,6 +101,7 @@ export class EventsService {
   async read(args: {
     userId: string
     threadId: string
+    fromSeq?: number | undefined
     upTo?: number | undefined
   }): Promise<EventDto[]> {
     await ownedThread({
@@ -112,6 +113,7 @@ export class EventsService {
       reader: db,
       threadId: args.threadId,
       userId: args.userId,
+      fromSeq: args.fromSeq,
       upTo: args.upTo,
     })
     return rows.map(toEventDto)
@@ -120,6 +122,7 @@ export class EventsService {
   async readOwn(args: {
     userId: string
     threadId: string
+    fromSeq?: number | undefined
     upTo?: number | undefined
   }): Promise<EventDto[]> {
     await ownedThread({
@@ -131,6 +134,7 @@ export class EventsService {
       reader: db,
       threadId: args.threadId,
       userId: args.userId,
+      fromSeq: args.fromSeq,
       upTo: args.upTo,
     })
     return rows.map(toEventDto)

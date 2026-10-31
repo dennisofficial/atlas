@@ -5,17 +5,29 @@ export const REFERENCE_CHAIN_LIMIT = 8
 
 export type SessionReader = Pick<Db, 'orm'> | Tx
 
-export type Segment = { threadId: string; upTo: number | undefined }
+export type Segment = {
+  threadId: string
+  fromSeq: number | undefined
+  upTo: number | undefined
+}
 
 export async function planSegments(args: {
   reader: SessionReader
   threadId: string
+  fromSeq?: number | undefined
   upTo?: number | undefined
 }): Promise<Segment[]> {
   const segments: Segment[] = []
-  let segment: Segment = { threadId: args.threadId, upTo: args.upTo }
+  let segment: Segment = { threadId: args.threadId, fromSeq: args.fromSeq, upTo: args.upTo }
 
   for (let hop = 0; hop < REFERENCE_CHAIN_LIMIT; hop += 1) {
+    if (
+      segment.fromSeq !== undefined &&
+      segment.upTo !== undefined &&
+      segment.fromSeq > segment.upTo
+    ) {
+      return segments
+    }
     segments.unshift(segment)
 
     const inherited = await inheritedPrefixOf({ reader: args.reader, threadId: segment.threadId })
@@ -23,6 +35,7 @@ export async function planSegments(args: {
 
     segment = {
       threadId: inherited.threadId,
+      fromSeq: segment.fromSeq,
       upTo:
         segment.upTo === undefined ? inherited.forkSeq : Math.min(segment.upTo, inherited.forkSeq),
     }

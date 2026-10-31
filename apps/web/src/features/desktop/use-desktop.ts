@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
+import { isDesktopHost } from './desktop-attributes'
 import { desktopCapabilities, type DesktopCapabilities } from './desktop-wire'
 
 export type Desktop = {
@@ -25,9 +26,14 @@ const ABSENT: Desktop = {
 }
 
 export function useDesktop(): Desktop {
-  const [found, setFound] = useState<DesktopCapabilities | null | undefined>(undefined)
+  const [found, setFound] = useState<DesktopCapabilities | null | undefined>(() => {
+    if (typeof window === 'undefined') return undefined
+    if (!isDesktopHost(window)) return null
+    return undefined
+  })
 
   useEffect(() => {
+    if (found !== undefined) return undefined
     let current = true
     void desktopCapabilities().then((next) => {
       if (current) setFound(next)
@@ -35,7 +41,7 @@ export function useDesktop(): Desktop {
     return () => {
       current = false
     }
-  }, [])
+  }, [found])
 
   if (found === undefined) return PENDING
   if (found === null) return ABSENT

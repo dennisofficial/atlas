@@ -75,7 +75,12 @@ export class ThreadEventsRouter {
 
   @Query({ input: readEventsInputSchema, output: z.array(wireEventSchema), meta: unthrottledMeta })
   read(@Input() input: ReadEventsInput, @Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<EventDto[]> {
-    const args = { userId: ctx.auth.userId, threadId: input.threadId, upTo: input.upTo }
+    const args = {
+      userId: ctx.auth.userId,
+      threadId: input.threadId,
+      fromSeq: input.fromSeq,
+      upTo: input.upTo,
+    }
     if (input.own === true) return this.events.readOwn(args)
     return this.events.read(args)
   }

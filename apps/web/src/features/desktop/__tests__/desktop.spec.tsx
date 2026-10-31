@@ -77,6 +77,12 @@ const probe = async () => {
 }
 
 describe('useDesktop', () => {
+  it('never probes the host outside the Mac app', async () => {
+    const read = await probe()
+    expect(read()).toMatchObject({ ready: true, present: false })
+    expect(calls).toEqual([])
+  })
+
   it('is absent when capabilities 404s (Vercel)', async () => {
     const read = await probe()
     expect(read()).toMatchObject({ ready: true, present: false })
@@ -88,15 +94,32 @@ describe('useDesktop', () => {
     expect(read()?.present).toBe(false)
   })
 
-  it('is present with docker flag and reason', async () => {
-    routes['GET /desktop/capabilities'] = () =>
-      Response.json({ docker: false, reason: 'Docker is not running' })
-    const read = await probe()
-    expect(read()).toMatchObject({
-      present: true,
-      docker: false,
-      reason: 'Docker is not running',
-    })
+  it('is present with docker flag and reason once the Mac bridge is up', async () => {
+    Reflect.set(window, 'atlasDesktop', { vibrancy: false })
+    try {
+      routes['GET /desktop/capabilities'] = () =>
+        Response.json({ docker: false, reason: 'Docker is not running' })
+      const read = await probe()
+      expect(read()).toMatchObject({
+        present: true,
+        docker: false,
+        reason: 'Docker is not running',
+      })
+    } finally {
+      Reflect.deleteProperty(window, 'atlasDesktop')
+    }
+  })
+
+  it('probes the host once the Mac bridge is present', async () => {
+    Reflect.set(window, 'atlasDesktop', { vibrancy: false })
+    try {
+      routes['GET /desktop/capabilities'] = () => Response.json({ docker: true, reason: undefined })
+      const read = await probe()
+      expect(read()).toMatchObject({ present: true, docker: true })
+      expect(calls.map((call) => call.path)).toEqual(['/desktop/capabilities'])
+    } finally {
+      Reflect.deleteProperty(window, 'atlasDesktop')
+    }
   })
 })
 

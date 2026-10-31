@@ -63,12 +63,12 @@ export function useLiveThread(args: {
     const next = createLiveChatSession({
       threadId,
       mint: () => backend.mint(threadId),
-      readSeed: () => backend.fetchEvents(threadId),
+      readSeed: () => backend.fetchSeed(threadId),
       catchUpOnConnect: backend.local,
       ...(backend.local
         ? {}
         : {
-            readStoredModel: async () => (await backend.fetchThread(threadId)).model,
+            readStoredModel: async () => (await backend.readStoredThread(threadId)).model,
           }),
       onChange: setState,
       onModelChanged: (model) => modelChangedRef.current?.(model),
