@@ -15,6 +15,8 @@ export const WORKSPACE_PATH = SANDBOX_WORKSPACE_PATH
 /** Set once at creation and never extended: an idle sandbox parks itself. */
 export const SANDBOX_TIMEOUT_MS = 4 * 60 * 60 * 1000
 
+export const SANDBOX_SNAPSHOT_RETENTION = { count: 1, deleteEvicted: true } as const
+
 export const SANDBOX_LAUNCH_TIMEOUT_MS = 60_000
 export const SANDBOX_QUICK_TIMEOUT_MS = 30_000
 const ROUTE_RETRY_ATTEMPTS = 3
