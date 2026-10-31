@@ -198,30 +198,33 @@ export async function readOwnRows(args: {
   reader: SessionReader
   threadId: string
   userId: string
+  fromSeq?: number | undefined
   upTo?: number | undefined
   type?: string | undefined
 }): Promise<Row<'Event'>[]> {
-  const { upTo, type } = args
-  const scoped = args.reader.orm.public.Event.where({
+  const { fromSeq, upTo, type } = args
+  let scoped = args.reader.orm.public.Event.where({
     threadId: args.threadId,
     userId: args.userId,
     ...(type === undefined ? {} : { type }),
   })
-  return (upTo === undefined ? scoped : scoped.where((event) => event.seq.lte(upTo)))
-    .orderBy((event) => event.seq.asc())
-    .all()
+  if (fromSeq !== undefined) scoped = scoped.where((event) => event.seq.gte(fromSeq))
+  if (upTo !== undefined) scoped = scoped.where((event) => event.seq.lte(upTo))
+  return scoped.orderBy((event) => event.seq.asc()).all()
 }
 
 export async function readComposedRows(args: {
   reader: SessionReader
   threadId: string
   userId: string
+  fromSeq?: number | undefined
   upTo?: number | undefined
   type?: string | undefined
 }): Promise<Row<'Event'>[]> {
   const segments = await planSegments({
     reader: args.reader,
     threadId: args.threadId,
+    fromSeq: args.fromSeq,
     upTo: args.upTo,
   })
 
@@ -232,6 +235,7 @@ export async function readComposedRows(args: {
         reader: args.reader,
         threadId: segment.threadId,
         userId: args.userId,
+        fromSeq: segment.fromSeq,
         upTo: segment.upTo,
         ...(args.type === undefined ? {} : { type: args.type }),
       })),

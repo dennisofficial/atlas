@@ -4,7 +4,7 @@ import { createThreadReplySchema, type SaidImageWire } from '@dltech/atlas-wire/
 import { api, cloudCall } from '@/lib/api-client'
 
 import type { CreateThreadBody } from './create-thread'
-import type { SubscribeListSignals } from '@/features/shell/list-reload'
+import type { SubscribeThreadsLive } from '@/features/shell/live-stream'
 import type { SubscribeThreadStream } from './thread-signals'
 import type { ApiPrStatesSubscribe } from './api-pr-states-source'
 
@@ -36,8 +36,14 @@ export const postMessage = (args: {
   uploads?: SaidUpload[]
 }) => cloudCall(api.threadMessages.send.mutate(args))
 
-export const fetchEvents = (threadId: string) =>
-  cloudCall(api.threadEvents.read.query({ threadId, own: true }))
+export const fetchEvents = (args: { threadId: string; fromSeq?: number | undefined }) =>
+  cloudCall(
+    api.threadEvents.read.query({
+      threadId: args.threadId,
+      own: true,
+      ...(args.fromSeq === undefined ? {} : { fromSeq: args.fromSeq }),
+    }),
+  )
 
 export const patchThreadModel = (args: {
   threadId: string
@@ -53,8 +59,8 @@ export const setThreadArchived = (args: { threadId: string; archived: boolean })
 export const subscribeThreadStream: SubscribeThreadStream = ({ threadId, handlers }) =>
   api.threadEvents.stream.subscribe({ threadId }, handlers)
 
-export const subscribeListSignals: SubscribeListSignals = (handlers) =>
-  api.threads.listSignals.subscribe(undefined, handlers)
+export const subscribeThreadsLive: SubscribeThreadsLive = (handlers) =>
+  api.threads.live.subscribe(undefined, handlers)
 
 export const subscribePrStatesFromApi: ApiPrStatesSubscribe = (handlers) =>
   api.githubPrs.states.subscribe(undefined, handlers)

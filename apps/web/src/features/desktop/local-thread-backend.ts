@@ -27,6 +27,7 @@ export const localThreadBackend: ThreadBackend = {
     return podStatusOf(awake)
   },
   fetchEvents: async () => [],
+  fetchSeed: async () => [],
   fetchSpawned: async () => [],
   mint: mintLocalPod,
   postMessage: async () => {

@@ -2,7 +2,17 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { EExecutionLocation, ERunner, toRunId, toThreadId } from '@dltech/atlas-core'
-import { call, create, HOME, sharedStore, state, THREAD, useDesktopHost } from './pods-host-fixture'
+import { EThreadTitleSource, FileLocalThreadTitles } from '@dltech/atlas-harness'
+import {
+  call,
+  create,
+  HOME,
+  leaseHeaders,
+  sharedStore,
+  state,
+  THREAD,
+  useDesktopHost,
+} from './pods-host-fixture'
 
 useDesktopHost()
 
@@ -27,6 +37,90 @@ describe('the shared home', () => {
       threads: { threadId: string; projectId: string | null }[]
     }
     expect(listed.threads.find((thread) => thread.threadId === fromTui.id)?.projectId).toBeNull()
+  })
+})
+
+describe('local thread rename', () => {
+  test('renames a projectless parked thread in the shared home without creating or leasing a pod', async () => {
+    const { threads } = sharedStore()
+    const record = await threads.create({ workspace: '/Users/dennis/atlas', repo: null })
+    await threads.chooseRunner({ threadId: record.id, runner: ERunner.Local })
+    const response = await call({
+      path: `/desktop/threads/${record.id}/rename`,
+      method: 'POST',
+      body: { title: '  New local title  ' },
+    })
+    expect(response.status).toBe(204)
+    expect(await response.text()).toBe('')
+    expect((await sharedStore().threads.find({ threadId: record.id }))?.title).toBe(
+      'New local title',
+    )
+    const persisted = await new FileLocalThreadTitles({ home: HOME }).read({ threadId: record.id })
+    expect(persisted).toMatchObject({ title: 'New local title', source: EThreadTitleSource.User })
+    expect(persisted.revision).toBeGreaterThan(0)
+    expect(state.created).toEqual([])
+    expect(state.running.size).toBe(0)
+    expect(leaseHeaders).toEqual([])
+  })
+
+  test('rejects invalid titles without changing the shared record', async () => {
+    const { threads } = sharedStore()
+    const record = await threads.create({ workspace: '/Users/dennis/atlas', repo: null })
+    await threads.chooseRunner({ threadId: record.id, runner: ERunner.Local })
+    for (const body of [
+      {},
+      { title: null },
+      { title: 42 },
+      { title: '' },
+      { title: '   ' },
+      { title: 'x'.repeat(201) },
+    ]) {
+      const response = await call({
+        path: `/desktop/threads/${record.id}/rename`,
+        method: 'POST',
+        body,
+      })
+      expect(response.status).toBe(400)
+    }
+    expect((await sharedStore().threads.find({ threadId: record.id }))?.title).toBeUndefined()
+    expect(state.created).toEqual([])
+    expect(leaseHeaders).toEqual([])
+  })
+
+  test('accepts a title of exactly 200 characters after trimming', async () => {
+    const { threads } = sharedStore()
+    const record = await threads.create({ workspace: '/Users/dennis/atlas', repo: null })
+    await threads.chooseRunner({ threadId: record.id, runner: ERunner.Local })
+    const response = await call({
+      path: `/desktop/threads/${record.id}/rename`,
+      method: 'POST',
+      body: { title: `  ${'x'.repeat(200)}  ` },
+    })
+    expect(response.status).toBe(204)
+    expect((await sharedStore().threads.find({ threadId: record.id }))?.title).toBe('x'.repeat(200))
+  })
+
+  test('unknown and non-local threads are not renamed', async () => {
+    const { threads } = sharedStore()
+    const host = await threads.create({ workspace: '/Users/dennis/atlas', repo: null })
+    for (const threadId of ['nope', host.id]) {
+      const response = await call({
+        path: `/desktop/threads/${threadId}/rename`,
+        method: 'POST',
+        body: { title: 'Not a local pod' },
+      })
+      expect(response.status).toBe(404)
+    }
+    expect((await sharedStore().threads.find({ threadId: host.id }))?.title).toBeUndefined()
+    expect(state.created).toEqual([])
+    expect(leaseHeaders).toEqual([])
+  })
+
+  test('rename is only exposed as POST', async () => {
+    expect((await call({ path: `/desktop/threads/${THREAD}/rename` })).status).toBe(404)
+    expect(
+      (await call({ path: `/desktop/threads/${THREAD}/rename`, method: 'DELETE' })).status,
+    ).toBe(404)
   })
 })
 

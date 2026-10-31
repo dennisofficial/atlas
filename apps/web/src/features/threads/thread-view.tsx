@@ -147,11 +147,12 @@ export function ThreadView({ threadId }: { threadId: string }) {
     channel,
     pod,
     details,
+    loaded,
+    error,
     working,
     rightPanel,
     refresh,
   })
-
   const commands = useThreadCommands({
     threadId,
     channel,
@@ -162,7 +163,6 @@ export function ThreadView({ threadId }: { threadId: string }) {
     retryBoot,
     refresh,
   })
-
   const handleSubmit = useThreadSubmit({
     threadId,
     handleCommand: commands.handleCommand,

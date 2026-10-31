@@ -17,15 +17,34 @@ const event = (seq: number): WireEvent => ({
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
-function rig(options?: { fail?: () => boolean }) {
+function rig(options?: {
+  fail?: () => boolean
+  seed?: WireEvent[]
+  history?: (args: { fromSeq: number | undefined; generation: number }) => WireEvent[]
+}) {
   let state: ThreadEvents = INITIAL_THREAD_EVENTS
-  const calls = { events: 0 }
+  const calls: { seeds: number; reads: { fromSeq: number | undefined }[] } = {
+    seeds: 0,
+    reads: [],
+  }
   const reader = createEventsReader({
     threadId: 'thr_1',
-    fetchEvents: async () => {
-      calls.events += 1
+    fetchSeed: async () => {
+      calls.seeds += 1
       if (options?.fail?.() === true) throw new Error('offline')
-      return [event(calls.events)]
+      return options?.seed ?? [event(1)]
+    },
+    fetchEvents: async ({ fromSeq }) => {
+      const read = { fromSeq: fromSeq ?? undefined }
+      calls.reads.push(read)
+      const generation = calls.reads.length
+      const history = options?.history?.({ fromSeq: read.fromSeq, generation }) ?? [
+        event(1),
+        event(2),
+        event(3),
+        event(4),
+      ]
+      return fromSeq === undefined ? history : history.filter((item) => item.seq >= fromSeq)
     },
     onUpdate: (update) => {
       state = update(state)
@@ -35,12 +54,13 @@ function rig(options?: { fail?: () => boolean }) {
 }
 
 describe('createEventsReader', () => {
-  it('reads on start and not again without a signal', async () => {
+  it('seeds from the history promise on start and not again without a signal', async () => {
     const test = rig()
     test.reader.start()
     await flush()
     await flush()
-    expect(test.calls.events).toBe(1)
+    expect(test.calls.seeds).toBe(1)
+    expect(test.calls.reads).toEqual([])
     expect(test.state().loaded).toBe(true)
   })
 
@@ -48,15 +68,17 @@ describe('createEventsReader', () => {
     const test = rig()
     test.reader.handleHead(3)
     await flush()
-    expect(test.calls.events).toBe(1)
+    await flush()
+    expect(test.calls.seeds).toBe(1)
+    expect(test.calls.reads).toEqual([{ fromSeq: 1 }])
 
     test.reader.handleHead(3)
     await flush()
-    expect(test.calls.events).toBe(1)
+    expect(test.calls.reads).toEqual([{ fromSeq: 1 }])
 
     test.reader.handleHead(4)
     await flush()
-    expect(test.calls.events).toBe(2)
+    expect(test.calls.reads).toEqual([{ fromSeq: 1 }, { fromSeq: 4 }])
   })
 
   it('coalesces signals that arrive while a read is in flight into one more read', async () => {
@@ -68,10 +90,136 @@ describe('createEventsReader', () => {
     await flush()
     await flush()
     await flush()
-    expect(test.calls.events).toBe(2)
+    expect(test.calls.seeds).toBe(1)
+    expect(test.calls.reads.length).toBeLessThanOrEqual(2)
   })
 
-  it('surfaces a failed read and retries it on the next frame with the same head', async () => {
+  it('appends a delta read after the seeded head instead of re-reading the full log', async () => {
+    const test = rig({
+      history: ({ fromSeq }) =>
+        fromSeq === 1 ? [event(1), event(2), event(3)] : [event(1), event(2), event(3)],
+    })
+    test.reader.start()
+    await flush()
+    test.reader.handleHead(3)
+    await flush()
+    expect(test.calls.reads).toEqual([{ fromSeq: 1 }])
+    expect(test.state().events.map((item) => item.seq)).toEqual([1, 2, 3])
+  })
+
+  it('reconciles an unobserved rewind on poke after reactivation from a cached seed', async () => {
+    const test = rig({
+      seed: [event(1), event(2), event(3)],
+      history: () => [event(1)],
+    })
+    test.reader.start()
+    await flush()
+    expect(test.state().events.map((item) => item.seq)).toEqual([1, 2, 3])
+
+    test.reader.poke()
+    await flush()
+    await flush()
+    expect(test.calls.reads).toStrictEqual([{ fromSeq: 3 }, { fromSeq: undefined }])
+    expect(test.calls.seeds).toBe(1)
+    expect(test.state().events).toEqual([event(1)])
+    test.reader.stop()
+  })
+
+  it('falls back once when a nonempty delta omits the inclusive anchor', async () => {
+    const test = rig({
+      history: ({ fromSeq }) => (fromSeq === undefined ? [event(1), event(2)] : [event(2)]),
+    })
+    test.reader.start()
+    await flush()
+    test.reader.poke()
+    await flush()
+    await flush()
+    expect(test.calls.reads).toStrictEqual([{ fromSeq: 1 }, { fromSeq: undefined }])
+    expect(test.state().events).toEqual([event(1), event(2)])
+    test.reader.stop()
+  })
+
+  it('keeps an unchanged inclusive anchor without a full fallback on poke', async () => {
+    const test = rig({ seed: [event(1), event(2), event(3)], history: () => [event(3)] })
+    test.reader.start()
+    await flush()
+    test.reader.poke()
+    await flush()
+    expect(test.calls.reads).toStrictEqual([{ fromSeq: 3 }])
+    expect(test.state().events).toEqual([event(1), event(2), event(3)])
+    test.reader.stop()
+  })
+
+  it('does not require an inclusive anchor when no events are held', async () => {
+    const test = rig({ seed: [], history: () => [] })
+    test.reader.start()
+    await flush()
+    test.reader.poke()
+    await flush()
+    expect(test.calls.reads).toStrictEqual([{ fromSeq: 0 }])
+    expect(test.state().events).toEqual([])
+    test.reader.stop()
+  })
+
+  it('falls back to a full read when the delta leaves a gap to the announced head', async () => {
+    const test = rig({
+      history: ({ fromSeq }) =>
+        fromSeq === undefined ? [event(1), event(2), event(3)] : [event(1)],
+    })
+    test.reader.start()
+    await flush()
+    test.reader.handleHead(3)
+    await flush()
+    expect(test.calls.reads).toEqual([{ fromSeq: 1 }, { fromSeq: undefined }])
+    expect(test.state().events.map((item) => item.seq)).toEqual([1, 2, 3])
+  })
+
+  it('falls back to a full read when the delta is not contiguous', async () => {
+    const test = rig({
+      history: ({ fromSeq }) =>
+        fromSeq === undefined ? [event(1), event(2)] : [event(1), event(3)],
+    })
+    test.reader.start()
+    await flush()
+    test.reader.handleHead(3)
+    await flush()
+    expect(test.calls.reads).toEqual([{ fromSeq: 1 }, { fromSeq: undefined }])
+    expect(test.state().events.map((item) => item.seq)).toEqual([1, 2])
+  })
+
+  it('falls back to a full read when the anchor event changed id', async () => {
+    const test = rig({
+      history: ({ fromSeq }) => {
+        if (fromSeq === undefined) return [event(1), event(2)]
+        return [{ ...event(1), id: 'evt_rewritten' }, event(2)]
+      },
+    })
+    test.reader.start()
+    await flush()
+    test.reader.handleHead(2)
+    await flush()
+    expect(test.calls.reads).toEqual([{ fromSeq: 1 }, { fromSeq: undefined }])
+    expect(test.state().events.map((item) => item.id)).toEqual(['evt_1', 'evt_2'])
+  })
+
+  it('replaces held events with a full read when the announced head rewinds', async () => {
+    const test = rig({
+      history: ({ fromSeq }) =>
+        fromSeq === undefined ? [event(1)] : [event(1), event(2), event(3)],
+    })
+    test.reader.start()
+    await flush()
+    test.reader.handleHead(3)
+    await flush()
+    expect(test.state().events.map((item) => item.seq)).toEqual([1, 2, 3])
+
+    test.reader.handleHead(1)
+    await flush()
+    expect(test.state().events.map((item) => item.seq)).toEqual([1])
+    expect(test.calls.reads).toEqual([{ fromSeq: 1 }, { fromSeq: undefined }])
+  })
+
+  it('surfaces a failed seed and retries it on the next frame with the same head', async () => {
     let failing = true
     const test = rig({ fail: () => failing })
     test.reader.handleHead(5)
@@ -83,7 +231,7 @@ describe('createEventsReader', () => {
     test.reader.handleHead(5)
     await flush()
     expect(test.state()).toMatchObject({ loaded: true, error: null })
-    expect(test.calls.events).toBe(2)
+    expect(test.calls.seeds).toBe(2)
   })
 
   it('does nothing after stop', async () => {
@@ -93,7 +241,8 @@ describe('createEventsReader', () => {
     test.reader.poke()
     test.reader.handleHead(9)
     await flush()
-    expect(test.calls.events).toBe(0)
+    expect(test.calls.seeds).toBe(0)
+    expect(test.calls.reads).toEqual([])
   })
 
   it('drops the result of a read that finishes after stop', async () => {

@@ -42,6 +42,8 @@ export {
   threadReadCursorFile,
 } from './sessions/paths'
 export { FileThreadReadCursor } from './sessions/read-cursor'
+export { FileLocalThreadTitles } from './sessions/local-thread-titles'
+export { EThreadTitleSource, type LocalTitleState } from './sessions/local-title-state'
 export { claimSession, releaseSession, ESessionClaim, type SessionClaim } from './sessions/lock'
 export { SessionRegistry, registryFor } from './sessions/registry'
 export {

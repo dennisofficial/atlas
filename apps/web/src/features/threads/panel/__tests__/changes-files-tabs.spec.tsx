@@ -11,6 +11,8 @@ import { EMPTY_DETAILS } from '../details/details-input'
 const base: ThreadPanelValue = {
   threadId: 'thr_1',
   channel: null,
+  loaded: true,
+  error: null,
   pod: null,
   working: false,
   changesPath: undefined,
