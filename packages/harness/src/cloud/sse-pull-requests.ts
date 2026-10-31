@@ -1,7 +1,6 @@
 import {
   checkoutKey,
   EForge,
-  EPullRequestLookup,
   PullRequestPort,
   type PullRequestReading,
   type RepositoryCheckout,
@@ -20,17 +19,19 @@ import {
 } from './app-install-recommendation'
 import { createHeartbeatLoop, type HeartbeatLoop } from './sse-heartbeat-loop'
 import { resolveSseClock, type SsePullRequestClock } from './sse-pull-request-clock'
+import { createRecovery, type Recovery } from './sse-recovery'
+import { refreshSubscriptions } from './sse-catch-up'
 import { createSseSubscriptionBook, type SseSubscriptionBook } from './sse-pull-request-book'
-
-const GITHUB_HOST = 'github.com'
+import {
+  GITHUB_HOST,
+  repoFullNameOf,
+  subscribeTargetOf,
+  unavailable,
+} from './sse-pull-request-readings'
+import { createSessionHealth, type SessionHealth } from './sse-session-health'
 
 const HEARTBEAT_MS = 60_000
 const DISPOSE_GRACE_MS = 2_000
-
-const unavailable = (retryable: boolean): PullRequestReading => ({
-  lookup: EPullRequestLookup.Unavailable,
-  retryable,
-})
 
 export class SsePullRequestPort extends PullRequestPort {
   readonly pushes = true
@@ -41,8 +42,9 @@ export class SsePullRequestPort extends PullRequestPort {
 
   private stream: AbortController | null = null
   private readonly heartbeat: HeartbeatLoop
+  private readonly recovery: Recovery
   private disposeTimer: ReturnType<typeof setTimeout> | null = null
-  private sessionDead = false
+  private readonly health: SessionHealth
   private readonly silenceTimeoutMs: number | undefined
   private readonly log: TransportRetryLog | undefined
   private readonly onPrEvent: ((frame: PrEventFrame) => void) | undefined
@@ -63,6 +65,7 @@ export class SsePullRequestPort extends PullRequestPort {
   }) {
     super()
     this.log = args.log
+    this.health = createSessionHealth({ log: args.log })
     this.onPrEvent = args.onPrEvent
     this.raiseAppInstall = createAppInstallRaiser({
       onRecommended: args.onAppInstallRecommended,
@@ -78,6 +81,10 @@ export class SsePullRequestPort extends PullRequestPort {
     this.book = createSseSubscriptionBook({
       now: this.clock.now,
       onReading: (readingArgs) => args.onReading(readingArgs),
+    })
+    this.recovery = createRecovery({
+      clock: this.clock,
+      attempt: () => this.recoverSession(),
     })
     this.heartbeat = createHeartbeatLoop({
       intervalMs: HEARTBEAT_MS,
@@ -119,6 +126,7 @@ export class SsePullRequestPort extends PullRequestPort {
       this.clock.clearTimeoutFn(this.disposeTimer)
       this.disposeTimer = null
     }
+    this.recovery.reset()
     this.heartbeat.stop()
     this.stream?.abort()
     this.stream = null
@@ -132,24 +140,22 @@ export class SsePullRequestPort extends PullRequestPort {
   }): Promise<PullRequestReading> {
     if (this.disposed) return unavailable(false)
     const held = this.book.holding({ key: args.key })
-    if (held !== null && !this.sessionDead) {
+    if (held !== null && !this.health.isDead()) {
       this.ensureStream()
       return held.reading
     }
 
     let outcome
     try {
-      outcome = await this.client.subscribe({
-        repoFullName: args.repoFullName,
-        ...(args.by.kind === 'branch' ? { branch: args.by.branch } : { number: args.by.number }),
-      })
+      outcome = await this.client.subscribe(
+        subscribeTargetOf({ repoFullName: args.repoFullName, by: args.by }),
+      )
     } catch (failure) {
       if (failure instanceof CloudError && failure.status === 404 && args.by.kind === 'branch') {
         return unavailable(true)
       }
       if (failure instanceof CloudError && (failure.status === 401 || failure.status === 403)) {
-        this.noteSessionDead()
-        this.book.markAllStale()
+        this.noteSessionRefused()
       }
       return unavailable(true)
     }
@@ -203,8 +209,8 @@ export class SsePullRequestPort extends PullRequestPort {
       .catch((failure: unknown) => {
         if (controller.signal.aborted || this.stream !== controller) return
         if (failure instanceof SseRefused) {
-          this.noteSessionDead()
-          this.heartbeat.stop()
+          this.noteSessionRefused()
+          return
         }
         this.book.markAllStale()
       })
@@ -215,46 +221,19 @@ export class SsePullRequestPort extends PullRequestPort {
 
   private catchUp(args: { controller: AbortController; generation: number }): Promise<void> {
     if (this.catchingUp?.generation === args.generation) return this.catchingUp.pending
-    const pending = this.refreshSubscriptions(args).finally(() => {
+    const pending = refreshSubscriptions({
+      controller: args.controller,
+      generation: args.generation,
+      currentGeneration: () => this.generation,
+      book: this.book,
+      client: this.client,
+      raiseAppInstall: this.raiseAppInstall,
+      noteAlive: () => this.noteSessionAlive(),
+    }).finally(() => {
       if (this.catchingUp?.pending === pending) this.catchingUp = null
     })
     this.catchingUp = { generation: args.generation, pending }
     return pending
-  }
-
-  private async refreshSubscriptions({
-    controller,
-    generation,
-  }: {
-    controller: AbortController
-    generation: number
-  }): Promise<void> {
-    for (const entry of this.book.entries()) {
-      if (controller.signal.aborted || generation !== this.generation) return
-      try {
-        const outcome = await this.client.subscribe({
-          repoFullName: entry.handle.repoFullName,
-          ...(entry.by.kind === 'branch'
-            ? { branch: entry.by.branch }
-            : { number: entry.by.number }),
-        })
-        if (controller.signal.aborted || generation !== this.generation) return
-        this.book.recordResubscribe({
-          key: entry.key,
-          handle: { id: outcome.id, repoFullName: entry.handle.repoFullName },
-          state: outcome.state,
-          pollBacked: outcome.pollBacked,
-        })
-        this.raiseAppInstall(outcome)
-      } catch (failure) {
-        if (controller.signal.aborted || generation !== this.generation) return
-        if (failure instanceof CloudError && (failure.status === 401 || failure.status === 403)) {
-          throw new SseRefused(failure.status)
-        }
-        throw failure
-      }
-    }
-    this.noteSessionAlive()
   }
 
   private catchUpFromHeartbeat(): void {
@@ -268,31 +247,28 @@ export class SsePullRequestPort extends PullRequestPort {
         generation !== this.generation
       )
         return
-      this.noteSessionDead()
-      this.book.markAllStale()
-      this.heartbeat.stop()
       controller.abort()
       this.stream = null
+      this.noteSessionRefused()
     })
   }
 
-  private noteSessionDead(): void {
-    if (this.sessionDead) return
-    this.sessionDead = true
-    this.log?.port.warn({
-      source: 'cloud.pull-requests',
-      message:
-        'the cloud API rejected the pull request session; realtime tracking is dead until it answers again',
-    })
+  private noteSessionRefused(): void {
+    this.health.noteDead()
+    this.heartbeat.stop()
+    this.book.markAllStale()
+    this.recovery.schedule()
+  }
+
+  private recoverSession(): void {
+    if (this.disposed || this.book.size() === 0) return
+    this.ensureStream()
+    this.heartbeat.start()
   }
 
   private noteSessionAlive(): void {
-    if (!this.sessionDead) return
-    this.sessionDead = false
-    this.log?.port.info({
-      source: 'cloud.pull-requests',
-      message: 'the cloud API accepts the pull request session again; realtime tracking resumed',
-    })
+    this.recovery.reset()
+    this.health.noteAlive()
   }
 
   private scheduleDispose(): void {
@@ -306,12 +282,4 @@ export class SsePullRequestPort extends PullRequestPort {
     }, DISPOSE_GRACE_MS)
     this.disposeTimer.unref?.()
   }
-}
-
-const repoFullNameOf = (repo: string): string | null => {
-  const [host, owner, name, ...extra] = repo.split('/')
-  if (extra.length > 0 || host !== GITHUB_HOST || owner === undefined || name === undefined) {
-    return null
-  }
-  return `${owner}/${name}`
 }

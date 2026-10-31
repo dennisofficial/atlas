@@ -76,6 +76,30 @@ describe('mergePrStates', () => {
       [761, 9],
     ])
   })
+
+  it('keeps a terminal api state over a stale non-terminal live state', () => {
+    const merged = mergePrStates({
+      live: [podState({ state: EPullRequestStateWire.Open })],
+      api: [podState({ state: EPullRequestStateWire.Merged })],
+    })
+    expect(merged.map((state) => state.state)).toEqual([EPullRequestStateWire.Merged])
+  })
+
+  it('lets a terminal live state win over a non-terminal api state', () => {
+    const merged = mergePrStates({
+      live: [podState({ state: EPullRequestStateWire.Merged })],
+      api: [podState({ state: EPullRequestStateWire.Open })],
+    })
+    expect(merged.map((state) => state.state)).toEqual([EPullRequestStateWire.Merged])
+  })
+
+  it('lets live win between non-terminal states', () => {
+    const merged = mergePrStates({
+      live: [podState({ state: EPullRequestStateWire.Draft })],
+      api: [podState({ state: EPullRequestStateWire.Open })],
+    })
+    expect(merged.map((state) => state.state)).toEqual([EPullRequestStateWire.Draft])
+  })
 })
 
 describe('parked pod pull request row', () => {

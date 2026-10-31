@@ -1,6 +1,7 @@
-import { ForbiddenException } from '@nestjs/common'
+import { ForbiddenException, HttpException, HttpStatus } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
+import { rateLimitOf } from './github-rate-limit'
 
 const GITHUB_REQUEST_TIMEOUT_MS = 8_000
 
@@ -46,6 +47,13 @@ export class RepoAccessChecker {
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
       },
     })
+    const rateLimit = rateLimitOf(response)
+    if (rateLimit !== null) {
+      throw new HttpException(
+        `github rate limit reached checking access to ${args.owner}/${args.repo} — retry in ${rateLimit.retryAfterSeconds}s`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      )
+    }
     if (response.status === 401) {
       this.access.delete(`${args.userId}:${args.owner}/${args.repo}`)
       throw new ForbiddenException(
