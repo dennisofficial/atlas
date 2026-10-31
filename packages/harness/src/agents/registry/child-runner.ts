@@ -11,6 +11,8 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { ActivityTurnRunner } from '../../activity/activity-turn-runner'
+import type { ActivityLifecycle } from '../../activity/runtime-session-activity'
 import type { SteerMessage } from './child-state'
 import { combineInput, type InputBatch } from '../../intake/input-batch'
 import type { MessageIntake } from '../../intake/message-intake'
@@ -34,6 +36,7 @@ import {
 } from '../types'
 
 export type ChildRunnerDeps = {
+  activity: ActivityLifecycle
   turn: Omit<TurnDeps, 'drainPending'>
   tools: ToolRegistry
   hooks: HookChain
@@ -176,7 +179,7 @@ export async function buildChildRunner({
     deps.modelFor === undefined ? turn.model : await deps.modelFor({ agentType, threadId })
   observeModel(model.identity)
 
-  return new PublishingTurnRunner({
+  const inner = new PublishingTurnRunner({
     channel: deps.channel,
     deps: {
       ...turn,
@@ -215,4 +218,5 @@ export async function buildChildRunner({
       },
     },
   })
+  return new ActivityTurnRunner({ inner, lifecycle: deps.activity })
 }

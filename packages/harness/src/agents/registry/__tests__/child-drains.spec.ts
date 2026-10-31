@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { fakeActivityLifecycle } from '../../../composition/__tests__/fakes'
 
 import {
   defaultPipeline,
@@ -92,6 +93,7 @@ async function childTurn(args: {
       return { peek: () => held, acknowledge: () => undefined }
     },
     deps: {
+      activity: fakeActivityLifecycle(),
       turn: parent,
       tools: new InMemoryToolRegistry([]),
       hooks: new HookChain({}),

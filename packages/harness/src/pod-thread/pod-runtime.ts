@@ -36,6 +36,7 @@ export type PodRuntimeParts = Pick<
   | 'log'
   | 'threads'
   | 'ledger'
+  | 'activity'
   | 'intake'
   | 'shells'
   | 'agents'
@@ -68,6 +69,7 @@ export function podRuntimeParts(args: {
     intake: undefined,
     threads: args.stores.threads,
     ledger: args.stores.ledger,
+    activity: args.stores.activity,
     channel,
     runner: args.runner,
     files: new RemoteMentionFiles({ channel, threadId: channel.threadId }),

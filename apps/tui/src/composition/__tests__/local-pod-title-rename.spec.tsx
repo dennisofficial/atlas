@@ -82,7 +82,12 @@ describe('user rename of a parked local pod', () => {
         projectId: null,
         home: threads,
         localCopy: { home, threads, log },
-        transcript: { log, threads, ledger: attachment.stores.ledger },
+        transcript: {
+          log,
+          threads,
+          ledger: attachment.stores.ledger,
+          activity: attachment.stores.activity,
+        },
         notice: { notify: () => undefined },
         onReload: async () => undefined,
         open: async () => ({

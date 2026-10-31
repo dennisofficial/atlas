@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { fakeActivityLifecycle } from '../../../composition/__tests__/fakes'
 
 import {
   AgentFileSystemPort,
@@ -196,6 +197,7 @@ export async function openRig(): Promise<Rig> {
       launchDirectory: PROJECT_DIRECTORY,
       runners: childRunnerSource({
         deps: () => ({
+          activity: fakeActivityLifecycle(),
           turn: {
             log: harness.log,
             model: harness.model,

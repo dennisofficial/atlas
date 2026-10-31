@@ -1,4 +1,5 @@
 import { tmpdir } from 'node:os'
+import { unavailableActivity } from '../../__tests__/fake-session-runtime'
 import { join } from 'node:path'
 
 import {
@@ -757,7 +758,10 @@ export function fakeBridge(
           return typeof held === 'function' ? held.bind(target) : held
         },
       })
-      return { channel, stores: { log, threads: attachedThreads, ledger } }
+      return {
+        channel,
+        stores: { log, threads: attachedThreads, ledger, activity: unavailableActivity() },
+      }
     },
   }
 }

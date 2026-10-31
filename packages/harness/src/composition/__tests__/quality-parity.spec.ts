@@ -74,7 +74,12 @@ async function runChildWrite(args: { rig: QualityRig; agentType: AgentType }) {
     steering: () => ({ peek: () => [], acknowledge: () => undefined }),
     deps: { ...deps, modelFor: async () => writingModel(rig) },
   })
-  await runner.runTurn({ threadId })
+  const outcome = await runner.runTurn({ threadId })
+  expect(await rig.app.activity.read({ threadId })).toMatchObject({
+    turnEpoch: 1,
+    working: false,
+    observedOutcome: { identity: { kind: 'run', runId: outcome.runId }, outcome: 'completed' },
+  })
   return { deps, events: await rig.app.log.read({ threadId }) }
 }
 

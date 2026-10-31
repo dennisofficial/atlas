@@ -9,6 +9,7 @@ import type {
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
+import type { SessionActivityPort } from '../activity/port'
 import type { AgentRegistryPort } from '../agents/registry/port'
 import type { AgentTypeCatalog } from '../agents/types/registry'
 import type { FileOpener } from '../browser/open-file'
@@ -101,6 +102,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   log: EventLogPort
   threads: ThreadStorePort
   ledger: TurnLedgerPort
+  activity: SessionActivityPort
   ids: IdPort
   pending: PendingQueues<Command>
   intake?: MessageIntake | undefined

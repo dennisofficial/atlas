@@ -110,6 +110,7 @@ export const localBindingOf = (args: {
       log: args.local.log,
       threads: args.local.threads,
       ledger: args.local.ledger,
+      activity: args.local.activity,
       intake: args.local.intake,
       shells: args.local.shells,
       agents: args.local.agents,

@@ -73,6 +73,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   })
 
   const router = createRequestRouter({
+    activity: args.activity,
     threadId,
     driver,
     files,

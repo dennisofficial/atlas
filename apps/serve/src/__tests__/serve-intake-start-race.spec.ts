@@ -66,6 +66,11 @@ const rig = (): Rig => {
   }
   let turnStarted = 0
   const app: ServeApp = {
+    activity: {
+      read: async () => {
+        throw new Error('activity is not initialized')
+      },
+    },
     channel: createDeltaChannel(),
     intake,
     pending,

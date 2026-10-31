@@ -112,7 +112,6 @@ export async function finishServeBoot(args: {
     broadcast(frame)
     captureRunning()
   }
-
   const remote = { controlPlaneUrl, token, clientVersion, fetchFn }
   const activity = bindServeActivity({ env, app, threadId, remote, log })
   const driver = createServeDriver({
@@ -138,9 +137,9 @@ export async function finishServeBoot(args: {
       driver.sayOrRun()
     },
   })
-
   const contextReader = createSessionContextReader({ threadId, home: atlasHome })
   const handlers = createSessionHandlers({
+    activity: app.activity,
     threadId,
     buffer,
     inFlight: () => inFlight(),
@@ -168,7 +167,6 @@ export async function finishServeBoot(args: {
     tools: { changes: app.changes, terminal: app.terminal },
     ...handlerOptionsOf({ app, log, persist: { ...args, clientVersion, fetchFn } }),
   })
-
   const detachSubscriptions = bindServeSubscriptions({
     app,
     threadId,
@@ -178,7 +176,6 @@ export async function finishServeBoot(args: {
     note,
     captureRunning: () => captureRunning(),
   })
-
   const bridge = createChannelBridge({
     channel: app.channel,
     threadId,

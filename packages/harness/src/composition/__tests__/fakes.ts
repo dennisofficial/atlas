@@ -14,6 +14,22 @@ import {
   type ComposedPortBindings,
 } from '@dltech/atlas-core'
 
+import type { SessionActivityPort } from '../../activity/port'
+import type { ActivityLifecycle } from '../../activity/runtime-session-activity'
+
+export const fakeActivityLifecycle = (): ActivityLifecycle => ({
+  turnStarted: () => {},
+  turnOutcome: () => {},
+  turnFailed: () => {},
+  turnEnded: () => {},
+})
+
+export const unavailableActivity = (): SessionActivityPort => ({
+  read: async () => {
+    throw new Error('activity unavailable in this fixture')
+  },
+})
+
 import { ESkillOrigin, parseSkill, type DiscoveredSkill } from '../../skills'
 import { DEFAULT_MODEL_REF } from '../config'
 import type { ModelCatalogue } from '../model-catalogue'

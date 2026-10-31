@@ -1,5 +1,6 @@
 import type { PortRegistryEntry } from '@dltech/atlas-core'
 
+import type { SessionActivityPort } from '../activity/port'
 import type { GitChangesPort } from '../changes/git-changes.port'
 import type { AgentRegistryPort } from '../agents/registry/port'
 import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
@@ -27,6 +28,9 @@ import type { UserLayerSyncPort } from '../user-layer-sync/port'
 
 declare module '@dltech/atlas-core' {
   interface PortRegistryEntries {
+    readonly SessionActivityPort: PortRegistryEntry<SessionActivityPort> & {
+      readonly transport: 'detached'
+    }
     readonly ThreadStorePort: PortRegistryEntry<ThreadStorePort> & {
       readonly transport: 'detached'
     }

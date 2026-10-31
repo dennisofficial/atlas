@@ -65,6 +65,11 @@ const hello = async (
 
 const handlersFor = (args?: { prStates?: ServePrStates }) =>
   createSessionHandlers({
+    activity: {
+      read: async () => {
+        throw new Error('activity is not initialized')
+      },
+    },
     threadId,
     buffer: createFrameBuffer({ capacity: 16 }),
     inFlight: () => [],
