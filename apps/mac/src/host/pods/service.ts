@@ -112,7 +112,7 @@ export function createPodService({
   const recordOf = (threadId: string) => findPodRecord({ store, threadId: toThreadId(threadId) })
 
   return {
-    ...createThreadReads({ store }),
+    ...createThreadReads({ store, pods }),
     capabilities: async () => {
       const reason = await (config.ping ?? (() => pingDocker({ socketPath })))()
       return reason === undefined ? { docker: true } : { docker: false, reason }

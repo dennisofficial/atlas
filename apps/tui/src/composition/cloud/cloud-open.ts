@@ -26,7 +26,9 @@ type OpenArgs = {
 }
 
 export const localCopyFor = (args: { app: AtlasApp; runner: ERunner | undefined }) =>
-  args.runner === ERunner.Local ? { home: atlasDirectory(), threads: args.app.threads } : undefined
+  args.runner === ERunner.Local
+    ? { home: atlasDirectory(), threads: args.app.threads, log: args.app.log }
+    : undefined
 
 export async function openCloudThread(args: OpenArgs): Promise<Binding> {
   const { app, bridge, threadId, move } = args

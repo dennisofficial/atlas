@@ -75,6 +75,7 @@ export const UNWRITTEN_REQUEST_TIMEOUT_MS = 25 * 60 * 1000
 export type UpstreamPipe = {
   send(frame: ClientFrame): void
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
+  requestIfAttached(args: { op: EClientRequest; params: unknown }): Promise<unknown> | undefined
   settleReply(args: { replyTo: string; ok: boolean; data: unknown }): void
   ackSend(args: { sendId: SendFrame['sendId'] }): void
   attach(args: { write: (data: string) => boolean }): void
@@ -188,6 +189,25 @@ export function createUpstreamPipe(args: {
           },
         })
       })
+    },
+
+    requestIfAttached({ op, params }) {
+      const writer = write
+      if (writer === null) return undefined
+      const id = `req-${++issued}`
+      const frame: ClientFrame = { kind: EClientFrame.Request, id, op, params }
+      let sent = false
+      const answer = new Promise<unknown>((resolve, reject) => {
+        waiting.set(id, { op, resolve, reject })
+        unwritten.add(id)
+        sent = writer(encodeFrame(frame))
+        if (sent) armAnswerDeadline(frame)
+        else {
+          waiting.delete(id)
+          unwritten.delete(id)
+        }
+      })
+      return sent ? answer : undefined
     },
 
     settleReply({ replyTo, ok, data }) {

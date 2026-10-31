@@ -192,7 +192,7 @@ describe('the local copy of a pod thread', () => {
     rig.copy.stop()
   })
 
-  it('carries the pod title and model into the home thread store', async () => {
+  it('copies the model without overwriting the authoritative home title', async () => {
     const rig = rigOf()
     const thread = await rig.fixture.threads.create({ workspace: '/w', repo: null, id: THREAD })
     rig.setRemote(range(1, 1))
@@ -205,7 +205,7 @@ describe('the local copy of a pod thread', () => {
     await rig.copy.settled()
 
     const held = await rig.fixture.threads.find({ threadId: thread.id })
-    expect(held?.title).toBe('Pod thread')
+    expect(held?.title).toBeUndefined()
     expect(held?.model).toEqual({ ref: 'openai/gpt-5', effort: 'low' })
     rig.copy.stop()
   })
