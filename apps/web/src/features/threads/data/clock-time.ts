@@ -4,7 +4,8 @@ export function clockTimeOf(at: string | undefined): string | undefined {
   if (at === undefined) return undefined
   const date = new Date(at)
   if (Number.isNaN(date.getTime())) return undefined
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  const hours = date.getHours()
+  return `${hours % 12 || 12}:${pad(date.getMinutes())} ${hours >= 12 ? 'PM' : 'AM'}`
 }
 
 export function spanMsOf(args: {

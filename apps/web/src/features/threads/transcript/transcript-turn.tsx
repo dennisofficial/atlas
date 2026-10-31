@@ -173,6 +173,7 @@ function TurnViewBody({
           author={userName}
           timestamp={clockTimeOf(turn.item.at)}
           images={messageImagesOf({ id: turn.item.id, images: turn.item.images })}
+          copyText={turn.item.text}
           attachments={(turn.item.uploads ?? []).map((upload) => ({
             id: upload.uploadId,
             label: upload.name,
