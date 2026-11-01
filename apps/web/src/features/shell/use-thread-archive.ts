@@ -11,6 +11,7 @@ import {
 import type { ProjectThreads } from './thread-partition'
 
 const NO_OVERRIDES: ArchiveOverrides = new Map()
+export const UNDO_ARCHIVE_MS = 8000
 
 const withOverride = (args: {
   overrides: ArchiveOverrides
@@ -24,10 +25,12 @@ const withoutOverride = (args: { overrides: ArchiveOverrides; threadId: string }
   return next
 }
 
+type AfterUndo = () => void
+
 export function useThreadArchive(args: {
   entries: readonly ProjectThreads[] | undefined
   reload: () => void
-  onArchived: (threadId: string) => void
+  onArchived: (threadId: string) => AfterUndo | undefined
   archive: (args: {
     threadId: string
     archived: boolean
@@ -48,22 +51,40 @@ export function useThreadArchive(args: {
     [entries, overrides],
   )
 
-  const handleToggleArchive = useCallback(
-    async (thread: WireThread) => {
-      const archived = thread.archivedAt === null || thread.archivedAt === undefined
+  const persist = useCallback(
+    async (persistArgs: { thread: WireThread; archived: boolean }) => {
+      const { thread, archived } = persistArgs
       const threadId = thread.id
       const archivedAt = archived ? new Date().toISOString() : null
       setOverrides((current) => withOverride({ overrides: current, threadId, archivedAt }))
       try {
         await archive({ threadId, archived, runner: thread.runner })
-        if (archived) onArchived(threadId)
         reload()
+        return true
       } catch {
         setOverrides((current) => withoutOverride({ overrides: current, threadId }))
         toast.error(archived ? "Couldn't archive the thread" : "Couldn't restore the thread")
+        return false
       }
     },
-    [reload, onArchived, archive],
+    [reload, archive],
+  )
+
+  const handleToggleArchive = useCallback(
+    async (thread: WireThread) => {
+      const archived = thread.archivedAt === null || thread.archivedAt === undefined
+      if (!(await persist({ thread, archived })) || !archived) return
+      const afterUndo = onArchived(thread.id)
+      const handleUndo = async () => {
+        if (await persist({ thread, archived: false })) afterUndo?.()
+      }
+      toast('Thread archived', {
+        description: thread.title,
+        duration: UNDO_ARCHIVE_MS,
+        action: { label: 'Undo', onClick: () => void handleUndo() },
+      })
+    },
+    [persist, onArchived],
   )
 
   return { entries: shown, handleToggleArchive }
