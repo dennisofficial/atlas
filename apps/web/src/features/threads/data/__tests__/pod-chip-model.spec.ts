@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EPodState as EUiPodState } from '@dltech/atlas-ui/ai/pod-status-chip'
 import { EBootStep, EBootStepState, EPodState, type PodStatus } from '@dltech/atlas-wire/web'
 
-import { chipStatusOf } from '../pod-chip-model'
+import { chipStatusOf, podStateLabelOf } from '../pod-chip-model'
 
 const step = (at: string) => ({ step: EBootStep.Provision, state: EBootStepState.Running, at })
 
@@ -57,5 +57,26 @@ describe('chipStatusOf', () => {
       history: [step('1'), step('2')],
     })
     expect(chipStatusOf(again)?.state).toBe(EUiPodState.Resuming)
+  })
+})
+
+describe('podStateLabelOf', () => {
+  it('has no label without a pod or for a pod that was never started', () => {
+    expect(podStateLabelOf(null)).toBeNull()
+    expect(podStateLabelOf(pod({ state: EPodState.None }))).toBeNull()
+  })
+
+  it('names the state of a pod whose chip is missing for lack of resources', () => {
+    const running = pod({ resources: undefined })
+    expect(chipStatusOf(running)).toBeNull()
+    expect(podStateLabelOf(running)).toBe('Running')
+    expect(podStateLabelOf(pod({ state: EPodState.Booting, resources: undefined }))).toBe(
+      'Starting',
+    )
+  })
+
+  it('names parked and failed pods', () => {
+    expect(podStateLabelOf(pod({ state: EPodState.Parked }))).toBe('Parked')
+    expect(podStateLabelOf(pod({ state: EPodState.Failed }))).toBe('Failed')
   })
 })

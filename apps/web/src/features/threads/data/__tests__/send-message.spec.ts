@@ -18,9 +18,9 @@ afterEach(() => {
 })
 
 describe('sendMessage', () => {
-  it('mutates only threadMessages.send with the given sendId and returns the state', async () => {
-    const state = await sendMessage({ threadId: 't 1', text: 'hi', sendId: 's1' })
-    expect(state).toBe(EThreadMessageState.Queued)
+  it('mutates only threadMessages.send with the given sendId and returns the reply', async () => {
+    const reply = await sendMessage({ threadId: 't 1', text: 'hi', sendId: 's1' })
+    expect(reply).toEqual({ state: EThreadMessageState.Queued })
     expect(calls).toEqual([
       {
         url: mutationUrl('threadMessages.send'),
@@ -98,6 +98,34 @@ describe('deliverMessage', () => {
         body: { threadId: 't1', sendId: 's1', text: 'hi' },
       },
     ])
+  })
+})
+
+describe('deliverMessage dispatch failure', () => {
+  it('rejects with the API error when the fallback reply carries one', async () => {
+    calls = fakeFetch(() =>
+      trpcOk({ state: EThreadMessageState.Queued, error: "Couldn't start the sandbox. Retry." }),
+    )
+    const delivery = deliverMessage({
+      threadId: 't1',
+      text: 'hi',
+      sendId: 's1',
+      liveSend: () => false,
+    })
+    await expect(delivery).rejects.toThrow("Couldn't start the sandbox. Retry.")
+  })
+
+  it('resolves when the live socket takes the send, without touching HTTP', async () => {
+    await expect(
+      deliverMessage({ threadId: 't1', text: 'hi', sendId: 's1', liveSend: () => true }),
+    ).resolves.toBeUndefined()
+    expect(calls).toEqual([])
+  })
+
+  it('resolves when the fallback reply has no error', async () => {
+    await expect(
+      deliverMessage({ threadId: 't1', text: 'hi', sendId: 's1', liveSend: () => false }),
+    ).resolves.toBeUndefined()
   })
 })
 

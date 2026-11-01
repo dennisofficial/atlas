@@ -1,5 +1,5 @@
 import type { SaidUpload } from '@dltech/atlas-core'
-import type { EThreadMessageState, SaidImageWire } from '@dltech/atlas-wire/web'
+import type { SaidImageWire, ThreadMessageReply } from '@dltech/atlas-wire/web'
 
 import { uploadsFieldOf } from './composer-attachments'
 import { imagesFieldOf } from './composer-images'
@@ -13,14 +13,13 @@ export async function sendMessage(args: {
   images?: SaidImageWire[] | undefined
   uploads?: SaidUpload[] | undefined
   post?: typeof postMessage | undefined
-}): Promise<EThreadMessageState> {
+}): Promise<ThreadMessageReply> {
   const { images, uploads, post = postMessage, ...message } = args
-  const reply = await post({
+  return post({
     ...message,
     ...imagesFieldOf(images),
     ...uploadsFieldOf(uploads),
   })
-  return reply.state
 }
 
 export async function deliverMessage(args: {
@@ -40,5 +39,6 @@ export async function deliverMessage(args: {
     ...uploadsFieldOf(message.uploads),
   }
   if (liveSend(live)) return
-  await sendMessage(message)
+  const reply = await sendMessage(message)
+  if (reply.error !== undefined) throw new Error(reply.error)
 }

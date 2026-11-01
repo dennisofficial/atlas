@@ -50,10 +50,12 @@ const snapshotOf = (args: { agentId: ThreadId; spawnedBy: ThreadId }): AgentSnap
 type FakeAgents = {
   hydrated: ThreadId[]
   resumed: { agentId: ThreadId; threadId: ThreadId }[]
+  woken: ThreadId[]
   agents: {
     hydrate: (args: { threadId: ThreadId }) => Promise<void>
     list: (args: { threadId: ThreadId }) => readonly AgentSnapshot[]
     resume: (args: { agentId: ThreadId; threadId: ThreadId }) => Promise<AgentOutcome>
+    wake: (args: { agentId: ThreadId }) => Promise<AgentOutcome>
   }
 }
 
@@ -63,10 +65,12 @@ const fakeAgents = (args: {
 }): FakeAgents => {
   const hydrated: ThreadId[] = []
   const resumed: { agentId: ThreadId; threadId: ThreadId }[] = []
+  const woken: ThreadId[] = []
 
   return {
     hydrated,
     resumed,
+    woken,
     agents: {
       hydrate: async ({ threadId }) => {
         hydrated.push(threadId)
@@ -80,6 +84,17 @@ const fakeAgents = (args: {
             snapshot:
               args.children.find((child) => child.agentId === agentId) ??
               snapshotOf({ agentId, spawnedBy: threadId }),
+          }
+        )
+      },
+      wake: async ({ agentId }) => {
+        woken.push(agentId)
+        return (
+          args.outcome?.(agentId) ?? {
+            ok: true,
+            snapshot:
+              args.children.find((child) => child.agentId === agentId) ??
+              snapshotOf({ agentId, spawnedBy: toThreadId('thread-parent') }),
           }
         )
       },
@@ -231,5 +246,100 @@ describe("adopting a thread's children on session start", () => {
     const resumed = await adoptChildren({ agents: fake.agents, log, threadId: parent })
 
     expect(resumed).toEqual([first, second])
+  })
+
+  describe('a relocation-paused child', () => {
+    const pausedSnapshot = (args: { agentId: ThreadId; spawnedBy: ThreadId }): AgentSnapshot => ({
+      ...snapshotOf(args),
+      status: EAgentStatus.Paused,
+      endedAt: '2026-01-01T00:03:00.000Z',
+    })
+    const cleanLog = (childId: ThreadId) =>
+      fakeLog({
+        [childId]: eventsFrom({
+          threadId: childId,
+          drafts: [{ type: 'assistant-said', parts: [{ type: 'text', text: 'waiting on it' }] }],
+        }),
+      })
+
+    it('is woken into a fresh turn when its own log ends cleanly, and reported as adopted', async () => {
+      const parent = toThreadId('thread-parent')
+      const childId = toThreadId('thread-child')
+      const fake = fakeAgents({
+        children: [pausedSnapshot({ agentId: childId, spawnedBy: parent })],
+      })
+
+      const resumed = await adoptChildren({
+        agents: fake.agents,
+        log: cleanLog(childId),
+        threadId: parent,
+      })
+
+      expect(resumed).toEqual([childId])
+      expect(fake.woken).toEqual([childId])
+      expect(fake.resumed).toEqual([])
+    })
+
+    it('is resumed, not woken, when its own log was cut mid-work', async () => {
+      const parent = toThreadId('thread-parent')
+      const childId = toThreadId('thread-child')
+      const fake = fakeAgents({
+        children: [pausedSnapshot({ agentId: childId, spawnedBy: parent })],
+      })
+      const log = fakeLog({
+        [childId]: eventsFrom({
+          threadId: childId,
+          drafts: [{ type: 'tool-called', callId: toCallId('call-1'), name: 'bash', ordinal: 0 }],
+        }),
+      })
+
+      const resumed = await adoptChildren({ agents: fake.agents, log, threadId: parent })
+
+      expect(resumed).toEqual([childId])
+      expect(fake.resumed).toEqual([{ agentId: childId, threadId: parent }])
+      expect(fake.woken).toEqual([])
+    })
+
+    it('is not counted when the registry refused the wake', async () => {
+      const parent = toThreadId('thread-parent')
+      const childId = toThreadId('thread-child')
+      const fake = fakeAgents({
+        children: [pausedSnapshot({ agentId: childId, spawnedBy: parent })],
+        outcome: () => ({ ok: false, reason: 'already stepping' }),
+      })
+
+      const resumed = await adoptChildren({
+        agents: fake.agents,
+        log: cleanLog(childId),
+        threadId: parent,
+      })
+
+      expect(resumed).toEqual([])
+      expect(fake.woken).toEqual([childId])
+    })
+
+    it('leaves a failed child with a clean log alone', async () => {
+      const parent = toThreadId('thread-parent')
+      const childId = toThreadId('thread-child')
+      const fake = fakeAgents({
+        children: [
+          {
+            ...snapshotOf({ agentId: childId, spawnedBy: parent }),
+            status: EAgentStatus.Failed,
+            endedAt: '2026-01-01T00:04:00.000Z',
+          },
+        ],
+      })
+
+      const resumed = await adoptChildren({
+        agents: fake.agents,
+        log: cleanLog(childId),
+        threadId: parent,
+      })
+
+      expect(resumed).toEqual([])
+      expect(fake.woken).toEqual([])
+      expect(fake.resumed).toEqual([])
+    })
   })
 })

@@ -4,7 +4,7 @@ import type { AgentRegistryPort } from '@dltech/atlas-harness'
 import type { AgentSnapshot } from '@dltech/atlas-harness'
 
 export type ChildAdoptionDeps = {
-  agents: Pick<AgentRegistryPort, 'hydrate' | 'list' | 'resume'>
+  agents: Pick<AgentRegistryPort, 'hydrate' | 'list' | 'resume' | 'wake'>
   log: Pick<EventLogPort, 'readOwn'>
 }
 
@@ -16,9 +16,15 @@ export type ChildAdoptionDeps = {
  * A child the roster already carries as terminal is never picked up: its own log can still read
  * resumable (the interruption that cut it is recorded there), but its ending outranks that — a
  * teammate the operator stopped on the far side must stay stopped here.
+ *
+ * A relocation-paused child is the exception: it carries an `endedAt` yet was never finished, and
+ * its own log can end cleanly (a held child paused with its model turn complete), so it is not
+ * resumable mid-turn. It is woken into a fresh turn instead, never left silently paused.
  */
 const endedBefore = (child: AgentSnapshot): boolean =>
-  child.status !== EAgentStatus.Running && child.endedAt !== undefined
+  child.status !== EAgentStatus.Running &&
+  child.status !== EAgentStatus.Paused &&
+  child.endedAt !== undefined
 
 export async function adoptChildren({
   agents,
@@ -31,9 +37,12 @@ export async function adoptChildren({
   for (const child of agents.list({ threadId })) {
     if (endedBefore(child)) continue
     const events = await log.readOwn({ threadId: child.agentId })
-    if (!isResumable(events)) continue
+    const pausedAtCleanTail = !isResumable(events) && child.status === EAgentStatus.Paused
+    if (!isResumable(events) && !pausedAtCleanTail) continue
 
-    const outcome = await agents.resume({ agentId: child.agentId, threadId })
+    const outcome = pausedAtCleanTail
+      ? await agents.wake({ agentId: child.agentId })
+      : await agents.resume({ agentId: child.agentId, threadId })
     if (outcome.ok) resumed.push(child.agentId)
   }
 

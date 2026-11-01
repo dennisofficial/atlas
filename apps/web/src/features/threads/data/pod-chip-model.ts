@@ -12,6 +12,17 @@ const UI_STATE: Record<EPodState, EUiPodState | null> = {
   [EPodState.Failed]: EUiPodState.Stopped,
 }
 
+const POD_STATE_LABEL: Record<EPodState, string | null> = {
+  [EPodState.None]: null,
+  [EPodState.Booting]: 'Starting',
+  [EPodState.Running]: 'Running',
+  [EPodState.Parked]: 'Parked',
+  [EPodState.Failed]: 'Failed',
+}
+
+export const podStateLabelOf = (pod: PodStatus | null): string | null =>
+  pod === null ? null : POD_STATE_LABEL[pod.state]
+
 const hasEarlierAttempt = (pod: PodStatus): boolean => (pod.history?.length ?? 0) > pod.steps.length
 
 export function chipStatusOf(pod: PodStatus | null): UiPodStatus | null {
