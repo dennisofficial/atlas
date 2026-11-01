@@ -13,7 +13,7 @@ import {
 
 import type { Unsubscribe } from '../channel/delta-channel'
 import type { OpenThreadArgs } from './create-with-events'
-import type { ThreadWorktree } from './sessions/thread-places'
+import type { ThreadCheckout, ThreadWorktree } from './sessions/thread-places'
 
 export type SupervisedAgent = { spawnedBy: ThreadId; type: string }
 
@@ -36,6 +36,7 @@ export type ThreadSummary = {
   model?: ThreadModel | undefined
   /** Set only by `list`, the one read whose caller is picking between threads rather than opening one. */
   worktree?: ThreadWorktree | undefined
+  checkout?: ThreadCheckout | undefined
   /** Set only by `list`, alongside `worktree`; absent when the thread never linked a pull request. */
   pullRequests?: LinkedPullRequest[] | undefined
   subscriptions?: ThreadSubscriptionSummary[] | undefined

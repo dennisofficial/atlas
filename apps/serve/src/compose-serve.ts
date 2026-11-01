@@ -292,6 +292,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     operatorInput: app.operatorInput,
     compaction: app.compaction,
     rotation: app.surface.rotation,
+    threadOpened: app.threadOpened,
     close: app.close,
   }
 }

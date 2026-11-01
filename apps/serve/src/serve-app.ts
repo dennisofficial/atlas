@@ -250,6 +250,9 @@ export type ServeApp = {
   rotation?: RotationPort | undefined
   /** The session's placement controller; serve hydrates it to cloud once boot settles. */
   executionLocation?: PlacementController | undefined
+  threadOpened?:
+    | ((args: { threadId: ThreadId; projectDirectory: string }) => Promise<void>)
+    | undefined
   close: () => Promise<void>
 }
 
