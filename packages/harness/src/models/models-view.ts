@@ -28,7 +28,7 @@ export type ModelsViewModel = {
 export type ModelsViewProvider = {
   id: string
   label: string
-  status: 'connected' | 'expired'
+  status: 'connected' | 'expired' | 'unavailable'
   live: boolean
   models: ModelsViewModel[]
 }
@@ -81,25 +81,29 @@ export function modelsView(args: {
         }),
   })
 
-  return catalogue.providers.flatMap((provider): ModelsViewProvider[] => {
-    if (!held.some((account) => account.provider === provider.id)) return []
+  return catalogue.providers.map((provider): ModelsViewProvider => {
+    if (!held.some((account) => account.provider === provider.id)) {
+      return {
+        id: provider.id,
+        label: provider.label,
+        status: 'unavailable',
+        live: false,
+        models: provider.cards.map(toModel),
+      }
+    }
     if (!working.some((account) => account.provider === provider.id)) {
-      return [
-        { id: provider.id, label: provider.label, status: 'expired', live: false, models: [] },
-      ]
+      return { id: provider.id, label: provider.label, status: 'expired', live: false, models: [] }
     }
     const live =
       provider.id === OPENAI_PROVIDER_ID &&
       catalogue.subscribed(provider.id) &&
       (args.liveCards?.(provider.id)?.length ?? 0) > 0
-    return [
-      {
-        id: provider.id,
-        label: provider.label,
-        status: 'connected',
-        live,
-        models: provider.cards.map(toModel),
-      },
-    ]
+    return {
+      id: provider.id,
+      label: provider.label,
+      status: 'connected',
+      live,
+      models: provider.cards.map(toModel),
+    }
   })
 }

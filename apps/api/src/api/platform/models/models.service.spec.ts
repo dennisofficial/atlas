@@ -32,27 +32,43 @@ beforeEach(() => {
 })
 
 describe('ModelsService', () => {
-  it('lists no providers for a user with no accounts', async () => {
+  it('lists every provider as unavailable for a user with no accounts', async () => {
     const { service } = serviceWith({ accounts: {} })
-    expect(await service.list({ userId: 'u1' })).toEqual({ providers: [] })
+
+    const response = await service.list({ userId: 'u1' })
+
+    expect(response.providers.map((provider) => provider.id)).toEqual([
+      'anthropic',
+      'openai',
+      'openrouter',
+      'inference',
+    ])
+    for (const provider of response.providers) {
+      expect(provider.status).toBe(EModelProviderStatus.Unavailable)
+      expect(provider.models.length).toBeGreaterThan(0)
+    }
   })
 
-  it('lists an expired-only provider as expired with no models', async () => {
+  it('lists an expired-only provider as expired with no models, the rest unavailable', async () => {
     const { service } = serviceWith({
       accounts: { u1: [account({ provider: 'anthropic', status: 'expired' })] },
     })
 
-    expect(await service.list({ userId: 'u1' })).toEqual({
-      providers: [
-        {
-          id: 'anthropic',
-          label: 'Claude Plan',
-          status: EModelProviderStatus.Expired,
-          live: false,
-          models: [],
-        },
-      ],
+    const response = await service.list({ userId: 'u1' })
+
+    const anthropic = response.providers.find((provider) => provider.id === 'anthropic')
+    expect(anthropic).toEqual({
+      id: 'anthropic',
+      label: 'Claude Plan',
+      status: EModelProviderStatus.Expired,
+      live: false,
+      models: [],
     })
+    expect(
+      response.providers
+        .filter((provider) => provider.id !== 'anthropic')
+        .every((provider) => provider.status === EModelProviderStatus.Unavailable),
+    ).toBe(true)
   })
 
   it('serves the static OpenAI list for an API key without any network call', async () => {
