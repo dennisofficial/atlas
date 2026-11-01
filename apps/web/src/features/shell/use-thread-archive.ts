@@ -28,7 +28,11 @@ export function useThreadArchive(args: {
   entries: readonly ProjectThreads[] | undefined
   reload: () => void
   onArchived: (threadId: string) => void
-  archive: (args: { threadId: string; archived: boolean }) => Promise<unknown>
+  archive: (args: {
+    threadId: string
+    archived: boolean
+    runner?: WireThread['runner']
+  }) => Promise<unknown>
 }) {
   const { entries, reload, onArchived, archive } = args
   const [overrides, setOverrides] = useState<ArchiveOverrides>(NO_OVERRIDES)
@@ -51,7 +55,7 @@ export function useThreadArchive(args: {
       const archivedAt = archived ? new Date().toISOString() : null
       setOverrides((current) => withOverride({ overrides: current, threadId, archivedAt }))
       try {
-        await archive({ threadId, archived })
+        await archive({ threadId, archived, runner: thread.runner })
         if (archived) onArchived(threadId)
         reload()
       } catch {

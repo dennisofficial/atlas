@@ -368,6 +368,13 @@ export function fakeThreadStore(
       if (row !== undefined) row.projectId = projectId
     },
 
+    async setArchived({ threadId, archived }) {
+      const row = rows.find((held) => held.id === threadId)
+      if (row === undefined) return false
+      row.archivedAt = archived ? (row.archivedAt ?? AT) : null
+      return true
+    },
+
     async chooseRunner({ threadId, runner }) {
       chosenRunners.push({ threadId, runner })
       const row = rows.find((held) => held.id === threadId)

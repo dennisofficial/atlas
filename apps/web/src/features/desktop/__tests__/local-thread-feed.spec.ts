@@ -66,7 +66,7 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'atlasDesktop')
 })
 
-it('shares passive polling between shell and thread subscriptions and emits host title changes', async () => {
+it('shares passive polling between shell, metadata and thread subscriptions and publishes host title changes', async () => {
   const feed = makeFeed()
   let changes = 0
   const stopList = feed.subscribeChanges(() => {
@@ -74,6 +74,11 @@ it('shares passive polling between shell and thread subscriptions and emits host
   })
   const frames: ThreadStreamFrame[] = []
   const stream = feed.subscribeStream({ threadId: 'brn_1', handlers: handlersOf(frames) })
+  const titles: (string | undefined)[] = []
+  const stopMetadata = feed.subscribeMetadata({
+    threadId: 'brn_1',
+    listener: (thread) => titles.push(thread.title),
+  })
   await flush()
   tick()
   await flush()
@@ -83,10 +88,12 @@ it('shares passive polling between shell and thread subscriptions and emits host
   tick()
   await flush()
   expect(changes).toBe(before + 1)
-  expect(frames).toContainEqual({ type: EThreadStreamFrame.Title })
+  expect(titles.at(-1)).toBe('User rename')
+  expect(frames.some((frame) => frame.type !== EThreadStreamFrame.Head)).toBe(false)
   expect(frames).toContainEqual({ type: EThreadStreamFrame.Head, head: 4 })
   expect(calls.every((path) => path === '/desktop/threads' || path.endsWith('/status'))).toBe(true)
   stream.unsubscribe()
+  stopMetadata()
   stopList()
   expect(timers.size).toBe(0)
 })

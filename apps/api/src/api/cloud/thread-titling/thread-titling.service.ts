@@ -42,8 +42,7 @@ export class ThreadTitlingService {
       if (title === null) return
       const changed = await this.writeIfUntitled({ threadId: args.threadId, title })
       if (!changed) return
-      await this.signals.titleChanged({ threadId: args.threadId })
-      await this.signals.listChanged({ userId: args.userId, threadId: args.threadId })
+      this.signals.threadChanged({ threadId: args.threadId })
     } catch (failure) {
       this.log.warn(`titling ${args.threadId} failed: ${String(failure)}`)
     }

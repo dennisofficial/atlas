@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedThreadRow, seedUsers, USER_A } from '../../../../test/session-seed'
 import { registerPodChild } from '../sandboxes/pod-child'
 import { inertSignals } from './thread-signals.fixture'
-import { SessionsService } from './sessions.service'
 import { ThreadsService } from './threads.service'
 
 const MAIN = 'brn_main'
@@ -18,7 +17,7 @@ const register = (input: { threadId: string; agentType: string }) =>
     signals: inertSignals(),
   })
 
-describe('sessions and thread listing', () => {
+describe('thread listing', () => {
   useTestDatabase()
 
   beforeEach(async () => {
@@ -47,22 +46,5 @@ describe('sessions and thread listing', () => {
     })
 
     expect(listed.map((thread) => thread.id).sort()).toEqual([MAIN, 'brn_mate'])
-  })
-
-  it('sessions.list returns one session with its teammate and no sub-agent', async () => {
-    const listed = await new SessionsService().list({ userId: USER_A, projectId: PROJECT })
-
-    expect(listed).toHaveLength(1)
-    expect(listed[0]?.mainThread.id).toBe(MAIN)
-    expect(listed[0]?.teammates.map((node) => node.mainThread.id)).toEqual(['brn_mate'])
-    expect(listed[0]?.teammates[0]?.teammates).toEqual([])
-  })
-
-  it('sessions.list with a null project returns only projectless sessions', async () => {
-    await seedThreadRow({ id: 'brn_loose', userId: USER_A, executionLocation: 'cloud' })
-
-    const loose = await new SessionsService().list({ userId: USER_A, projectId: null })
-
-    expect(loose.map((node) => node.mainThread.id)).toEqual(['brn_loose'])
   })
 })

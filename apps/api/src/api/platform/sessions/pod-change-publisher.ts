@@ -11,7 +11,7 @@ export class PodChangePublisher {
   publish(args: {
     threadId: string
     publish: (signal: ThreadFrameSignal) => Promise<void>
-    listChanged: () => Promise<void>
+    threadChanged: () => void
   }): Promise<void> {
     const previous = this.pending.get(args.threadId) ?? Promise.resolve()
     const done = previous
@@ -24,7 +24,7 @@ export class PodChangePublisher {
           logger.warn(`reading pod status of ${args.threadId} failed: ${String(failure)}`)
         }
         await args.publish({ threadId: args.threadId, frame })
-        await args.listChanged()
+        args.threadChanged()
       })
     this.pending.set(args.threadId, done)
     void done

@@ -9,7 +9,6 @@ import {
   fetchSnapshot,
   fetchPod,
   fetchThread,
-  fetchSessions,
   patchThreadModel,
   provisionSandbox,
   setThreadArchived,
@@ -54,19 +53,6 @@ describe('thread reads', () => {
     workspace: null,
     repo: null,
   }
-
-  it('lists a project through sessions.list', async () => {
-    const node = { id: 'ses_1', mainThread: thread, teammates: [] }
-    const calls = fakeFetch(() => trpcOk([node]))
-    expect(await fetchSessions('proj 1')).toEqual([node])
-    expect(calls).toEqual([
-      {
-        url: queryUrl({ procedure: 'sessions.list', input: { projectId: 'proj 1' } }),
-        method: 'GET',
-        body: undefined,
-      },
-    ])
-  })
 
   it('gets a thread through threads.get', async () => {
     const calls = fakeFetch(() => trpcOk(thread))

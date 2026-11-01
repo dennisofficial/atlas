@@ -1,5 +1,9 @@
 import type { SaidUpload } from '@dltech/atlas-core'
-import { createThreadReplySchema, type SaidImageWire } from '@dltech/atlas-wire/web'
+import {
+  createThreadReplySchema,
+  type SaidImageWire,
+  type WireSessionNode,
+} from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 
@@ -11,10 +15,7 @@ import { trackedThreadStreamHandlers } from './thread-stream-adapter'
 
 export const fetchProjects = () => cloudCall(api.projects.list.query())
 
-export const fetchSessions = (projectId: string | null) =>
-  cloudCall(api.sessions.list.query({ projectId }))
-
-export type SessionNode = Awaited<ReturnType<typeof fetchSessions>>[number]
+export type SessionNode = WireSessionNode
 
 export const createThread = async (body: CreateThreadBody) =>
   createThreadReplySchema.parse(await cloudCall(api.threads.create.mutate(body)))

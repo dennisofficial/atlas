@@ -192,13 +192,9 @@ describe('parseThreadSignal', () => {
   })
 })
 
-describe('parseThreadSignal list signals', () => {
-  it('parses a strict user-list signal and rejects mixed or partial shapes', () => {
+describe('parseThreadSignal retired list signals', () => {
+  it('ignores a list signal an older instance may still publish', () => {
     const list = { userId: 'usr_1', threadId: 'thr_1' }
-    expect(parseThreadSignal({ raw: JSON.stringify(list) })).toEqual(list)
-    expect(parseThreadSignal({ raw: JSON.stringify({ userId: 'u' }) })).toBeUndefined()
-    expect(
-      parseThreadSignal({ raw: JSON.stringify({ ...list, frame: HEAD.frame }) }),
-    ).toBeUndefined()
+    expect(parseThreadSignal({ raw: JSON.stringify(list) })).toBeUndefined()
   })
 })

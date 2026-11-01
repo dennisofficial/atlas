@@ -95,10 +95,6 @@ export function createLocalThreadFeed(args: { schedule?: Schedule } = {}) {
         if (thread !== undefined && thread.head !== stream.thread?.head) {
           stream.handlers.onData({ type: EThreadStreamFrame.Head, head: thread.head })
         }
-        if (!streams.has(stream)) continue
-        if (thread !== undefined && thread.title !== stream.thread?.title) {
-          stream.handlers.onData({ type: EThreadStreamFrame.Title })
-        }
         stream.thread = thread
       }
       refreshPods(recipients)

@@ -68,7 +68,7 @@ describe('transaction-locked Pod snapshots', () => {
       await waitFor(() => expect(frames).toHaveLength(3))
       first = new PodChangePublisher().publish({
         threadId: 'thr-1',
-        listChanged: async () => {},
+        threadChanged: () => {},
         publish: async (signal) => {
           captured.resolve(signal)
           await release.promise
@@ -87,7 +87,7 @@ describe('transaction-locked Pod snapshots', () => {
       })
       await new PodChangePublisher().publish({
         threadId: 'thr-1',
-        listChanged: async () => {},
+        threadChanged: () => {},
         publish: async (signal) => {
           raw.push(signal)
           await signals.publish(signal)

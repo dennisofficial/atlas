@@ -1,5 +1,6 @@
 import { expect, it } from 'bun:test'
 
+import { localThreadOf } from '../local-thread'
 import { localThreadSchema } from '../local-thread-wire'
 import { localSummary } from './local-thread-fixture'
 
@@ -33,4 +34,22 @@ it('keeps unavailable cursor knowledge distinct and forbids stale status', () =>
   expect(localThreadSchema.safeParse({ ...summary, status }).success).toBe(false)
   expect(localThreadSchema.safeParse({ ...summary, status: undefined }).success).toBe(false)
   expect(localThreadSchema.safeParse({ ...summary, reason: '   ' }).success).toBe(false)
+})
+
+it('keeps archivedAt through both strict branches and the display mapper', () => {
+  const archivedAt = '2026-10-31T09:00:00.000Z'
+  const { status, readSeq, ...base } = available()
+  const unavailable = localThreadSchema.parse({
+    ...base,
+    archivedAt,
+    activityState: 'unavailable',
+    reason: 'Activity unsupported',
+  })
+  const healthy = localThreadSchema.parse({ ...available(), archivedAt })
+  expect(localThreadOf(unavailable).archivedAt).toBe(archivedAt)
+  expect(localThreadOf(healthy).archivedAt).toBe(archivedAt)
+  expect(localThreadOf(localThreadSchema.parse(available())).archivedAt).toBeUndefined()
+  expect(localThreadSchema.safeParse({ ...available(), archivedAt: 'yesterday' }).success).toBe(
+    false,
+  )
 })

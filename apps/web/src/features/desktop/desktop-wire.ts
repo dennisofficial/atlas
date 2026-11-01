@@ -7,7 +7,7 @@ import {
 } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
-import { desktopCall as call, DesktopError, hasDesktopHost } from './desktop-http'
+import { desktopCall as call, desktopRequest, DesktopError, hasDesktopHost } from './desktop-http'
 
 export { DesktopError } from './desktop-http'
 
@@ -23,6 +23,7 @@ export const localPodSchema = z.object({
   model: z.string().optional(),
   effort: z.string().optional(),
   title: z.string().optional(),
+  archivedAt: z.iso.datetime().nullish(),
   createdAt: z.iso.datetime(),
   state: z.enum(ELocalPodState),
 })
@@ -93,6 +94,17 @@ export async function getLocalPod(threadId: string): Promise<LocalPod | null> {
     if (failure instanceof DesktopError && failure.status === NOT_FOUND) return null
     throw failure
   }
+}
+
+export async function setLocalThreadArchived(args: {
+  threadId: string
+  archived: boolean
+}): Promise<void> {
+  await desktopRequest({
+    path: `/desktop/threads/${encodeURIComponent(args.threadId)}/archive`,
+    method: 'POST',
+    body: { archived: args.archived },
+  })
 }
 
 export const createLocalPod = (input: CreatePodInput) =>

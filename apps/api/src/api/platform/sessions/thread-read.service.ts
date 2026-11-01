@@ -31,6 +31,6 @@ export class ThreadReadService {
       })
       return seq !== existing?.seq
     })
-    if (changed) await this.signals.listChanged({ userId, threadId })
+    if (changed) this.signals.threadChanged({ threadId })
   }
 }

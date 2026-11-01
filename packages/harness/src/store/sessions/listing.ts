@@ -45,6 +45,7 @@ export function toThreadSummary(meta: ThreadMeta): ThreadSummary {
     head: meta.head,
     createdAt: meta.createdAt,
     updatedAt: meta.updatedAt,
+    ...(meta.archivedAt === undefined ? {} : { archivedAt: meta.archivedAt }),
     workspace: meta.workspace,
     repo: meta.repo,
     ...(meta.title === null ? {} : { title: meta.title }),

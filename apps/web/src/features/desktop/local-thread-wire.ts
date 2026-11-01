@@ -19,6 +19,7 @@ const localThreadBase = {
   effort: z.string().optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+  archivedAt: z.iso.datetime().nullish(),
 }
 
 export const localThreadSchema = z.discriminatedUnion('activityState', [

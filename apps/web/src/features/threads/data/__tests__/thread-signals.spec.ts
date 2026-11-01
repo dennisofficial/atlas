@@ -14,7 +14,7 @@ import {
 function rig() {
   const subscriptions: { handlers: ThreadStreamHandlers; unsubscribed: boolean }[] = []
   const tasks: { delayMs: number; run: () => void; cancelled: boolean }[] = []
-  const seen = { heads: [] as number[], pods: 0, titles: 0, starts: 0 }
+  const seen = { heads: [] as number[], pods: 0, starts: 0 }
   const metadata: ThreadMetadata[] = []
   const statuses: ThreadPodSignal[] = []
   let clock = 0
@@ -35,9 +35,6 @@ function rig() {
       statuses.push(payload)
     },
     onMeta: (frame) => metadata.push(frame),
-    onTitle: () => {
-      seen.titles += 1
-    },
     onStarted: () => {
       seen.starts += 1
     },
@@ -81,9 +78,8 @@ describe('createThreadSignals', () => {
     handlers?.onData({ type: EThreadStreamFrame.Head, head: 4 })
     handlers?.onData({ type: EThreadStreamFrame.Heartbeat })
     handlers?.onData({ type: EThreadStreamFrame.Pod })
-    handlers?.onData({ type: EThreadStreamFrame.Title })
 
-    expect(test.seen).toEqual({ heads: [4], pods: 1, titles: 1, starts: 1 })
+    expect(test.seen).toEqual({ heads: [4], pods: 1, starts: 1 })
   })
 
   it('propagates metadata and Pod payloads while ignoring superseded and stopped frames', () => {

@@ -23,12 +23,26 @@ const statusOf = (status: Partial<NonNullable<WireThread['status']>>) =>
   }) as NonNullable<WireThread['status']>
 
 const manager = sessionOf(threadOf({ id: 'boss', title: 'Ship sidebar' }), [
-  sessionOf(threadOf({ id: 'run', title: 'Port folder', status: statusOf({ working: true }) })),
   sessionOf(
-    threadOf({ id: 'bad', title: 'Fix types', status: statusOf({ lastOutcome: 'failed' }) }),
+    threadOf({
+      id: 'run',
+      title: 'Port folder',
+      status: statusOf({ working: true }),
+    }),
   ),
   sessionOf(
-    threadOf({ id: 'fin', title: 'Write specs', status: statusOf({ lastOutcome: 'completed' }) }),
+    threadOf({
+      id: 'bad',
+      title: 'Fix types',
+      status: statusOf({ lastOutcome: 'failed' }),
+    }),
+  ),
+  sessionOf(
+    threadOf({
+      id: 'fin',
+      title: 'Write specs',
+      status: statusOf({ lastOutcome: 'completed' }),
+    }),
   ),
 ])
 
@@ -91,5 +105,29 @@ describe('ThreadRow with teammates', () => {
     const html = render(null, sessionOf(threadOf({ id: 'solo', title: 'Solo' })))
     expect(html).toContain('href="/threads/solo"')
     expect(html).not.toContain('teammate')
+  })
+
+  describe('title growth', () => {
+    const titleClassOf = (html: string): string =>
+      html.match(/<span aria-live="polite"[^>]*class="([^"]*)"/)?.[1] ?? ''
+
+    it('grows the title so the local icon sits at the trailing edge', () => {
+      const html = render(
+        null,
+        sessionOf(threadOf({ id: 'mac', title: 'On Mac', runner: 'local' })),
+      )
+      expect(titleClassOf(html).split(' ')).toContain('flex-1')
+      expect(html).toContain('aria-label="This Mac"')
+      expect(html.indexOf('On Mac')).toBeLessThan(html.indexOf('aria-label="This Mac"'))
+    })
+
+    it('grows the cloud title too and shows no local icon', () => {
+      const html = render(
+        null,
+        sessionOf(threadOf({ id: 'sandbox', title: 'In cloud', runner: 'cloud' })),
+      )
+      expect(titleClassOf(html).split(' ')).toContain('flex-1')
+      expect(html).not.toContain('This Mac')
+    })
   })
 })

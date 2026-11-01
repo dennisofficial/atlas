@@ -15,7 +15,7 @@ const REQUEST = { userId: 'usr-1', threadId: 'thr-1', projectId: 'prj-1', text: 
 
 function serviceWith(args: { titler: () => Promise<string | null> }) {
   const factory = vi.fn(() => args.titler) as unknown as TitlerFactory
-  const { signals, framesOf, listFramesOf } = recordingSignals()
+  const { signals, framesOf, changedThreads } = recordingSignals()
   const config = { resolveForPod: vi.fn(async () => ({ settings: { 'model.quickModel': 'x/y' } })) }
   const accounts = { lease: vi.fn(async () => ({ accounts: [], active: [] })) }
   const service = new ThreadTitlingService(
@@ -25,25 +25,24 @@ function serviceWith(args: { titler: () => Promise<string | null> }) {
     signals,
     factory,
   )
-  return { service, factory, framesOf, listFramesOf }
+  return { service, factory, framesOf, changedThreads }
 }
 
 describe('ThreadTitlingService', () => {
   useTestDatabase()
 
-  it('writes the generated title and signals the thread and list', async () => {
+  it('writes the generated title and signals the thread change', async () => {
     await seedThread()
-    const { service, factory, framesOf, listFramesOf } = serviceWith({
+    const { service, factory, framesOf, changedThreads } = serviceWith({
       titler: async () => 'Fix login',
     })
     const frames = framesOf('thr-1')
-    const listFrames = listFramesOf('usr-1')
 
     await service.titleFirstMessage(REQUEST)
 
     expect(await sessionTitle()).toBe('Fix login')
-    expect(frames).toHaveLength(1)
-    expect(listFrames).toHaveLength(1)
+    expect(frames).toHaveLength(0)
+    expect(changedThreads).toEqual(['thr-1'])
     expect(factory).toHaveBeenCalledTimes(1)
   })
 

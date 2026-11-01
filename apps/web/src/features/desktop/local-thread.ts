@@ -11,6 +11,7 @@ export function localThreadOf(thread: LocalThread): ThreadDisplay {
     head: thread.head,
     createdAt: thread.createdAt,
     updatedAt: thread.updatedAt,
+    archivedAt: thread.archivedAt,
     ...(thread.activityState === ELocalActivityState.Available ? { status: thread.status } : {}),
     localAvailability:
       thread.activityState === ELocalActivityState.Available

@@ -6,9 +6,16 @@ const at = (hours: number, minutes: number, seconds = 0) =>
   new Date(2026, 9, 24, hours, minutes, seconds).toISOString()
 
 describe('clockTimeOf', () => {
-  it('formats local time as zero-padded 24h HH:MM', () => {
-    expect(clockTimeOf(at(14, 5))).toBe('14:05')
-    expect(clockTimeOf(at(0, 9))).toBe('00:09')
+  it('formats local time as 12-hour h:MM with AM/PM', () => {
+    expect(clockTimeOf(at(14, 5))).toBe('2:05 PM')
+    expect(clockTimeOf(at(9, 30))).toBe('9:30 AM')
+    expect(clockTimeOf(at(23, 59))).toBe('11:59 PM')
+  })
+
+  it('shows midnight as 12 AM and noon as 12 PM', () => {
+    expect(clockTimeOf(at(0, 9))).toBe('12:09 AM')
+    expect(clockTimeOf(at(12, 0))).toBe('12:00 PM')
+    expect(clockTimeOf(at(12, 45))).toBe('12:45 PM')
   })
 
   it('is undefined for a missing or unparseable stamp', () => {

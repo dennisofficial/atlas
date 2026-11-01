@@ -110,8 +110,11 @@ describe('live subscription readiness', () => {
     cleanups.push(() => signals.closeAll())
     const frames: ThreadStreamFrame[] = []
     signals.openStream({ threadId: 'thread', onFrame: (frame) => frames.push(frame) })
-    const published = bus.publish({ threadId: 'thread', frame: { type: EThreadStreamFrame.Title } })
-    expect(frames).toEqual([{ type: EThreadStreamFrame.Title }])
+    const published = bus.publish({
+      threadId: 'thread',
+      frame: { type: EThreadStreamFrame.Heartbeat },
+    })
+    expect(frames).toEqual([{ type: EThreadStreamFrame.Heartbeat }])
     await published
   })
 })

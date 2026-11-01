@@ -202,7 +202,6 @@ export enum EThreadStreamFrame {
   Head = 'head',
   Pod = 'pod',
   Heartbeat = 'heartbeat',
-  Title = 'title',
   Meta = 'meta',
   Events = 'events',
   Reset = 'reset',
@@ -222,7 +221,6 @@ export const threadStreamFrameSchema = z.discriminatedUnion('type', [
     rev: seqSchema.optional(),
   }),
   z.object({ type: z.literal(EThreadStreamFrame.Heartbeat) }),
-  z.object({ type: z.literal(EThreadStreamFrame.Title) }),
   z.object({
     type: z.literal(EThreadStreamFrame.Meta),
     thread: wireThreadSchema,
@@ -254,29 +252,9 @@ export type ThreadStreamInput = z.infer<typeof threadStreamInputSchema>
 
 export * from './thread-events-wire'
 
-export enum EThreadListFrame {
-  Changed = 'changed',
-  Heartbeat = 'heartbeat',
-}
-
 export const threadListActivitySchema = z.strictObject({
   working: z.boolean(),
   awaiting: z.enum(['approval', 'input']).nullable(),
   lastOutcome: z.enum(['completed', 'failed', 'stopped']).nullable(),
 })
 export type ThreadListActivity = z.infer<typeof threadListActivitySchema>
-
-export const threadListFrameSchema = z.discriminatedUnion('type', [
-  z.strictObject({
-    type: z.literal(EThreadListFrame.Changed),
-    threadId: z.string().min(1),
-    activity: threadListActivitySchema.optional(),
-  }),
-  z.strictObject({ type: z.literal(EThreadListFrame.Heartbeat) }),
-])
-export type ThreadListFrame = z.infer<typeof threadListFrameSchema>
-
-const isListFrames = (value: unknown): value is AsyncIterable<ThreadListFrame> =>
-  typeof value === 'object' && value !== null && Symbol.asyncIterator in value
-
-export const threadListOutputSchema = z.custom<AsyncIterable<ThreadListFrame>>(isListFrames)
