@@ -10,6 +10,9 @@ import { GithubAppInstallationsService } from './github-app-installations.servic
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import { isUniqueViolation } from './unique-violation'
+import { normalizedRepo, repoPattern } from './github-pr-identity'
+import { GithubObservationStore } from './github-observation.store'
+import { withGithubRequestBudget } from './github-request-budget'
 
 export const HOOK_EVENTS = GITHUB_HOOK_EVENTS
 const IDLE_DELETE_AFTER_MS = 24 * 60 * 60 * 1_000
@@ -30,16 +33,30 @@ export class GithubHookLifecycleService {
     private readonly cipher: SecretCipherService,
     private readonly env: EnvService,
     private readonly installations: GithubAppInstallationsService,
+    private readonly observations: GithubObservationStore,
   ) {}
 
-  async ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
+  ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
+    return withGithubRequestBudget({
+      store: this.observations,
+      run: () =>
+        this.ensureWithinBudget({ ...args, repoFullName: normalizedRepo(args.repoFullName) }),
+    })
+  }
+
+  private async ensureWithinBudget(args: {
+    userId: string
+    repoFullName: string
+  }): Promise<EnsureHookResult> {
     if (await this.installations.coversRepo({ repoFullName: args.repoFullName })) {
       return 'app-backed'
     }
-    const hook = await db.orm.public.GithubRepoHook.first({ repoFullName: args.repoFullName })
+    const hook = await db.orm.public.GithubRepoHook.where((hook) =>
+      hook.repoFullName.ilike(repoPattern(args.repoFullName)),
+    ).first()
     if (hook !== null) {
       if (hook.status === ERepoHookStatus.Orphaned) {
-        return this.reconcile({ ...args, existingSecret: hook.secret })
+        return this.reconcile({ ...args, storedRepo: hook.repoFullName })
       }
       const alive = await this.isHookAlive({
         userId: args.userId,
@@ -47,7 +64,7 @@ export class GithubHookLifecycleService {
         hookId: hook.hookId,
       })
       if (alive) return 'existing'
-      return this.reconcile({ ...args, existingSecret: hook.secret })
+      return this.reconcile({ ...args, storedRepo: hook.repoFullName })
     }
     return this.createHook(args)
   }
@@ -59,7 +76,14 @@ export class GithubHookLifecycleService {
     }).updateAndCount({ idleSince: new Date() })
   }
 
-  async handleSweep(): Promise<void> {
+  handleSweep(): Promise<void> {
+    return withGithubRequestBudget({
+      store: this.observations,
+      run: () => this.sweepWithinBudget(),
+    })
+  }
+
+  private async sweepWithinBudget(): Promise<void> {
     const now = new Date()
     const idleCutoff = new Date(now.getTime() - IDLE_DELETE_AFTER_MS)
     const candidates = await db.orm.public.GithubRepoHook.where((hook) =>
@@ -68,6 +92,21 @@ export class GithubHookLifecycleService {
       .where({ status: ERepoHookStatus.Active })
       .all()
     for (const candidate of candidates) {
+      if (
+        await this.observations
+          .hasRepo({ repoFullName: candidate.repoFullName })
+          .catch((failure: unknown) => {
+            this.logger.warn(
+              `PR observation presence unavailable during hook cleanup: ${String(failure)}`,
+            )
+            return true
+          })
+      ) {
+        await db.orm.public.GithubRepoHook.where({
+          repoFullName: candidate.repoFullName,
+        }).updateAndCount({ idleSince: null })
+        continue
+      }
       const claimed = await db.orm.public.GithubRepoHook.where({
         repoFullName: candidate.repoFullName,
         status: ERepoHookStatus.Active,
@@ -77,18 +116,19 @@ export class GithubHookLifecycleService {
           sweepLeaseUntil: new Date(now.getTime() + SWEEP_LEASE_MS),
           status: ERepoHookStatus.Deleting,
         })
-      if (claimed === 1) await this.teardown({ repoFullName: candidate.repoFullName })
+      if (claimed !== 1) continue
+      try {
+        await this.teardown({ repoFullName: candidate.repoFullName })
+      } catch (failure) {
+        await db.orm.public.GithubRepoHook.where({
+          repoFullName: candidate.repoFullName,
+        }).updateAndCount({ status: ERepoHookStatus.Active, sweepLeaseUntil: null })
+        this.logger.warn(`hook cleanup paused: ${String(failure)}`)
+        return
+      }
     }
   }
 
-  /**
-   * The local `active` row is only a claim: the hook can be deleted or disabled on the GitHub
-   * side at any time, and hook-backed subscriptions never fall back to polling, so a dead hook
-   * means silent realtime. Verify against GitHub — memoized briefly, otherwise every resubscribe
-   * storm would spend a REST call on it — and recreate on `missing`. `unauthorized` and network
-   * failures trust the row instead: delivery auth is the HMAC secret, not this token, and a
-   * hook GitHub hides from a token without admin rights still delivers.
-   */
   private async isHookAlive(args: {
     userId: string
     repoFullName: string
@@ -124,8 +164,6 @@ export class GithubHookLifecycleService {
     return false
   }
 
-  // Hooks created before an event class shipped keep delivering, so a drifted event list is
-  // patched in place rather than recreating the hook.
   private async reconcileEvents(args: {
     token: string
     owner: string
@@ -148,7 +186,7 @@ export class GithubHookLifecycleService {
   private async reconcile(args: {
     userId: string
     repoFullName: string
-    existingSecret: string
+    storedRepo: string
   }): Promise<EnsureHookResult> {
     const token = await this.github.findToken({ userId: args.userId })
     if (token === undefined) return 'poll-backed'
@@ -165,7 +203,7 @@ export class GithubHookLifecycleService {
     if (result.outcome === 'forbidden') return 'poll-backed'
     if (result.hookId === undefined) return 'poll-backed'
 
-    await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).update({
+    await db.orm.public.GithubRepoHook.where({ repoFullName: args.storedRepo }).update({
       hookId: BigInt(result.hookId),
       secret: this.cipher.encrypt(secret),
       createdBy: args.userId,
@@ -214,7 +252,9 @@ export class GithubHookLifecycleService {
   }
 
   private async teardown(args: { repoFullName: string }): Promise<void> {
-    const hook = await db.orm.public.GithubRepoHook.first({ repoFullName: args.repoFullName })
+    const hook = await db.orm.public.GithubRepoHook.where((hook) =>
+      hook.repoFullName.ilike(repoPattern(args.repoFullName)),
+    ).first()
     if (hook === null) return
 
     const token = await this.github.findToken({ userId: hook.createdBy })

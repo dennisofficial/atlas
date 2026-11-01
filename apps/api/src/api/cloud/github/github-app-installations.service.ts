@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import { normalizedRepo } from './github-pr-identity'
 import type {
   GithubAppInstallationRepositoriesWebhookPayload,
   GithubAppInstallationWebhookPayload,
@@ -17,7 +18,9 @@ export class GithubAppInstallationsService {
     const match = await db.orm.public.GithubAppInstallation.select('installationId')
       .where({ suspendedAt: null })
       .where((installation, { fns }) =>
-        fns.raw`${args.repoFullName} = ANY(${installation.repos})`.returns('pg/bool@1'),
+        fns.raw`EXISTS (SELECT 1 FROM unnest(${installation.repos}) AS held(repo) WHERE lower(held.repo) = ${normalizedRepo(args.repoFullName)})`.returns(
+          'pg/bool@1',
+        ),
       )
       .first()
     return match !== null
@@ -44,14 +47,14 @@ export class GithubAppInstallationsService {
         installationId,
         accountLogin: installation.account.login,
         accountType: installation.account.type,
-        repos: payload.repositories.map((repo) => repo.full_name),
+        repos: payload.repositories.map((repo) => normalizedRepo(repo.full_name)),
         suspendedAt:
           installation.suspended_at === null ? null : new Date(installation.suspended_at),
       },
       update: {
         accountLogin: installation.account.login,
         accountType: installation.account.type,
-        repos: payload.repositories.map((repo) => repo.full_name),
+        repos: payload.repositories.map((repo) => normalizedRepo(repo.full_name)),
         suspendedAt:
           installation.suspended_at === null ? null : new Date(installation.suspended_at),
       },
@@ -64,14 +67,16 @@ export class GithubAppInstallationsService {
     })
     if (held === null) return
 
-    const removed = new Set((payload.repositories_removed ?? []).map((repo) => repo.full_name))
-    const kept = (held.repos ?? []).filter(
-      (fullName): fullName is string => fullName !== null && !removed.has(fullName),
+    const removed = new Set(
+      (payload.repositories_removed ?? []).map((repo) => normalizedRepo(repo.full_name)),
     )
-    const added = (payload.repositories_added ?? []).map((repo) => repo.full_name)
+    const kept = (held.repos ?? []).filter(
+      (fullName): fullName is string => fullName !== null && !removed.has(normalizedRepo(fullName)),
+    )
+    const added = (payload.repositories_added ?? []).map((repo) => normalizedRepo(repo.full_name))
 
     await db.orm.public.GithubAppInstallation.where({
       installationId: BigInt(payload.installation.id),
-    }).update({ repos: [...new Set([...kept, ...added])] })
+    }).update({ repos: [...new Set([...kept.map(normalizedRepo), ...added])] })
   }
 }

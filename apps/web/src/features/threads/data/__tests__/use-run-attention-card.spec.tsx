@@ -1,12 +1,23 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { act } from 'react'
-import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from 'bun:test'
+import { toast } from 'sonner'
 
 import { ERunFailureKind, stampDrafts, toEventId, toRunId, toThreadId } from '@dltech/atlas-core'
 import type { Event, EventDraft, EventEnvelope } from '@dltech/atlas-core'
 
 mock.module('next/navigation', () => ({ useRouter: () => ({ push: mock(() => undefined) }) }))
-mock.module('sonner', () => ({ toast: { error: mock(() => undefined) } }))
+let restoreToast: (() => void) | null = null
 
 const { TestQueryProvider, createTestQueryClient } = await import(
   '@/lib/__tests__/query-test-provider'
@@ -20,8 +31,18 @@ beforeAll(() => {
 
 const unmounts: (() => Promise<void>)[] = []
 
+beforeEach(() => {
+  const error = spyOn(toast, 'error').mockImplementation(() => 0)
+  restoreToast = () => error.mockRestore()
+})
+
 afterEach(async () => {
-  for (const unmount of unmounts.splice(0)) await unmount()
+  try {
+    for (const unmount of unmounts.splice(0)) await unmount()
+  } finally {
+    restoreToast?.()
+    restoreToast = null
+  }
 })
 
 afterAll(async () => {

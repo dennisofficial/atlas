@@ -1,4 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { localObservations } from './github-observation.fixture'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers, repoHookRows, seedRepoHook } from '../../../../test/github-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
@@ -63,7 +64,14 @@ function serviceWith(args: {
     coversRepo: args.coversRepo ?? (async () => false),
   } as unknown as GithubAppInstallationsService
   return {
-    service: new GithubHookLifecycleService(github, reads, CIPHER, ENV, installations),
+    service: new GithubHookLifecycleService(
+      github,
+      reads,
+      CIPHER,
+      ENV,
+      installations,
+      localObservations(github),
+    ),
     created,
     deleted,
     verified,

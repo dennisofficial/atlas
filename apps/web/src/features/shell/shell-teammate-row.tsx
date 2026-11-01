@@ -1,19 +1,12 @@
 import { SidebarMenuSubItem } from '@dltech/atlas-ui/components/sidebar'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
-import { ThreadRowBody } from './shell-thread-row-body'
+import { ThreadNodeRow, type ThreadRowProps } from './shell-thread-row'
 
-export interface TeammateRowProps {
-  teammate: WireThread
-  active: boolean
-  parent: WireThread | undefined
-  projectName: string
-}
-
-export function TeammateRow({ teammate, active, parent, projectName }: TeammateRowProps) {
+export function TeammateRow(props: ThreadRowProps & { parent: WireThread }) {
   return (
     <SidebarMenuSubItem>
-      <ThreadRowBody thread={teammate} active={active} parent={parent} projectName={projectName} />
+      <ThreadNodeRow {...props} />
     </SidebarMenuSubItem>
   )
 }

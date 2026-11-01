@@ -1,7 +1,7 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { seedPrState } from '../../../../test/github-seed'
+import { seedPrState, seedSubscription } from '../../../../test/github-seed'
 import {
   seedEventRow,
   seedThreadRow,
@@ -112,6 +112,8 @@ describe('ThreadsService thread state reads', () => {
       mergeable: false,
     })
     await seedPrState({ repoFullName: 'compai/other', prNumber: 42, state: 'closed' })
+    await seedSubscription({ userId: USER_A, repoFullName: 'compai/app', prNumber: 42 })
+    await seedSubscription({ userId: USER_A, repoFullName: 'compai/other', prNumber: 42 })
 
     const [thread] = await service.list({ userId: USER_A, projectId: 'prj_a' })
 
@@ -147,6 +149,7 @@ describe('ThreadsService thread state reads', () => {
     })
     await linkPullRequest({ threadId: 'mate', seq: 1, repo: 'compai/app', number: 42 })
     await seedPrState({ title: 'Teammate PR', checksPassed: 4, mergeable: true })
+    await seedSubscription({ userId: USER_A, repoFullName: 'compai/app', prNumber: 42 })
 
     const parent = await service.find({ userId: USER_A, threadId: 'parent' })
     const mate = await service.find({ userId: USER_A, threadId: 'mate' })
@@ -175,6 +178,7 @@ describe('ThreadsService thread state reads', () => {
       number: 42,
     })
     await seedPrState({ repoFullName: 'compai/app', prNumber: 42, state: 'open' })
+    await seedSubscription({ userId: USER_A, repoFullName: 'compai/app', prNumber: 42 })
 
     const [thread] = await service.list({ userId: USER_A, project: '/repo' })
 

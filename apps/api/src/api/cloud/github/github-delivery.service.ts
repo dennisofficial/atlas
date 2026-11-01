@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
+import { normalizedRepo, repoPattern } from './github-pr-identity'
+import { GithubObservationStore } from './github-observation.store'
+import { withGithubRequestBudget } from './github-request-budget'
 import { announceSubscriberThreads } from './github-list-signals'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { db, type Row } from '@dltech/atlas-db'
@@ -52,13 +55,24 @@ export class GithubDeliveryService {
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
     private readonly fanout: GithubPrFanoutService,
-    private readonly cipher: SecretCipherService,
+    _cipher: SecretCipherService,
     private readonly mailbox: GithubPrEventMailboxService,
     private readonly discussion: GithubPrDiscussionDeliveryService,
     private readonly signals: ThreadSignalsService,
+    private readonly observations: GithubObservationStore,
   ) {}
 
-  async handle(args: { event: string; payload: unknown }): Promise<{ handled: boolean }> {
+  handle(args: { event: string; payload: unknown }): Promise<{ handled: boolean }> {
+    return withGithubRequestBudget({
+      store: this.observations,
+      run: () => this.handleWithinBudget(args),
+    })
+  }
+
+  private async handleWithinBudget(args: {
+    event: string
+    payload: unknown
+  }): Promise<{ handled: boolean }> {
     if (!HANDLED_EVENTS.has(args.event)) return { handled: false }
     if (args.event === 'ping') return { handled: true }
 
@@ -84,15 +98,19 @@ export class GithubDeliveryService {
     }
 
     const target = checkTargetOf({ event: args.event, payload: args.payload })
-    if (target !== null) await this.handleCheckTarget(target)
+    if (target !== null)
+      await this.handleCheckTarget({ ...target, repoFullName: normalizedRepo(target.repoFullName) })
     return { handled: true }
   }
 
   private async handlePullRequest(payload: GithubPullRequestWebhookPayload): Promise<void> {
-    const repoFullName = payload.repository.full_name
+    const repoFullName = normalizedRepo(payload.repository.full_name)
     const prNumber = payload.pull_request.number
     const [prior, token] = await Promise.all([
-      db.orm.public.GithubPrState.first({ repoFullName, prNumber }),
+      db.orm.public.GithubPrState.where((pr) => pr.repoFullName.ilike(repoPattern(repoFullName)))
+        .where({ prNumber })
+        .orderBy((pr) => pr.updatedAt.desc())
+        .first(),
       this.findFillToken({ repoFullName }),
     ])
 
@@ -146,9 +164,9 @@ export class GithubDeliveryService {
   }
 
   private async affectedPrs(target: CheckTarget): Promise<Row<'GithubPrState'>[]> {
-    const open = db.orm.public.GithubPrState.where({ repoFullName: target.repoFullName }).where(
-      (pr) => pr.state.in(['open', 'draft']),
-    )
+    const open = db.orm.public.GithubPrState.where((pr) =>
+      pr.repoFullName.ilike(repoPattern(target.repoFullName)),
+    ).where((pr) => pr.state.in(['open', 'draft']))
     const byBranch =
       target.branch === null ? [] : await open.where({ headBranch: target.branch }).all()
     const bySha = target.sha === null ? [] : await open.where({ headSha: target.sha }).all()
@@ -158,19 +176,25 @@ export class GithubDeliveryService {
   }
 
   private async findFillToken(args: { repoFullName: string }): Promise<string | undefined> {
-    const hook = await db.orm.public.GithubRepoHook.first({ repoFullName: args.repoFullName })
+    const hook = await db.orm.public.GithubRepoHook.where((hook) =>
+      hook.repoFullName.ilike(repoPattern(args.repoFullName)),
+    ).first()
     if (hook !== null) {
       const createdByToken = await this.github.findToken({ userId: hook.createdBy })
       if (createdByToken !== undefined) return createdByToken
     }
 
-    const subscribers = await db.orm.public.GithubSubscription.where({
-      repoFullName: args.repoFullName,
-    })
+    const subscribers = await db.orm.public.GithubSubscription.where((subscription) =>
+      subscription.repoFullName.ilike(repoPattern(args.repoFullName)),
+    )
       .where(subscriptionLiveWhere({ now: new Date() }))
       .all()
     for (const subscriber of subscribers) {
       const token = await this.github.findToken({ userId: subscriber.userId })
+      if (token !== undefined) return token
+    }
+    for (const userId of await this.observations.repoOwners(args).catch(() => [])) {
+      const token = await this.github.findToken({ userId })
       if (token !== undefined) return token
     }
     return undefined
@@ -210,10 +234,23 @@ export class GithubDeliveryService {
     prNumber: number
     fields: GithubPrStateRecord
   }): Promise<void> {
-    const priorRow = await db.orm.public.GithubPrState.first({
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
-    })
+    args = {
+      ...args,
+      repoFullName: normalizedRepo(args.repoFullName),
+      fields: {
+        ...args.fields,
+        headRepoFullName:
+          args.fields.headRepoFullName === null
+            ? null
+            : normalizedRepo(args.fields.headRepoFullName),
+      },
+    }
+    const priorRow = await db.orm.public.GithubPrState.where((pr) =>
+      pr.repoFullName.ilike(repoPattern(args.repoFullName)),
+    )
+      .where({ prNumber: args.prNumber })
+      .orderBy((pr) => pr.updatedAt.desc())
+      .first()
     const prior = snapshotOf(priorRow)
     const row = await db.orm.public.GithubPrState.upsert({
       conflictOn: { repoFullName: args.repoFullName, prNumber: args.prNumber },
@@ -221,11 +258,6 @@ export class GithubDeliveryService {
       update: args.fields,
     })
 
-    // Route on the incoming fields rather than the stored row: a row written before the column
-    // existed reads NULL (number-routed) even when this delivery knows the head repo, and the
-    // fields are never staler than what was just upserted. A delivery that carries no repo
-    // (deleted fork, or provisional fields carried forward from an old row) falls back to the
-    // row, and NULL stays number-routed — silence over a same-name fork branch leaking frames.
     const subscribers = await db.orm.public.GithubSubscription.where(
       subscriberWhereOf({
         repoFullName: args.repoFullName,
@@ -237,11 +269,14 @@ export class GithubDeliveryService {
         }),
       }),
     ).all()
-    if (subscribers.length === 0) return
-
-    const state = dtoOf(row)
+    const observers = await this.observations.owners(args).catch((failure: unknown) => {
+      this.logger.warn(`observational PR routing unavailable: ${String(failure)}`)
+      return []
+    })
     const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
-    this.fanout.push({ userIds, state })
+    const stateUserIds = [...new Set([...userIds, ...observers])]
+    if (stateUserIds.length > 0) this.fanout.push({ userIds: stateUserIds, state: dtoOf(row) })
+    if (subscribers.length === 0) return
     await announceSubscriberThreads({ signals: this.signals, subscribers })
 
     await pushPrTransitions({ mailbox: this.mailbox, prior, row, userIds })

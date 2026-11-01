@@ -4,6 +4,7 @@ import type { WireThread } from '@dltech/atlas-wire/web'
 import type { SessionNode } from '@/features/threads/data/threads-api'
 
 import { FolderToggle, TeammateList } from './shell-teammate-folder'
+import { ThreadFamilyProvider } from './shell-thread-family'
 import { ThreadRowBody } from './shell-thread-row-body'
 import { mainThreadsOf } from './thread-partition'
 
@@ -25,7 +26,22 @@ function teammateParentsOf(session: SessionNode): ReadonlyMap<string, WireThread
   return parents
 }
 
-export function ThreadRow({ session, projectName, activeThreadId }: ThreadRowProps) {
+export function ThreadRow(props: ThreadRowProps) {
+  return (
+    <ThreadFamilyProvider threads={mainThreadsOf([props.session])}>
+      <SidebarMenuItem>
+        <ThreadNodeRow {...props} />
+      </SidebarMenuItem>
+    </ThreadFamilyProvider>
+  )
+}
+
+export function ThreadNodeRow({
+  session,
+  projectName,
+  activeThreadId,
+  parent,
+}: ThreadRowProps & { parent?: WireThread | undefined }) {
   const teammates = mainThreadsOf(session.teammates)
   const thread = session.mainThread
   const familyActiveId =
@@ -42,13 +58,15 @@ export function ThreadRow({ session, projectName, activeThreadId }: ThreadRowPro
   const handleToggle = () => setOpen((current) => !current)
   const handleSelect = () => setOpen(true)
   return (
-    <SidebarMenuItem>
+    <>
       <ThreadRowBody
         thread={thread}
         projectName={projectName}
         active={thread.id === activeThreadId}
+        parent={parent}
         onSelect={handleSelect}
         teammates={teammates}
+        teammateParents={teammateParentsOf(session)}
         collapsed={teammates.length === 0 || !open}
         trailing={
           teammates.length > 0 ? (
@@ -65,14 +83,14 @@ export function ThreadRow({ session, projectName, activeThreadId }: ThreadRowPro
         <div id={childrenId} hidden={!open} className="group-data-[collapsible=icon]:hidden">
           {open ? (
             <TeammateList
-              teammates={teammates}
-              parents={teammateParentsOf(session)}
+              sessions={session.teammates}
+              parent={thread}
               projectName={projectName}
               activeThreadId={activeThreadId}
             />
           ) : null}
         </div>
       ) : null}
-    </SidebarMenuItem>
+    </>
   )
 }

@@ -11,11 +11,13 @@ export function threadPullRequestsOf(args: {
   teammates: readonly WireThread[]
   collapsed: boolean
   states: readonly PrStateWire[]
+  family?: readonly WireThread[]
 }): PullRequestEntry[] {
   const threads = args.collapsed ? [args.thread, ...args.teammates] : [args.thread]
+  const family = [args.thread, ...args.teammates, ...(args.family ?? [])]
   const byIdentity = new Map<string, PullRequestEntry>()
   for (const thread of threads) {
-    for (const entry of pullRequestEntriesOf({ thread, states: args.states })) {
+    for (const entry of pullRequestEntriesOf({ thread, states: args.states, family })) {
       if (!args.collapsed && entry.via !== undefined) continue
       const key = pullRequestKeyOf(entry)
       const previous = byIdentity.get(key)

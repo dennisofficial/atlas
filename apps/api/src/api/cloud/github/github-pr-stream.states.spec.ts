@@ -21,6 +21,19 @@ const open = (router: ReturnType<typeof routerWith>['router']) => {
 }
 
 describe('GithubPrStreamRouter.states', () => {
+  it('keeps legacy undefined input heartbeat/pr-state only and never acquires an observational lease', async () => {
+    const { router, fanout, observations } = routerWith({ states: [STATE] })
+    const acquire = spyOn(observations, 'acquire').mockRejectedValue(new Error('Redis unavailable'))
+    const { controller, seen, finished } = open(router)
+    await waitFor(() => expect(seen).toEqual([HEARTBEAT, stateFrame()]))
+    fanout.push({ userIds: ['usr_1'], state: { ...STATE, checksPassed: 4 } })
+    await waitFor(() => expect(seen).toHaveLength(3))
+    controller.abort()
+    await finished
+    expect(seen).toEqual([HEARTBEAT, stateFrame(), stateFrame({ ...STATE, checksPassed: 4 })])
+    expect(acquire).not.toHaveBeenCalled()
+  })
+
   it('replays known states, then pushes live fanout states', async () => {
     const { router, fanout } = routerWith({ states: [STATE] })
     const { controller, seen, finished } = open(router)

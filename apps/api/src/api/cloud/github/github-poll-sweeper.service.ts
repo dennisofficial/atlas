@@ -1,124 +1,59 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { db, type Row } from '@dltech/atlas-db'
 import { EGithubCallSource } from './github-call-log'
 import { announceSubscriberThreads } from './github-list-signals'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import { db, type Row } from '@dltech/atlas-db'
 import { threadActivityAt } from './github-thread-activity'
-import {
-  dtoOf,
-  liveUntilOf,
-  subscriberWhereOf,
-  subscriptionLiveWhere,
-} from './github-delivery-routing'
+import { dtoOf, liveUntilOf, subscriberWhereOf } from './github-delivery-routing'
+import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
+import { normalizedRepo, repoPattern } from './github-pr-identity'
+import { GithubObservationStore } from './github-observation.store'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { pushPrTransitions, snapshotOf } from './github-pr-transition-push'
-import type { PrTransitionSnapshot } from './github-pr-event-transitions'
-import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
+import { refreshGithubQueue } from './github-refresh-queue'
+import {
+  GithubHttpBudgetUnavailable,
+  GithubCredentialCooldown,
+  withGithubRequestBudget,
+  credentialFingerprint,
+} from './github-request-budget'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
-
-/**
- * A delivered webhook rewrites the state row and bumps `updatedAt`, so a hook-backed PR whose
- * row is younger than this is provably tracked — skip it. A missing or older row means a
- * delivery was lost (deploy kill, 5xx, throttle) or never arrived, and the only thing that
- * heals it is a REST read: GitHub does not retry failed webhook deliveries on its own.
- */
-const REANCHOR_AFTER_MS = 10 * 60 * 1_000
-
-// A merged PR cannot change state again, and a closed one can only reopen — which GitHub
-// delivers as a `pull_request` `reopened` webhook — so a terminal row never needs a REST
-// re-anchor. https://docs.github.com/en/webhooks/webhook-events-and-payloads#pull_request
-const TERMINAL_STATES = new Set(['merged', 'closed'])
 
 @Injectable()
 export class GithubPollSweeperService {
   private readonly logger = new Logger(GithubPollSweeperService.name)
-
   constructor(
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
     private readonly fanout: GithubPrFanoutService,
     private readonly mailbox: GithubPrEventMailboxService,
     private readonly signals: ThreadSignalsService,
+    private readonly hooks: GithubHookLifecycleService,
+    private readonly observations: GithubObservationStore,
   ) {}
 
   async handlePoll(): Promise<void> {
-    const now = new Date()
-
-    await this.refreshLiveUntil({ now })
-
-    const repos = await db.orm.public.GithubRepoHook.where({ idleSince: null }).all()
-    for (const hook of repos) {
-      const live = await db.orm.public.GithubSubscription.where({ repoFullName: hook.repoFullName })
-        .where(subscriptionLiveWhere({ now }))
-        .all()
-      if (live.length === 0) {
-        await db.orm.public.GithubRepoHook.where({
-          repoFullName: hook.repoFullName,
-          idleSince: null,
-        }).updateAndCount({ idleSince: now })
-      }
-    }
-    const pollBacked = await db.orm.public.GithubSubscription.where({ pollBacked: true })
-      .where(subscriptionLiveWhere({ now }))
-      .all()
-    for (const subscription of pollBacked) {
-      const prNumber = await this.resolvePrNumber({
-        subscriptionId: subscription.id,
-        userId: subscription.userId,
-        repoFullName: subscription.repoFullName,
-        prNumber: subscription.prNumber,
-        branch: subscription.branch,
+    await this.refreshLiveUntil()
+    try {
+      await withGithubRequestBudget({
+        store: this.observations,
+        run: () =>
+          refreshGithubQueue({
+            observations: this.observations,
+            hooks: this.hooks,
+            logger: this.logger,
+            resolve: (row) => this.resolvePrNumber(row),
+            refresh: (target) => this.pollOne(target),
+          }),
       })
-      if (prNumber === null) continue
-      const outcome = await this.pollOne({
-        userId: subscription.userId,
-        repoFullName: subscription.repoFullName,
-        prNumber,
-      })
-      if (outcome === 'rate-limited') {
-        this.logger.warn('github rate limit hit; aborting the rest of the poll sweep')
-        break
-      }
-    }
-
-    const hookBacked = await db.orm.public.GithubSubscription.where({ pollBacked: false })
-      .where((subscription) => subscription.prNumber.isNotNull())
-      .where(subscriptionLiveWhere({ now }))
-      .all()
-    const reanchored = new Set<string>()
-    for (const subscription of hookBacked) {
-      if (subscription.prNumber === null) continue
-      const key = `${subscription.repoFullName}#${subscription.prNumber}`
-      if (reanchored.has(key)) continue
-      const state = await db.orm.public.GithubPrState.first({
-        repoFullName: subscription.repoFullName,
-        prNumber: subscription.prNumber,
-      })
-      if (state !== null) {
-        if (TERMINAL_STATES.has(state.state)) continue
-        if (now.getTime() - state.updatedAt.getTime() < REANCHOR_AFTER_MS) continue
-      }
-      reanchored.add(key)
-      const outcome = await this.pollOne({
-        userId: subscription.userId,
-        repoFullName: subscription.repoFullName,
-        prNumber: subscription.prNumber,
-      })
-      if (outcome === 'rate-limited') {
-        this.logger.warn('github rate limit hit; aborting the rest of the hook-backed pass')
-        break
-      }
+    } catch (failure) {
+      this.logger.warn(`GitHub refresh queue paused; retrying next sweep: ${String(failure)}`)
     }
   }
 
-  /**
-   * Recomputes the materialized liveness ceiling for thread-linked subscriptions from their
-   * sandbox's current lastActivityAt, so sandbox activity keeps a parked-linked row live without
-   * heartbeats. Rows whose liveUntil already covers the same ceiling are untouched.
-   */
-  private async refreshLiveUntil(args: { now: Date }): Promise<void> {
+  private async refreshLiveUntil(): Promise<void> {
     const linked = await db.orm.public.GithubSubscription.where((subscription) =>
       subscription.threadId.isNotNull(),
     ).all()
@@ -135,63 +70,53 @@ export class GithubPollSweeperService {
         expiresAt: subscription.expiresAt,
         sandboxLastActivityAt: lastActivityAt,
       })
-      if (liveUntil.getTime() <= subscription.liveUntil.getTime()) continue
-      await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({ liveUntil })
+      if (liveUntil.getTime() > subscription.liveUntil.getTime())
+        await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({ liveUntil })
     }
   }
 
-  private async resolvePrNumber(args: {
-    subscriptionId: string
-    userId: string
-    repoFullName: string
-    prNumber: number | null
-    branch: string
-  }): Promise<number | null> {
-    // A '#' branch is the number-keyed sentinel, not a real branch — nothing to re-resolve.
-    if (args.prNumber !== null || args.branch === '' || args.branch.startsWith('#')) {
+  private async resolvePrNumber(args: Row<'GithubSubscription'>): Promise<number | null> {
+    if (args.prNumber !== null || args.branch === '' || args.branch.startsWith('#'))
       return args.prNumber
-    }
-
     const token = await this.github.findToken({ userId: args.userId })
     if (token === undefined) return null
-
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
-    let found: { number: number } | null
     try {
-      found = await this.reads.findOpenPrForBranch({
-        source: EGithubCallSource.PollSweep,
-        token,
-        owner,
-        repo,
-        branch: args.branch,
-      })
+      return (
+        (
+          await this.reads.findOpenPrForBranch({
+            source: EGithubCallSource.PollSweep,
+            token,
+            owner,
+            repo,
+            branch: args.branch,
+          })
+        )?.number ?? null
+      )
     } catch (failure) {
-      if (failure instanceof GithubUserReadFailed) return null
+      if (failure instanceof GithubUserReadFailed && !failure.rateLimited) return null
       throw failure
     }
-    if (found === null) return null
-
-    await db.orm.public.GithubSubscription.where({ id: args.subscriptionId }).update({
-      prNumber: found.number,
-    })
-    return found.number
   }
 
   private async pollOne(args: {
     userId: string
     repoFullName: string
     prNumber: number
-  }): Promise<'polled' | 'skipped' | 'rate-limited'> {
+  }): Promise<'polled' | 'skipped' | 'rate-limited' | 'credential-limited'> {
     const token = await this.github.findToken({ userId: args.userId })
     if (token === undefined) return 'skipped'
-
-    const [owner, repo] = args.repoFullName.split('/') as [string, string]
-    let pushed: {
-      state: GithubPrStateDto
-      routing: GithubBranchRouting
-      row: Row<'GithubPrState'>
-      prior: PrTransitionSnapshot | null
-    }
+    const repoFullName = normalizedRepo(args.repoFullName)
+    const [owner, repo] = repoFullName.split('/') as [string, string]
+    let row: Row<'GithubPrState'>
+    const prior = snapshotOf(
+      await db.orm.public.GithubPrState.where((pr) =>
+        pr.repoFullName.ilike(repoPattern(repoFullName)),
+      )
+        .where({ prNumber: args.prNumber })
+        .orderBy((pr) => pr.updatedAt.desc())
+        .first(),
+    )
     try {
       const fields = await this.reads.readPullRequest({
         source: EGithubCallSource.PollSweep,
@@ -200,56 +125,52 @@ export class GithubPollSweeperService {
         repo,
         number: args.prNumber,
       })
-      const prior = snapshotOf(
-        await db.orm.public.GithubPrState.first({
-          repoFullName: args.repoFullName,
-          prNumber: args.prNumber,
-        }),
-      )
-      const row = await db.orm.public.GithubPrState.upsert({
-        conflictOn: { repoFullName: args.repoFullName, prNumber: args.prNumber },
+      const normalizedFields = {
+        ...fields,
+        headRepoFullName:
+          fields.headRepoFullName === null ? null : normalizedRepo(fields.headRepoFullName),
+      }
+      row = await db.orm.public.GithubPrState.upsert({
+        conflictOn: { repoFullName, prNumber: args.prNumber },
         create: {
-          repoFullName: args.repoFullName,
+          repoFullName,
           prNumber: args.prNumber,
-          ...fields,
+          ...normalizedFields,
           updatedAt: new Date(),
         },
-        update: { ...fields, updatedAt: new Date() },
+        update: { ...normalizedFields, updatedAt: new Date() },
       })
-      pushed = {
-        state: dtoOf(row),
-        routing: {
-          headBranch: fields.headBranch,
-          headRepoMatchesBase: fields.headRepoFullName === args.repoFullName,
-        },
-        row,
-        prior,
-      }
     } catch (failure) {
+      if (failure instanceof GithubCredentialCooldown) return 'credential-limited'
+      if (failure instanceof GithubHttpBudgetUnavailable) return 'rate-limited'
       if (failure instanceof GithubUserReadFailed) {
-        return failure.rateLimited ? 'rate-limited' : 'skipped'
+        if (!failure.rateLimited) return 'skipped'
+        await this.observations.blockHttpUntil({
+          until: Date.now() + 60_000,
+          credentialFingerprint: credentialFingerprint(token),
+          resource: 'core',
+        })
+        return 'credential-limited'
       }
       throw failure
     }
-
     const subscribers = await db.orm.public.GithubSubscription.where(
       subscriberWhereOf({
-        repoFullName: args.repoFullName,
+        repoFullName,
         prNumber: args.prNumber,
-        routing: pushed.routing,
+        routing: {
+          headBranch: row.headBranch,
+          headRepoMatchesBase: row.headRepoFullName === repoFullName,
+        },
       }),
     ).all()
-    if (subscribers.length === 0) return 'polled'
-
     const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
-    this.fanout.push({ userIds, state: pushed.state })
+    const observers = await this.observations.owners({ repoFullName, prNumber: args.prNumber })
+    const stateUserIds = [...new Set([...userIds, ...observers])]
+    if (stateUserIds.length > 0) this.fanout.push({ userIds: stateUserIds, state: dtoOf(row) })
+    if (subscribers.length === 0) return 'polled'
     await announceSubscriberThreads({ signals: this.signals, subscribers })
-    await pushPrTransitions({
-      mailbox: this.mailbox,
-      prior: pushed.prior,
-      row: pushed.row,
-      userIds,
-    })
+    await pushPrTransitions({ mailbox: this.mailbox, prior, row, userIds })
     return 'polled'
   }
 }

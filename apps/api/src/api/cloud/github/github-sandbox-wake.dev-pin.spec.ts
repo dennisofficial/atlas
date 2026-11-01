@@ -9,6 +9,7 @@ import {
   seedParkedSandbox,
   seedSubscription,
   serviceWith,
+  useWakeFixture,
 } from '../../../../test/github-sandbox-wake-fixture'
 import { sandboxStateOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
@@ -19,6 +20,7 @@ const DEV_PIN = 'dev-0123456789ab'
 
 describe('GithubSandboxWakeService with a dev serve pin', () => {
   useTestDatabase()
+  useWakeFixture()
 
   beforeEach(() => {
     vi.useFakeTimers()

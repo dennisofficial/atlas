@@ -13,6 +13,7 @@ import {
   STORED_HASH,
   seedSubscription,
   serviceWith,
+  useWakeFixture,
   WAKE_PEPPER,
 } from '../../../../test/github-sandbox-wake-fixture'
 import { podTelemetryIdentity } from '../sandbox-provisioning/pod-telemetry-identity'
@@ -21,6 +22,7 @@ import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 
 describe('GithubSandboxWakeService resume', () => {
   useTestDatabase()
+  useWakeFixture()
 
   beforeEach(() => {
     vi.useFakeTimers()

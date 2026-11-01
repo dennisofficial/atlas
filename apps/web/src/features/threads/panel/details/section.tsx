@@ -1,12 +1,13 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 export function DetailsSection(props: {
   title: string
+  ref?: Ref<HTMLElement>
   count?: string | number
   children: ReactNode
 }) {
   return (
-    <section aria-label={props.title} className="flex flex-col gap-0.5">
+    <section ref={props.ref} aria-label={props.title} className="flex flex-col gap-0.5">
       <div className="flex flex-col px-1 pb-1">
         <h3 className="flex items-baseline gap-1.5 text-xs font-medium text-muted-foreground">
           {props.title}

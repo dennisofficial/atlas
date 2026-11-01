@@ -1,7 +1,7 @@
 import type { AnyTask, Task, TaskIdentifier, TaskPayload } from '@trigger.dev/sdk'
 import type { ZodType } from 'zod'
 
-export type { Task }
+export type { AnyTask, Task }
 
 export interface TaskContract<TTask extends AnyTask> {
   id: TaskIdentifier<TTask>

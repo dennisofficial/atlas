@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react'
 import { SidebarMenuSub } from '@dltech/atlas-ui/components/sidebar'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
+import type { SessionNode } from '@/features/threads/data/threads-api'
 
 import { TeammateRow } from './shell-teammate-row'
 import { groupTeammates, hasAttentionTeammate, teammateCountLabel } from './teammate-display'
@@ -37,30 +38,30 @@ export function FolderToggle({ open, teammates, controls, onToggle }: FolderTogg
 }
 
 export interface TeammateListProps {
-  teammates: readonly WireThread[]
-  parents: ReadonlyMap<string, WireThread>
+  sessions: readonly SessionNode[]
+  parent: WireThread
   projectName: string
   activeThreadId: string | null
 }
 
-export function TeammateList({
-  teammates,
-  parents,
-  projectName,
-  activeThreadId,
-}: TeammateListProps) {
-  const { live, done } = groupTeammates(teammates)
+export function TeammateList({ sessions, parent, projectName, activeThreadId }: TeammateListProps) {
+  const { live, done } = groupTeammates(sessions.map((session) => session.mainThread))
+  const nodes = new Map(sessions.map((session) => [session.mainThread.id, session]))
   return (
     <SidebarMenuSub>
-      {[...live, ...done].map((teammate) => (
-        <TeammateRow
-          key={teammate.id}
-          teammate={teammate}
-          parent={parents.get(teammate.id)}
-          projectName={projectName}
-          active={teammate.id === activeThreadId}
-        />
-      ))}
+      {[...live, ...done].map((teammate) => {
+        const session = nodes.get(teammate.id)
+        if (!session) return null
+        return (
+          <TeammateRow
+            key={teammate.id}
+            session={session}
+            parent={parent}
+            projectName={projectName}
+            activeThreadId={activeThreadId}
+          />
+        )
+      })}
     </SidebarMenuSub>
   )
 }

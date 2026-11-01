@@ -1,5 +1,12 @@
 import { Logger } from '@nestjs/common'
-import type { EGithubCallSource } from './github-call-log'
+import { EGithubCallSource } from './github-call-log'
+import { EGithubHttpCategory } from './github-observation.types'
+import {
+  takeGithubRequestSlot,
+  blockGithubRequests,
+  credentialFingerprint,
+} from './github-request-budget'
+import { rateLimitOf } from './github-rate-limit'
 
 const logger = new Logger('GithubCall')
 
@@ -33,6 +40,23 @@ export async function githubFetch(args: {
   init?: RequestInit
 }): Promise<Response> {
   const { source, url, init } = args
+  const token =
+    new Headers(init?.headers).get('authorization')?.replace(/^Bearer\s+/i, '') ?? 'anonymous'
+  const identity = {
+    credentialFingerprint: credentialFingerprint(token),
+    resource: pathOf(url).startsWith('/search/')
+      ? 'search'
+      : pathOf(url) === '/graphql'
+        ? 'graphql'
+        : 'core',
+    category:
+      source === EGithubCallSource.RepoAccess
+        ? EGithubHttpCategory.Authorization
+        : EGithubHttpCategory.Refresh,
+  }
+  init?.signal?.throwIfAborted()
+  await takeGithubRequestSlot(identity)
+  init?.signal?.throwIfAborted()
   const started = performance.now()
   const base = {
     source,
@@ -51,6 +75,13 @@ export async function githubFetch(args: {
     })
     throw failure
   }
+  const limited = rateLimitOf(response)
+  if (limited !== null)
+    await blockGithubRequests({
+      ...identity,
+      resource: response.headers.get('x-ratelimit-resource') ?? identity.resource,
+      until: Date.now() + limited.retryAfterSeconds * 1_000,
+    })
   const headers = response.headers
   emit({
     ...base,

@@ -14,12 +14,14 @@ import {
   seedParkedSandbox,
   seedSubscription,
   serviceWith,
+  useWakeFixture,
 } from '../../../../test/github-sandbox-wake-fixture'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
 
 describe('GithubSandboxWakeService eligibility', () => {
   useTestDatabase()
+  useWakeFixture()
 
   beforeEach(() => {
     vi.useFakeTimers()

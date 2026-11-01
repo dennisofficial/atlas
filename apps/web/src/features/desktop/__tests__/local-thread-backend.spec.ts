@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { EPodState } from '@dltech/atlas-wire/web'
 
+import { EThreadStatus, threadStatusOf } from '@/features/shell/thread-status'
 import { EPodConnectOutcome } from '@/features/threads/data/pod-connect'
 import { cloudThreadBackend } from '@/features/threads/data/thread-backend'
 
@@ -64,6 +65,21 @@ describe('localThreadBackend', () => {
     expect((await localThreadBackend.fetchPod('brn_1')).state).toBe(EPodState.Running)
     expect(calls).toContain('POST /desktop/pods/brn_1/wake')
   })
+
+  it.each([
+    { hostState: 'running', sidebarStatus: EThreadStatus.Idle },
+    { hostState: 'stopped', sidebarStatus: EThreadStatus.Parked },
+    { hostState: 'missing', sidebarStatus: EThreadStatus.Failed },
+  ])(
+    'reads $hostState status locally without waking or calling Cloud',
+    async ({ hostState, sidebarStatus }) => {
+      state = hostState
+      const thread = await localThreadBackend.fetchThread('brn_1')
+
+      expect(threadStatusOf(thread)).toBe(sidebarStatus)
+      expect(calls).toEqual(['GET /desktop/pods/brn_1'])
+    },
+  )
 
   it('seeds empty so the channel replays history from seq 0', async () => {
     expect(await localThreadBackend.fetchEvents('brn_1')).toEqual([])

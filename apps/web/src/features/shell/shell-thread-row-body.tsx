@@ -6,15 +6,18 @@ import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
+import { EPrObservationPriority } from '@/features/threads/data/pr-observation-targets'
 import { LocalPodIcon } from '@/features/threads/thread-header'
 import { rowNamingOf, useThreadNaming } from './active-naming'
 import { ESidebarDensity, useSidebarDensity } from './shell-density'
+import { useSidebarPrObservation } from './shell-pr-observations'
 import { RowAction } from './shell-row-action'
 import { useSidebarPrStates } from './shell-sidebar-pr-states'
 import { ThreadStatusIcon } from './shell-status-icon'
+import { useThreadFamily } from './shell-thread-family'
 import { useThreadActions } from './thread-actions-context'
 import { ThreadHoverCard } from './thread-hover-card'
-import { threadPullRequestsOf } from './thread-pull-requests'
+import { latestThreadPullRequestOf, threadPullRequestsOf } from './thread-pull-requests'
 import { CompactWorkIcon, ThreadWorkSummary } from './thread-pr-presentation'
 import { isUnread, isWorking, threadStatusOf } from './thread-status'
 import { UnreadDot } from './unread-dot'
@@ -25,6 +28,7 @@ export interface ThreadRowBodyProps {
   active: boolean
   trailing?: ReactNode
   teammates?: readonly WireThread[]
+  teammateParents?: ReadonlyMap<string, WireThread>
   parent?: WireThread | undefined
   collapsed?: boolean
   onSelect?: (() => void) | undefined
@@ -36,6 +40,7 @@ export function ThreadRowBody({
   active,
   trailing,
   teammates = [],
+  teammateParents,
   parent,
   collapsed = false,
   onSelect,
@@ -44,7 +49,14 @@ export function ThreadRowBody({
   const { density } = useSidebarDensity()
   const states = useSidebarPrStates()
   const compact = density === ESidebarDensity.Compact
-  const entries = threadPullRequestsOf({ thread, teammates, collapsed, states })
+  const family = useThreadFamily()
+  const entries = threadPullRequestsOf({ thread, teammates, collapsed, states, family })
+  const latest = latestThreadPullRequestOf(entries)
+  const observationRef = useSidebarPrObservation(
+    thread.runner !== 'local' && latest
+      ? [{ repo: latest.repo, number: latest.number, priority: EPrObservationPriority.Inline }]
+      : [],
+  )
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
   const archived = thread.archivedAt !== null && thread.archivedAt !== undefined
   const unread = isUnread({ thread, active })
@@ -62,6 +74,7 @@ export function ThreadRowBody({
       thread={thread}
       projectName={projectName}
       teammates={teammates}
+      teammateParents={teammateParents}
       parent={parent}
       collapsed={collapsed}
       states={states}
@@ -77,6 +90,7 @@ export function ThreadRowBody({
       )}
     >
       <Link
+        ref={observationRef}
         href={`/threads/${encodeURIComponent(thread.id)}`}
         aria-current={active ? 'page' : undefined}
         onClick={handleSelect}

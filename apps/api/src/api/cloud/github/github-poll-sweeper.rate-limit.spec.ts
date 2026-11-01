@@ -26,7 +26,7 @@ describe('GithubPollSweeperService hook-backed re-anchor restraint', () => {
     expect(readPullRequest).not.toHaveBeenCalled()
   })
 
-  it('never re-anchors a subscription whose PR is closed', async () => {
+  it('re-anchors a stale closed PR because it can reopen', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription({ pollBacked: false })
@@ -34,7 +34,7 @@ describe('GithubPollSweeperService hook-backed re-anchor restraint', () => {
 
     await service.handlePoll()
 
-    expect(readPullRequest).not.toHaveBeenCalled()
+    expect(readPullRequest).toHaveBeenCalledTimes(1)
   })
 
   it('polls a distinct PR once per sweep no matter how many rows subscribe to it', async () => {
@@ -51,7 +51,7 @@ describe('GithubPollSweeperService hook-backed re-anchor restraint', () => {
     expect(readPullRequest).toHaveBeenCalledTimes(1)
   })
 
-  it('aborts the hook-backed pass when GitHub answers rate-limited', async () => {
+  it('keeps an unrelated credential usable when GitHub rate-limits another credential', async () => {
     const readPullRequest = vi.fn(async ({ number }: { number: number }) => {
       if (number === 42) throw new GithubUserReadFailed('rate limit exceeded', 429)
       return REST_FIELDS
@@ -65,7 +65,7 @@ describe('GithubPollSweeperService hook-backed re-anchor restraint', () => {
 
     await service.handlePoll()
 
-    expect(readPullRequest).toHaveBeenCalledTimes(1)
+    expect(readPullRequest).toHaveBeenCalledTimes(2)
   })
 
   it('keeps sweeping past a non-rate-limit read failure', async () => {

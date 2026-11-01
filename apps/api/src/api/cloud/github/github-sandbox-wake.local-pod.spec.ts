@@ -5,6 +5,7 @@ import {
   fakeBoot,
   PR_EVENT,
   serviceWith,
+  useWakeFixture,
   settleLookups,
 } from '../../../../test/github-sandbox-wake-fixture'
 import { ensureUsers, seedSubscription } from '../../../../test/github-seed'
@@ -28,6 +29,7 @@ function rig() {
 
 describe('GithubSandboxWakeService for local pods', () => {
   useTestDatabase()
+  useWakeFixture()
 
   beforeEach(async () => {
     await ensureUsers(PR_EVENT.userId)

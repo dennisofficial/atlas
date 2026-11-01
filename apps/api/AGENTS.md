@@ -287,8 +287,15 @@ Migrations run through `db:migrate` (dotenvx-injected); in deployed tiers they r
 `src/_lib/redis` (`RedisService`, `RedisModule`) is the one Redis seam: nothing else constructs an
 ioredis client. `client()` is the shared, lazy command connection; a subscriber takes its own
 connection from `duplicate()` (a subscribed connection answers only pub/sub commands) and owns
-its teardown. Nothing durable goes in Redis — Upstash is a bus with eviction on, so state that
-must survive lives in Postgres and Redis only carries notifications. Local dev runs without it:
+its teardown. Postgres remains the durable source of truth. Redis carries notifications plus ephemeral GitHub
+observation leases, bounded repository-authorization proofs, request-budget windows and retry
+cursors. These expire and can be reconstructed; Redis eviction never deletes durable PR state.
+Configured Redis outages suspend new observation/fetch work with retry diagnostics, while
+already authorized cached replay and legitimate agent streams remain usable. The GitHub tracking
+budget covers observation authorization, subscription/hook setup, refreshes and webhook REST fills.
+Foreground repository/branch pickers, OAuth device flow and SSH signing-key management retain their
+existing procedure/provider controls and do not depend on the observation-budget coordinator.
+Local dev runs without it:
 `REDIS_URL` is unset in the local tier, `isConfigured()` is `false`, and callers
 choose local-only behaviour; `client()` and `duplicate()` throw rather than reach for localhost.
 

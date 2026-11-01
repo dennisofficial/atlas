@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common'
 import { EnvService } from '../../_core/config/env/env.service'
 import { envConfigValidation } from '../../_core/config/env/validation'
 import { ProcessBackgroundWork } from '../../_lib/background-work/background-work.providers'
@@ -19,6 +20,7 @@ import { WAKE_DEBOUNCE_MS } from '../../api/cloud/github/github-sandbox-wake-deb
 import { GithubSandboxWakeService } from '../../api/cloud/github/github-sandbox-wake.service'
 import { GithubUserReads } from '../../api/cloud/github/github-user-reads'
 import { GithubService } from '../../api/cloud/github/github.service'
+import { GithubObservationStore } from '../../api/cloud/github/github-observation.store'
 import { ThreadSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/thread-sandbox-credentials.service'
 import { ScopedConfigService } from '../../api/cloud/scoped-config/scoped-config.service'
 import { DrainStateService } from '../../api/platform/health/drain-state.service'
@@ -43,9 +45,15 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const { env } = args
   const cipher = new SecretCipherService(env)
   const redis = new RedisService(env)
+  if (!redis.isConfigured()) {
+    new Logger('GithubSweepGraph').warn(
+      'GitHub observation leases are same-process only without Redis; a separate worker cannot share API view leases',
+    )
+  }
   const bus: PrFrameBus = redis.isConfigured() ? new RedisPrFrameBus(redis) : new LocalPrFrameBus()
   const github = new GithubService(cipher, env, new GithubDeviceClient({}))
   const reads = new GithubUserReads()
+  const observations = new GithubObservationStore(redis, github)
   const fanout = new GithubPrFanoutService(new DrainStateService(), bus)
   const workerSignals = buildWorkerThreadSignals({ env })
   const wake = new GithubSandboxWakeService(
@@ -59,6 +67,14 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     fanout,
   )
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
+  const hookLifecycle = new GithubHookLifecycleService(
+    github,
+    reads,
+    cipher,
+    env,
+    new GithubAppInstallationsService(),
+    observations,
+  )
 
   return {
     pollSweeper: new GithubPollSweeperService(
@@ -67,14 +83,10 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       fanout,
       mailbox,
       workerSignals.signals,
+      hookLifecycle,
+      observations,
     ),
-    hookLifecycle: new GithubHookLifecycleService(
-      github,
-      reads,
-      cipher,
-      env,
-      new GithubAppInstallationsService(),
-    ),
+    hookLifecycle,
     dispose: async () => {
       await wake.settle()
       await workerSignals.dispose()

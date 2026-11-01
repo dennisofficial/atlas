@@ -5,12 +5,20 @@ import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
 
 import type { ApiPrStatesSubscribe } from '@/features/threads/data/api-pr-states-source'
 import { useApiPrStates } from '@/features/threads/data/use-api-pr-states'
+import { usePrObservationRegistry } from '@/features/threads/data/use-pr-observation'
 
+import { SidebarPrObservationsProvider } from './shell-pr-observations'
 import { SidebarPrStatesProvider } from './shell-sidebar-pr-states'
+import { ThreadFamilyProvider } from './shell-thread-family'
 import { useClock } from './use-clock'
 import { Bucket } from './shell-bucket'
 import { ProjectGroup } from './shell-project-group'
-import { partitionThreads, projectKeyOf, type ProjectThreads } from './thread-partition'
+import {
+  mainThreadsOf,
+  partitionThreads,
+  projectKeyOf,
+  type ProjectThreads,
+} from './thread-partition'
 
 export interface ThreadListProps {
   entries: readonly ProjectThreads[]
@@ -30,11 +38,24 @@ function NoProjects() {
 }
 
 export function ThreadList(props: ThreadListProps) {
-  const states = useApiPrStates({ subscribe: props.subscribe })
+  const { registry, observe } = usePrObservationRegistry()
+  const family = useMemo(
+    () => props.entries.flatMap((entry) => mainThreadsOf(entry.sessions)),
+    [props.entries],
+  )
+  const states = useApiPrStates({
+    subscribe: props.subscribe,
+    observe,
+    enabled: family.some((thread) => thread.runner !== 'local'),
+  })
   return (
-    <SidebarPrStatesProvider states={states}>
-      <ThreadListContent {...props} />
-    </SidebarPrStatesProvider>
+    <ThreadFamilyProvider threads={family}>
+      <SidebarPrObservationsProvider registry={registry}>
+        <SidebarPrStatesProvider states={states}>
+          <ThreadListContent {...props} />
+        </SidebarPrStatesProvider>
+      </SidebarPrObservationsProvider>
+    </ThreadFamilyProvider>
   )
 }
 

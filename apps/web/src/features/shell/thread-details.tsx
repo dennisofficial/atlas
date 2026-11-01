@@ -10,7 +10,9 @@ import {
   type PullRequestEntry,
 } from '@/features/threads/data/pull-request-entries'
 import { UNTITLED } from '@/features/threads/data/untitled'
+import { useSidebarPrObservation } from './shell-pr-observations'
 import { ThreadStatusIcon } from './shell-status-icon'
+import { useThreadFamily } from './shell-thread-family'
 import { threadPullRequestsOf } from './thread-pull-requests'
 import { PullRequestChecks, PullRequestConflict, PullRequestIcon } from './thread-pr-presentation'
 import { threadStatusOf } from './thread-status'
@@ -19,6 +21,7 @@ export interface ThreadDetailsProps {
   thread: WireThread
   projectName: string
   teammates?: readonly WireThread[]
+  teammateParents?: ReadonlyMap<string, WireThread> | undefined
   parent?: WireThread | undefined
   collapsed?: boolean
   states: readonly PrStateWire[]
@@ -80,22 +83,28 @@ export function ThreadDetails({
   thread,
   projectName,
   teammates = [],
+  teammateParents,
   parent,
   collapsed = false,
   states,
 }: ThreadDetailsProps) {
-  const own = threadPullRequestsOf({ thread, teammates: [], collapsed: false, states })
+  const family = useThreadFamily()
+  const own = threadPullRequestsOf({ thread, teammates: [], collapsed: false, states, family })
   const teammateEntries = teammates.flatMap((teammate) =>
-    threadPullRequestsOf({ thread: teammate, teammates: [], collapsed: false, states }),
+    threadPullRequestsOf({ thread: teammate, teammates: [], collapsed: false, states, family }),
   )
   const represented = new Set([...own, ...teammateEntries].map(pullRequestKeyOf))
   const borrowed = collapsed
-    ? threadPullRequestsOf({ thread, teammates, collapsed: true, states }).filter(
+    ? threadPullRequestsOf({ thread, teammates, collapsed: true, states, family }).filter(
         (entry) => !represented.has(pullRequestKeyOf(entry)),
       )
     : []
+  const observationRef = useSidebarPrObservation(
+    thread.runner === 'local' ? [] : [...own, ...teammateEntries, ...borrowed],
+  )
   return (
     <section
+      ref={observationRef}
       aria-label="Scrollable thread details"
       className="flex max-h-96 flex-col gap-2.5 overflow-y-auto outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
     >
@@ -150,25 +159,34 @@ export function ThreadDetails({
         <>
           <h3 className="text-xs font-medium text-muted-foreground">Teammates</h3>
           <ul className="flex flex-col gap-3">
-            {teammates.map((teammate) => (
-              <li key={teammate.id} className="flex flex-col gap-1.5">
-                <Link
-                  href={`/threads/${encodeURIComponent(teammate.id)}`}
-                  className="flex items-center gap-1.5 text-xs hover:underline"
-                >
-                  <ThreadStatusIcon status={threadStatusOf(teammate)} />
-                  <span className="min-w-0 break-words">{teammate.title ?? UNTITLED}</span>
-                </Link>
-                <PullRequestDetails
-                  entries={threadPullRequestsOf({
-                    thread: teammate,
-                    teammates: [],
-                    collapsed: false,
-                    states,
-                  })}
-                />
-              </li>
-            ))}
+            {teammates.map((teammate) => {
+              const teammateParent = teammateParents?.get(teammate.id)
+              return (
+                <li key={teammate.id} className="flex flex-col gap-1.5">
+                  <Link
+                    href={`/threads/${encodeURIComponent(teammate.id)}`}
+                    className="flex items-center gap-1.5 text-xs hover:underline"
+                  >
+                    <ThreadStatusIcon status={threadStatusOf(teammate)} />
+                    <span className="min-w-0 break-words">{teammate.title ?? UNTITLED}</span>
+                  </Link>
+                  {teammateParent && teammateParent.id !== thread.id ? (
+                    <p className="text-xs text-muted-foreground">
+                      Teammate of {teammateParent.title ?? UNTITLED}
+                    </p>
+                  ) : null}
+                  <PullRequestDetails
+                    entries={threadPullRequestsOf({
+                      thread: teammate,
+                      teammates: [],
+                      collapsed: false,
+                      states,
+                      family,
+                    })}
+                  />
+                </li>
+              )
+            })}
           </ul>
         </>
       ) : null}

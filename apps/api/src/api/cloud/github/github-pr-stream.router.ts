@@ -1,8 +1,9 @@
 import {
-  EGithubPrStatesFrame,
   EGithubPrStreamFrame,
   EGithubWakeFrame,
   githubPrStatesOutputSchema,
+  githubPrStatesInputSchema,
+  type GithubPrStatesInput,
   githubPrStreamOutputSchema,
   githubWakeStreamOutputSchema,
   type GithubPrStatesFrame,
@@ -12,6 +13,7 @@ import {
 import { Logger, ServiceUnavailableException } from '@nestjs/common'
 import {
   Ctx,
+  Input,
   Options,
   type ProcedureOptions,
   Router,
@@ -28,6 +30,8 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { type PrFrameSink, prStreamFrames } from './github-pr-stream.frames'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
+import { GithubObservationStore } from './github-observation.store'
+import { attachObservedStates } from './github-observation.stream'
 
 export const PR_STREAM_HEARTBEAT_INTERVAL_MS = 30_000
 
@@ -41,6 +45,7 @@ export class GithubPrStreamRouter {
     private readonly subscriptions: GithubSubscriptionsService,
     private readonly drain: DrainStateService,
     private readonly mailbox: GithubPrEventMailboxService,
+    private readonly observations: GithubObservationStore,
   ) {}
 
   @Subscription({
@@ -92,10 +97,11 @@ export class GithubPrStreamRouter {
     })
   }
 
-  @Subscription({ output: githubPrStatesOutputSchema })
+  @Subscription({ input: githubPrStatesInputSchema, output: githubPrStatesOutputSchema })
   states(
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
     @Options() opts: ProcedureOptions,
+    @Input() input?: GithubPrStatesInput,
   ): AsyncGenerator<GithubPrStatesFrame> {
     if (this.drain.isDraining()) {
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
@@ -103,31 +109,17 @@ export class GithubPrStreamRouter {
     const userId = ctx.auth.userId
     return prStreamFrames<GithubPrStatesFrame>({
       signal: opts.signal,
-      attach: (sink) => {
-        sink.push({ type: EGithubPrStatesFrame.Heartbeat })
-        void this.replayKnownStates({
+      attach: (sink) =>
+        attachObservedStates({
           userId,
-          sink: {
-            ...sink,
-            push: (frame) => {
-              if (frame.type !== EGithubPrStreamFrame.PrState) return
-              sink.push({ type: EGithubPrStatesFrame.PrState, state: frame.state })
-            },
-          },
-        })
-        const close = this.fanout.openStream({
-          userId,
-          handler: (state) => sink.push({ type: EGithubPrStatesFrame.PrState, state }),
-          onClosed: () => sink.close(),
-        })
-        const heartbeat = setInterval(() => {
-          sink.push({ type: EGithubPrStatesFrame.Heartbeat })
-        }, PR_STREAM_HEARTBEAT_INTERVAL_MS)
-        return () => {
-          clearInterval(heartbeat)
-          close()
-        }
-      },
+          signal: opts.signal,
+          observe: input?.observe ?? [],
+          sink,
+          observations: this.observations,
+          subscriptions: this.subscriptions,
+          fanout: this.fanout,
+          logger: this.logger,
+        }),
     })
   }
 

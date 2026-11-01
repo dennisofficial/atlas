@@ -9,11 +9,13 @@ import {
   seedParkedSandbox,
   seedSubscription,
   serviceWith,
+  useWakeFixture,
 } from '../../../../test/github-sandbox-wake-fixture'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 
 describe('GithubSandboxWakeService background work', () => {
   useTestDatabase()
+  useWakeFixture()
 
   beforeEach(() => {
     vi.useFakeTimers()

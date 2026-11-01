@@ -14,6 +14,7 @@ import {
   seedParkedSandbox,
   seedSubscription,
   serviceWith,
+  useWakeFixture,
   settleLookups,
 } from '../../../../test/github-sandbox-wake-fixture'
 import { sandboxStateOf } from '../../platform/sandboxes/sandbox-lifecycle'
@@ -24,6 +25,7 @@ import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 
 describe('GithubSandboxWakeService claim and backoff', () => {
   useTestDatabase()
+  useWakeFixture()
 
   beforeEach(() => {
     vi.useFakeTimers()

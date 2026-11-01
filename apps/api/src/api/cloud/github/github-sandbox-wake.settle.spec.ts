@@ -11,6 +11,7 @@ import {
   seedParkedSandbox,
   seedSubscription,
   serviceWith,
+  useWakeFixture,
   settleLookups,
 } from '../../../../test/github-sandbox-wake-fixture'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
@@ -18,6 +19,7 @@ import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 
 describe('GithubSandboxWakeService settle', () => {
   useTestDatabase()
+  useWakeFixture()
 
   beforeEach(() => {
     vi.useFakeTimers()

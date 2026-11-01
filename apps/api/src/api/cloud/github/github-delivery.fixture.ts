@@ -1,4 +1,6 @@
 import { vi } from 'bun:test'
+import { localObservations } from './github-observation.fixture'
+import type { GithubObservationStore } from './github-observation.store'
 import {
   ensureUsers,
   seedRepoHook,
@@ -87,6 +89,7 @@ export const prepareDelivery = async (): Promise<void> => {
 
 export function serviceWith(args: {
   tokens?: Record<string, string>
+  observations?: GithubObservationStore
   readPullRequest?: GithubUserReads['readPullRequest']
 }): { service: GithubDeliveryService; fanout: GithubPrFanoutService } {
   const github = {
@@ -109,6 +112,7 @@ export function serviceWith(args: {
       mailbox,
       discussion,
       inertSignals(),
+      args.observations ?? localObservations(github),
     ),
     fanout,
   }

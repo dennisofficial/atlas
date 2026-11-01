@@ -8,7 +8,8 @@ import type { LinkedPullRequestDto, ThreadDto } from './sessions.types'
 import { threadStatuses } from './thread-status'
 import { threadsSubscriptions } from './thread-subscriptions'
 
-async function pullRequestStatesByThread(threadIds: string[]) {
+async function pullRequestStatesByThread(args: { threadIds: string[]; viewerId: string }) {
+  const { threadIds, viewerId } = args
   const [own, spawned] = await Promise.all([
     threadsPullRequests({ reader: db, threadIds }),
     spawnedPullRequestsByThread({ reader: db, threadIds }),
@@ -21,7 +22,7 @@ async function pullRequestStatesByThread(threadIds: string[]) {
       ...(spawned.get(id) ?? []).filter((pr) => !ownKeys.has(`${pr.repo}#${pr.number}`)),
     ]
   })
-  return withPullRequestStates(groups)
+  return withPullRequestStates({ groups, viewerId })
 }
 
 export async function enrichThreads(args: {
@@ -31,7 +32,7 @@ export async function enrichThreads(args: {
   const threadIds = args.rows.map(({ thread }) => thread.id)
   const [worktrees, stated, subscriptionsByThread, statuses] = await Promise.all([
     threadWorktrees({ reader: db, threadIds }),
-    pullRequestStatesByThread(threadIds),
+    pullRequestStatesByThread({ threadIds, viewerId: args.viewerId }),
     threadsSubscriptions({ reader: db, threadIds }),
     threadStatuses({ rows: args.rows, viewerId: args.viewerId }),
   ])

@@ -6,6 +6,7 @@ import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 import type { PrStateWire, WireThread } from '@dltech/atlas-wire/web'
 import { ESidebarDensity, useSidebarDensity } from '../shell-density'
 import { SidebarPrStatesProvider } from '../shell-sidebar-pr-states'
+import { ThreadFamilyProvider } from '../shell-thread-family'
 import { ThreadRow } from '../shell-thread-row'
 import { ThreadActionsContext } from '../thread-actions-context'
 import { sessionOf, threadOf } from './fixtures'
@@ -65,6 +66,49 @@ export const family = sessionOf(
   ],
 )
 
+export const nestedFamily = sessionOf(
+  threadOf({
+    ...family.mainThread,
+    repo: 'owner/atlas',
+    pullRequests: [
+      pullRequest(1),
+      pullRequest(2),
+      { ...pullRequest(3), via: { threadId: 'middle', title: 'Middle title' } },
+    ],
+  }),
+  [
+    sessionOf(
+      threadOf({
+        id: 'middle',
+        title: 'Middle title',
+        repo: 'owner/atlas',
+        worktree: { path: '/repo', branch: 'topic' },
+        agent: { spawnedBy: 'main', type: 'builder' },
+        pullRequests: [
+          pullRequest(3),
+          pullRequest(4),
+          pullRequest(5),
+          { ...pullRequest(6), via: { threadId: 'leaf', title: 'Leaf title' } },
+        ],
+        status: runStatus({ working: true }),
+      }),
+      [
+        sessionOf(
+          threadOf({
+            id: 'leaf',
+            title: 'Leaf title',
+            repo: 'owner/atlas',
+            worktree: { path: '/repo', branch: 'topic' },
+            agent: { spawnedBy: 'middle', type: 'builder' },
+            pullRequests: [pullRequest(6)],
+            status: runStatus({ awaiting: 'input' }),
+          }),
+        ),
+      ],
+    ),
+  ],
+)
+
 function DensityChoice() {
   const { setDensity } = useSidebarDensity()
   return (
@@ -103,11 +147,13 @@ export class RowHarness {
     active = 'main',
     session = family,
     states = [],
+    knownThreads = [],
     children,
   }: {
     active?: string | null
     session?: typeof family
     states?: PrStateWire[]
+    knownThreads?: readonly WireThread[]
     children?: ReactNode
   } = {}) {
     await act(async () =>
@@ -122,9 +168,11 @@ export class RowHarness {
           >
             <SidebarPrStatesProvider states={states}>
               <DensityChoice />
-              <ul>
-                <ThreadRow session={session} projectName="atlas" activeThreadId={active} />
-              </ul>
+              <ThreadFamilyProvider threads={knownThreads}>
+                <ul>
+                  <ThreadRow session={session} projectName="atlas" activeThreadId={active} />
+                </ul>
+              </ThreadFamilyProvider>
               {children}
             </SidebarPrStatesProvider>
           </ThreadActionsContext.Provider>
