@@ -39,6 +39,38 @@ const SCALE_MODELS: ModelOption[] = SCALE_ROUTES.flatMap((route) =>
 
 const RECONNECT_PROVIDERS = ['OpenRouter']
 
+const PLAN_LABELS: Record<string, string> = { Anthropic: 'Claude Plan', OpenAI: 'Codex Plan' }
+
+const NO_KEY = { disabled: true, disabledNote: 'no key' }
+
+const INFERENCE_MODELS: ModelOption[] = [
+  {
+    id: 'inference/llama-3.3-70b',
+    label: 'Llama 3.3 70B',
+    context: '128k',
+    contextTokens: 128_000,
+  },
+  { id: 'inference/qwen3-32b', label: 'Qwen3 32B', context: '131k', contextTokens: 131_000 },
+  { id: 'inference/gemma-3-27b', label: 'Gemma 3 27B', context: '128k', contextTokens: 128_000 },
+].map((model) => ({
+  ...model,
+  provider: 'Inference.net',
+  monogram: 'I',
+  efforts: [],
+  images: false,
+  ...NO_KEY,
+}))
+
+const PARITY_MODELS: ModelOption[] = [
+  ...CATALOGUE.map((model) => ({
+    ...model,
+    provider: PLAN_LABELS[model.provider ?? ''] ?? model.provider,
+  })),
+  ...INFERENCE_MODELS,
+]
+
+const PARITY_PINNED = ['anthropic/claude-sonnet-5', 'openai/gpt-5.5']
+
 const DEFAULT_PINNED = ['anthropic/claude-sonnet-5', 'anthropic/claude-opus-5', 'openai/gpt-5.5']
 
 const meta = {
@@ -195,3 +227,14 @@ export const AtScale: Story = {
 }
 
 export const AtScaleOpen: Story = { render: () => <ScaleDemo defaultOpen /> }
+
+export const WithUnavailableProviders: Story = {
+  render: () => (
+    <CatalogueDemo
+      models={PARITY_MODELS}
+      defaultOpen
+      initialPinned={PARITY_PINNED}
+      reconnectProviders={RECONNECT_PROVIDERS}
+    />
+  ),
+}

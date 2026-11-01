@@ -33,8 +33,10 @@ describe('loadModelsSource', () => {
 describe('modelOptionsOfSource', () => {
   it('builds the static catalogue options on the fallback path', () => {
     const { models } = modelOptionsOfSource({ source: { kind: 'accounts', accounts } })
-    expect(models.length).toBeGreaterThan(0)
-    expect(models.every((model) => model.provider === 'Anthropic')).toBe(true)
+    const connected = models.filter((model) => model.disabled !== true)
+    expect(connected.length).toBeGreaterThan(0)
+    expect(connected.every((model) => model.provider === 'Claude Plan')).toBe(true)
+    expect(new Set(models.map((model) => model.provider)).size).toBe(4)
   })
 
   it('builds the live options on the live path', () => {

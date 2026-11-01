@@ -68,6 +68,8 @@ export interface ModelOption {
   efforts?: EEffort[]
   images?: boolean
   contextTokens?: number
+  disabled?: boolean
+  disabledNote?: string
 }
 
 export interface ProviderModels {
@@ -216,7 +218,9 @@ export function modelSelectorGroups({
   const expanded = new Set(expandedProviders)
   const usable = models.filter((model) => !reconnecting.has(providerOf(model)))
 
-  const byId = new Map(usable.map((model) => [model.id, model]))
+  const byId = new Map(
+    usable.filter((model) => model.disabled !== true).map((model) => [model.id, model]),
+  )
   const pinnedInOrder = [...new Set(pinned)].flatMap((id) => {
     const model = byId.get(id)
     return model === undefined ? [] : [model]
@@ -274,10 +278,11 @@ export function modelSelectorGroups({
 export function firstItemValue(groups: ModelSelectorGroups): string | undefined {
   const firstPinned = groups.pinned[0]
   if (firstPinned !== undefined) return firstPinned.id
-  const firstGroup = groups.providers[0]
-  if (firstGroup?.kind === EProviderGroupKind.Models) return firstGroup.models[0]?.id
-  if (firstGroup?.kind === EProviderGroupKind.Reconnect)
-    return reconnectItemValue(firstGroup.provider)
+  for (const group of groups.providers) {
+    if (group.kind === EProviderGroupKind.Reconnect) return reconnectItemValue(group.provider)
+    const enabled = group.models.find((model) => model.disabled !== true)
+    if (enabled !== undefined) return enabled.id
+  }
   return groups.showManageProviders ? MANAGE_PROVIDERS_VALUE : undefined
 }
 
