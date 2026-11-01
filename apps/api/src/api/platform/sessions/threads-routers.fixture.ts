@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common'
+import { UnauthorizedException, type Provider } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { vi } from 'bun:test'
 import request from 'supertest'
@@ -81,6 +81,7 @@ export type RouterFakes = {
   turns?: object
   signals?: ThreadSignalsService
   drain?: DrainStateService
+  extraProviders?: Provider[]
 }
 
 export function createSessionsRouterApp(fakes: RouterFakes = {}): Promise<NestExpressApplication> {
@@ -102,6 +103,7 @@ export function createSessionsRouterApp(fakes: RouterFakes = {}): Promise<NestEx
       { provide: ThreadLauncher, useValue: fakes.launcher ?? {} },
       { provide: EventsService, useValue: fakes.events ?? {} },
       { provide: TurnsService, useValue: fakes.turns ?? {} },
+      ...(fakes.extraProviders ?? []),
     ],
   })
 }

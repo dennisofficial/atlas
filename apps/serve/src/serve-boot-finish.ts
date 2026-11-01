@@ -56,8 +56,16 @@ export async function finishServeBoot(args: {
   const { serveArgs, env, threadId, token, controlPlaneUrl, startedAt, log } = args
   const { atlasHome, sandboxSessionId, boot } = args
   const { server, port } = boot
-  const { app, recovery, workspace, fetchFn, writeBehind, clientVersion, refreshCloudState } =
-    await bootServeApp(args)
+  const {
+    app,
+    recovery,
+    workspace,
+    fetchFn,
+    writeBehind,
+    contextMirror,
+    clientVersion,
+    refreshCloudState,
+  } = await bootServeApp(args)
 
   const admissionClosed = (): boolean => {
     if (recovery.admissionLatched) return true
@@ -264,13 +272,18 @@ export async function finishServeBoot(args: {
       unsubscribeWake?.()
       detachSubscriptions()
       writeBehind?.detach()
+      contextMirror?.detach()
       activity.detach()
       detachPull()
     },
     stopSandbox:
       serveArgs.stopSandbox ??
       providerStopFor({ threadId, controlPlaneUrl, env, token, clientVersion, fetchFn }),
-    flushEvents: writeBehind?.flush,
+    flushEvents: async () => {
+      const events = (await writeBehind?.flush()) ?? true
+      await contextMirror?.flush()
+      return events
+    },
     reportParked: activity.reportParked,
     exit,
   })

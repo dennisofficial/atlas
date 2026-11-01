@@ -1,5 +1,8 @@
 import {
   bootStepsPostSchema,
+  contextFileDeleteSchema,
+  contextFilePutSchema,
+  contextFilesDeleteMissingSchema,
   EEventsWatchFrame,
   EThreadStreamFrame,
   eventsWatchInputSchema,
@@ -15,6 +18,9 @@ import {
   sandboxSelfRenewDeadlineRequestSchema,
   sandboxSelfStopRequestSchema,
   type BootStepsPost,
+  type ContextFileDelete,
+  type ContextFilePut,
+  type ContextFilesDeleteMissing,
   type EventsWatchFrame,
   type EventsWatchInput,
   type PodChildRegister,
@@ -49,6 +55,7 @@ import { threadStreamFrames } from '../sessions/thread-stream.frames'
 import { recordBootSteps } from './sandbox-boot-steps'
 import { applyThreadActivity } from './thread-activity'
 import { registerPodChild } from './pod-child'
+import { deleteContextFile, deleteMissingContextFiles, putContextFile } from './pod-context-files'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { assertWithinSandboxFamily } from './pod-family'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
@@ -152,6 +159,42 @@ export class SandboxSelfRouter {
       toSeq: input.toSeq,
       signals: this.signals,
     })
+  }
+
+  @Mutation({ input: contextFilePutSchema, output: z.void() })
+  async putContextFile(@Input() input: ContextFilePut, @Ctx() ctx: SandboxTrpcCtx): Promise<void> {
+    const threadId = await assertWithinSandboxFamily({
+      rootThreadId: ctx.sandbox.threadId,
+      userId: ctx.sandbox.userId,
+      threadId: input.threadId,
+    })
+    await putContextFile({ threadId, path: input.path, content: input.content })
+  }
+
+  @Mutation({ input: contextFileDeleteSchema, output: z.void() })
+  async deleteContextFile(
+    @Input() input: ContextFileDelete,
+    @Ctx() ctx: SandboxTrpcCtx,
+  ): Promise<void> {
+    const threadId = await assertWithinSandboxFamily({
+      rootThreadId: ctx.sandbox.threadId,
+      userId: ctx.sandbox.userId,
+      threadId: input.threadId,
+    })
+    await deleteContextFile({ threadId, path: input.path })
+  }
+
+  @Mutation({ input: contextFilesDeleteMissingSchema, output: z.void() })
+  async deleteMissingContextFiles(
+    @Input() input: ContextFilesDeleteMissing,
+    @Ctx() ctx: SandboxTrpcCtx,
+  ): Promise<void> {
+    const threadId = await assertWithinSandboxFamily({
+      rootThreadId: ctx.sandbox.threadId,
+      userId: ctx.sandbox.userId,
+      threadId: input.threadId,
+    })
+    await deleteMissingContextFiles({ threadId, keep: input.keep })
   }
 
   @Mutation({ input: podChildRegisterSchema, output: podEventsReplySchema })

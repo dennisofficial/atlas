@@ -68,8 +68,8 @@ export function ContextFileBody(props: { loaded: LoadedContextFile; path: string
 }
 
 export function ContextViewer({ path }: { path: string }) {
-  const { channel, closeContextFile } = useThreadPanel()
-  const loaded = useContextFile({ channel, path })
+  const { threadId, channel, closeContextFile } = useThreadPanel()
+  const loaded = useContextFile({ threadId, channel, path })
   const text = loaded.state === 'ready' ? copyTextOf(loaded.file) : null
 
   return (

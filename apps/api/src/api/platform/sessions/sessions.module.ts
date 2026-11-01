@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { HealthModule } from '../health/health.module'
 import { SandboxesModule } from '../sandboxes/sandboxes.module'
+import { ContextFilesRouter } from './context-files.router'
 import { EventsService } from './events.service'
 import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
 import { ThreadArchiveService } from './thread-archive.service'
@@ -25,6 +26,7 @@ import { TurnsService } from './turns.service'
     ThreadsRouter,
     ThreadEventsRouter,
     ThreadTurnsRouter,
+    ContextFilesRouter,
     SessionOrSandboxMiddleware,
   ],
   exports: [SessionOrSandboxMiddleware, SandboxesModule, ThreadsService, ThreadSignalsModule],

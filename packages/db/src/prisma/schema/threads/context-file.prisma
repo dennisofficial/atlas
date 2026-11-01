@@ -1,0 +1,12 @@
+// use prisma-8
+model ContextFile {
+  id        String               @id
+  threadId  String
+  path      String
+  content   String
+  digest    String
+  updatedAt TimestamptzJsDate(3)
+  thread    Thread               @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "ContextFile_threadId_path_key")
+
+  @@unique([threadId, path], map: "ContextFile_threadId_path_key")
+}
