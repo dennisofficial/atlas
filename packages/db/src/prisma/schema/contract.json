@@ -28,6 +28,10 @@
       "model": "UserSetting",
       "namespace": "public"
     },
+    "ComposerDraft": {
+      "model": "ComposerDraft",
+      "namespace": "public"
+    },
     "ContextFile": {
       "model": "ContextFile",
       "namespace": "public"
@@ -1073,6 +1077,113 @@
               },
               "namespaceId": "public",
               "table": "CloudSandbox"
+            }
+          },
+          "ComposerDraft": {
+            "fields": {
+              "attachments": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "scopeKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "text": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "threadId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "thread": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Thread",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "attachments": {
+                  "column": "attachments"
+                },
+                "scopeKey": {
+                  "column": "scopeKey"
+                },
+                "text": {
+                  "column": "text"
+                },
+                "threadId": {
+                  "column": "threadId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ComposerDraft"
             }
           },
           "ContextFile": {
@@ -5353,6 +5464,21 @@
                   "namespace": "public"
                 }
               },
+              "composerDrafts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "ComposerDraft",
+                  "namespace": "public"
+                }
+              },
               "createdProjects": {
                 "cardinality": "1:N",
                 "on": {
@@ -7225,6 +7351,104 @@
                   "name": "CloudSetting_userId_key_key"
                 }
               ]
+            },
+            "ComposerDraft": {
+              "columns": {
+                "attachments": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "scopeKey": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "text": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "threadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "primaryKey": true
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ComposerDraft"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "ComposerDraft_threadId_idx"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "threadId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ComposerDraft"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Thread"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "threadId"
+                  ],
+                  "name": "ComposerDraft_threadId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "userId",
+                  "scopeKey"
+                ],
+                "name": "ComposerDraft_pkey"
+              },
+              "uniques": []
             },
             "ContextFile": {
               "columns": {
@@ -11207,7 +11431,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "cde231c54cd35e26d3b6411c1e3c575553cc8a4f6cedd8c51db9b4eaf9e15cc0"
+    "storageHash": "72a4fc277c7232110726a3363cb7622f7be63fc3f17c5f520460010f70357979"
   },
   "execution": {
     "executionHash": "e5139d1de8d5766e0bfebef978a82018efb9a20a4c75ca8470538fe80225e0c7",

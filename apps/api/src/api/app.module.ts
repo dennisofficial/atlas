@@ -32,6 +32,7 @@ import { DesktopAuthModule } from './platform/desktop-auth/desktop-auth.module'
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
 import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
+import { ComposerDraftsModule } from './cloud/composer-drafts/composer-drafts.module'
 import { ComposerUploadsModule } from './cloud/composer-uploads/composer-uploads.module'
 import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
 import { SandboxCredentialsModule } from './cloud/sandbox-credentials/sandbox-credentials.module'
@@ -89,6 +90,7 @@ import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
     MemoriesModule,
     PublishedBundlesModule,
     ComposerUploadsModule,
+    ComposerDraftsModule,
     SessionsModule,
     SandboxesModule,
     GithubRealtimeModule,

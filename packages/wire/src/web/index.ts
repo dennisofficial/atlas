@@ -1,3 +1,4 @@
+export * from '../composer-draft-wire'
 export * from '../memory-wire'
 export * from '../project-wire'
 export * from '../session-node-wire'

@@ -342,6 +342,10 @@ class FakeCloudService extends CloudService {
   override client(): CloudClient | null {
     return this.fakeClient
   }
+
+  override composerDraftApi(): null {
+    return null
+  }
 }
 
 export const FAKE_CLOUD_SESSION: CloudSession = {
