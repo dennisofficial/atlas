@@ -10,7 +10,10 @@ import { sessionsDirectory, threadMetaFile } from './paths'
 /** Every root thread in the home that runs on this machine's pod runner, newest first. */
 export async function listLocalPodThreads(args: { home: string }): Promise<ThreadSummary[]> {
   const root = sessionsDirectory({ home: args.home })
-  const dirs = await readdir(root, { withFileTypes: true }).catch(() => [])
+  const dirs = await readdir(root, { withFileTypes: true }).catch((error: unknown) => {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return []
+    throw error
+  })
   const found = dirs
     .filter((dir) => dir.isDirectory())
     .map((dir) =>

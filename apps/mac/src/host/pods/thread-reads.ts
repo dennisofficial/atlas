@@ -1,5 +1,10 @@
 import { ERunner, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import { createLocalPodTitles, listLocalPodThreads, wireEventOf } from '@dltech/atlas-harness'
+import {
+  createLocalThreadSummary,
+  ELocalActivityState,
+  type LocalPodStatusReader,
+} from '@dltech/atlas-harness/activity'
 import type { ILocalStore } from './local-store'
 import { localThreadOf } from './pod-records'
 import type { IPodThreads } from './pod-threads'
@@ -20,10 +25,27 @@ export interface IThreadReads {
 export function createThreadReads({
   store,
   pods,
+  activity,
 }: {
   store: ILocalStore
   pods: Pick<IPodThreads, 'channel'>
+  activity?: LocalPodStatusReader
 }): IThreadReads {
+  const cursor = {
+    readSeq: (args: { threadId: ThreadId }) => store.cursor.readKnownSeq(args),
+  }
+  const summary = createLocalThreadSummary({
+    log: store.log,
+    cursor,
+    activity: activity ?? {
+      prepare: async () => undefined,
+      read: async () => ({
+        activityState: ELocalActivityState.Unavailable,
+        reason: 'Activity unavailable',
+      }),
+      close: () => undefined,
+    },
+  })
   const known = async (threadId: string): Promise<ThreadId | undefined> => {
     const record = await store.threads.find({ threadId: toThreadId(threadId) })
     return record?.runner === ERunner.Local ? record.id : undefined
@@ -34,7 +56,10 @@ export function createThreadReads({
       const records = await listLocalPodThreads({ home: store.home })
       return Promise.all(
         records.map(async (record) =>
-          localThreadOf({ record, readSeq: await store.cursor.readSeq({ threadId: record.id }) }),
+          localThreadOf({
+            record,
+            summary: await summary.read({ threadId: record.id, head: record.head }),
+          }),
         ),
       )
     },
@@ -69,7 +94,7 @@ export function createThreadReads({
     readCursor: async ({ threadId }) => {
       const id = await known(threadId)
       if (id === undefined) return undefined
-      return (await store.cursor.readSeq({ threadId: id })) ?? null
+      return (await cursor.readSeq({ threadId: id })) ?? null
     },
     markRead: async ({ threadId, seq }) => {
       const id = await known(threadId)

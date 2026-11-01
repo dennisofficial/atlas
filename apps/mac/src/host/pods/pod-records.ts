@@ -7,6 +7,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import { listLocalPodThreads, registryFor, type ThreadSummary } from '@dltech/atlas-harness'
+import type { LocalThreadSummary } from '@dltech/atlas-harness/activity'
 import { SANDBOX_WORKSPACE_PATH } from '@dltech/atlas-wire'
 import type { ILocalStore } from './local-store'
 import type { CreatePodInput, LocalThread } from './wire'
@@ -91,16 +92,15 @@ export async function removePodRecord({
 
 export const localThreadOf = ({
   record,
-  readSeq,
+  summary,
 }: {
   record: ThreadSummary
-  readSeq: number | undefined
+  summary: LocalThreadSummary
 }): LocalThread => ({
   threadId: record.id,
   ...(record.title === undefined ? {} : { title: record.title }),
   projectId: record.projectId ?? null,
-  head: record.head,
-  readSeq: readSeq ?? null,
+  ...summary,
   ...(record.model === undefined ? {} : { model: record.model.ref, effort: record.model.effort }),
   createdAt: record.createdAt,
   updatedAt: record.updatedAt,

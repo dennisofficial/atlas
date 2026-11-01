@@ -24,6 +24,7 @@ import {
 import { connect } from './client'
 import { fakeServeApp } from './fakes'
 import { trpcOk } from './trpc-fake'
+import { eventually } from './compaction-recovery-fixture'
 import {
   CONTROL_PLANE,
   hello,
@@ -71,7 +72,10 @@ describe('startServe', () => {
       },
     })
 
-    await Bun.sleep(200)
+    await eventually({
+      what: 'the idle park to close the app and exit',
+      probe: async () => app.closed() && exits.length > 0,
+    })
 
     expect(app.closed()).toBe(true)
     expect(exits).toEqual([0])

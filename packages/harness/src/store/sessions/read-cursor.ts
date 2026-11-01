@@ -35,6 +35,17 @@ export class FileThreadReadCursor extends ThreadReadCursorPort {
     }
   }
 
+  async readKnownSeq({ threadId }: { threadId: ThreadId }): Promise<number | undefined> {
+    const file = await this.fileOf({ threadId })
+    try {
+      const raw = await readFile(file, 'utf8')
+      return readCursorSchema.parse(JSON.parse(raw)).seq
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
+      throw error
+    }
+  }
+
   private queue: Promise<unknown> = Promise.resolve()
 
   markRead(args: { threadId: ThreadId; seq: number }): Promise<number> {

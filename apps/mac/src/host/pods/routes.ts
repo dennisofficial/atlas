@@ -2,7 +2,7 @@ import { createPodService, type IPodService } from './service'
 import { NotAPodThreadError } from './pod-records'
 import { createThreadsHandler } from './thread-routes'
 import type { IPodHostConfig } from './config'
-import { createPodInputSchema, POD_NOT_RUNNING_CODE } from './wire'
+import { createPodInputSchema, resizePodInputSchema, POD_NOT_RUNNING_CODE } from './wire'
 
 const COLLECTION = '/desktop/pods'
 const CAPABILITIES = '/desktop/capabilities'
@@ -11,7 +11,7 @@ export type PodsHandler = ((
   request: Request,
   pathname: string,
 ) => Promise<Response | undefined>) & {
-  close: () => void
+  close: () => Promise<void>
 }
 
 const failed = (error: unknown): Response =>
@@ -63,6 +63,16 @@ export function createPodsHandler({
     if (threadId === undefined || threadId.length === 0 || rest.length > 0) return undefined
 
     try {
+      if (action === 'resize' && method === 'POST') {
+        const parsed = resizePodInputSchema.safeParse(await request.json().catch(() => undefined))
+        if (!parsed.success) return Response.json({ code: 'invalid-input' }, { status: 400 })
+        const reply = await pods.resize({ threadId, vcpus: parsed.data.vcpus })
+        return reply === undefined ? notFound() : Response.json(reply)
+      }
+      if (action === 'status' && method === 'GET') {
+        const status = await pods.status({ threadId })
+        return status === undefined ? notFound() : Response.json(status)
+      }
       if (action === undefined && method === 'GET') {
         const pod = await pods.get({ threadId })
         return pod === undefined ? notFound() : Response.json(pod)

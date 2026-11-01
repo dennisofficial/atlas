@@ -75,3 +75,19 @@ describe('createLocalPodBridge pass-through', () => {
     })
   })
 })
+
+describe('createLocalPodBridge find cancellation', () => {
+  it('forwards an optional signal to the driver and omits it otherwise', async () => {
+    const seen: Array<AbortSignal | undefined> = []
+    const { driver } = fakePodDriver({ created: false })
+    driver.inspect = async (inspected) => {
+      seen.push(inspected.signal)
+      return undefined
+    }
+    const bridge = podBridgeWith({ driver })
+    const controller = new AbortController()
+    await bridge.sandboxes.find({ threadId, signal: controller.signal })
+    await bridge.sandboxes.find({ threadId })
+    expect(seen).toEqual([controller.signal, undefined])
+  })
+})

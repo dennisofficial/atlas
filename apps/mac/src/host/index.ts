@@ -99,9 +99,8 @@ export function createDesktopHost({
   return {
     url: `http://127.0.0.1:${boundPort}`,
     port: boundPort,
-    stop: () => {
-      podsHandler?.close()
-      return server.stop(true)
+    stop: async () => {
+      await Promise.all([server.stop(true), podsHandler?.close()])
     },
   }
 }

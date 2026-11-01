@@ -78,9 +78,13 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     }
   }
 
-  const find = async (findArgs: { threadId: ThreadId }): Promise<CloudSandboxStatus> => {
+  const find = async (findArgs: {
+    threadId: ThreadId
+    signal?: AbortSignal | undefined
+  }): Promise<CloudSandboxStatus> => {
     const observed = await driverWith(args.pod()).inspect({
       name: podNameFor({ threadId: findArgs.threadId }),
+      ...(findArgs.signal === undefined ? {} : { signal: findArgs.signal }),
     })
     return {
       ...(observed === undefined

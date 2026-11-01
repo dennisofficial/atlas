@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,6 +9,7 @@ import { CountingIds, SteppingClock } from '../../__tests__/harness'
 import { JsonlEventLog } from '../event-log'
 import { SessionRegistry } from '../registry'
 import { FileThreadReadCursor } from '../read-cursor'
+import { threadReadCursorFile } from '../paths'
 
 const directories: string[] = []
 
@@ -46,11 +47,36 @@ async function tempHome(): Promise<string> {
 }
 
 describe('FileThreadReadCursor', () => {
+  it('strict reads reject malformed cursor data while legacy reads remain lenient', async () => {
+    const home = await tempHome()
+    await seed({ home, events: 3 })
+    const { cursor } = await openCursor({ home })
+    const sessionDir = await new SessionRegistry(home).sessionDirFor({ threadId: thread })
+    await writeFile(threadReadCursorFile({ sessionDir, threadId: thread }), 'not-json')
+    await expect(cursor.readKnownSeq({ threadId: thread })).rejects.toThrow()
+    expect(await cursor.readSeq({ threadId: thread })).toBeUndefined()
+    expect(await cursor.markRead({ threadId: thread, seq: 2 })).toBe(2)
+    expect(await cursor.readKnownSeq({ threadId: thread })).toBe(2)
+  })
+
+  it('strict reads propagate filesystem failures while legacy reads remain lenient', async () => {
+    const home = await tempHome()
+    await seed({ home, events: 3 })
+    const { cursor } = await openCursor({ home })
+    const sessionDir = await new SessionRegistry(home).sessionDirFor({ threadId: thread })
+    await mkdir(threadReadCursorFile({ sessionDir, threadId: thread }))
+    await expect(cursor.readKnownSeq({ threadId: thread })).rejects.toMatchObject({
+      code: 'EISDIR',
+    })
+    expect(await cursor.readSeq({ threadId: thread })).toBeUndefined()
+  })
+
   it('reads undefined before any mark', async () => {
     const home = await tempHome()
     await seed({ home, events: 3 })
     const { cursor } = await openCursor({ home })
     expect(await cursor.readSeq({ threadId: thread })).toBeUndefined()
+    expect(await cursor.readKnownSeq({ threadId: thread })).toBeUndefined()
   })
 
   it('persists across instances', async () => {
@@ -60,6 +86,7 @@ describe('FileThreadReadCursor', () => {
     expect(await first.cursor.markRead({ threadId: thread, seq: 4 })).toBe(4)
     const second = await openCursor({ home })
     expect(await second.cursor.readSeq({ threadId: thread })).toBe(4)
+    expect(await second.cursor.readKnownSeq({ threadId: thread })).toBe(4)
   })
 
   it('clamps to the log head', async () => {

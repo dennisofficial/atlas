@@ -1,5 +1,15 @@
+import { join } from 'node:path'
+import {
+  createCurrentActivityValidator,
+  createFileActivityOutcomes,
+  createLocalActivityInspector,
+  createLocalActivityObserver,
+  createPassiveActivityConnection,
+  type OpenLocalActivityConnection,
+} from '@dltech/atlas-harness/activity'
 import {
   atlasDirectory,
+  registryFor,
   DEFAULT_DOCKER_SOCKET,
   ECloudSandboxState,
   createLocalPodBridge,
@@ -8,7 +18,7 @@ import {
   sandboxServeTokenName,
   type CloudBridge,
 } from '@dltech/atlas-harness'
-import { toThreadId } from '@dltech/atlas-core'
+import { ERunner, toThreadId } from '@dltech/atlas-core'
 import { resolveApiOrigin } from '../api-origin'
 import type { IPodHostConfig } from './config'
 import { leaseRegistrarFor } from './lease'
@@ -22,6 +32,7 @@ import {
 } from './pod-records'
 import { createPodThreads, type IPodThreads } from './pod-threads'
 import { createThreadReads, type IThreadReads } from './thread-reads'
+import { createPodResources, type IPodResources } from './resources'
 import {
   ELocalPodState,
   type CreatePodInput,
@@ -37,7 +48,7 @@ export interface IPodConnect {
   expiresAt: string
 }
 
-export interface IPodService extends IThreadReads {
+export interface IPodService extends IThreadReads, IPodResources {
   capabilities: () => Promise<DesktopCapabilities>
   list: () => Promise<LocalPod[]>
   get: (args: { threadId: string }) => Promise<LocalPod | undefined>
@@ -45,7 +56,7 @@ export interface IPodService extends IThreadReads {
   wake: (args: { threadId: string }) => Promise<LocalPod | undefined>
   connect: (args: { threadId: string }) => Promise<IPodConnect | undefined | 'not-running'>
   destroy: (args: { threadId: string }) => Promise<boolean>
-  close: () => void
+  close: () => Promise<void>
 }
 
 const localPodOf = ({ record, state }: { record: PodRecord; state: ELocalPodState }): LocalPod => ({
@@ -92,6 +103,34 @@ export function createPodService({
       ...(config.driverWith === undefined ? {} : { driverWith: config.driverWith }),
     })
   const pods: IPodThreads = createPodThreads({ store, bridge })
+  const inspector = createLocalActivityInspector({ find: (args) => bridge().sandboxes.find(args) })
+  const existingToken = ({ threadId }: { threadId: ReturnType<typeof toThreadId> }) =>
+    store.secrets.read(sandboxServeTokenName(threadId))
+  const freshConnection: OpenLocalActivityConnection = (args) =>
+    createPassiveActivityConnection({ ...args, token: existingToken })
+  const validateCurrent = createCurrentActivityValidator({ inspector, open: freshConnection })
+  const activity = createLocalActivityObserver({
+    known: async ({ threadId }) => {
+      const record = await store.threads.find({ threadId })
+      return record?.runner === ERunner.Local && record.agent === undefined
+    },
+    inspector,
+    open: (args) =>
+      createPassiveActivityConnection({
+        ...args,
+        token: existingToken,
+        home: { path: store.home, threads: store.threads },
+      }),
+    outcomes: createFileActivityOutcomes({
+      pathFor: async ({ threadId }) =>
+        join(
+          await registryFor({ home: store.home }).sessionDirFor({ threadId }),
+          'threads',
+          `${threadId}.activity.json`,
+        ),
+      validateCurrent,
+    }),
+  })
 
   const stateOf = async (threadId: string): Promise<{ state: ELocalPodState; url?: string }> => {
     const found = await bridge().sandboxes.find({ threadId: toThreadId(threadId) })
@@ -111,9 +150,11 @@ export function createPodService({
   }
 
   const recordOf = (threadId: string) => findPodRecord({ store, threadId: toThreadId(threadId) })
+  let shutdown: Promise<void> | undefined
 
   return {
-    ...createThreadReads({ store, pods }),
+    ...createThreadReads({ store, pods, activity }),
+    ...createPodResources({ home: store.home, bridge }),
     capabilities: async () => {
       const reason = await (config.ping ?? (() => pingDocker({ socketPath })))()
       return reason === undefined ? { docker: true } : { docker: false, reason }
@@ -175,6 +216,11 @@ export function createPodService({
       await removePodRecord({ store, threadId: id })
       return true
     },
-    close: () => pods.closeAll(),
+    close: () => {
+      shutdown ??= Promise.all([activity.close(), validateCurrent.close(), pods.closeAll()]).then(
+        () => undefined,
+      )
+      return shutdown
+    },
   }
 }
