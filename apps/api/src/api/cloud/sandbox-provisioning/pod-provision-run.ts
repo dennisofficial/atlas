@@ -22,6 +22,7 @@ import { podVcpusOf } from './pod-size'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
 import { rollbackIfDestroyed } from './pod-provision-rollback'
 import { restartForResize, type ResizeRestartTiming } from './pod-resize-restart'
+import { stopSessionForRollover } from './pod-rollover-stop'
 import { claimHeld, markFailed, markRunning } from './sandbox-provisioning-rows'
 
 export const PROVISION_TIMEOUT_MESSAGE = 'The sandbox took too long to start. Retry.'
@@ -76,6 +77,16 @@ export async function runPodProvision(args: {
     const credentials = await deps.scoped.vercelCredentials({ thread })
     const vcpus = await podVcpusOf({ sessionId: session.id, userId: thread.userId })
     const resizing = row.pendingVcpus !== null
+    if (payload.stopSessionId !== undefined) {
+      await stopSessionForRollover({
+        sdk: deps.sdk,
+        credentials,
+        name: row.name,
+        sessionId: payload.stopSessionId,
+        log: deps.log,
+        timing: deps.resizeTiming,
+      })
+    }
     if (row.pendingVcpus !== null) {
       await restartForResize({
         sdk: deps.sdk,

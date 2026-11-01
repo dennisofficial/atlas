@@ -25,9 +25,9 @@ export const RESIZE_RESTART_TIMING: ResizeRestartTiming = {
   forceMs: 60_000,
 }
 
-type RestartTarget = { sdk: VercelSdk; credentials: VercelCredentials; name: string }
+export type RestartTarget = { sdk: VercelSdk; credentials: VercelCredentials; name: string }
 
-async function sandboxOf(target: RestartTarget): Promise<Sandbox | undefined> {
+export async function sandboxOf(target: RestartTarget): Promise<Sandbox | undefined> {
   try {
     return await target.sdk.get({
       ...target.credentials,
@@ -41,10 +41,10 @@ async function sandboxOf(target: RestartTarget): Promise<Sandbox | undefined> {
   }
 }
 
-const settled = (sandbox: Sandbox | undefined): boolean =>
+export const settled = (sandbox: Sandbox | undefined): boolean =>
   sandbox === undefined || SETTLED_STATUSES.has(sandbox.status)
 
-async function settlesWithin(args: {
+export async function settlesWithin(args: {
   target: RestartTarget
   withinMs: number
   pollMs: number

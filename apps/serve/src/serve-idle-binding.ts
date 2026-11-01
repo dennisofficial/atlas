@@ -5,6 +5,7 @@ import type { RuntimeWork } from './runtime-work'
 import type { ServeArgs } from './serve-args'
 import { bindServeDeadline } from './serve-deadline-binding'
 import { EServeEvent, type ServeLog } from './serve-log'
+import type { ServeRollover } from './serve-rollover'
 
 export const noopIdle = (noop: () => void) => ({ note: noop, halt: noop, reset: noop })
 
@@ -19,6 +20,7 @@ export function bindServeIdleStop(args: {
       clientVersion?: string | undefined
       fetchFn?: typeof fetch | undefined
     }
+    rollover?: ServeRollover | undefined
   }
   turnRunning: () => boolean
   work: () => RuntimeWork
@@ -49,6 +51,7 @@ export function bindServeIdleStop(args: {
     ...args.deadline.remote,
     work,
     quietSince: idle.quietSince,
+    rollover: args.deadline.rollover,
     log: args.log,
   })
   return {

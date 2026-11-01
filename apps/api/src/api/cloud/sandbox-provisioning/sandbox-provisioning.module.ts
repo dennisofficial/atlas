@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
+import { SandboxTokenMiddleware } from '../../platform/sandboxes/sandbox-token.middleware'
 import { SandboxesModule } from '../../platform/sandboxes/sandboxes.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { ScopedConfigModule } from '../scoped-config/scoped-config.module'
+import { SandboxRolloverRouter } from './sandbox-rollover.router'
 import { SandboxProvisioningRouter } from './sandbox-provisioning.router'
 import { SandboxProvisioningService } from './sandbox-provisioning.service'
 import { deliverToServe, SERVE_SEND } from './serve-send'
@@ -22,6 +24,8 @@ import { ThreadPodService } from './thread-pod.service'
     SandboxProvisioningRouter,
     ThreadMessagesRouter,
     ThreadPodRouter,
+    SandboxRolloverRouter,
+    SandboxTokenMiddleware,
     { provide: SERVE_SEND, useValue: deliverToServe },
   ],
 })

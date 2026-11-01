@@ -27,7 +27,7 @@ import { bootServeApp } from './serve-boot-app'
 import { bindServeActivity } from './serve-activity-binding'
 import { bindServeIdleStop, noopIdle } from './serve-idle-binding'
 import type { BootListener } from './serve-boot-listener'
-import { bindServeDrain } from './serve-drain-binding'
+import { bindSessionDrain } from './serve-drain-binding'
 import { resumeWhenRegistered } from './serve-resume-boot'
 import { createServeLifecycle } from './serve-lifecycle'
 import { createServeDriver } from './serve-driver'
@@ -218,19 +218,12 @@ export async function finishServeBoot(args: {
     log,
   })
   const exit = serveArgs.exit ?? process.exit
-  const drain = bindServeDrain({
-    app,
-    driver,
-    threadId,
-    atlasHome,
-    sandboxSessionId,
-    owed: recovery.owed,
-    haltIdle: () => idleStop.halt(),
-    whenMutationsSettled: async () => {
-      await session.whenStarted()
-      await handlers.whenSettled()
-    },
-    checkpoint,
+  const { drainSession, rollover } = bindSessionDrain({
+    recovery,
+    handlers,
+    session,
+    idle: () => idleStop,
+    drain: { app, driver, threadId, atlasHome, sandboxSessionId, owed: recovery.owed, checkpoint },
     close: (given) => lifecycle.close(given),
     exit,
     log,
@@ -238,7 +231,7 @@ export async function finishServeBoot(args: {
 
   boot.complete({
     handlers,
-    drain: (given) => recovery.drain({ drain, ...given }).finally(handlers.replayDeferred),
+    drain: drainSession,
     health: {
       workspace,
       clients: handlers.clients,
@@ -282,7 +275,7 @@ export async function finishServeBoot(args: {
   idleStop = recovery.checkpointAllowed
     ? bindServeIdleStop({
         serveArgs,
-        deadline: { env, threadId, remote },
+        deadline: { env, threadId, remote, rollover },
         turnRunning: driver.busy,
         work,
         clientsAttached: handlers.clients,

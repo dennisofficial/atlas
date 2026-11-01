@@ -6,6 +6,7 @@ import { SERVE_IDLE_MINUTES, SERVE_SERVICE_IDLE_MINUTES } from './idle-stop'
 import { runtimeHasWork, type RuntimeWork } from './runtime-work'
 import type { ServeArgs } from './serve-args'
 import type { ServeLog } from './serve-log'
+import type { ServeRollover } from './serve-rollover'
 
 export function bindServeDeadline(args: {
   serveArgs: ServeArgs
@@ -17,6 +18,7 @@ export function bindServeDeadline(args: {
   fetchFn?: typeof fetch | undefined
   work: () => RuntimeWork
   quietSince: () => number | undefined
+  rollover?: ServeRollover | undefined
   log: ServeLog
 }): DeadlineRenewalLoop | undefined {
   const { serveArgs } = args
@@ -44,5 +46,10 @@ export function bindServeDeadline(args: {
     now: serveArgs.now,
     tickMs: serveArgs.deadlineTickMs,
     workSummary: args.work,
+    onCapped: () => {
+      const request = control.rollover
+      if (request === undefined || args.rollover === undefined) return
+      args.rollover.start(request)
+    },
   })
 }

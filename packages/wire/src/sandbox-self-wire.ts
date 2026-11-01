@@ -52,3 +52,11 @@ export const sandboxDeadlineObservationSchema = z.object({
   extendedByMs: z.number().int().nonnegative(),
 })
 export type SandboxDeadlineObservation = z.infer<typeof sandboxDeadlineObservationSchema>
+
+export const sandboxRolloverRequestSchema = z.strictObject({
+  sessionId: z.string().min(1),
+})
+export type SandboxRolloverRequest = z.infer<typeof sandboxRolloverRequestSchema>
+
+export const sandboxRolloverReplySchema = z.object({ dispatched: z.boolean() })
+export type SandboxRolloverReply = z.infer<typeof sandboxRolloverReplySchema>
