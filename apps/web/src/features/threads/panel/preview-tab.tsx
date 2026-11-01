@@ -4,14 +4,14 @@ import { GlobeIcon } from 'lucide-react'
 
 import { PreviewFrame } from '@dltech/atlas-ui/ai/preview-frame'
 
-import { usePreviewOrigins } from '@/features/desktop/use-preview-origins'
+import { EPreviewGate, usePreviewOrigins } from '@/features/desktop/use-preview-origins'
 
 import type { usePreviews } from '../data/use-previews'
 import { TabPlaceholder } from './tab-placeholder'
 
 export function PreviewTab({ data }: { data: ReturnType<typeof usePreviews> }) {
   const { ports, selectedId, select } = data
-  const framesAllowed = usePreviewOrigins(ports.map((port) => port.frameSrc ?? port.url))
+  const gate = usePreviewOrigins(ports.map((port) => port.frameSrc ?? port.url))
 
   if (ports.length === 0) {
     return (
@@ -23,7 +23,17 @@ export function PreviewTab({ data }: { data: ReturnType<typeof usePreviews> }) {
     )
   }
 
-  if (!framesAllowed) return null
+  if (gate === EPreviewGate.Waiting) return null
+
+  if (gate === EPreviewGate.Failed) {
+    return (
+      <TabPlaceholder
+        icon={<GlobeIcon />}
+        title="Preview unavailable"
+        description="The desktop app couldn't allow this preview's origin, so it can't be shown here. Reload the window to try again."
+      />
+    )
+  }
 
   return <PreviewFrame ports={ports} selectedId={selectedId} onSelect={select} />
 }
