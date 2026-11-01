@@ -49,6 +49,7 @@ function serviceWith(args: {
     hooks,
     installNotice,
     localObservations(github),
+    { record: async () => undefined } as never,
   )
 }
 

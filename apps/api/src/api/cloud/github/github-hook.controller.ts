@@ -15,14 +15,16 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db } from '@dltech/atlas-db'
 import { repoPattern } from './github-pr-identity'
 import { GithubDeliveryService } from './github-delivery.service'
+import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { parseHookRepoParam } from './github-pr-payload'
 import { verifyGithubSignature } from './github-webhook.signature'
 import type { GithubPrWebhookRequest } from './github-webhook.types'
 
 /**
  * Per-repo webhook receiver for the realtime subscription flow: the hook URL embeds the repo so
- * the handler loads that repo's HMAC secret directly. HMAC-authenticated, caller-anonymous,
- * stateless — a restart loses nothing because GithubPrState is the record.
+ * the handler loads that repo's HMAC secret directly. HMAC-authenticated, caller-anonymous, but
+ * not stateless — a verified delivery lands in the webhook inbox before processing, so a restart
+ * loses nothing the reconcile sweep cannot replay.
  */
 @Controller({ path: 'github/hooks', version: '1' })
 @SkipThrottle()
@@ -32,6 +34,7 @@ export class GithubHookController {
   constructor(
     private readonly deliveries: GithubDeliveryService,
     private readonly cipher: SecretCipherService,
+    private readonly inbox: GithubWebhookInboxService,
   ) {}
 
   @Post(':repo')
@@ -41,6 +44,7 @@ export class GithubHookController {
     @Param('repo') repoParam: string,
     @Headers('x-hub-signature-256') signature: string | undefined,
     @Headers('x-github-event') event: string | undefined,
+    @Headers('x-github-delivery') deliveryId: string | undefined,
     @Headers('content-type') contentType: string | undefined,
   ): Promise<{ received: boolean }> {
     const repoFullName = parseHookRepoParam({ repo: repoParam })
@@ -64,10 +68,21 @@ export class GithubHookController {
     }
 
     const payload = JSON.parse(rawBody.toString('utf8')) as unknown
-    const outcome = await this.deliveries.handle({ event, payload })
-
-    if (!outcome.handled)
-      this.logger.log(`unhandled github delivery event=${event} repo=${repoFullName}`)
+    if (deliveryId !== undefined) {
+      const fresh = await this.inbox.insert({ deliveryId, event, payload })
+      if (!fresh) return { received: true }
+    }
+    try {
+      const outcome = await this.deliveries.handle({ event, payload })
+      if (!outcome.handled)
+        this.logger.log(`unhandled github delivery event=${event} repo=${repoFullName}`)
+    } catch (failure) {
+      if (deliveryId !== undefined)
+        await this.inbox.markFailed({ deliveryId, error: failure }).catch(() => undefined)
+      this.logger.warn(`github delivery ${deliveryId ?? 'untracked'} failed: ${String(failure)}`)
+      return { received: true }
+    }
+    if (deliveryId !== undefined) await this.inbox.markProcessed({ deliveryId })
     return { received: true }
   }
 }

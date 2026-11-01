@@ -6,6 +6,7 @@ model GithubPrEvent {
   prNumber     Int
   kind         String
   payload      Jsonb
+  dedupeKey    String?               @unique
   deliveredAt  TimestamptzJsDate(3)?
   createdAt    TimestamptzJsDate(3)  @default(now())
   deliveries   GithubPrEventDelivery[]

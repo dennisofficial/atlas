@@ -29,6 +29,7 @@ function serviceWith(): GithubPrSubscriptionLinks {
     {} as never,
     {} as never,
     {} as never,
+    { record: async () => undefined } as never,
   )
   return new GithubPrSubscriptionLinks(subscriptions)
 }

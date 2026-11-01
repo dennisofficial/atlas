@@ -5,6 +5,7 @@ import type { GithubAppInstallNoticeService } from './github-app-install-notice.
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
+import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
 
@@ -30,6 +31,7 @@ export function serviceWith(args: {
   findOpenPrForBranch?: GithubUserReads['findOpenPrForBranch']
   fetchImpl?: typeof fetch
   shouldRecommend?: () => Promise<boolean>
+  mailbox?: GithubPrEventMailboxService
 }): GithubSubscriptionsService {
   const github = {
     findToken: async () => args.token,
@@ -47,11 +49,14 @@ export function serviceWith(args: {
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
   stubGlobal('fetch', args.fetchImpl ?? okFetch)
+  const mailbox =
+    args.mailbox ?? ({ record: async () => undefined } as unknown as GithubPrEventMailboxService)
   return new GithubSubscriptionsService(
     github,
     reads,
     hooks,
     installNotice,
     localObservations(github),
+    mailbox,
   )
 }

@@ -9,7 +9,12 @@ import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { pushPrTransitions } from './github-pr-transition-push'
+import { deliverPrTransitions } from './github-pr-transition-push'
+import {
+  readPrStateForUpdate,
+  snapshotOfLocked,
+  unsettledHeadExists,
+} from './github-pr-head-checks'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { payloadFieldsOf } from './github-pr-payload'
 import {
@@ -26,7 +31,6 @@ import {
   subscriptionLiveWhere,
 } from './github-delivery-routing'
 import { type GithubPrStateRecord } from './github-realtime.types'
-import type { PrTransitionSnapshot } from './github-pr-event-transitions'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import type {
@@ -46,6 +50,8 @@ const HANDLED_EVENTS = new Set([
   'pull_request_review',
   'pull_request_review_comment',
 ])
+
+export const POST_MERGE_RECONCILE_WINDOW_MS = 30 * 60 * 1_000
 
 @Injectable()
 export class GithubDeliveryService {
@@ -163,15 +169,36 @@ export class GithubDeliveryService {
     }
   }
 
+  /**
+   * Merged PRs stay check-targetable for a short post-terminal window while their head's verdict
+   * obligation is unsettled — the final green often lands after the merge delivery, and dropping
+   * the PR from targeting the moment it merges closes the only repair path (#1635).
+   */
   private async affectedPrs(target: CheckTarget): Promise<Row<'GithubPrState'>[]> {
-    const open = db.orm.public.GithubPrState.where((pr) =>
+    const matched = db.orm.public.GithubPrState.where((pr) =>
       pr.repoFullName.ilike(repoPattern(target.repoFullName)),
-    ).where((pr) => pr.state.in(['open', 'draft']))
+    )
     const byBranch =
-      target.branch === null ? [] : await open.where({ headBranch: target.branch }).all()
-    const bySha = target.sha === null ? [] : await open.where({ headSha: target.sha }).all()
+      target.branch === null ? [] : await matched.where({ headBranch: target.branch }).all()
+    const bySha = target.sha === null ? [] : await matched.where({ headSha: target.sha }).all()
     const prs = new Map<number, Row<'GithubPrState'>>()
-    for (const row of [...byBranch, ...bySha]) prs.set(row.prNumber, row)
+    const windowOpen = Date.now() - POST_MERGE_RECONCILE_WINDOW_MS
+    for (const row of [...byBranch, ...bySha]) {
+      if (row.state === 'open' || row.state === 'draft') {
+        prs.set(row.prNumber, row)
+        continue
+      }
+      if (row.state !== 'merged' || row.updatedAt.getTime() < windowOpen) continue
+      if (
+        await unsettledHeadExists({
+          repoFullName: row.repoFullName,
+          prNumber: row.prNumber,
+          headSha: row.headSha,
+        })
+      ) {
+        prs.set(row.prNumber, row)
+      }
+    }
     return [...prs.values()]
   }
 
@@ -229,68 +256,77 @@ export class GithubDeliveryService {
     }
   }
 
+  /**
+   * One transaction per observation: the locked state row is the prior, the upsert and the
+   * dedupe-keyed event rows commit together, so a crash between the state write and event
+   * creation no longer consumes a boundary — the retry replays the same observation and its
+   * dedupe keys make the event inserts idempotent.
+   */
   private async recordAndPush(args: {
     repoFullName: string
     prNumber: number
     fields: GithubPrStateRecord
   }): Promise<void> {
-    args = {
-      ...args,
-      repoFullName: normalizedRepo(args.repoFullName),
-      fields: {
-        ...args.fields,
-        headRepoFullName:
-          args.fields.headRepoFullName === null
-            ? null
-            : normalizedRepo(args.fields.headRepoFullName),
-      },
+    const repoFullName = normalizedRepo(args.repoFullName)
+    const fields = {
+      ...args.fields,
+      headRepoFullName:
+        args.fields.headRepoFullName === null ? null : normalizedRepo(args.fields.headRepoFullName),
     }
-    const priorRow = await db.orm.public.GithubPrState.where((pr) =>
-      pr.repoFullName.ilike(repoPattern(args.repoFullName)),
-    )
-      .where({ prNumber: args.prNumber })
-      .orderBy((pr) => pr.updatedAt.desc())
-      .first()
-    const prior = snapshotOf(priorRow)
-    const row = await db.orm.public.GithubPrState.upsert({
-      conflictOn: { repoFullName: args.repoFullName, prNumber: args.prNumber },
-      create: { repoFullName: args.repoFullName, prNumber: args.prNumber, ...args.fields },
-      update: args.fields,
+
+    const { row, userIds } = await db.transaction(async (tx) => {
+      const priorRow = await readPrStateForUpdate({ tx, repoFullName, prNumber: args.prNumber })
+      const prior = priorRow === null ? null : snapshotOfLocked(priorRow)
+      const headBranch = fields.headBranch ?? priorRow?.headBranch
+      const headRepoFullName = fields.headRepoFullName ?? priorRow?.headRepoFullName ?? null
+      const row = await tx.orm.public.GithubPrState.upsert({
+        conflictOn: { repoFullName, prNumber: args.prNumber },
+        create: { repoFullName, prNumber: args.prNumber, ...fields },
+        update: fields,
+      })
+
+      const subscribers = await tx.orm.public.GithubSubscription.where(
+        subscriberWhereOf({
+          repoFullName,
+          prNumber: args.prNumber,
+          routing: branchRoutingOf({
+            baseRepoFullName: repoFullName,
+            headBranch: headBranch ?? '',
+            headRepoFullName,
+          }),
+        }),
+      ).all()
+      const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
+      await deliverPrTransitions({
+        writes: { mailbox: this.mailbox, repoFullName, prNumber: args.prNumber, url: row.url },
+        prior,
+        next: snapshotOfLocked(row),
+        userIds,
+        tx,
+      })
+      return { row, userIds }
     })
 
+    const observers = await this.observations
+      .owners({ repoFullName, prNumber: args.prNumber })
+      .catch((failure: unknown) => {
+        this.logger.warn(`observational PR routing unavailable: ${String(failure)}`)
+        return []
+      })
+    const stateUserIds = [...new Set([...userIds, ...observers])]
+    if (stateUserIds.length > 0) this.fanout.push({ userIds: stateUserIds, state: dtoOf(row) })
+    if (userIds.length === 0) return
     const subscribers = await db.orm.public.GithubSubscription.where(
       subscriberWhereOf({
-        repoFullName: args.repoFullName,
+        repoFullName,
         prNumber: args.prNumber,
         routing: branchRoutingOf({
-          baseRepoFullName: args.repoFullName,
-          headBranch: args.fields.headBranch,
-          headRepoFullName: args.fields.headRepoFullName ?? row.headRepoFullName,
+          baseRepoFullName: repoFullName,
+          headBranch: row.headBranch,
+          headRepoFullName: row.headRepoFullName,
         }),
       }),
     ).all()
-    const observers = await this.observations.owners(args).catch((failure: unknown) => {
-      this.logger.warn(`observational PR routing unavailable: ${String(failure)}`)
-      return []
-    })
-    const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
-    const stateUserIds = [...new Set([...userIds, ...observers])]
-    if (stateUserIds.length > 0) this.fanout.push({ userIds: stateUserIds, state: dtoOf(row) })
-    if (subscribers.length === 0) return
     await announceSubscriberThreads({ signals: this.signals, subscribers })
-
-    await pushPrTransitions({ mailbox: this.mailbox, prior, row, userIds })
-  }
-}
-
-function snapshotOf(row: Row<'GithubPrState'> | null): PrTransitionSnapshot | null {
-  if (row === null) return null
-  return {
-    state: row.state,
-    headSha: row.headSha,
-    checksRunning: row.checksRunning,
-    checksPassed: row.checksPassed,
-    checksFailed: row.checksFailed,
-    mergeable: row.mergeable,
   }
 }

@@ -24,6 +24,7 @@ import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 import { GithubSubscriptionsRouter } from './github-subscriptions.router'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
+import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubModule } from './github.module'
 import { GithubObservationStore } from './github-observation.store'
 
@@ -43,6 +44,7 @@ import { GithubObservationStore } from './github-observation.store'
     GithubDeliveryService,
     GithubPrDiscussionDeliveryService,
     GithubPrEventMailboxService,
+    GithubWebhookInboxService,
     prFrameBusProvider,
     GithubPrFanoutService,
     GithubSandboxWakeService,

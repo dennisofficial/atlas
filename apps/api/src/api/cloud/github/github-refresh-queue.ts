@@ -6,6 +6,7 @@ import type { GithubHookLifecycleService } from './github-hook-lifecycle.service
 import type { GithubObservationStore } from './github-observation.store'
 import { GithubHttpBudgetUnavailable, GithubCredentialCooldown } from './github-request-budget'
 import { GithubUserReadFailed } from './github-user-reads'
+import { unsettledHeadExists } from './github-pr-head-checks'
 
 type Target = {
   repoFullName: string
@@ -90,8 +91,16 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
   const states = new Map(
     (await cachedPrStates([...targets.values()])).map((state) => [prIdentity(state), state]),
   )
-  const ordered = [...targets.values()]
-    .filter((target) => states.get(prIdentity(target))?.state !== 'merged')
+  const ordered = (
+    await Promise.all(
+      [...targets.values()].map(async (target) => {
+        const state = states.get(prIdentity(target))
+        if (state === undefined || state.state !== 'merged') return target
+        return (await mergedAwaitingVerdict(state)) ? target : null
+      }),
+    )
+  )
+    .filter((target) => target !== null)
     .sort(
       (a, b) =>
         Date.parse(states.get(prIdentity(a))?.updatedAt ?? '1970-01-01') -
@@ -162,6 +171,28 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
       idleSince: new Date(),
     })
   }
+}
+
+/**
+ * A merged PR keeps a refresh slot while its head still owes a verdict, for a short window after
+ * the merge: the final CI result commonly lands post-merge, and dropping the target the moment it
+ * merges closes the only repair path (#1635). Once the verdict obligation is discharged or the
+ * window passes, the PR leaves the queue for good.
+ */
+export const MERGED_UNSETTLED_WINDOW_MS = 30 * 60 * 1_000
+
+async function mergedAwaitingVerdict(state: {
+  repoFullName: string
+  prNumber: number
+  headSha: string
+  updatedAt: string
+}): Promise<boolean> {
+  if (Date.now() - Date.parse(state.updatedAt) > MERGED_UNSETTLED_WINDOW_MS) return false
+  return unsettledHeadExists({
+    repoFullName: normalizedRepo(state.repoFullName),
+    prNumber: state.prNumber,
+    headSha: state.headSha,
+  })
 }
 
 function credentialLimited(failure: unknown): boolean {

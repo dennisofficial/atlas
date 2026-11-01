@@ -18,6 +18,7 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { installLandingPage } from './github-app-install-landing'
 import { GithubDeliveryService } from './github-delivery.service'
+import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { verifyGithubSignature } from './github-webhook.signature'
 import type {
   GithubAppInstallationRepositoriesWebhookPayload,
@@ -42,6 +43,7 @@ export class GithubAppHookController {
     private readonly deliveries: GithubDeliveryService,
     private readonly installations: GithubAppInstallationsService,
     private readonly env: EnvService,
+    private readonly inbox: GithubWebhookInboxService,
   ) {}
 
   /**
@@ -69,6 +71,7 @@ export class GithubAppHookController {
     @Req() request: GithubPrWebhookRequest,
     @Headers('x-hub-signature-256') signature: string | undefined,
     @Headers('x-github-event') event: string | undefined,
+    @Headers('x-github-delivery') deliveryId: string | undefined,
     @Headers('content-type') contentType: string | undefined,
   ): Promise<{ received: boolean }> {
     const secret = this.env.get('GITHUB_APP_WEBHOOK_SECRET')
@@ -92,8 +95,22 @@ export class GithubAppHookController {
       return { received: true }
     }
 
-    const outcome = await this.deliveries.handle({ event, payload })
-    if (!outcome.handled) this.logger.log(`unhandled github app delivery event=${event}`)
+    if (deliveryId !== undefined) {
+      const fresh = await this.inbox.insert({ deliveryId, event, payload })
+      if (!fresh) return { received: true }
+    }
+    try {
+      const outcome = await this.deliveries.handle({ event, payload })
+      if (!outcome.handled) this.logger.log(`unhandled github app delivery event=${event}`)
+    } catch (failure) {
+      if (deliveryId !== undefined)
+        await this.inbox.markFailed({ deliveryId, error: failure }).catch(() => undefined)
+      this.logger.warn(
+        `github app delivery ${deliveryId ?? 'untracked'} failed: ${String(failure)}`,
+      )
+      return { received: true }
+    }
+    if (deliveryId !== undefined) await this.inbox.markProcessed({ deliveryId })
     return { received: true }
   }
 

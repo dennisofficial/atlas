@@ -10,7 +10,8 @@ import { normalizedRepo, repoPattern } from './github-pr-identity'
 import { GithubObservationStore } from './github-observation.store'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { pushPrTransitions, snapshotOf } from './github-pr-transition-push'
+import { deliverPrTransitions } from './github-pr-transition-push'
+import { readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
 import { refreshGithubQueue } from './github-refresh-queue'
 import {
   GithubHttpBudgetUnavailable,
@@ -19,6 +20,7 @@ import {
   credentialFingerprint,
 } from './github-request-budget'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
+import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { GithubService } from './github.service'
 
 @Injectable()
@@ -108,37 +110,14 @@ export class GithubPollSweeperService {
     if (token === undefined) return 'skipped'
     const repoFullName = normalizedRepo(args.repoFullName)
     const [owner, repo] = repoFullName.split('/') as [string, string]
-    let row: Row<'GithubPrState'>
-    const prior = snapshotOf(
-      await db.orm.public.GithubPrState.where((pr) =>
-        pr.repoFullName.ilike(repoPattern(repoFullName)),
-      )
-        .where({ prNumber: args.prNumber })
-        .orderBy((pr) => pr.updatedAt.desc())
-        .first(),
-    )
+    let fields: PullRequestCacheFields
     try {
-      const fields = await this.reads.readPullRequest({
+      fields = await this.reads.readPullRequest({
         source: EGithubCallSource.PollSweep,
         token,
         owner,
         repo,
         number: args.prNumber,
-      })
-      const normalizedFields = {
-        ...fields,
-        headRepoFullName:
-          fields.headRepoFullName === null ? null : normalizedRepo(fields.headRepoFullName),
-      }
-      row = await db.orm.public.GithubPrState.upsert({
-        conflictOn: { repoFullName, prNumber: args.prNumber },
-        create: {
-          repoFullName,
-          prNumber: args.prNumber,
-          ...normalizedFields,
-          updatedAt: new Date(),
-        },
-        update: { ...normalizedFields, updatedAt: new Date() },
       })
     } catch (failure) {
       if (failure instanceof GithubCredentialCooldown) return 'credential-limited'
@@ -154,6 +133,52 @@ export class GithubPollSweeperService {
       }
       throw failure
     }
+    const normalizedFields = {
+      ...fields,
+      headRepoFullName:
+        fields.headRepoFullName === null ? null : normalizedRepo(fields.headRepoFullName),
+    }
+    const { row, userIds } = await db.transaction(async (tx) => {
+      const priorRow = await readPrStateForUpdate({
+        tx,
+        repoFullName,
+        prNumber: args.prNumber,
+      })
+      const prior = priorRow === null ? null : snapshotOfLocked(priorRow)
+      const row = await tx.orm.public.GithubPrState.upsert({
+        conflictOn: { repoFullName, prNumber: args.prNumber },
+        create: {
+          repoFullName,
+          prNumber: args.prNumber,
+          ...normalizedFields,
+          updatedAt: new Date(),
+        },
+        update: { ...normalizedFields, updatedAt: new Date() },
+      })
+      const subscribers = await tx.orm.public.GithubSubscription.where(
+        subscriberWhereOf({
+          repoFullName,
+          prNumber: args.prNumber,
+          routing: {
+            headBranch: row.headBranch,
+            headRepoMatchesBase: row.headRepoFullName === repoFullName,
+          },
+        }),
+      ).all()
+      const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
+      await deliverPrTransitions({
+        writes: { mailbox: this.mailbox, repoFullName, prNumber: args.prNumber, url: row.url },
+        prior,
+        next: snapshotOfLocked(row),
+        userIds,
+        tx,
+      })
+      return { row, userIds }
+    })
+    const observers = await this.observations.owners({ repoFullName, prNumber: args.prNumber })
+    const stateUserIds = [...new Set([...userIds, ...observers])]
+    if (stateUserIds.length > 0) this.fanout.push({ userIds: stateUserIds, state: dtoOf(row) })
+    if (userIds.length === 0) return 'polled'
     const subscribers = await db.orm.public.GithubSubscription.where(
       subscriberWhereOf({
         repoFullName,
@@ -164,13 +189,7 @@ export class GithubPollSweeperService {
         },
       }),
     ).all()
-    const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
-    const observers = await this.observations.owners({ repoFullName, prNumber: args.prNumber })
-    const stateUserIds = [...new Set([...userIds, ...observers])]
-    if (stateUserIds.length > 0) this.fanout.push({ userIds: stateUserIds, state: dtoOf(row) })
-    if (subscribers.length === 0) return 'polled'
     await announceSubscriberThreads({ signals: this.signals, subscribers })
-    await pushPrTransitions({ mailbox: this.mailbox, prior, row, userIds })
     return 'polled'
   }
 }
