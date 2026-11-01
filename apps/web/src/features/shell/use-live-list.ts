@@ -1,7 +1,7 @@
 'use client'
 
 import { skipToken, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 
 import { listLocalPods } from '@/features/desktop/desktop-wire'
 import { subscribeThreadsLive } from '@/features/threads/data/threads-api'
@@ -13,9 +13,12 @@ import { activityOverrides } from './activity-overrides'
 import { createdThreads } from './created-threads'
 import { createLiveListPublisher } from './live-list-publisher'
 import { createThreadsLive } from './live-stream'
+import { readSidebarCache, writeSidebarCache } from './sidebar-cache'
 import type { ProjectThreads } from './thread-partition'
 
 type ShellThreadsBox = { value: { entries: ProjectThreads[]; startedAt: number } }
+
+const CACHE_STARTED_AT = 0
 
 export function useLiveList(): CloudQuery<ProjectThreads[]> {
   const queryClient = useQueryClient()
@@ -35,11 +38,21 @@ export function useLiveList(): CloudQuery<ProjectThreads[]> {
       queryClient.setQueryData([PROJECTS_KEY], {
         value: [...applied.state.projects.values()],
       })
+      writeSidebarCache(entries)
     },
     [queryClient],
   )
   const publishRef = useRef(publish)
   publishRef.current = publish
+
+  useLayoutEffect(() => {
+    if (queryClient.getQueryData([SHELL_THREADS_KEY]) !== undefined) return
+    const cached = readSidebarCache()
+    if (cached === undefined) return
+    queryClient.setQueryData<ShellThreadsBox>([SHELL_THREADS_KEY], {
+      value: { entries: cached, startedAt: CACHE_STARTED_AT },
+    })
+  }, [queryClient])
 
   useEffect(() => {
     if (!visible) return undefined

@@ -1,8 +1,18 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import type { WireTurn } from '@dltech/atlas-wire/web'
 
-import { spendOf, watchSpend, type SpendChannel } from '../thread-spend-source'
+import { fakeFetch, queryUrl, trpcFailure, trpcOk } from './trpc-fake'
+
+import {
+  readSpendFromApi,
+  spendOf,
+  watchApiSpend,
+  watchSpend,
+  type SpendChannel,
+} from '../thread-spend-source'
+
+const realFetch = globalThis.fetch
 
 const turn = (over: Partial<WireTurn> = {}): WireTurn => ({
   runId: 'r',
@@ -54,5 +64,49 @@ describe('watchSpend', () => {
     watch.stop()
     expect(seen).toEqual([20, 20])
     expect(offs).toBe(2)
+  })
+})
+
+describe('readSpendFromApi', () => {
+  afterEach(() => {
+    globalThis.fetch = realFetch
+  })
+
+  it('reads threadTurns.list for the thread and tallies the turns', async () => {
+    const calls = fakeFetch(() => trpcOk([turn(), turn({ outputTokens: 5 })]))
+    const spend = await readSpendFromApi({ threadId: 'thr/1' })
+    expect(calls.map((call) => call.url)).toEqual([
+      queryUrl({ procedure: 'threadTurns.list', input: { threadId: 'thr/1' } }),
+    ])
+    expect(spend.outputTokens).toBe(15)
+    expect(spend.costUsd).toBeNull()
+  })
+})
+
+describe('watchApiSpend', () => {
+  afterEach(() => {
+    globalThis.fetch = realFetch
+  })
+
+  it('reports the first read, refreshes on demand, and drops results after stop', async () => {
+    const calls = fakeFetch(() => trpcOk([turn()]))
+    const seen: number[] = []
+    const watch = watchApiSpend({ threadId: 't', onSpend: (s) => seen.push(s.outputTokens) })
+    await Bun.sleep(10)
+    watch.refresh()
+    await Bun.sleep(10)
+    watch.refresh()
+    watch.stop()
+    await Bun.sleep(10)
+    expect(calls).toHaveLength(3)
+    expect(seen).toEqual([10, 10])
+  })
+
+  it('swallows a failed read', async () => {
+    fakeFetch(() => trpcFailure({ status: 500 }))
+    const seen: number[] = []
+    watchApiSpend({ threadId: 't', onSpend: (s) => seen.push(s.outputTokens) })
+    await Bun.sleep(10)
+    expect(seen).toEqual([])
   })
 })

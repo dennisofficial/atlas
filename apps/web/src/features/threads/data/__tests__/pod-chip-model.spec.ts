@@ -15,11 +15,18 @@ const pod = (change: Partial<PodStatus>): PodStatus => ({
 })
 
 describe('chipStatusOf', () => {
-  it('has no chip before the pod status loads or without a sized pod', () => {
+  it('has no chip before the pod status loads or for a live pod without a size', () => {
     expect(chipStatusOf(null)).toBeNull()
     expect(chipStatusOf(pod({ state: EPodState.None }))).toBeNull()
     expect(chipStatusOf(pod({ resources: undefined }))).toBeNull()
     expect(chipStatusOf(pod({ resources: { sandboxId: 'sbx_1', region: 'iad1' } }))).toBeNull()
+  })
+
+  it('renders a parked pod without resources as parked, not missing', () => {
+    const unpersisted = pod({ state: EPodState.Parked, resources: undefined })
+    expect(chipStatusOf(unpersisted)).toEqual({ state: EUiPodState.Parked })
+    const failed = pod({ state: EPodState.Failed, resources: undefined })
+    expect(chipStatusOf(failed)).toEqual({ state: EUiPodState.Stopped })
   })
 
   it('maps a running pod with its size, id and region', () => {
