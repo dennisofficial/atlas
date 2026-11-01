@@ -24,7 +24,7 @@ Create only what the repo needs; each item is optional and commit the shared one
 5. `.atlas/container.json` (or `.atlas/Dockerfile`): the image and setup for Docker execution.
 6. `.atlas/skills/`, `.atlas/agents/`: repo skills and agent types.
 7. `.atlas/plugins/`: hooks, tools and prompt fragments, as TypeScript.
-8. Worktrees need no setup: Atlas creates them under `.atlas/worktrees` and writes its own `.gitignore` there.
+8. `.atlas/worktree.yaml`: gitignored files (`.env.keys`, local env files, caches) to copy or link into every worktree Atlas creates or adopts; a fresh worktree has none of them otherwise. Atlas creates worktrees under `.atlas/worktrees` and writes its own `.gitignore` there. See `references/worktrees.md`.
 
 ## Every file Atlas reads
 
@@ -37,7 +37,7 @@ Create only what the repo needs; each item is optional and commit the shared one
 | `.atlas/services.yaml` | project | `references/services.md` |
 | `.atlas/container.json`, `.devcontainer/devcontainer.json`, `.atlas/Dockerfile`, `<atlas-home>/Dockerfile` | project, user | `references/container.md` |
 | `<atlas-home>/plugins/`, `.atlas/plugins/` | user, project | `references/plugins.md` |
-| `.atlas/worktrees/` | project | `references/worktrees.md` |
+| `.atlas/worktrees/`, `.atlas/worktree.yaml` | project | `references/worktrees.md` |
 | Cloud sign-in, sandbox settings, backup | user | `references/cloud.md` |
 
 ## Pages
@@ -52,7 +52,7 @@ Read the page for the task; do not load them all.
 | `references/cloud-config.md` | `cloud_config` tool: project and personal settings, secrets, MCP servers, file mounts |
 | `references/container.md` | Docker image resolution, `container.json` fields, setup recipe |
 | `references/plugins.md` | Writing and installing plugins |
-| `references/worktrees.md` | `enter_worktree`, `exit_worktree`, `worktree_list` |
+| `references/worktrees.md` | `enter_worktree`, `exit_worktree`, `worktree_list`, `.atlas/worktree.yaml` |
 
 ## Ground rules
 
