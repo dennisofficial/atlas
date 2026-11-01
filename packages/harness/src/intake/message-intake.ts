@@ -20,7 +20,18 @@ export type IntakeDriver = {
 
 export type SubmittedInput = Parameters<PendingQueue['enqueue']>[0] & { threadId: ThreadId }
 
-const MAX_WAKE_ATTEMPTS = 3
+/**
+ * A pending notice whose wake keeps failing is never abandoned the way the old attempt cap stranded
+ * it: each consecutive failure backs off further, so a transient crash (a workspace mid-park, a
+ * refresh hiccup) delivers on a later wake while a doomed turn retries slowly instead of spinning.
+ * A drained notice or a changed witness resets the backoff to zero, so a healthy thread wakes at
+ * once.
+ */
+const WAKE_BACKOFF_BASE_MS = 1_000
+const WAKE_BACKOFF_CAP_MS = 30_000
+
+const wakeBackoffMs = (consecutiveFailures: number): number =>
+  Math.min(WAKE_BACKOFF_BASE_MS * 2 ** Math.max(0, consecutiveFailures - 1), WAKE_BACKOFF_CAP_MS)
 
 export class MessageIntake {
   private readonly sources: readonly IntakeSource[]
@@ -28,23 +39,33 @@ export class MessageIntake {
   private readonly heldDrivers = new Map<ThreadId, number>()
   private readonly unsubscribe: readonly (() => void)[]
   private readonly drivers = new Map<ThreadId, IntakeDriver>()
-  private readonly attempts = new Map<ThreadId, { witness: readonly unknown[]; count: number }>()
+  private readonly attempts = new Map<
+    ThreadId,
+    { witness: readonly unknown[]; failures: number; nextAt: number }
+  >()
   private readonly waking = new Set<ThreadId>()
   private readonly preparing = new Map<ThreadId, { done: Promise<void>; finish: () => void }>()
   private queued = false
   private closed = false
-  private suspended = false
+  private suspended = 0
   private lastBusy = false
   private readonly listeners = new Set<() => void>()
   private fallback: ((args: { threadId: ThreadId }) => IntakeDriver | undefined) | undefined
+  private readonly now: () => number
+  private readonly backoff: (consecutiveFailures: number) => number
+  private readonly retryTimers = new Map<ThreadId, ReturnType<typeof setTimeout>>()
 
   constructor(args: {
     sources: readonly IntakeSource[]
     submit?: ((args: SubmittedInput) => void) | undefined
+    now?: (() => number) | undefined
+    backoff?: ((consecutiveFailures: number) => number) | undefined
   }) {
     this.sources = args.sources
     this.submitInput =
       args.submit ?? args.sources.find((source) => source.submit !== undefined)?.submit
+    this.now = args.now ?? Date.now
+    this.backoff = args.backoff ?? wakeBackoffMs
     this.unsubscribe = args.sources.map((source) => source.subscribe(() => this.changed()))
   }
 
@@ -188,18 +209,44 @@ export class MessageIntake {
     })
   }
 
-  suspend(): void {
-    this.suspended = true
+  /**
+   * Suspend is refcounted: every gate holds the intake until its own resume, so overlapping
+   * suspends (rotation guard, drain, park, teardown) cannot leave the intake wedged by resuming
+   * on behalf of a gate that is still holding, nor strand it suspended when one gate forgets.
+   * The intake wakes again only once the last gate has released. Prefer `gate()` where a caller
+   * holds the intake across an await — its release runs on both the success and the throw path.
+   */
+  suspend(): () => void {
+    this.suspended += 1
+    let held = true
+    return () => {
+      if (!held) return
+      held = false
+      this.resume()
+    }
   }
 
   resume(): void {
-    if (!this.suspended) return
-    this.suspended = false
-    this.changed()
+    if (this.suspended === 0) return
+    this.suspended -= 1
+    if (this.suspended === 0) this.changed()
+  }
+
+  /** Suspend for the span of `span`, releasing exactly once however it settles. */
+  async gate<T>(span: () => Promise<T>): Promise<T> {
+    const release = this.suspend()
+    try {
+      return await span()
+    } finally {
+      release()
+    }
   }
 
   dispose(): void {
     this.closed = true
+    this.suspended = 0
+    for (const timer of this.retryTimers.values()) clearTimeout(timer)
+    this.retryTimers.clear()
     for (const unsubscribe of this.unsubscribe) unsubscribe()
     this.drivers.clear()
     this.attempts.clear()
@@ -218,11 +265,51 @@ export class MessageIntake {
     for (const listener of [...this.listeners]) listener()
   }
 
+  /**
+   * The thread stays in `waking` until the launched turn settles, so `busy()` keeps reporting an
+   * in-flight wake-turn — the park decision reads it — and the settle then re-drives the recheck:
+   * a drained turn cleared its backoff through `prepare`'s acknowledge and wakes nothing, while one
+   * that died undelivered is retried on the backoff its failure count already advanced to.
+   */
+  private settleWakeTurn(args: { threadId: ThreadId; settled: void | Promise<unknown> }): void {
+    const release = (): void => {
+      this.waking.delete(args.threadId)
+      this.changed()
+    }
+    if (args.settled === undefined || args.settled === null) {
+      release()
+      return
+    }
+    void Promise.resolve(args.settled)
+      .catch(() => undefined)
+      .then(release)
+  }
+
+  /**
+   * Re-drive is synchronous: a settle or a state change calls recheck directly, and when a failure
+   * is still backing off recheck arms one timer for the remaining gap. The retry always waits at
+   * least one macrotask, even at zero backoff — a wake that fails instantly would otherwise spin
+   * the microtask queue forever, never yielding to a timer or a settle.
+   */
+  private scheduleRetry(threadId: ThreadId, at: number): void {
+    if (this.retryTimers.has(threadId)) return
+    const gap = Math.max(1, at - this.now())
+    const timer = setTimeout(() => {
+      this.retryTimers.delete(threadId)
+      this.changed()
+    }, gap)
+    timer.unref?.()
+    this.retryTimers.set(threadId, timer)
+  }
+
   private recheck(): void {
-    if (this.suspended) return
+    if (this.suspended > 0) return
     const awaiting = new Set(this.sources.flatMap((source) => [...source.threadsAwaitingInput()]))
     for (const threadId of this.attempts.keys()) {
-      if (!awaiting.has(threadId)) this.attempts.delete(threadId)
+      if (!awaiting.has(threadId)) {
+        this.attempts.delete(threadId)
+        this.retryTimers.delete(threadId)
+      }
     }
     for (const threadId of awaiting) {
       const driver = this.drivers.get(threadId) ?? this.fallback?.({ threadId })
@@ -235,22 +322,48 @@ export class MessageIntake {
         continue
       const witness = this.sources.map((source) => source.witness?.({ threadId }) ?? source)
       const prior = this.attempts.get(threadId)
-      const count =
+      const failures =
         prior !== undefined && prior.witness.every((value, index) => value === witness[index])
-          ? prior.count
+          ? prior.failures
           : 0
-      if (count >= MAX_WAKE_ATTEMPTS) continue
+      const readyAt = prior === undefined || failures === 0 ? 0 : prior.nextAt
+      if (readyAt > this.now()) {
+        this.scheduleRetry(threadId, readyAt)
+        continue
+      }
+      this.retryTimers.delete(threadId)
       this.waking.add(threadId)
       this.announceIfBusyChanged()
       void Promise.resolve()
         .then(() => {
-          if (driver.blocked() || this.closed || this.suspended || this.heldDrivers.has(threadId))
+          if (
+            driver.blocked() ||
+            this.closed ||
+            this.suspended > 0 ||
+            this.heldDrivers.has(threadId)
+          ) {
+            // A wake that found the driver blocked never fired, so it is not a failure: the attempt
+            // count is left untouched, and the re-drive retries it at once rather than after a
+            // backoff it did not earn. A persistently blocked driver never gets here — the outer
+            // check already continued — so this cannot spin.
+            this.waking.delete(threadId)
+            this.changed()
             return
-          this.attempts.set(threadId, { witness, count: count + 1 })
-          return driver.wake()
+          }
+          this.attempts.set(threadId, {
+            witness,
+            failures: failures + 1,
+            nextAt: this.now() + this.backoff(failures + 1),
+          })
+          let settled: void | Promise<unknown>
+          try {
+            settled = driver.wake()
+          } catch {
+            settled = undefined
+          }
+          this.settleWakeTurn({ threadId, settled })
         })
-        .catch(() => undefined)
-        .finally(() => {
+        .catch(() => {
           this.waking.delete(threadId)
           this.changed()
         })

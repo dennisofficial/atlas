@@ -297,7 +297,8 @@ export function createTurnDriver(
           blocked: () =>
             turning !== null || committing !== null || relocationFrozen || history.held(),
           wake: () => {
-            handle.sayOrRun()
+            if (!handle.sayOrRun()) return undefined
+            return turning ?? undefined
           },
         },
       })
