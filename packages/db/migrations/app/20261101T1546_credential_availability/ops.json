@@ -1,0 +1,135 @@
+[
+  {
+    "id": "table.CredentialAvailability",
+    "label": "Create table \"CredentialAvailability\"",
+    "summary": "Creates table \"CredentialAvailability\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "CredentialAvailability"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"CredentialAvailability\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CredentialAvailability\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"CredentialAvailability\"",
+        "sql": "CREATE TABLE \"public\".\"CredentialAvailability\" (\n  \"accountId\" text NOT NULL,\n  \"availability\" text NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"fence\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"modelId\" text NOT NULL,\n  \"probeExpiresAt\" timestamptz(3),\n  \"probeId\" text,\n  \"providerId\" text NOT NULL,\n  \"reason\" text,\n  \"revision\" int4 NOT NULL,\n  \"since\" timestamptz(3) NOT NULL,\n  \"until\" timestamptz(3),\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"CredentialAvailability\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"CredentialAvailability\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.CredentialAvailability.CredentialAvailability_userId_accountId_providerId_modelId_key",
+    "label": "Add unique constraint on \"CredentialAvailability\" (userId, accountId, providerId, modelId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "CredentialAvailability_userId_accountId_providerId_modelId_key",
+        "table": "CredentialAvailability"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CredentialAvailability_userId_accountId_providerId_modelId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CredentialAvailability_userId_accountId_providerId_modelId_key",
+          "public",
+          "\"public\".\"CredentialAvailability\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"CredentialAvailability_userId_accountId_providerId_modelId_key\"",
+        "sql": "ALTER TABLE \"public\".\"CredentialAvailability\" ADD CONSTRAINT \"CredentialAvailability_userId_accountId_providerId_modelId_key\" UNIQUE (\"userId\", \"accountId\", \"providerId\", \"modelId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"CredentialAvailability_userId_accountId_providerId_modelId_key\" exists on (userId, accountId, providerId, modelId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "CredentialAvailability_userId_accountId_providerId_modelId_key",
+          "public",
+          "\"public\".\"CredentialAvailability\"",
+          "u",
+          "[\"userId\",\"accountId\",\"providerId\",\"modelId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CredentialAvailability.CredentialAvailability_userId_fkey",
+    "label": "Add foreign key \"CredentialAvailability_userId_fkey\" on \"CredentialAvailability\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CredentialAvailability_userId_fkey",
+        "table": "CredentialAvailability"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CredentialAvailability_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CredentialAvailability_userId_fkey",
+          "public",
+          "\"public\".\"CredentialAvailability\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CredentialAvailability_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CredentialAvailability\"\nADD CONSTRAINT \"CredentialAvailability_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CredentialAvailability_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "CredentialAvailability_userId_fkey",
+          "public",
+          "\"public\".\"CredentialAvailability\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

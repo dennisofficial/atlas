@@ -16,6 +16,17 @@ import { z } from 'zod'
 import { mcpSpecSchema, type McpTransport } from '../mcp/config/specs'
 import { accountOfDto, storedAccountOfDto } from './account-dto'
 import { cloudCall, createHarnessApiClient } from './api-trpc-client'
+import {
+  admitAvailabilityVia,
+  completeAvailabilityVia,
+  controlAvailabilityVia,
+  inspectAvailabilityVia,
+  promoteProbeAvailabilityVia,
+  type AvailabilityControlArgs,
+  type AvailabilityKeyedArgs,
+  type AvailabilityPromoteArgs,
+  type AvailabilitySettleArgs,
+} from './cloud-availability'
 import type { CloudSession } from './cloud-session'
 import { createProjectVia, listProjectsVia, type ProjectInput } from './cloud-projects'
 import {
@@ -148,6 +159,26 @@ export class CloudClient {
     const parsed = activeAccountResponseSchema.parse(body)
 
     return parsed.accountId ?? undefined
+  }
+
+  inspectAvailability(args: AvailabilityKeyedArgs) {
+    return inspectAvailabilityVia({ api: this.api, ...args })
+  }
+
+  admitAvailability(args: AvailabilityKeyedArgs) {
+    return admitAvailabilityVia({ api: this.api, ...args })
+  }
+
+  completeAvailability(args: AvailabilitySettleArgs) {
+    return completeAvailabilityVia({ api: this.api, ...args })
+  }
+
+  promoteProbeAvailability(args: AvailabilityPromoteArgs) {
+    return promoteProbeAvailabilityVia({ api: this.api, ...args })
+  }
+
+  controlAvailability(args: AvailabilityControlArgs) {
+    return controlAvailabilityVia({ api: this.api, ...args })
   }
 
   async listSecrets(): Promise<readonly CloudSecret[]> {

@@ -13,7 +13,7 @@ import {
   toThreadId,
 } from '@dltech/atlas-core'
 
-import { InMemoryCredentialAvailability } from '../../credentials/credential-availability'
+import { CredentialAvailabilityProxy } from '../../cloud/credential-availability-proxy'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { SessionEnvironmentProcessPort } from '../../execution/session-environment'
 import { sessionDirectory, threadDataDirectory } from '../../store/sessions/paths'
@@ -78,9 +78,9 @@ describe('createHarnessContainer', () => {
     )
   })
 
-  it('resolves the credential availability port to one in-memory authority per container', () => {
+  it('resolves the credential availability port to one session-aware proxy per container', () => {
     const port = harness.resolve(registeredPortToken(CredentialAvailabilityPort))
-    expect(port).toBeInstanceOf(InMemoryCredentialAvailability)
+    expect(port).toBeInstanceOf(CredentialAvailabilityProxy)
     expect(harness.resolve(registeredPortToken(CredentialAvailabilityPort))).toBe(port)
     expect(
       createHarnessContainer().resolve(registeredPortToken(CredentialAvailabilityPort)),

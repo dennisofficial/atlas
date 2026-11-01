@@ -49,6 +49,7 @@ export type AdmissionPermit = {
   revision: CredentialRevision
   probe: boolean
   admittedAt: string
+  permitId?: string | undefined
 }
 
 export enum EAdmissionCompletion {
@@ -101,6 +102,7 @@ export const admissionPermitSchema: z.ZodType<AdmissionPermit> = z.object({
   revision: credentialRevisionSchema,
   probe: z.boolean(),
   admittedAt: z.string(),
+  permitId: z.string().optional(),
 })
 
 export const admissionCompletionSchema: z.ZodType<AdmissionCompletion> = z.discriminatedUnion(

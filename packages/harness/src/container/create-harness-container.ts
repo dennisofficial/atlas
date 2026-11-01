@@ -18,6 +18,7 @@ import {
   ExecutionLocationToken,
 } from '../composition/execution-location-state'
 
+import { CredentialAvailabilityProxy } from '../cloud/credential-availability-proxy'
 import { restoreArchivedLocalFiles } from '../cloud/local-recovery'
 import { InMemoryCredentialAvailability } from '../credentials/credential-availability'
 import { registerBuiltinHooks } from '../hooks/register-hooks'
@@ -69,6 +70,7 @@ import {
   ModelCardSourceToken,
   SessionRegistryToken,
   AtlasHomeToken,
+  ServeSessionToken,
   WakeSignalToken,
   WorkspaceRoot,
 } from './tokens'
@@ -100,8 +102,15 @@ export function createHarnessContainer(): DependencyContainer {
   harness.register(registeredPortToken(CredentialAvailabilityPort), {
     useFactory: instanceCachingFactory(
       (resolver) =>
-        new InMemoryCredentialAvailability({
-          clock: resolver.resolve(registeredPortToken(ClockPort)),
+        new CredentialAvailabilityProxy({
+          local: new InMemoryCredentialAvailability({
+            clock: resolver.resolve(registeredPortToken(ClockPort)),
+          }),
+          session: () =>
+            resolver.isRegistered(ServeSessionToken, true)
+              ? resolver.resolve(ServeSessionToken)
+              : null,
+          clientVersion: clientVersionOf(resolver),
         }),
     ),
   })

@@ -9,6 +9,7 @@ model User {
   updatedAt                TimestamptzJsDate(3)        @onCreate(now()) @onUpdate(now())
   accounts                 Account[]
   agentAccounts            AgentAccount[]
+  credentialAvailabilities CredentialAvailability[]
   cloudSandboxes           CloudSandbox[]
   settings                 UserSetting[]
   deviceCodes              DeviceCode[]
