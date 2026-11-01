@@ -1,4 +1,5 @@
 import { channelTicketValid, podConnectReplySchema } from '@dltech/atlas-wire'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
@@ -31,6 +32,7 @@ describe('ThreadPodService.connect', () => {
     const reply = podConnectReplySchema.parse(await connect())
 
     expect(reply.url).toBe(SERVE_URL)
+    expect(reply.threadId).toBe('thr-1')
     expect(reply.token).not.toBe(SERVE_TOKEN)
     expect(JSON.stringify(reply)).not.toContain(SERVE_TOKEN)
     const expiresMs = Date.parse(reply.expiresAt)
@@ -40,6 +42,39 @@ describe('ThreadPodService.connect', () => {
     expect(channelTicketValid({ ...ticket, nowMs: Date.now() })).toBe(true)
     expect(channelTicketValid({ ...ticket, nowMs: Date.now() + 61_000 })).toBe(false)
     expect(channelTicketValid({ ...ticket, threadId: 'thr-2', nowMs: Date.now() })).toBe(false)
+  })
+
+  it('mints the ticket for the manager pod root when a teammate thread connects', async () => {
+    await seedServingPod({ threadId: 'thr-1', userId: 'usr-1' })
+    await db.orm.public.Session.create({
+      id: 'ses_tm-1',
+      userId: 'usr-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      managedBySessionId: 'ses_thr-1',
+    })
+    await db.orm.public.Thread.create({
+      id: 'thr-tm-1',
+      userId: 'usr-1',
+      sessionId: 'ses_tm-1',
+      spawnerThreadId: 'thr-1',
+      agentType: 'teammate',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    await db.orm.public.Session.where({ id: 'ses_tm-1' }).update({ mainThreadId: 'thr-tm-1' })
+
+    const reply = podConnectReplySchema.parse(await connect({ threadId: 'thr-tm-1' }))
+
+    expect(reply.threadId).toBe('thr-1')
+    expect(
+      channelTicketValid({
+        serveToken: SERVE_TOKEN,
+        threadId: 'thr-1',
+        ticket: reply.token,
+        nowMs: Date.now(),
+      }),
+    ).toBe(true)
   })
 
   it('answers 409 pod-not-running when the thread has no sandbox row', async () => {

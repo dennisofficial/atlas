@@ -58,6 +58,7 @@ for (const op of [EClientRequest.Rewind, EClientRequest.SayToAgent]) {
         },
         stop: async () => ({ ok: false, reason: 'no child' }),
         resume: async () => ({ ok: false, reason: 'no child' }),
+        wake: async () => ({ ok: false, reason: 'no child' }),
       },
     })
     const send = (args: {

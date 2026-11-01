@@ -1,12 +1,14 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import {
   EThreadMessageState,
+  EThreadStreamFrame,
   type SaidImageWire,
   type SaidUploadWire,
   type ThreadMessageReply,
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
+import { podRootThreadOf } from '../../platform/sessions/pod-root'
 import { hasBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
@@ -61,6 +63,7 @@ export class ThreadMessagesService {
     const staged = await this.appendAndClaim({ ...args, thread, claimable: gap === null })
     if (staged.appended !== undefined) {
       await this.signals.eventsAppended({ threadId, ...staged.appended })
+      await this.tickPodRoot({ threadId })
     }
     if (gap !== null) {
       await this.pod.reportGap({ threadId, failure: gap })
@@ -79,6 +82,20 @@ export class ThreadMessagesService {
     const session = await sessionOfThread({ reader: db, threadId: args.threadId })
     await db.orm.public.Session.where({ id: session.id }).update({ archivedAt: null })
     this.signals.threadChanged({ threadId: args.threadId })
+  }
+
+  /**
+   * A message appended to a family (e.g. teammate) thread never fires the pod's root watch —
+   * thread signals are per-thread — so the pod would never pull it. Ticking the pod root's
+   * stream moves the running pod to sweep its family on the next pull.
+   */
+  private async tickPodRoot(args: { threadId: string }): Promise<void> {
+    const rootThreadId = await podRootThreadOf({ threadId: args.threadId })
+    if (rootThreadId === args.threadId) return
+    await this.signals.publish({
+      threadId: rootThreadId,
+      frame: { type: EThreadStreamFrame.Heartbeat },
+    })
   }
 
   async takeBack(args: { userId: string; threadId: string; sendId: string }): Promise<void> {

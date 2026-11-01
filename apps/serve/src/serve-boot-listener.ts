@@ -77,6 +77,8 @@ export function listenWhileBooting(args: {
   sandboxSessionId: string
   startedAt: number
   log: ServeLog
+  /** Settled once the app exists; asked whether a ticketed thread is one of the served family. */
+  admitsThread?: ((threadId: string) => Promise<boolean>) | undefined
 }): BootListener {
   let installed:
     | { handlers: SessionHandlers; drain: ServeDrain; health: BootedHealthArgs }
@@ -88,6 +90,7 @@ export function listenWhileBooting(args: {
     threadId: args.threadId,
     handlers: () => installed?.handlers,
     drain: () => installed?.drain,
+    ...(args.admitsThread === undefined ? {} : { admitsThread: args.admitsThread }),
     health: () =>
       installed === undefined
         ? bootingHealth({

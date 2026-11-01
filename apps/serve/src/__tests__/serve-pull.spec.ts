@@ -159,4 +159,67 @@ describe('bindServePull', () => {
     expect(pull.detached()).toBe(1)
     expect(pull.hydrates.calls).toBe(0)
   })
+
+  it('sweeps the family on a tick and wakes a settled child with unanswered input', async () => {
+    const child = toThreadId('thread-child')
+    const woken: string[] = []
+    const settled: import('@dltech/atlas-harness').AgentSnapshot = {
+      agentId: child,
+      spawnedBy: threadId,
+      agentType: 'teammate',
+      intent: 'help',
+      status: 'stopped' as never,
+      turns: 1,
+      toolCalls: 0,
+      lastTool: undefined,
+      startedAt: '2026-10-29T00:00:00.000Z',
+      endedAt: '2026-10-29T01:00:00.000Z',
+    }
+    const pull = setup({
+      tail: [eventOf({ seq: 1, type: 'user-said' }), eventOf({ seq: 2, type: 'assistant-said' })],
+    })
+    pull.detach()
+    const detach = bindServePull({
+      env,
+      threadId,
+      atlasHome: '/tmp/unused',
+      remote,
+      app: {
+        log: {
+          readOwn: async (given: { threadId: string }) =>
+            given.threadId === child
+              ? [eventOf({ seq: 1, type: 'user-said' })]
+              : [
+                  eventOf({ seq: 1, type: 'user-said' }),
+                  eventOf({ seq: 2, type: 'assistant-said' }),
+                ],
+          refresh: async () => undefined,
+        },
+        roster: {
+          snapshot: () => ({ shells: [], agents: [settled], services: [] }),
+          subscribe: () => () => undefined,
+        },
+        agents: {
+          say: async () => ({ ok: false as const, reason: 'not stepping' }),
+          resume: async () => ({ ok: false as const, reason: 'not stepping' }),
+          stop: async () => ({ ok: false as const, reason: 'no' }),
+          wake: async (given: { agentId: string }) => {
+            woken.push(given.agentId)
+            return { ok: true as const, snapshot: settled }
+          },
+        },
+      },
+      driver: { run: () => undefined, busy: () => false },
+      log: () => undefined,
+      hydrate: async () => undefined,
+      subscribe: ({ onTick }) => {
+        onTick()
+        return () => undefined
+      },
+    })
+    await settle()
+    detach()
+
+    expect(woken).toEqual([child])
+  })
 })

@@ -1,9 +1,4 @@
-import {
-  EMPTY_SUBSCRIPTIONS,
-  prStatesWireSchema,
-  rosterWireSchema,
-  type RuntimeCheckpoint,
-} from '@dltech/atlas-wire'
+import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import {
   EClientFrame,
@@ -14,13 +9,14 @@ import {
   type ServeFrame,
 } from '@dltech/atlas-harness'
 
+import { createHelloAdmission } from './hello-family'
 import { protocolRefusal } from './hello-admission'
 import { unreadableRequestReplyOf } from './unreadable-request'
 import { pendingEntriesOf } from './requests'
 import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
+import { createSnapshotBroadcasts } from './socket-broadcast'
 import { createTurnCommands } from './socket-commands'
-import { subscriptionsSnapshot } from './serve-subscription-requests'
 import { createRequestRouter } from './socket-requests'
 import { createDeferredFrames } from './socket-deferred-frames'
 import { createSocketGreeter } from './socket-greet'
@@ -60,9 +56,8 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const aliaser = createStepAliaser()
   let historyGeneration = 0
 
-  const send = (args: { socket: SessionSocket; frame: ServeFrame }): void => {
-    args.socket.send(encodeFrame(args.frame))
-  }
+  const send = (args: { socket: SessionSocket; frame: ServeFrame }): void =>
+    void args.socket.send(encodeFrame(args.frame))
 
   const command = createTurnCommands({
     threadId,
@@ -70,6 +65,8 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     buffer,
     log,
     send,
+    childSend: args.childSend,
+    admitsThread: args.admitsThread,
   })
 
   const router = createRequestRouter({
@@ -148,24 +145,14 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     rotation: () => router.rotation.current(),
   })
 
-  const greet = (args: { socket: SessionSocket; hello: HelloFrame }): void => {
-    const { socket, hello } = args
-    if (transcript === undefined) {
-      greetRest({ socket, hello, head: null })
-      return
-    }
-
-    void transcript.log.head({ threadId: hello.threadId }).then(
-      (head) => {
-        if (!live.has(socket)) return
-        greetRest({ socket, hello, head })
-      },
-      () => {
-        if (!live.has(socket)) return
-        greetRest({ socket, hello, head: null })
-      },
-    )
-  }
+  const { admitHello } = createHelloAdmission({
+    threadId,
+    live,
+    greetRest,
+    refuse,
+    transcript,
+    admitsThread: args.admitsThread,
+  })
 
   const admitted = (args: { socket: SessionSocket; frame: ClientFrame }): void => {
     const { socket, frame } = args
@@ -201,6 +188,13 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     )
   })
 
+  const snapshotBroadcasts = createSnapshotBroadcasts({
+    attached,
+    snapshot,
+    prStatesSnapshot,
+    subscriptions,
+  })
+
   return {
     open({ socket }) {
       live.add(socket)
@@ -233,11 +227,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
           return
         }
         socket.data.helloed = true
-        if (frame.threadId !== threadId) {
-          refuse({ socket, reason: 'this sandbox serves one thread' })
-          return
-        }
-        greet({ socket, hello: frame })
+        admitHello({ socket, hello: frame })
         return
       }
 
@@ -271,34 +261,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
 
     replayDeferred: deferred.replay,
 
-    broadcastRoster() {
-      const frame: ServeFrame = {
-        kind: EServeFrame.Roster,
-        roster: rosterWireSchema.parse(snapshot()),
-      }
-      const encoded = encodeFrame(frame)
-      for (const socket of attached) socket.send(encoded)
-    },
-
-    broadcastPrStates() {
-      const frame: ServeFrame = {
-        kind: EServeFrame.PrStates,
-        states: prStatesWireSchema.parse({ states: prStatesSnapshot() }).states,
-      }
-      const encoded = encodeFrame(frame)
-      for (const socket of attached) socket.send(encoded)
-    },
-
-    broadcastSubscriptions() {
-      const frame: ServeFrame = {
-        kind: EServeFrame.Subscriptions,
-        ...(subscriptions === undefined
-          ? EMPTY_SUBSCRIPTIONS
-          : subscriptionsSnapshot(subscriptions)),
-      }
-      const encoded = encodeFrame(frame)
-      for (const socket of attached) socket.send(encoded)
-    },
+    ...snapshotBroadcasts,
 
     /**
      * A clean close, never terminate(): terminate is what leaves a client staring at a bare 1006

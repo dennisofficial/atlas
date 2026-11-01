@@ -1,7 +1,6 @@
 import { createSignalChatTransport } from '@dltech/atlas-client/chat'
 import {
   createRemoteDeltaChannel,
-  EClientRequest,
   EConnectionView,
   type ChannelSignal,
   type RemoteDeltaChannel,
@@ -9,9 +8,10 @@ import {
   type SandboxAttachment,
 } from '@dltech/atlas-client/channel'
 import { toThreadId } from '@dltech/atlas-core'
-import { readThreadReplySchema, type WireEvent } from '@dltech/atlas-wire/web'
+import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import { createLiveEventReader } from './live-event-reader'
+import { recheckPodModel } from './live-model-recheck'
 import { headOf, keepThrough } from './live-events'
 import { absorbInto, isStepSignal, RELEASED_FIELDS, settleInto } from './live-signals'
 import { createLiveThreadActions } from './live-thread-actions'
@@ -52,6 +52,7 @@ export type LiveThreadControllerArgs = {
 
 export function createLiveThreadController(args: LiveThreadControllerArgs) {
   const threadId = toThreadId(args.threadId)
+  let podThreadId = threadId
   const signalTransport = createSignalChatTransport({ now: () => new Date() })
   let state: LiveThreadState = IDLE_LIVE_THREAD
   let channel: ServeChannel | null = null
@@ -105,6 +106,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       podGone = true
       throw new Error('the pod is not running')
     }
+    podThreadId = toThreadId(minted.ticket.threadId)
     return { url: minted.ticket.url, token: minted.ticket.token }
   }
 
@@ -117,28 +119,13 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     onFailure: fallBack,
   })
 
-  const recheckModel = async (live: RemoteDeltaChannel) => {
-    const read = args.readStoredModel
-    if (read === undefined) return
-    try {
-      const choicesBefore = modelChoices
-      const stored = await read()
-      if (stored === undefined) return
-      const reply = await live.request({
-        op: EClientRequest.ReadThread,
-        params: { threadId: args.threadId },
-      })
-      const podModel = readThreadReplySchema.parse(reply).thread?.model
-      if (stopped || fellBack || modelChoices !== choicesBefore || podModel === undefined) return
-      if (podModel.ref === stored.ref && podModel.effort === stored.effort) return
-      await live.request({
-        op: EClientRequest.SetThreadModel,
-        params: { threadId: args.threadId, model: stored },
-      })
-    } catch {
-      return
-    }
-  }
+  const recheckModel = (live: RemoteDeltaChannel) =>
+    recheckPodModel(live, {
+      threadId: args.threadId,
+      stale: () => stopped || fellBack,
+      choices: () => modelChoices,
+      ...(args.readStoredModel === undefined ? {} : { readStoredModel: args.readStoredModel }),
+    })
 
   const handleSignal = (signal: ChannelSignal) => {
     if (signal.type === 'chunk' && signal.chunk.type === 'finish' && signal.chunk.usage) {
@@ -185,7 +172,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     update({ events: seed })
     const live = createRemoteDeltaChannel({
       ...args.channelOptions,
-      threadId,
+      threadId: podThreadId,
       url: first.url,
       token: first.token,
       lastEventSeq: () => headOf(state.events),
@@ -240,6 +227,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       }
       if (stopped) return
       if (minted.outcome === EPodConnectOutcome.NotRunning) return fallBack()
+      podThreadId = toThreadId(minted.ticket.threadId)
       open({ url: minted.ticket.url, token: minted.ticket.token }, seed)
     } catch {
       fallBack()
@@ -249,7 +237,13 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   const send: LiveSend = ({ text, requestId, images, uploads }) => {
     if (stopped || fellBack || channel === null) return false
     if (channel.connection().state !== EConnectionView.Connected) return false
-    channel.send({ text, requestId, images, uploads })
+    channel.send({
+      text,
+      requestId,
+      images,
+      uploads,
+      ...(threadId === podThreadId ? {} : { threadId }),
+    })
     return true
   }
 

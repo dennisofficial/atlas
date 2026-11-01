@@ -54,6 +54,8 @@ export type RemoteDeltaChannel = DeltaChannel & {
     files?: readonly SaidFile[] | undefined
     uploads?: readonly SaidUpload[] | undefined
     context?: readonly EventDraft[] | undefined
+    /** The family thread the message addresses; absent addresses the served root thread. */
+    threadId?: ThreadId | undefined
   }): void
   run(args?: { resume?: boolean }): void
   interrupt(): void

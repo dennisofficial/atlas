@@ -141,7 +141,15 @@ export type ServeModelBridge = {
   select: (next: { ref: string; effort: string }) => void
 }
 
-export type ServeAgentSteer = Pick<AgentRegistryPort, 'say' | 'resume' | 'stop'>
+export type ServeAgentSteer = Pick<AgentRegistryPort, 'say' | 'resume' | 'stop' | 'wake'>
+
+/** The ports a Send addressed at a family (non-root) thread is delivered through. */
+export type ChildSend = {
+  agents: ServeAgentSteer
+  runner: Pick<TurnRunner, 'runTurn'>
+  log: Pick<EventLogPort, 'append'>
+  ids: Pick<IdPort, 'nextRunId'>
+}
 
 /** The composed session as serve consumes it: everything a socket can reach and nothing else. */
 export type ServeApp = {

@@ -1,9 +1,11 @@
 import { eventBodySchema, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import { EClientFrame, EServeFrame, type ClientFrame, type ServeFrame } from '@dltech/atlas-harness'
 
+import { sayToChild } from './child-send'
 import type { FrameBuffer } from './frame-buffer'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { messageOf } from './message-of'
+import type { ChildSend } from './serve-app'
 import type { SessionSocket } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
 
@@ -12,10 +14,38 @@ export function createTurnCommands(args: {
   driver: ServeTurnDriver
   buffer: Pick<FrameBuffer, 'nextSeq'>
   log: ServeLog
+  childSend?: ChildSend | undefined
+  admitsThread?: ((threadId: string) => Promise<boolean>) | undefined
   send: (args: { socket: SessionSocket; frame: ServeFrame }) => void
 }) {
   const { threadId, driver, buffer, log, send } = args
   const committedSends = new Set<string>()
+
+  const deliverToChild = async (given: {
+    socket: SessionSocket
+    frame: Extract<ClientFrame, { kind: EClientFrame.Send }>
+  }): Promise<void> => {
+    const { socket, frame } = given
+    const target = frame.threadId ?? threadId
+    const fail = (message: string): void => {
+      send({ socket, frame: { kind: EServeFrame.Error, message } })
+    }
+    if (args.childSend === undefined || args.admitsThread === undefined) {
+      fail('that thread is not served here')
+      return
+    }
+    if (!(await args.admitsThread(target).catch(() => false))) {
+      fail('that thread does not belong to this session')
+      return
+    }
+    try {
+      await sayToChild({ ...args.childSend, owner: threadId, agentId: target, frame })
+      committedSends.add(frame.sendId)
+      send({ socket, frame: { kind: EServeFrame.SendAcked, sendId: frame.sendId } })
+    } catch (error) {
+      fail(messageOf(error, 'the message was not accepted'))
+    }
+  }
 
   return (commanded: { socket: SessionSocket; frame: ClientFrame }): void => {
     const { socket, frame } = commanded
@@ -32,6 +62,10 @@ export function createTurnCommands(args: {
       }
       if (committedSends.has(frame.sendId)) {
         send({ socket, frame: { kind: EServeFrame.SendAcked, sendId: frame.sendId } })
+        return
+      }
+      if (frame.threadId !== undefined && frame.threadId !== threadId) {
+        void deliverToChild({ socket, frame })
         return
       }
       void driver

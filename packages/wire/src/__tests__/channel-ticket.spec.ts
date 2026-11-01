@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { channelTicketValid, mintChannelTicket } from '../channel-ticket.js'
+import { channelTicketThread, channelTicketValid, mintChannelTicket } from '../channel-ticket.js'
 
 const NOW = Date.parse('2026-10-22T12:00:00.000Z')
 const SERVE_TOKEN = 'serve-token-abc'
@@ -106,5 +106,32 @@ describe('channel tickets', () => {
   it('refuses an empty serve token on both sides', () => {
     expect(() => mint({ serveToken: '' })).toThrow()
     expect(valid({ ticket: mint().ticket, serveToken: '' })).toBe(false)
+  })
+})
+
+describe('channelTicketThread', () => {
+  const hinted = (args: { ticket: string; nowMs?: number; serveToken?: string }): string | null =>
+    channelTicketThread({
+      serveToken: args.serveToken ?? SERVE_TOKEN,
+      ticket: args.ticket,
+      nowMs: args.nowMs ?? NOW,
+    })
+
+  it('reads the thread of a sound ticket without pinning one', () => {
+    expect(hinted({ ticket: mint().ticket })).toBe(THREAD)
+    expect(hinted({ ticket: mint({ threadId: 'thr-2' }).ticket })).toBe('thr-2')
+  })
+
+  it('answers null for tampered, expired and foreign tickets', () => {
+    const [prefix, , signature] = mint().ticket.split('.')
+    const forged = base64url(
+      JSON.stringify({ aud: 'serve-channel', threadId: 'thr-9', exp: NOW / 1000 + 60 }),
+    )
+
+    expect(hinted({ ticket: `${prefix}.${forged}.${signature}` })).toBe(null)
+    expect(hinted({ ticket: mint().ticket, nowMs: NOW + 120_000 })).toBe(null)
+    expect(hinted({ ticket: mint().ticket, serveToken: 'other-token' })).toBe(null)
+    expect(hinted({ ticket: 'not a ticket at all' })).toBe(null)
+    expect(hinted({ ticket: mint().ticket, serveToken: '' })).toBe(null)
   })
 })

@@ -199,6 +199,7 @@ export const startCompactionServe = async (args: {
       say: (given) => (agentCalls.push('say'), store.agents.say(given)),
       resume: (given) => (agentCalls.push('resume'), store.agents.resume(given)),
       stop: (given) => (agentCalls.push('stop'), store.agents.stop(given)),
+      wake: (given) => (agentCalls.push('wake'), store.agents.wake(given)),
     },
   }
 

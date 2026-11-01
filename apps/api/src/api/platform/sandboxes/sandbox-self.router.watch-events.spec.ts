@@ -1,4 +1,4 @@
-import { EEventsWatchFrame, type EventsWatchFrame } from '@dltech/atlas-wire'
+import { EEventsWatchFrame, EThreadStreamFrame, type EventsWatchFrame } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { createTRPCClient, httpSubscriptionLink } from '@trpc/client'
@@ -85,6 +85,19 @@ describe('SandboxSelfRouter watchEvents', () => {
       events: [wireEvent(1)],
       head: 1,
       historyRev: 0,
+    })
+
+    await waitFor(() => expect(frames.length).toBeGreaterThan(1))
+    expect(frames.every((frame) => frame.type === EEventsWatchFrame.Tick)).toBe(true)
+  })
+
+  it('ticks when a heartbeat lands on the watched thread — the pod-family wake signal', async () => {
+    const { frames } = watch({ threadId: 'thr-1', token: SANDBOX_TOKEN })
+    await waitFor(() => expect(frames).toHaveLength(1))
+
+    await routerSignals.signals.publish({
+      threadId: 'thr-1',
+      frame: { type: EThreadStreamFrame.Heartbeat },
     })
 
     await waitFor(() => expect(frames.length).toBeGreaterThan(1))

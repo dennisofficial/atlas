@@ -45,6 +45,26 @@ const parsedPayload = (segment: string): z.infer<typeof payloadSchema> | null =>
   }
 }
 
+export const channelTicketThread = (args: {
+  serveToken: string
+  ticket: string
+  nowMs: number
+}): string | null => {
+  if (args.serveToken.length === 0) return null
+  const segments = args.ticket.split('.')
+  const [prefix, payloadSegment, signatureSegment] = segments
+  if (segments.length !== 3 || prefix !== TICKET_PREFIX) return null
+  if (payloadSegment === undefined || signatureSegment === undefined) return null
+
+  const expected = signatureOf({ serveToken: args.serveToken, payloadSegment })
+  const offered = Buffer.from(signatureSegment, 'base64url')
+  if (offered.length !== expected.length || !timingSafeEqual(offered, expected)) return null
+
+  const payload = parsedPayload(payloadSegment)
+  if (payload === null || payload.exp * 1000 <= args.nowMs) return null
+  return payload.threadId
+}
+
 export const channelTicketValid = (args: {
   serveToken: string
   threadId: string
