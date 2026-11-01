@@ -20,6 +20,7 @@ import { durableTranscriptOf } from './data/transcript'
 import { useDetailsInput } from './data/use-details-input'
 import { useComposerDock } from './data/use-composer-dock'
 import { useComposerAttachments } from './data/use-composer-attachments'
+import { useComposerDraft } from './data/use-composer-draft'
 import { useComposerHandoff } from './data/use-composer-handoff'
 import { useRunAttention } from './data/use-run-attention'
 import { useTranscriptView } from './data/use-transcript-view'
@@ -84,6 +85,15 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
   const images = useComposerAttachments()
+  const drafts = useComposerDraft({
+    scope: threadId,
+    text: draft,
+    uploads: images.uploads,
+    onRestore: (stored) => {
+      setDraft(stored.text)
+      images.restore({ uploads: stored.uploads, images: [] })
+    },
+  })
 
   const { pod, refresh } = usePodStatus({ threadId, signals })
   const { visible, handleEscape } = useTakeBackEscape({
@@ -167,6 +177,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     sendLive,
     setDraft,
     onSent: (sent) => {
+      drafts.handleSent(sent.text)
       handoff.begin(sent)
       source.refreshEvents()
       refresh()

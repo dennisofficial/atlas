@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import { CloudClient, CloudError, cloudClientFor } from './cloud-client'
+import { composerDraftApiFor, type ComposerDraftApi } from './composer-draft-api'
 import type { CloudSession, CloudSessionStore } from './cloud-session'
 import { VercelCredentialStore } from './vercel-credential-store'
 import { SessionsClient } from './sessions-client'
@@ -104,6 +105,15 @@ export class CloudService {
         fetchFn: this.fetchFn,
       })
     )
+  }
+
+  composerDraftApi(): ComposerDraftApi | null {
+    if (this.sessions.read() === null) return null
+    return composerDraftApiFor({
+      session: () => this.sessions.read(),
+      clientVersion: this.clientVersion ?? 'dev',
+      fetchFn: this.fetchFn,
+    })
   }
 
   signInOffered(): boolean {
