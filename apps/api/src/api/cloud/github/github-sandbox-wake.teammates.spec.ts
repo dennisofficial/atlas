@@ -14,6 +14,21 @@ import {
   serviceWith,
   useWakeFixture,
 } from '../../../../test/github-sandbox-wake-fixture'
+import { EPrEventKind } from './github-realtime.types'
+import type { WakePrEvent } from './github-sandbox-wake-intent'
+
+const VERDICT: WakePrEvent = {
+  userId: 'usr-1',
+  repoFullName: 'compai/app',
+  prNumber: 42,
+  kind: EPrEventKind.Verdict,
+  payload: {
+    url: 'https://github.com/compai/app/pull/42',
+    verdict: 'green',
+    headSha: 'abc123',
+    settled: true,
+  },
+}
 
 async function seedAgentThread(args: { id: string; spawnedBy: string; type: string }) {
   await seedThreadRow({
@@ -21,6 +36,7 @@ async function seedAgentThread(args: { id: string; spawnedBy: string; type: stri
     userId: 'usr-1',
     spawnerThreadId: args.spawnedBy,
     agentType: args.type,
+    managedBySessionId: `ses_${args.spawnedBy}`,
   })
 }
 
@@ -48,6 +64,26 @@ describe('GithubSandboxWakeService teammate subscriptions', () => {
     await flushDebounce()
 
     expect(calls.map((call) => call.threadId)).toEqual(['thr-1'])
+  })
+
+  it('a teammate-owned link wakes the teammate thread with the intent on the teammate thread', async () => {
+    await seedParkedSandbox()
+    await seedAgentThread({ id: 'mate-1', spawnedBy: 'thr-1', type: 'teammate' })
+    await seedSubscription({ threadId: 'mate-1' })
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot }).notifyEvent(PR_EVENT, VERDICT)
+    await flushDebounce()
+
+    expect(calls.map((call) => call.threadId)).toEqual(['mate-1'])
+    const intents = await db.orm.public.Event.where({ threadId: 'mate-1', type: 'pr-event' }).all()
+    expect(intents).toHaveLength(1)
+    const body = JSON.parse(intents[0]?.body ?? '{}') as Record<string, unknown>
+    expect(body.kind).toBe('verdict')
+    expect(body.subscriptionId).toBe('sub-1')
+    expect(
+      await db.orm.public.Event.where({ threadId: 'thr-1', type: 'pr-event' }).all(),
+    ).toHaveLength(0)
   })
 
   it('does not wake for a non-teammate agent thread holding the subscription', async () => {

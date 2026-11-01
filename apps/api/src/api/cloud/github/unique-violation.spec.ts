@@ -4,7 +4,7 @@ import { describe, expect, it } from 'bun:test'
 import { seedRepoHook } from '../../../../test/github-seed'
 import { inconsistentStore, isUniqueViolation } from './unique-violation'
 
-const SUBSCRIPTION_UNIQUE = 'GithubSubscription_userId_repoFullName_branch_key'
+const SUBSCRIPTION_UNIQUE = 'GithubSubscription_userId_repoFullName_branch_threadId_key'
 
 const violationOf = async (work: () => Promise<unknown>): Promise<unknown> => {
   try {

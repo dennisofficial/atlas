@@ -177,6 +177,7 @@ export class EventsService {
       threadId: args.threadId,
       events: args.events,
       signals: this.signals,
+      prLinks: this.prLinks,
     })
   }
 

@@ -52,7 +52,7 @@ export function DetailsTab(props: { agents: AgentsData; subscriptions: Subscript
           <BackgroundSection data={processes} />
           <TodoSection />
           <CrewSection data={props.agents} />
-          <SubscriptionsSection data={props.subscriptions} />
+          <SubscriptionsSection data={props.subscriptions} teammates={props.agents.teammates} />
         </div>
       )}
       <ProcessLogSheet data={processes} />

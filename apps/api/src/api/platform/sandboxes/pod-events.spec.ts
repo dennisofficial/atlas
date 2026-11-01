@@ -82,6 +82,63 @@ describe('applyPodEvents', () => {
     expect(await eventsOf('thr-1')).toHaveLength(3)
   })
 
+  it('syncs conversation subscription events into PR links when a bridge is provided', async () => {
+    const synced: { userId: string; threadId: string; types: string[] }[] = []
+    const prLinks = {
+      syncFromEvents: async (args: {
+        userId: string
+        threadId: string
+        events: readonly { type: string; body: string }[]
+      }) => {
+        synced.push({
+          userId: args.userId,
+          threadId: args.threadId,
+          types: args.events.map((event) => event.type),
+        })
+      },
+    }
+
+    await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      prLinks,
+      events: [
+        eventAt(2, {
+          type: 'subscription-created',
+          body: JSON.stringify({
+            type: 'subscription-created',
+            subscriptionId: 'sub_conv_1',
+            provider: 'github.pull-request',
+            target: { repo: 'github.com/compai/app', number: 42 },
+          }),
+        }),
+        eventAt(3),
+      ],
+    })
+
+    expect(synced).toEqual([
+      { userId: 'user-a', threadId: 'thr-1', types: ['subscription-created'] },
+    ])
+  })
+
+  it('does not call the PR link bridge when no subscription events were appended', async () => {
+    const synced: unknown[] = []
+    const prLinks = {
+      syncFromEvents: async () => {
+        synced.push(null)
+      },
+    }
+
+    await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      prLinks,
+      events: [eventAt(2)],
+    })
+
+    expect(synced).toHaveLength(0)
+  })
+
   it('answers 409 with the seq when a row exists with different content, writing nothing', async () => {
     const failure = await conflictOf(
       applyPodEvents({

@@ -59,6 +59,7 @@ export class GithubSubscriptionsService {
       repo,
       ...(args.prNumber === undefined ? {} : { prNumber: args.prNumber }),
       ...(args.branch === undefined ? {} : { branch: args.branch }),
+      ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
     })
     if (prNumber === null && args.branch === undefined) {
       throw new NotFoundException('no such pull request')
@@ -75,7 +76,7 @@ export class GithubSubscriptionsService {
       pollBacked,
     })
     const branch = args.branch ?? (prNumber === null ? '' : `#${prNumber}`)
-    const threadId = args.threadId ?? null
+    const threadId = args.threadId ?? ''
     const expiresAt = nextExpiry()
     const liveUntil = await this.liveCeiling({ threadId, expiresAt })
 
@@ -95,9 +96,13 @@ export class GithubSubscriptionsService {
         pollBacked,
         expiresAt,
         liveUntil,
+      },
+      conflictOn: {
+        userId: args.userId,
+        repoFullName: args.repoFullName,
+        branch,
         threadId,
       },
-      conflictOn: { userId: args.userId, repoFullName: args.repoFullName, branch },
     })
     await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).updateAndCount({
       idleSince: null,
@@ -158,13 +163,14 @@ export class GithubSubscriptionsService {
     if (subscription === null || subscription.userId !== args.userId) {
       throw new NotFoundException('no such subscription')
     }
-    const threadId = args.threadId ?? subscription.threadId
+    if (args.threadId !== undefined && subscription.threadId !== args.threadId) {
+      throw new NotFoundException('no such subscription')
+    }
     const expiresAt = nextExpiry()
-    const liveUntil = await this.liveCeiling({ threadId, expiresAt })
+    const liveUntil = await this.liveCeiling({ threadId: subscription.threadId, expiresAt })
     const updated = await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({
       expiresAt,
       liveUntil,
-      ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
     })
     if (updated === null) throw new NotFoundException('no such subscription')
     return { expiresAt: updated.expiresAt.toISOString() }
@@ -209,6 +215,7 @@ export class GithubSubscriptionsService {
     repo: string
     prNumber?: number
     branch?: string
+    threadId?: string
   }): Promise<number | null> {
     if (args.prNumber !== undefined) return args.prNumber
     const branch = args.branch
@@ -228,8 +235,9 @@ export class GithubSubscriptionsService {
       userId: args.userId,
       repoFullName: args.repoFullName,
       branch: args.branch,
+      threadId: args.threadId ?? '',
     }).first()
-    return held?.prNumber ?? null
+    return held === null ? null : held.prNumber
   }
 
   /**
@@ -303,8 +311,8 @@ export class GithubSubscriptionsService {
     }
   }
 
-  private async liveCeiling(args: { threadId: string | null; expiresAt: Date }): Promise<Date> {
-    if (args.threadId === null) return args.expiresAt
+  private async liveCeiling(args: { threadId: string; expiresAt: Date }): Promise<Date> {
+    if (args.threadId === '') return args.expiresAt
     const activity = await threadActivityAt({ threadIds: [args.threadId] })
     return liveUntilOf({
       expiresAt: args.expiresAt,

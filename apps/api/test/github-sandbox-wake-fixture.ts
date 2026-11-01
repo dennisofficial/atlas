@@ -112,7 +112,7 @@ export async function seedSubscription(
     branch: `#42-${threadId ?? 'none'}`,
     expiresAt: pastDate(60_000),
     liveUntil: pastDate(60_000),
-    threadId,
+    threadId: threadId ?? '',
   })
   if (threadId === null) return
   await seedThreadSubscription({

@@ -12,11 +12,9 @@ export async function linkedThreadsOf(args: {
   prNumber: number
 }): Promise<LinkedThreads> {
   const rows = await db.orm.public.GithubSubscription.where(args)
-    .where((subscription) => subscription.threadId.isNotNull())
+    .where((subscription) => subscription.threadId.neq(''))
     .all()
-  const subscriptions = rows.flatMap((row) =>
-    row.threadId === null ? [] : [{ threadId: row.threadId, liveUntil: row.liveUntil }],
-  )
+  const subscriptions = rows.map((row) => ({ threadId: row.threadId, liveUntil: row.liveUntil }))
   const threadIds = subscriptions.map((subscription) => subscription.threadId)
   return { subscriptions, sandboxes: await sandboxesOfThreads(threadIds) }
 }

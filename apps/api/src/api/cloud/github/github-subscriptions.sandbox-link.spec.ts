@@ -57,15 +57,15 @@ describe('sandbox link and park survival', () => {
     expect((await subscriptionRows())[0]).toMatchObject({ threadId: 'thr_1' })
   })
 
-  it('subscribe without a sandbox principal leaves the link null', async () => {
+  it('subscribe without a sandbox principal leaves the link empty', async () => {
     const service = serviceWith({ token: 'ghu_1' })
 
     await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
 
-    expect((await subscriptionRows())[0]).toMatchObject({ threadId: null })
+    expect((await subscriptionRows())[0]).toMatchObject({ threadId: '' })
   })
 
-  it('re-subscribing from a different sandbox re-points the link', async () => {
+  it('subscribing the same pull request from two threads keeps both rows', async () => {
     const service = serviceWith({ token: 'ghu_1' })
     await sandboxRow()
     await sandboxRow({ id: 'sbx_row_2', threadId: 'thr_2', sandboxId: 'sbx_2' })
@@ -83,11 +83,12 @@ describe('sandbox link and park survival', () => {
       threadId: 'thr_2',
     })
 
-    expect(await subscriptionRows()).toHaveLength(1)
-    expect((await subscriptionRows())[0]).toMatchObject({ threadId: 'thr_2' })
+    const rows = await subscriptionRows()
+    expect(rows).toHaveLength(2)
+    expect(rows.map((row) => row.threadId).sort()).toEqual(['thr_1', 'thr_2'])
   })
 
-  it('heartbeat from a sandbox re-points the link', async () => {
+  it('heartbeat from another thread cannot repoint a linked subscription', async () => {
     const service = serviceWith({ token: 'ghu_1' })
     await sandboxRow()
     const dto = await service.subscribe({
@@ -96,13 +97,14 @@ describe('sandbox link and park survival', () => {
       prNumber: 42,
     })
 
-    await service.heartbeat({
-      userId: 'usr_1',
-      subscriptionId: dto.id,
-      threadId: 'thr_1',
-    })
-
-    expect((await subscriptionRows())[0]).toMatchObject({ threadId: 'thr_1' })
+    await expect(
+      service.heartbeat({
+        userId: 'usr_1',
+        subscriptionId: dto.id,
+        threadId: 'thr_1',
+      }),
+    ).rejects.toThrow('no such subscription')
+    expect((await subscriptionRows())[0]).toMatchObject({ threadId: '' })
   })
 
   it('an expired subscription whose liveUntil covers the wake window still counts as live', async () => {

@@ -34,7 +34,7 @@ export async function seedSubscription(
     pollBacked: false,
     expiresAt: new Date(Date.now() + FAR),
     liveUntil: new Date(Date.now() + FAR),
-    threadId: null,
+    threadId: '',
     ...partial,
   })
 }

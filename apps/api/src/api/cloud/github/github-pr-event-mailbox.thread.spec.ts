@@ -7,6 +7,7 @@ import {
   seedPrEvent,
   seedSubscription,
 } from '../../../../test/github-seed'
+import { seedThreadRow } from '../../../../test/session-seed'
 import { waitFor } from '../../../../test/fake-timers'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -49,6 +50,29 @@ describe('GithubPrEventMailboxService per-thread delivery', () => {
 
     expect(first.map((event) => event.id)).toEqual(['evt_mine'])
     expect(second).toEqual([])
+  })
+
+  it('drains events for a teammate child link and claims them on the teammate thread', async () => {
+    const { mailbox } = serviceWith()
+    await seedThreadRow({ id: 'thr-1', userId: 'usr-a' })
+    await seedThreadRow({
+      id: 'mate-1',
+      userId: 'usr-a',
+      spawnerThreadId: 'thr-1',
+      agentType: 'teammate',
+    })
+    await seedSubscription({
+      userId: 'usr-a',
+      threadId: 'mate-1',
+      createdAt: new Date(Date.now() - 60_000),
+    })
+    await seedPrEvent({ id: 'evt_mate', userId: 'usr-a' })
+
+    const drained = await mailbox.replayForThread({ userId: 'usr-a', threadId: 'thr-1' })
+
+    expect(drained.map((event) => event.id)).toEqual(['evt_mate'])
+    expect((await deliveryRows()).map((row) => row.threadId)).toEqual(['mate-1'])
+    expect(await mailbox.replayForThread({ userId: 'usr-a', threadId: 'thr-1' })).toEqual([])
   })
 
   it('a user stream consuming the event does not starve the thread drain', async () => {

@@ -57,16 +57,13 @@ export class GithubPollSweeperService {
 
   private async refreshLiveUntil(): Promise<void> {
     const linked = await db.orm.public.GithubSubscription.where((subscription) =>
-      subscription.threadId.isNotNull(),
+      subscription.threadId.neq(''),
     ).all()
     const activity = await threadActivityAt({
-      threadIds: linked.flatMap((subscription) =>
-        subscription.threadId === null ? [] : [subscription.threadId],
-      ),
+      threadIds: linked.map((subscription) => subscription.threadId),
     })
     for (const subscription of linked) {
-      const lastActivityAt =
-        subscription.threadId === null ? undefined : activity.get(subscription.threadId)
+      const lastActivityAt = activity.get(subscription.threadId)
       if (lastActivityAt === undefined) continue
       const liveUntil = liveUntilOf({
         expiresAt: subscription.expiresAt,

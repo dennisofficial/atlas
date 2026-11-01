@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 
 import { ensureUsers, seedSubscription } from '../../../../test/github-seed'
-import { seedThreadRow } from '../../../../test/session-seed'
+import { seedEventRow, seedThreadRow } from '../../../../test/session-seed'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 
@@ -36,6 +36,22 @@ function serviceWith(): GithubPrSubscriptionLinks {
 
 const linkRows = () => db.orm.public.GithubSubscription.where({ threadId: THREAD }).all()
 
+async function linkFromConversation(args: { threadId: string }): Promise<void> {
+  const event = createdEvent()
+  await seedEventRow({
+    threadId: args.threadId,
+    seq: 1,
+    type: event.type,
+    body: event.body,
+    userId: USER,
+  })
+  await serviceWith().syncFromEvents({
+    userId: USER,
+    threadId: args.threadId,
+    events: [event],
+  })
+}
+
 describe('GithubPrSubscriptionLinks', () => {
   useTestDatabase()
 
@@ -62,8 +78,12 @@ describe('GithubPrSubscriptionLinks', () => {
     })
   })
 
-  it('upserts the shared (userId, repoFullName, branch) row instead of forking a second one', async () => {
-    await seedSubscription({ userId: USER, repoFullName: 'compai/app', branch: '#42' })
+  it("a conversation link does not steal another principal's row for the same pull request", async () => {
+    const held = await seedSubscription({
+      userId: USER,
+      repoFullName: 'compai/app',
+      branch: '#42',
+    })
 
     await serviceWith().syncFromEvents({
       userId: USER,
@@ -76,8 +96,10 @@ describe('GithubPrSubscriptionLinks', () => {
       repoFullName: 'compai/app',
       branch: '#42',
     }).all()
-    expect(all).toHaveLength(1)
-    expect(all[0]?.threadId).toBe(THREAD)
+    expect(all).toHaveLength(2)
+    const unlinked = all.find((row) => row.id === held.id)
+    expect(unlinked?.threadId).toBe('')
+    expect(all.some((row) => row.threadId === THREAD)).toBe(true)
   })
 
   it('ignores non-PR providers and malformed bodies', async () => {
@@ -92,6 +114,82 @@ describe('GithubPrSubscriptionLinks', () => {
     })
 
     expect(await linkRows()).toHaveLength(0)
+  })
+
+  it('two threads linking the same pull request each keep their own row', async () => {
+    await seedThreadRow({ id: 'thr-2', userId: USER })
+
+    await serviceWith().syncFromEvents({
+      userId: USER,
+      threadId: THREAD,
+      events: [createdEvent()],
+    })
+    await serviceWith().syncFromEvents({
+      userId: USER,
+      threadId: 'thr-2',
+      events: [createdEvent()],
+    })
+
+    const all = await db.orm.public.GithubSubscription.where({
+      userId: USER,
+      repoFullName: 'compai/app',
+      branch: '#42',
+    }).all()
+    expect(all).toHaveLength(2)
+    expect(all.map((row) => row.threadId).sort()).toEqual([THREAD, 'thr-2'].sort())
+  })
+
+  it("a subscription-ended event deletes the thread's link row", async () => {
+    await linkFromConversation({ threadId: THREAD })
+    expect(await linkRows()).toHaveLength(1)
+
+    await serviceWith().syncFromEvents({
+      userId: USER,
+      threadId: THREAD,
+      events: [
+        {
+          type: 'subscription-ended',
+          body: JSON.stringify({
+            type: 'subscription-ended',
+            subscriptionId: 'sub_conv_1',
+            by: 'provider',
+            reason: 'completed',
+          }),
+        },
+      ],
+    })
+
+    expect(await linkRows()).toHaveLength(0)
+  })
+
+  it("a subscription-ended event leaves another thread's link intact", async () => {
+    await seedThreadRow({ id: 'thr-2', userId: USER })
+    await linkFromConversation({ threadId: THREAD })
+    await linkFromConversation({ threadId: 'thr-2' })
+
+    await serviceWith().syncFromEvents({
+      userId: USER,
+      threadId: THREAD,
+      events: [
+        {
+          type: 'subscription-ended',
+          body: JSON.stringify({
+            type: 'subscription-ended',
+            subscriptionId: 'sub_conv_1',
+            by: 'provider',
+            reason: 'completed',
+          }),
+        },
+      ],
+    })
+
+    const remaining = await db.orm.public.GithubSubscription.where({
+      userId: USER,
+      repoFullName: 'compai/app',
+      branch: '#42',
+    }).all()
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0]?.threadId).toBe('thr-2')
   })
 
   it('endForThreads deletes the link rows of archived threads', async () => {
