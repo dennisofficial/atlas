@@ -1,4 +1,8 @@
-import { EEntryKind, type TranscriptEntry } from '@dltech/atlas-client/transcript'
+import {
+  EEntryKind,
+  type PrEventEntry,
+  type TranscriptEntry,
+} from '@dltech/atlas-client/transcript'
 
 import { ENoticeTone, ETranscriptKind } from './transcript-kind'
 
@@ -7,6 +11,7 @@ export type NoticeContext = {
   label: string
   content: string
   superseded: boolean
+  note?: string
 }
 
 export type NoticeItem = {
@@ -73,12 +78,6 @@ function shellNoticeOf(entry: TranscriptEntry): NoticeFields | null {
 
 function fieldsOf(entry: TranscriptEntry): NoticeFields | null {
   switch (entry.kind) {
-    case EEntryKind.PrEvent:
-      return {
-        title: entry.text,
-        body: entry.body,
-        tone: toneOfFailed(entry.failed),
-      }
     case EEntryKind.SystemNotice:
       return {
         title: `${NOTICED_PREFIX}${entry.text}`,
@@ -113,7 +112,44 @@ function fieldsOf(entry: TranscriptEntry): NoticeFields | null {
   }
 }
 
+const FAILED_NOTE = 'failed'
+
+const attentionOf = (count: number): string =>
+  count === 0 ? '' : ` · ${count} ${count === 1 ? 'needs' : 'need'} attention`
+
+export function prNoticeItemOf(entries: PrEventEntry[]): NoticeItem | null {
+  const [first] = entries
+  if (first === undefined) return null
+  if (entries.length === 1) {
+    return noticeOf({
+      id: first.key,
+      fields: {
+        title: first.text,
+        body: first.body,
+        tone: toneOfFailed(first.failed),
+      },
+    })
+  }
+  const failedCount = entries.filter((entry) => entry.failed).length
+  return noticeOf({
+    id: first.key,
+    fields: {
+      title: `PR #${first.prNumber}: ${entries.length} updates${attentionOf(failedCount)}`,
+      body: '',
+      tone: toneOfFailed(failedCount > 0),
+      contexts: entries.map((entry) => ({
+        id: entry.key,
+        label: entry.text,
+        content: entry.body,
+        superseded: false,
+        ...(entry.failed ? { note: FAILED_NOTE } : {}),
+      })),
+    },
+  })
+}
+
 export function noticeItemOf(entry: TranscriptEntry): NoticeItem | null {
+  if (entry.kind === EEntryKind.PrEvent) return prNoticeItemOf([entry])
   const fields = fieldsOf(entry)
   return fields === null ? null : noticeOf({ id: entry.key, fields })
 }

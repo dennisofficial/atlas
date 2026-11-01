@@ -5,6 +5,7 @@ import {
   EThinkingVisibility,
   type InFlightStep,
   type OperatorSaidEntry,
+  type PrEventEntry,
   type RevealGate,
   type ToolCall,
   type TranscriptEntry,
@@ -20,7 +21,12 @@ import {
   type SpawnItem,
 } from './transcript-agents'
 import { ENoticeTone, ETranscriptKind } from './transcript-kind'
-import { noticeItemOf, type NoticeContext, type NoticeItem } from './transcript-notices'
+import {
+  noticeItemOf,
+  prNoticeItemOf,
+  type NoticeContext,
+  type NoticeItem,
+} from './transcript-notices'
 import { toolCallItemOf, type ToolCallItem } from './transcript-tools'
 
 export { ENoticeTone, ETranscriptKind }
@@ -167,6 +173,21 @@ export const durableTranscriptOf = (args: { events: readonly Event[] }): Durable
   reports: [...reportItemsOf(args.events).values()],
 })
 
+function prRunAt(args: { entries: readonly TranscriptEntry[]; index: number }): PrEventEntry[] {
+  const first = args.entries[args.index]
+  if (first === undefined || first.kind !== EEntryKind.PrEvent) return []
+  const run: PrEventEntry[] = [first]
+  for (const next of args.entries.slice(args.index + 1)) {
+    const sameChain =
+      next.kind === EEntryKind.PrEvent &&
+      next.repo === first.repo &&
+      next.prNumber === first.prNumber
+    if (!sameChain) break
+    run.push(next)
+  }
+  return run
+}
+
 export function transcriptViewOf(args: {
   durable: DurableTranscript
   live: readonly InFlightStep[]
@@ -182,13 +203,21 @@ export function transcriptViewOf(args: {
   })
   const { stamps } = args.durable
   const pool = new Map(args.durable.spawns.map((spawn) => [spawn.agentId, spawn]))
-  const rows = model.entries.flatMap((entry): TranscriptRow[] => {
+  const rows: TranscriptRow[] = []
+  let index = 0
+  while (index < model.entries.length) {
+    const entry = model.entries[index]
+    if (entry === undefined) break
+    const run = prRunAt({ entries: model.entries, index })
+    index += Math.max(run.length, 1)
     const found =
       entry.kind === EEntryKind.ToolsRan
         ? rowsOfTools({ key: entry.key, calls: entry.run.calls, pool })
-        : [textItemOf(entry)].flatMap((item) => (item === null ? [] : [item]))
-    return found.map((row) => stamped({ row, at: atOf({ row, stamps }) }))
-  })
+        : [run.length > 0 ? prNoticeItemOf(run) : textItemOf(entry)].flatMap((item) =>
+            item === null ? [] : [item],
+          )
+    for (const row of found) rows.push(stamped({ row, at: atOf({ row, stamps }) }))
+  }
   return {
     items: withInserted({
       items: rows,

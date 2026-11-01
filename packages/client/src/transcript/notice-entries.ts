@@ -128,6 +128,8 @@ export function noticeEntriesOf(args: {
         text: prEventLine(event),
         body: prEventContent(event),
         failed: prEventFailed(event),
+        repo: event.repo,
+        prNumber: event.prNumber,
       },
     ]
   }
