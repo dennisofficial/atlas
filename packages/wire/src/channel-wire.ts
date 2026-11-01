@@ -219,6 +219,8 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal(EClientFrame.Send),
     sendId: sendIdWireSchema,
+    /** The family thread the message addresses; absent addresses the served root thread. */
+    threadId: threadIdWireSchema.optional(),
     text: z.string(),
     requestId: z.string().min(1).optional(),
     images: z.array(saidImageWireSchema).readonly().optional(),
