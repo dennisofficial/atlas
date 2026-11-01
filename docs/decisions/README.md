@@ -25,3 +25,4 @@ says what it supersedes. Tactical choices and decisions that were later reversed
 | [0015](0015-local-pod-threads-stay-local.md) | A local pod's threads stay local; its token reaches only an allow-list |
 | [0016](0016-cloud-settings-are-the-source-of-truth.md) | Cloud settings are the source of truth; pods pull, clients never push |
 | [0017](0017-wire-protocol-skew.md) | The newer side talks down: the wire protocol tolerates skew |
+| [0018](0018-v2-pod-first-architecture.md) | v2 is a pod-first redesign: one writer per fact, the record in the control plane |
