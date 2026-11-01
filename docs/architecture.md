@@ -4,6 +4,8 @@ Authoritative. Where the code disagrees about *mechanism*, the code wins; where 
 *intent*, change the code. Every load-bearing claim here was established by a spike, not by argument
 — evidence in `docs/research/`, seams in `docs/core-contract.md`.
 
+The v2 redesign (pod-first state ownership) is designed in `docs/v2/`; this file describes v1.
+
 ## What Atlas is
 
 A coding-agent harness in the shape of Claude Code. The agentic loop is ours: we make raw model calls
