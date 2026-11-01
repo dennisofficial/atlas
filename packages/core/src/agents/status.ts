@@ -7,6 +7,7 @@ export enum EAgentStatus {
   Stopped = 'stopped',
   Blocked = 'blocked',
   Paused = 'paused',
+  WaitingForModel = 'waiting-for-model',
 }
 
 export type AgentEnding = {
@@ -52,6 +53,9 @@ function outcome(ending: AgentEnding): string {
     return 'is blocked on an approval it cannot answer, after'
   }
   if (ending.status === EAgentStatus.Paused) return 'was paused as the conversation moved, after'
+  if (ending.status === EAgentStatus.WaitingForModel) {
+    return 'is waiting for model access, after'
+  }
   return 'finished after'
 }
 

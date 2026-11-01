@@ -48,6 +48,8 @@ export const REWIND_DISPOSITION = {
   'location-changed': ERewindDisposition.Keep,
   'checkout-observed': ERewindDisposition.Keep,
   'pr-event': ERewindDisposition.Keep,
+  'model-waiting': ERewindDisposition.Keep,
+  'model-wait-cleared': ERewindDisposition.Keep,
   'agent-ended': ERewindDisposition.KeepUnlessCreatorCut,
   'service-ended': ERewindDisposition.KeepUnlessCreatorCut,
   'background-shell-ended': ERewindDisposition.KeepUnlessCreatorCut,

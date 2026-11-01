@@ -13,6 +13,8 @@ describe('rewindDisposition', () => {
     expect(typesWith(ERewindDisposition.Keep)).toEqual([
       'checkout-observed',
       'location-changed',
+      'model-wait-cleared',
+      'model-waiting',
       'pr-event',
     ])
   })

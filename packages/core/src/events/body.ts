@@ -2,6 +2,7 @@ import type { EExecutionLocation } from '../execution/location'
 import type { FilePart, ImagePart, ReasoningPart, TextPart } from '../message/parts'
 import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EServiceStatus } from '../services/status'
+import type { EModelWaitCause, WaitEpisodeRef, WaitingForModel } from '../model-recovery/waiting'
 import type { EKilledBy } from '../shells/status'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
@@ -260,6 +261,8 @@ export type EventBody =
     }
   | { type: 'run-failed'; failure: RunFailure }
   | { type: 'run-failure-dismissed'; failureSeq: number }
+  | { type: 'model-waiting'; waiting: WaitingForModel }
+  | { type: 'model-wait-cleared'; episode: WaitEpisodeRef; cause: EModelWaitCause }
 
 export type EventDraft = EventBody
 
@@ -276,6 +279,8 @@ export const SURVIVES_SUMMARY: readonly EventType[] = [
   'subscription-created',
   'subscription-changed',
   'subscription-ended',
+  'model-waiting',
+  'model-wait-cleared',
 ]
 
 export const survivesSummary = (type: EventType): boolean => SURVIVES_SUMMARY.includes(type)
