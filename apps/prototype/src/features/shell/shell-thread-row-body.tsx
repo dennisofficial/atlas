@@ -7,7 +7,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { type AppThread, EThreadStatus } from './fixtures/app'
 import { RowAction } from './shell-row-action'
-import { ThreadStatusIcon } from './shell-status-icon'
+import { PrStateIcon, RunStatusIcon } from './shell-status-icon'
 import { threadHref } from './thread-href'
 import { useThreadActions } from './thread-actions-context'
 import { ThreadHoverCard } from './thread-hover-card'
@@ -24,15 +24,6 @@ function hasPullRequest(thread: AppThread): boolean {
     thread.status === EThreadStatus.PrOpen ||
     thread.status === EThreadStatus.PrMerged ||
     thread.status === EThreadStatus.PrClosed
-  )
-}
-
-function UnreadDot({ thread }: { thread: AppThread }) {
-  if (thread.unread !== true) return null
-  return (
-    <span className="flex shrink-0 items-center pr-2.5 group-hover/thread:hidden">
-      <span role="img" aria-label="Unread" className="size-1.5 rounded-full bg-primary" />
-    </span>
   )
 }
 
@@ -56,10 +47,10 @@ export function ThreadRowBody({ thread, active, defaultCardOpen, trailing }: Thr
         aria-current={active ? 'page' : undefined}
         className="h-7 min-w-0 flex-1 text-sm hover:bg-transparent data-active:bg-transparent"
       >
-        <ThreadStatusIcon status={thread.status} />
+        <RunStatusIcon status={thread.status} unread={thread.unread === true} />
+        <PrStateIcon status={thread.status} />
         <span>{thread.title}</span>
       </SidebarMenuButton>
-      <UnreadDot thread={thread} />
       <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex">
         <RowAction label="Pin thread">
           <Pin />
