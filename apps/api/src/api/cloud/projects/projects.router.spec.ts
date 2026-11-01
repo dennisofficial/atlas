@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { buildProjectsApp, createProjectAs } from './projects.router.fixture'
 
 const BODY = {

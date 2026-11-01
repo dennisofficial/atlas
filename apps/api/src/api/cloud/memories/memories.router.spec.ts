@@ -12,7 +12,7 @@ import { z } from 'zod'
 import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-sandbox.middleware'
 import { createPersonalApp, trpcMutate, trpcQuery } from '../personal-resources.router.fixture'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { MemoriesRouter } from './memories.router'
 import { MemoriesService } from './memories.service'
 

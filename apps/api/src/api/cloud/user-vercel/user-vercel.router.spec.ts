@@ -12,7 +12,7 @@ import {
   trpcMutation,
   trpcQuery,
 } from '../session-trpc-test-app'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { UserVercelRouter } from './user-vercel.router'
 import { UserVercelService } from './user-vercel.service'
 
