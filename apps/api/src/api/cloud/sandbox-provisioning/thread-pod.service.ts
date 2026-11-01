@@ -16,6 +16,7 @@ import {
   VercelSandboxClient,
 } from '../../platform/sandboxes/vercel-sandbox.client'
 import { podSessionOf } from '../../platform/sessions/session-of-thread'
+import { podRootThreadOf } from '../../platform/sessions/pod-root'
 import { hasBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { readPodSnapshot } from '../../platform/sessions/pod-snapshot'
 import { ownedThread } from '../../platform/sessions/ownership'
@@ -147,12 +148,13 @@ export class ThreadPodService {
         message: 'the pod for this thread is not running',
       })
     }
+    const rootThreadId = await podRootThreadOf({ threadId })
     const { ticket, expiresAt } = mintChannelTicket({
       serveToken: endpoint.token,
-      threadId,
+      threadId: rootThreadId,
       ttlSeconds: TICKET_TTL_SECONDS,
       nowMs: Date.now(),
     })
-    return { url: endpoint.url, token: ticket, expiresAt }
+    return { url: endpoint.url, token: ticket, expiresAt, threadId: rootThreadId }
   }
 }
