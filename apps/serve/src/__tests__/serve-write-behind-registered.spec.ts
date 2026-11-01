@@ -193,6 +193,7 @@ describe('park after a failed flush', () => {
     const store = await seedLocal({ home, count: 2 })
     const lines: ServeLogLine[] = []
     const behind = bindServeWriteBehind({
+      redeliver: async () => undefined,
       env: args.env,
       app: fakeServeApp({ threadId, root: '/workspace', intake: true, log: store.log }),
       threadId,

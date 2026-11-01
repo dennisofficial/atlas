@@ -78,6 +78,7 @@ export enum EServeEvent {
   EventsFlushed = 'serve.events-flushed',
   EventsTruncated = 'serve.events-truncated',
   EventFlushConflict = 'serve.event-flush-conflict',
+  EventForkReconciled = 'serve.event-fork-reconciled',
   EventFlushFailed = 'serve.event-flush-failed',
   EventFlushRefused = 'serve.event-flush-refused',
   ActivityReportFailed = 'serve.activity-report-failed',

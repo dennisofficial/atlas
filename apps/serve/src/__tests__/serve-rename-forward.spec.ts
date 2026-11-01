@@ -30,6 +30,7 @@ const bind = (args: { env: Record<string, string>; reject?: boolean }) => {
   const posts: { procedure: string; body: unknown }[] = []
   const lines: ServeLogLine[] = []
   const behind = bindServeWriteBehind({
+    redeliver: async () => undefined,
     env: args.env,
     app,
     threadId,

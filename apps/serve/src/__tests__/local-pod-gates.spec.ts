@@ -62,6 +62,7 @@ describe('local pod mirrors no thread state', () => {
 
   it('has no write-behind', () => {
     const bound = bindServeWriteBehind({
+      redeliver: async () => undefined,
       env: localPod,
       app: {} as Parameters<typeof bindServeWriteBehind>[0]['app'],
       threadId,

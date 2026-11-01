@@ -99,6 +99,17 @@ describe('SessionsClient over tRPC', () => {
     )
   })
 
+  it('reads own events from a seq through threadEvents.read', async () => {
+    const { client, seen } = clientAnswering(() => ok([]))
+    await client.readEvents({ threadId: 'thr_1', fromSeq: 466, own: true })
+    expect(seen[0]?.url).toBe(
+      queryUrl({
+        procedure: 'threadEvents.read',
+        input: { threadId: 'thr_1', fromSeq: 466, own: true },
+      }),
+    )
+  })
+
   it('returns the replaced count of a compaction and the head of a thread', async () => {
     const compacted = clientAnswering(() => ok({ replaced: 3 }))
     expect(

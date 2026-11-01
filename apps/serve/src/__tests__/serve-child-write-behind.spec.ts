@@ -83,6 +83,7 @@ const harness = (args: { counts: Record<string, number>; failRegister?: { times:
   }) as unknown as typeof fetch
   const lines: ServeLogLine[] = []
   const behind = bindServeWriteBehind({
+    redeliver: async () => undefined,
     env,
     app,
     threadId: root,

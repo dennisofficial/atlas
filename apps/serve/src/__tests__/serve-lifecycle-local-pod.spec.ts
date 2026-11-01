@@ -33,6 +33,7 @@ describe('a local pod parks with no API reachable', () => {
       onFailure: () => undefined,
     })
     const writeBehind = bindServeWriteBehind({
+      redeliver: async () => undefined,
       env: {
         ATLAS_CLOUD_URL: 'http://127.0.0.1:9',
         ATLAS_SERVE_TOKEN: 't',
