@@ -25,7 +25,7 @@ import type { ServeArgs, ServeHandle } from './serve-args'
 import { announceBoot } from './serve-announce'
 import { bootServeApp } from './serve-boot-app'
 import { bindServeActivity } from './serve-activity-binding'
-import { bindServeIdleStop } from './serve-idle-binding'
+import { bindServeIdleStop, noopIdle } from './serve-idle-binding'
 import type { BootListener } from './serve-boot-listener'
 import { bindServeDrain } from './serve-drain-binding'
 import { resumeWhenRegistered } from './serve-resume-boot'
@@ -37,8 +37,6 @@ import { bindServeSubscriptions } from './serve-subscriptions'
 import { subscribeLegacyWake } from './serve-wake'
 import { createSessionHandlers } from './socket-session'
 import { createServeWorkspaceSession } from './serve-workspace-session'
-
-const noopIdle = (noop: () => void) => ({ note: noop, halt: noop, reset: noop })
 
 export async function finishServeBoot(args: {
   serveArgs: ServeArgs
@@ -284,6 +282,7 @@ export async function finishServeBoot(args: {
   idleStop = recovery.checkpointAllowed
     ? bindServeIdleStop({
         serveArgs,
+        deadline: { env, threadId, remote },
         turnRunning: driver.busy,
         work,
         clientsAttached: handlers.clients,

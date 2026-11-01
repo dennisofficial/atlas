@@ -53,7 +53,6 @@ export function runtimeHasWork(work: RuntimeWork): boolean {
     work.childrenRunning > 0 ||
     work.shellsRunning > 0 ||
     work.pendingInput ||
-    work.settlingWork ||
-    (work.servicesRunning > 0 && work.clientsAttached > 0)
+    work.settlingWork
   )
 }

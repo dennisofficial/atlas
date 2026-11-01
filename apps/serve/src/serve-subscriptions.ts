@@ -34,20 +34,20 @@ export function bindServeSubscriptions(args: {
   })
   let lastPrStatesJson = ''
   const unsubscribePrStates = app.prStates?.subscribe(() => {
-    note()
     const next = JSON.stringify(app.prStates?.snapshot() ?? [])
     if (next === lastPrStatesJson) return
     lastPrStatesJson = next
+    note()
     handlers.broadcastPrStates()
   })
   let lastSubscriptionsJson = ''
   const unsubscribeSubscriptions = app.subscriptions?.registry.onChange(() => {
-    note()
     const next = JSON.stringify(
       app.subscriptions === undefined ? [] : subscriptionsSnapshot(app.subscriptions),
     )
     if (next === lastSubscriptionsJson) return
     lastSubscriptionsJson = next
+    note()
     handlers.broadcastSubscriptions()
   })
   const unsubscribePending = app.pending?.subscribe(note)

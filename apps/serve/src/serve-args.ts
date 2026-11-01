@@ -1,5 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
+import type { DeadlineControl } from './deadline-renewal-loop'
 import type { ApplyEnvironmentProfile } from './environment-profile'
 import type { EnsureWorkspace } from './materialize-workspace'
 import type { ServeCompose } from './serve-app'
@@ -21,6 +22,9 @@ export type ServeArgs = {
   idleMinutes?: number | undefined
   serviceIdleMinutes?: number | undefined
   idleTickMs?: number | undefined
+  deadlineTickMs?: number | undefined
+  deadlineControl?: DeadlineControl | undefined
+  now?: (() => number) | undefined
   /** What an idle serve does after closing — injectable so a spec's process survives it. */
   exit?: ((code: number) => void) | undefined
   stopSandbox?: (() => Promise<void>) | undefined

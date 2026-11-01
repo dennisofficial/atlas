@@ -10,6 +10,7 @@ export type ServeIdleStop = {
   halt: () => void
   check: () => boolean
   reset: () => void
+  quietSince: () => number | undefined
 }
 
 export function startServeIdleStop(args: {
@@ -45,12 +46,7 @@ export function startServeIdleStop(args: {
       const clientsAttached = args.clientsAttached?.() ?? 0
 
       const busy =
-        turnRunning ||
-        childrenSettling ||
-        runningChildren > 0 ||
-        runningShells > 0 ||
-        pendingInput ||
-        (runningServices > 0 && clientsAttached > 0)
+        turnRunning || childrenSettling || runningChildren > 0 || runningShells > 0 || pendingInput
       if (busy) {
         quietSince = undefined
         return false
@@ -104,6 +100,7 @@ export function startServeIdleStop(args: {
       timer = undefined
     },
     check,
+    quietSince: () => quietSince,
     reset: () => {
       fired = false
       quietSince = undefined

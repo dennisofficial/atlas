@@ -1,3 +1,4 @@
+import type { ServeArgs } from '../serve-args'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -133,6 +134,9 @@ export const start = async (args: {
   stopSandbox?: (() => Promise<void>) | undefined
   fetchFn?: typeof fetch | undefined
   contextFiles?: WorkspaceFiles | undefined
+  deadlineControl?: ServeArgs['deadlineControl']
+  deadlineTickMs?: number | undefined
+  now?: (() => number) | undefined
 }): Promise<Started> => {
   const lines: string[] = []
   const app = fakeServeApp({
@@ -166,6 +170,9 @@ export const start = async (args: {
     idleTickMs: args.idleTickMs,
     exit: args.exit,
     stopSandbox: args.stopSandbox,
+    deadlineControl: args.deadlineControl,
+    deadlineTickMs: args.deadlineTickMs,
+    now: args.now,
     contextFiles: args.contextFiles ?? inMemoryContextFiles(),
   })
 

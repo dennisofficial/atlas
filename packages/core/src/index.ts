@@ -255,6 +255,7 @@ export * from './execution/location'
 export * from './execution/runner'
 export * from './execution/placement'
 export * from './execution/lifecycle'
+export * from './execution/deadline-renewal'
 
 export * from './settings/value'
 export * from './settings/definition'
