@@ -8,6 +8,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
 
 import { EServeEvent, type ServeLogLine } from '../serve-log'
+import { createRedeliveryHolder } from '../serve-redelivery'
 import { bindServeWriteBehind } from '../serve-write-behind'
 
 import { fakeServeApp } from './fakes'
@@ -30,7 +31,7 @@ const bind = (args: { env: Record<string, string>; reject?: boolean }) => {
   const posts: { procedure: string; body: unknown }[] = []
   const lines: ServeLogLine[] = []
   const behind = bindServeWriteBehind({
-    redeliver: async () => undefined,
+    redelivery: createRedeliveryHolder(),
     env: args.env,
     app,
     threadId,

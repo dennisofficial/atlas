@@ -3,6 +3,7 @@ import { NoticePort, toThreadId, type NoticePost } from '@dltech/atlas-core'
 
 import { hydrateWhenRegistered } from '../serve-hydrate'
 import { threadModelPersisterOf } from '../serve-thread-model-persist'
+import { createRedeliveryHolder } from '../serve-redelivery'
 import { bindServeWriteBehind } from '../serve-write-behind'
 
 const threadId = toThreadId('thr_local_pod')
@@ -62,7 +63,7 @@ describe('local pod mirrors no thread state', () => {
 
   it('has no write-behind', () => {
     const bound = bindServeWriteBehind({
-      redeliver: async () => undefined,
+      redelivery: createRedeliveryHolder(),
       env: localPod,
       app: {} as Parameters<typeof bindServeWriteBehind>[0]['app'],
       threadId,

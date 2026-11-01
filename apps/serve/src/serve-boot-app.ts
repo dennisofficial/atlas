@@ -100,7 +100,7 @@ export async function bootServeApp(args: {
       durableHead: hydrated?.remoteHead ?? 0,
       remote,
       log,
-      redeliver: redelivery.redeliver,
+      redelivery,
     })
     const sessionDir = sessionDirectory({ home: atlasHome, sessionId: threadId })
     const contextMirror = bindContextFilesMirror({

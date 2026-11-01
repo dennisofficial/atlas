@@ -30,6 +30,7 @@ export function resolveForkFor(args: {
   threadId: ThreadId
   remote: ApiRemote
   events: Pick<EventLogPort, 'readOwn'>
+  canRedeliverNow: () => boolean
   redeliver: RedeliverInput
   log: ServeLog
 }): ResolveFork {
@@ -47,6 +48,7 @@ export function resolveForkFor(args: {
         .sort((a, b) => a.seq - b.seq)
         .map(remoteForkEventOf),
     readLocal: async () => (await args.events.readOwn({ threadId })).map(localForkEventOf),
+    canRedeliverNow: args.canRedeliverNow,
     redeliver: args.redeliver,
     log: args.log,
   })

@@ -1,33 +1,55 @@
-import type { OrphanedInput, ThreadId } from '@dltech/atlas-core'
+import { EAgentStatus, type OrphanedInput, type ThreadId } from '@dltech/atlas-core'
 
 import { sayToChild } from './child-send'
 import type { ServeApp } from './serve-app'
+import { RedeliveryDeferred } from './serve-fork-resolution'
 import type { ServeTurnDriver } from './turn-driver'
 
 export type ThreadRedeliver = (args: { threadId: ThreadId; input: OrphanedInput }) => Promise<void>
 
-export type RedeliveryHolder = {
+export type ThreadRedeliveryPort = {
+  canRedeliverNow: (threadId: ThreadId) => boolean
   redeliver: ThreadRedeliver
-  bind: (target: ThreadRedeliver) => void
+}
+
+export type RedeliveryHolder = ThreadRedeliveryPort & {
+  bind: (target: ThreadRedeliveryPort) => void
 }
 
 export function createRedeliveryHolder(): RedeliveryHolder {
-  let bind: (target: ThreadRedeliver) => void = () => undefined
-  const bound = new Promise<ThreadRedeliver>((resolve) => {
-    bind = resolve
-  })
+  let target: ThreadRedeliveryPort | undefined
   return {
-    redeliver: async (given) => (await bound)(given),
-    bind: (target) => bind(target),
+    canRedeliverNow: (threadId) => target?.canRedeliverNow(threadId) ?? false,
+    redeliver: async (given) => {
+      if (target === undefined) throw new RedeliveryDeferred()
+      return target.redeliver(given)
+    },
+    bind: (bound) => {
+      target = bound
+    },
   }
+}
+
+type RedeliveryApp = Pick<ServeApp, 'agents' | 'runner' | 'log' | 'ids' | 'roster'>
+
+const childIsStepping = (args: { app: RedeliveryApp; threadId: ThreadId }): boolean | undefined => {
+  if (args.app.roster === undefined) return undefined
+  const child = args.app.roster.snapshot().agents.find((agent) => agent.agentId === args.threadId)
+  return child?.status === EAgentStatus.Running && child.steppingSince !== undefined
 }
 
 export function redeliverThrough(args: {
   root: ThreadId
-  driver: Pick<ServeTurnDriver, 'say'>
-  app: Pick<ServeApp, 'agents' | 'runner' | 'log' | 'ids'>
-}): ThreadRedeliver {
-  return async ({ threadId, input }) => {
+  driver: Pick<ServeTurnDriver, 'say' | 'busy'>
+  app: RedeliveryApp
+}): ThreadRedeliveryPort {
+  const canRedeliverNow = (threadId: ThreadId): boolean =>
+    threadId === args.root
+      ? !args.driver.busy()
+      : childIsStepping({ app: args.app, threadId }) === false
+
+  const redeliver: ThreadRedeliver = async ({ threadId, input }) => {
+    if (!canRedeliverNow(threadId)) throw new RedeliveryDeferred()
     if (threadId === args.root) return args.driver.say(input)
     const { agents, runner, log, ids } = args.app
     if (agents === undefined)
@@ -42,4 +64,5 @@ export function redeliverThrough(args: {
       frame: input,
     })
   }
+  return { canRedeliverNow, redeliver }
 }

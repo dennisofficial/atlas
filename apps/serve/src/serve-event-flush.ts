@@ -3,6 +3,7 @@ import { podEventOf } from '@dltech/atlas-harness'
 import { MAX_POD_EVENTS_PER_FLUSH, type PodEvent } from '@dltech/atlas-wire'
 
 import { type ApiRemote, createApiClient, detailsOf, httpStatusOf } from './api-client'
+import { EForkResolution } from './serve-fork-resolution'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 export enum EFlushReply {
@@ -47,7 +48,7 @@ export type EventFlusher = {
 const reasonOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
-export type ResolveFork = (args: { forkSeq: number }) => Promise<void>
+export type ResolveFork = (args: { forkSeq: number }) => Promise<EForkResolution>
 
 type ShipResult = { conflict: false; count: number } | { conflict: true; seq: number | undefined }
 
@@ -92,7 +93,11 @@ export function createEventFlusher(args: {
     log({ event: EServeEvent.EventFlushConflict, threadId, seq, durableHead: durable })
 
   const healFork = async (forkSeq: number): Promise<ShipResult | undefined> => {
-    await args.resolveFork?.({ forkSeq })
+    const resolution = await args.resolveFork?.({ forkSeq })
+    if (resolution === EForkResolution.Deferred) {
+      log({ event: EServeEvent.EventForkDeferred, threadId, forkSeq })
+      return undefined
+    }
     if (!(await truncateApi(forkSeq - 1))) return undefined
     return shipPending()
   }

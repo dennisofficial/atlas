@@ -5,6 +5,7 @@ import { podEventsPostSchema, podEventsTruncateSchema } from '@dltech/atlas-wire
 
 import { createEventFlusher, httpPostPodEvents, httpTruncatePodEvents } from '../serve-event-flush'
 import { resolveForkFor } from '../serve-fork-ports'
+import { RedeliveryDeferred } from '../serve-fork-resolution'
 import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { scratchTranscriptStore } from './transcript-store-fixture'
 import { trpcFailure, trpcOk, trpcProcedureOf } from './trpc-fake'
@@ -96,6 +97,7 @@ const replay = async (args: { podHasY: boolean; alwaysDivergent: boolean }) => {
   const remote = { controlPlaneUrl, token: 't', clientVersion: 'dev', fetchFn: api.fetchFn }
   const lines: ServeLogLine[] = []
   const redelivered: OrphanedInput[] = []
+  const driver = { busy: false }
   const log = (line: ServeLogLine) => lines.push(line)
   const flusher = createEventFlusher({
     threadId,
@@ -107,6 +109,7 @@ const replay = async (args: { podHasY: boolean; alwaysDivergent: boolean }) => {
       threadId,
       remote,
       events: store.log,
+      canRedeliverNow: () => !driver.busy,
       redeliver: async (input) => {
         redelivered.push(input)
         await store.log.append({
@@ -119,7 +122,7 @@ const replay = async (args: { podHasY: boolean; alwaysDivergent: boolean }) => {
     }),
     log,
   })
-  return { store, api, flusher, lines, redelivered }
+  return { store, api, flusher, lines, redelivered, driver }
 }
 
 describe('seq-466 incident replay', () => {
@@ -146,6 +149,66 @@ describe('seq-466 incident replay', () => {
 
     expect(run.redelivered).toEqual([])
     expect(run.api.truncates).toEqual([FORK_SEQ - 1])
+  })
+
+  it('defers while the driver is busy, then heals on the next idle flush', async () => {
+    const run = await replay({ podHasY: false, alwaysDivergent: false })
+    run.driver.busy = true
+
+    expect(await run.flusher.flush()).toBe(false)
+
+    expect(run.api.truncates).toEqual([])
+    expect(run.redelivered).toEqual([])
+    expect(run.flusher.durableHead()).toBe(FORK_SEQ - 1)
+    expect(run.lines.map((line) => line.event)).toContain(EServeEvent.EventForkDeferred)
+    expect(run.lines.map((line) => line.event)).not.toContain(EServeEvent.EventFlushConflict)
+
+    run.driver.busy = false
+
+    expect(await run.flusher.flush()).toBe(true)
+    expect(run.api.truncates).toEqual([FORK_SEQ - 1])
+    expect(run.redelivered.map((input) => input.requestId)).toEqual(['Y'])
+    expect(run.flusher.durableHead()).toBe((await run.store.log.head({ threadId })) ?? 0)
+  })
+
+  it('heals a fork with no orphans even while the driver is busy', async () => {
+    const run = await replay({ podHasY: true, alwaysDivergent: false })
+    run.driver.busy = true
+
+    expect(await run.flusher.flush()).toBe(true)
+
+    expect(run.api.truncates).toEqual([FORK_SEQ - 1])
+    expect(run.redelivered).toEqual([])
+  })
+
+  it('defers when redelivery refuses because a turn started after the check', async () => {
+    const store = await podLog({ podHasY: false })
+    const api = fakeApi({ alwaysDivergent: false })
+    const remote = { controlPlaneUrl, token: 't', clientVersion: 'dev', fetchFn: api.fetchFn }
+    const lines: ServeLogLine[] = []
+    const flusher = createEventFlusher({
+      threadId,
+      events: store.log,
+      durableHead: FORK_SEQ - 1,
+      post: httpPostPodEvents(remote),
+      truncate: httpTruncatePodEvents(remote),
+      resolveFork: resolveForkFor({
+        threadId,
+        remote,
+        events: store.log,
+        canRedeliverNow: () => true,
+        redeliver: async () => {
+          throw new RedeliveryDeferred()
+        },
+        log: (line) => lines.push(line),
+      }),
+      log: (line) => lines.push(line),
+    })
+
+    expect(await flusher.flush()).toBe(false)
+
+    expect(api.truncates).toEqual([])
+    expect(lines.map((line) => line.event)).toContain(EServeEvent.EventForkDeferred)
   })
 
   it('returns false and logs when the retry conflicts again, without looping', async () => {

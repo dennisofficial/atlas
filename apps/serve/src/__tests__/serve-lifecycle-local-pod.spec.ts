@@ -4,6 +4,7 @@ import { toThreadId } from '@dltech/atlas-core'
 
 import type { RuntimeWork } from '../runtime-work'
 import { createServeLifecycle } from '../serve-lifecycle'
+import { createRedeliveryHolder } from '../serve-redelivery'
 import { bindServeWriteBehind } from '../serve-write-behind'
 import { createTurnDriver } from '../turn-driver'
 import { fakeServeApp } from './fakes'
@@ -33,7 +34,7 @@ describe('a local pod parks with no API reachable', () => {
       onFailure: () => undefined,
     })
     const writeBehind = bindServeWriteBehind({
-      redeliver: async () => undefined,
+      redelivery: createRedeliveryHolder(),
       env: {
         ATLAS_CLOUD_URL: 'http://127.0.0.1:9',
         ATLAS_SERVE_TOKEN: 't',

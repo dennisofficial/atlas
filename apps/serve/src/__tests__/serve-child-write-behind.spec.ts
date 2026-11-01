@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { toEventId, toRunId, toThreadId, type Event, type ThreadId } from '@dltech/atlas-core'
 import { EAgentStatus } from '@dltech/atlas-wire'
 
+import { createRedeliveryHolder } from '../serve-redelivery'
 import { bindServeWriteBehind } from '../serve-write-behind'
 import type { ServeApp } from '../serve-app'
 import { EServeEvent, type ServeLogLine } from '../serve-log'
@@ -83,7 +84,7 @@ const harness = (args: { counts: Record<string, number>; failRegister?: { times:
   }) as unknown as typeof fetch
   const lines: ServeLogLine[] = []
   const behind = bindServeWriteBehind({
-    redeliver: async () => undefined,
+    redelivery: createRedeliveryHolder(),
     env,
     app,
     threadId: root,

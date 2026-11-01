@@ -17,7 +17,7 @@ import { resolveForkFor } from './serve-fork-ports'
 import { mirrorHistoryEdits } from './serve-history-mirror'
 import type { ServeLog } from './serve-log'
 import { forwardRenamesToApi } from './serve-rename-forward'
-import type { ThreadRedeliver } from './serve-redelivery'
+import type { ThreadRedeliveryPort } from './serve-redelivery'
 
 export type ServeWriteBehind = {
   flush: () => Promise<boolean>
@@ -60,7 +60,7 @@ export function bindServeWriteBehind(args: {
   durableHead: number
   remote: { controlPlaneUrl: string; token: string; clientVersion: string; fetchFn: typeof fetch }
   log: ServeLog
-  redeliver: ThreadRedeliver
+  redelivery: ThreadRedeliveryPort
   register?: RegisterChild | undefined
 }): ServeWriteBehind | undefined {
   if (!mirrorsThreadState(args.env)) return undefined
@@ -77,7 +77,8 @@ export function bindServeWriteBehind(args: {
       threadId: args.threadId,
       remote,
       events: app.log,
-      redeliver: (input) => args.redeliver({ threadId: args.threadId, input }),
+      canRedeliverNow: () => args.redelivery.canRedeliverNow(args.threadId),
+      redeliver: (input) => args.redelivery.redeliver({ threadId: args.threadId, input }),
       log,
     }),
     log,
@@ -96,7 +97,7 @@ export function bindServeWriteBehind(args: {
       register,
       remote,
       refusalSettles,
-      redeliver: (input) => args.redeliver({ threadId: child.threadId, input }),
+      redelivery: args.redelivery,
       log,
       bindActivity: (threadId) =>
         bindChildActivity({ threadId, channel: app.channel, remote, log }),

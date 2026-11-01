@@ -11,7 +11,7 @@ import {
   type EventFlusher,
 } from './serve-event-flush'
 import { resolveForkFor } from './serve-fork-ports'
-import type { RedeliverInput } from './serve-fork-reconcile'
+import type { ThreadRedeliveryPort } from './serve-redelivery'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 export type ChildIdentity = {
@@ -50,7 +50,7 @@ export function createChildMirror(args: {
   register: RegisterChild
   remote: ApiRemote
   refusalSettles: boolean
-  redeliver: RedeliverInput
+  redelivery: ThreadRedeliveryPort
   log: ServeLog
   bindActivity?: ((threadId: ThreadId) => { detach: () => void }) | undefined
 }): ChildMirror {
@@ -75,7 +75,8 @@ export function createChildMirror(args: {
           threadId: child.threadId,
           remote: args.remote,
           events: args.events,
-          redeliver: args.redeliver,
+          canRedeliverNow: () => args.redelivery.canRedeliverNow(child.threadId),
+          redeliver: (input) => args.redelivery.redeliver({ threadId: child.threadId, input }),
           log,
         }),
         log,
