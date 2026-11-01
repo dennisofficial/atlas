@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
+import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
 import { RedisModule } from '../../../_lib/redis/redis.module'
 import { HealthModule } from '../../platform/health/health.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
@@ -19,6 +20,7 @@ import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { wakeDebounceProvider } from './github-sandbox-wake-debounce'
 import { sandboxWakeBootProvider } from './github-sandbox-wake-boot'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
+import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 import { GithubSubscriptionsRouter } from './github-subscriptions.router'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
@@ -32,6 +34,8 @@ import { GithubObservationStore } from './github-observation.store'
     GithubSubscriptionsRouter,
     GithubPrStreamRouter,
     GithubSubscriptionsService,
+    GithubPrSubscriptionLinks,
+    { provide: PrSubscriptionLinks, useExisting: GithubPrSubscriptionLinks },
     GithubObservationStore,
     GithubHookLifecycleService,
     GithubPollSweeperService,

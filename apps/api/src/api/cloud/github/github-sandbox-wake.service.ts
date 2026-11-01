@@ -21,6 +21,11 @@ import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-o
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
 import { sessionHoldsSubscription } from './github-sandbox-wake-subscribers'
 import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-sandbox-wake-boot'
+import {
+  appendWakeIntent,
+  type WakeEventNotice,
+  type WakePrEvent,
+} from './github-sandbox-wake-intent'
 import { apiProvisionedEnvironment } from '../sandbox-provisioning/pod-telemetry-identity'
 import { podVcpusOf } from '../sandbox-provisioning/pod-size'
 
@@ -28,7 +33,6 @@ export { WAKE_DEBOUNCE_MS }
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
 
 export type { SandboxWakeBoot, WakeBootArgs, WakeBootResult } from './github-sandbox-wake-boot'
-
 async function archivedThread(args: { threadId: string }): Promise<boolean> {
   const session = await sessionOfThread({ reader: db, threadId: args.threadId }).catch(() => null)
   return session?.archivedAt !== null && session?.archivedAt !== undefined
@@ -48,9 +52,9 @@ type WakeTarget = {
  * the event row lands; resolves the thread through the subscription link, boots only parked
  * sandboxes inside the 24h wake window, and debounces per threadId so a check-run storm boots
  * once. Never throws into the delivery path — a failed wake is logged, the mailbox row stays.
- * A boot is claimed by compare-and-swapping the row's `wakeClaim` against the parked row it read,
- * before any Vercel call, so a second event — or a second API instance — loses the race instead
- * of starting a second boot. The claim reads as Resuming until serve's own mirror supersedes it.
+ * The wakeClaim CAS dedupes races between events and API instances before any Vercel call; the
+ * claim reads as Resuming until serve's own mirror supersedes it. When the delivery carries the
+ * event, the claim also appends it as a durable `pr-event` intent the booted pod pulls on hydrate.
  */
 @Injectable()
 export class GithubSandboxWakeService {
@@ -77,10 +81,10 @@ export class GithubSandboxWakeService {
     this.localPods = new LocalPodWakes(fanout)
   }
 
-  notifyEvent(args: { userId: string; repoFullName: string; prNumber: number }): void {
+  notifyEvent(args: WakeEventNotice, event?: WakePrEvent): void {
     this.track({
       inFlight: this.lookupsInFlight,
-      work: this.wakeTargets(args).catch((failure: unknown) => {
+      work: this.wakeTargets(args, event).catch((failure: unknown) => {
         this.logger.warn(
           `sandbox wake for ${args.repoFullName}#${args.prNumber} (user ${args.userId}) failed: ${failureText(failure)}`,
         )
@@ -88,7 +92,6 @@ export class GithubSandboxWakeService {
     })
   }
 
-  /** For callers about to exit: boots every debounced target now and awaits all lookups and boots. Never throws. */
   async settle(): Promise<void> {
     await Promise.all([...this.lookupsInFlight])
     for (const { timer, target } of [...this.debounce.values()]) {
@@ -106,30 +109,26 @@ export class GithubSandboxWakeService {
     return tracked
   }
 
-  private startBoot(target: WakeTarget): Promise<void> {
-    return this.track({
-      inFlight: this.bootsInFlight,
-      work: this.bootParkedSandbox({ threadId: target.threadId }).catch((failure: unknown) => {
+  private startBoot(target: WakeTarget, event?: WakePrEvent): Promise<void> {
+    const booted = this.bootParkedSandbox({ threadId: target.threadId }, event).catch(
+      (failure: unknown) => {
         this.logger.warn(
           `wake boot of sandbox ${target.sandbox.name} (thread ${target.threadId}) failed: ${failureText(failure)}`,
         )
-      }),
-    })
+      },
+    )
+    return this.track({ inFlight: this.bootsInFlight, work: booted })
   }
 
-  private async wakeTargets(args: {
-    userId: string
-    repoFullName: string
-    prNumber: number
-  }): Promise<void> {
+  private async wakeTargets(args: WakeEventNotice, event?: WakePrEvent): Promise<void> {
     const { subscriptions, sandboxes } = await linkedThreadsOf(args)
     await this.localPods.push({
       userId: args.userId,
       subscriptions,
       cloudThreadIds: new Set(sandboxes.keys()),
     })
-    const wakeCutoff = new Date(Date.now() - PARK_WAKE_WINDOW_MS)
-    const backoffCutoff = new Date(Date.now() - WAKE_FAILURE_BACKOFF_MS)
+    const wakeCutoff = Date.now() - PARK_WAKE_WINDOW_MS
+    const backoffCutoff = Date.now() - WAKE_FAILURE_BACKOFF_MS
     const targets = subscriptions
       .flatMap((subscription): WakeTarget[] => {
         const sandbox = sandboxes.get(subscription.threadId)
@@ -138,9 +137,9 @@ export class GithubSandboxWakeService {
       .filter(
         (target) =>
           wakeableOf(target.sandbox) &&
-          target.sandbox.lastActivityAt.getTime() > wakeCutoff.getTime() &&
+          target.sandbox.lastActivityAt.getTime() > wakeCutoff &&
           (target.sandbox.wakeFailedAt === null ||
-            target.sandbox.wakeFailedAt.getTime() < backoffCutoff.getTime()),
+            target.sandbox.wakeFailedAt.getTime() < backoffCutoff),
       )
     const subscribed = await sessionHoldsSubscription({
       threadIds: targets.map((target) => target.threadId),
@@ -152,15 +151,15 @@ export class GithubSandboxWakeService {
       if (!subscribed.has(target.threadId)) continue
       if (seen.has(target.threadId)) continue
       seen.add(target.threadId)
-      const boot = this.debounceBoot(target)
+      const boot = this.debounceBoot(target, event)
       if (boot !== undefined) immediateBoots.push(boot)
     }
     await Promise.all(immediateBoots)
   }
 
-  private debounceBoot(target: WakeTarget): Promise<void> | undefined {
+  private debounceBoot(target: WakeTarget, event?: WakePrEvent): Promise<void> | undefined {
     if (this.inFlight.has(target.threadId)) return undefined
-    if (this.debounceMs === 0) return this.startBoot(target)
+    if (this.debounceMs === 0) return this.startBoot(target, event)
     const pending = this.debounce.get(target.threadId)
     if (pending !== undefined) {
       clearTimeout(pending.timer)
@@ -168,23 +167,23 @@ export class GithubSandboxWakeService {
     }
     const timer = setTimeout(() => {
       this.debounce.delete(target.threadId)
-      this.startBoot(target)
+      this.startBoot(target, event)
     }, this.debounceMs)
     this.debounce.set(target.threadId, { timer, target })
     return undefined
   }
 
-  private async bootParkedSandbox(args: { threadId: string }): Promise<void> {
+  private async bootParkedSandbox(args: { threadId: string }, event?: WakePrEvent): Promise<void> {
     if (this.inFlight.has(args.threadId)) return
     this.inFlight.add(args.threadId)
     try {
-      await this.claimAndBoot(args)
+      await this.claimAndBoot(args, event)
     } finally {
       this.inFlight.delete(args.threadId)
     }
   }
 
-  private async claimAndBoot(args: { threadId: string }): Promise<void> {
+  private async claimAndBoot(args: { threadId: string }, event?: WakePrEvent): Promise<void> {
     const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
     const row = await db.orm.public.CloudSandbox.first({ sessionId })
     if (row === null || !wakeableOf(row)) {
@@ -207,6 +206,9 @@ export class GithubSandboxWakeService {
         `wake of thread ${args.threadId} lost its claim — the row moved underneath it`,
       )
       return
+    }
+    if (event !== undefined) {
+      await appendWakeIntent({ threadId: args.threadId, event, signals: this.signals })
     }
     await this.signals.podChanged({ threadId: args.threadId })
     try {

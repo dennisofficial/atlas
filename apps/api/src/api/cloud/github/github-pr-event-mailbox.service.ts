@@ -52,11 +52,20 @@ export class GithubPrEventMailboxService {
         ackId: row.id,
       })
       if (args.wake === false) continue
-      this.wake.notifyEvent({
-        userId,
-        repoFullName: args.repoFullName,
-        prNumber: args.prNumber,
-      })
+      this.wake.notifyEvent(
+        {
+          userId,
+          repoFullName: args.repoFullName,
+          prNumber: args.prNumber,
+        },
+        {
+          userId,
+          repoFullName: args.repoFullName,
+          prNumber: args.prNumber,
+          kind: args.kind,
+          payload: args.payload,
+        },
+      )
     }
   }
 
