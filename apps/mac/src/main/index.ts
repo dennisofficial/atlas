@@ -52,7 +52,7 @@ await runLogged(async () => {
     frame: { width: 1280, height: 820 },
     preload: DESKTOP_PRELOAD,
     titleBarStyle: 'hiddenInset',
-    trafficLightOffset: { x: 13, y: 16 },
+    trafficLightOffset: { x: 8, y: 8 },
   })
   windowRef.current = win
 
