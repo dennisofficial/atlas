@@ -8,7 +8,8 @@ import { simulateReadableStream } from 'ai'
 
 import { runModelStream, type StreamTimeout } from '../ai-sdk-model-port'
 import { StreamStallError } from '../errors'
-import { modelFailureOf } from '../failure'
+import { EProviderFailureKind } from '@dltech/atlas-core'
+import { normalized, transient } from './normalize-fixture'
 import { providerPartsFor, scriptedModel } from '../testing/scripted-model'
 
 const identity: ProviderIdentity = { id: 'anthropic', modelId: 'claude-opus-5' }
@@ -71,7 +72,7 @@ describe('a stream that goes silent without closing', () => {
       (caught: unknown) => caught,
     )
 
-    expect(modelFailureOf(error)).toEqual({})
+    expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Stalled))
   })
 
   it('lets a healthy stream through when the timeout is never hit', async () => {
@@ -138,7 +139,7 @@ describe('a provider that never answers the request', () => {
       streamTimeout: UNANSWERED,
     }).catch((caught: unknown) => caught)
 
-    expect(modelFailureOf(error)).toEqual({})
+    expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Stalled))
   })
 
   it('aborts the request it gave up on, so the socket does not linger', async () => {

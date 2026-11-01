@@ -1,14 +1,14 @@
+import {
+  EProviderFailureKind,
+  EProviderRetry,
+  type NormalizedProviderFailure,
+} from './provider-failure'
+
 export enum ERetryReason {
   RateLimited = 'rate-limited',
   Overloaded = 'overloaded',
   ServerError = 'server-error',
   Network = 'network',
-}
-
-export type ModelFailure = {
-  status?: number | undefined
-  retryAfterMs?: number | undefined
-  retryable?: boolean | undefined
 }
 
 export type RetryPolicy = {
@@ -29,39 +29,29 @@ export type RetryDecision =
   | { retry: true; delayMs: number; reason: ERetryReason }
   | { retry: false }
 
-const TOO_MANY_REQUESTS = 429
-
-// Anthropic returns 529 "overloaded" rather than a 503 when its capacity is exhausted.
-// https://docs.anthropic.com/en/api/errors
-const OVERLOADED = 529
-
-const FIRST_SERVER_ERROR = 500
-
-// 401 unauthenticated, 402 payment/credit, 403 forbidden: each is a dead credential, so retrying
-// the same key answers nothing. These are the statuses that route a child to its parent's model
-// instead of into the retry loop.
-const AUTH_FAILURE_STATUSES: ReadonlySet<number> = new Set([401, 402, 403])
-
-export const isAuthFailure = (failure: ModelFailure): boolean =>
-  failure.status !== undefined && AUTH_FAILURE_STATUSES.has(failure.status)
-
-const PERMANENT_CLIENT_STATUSES: ReadonlySet<number> = new Set([
-  ...AUTH_FAILURE_STATUSES,
-  404,
-  413,
-  422,
-])
-
 const NOTHING_LEFT_TO_TRY: RetryDecision = { retry: false }
 
-export function retryReasonOf(failure: ModelFailure): ERetryReason | null {
-  const { status } = failure
-  if (status === undefined) return ERetryReason.Network
-  if (status === TOO_MANY_REQUESTS) return ERetryReason.RateLimited
-  if (status === OVERLOADED) return ERetryReason.Overloaded
-  if (status >= FIRST_SERVER_ERROR) return ERetryReason.ServerError
-  if (PERMANENT_CLIENT_STATUSES.has(status)) return null
-  return failure.retryable === true ? ERetryReason.ServerError : null
+const OVERLOADED_STATUS = 529
+
+function overloadedReasonOf(statusCode: number | undefined): ERetryReason {
+  return statusCode === undefined || statusCode === OVERLOADED_STATUS
+    ? ERetryReason.Overloaded
+    : ERetryReason.ServerError
+}
+
+export function retryReasonOf(failure: NormalizedProviderFailure): ERetryReason | null {
+  if (failure.retry === EProviderRetry.Never) return null
+  switch (failure.kind) {
+    case EProviderFailureKind.RateLimited:
+      return ERetryReason.RateLimited
+    case EProviderFailureKind.Overloaded:
+      return overloadedReasonOf(failure.statusCode)
+    case EProviderFailureKind.Network:
+    case EProviderFailureKind.Stalled:
+      return ERetryReason.Network
+    default:
+      return ERetryReason.ServerError
+  }
 }
 
 function backoffMs(args: { attempts: number; policy: RetryPolicy; jitter: number }): number {
@@ -71,21 +61,37 @@ function backoffMs(args: { attempts: number; policy: RetryPolicy; jitter: number
   return Math.round(spread + spread * args.jitter)
 }
 
+function waitUntilMs(args: { retryAt: string | undefined; nowMs: number }): number {
+  if (args.retryAt === undefined) return 0
+  const notBefore = Date.parse(args.retryAt)
+  return Number.isFinite(notBefore) ? Math.max(0, Math.ceil(notBefore - args.nowMs)) : 0
+}
+
 export function planRetry(args: {
-  failure: ModelFailure
+  failure: NormalizedProviderFailure
   attempts: number
   policy: RetryPolicy
   jitter: number
+  nowMs: number
 }): RetryDecision {
   const reason = retryReasonOf(args.failure)
   if (reason === null) return NOTHING_LEFT_TO_TRY
   if (args.attempts >= args.policy.maxAttempts) return NOTHING_LEFT_TO_TRY
 
-  const { retryAfterMs } = args.failure
-  const delayMs =
-    retryAfterMs === undefined
-      ? backoffMs({ attempts: args.attempts, policy: args.policy, jitter: args.jitter })
-      : Math.min(retryAfterMs, args.policy.maxRetryAfterMs ?? args.policy.maxDelayMs)
+  const waitMs = waitUntilMs({
+    retryAt: args.failure.retryAt,
+    nowMs: args.nowMs,
+  })
+  const longestWaitMs = args.policy.maxRetryAfterMs ?? args.policy.maxDelayMs
+  if (waitMs > longestWaitMs) return NOTHING_LEFT_TO_TRY
 
+  const delayMs = Math.max(
+    backoffMs({
+      attempts: args.attempts,
+      policy: args.policy,
+      jitter: args.jitter,
+    }),
+    waitMs,
+  )
   return { retry: true, delayMs, reason }
 }

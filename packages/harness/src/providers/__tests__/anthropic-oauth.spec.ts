@@ -307,4 +307,47 @@ describe('the anthropic model authenticated by a subscription credential', () =>
     ).rejects.toThrow('no credential is stored')
     expect(recorder.requests).toHaveLength(0)
   })
+  describe('renewing only for a confirmed auth refusal', () => {
+    const run = async (args: { status: number; refusalBody: string }) => {
+      const recorder = refusingFirstFetch({ body: streamedText('pong'), ...args })
+      const credentials = credentialsReturning('first-token', 'second-token')
+      const model = createAnthropicOauthModel({
+        credentials,
+        modelId: 'claude-opus-5',
+        fetch: recorder.fetch,
+      })
+      const outcome = await Promise.resolve(
+        streamText({ model, prompt: 'ping', maxRetries: 0, onError: () => undefined }).text,
+      ).catch((error: unknown) => error)
+      return { recorder, credentials, outcome }
+    }
+
+    it.each([
+      [
+        'a generic 403',
+        403,
+        '{"type":"error","error":{"type":"permission_error","message":"nope"}}',
+      ],
+      [
+        'a 404 model denial',
+        404,
+        '{"type":"error","error":{"type":"not_found_error","message":"no model"}}',
+      ],
+      [
+        'a monthly-spend quota 429',
+        429,
+        '{"type":"error","error":{"type":"rate_limit_error","message":"This request would exceed your account\'s monthly spend limit."}}',
+      ],
+      [
+        'a missing authorization header',
+        401,
+        '{"type":"error","error":{"type":"authentication_error","message":"Missing Authorization header"}}',
+      ],
+    ])('never discards or resends for %s', async (_name, status, refusalBody) => {
+      const { recorder, credentials } = await run({ status, refusalBody })
+
+      expect(recorder.requests).toHaveLength(1)
+      expect(credentials.discarded).toEqual([])
+    })
+  })
 })
