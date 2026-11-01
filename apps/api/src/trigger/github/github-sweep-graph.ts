@@ -34,6 +34,7 @@ export type GithubSweepGraph = {
   hookLifecycle: GithubHookLifecycleService
   webhookInbox: GithubWebhookInboxService
   deliveries: GithubDeliveryService
+  wake: GithubSandboxWakeService
   dispose: () => Promise<void>
 }
 
@@ -82,6 +83,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   )
 
   return {
+    wake,
     pollSweeper: new GithubPollSweeperService(
       github,
       reads,

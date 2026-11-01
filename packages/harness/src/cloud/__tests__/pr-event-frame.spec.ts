@@ -62,6 +62,7 @@ describe('prEventNoticeOf', () => {
       prNumber: 42,
       kind: EPrEventKind.Comment,
       url: 'https://github.com/owner/repo/pull/42#c1',
+      eventId: 'evt_1',
       authorLogin: 'octocat',
       body: 'nit',
     })

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'ec7794377e3325dd741a9d5a725424432965809ff130632875c2154e47158890'>;
+  StorageHashBase<'18518cc2afa8b273ce1fbe178c79fb8ae7141b1872f63117c8606ff5be9eb08f'>;
 export type ExecutionHash =
   ExecutionHashBase<'1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb'>;
 export type ProfileHash =
@@ -460,6 +460,7 @@ export namespace Models {
     readonly [RelationKeys]?: 'user';
   };
   export type public_GithubPrEvent = {
+    consumedAt: FieldOutputTypes['public']['GithubPrEvent']['consumedAt'];
     createdAt: FieldOutputTypes['public']['GithubPrEvent']['createdAt'];
     dedupeKey: FieldOutputTypes['public']['GithubPrEvent']['dedupeKey'];
     deliveredAt: FieldOutputTypes['public']['GithubPrEvent']['deliveredAt'];
@@ -474,8 +475,10 @@ export namespace Models {
     readonly [RelationKeys]?: 'deliveries' | 'user';
   };
   export type public_GithubPrEventDelivery = {
+    ackedAt: FieldOutputTypes['public']['GithubPrEventDelivery']['ackedAt'];
     deliveredAt: FieldOutputTypes['public']['GithubPrEventDelivery']['deliveredAt'];
     eventId: FieldOutputTypes['public']['GithubPrEventDelivery']['eventId'];
+    leaseExpiresAt: FieldOutputTypes['public']['GithubPrEventDelivery']['leaseExpiresAt'];
     threadId: FieldOutputTypes['public']['GithubPrEventDelivery']['threadId'];
     event: public_GithubPrEvent;
     readonly [RelationKeys]?: 'event';
@@ -2391,6 +2394,13 @@ type ContractBase = Omit<
             };
             readonly GithubPrEvent: {
               columns: {
+                readonly consumedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -2480,6 +2490,13 @@ type ContractBase = Omit<
             };
             readonly GithubPrEventDelivery: {
               columns: {
+                readonly ackedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly deliveredAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -2492,6 +2509,13 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly leaseExpiresAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly threadId: {
@@ -6667,6 +6691,14 @@ type ContractBase = Omit<
           };
           readonly GithubPrEvent: {
             readonly fields: {
+              readonly consumedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -6738,6 +6770,7 @@ type ContractBase = Omit<
               readonly table: 'GithubPrEvent';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly consumedAt: { readonly column: 'consumedAt' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly dedupeKey: { readonly column: 'dedupeKey' };
                 readonly deliveredAt: { readonly column: 'deliveredAt' };
@@ -6752,6 +6785,14 @@ type ContractBase = Omit<
           };
           readonly GithubPrEventDelivery: {
             readonly fields: {
+              readonly ackedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly deliveredAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -6763,6 +6804,14 @@ type ContractBase = Omit<
               readonly eventId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly leaseExpiresAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly threadId: {
                 readonly nullable: false;
@@ -6787,8 +6836,10 @@ type ContractBase = Omit<
               readonly table: 'GithubPrEventDelivery';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly ackedAt: { readonly column: 'ackedAt' };
                 readonly deliveredAt: { readonly column: 'deliveredAt' };
                 readonly eventId: { readonly column: 'eventId' };
+                readonly leaseExpiresAt: { readonly column: 'leaseExpiresAt' };
                 readonly threadId: { readonly column: 'threadId' };
               };
             };

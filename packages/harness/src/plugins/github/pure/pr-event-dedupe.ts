@@ -16,6 +16,7 @@ export type PrEventCandidate = {
 
 export type PrEventDedupe = {
   admit: (candidate: PrEventCandidate) => boolean
+  seed: (eventIds: readonly string[]) => void
 }
 
 const TRANSITION_KINDS: ReadonlySet<EPrEventKind> = new Set([
@@ -59,6 +60,9 @@ export function createPrEventDedupe(): PrEventDedupe {
 
       lastReading.set(slot, reading)
       return true
+    },
+    seed: (eventIds) => {
+      for (const id of eventIds) remember(id)
     },
   }
 }

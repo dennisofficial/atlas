@@ -1,6 +1,9 @@
 import {
   EGithubPrStreamFrame,
   EGithubWakeFrame,
+  githubPrAckEventsInputSchema,
+  githubPrAckEventsOutputSchema,
+  type GithubPrAckEventsInput,
   githubPrStatesOutputSchema,
   githubPrStatesInputSchema,
   type GithubPrStatesInput,
@@ -14,6 +17,7 @@ import { Logger, ServiceUnavailableException } from '@nestjs/common'
 import {
   Ctx,
   Input,
+  Mutation,
   Options,
   type ProcedureOptions,
   Router,
@@ -95,6 +99,19 @@ export class GithubPrStreamRouter {
         }
       },
     })
+  }
+
+  @Mutation({
+    input: githubPrAckEventsInputSchema,
+    output: githubPrAckEventsOutputSchema,
+  })
+  async ackEvents(
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Input() input: GithubPrAckEventsInput,
+  ): Promise<{ acked: number }> {
+    const threadId = ctx.pod?.threadId ?? ctx.sandbox?.threadId ?? input.threadId
+    const acked = await this.mailbox.acknowledge({ threadId, eventIds: input.eventIds })
+    return { acked }
   }
 
   @Subscription({ input: githubPrStatesInputSchema, output: githubPrStatesOutputSchema })

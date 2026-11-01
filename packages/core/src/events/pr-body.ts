@@ -1,4 +1,5 @@
 import type { EPrEventKind, EPrReviewState, EPrVerdict } from './body'
+import type { NoticeStamp } from './notice-stage'
 
 export type PrEventBody =
   | {
@@ -15,6 +16,7 @@ export type PrEventBody =
       prNumber: number
       kind: EPrEventKind
       url: string
+      eventId?: string | undefined
       authorLogin?: string | undefined
       body?: string | undefined
       verdict?: EPrVerdict | undefined
@@ -24,4 +26,5 @@ export type PrEventBody =
       mergeable?: boolean | undefined
       state?: string | undefined
       reviewState?: EPrReviewState | undefined
+      notice?: NoticeStamp | undefined
     }

@@ -139,6 +139,30 @@ describe('hydrateServeHistory', () => {
       remoteHead: 0,
     })
   })
+
+  it('refuses to advance the cursor past a schema-rejected turn-taking row', async () => {
+    const home = newHome()
+    const rejected = wireRow({ seq: 2, type: 'pr-event', body: { repo: 42 } })
+    const lines: string[] = []
+
+    await expect(
+      hydrateServeHistory({
+        atlasHome: home,
+        threadId,
+        log: (line) => lines.push(line.event),
+        sessions: {
+          readEvents: async () => [userSaid(1, 'first'), rejected, userSaid(3, 'after')],
+        },
+      }),
+    ).rejects.toThrow('unreadable turn-taking event')
+
+    expect(lines).toEqual(['serve.hydrate-rejected'])
+    const store = scratchTranscriptStore({ prefix: 'read', home })
+    const events = await store.log.read({ threadId })
+    expect(events.map((event) => event.seq)).toEqual([])
+    expect((await store.log.read({ threadId })).length).toBe(0)
+    expect(await store.log.head({ threadId })).toBe(0)
+  })
 })
 
 describe('hydrateWhenRegistered', () => {

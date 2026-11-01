@@ -46,6 +46,7 @@ export function prEventNoticeOf(frame: PrEventFrame): PrEventDraft {
     prNumber: frame.prNumber,
     kind: frame.kind,
     url: payload.url,
+    eventId: frame.id,
     ...(payload.authorLogin === undefined ? {} : { authorLogin: payload.authorLogin }),
     ...(payload.body === undefined ? {} : { body: payload.body }),
     ...(payload.verdict === undefined ? {} : { verdict: payload.verdict }),

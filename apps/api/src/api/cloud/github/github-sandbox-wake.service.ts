@@ -1,7 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import { randomBytes } from 'node:crypto'
 
-import { db, type Row } from '@dltech/atlas-db'
+import { db } from '@dltech/atlas-db'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
@@ -10,10 +9,12 @@ import {
   wakeableOf,
   type SandboxLifecycleColumns,
 } from '../../platform/sandboxes/sandbox-lifecycle'
-import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
-import { linkedThreadsOf } from './github-sandbox-wake-linked'
+import {
+  failedWakeTargets,
+  linkedThreadsOf,
+  WAKE_FAILURE_BACKOFF_MS,
+} from './github-sandbox-wake-linked'
 import { LocalPodWakes } from './github-local-pod-wake'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
@@ -26,11 +27,10 @@ import {
   type WakeEventNotice,
   type WakePrEvent,
 } from './github-sandbox-wake-intent'
-import { apiProvisionedEnvironment } from '../sandbox-provisioning/pod-telemetry-identity'
-import { podVcpusOf } from '../sandbox-provisioning/pod-size'
+import { bootClaimedSandbox, type WakeLaunchDeps } from './github-sandbox-wake-launch'
 
 export { WAKE_DEBOUNCE_MS }
-export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
+export { WAKE_FAILURE_BACKOFF_MS }
 
 export type { SandboxWakeBoot, WakeBootArgs, WakeBootResult } from './github-sandbox-wake-boot'
 async function archivedThread(args: { threadId: string }): Promise<boolean> {
@@ -61,7 +61,7 @@ export class GithubSandboxWakeService {
   private readonly logger = new Logger(GithubSandboxWakeService.name)
   private readonly debounce = new Map<
     string,
-    { timer: ReturnType<typeof setTimeout>; target: WakeTarget }
+    { timer: ReturnType<typeof setTimeout>; target: WakeTarget; event: WakePrEvent | undefined }
   >()
   private readonly inFlight = new Set<string>()
   private readonly lookupsInFlight = new Set<Promise<void>>()
@@ -94,10 +94,10 @@ export class GithubSandboxWakeService {
 
   async settle(): Promise<void> {
     await Promise.all([...this.lookupsInFlight])
-    for (const { timer, target } of [...this.debounce.values()]) {
+    for (const { timer, target, event } of [...this.debounce.values()]) {
       clearTimeout(timer)
       this.debounce.delete(target.threadId)
-      this.startBoot(target)
+      this.startBoot(target, event)
     }
     await Promise.all([...this.bootsInFlight])
   }
@@ -107,6 +107,10 @@ export class GithubSandboxWakeService {
     args.inFlight.add(tracked)
     this.background.keepAlive(tracked)
     return tracked
+  }
+
+  private appendIntent(args: { threadId: string; event: WakePrEvent }): Promise<void> {
+    return appendWakeIntent({ threadId: args.threadId, event: args.event, signals: this.signals })
   }
 
   private startBoot(target: WakeTarget, event?: WakePrEvent): Promise<void> {
@@ -158,7 +162,12 @@ export class GithubSandboxWakeService {
   }
 
   private debounceBoot(target: WakeTarget, event?: WakePrEvent): Promise<void> | undefined {
-    if (this.inFlight.has(target.threadId)) return undefined
+    if (this.inFlight.has(target.threadId)) {
+      // A boot is already underway for this thread; its intent is still durable, so append it
+      // even though the pod boot dedupes this event out.
+      if (event !== undefined) void this.appendIntent({ threadId: target.threadId, event })
+      return undefined
+    }
     if (this.debounceMs === 0) return this.startBoot(target, event)
     const pending = this.debounce.get(target.threadId)
     if (pending !== undefined) {
@@ -169,8 +178,20 @@ export class GithubSandboxWakeService {
       this.debounce.delete(target.threadId)
       this.startBoot(target, event)
     }, this.debounceMs)
-    this.debounce.set(target.threadId, { timer, target })
+    this.debounce.set(target.threadId, { timer, target, event })
     return undefined
+  }
+
+  /** Boot-failure retry, driven by the poll-sweep task: re-boots each parked sandbox whose last
+   * wake failed past its backoff while its pod still holds an unconsumed wake intent. */
+  async retryFailedWakes(): Promise<void> {
+    for (const target of await failedWakeTargets()) {
+      this.logger.log(
+        `retrying the failed wake of sandbox ${target.sandbox.name} (thread ${target.threadId}) after backoff`,
+      )
+      this.startBoot(target)
+    }
+    await Promise.all([...this.bootsInFlight])
   }
 
   private async bootParkedSandbox(args: { threadId: string }, event?: WakePrEvent): Promise<void> {
@@ -194,6 +215,11 @@ export class GithubSandboxWakeService {
       this.logger.log(`wake of thread ${args.threadId} skipped — the thread is archived`)
       return
     }
+    // The intent is durable before the boot dedupe: append it regardless of whether this event
+    // wins the claim, so a CAS loser still leaves its event for the pod to hydrate.
+    if (event !== undefined) {
+      await appendWakeIntent({ threadId: args.threadId, event, signals: this.signals })
+    }
     const wakeClaim = new Date()
     const claimed = await db.orm.public.CloudSandbox.where({
       sessionId: row.sessionId,
@@ -207,81 +233,23 @@ export class GithubSandboxWakeService {
       )
       return
     }
-    if (event !== undefined) {
-      await appendWakeIntent({ threadId: args.threadId, event, signals: this.signals })
-    }
     await this.signals.podChanged({ threadId: args.threadId })
     try {
-      await this.bootClaimed({ row, threadId: args.threadId })
+      await bootClaimedSandbox(this.launchDeps(), { row, threadId: args.threadId })
     } catch (failure) {
       await this.releaseClaim({ threadId: args.threadId, sessionId: row.sessionId, wakeClaim })
       throw failure
     }
   }
 
-  private async bootClaimed(args: { row: Row<'CloudSandbox'>; threadId: string }): Promise<void> {
-    const { row, threadId } = args
-    const freshToken = randomBytes(32).toString('hex')
-    const { ownerCredential, userId, ...credentials } = await this.credentials.forThread({
-      threadId,
-    })
-    const { serveUrl, created } = await this.bootAdapter.boot({
-      credentials,
-      vcpus: ownerCredential ? await podVcpusOf({ sessionId: row.sessionId, userId }) : undefined,
-      ...(ownerCredential
-        ? {
-            injectVercelCredentials: false,
-            environment: apiProvisionedEnvironment({
-              userId,
-              pepper: this.env.get('ATLAS_TELEMETRY_PEPPER'),
-            }),
-          }
-        : {}),
-      name: row.name,
-      threadId,
-      image: this.env.get('SANDBOX_IMAGE'),
-      cloudUrl: this.env.get('ATLAS_CLOUD_URL') ?? 'https://api.byatlas.io',
-      serveVersion: row.serveVersion ?? undefined,
-      freshToken,
-      resumeToken: this.unsealedToken(row),
-      onFreshSandbox: () => this.adoptFreshSandbox({ sessionId: row.sessionId, token: freshToken }),
-    })
-    const at = new Date()
-    await db.orm.public.CloudSandbox.where({ sessionId: row.sessionId }).update({
-      state: ESandboxState.Running,
-      serveUrl,
-      wakeFailedAt: null,
-      lastActivityAt: at,
-      updatedAt: at,
-    })
-    await this.signals.podChanged({ threadId })
-    this.logger.log(
-      `woke sandbox ${row.name} for thread ${threadId} (${created ? 'created fresh' : 'resumed from snapshot'}) — serve at ${serveUrl}`,
-    )
-  }
-
-  /** The prior sandbox's lifecycle record died with it; the fresh serve mirrors from revision 1. */
-  private async adoptFreshSandbox(args: { sessionId: string; token: string }): Promise<void> {
-    await db.orm.public.CloudSandbox.where({ sessionId: args.sessionId }).update({
-      tokenHash: hashSessionToken(args.token),
-      sealedToken: this.cipher.encrypt(args.token),
-      runtimeCheckpoint: null,
-      runtimeCheckpointRevision: null,
-      updatedAt: new Date(),
-    })
-  }
-
-  private unsealedToken(
-    row: Pick<Row<'CloudSandbox'>, 'name' | 'sealedToken'>,
-  ): string | undefined {
-    if (row.sealedToken === null) return undefined
-    try {
-      return this.cipher.decrypt(row.sealedToken)
-    } catch (failure) {
-      this.logger.warn(
-        `the sealed token on sandbox ${row.name} does not decrypt: ${failureText(failure)}`,
-      )
-      return undefined
+  private launchDeps(): WakeLaunchDeps {
+    return {
+      env: this.env,
+      cipher: this.cipher,
+      credentials: this.credentials,
+      bootAdapter: this.bootAdapter,
+      signals: this.signals,
+      logger: this.logger,
     }
   }
 

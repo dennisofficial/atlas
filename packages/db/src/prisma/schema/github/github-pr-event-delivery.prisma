@@ -1,9 +1,11 @@
 // use prisma-8
 model GithubPrEventDelivery {
-  eventId     String
-  threadId    String
-  deliveredAt TimestamptzJsDate(3) @default(now())
-  event       GithubPrEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubPrEventDelivery_pkey")
+  eventId         String
+  threadId        String
+  deliveredAt     TimestamptzJsDate(3) @default(now())
+  ackedAt         TimestamptzJsDate(3)?
+  leaseExpiresAt  TimestamptzJsDate(3)?
+  event           GithubPrEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubPrEventDelivery_pkey")
 
   @@id([eventId, threadId], map: "GithubPrEventDelivery_pkey")
   @@index([threadId], map: "GithubPrEventDelivery_threadId_idx")

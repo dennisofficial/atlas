@@ -128,4 +128,42 @@ describe('GithubPrEventMailboxService per-thread delivery', () => {
     expect((await prEventRows())[0]?.deliveredAt).toBeNull()
     expect(await mailbox.replayForThread({ userId: 'usr-a', threadId: 'thr-1' })).toEqual([])
   })
+
+  it('re-serves an unacked delivery once its lease lapses', async () => {
+    const { mailbox } = serviceWith()
+    await seedSubscription({
+      userId: 'usr-a',
+      threadId: 'thr-1',
+      createdAt: new Date(Date.now() - 60_000),
+    })
+    await seedPrEvent({ id: 'evt_held', userId: 'usr-a' })
+    await db.orm.public.GithubPrEventDelivery.create({
+      eventId: 'evt_held',
+      threadId: 'thr-1',
+      leaseExpiresAt: new Date(Date.now() - 1_000),
+    })
+
+    const replayed = await mailbox.replayForThread({ userId: 'usr-a', threadId: 'thr-1' })
+
+    expect(replayed.map((event) => event.id)).toEqual(['evt_held'])
+  })
+
+  it('acknowledging an event stamps ackedAt and consumedAt, and retires it from replay', async () => {
+    const { mailbox } = serviceWith()
+    await seedSubscription({
+      userId: 'usr-a',
+      threadId: 'thr-1',
+      createdAt: new Date(Date.now() - 60_000),
+    })
+    await seedPrEvent({ id: 'evt_ack', userId: 'usr-a' })
+
+    const drained = await mailbox.replayForThread({ userId: 'usr-a', threadId: 'thr-1' })
+    expect(drained).toHaveLength(1)
+
+    const acked = await mailbox.acknowledge({ threadId: 'thr-1', eventIds: ['evt_ack'] })
+    expect(acked).toBe(1)
+    expect((await deliveryRows())[0]?.ackedAt).not.toBeNull()
+    expect((await prEventRows())[0]?.consumedAt).not.toBeNull()
+    expect(await mailbox.replayForThread({ userId: 'usr-a', threadId: 'thr-1' })).toEqual([])
+  })
 })

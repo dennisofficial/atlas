@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
-import { db, type Row, type Tx } from '@dltech/atlas-db'
+import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { replayThreadEvents } from './github-pr-event-thread-replay'
 import type { EPrEventKind, GithubPrEventDto, GithubPrEventPayload } from './github-realtime.types'
+
+export const REPLAY_LEASE_MS = 5 * 60 * 1_000
 
 /**
  * Durable per-user mailbox for PR events. Every event is one row per subscribing user, stamped
@@ -24,8 +26,9 @@ export class GithubPrEventMailboxService {
           .catch(() => undefined)
       }
       if (threadIds.length === 0) return
+      const leaseExpiresAt = new Date(Date.now() + REPLAY_LEASE_MS)
       void db.orm.public.GithubPrEventDelivery.createAndCount(
-        threadIds.map((threadId) => ({ eventId: ackId, threadId })),
+        threadIds.map((threadId) => ({ eventId: ackId, threadId, leaseExpiresAt })),
         { onConflict: 'skip' },
       ).catch(() => undefined)
     })
@@ -57,6 +60,7 @@ export class GithubPrEventMailboxService {
             payload: args.payload,
             dedupeKey,
             deliveredAt: null,
+            consumedAt: null,
             createdAt,
           },
         ],
@@ -72,6 +76,7 @@ export class GithubPrEventMailboxService {
         payload: args.payload,
         dedupeKey,
         deliveredAt: null,
+        consumedAt: null,
         createdAt,
       }
       this.fanout.pushEvent({
@@ -92,17 +97,21 @@ export class GithubPrEventMailboxService {
           prNumber: args.prNumber,
           kind: args.kind,
           payload: args.payload,
+          eventId: row.id,
         },
       )
     }
   }
 
   /**
-   * Replays undelivered rows oldest-first and stamps them delivered. The update is scoped to
-   * rows still null, so a second stream racing the replay does not deliver the same row twice.
+   * Replays rows the harness has not consumed: never delivered, or delivered longer ago than the
+   * replay lease without a `consumedAt` ack. Delivered rows keep their original `deliveredAt`
+   * (it is the user-stream marker); re-served rows are simply returned again.
    */
   async replayUndelivered(args: { userId: string }): Promise<GithubPrEventDto[]> {
-    const rows = await db.orm.public.GithubPrEvent.where({ userId: args.userId, deliveredAt: null })
+    const leaseCutoff = new Date(Date.now() - REPLAY_LEASE_MS)
+    const rows = await db.orm.public.GithubPrEvent.where({ userId: args.userId, consumedAt: null })
+      .where((event) => or(event.deliveredAt.isNull(), event.deliveredAt.lt(leaseCutoff)))
       .orderBy((event) => event.createdAt.asc())
       .all()
     if (rows.length === 0) return []
@@ -115,6 +124,24 @@ export class GithubPrEventMailboxService {
 
   async replayForThread(args: { userId: string; threadId: string }): Promise<GithubPrEventDto[]> {
     return replayThreadEvents(args)
+  }
+
+  /**
+   * The harness acks once an event is journaled into its thread's durable log: the per-thread
+   * delivery row gains `ackedAt` (ending its replay lease) and the mailbox row `consumedAt`.
+   */
+  async acknowledge(args: { threadId: string; eventIds: readonly string[] }): Promise<number> {
+    if (args.eventIds.length === 0) return 0
+    const at = new Date()
+    const acked = await db.orm.public.GithubPrEventDelivery.where({ threadId: args.threadId })
+      .where((delivery) => delivery.eventId.in([...args.eventIds]))
+      .where({ ackedAt: null })
+      .updateAndCount({ ackedAt: at })
+    if (acked === 0) return 0
+    await db.orm.public.GithubPrEvent.where((event) =>
+      event.id.in([...args.eventIds]),
+    ).updateAndCount({ consumedAt: at })
+    return acked
   }
 }
 

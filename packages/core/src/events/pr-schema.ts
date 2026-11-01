@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { EPrEventKind, EPrReviewState, EPrVerdict } from './body'
+import { noticeStampSchema } from './notice-stamp-schema'
 
 export const prEventSchemas = [
   z.object({
@@ -17,6 +18,7 @@ export const prEventSchemas = [
     prNumber: z.number().int().positive(),
     kind: z.enum(EPrEventKind),
     url: z.string().min(1),
+    eventId: z.string().min(1).optional(),
     authorLogin: z.string().optional(),
     body: z.string().optional(),
     verdict: z.enum(EPrVerdict).optional(),
@@ -26,5 +28,6 @@ export const prEventSchemas = [
     mergeable: z.boolean().optional(),
     state: z.string().optional(),
     reviewState: z.enum(EPrReviewState).optional(),
+    notice: noticeStampSchema.optional(),
   }),
 ] as const

@@ -142,6 +142,7 @@ describe('GithubPrEventMailboxService', () => {
         kind: 'comment',
         payload: { url: 'u0', authorLogin: 'x' },
         deliveredAt: new Date('2026-10-08T09:00:00.000Z'),
+        consumedAt: new Date('2026-10-08T09:05:00.000Z'),
         createdAt: new Date('2026-10-08T08:00:00.000Z'),
       },
       {
@@ -167,6 +168,24 @@ describe('GithubPrEventMailboxService', () => {
     expect(byId.get('evt_newer')?.deliveredAt).not.toBeNull()
     expect(byId.get('evt_done')?.deliveredAt).toEqual(new Date('2026-10-08T09:00:00.000Z'))
     expect(byId.get('evt_other')?.deliveredAt).toBeNull()
+  })
+
+  it('re-serves a delivered row whose harness ack never landed once the replay lease lapses', async () => {
+    const { mailbox } = serviceWith()
+    await seedPrEvent({
+      id: 'evt_stranded',
+      userId: 'usr-a',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      kind: 'comment',
+      payload: { url: 'u0', authorLogin: 'x' },
+      deliveredAt: new Date(Date.now() - 6 * 60 * 1_000),
+      createdAt: new Date(Date.now() - 6 * 60 * 1_000),
+    })
+
+    const replayed = await mailbox.replayUndelivered({ userId: 'usr-a' })
+
+    expect(replayed.map((event) => event.id)).toEqual(['evt_stranded'])
   })
 
   it('a second replay is empty — delivered rows never replay twice', async () => {
