@@ -5,10 +5,12 @@ import { ECloudSandboxState, sandboxStateSchema } from './sandbox-client'
 import {
   EResizeApplies,
   type CloudBridge,
+  type CloudMessages,
   type CloudSandbox,
   type CloudSandboxes,
   type CloudSandboxStatus,
 } from './cloud-bridge'
+import { LOCAL_POD_MESSAGES_MESSAGE } from './local-pod-bridge'
 import { SANDBOX_SERVE_PORT, type VercelSandboxConfig } from '@dltech/atlas-wire'
 import {
   bootstrapSpecOf,
@@ -154,8 +156,13 @@ export function createLocalCloudBridge(args: LocalCloudBridgeOptions): CloudBrid
     destroy,
   }
 
+  const messages: CloudMessages = {
+    send: () => Promise.reject(new Error(LOCAL_POD_MESSAGES_MESSAGE)),
+  }
+
   return {
     sandboxes: bridgeSandboxes,
+    messages,
     attach: attachmentOf({ options: args, sandboxes: bridgeSandboxes }),
   }
 }

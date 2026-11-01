@@ -57,6 +57,7 @@ const parkedRig = (status: CloudSandboxStatus | undefined) => {
       },
       destroy: async () => undefined,
     },
+    messages: { send: async () => undefined },
     attach: (call) => {
       attached.push(call.url)
       return {

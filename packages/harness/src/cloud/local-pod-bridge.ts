@@ -3,6 +3,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import {
   EResizeApplies,
   type CloudBridge,
+  type CloudMessages,
   type CloudSandbox,
   type CloudSandboxes,
   type CloudSandboxStatus,
@@ -20,6 +21,9 @@ export type {
   PodBridgeDriver,
   PodLeaseRegistrar,
 } from './local-pod-bridge-options'
+
+export const LOCAL_POD_MESSAGES_MESSAGE =
+  'this pod has no cloud control plane — its sends stay on the channel'
 
 export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
   const driverWith =
@@ -102,5 +106,9 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
       }),
   }
 
-  return { sandboxes, attach: attachmentOf({ options: args, sandboxes }) }
+  const messages: CloudMessages = {
+    send: () => Promise.reject(new Error(LOCAL_POD_MESSAGES_MESSAGE)),
+  }
+
+  return { sandboxes, messages, attach: attachmentOf({ options: args, sandboxes }) }
 }

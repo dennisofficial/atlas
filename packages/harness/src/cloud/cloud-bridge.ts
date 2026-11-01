@@ -1,8 +1,13 @@
-import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
+import type { EventLogPort, SaidUpload, ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelConnection, ChannelReload, RemoteDeltaChannel } from './remote-delta-channel'
 import { ECloudSandboxState, type WorkspaceSpec } from './sandbox-client'
-import type { SettleWaitNotice, RuntimeCheckpoint } from '@dltech/atlas-wire'
+import type {
+  SaidImageWire,
+  SandboxProvisionReply,
+  SettleWaitNotice,
+  RuntimeCheckpoint,
+} from '@dltech/atlas-wire'
 import type { SessionActivityPort } from '../activity/port'
 import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { ThreadStorePort } from '../store/thread-store'
@@ -72,6 +77,22 @@ export type CloudSandboxes = {
   }): Promise<void>
 }
 
+/**
+ * Records a send as durable intent with the session's control plane. The API bridge queues it in
+ * Postgres and lets the wake claim fire there; a bridge without a control plane (local pods)
+ * refuses — the caller's parked-pod branch only exists where the API lane is composed in.
+ * `sendId` is the idempotency key: a retry of the same send reuses it.
+ */
+export type CloudMessages = {
+  send(args: {
+    threadId: ThreadId
+    sendId: string
+    text: string
+    images?: readonly SaidImageWire[] | undefined
+    uploads?: readonly SaidUpload[] | undefined
+  }): Promise<void>
+}
+
 export type CloudStores = {
   log: EventLogPort
   threads: ThreadStorePort
@@ -101,6 +122,19 @@ export type CloudAttachment = {
  */
 export type CloudBridge = {
   sandboxes: CloudSandboxes
+  messages: CloudMessages
+  /**
+   * The control-plane probe: only bridges backed by the Atlas API carry it. Its `provision` reply
+   * doubles as the durable-send lane's gate — `not-configured` means the thread's pod is not API
+   * provisioned and queued sends would never be pulled.
+   */
+  api?:
+    | {
+        threadSandbox: {
+          provision: { mutate(input: { threadId: ThreadId }): Promise<SandboxProvisionReply> }
+        }
+      }
+    | undefined
   /**
    * No `url`/`token` means deferred: a parked channel until `wake` applies an attachment.
    * `sandboxThreadId` overrides the thread whose sandbox hosts the session — a rotation successor

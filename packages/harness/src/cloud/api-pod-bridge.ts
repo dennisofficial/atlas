@@ -14,6 +14,7 @@ import type { PodWaitOptions } from './api-pod-wait'
 import { cloudCall } from './api-trpc-client'
 import {
   type CloudBridge,
+  type CloudMessages,
   type CloudSandboxes,
   type CloudSandboxStatus,
   EResizeApplies,
@@ -128,8 +129,23 @@ export const createApiPodBridge = (options: ApiPodBridgeOptions): CloudBridge =>
     })
   }
 
+  const sendMessage: CloudMessages['send'] = async (args) => {
+    const reply = await cloudCall(
+      api.threadMessages.send.mutate({
+        threadId: args.threadId,
+        sendId: args.sendId,
+        text: args.text,
+        ...(args.images === undefined ? {} : { images: [...args.images] }),
+        ...(args.uploads === undefined ? {} : { uploads: [...args.uploads] }),
+      }),
+    )
+    if (reply.error !== undefined) throw new Error(reply.error)
+  }
+
   return {
     sandboxes: { create, find, readResources, updateResources, destroy },
+    messages: { send: sendMessage },
+    api: { threadSandbox: api.threadSandbox },
     attach: apiPodAttachmentOf({ options, ticketOf }),
   }
 }

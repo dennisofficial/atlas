@@ -205,6 +205,7 @@ export async function mountRig(args: {
   }
   const bridge: CloudBridge = {
     sandboxes,
+    messages: inner.messages,
     attach: (attachArgs) => {
       const attachment = inner.attach(attachArgs)
       channel = attachment.channel

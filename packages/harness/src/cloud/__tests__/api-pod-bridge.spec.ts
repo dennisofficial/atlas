@@ -269,3 +269,36 @@ describe('resources and lifecycle', () => {
     expect(fake.calls).toEqual([`destroy:${THREAD}`])
   })
 })
+
+describe('messages.send', () => {
+  it('posts the send to threadMessages with the sendId as its idempotency key', async () => {
+    const fake = createFakePodApi()
+
+    await bridgeOf(fake).messages.send({
+      threadId: THREAD,
+      sendId: 'send-1',
+      text: 'wake up and do this',
+      images: [{ path: '/tmp/a.png', mediaType: 'image/png', data: 'AA==' }],
+    })
+
+    expect(fake.sends).toEqual([
+      {
+        threadId: THREAD,
+        sendId: 'send-1',
+        text: 'wake up and do this',
+        images: [{ path: '/tmp/a.png', mediaType: 'image/png', data: 'AA==' }],
+      },
+    ])
+    expect(fake.calls).toEqual([`message:${THREAD}:send-1`])
+  })
+
+  it('propagates an API failure so the session can notify', async () => {
+    const fake = createFakePodApi()
+    fake.failSendWith(cloudFailure(409))
+
+    await expect(
+      bridgeOf(fake).messages.send({ threadId: THREAD, sendId: 'send-2', text: 'nope' }),
+    ).rejects.toThrow('409')
+    expect(fake.sends).toEqual([])
+  })
+})

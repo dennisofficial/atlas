@@ -49,6 +49,7 @@ const podRig = (args: { createFails?: Error | undefined; homeProject?: string | 
       },
       destroy: async () => undefined,
     },
+    messages: { send: async () => undefined },
     attach: (call) => {
       order.push(`attach:${call.url ?? 'deferred'}`)
       return {

@@ -3,6 +3,7 @@ import type {
   EConnectionView,
   PendingQueue,
   PendingSaid,
+  PodSession,
   RemoteTurnRunner,
 } from '@dltech/atlas-harness'
 
@@ -36,8 +37,8 @@ export function useConversationRotation(args: {
   pending: PendingQueue<QueuedSettled>
   sending: ConversationSending
   cloudRunner: RemoteTurnRunner | null
+  cloudSession: PodSession | null
   cloudView: EConnectionView | null
-  wakeCloud: (() => void) | null
   driver: TurnDriver
   refresh: () => Promise<void>
   setFailure: (reason: string) => void
@@ -45,7 +46,7 @@ export function useConversationRotation(args: {
 }): ConversationRotation {
   const { app, threadId, readClock, compacting, moving, working, pending, sending, cloudRunner } =
     args
-  const { driver, refresh, setFailure, onRotated, cloudView, wakeCloud } = args
+  const { cloudSession, driver, refresh, setFailure, onRotated, cloudView } = args
 
   const { rotating, handleRotate, cancel } = useRotation({
     app,
@@ -65,12 +66,12 @@ export function useConversationRotation(args: {
     pending,
     sending,
     cloudRunner,
+    cloudSession,
     working: working || rotating !== null,
     moving,
     drive: driver.drive,
     setFailure,
     cloudView,
-    wakeCloud,
   })
   const handleTakeBackPending = useTakeBackPending({
     threadId,

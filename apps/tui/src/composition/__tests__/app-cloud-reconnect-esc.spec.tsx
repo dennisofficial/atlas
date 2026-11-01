@@ -129,7 +129,7 @@ describe('pressing escape while the pod is updating', () => {
 })
 
 describe('sending a message to a parked sandbox', () => {
-  it('queues it here, wakes the sandbox once, and sends nothing until the channel greets', async () => {
+  it('records the intent with the API, then attaches once the pod is up', async () => {
     const app = speaking()
     const bridge = fakeBridge()
     const mounted = await mountInCloud({ app, bridge })
@@ -160,10 +160,7 @@ describe('sending a message to a parked sandbox', () => {
 
       expect(
         await until({
-          holds: async () => {
-            const frame = await mounted.nextFrame()
-            return frame.includes('wake up') && frame.includes('waking')
-          },
+          holds: async () => bridge.sentMessages.some((said) => said.text === 'wake up'),
           within: 20_000,
         }),
       ).toBe(true)
@@ -172,7 +169,7 @@ describe('sending a message to a parked sandbox', () => {
       mounted.pressEnter()
       expect(
         await until({
-          holds: async () => (await mounted.nextFrame()).includes('and this too'),
+          holds: async () => bridge.sentMessages.some((said) => said.text === 'and this too'),
           within: 20_000,
         }),
       ).toBe(true)
@@ -187,23 +184,6 @@ describe('sending a message to a parked sandbox', () => {
         }),
       ).toBe(true)
       expect(bridge.channel.sent.length).toBe(sentBefore)
-
-      bridge.channel.moveTo({ state: EConnectionView.Connected, detail: null })
-
-      expect(
-        await until({
-          holds: async () => {
-            const texts = bridge.channel.sent.flatMap((said) => [
-              said.text,
-              ...(said.context ?? []).flatMap((draft) =>
-                draft.type === 'user-said' ? [draft.text] : [],
-              ),
-            ])
-            return texts.includes('wake up') && texts.includes('and this too')
-          },
-          within: 20_000,
-        }),
-      ).toBe(true)
       expect(bridge.created.length).toBe(createdBefore + 1)
     } finally {
       releaseWake()

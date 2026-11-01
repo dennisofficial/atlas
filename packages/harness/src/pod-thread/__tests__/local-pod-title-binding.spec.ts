@@ -67,6 +67,7 @@ describe('local title authority in an assembled pod thread', () => {
         },
         destroy: async () => undefined,
       },
+      messages: { send: async () => undefined },
     }
     const pod = await assemblePodThread({
       bridge,
