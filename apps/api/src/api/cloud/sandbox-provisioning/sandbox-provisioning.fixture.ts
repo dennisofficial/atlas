@@ -7,8 +7,6 @@ import type { EnvService } from '../../../_core/config/env/env.service'
 import type { JobDispatch, JobDispatcher } from '../../../_core/ports/job-dispatcher'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
-import type { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
-import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ThreadsService } from '../../platform/sessions/threads.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
@@ -19,7 +17,6 @@ import type { PodProvisionTask } from './pod-provision.contract'
 import { fakeSdk } from './pod-provision.sdk.fixture'
 import { PodLaunchService } from './pod-launch.service'
 import { SandboxProvisioningService } from './sandbox-provisioning.service'
-import type { ServeSendArgs } from './serve-send'
 import type {
   ThreadTitlingService,
   TitleFirstMessage,
@@ -169,34 +166,19 @@ export function fakeSandbox() {
 
 export function messagesWith(
   args: {
-    endpoint?: { token: string; url: string } | null
-    serveFails?: Error
-    observedRunning?: ReturnType<typeof vi.fn>
-    park?: ReturnType<typeof vi.fn>
     scoped?: ScopedConfigService
     dispatcher?: ReturnType<typeof fakeDispatcher>
     signals?: ThreadSignalsService
   } = {},
 ) {
   const signals = args.signals ?? inertSignals()
-  const runningEndpoint = vi.fn(async () => args.endpoint ?? null)
-  const { observedRunning = vi.fn(async () => true), park = vi.fn() } = args
-  const serve = vi.fn(async (_delivery: ServeSendArgs) => {
-    if (args.serveFails !== undefined) throw args.serveFails
-  })
   const launched = podLaunchWith({
     signals,
     ...(args.scoped === undefined ? {} : { scoped: args.scoped }),
     ...(args.dispatcher === undefined ? {} : { dispatcher: args.dispatcher }),
   })
-  const service = new ThreadMessagesService(
-    { runningEndpoint, observedRunning } as unknown as SandboxEndpointService,
-    serve,
-    launched.pod,
-    signals,
-    { park } as unknown as SandboxesService,
-  )
-  return { service, serve, runningEndpoint, observedRunning, park, dispatch: launched.dispatch }
+  const service = new ThreadMessagesService(launched.pod, signals)
+  return { service, dispatch: launched.dispatch }
 }
 
 export type SeededCheckpoint = {

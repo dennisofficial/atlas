@@ -1,5 +1,9 @@
 import {
   bootStepsPostSchema,
+  EEventsWatchFrame,
+  EThreadStreamFrame,
+  eventsWatchInputSchema,
+  eventsWatchOutputSchema,
   podChildRegisterSchema,
   podEventsPostSchema,
   podEventsReplySchema,
@@ -11,6 +15,8 @@ import {
   sandboxSelfRenewDeadlineRequestSchema,
   sandboxSelfStopRequestSchema,
   type BootStepsPost,
+  type EventsWatchFrame,
+  type EventsWatchInput,
   type PodChildRegister,
   type PodEventsPost,
   type PodEventsReply,
@@ -24,12 +30,22 @@ import {
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { NotFoundException } from '@nestjs/common'
-import { Ctx, Input, Mutation, Router, UseMiddlewares } from 'nestjs-trpc'
+import {
+  Ctx,
+  Input,
+  Mutation,
+  Options,
+  type ProcedureOptions,
+  Router,
+  Subscription,
+  UseMiddlewares,
+} from 'nestjs-trpc'
 import { z } from 'zod'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { podSessionOf } from '../sessions/session-of-thread'
 import { lockThread } from '../sessions/thread-head'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
+import { threadStreamFrames } from '../sessions/thread-stream.frames'
 import { recordBootSteps } from './sandbox-boot-steps'
 import { applyThreadActivity } from './thread-activity'
 import { registerPodChild } from './pod-child'
@@ -38,6 +54,9 @@ import { assertWithinSandboxFamily } from './pod-family'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
 import { PreviewTunnelService } from './preview-tunnel.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
+
+const WATCH_QUEUE_LIMIT = 64
+const TICK: EventsWatchFrame = { type: EEventsWatchFrame.Tick }
 
 type SandboxIdentity = { threadId: string; name: string }
 
@@ -162,5 +181,33 @@ export class SandboxSelfRouter {
     })
     const applied = await applyThreadActivity({ threadId, activity })
     if (applied !== null) this.signals.threadChanged({ threadId })
+  }
+
+  @Subscription({ input: eventsWatchInputSchema, output: eventsWatchOutputSchema })
+  async watchEvents(
+    @Input() input: EventsWatchInput,
+    @Ctx() ctx: SandboxTrpcCtx,
+    @Options() opts: ProcedureOptions,
+  ): Promise<AsyncGenerator<EventsWatchFrame>> {
+    const threadId = await assertWithinSandboxFamily({
+      rootThreadId: ctx.sandbox.threadId,
+      userId: ctx.sandbox.userId,
+      threadId: input.threadId,
+    })
+    return threadStreamFrames<EventsWatchFrame>({
+      signal: opts.signal,
+      queueLimit: WATCH_QUEUE_LIMIT,
+      attach: (sink) => {
+        sink.push(TICK)
+        return this.signals.openStream({
+          threadId,
+          onFrame: (frame) => {
+            if (frame.type === EThreadStreamFrame.Events || frame.type === EThreadStreamFrame.Head)
+              sink.push(TICK)
+          },
+          onClosed: sink.close,
+        })
+      },
+    })
   }
 }

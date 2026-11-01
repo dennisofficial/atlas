@@ -1,12 +1,10 @@
 import { ERuntimePhase, EThreadMessageState } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { DISPATCH_FAILED_MESSAGE } from './pod-launch.service'
 import { NOT_RUNNING_MESSAGE, SANDBOX_BUSY_MESSAGE } from './sandbox-provisioning-rows'
 import {
   checkpointOf,
   eventsOf,
-  fakeDispatcher,
   messagesWith,
   sandboxRows,
   seedProvisionedRow,
@@ -17,14 +15,14 @@ import {
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 const SERVE_URL = 'https://serve.example.test'
 
-describe('ThreadMessagesService.send when serve is unreachable', () => {
+describe('ThreadMessagesService.send while the pod cannot take a message yet', () => {
   useTestDatabase()
 
   beforeEach(async () => {
     await seedThread()
   })
 
-  it('answers a retryable 409 and appends nothing while the pod is still parking', async () => {
+  it('appends and answers Queued for a running pod mid-parking checkpoint, claiming nothing', async () => {
     await seedProvisionedRow({
       state: 'running',
       wakeClaim: null,
@@ -33,12 +31,9 @@ describe('ThreadMessagesService.send when serve is unreachable', () => {
     })
     const { service, dispatch } = messagesWith()
 
-    await expect(service.send(ARGS)).rejects.toMatchObject({
-      status: 409,
-      message: SANDBOX_BUSY_MESSAGE,
-    })
+    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
 
-    expect(await eventsOf()).toHaveLength(0)
+    expect(await eventsOf()).toHaveLength(1)
     expect(dispatch).not.toHaveBeenCalled()
     expect((await sandboxRows())[0]?.wakeClaim).toBeNull()
   })
@@ -57,20 +52,7 @@ describe('ThreadMessagesService.send when serve is unreachable', () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it('answers 409 and appends nothing for a running row whose endpoint is unreachable', async () => {
-    await seedProvisionedRow({ state: 'running', wakeClaim: null, serveUrl: SERVE_URL })
-    const { service, dispatch } = messagesWith()
-
-    await expect(service.send(ARGS)).rejects.toMatchObject({
-      status: 409,
-      message: SANDBOX_BUSY_MESSAGE,
-    })
-
-    expect(await eventsOf()).toHaveLength(0)
-    expect(dispatch).not.toHaveBeenCalled()
-  })
-
-  it('appends and wakes a parked row', async () => {
+  it('appends and wakes a pod whose parked checkpoint is final', async () => {
     await seedProvisionedRow({
       state: 'parked',
       wakeClaim: null,
@@ -82,37 +64,6 @@ describe('ThreadMessagesService.send when serve is unreachable', () => {
 
     expect(await eventsOf()).toHaveLength(1)
     expect(dispatch).toHaveBeenCalledTimes(1)
-  })
-
-  it('appends and launches when no sandbox row exists', async () => {
-    const { service, dispatch } = messagesWith()
-
-    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
-
-    expect(await eventsOf()).toHaveLength(1)
-    expect(dispatch).toHaveBeenCalledTimes(1)
-  })
-
-  it('appends and re-claims a failed row', async () => {
-    await seedProvisionedRow({ wakeClaim: null, wakeFailedAt: new Date() })
-    const { service, dispatch } = messagesWith()
-
-    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
-
-    expect(await eventsOf()).toHaveLength(1)
-    expect(dispatch).toHaveBeenCalledTimes(1)
-  })
-
-  it('reports the failure on the reply when dispatch throws, keeping the message', async () => {
-    const dispatcher = fakeDispatcher({ failWith: new Error('trigger is down') })
-    const { service } = messagesWith({ dispatcher })
-
-    expect(await service.send(ARGS)).toEqual({
-      state: EThreadMessageState.Queued,
-      error: DISPATCH_FAILED_MESSAGE,
-    })
-
-    expect(await eventsOf()).toHaveLength(1)
   })
 })
 
@@ -127,6 +78,7 @@ describe('ThreadMessagesService.send on a TUI-provisioned thread', () => {
     ['parked', { state: 'parked', wakeClaim: null }],
     ['failed', { wakeClaim: null, wakeFailedAt: new Date() }],
     ['booting', {}],
+    ['running', { state: 'running', serveUrl: SERVE_URL }],
   ])(
     'answers 409 NOT_RUNNING for a %s row with no boot steps, launching nothing',
     async (_, row) => {
