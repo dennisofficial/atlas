@@ -278,8 +278,8 @@ export async function finishServeBoot(args: {
       providerStopFor({ threadId, controlPlaneUrl, env, token, clientVersion, fetchFn }),
     flushEvents: async () => {
       const events = (await writeBehind?.flush()) ?? true
-      const context = (await contextMirror?.flush()) ?? true
-      return events && context
+      await contextMirror?.flush()
+      return events
     },
     reportParked: activity.reportParked,
     exit,

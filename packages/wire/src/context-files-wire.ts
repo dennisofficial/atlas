@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { listContextFilesReplySchema, readContextFileReplySchema } from './request-wire.js'
+import { listContextFilesReplySchema, readContextFileReplySchema } from './request-wire'
 
 export const contextFilePutSchema = z.strictObject({
   threadId: z.string().min(1).optional(),

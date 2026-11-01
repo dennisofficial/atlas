@@ -62,20 +62,27 @@ export function createContextFilesFlusher(args: {
   const { threadId, log } = args
   const scan = args.scan ?? scanContextTree
   let known = new Map<string, string>(args.previous ?? new Map())
+  let synced = args.previous !== undefined
   let chain: Promise<boolean> = Promise.resolve(true)
   let queued: Promise<boolean> | undefined
 
   const once = async (): Promise<boolean> => {
     try {
       const { textFiles } = await scan({ root: args.root })
+      let shipped = 0
       for (const [path, content] of textFiles) {
         if (known.get(path) === content) continue
         await args.put({ path, content })
+        shipped += 1
       }
       const stale = [...known.keys()].filter((path) => !textFiles.has(path))
-      for (const path of stale) await args.remove({ path })
-      await args.deleteMissing({ keep: [...textFiles.keys()] })
+      for (const path of stale) {
+        await args.remove({ path })
+        shipped += 1
+      }
+      if (shipped > 0 || !synced) await args.deleteMissing({ keep: [...textFiles.keys()] })
       known = new Map(textFiles)
+      synced = true
       return true
     } catch (failure) {
       log({
