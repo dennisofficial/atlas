@@ -1,0 +1,183 @@
+[
+  {
+    "id": "table.ComposerDraft",
+    "label": "Create table \"ComposerDraft\"",
+    "summary": "Creates table \"ComposerDraft\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ComposerDraft"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ComposerDraft\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ComposerDraft\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ComposerDraft\"",
+        "sql": "CREATE TABLE \"public\".\"ComposerDraft\" (\n  \"attachments\" text NOT NULL,\n  \"scopeKey\" text NOT NULL,\n  \"text\" text NOT NULL,\n  \"threadId\" text,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  CONSTRAINT \"ComposerDraft_pkey\" PRIMARY KEY (\"userId\", \"scopeKey\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ComposerDraft\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"ComposerDraft\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ComposerDraft.ComposerDraft_threadId_idx",
+    "label": "Create index \"ComposerDraft_threadId_idx\" on \"ComposerDraft\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ComposerDraft_threadId_idx",
+        "table": "ComposerDraft"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ComposerDraft_threadId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ComposerDraft_threadId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ComposerDraft_threadId_idx\"",
+        "sql": "CREATE INDEX \"ComposerDraft_threadId_idx\" ON \"public\".\"ComposerDraft\" (\"threadId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ComposerDraft_threadId_idx\" exists on \"ComposerDraft\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"ComposerDraft_threadId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"ComposerDraft\"",
+          "btree",
+          "[\"threadId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ComposerDraft.ComposerDraft_userId_fkey",
+    "label": "Add foreign key \"ComposerDraft_userId_fkey\" on \"ComposerDraft\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ComposerDraft_userId_fkey",
+        "table": "ComposerDraft"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ComposerDraft_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ComposerDraft_userId_fkey",
+          "public",
+          "\"public\".\"ComposerDraft\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ComposerDraft_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ComposerDraft\"\nADD CONSTRAINT \"ComposerDraft_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ComposerDraft_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ComposerDraft_userId_fkey",
+          "public",
+          "\"public\".\"ComposerDraft\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ComposerDraft.ComposerDraft_threadId_fkey",
+    "label": "Add foreign key \"ComposerDraft_threadId_fkey\" on \"ComposerDraft\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ComposerDraft_threadId_fkey",
+        "table": "ComposerDraft"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ComposerDraft_threadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ComposerDraft_threadId_fkey",
+          "public",
+          "\"public\".\"ComposerDraft\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ComposerDraft_threadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ComposerDraft\"\nADD CONSTRAINT \"ComposerDraft_threadId_fkey\"\nFOREIGN KEY (\"threadId\")\nREFERENCES \"public\".\"Thread\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ComposerDraft_threadId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ComposerDraft_threadId_fkey",
+          "public",
+          "\"public\".\"ComposerDraft\"",
+          "f",
+          "[\"threadId\"]",
+          "\"public\".\"Thread\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

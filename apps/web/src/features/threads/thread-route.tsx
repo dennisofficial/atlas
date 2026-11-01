@@ -24,5 +24,5 @@ export function ThreadRoute() {
       </ThreadBackendProvider>
     )
   }
-  return <ThreadView threadId={threadId} />
+  return <ThreadView key={threadId} threadId={threadId} />
 }
