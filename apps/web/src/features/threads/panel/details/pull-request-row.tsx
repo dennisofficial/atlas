@@ -7,6 +7,7 @@ import {
   GitPullRequestClosedIcon,
   GitPullRequestDraftIcon,
   GitPullRequestIcon,
+  TriangleAlertIcon,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -43,6 +44,19 @@ function StateIcon({ state }: { state: string | undefined }) {
       aria-label={entry?.label ?? 'Pull request'}
       className={cn('size-3.5 shrink-0', entry?.tone ?? 'text-muted-foreground')}
     />
+  )
+}
+
+function ConflictIndicator() {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={<span className="flex items-center justify-center self-end text-warning" />}
+      >
+        <TriangleAlertIcon role="img" aria-label="Merge conflicts" className="size-3.5 shrink-0" />
+      </TooltipTrigger>
+      <TooltipContent side="bottom">Merge conflicts</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -99,7 +113,7 @@ export function PullRequestRowItem(props: {
         row.checks === undefined && !row.conflicts ? undefined : (
           <span className="flex flex-col items-end">
             {row.checks === undefined ? null : <ChecksTally checks={row.checks} />}
-            {row.conflicts ? <span>conflicts</span> : null}
+            {row.conflicts ? <ConflictIndicator /> : null}
           </span>
         )
       }
