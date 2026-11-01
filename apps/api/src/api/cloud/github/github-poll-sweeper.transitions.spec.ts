@@ -50,7 +50,7 @@ describe('GithubPollSweeperService transition events', () => {
     expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green' } })
   })
 
-  it('records no event on a steady-state re-read of a poll-backed pr', async () => {
+  it('announces the owed verdict once on the first settled read, then stays silent on steady-state re-reads', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
@@ -58,16 +58,23 @@ describe('GithubPollSweeperService transition events', () => {
 
     await service.handlePoll()
 
-    expect(await prEventRows()).toHaveLength(0)
+    // Seeded settled state carries no ledger row, so the obligation is discharged once…
+    expect(await prEventRows()).toHaveLength(1)
+
+    // …and a steady-state re-read after the discharge emits nothing.
+    await service.handlePoll()
+    expect(await prEventRows()).toHaveLength(1)
   })
 
-  it('records no event when a poll-backed pr row is brand new', async () => {
+  it('records only the verdict when a poll-backed pr row is brand new and already settled', async () => {
     const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
 
     await service.handlePoll()
 
-    expect(await prEventRows()).toHaveLength(0)
+    const events = await prEventRows()
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ kind: 'verdict', payload: { settled: true } })
   })
 })

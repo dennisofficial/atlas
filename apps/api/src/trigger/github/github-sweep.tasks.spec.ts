@@ -10,6 +10,7 @@ mock.module('@trigger.dev/sdk', () => ({
 
 const { githubHookSweepTask } = await import('./github-hook-sweep.task')
 const { githubPollSweepTask } = await import('./github-poll-sweep.task')
+const { githubWebhookReconcileTask } = await import('./github-webhook-reconcile.task')
 
 describe('github sweep tasks', () => {
   it('registers the poll sweep every minute with three attempts', () => {
@@ -24,6 +25,14 @@ describe('github sweep tasks', () => {
     expect(githubHookSweepTask).toMatchObject({
       id: 'github-hook-sweep',
       cron: '*/1 * * * *',
+      retry: { maxAttempts: 3 },
+    })
+  })
+
+  it('registers the webhook inbox reconcile every five minutes with three attempts', () => {
+    expect(githubWebhookReconcileTask).toMatchObject({
+      id: 'github-webhook-reconcile',
+      cron: '*/5 * * * *',
       retry: { maxAttempts: 3 },
     })
   })

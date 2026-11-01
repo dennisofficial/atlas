@@ -74,7 +74,7 @@ describe('GithubDeliveryService transition events', () => {
     expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green' } })
   })
 
-  it('records no verdict on a steady-state re-read', async () => {
+  it('announces the owed verdict on the first settled read, then stays silent on steady-state re-reads', async () => {
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest: async () => ({
@@ -90,7 +90,12 @@ describe('GithubDeliveryService transition events', () => {
 
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
-    expect((await prEventRows()).filter((row) => row.kind === 'verdict')).toHaveLength(0)
+    // Seeded settled state carries no ledger row, so the obligation is discharged on first read…
+    expect((await prEventRows()).filter((row) => row.kind === 'verdict')).toHaveLength(1)
+
+    // …and a steady-state re-read after the discharge emits nothing.
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    expect((await prEventRows()).filter((row) => row.kind === 'verdict')).toHaveLength(1)
   })
 
   it('records a mergeability flip but not a repeated mergeable value', async () => {

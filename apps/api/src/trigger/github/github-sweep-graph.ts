@@ -8,6 +8,9 @@ import { GithubAppInstallationsService } from '../../api/cloud/github/github-app
 import { GithubDeviceClient } from '../../api/cloud/github/github-device-client'
 import { GithubHookLifecycleService } from '../../api/cloud/github/github-hook-lifecycle.service'
 import { GithubPollSweeperService } from '../../api/cloud/github/github-poll-sweeper.service'
+import { GithubDeliveryService } from '../../api/cloud/github/github-delivery.service'
+import { GithubPrDiscussionDeliveryService } from '../../api/cloud/github/github-pr-discussion-delivery.service'
+import { GithubWebhookInboxService } from '../../api/cloud/github/github-webhook-inbox.service'
 import { GithubPrEventMailboxService } from '../../api/cloud/github/github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from '../../api/cloud/github/github-pr-fanout.service'
 import {
@@ -29,6 +32,8 @@ import { buildWorkerThreadSignals } from '../thread-signals-graph'
 export type GithubSweepGraph = {
   pollSweeper: GithubPollSweeperService
   hookLifecycle: GithubHookLifecycleService
+  webhookInbox: GithubWebhookInboxService
+  deliveries: GithubDeliveryService
   dispose: () => Promise<void>
 }
 
@@ -87,6 +92,17 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       observations,
     ),
     hookLifecycle,
+    webhookInbox: new GithubWebhookInboxService(),
+    deliveries: new GithubDeliveryService(
+      github,
+      reads,
+      fanout,
+      cipher,
+      mailbox,
+      new GithubPrDiscussionDeliveryService(mailbox),
+      workerSignals.signals,
+      observations,
+    ),
     dispose: async () => {
       await wake.settle()
       await workerSignals.dispose()

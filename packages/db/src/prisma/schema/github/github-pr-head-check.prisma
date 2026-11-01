@@ -1,0 +1,14 @@
+// use prisma-8
+model GithubPrHeadCheck {
+  repoFullName       String
+  prNumber           Int
+  headSha            String
+  firstSeenRunningAt TimestamptzJsDate(3)?
+  settledAt          TimestamptzJsDate(3)?
+  verdict            String?
+  verdictEventId     String?
+  createdAt          TimestamptzJsDate(3) @default(now())
+  updatedAt          TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+
+  @@id([repoFullName, prNumber, headSha])
+}

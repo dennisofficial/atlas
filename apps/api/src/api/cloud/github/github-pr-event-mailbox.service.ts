@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
-import { db, type Row } from '@dltech/atlas-db'
+import { db, type Row, type Tx } from '@dltech/atlas-db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { replayThreadEvents } from './github-pr-event-thread-replay'
@@ -36,16 +37,43 @@ export class GithubPrEventMailboxService {
     prNumber: number
     kind: EPrEventKind
     payload: GithubPrEventPayload
+    dedupeKey?: string | undefined
+    tx?: Tx | undefined
     wake?: boolean
   }): Promise<void> {
+    const orm = args.tx === undefined ? db.orm : args.tx.orm
     for (const userId of args.userIds) {
-      const row = await db.orm.public.GithubPrEvent.create({
+      const dedupeKey = args.dedupeKey === undefined ? null : `${args.dedupeKey}:${userId}`
+      const id = `evt_${randomUUID()}`
+      const createdAt = new Date()
+      const inserted = await orm.public.GithubPrEvent.createAndCount(
+        [
+          {
+            id,
+            userId,
+            repoFullName: args.repoFullName,
+            prNumber: args.prNumber,
+            kind: args.kind,
+            payload: args.payload,
+            dedupeKey,
+            deliveredAt: null,
+            createdAt,
+          },
+        ],
+        { onConflict: 'skip' },
+      )
+      if (inserted === 0) continue
+      const row: Row<'GithubPrEvent'> = {
+        id,
         userId,
         repoFullName: args.repoFullName,
         prNumber: args.prNumber,
         kind: args.kind,
         payload: args.payload,
-      })
+        dedupeKey,
+        deliveredAt: null,
+        createdAt,
+      }
       this.fanout.pushEvent({
         userIds: [userId],
         event: eventDtoOf(row),

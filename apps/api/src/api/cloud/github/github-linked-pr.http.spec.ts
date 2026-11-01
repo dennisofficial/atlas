@@ -117,6 +117,7 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
       api.hooks,
       {} as GithubAppInstallNoticeService,
       api.observations,
+      { record: async () => undefined } as never,
     )
     app = await createMixedApp({
       controllers: [GithubHookController],

@@ -1,0 +1,224 @@
+[
+  {
+    "id": "table.GithubPrHeadCheck",
+    "label": "Create table \"GithubPrHeadCheck\"",
+    "summary": "Creates table \"GithubPrHeadCheck\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GithubPrHeadCheck"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GithubPrHeadCheck\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrHeadCheck\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GithubPrHeadCheck\"",
+        "sql": "CREATE TABLE \"public\".\"GithubPrHeadCheck\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"firstSeenRunningAt\" timestamptz(3),\n  \"headSha\" text NOT NULL,\n  \"prNumber\" int4 NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  \"settledAt\" timestamptz(3),\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"verdict\" text,\n  \"verdictEventId\" text,\n  PRIMARY KEY (\"repoFullName\", \"prNumber\", \"headSha\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GithubPrHeadCheck\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrHeadCheck\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.GithubWebhookInbox",
+    "label": "Create table \"GithubWebhookInbox\"",
+    "summary": "Creates table \"GithubWebhookInbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GithubWebhookInbox\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GithubWebhookInbox\"",
+        "sql": "CREATE TABLE \"public\".\"GithubWebhookInbox\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"deliveryId\" text NOT NULL,\n  \"event\" text NOT NULL,\n  \"payload\" jsonb NOT NULL,\n  \"processedAt\" timestamptz(3),\n  \"processingError\" text,\n  \"receivedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"deliveryId\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GithubWebhookInbox\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubPrEvent.dedupeKey",
+    "label": "Add column \"dedupeKey\" to \"GithubPrEvent\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "dedupeKey",
+        "table": "GithubPrEvent"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"dedupeKey\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrEvent",
+          "dedupeKey"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"dedupeKey\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrEvent\" ADD COLUMN \"dedupeKey\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"dedupeKey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrEvent",
+          "dedupeKey"
+        ]
+      },
+      {
+        "description": "verify column \"dedupeKey\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrEvent",
+          "dedupeKey",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.GithubPrEvent.GithubPrEvent_dedupeKey_key",
+    "label": "Add unique constraint on \"GithubPrEvent\" (dedupeKey)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GithubPrEvent_dedupeKey_key",
+        "table": "GithubPrEvent"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubPrEvent_dedupeKey_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubPrEvent_dedupeKey_key",
+          "public",
+          "\"public\".\"GithubPrEvent\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GithubPrEvent_dedupeKey_key\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrEvent\" ADD CONSTRAINT \"GithubPrEvent_dedupeKey_key\" UNIQUE (\"dedupeKey\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GithubPrEvent_dedupeKey_key\" exists on (dedupeKey)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GithubPrEvent_dedupeKey_key",
+          "public",
+          "\"public\".\"GithubPrEvent\"",
+          "u",
+          "[\"dedupeKey\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubWebhookInbox.GithubWebhookInbox_processedAt_idx",
+    "label": "Create index \"GithubWebhookInbox_processedAt_idx\" on \"GithubWebhookInbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubWebhookInbox_processedAt_idx",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubWebhookInbox_processedAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_processedAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubWebhookInbox_processedAt_idx\"",
+        "sql": "CREATE INDEX \"GithubWebhookInbox_processedAt_idx\" ON \"public\".\"GithubWebhookInbox\" (\"processedAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubWebhookInbox_processedAt_idx\" exists on \"GithubWebhookInbox\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_processedAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"GithubWebhookInbox\"",
+          "btree",
+          "[\"processedAt\"]"
+        ]
+      }
+    ]
+  }
+]

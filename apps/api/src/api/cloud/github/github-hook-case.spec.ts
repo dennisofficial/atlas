@@ -5,6 +5,7 @@ import { describe, expect, it } from 'bun:test'
 import { createRealRedisService } from '../../../../test/real-redis.fixture'
 import { seedRepoHook } from '../../../../test/github-seed'
 import { GithubHookController } from './github-hook.controller'
+import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
 import { mockGithubHttp, realObservationGraph } from './github-observation-http.fixture'
 import type { GithubPrWebhookRequest } from './github-webhook.types'
@@ -31,13 +32,18 @@ describe('legacy mixed-case hook identity', () => {
       expect(await db.orm.public.GithubRepoHook.all()).toHaveLength(1)
       const rawBody = Buffer.from(JSON.stringify(PULL_REQUEST_PAYLOAD))
       const signature = `sha256=${createHmac('sha256', hook.secret).update(rawBody).digest('hex')}`
-      const controller = new GithubHookController(graph.delivery, graph.cipher)
+      const controller = new GithubHookController(
+        graph.delivery,
+        graph.cipher,
+        new GithubWebhookInboxService(),
+      )
       expect(
         await controller.handleDelivery(
           { rawBody } as GithubPrWebhookRequest,
           'compai/app',
           signature,
           'pull_request',
+          `delivery-${randomUUID()}`,
           'application/json',
         ),
       ).toEqual({ received: true })

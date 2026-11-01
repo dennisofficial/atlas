@@ -1,0 +1,12 @@
+// use prisma-8
+model GithubWebhookInbox {
+  deliveryId      String                 @id
+  event           String
+  payload         Jsonb
+  receivedAt      TimestamptzJsDate(3)
+  processedAt     TimestamptzJsDate(3)?
+  processingError String?
+  attempts        Int                    @default(0)
+
+  @@index([processedAt], map: "GithubWebhookInbox_processedAt_idx")
+}

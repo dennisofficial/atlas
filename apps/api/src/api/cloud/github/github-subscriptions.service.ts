@@ -14,6 +14,9 @@ import type {
   GithubSubscribeArgs,
 } from './github-realtime.types'
 import { GithubObservationStore } from './github-observation.store'
+import { deliverPrTransitions } from './github-pr-transition-push'
+import { readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
+import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { withGithubRequestBudget } from './github-request-budget'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubUserReads } from './github-user-reads'
@@ -29,6 +32,7 @@ export class GithubSubscriptionsService {
     private readonly hooks: GithubHookLifecycleService,
     private readonly installNotice: GithubAppInstallNoticeService,
     private readonly observations: GithubObservationStore,
+    private readonly mailbox: GithubPrEventMailboxService,
   ) {}
 
   subscribe(args: GithubSubscribeArgs): Promise<GithubSubscriptionDto> {
@@ -228,6 +232,12 @@ export class GithubSubscriptionsService {
     return held?.prNumber ?? null
   }
 
+  /**
+   * Subscribe's immediate fetch is a state writer like any other, so it runs the same
+   * transactional transition path: prior captured under the row lock, upsert, verdict obligation
+   * discharged. The ledger's first-settled-observation rule is the baseline policy — subscribing
+   * to an already-green PR announces that verdict once, to the subscribing user.
+   */
   private async pullOnSubscribe(args: {
     userId: string
     owner: string
@@ -236,25 +246,37 @@ export class GithubSubscriptionsService {
     prNumber: number | null
   }): Promise<GithubPrStateDto | null> {
     if (args.prNumber === null) return null
+    const prNumber = args.prNumber
     const token = await this.requireToken({ userId: args.userId })
     const fields = await this.reads.readPullRequest({
       source: EGithubCallSource.SubscriptionResolve,
       token,
       owner: args.owner,
       repo: args.repo,
-      number: args.prNumber,
+      number: prNumber,
     })
     if (fields.headRepoFullName !== null)
       fields.headRepoFullName = normalizedRepo(fields.headRepoFullName)
-    const row = await db.orm.public.GithubPrState.upsert({
-      conflictOn: { repoFullName: args.repoFullName, prNumber: args.prNumber },
-      create: {
-        repoFullName: args.repoFullName,
-        prNumber: args.prNumber,
-        ...fields,
-        updatedAt: new Date(),
-      },
-      update: { ...fields, updatedAt: new Date() },
+    const row = await db.transaction(async (tx) => {
+      const priorRow = await readPrStateForUpdate({ tx, repoFullName: args.repoFullName, prNumber })
+      const row = await tx.orm.public.GithubPrState.upsert({
+        conflictOn: { repoFullName: args.repoFullName, prNumber },
+        create: {
+          repoFullName: args.repoFullName,
+          prNumber,
+          ...fields,
+          updatedAt: new Date(),
+        },
+        update: { ...fields, updatedAt: new Date() },
+      })
+      await deliverPrTransitions({
+        writes: { mailbox: this.mailbox, repoFullName: args.repoFullName, prNumber, url: row.url },
+        prior: priorRow === null ? null : snapshotOfLocked(priorRow),
+        next: snapshotOfLocked(row),
+        userIds: [args.userId],
+        tx,
+      })
+      return row
     })
     return dtoOf(row)
   }
