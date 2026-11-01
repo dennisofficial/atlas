@@ -1,14 +1,14 @@
-import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { capabilitySetOf, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import {
   EClientFrame,
   EServeFrame,
   decodeClientFrame,
-  encodeFrame,
   type ClientFrame,
   type ServeFrame,
 } from '@dltech/atlas-harness'
 
+import { createBroadcastEncoder, sendFrame as send } from './frame-egress'
 import { createHelloAdmission } from './hello-family'
 import { protocolRefusal } from './hello-admission'
 import { unreadableRequestReplyOf } from './unreadable-request'
@@ -55,9 +55,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
   let historyGeneration = 0
-
-  const send = (args: { socket: SessionSocket; frame: ServeFrame }): void =>
-    void args.socket.send(encodeFrame(args.frame))
 
   const command = createTurnCommands({
     threadId,
@@ -171,13 +168,13 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   }
 
   const broadcast = (frame: ServeFrame): void => {
-    const encoded = encodeFrame(frame)
+    const encodedFor = createBroadcastEncoder(frame)
     for (const socket of attached) {
       if (socket.data.alias === null) {
-        socket.send(encoded)
+        socket.send(encodedFor(socket))
         continue
       }
-      socket.send(encodeFrame(forSocket({ socket, frame })))
+      send({ socket, frame: forSocket({ socket, frame }) })
     }
     if (frame.kind === EServeFrame.Checkpoint) deferred.replay()
   }
@@ -227,6 +224,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
           return
         }
         socket.data.helloed = true
+        socket.data.capabilities = capabilitySetOf(frame.capabilities)
         admitHello({ socket, hello: frame })
         return
       }

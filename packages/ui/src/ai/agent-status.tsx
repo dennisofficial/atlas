@@ -14,6 +14,7 @@ export enum EAgentDisplay {
   Running = 'running',
   NeedsApproval = 'needs-approval',
   Paused = 'paused',
+  WaitingForModel = 'waiting-for-model',
   Failed = 'failed',
   Done = 'done',
 }
@@ -42,6 +43,11 @@ const PRESENTATION: Record<EAgentDisplay, Presentation> = {
   },
   [EAgentDisplay.Paused]: {
     label: 'Paused',
+    tone: 'text-muted-foreground',
+    Icon: CirclePauseIcon,
+  },
+  [EAgentDisplay.WaitingForModel]: {
+    label: 'Waiting for model',
     tone: 'text-muted-foreground',
     Icon: CirclePauseIcon,
   },

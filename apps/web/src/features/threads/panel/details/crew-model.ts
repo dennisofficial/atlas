@@ -62,6 +62,7 @@ const STATUS_OF_DISPLAY: Record<EAgentDisplay, EAgentStatus> = {
   [EAgentDisplay.Running]: EAgentStatus.Running,
   [EAgentDisplay.NeedsApproval]: EAgentStatus.Blocked,
   [EAgentDisplay.Paused]: EAgentStatus.Paused,
+  [EAgentDisplay.WaitingForModel]: EAgentStatus.WaitingForModel,
   [EAgentDisplay.Failed]: EAgentStatus.Failed,
   [EAgentDisplay.Done]: EAgentStatus.Finished,
 }
