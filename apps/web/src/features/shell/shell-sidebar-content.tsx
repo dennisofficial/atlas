@@ -37,7 +37,9 @@ export function ShellSidebarContent({
   const router = useRouter()
   const handleArchived = useCallback(
     (threadId: string) => {
-      if (threadId === activeThreadId) router.replace('/threads')
+      if (threadId !== activeThreadId) return
+      router.replace('/threads')
+      return () => router.push(`/threads/${encodeURIComponent(threadId)}`)
     },
     [activeThreadId, router],
   )

@@ -5,24 +5,31 @@ import {
   defaultPipeline,
   EMPTY_PROMPT,
   ERunFailureKind,
+  toAccountId,
+  type RunFailure,
   toRunId,
   type ModelPort,
 } from '@dltech/atlas-core'
 
 import { LoopTurnRunner } from '..'
 import { ModelStreamError } from '../../model/errors'
+import { withFailureAccount } from '../../providers/failure-account'
 import { ETurnStatus } from '../turn-outcome'
 import { openSteerable } from './steerable-turn'
 
-const unauthorized = (): ModelStreamError =>
+const unauthorized = (args: { delivered: boolean }): ModelStreamError =>
   new ModelStreamError({
     message: 'InvalidApiKey',
-    cause: new APICallError({
-      message: 'InvalidApiKey',
-      url: 'https://api.example.com/v1/chat',
-      requestBodyValues: {},
-      statusCode: 401,
-      isRetryable: false,
+    cause: withFailureAccount({
+      error: new APICallError({
+        message: 'InvalidApiKey',
+        url: 'https://api.example.com/v1/chat',
+        requestBodyValues: {},
+        statusCode: 401,
+        isRetryable: false,
+      }),
+      accountId: toAccountId('acct-1'),
+      authorizationDelivered: args.delivered,
     }),
   })
 
@@ -32,12 +39,12 @@ const turnFailedIn = async (args: Awaited<ReturnType<typeof openSteerable>>) =>
   )
 
 describe('a failed turn is persisted', () => {
-  it('appends exactly one run-failed carrying the classified failure and model', async () => {
+  const failedWith = async (delivered: boolean) => {
     const opened = await openSteerable({ script: [{ text: 'unused' }] })
     const failing: ModelPort = {
       identity: opened.harness.model.identity,
       step: async () => {
-        throw unauthorized()
+        throw unauthorized({ delivered })
       },
     }
     const runner = new LoopTurnRunner({
@@ -58,7 +65,12 @@ describe('a failed turn is persisted', () => {
     const outcome = await runner.say({ threadId: opened.threadId, text: 'hi' })
 
     expect(outcome.status).toBe(ETurnStatus.Failed)
-    const failed = await turnFailedIn(opened)
+    return { outcome, opened, failed: await turnFailedIn(opened) }
+  }
+
+  it('appends exactly one run-failed carrying the classified failure and model', async () => {
+    const { outcome, opened, failed } = await failedWith(true)
+
     expect(failed).toHaveLength(1)
     expect(failed[0]).toMatchObject({
       failure: {
@@ -66,8 +78,32 @@ describe('a failed turn is persisted', () => {
         message: outcome.status === ETurnStatus.Failed ? outcome.message : '',
         modelId: opened.harness.model.identity.modelId,
         providerId: opened.harness.model.identity.id,
+        accountId: 'acct-1',
       },
     })
+  })
+
+  it('returns the exact failure it appended, so hints survive serialization', async () => {
+    const { outcome, failed } = await failedWith(true)
+
+    expect(outcome.status === ETurnStatus.Failed ? outcome.failure : undefined).toEqual(
+      (failed[0] as { failure: RunFailure }).failure,
+    )
+  })
+
+  it('reports an unproven 401 as delivery rather than a bad key', async () => {
+    const { failed } = await failedWith(false)
+
+    expect(failed[0]).toMatchObject({ failure: { kind: ERunFailureKind.Delivery } })
+  })
+
+  it('appends no assistant or tool-called drafts for the rejected step', async () => {
+    const { opened } = await failedWith(true)
+    const events = await opened.harness.log.read({ threadId: opened.threadId })
+
+    expect(
+      events.filter((e) => e.type === 'tool-called' || e.type === 'assistant-said'),
+    ).toHaveLength(0)
   })
 
   it('appends none for a turn that completes', async () => {
@@ -102,7 +138,7 @@ describe('a failed turn is persisted', () => {
     const failing: ModelPort = {
       identity: opened.harness.model.identity,
       step: async () => {
-        throw unauthorized()
+        throw unauthorized({ delivered: true })
       },
     }
     const runner = new LoopTurnRunner({

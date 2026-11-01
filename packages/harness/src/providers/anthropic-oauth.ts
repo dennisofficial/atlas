@@ -1,6 +1,5 @@
 import { createAnthropic, type AnthropicProviderSettings } from '@ai-sdk/anthropic'
 import {
-  APICallError,
   type LanguageModelV4,
   type LanguageModelV4CallOptions,
   type SharedV4ProviderOptions,
@@ -15,7 +14,11 @@ import {
   type CredentialPort,
 } from '@dltech/atlas-core'
 
+import { CLAUDE_PLAN_LABEL } from '../models/provider-ids'
+import { isConfirmedAuthRefusal } from './auth-repair'
 import { failingAs, withFailureAccount } from './failure-account'
+import { providerKey } from './provider-key'
+import { withStreamProvenance } from './stream-provenance'
 import { withAnthropicCompatibleReasoning } from './anthropic-reasoning'
 import { withAnthropicSubscriptionAttribution } from './anthropic-subscription-attribution'
 
@@ -62,13 +65,15 @@ const heldProviderOptions = (
   held: AnthropicProviderOptions | undefined,
 ): SharedV4ProviderOptions | undefined => (typeof held === 'function' ? held() : held)
 
-const REFUSED_STATUSES = [401, 403]
-
 // A pair another holder of the same OAuth lineage has rotated away comes back as 401 "OAuth access
 // token has been revoked." while its own `expiresAt` still reads fresh, so the server's refusal is
 // the only signal that the pair is dead.
-const wasRefused = (error: unknown): boolean =>
-  APICallError.isInstance(error) && REFUSED_STATUSES.includes(error.statusCode ?? 0)
+const provenanceOf = (args: { credential: Credential; modelId: string }) => ({
+  accountId: args.credential.accountId,
+  providerId: ANTHROPIC_PROVIDER_ID,
+  modelId: args.modelId,
+  authorizationDelivered: true,
+})
 
 const authOf = (credential: Credential): AnthropicProviderSettings =>
   credential.kind === EAuthKind.Oauth
@@ -78,6 +83,7 @@ const authOf = (credential: Credential): AnthropicProviderSettings =>
 export function createAnthropicOauthModel(args: AnthropicOauthModelArgs): LanguageModelV4 {
   const authorizedModel = async (): Promise<AuthorizedModel> => {
     const credential = await args.credentials.read({ accountId: args.accountId })
+    providerKey({ credential, label: CLAUDE_PLAN_LABEL })
 
     const model = createAnthropic({
       name: ANTHROPIC_PROVIDER_ID,
@@ -126,15 +132,21 @@ export function createAnthropicOauthModel(args: AnthropicOauthModelArgs): Langua
     try {
       return await call(authorized)
     } catch (error) {
-      withFailureAccount({ error, accountId: authorized.credential.accountId })
-      if (!wasRefused(error)) throw error
+      withFailureAccount({
+        error,
+        ...provenanceOf({ credential: authorized.credential, modelId: args.modelId }),
+      })
+      if (!isConfirmedAuthRefusal(error)) throw error
 
       await args.credentials.discard(authorized.credential)
 
       const retried = await authorizedModel()
       if (secretOf(retried.credential) === secretOf(authorized.credential)) throw error
 
-      return await failingAs({ accountId: retried.credential.accountId, run: () => call(retried) })
+      return await failingAs({
+        ...provenanceOf({ credential: retried.credential, modelId: args.modelId }),
+        run: () => call(retried),
+      })
     }
   }
 
@@ -150,8 +162,11 @@ export function createAnthropicOauthModel(args: AnthropicOauthModelArgs): Langua
       ),
 
     doStream: (options) =>
-      throughACredentialTheServerAccepts((authorized) =>
-        authorized.model.doStream(attributed({ authorized, options })),
+      throughACredentialTheServerAccepts(async (authorized) =>
+        withStreamProvenance({
+          result: await authorized.model.doStream(attributed({ authorized, options })),
+          provenance: provenanceOf({ credential: authorized.credential, modelId: args.modelId }),
+        }),
       ),
   }
 }

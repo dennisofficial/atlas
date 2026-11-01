@@ -21,7 +21,9 @@ import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
 import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 
 import { createThread, fetchProjects } from './data/threads-api'
+import { NEW_THREAD_DRAFT_SCOPE } from './data/composer-drafts-api'
 import { useComposerAttachments } from './data/use-composer-attachments'
+import { useComposerDraft } from './data/use-composer-draft'
 import { useModelPicker } from './data/use-model-picker'
 import { isRetryOf, messageOf } from './data/use-send'
 import { ModelPickerControls } from './model-picker'
@@ -45,6 +47,15 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       personalEffort: picker.personalEffort,
     })
   const images = useComposerAttachments()
+  const drafts = useComposerDraft({
+    scope: NEW_THREAD_DRAFT_SCOPE,
+    text: draft,
+    uploads: images.uploads,
+    onRestore: (stored) => {
+      setDraft(stored.text)
+      images.restore({ uploads: stored.uploads, images: [] })
+    },
+  })
   const [creating, setCreating] = useState(false)
   const desktop = useDesktop()
   const [runner, setRunner] = useState(ERunnerChoice.Cloud)
@@ -92,6 +103,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         })
         attempt.current = null
         images.clear()
+        drafts.handleSent(text)
         router.push(`/threads/${encodeURIComponent(id)}`)
         return
       }
@@ -107,6 +119,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       )
       attempt.current = null
       images.clear()
+      drafts.handleSent(text)
       createdThreads.announce(thread)
       void invalidateCloud([SHELL_THREADS_KEY])
       router.push(`/threads/${encodeURIComponent(thread.id)}`)

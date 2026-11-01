@@ -3,8 +3,11 @@ import { describe, expect, it } from 'bun:test'
 import { APICallError } from '@ai-sdk/provider'
 import { InvalidResponseDataError, StreamProviderError } from 'ai'
 
-import { ModelStreamError } from '../errors'
-import { modelFailureOf } from '../failure'
+import { EProviderFailureKind, EProviderRetry } from '@dltech/atlas-core'
+
+import { ModelStreamError, StreamStallError } from '../errors'
+import { normalizeProviderFailure } from '../failure'
+import { never, normalized, NOW_MS, transient } from './normalize-fixture'
 
 const apiError = (args: {
   statusCode?: number
@@ -18,28 +21,19 @@ const apiError = (args: {
     ...(args.responseHeaders === undefined ? {} : { responseHeaders: args.responseHeaders }),
   })
 
-describe('reading a model failure off whatever the provider threw', () => {
+describe('normalizing whatever the provider threw', () => {
   it('takes the status straight off an api error', () => {
-    expect(modelFailureOf(apiError({ statusCode: 529 }))).toEqual({ status: 529 })
+    expect(normalized(apiError({ statusCode: 529 }))).toMatchObject({
+      ...transient(EProviderFailureKind.Overloaded),
+      statusCode: 529,
+    })
   })
 
-  it('reads seconds out of a retry-after header', () => {
-    const failure = modelFailureOf(
-      apiError({ statusCode: 429, responseHeaders: { 'retry-after': '12' } }),
-    )
-
-    expect(failure).toEqual({ status: 429, retryAfterMs: 12_000 })
-  })
-
-  it('ignores a retry-after that is not a number', () => {
-    const failure = modelFailureOf(
-      apiError({
-        statusCode: 429,
-        responseHeaders: { 'retry-after': 'Wed, 21 Oct 2026 07:28:00 GMT' },
-      }),
-    )
-
-    expect(failure).toEqual({ status: 429 })
+  it('reads a bare 429 as rate limited', () => {
+    expect(normalized(apiError({ statusCode: 429 }))).toMatchObject({
+      ...transient(EProviderFailureKind.RateLimited),
+      statusCode: 429,
+    })
   })
 
   it('unwraps the stream error the port wrapped the provider error in', () => {
@@ -48,7 +42,19 @@ describe('reading a model failure off whatever the provider threw', () => {
       cause: apiError({ statusCode: 529 }),
     })
 
-    expect(modelFailureOf(wrapped)).toEqual({ status: 529 })
+    expect(normalized(wrapped)).toMatchObject({
+      ...transient(EProviderFailureKind.Overloaded),
+      statusCode: 529,
+    })
+  })
+
+  it('reads a stream stall as stalled, even wrapped', () => {
+    const stall = new StreamStallError('silent')
+
+    expect(normalized(stall)).toMatchObject(transient(EProviderFailureKind.Stalled))
+    expect(normalized(new ModelStreamError({ message: 'x', cause: stall }))).toMatchObject(
+      transient(EProviderFailureKind.Stalled),
+    )
   })
 
   it.each([
@@ -59,19 +65,25 @@ describe('reading a model failure off whatever the provider threw', () => {
     'connect ETIMEDOUT 1.2.3.4:443',
     'Connection closed.',
   ])('reads %p as a dropped connection, which has no status', (message) => {
-    expect(modelFailureOf(new Error(message))).toEqual({})
+    const failure = normalized(new Error(message))
+
+    expect(failure).toMatchObject(transient(EProviderFailureKind.Network))
+    expect(failure.statusCode).toBeUndefined()
   })
 
   it('takes the status off a mid-stream provider error', () => {
     const error = new StreamProviderError({ message: 'upstream exploded', statusCode: 500 })
 
-    expect(modelFailureOf(error)).toEqual({ status: 500 })
+    expect(normalized(error)).toMatchObject({
+      ...transient(EProviderFailureKind.Overloaded),
+      statusCode: 500,
+    })
   })
 
   it('trusts a mid-stream provider error the provider flagged retryable', () => {
     const error = new StreamProviderError({ message: 'try again', isRetryable: true })
 
-    expect(modelFailureOf(error)).toEqual({})
+    expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Network))
   })
 
   it("reads litellm's dropped upstream connection as transient", () => {
@@ -79,13 +91,13 @@ describe('reading a model failure off whatever the provider threw', () => {
       message: 'litellm.APIConnectionError: APIConnectionError: UpstreamError - Connection closed.',
     })
 
-    expect(modelFailureOf(error)).toEqual({})
+    expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Network))
   })
 
   it('refuses a mid-stream provider error with no status, no flag, and an unrecognised message', () => {
     expect(
-      modelFailureOf(new StreamProviderError({ message: 'billing hard limit reached' })),
-    ).toBeNull()
+      normalized(new StreamProviderError({ message: 'billing hard limit reached' })),
+    ).toMatchObject(never(EProviderFailureKind.Other))
   })
 
   it('reads a stream that ended without a finish reason as a dropped connection', () => {
@@ -94,19 +106,10 @@ describe('reading a model failure off whatever the provider threw', () => {
       message: 'Response stream ended without a finish reason.',
     })
 
-    expect(modelFailureOf(error)).toEqual({})
-  })
-
-  it('reads a stream that ended without a finish reason wrapped in the stream error', () => {
-    const wrapped = new ModelStreamError({
-      message: 'Response stream ended without a finish reason.',
-      cause: new InvalidResponseDataError({
-        data: undefined,
-        message: 'Response stream ended without a finish reason.',
-      }),
-    })
-
-    expect(modelFailureOf(wrapped)).toEqual({})
+    expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Network))
+    expect(normalized(new ModelStreamError({ message: 'x', cause: error }))).toMatchObject(
+      transient(EProviderFailureKind.Network),
+    )
   })
 
   it('refuses invalid response data that is not a truncated stream', () => {
@@ -115,33 +118,60 @@ describe('reading a model failure off whatever the provider threw', () => {
       message: "Expected 'id' to be a string.",
     })
 
-    expect(modelFailureOf(error)).toBeNull()
+    expect(normalized(error)).toMatchObject(never(EProviderFailureKind.Other))
   })
 
-  it('reads an AbortSignal.timeout reason as a dropped connection', () => {
+  it('reads an AbortSignal.timeout reason as a dropped connection, even wrapped', () => {
     const timedOut = new DOMException('The operation timed out.', 'TimeoutError')
 
-    expect(modelFailureOf(timedOut)).toEqual({})
+    expect(normalized(timedOut)).toMatchObject(transient(EProviderFailureKind.Network))
+    expect(normalized(new ModelStreamError({ message: 'x', cause: timedOut }))).toMatchObject(
+      transient(EProviderFailureKind.Network),
+    )
   })
 
-  it('reads a timeout wrapped in the stream error as a dropped connection', () => {
-    const wrapped = new ModelStreamError({
-      message: 'TimeoutError: The operation timed out.',
-      cause: new DOMException('The operation timed out.', 'TimeoutError'),
+  it('reads an explicit caller abort as cancelled, not a provider fault', () => {
+    const aborted = normalizeProviderFailure({
+      cause: new DOMException('The operation was aborted.', 'AbortError'),
+      cancelled: true,
+      nowMs: NOW_MS,
     })
 
-    expect(modelFailureOf(wrapped)).toEqual({})
+    expect(aborted).toMatchObject(never(EProviderFailureKind.Cancelled))
+    expect(aborted.retry).toBe(EProviderRetry.Never)
   })
 
-  /**
-   * A bug in our own code reaches the same catch as a dropped socket. Retrying one ten times just
-   * delays the report, so anything unrecognised is refused rather than assumed transient.
-   */
   it('refuses to call a programming error transient', () => {
-    expect(modelFailureOf(new TypeError('x.map is not a function'))).toBeNull()
+    expect(normalized(new TypeError('x.map is not a function'))).toMatchObject(
+      never(EProviderFailureKind.Other),
+    )
   })
 
   it('refuses a plain string', () => {
-    expect(modelFailureOf('something went wrong')).toBeNull()
+    expect(normalized('something went wrong')).toMatchObject(never(EProviderFailureKind.Other))
+  })
+
+  it('walks a cyclic cause chain without looping', () => {
+    const first = new Error('first')
+    const second = new Error('second', { cause: first })
+    Object.assign(first, { cause: second })
+
+    expect(normalized(first)).toMatchObject(never(EProviderFailureKind.Other))
+  })
+
+  it('stops looking for a provider error past eight links', () => {
+    let cause: unknown = apiError({ statusCode: 529 })
+    for (let depth = 0; depth < 9; depth += 1) cause = new Error('wrapper', { cause })
+
+    expect(normalized(cause)).toMatchObject(never(EProviderFailureKind.Other))
+  })
+
+  it('normalizes the same failure object once, so a later clock never recomputes a hint', () => {
+    const error = apiError({ statusCode: 429, responseHeaders: { 'retry-after': '30' } })
+
+    const first = normalized(error, 1_000_000)
+    const later = normalized(error, 9_000_000)
+
+    expect(later).toBe(first)
   })
 })

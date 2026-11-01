@@ -6,18 +6,53 @@ import {
   ERunRemedy,
   remediesOf,
   runFailureKindOf,
+  runFailureKindOfProviderKind,
   runFailureSchema,
   type RunFailure,
 } from '../run-failure'
+import { EProviderFailureKind } from '../../models/provider-failure'
 import { providerLabelOf, runFailureCopy } from '../run-failure-copy'
 
 describe('runFailureKindOf', () => {
   it.each([
-    [{ statusCode: 401 }, ERunFailureKind.Auth],
-    [{ statusCode: 403 }, ERunFailureKind.Auth],
+    [{ statusCode: 401 }, ERunFailureKind.Delivery],
+    [{ statusCode: 401, authorizationDelivered: true }, ERunFailureKind.Auth],
+    [{ statusCode: 403 }, ERunFailureKind.ModelDenied],
+    [{ providerType: 'permission_error' }, ERunFailureKind.ModelDenied],
+    [{ statusCode: 404 }, ERunFailureKind.ModelDenied],
+    [{ statusCode: 413 }, ERunFailureKind.ContextOverflow],
+    [{ providerCode: 'context_length_exceeded' }, ERunFailureKind.ContextOverflow],
+    [{ statusCode: 401, authorizationDelivered: false }, ERunFailureKind.Delivery],
+    [
+      {
+        statusCode: 401,
+        providerCode: 'invalid_api_key',
+        providerMessage: 'Missing Authorization header',
+      },
+      ERunFailureKind.Delivery,
+    ],
+    [
+      {
+        providerId: 'anthropic',
+        statusCode: 429,
+        providerType: 'rate_limit_error',
+        providerMessage: "This request would exceed your account's monthly spend limit.",
+      },
+      ERunFailureKind.Quota,
+    ],
+    [
+      {
+        providerId: 'openai',
+        statusCode: 429,
+        providerType: 'rate_limit_error',
+        providerMessage: "This request would exceed your account's monthly spend limit.",
+      },
+      ERunFailureKind.RateLimited,
+    ],
     [{ providerCode: 'invalid_api_key' }, ERunFailureKind.Auth],
     [{ providerType: 'authentication_error' }, ERunFailureKind.Auth],
-    [{ statusCode: 402 }, ERunFailureKind.Quota],
+    [{ statusCode: 402 }, ERunFailureKind.Delivery],
+    [{ statusCode: 402, authorizationDelivered: true }, ERunFailureKind.Quota],
     [{ providerCode: 'billing_hard_limit_reached' }, ERunFailureKind.Quota],
     [{ statusCode: 429 }, ERunFailureKind.RateLimited],
     [{ statusCode: 429, providerCode: 'insufficient_quota' }, ERunFailureKind.Quota],
@@ -29,6 +64,21 @@ describe('runFailureKindOf', () => {
     [{}, ERunFailureKind.Other],
   ])('classifies %j as %s', (input, kind) => {
     expect(runFailureKindOf(input)).toBe(kind)
+  })
+})
+
+describe('mapping provider kinds to run failure kinds', () => {
+  it('covers every provider failure kind', () => {
+    for (const kind of Object.values(EProviderFailureKind)) {
+      expect(Object.values(ERunFailureKind)).toContain(runFailureKindOfProviderKind(kind))
+    }
+  })
+
+  it('folds invalid-request and cancelled into Other', () => {
+    expect(runFailureKindOfProviderKind(EProviderFailureKind.InvalidRequest)).toBe(
+      ERunFailureKind.Other,
+    )
+    expect(runFailureKindOfProviderKind(EProviderFailureKind.Cancelled)).toBe(ERunFailureKind.Other)
   })
 })
 
@@ -46,6 +96,26 @@ describe('runFailureCopy', () => {
       'Inference.net rejected the API key for work. Update it in Settings → Providers, then retry.',
     )
     expect(copy.remedies[0]).toBe(ERunRemedy.FixCredential)
+  })
+
+  it('does not claim the key is invalid when a credential was never delivered', () => {
+    const copy = runFailureCopy({
+      failure: failure(ERunFailureKind.Delivery),
+      providerLabel: 'OpenRouter',
+      accountLabel: 'work',
+    })
+    expect(copy.title).not.toContain('rejected')
+    expect(copy.detail).toContain('does not mean the stored key is invalid')
+    expect(copy.remedies).toEqual([ERunRemedy.FixCredential, ERunRemedy.Retry])
+  })
+
+  it('names a model denial without blaming the key', () => {
+    const copy = runFailureCopy({
+      failure: failure(ERunFailureKind.ModelDenied),
+      providerLabel: 'OpenAI',
+    })
+    expect(copy.detail).toContain('denied access to this model')
+    expect(copy.remedies).toEqual([ERunRemedy.Retry, ERunRemedy.SwitchModel])
   })
 
   it('falls back gracefully without labels', () => {
@@ -73,6 +143,8 @@ describe('runFailureCopy', () => {
       ERunFailureKind.MissingCredential,
       [ERunRemedy.FixCredential, ERunRemedy.Retry, ERunRemedy.SwitchModel],
     ],
+    [ERunFailureKind.Delivery, [ERunRemedy.FixCredential, ERunRemedy.Retry]],
+    [ERunFailureKind.ModelDenied, [ERunRemedy.Retry, ERunRemedy.SwitchModel]],
     [ERunFailureKind.RateLimited, [ERunRemedy.Retry, ERunRemedy.SwitchModel]],
     [ERunFailureKind.Overloaded, [ERunRemedy.Retry, ERunRemedy.SwitchModel]],
     [ERunFailureKind.Network, [ERunRemedy.Retry]],
@@ -115,6 +187,30 @@ describe('run-failed schema', () => {
     }
     expect(eventBodySchema.parse(body)).toEqual(body)
     expect(runFailureSchema.safeParse({ kind: ERunFailureKind.Auth }).success).toBe(false)
+  })
+})
+
+describe('run-failed hints', () => {
+  it('round-trips retryAt and resetAt and the new kinds', () => {
+    const body = {
+      type: 'run-failed' as const,
+      failure: {
+        kind: ERunFailureKind.Quota,
+        message: 'spend limit',
+        retryAt: '2026-10-31T12:00:00.000Z',
+        resetAt: '2026-11-01T00:00:00.000Z',
+      },
+    }
+    expect(eventBodySchema.parse(body)).toEqual(body)
+    for (const kind of [ERunFailureKind.Delivery, ERunFailureKind.ModelDenied]) {
+      const parsed = runFailureSchema.parse({ kind, message: 'x' })
+      expect(parsed.kind).toBe(kind)
+    }
+  })
+
+  it('parses a historical failure without hints', () => {
+    const parsed = runFailureSchema.parse({ kind: ERunFailureKind.MissingCredential, message: 'x' })
+    expect(parsed).toEqual({ kind: ERunFailureKind.MissingCredential, message: 'x' })
   })
 })
 

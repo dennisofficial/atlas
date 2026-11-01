@@ -2,6 +2,7 @@ import { transcriptOfRange, type Event } from '@dltech/atlas-core'
 import { generateText, type LanguageModel } from 'ai'
 
 import { SummaryFailure } from '../model/summariser'
+import { NO_SDK_RETRIES } from '../model/no-sdk-retries'
 
 export type RotationSummariser = (args: {
   events: readonly Event[]
@@ -70,6 +71,7 @@ export function carryOverSummariser({ model }: { model: LanguageModel }): Rotati
         model,
         system: carryOverSystemPrompt({ instructions }),
         prompt: transcript,
+        maxRetries: NO_SDK_RETRIES,
         ...(signal === undefined ? {} : { abortSignal: signal }),
       })
     } catch (fault) {

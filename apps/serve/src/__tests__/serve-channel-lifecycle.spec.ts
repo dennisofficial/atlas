@@ -50,8 +50,16 @@ const until = async (predicate: () => boolean): Promise<void> => {
   }
 }
 
+const signalLine = (signal: { type: string; working?: boolean }): string =>
+  signal.type === 'turn-working'
+    ? `signal:working:${String(signal.working)}`
+    : `signal:${signal.type}`
+
+const withoutRepeats = (lines: readonly string[]): string[] =>
+  lines.filter((line, index) => line !== lines[index - 1])
+
 const lineOf = (frame: ServeFrame): string[] => {
-  if (frame.kind === EServeFrame.Signal) return [`signal:${frame.signal.type}`]
+  if (frame.kind === EServeFrame.Signal) return [signalLine(frame.signal)]
   if (frame.kind === EServeFrame.TurnEnded) return ['turn-ended']
   if (frame.kind === EServeFrame.Error) return [`error:${frame.message}`]
   return []
@@ -95,7 +103,11 @@ const rig = async (args: {
       turns += 1
       const publisher = holder.app?.channel.publisherFor({ threadId })
       publisher?.turnWorking({ working: true })
-      publisher?.onChunk({ type: 'text-delta', id: 'block', text: `turn ${turns}` })
+      publisher?.onChunk({
+        type: 'text-delta',
+        id: 'block',
+        text: `turn ${turns}`,
+      })
       publisher?.turnWorking({ working: false })
       await hold?.()
       if (outcome === ETurnScript.Fail) throw new Error(`turn ${turns} failed`)
@@ -120,7 +132,12 @@ const rig = async (args: {
   running.push(handle)
 
   const observer = await connect({ port: handle.port, token: TOKEN })
-  observer.send({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 })
+  observer.send({
+    kind: EClientFrame.Hello,
+    threadId,
+    channelCursor: null,
+    lastEventSeq: 0,
+  })
   await observer.waitFor((frame) => frame.kind === EServeFrame.Ready)
 
   const seen: string[] = []
@@ -157,7 +174,10 @@ const rig = async (args: {
   })
   channels.push(channel)
   const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
-  channel.subscribe({ threadId, listener: (signal) => void seen.push(`signal:${signal.type}`) })
+  channel.subscribe({
+    threadId,
+    listener: (signal) => void seen.push(signalLine(signal)),
+  })
   channel.onTurnEnded(() => void seen.push('turn-ended'))
   channel.onServerError(({ message }) => void seen.push(`error:${message}`))
   channel.onReload((reload) => void reloads.push(reload))
@@ -209,7 +229,9 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
   })
 
   it('still reloads when a signal is really lost right after a turn-ended', async () => {
-    const attached = await rig({ script: [ETurnScript.Complete, ETurnScript.Complete] })
+    const attached = await rig({
+      script: [ETurnScript.Complete, ETurnScript.Complete],
+    })
 
     await attached.runTurn()
     await until(() => attached.seen.length === attached.expectedLines().length)
@@ -254,15 +276,18 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
     expect(attached.seen.at(-1)).toBe('turn-ended')
   })
 
-  it('resumes a reconnect whose only missed frame is a turn-ended', async () => {
+  it('resumes a reconnect whose missed frames are only the end of the turn', async () => {
     let release = (): void => undefined
     const held = new Promise<void>((resolve) => {
       release = resolve
     })
-    const attached = await rig({ script: [ETurnScript.Complete], hold: () => held })
+    const attached = await rig({
+      script: [ETurnScript.Complete],
+      hold: () => held,
+    })
 
     attached.observer.send({ kind: EClientFrame.Run })
-    await until(() => attached.seen.length === 4)
+    await until(() => attached.seen.includes('signal:chunk'))
 
     attached.sockets.at(-1)?.close()
     await until(() => attached.retries.length === 1)
@@ -275,14 +300,19 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
     await until(() => attached.seen.at(-1) === 'turn-ended')
 
     expect(attached.reloads).toEqual([])
-    expect(attached.seen).toEqual(attached.expectedLines())
+    expect(withoutRepeats(attached.seen)).toEqual(attached.expectedLines())
   })
 
   it('keeps a run queued while disconnected from settling with the turn-ended replayed on reconnect', async () => {
-    const attached = await rig({ script: [ETurnScript.Complete, ETurnScript.Complete] })
+    const attached = await rig({
+      script: [ETurnScript.Complete, ETurnScript.Complete],
+    })
 
     const first = await attached.runner.runTurn({ threadId })
-    expect(first).toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-1') })
+    expect(first).toEqual({
+      status: ETurnStatus.Completed,
+      runId: toRunId('run-1'),
+    })
     await until(() => attached.seen.length === attached.expectedLines().length)
 
     attached.sockets.at(-1)?.close()
@@ -292,7 +322,10 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
     attached.retries.shift()?.()
     await until(() => attached.channel.connection().state === EConnectionView.Connected)
 
-    expect(await second).toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-2') })
+    expect(await second).toEqual({
+      status: ETurnStatus.Completed,
+      runId: toRunId('run-2'),
+    })
     expect(attached.seen.filter((line) => line === 'turn-ended')).toHaveLength(3)
     expect(attached.reloads).toEqual([])
   })

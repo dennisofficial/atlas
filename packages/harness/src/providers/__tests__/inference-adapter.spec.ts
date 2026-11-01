@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 import { generateText } from 'ai'
 
-import { EEffort, EImageTier, type CredentialPort, type ModelCard } from '@dltech/atlas-core'
+import {
+  EEffort,
+  EImageTier,
+  EProviderFailureKind,
+  EProviderFailureScope,
+  EProviderRetry,
+  type CredentialPort,
+  type ModelCard,
+} from '@dltech/atlas-core'
 
 import { apiKeyCredential } from '../../credentials/testing'
 import { InferenceAdapter, INFERENCE_PROVIDER_ID } from '../inference-adapter'
@@ -90,7 +98,7 @@ describe('the inference adapter tagging a failure with its account', () => {
   it('names the account resolved at request time on a 401', async () => {
     const { toAccountId } = await import('@dltech/atlas-core')
     const { failureAccountOf } = await import('../failure-account')
-    const { modelFailureOf } = await import('../../model/failure')
+    const { normalizeProviderFailure } = await import('../../model/failure')
     const recorder = refusingFirstFetch({
       body: RESPONSE_JSON,
       refusalBody: '{"error":{"message":"Invalid API key","code":"invalid_api_key"}}',
@@ -110,6 +118,92 @@ describe('the inference adapter tagging a failure with its account', () => {
     )
 
     expect(failureAccountOf(error)).toBe(toAccountId('acct-9'))
-    expect(modelFailureOf(error)).toEqual({ status: 401 })
+    expect(normalizeProviderFailure({ cause: error, nowMs: 0 })).toMatchObject({
+      kind: EProviderFailureKind.Auth,
+      scope: EProviderFailureScope.Credential,
+      retry: EProviderRetry.Never,
+      statusCode: 401,
+      accountId: toAccountId('acct-9'),
+      providerId: 'inference',
+      modelId: 'kimi-k3-fast',
+    })
+  })
+})
+
+describe('the inference adapter separating a missing header from a rejected key', () => {
+  const adapterFor = (fetch: ReturnType<typeof refusingFirstFetch>['fetch']) =>
+    new InferenceAdapter({ credentials, cards: [card], fetch })
+
+  const failureOf = async (refusalBody: string, status = 401) => {
+    const { normalizeProviderFailure } = await import('../../model/failure')
+    const recorder = refusingFirstFetch({ body: RESPONSE_JSON, refusalBody, status })
+    const model = adapterFor(recorder.fetch).model({ card, effort: () => EEffort.High })
+    const error = await generateText({ model, prompt: 'ping', maxRetries: 0 }).catch(
+      (caught: unknown) => caught,
+    )
+    return { failure: normalizeProviderFailure({ cause: error, nowMs: 0 }), recorder }
+  }
+
+  it('reports Delivery when the provider says the Authentication header was missing', async () => {
+    const { failure, recorder } = await failureOf(
+      '{"error":{"message":"Missing Authentication header","code":"invalid_api_key"}}',
+    )
+
+    expect(failure.kind).toBe(EProviderFailureKind.Delivery)
+    expect(recorder.requests).toHaveLength(1)
+  })
+
+  it('reports Auth when the key was delivered and rejected', async () => {
+    const { failure } = await failureOf('{"error":{"message":"bad","code":"invalid_api_key"}}')
+
+    expect(failure.kind).toBe(EProviderFailureKind.Auth)
+  })
+
+  it('reports a bare delivered 401 as Auth, since the adapter built the header', async () => {
+    const { failure } = await failureOf('{"error":{"message":"nope"}}')
+
+    expect(failure.kind).toBe(EProviderFailureKind.Auth)
+  })
+
+  it('reports a delivered 403 as a route denial, not a bad key', async () => {
+    const { failure } = await failureOf('{"error":{"message":"forbidden"}}', 403)
+
+    expect(failure).toMatchObject({
+      kind: EProviderFailureKind.ModelDenied,
+      scope: EProviderFailureScope.Route,
+    })
+  })
+
+  it('reports a monthly-spend style quota code as Quota on a delivered key', async () => {
+    const { failure } = await failureOf(
+      '{"error":{"message":"You exceeded your quota","code":"insufficient_quota"}}',
+      429,
+    )
+
+    expect(failure).toMatchObject({
+      kind: EProviderFailureKind.Quota,
+      scope: EProviderFailureScope.Credential,
+      retry: EProviderRetry.Never,
+    })
+  })
+
+  it('tags an SSE error chunk with the request provenance', async () => {
+    const { normalizeProviderFailure } = await import('../../model/failure')
+    const { streamText } = await import('ai')
+    const sse = `data: ${JSON.stringify({ error: { message: 'out of credit', code: 'insufficient_quota' } })}\n\n`
+    const recorder = recordingFetch({ body: sse })
+    const model = adapterFor(recorder.fetch).model({ card, effort: () => EEffort.High })
+
+    const result = streamText({ model, prompt: 'ping', maxRetries: 0, onError: () => undefined })
+    let streamError: unknown
+    for await (const part of result.fullStream) {
+      if (part.type === 'error') streamError = part.error
+    }
+
+    expect(normalizeProviderFailure({ cause: streamError, nowMs: 0 })).toMatchObject({
+      kind: EProviderFailureKind.Quota,
+      scope: EProviderFailureScope.Credential,
+      providerId: 'inference',
+    })
   })
 })

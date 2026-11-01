@@ -1,35 +1,24 @@
 import type { AccountId } from '@dltech/atlas-core'
 
-const accounts = new WeakMap<object, AccountId>()
+import { attachProvenance, provenanceOf, type RequestProvenance } from '../model/failure-provenance'
 
-const isObject = (value: unknown): value is object =>
-  (typeof value === 'object' && value !== null) || typeof value === 'function'
+export type FailureAttachment = RequestProvenance & { accountId: AccountId }
 
-export function withFailureAccount(args: { error: unknown; accountId: AccountId }): unknown {
-  if (isObject(args.error) && !accounts.has(args.error)) accounts.set(args.error, args.accountId)
-  return args.error
+export function withFailureAccount(args: FailureAttachment & { error: unknown }): unknown {
+  const { error, ...provenance } = args
+  return attachProvenance({ error, provenance })
 }
 
-export async function failingAs<TResult>(args: {
-  accountId: AccountId
-  run: () => PromiseLike<TResult>
-}): Promise<TResult> {
+export async function failingAs<TResult>(
+  args: FailureAttachment & { run: () => PromiseLike<TResult> },
+): Promise<TResult> {
+  const { run, ...provenance } = args
   try {
-    return await args.run()
+    return await run()
   } catch (error) {
-    throw withFailureAccount({ error, accountId: args.accountId })
+    throw attachProvenance({ error, provenance })
   }
 }
 
-const MAX_DEPTH = 8
-
-export function failureAccountOf(error: unknown): AccountId | undefined {
-  let current: unknown = error
-  for (let depth = 0; depth < MAX_DEPTH && isObject(current); depth += 1) {
-    const found = accounts.get(current)
-    if (found !== undefined) return found
-    const next = current as { cause?: unknown; lastError?: unknown }
-    current = next.cause ?? next.lastError
-  }
-  return undefined
-}
+export const failureAccountOf = (error: unknown): AccountId | undefined =>
+  provenanceOf(error)?.accountId

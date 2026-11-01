@@ -86,7 +86,7 @@ export function ThreadHoverCard({
               render={
                 <button
                   type="button"
-                  className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-hidden hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                  className="flex size-6 shrink-0 pointer-fine:hidden items-center justify-center rounded-md text-muted-foreground outline-hidden hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
                 />
               }
             >

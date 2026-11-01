@@ -6,6 +6,7 @@ import { InlineSpinner } from './status-dot'
 import { ChipIcon } from './pod-chip-icon'
 import {
   canResize,
+  DEFAULT_VCPUS,
   EPodState,
   ramOf,
   ResizeDeclinedError,
@@ -51,9 +52,12 @@ function PodDetails({ status }: { status: PodStatus }) {
         <ChipIcon state={status.state} />
         <span className="text-sm">{STATE_LABEL[status.state]}</span>
       </div>
-      <p className="font-mono text-xs text-muted-foreground">
-        {status.podId} · {status.region}
-      </p>
+      {status.podId === undefined ? null : (
+        <p className="font-mono text-xs text-muted-foreground">
+          {status.podId}
+          {status.region === undefined ? '' : ` · ${status.region}`}
+        </p>
+      )}
     </div>
   )
 }
@@ -65,7 +69,7 @@ export interface PodPopoverBodyProps {
 }
 
 export function PodPopoverBody({ status, onResize, settingsHref }: PodPopoverBodyProps) {
-  const target = status.pendingVcpus ?? status.vcpus
+  const target = status.pendingVcpus ?? status.vcpus ?? DEFAULT_VCPUS
   const [selected, setSelected] = useState(target)
   const [syncedTarget, setSyncedTarget] = useState(target)
   const [requested, setRequested] = useState<number>()

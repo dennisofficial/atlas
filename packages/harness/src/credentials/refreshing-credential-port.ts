@@ -70,7 +70,7 @@ export class RefreshingCredentialPort extends CredentialPort {
     const decision = this.decisionFor(stored)
 
     if (decision === ERefresh.Fresh) return credentialOf(stored)
-    if (decision === ERefresh.Unrefreshable) throw this.expired(stored)
+    if (decision === ERefresh.Unrefreshable) throw this.expired({ stored })
 
     return credentialOf(await this.sharedRefresh(stored))
   }
@@ -124,7 +124,7 @@ export class RefreshingCredentialPort extends CredentialPort {
             throw this.noAccount(stored.provider, ENoAccountReason.NoneForProvider)
           const decision = this.decisionFor(current)
           if (decision === ERefresh.Fresh) return current
-          if (decision === ERefresh.Unrefreshable) throw this.expired(current)
+          if (decision === ERefresh.Unrefreshable) throw this.expired({ stored: current })
           return this.refresh(current)
         },
       })
@@ -191,12 +191,14 @@ export class RefreshingCredentialPort extends CredentialPort {
 
   private async retire(stored: StoredAccount): Promise<never> {
     await this.accounts.setStatus({ accountId: stored.id, status: EAccountStatus.Expired })
-    throw this.expired(stored)
+    throw this.expired({ stored, providerRefused: true })
   }
 
-  private expired(stored: StoredAccount): CredentialError {
+  private expired(args: { stored: StoredAccount; providerRefused?: boolean }): CredentialError {
+    const { stored } = args
     return new CredentialError({
       failure: ECredentialFailure.Expired,
+      providerRefused: args.providerRefused === true,
       message: `The ${providerSpec(stored.provider).label} login for ${stored.label} has expired and could not be refreshed. ${SIGN_IN}`,
     })
   }

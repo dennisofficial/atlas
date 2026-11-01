@@ -16,6 +16,7 @@ import { INFERENCE_LABEL, INFERENCE_PROVIDER_ID } from '../models/provider-ids'
 import { ProviderAdapter } from './adapter'
 import { inferenceEffortOptions } from './inference-effort'
 import { failingAs } from './failure-account'
+import { withStreamProvenance } from './stream-provenance'
 import { providerKey } from './provider-key'
 
 export { INFERENCE_PROVIDER_ID }
@@ -88,6 +89,13 @@ export class InferenceAdapter extends ProviderAdapter {
       return { ...options, providerOptions }
     }
 
+    const provenanceOf = (accountId: AccountId) => ({
+      accountId,
+      providerId: INFERENCE_PROVIDER_ID,
+      modelId: args.card.ref.modelId,
+      authorizationDelivered: true,
+    })
+
     return {
       specificationVersion: 'v4',
       provider: INFERENCE_PROVIDER_ID,
@@ -101,11 +109,22 @@ export class InferenceAdapter extends ProviderAdapter {
       }).chatModel(args.card.ref.modelId).supportedUrls,
       doGenerate: async (options) => {
         const { model, accountId } = await authorized()
-        return failingAs({ accountId, run: () => model.doGenerate(withEffort(options)) })
+        return failingAs({
+          ...provenanceOf(accountId),
+          run: () => model.doGenerate(withEffort(options)),
+        })
       },
       doStream: async (options) => {
         const { model, accountId } = await authorized()
-        return failingAs({ accountId, run: () => model.doStream(withEffort(options)) })
+        const provenance = provenanceOf(accountId)
+        return failingAs({
+          ...provenance,
+          run: async () =>
+            withStreamProvenance({
+              result: await model.doStream(withEffort(options)),
+              provenance,
+            }),
+        })
       },
     }
   }

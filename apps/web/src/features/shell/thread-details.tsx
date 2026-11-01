@@ -2,6 +2,7 @@ import { Folder } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
+import { displayedThreadTitle } from '@dltech/atlas-core'
 import { Separator } from '@dltech/atlas-ui/components/separator'
 import type { PrStateWire, WireThread } from '@dltech/atlas-wire/web'
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
@@ -173,7 +174,9 @@ export function ThreadDetails({
                     className="flex items-center gap-1.5 text-xs hover:underline"
                   >
                     <ThreadStatusIcon status={threadStatusOf(teammate)} />
-                    <span className="min-w-0 break-words">{teammate.title ?? UNTITLED}</span>
+                    <span className="min-w-0 break-words">
+                      {teammate.title ? displayedThreadTitle(teammate.title) : UNTITLED}
+                    </span>
                   </Link>
                   {teammateParent && teammateParent.id !== thread.id ? (
                     <p className="text-xs text-muted-foreground">

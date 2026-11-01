@@ -13,6 +13,7 @@ import { OPENROUTER_LABEL, OPENROUTER_PROVIDER_ID } from '../models/provider-ids
 import { ProviderAdapter } from './adapter'
 import { openrouterEffortOptions } from './openrouter-effort'
 import { failingAs } from './failure-account'
+import { withStreamProvenance } from './stream-provenance'
 import { providerKey } from './provider-key'
 
 export { OPENROUTER_PROVIDER_ID }
@@ -92,6 +93,13 @@ export class OpenRouterAdapter extends ProviderAdapter {
       return { ...options, providerOptions: { ...effort, ...options.providerOptions } }
     }
 
+    const provenanceOf = (accountId: AccountId) => ({
+      accountId,
+      providerId: OPENROUTER_PROVIDER_ID,
+      modelId: args.card.ref.modelId,
+      authorizationDelivered: true,
+    })
+
     return {
       specificationVersion: 'v4',
       provider: OPENROUTER_PROVIDER_ID,
@@ -101,11 +109,22 @@ export class OpenRouterAdapter extends ProviderAdapter {
       supportedUrls: this.compatible().chatModel(args.card.ref.modelId).supportedUrls,
       doGenerate: async (options) => {
         const { model, accountId } = await authorized()
-        return failingAs({ accountId, run: () => model.doGenerate(withEffort(options)) })
+        return failingAs({
+          ...provenanceOf(accountId),
+          run: () => model.doGenerate(withEffort(options)),
+        })
       },
       doStream: async (options) => {
         const { model, accountId } = await authorized()
-        return failingAs({ accountId, run: () => model.doStream(withEffort(options)) })
+        const provenance = provenanceOf(accountId)
+        return failingAs({
+          ...provenance,
+          run: async () =>
+            withStreamProvenance({
+              result: await model.doStream(withEffort(options)),
+              provenance,
+            }),
+        })
       },
     }
   }

@@ -365,7 +365,7 @@ class ScriptedClockJump implements ClockJumpDetector {
   }
 }
 
-describe('recovering the retry budget after the machine slept', () => {
+describe('a clock jump after the machine slept', () => {
   const failsPerBudget = POLICY.maxAttempts
 
   function waking(args: {
@@ -414,15 +414,15 @@ describe('recovering the retry budget after the machine slept', () => {
     return { model, notices, slept, clockJumps, run }
   }
 
-  it('resets the attempt counter, so the wake attempt is 1/maxAttempts again', async () => {
+  it('never refunds attempts, so the wake attempt continues the count', async () => {
     const outcomes = Array.from({ length: failsPerBudget + 1 }, () => 'fail' as const)
     const { model, notices, run } = waking({ outcomes, sleeps: 1 })
 
     const stepped = await run()
 
     expect(stepped.ok).toBe(false)
-    expect(model.steps).toBe(failsPerBudget + 1)
-    expect(notices.map((notice) => notice.attempt)).toEqual([1, 1, 2, 3])
+    expect(model.steps).toBe(failsPerBudget)
+    expect(notices.map((notice) => notice.attempt)).toEqual([1, 2, 3])
   })
 
   it('cuts the backoff sleep short on the jump instead of sitting out the delay', async () => {
@@ -437,28 +437,29 @@ describe('recovering the retry budget after the machine slept', () => {
     expect(slept).toEqual([1_000])
   })
 
-  it('holds when the jump fires mid-attempt rather than during the backoff', async () => {
+  it('holds the cap when the jump fires mid-attempt rather than during the backoff', async () => {
     const outcomes = Array.from({ length: failsPerBudget + 1 }, () => 'fail' as const)
     const { model, notices, run } = waking({ outcomes, jumpOnStep: 2 })
 
     const stepped = await run()
 
     expect(stepped.ok).toBe(false)
-    expect(model.steps).toBe(failsPerBudget + 1)
-    expect(notices.map((notice) => notice.attempt)).toEqual([1, 1, 2, 3])
+    expect(model.steps).toBe(failsPerBudget)
+    expect(notices.map((notice) => notice.attempt)).toEqual([1, 2, 3])
   })
 
-  it('cannot stack resets: one pending jump is spent once, so a wake loop runs out of budget', async () => {
-    const outcomes = Array.from({ length: failsPerBudget + 1 }, () => 'fail' as const)
-    const { model, notices, clockJumps, run } = waking({ outcomes, sleeps: 1 })
-    const steppedPromise = run()
-    clockJumps.jump()
-    clockJumps.jump()
+  it('makes at most maxAttempts provider attempts across repeated jumps', async () => {
+    const outcomes = Array.from({ length: failsPerBudget * 3 }, () => 'fail' as const)
+    const { model, clockJumps, run } = waking({ outcomes })
+    const original = model.step.bind(model)
+    model.step = async () => {
+      clockJumps.jump()
+      return original()
+    }
 
-    const stepped = await steppedPromise
+    const stepped = await run()
 
     expect(stepped.ok).toBe(false)
-    expect(model.steps).toBe(failsPerBudget + 1)
-    expect(notices.map((notice) => notice.attempt)).toEqual([1, 1, 2, 3])
+    expect(model.steps).toBe(failsPerBudget)
   })
 })

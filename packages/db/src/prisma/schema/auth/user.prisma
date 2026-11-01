@@ -31,6 +31,7 @@ model User {
   secrets                  UserSecret[]
   harnessSecrets           UserHarnessSecret[]
   authSessions             AuthSession[]
+  composerDrafts           ComposerDraft[]
   sessions                 Session[]
   sshSigningKey            SshSigningKey?
   threads                  Thread[]

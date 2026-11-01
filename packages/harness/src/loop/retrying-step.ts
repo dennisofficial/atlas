@@ -1,18 +1,22 @@
 import {
   DEFAULT_RETRY_POLICY,
+  EProviderFailureKind,
+  EProviderFailureScope,
+  EProviderRetry,
   planRetry,
   retryReasonOf,
   type Assembled,
   type ChunkFilter,
   type ERetryReason,
   type ModelPort,
+  type NormalizedProviderFailure,
   type RetryPolicy,
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
 import { preparedFailureMessage, type PreparedStep } from './step-prepare'
 
-import { modelFailureOf } from '../model/failure'
+import { normalizeProviderFailure } from '../model/failure'
 import { takeModelStep, type SteppedTurn } from './model-step'
 
 export type RetryNotice = {
@@ -44,10 +48,11 @@ export type RetryDeps = {
       }) => void)
     | undefined
   /**
-   * Fired once, when a retryable fault has spent its whole budget. Returning true means the model
-   * has been switched to a fallback worth one more attempt; that attempt runs against the new
-   * model without consuming the spent budget, since the attempts belonged to the model that died.
-   * Returning false (or leaving it unset) settles the failure as before.
+   * Consulted at most once per step, and only when the failure says this model cannot continue: a
+   * transient fault that spent the whole attempt budget, or a credential-scoped quota/auth
+   * rejection. Returning true means the model has been switched to a fallback worth a fresh
+   * budget, granted once; returning false (or leaving it unset) settles the failure. Permanent
+   * request, route and delivery faults never consult it.
    */
   onGiveUp?: (() => boolean) | undefined
 }
@@ -113,12 +118,17 @@ async function attemptModelStep(args: {
   }
 }
 
+const asksToGiveUp = (failure: NormalizedProviderFailure, spent: boolean): boolean => {
+  if (failure.retry === EProviderRetry.Transient) return spent
+  return (
+    failure.scope === EProviderFailureScope.Credential &&
+    (failure.kind === EProviderFailureKind.Quota || failure.kind === EProviderFailureKind.Auth)
+  )
+}
+
 /**
- * A machine sleep strands the attempts spent before it against dead pooled connections, so a
- * clock jump hands the loop its budget back: the jump aborts the inner sleep, and the next
- * failure after it reads the jump and restarts the counter at attempt 1. One pending jump is
- * consumed once — there is no per-step reset cap because a wake loop cannot stack resets: a jump
- * still flagged from the last reset adds nothing, and only a genuinely new jump resets again.
+ * A clock jump cuts the in-progress backoff short so a woken machine retries on fresh
+ * connections, but it never refunds attempts: five provider attempts is a hard cap per step.
  */
 export async function takeModelStepWithRetry(args: {
   model: ModelPort
@@ -135,14 +145,10 @@ export async function takeModelStepWithRetry(args: {
 
   let wake = new AbortController()
   const stopWatching = args.retry?.clockJumps?.onJump(() => wake.abort())
-  const consumeJump = (): boolean => {
-    if (!wake.signal.aborted) return false
-    wake = new AbortController()
-    return true
-  }
 
   try {
     let attempts = 0
+    let gaveUp = false
     let assembled = args.assembled
 
     for (;;) {
@@ -163,43 +169,33 @@ export async function takeModelStepWithRetry(args: {
 
       if (args.signal.aborted) return settled()
 
-      if (consumeJump()) attempts = 0
-
       attempts += 1
 
-      const failure = modelFailureOf(attempt.cause)
-      if (failure === null) {
-        args.retry?.log?.({
-          attempt: attempts,
-          maxAttempts: policy.maxAttempts,
-          reason: 'non-retryable',
-          willRetry: false,
-          error: attempt.cause,
-        })
-        return settled()
-      }
+      const nowMs = Date.now()
+      const failure = normalizeProviderFailure({
+        cause: attempt.cause,
+        message: attempt.message,
+        providerId: args.model.identity.id,
+        modelId: args.model.identity.modelId,
+        cancelled: args.signal.aborted,
+        nowMs,
+      })
+      const decision = planRetry({ failure, attempts, policy, jitter: jitter(), nowMs })
 
-      const decision = planRetry({ failure, attempts, policy, jitter: jitter() })
       if (!decision.retry) {
-        if (args.retry?.onGiveUp?.() === true) {
-          args.retry?.log?.({
-            attempt: attempts,
-            maxAttempts: policy.maxAttempts,
-            reason: retryReasonOf(failure) ?? 'non-retryable',
-            willRetry: true,
-            error: attempt.cause,
-          })
-          attempts = 0
-          continue
-        }
+        const mayConsult = !gaveUp && asksToGiveUp(failure, attempts >= policy.maxAttempts)
+        if (mayConsult) gaveUp = true
+        const consulted = mayConsult && args.retry?.onGiveUp?.() === true
         args.retry?.log?.({
           attempt: attempts,
           maxAttempts: policy.maxAttempts,
           reason: retryReasonOf(failure) ?? 'non-retryable',
-          willRetry: false,
+          willRetry: consulted,
           error: attempt.cause,
         })
-        return settled()
+        if (!consulted) return settled()
+        attempts = 0
+        continue
       }
 
       args.retry?.log?.({
@@ -222,6 +218,7 @@ export async function takeModelStepWithRetry(args: {
         jumpSignal: wake.signal,
         sleep,
       })
+      if (wake.signal.aborted) wake = new AbortController()
       if (args.signal.aborted) return settled()
 
       if (args.prepare !== undefined) {
