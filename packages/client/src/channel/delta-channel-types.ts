@@ -17,6 +17,8 @@ export type ThreadPublisher = {
   close(args: { end: EStepEnd }): void
   retrying(notice: Omit<RetryWaitingSignal, 'type'>): void
   turnWorking(args: { working: boolean }): void
+  /** Keeps the thread announced as working until the returned release runs, whatever the loop says. */
+  holdWorking(): () => void
   operatorInput(args: {
     open: OperatorInputRequest | null
     onListenerError?: ListenerErrorSink
