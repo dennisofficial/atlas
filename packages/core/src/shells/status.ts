@@ -16,6 +16,7 @@ export enum EKilledBy {
   LostContact = 'lost-contact',
   IdlePark = 'idle-park',
   Unrecorded = 'unrecorded',
+  Fault = 'fault',
 }
 
 export type ShellEnding = {
@@ -41,6 +42,7 @@ function killEnding(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.LostContact) return 'was killed because atlas lost contact with it'
   if (killedBy === EKilledBy.IdlePark)
     return 'was stopped because the sandbox parked after sitting idle'
+  if (killedBy === EKilledBy.Fault) return 'ended permanently on a fault it cannot recover from'
   return 'was killed'
 }
 

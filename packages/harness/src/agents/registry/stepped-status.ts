@@ -1,4 +1,4 @@
-import { EAgentStatus } from '@dltech/atlas-core'
+import { EAgentStatus, EKilledBy, ERunFailureKind } from '@dltech/atlas-core'
 
 import { runFailureOf, safeFailureMessage } from '../../model/run-failure'
 import type { PauseSignal } from '../../loop/pause-signal'
@@ -37,6 +37,7 @@ export async function steppedStatus({
     if (outcome.status === ETurnStatus.Failed) {
       child.failureCause = safeFailureMessage(outcome.message)
       child.failureKind = runFailureOf({ message: outcome.message, cause: outcome.cause }).kind
+      if (child.failureKind === ERunFailureKind.ExchangeFault) child.killedBy = EKilledBy.Fault
     }
     if (outcome.status === ETurnStatus.WaitingForModel) child.waitingFor = outcome.waiting.episode
     return statusOf(outcome)

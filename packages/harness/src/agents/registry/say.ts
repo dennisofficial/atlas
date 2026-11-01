@@ -1,5 +1,6 @@
 import {
   EAgentRestart,
+  EKilledBy,
   EMessageOrigin,
   reportWakesParent,
   saidBody,
@@ -19,7 +20,13 @@ import { agentTypeNamed, type SupervisorDeps } from './deps'
 import type { AgentJournal } from './agent-journal'
 import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentOutcome } from './port'
-import { NOT_A_TEAMMATE, reportNotRecorded, retiredAgentType, unknownAgent } from './reasons'
+import {
+  NOT_A_TEAMMATE,
+  reportNotRecorded,
+  retiredAgentType,
+  unknownAgent,
+  wedgedAgent,
+} from './reasons'
 import { recordRestart } from './record-restart'
 import { childDirectory } from './relocate-children'
 import type { AgentRoster } from './roster'
@@ -87,6 +94,10 @@ async function deliverAdmitted({
     }
     child.pending.push(queued)
     return { ok: true, snapshot: snapshotOf(child) }
+  }
+
+  if (child.killedBy === EKilledBy.Fault) {
+    return { ok: false, reason: wedgedAgent({ agentId: args.agentId }) }
   }
 
   const agentType = agentTypeNamed({ agentTypes, name: child.agentType })

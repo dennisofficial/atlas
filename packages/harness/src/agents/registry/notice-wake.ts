@@ -7,7 +7,7 @@ import { agentTypeNamed, type SupervisorDeps } from './deps'
 import type { AgentOutcome } from './port'
 import { recordRestart } from './record-restart'
 import { childDirectory } from './relocate-children'
-import { alreadyStepping, deliberatelyStopped, retiredAgentType, unknownAgent } from './reasons'
+import { alreadyStepping, killedRefusal, retiredAgentType, unknownAgent } from './reasons'
 import type { AgentRoster } from './roster'
 
 export class NoticeWake {
@@ -46,7 +46,7 @@ export class NoticeWake {
       return { ok: false, reason: alreadyStepping(agentId) }
     }
     if (child.killedBy !== undefined) {
-      return { ok: false, reason: deliberatelyStopped({ agentId }) }
+      return { ok: false, reason: killedRefusal({ child }) }
     }
 
     const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: child.agentType })
@@ -62,7 +62,7 @@ export class NoticeWake {
       })
       if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
       if (child.killedBy !== undefined) {
-        return { ok: false, reason: deliberatelyStopped({ agentId }) }
+        return { ok: false, reason: killedRefusal({ child }) }
       }
 
       await recordRestart({
@@ -73,7 +73,7 @@ export class NoticeWake {
       })
       if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
       if (child.killedBy !== undefined) {
-        return { ok: false, reason: deliberatelyStopped({ agentId }) }
+        return { ok: false, reason: killedRefusal({ child }) }
       }
 
       this.steps.take({

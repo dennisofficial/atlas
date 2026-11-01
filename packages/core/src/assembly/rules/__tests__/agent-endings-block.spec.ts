@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentRestart } from '../../../agents/restart'
 import { EAgentStart } from '../../../agents/start'
 import { EAgentStatus } from '../../../agents/status'
+import { ERunFailureKind } from '../../../events/run-failure'
 import { EKilledBy } from '../../../shells/status'
 import type { EventDraft } from '../../../events/body'
 import { toCallId, toThreadId } from '../../../events/ids'
@@ -414,6 +415,40 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
   it('does not suggest a retry for a finished agent', () => {
     const block = blocksOf(assembleWith({ drafts: [ended()] }))[0] ?? ''
     expect(block).not.toContain('agent_say to it to retry')
+  })
+
+  it('tells the parent to spawn fresh, not retry, when the thread fails prompt assembly', () => {
+    const block =
+      blocksOf(
+        assembleWith({
+          drafts: [
+            ended({
+              status: EAgentStatus.Failed,
+              failureCause: 'the assembled prompt is one Atlas must not send',
+              failureKind: ERunFailureKind.ExchangeFault,
+            }),
+          ],
+        }),
+      )[0] ?? ''
+    expect(block).not.toContain('agent_say to it to retry')
+    expect(block).toContain('Spawn a fresh agent')
+    expect(block).toContain('prompt assembly fails on every step')
+  })
+
+  it('keeps the retry advice for a failed agent whose failure is not an exchange fault', () => {
+    const block =
+      blocksOf(
+        assembleWith({
+          drafts: [
+            ended({
+              status: EAgentStatus.Failed,
+              failureCause: 'the provider fell over',
+              failureKind: ERunFailureKind.Overloaded,
+            }),
+          ],
+        }),
+      )[0] ?? ''
+    expect(block).toContain('agent_say to it to retry')
   })
 })
 
