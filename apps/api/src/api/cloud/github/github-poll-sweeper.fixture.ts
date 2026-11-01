@@ -1,5 +1,6 @@
 import type { Row } from '@dltech/atlas-db'
 import { vi } from 'bun:test'
+import { localObservations } from './github-observation.fixture'
 import {
   ensureUsers,
   seedPrState as seedPrStateRow,
@@ -8,6 +9,7 @@ import {
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
+import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
@@ -48,8 +50,17 @@ export function serviceWith(args: {
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
+  const hooks = { ensureHook: async () => 'poll-backed' } as unknown as GithubHookLifecycleService
   return {
-    service: new GithubPollSweeperService(github, reads, fanout, mailbox, inertSignals()),
+    service: new GithubPollSweeperService(
+      github,
+      reads,
+      fanout,
+      mailbox,
+      inertSignals(),
+      hooks,
+      localObservations(github),
+    ),
     fanout,
   }
 }

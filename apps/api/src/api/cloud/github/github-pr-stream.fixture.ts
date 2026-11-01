@@ -1,4 +1,6 @@
 import { request } from 'express'
+import { localObservations } from './github-observation.fixture'
+import type { GithubObservationStore } from './github-observation.store'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 import { EPrEventKind } from './github-realtime.types'
 import { DrainStateService } from '../../platform/health/drain-state.service'
@@ -95,6 +97,7 @@ export function routerWith(fakes: StreamFakes = {}): {
   fanout: GithubPrFanoutService
   drain: DrainStateService
   mailbox: GithubPrEventMailboxService
+  observations: GithubObservationStore
 } {
   const drain = new DrainStateService()
   const fanout = new GithubPrFanoutService(drain)
@@ -102,11 +105,13 @@ export function routerWith(fakes: StreamFakes = {}): {
     fakes.undelivered,
     fakes.threadMissed,
   ) as unknown as GithubPrEventMailboxService
+  const observations = localObservations()
   const router = new GithubPrStreamRouter(
     fanout,
     fakeSubscriptions(fakes.states) as unknown as GithubSubscriptionsService,
     drain,
     mailbox,
+    observations,
   )
-  return { router, fanout, drain, mailbox }
+  return { router, fanout, drain, mailbox, observations }
 }

@@ -9,25 +9,7 @@ export enum EThreadStatus {
   PrOpen = 'pr-open',
   PrClosed = 'pr-closed',
   Idle = 'idle',
-}
-
-const MERGED = 'merged'
-const CLOSED = 'closed'
-
-function pullRequestStatusOf(thread: WireThread): EThreadStatus {
-  const pullRequests = (thread.pullRequests ?? []).filter(
-    (pullRequest) => pullRequest.via === undefined,
-  )
-  if (
-    pullRequests.some((pullRequest) => pullRequest.state !== CLOSED && pullRequest.state !== MERGED)
-  ) {
-    return EThreadStatus.PrOpen
-  }
-  if (pullRequests.some((pullRequest) => pullRequest.state === MERGED)) {
-    return EThreadStatus.PrMerged
-  }
-  if (pullRequests.length > 0) return EThreadStatus.PrClosed
-  return EThreadStatus.Idle
+  Parked = 'parked',
 }
 
 export function threadStatusOf(thread: WireThread): EThreadStatus {
@@ -39,8 +21,9 @@ export function threadStatusOf(thread: WireThread): EThreadStatus {
     if (status.podState === 'failed' || status.lastOutcome === 'failed') {
       return EThreadStatus.Failed
     }
+    if (status.podState === 'parked') return EThreadStatus.Parked
   }
-  return pullRequestStatusOf(thread)
+  return EThreadStatus.Idle
 }
 
 export function isWorking(thread: WireThread): boolean {

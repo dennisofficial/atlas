@@ -14,57 +14,19 @@ const pr = (number: number, state?: string) => ({
 })
 
 describe('threadStatusOf', () => {
-  it('ignores teammate pull requests', () => {
-    const via = { threadId: 'm', title: null }
-    expect(threadStatusOf(threadOf({ id: 'a', pullRequests: [{ ...pr(1, 'open'), via }] }))).toBe(
-      EThreadStatus.Idle,
-    )
-    expect(
-      threadStatusOf(
-        threadOf({
-          id: 'a',
-          pullRequests: [pr(1, 'merged'), { ...pr(2, 'open'), via }],
-        }),
-      ),
-    ).toBe(EThreadStatus.PrMerged)
-  })
+  for (const state of ['open', 'merged', 'closed', undefined]) {
+    it(`does not substitute a ${state ?? 'unknown'} PR state for run status`, () => {
+      const pullRequests = [
+        pr(1, state),
+        { ...pr(2, state), via: { threadId: 'mate', title: null } },
+      ]
+      expect(threadStatusOf(threadOf({ id: 'a', pullRequests }))).toBe(EThreadStatus.Idle)
+    })
+  }
 
-  it('is idle without pull requests', () => {
+  it('is idle without status, not parked', () => {
     expect(threadStatusOf(threadOf({ id: 'a' }))).toBe(EThreadStatus.Idle)
     expect(threadStatusOf(threadOf({ id: 'a', pullRequests: [] }))).toBe(EThreadStatus.Idle)
-  })
-
-  it('is PR open for an open pull request or one with no recorded state', () => {
-    expect(threadStatusOf(threadOf({ id: 'a', pullRequests: [pr(1, 'open')] }))).toBe(
-      EThreadStatus.PrOpen,
-    )
-    expect(threadStatusOf(threadOf({ id: 'a', pullRequests: [pr(1)] }))).toBe(EThreadStatus.PrOpen)
-  })
-
-  it('is PR open when an open pull request sits beside a merged one', () => {
-    expect(
-      threadStatusOf(
-        threadOf({
-          id: 'a',
-          pullRequests: [pr(1467, 'merged'), pr(1469, 'open')],
-        }),
-      ),
-    ).toBe(EThreadStatus.PrOpen)
-    expect(
-      threadStatusOf(threadOf({ id: 'a', pullRequests: [pr(1, 'open'), pr(2, 'merged')] })),
-    ).toBe(EThreadStatus.PrOpen)
-  })
-
-  it('is PR merged when merged is the only non-closed state', () => {
-    expect(
-      threadStatusOf(threadOf({ id: 'a', pullRequests: [pr(1, 'closed'), pr(2, 'merged')] })),
-    ).toBe(EThreadStatus.PrMerged)
-  })
-
-  it('is PR closed when every pull request is closed', () => {
-    expect(threadStatusOf(threadOf({ id: 'a', pullRequests: [pr(1, 'closed')] }))).toBe(
-      EThreadStatus.PrClosed,
-    )
   })
 })
 
@@ -94,9 +56,17 @@ describe('threadStatusOf with live status', () => {
     ],
     ['failed pod', { podState: 'failed' }, EThreadStatus.Failed],
     ['failed outcome', { lastOutcome: 'failed' }, EThreadStatus.Failed],
-    ['completed falls through to PRs', { lastOutcome: 'completed' }, EThreadStatus.PrMerged],
-    ['stopped falls through to PRs', { lastOutcome: 'stopped' }, EThreadStatus.PrMerged],
-    ['parked falls through to PRs', { podState: 'parked' }, EThreadStatus.PrMerged],
+    ['completed', { lastOutcome: 'completed' }, EThreadStatus.Idle],
+    ['stopped', { lastOutcome: 'stopped' }, EThreadStatus.Idle],
+    ['parked', { podState: 'parked' }, EThreadStatus.Parked],
+    ['no pod', { podState: 'none' }, EThreadStatus.Idle],
+    ['running over parked', { working: true, podState: 'parked' }, EThreadStatus.Running],
+    ['awaiting over parked', { awaiting: 'input', podState: 'parked' }, EThreadStatus.Awaiting],
+    [
+      'failed outcome over parked',
+      { lastOutcome: 'failed', podState: 'parked' },
+      EThreadStatus.Failed,
+    ],
   ]
   for (const [name, status, expected] of cases) {
     it(`${name} beats pull request states`, () => {
@@ -107,7 +77,19 @@ describe('threadStatusOf with live status', () => {
   }
 
   it('treats a missing status as no facts', () => {
-    expect(threadStatusOf(threadOf({ id: 'a', pullRequests: merged }))).toBe(EThreadStatus.PrMerged)
+    expect(threadStatusOf(threadOf({ id: 'a', pullRequests: merged }))).toBe(EThreadStatus.Idle)
+  })
+
+  it('uses run facts for local runners without mistaking no cloud pod for parked', () => {
+    for (const [status, expected] of [
+      [factsOf({ podState: 'none' }), EThreadStatus.Idle],
+      [factsOf({ podState: 'none', working: true }), EThreadStatus.Running],
+      [factsOf({ podState: 'none', awaiting: 'approval' }), EThreadStatus.Awaiting],
+      [factsOf({ podState: 'none', lastOutcome: 'failed' }), EThreadStatus.Failed],
+    ] as const) {
+      expect(threadStatusOf(threadOf({ id: 'local', runner: 'local', status }))).toBe(expected)
+    }
+    expect(threadStatusOf(threadOf({ id: 'local', runner: 'local' }))).toBe(EThreadStatus.Idle)
   })
 
   it('is idle with quiet facts and no pull requests', () => {

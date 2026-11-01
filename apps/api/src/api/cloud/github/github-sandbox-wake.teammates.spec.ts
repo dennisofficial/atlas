@@ -12,6 +12,7 @@ import {
   seedSubscription,
   seedThreadSubscription,
   serviceWith,
+  useWakeFixture,
 } from '../../../../test/github-sandbox-wake-fixture'
 
 async function seedAgentThread(args: { id: string; spawnedBy: string; type: string }) {
@@ -25,6 +26,7 @@ async function seedAgentThread(args: { id: string; spawnedBy: string; type: stri
 
 describe('GithubSandboxWakeService teammate subscriptions', () => {
   useTestDatabase()
+  useWakeFixture()
 
   beforeEach(() => {
     vi.useFakeTimers()

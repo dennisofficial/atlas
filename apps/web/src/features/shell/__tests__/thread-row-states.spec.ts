@@ -11,8 +11,17 @@ describe('THREAD_ROW_STATES', () => {
     }
   })
 
-  it('covers every status', () => {
+  it('covers every run status without substituting legacy PR statuses', () => {
     const covered = new Set(THREAD_ROW_STATES.map((state) => state.expected))
-    for (const status of Object.values(EThreadStatus)) expect(covered.has(status)).toBe(true)
+    expect(covered).toEqual(
+      new Set([
+        EThreadStatus.Running,
+        EThreadStatus.Awaiting,
+        EThreadStatus.Starting,
+        EThreadStatus.Failed,
+        EThreadStatus.Idle,
+        EThreadStatus.Parked,
+      ]),
+    )
   })
 })

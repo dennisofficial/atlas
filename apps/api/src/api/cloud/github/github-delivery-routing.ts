@@ -1,4 +1,5 @@
 import { and, or, type Row } from '@dltech/atlas-db'
+import { normalizedRepo, repoPattern } from './github-pr-identity'
 import type { CheckTarget } from './github-pr-state-fields'
 import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
 import type {
@@ -15,13 +16,15 @@ import type {
  * — the liveness predicate no longer joins CloudSandbox on the hot read paths.
  */
 export const PARK_WAKE_WINDOW_MS = 24 * 60 * 60 * 1_000
+const SUBSCRIPTION_TTL_MS = 5 * 60 * 1_000
+export const nextExpiry = () => new Date(Date.now() + SUBSCRIPTION_TTL_MS)
 
 type Condition = Parameters<typeof and>[number]
 
 type LiveFields = { liveUntil: { gt(value: Date): Condition } }
 
 type SubscriberFields = LiveFields & {
-  repoFullName: { eq(value: string): Condition }
+  repoFullName: { ilike(value: string): Condition }
   prNumber: { eq(value: number): Condition }
   branch: { eq(value: string): Condition; neq(value: string): Condition }
 }
@@ -53,14 +56,14 @@ export function subscriberWhereOf(args: {
   if (!routing.headRepoMatchesBase || routing.headBranch === '') {
     return (subscription) =>
       and(
-        subscription.repoFullName.eq(args.repoFullName),
+        subscription.repoFullName.ilike(repoPattern(args.repoFullName)),
         subscription.prNumber.eq(args.prNumber),
         live(subscription),
       )
   }
   return (subscription) =>
     and(
-      subscription.repoFullName.eq(args.repoFullName),
+      subscription.repoFullName.ilike(repoPattern(args.repoFullName)),
       live(subscription),
       or(
         subscription.prNumber.eq(args.prNumber),
@@ -82,13 +85,15 @@ export function branchRoutingOf(args: {
 }): GithubBranchRouting {
   return {
     headBranch: args.headBranch,
-    headRepoMatchesBase: args.headRepoFullName === args.baseRepoFullName,
+    headRepoMatchesBase:
+      args.headRepoFullName !== null &&
+      normalizedRepo(args.headRepoFullName) === normalizedRepo(args.baseRepoFullName),
   }
 }
 
 export function dtoOf(row: Row<'GithubPrState'>): GithubPrStateDto {
   return {
-    repoFullName: row.repoFullName,
+    repoFullName: normalizedRepo(row.repoFullName),
     prNumber: row.prNumber,
     title: row.title,
     url: row.url,

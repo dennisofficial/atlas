@@ -63,6 +63,14 @@ export interface GithubBranchRouting {
   headRepoMatchesBase: boolean
 }
 
+export interface GithubSubscribeArgs {
+  userId: string
+  repoFullName: string
+  prNumber?: number
+  branch?: string
+  threadId?: string
+}
+
 export interface GithubSubscriptionDto {
   id: string
   repoFullName: string

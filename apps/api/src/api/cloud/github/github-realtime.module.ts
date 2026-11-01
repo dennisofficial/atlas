@@ -23,6 +23,7 @@ import { GithubSubscriptionsRouter } from './github-subscriptions.router'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubModule } from './github.module'
+import { GithubObservationStore } from './github-observation.store'
 
 @Module({
   imports: [GithubModule, HealthModule, RedisModule, SessionsModule],
@@ -31,6 +32,7 @@ import { GithubModule } from './github.module'
     GithubSubscriptionsRouter,
     GithubPrStreamRouter,
     GithubSubscriptionsService,
+    GithubObservationStore,
     GithubHookLifecycleService,
     GithubPollSweeperService,
     ...sweepSchedulerProviders(),

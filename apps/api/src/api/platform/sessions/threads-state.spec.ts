@@ -1,7 +1,7 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { seedPrState } from '../../../../test/github-seed'
+import { seedPrState, seedSubscription } from '../../../../test/github-seed'
 import {
   seedEventRow,
   seedThreadRow,
@@ -101,16 +101,72 @@ describe('ThreadsService thread state reads', () => {
       repo: 'github.com/CompAI/Other',
       number: 42,
     })
-    await seedPrState({ repoFullName: 'compai/app', prNumber: 42, state: 'merged' })
+    await seedPrState({
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      title: 'Persisted PR title',
+      state: 'draft',
+      checksRunning: 2,
+      checksPassed: 3,
+      checksFailed: 1,
+      mergeable: false,
+    })
     await seedPrState({ repoFullName: 'compai/other', prNumber: 42, state: 'closed' })
+    await seedSubscription({ userId: USER_A, repoFullName: 'compai/app', prNumber: 42 })
+    await seedSubscription({ userId: USER_A, repoFullName: 'compai/other', prNumber: 42 })
 
     const [thread] = await service.list({ userId: USER_A, projectId: 'prj_a' })
 
     expect(thread?.pullRequests?.map((pr) => [pr.repo, pr.number, pr.state])).toEqual([
-      ['github.com/compai/app', 42, 'merged'],
+      ['github.com/compai/app', 42, 'draft'],
       ['github.com/compai/app', 43, undefined],
       ['github.com/CompAI/Other', 42, 'closed'],
     ])
+    expect(thread?.pullRequests?.[0]).toMatchObject({
+      title: 'Persisted PR title',
+      checksRunning: 2,
+      checksPassed: 3,
+      checksFailed: 1,
+      mergeable: false,
+    })
+    expect(thread?.pullRequests?.[1]).toEqual({
+      number: 43,
+      url: 'https://github.com/github.com/compai/app/pull/43',
+      repo: 'github.com/compai/app',
+      branch: 'dennis/one',
+    })
+    expect(thread?.pullRequests?.[2]).toMatchObject({ title: 'add the thing', mergeable: null })
+    expect(await service.find({ userId: USER_A, threadId: 'brn_pr' })).toEqual(thread!)
+  })
+
+  it('enriches descendant links without changing their ownership', async () => {
+    await seedThreadRow({ id: 'parent', projectId: 'prj_a' })
+    await seedThreadRow({
+      id: 'mate',
+      projectId: 'prj_a',
+      spawnerThreadId: 'parent',
+      title: 'Teammate',
+    })
+    await linkPullRequest({ threadId: 'mate', seq: 1, repo: 'compai/app', number: 42 })
+    await seedPrState({ title: 'Teammate PR', checksPassed: 4, mergeable: true })
+    await seedSubscription({ userId: USER_A, repoFullName: 'compai/app', prNumber: 42 })
+
+    const parent = await service.find({ userId: USER_A, threadId: 'parent' })
+    const mate = await service.find({ userId: USER_A, threadId: 'mate' })
+
+    expect(parent.pullRequests).toEqual(
+      mate.pullRequests?.map((pr) => ({
+        ...pr,
+        via: { threadId: 'mate', title: 'Teammate' },
+      })),
+    )
+    expect(parent.pullRequests?.[0]).toMatchObject({
+      title: 'Teammate PR',
+      checksRunning: 0,
+      checksPassed: 4,
+      checksFailed: 0,
+      mergeable: true,
+    })
   })
 
   it('enriches pull requests on the legacy project listing too', async () => {
@@ -122,6 +178,7 @@ describe('ThreadsService thread state reads', () => {
       number: 42,
     })
     await seedPrState({ repoFullName: 'compai/app', prNumber: 42, state: 'open' })
+    await seedSubscription({ userId: USER_A, repoFullName: 'compai/app', prNumber: 42 })
 
     const [thread] = await service.list({ userId: USER_A, project: '/repo' })
 

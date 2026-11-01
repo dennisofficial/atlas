@@ -15,7 +15,9 @@ export class RepoAccessChecker {
     userId: string
     owner: string
     repo: string
+    signal?: AbortSignal | undefined
   }): Promise<boolean> {
+    args.signal?.throwIfAborted()
     const key = `${args.userId}:${args.owner}/${args.repo}`
     const held = this.access.get(key)
     if (held !== undefined) return held
@@ -33,6 +35,7 @@ export class RepoAccessChecker {
     userId: string
     owner: string
     repo: string
+    signal?: AbortSignal | undefined
   }): Promise<boolean> {
     const token = await this.findToken({ userId: args.userId })
     const response = await githubFetch({
@@ -44,7 +47,10 @@ export class RepoAccessChecker {
           accept: 'application/vnd.github+json',
           'x-github-api-version': '2022-11-28',
         },
-        signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
+        signal:
+          args.signal === undefined
+            ? AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS)
+            : AbortSignal.any([args.signal, AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS)]),
       },
     })
     const rateLimit = rateLimitOf(response)

@@ -1,4 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { localObservations } from './github-observation.fixture'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prStateRows, subscriptionRows } from '../../../../test/github-seed'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
@@ -42,7 +43,13 @@ function serviceWith(args: {
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
   stubGlobal('fetch', async () => new Response('{}', { status: 200 }))
-  return new GithubSubscriptionsService(github, reads, hooks, installNotice)
+  return new GithubSubscriptionsService(
+    github,
+    reads,
+    hooks,
+    installNotice,
+    localObservations(github),
+  )
 }
 
 describe('GithubSubscriptionsService branch catch-up', () => {

@@ -2,16 +2,22 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { EGithubCallSource } from './github-call-log'
 import { db } from '@dltech/atlas-db'
 import { threadActivityAt } from './github-thread-activity'
-import { dtoOf, liveUntilOf, subscriptionLiveWhere } from './github-delivery-routing'
+import { dtoOf, liveUntilOf, nextExpiry, subscriptionLiveWhere } from './github-delivery-routing'
+import { cachedPrStates } from './github-linked-prs'
 import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { parseRepo, subscriptionDtoOf } from './github-subscriptions-dto'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { RepoAccessChecker } from './github-repo-access'
-import type { GithubPrStateDto, GithubSubscriptionDto } from './github-realtime.types'
+import type {
+  GithubPrStateDto,
+  GithubSubscriptionDto,
+  GithubSubscribeArgs,
+} from './github-realtime.types'
+import { GithubObservationStore } from './github-observation.store'
+import { withGithubRequestBudget } from './github-request-budget'
+import { normalizedRepo } from './github-pr-identity'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
-
-const SUBSCRIPTION_TTL_MS = 5 * 60 * 1_000
 
 @Injectable()
 export class GithubSubscriptionsService {
@@ -22,15 +28,18 @@ export class GithubSubscriptionsService {
     private readonly reads: GithubUserReads,
     private readonly hooks: GithubHookLifecycleService,
     private readonly installNotice: GithubAppInstallNoticeService,
+    private readonly observations: GithubObservationStore,
   ) {}
 
-  async subscribe(args: {
-    userId: string
-    repoFullName: string
-    prNumber?: number
-    branch?: string
-    threadId?: string
-  }): Promise<GithubSubscriptionDto> {
+  subscribe(args: GithubSubscribeArgs): Promise<GithubSubscriptionDto> {
+    return withGithubRequestBudget({
+      store: this.observations,
+      run: () =>
+        this.subscribeAuthorized({ ...args, repoFullName: normalizedRepo(args.repoFullName) }),
+    })
+  }
+
+  private async subscribeAuthorized(args: GithubSubscribeArgs): Promise<GithubSubscriptionDto> {
     const { owner, repo } = parseRepo({ repoFullName: args.repoFullName })
     await this.access.require({
       source: EGithubCallSource.RepoAccess,
@@ -175,16 +184,18 @@ export class GithubSubscriptionsService {
       .where((subscription) => subscription.prNumber.isNotNull())
       .where(subscriptionLiveWhere({ now: new Date() }))
       .all()
-    const states: GithubPrStateDto[] = []
-    for (const subscription of subscriptions) {
-      if (subscription.prNumber === null) continue
-      const row = await db.orm.public.GithubPrState.where({
-        repoFullName: subscription.repoFullName,
-        prNumber: subscription.prNumber,
-      }).first()
-      if (row !== null) states.push(dtoOf(row))
-    }
-    return states
+    return cachedPrStates([
+      ...subscriptions.flatMap((subscription) =>
+        subscription.prNumber === null
+          ? []
+          : [
+              {
+                repoFullName: subscription.repoFullName,
+                prNumber: subscription.prNumber,
+              },
+            ],
+      ),
+    ])
   }
 
   private async resolvePrNumber(args: {
@@ -233,6 +244,8 @@ export class GithubSubscriptionsService {
       repo: args.repo,
       number: args.prNumber,
     })
+    if (fields.headRepoFullName !== null)
+      fields.headRepoFullName = normalizedRepo(fields.headRepoFullName)
     const row = await db.orm.public.GithubPrState.upsert({
       conflictOn: { repoFullName: args.repoFullName, prNumber: args.prNumber },
       create: {
@@ -285,5 +298,3 @@ export class GithubSubscriptionsService {
     return token
   }
 }
-
-const nextExpiry = () => new Date(Date.now() + SUBSCRIPTION_TTL_MS)

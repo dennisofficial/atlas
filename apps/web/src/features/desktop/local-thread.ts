@@ -6,6 +6,7 @@ import type { SessionNode as WireSessionNode } from '@/features/threads/data/thr
 import { ELocalPodState, type LocalPod } from './desktop-wire'
 
 export function localThreadOf(pod: LocalPod): WireThread {
+  const podState = POD_STATE[pod.state]
   return {
     id: pod.threadId,
     head: 0,
@@ -16,6 +17,18 @@ export function localThreadOf(pod: LocalPod): WireThread {
     repo: null,
     projectId: pod.projectId,
     runner: ERunner.Local,
+    ...(podState === undefined
+      ? {}
+      : {
+          status: {
+            working: false,
+            awaiting: null,
+            lastOutcome: null,
+            podState,
+            lastAssistantSeq: 0,
+            readSeq: null,
+          },
+        }),
     ...(pod.title === undefined ? {} : { title: pod.title }),
     ...(pod.model === undefined || pod.effort === undefined
       ? {}

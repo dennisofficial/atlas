@@ -165,14 +165,33 @@ export const githubWakeStreamOutputSchema = z.custom<AsyncIterable<GithubWakeFra
   isAsyncIterable<GithubWakeFrame>(value),
 )
 
+export const githubPrStatesInputSchema = z
+  .strictObject({
+    observe: z
+      .array(
+        z.strictObject({ repo: z.string().min(1).max(256), number: z.number().int().positive() }),
+      )
+      .max(128)
+      .optional(),
+  })
+  .optional()
+export type GithubPrStatesInput = z.infer<typeof githubPrStatesInputSchema>
+
 export enum EGithubPrStatesFrame {
   PrState = 'pr-state',
   Heartbeat = 'heartbeat',
+  ObservationStatus = 'observation-status',
 }
 
 export const githubPrStatesFrameSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal(EGithubPrStatesFrame.PrState), state: githubPrStateSchema }),
   z.object({ type: z.literal(EGithubPrStatesFrame.Heartbeat) }),
+  z.object({
+    type: z.literal(EGithubPrStatesFrame.ObservationStatus),
+    available: z.boolean(),
+    message: z.string().optional(),
+    retryAfterMs: z.number().nonnegative().optional(),
+  }),
 ])
 export type GithubPrStatesFrame = z.infer<typeof githubPrStatesFrameSchema>
 

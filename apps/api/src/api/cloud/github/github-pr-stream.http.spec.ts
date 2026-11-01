@@ -20,6 +20,8 @@ import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { fakeMailbox, fakeSubscriptions, STATE } from './github-pr-stream.fixture'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
+import { GithubObservationStore } from './github-observation.store'
+import { localObservations } from './github-observation.fixture'
 
 const SANDBOX_TOKEN = 'sandbox-token'
 const HEARTBEAT: GithubPrStreamFrame = { type: EGithubPrStreamFrame.Heartbeat }
@@ -89,6 +91,7 @@ describe('githubPrs.stream over a real http server', () => {
         { provide: DrainStateService, useValue: drain },
         { provide: GithubPrFanoutService, useValue: fanout },
         { provide: GithubSubscriptionsService, useValue: fakeSubscriptions([STATE]) },
+        { provide: GithubObservationStore, useValue: localObservations() },
         { provide: GithubPrEventMailboxService, useValue: fakeMailbox() },
         { provide: SESSION_VERIFIER, useValue: { verify: async () => null } },
         {

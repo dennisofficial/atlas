@@ -12,6 +12,7 @@ import type { SubscribeThreadsLive } from '@/features/shell/live-stream'
 import type { SubscribeThreadStream } from './thread-signals'
 import type { ApiPrStatesSubscribe } from './api-pr-states-source'
 import { trackedThreadStreamHandlers } from './thread-stream-adapter'
+import { prObservationInputOf } from './pr-observation-targets'
 
 export const fetchProjects = () => cloudCall(api.projects.list.query())
 
@@ -75,8 +76,8 @@ export const subscribeThreadStream: SubscribeThreadStream = ({
 export const subscribeThreadsLive: SubscribeThreadsLive = (handlers) =>
   api.threads.live.subscribe(undefined, handlers)
 
-export const subscribePrStatesFromApi: ApiPrStatesSubscribe = (handlers) =>
-  api.githubPrs.states.subscribe(undefined, handlers)
+export const subscribePrStatesFromApi: ApiPrStatesSubscribe = ({ observe, ...handlers }) =>
+  api.githubPrs.states.subscribe(prObservationInputOf(observe), handlers)
 
 export const resizePod = (args: { threadId: string; vcpus: number }) =>
   cloudCall(api.threadPod.resize.mutate(args))

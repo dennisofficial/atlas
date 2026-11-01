@@ -4,7 +4,7 @@ import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import { vi } from 'bun:test'
 
 import { EnvService } from '../src/_core/config/env/env.service'
-import { BackgroundWork } from '../src/_core/ports/background-work'
+import type { BackgroundWork } from '../src/_core/ports/background-work'
 import {
   SandboxCredentials,
   type ThreadSandboxCredentials,
@@ -21,6 +21,11 @@ import { DrainStateService } from '../src/api/platform/health/drain-state.servic
 import { inertSignals } from '../src/api/platform/sessions/thread-signals.fixture'
 import { seedCloudSandbox, seedSubscription as seedSubscriptionRow } from './github-seed'
 import { advanceTimersByTimeAsync } from './fake-timers'
+import {
+  RecordingBackgroundWork,
+  trackBackground,
+  useWakeFixture,
+} from './github-sandbox-wake-lifecycle'
 
 export const SECRETS_KEY = 'a'.repeat(64)
 
@@ -178,17 +183,7 @@ export async function patchSandbox(
   })
 }
 
-export class RecordingBackgroundWork extends BackgroundWork {
-  readonly kept: Promise<unknown>[] = []
-
-  keepAlive(work: Promise<unknown>): void {
-    this.kept.push(work)
-  }
-
-  async drain(): Promise<void> {
-    for (let index = 0; index < this.kept.length; index += 1) await this.kept[index]
-  }
-}
+export { RecordingBackgroundWork, useWakeFixture }
 
 let current: RecordingBackgroundWork = new RecordingBackgroundWork()
 
@@ -220,7 +215,10 @@ export function serviceWith(args: {
       })[key],
   } as unknown as EnvService
   const background = args.background ?? new RecordingBackgroundWork()
-  if (background instanceof RecordingBackgroundWork) current = background
+  if (background instanceof RecordingBackgroundWork) {
+    current = background
+    trackBackground(background)
+  }
   return new GithubSandboxWakeService(
     env,
     cipher,

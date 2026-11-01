@@ -9,10 +9,14 @@ const liveFetch: typeof fetch = Object.assign(
   { preconnect: fetch.preconnect },
 )
 
-mock.module('@/lib/api-client', () => ({
-  api: createApiClient({ baseUrl: '', fetchFn: liveFetch }),
-  cloudCall,
-}))
+const installApiClient = (): void => {
+  mock.module('@/lib/api-client', () => ({
+    api: createApiClient({ baseUrl: '', fetchFn: liveFetch }),
+    cloudCall,
+  }))
+}
+
+installApiClient()
 
 export type SeenCall = { url: string; method: string; body: unknown }
 
@@ -44,6 +48,7 @@ export const queryUrl = (args: { procedure: string; input: unknown }): string =>
 export const mutationUrl = (procedure: string): string => `/v1/trpc/${procedure}`
 
 export const fakeFetch = (reply: () => Response): SeenCall[] => {
+  installApiClient()
   const calls: SeenCall[] = []
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     calls.push({

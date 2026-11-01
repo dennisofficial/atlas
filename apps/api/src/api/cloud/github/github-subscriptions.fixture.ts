@@ -1,4 +1,5 @@
 import { vi } from 'bun:test'
+import { localObservations } from './github-observation.fixture'
 import { stubGlobal } from '@dltech/bun-test-shims'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
@@ -46,5 +47,11 @@ export function serviceWith(args: {
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
   stubGlobal('fetch', args.fetchImpl ?? okFetch)
-  return new GithubSubscriptionsService(github, reads, hooks, installNotice)
+  return new GithubSubscriptionsService(
+    github,
+    reads,
+    hooks,
+    installNotice,
+    localObservations(github),
+  )
 }

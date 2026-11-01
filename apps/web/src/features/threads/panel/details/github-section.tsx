@@ -14,7 +14,7 @@ export function GithubSection() {
   if (branch === undefined && pullRequests.rows.length === 0) return null
 
   return (
-    <DetailsSection title="GitHub">
+    <DetailsSection title="GitHub" ref={pullRequests.observationRef}>
       {branch === undefined ? null : (
         <DetailRow label={branch} icon={<GitBranchIcon aria-hidden className="size-3.5" />} mono />
       )}

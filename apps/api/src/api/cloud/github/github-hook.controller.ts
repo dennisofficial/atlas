@@ -13,6 +13,7 @@ import {
 import { SkipThrottle } from '@nestjs/throttler'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db } from '@dltech/atlas-db'
+import { repoPattern } from './github-pr-identity'
 import { GithubDeliveryService } from './github-delivery.service'
 import { parseHookRepoParam } from './github-pr-payload'
 import { verifyGithubSignature } from './github-webhook.signature'
@@ -45,7 +46,9 @@ export class GithubHookController {
     const repoFullName = parseHookRepoParam({ repo: repoParam })
     if (repoFullName === null) throw new BadRequestException('hook repo must be owner/name')
 
-    const hook = await db.orm.public.GithubRepoHook.first({ repoFullName })
+    const hook = await db.orm.public.GithubRepoHook.where((hook) =>
+      hook.repoFullName.ilike(repoPattern(repoFullName)),
+    ).first()
     if (hook === null) throw new UnauthorizedException('no hook is registered for this repo')
 
     const rawBody = request.rawBody

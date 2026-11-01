@@ -1,4 +1,4 @@
-import type { PrStateWire, WireThread } from '@dltech/atlas-wire/web'
+import { GITHUB_REPO_PATTERN, type PrStateWire, type WireThread } from '@dltech/atlas-wire/web'
 
 export type PullRequestEntry = {
   repo: string
@@ -6,6 +6,7 @@ export type PullRequestEntry = {
   url: string
   branch: string
   state: string | undefined
+  title?: string | undefined
   checksRunning: number | undefined
   checksPassed: number | undefined
   checksFailed: number | undefined
@@ -14,12 +15,30 @@ export type PullRequestEntry = {
   via: { threadId: string; title: string | null } | undefined
 }
 
-const GITHUB_HOST_PREFIX = /^github\.com\//i
-
-const repoIdentityOf = (repo: string): string => repo.replace(GITHUB_HOST_PREFIX, '').toLowerCase()
+function repoIdentityOf(repo: string): string | undefined {
+  let path = repo.trim()
+  if (path.includes('://')) {
+    try {
+      const url = new URL(path)
+      if (
+        url.hostname.toLowerCase() !== 'github.com' ||
+        !['https:', 'http:', 'ssh:', 'git:'].includes(url.protocol)
+      ) {
+        return undefined
+      }
+      path = url.pathname.replace(/^\//, '')
+    } catch {
+      return undefined
+    }
+  } else {
+    path = path.replace(/^(?:github\.com\/|git@github\.com:)/i, '')
+  }
+  path = path.replace(/\/+$/, '').replace(/\.git$/i, '')
+  return GITHUB_REPO_PATTERN.test(path) ? path.toLowerCase() : undefined
+}
 
 export const pullRequestKeyOf = (pullRequest: { repo: string; number: number }): string =>
-  `${repoIdentityOf(pullRequest.repo)}#${pullRequest.number}`
+  `${repoIdentityOf(pullRequest.repo) ?? pullRequest.repo.toLowerCase()}#${pullRequest.number}`
 
 function entryOf(args: {
   repo: string
@@ -27,6 +46,11 @@ function entryOf(args: {
   url: string
   branch: string
   state?: string | undefined
+  title?: string | undefined
+  checksRunning?: number | undefined
+  checksPassed?: number | undefined
+  checksFailed?: number | undefined
+  mergeable?: boolean | null | undefined
   via?: { threadId: string; title: string | null } | undefined
   live: PrStateWire | undefined
   currentBranch: string | undefined
@@ -38,18 +62,43 @@ function entryOf(args: {
     url: live?.url ?? args.url,
     branch,
     state: live?.state ?? args.state,
-    checksRunning: live?.checksRunning,
-    checksPassed: live?.checksPassed,
-    checksFailed: live?.checksFailed,
-    mergeable: live?.mergeable,
+    title: live?.title ?? args.title,
+    checksRunning: live?.checksRunning ?? args.checksRunning,
+    checksPassed: live?.checksPassed ?? args.checksPassed,
+    checksFailed: live?.checksFailed ?? args.checksFailed,
+    mergeable: live === undefined ? args.mergeable : live.mergeable,
     current: currentBranch !== undefined && branch === currentBranch,
     via: args.via,
   }
 }
 
+function discoveryReposOf(thread: WireThread): Set<string> {
+  const repos =
+    thread.repo === null || thread.repo === undefined
+      ? (thread.pullRequests ?? []).filter((pr) => pr.via === undefined).map((pr) => pr.repo)
+      : [thread.repo]
+  return new Set(repos.map(repoIdentityOf).filter((repo) => repo !== undefined))
+}
+
+function knownOwnersOf(threads: readonly WireThread[]): Map<string, Set<string>> {
+  const direct = new Map<string, Set<string>>()
+  const borrowed = new Map<string, Set<string>>()
+  for (const thread of threads) {
+    for (const pr of thread.pullRequests ?? []) {
+      const target = pr.via === undefined ? direct : borrowed
+      const key = pullRequestKeyOf(pr)
+      const owners = target.get(key) ?? new Set<string>()
+      owners.add(pr.via?.threadId ?? thread.id)
+      target.set(key, owners)
+    }
+  }
+  return new Map([...borrowed, ...direct])
+}
+
 export function pullRequestEntriesOf(args: {
   thread: WireThread
   states: readonly PrStateWire[]
+  family?: readonly WireThread[]
 }): PullRequestEntry[] {
   const { thread, states } = args
   const branch = thread.worktree?.branch
@@ -64,11 +113,30 @@ export function pullRequestEntriesOf(args: {
   )
   if (currentBranch === undefined) return linked
 
+  const family = [thread, ...(args.family ?? [])]
+  const knownOwners = knownOwnersOf(family)
+  const knownRepos = discoveryReposOf(thread)
+  const ambiguousRepos = new Set(
+    family
+      .filter((member) => member.id !== thread.id && member.worktree?.branch === currentBranch)
+      .flatMap((member) => [...discoveryReposOf(member)]),
+  )
   const linkedIdentities = new Set(linked.map(pullRequestKeyOf))
   const unlinked = states
-    .filter(
-      (state) => state.branch === currentBranch && !linkedIdentities.has(pullRequestKeyOf(state)),
-    )
+    .filter((state) => {
+      const repo = repoIdentityOf(state.repo)
+      const key = pullRequestKeyOf(state)
+      const owners = knownOwners.get(key)
+      return (
+        repo !== undefined &&
+        knownRepos.has(repo) &&
+        state.branch === currentBranch &&
+        !linkedIdentities.has(key) &&
+        (owners === undefined
+          ? !ambiguousRepos.has(repo)
+          : owners.size === 1 && owners.has(thread.id))
+      )
+    })
     .map((state) => entryOf({ ...state, live: state, currentBranch }))
   return [...linked, ...unlinked]
 }

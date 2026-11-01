@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, type RefCallback } from 'react'
 
 import { ESubscriptionStatusWire, type WireThread } from '@dltech/atlas-wire/web'
 
+import type { ApiPrStatesSubscribe } from './api-pr-states-source'
 import type { ServeChannel } from './live-thread-view'
 import { pullRequestListOf, type PullRequestRow } from './pull-request-rows'
 import {
@@ -15,22 +16,31 @@ import {
 import { mergePrStates } from './pr-states-merge'
 import { useApiPrStates } from './use-api-pr-states'
 import { usePrStates } from './use-pr-states'
+import { usePrObservationRef, usePrObservationRegistry } from './use-pr-observation'
 import { useSubscriptions } from './use-subscriptions'
 
 export type PullRequestsView = {
   rows: PullRequestRow[]
   bells: Record<string, PullRequestBell>
   handleToggle: (key: string) => void
+  observationRef?: RefCallback<HTMLElement>
 }
 
 export function usePullRequests(args: {
   threadId: string
   channel: ServeChannel | null
   thread: WireThread | undefined
+  subscribe?: ApiPrStatesSubscribe
 }): PullRequestsView {
   const { threadId, channel, thread } = args
   const liveStates = usePrStates(channel)
-  const apiStates = useApiPrStates()
+  const { registry, observe } = usePrObservationRegistry()
+  const cloud = thread !== undefined && thread.runner !== 'local'
+  const observationRef = usePrObservationRef({
+    registry,
+    targets: cloud ? (thread.pullRequests ?? []).filter((entry) => entry.via === undefined) : [],
+  })
+  const apiStates = useApiPrStates({ observe, subscribe: args.subscribe, enabled: cloud })
   const states = useMemo(
     () => mergePrStates({ live: liveStates, api: apiStates }),
     [liveStates, apiStates],
@@ -58,5 +68,8 @@ export function usePullRequests(args: {
     [list, subscriptions, remove, subscribePullRequest],
   )
 
-  return useMemo(() => ({ rows: list.rows, bells, handleToggle }), [list, bells, handleToggle])
+  return useMemo(
+    () => ({ rows: list.rows, bells, handleToggle, observationRef }),
+    [list, bells, handleToggle, observationRef],
+  )
 }

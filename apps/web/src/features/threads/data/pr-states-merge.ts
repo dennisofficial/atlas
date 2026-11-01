@@ -12,6 +12,7 @@ export function prStateWireOfApi(state: GithubPrState): PrStateWire | undefined 
     url: state.url,
     branch: state.headBranch,
     state: state.state as EPullRequestStateWire,
+    title: state.title,
     checksRunning: state.checksRunning,
     checksPassed: state.checksPassed,
     checksFailed: state.checksFailed,
@@ -35,7 +36,7 @@ export function mergePrStates(args: {
     const key = pullRequestKeyOf(state)
     const apiState = byKey.get(key)
     if (apiState && isTerminal(apiState) && !isTerminal(state)) continue
-    byKey.set(key, state)
+    byKey.set(key, { ...state, title: state.title ?? apiState?.title })
   }
   return [...byKey.values()]
 }

@@ -13,6 +13,7 @@ export const prStateWireSchema = z.object({
   url: z.string(),
   branch: z.string(),
   state: z.enum(EPullRequestStateWire),
+  title: z.string().optional(),
   checksRunning: z.number().int().nonnegative(),
   checksPassed: z.number().int().nonnegative(),
   checksFailed: z.number().int().nonnegative(),
