@@ -1,4 +1,4 @@
-import { runFailureSchema, toCallId, toRunId } from '@dltech/atlas-core'
+import { runFailureSchema, toCallId, toRunId, waitingForModelSchema } from '@dltech/atlas-core'
 import { ETurnStatus, type TurnOutcomeWire } from '@dltech/atlas-wire/web'
 
 import type { TurnOutcome } from './turn-outcome'
@@ -44,6 +44,13 @@ export const turnOutcomeFromWire = (outcome: TurnOutcomeWire): TurnOutcome => {
       runId: toRunId(outcome.runId),
       cause: undefined,
       ...(parsed.success ? { failure: parsed.data } : {}),
+    }
+  }
+  if (outcome.status === ETurnStatus.WaitingForModel) {
+    return {
+      status: ETurnStatus.WaitingForModel,
+      runId: toRunId(outcome.runId),
+      waiting: waitingForModelSchema.parse(outcome.waiting),
     }
   }
   return { ...outcome, runId: toRunId(outcome.runId) }

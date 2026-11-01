@@ -18,6 +18,7 @@ const STOP_NOTE: Record<EAgentStatus, string> = {
   [EAgentStatus.Stopped]: 'already stopped',
   [EAgentStatus.Blocked]: 'blocked',
   [EAgentStatus.Paused]: 'paused with the move',
+  [EAgentStatus.WaitingForModel]: 'waiting for model access',
 }
 
 const STILL_OUT: Record<EAgentStatus, boolean> = {
@@ -27,6 +28,7 @@ const STILL_OUT: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Failed]: false,
   [EAgentStatus.Stopped]: false,
   [EAgentStatus.Paused]: false,
+  [EAgentStatus.WaitingForModel]: true,
 }
 
 const statusOf = (value: unknown): EAgentStatus | undefined =>

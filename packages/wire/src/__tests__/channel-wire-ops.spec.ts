@@ -18,7 +18,7 @@ import {
 
 describe('the protocol stamp', () => {
   it('speaks the current protocol version', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(32)
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(33)
   })
 })
 
