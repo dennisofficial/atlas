@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react'
 
 import type { ContextFileContentWire } from '@dltech/atlas-wire/web'
 
-import { readContextFile } from '../data/context-files-source'
+import {
+  CONTEXT_API_POLL_MS,
+  readContextFile,
+  readContextFileFromApi,
+} from '../data/context-files-source'
 import type { ServeChannel } from '../data/live-thread-view'
 
 export type LoadedContextFile =
@@ -13,22 +17,39 @@ export type LoadedContextFile =
   | { state: 'ready'; file: ContextFileContentWire }
 
 export function useContextFile(args: {
+  threadId: string
   channel: ServeChannel | null
   path: string
 }): LoadedContextFile {
-  const { channel, path } = args
+  const { threadId, channel, path } = args
+  type SourceKey = ServeChannel | 'api'
+  const sourceKey: SourceKey = channel ?? 'api'
   const [loaded, setLoaded] = useState<{
-    channel: ServeChannel | null
+    key: SourceKey | null
     path: string
     result: LoadedContextFile
   } | null>(null)
 
   useEffect(() => {
-    if (channel === null) return undefined
     let active = true
     const settle = (result: LoadedContextFile) => {
-      if (active) setLoaded({ channel, path, result })
+      if (active) setLoaded({ key: sourceKey, path, result })
     }
+
+    if (channel === null) {
+      const read = () =>
+        readContextFileFromApi({ threadId, path }).then(
+          (file) => settle({ state: 'ready', file }),
+          () => settle({ state: 'failed' }),
+        )
+      void read()
+      const interval = setInterval(() => void read(), CONTEXT_API_POLL_MS)
+      return () => {
+        active = false
+        clearInterval(interval)
+      }
+    }
+
     const read = () =>
       readContextFile({ channel, path }).then(
         (file) => settle({ state: 'ready', file }),
@@ -49,10 +70,9 @@ export function useContextFile(args: {
       offReload()
       offReady()
     }
-  }, [channel, path])
+  }, [threadId, channel, sourceKey, path])
 
-  if (channel === null) return { state: 'failed' }
-  if (loaded === null || loaded.channel !== channel || loaded.path !== path) {
+  if (loaded === null || loaded.key !== sourceKey || loaded.path !== path) {
     return { state: 'loading' }
   }
   return loaded.result

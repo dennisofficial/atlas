@@ -6,6 +6,8 @@ import {
   type ContextFileContentWire,
 } from '@dltech/atlas-wire/web'
 
+import { api, cloudCall } from '@/lib/api-client'
+
 export type ContextEntry = { name: string; isDirectory: boolean }
 export type ContextLevel = { entries: readonly ContextEntry[]; error: boolean }
 
@@ -72,6 +74,32 @@ export async function readContextFile(args: {
       op: EClientRequest.ReadContextFile,
       params: { path: args.path },
     }),
+  )
+  return reply.file
+}
+
+export const CONTEXT_API_POLL_MS = 5_000
+
+export async function listContextFilesFromApi(args: {
+  threadId: string
+  directory?: string | undefined
+}): Promise<ContextLevel> {
+  return cloudCall(
+    api.contextFiles.list.query({
+      threadId: args.threadId,
+      ...(args.directory === undefined ? {} : { directory: args.directory }),
+    }),
+  )
+    .then((reply) => ({ entries: reply.entries, error: false }))
+    .catch((): ContextLevel => ({ entries: [], error: true }))
+}
+
+export async function readContextFileFromApi(args: {
+  threadId: string
+  path: string
+}): Promise<ContextFileContentWire> {
+  const reply = await cloudCall(
+    api.contextFiles.read.query({ threadId: args.threadId, path: args.path }),
   )
   return reply.file
 }

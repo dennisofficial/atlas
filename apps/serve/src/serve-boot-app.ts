@@ -1,6 +1,8 @@
 import type { ThreadId } from '@dltech/atlas-core'
+import { contextDirectory, sessionDirectory } from '@dltech/atlas-harness'
 
 import type { ServeArgs } from './serve-args'
+import { bindContextFilesMirror } from './context-files-mirror'
 import { collectNotices, recordNoticeEvents } from './container-notice-events'
 import { bootServeFiles } from './serve-boot'
 import { bootReporterFor, strictBootSinkFor, trackAgentStep } from './serve-boot-reporter'
@@ -97,6 +99,15 @@ export async function bootServeApp(args: {
       remote,
       log,
     })
+    const sessionDir = sessionDirectory({ home: atlasHome, sessionId: threadId })
+    const contextMirror = bindContextFilesMirror({
+      env,
+      threadId,
+      sessionDir,
+      contextRoot: contextDirectory({ sessionDir }),
+      remote,
+      log,
+    })
     const bootNotices = [
       {
         slot: 'project-file-mounts',
@@ -131,6 +142,7 @@ export async function bootServeApp(args: {
       fetchFn,
       clientVersion,
       writeBehind,
+      contextMirror,
       refreshCloudState,
     }
   } catch (failure) {

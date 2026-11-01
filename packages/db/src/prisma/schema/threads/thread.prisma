@@ -23,6 +23,7 @@ model Thread {
   events            Event[]
   turns             Turn[]
   reads             ThreadRead[]
+  contextFiles      ContextFile[]
   session           Session              @relation(name: "Session_threads", fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   mainOfSession     Session?             @relation(name: "Session_mainThread")
   user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Thread_userId_updatedAt_idx")

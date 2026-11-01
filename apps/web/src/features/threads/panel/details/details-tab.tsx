@@ -25,7 +25,7 @@ export function DetailsTab(props: { agents: AgentsData; subscriptions: Subscript
   const { threadId, channel, agentId } = useThreadPanel()
   const processes = useProcesses({ threadId, channel })
   const declared = useDeclaredServices(channel)
-  const context = useContextFiles(channel)
+  const context = useContextFiles({ threadId, channel })
   const adhoc = adhocFoldOf({
     data: processes,
     declared: declaredNamesOf(declared.view),

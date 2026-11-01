@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'8c06c16b9fa177877b5bb7b893f77c96e2f071c40b5f85bc4e5a4bfd8b0d102a'>;
+  StorageHashBase<'cde231c54cd35e26d3b6411c1e3c575553cc8a4f6cedd8c51db9b4eaf9e15cc0'>;
 export type ExecutionHash =
   ExecutionHashBase<'e5139d1de8d5766e0bfebef978a82018efb9a20a4c75ca8470538fe80225e0c7'>;
 export type ProfileHash =
@@ -357,6 +357,16 @@ export namespace Models {
     session: public_Session;
     user: public_User;
     readonly [RelationKeys]?: 'oauthConnections' | 'session' | 'user';
+  };
+  export type public_ContextFile = {
+    content: FieldOutputTypes['public']['ContextFile']['content'];
+    digest: FieldOutputTypes['public']['ContextFile']['digest'];
+    id: FieldOutputTypes['public']['ContextFile']['id'];
+    path: FieldOutputTypes['public']['ContextFile']['path'];
+    threadId: FieldOutputTypes['public']['ContextFile']['threadId'];
+    updatedAt: FieldOutputTypes['public']['ContextFile']['updatedAt'];
+    thread: public_Thread;
+    readonly [RelationKeys]?: 'thread';
   };
   export type public_DeviceCode = {
     clientId: FieldOutputTypes['public']['DeviceCode']['clientId'];
@@ -736,6 +746,7 @@ export namespace Models {
     updatedAt: FieldOutputTypes['public']['Thread']['updatedAt'];
     userId: FieldOutputTypes['public']['Thread']['userId'];
     working: FieldOutputTypes['public']['Thread']['working'];
+    contextFiles: public_ContextFile[];
     events: public_Event[];
     forks: public_Thread[];
     mainOfSession: public_Session | null;
@@ -747,6 +758,7 @@ export namespace Models {
     turns: public_Turn[];
     user: public_User;
     readonly [RelationKeys]?:
+      | 'contextFiles'
       | 'events'
       | 'forks'
       | 'mainOfSession'
@@ -937,6 +949,7 @@ export declare const models: {
     AgentAccount: Models.public_AgentAccount;
     AuthSession: Models.public_AuthSession;
     CloudSandbox: Models.public_CloudSandbox;
+    ContextFile: Models.public_ContextFile;
     DeviceCode: Models.public_DeviceCode;
     Event: Models.public_Event;
     GithubAppInstallation: Models.public_GithubAppInstallation;
@@ -1650,6 +1663,69 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly ContextFile: {
+              columns: {
+                readonly content: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly digest: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly path: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly threadId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['threadId', 'path'];
+                  readonly name: 'ContextFile_threadId_path_key';
+                },
+              ];
+              indexes: readonly [];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ContextFile';
+                    readonly columns: readonly ['threadId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Thread';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -4911,6 +4987,10 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'UserSetting';
     };
+    readonly ContextFile: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ContextFile';
+    };
     readonly DeviceCode: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'DeviceCode';
@@ -5574,6 +5654,64 @@ type ContractBase = Omit<
                 readonly wakeClaim: { readonly column: 'wakeClaim' };
                 readonly wakeFailedAt: { readonly column: 'wakeFailedAt' };
                 readonly workspaceRemoteUrl: { readonly column: 'workspaceRemoteUrl' };
+              };
+            };
+          };
+          readonly ContextFile: {
+            readonly fields: {
+              readonly content: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly digest: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly path: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly threadId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: {
+              readonly thread: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Thread';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['threadId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'ContextFile';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly content: { readonly column: 'content' };
+                readonly digest: { readonly column: 'digest' };
+                readonly id: { readonly column: 'id' };
+                readonly path: { readonly column: 'path' };
+                readonly threadId: { readonly column: 'threadId' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
               };
             };
           };
@@ -7783,6 +7921,17 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly contextFiles: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ContextFile';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['threadId'];
+                };
+              };
               readonly events: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;

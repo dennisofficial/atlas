@@ -1,0 +1,135 @@
+[
+  {
+    "id": "table.ContextFile",
+    "label": "Create table \"ContextFile\"",
+    "summary": "Creates table \"ContextFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ContextFile\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ContextFile\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ContextFile\"",
+        "sql": "CREATE TABLE \"public\".\"ContextFile\" (\n  \"content\" text NOT NULL,\n  \"digest\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"path\" text NOT NULL,\n  \"threadId\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ContextFile\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"ContextFile\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ContextFile.ContextFile_threadId_path_key",
+    "label": "Add unique constraint on \"ContextFile\" (threadId, path)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ContextFile_threadId_path_key",
+        "table": "ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ContextFile_threadId_path_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ContextFile_threadId_path_key",
+          "public",
+          "\"public\".\"ContextFile\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ContextFile_threadId_path_key\"",
+        "sql": "ALTER TABLE \"public\".\"ContextFile\" ADD CONSTRAINT \"ContextFile_threadId_path_key\" UNIQUE (\"threadId\", \"path\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"ContextFile_threadId_path_key\" exists on (threadId, path)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "ContextFile_threadId_path_key",
+          "public",
+          "\"public\".\"ContextFile\"",
+          "u",
+          "[\"threadId\",\"path\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ContextFile.ContextFile_threadId_fkey",
+    "label": "Add foreign key \"ContextFile_threadId_fkey\" on \"ContextFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ContextFile_threadId_fkey",
+        "table": "ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ContextFile_threadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ContextFile_threadId_fkey",
+          "public",
+          "\"public\".\"ContextFile\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ContextFile_threadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ContextFile\"\nADD CONSTRAINT \"ContextFile_threadId_fkey\"\nFOREIGN KEY (\"threadId\")\nREFERENCES \"public\".\"Thread\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ContextFile_threadId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ContextFile_threadId_fkey",
+          "public",
+          "\"public\".\"ContextFile\"",
+          "f",
+          "[\"threadId\"]",
+          "\"public\".\"Thread\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]
