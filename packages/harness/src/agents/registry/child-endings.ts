@@ -1,5 +1,6 @@
 import { EAgentStatus, EKilledBy } from '@dltech/atlas-core'
 
+import type { EndShells } from './deps'
 import type { AgentJournal } from './agent-journal'
 import { agentEndedDraft, bookkeepingEndedDraft, snapshotOf, type ChildState } from './child-state'
 import type { AgentNoticeQueue, EAgentNotice } from './notices'
@@ -48,4 +49,17 @@ export async function recordEnding({
     generation,
     ...(recorded.recorded ? {} : { unloggedArrival: stamped.arrived }),
   })
+}
+
+export function shellsEndedFor({
+  endShells,
+  child,
+  killedBy,
+}: {
+  endShells: EndShells
+  child: ChildState
+  killedBy: EKilledBy
+}): Promise<void> {
+  if (killedBy === EKilledBy.ContainerSwitch) return Promise.resolve()
+  return endShells({ threadId: child.agentId, by: killedBy })
 }

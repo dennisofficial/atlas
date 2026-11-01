@@ -2,7 +2,7 @@ import type { ServerWebSocket } from 'bun'
 import type { SessionActivityPort } from '@dltech/atlas-harness/activity'
 
 import type { ThreadId } from '@dltech/atlas-core'
-import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
+import type { CapabilitySet, RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type { StepId } from '@dltech/atlas-harness'
 import type { ClientFrame, EClientFrame, ServeFrame } from '@dltech/atlas-harness'
@@ -32,6 +32,7 @@ import type { ServeTurnDriver } from './turn-driver'
 
 export type SocketState = {
   helloed: boolean
+  capabilities?: CapabilitySet
   alias: StepAlias | null
   greeting: number
   greeted: boolean

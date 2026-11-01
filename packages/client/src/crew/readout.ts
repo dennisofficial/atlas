@@ -66,6 +66,7 @@ const WENT_WRONG: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Failed]: true,
   [EAgentStatus.Stopped]: true,
   [EAgentStatus.Paused]: false,
+  [EAgentStatus.WaitingForModel]: false,
 }
 
 export const subagentWentWrong = (subagent: { status: EAgentStatus }): boolean =>
@@ -78,6 +79,7 @@ const READING: Record<EAgentStatus, ESubagentReading> = {
   [EAgentStatus.Failed]: ESubagentReading.Settled,
   [EAgentStatus.Stopped]: ESubagentReading.Settled,
   [EAgentStatus.Paused]: ESubagentReading.Held,
+  [EAgentStatus.WaitingForModel]: ESubagentReading.Held,
 }
 
 const STATE_LABEL: Record<EAgentStatus, string> = {
@@ -87,6 +89,7 @@ const STATE_LABEL: Record<EAgentStatus, string> = {
   [EAgentStatus.Failed]: 'failed',
   [EAgentStatus.Stopped]: 'stopped',
   [EAgentStatus.Paused]: 'paused',
+  [EAgentStatus.WaitingForModel]: 'waiting for model',
 }
 
 export const subagentReading = (subagent: { status: EAgentStatus }): ESubagentReading =>

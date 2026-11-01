@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
+import type { ModelWaitView } from '../model-recovery/wait-state'
 import { MessageIntake, noticeSources, operatorSource, type IntakeSource } from '../intake'
 import type { PendingQueues } from '../pending'
 import type { ServiceRegistryPort } from '../services/service-registry'
@@ -24,6 +25,7 @@ export function bindIntake<Command>(args: {
   stopSandbox: () => Promise<boolean>
   logPort?: LogPort | undefined
   pluginSources?: readonly IntakeSource[] | undefined
+  waitState?: ModelWaitView | undefined
 }): { intake: MessageIntake; recordTeardownEndings: () => Promise<void> } {
   const { agents, shells, services, pending, log, ids } = args
   const intake = new MessageIntake({
@@ -34,12 +36,14 @@ export function bindIntake<Command>(args: {
     ],
     submit: ({ threadId, ...said }) => pending.forThread({ threadId }).enqueue(said),
   })
+  args.waitState?.subscribe(() => intake.changed())
   intake.registerFallback(({ threadId }) => {
     if (!agents.listEverywhere().some((agent) => agent.agentId === threadId)) return undefined
     return {
       blocked: () => {
         const current = agents.listEverywhere().find((agent) => agent.agentId === threadId)
         return (
+          args.waitState?.blocked({ threadId }) === true ||
           current === undefined ||
           (current.status === EAgentStatus.Running && current.steppingSince !== undefined) ||
           current.killedBy !== undefined

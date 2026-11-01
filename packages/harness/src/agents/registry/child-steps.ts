@@ -16,9 +16,16 @@ import type { ChildRunnerSource } from './child-runner'
 import { ChildAdmissions } from './child-admissions'
 import type { InheritOrphanedNotices, IntakeChanged } from './deps'
 import type { EndShells, LeftServicesProbe, RunningShellProbe } from './deps'
-import { isHeld, recordContext, recordProgress, type ChildState } from './child-state'
+import {
+  isHeld,
+  isWaiting,
+  parkWaiting,
+  recordContext,
+  recordProgress,
+  type ChildState,
+} from './child-state'
 import { AgentJournal } from './agent-journal'
-import { recordEnding } from './child-endings'
+import { recordEnding, shellsEndedFor } from './child-endings'
 import { steeringOf } from './child-steering'
 import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import { steppedStatus } from './stepped-status'
@@ -95,6 +102,7 @@ export class ChildSteps {
     child.endedAt = undefined
     child.deliveredAt = undefined
     child.waitingOn = undefined
+    child.waitingFor = undefined
     child.steppingSince = this.clock.now()
     this.roster.changed()
 
@@ -110,25 +118,14 @@ export class ChildSteps {
   }
 
   endHeld({ child, killedBy }: { child: ChildState; killedBy: EKilledBy }): void {
-    if (!isHeld(child) || child.killedBy !== undefined) return
+    if (!(isHeld(child) || isWaiting(child)) || child.killedBy !== undefined) return
     child.killedBy = killedBy
     this.track({
       child,
-      settled: this.shellsEndedFor({ child, killedBy }).then(() =>
+      settled: shellsEndedFor({ endShells: this.endShells, child, killedBy }).then(() =>
         this.finish({ child, status: EAgentStatus.Stopped, speech: ESpeech.OnEnd }),
       ),
     })
-  }
-
-  private shellsEndedFor({
-    child,
-    killedBy,
-  }: {
-    child: ChildState
-    killedBy: EKilledBy
-  }): Promise<void> {
-    if (killedBy === EKilledBy.ContainerSwitch) return Promise.resolve()
-    return this.endShells({ threadId: child.agentId, by: killedBy })
   }
 
   pauseHeld({ child }: { child: ChildState }): void {
@@ -204,6 +201,13 @@ export class ChildSteps {
   }): Promise<void> {
     if (this.roster.find(child.agentId) === undefined) return
 
+    if (status === EAgentStatus.WaitingForModel && child.waitingFor !== undefined) {
+      parkWaiting({ child, episode: child.waitingFor })
+      this.roster.changed()
+      this.intake?.changed()
+      return
+    }
+
     const shell =
       speech === ESpeech.OnEnd && status === EAgentStatus.Finished
         ? this.runningShell(child.agentId)
@@ -220,6 +224,7 @@ export class ChildSteps {
     child.endedAt = this.clock.now()
     child.steppingSince = undefined
     child.waitingOn = undefined
+    child.waitingFor = undefined
     this.roster.changed()
 
     this.inheritOrphanedNotices?.({ from: child.agentId, to: child.spawnedBy })

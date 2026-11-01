@@ -18,6 +18,7 @@ export function bindThreadActivity(args: {
     threadId: args.threadId,
     log: args.log,
     onChange: tracker.setApproval,
+    onWaiting: tracker.setWaiting,
   })
   const unsubscribe = args.channel.subscribe({
     threadId: args.threadId,

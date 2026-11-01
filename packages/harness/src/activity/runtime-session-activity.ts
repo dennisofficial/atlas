@@ -9,6 +9,7 @@ import { backgroundRunning } from './binding'
 import { SessionActivityPort } from './port'
 import { activityOutcomeOf, createActivityTracker } from './state'
 import type { ActivityReport, ActivityTracker } from './types'
+import { currentWaiting } from './waiting'
 
 type ThreadActivity = {
   revision: number
@@ -149,7 +150,12 @@ export class RuntimeSessionActivity extends SessionActivityPort {
       state.tracker.setApproval(outstandingApproval(events) !== undefined)
       state.tracker.setInput(input !== null)
       state.tracker.setBackground(backgroundRunning(roster) || state.finalizing > 0)
-      if (previous.working !== state.report.working || previous.awaiting !== state.report.awaiting)
+      state.tracker.setWaiting(currentWaiting(events))
+      if (
+        previous.working !== state.report.working ||
+        previous.awaiting !== state.report.awaiting ||
+        previous.waitingForModel !== state.report.waitingForModel
+      )
         state.revision += 1
       return {
         runtimeId: this.runtimeId,
@@ -158,6 +164,9 @@ export class RuntimeSessionActivity extends SessionActivityPort {
         working: state.report.working,
         awaiting: state.report.awaiting,
         observedOutcome: state.observedOutcome,
+        ...(state.report.waitingForModel === undefined
+          ? {}
+          : { waitingForModel: state.report.waitingForModel }),
       }
     }
     throw new Error('Activity changed while reading')

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { waitingForModelWireSchema } from './model-availability-wire'
 import { runFailureWireSchema } from './run-failure-wire'
 
 export enum ETurnStatus {
@@ -9,6 +10,7 @@ export enum ETurnStatus {
   Interrupted = 'interrupted',
   RelocationPaused = 'relocation-paused',
   Failed = 'failed',
+  WaitingForModel = 'waiting-for-model',
 }
 
 export const runIdWireSchema = z.string().min(1).brand<'RunId'>()
@@ -42,6 +44,11 @@ export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
     runId: runIdWireSchema,
     message: z.string(),
     failure: runFailureWireSchema.optional(),
+  }),
+  z.object({
+    status: z.literal(ETurnStatus.WaitingForModel),
+    runId: runIdWireSchema,
+    waiting: waitingForModelWireSchema,
   }),
 ])
 

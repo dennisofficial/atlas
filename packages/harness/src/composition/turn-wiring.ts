@@ -43,8 +43,8 @@ import type { TurnSetup } from './turn-setup'
 import { TitlingTurnRunner } from './titling-turn-runner'
 import { TldrTurnRunner } from '../loop/tldr-turn-runner'
 import type { TurnRunner } from '../loop/turn-runner.port'
-import type { ClockJumpDetector } from '../loop/retrying-step'
-import type { WakeSignal } from '../wake/wake-signals'
+import { ModelWaitStateToken } from '../model-recovery/wait-state-token'
+import { asClockJumps } from './clock-jumps'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { createLoopCut } from '../store/sessions/ops/cut-loop'
@@ -59,10 +59,6 @@ import { LocalRewindMachinery } from '../store/local-rewind-machinery'
 import { createUsageTracker } from './usage-tracker'
 import { turnBackgroundState } from './turn-background-state'
 import { loopNotices } from './loop-notices'
-
-const asClockJumps = (wake: WakeSignal): ClockJumpDetector => ({
-  onJump: (callback) => wake.subscribe((jump) => callback(jump.gapMs)),
-})
 
 export type TurnWiring = {
   turn: TurnDeps
@@ -98,6 +94,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const shells = container.resolve(registeredPortToken(ShellRegistryPort))
   const agents = container.resolve(registeredPortToken(AgentRegistryPort))
   const services = container.resolve(registeredPortToken(ServiceRegistryPort))
+  const waitState = container.resolve(ModelWaitStateToken)
 
   const compactBeforeOverflow = async ({ threadId }: { threadId: ThreadId }): Promise<boolean> => {
     const compaction = await compactTurn({
@@ -120,6 +117,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     stopSandbox: args.stopSandbox,
     logPort,
     pluginSources: args.pluginSources,
+    waitState,
   })
 
   const { runningShells, runningAgents, runningServices } = turnBackgroundState({
@@ -144,6 +142,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     logPort,
     model: modelPort,
     ids,
+    waitState,
     ...(args.sleepPrevention === undefined ? {} : { sleepPrevention: args.sleepPrevention }),
     ...(args.wake === undefined ? {} : { retry: { clockJumps: asClockJumps(args.wake) } }),
     assembly: defaultPipeline({

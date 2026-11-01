@@ -29,6 +29,7 @@ const IS_TERMINAL: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Failed]: true,
   [EAgentStatus.Stopped]: true,
   [EAgentStatus.Paused]: false,
+  [EAgentStatus.WaitingForModel]: false,
 }
 
 const NEEDS_ACKNOWLEDGING: Record<EAgentStatus, boolean> = {
@@ -38,6 +39,7 @@ const NEEDS_ACKNOWLEDGING: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Failed]: true,
   [EAgentStatus.Stopped]: true,
   [EAgentStatus.Paused]: false,
+  [EAgentStatus.WaitingForModel]: false,
 }
 
 const ancestorsOfLive = (crew: readonly CrewMember[]): ReadonlySet<string> => {

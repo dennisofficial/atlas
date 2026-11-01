@@ -9,6 +9,7 @@ describe('agent status', () => {
       'Running',
       'Needs approval',
       'Paused',
+      'Waiting for model',
       'Failed',
       'Done',
     ])
@@ -26,6 +27,7 @@ describe('agent status', () => {
       'running',
       'needs-approval',
       'paused',
+      'waiting-for-model',
       'failed',
       'done',
     ])

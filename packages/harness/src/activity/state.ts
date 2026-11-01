@@ -1,3 +1,5 @@
+import type { WaitingForModel } from '@dltech/atlas-core'
+
 import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 import type { ActivityOutcome, ActivityReport, ActivityTracker } from './types'
 
@@ -12,6 +14,7 @@ export const activityOutcomeOf = (outcome: TurnOutcome): ActivityOutcome | undef
     case ETurnStatus.Paused:
     case ETurnStatus.Idle:
     case ETurnStatus.RelocationPaused:
+    case ETurnStatus.WaitingForModel:
       return undefined
   }
 }
@@ -24,6 +27,7 @@ export const NOOP_ACTIVITY_TRACKER: ActivityTracker = {
   setInput: () => undefined,
   setApproval: () => undefined,
   setBackground: () => undefined,
+  setWaiting: () => undefined,
 }
 
 export function createActivityTracker(args: {
@@ -33,6 +37,7 @@ export function createActivityTracker(args: {
   let background = false
   let input = false
   let approval = false
+  let waiting: WaitingForModel | null = null
   let outcome: ActivityOutcome | undefined
 
   const emit = (): void => {
@@ -41,6 +46,7 @@ export function createActivityTracker(args: {
     args.report({
       working,
       awaiting,
+      ...(waiting === null ? {} : { waitingForModel: waiting }),
       ...(working || outcome === undefined ? {} : { lastOutcome: outcome }),
     })
   }
@@ -74,6 +80,11 @@ export function createActivityTracker(args: {
     setBackground: (running) => {
       if (background === running) return
       background = running
+      emit()
+    },
+    setWaiting: (next) => {
+      if (JSON.stringify(waiting) === JSON.stringify(next)) return
+      waiting = next
       emit()
     },
   }

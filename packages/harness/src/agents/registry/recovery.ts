@@ -1,5 +1,6 @@
 import {
   agentRoster,
+  isLost,
   type ClockPort,
   type EventLogPort,
   type IdPort,
@@ -7,7 +8,8 @@ import {
 } from '@dltech/atlas-core'
 
 import type { ThreadStorePort } from '../../store'
-import { recoveredChild } from './child-state'
+import type { ModelWaitState } from '../../model-recovery/wait-state'
+import { parkWaiting, recoveredChild } from './child-state'
 import { requeueOwedNotices, stampSettledDeliveries } from './owed-notices'
 import { settleLostChildren, unloggedChildren } from './lost-children'
 import type { AgentNoticeQueue } from './notices'
@@ -27,6 +29,7 @@ export class ChildRecovery {
   private readonly roster: AgentRoster
   private readonly notices: AgentNoticeQueue
   private readonly launchDirectory: string
+  private readonly waitState: Pick<ModelWaitState, 'episodeOf'> | undefined
   private readonly hydrating = new Map<ThreadId, Promise<void>>()
   private readonly settling = new Map<ThreadId, Promise<RecoveredAgents>>()
 
@@ -38,6 +41,7 @@ export class ChildRecovery {
     roster: AgentRoster
     notices: AgentNoticeQueue
     launchDirectory: string
+    waitState?: Pick<ModelWaitState, 'episodeOf'> | undefined
   }) {
     this.log = args.log
     this.threads = args.threads
@@ -46,6 +50,7 @@ export class ChildRecovery {
     this.roster = args.roster
     this.notices = args.notices
     this.launchDirectory = args.launchDirectory
+    this.waitState = args.waitState
   }
 
   /**
@@ -164,6 +169,10 @@ export class ChildRecovery {
       const child = recoveredChild({ agent, spawnedBy: threadId, at })
       const model = await storedModelOf({ threads: this.threads, agentId: agent.agentId })
       if (model !== undefined) child.model = model
+      if (isLost(agent)) {
+        const episode = await this.waitState?.episodeOf({ threadId: agent.agentId })
+        if (episode !== undefined) parkWaiting({ child, episode })
+      }
       this.roster.add(child)
     }
 

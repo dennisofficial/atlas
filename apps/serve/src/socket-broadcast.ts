@@ -1,7 +1,8 @@
 import { EMPTY_SUBSCRIPTIONS, prStatesWireSchema, rosterWireSchema } from '@dltech/atlas-wire'
 
-import { encodeFrame, EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
+import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
 
+import { createBroadcastEncoder } from './frame-egress'
 import { subscriptionsSnapshot } from './serve-subscription-requests'
 import type { SessionHandlersArgs, SessionSocket } from './socket-session-types'
 import type { ServePrStates, ServeRoster } from './serve-app'
@@ -14,8 +15,8 @@ export function createSnapshotBroadcasts(args: {
 }) {
   const { attached, snapshot, prStatesSnapshot, subscriptions } = args
   const tell = (frame: ServeFrame): void => {
-    const encoded = encodeFrame(frame)
-    for (const socket of attached) socket.send(encoded)
+    const encodedFor = createBroadcastEncoder(frame)
+    for (const socket of attached) socket.send(encodedFor(socket))
   }
   return {
     broadcastRoster(): void {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ERunFailureKind, toRunId } from '@dltech/atlas-core'
+import { EModelWaitCause, EWaitEpisodeKind, ERunFailureKind, toRunId } from '@dltech/atlas-core'
 
 import { turnOutcomeWireSchema } from '@dltech/atlas-wire/web'
 
@@ -89,6 +89,33 @@ describe('turnOutcomeFromWire', () => {
     })
     expect(turnOutcomeFromWire(wire)).toMatchObject({
       failure: { kind: ERunFailureKind.Other, retryAt: '2026-10-31T12:00:00.000Z' },
+    })
+  })
+
+  it('maps a waiting-for-model outcome to the core waiting type', () => {
+    const waiting = {
+      episode: {
+        kind: EWaitEpisodeKind.Credential,
+        key: { accountId: 'acc', providerId: 'anthropic', modelId: 'claude' },
+        generation: 1,
+      },
+      cause: EModelWaitCause.Availability,
+      providerId: 'anthropic',
+      accountId: 'acc',
+      modelId: 'claude',
+      reason: null,
+      resetAt: null,
+      affectedThreadIds: ['root'],
+    }
+    const wire = turnOutcomeWireSchema.parse(
+      JSON.parse(JSON.stringify({ status: ETurnStatus.WaitingForModel, runId: 'run-1', waiting })),
+    )
+    const outcome = turnOutcomeFromWire(wire)
+    expect(outcome.status).toBe(ETurnStatus.WaitingForModel)
+    expect(JSON.parse(JSON.stringify(outcome))).toEqual({
+      status: ETurnStatus.WaitingForModel,
+      runId: 'run-1',
+      waiting,
     })
   })
 })

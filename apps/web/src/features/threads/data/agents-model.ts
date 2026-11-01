@@ -44,6 +44,7 @@ const DISPLAY_OF_STATUS: Record<EAgentStatus, EAgentDisplay> = {
   [EAgentStatus.Running]: EAgentDisplay.Running,
   [EAgentStatus.Blocked]: EAgentDisplay.NeedsApproval,
   [EAgentStatus.Paused]: EAgentDisplay.Paused,
+  [EAgentStatus.WaitingForModel]: EAgentDisplay.WaitingForModel,
   [EAgentStatus.Failed]: EAgentDisplay.Failed,
   [EAgentStatus.Finished]: EAgentDisplay.Done,
   [EAgentStatus.Stopped]: EAgentDisplay.Done,
@@ -53,6 +54,7 @@ const LIVE_STATUSES: readonly EAgentStatus[] = [
   EAgentStatus.Running,
   EAgentStatus.Blocked,
   EAgentStatus.Paused,
+  EAgentStatus.WaitingForModel,
 ]
 
 const nonEmpty = (text: string | undefined): string | undefined =>

@@ -10,6 +10,7 @@ import type {
 
 import type { ThreadStorePort } from '../../store'
 import type { MessageIntake } from '../../intake/message-intake'
+import type { ModelWaitState } from '../../model-recovery/wait-state'
 import type { ThreadModel } from '../../store/thread-store'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
@@ -53,6 +54,7 @@ export type SupervisorDeps = {
   sink?: ExecutionLocationSinkPort | undefined
   telemetry?: TelemetryPort | undefined
   intake?: IntakeChanged | undefined
+  waitState?: Pick<ModelWaitState, 'episodeOf'> | undefined
   input?: (() => IntakeSubmit | undefined) | undefined
   runningShell?: RunningShellProbe | undefined
   endShells?: EndShells | undefined

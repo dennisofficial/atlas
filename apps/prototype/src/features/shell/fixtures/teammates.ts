@@ -7,6 +7,7 @@ export enum EAgentStatus {
   Stopped = 'stopped',
   Blocked = 'blocked',
   Paused = 'paused',
+  WaitingForModel = 'waiting-for-model',
 }
 
 export enum ESandboxState {

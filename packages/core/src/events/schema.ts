@@ -32,6 +32,11 @@ import {
   qualityFindingSchema,
   qualityScopeIdentitySchema,
 } from '../quality/schema'
+import {
+  modelWaitCauseSchema,
+  waitEpisodeRefSchema,
+  waitingForModelSchema,
+} from '../model-recovery/waiting'
 import { EQualityReviewStatus, EQualitySkipReason } from '../quality/policy'
 import {
   subscriptionChangedSchema,
@@ -250,5 +255,11 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
   z.object({
     type: z.literal('run-failure-dismissed'),
     failureSeq: z.number().int().nonnegative(),
+  }),
+  z.object({ type: z.literal('model-waiting'), waiting: waitingForModelSchema }),
+  z.object({
+    type: z.literal('model-wait-cleared'),
+    episode: waitEpisodeRefSchema,
+    cause: modelWaitCauseSchema,
   }),
 ])

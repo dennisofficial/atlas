@@ -8,7 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { isTeammateType } from '../types'
-import { isHeld, isStepping, type ChildState } from './child-state'
+import { isHeld, isStepping, isWaiting, type ChildState } from './child-state'
 import type { ChildSteps } from './child-steps'
 import type { NoticeDelivery } from './delivery'
 import type { SupervisorDeps } from './deps'
@@ -60,7 +60,7 @@ export async function stopThreadChildren({
   await recovery.hydrate({ threadId })
 
   const stepping = relocatableChildren({ roster, threadId, skipTeammates }).filter(
-    (child) => child.agentId !== caller && (isStepping(child) || isHeld(child)),
+    (child) => child.agentId !== caller && (isStepping(child) || isHeld(child) || isWaiting(child)),
   )
   for (const child of stepping) stopChild({ child, by, steps })
 

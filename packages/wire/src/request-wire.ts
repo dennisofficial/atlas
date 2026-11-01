@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { waitingForModelWireSchema } from './model-availability-wire'
 import {
   agentSnapshotWireSchema,
   serviceSnapshotWireSchema,
@@ -53,6 +54,7 @@ export const readActivityReplySchema = z.strictObject({
       outcome: z.enum(['completed', 'failed', 'stopped']),
     })
     .nullable(),
+  waitingForModel: waitingForModelWireSchema.nullable().optional(),
 })
 export type ReadActivityReply = z.infer<typeof readActivityReplySchema>
 

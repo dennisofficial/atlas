@@ -45,8 +45,11 @@ export class ModelAdmissionBlockedError extends TurnFault {
   }
 }
 
+export const blockedErrorOf = (chain: readonly unknown[]): ModelAdmissionBlockedError | undefined =>
+  chain.find((link) => link instanceof ModelAdmissionBlockedError)
+
 export function blockedFailureOf(chain: readonly unknown[]): NormalizedProviderFailure | undefined {
-  const blocked = chain.find((link) => link instanceof ModelAdmissionBlockedError)
+  const blocked = blockedErrorOf(chain)
   if (blocked === undefined) return undefined
 
   const { key, snapshot } = blocked.block
