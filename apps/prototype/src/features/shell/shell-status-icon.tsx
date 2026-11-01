@@ -12,37 +12,29 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { EThreadStatus } from './fixtures/app'
 
-interface StatusPresentation {
+interface IconPresentation {
   label: string
   className: string
   Icon: typeof Circle
 }
 
-export const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
+const IDLE: IconPresentation = {
+  label: 'Idle',
+  className: 'text-muted-foreground',
+  Icon: Circle,
+}
+
+const RUN_PRESENTATION: Record<EThreadStatus, IconPresentation> = {
   [EThreadStatus.Running]: {
     label: 'Running',
     className: 'animate-spin text-foreground',
     Icon: LoaderCircle,
   },
-  [EThreadStatus.Idle]: {
-    label: 'Idle',
-    className: 'text-muted-foreground',
-    Icon: Circle,
-  },
+  [EThreadStatus.Idle]: IDLE,
   [EThreadStatus.AwaitingApproval]: {
     label: 'Waiting for you',
     className: 'text-warning',
     Icon: CircleAlert,
-  },
-  [EThreadStatus.PrOpen]: {
-    label: 'Pull request open',
-    className: 'text-success',
-    Icon: GitPullRequest,
-  },
-  [EThreadStatus.PrMerged]: {
-    label: 'Pull request merged',
-    className: 'text-chart-5',
-    Icon: GitMerge,
   },
   [EThreadStatus.Starting]: {
     label: 'Starting pod',
@@ -54,6 +46,22 @@ export const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
     className: 'text-destructive',
     Icon: CircleX,
   },
+  [EThreadStatus.PrOpen]: IDLE,
+  [EThreadStatus.PrMerged]: IDLE,
+  [EThreadStatus.PrClosed]: IDLE,
+}
+
+const PR_PRESENTATION: Partial<Record<EThreadStatus, IconPresentation>> = {
+  [EThreadStatus.PrOpen]: {
+    label: 'Pull request open',
+    className: 'text-success',
+    Icon: GitPullRequest,
+  },
+  [EThreadStatus.PrMerged]: {
+    label: 'Pull request merged',
+    className: 'text-chart-5',
+    Icon: GitMerge,
+  },
   [EThreadStatus.PrClosed]: {
     label: 'Pull request closed',
     className: 'text-muted-foreground',
@@ -61,13 +69,37 @@ export const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
   },
 }
 
-export function ThreadStatusIcon({
+export function RunStatusIcon({
   status,
   className,
+  unread = false,
 }: {
   status: EThreadStatus
   className?: string
+  unread?: boolean
 }) {
-  const { label, className: tone, Icon } = PRESENTATION[status]
+  const { label, className: tone, Icon } = RUN_PRESENTATION[status]
+  return (
+    <span className={cn('grid size-4 shrink-0 place-items-center', className)}>
+      <Icon
+        role="img"
+        aria-label={label}
+        className={cn('col-start-1 row-start-1 size-4', tone, className)}
+      />
+      {unread ? (
+        <span
+          role="img"
+          aria-label="Unread"
+          className="col-start-1 row-start-1 size-1.5 rounded-full bg-primary"
+        />
+      ) : null}
+    </span>
+  )
+}
+
+export function PrStateIcon({ status, className }: { status: EThreadStatus; className?: string }) {
+  const presentation = PR_PRESENTATION[status]
+  if (!presentation) return null
+  const { label, className: tone, Icon } = presentation
   return <Icon role="img" aria-label={label} className={cn('size-4 shrink-0', tone, className)} />
 }

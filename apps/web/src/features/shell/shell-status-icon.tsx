@@ -70,10 +70,27 @@ const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
 export function ThreadStatusIcon({
   status,
   className,
+  unread = false,
 }: {
   status: EThreadStatus
   className?: string
+  unread?: boolean
 }) {
   const { label, className: tone, Icon } = PRESENTATION[status]
-  return <Icon role="img" aria-label={label} className={cn('size-4 shrink-0', tone, className)} />
+  return (
+    <span className={cn('grid size-4 shrink-0 place-items-center', className)}>
+      <Icon
+        role="img"
+        aria-label={label}
+        className={cn('col-start-1 row-start-1 size-4', tone, className)}
+      />
+      {unread ? (
+        <span
+          role="img"
+          aria-label="Unread"
+          className="col-start-1 row-start-1 size-1.5 rounded-full bg-primary"
+        />
+      ) : null}
+    </span>
+  )
 }

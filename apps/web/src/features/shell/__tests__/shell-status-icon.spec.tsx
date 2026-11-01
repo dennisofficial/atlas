@@ -30,6 +30,14 @@ describe('ThreadStatusIcon', () => {
     expect(iconOf(EThreadStatus.Parked)).toContain('text-muted-foreground/60')
   })
 
+  it('keeps the status icon visible with the unread dot centered inside it', () => {
+    const unreadHtml = renderToStaticMarkup(<ThreadStatusIcon status={EThreadStatus.Idle} unread />)
+    expect(unreadHtml).toContain('aria-label="Unread"')
+    expect(unreadHtml).toContain('aria-label="Idle"')
+    expect(unreadHtml).toContain('col-start-1 row-start-1')
+    expect(iconOf(EThreadStatus.Idle)).not.toContain('aria-label="Unread"')
+  })
+
   it('retains legacy PR icon consumers and forwards sizing classes', () => {
     for (const status of [EThreadStatus.PrOpen, EThreadStatus.PrMerged, EThreadStatus.PrClosed]) {
       expect(iconOf(status)).toContain('aria-label="Pull request')

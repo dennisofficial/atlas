@@ -95,7 +95,7 @@ describe('shared sidebar row interactions', () => {
     expect(view.link('main').querySelector('[aria-label="Idle"]')).not.toBeNull()
   })
 
-  it('preserves unread on the second line, local identity, pin and archive/unarchive actions', async () => {
+  it('keeps unread inside the status icon, with local identity, pin and archive/unarchive actions', async () => {
     const thread = threadOf({
       id: 'local',
       title: 'Local title',
@@ -106,8 +106,8 @@ describe('shared sidebar row interactions', () => {
     })
     await view.render({ active: null, session: sessionOf(thread) })
     const row = view.link('local')
-    expect(row.querySelector('[data-thread-line="primary"] [aria-label="Unread"]')).toBeNull()
-    expect(row.querySelector('[data-thread-line="secondary"] [aria-label="Unread"]')).not.toBeNull()
+    expect(row.querySelector('[data-thread-line="primary"] [aria-label="Unread"]')).not.toBeNull()
+    expect(row.querySelector('[data-thread-line="secondary"] [aria-label="Unread"]')).toBeNull()
     expect(row.querySelector('[aria-label="This Mac"]')).not.toBeNull()
     expect(view.container?.querySelector('[aria-label="Pinned"]')).not.toBeNull()
     await view.click('button[aria-label="Archive thread"]')

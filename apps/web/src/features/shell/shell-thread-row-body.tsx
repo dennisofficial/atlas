@@ -21,7 +21,6 @@ import { ThreadHoverCard } from './thread-hover-card'
 import { latestThreadPullRequestOf, threadPullRequestsOf } from './thread-pull-requests'
 import { CompactWorkIcon, ThreadWorkSummary } from './thread-pr-presentation'
 import { isUnread, isWorking, threadStatusOf } from './thread-status'
-import { UnreadDot } from './unread-dot'
 
 export interface ThreadRowBodyProps {
   thread: WireThread
@@ -102,7 +101,7 @@ export function ThreadRowBody({
         )}
       >
         <span data-thread-line="primary" className="flex min-w-0 items-center gap-2">
-          <ThreadStatusIcon status={threadStatusOf(thread)} />
+          <ThreadStatusIcon status={threadStatusOf(thread)} unread={unread} />
           {compact ? (
             <span className="group-data-[collapsible=icon]:hidden">
               <CompactWorkIcon entries={entries} />
@@ -120,15 +119,6 @@ export function ThreadRowBody({
               <LocalPodIcon />
             </span>
           ) : null}
-          {compact && unread ? <UnreadDot /> : null}
-          {!compact && !trailing ? (
-            <time
-              dateTime={thread.updatedAt}
-              className="hidden shrink-0 font-mono text-xs text-muted-foreground @min-[280px]:block group-data-[collapsible=icon]:hidden"
-            >
-              {relativeTime({ from: thread.updatedAt })}
-            </time>
-          ) : null}
         </span>
         {!compact ? (
           <span
@@ -136,7 +126,9 @@ export function ThreadRowBody({
             className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
           >
             <ThreadWorkSummary entries={entries} branch={currentBranchOf(thread)} />
-            <span className="ml-auto inline-flex">{unread ? <UnreadDot /> : null}</span>
+            <time dateTime={thread.updatedAt} className="ml-auto shrink-0 font-mono">
+              {relativeTime({ from: thread.updatedAt })}
+            </time>
           </span>
         ) : null}
       </Link>
