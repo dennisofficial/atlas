@@ -3,7 +3,7 @@
 import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
 import { ServerIcon } from 'lucide-react'
 
-import { chipStatusOf } from '../../data/pod-chip-model'
+import { chipStatusOf, podStateLabelOf } from '../../data/pod-chip-model'
 import { ThreadPodChip } from '../../thread-pod-chip'
 import { useThreadPanel } from '../thread-panel-context'
 
@@ -14,7 +14,7 @@ export function PodSection() {
   if (chipStatusOf(pod) === null) {
     return (
       <section aria-label="Pod">
-        <DetailRow label="Pod" icon={POD_ICON} meta="No pod yet" />
+        <DetailRow label="Pod" icon={POD_ICON} meta={podStateLabelOf(pod) ?? 'No pod yet'} />
       </section>
     )
   }

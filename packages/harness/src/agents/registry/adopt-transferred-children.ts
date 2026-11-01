@@ -47,12 +47,15 @@ export async function activateTransferredChildren(args: {
         child.killedBy === undefined &&
         !resumableAfterTransfer(child)
       if (!queuedContinuation && !resumableAfterTransfer(child)) continue
-      if (!isResumable(await log.readOwn({ threadId: child.agentId }))) continue
-      if (queuedContinuation && agents.wake === undefined) {
+      const interrupted = isResumable(await log.readOwn({ threadId: child.agentId }))
+      const pausedAtCleanTail = !interrupted && child.status === EAgentStatus.Paused
+      if (!interrupted && !pausedAtCleanTail) continue
+      const wakes = queuedContinuation || pausedAtCleanTail
+      if (wakes && agents.wake === undefined) {
         throw new Error(`this registry cannot continue queued work for child ${child.agentId}`)
       }
       const outcome =
-        queuedContinuation && agents.wake !== undefined
+        wakes && agents.wake !== undefined
           ? await agents.wake({ agentId: child.agentId })
           : await agents.resume({
               agentId: child.agentId,

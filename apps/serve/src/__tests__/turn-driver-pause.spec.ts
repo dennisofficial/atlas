@@ -230,7 +230,7 @@ describe('confirmed relocation preparation', () => {
     })
   }
 
-  it('retains committed continuation intent through a failed family preparation', async () => {
+  it('runs a committed continuation after a failed family preparation unwinds on its own', async () => {
     const writing = gate<void>()
     let turns = 0
     const test = fixture(
@@ -260,8 +260,6 @@ describe('confirmed relocation preparation', () => {
     writing.resolve()
     await sending
     await expect(preparation).rejects.toThrow('family persistence failed')
-    expect(test.driver.relocationResumable()).toBe(true)
-    test.driver.resume()
     await Bun.sleep(1)
     expect(turns).toBe(2)
     expect(test.driver.relocationResumable()).toBe(false)
@@ -290,7 +288,7 @@ describe('confirmed relocation preparation', () => {
     expect(test.outcomes).toEqual([])
   })
 
-  it('rejects a parent crash even though settled historically swallowed the runner failure', async () => {
+  it('rejects a parent crash even though settled historically swallowed the runner failure, then unwinds', async () => {
     const parent = gate<TurnOutcome>()
     let pauses = 0
     const test = fixture(
@@ -311,7 +309,7 @@ describe('confirmed relocation preparation', () => {
     await expect(preparation).rejects.toThrow('model transport failed')
     expect(test.outcomes).toEqual([])
     expect(pauses).toBe(0)
-    await expect(test.driver.say({ text: 'unsafe input' })).rejects.toThrow('paused')
+    await expect(test.driver.say({ text: 'input after unwind' })).resolves.toBeUndefined()
   })
 
   it('rejects an explicit failed parent outcome', async () => {
@@ -331,7 +329,7 @@ describe('confirmed relocation preparation', () => {
     expect(test.outcomes.map((one) => one.status)).toEqual([ETurnStatus.Failed])
   })
 
-  it('keeps failures frozen and retries family confirmation without an unhandled rejection', async () => {
+  it('unwinds a failed family confirmation and retries it without an unhandled rejection', async () => {
     let attempts = 0
     const test = fixture(
       fakeServeApp({
@@ -349,10 +347,14 @@ describe('confirmed relocation preparation', () => {
     await Bun.sleep(1)
     expect(test.failures).toEqual(['child append failed'])
     expect(test.outcomes).toEqual([])
-    await expect(test.driver.say({ text: 'unsafe input' })).rejects.toThrow('paused')
+    await expect(test.driver.say({ text: 'input after unwind' })).resolves.toBeUndefined()
+    await test.driver.settled()
     await test.driver.beginRelocation()
     expect(attempts).toBe(2)
-    expect(test.outcomes.map((one) => one.status)).toEqual([ETurnStatus.RelocationPaused])
+    expect(test.outcomes.map((one) => one.status)).toEqual([
+      ETurnStatus.Idle,
+      ETurnStatus.RelocationPaused,
+    ])
   })
 
   it('waits for a blocked family resume before confirming a fresh freeze and pause', async () => {

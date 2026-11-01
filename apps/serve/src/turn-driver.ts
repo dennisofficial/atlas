@@ -237,11 +237,30 @@ export function createTurnDriver(
       })()
       relocationSettling = preparing
       void preparing.catch((error: unknown) => {
-        if (relocationSettling === preparing) {
-          relocationSettling = null
-          relocationConfirmed = false
+        if (relocationSettling !== preparing) {
+          args.onFailure(messageOf(error))
+          return
         }
+        const generation = ++relocationGeneration
+        const continueCommitted = relocationCommitIntent
+        relocationSettling = null
+        relocationConfirmed = false
+        relocationCommitIntent = false
+        relocationFrozen = false
+        pause?.resume()
         args.onFailure(messageOf(error))
+        const resumingChildren = Promise.resolve(
+          app.family?.resumeChildren?.({ threadId: served }),
+        ).catch((resumeError: unknown) => {
+          args.onFailure(messageOf(resumeError))
+        })
+        relocationResuming = resumingChildren
+        void resumingChildren.then(() => {
+          if (relocationResuming === resumingChildren) relocationResuming = null
+          if (generation !== relocationGeneration) return
+          if (continueCommitted) handle.sayOrRun()
+          else intake?.changed()
+        })
       })
       return preparing
     },
