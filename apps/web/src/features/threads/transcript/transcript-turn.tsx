@@ -3,6 +3,7 @@
 import { memo } from 'react'
 
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
+import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/message-images'
 import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
@@ -135,6 +136,15 @@ function SegmentView({
       </AgentMessage>
     )
   }
+  if (segment.kind === ESegmentKind.Images) {
+    return (
+      <div className="flex flex-col items-start gap-2">
+        {segment.images.map((image) => (
+          <MessageImageThumb key={image.id} image={image} size={EMessageImageSize.Preview} />
+        ))}
+      </div>
+    )
+  }
   const duration = formatElapsed(
     spanMsOf({
       startedAt: segment.startedAt,
@@ -172,7 +182,10 @@ function TurnViewBody({
         <UserMessage
           author={userName}
           timestamp={clockTimeOf(turn.item.at)}
-          images={messageImagesOf({ id: turn.item.id, images: turn.item.images })}
+          images={messageImagesOf({
+            id: turn.item.id,
+            images: turn.item.images,
+          })}
           copyText={turn.item.text}
           attachments={(turn.item.uploads ?? []).map((upload) => ({
             id: upload.uploadId,
@@ -181,7 +194,11 @@ function TurnViewBody({
           onRewind={
             rewind === null || !rewind.points.has(turn.item.id)
               ? undefined
-              : () => rewind.onRewind({ eventId: turn.item.id, text: turn.item.text })
+              : () =>
+                  rewind.onRewind({
+                    eventId: turn.item.id,
+                    text: turn.item.text,
+                  })
           }
         >
           {turn.item.text.trim().length === 0 ? undefined : (

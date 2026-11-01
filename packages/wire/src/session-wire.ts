@@ -16,6 +16,9 @@ export const wireThreadSchema = z.object({
   repo: z.string().nullable(),
   model: z.object({ ref: z.string(), effort: z.string() }).optional(),
   worktree: z.object({ path: z.string(), branch: z.string() }).optional(),
+  checkout: z
+    .object({ path: z.string().nullable(), branch: z.string().nullable(), detached: z.boolean() })
+    .optional(),
   pullRequests: z
     .array(
       z.object({

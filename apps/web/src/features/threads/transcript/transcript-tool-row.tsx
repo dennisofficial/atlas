@@ -5,11 +5,6 @@ import { BotIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
 
 import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
 import { DiffViewer } from '@dltech/atlas-ui/ai/diff-viewer'
-import {
-  EMessageImageSize,
-  MessageImageThumb,
-  type MessageImage,
-} from '@dltech/atlas-ui/ai/message-images'
 import { CodeBlock, CodeBlockContent } from '@dltech/atlas-ui/components/code-block'
 import { Trace } from '@dltech/atlas-ui/components/trace'
 
@@ -78,23 +73,6 @@ function EditToolRow({
   )
 }
 
-function ImageToolRow({ call, image }: { call: ToolCallItem; image: MessageImage }) {
-  return (
-    <Trace>
-      <ToolLine
-        kind={call.kind}
-        state={call.state}
-        label={call.label}
-        title={call.title}
-        output={call.output}
-        errorText={call.errorText}
-        elapsed={call.elapsed}
-      />
-      <MessageImageThumb image={image} size={EMessageImageSize.Preview} />
-    </Trace>
-  )
-}
-
 export function ToolRow({
   call,
   onOpenChanges,
@@ -105,7 +83,6 @@ export function ToolRow({
   if (isOpenableEdit(call) && (onOpenChanges !== null || call.change !== undefined)) {
     return <EditToolRow call={call} onOpenChanges={onOpenChanges} />
   }
-  if (call.image !== undefined) return <ImageToolRow call={call} image={call.image} />
   return (
     <Tool
       kind={call.kind}

@@ -1,6 +1,7 @@
 import { db } from '@dltech/atlas-db'
 import type { ThreadWithSession } from './thread-with-session'
-import { threadsPullRequests, threadWorktrees } from './places'
+import { threadCheckouts, threadsPullRequests, threadWorktrees } from './places'
+import { baseBranchCheckouts } from './thread-checkout-fallback'
 import { spawnedPullRequestsByThread } from './spawned-pull-requests'
 import { withPullRequestStates } from './pull-request-state'
 import { toThreadDto } from './rows'
@@ -30,14 +31,18 @@ export async function enrichThreads(args: {
   viewerId: string
 }): Promise<ThreadDto[]> {
   const threadIds = args.rows.map(({ thread }) => thread.id)
-  const [worktrees, stated, subscriptionsByThread, statuses] = await Promise.all([
-    threadWorktrees({ reader: db, threadIds }),
-    pullRequestStatesByThread({ threadIds, viewerId: args.viewerId }),
-    threadsSubscriptions({ reader: db, threadIds }),
-    threadStatuses({ rows: args.rows, viewerId: args.viewerId }),
-  ])
+  const [worktrees, observed, fallbacks, stated, subscriptionsByThread, statuses] =
+    await Promise.all([
+      threadWorktrees({ reader: db, threadIds }),
+      threadCheckouts({ reader: db, threadIds }),
+      baseBranchCheckouts({ reader: db, rows: args.rows }),
+      pullRequestStatesByThread({ threadIds, viewerId: args.viewerId }),
+      threadsSubscriptions({ reader: db, threadIds }),
+      threadStatuses({ rows: args.rows, viewerId: args.viewerId }),
+    ])
   return args.rows.map(({ thread: row, session }, index) => {
     const worktree = worktrees.get(row.id) ?? null
+    const checkout = observed.get(row.id) ?? fallbacks.get(row.id) ?? null
     const pullRequests = stated[index] ?? []
     const subscriptions = (subscriptionsByThread.get(row.id) ?? []).map(
       ({ provider, target, status }) => ({ provider, target, status }),
@@ -47,6 +52,7 @@ export async function enrichThreads(args: {
       ...toThreadDto({ thread: row, session }),
       ...(status === undefined ? {} : { status }),
       ...(worktree === null ? {} : { worktree }),
+      ...(checkout === null ? {} : { checkout }),
       ...(pullRequests.length === 0 ? {} : { pullRequests }),
       ...(subscriptions.length === 0 ? {} : { subscriptions }),
     }

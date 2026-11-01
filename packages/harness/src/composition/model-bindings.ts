@@ -1,5 +1,7 @@
 import {
   ANTHROPIC_PROVIDER_ID,
+  ClockPort,
+  CredentialAvailabilityPort,
   EAuthKind,
   EAuthProvider,
   type Account,
@@ -9,7 +11,7 @@ import {
 } from '@dltech/atlas-core'
 import { cardsForProvider } from '@dltech/atlas-models'
 
-import type { DependencyContainer } from '../container/injection'
+import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import {
   DockerEngineToken,
   LanguageModelToken,
@@ -22,6 +24,7 @@ import { AnthropicAdapter } from '../providers/anthropic-adapter'
 import { InferenceAdapter, INFERENCE_PROVIDER_ID } from '../providers/inference-adapter'
 import { OpenAiAdapter, OPENAI_PROVIDER_ID } from '../providers/openai-adapter'
 import { OpenRouterAdapter, OPENROUTER_PROVIDER_ID } from '../providers/openrouter-adapter'
+import type { ProviderAdmission } from '../providers/provider-admission'
 import type { SettingsService } from '../settings/service'
 
 import type { HarnessLaunch } from './config'
@@ -81,16 +84,30 @@ export async function bindModels(args: {
     ports: codexModelsFsPorts(),
   })
 
+  const admission: ProviderAdmission = {
+    availability: container.resolve(registeredPortToken(CredentialAvailabilityPort)),
+    clock: container.resolve(registeredPortToken(ClockPort)),
+  }
+
   const models = modelCatalogue({
     adapters: [
-      new AnthropicAdapter({ credentials, cards: cardsForProvider(ANTHROPIC_PROVIDER_ID) }),
-      new OpenAiAdapter({ credentials, cards: cardsForProvider(OPENAI_PROVIDER_ID) }),
+      new AnthropicAdapter({
+        credentials,
+        admission,
+        cards: cardsForProvider(ANTHROPIC_PROVIDER_ID),
+      }),
+      new OpenAiAdapter({ credentials, admission, cards: cardsForProvider(OPENAI_PROVIDER_ID) }),
       new OpenRouterAdapter({
         credentials,
+        admission,
         cards: cardsForProvider(OPENROUTER_PROVIDER_ID),
         baseUrl: emptyToUndefined(args.env.OPENROUTER_BASE_URL),
       }),
-      new InferenceAdapter({ credentials, cards: cardsForProvider(INFERENCE_PROVIDER_ID) }),
+      new InferenceAdapter({
+        credentials,
+        admission,
+        cards: cardsForProvider(INFERENCE_PROVIDER_ID),
+      }),
     ],
     accounts: args.accountList,
     live: {

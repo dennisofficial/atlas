@@ -10,10 +10,9 @@ import {
   seedSandboxRow,
   seedThread,
 } from './sandbox-provisioning.fixture'
-import { LOCAL_POD_MESSAGE } from './sandbox-provisioning-rows'
+import { LOCAL_POD_MESSAGE, NOT_RUNNING_MESSAGE } from './sandbox-provisioning-rows'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
-const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
 
 type Step = [EBootStep, EBootStepState]
 
@@ -43,25 +42,24 @@ async function seedSteps(steps: readonly Step[]): Promise<void> {
   }
 }
 
-async function seedServeUp(steps: readonly Step[]): Promise<void> {
-  await seedSandboxRow({ state: 'running', serveUrl: ENDPOINT.url })
+async function seedBooting(steps: readonly Step[]): Promise<void> {
+  await seedSandboxRow()
   await seedSteps(steps)
 }
 
-describe('ThreadMessagesService.send while serve is up but the agent has not started', () => {
+describe('ThreadMessagesService.send while the pod boots and the agent has not started', () => {
   useTestDatabase()
 
   beforeEach(async () => {
     await seedThread()
   })
 
-  it('queues the message as an Event instead of handing it to serve', async () => {
-    await seedServeUp(SERVE_UP_CLONING)
-    const { service, serve, dispatch } = messagesWith({ endpoint: ENDPOINT })
+  it('queues the message as an Event without dispatching', async () => {
+    await seedBooting(SERVE_UP_CLONING)
+    const { service, dispatch } = messagesWith()
 
     expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
 
-    expect(serve).not.toHaveBeenCalled()
     expect(dispatch).not.toHaveBeenCalled()
     const events = await eventsOf()
     expect(events.map((event) => [event.type, JSON.parse(event.body).requestId])).toEqual([
@@ -70,20 +68,19 @@ describe('ThreadMessagesService.send while serve is up but the agent has not sta
   })
 
   it('stores the images on the queued user-said event', async () => {
-    await seedServeUp(SERVE_UP_CLONING)
-    const { service, serve } = messagesWith({ endpoint: ENDPOINT })
+    await seedBooting(SERVE_UP_CLONING)
+    const { service } = messagesWith()
     const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
 
     await service.send({ ...ARGS, images })
 
-    expect(serve).not.toHaveBeenCalled()
     const [event] = await eventsOf()
     expect(JSON.parse(event?.body ?? '').images).toEqual(images)
   })
 
   it('appends a retried sendId once', async () => {
-    await seedServeUp(SERVE_UP_CLONING)
-    const { service } = messagesWith({ endpoint: ENDPOINT })
+    await seedBooting(SERVE_UP_CLONING)
+    const { service } = messagesWith()
 
     await service.send(ARGS)
     await service.send(ARGS)
@@ -91,10 +88,10 @@ describe('ThreadMessagesService.send while serve is up but the agent has not sta
     expect(await eventsOf()).toHaveLength(1)
   })
 
-  it('leaves the running row unclaimed', async () => {
-    await seedServeUp(SERVE_UP_CLONING)
+  it('leaves the active claim untouched', async () => {
+    await seedBooting(SERVE_UP_CLONING)
     const before = (await sandboxRows())[0]
-    const { service } = messagesWith({ endpoint: ENDPOINT })
+    const { service } = messagesWith()
 
     await service.send(ARGS)
 
@@ -102,16 +99,16 @@ describe('ThreadMessagesService.send while serve is up but the agent has not sta
   })
 
   it('queues when only an earlier boot attempt started the agent', async () => {
-    await seedServeUp([
+    await seedBooting([
       ...AGENT_STARTED,
       [EBootStep.Agent, EBootStepState.Done],
       ...SERVE_UP_CLONING,
     ])
-    const { service, serve } = messagesWith({ endpoint: ENDPOINT })
+    const { service, dispatch } = messagesWith()
 
     expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
 
-    expect(serve).not.toHaveBeenCalled()
+    expect(dispatch).not.toHaveBeenCalled()
     expect(await eventsOf()).toHaveLength(1)
   })
 })
@@ -126,8 +123,8 @@ describe('ThreadMessagesService.takeBack of a message queued while the agent boo
   const target = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1' } as const
 
   it('takes the message back before the agent starts', async () => {
-    await seedServeUp(SERVE_UP_CLONING)
-    const { service } = messagesWith({ endpoint: ENDPOINT })
+    await seedBooting(SERVE_UP_CLONING)
+    const { service } = messagesWith()
     await service.send(ARGS)
 
     await service.takeBack(target)
@@ -136,8 +133,8 @@ describe('ThreadMessagesService.takeBack of a message queued while the agent boo
   })
 
   it('refuses with 409 once the agent has started', async () => {
-    await seedServeUp(SERVE_UP_CLONING)
-    const { service } = messagesWith({ endpoint: ENDPOINT })
+    await seedBooting(SERVE_UP_CLONING)
+    const { service } = messagesWith()
     await service.send(ARGS)
     await recordBootSteps({
       threadId: 'thr-1',
@@ -157,15 +154,15 @@ describe('ThreadMessagesService.send once the agent has started', () => {
   })
 
   it.each([EBootStepState.Running, EBootStepState.Done])(
-    'delivers live when the latest attempt has an agent step in state %s',
+    'still queues, without dispatching, while the claim holds and the agent step is %s',
     async (agent) => {
-      await seedServeUp([...SERVE_UP_CLONING, [EBootStep.Agent, agent]])
-      const { service, serve } = messagesWith({ endpoint: ENDPOINT })
+      await seedBooting([...SERVE_UP_CLONING, [EBootStep.Agent, agent]])
+      const { service, dispatch } = messagesWith()
 
-      expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Delivered })
+      expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
 
-      expect(serve).toHaveBeenCalledTimes(1)
-      expect(await eventsOf()).toHaveLength(0)
+      expect(dispatch).not.toHaveBeenCalled()
+      expect(await eventsOf()).toHaveLength(1)
     },
   )
 
@@ -175,7 +172,7 @@ describe('ThreadMessagesService.send once the agent has started', () => {
       threadId: 'thr-1',
       tokenHash: 'pod-hash',
     })
-    const { service, serve, dispatch } = messagesWith()
+    const { service, dispatch } = messagesWith()
 
     await expect(service.send(ARGS)).rejects.toMatchObject({
       status: 409,
@@ -183,18 +180,20 @@ describe('ThreadMessagesService.send once the agent has started', () => {
     })
 
     expect(await eventsOf()).toHaveLength(0)
-    expect(serve).not.toHaveBeenCalled()
     expect(dispatch).not.toHaveBeenCalled()
     expect(await sandboxRows()).toHaveLength(0)
   })
 
-  it('delivers live to a TUI-provisioned row with no boot steps', async () => {
-    await seedSandboxRow({ state: 'running', serveUrl: ENDPOINT.url })
-    const { service, serve } = messagesWith({ endpoint: ENDPOINT })
+  it('refuses a TUI-provisioned running row with no boot steps, appending nothing', async () => {
+    await seedSandboxRow({ state: 'running', serveUrl: 'https://serve.example.test' })
+    const { service, dispatch } = messagesWith()
 
-    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Delivered })
+    await expect(service.send(ARGS)).rejects.toMatchObject({
+      status: 409,
+      message: NOT_RUNNING_MESSAGE,
+    })
 
-    expect(serve).toHaveBeenCalledTimes(1)
     expect(await eventsOf()).toHaveLength(0)
+    expect(dispatch).not.toHaveBeenCalled()
   })
 })

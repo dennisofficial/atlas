@@ -45,7 +45,9 @@ const shapeOf = (segments: readonly Segment[] | undefined): string[] =>
   (segments ?? []).map((segment) =>
     segment.kind === ESegmentKind.Message
       ? `message:${segment.item.id}`
-      : `work:${segment.items.map((item) => item.id).join(',')}`,
+      : segment.kind === ESegmentKind.Images
+        ? `images:${segment.images.map((image) => image.id).join(',')}`
+        : `work:${segment.items.map((item) => item.id).join(',')}`,
   )
 
 describe('agent messages are never grouped into work', () => {
@@ -151,7 +153,13 @@ describe('turnsOf', () => {
     const turns = turnsOf({ items: [user('u1', 't0')], working: true })
     expect(turns.map((turn) => turn.kind)).toEqual([ETurnKind.User, ETurnKind.Agent])
     expect(agentTurns(turns)[0]?.segments).toMatchObject([
-      { kind: ESegmentKind.Work, items: [], stepCount: 0, running: true, startedAt: 't0' },
+      {
+        kind: ESegmentKind.Work,
+        items: [],
+        stepCount: 0,
+        running: true,
+        startedAt: 't0',
+      },
     ])
   })
 
@@ -234,7 +242,9 @@ describe('work duration', () => {
       tools('tl1', 1, '2026-10-29T06:00:10.000Z'),
       agent('a1', '2026-10-29T06:01:00.000Z'),
     ])
-    expect(turn?.segments[0]).toMatchObject({ endedAt: '2026-10-29T06:01:00.000Z' })
+    expect(turn?.segments[0]).toMatchObject({
+      endedAt: '2026-10-29T06:01:00.000Z',
+    })
   })
 })
 

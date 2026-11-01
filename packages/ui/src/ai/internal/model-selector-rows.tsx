@@ -78,6 +78,7 @@ export function ModelRow({
   onSelect,
   onTogglePin,
 }: ModelRowProps) {
+  const disabled = model.disabled === true
   const handleSelect = () => onSelect(model.id)
   const handlePinMouseDown = (event: MouseEvent) => event.preventDefault()
   const handlePinKeyDown = (event: KeyboardEvent) => {
@@ -90,7 +91,12 @@ export function ModelRow({
   }
 
   return (
-    <CommandItem value={model.id} data-checked={checked} onSelect={handleSelect}>
+    <CommandItem
+      value={model.id}
+      data-checked={checked}
+      disabled={disabled}
+      onSelect={handleSelect}
+    >
       <ProviderMark model={model} />
       <span className="min-w-0 flex-1 truncate" title={model.label}>
         {model.label}
@@ -98,9 +104,14 @@ export function ModelRow({
       <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground tabular-nums">
         {showRoute && model.route ? <span>{model.route}</span> : null}
         {model.context ? <span className="w-9 text-right">{model.context}</span> : null}
-        {showRate && model.rate ? <span className="min-w-16 text-right">{model.rate}</span> : null}
+        {disabled ? (
+          <span className="min-w-16 text-right">{model.disabledNote ?? 'Unavailable'}</span>
+        ) : null}
+        {showRate && !disabled && model.rate ? (
+          <span className="min-w-16 text-right">{model.rate}</span>
+        ) : null}
       </span>
-      {canPin ? (
+      {canPin && !disabled ? (
         <button
           type="button"
           aria-label={pinned ? `Unpin ${model.label}` : `Pin ${model.label}`}

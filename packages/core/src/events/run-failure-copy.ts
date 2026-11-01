@@ -37,6 +37,16 @@ function wordsOf(args: {
         title: `No ${provider} key available`,
         detail: `Atlas has no usable credential for ${provider}. Add or refresh one in Settings → Providers (or /auth), then retry.`,
       }
+    case ERunFailureKind.Delivery:
+      return {
+        title: `Atlas couldn't send ${provider} a credential`,
+        detail: `The request to ${provider} went out without a usable credential for ${account}, so the provider could not authenticate it. This does not mean the stored key is invalid. Check Settings → Providers (or /auth), then retry.`,
+      }
+    case ERunFailureKind.ModelDenied:
+      return {
+        title: `${subject} won't serve this model`,
+        detail: `${subject} denied access to this model for ${account}; the key itself may still be fine. Switch model or check the account's access, then retry.`,
+      }
     case ERunFailureKind.RateLimited:
       return {
         title: `${subject} rate limited the run`,
@@ -112,5 +122,8 @@ export function runFailureCopy(args: {
   const provider = args.providerLabel ?? providerLabelOf(failure.providerId) ?? FALLBACK_PROVIDER
   const account = args.accountLabel ?? FALLBACK_ACCOUNT
   const subject = provider === FALLBACK_PROVIDER ? 'The provider' : provider
-  return { ...wordsOf({ failure, provider, subject, account }), remedies: remediesOf(failure.kind) }
+  return {
+    ...wordsOf({ failure, provider, subject, account }),
+    remedies: remediesOf(failure.kind),
+  }
 }

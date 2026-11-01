@@ -9,7 +9,6 @@ import { eventsOf, messagesWith, seedThread, threadRow } from './sandbox-provisi
 import { ThreadMessagesRouter } from './thread-messages.router'
 import { TAKE_BACK_TOO_LATE_MESSAGE, ThreadMessagesService } from './thread-messages.service'
 
-const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
 const SEND = { threadId: 'thr-1', sendId: 'snd-1', text: 'hello' }
 
 type Target = { token?: string; input?: unknown; app?: NestExpressApplication }
@@ -17,26 +16,19 @@ type Target = { token?: string; input?: unknown; app?: NestExpressApplication }
 describe('ThreadMessagesRouter', () => {
   useTestDatabase()
   let app: NestExpressApplication
-  let runningApp: NestExpressApplication
-  let serve: ReturnType<typeof messagesWith>['serve']
 
   const appOver = (service: ThreadMessagesService) =>
     createRouterApp([ThreadMessagesRouter, { provide: ThreadMessagesService, useValue: service }])
 
   beforeAll(async () => {
     app = await appOver(messagesWith().service)
-    const running = messagesWith({ endpoint: ENDPOINT })
-    serve = running.serve
-    runningApp = await appOver(running.service)
   })
 
   afterAll(async () => {
     await app.close()
-    await runningApp.close()
   })
 
   beforeEach(async () => {
-    serve.mockClear()
     await seedThread()
     await seedUsers('usr-2')
   })
@@ -75,8 +67,8 @@ describe('ThreadMessagesRouter', () => {
     })
 
     it("answers 404 for someone else's thread", async () => {
-      expect((await send({ token: 'session-b', app: runningApp })).status).toBe(404)
-      expect(serve).not.toHaveBeenCalled()
+      expect((await send({ token: 'session-b' })).status).toBe(404)
+      expect(await eventsOf()).toHaveLength(0)
     })
 
     it('answers Queued and appends the message when no sandbox runs', async () => {
@@ -87,21 +79,26 @@ describe('ThreadMessagesRouter', () => {
       expect(await eventsOf()).toHaveLength(1)
     })
 
-    it('answers Delivered when the sandbox is running', async () => {
-      const reply = await send({ token: 'session-a', app: runningApp })
+    it('answers Queued without an error field and keeps the message of a retried send', async () => {
+      await send({ token: 'session-a' })
+      await recordBootSteps({
+        threadId: 'thr-1',
+        steps: [{ step: EBootStep.Provision, state: EBootStepState.Running }],
+      })
 
-      expect(reply.status).toBe(200)
-      expect(reply.body.result.data).toEqual({ state: EThreadMessageState.Delivered })
-      expect(serve).toHaveBeenCalledWith({ ...ENDPOINT, ...SEND })
+      const reply = await send({ token: 'session-a' })
+
+      expect(reply.body.result.data).toEqual({ state: EThreadMessageState.Queued })
+      expect(await eventsOf()).toHaveLength(1)
     })
 
-    it('hands the images of a send to serve', async () => {
+    it('stores the images of a send on the appended event', async () => {
       const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
 
-      const reply = await send({ token: 'session-a', app: runningApp, input: { ...SEND, images } })
+      const reply = await send({ token: 'session-a', input: { ...SEND, images } })
 
       expect(reply.status).toBe(200)
-      expect(serve).toHaveBeenCalledWith({ ...ENDPOINT, ...SEND, images })
+      expect(JSON.parse((await eventsOf())[0]?.body ?? '').images).toEqual(images)
     })
 
     it('answers 400 for more than 10 images', async () => {
@@ -113,17 +110,6 @@ describe('ThreadMessagesRouter', () => {
       })
 
       expect(reply.status).toBe(400)
-    })
-
-    it('answers 502 when delivery to a running sandbox fails', async () => {
-      const failing = await appOver(
-        messagesWith({ endpoint: ENDPOINT, serveFails: new Error('socket down') }).service,
-      )
-
-      const reply = await send({ token: 'session-a', app: failing })
-      await failing.close()
-
-      expect(reply.status).toBe(502)
     })
   })
 
@@ -177,13 +163,6 @@ describe('ThreadMessagesRouter', () => {
       expect(reply.status).toBe(409)
       expect(reply.body.error.message).toBe(TAKE_BACK_TOO_LATE_MESSAGE)
       expect(await eventsOf()).toHaveLength(1)
-    })
-
-    it('answers 409 when a sandbox is running', async () => {
-      const reply = await takeBack({ token: 'session-a', app: runningApp })
-
-      expect(reply.status).toBe(409)
-      expect(reply.body.error.message).toBe(TAKE_BACK_TOO_LATE_MESSAGE)
     })
   })
 })

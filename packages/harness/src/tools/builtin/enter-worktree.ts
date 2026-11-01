@@ -17,6 +17,7 @@ import {
   EDefaultBranchSource,
   fetchOrigin,
 } from '../../workspace/worktrees'
+import { worktreeFilesReport } from '../../workspace/worktree-files'
 import { claimWorktree, releaseWorktree, type WorktreeClaim } from '../../workspace/worktree-lock'
 import { adoptWorktree, type AdoptedWorktree } from './worktree-adopt'
 import {
@@ -124,7 +125,8 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
       })
 
       await this.leave({ cwd: view.root, path: projectDirectory, homeDirectory })
-      return this.adopted({ adopted, claim: claimed })
+      const files = await worktreeFilesReport({ source: view.root, worktree: adopted.path })
+      return this.adopted({ adopted, claim: claimed, files })
     }
 
     const name = input.name ?? ''
@@ -157,8 +159,10 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
     if (!added.ok) return { ok: false, reason: added.message }
 
     await claimWorktree({ cwd: view.root, path: added.path, label: `thread ${threadId}` })
+    const files = await worktreeFilesReport({ source: view.root, worktree: added.path })
 
     return this.created({
+      files,
       path: added.path,
       branch: added.branch,
       base,
@@ -184,6 +188,7 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
     branch: string
     base: string
     staleBase?: string
+    files: string | undefined
   }): ToolOutcome {
     return {
       ok: true,
@@ -196,12 +201,17 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
           : [
               `The fetch from origin failed (${args.staleBase}), so the branch was cut from whatever ${args.base} already pointed at locally.`,
             ]),
+        ...(args.files === undefined ? [] : [args.files]),
       ].join(' '),
     }
   }
 
-  private adopted(entry: { adopted: AdoptedWorktree; claim: WorktreeClaim }): ToolOutcome {
-    const { adopted: args, claim } = entry
+  private adopted(entry: {
+    adopted: AdoptedWorktree
+    claim: WorktreeClaim
+    files: string | undefined
+  }): ToolOutcome {
+    const { adopted: args, claim, files } = entry
     const tracking = args.base === undefined ? 'It has no upstream.' : `It tracks ${args.base}.`
 
     return {
@@ -220,6 +230,7 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
         ...(claim.note === undefined ? [] : [claim.note]),
         NOW_THE_PROJECT_DIRECTORY,
         'Atlas did not create this worktree, so exit_worktree will leave it on disk however it is called.',
+        ...(files === undefined ? [] : [files]),
       ].join(' '),
     }
   }

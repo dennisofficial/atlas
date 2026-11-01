@@ -105,6 +105,7 @@ export class AccountStore extends AccountStorePort {
         secret: sealed,
         kind: args.secret.kind,
         status: EAccountStatus.Active,
+        authorizationRevision: (account.authorizationRevision ?? 0) + 1,
         updatedAt: this.clock.now(),
       }),
     })

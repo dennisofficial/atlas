@@ -11,6 +11,7 @@ import {
   isSamePair,
   providerSpec,
   refreshDecision,
+  revisionOf,
   type AccountId,
   type AccountStorePort,
   type ClockPort,
@@ -27,13 +28,19 @@ const SIGN_IN = 'Sign in with /auth.'
 
 const credentialOf = (stored: StoredAccount): Credential =>
   stored.secret.kind === EAuthKind.ApiKey
-    ? { kind: EAuthKind.ApiKey, accountId: stored.id, apiKey: stored.secret.apiKey }
+    ? {
+        kind: EAuthKind.ApiKey,
+        accountId: stored.id,
+        apiKey: stored.secret.apiKey,
+        revision: revisionOf(stored),
+      }
     : {
         kind: EAuthKind.Oauth,
         accountId: stored.id,
         accessToken: stored.secret.tokens.accessToken,
         expiresAt: stored.secret.tokens.expiresAt,
         providerAccountId: stored.secret.tokens.accountId,
+        revision: revisionOf(stored),
       }
 
 const tokensOf = (stored: StoredAccount): OauthTokens | undefined =>
@@ -70,7 +77,7 @@ export class RefreshingCredentialPort extends CredentialPort {
     const decision = this.decisionFor(stored)
 
     if (decision === ERefresh.Fresh) return credentialOf(stored)
-    if (decision === ERefresh.Unrefreshable) throw this.expired(stored)
+    if (decision === ERefresh.Unrefreshable) throw this.expired({ stored })
 
     return credentialOf(await this.sharedRefresh(stored))
   }
@@ -124,7 +131,7 @@ export class RefreshingCredentialPort extends CredentialPort {
             throw this.noAccount(stored.provider, ENoAccountReason.NoneForProvider)
           const decision = this.decisionFor(current)
           if (decision === ERefresh.Fresh) return current
-          if (decision === ERefresh.Unrefreshable) throw this.expired(current)
+          if (decision === ERefresh.Unrefreshable) throw this.expired({ stored: current })
           return this.refresh(current)
         },
       })
@@ -150,7 +157,15 @@ export class RefreshingCredentialPort extends CredentialPort {
       const secret = { kind: EAuthKind.Oauth, tokens: merged } as const
 
       await this.accounts.replaceSecret({ accountId: stored.id, secret })
-      const next: StoredAccount = { ...stored, secret, status: EAccountStatus.Active }
+      const written = await this.accounts.read(stored.id)
+      const next: StoredAccount = {
+        ...stored,
+        secret,
+        status: EAccountStatus.Active,
+        ...(written?.authorizationRevision === undefined
+          ? {}
+          : { authorizationRevision: written.authorizationRevision }),
+      }
       this.rejected.delete(stored.id)
 
       return next
@@ -191,12 +206,14 @@ export class RefreshingCredentialPort extends CredentialPort {
 
   private async retire(stored: StoredAccount): Promise<never> {
     await this.accounts.setStatus({ accountId: stored.id, status: EAccountStatus.Expired })
-    throw this.expired(stored)
+    throw this.expired({ stored, providerRefused: true })
   }
 
-  private expired(stored: StoredAccount): CredentialError {
+  private expired(args: { stored: StoredAccount; providerRefused?: boolean }): CredentialError {
+    const { stored } = args
     return new CredentialError({
       failure: ECredentialFailure.Expired,
+      providerRefused: args.providerRefused === true,
       message: `The ${providerSpec(stored.provider).label} login for ${stored.label} has expired and could not be refreshed. ${SIGN_IN}`,
     })
   }

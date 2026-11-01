@@ -8,6 +8,18 @@ import type { WireThread } from '@dltech/atlas-wire/web'
 
 const setThreadArchived = mock(async (_args: { threadId: string; archived: boolean }) => {})
 
+type ToastOptions = {
+  description?: string
+  action?: { label: string; onClick: () => void }
+}
+const shownToasts: { title: string; options: ToastOptions }[] = []
+mock.module('sonner', () => ({
+  toast: Object.assign(
+    (title: string, options: ToastOptions) => shownToasts.push({ title, options }),
+    { error: () => {} },
+  ),
+}))
+
 const { useThreadArchive } = await import('../use-thread-archive')
 
 beforeAll(() => {
@@ -22,6 +34,7 @@ afterAll(async () => {
 beforeEach(() => {
   setThreadArchived.mockReset()
   setThreadArchived.mockImplementation(async () => {})
+  shownToasts.length = 0
 })
 
 const threadOf = (archivedAt: string | null) => ({ id: 'thr_1', archivedAt }) as WireThread
@@ -36,7 +49,10 @@ async function toggle(thread: WireThread): Promise<string[]> {
     handleToggle = useThreadArchive({
       entries: [],
       reload: () => {},
-      onArchived: (threadId) => archived.push(threadId),
+      onArchived: (threadId) => {
+        archived.push(threadId)
+        return undefined
+      },
       archive: setThreadArchived,
     }).handleToggleArchive
     return null
@@ -63,7 +79,11 @@ describe('useThreadArchive', () => {
   it('rolls back optimistic archive and restore when persistence fails', async () => {
     const { createRoot } = await import('react-dom/client')
     for (const archivedAt of [null, '2026-10-01T00:00:00.000Z']) {
-      const thread = fixtureThread({ id: 'thr_1', archivedAt, runner: ERunner.Local })
+      const thread = fixtureThread({
+        id: 'thr_1',
+        archivedAt,
+        runner: ERunner.Local,
+      })
       const entries = [{ project: null, sessions: [sessionOf(thread)] }]
       const root = createRoot(document.createElement('div'))
       let fail: (error: Error) => void = () => {}
@@ -75,7 +95,7 @@ describe('useThreadArchive', () => {
       )
       let result: ReturnType<typeof useThreadArchive> | undefined
       const reload = mock(() => {})
-      const onArchived = mock((_id: string) => {})
+      const onArchived = mock((_id: string) => undefined)
       function Probe() {
         result = useThreadArchive({ entries, reload, onArchived, archive })
         return null
@@ -105,6 +125,53 @@ describe('useThreadArchive', () => {
 
   it('does not report an unarchive', async () => {
     expect(await toggle(threadOf('2026-10-01T00:00:00.000Z'))).toEqual([])
+  })
+
+  it('offers an undo toast after archiving', async () => {
+    await toggle({ ...threadOf(null), title: 'Fix the sidebar' })
+    expect(shownToasts).toHaveLength(1)
+    expect(shownToasts[0]?.title).toBe('Thread archived')
+    expect(shownToasts[0]?.options.description).toBe('Fix the sidebar')
+    expect(shownToasts[0]?.options.action?.label).toBe('Undo')
+  })
+
+  it('shows no undo toast for an unarchive or a failed archive', async () => {
+    await toggle(threadOf('2026-10-01T00:00:00.000Z'))
+    setThreadArchived.mockImplementation(async () => {
+      throw new Error('boom')
+    })
+    await toggle(threadOf(null))
+    expect(shownToasts).toHaveLength(0)
+  })
+
+  it('undo restores the thread and runs the follow-up from onArchived', async () => {
+    const { createRoot } = await import('react-dom/client')
+    const root = createRoot(document.createElement('div'))
+    const reopened: string[] = []
+    let handleToggle: ((thread: WireThread) => Promise<void>) | null = null
+    function Probe() {
+      handleToggle = useThreadArchive({
+        entries: [],
+        reload: () => {},
+        onArchived: (threadId) => () => reopened.push(threadId),
+        archive: setThreadArchived,
+      }).handleToggleArchive
+      return null
+    }
+    await act(async () => root.render(<Probe />))
+    await act(async () => {
+      await handleToggle?.(threadOf(null))
+    })
+    await act(async () => {
+      shownToasts[0]?.options.action?.onClick()
+    })
+    expect(setThreadArchived).toHaveBeenLastCalledWith({
+      threadId: 'thr_1',
+      archived: false,
+      runner: undefined,
+    })
+    expect(reopened).toEqual(['thr_1'])
+    await act(async () => root.unmount())
   })
 
   it('does not report an archive that failed', async () => {

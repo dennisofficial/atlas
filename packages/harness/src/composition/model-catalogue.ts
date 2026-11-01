@@ -14,6 +14,7 @@ import { AnthropicAdapter } from '../providers/anthropic-adapter'
 import { InferenceAdapter } from '../providers/inference-adapter'
 import { OpenAiAdapter } from '../providers/openai-adapter'
 import { OpenRouterAdapter } from '../providers/openrouter-adapter'
+import type { ProviderAdmission } from '../providers/provider-admission'
 
 export {
   catalogueLabel,
@@ -62,18 +63,26 @@ export function modelCatalogue(args: {
 
 export const providerAdapters = (args: {
   credentials: CredentialPort
+  admission?: ProviderAdmission | undefined
 }): readonly ProviderAdapter[] => [
   new AnthropicAdapter({
     credentials: args.credentials,
+    admission: args.admission,
     cards: cardsForProvider(ANTHROPIC_PROVIDER_ID),
   }),
-  new OpenAiAdapter({ credentials: args.credentials, cards: cardsForProvider(OPENAI_PROVIDER_ID) }),
+  new OpenAiAdapter({
+    credentials: args.credentials,
+    admission: args.admission,
+    cards: cardsForProvider(OPENAI_PROVIDER_ID),
+  }),
   new OpenRouterAdapter({
     credentials: args.credentials,
+    admission: args.admission,
     cards: cardsForProvider(OPENROUTER_PROVIDER_ID),
   }),
   new InferenceAdapter({
     credentials: args.credentials,
+    admission: args.admission,
     cards: cardsForProvider(INFERENCE_PROVIDER_ID),
   }),
 ]

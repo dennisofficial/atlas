@@ -28,6 +28,7 @@ import { bindServeActivity } from './serve-activity-binding'
 import { bindServeIdleStop, noopIdle } from './serve-idle-binding'
 import type { BootListener } from './serve-boot-listener'
 import { bindSessionDrain } from './serve-drain-binding'
+import { bindServePull } from './serve-pull'
 import { resumeWhenRegistered } from './serve-resume-boot'
 import { createServeLifecycle } from './serve-lifecycle'
 import { createServeDriver } from './serve-driver'
@@ -225,6 +226,7 @@ export async function finishServeBoot(args: {
     threadId,
     log,
   })
+  const detachPull = bindServePull({ env, threadId, atlasHome, remote, app, driver, log })
   const exit = serveArgs.exit ?? process.exit
   const { drainSession, rollover } = bindSessionDrain({
     recovery,
@@ -272,6 +274,7 @@ export async function finishServeBoot(args: {
       writeBehind?.detach()
       contextMirror?.detach()
       activity.detach()
+      detachPull()
     },
     stopSandbox:
       serveArgs.stopSandbox ??

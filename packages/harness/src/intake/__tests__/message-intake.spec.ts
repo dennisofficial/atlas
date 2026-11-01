@@ -18,6 +18,12 @@ const flush = async (): Promise<void> => {
   for (let index = 0; index < 20; index += 1) await Promise.resolve()
 }
 
+const flushTimers = async (): Promise<void> => {
+  await flush()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  await flush()
+}
+
 function source() {
   let entries: readonly { threadId: ThreadId; draft: EventDraft }[] = []
   const listeners = new Set<() => void>()
@@ -259,9 +265,14 @@ describe('shared thread intake', () => {
     intake.dispose()
   })
 
-  it('bounds wakes that fail before their first drain', async () => {
+  it('retries a wake that fails before its first drain on a backoff, never abandoning the notice', async () => {
+    let now = 1_000
     const notices = source()
-    const intake = new MessageIntake({ sources: [notices.input] })
+    const intake = new MessageIntake({
+      sources: [notices.input],
+      now: () => now,
+      backoff: () => 1,
+    })
     let wakes = 0
     intake.register({
       threadId: MAIN,
@@ -275,10 +286,16 @@ describe('shared thread intake', () => {
     })
     notices.enqueue({ threadId: MAIN, draft: said('report') })
     await flush()
+    expect(wakes).toBe(1)
+    now += 1
+    await flushTimers()
+    expect(wakes).toBe(2)
+    now += 1
+    await flushTimers()
     expect(wakes).toBe(3)
-    intake.changed()
-    await flush()
-    expect(wakes).toBe(3)
+    now += 1
+    await flushTimers()
+    expect(wakes).toBeGreaterThan(3)
     intake.dispose()
   })
 
@@ -308,9 +325,14 @@ describe('shared thread intake', () => {
     intake.dispose()
   })
 
-  it('bounds fired wakes at the attempt limit even after a skipped wake', async () => {
+  it('keeps retrying a failed wake on a backoff even after a skipped wake, rather than capping out', async () => {
+    let now = 1_000
     const notices = source()
-    const intake = new MessageIntake({ sources: [notices.input] })
+    const intake = new MessageIntake({
+      sources: [notices.input],
+      now: () => now,
+      backoff: () => 1,
+    })
     let checks = 0
     let wakes = 0
     intake.register({
@@ -328,10 +350,16 @@ describe('shared thread intake', () => {
     })
     notices.enqueue({ threadId: MAIN, draft: said('report') })
     await flush()
+    expect(wakes).toBe(1)
+    now += 1
+    await flushTimers()
+    expect(wakes).toBe(2)
+    now += 1
+    await flushTimers()
     expect(wakes).toBe(3)
-    intake.changed()
-    await flush()
-    expect(wakes).toBe(3)
+    now += 1
+    await flushTimers()
+    expect(wakes).toBeGreaterThan(3)
     intake.dispose()
   })
 

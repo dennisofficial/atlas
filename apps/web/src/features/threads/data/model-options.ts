@@ -1,5 +1,22 @@
-import { outputPriceLabel, refKey, supportedEfforts, type ModelCard } from '@dltech/atlas-core'
-import { generatedCards } from '@dltech/atlas-models'
+import {
+  ANTHROPIC_PROVIDER_ID,
+  EImageTier,
+  outputPriceLabel,
+  refKey,
+  supportedEfforts,
+  type ModelCard,
+} from '@dltech/atlas-core'
+import {
+  catalogueProviders,
+  CLAUDE_PLAN_LABEL,
+  CODEX_PLAN_LABEL,
+  INFERENCE_LABEL,
+  INFERENCE_PROVIDER_ID,
+  OPENAI_PROVIDER_ID,
+  OPENROUTER_LABEL,
+  OPENROUTER_PROVIDER_ID,
+} from '@dltech/atlas-harness/models'
+import { withoutDatedDuplicates } from '@dltech/atlas-models'
 import { EModelProviderStatus, type ModelEntry, type ModelsResponse } from '@dltech/atlas-wire/web'
 import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 import { EEffort, type ModelOption } from '@dltech/atlas-ui/ai/model-selector'
@@ -11,18 +28,20 @@ export type ModelOptions = { models: ModelOption[]; reconnectProviders: string[]
 const EXPIRED = 'expired'
 const MILLION = 1_000_000
 
+const NO_KEY_NOTE = 'no key'
+
 const PROVIDER_NAMES: Record<string, string> = {
-  anthropic: 'Anthropic',
-  openai: 'OpenAI',
-  openrouter: 'OpenRouter',
-  inference: 'Inference.net',
+  [ANTHROPIC_PROVIDER_ID]: CLAUDE_PLAN_LABEL,
+  [OPENAI_PROVIDER_ID]: CODEX_PLAN_LABEL,
+  [OPENROUTER_PROVIDER_ID]: OPENROUTER_LABEL,
+  [INFERENCE_PROVIDER_ID]: INFERENCE_LABEL,
 }
 
 const PROVIDER_BRANDS: Record<string, EBrand> = {
-  anthropic: EBrand.Anthropic,
-  openai: EBrand.OpenAI,
-  openrouter: EBrand.OpenRouter,
-  inference: EBrand.Inference,
+  [ANTHROPIC_PROVIDER_ID]: EBrand.Anthropic,
+  [OPENAI_PROVIDER_ID]: EBrand.OpenAI,
+  [OPENROUTER_PROVIDER_ID]: EBrand.OpenRouter,
+  [INFERENCE_PROVIDER_ID]: EBrand.Inference,
 }
 
 const efforts = new Map<string, EEffort>(Object.values(EEffort).map((effort) => [effort, effort]))
@@ -50,10 +69,24 @@ export function effortsOf(card: ModelCard): EEffort[] {
   })
 }
 
-function optionOf(card: ModelCard): ModelOption {
+const imagesOf = (tier: string | undefined): { images?: boolean } =>
+  tier === undefined ? {} : { images: tier === EImageTier.HighResolution }
+
+const unavailableFields = (unavailable: boolean): Pick<ModelOption, 'disabled' | 'disabledNote'> =>
+  unavailable ? { disabled: true, disabledNote: NO_KEY_NOTE } : {}
+
+function optionOf({
+  card,
+  unavailable = false,
+}: {
+  card: ModelCard
+  unavailable?: boolean
+}): ModelOption {
   const brand = PROVIDER_BRANDS[card.ref.providerId]
   const rate = outputPriceLabel(card.cost)
   return {
+    ...imagesOf(card.imageTier),
+    ...unavailableFields(unavailable),
     id: refKey(card.ref),
     label: card.label,
     provider: providerNameOf(card.ref.providerId),
@@ -75,7 +108,7 @@ function withCurrent(args: {
   if (currentId === undefined || offered.some((option) => option.id === currentId)) return offered
   const card = args.cards.find((candidate) => refKey(candidate.ref) === currentId)
   const option: ModelOption =
-    card === undefined ? { id: currentId, label: currentId } : optionOf(card)
+    card === undefined ? { id: currentId, label: currentId } : optionOf({ card })
   return [...offered, option]
 }
 
@@ -88,14 +121,23 @@ export function modelOptionsOf(args: {
   for (const account of args.accounts) {
     ;(account.status === EXPIRED ? expired : usable).add(account.provider)
   }
-  const cards = generatedCards()
-  const catalogueOrder = [...new Set(cards.map((card) => card.ref.providerId))]
-  const offered = cards.filter((card) => usable.has(card.ref.providerId)).map(optionOf)
-  const models = withCurrent({ offered, cards, currentId: args.currentId })
-  const reconnectProviders = catalogueOrder
-    .filter((providerId) => expired.has(providerId) && !usable.has(providerId))
-    .map(providerNameOf)
-  return { models, reconnectProviders }
+  const providers = catalogueProviders().map((source) => ({
+    id: source.id,
+    cards: withoutDatedDuplicates(source.cards()),
+  }))
+  const cards = providers.flatMap((provider) => provider.cards)
+  const reconnecting = providers.filter(
+    (provider) => expired.has(provider.id) && !usable.has(provider.id),
+  )
+  const offered = providers
+    .filter((provider) => !reconnecting.includes(provider))
+    .flatMap((provider) =>
+      provider.cards.map((card) => optionOf({ card, unavailable: !usable.has(provider.id) })),
+    )
+  return {
+    models: withCurrent({ offered, cards, currentId: args.currentId }),
+    reconnectProviders: reconnecting.map((provider) => providerNameOf(provider.id)),
+  }
 }
 
 export type ModelsSource =
@@ -108,11 +150,17 @@ const effortsFromNames = (names: readonly string[]): EEffort[] =>
     return mapped === undefined ? [] : [mapped]
   })
 
-function optionOfEntry(args: { providerId: string; entry: ModelEntry }): ModelOption {
+function optionOfEntry(args: {
+  providerId: string
+  entry: ModelEntry
+  unavailable: boolean
+}): ModelOption {
   const { providerId, entry } = args
   const brand = PROVIDER_BRANDS[providerId]
   const rate = rateOfEntry(entry)
   return {
+    ...imagesOf(entry.imageTier),
+    ...unavailableFields(args.unavailable),
     id: entry.id,
     label: entry.label,
     provider: providerNameOf(providerId),
@@ -130,9 +178,15 @@ export function modelOptionsFromResponse(args: {
   currentId?: string | undefined
 }): ModelOptions {
   const offered = args.response.providers
-    .filter((provider) => provider.status === EModelProviderStatus.Connected)
+    .filter((provider) => provider.status !== EModelProviderStatus.Expired)
     .flatMap((provider) =>
-      provider.models.map((entry) => optionOfEntry({ providerId: provider.id, entry })),
+      provider.models.map((entry) =>
+        optionOfEntry({
+          providerId: provider.id,
+          entry,
+          unavailable: provider.status === EModelProviderStatus.Unavailable,
+        }),
+      ),
     )
   const currentId = args.currentId
   const models =

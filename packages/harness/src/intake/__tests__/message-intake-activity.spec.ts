@@ -10,6 +10,12 @@ const OTHER = toThreadId('other')
 const flush = async (): Promise<void> => {
   for (let index = 0; index < 20; index += 1) await Promise.resolve()
 }
+
+const flushTimers = async (): Promise<void> => {
+  await flush()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  await flush()
+}
 const fixture = () => {
   const pending = createPendingQueues()
   const intake = new MessageIntake({ sources: [operatorSource(pending)] })
@@ -116,6 +122,76 @@ describe('intake activity', () => {
     expect(wakes).toBeGreaterThanOrEqual(1)
     intake.dispose()
   })
+
+  it('stays suspended until the last overlapping gate releases, then wakes', async () => {
+    const { intake } = fixture()
+    let wakes = 0
+    intake.register({
+      threadId: THREAD,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+        },
+      },
+    })
+    const releaseFirst = intake.suspend()
+    const releaseSecond = intake.suspend()
+    intake.submit({ threadId: THREAD, text: 'held while gated' })
+    await flush()
+    expect(wakes).toBe(0)
+    releaseFirst()
+    await flush()
+    expect(wakes).toBe(0)
+    releaseSecond()
+    await flush()
+    expect(wakes).toBeGreaterThanOrEqual(1)
+    intake.dispose()
+  })
+
+  it('ignores a resume that fires after its own gate already released', async () => {
+    const { intake } = fixture()
+    let wakes = 0
+    intake.register({
+      threadId: THREAD,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+        },
+      },
+    })
+    const release = intake.suspend()
+    release()
+    release()
+    intake.submit({ threadId: THREAD, text: 'after gate released' })
+    await flush()
+    expect(wakes).toBeGreaterThanOrEqual(1)
+    intake.dispose()
+  })
+
+  it('releases a gate when its span throws, so a failed gate never wedges the intake', async () => {
+    const { intake } = fixture()
+    let wakes = 0
+    intake.register({
+      threadId: THREAD,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+        },
+      },
+    })
+    await expect(
+      intake.gate(async () => {
+        throw new Error('rotation failed mid-span')
+      }),
+    ).rejects.toThrow('rotation failed mid-span')
+    intake.submit({ threadId: THREAD, text: 'after the failed gate' })
+    await flush()
+    expect(wakes).toBeGreaterThanOrEqual(1)
+    intake.dispose()
+  })
 })
 
 describe('intake activity subscription', () => {
@@ -135,7 +211,7 @@ describe('intake activity subscription', () => {
     intake.dispose()
   })
 
-  it('stops emitting once bounded wake retries exhaust, rather than firing forever', async () => {
+  it('does not wake a blocked driver, and emits nothing while it stays blocked', async () => {
     const { intake } = fixture()
     const seen: boolean[] = []
     intake.subscribe(() => seen.push(intake.busy()))
@@ -143,20 +219,116 @@ describe('intake activity subscription', () => {
     intake.register({
       threadId: THREAD,
       driver: {
-        blocked: () => false,
+        blocked: () => true,
         wake: () => {
           wakes += 1
-          throw new Error('failed')
         },
       },
     })
     intake.submit({ threadId: THREAD, text: 'report' })
     await flush()
-    expect(wakes).toBe(3)
+    expect(wakes).toBe(0)
     const settledAt = seen.length
     await flush()
     await flush()
     expect(seen).toHaveLength(settledAt)
+    intake.dispose()
+  })
+
+  it('retries a wake that keeps failing on a backoff, rather than abandoning the notice after a cap', async () => {
+    let now = 1_000
+    const pending = createPendingQueues()
+    const intake = new MessageIntake({
+      sources: [operatorSource(pending)],
+      now: () => now,
+      backoff: () => 1,
+    })
+    let wakes = 0
+    intake.register({
+      threadId: THREAD,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+          throw new Error('the workspace refused')
+        },
+      },
+    })
+    intake.submit({ threadId: THREAD, text: 'a teammate report' })
+    await flushTimers()
+    expect(wakes).toBe(1)
+    now += 1
+    await flushTimers()
+    expect(wakes).toBe(2)
+    now += 1
+    await flushTimers()
+    expect(wakes).toBe(3)
+    now += 1
+    await flushTimers()
+    expect(wakes).toBeGreaterThan(3)
+    intake.dispose()
+  })
+
+  it('spaces retries by the backoff schedule, not instantly', async () => {
+    const pending = createPendingQueues()
+    const intake = new MessageIntake({ sources: [operatorSource(pending)], backoff: () => 30 })
+    let wakes = 0
+    intake.register({
+      threadId: THREAD,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+          throw new Error('the workspace refused')
+        },
+      },
+    })
+    intake.submit({ threadId: THREAD, text: 'a teammate report' })
+    await flushTimers()
+    expect(wakes).toBe(1)
+    await flushTimers()
+    expect(wakes).toBe(1)
+    await new Promise((resolve) => setTimeout(resolve, 40))
+    await flush()
+    expect(wakes).toBe(2)
+    intake.dispose()
+  })
+
+  it('delivers a report whose wake crashed undelivered once the failure clears', async () => {
+    let now = 1_000
+    const pending = createPendingQueues()
+    const intake = new MessageIntake({
+      sources: [operatorSource(pending)],
+      now: () => now,
+      backoff: () => 1,
+    })
+    let wakes = 0
+    let crash = true
+    intake.register({
+      threadId: THREAD,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+          // The turn runs to its end but never drains while crash is on; once it clears, the next
+          // wake's turn drains, which clears the backoff through prepare's acknowledge.
+          return crash
+            ? Promise.resolve()
+            : intake
+                .commit({ threadId: THREAD, append: async () => undefined })
+                .then(() => undefined)
+        },
+      },
+    })
+    intake.submit({ threadId: THREAD, text: 'a teammate report' })
+    await flushTimers()
+    expect(wakes).toBe(1)
+    expect(intake.threadsWithPendingInput()).toEqual([THREAD])
+    crash = false
+    now += 1
+    await flushTimers()
+    expect(wakes).toBeGreaterThan(1)
+    expect(intake.threadsWithPendingInput()).toEqual([])
     intake.dispose()
   })
 })

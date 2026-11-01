@@ -107,6 +107,26 @@ describe('AccountsService', () => {
     await expect(service.list({ userId: USER_B })).resolves.toEqual([])
   })
 
+  it('read, list and lease expose secretVersion, which replaceSecret bumps', async () => {
+    const account = await service.add({ userId: USER_A, draft: draftOf(oauthSecret('at-1')) })
+    expect(account.secretVersion).toBe(0)
+
+    await service.replaceSecret({
+      userId: USER_A,
+      accountId: account.id,
+      secret: oauthSecret('at-2'),
+    })
+    await service.replaceSecret({
+      userId: USER_A,
+      accountId: account.id,
+      secret: oauthSecret('at-3'),
+    })
+
+    expect((await service.read({ userId: USER_A, accountId: account.id })).secretVersion).toBe(2)
+    expect((await service.list({ userId: USER_A }))[0]?.secretVersion).toBe(2)
+    expect((await service.lease({ userId: USER_A })).accounts[0]?.secretVersion).toBe(2)
+  })
+
   it('replaceSecret reseals and flips an expired account back to active', async () => {
     const account = await service.add({ userId: USER_A, draft: draftOf(oauthSecret('at-1')) })
     await service.setStatus({

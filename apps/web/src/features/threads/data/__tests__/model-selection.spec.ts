@@ -17,6 +17,7 @@ const { models } = modelOptionsOf({
     { provider: 'openai', status: 'active' },
   ],
 })
+const SHIPPED = 'anthropic/claude-haiku-4-5'
 const withLadder = models.find((model) => (model.efforts?.length ?? 0) > 0)
 const withoutLadder = models.find((model) => model.efforts?.length === 0)
 
@@ -40,12 +41,30 @@ describe('defaultSelectionOf', () => {
     ).toEqual({ id: withLadder?.id ?? '', effort: EEffort.Low })
   })
 
-  it('falls back to the first offered model when the personal ref is not offered or empty', () => {
-    const first = models[0]?.id ?? ''
+  it('falls back to the shipped default when the personal ref is not offered or empty', () => {
     expect(defaultSelectionOf({ models, personalId: 'nope/none', personalEffort: 'low' }).id).toBe(
-      first,
+      SHIPPED,
     )
-    expect(defaultSelectionOf({ models, personalId: '', personalEffort: 'low' }).id).toBe(first)
+    expect(defaultSelectionOf({ models, personalId: '', personalEffort: 'low' }).id).toBe(SHIPPED)
+  })
+
+  it('skips a personal model whose provider has no key', () => {
+    const dormant = [
+      { id: 'anthropic/claude-haiku-4-5', label: 'Haiku', disabled: true },
+      { id: 'openai/gpt-5', label: 'GPT-5', disabled: true },
+      { id: 'openrouter/v/m1', label: 'M1' },
+      { id: 'openrouter/v/m2', label: 'M2' },
+    ]
+    expect(
+      defaultSelectionOf({ models: dormant, personalId: 'openai/gpt-5', personalEffort: 'low' }).id,
+    ).toBe('openrouter/v/m1')
+  })
+
+  it('stays unset when every offered model is disabled', () => {
+    const dormant = [{ id: 'openai/gpt-5', label: 'GPT-5', disabled: true }]
+    expect(
+      defaultSelectionOf({ models: dormant, personalId: 'openai/gpt-5', personalEffort: 'low' }),
+    ).toEqual(UNSET_SELECTION)
   })
 
   it('stays unset while no model is offered', () => {

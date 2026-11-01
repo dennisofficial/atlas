@@ -21,8 +21,11 @@ import { rebuildContextIndex, type SessionRegistry } from './registry'
 
 export type ThreadWorktree = { path: string; branch: string }
 
+export type ThreadCheckout = { path: string | null; branch: string | null; detached: boolean }
+
 export type ThreadPlaces = {
   worktree: ThreadWorktree | null
+  checkout: ThreadCheckout | null
   pullRequests: LinkedPullRequest[]
 }
 
@@ -49,6 +52,7 @@ export async function threadPlaces(args: {
   })
   return {
     worktree: worktreeFrom({ segmentEvents: events }),
+    checkout: checkoutFrom({ segmentEvents: events }),
     pullRequests: linkedFrom({ segmentEvents: events }),
   }
 }
@@ -95,6 +99,21 @@ function worktreeFrom({
     if (latest === undefined) continue
     if (latest.type !== 'worktree-entered') return null
     return { path: latest.path, branch: latest.branch }
+  }
+  return null
+}
+
+function checkoutFrom({
+  segmentEvents,
+}: {
+  segmentEvents: readonly Event[][]
+}): ThreadCheckout | null {
+  for (let index = segmentEvents.length - 1; index >= 0; index -= 1) {
+    const latest = (segmentEvents[index] ?? [])
+      .filter((event) => event.type === 'checkout-observed')
+      .at(-1)
+    if (latest?.type !== 'checkout-observed') continue
+    return { path: latest.path, branch: latest.branch, detached: latest.detached }
   }
   return null
 }

@@ -5,7 +5,7 @@ import { threadOf } from '@/features/shell/__tests__/fixtures'
 import {
   EHeaderState,
   STATE_LABEL,
-  branchOf,
+  currentBranchOf,
   headerStateOf,
   sandboxSettingsHrefOf,
   spawnerIdOf,
@@ -30,22 +30,48 @@ describe('spawnerIdOf', () => {
   })
 })
 
-describe('branchOf', () => {
-  it('omits the branch when the thread carries no worktree', () => {
-    expect(branchOf(threadOf({ id: 't' }))).toBeUndefined()
-    expect(branchOf(undefined)).toBeUndefined()
+describe('currentBranchOf', () => {
+  it('omits the branch when the thread carries neither checkout nor worktree', () => {
+    expect(currentBranchOf(threadOf({ id: 't' }))).toBeUndefined()
+    expect(currentBranchOf(undefined)).toBeUndefined()
   })
 
-  it('omits an empty branch', () => {
-    expect(branchOf(threadOf({ id: 't', worktree: { path: '/w', branch: '' } }))).toBeUndefined()
+  it('omits an empty worktree branch', () => {
+    expect(
+      currentBranchOf(threadOf({ id: 't', worktree: { path: '/w', branch: '' } })),
+    ).toBeUndefined()
   })
 
-  it('returns the worktree branch', () => {
+  it('falls back to the worktree branch while no checkout is observed', () => {
+    const thread = threadOf({ id: 't', worktree: { path: '/w', branch: 'dennis/x' } })
+    expect(currentBranchOf(thread)).toBe('dennis/x')
+  })
+
+  it('prefers the observed checkout branch over the worktree branch', () => {
     const thread = threadOf({
       id: 't',
       worktree: { path: '/w', branch: 'dennis/x' },
+      checkout: { path: '/w', branch: 'switched', detached: false },
     })
-    expect(branchOf(thread)).toBe('dennis/x')
+    expect(currentBranchOf(thread)).toBe('switched')
+  })
+
+  it('reports a detached head', () => {
+    const thread = threadOf({
+      id: 't',
+      worktree: { path: '/w', branch: 'dennis/x' },
+      checkout: { path: '/w', branch: null, detached: true },
+    })
+    expect(currentBranchOf(thread)).toBe('detached')
+  })
+
+  it('shows nothing for a non-git directory instead of a stale worktree branch', () => {
+    const thread = threadOf({
+      id: 't',
+      worktree: { path: '/w', branch: 'dennis/x' },
+      checkout: { path: '/tmp', branch: null, detached: false },
+    })
+    expect(currentBranchOf(thread)).toBeUndefined()
   })
 })
 

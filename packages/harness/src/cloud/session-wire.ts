@@ -116,6 +116,7 @@ export function threadFromWire(wire: WireThread): ThreadSummary {
       : { agent: { spawnedBy: toThreadId(wire.agent.spawnedBy), type: wire.agent.type } }),
     ...(wire.model === undefined ? {} : { model: wire.model }),
     ...(wire.worktree === undefined ? {} : { worktree: wire.worktree }),
+    ...(wire.checkout === undefined ? {} : { checkout: wire.checkout }),
     ...(wire.pullRequests === undefined ? {} : { pullRequests: [...wire.pullRequests] }),
     ...(wire.subscriptions === undefined ? {} : { subscriptions: [...wire.subscriptions] }),
     ...(location === undefined ? {} : { executionLocation: location }),

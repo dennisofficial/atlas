@@ -9,6 +9,7 @@ export type ProviderErrorIdentity = {
 }
 
 const MAX_BODY_CHARS = 16_384
+const MAX_PROVIDER_TEXT_CHARS = 2_048
 const MAX_IDENTIFIER_CHARS = 80
 const IDENTIFIER = /^[a-zA-Z0-9_.:-]+$/
 
@@ -52,7 +53,13 @@ export function providerErrorOf(error: unknown): ProviderErrorIdentity {
   if (error instanceof ModelStreamError) return providerErrorOf(error.cause)
 
   if (StreamProviderError.isInstance(error)) {
-    return readSafely(() => identityOfPayload(error.data))
+    const fromData = readSafely(() => identityOfPayload(error.data))
+    const providerCode = fromData.providerCode ?? identifierOf(error.code)
+    const providerType = fromData.providerType ?? identifierOf(error.type)
+    return {
+      ...(providerCode === undefined ? {} : { providerCode }),
+      ...(typeof providerType === 'string' ? { providerType } : {}),
+    }
   }
 
   if (APICallError.isInstance(error)) {
@@ -63,4 +70,38 @@ export function providerErrorOf(error: unknown): ProviderErrorIdentity {
   }
 
   return {}
+}
+
+const messageOfPayload = (payload: unknown): string | undefined => {
+  if (!isRecord(payload) || !isRecord(payload.error)) return undefined
+  const { message } = payload.error
+  return typeof message === 'string' && message.trim() !== '' ? message : undefined
+}
+
+const readMessage = (read: () => string | undefined): string | undefined => {
+  try {
+    return read()
+  } catch {
+    return undefined
+  }
+}
+
+const boundedText = (text: string): string => text.slice(0, MAX_PROVIDER_TEXT_CHARS)
+
+export function providerMessageOf(error: unknown): string | undefined {
+  if (error instanceof ModelStreamError) return providerMessageOf(error.cause)
+
+  if (StreamProviderError.isInstance(error)) {
+    const found = readMessage(() => messageOfPayload(error.data))
+    return boundedText(found ?? error.message)
+  }
+
+  if (APICallError.isInstance(error)) {
+    const found =
+      readMessage(() => messageOfPayload(error.data)) ??
+      readMessage(() => messageOfPayload(parseBody(error.responseBody)))
+    return boundedText(found ?? error.message)
+  }
+
+  return undefined
 }
