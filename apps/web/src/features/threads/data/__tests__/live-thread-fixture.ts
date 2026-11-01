@@ -36,9 +36,9 @@ export const flush = async () => {
   for (let round = 0; round < 5; round += 1) await new Promise<void>((done) => setTimeout(done, 0))
 }
 
-export const ticketOf = (token: string): PodConnectResult => ({
+export const ticketOf = (token: string, threadId = 'thr_1'): PodConnectResult => ({
   outcome: EPodConnectOutcome.Ready,
-  ticket: { url: 'https://pod.test', token, expiresAt: '2026-10-22T10:01:00.000Z' },
+  ticket: { url: 'https://pod.test', token, expiresAt: '2026-10-22T10:01:00.000Z', threadId },
 })
 
 export function rig(options?: {

@@ -217,6 +217,33 @@ describe('createLiveThreadController', () => {
     expect(sends[0]).toMatchObject({ text: 'look', requestId: 'r1', images })
   })
 
+  it('opens the channel on the pod root and addresses sends at a teammate thread', async () => {
+    const test = rig({ mints: [ticketOf('tkt1', 'thr_root')], seed: [] })
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    const hello = test.socket().sent.find((frame) => frame.kind === EClientFrame.Hello)
+    expect(hello).toMatchObject({ threadId: 'thr_root' })
+
+    expect(test.controller.send({ text: 'status?', requestId: 'r1' })).toBe(true)
+    const sends = test.socket().sent.filter((frame) => frame.kind === EClientFrame.Send)
+    expect(sends).toHaveLength(1)
+    expect(sends[0]).toMatchObject({ threadId: 'thr_1', text: 'status?' })
+  })
+
+  it('leaves the send thread field off when the viewed thread is the pod root', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    expect(test.controller.send({ text: 'hello', requestId: 'r1' })).toBe(true)
+    const sends = test.socket().sent.filter((frame) => frame.kind === EClientFrame.Send)
+    expect(sends[0]).toMatchObject({ text: 'hello' })
+    expect(sends[0]).not.toHaveProperty('threadId')
+  })
+
   it('closes the socket and goes quiet on stop', async () => {
     const test = rig()
     test.controller.start()

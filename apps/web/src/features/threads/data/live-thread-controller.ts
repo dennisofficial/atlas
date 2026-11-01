@@ -52,6 +52,7 @@ export type LiveThreadControllerArgs = {
 
 export function createLiveThreadController(args: LiveThreadControllerArgs) {
   const threadId = toThreadId(args.threadId)
+  let podThreadId = threadId
   const signalTransport = createSignalChatTransport({ now: () => new Date() })
   let state: LiveThreadState = IDLE_LIVE_THREAD
   let channel: ServeChannel | null = null
@@ -105,6 +106,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       podGone = true
       throw new Error('the pod is not running')
     }
+    podThreadId = toThreadId(minted.ticket.threadId)
     return { url: minted.ticket.url, token: minted.ticket.token }
   }
 
@@ -185,7 +187,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     update({ events: seed })
     const live = createRemoteDeltaChannel({
       ...args.channelOptions,
-      threadId,
+      threadId: podThreadId,
       url: first.url,
       token: first.token,
       lastEventSeq: () => headOf(state.events),
@@ -240,6 +242,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       }
       if (stopped) return
       if (minted.outcome === EPodConnectOutcome.NotRunning) return fallBack()
+      podThreadId = toThreadId(minted.ticket.threadId)
       open({ url: minted.ticket.url, token: minted.ticket.token }, seed)
     } catch {
       fallBack()
@@ -249,7 +252,13 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   const send: LiveSend = ({ text, requestId, images, uploads }) => {
     if (stopped || fellBack || channel === null) return false
     if (channel.connection().state !== EConnectionView.Connected) return false
-    channel.send({ text, requestId, images, uploads })
+    channel.send({
+      text,
+      requestId,
+      images,
+      uploads,
+      ...(threadId === podThreadId ? {} : { threadId }),
+    })
     return true
   }
 
