@@ -125,11 +125,13 @@ export const assertLiveSession = (args: {
   sandbox: Sandbox
   name: string
   expected: string | undefined
+  action?: 'stop' | 'renew' | undefined
 }): void => {
   const live = args.sandbox.currentSession().sessionId
   if (args.expected === undefined || live === args.expected) return
+  const action = args.action ?? 'stop'
   throw new Error(
-    `refusing to stop sandbox ${args.name}: its live session ${live} is not the session ${args.expected} this stop was issued for`,
+    `refusing to ${action} sandbox ${args.name}: its live session ${live} is not the session ${args.expected} this ${action} was issued for`,
   )
 }
 
@@ -189,6 +191,7 @@ export const renewSessionDeadline = async (args: {
     sandbox: args.sandbox,
     name: args.name,
     expected: args.sessionId,
+    action: 'renew',
   })
   const session = args.sandbox.currentSession()
   if (session.status !== 'running')
