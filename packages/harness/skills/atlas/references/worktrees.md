@@ -53,10 +53,59 @@ exit_worktree { action: "remove", discardChanges: true }
 
 Atlas marks its worktrees with `git worktree lock`, with a reason recording the thread and process id. This protects them from `git worktree prune`/removal while a session is live. On entry or reopening a thread: a lock held by a live Atlas process makes this session a guest (warned: commit only your own files, pull before pushing); a lock from a dead Atlas process is cleared and retaken; a lock set outside Atlas is left alone. Exit releases only locks Atlas owns. Sub-agents are denied the worktree tools; they work in the directory their parent was in when they were spawned and share its worktree.
 
+## Gitignored files: `.atlas/worktree.yaml`
+
+A fresh worktree is a clean checkout, so files git ignores (`.env.keys`, `.env.local`, caches) are missing and anything that needs them fails, for example an API that cannot decrypt its env. List them in `.atlas/worktree.yaml` at the repository root and Atlas places them in every worktree it enters.
+
+```yaml
+copy:
+  - apps/api/envs/.env.keys
+  - "apps/*/.env.local"
+link:
+  - .turbo/cache
+```
+
+- `copy`: a real copy of the file, keeping its mode (`0600` stays `0600`). A directory is copied recursively.
+- `link`: an absolute symlink to the path in the main checkout, for a file or a directory. Use it for large caches that are safe to share.
+- Entries are exact paths or globs, relative to the repository root. `*` and `?` match within one path segment; `**` matches any number of segments. Quote entries that start with `*`.
+- The source is always the repository's main checkout (the first entry of `git worktree list`), not the session's current directory, and the file itself is read from there.
+- Only gitignored or untracked paths are placed. A match git tracks (or a directory holding tracked files) is skipped: the checkout already has it.
+- An existing destination (file, directory or link) is never overwritten.
+- A pattern that matches nothing is reported as missing; it is not an error.
+- Refused: absolute paths, `~`, any `..` segment, the repository root itself, anything inside `.git`, and matches that resolve outside the repository through a symlink.
+- A path matched by both lists is a load error naming it; nothing is placed.
+- No default: without the file nothing happens. An invalid file (bad YAML, unknown keys, a path in both lists) is reported, nothing is placed, and the worktree is still entered.
+
+### When it runs
+
+Once, each time `enter_worktree` creates a worktree (`name`) or adopts one (`path`). Adopting is how a teammate gets the files after its own `git worktree add`. Re-entering a worktree re-runs it, which only fills in what is missing. It does not run for a `git worktree add` done outside Atlas until that worktree is entered, and nothing re-syncs later.
+
+### Reading the report
+
+The `enter_worktree` reply ends with one sentence about the file, for example:
+
+```
+.atlas/worktree.yaml from /repo: copied apps/api/envs/.env.keys; linked .turbo/cache; skipped README.md (tracked by git), apps/web/.env.local (already present); missing (no match) apps/*/.env.test; refused ../secrets (contains ..).
+```
+
+- `copied` / `linked`: placed now.
+- `skipped ... (already present)`: the worktree already had it; it was left as is, even if it differs from the main checkout.
+- `skipped ... (tracked by git)`: git manages it; list only ignored or untracked files.
+- `missing (no match)`: the pattern matched nothing in the main checkout. Check the path, or create the file there first.
+- `refused`: the entry is unsafe and was ignored.
+- `failed`: the copy or link threw; the reason follows.
+- `was not applied ...`: the file is invalid; fix it and enter the worktree again.
+
+No sentence means there is no `.atlas/worktree.yaml`.
+
+### Rotated or edited sources
+
+Copies are one-shot. When a copied file changes in the main checkout (a rotated `.env.keys`, a new local env value), existing worktrees keep the old copy. Re-copy it by hand (`cp -p <main>/apps/api/envs/.env.keys apps/api/envs/.env.keys`), or delete the stale copy and enter the worktree again. Use `link` for files that must always track the main checkout.
+
 ## Recommended repo setup
 
 - Git itself: a worktree needs a git repository with commits. Setting `origin` (and ideally `origin/HEAD`, via `git remote set-head origin -a`) makes the default branch unambiguous.
 - Ignoring the directory is optional for the default (Atlas writes its own `.gitignore`); adding `.atlas/worktrees/` to the repo's `.gitignore` is harmless.
-- A fresh worktree is a clean checkout: gitignored files (`node_modules`, `.env`, build output, `*.local.md` instruction files) are absent. Document the install step (for example `bun install`) in `AGENTS.md`/`CLAUDE.md` so the agent runs it after entering. Project settings (`.atlas/settings.json`) and project skills are read from the worktree, so they only apply if committed.
+- A fresh worktree is a clean checkout: gitignored files (`node_modules`, `.env`, build output, `*.local.md` instruction files) are absent. List the secrets and local config it needs in `.atlas/worktree.yaml` (above), and document the install step (for example `bun install`) in `AGENTS.md`/`CLAUDE.md` so the agent runs it after entering. Project settings (`.atlas/settings.json`) and project skills are read from the worktree, so they only apply if committed.
 - Tell Atlas the branch convention in instructions (e.g. `Branch as <you>/<slug>`), since `name` becomes the branch verbatim.
 - Do not write into the main checkout while working in a worktree unless asked; reach it by absolute path only.

@@ -1,0 +1,3 @@
+copy:
+  - apps/api/envs/.env.keys
+  - apps/api/envs/.env.personal
