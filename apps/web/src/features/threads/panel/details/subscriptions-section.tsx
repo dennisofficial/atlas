@@ -12,21 +12,26 @@ import { useNow } from '../../data/use-now'
 import type { SubscriptionsData } from '../../data/use-subscriptions'
 import { DetailsSection } from './section'
 
+export type SubscriptionTeammate = { id: string; title: string }
+
 function SubscriptionRow(props: {
   subscription: SubscriptionWire
   now: number
   busy: boolean
+  teammateTitles: ReadonlyMap<string, string>
   onPausedChange: (paused: boolean) => void
   onRemove: () => void
 }) {
-  const { subscription, now, busy } = props
+  const { subscription, now, busy, teammateTitles } = props
   const active = subscription.status === ESubscriptionStatusWire.Active
+  const via = teammateTitles.get(subscription.threadId)
   return (
     <DetailRow
       mono
       label={subscription.label}
       detail={
         <>
+          {via === undefined ? null : <span className="font-medium">via {via} · </span>}
           {active ? null : <span className="font-medium">Paused · </span>}
           {detailOf({ subscription, now })}
         </>
@@ -56,9 +61,15 @@ function SubscriptionRow(props: {
   )
 }
 
-export function SubscriptionsSection(props: { data: SubscriptionsData }) {
+export function SubscriptionsSection(props: {
+  data: SubscriptionsData
+  teammates?: readonly SubscriptionTeammate[]
+}) {
   const { subscriptions, busy, setPaused, remove } = props.data
   const now = useNow(subscriptions.some((subscription) => subscription.expiresAt !== undefined))
+  const teammateTitles = new Map(
+    (props.teammates ?? []).map((teammate) => [teammate.id, teammate.title]),
+  )
   if (subscriptions.length === 0) return null
 
   return (
@@ -69,6 +80,7 @@ export function SubscriptionsSection(props: { data: SubscriptionsData }) {
           subscription={subscription}
           now={now}
           busy={busy.has(subscription.id)}
+          teammateTitles={teammateTitles}
           onPausedChange={(paused) => setPaused({ subscriptionId: subscription.id, paused })}
           onRemove={() => remove(subscription.id)}
         />

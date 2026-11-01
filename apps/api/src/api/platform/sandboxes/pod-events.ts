@@ -5,6 +5,7 @@ import { nextEventId } from '../sessions/append'
 import { bumpHistoryRevision } from '../sessions/history-revision'
 import { toEventDto } from '../sessions/rows'
 import { lockThread } from '../sessions/thread-head'
+import { SUBSCRIPTION_EVENT_TYPES } from '../sessions/thread-subscriptions'
 import type { ThreadSignalPublisher } from '../sessions/thread-signals.service'
 
 const ASSISTANT_SAID = 'assistant-said'
@@ -26,13 +27,22 @@ const sameContent = (row: Row<'Event'>, event: PodEvent): boolean =>
   row.contextKey === (event.contextKey ?? null) &&
   row.contextDigest === (event.contextDigest ?? null)
 
+export type PodPrLinks = {
+  syncFromEvents(args: {
+    userId: string
+    threadId: string
+    events: readonly { type: string; body: string }[]
+  }): Promise<void>
+}
+
 export async function applyPodEvents(args: {
   threadId: string
   events: readonly PodEvent[]
   signals: ThreadSignalPublisher
+  prLinks?: PodPrLinks | undefined
 }): Promise<PodEventsReply & { assistantMoved: boolean }> {
   const { threadId, events } = args
-  const { head, appended, assistantMoved } = await db.transaction(async (tx) => {
+  const { head, appended, assistantMoved, userId } = await db.transaction(async (tx) => {
     await lockThread({ tx, threadId })
     const thread = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
     const seqs = events.map((event) => event.seq)
@@ -55,7 +65,8 @@ export async function applyPodEvents(args: {
       fresh.push(event)
     }
 
-    if (fresh.length === 0) return { head: thread.head, assistantMoved: false }
+    if (fresh.length === 0)
+      return { head: thread.head, assistantMoved: false, userId: thread.userId }
     const rows = fresh.map((event) => ({
       id: nextEventId(),
       threadId,
@@ -85,9 +96,20 @@ export async function applyPodEvents(args: {
       head,
       appended: { events: rows.map(toEventDto), head, historyRev: thread.historyRev },
       assistantMoved: lastAssistantSeq !== thread.lastAssistantSeq,
+      userId: thread.userId,
     }
   })
-  if (appended !== undefined) await args.signals.eventsAppended({ threadId, ...appended })
+  if (appended !== undefined) {
+    await args.signals.eventsAppended({ threadId, ...appended })
+    const linkRows = appended.events.filter((event) =>
+      SUBSCRIPTION_EVENT_TYPES.includes(event.type),
+    )
+    if (linkRows.length > 0 && args.prLinks !== undefined) {
+      await args.prLinks
+        .syncFromEvents({ userId, threadId, events: linkRows })
+        .catch(() => undefined)
+    }
+  }
   if (assistantMoved) args.signals.threadChanged({ threadId })
   return { head, assistantMoved }
 }

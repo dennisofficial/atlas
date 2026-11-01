@@ -35,7 +35,7 @@ import {
   type SandboxSelfStopRequest,
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
-import { NotFoundException } from '@nestjs/common'
+import { Inject, NotFoundException, Optional } from '@nestjs/common'
 import {
   Ctx,
   Input,
@@ -47,6 +47,7 @@ import {
   UseMiddlewares,
 } from 'nestjs-trpc'
 import { z } from 'zod'
+import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { podSessionOf } from '../sessions/session-of-thread'
 import { lockThread } from '../sessions/thread-head'
@@ -84,6 +85,9 @@ export class SandboxSelfRouter {
     private readonly vercel: VercelSandboxClient,
     private readonly previews: PreviewTunnelService,
     private readonly signals: ThreadSignalsService,
+    @Optional()
+    @Inject(PrSubscriptionLinks)
+    private readonly prLinks?: PrSubscriptionLinks,
   ) {}
 
   @Mutation({
@@ -141,6 +145,7 @@ export class SandboxSelfRouter {
       threadId,
       events: input.events,
       signals: this.signals,
+      prLinks: this.prLinks,
     })
   }
 

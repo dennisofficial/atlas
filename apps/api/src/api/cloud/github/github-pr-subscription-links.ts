@@ -35,26 +35,45 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
     threadId: string
     events: readonly PrSubscriptionLinkEventRow[]
   }): Promise<void> {
-    const created = args.events.filter((event) => event.type === 'subscription-created')
-    if (created.length === 0) return
+    const subscriptionEvents = args.events.filter(
+      (event) => event.type === 'subscription-created' || event.type === 'subscription-ended',
+    )
+    if (subscriptionEvents.length === 0) return
     const existing = await db.orm.public.GithubSubscription.where({
       userId: args.userId,
       threadId: args.threadId,
     })
       .select('id', 'repoFullName', 'branch')
       .all()
-    for (const event of created) {
-      const target = prTargetOf(event.body)
-      if (target === null) continue
-      const branch = `#${target.prNumber}`
-      const known = existing.some(
-        (row) => row.repoFullName === target.repoFullName && row.branch === branch,
-      )
-      await this.ensureLink({ userId: args.userId, threadId: args.threadId, target, branch })
-      if (!known) {
-        await db.orm.public.GithubRepoHook.where({
-          repoFullName: target.repoFullName,
-        }).updateAndCount({ idleSince: null })
+    for (const event of subscriptionEvents) {
+      if (event.type === 'subscription-created') {
+        const target = prTargetOf(event.body)
+        if (target === null) continue
+        const branch = `#${target.prNumber}`
+        const known = existing.some(
+          (row) => row.repoFullName === target.repoFullName && row.branch === branch,
+        )
+        await this.ensureLink({ userId: args.userId, threadId: args.threadId, target, branch })
+        if (!known) {
+          await db.orm.public.GithubRepoHook.where({
+            repoFullName: target.repoFullName,
+          }).updateAndCount({ idleSince: null })
+        }
+        continue
+      }
+      const endedTarget = await this.endedPrTargetOf({
+        threadId: args.threadId,
+        body: event.body,
+      })
+      if (endedTarget === null) continue
+      const removed = await db.orm.public.GithubSubscription.where({
+        userId: args.userId,
+        threadId: args.threadId,
+        repoFullName: endedTarget.repoFullName,
+        branch: `#${endedTarget.prNumber}`,
+      }).deleteAndCount()
+      if (removed > 0) {
+        await this.subscriptions.markIdleWhenDrained({ repoFullName: endedTarget.repoFullName })
       }
     }
   }
@@ -82,6 +101,31 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
     }
   }
 
+  private async endedPrTargetOf(args: {
+    threadId: string
+    body: string
+  }): Promise<PrTarget | null> {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(args.body)
+    } catch {
+      return null
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
+    const subscriptionId = (parsed as Record<string, unknown>).subscriptionId
+    if (typeof subscriptionId !== 'string') return null
+    const marker = `"subscriptionId":${JSON.stringify(subscriptionId)}`
+    const created = await db.orm.public.Event.where({ threadId: args.threadId })
+      .select('body')
+      .all()
+    for (const row of created) {
+      if (!row.body.includes(marker)) continue
+      const target = prTargetOf(row.body)
+      if (target !== null) return target
+    }
+    return null
+  }
+
   private async ensureLink(args: {
     userId: string
     threadId: string
@@ -100,6 +144,7 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
           userId: args.userId,
           repoFullName: args.target.repoFullName,
           branch: args.branch,
+          threadId: args.threadId,
         },
         create: {
           userId: args.userId,
@@ -113,7 +158,6 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
         },
         update: {
           prNumber: args.target.prNumber,
-          threadId: args.threadId,
           expiresAt,
           liveUntil,
         },

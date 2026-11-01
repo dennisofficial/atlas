@@ -2703,7 +2703,7 @@
                 }
               },
               "threadId": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -9079,7 +9079,11 @@
                 "threadId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
                 },
                 "userId": {
                   "codecId": "pg/text@1",
@@ -9093,7 +9097,8 @@
                     "unique": [
                       "userId",
                       "repoFullName",
-                      "branch"
+                      "branch",
+                      "threadId"
                     ]
                   },
                   "onDelete": "cascade",
@@ -9163,9 +9168,10 @@
                   "columns": [
                     "userId",
                     "repoFullName",
-                    "branch"
+                    "branch",
+                    "threadId"
                   ],
-                  "name": "GithubSubscription_userId_repoFullName_branch_key"
+                  "name": "GithubSubscription_userId_repoFullName_branch_threadId_key"
                 }
               ]
             },
@@ -12146,7 +12152,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "caebce66b301daa2b9656ec07c05eb8b99897e579769a0b0b2d2d29183f93ed9"
+    "storageHash": "ec7794377e3325dd741a9d5a725424432965809ff130632875c2154e47158890"
   },
   "execution": {
     "executionHash": "1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb",

@@ -1,0 +1,196 @@
+[
+  {
+    "id": "data.github-subscription-thread-id-backfill",
+    "label": "Backfill GithubSubscription.threadId with an empty string for the new unique key",
+    "operationClass": "data",
+    "target": {
+      "id": "table.GithubSubscription",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GithubSubscription"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Backfill GithubSubscription.threadId",
+        "sql": "UPDATE \"public\".\"GithubSubscription\" SET \"threadId\" = '' WHERE \"threadId\" IS NULL"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "dropConstraint.GithubSubscription.GithubSubscription_userId_repoFullName_branch_key",
+    "label": "Drop constraint \"GithubSubscription_userId_repoFullName_branch_key\" on \"GithubSubscription\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GithubSubscription_userId_repoFullName_branch_key",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubSubscription_userId_repoFullName_branch_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_userId_repoFullName_branch_key",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"GithubSubscription_userId_repoFullName_branch_key\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\" DROP CONSTRAINT \"GithubSubscription_userId_repoFullName_branch_key\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"GithubSubscription_userId_repoFullName_branch_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_userId_repoFullName_branch_key",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.GithubSubscription.threadId",
+    "label": "Set NOT NULL on \"GithubSubscription\".\"threadId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "threadId",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"threadId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubSubscription",
+          "threadId"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"threadId\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"GithubSubscription\" WHERE \"threadId\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "GithubSubscription",
+            "column": "threadId",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"threadId\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\" ALTER COLUMN \"threadId\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"threadId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubSubscription",
+          "threadId",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setDefault.GithubSubscription.threadId",
+    "label": "Set default on \"GithubSubscription\".\"threadId\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "threadId",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"threadId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubSubscription",
+          "threadId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "set default on \"threadId\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\" ALTER COLUMN \"threadId\" SET DEFAULT ''"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "unique.GithubSubscription.GithubSubscription_userId_repoFullName_branch_threadId_key",
+    "label": "Add unique constraint on \"GithubSubscription\" (userId, repoFullName, branch, threadId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GithubSubscription_userId_repoFullName_branch_threadId_key",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubSubscription_userId_repoFullName_branch_threadId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_userId_repoFullName_branch_threadId_key",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GithubSubscription_userId_repoFullName_branch_threadId_key\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\" ADD CONSTRAINT \"GithubSubscription_userId_repoFullName_branch_threadId_key\" UNIQUE (\"userId\", \"repoFullName\", \"branch\", \"threadId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GithubSubscription_userId_repoFullName_branch_threadId_key\" exists on (userId, repoFullName, branch, threadId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GithubSubscription_userId_repoFullName_branch_threadId_key",
+          "public",
+          "\"public\".\"GithubSubscription\"",
+          "u",
+          "[\"userId\",\"repoFullName\",\"branch\",\"threadId\"]"
+        ]
+      }
+    ]
+  }
+]

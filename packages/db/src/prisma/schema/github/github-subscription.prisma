@@ -8,11 +8,11 @@ model GithubSubscription {
   pollBacked   Boolean              @default(false)
   expiresAt    TimestamptzJsDate(3)
   liveUntil    TimestamptzJsDate(3) @default(now())
-  threadId     String?
+  threadId     String               @default("")
   createdAt    TimestamptzJsDate(3) @default(now())
-  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubSubscription_userId_repoFullName_branch_key")
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubSubscription_userId_repoFullName_branch_threadId_key")
 
-  @@unique([userId, repoFullName, branch], map: "GithubSubscription_userId_repoFullName_branch_key")
+  @@unique([userId, repoFullName, branch, threadId], map: "GithubSubscription_userId_repoFullName_branch_threadId_key")
   @@index([repoFullName, prNumber], map: "GithubSubscription_repoFullName_prNumber_idx")
   @@index([repoFullName, branch], map: "GithubSubscription_repoFullName_branch_idx")
   @@index([expiresAt], map: "GithubSubscription_expiresAt_idx")
