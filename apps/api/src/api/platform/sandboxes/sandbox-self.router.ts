@@ -202,7 +202,11 @@ export class SandboxSelfRouter {
         return this.signals.openStream({
           threadId,
           onFrame: (frame) => {
-            if (frame.type === EThreadStreamFrame.Events || frame.type === EThreadStreamFrame.Head)
+            if (
+              frame.type === EThreadStreamFrame.Events ||
+              frame.type === EThreadStreamFrame.Head ||
+              frame.type === EThreadStreamFrame.Heartbeat
+            )
               sink.push(TICK)
           },
           onClosed: sink.close,

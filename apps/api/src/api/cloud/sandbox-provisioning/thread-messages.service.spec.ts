@@ -18,7 +18,7 @@ import {
   seedThread,
   threadRow,
 } from './sandbox-provisioning.fixture'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertSignals, recordingSignals } from '../../platform/sessions/thread-signals.fixture'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 
@@ -146,5 +146,52 @@ describe('ThreadMessagesService.send', () => {
 
     expect(await eventsOf()).toHaveLength(1)
     expect((await sandboxRows())[0]?.wakeClaim).toBeNull()
+  })
+
+  it('ticks the pod root when a teammate thread gets a message', async () => {
+    await db.orm.public.Session.create({
+      id: 'ses_tm-1',
+      userId: 'usr-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      managedBySessionId: 'ses_thr-1',
+    })
+    await db.orm.public.Thread.create({
+      id: 'thr-tm-1',
+      userId: 'usr-1',
+      sessionId: 'ses_tm-1',
+      spawnerThreadId: 'thr-1',
+      agentType: 'teammate',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    await db.orm.public.Session.where({ id: 'ses_tm-1' }).update({ mainThreadId: 'thr-tm-1' })
+    await db.orm.public.CloudSandbox.create({
+      id: 'sbx-tm-1',
+      sessionId: 'ses_thr-1',
+      userId: 'usr-1',
+      sandboxId: 'sbx',
+      name: 'atlas-thread-1',
+      region: 'iad1',
+      state: 'running',
+      serveUrl: 'https://serve.example.test',
+      tokenHash: 'hash',
+      lastActivityAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    await recordBootSteps({
+      threadId: 'thr-1',
+      steps: [{ step: EBootStep.Provision, state: EBootStepState.Done }],
+    })
+    const recorded = recordingSignals()
+    const rootFrames = recorded.framesOf('thr-1')
+    const childFrames = recorded.framesOf('thr-tm-1')
+    const { service } = messagesWith({ signals: recorded.signals })
+
+    await service.send({ ...ARGS, threadId: 'thr-tm-1' })
+
+    expect(childFrames.some((frame) => frame.type === 'events')).toBe(true)
+    expect(rootFrames.some((frame) => frame.type === 'heartbeat')).toBe(true)
   })
 })

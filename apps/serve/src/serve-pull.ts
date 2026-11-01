@@ -5,6 +5,7 @@ import { mirrorsThreadState } from '@dltech/atlas-wire'
 import type { ServeApp } from './serve-app'
 import { hydrateServeHistory } from './serve-hydrate'
 import { EServeEvent, type ServeLog } from './serve-log'
+import { wakeChildrenWithPendingInput } from './serve-pending-children'
 import type { ServeTurnDriver } from './turn-driver'
 
 export const PULL_RECONNECT_DELAY_MS = 3_000
@@ -69,10 +70,14 @@ export function bindServePull(args: {
   threadId: ThreadId
   atlasHome: string
   remote: PullRemote
-  app: { log: Pick<ServeApp['log'], 'readOwn' | 'refresh'> }
+  app: {
+    log: Pick<ServeApp['log'], 'readOwn' | 'refresh'>
+    roster?: ServeApp['roster'] | undefined
+    agents?: ServeApp['agents'] | undefined
+  }
   driver: Pick<ServeTurnDriver, 'run' | 'busy'>
   log: ServeLog
-  hydrate?: (() => Promise<unknown>) | undefined
+  hydrate?: ((threadId: ThreadId) => Promise<unknown>) | undefined
   subscribe?: PullSubscribe | undefined
 }): () => void {
   if (!mirrorsThreadState(args.env)) return () => undefined
@@ -85,16 +90,31 @@ export function bindServePull(args: {
   })
   const hydrate =
     args.hydrate ??
-    (() => hydrateServeHistory({ atlasHome: args.atlasHome, threadId, sessions, log }))
+    ((asked: ThreadId) =>
+      hydrateServeHistory({ atlasHome: args.atlasHome, threadId: asked, sessions, log }))
   const subscribe = args.subscribe ?? watchEventsFor({ sessions, threadId, log })
+
+  const refreshChild = async (childId: ThreadId): Promise<void> => {
+    await hydrate(childId)
+    await app.log.refresh({ threadId: childId })
+  }
 
   const pullOnce = async (): Promise<void> => {
     try {
-      await hydrate()
+      await hydrate(threadId)
       await app.log.refresh({ threadId })
       const events = await app.log.readOwn({ threadId })
-      if (!awaitsReply(events) || driver.busy()) return
-      driver.run({ resume: false, onlyIfIdle: true })
+      if (awaitsReply(events) && !driver.busy()) driver.run({ resume: false, onlyIfIdle: true })
+      // A message appended to a family (teammate) thread ticks the pod root's stream, not the
+      // child's — the watch is root-scoped — so a tick sweeps the family for unanswered input.
+      if (app.agents !== undefined && app.roster !== undefined) {
+        await wakeChildrenWithPendingInput({
+          app: { log: app.log, roster: app.roster, agents: app.agents },
+          threadId,
+          log,
+          refreshChild,
+        })
+      }
     } catch (failure) {
       log({ event: EServeEvent.PullFailed, reason: reasonOf(failure) })
     }
@@ -122,8 +142,10 @@ export function bindServePull(args: {
   }
 
   const unsubscribe = subscribe({ onTick: handleTick })
+  const unsubscribeRoster = app.roster?.subscribe(handleTick)
   return () => {
     detached = true
     unsubscribe()
+    unsubscribeRoster?.()
   }
 }

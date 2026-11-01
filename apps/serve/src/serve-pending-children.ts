@@ -31,12 +31,15 @@ const familyAgentsOf = (args: {
  * mid-turn on exactly that input and is left alone.
  */
 export async function wakeChildrenWithPendingInput(args: {
-  app: Pick<ServeApp, 'log'> & {
+  app: {
+    log: Pick<ServeApp['log'], 'readOwn'>
     roster?: ServeRoster | undefined
     agents?: Pick<NonNullable<ServeApp['agents']>, 'wake'> | undefined
   }
   threadId: ThreadId
   log: ServeLog
+  /** Pulls a child's mirrored log down before it is read; absent reads the local log as-is. */
+  refreshChild?: ((threadId: ThreadId) => Promise<unknown>) | undefined
 }): Promise<readonly ThreadId[]> {
   const { app, threadId, log } = args
   if (app.roster === undefined || app.agents === undefined) return []
@@ -44,6 +47,18 @@ export async function wakeChildrenWithPendingInput(args: {
   const woken: ThreadId[] = []
   for (const child of familyAgentsOf({ root: threadId, roster: app.roster.snapshot })) {
     if (child.status === EAgentStatus.Running) continue
+    if (args.refreshChild !== undefined) {
+      try {
+        await args.refreshChild(child.agentId)
+      } catch (error) {
+        log({
+          event: EServeEvent.PendingChildInputFailed,
+          agentId: child.agentId,
+          reason: messageOf(error),
+        })
+        continue
+      }
+    }
     const events = await app.log.readOwn({ threadId: child.agentId }).catch(() => [])
     if (events.length === 0 || !awaitsReply(events)) continue
     try {
