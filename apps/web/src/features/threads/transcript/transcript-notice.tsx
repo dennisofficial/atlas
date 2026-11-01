@@ -1,6 +1,6 @@
 import { ENoticeTone as EUiTone, HarnessNotice } from '@dltech/atlas-ui/ai/harness-notice'
 
-import { ENoticeTone, type NoticeItem } from '../data/transcript-items'
+import { ENoticeTone, type NoticeContext, type NoticeItem } from '../data/transcript-items'
 
 const SUPERSEDED = 'superseded'
 
@@ -9,6 +9,11 @@ const TONE: Record<ENoticeTone, EUiTone> = {
   [ENoticeTone.Failed]: EUiTone.Failed,
   [ENoticeTone.Attention]: EUiTone.Attention,
   [ENoticeTone.Quiet]: EUiTone.Quiet,
+}
+
+const noteOf = (context: NoticeContext): { note?: string } => {
+  if (context.note !== undefined) return { note: context.note }
+  return context.superseded ? { note: SUPERSEDED } : {}
 }
 
 export function TranscriptNotice({ item }: { item: NoticeItem }) {
@@ -22,7 +27,7 @@ export function TranscriptNotice({ item }: { item: NoticeItem }) {
         id: context.id,
         label: context.label,
         content: context.content,
-        ...(context.superseded ? { note: SUPERSEDED } : {}),
+        ...noteOf(context),
       }))}
     />
   )

@@ -261,6 +261,8 @@ export type PrEventEntry = {
   text: string
   body: string
   failed: boolean
+  repo: string
+  prNumber: number
 }
 
 export type TranscriptEntry =
