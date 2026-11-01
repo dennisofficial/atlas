@@ -187,6 +187,49 @@ describe('CloudClient', () => {
     expect(accounts[0]?.id).toBe(toAccountId('acc_1'))
   })
 
+  it('renames the wire secretVersion to authorizationRevision on list, read and add', async () => {
+    const { client } = clientWith((call) => {
+      if (call.procedure === 'accounts.list') {
+        return { status: 200, body: [accountBody({ secretVersion: 3 })] }
+      }
+      if (call.procedure === 'accounts.get') {
+        return { status: 200, body: accountBody({ secret, secretVersion: 5 }) }
+      }
+      return { status: 201, body: accountBody({ secretVersion: 0 }) }
+    })
+
+    const [listed] = await client.listAccounts()
+    const stored = await client.readAccount({ accountId: toAccountId('acc_1') })
+    const added = await client.addAccount({
+      draft: {
+        provider: EAuthProvider.Anthropic,
+        label: 'work',
+        secret,
+        origin: EAccountOrigin.Login,
+      },
+    })
+
+    expect(listed?.authorizationRevision).toBe(3)
+    expect(stored?.authorizationRevision).toBe(5)
+    expect(added.authorizationRevision).toBe(0)
+    expect(listed).not.toHaveProperty('secretVersion')
+    expect(stored).not.toHaveProperty('secretVersion')
+  })
+
+  it('leaves authorizationRevision absent when the server sends no secretVersion', async () => {
+    const { client } = clientWith((call) =>
+      call.procedure === 'accounts.list'
+        ? { status: 200, body: [accountBody()] }
+        : { status: 200, body: accountBody({ secret }) },
+    )
+
+    const [listed] = await client.listAccounts()
+    const stored = await client.readAccount({ accountId: toAccountId('acc_1') })
+
+    expect(listed).not.toHaveProperty('authorizationRevision')
+    expect(stored).not.toHaveProperty('authorizationRevision')
+  })
+
   it('rejects a malformed account payload', async () => {
     const { client } = clientWith(() => ({
       status: 200,

@@ -11,6 +11,7 @@ import {
   isSamePair,
   providerSpec,
   refreshDecision,
+  revisionOf,
   type AccountId,
   type AccountStorePort,
   type ClockPort,
@@ -27,13 +28,19 @@ const SIGN_IN = 'Sign in with /auth.'
 
 const credentialOf = (stored: StoredAccount): Credential =>
   stored.secret.kind === EAuthKind.ApiKey
-    ? { kind: EAuthKind.ApiKey, accountId: stored.id, apiKey: stored.secret.apiKey }
+    ? {
+        kind: EAuthKind.ApiKey,
+        accountId: stored.id,
+        apiKey: stored.secret.apiKey,
+        revision: revisionOf(stored),
+      }
     : {
         kind: EAuthKind.Oauth,
         accountId: stored.id,
         accessToken: stored.secret.tokens.accessToken,
         expiresAt: stored.secret.tokens.expiresAt,
         providerAccountId: stored.secret.tokens.accountId,
+        revision: revisionOf(stored),
       }
 
 const tokensOf = (stored: StoredAccount): OauthTokens | undefined =>
@@ -150,7 +157,15 @@ export class RefreshingCredentialPort extends CredentialPort {
       const secret = { kind: EAuthKind.Oauth, tokens: merged } as const
 
       await this.accounts.replaceSecret({ accountId: stored.id, secret })
-      const next: StoredAccount = { ...stored, secret, status: EAccountStatus.Active }
+      const written = await this.accounts.read(stored.id)
+      const next: StoredAccount = {
+        ...stored,
+        secret,
+        status: EAccountStatus.Active,
+        ...(written?.authorizationRevision === undefined
+          ? {}
+          : { authorizationRevision: written.authorizationRevision }),
+      }
       this.rejected.delete(stored.id)
 
       return next

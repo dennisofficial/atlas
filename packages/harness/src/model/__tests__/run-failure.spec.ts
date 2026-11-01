@@ -1,8 +1,16 @@
 import { APICallError } from '@ai-sdk/provider'
 import { describe, expect, it } from 'bun:test'
 
-import { EProviderFailureKind, ERunFailureKind, toAccountId } from '@dltech/atlas-core'
+import {
+  ECredentialAvailability,
+  ECredentialFence,
+  EProviderFailureKind,
+  ERunFailureKind,
+  toAccountId,
+} from '@dltech/atlas-core'
 
+import { isCredentialRejection } from '../../composition/child-fallback-model'
+import { ModelAdmissionBlockedError } from '../admission-blocked'
 import { withFailureAccount } from '../../providers/failure-account'
 import { ModelStreamError } from '../errors'
 import { NOW_MS, normalized } from './normalize-fixture'
@@ -222,5 +230,53 @@ describe('runFailureOf', () => {
     ['GET /v1?access_token=abc&apikey=def', 'GET /v1?access_token=[redacted]&apikey=[redacted]'],
   ])('redacts %s', (input, expected) => {
     expect(safeFailureMessage(input)).toBe(expected)
+  })
+})
+
+describe('runFailureOf for a blocked admission', () => {
+  const key = {
+    accountId: toAccountId('acct-1'),
+    providerId: 'anthropic',
+    modelId: 'claude-opus-5',
+  }
+  const revision = { fence: ECredentialFence.Replaced, value: 1 }
+  const blockedBy = (snapshot: { availability: ECredentialAvailability; until?: string }) =>
+    new ModelAdmissionBlockedError({
+      block: { key, snapshot: { key, revision, since: '2026-11-01T12:00:00.000Z', ...snapshot } },
+    })
+
+  it.each([
+    [ECredentialAvailability.AuthRejected, ERunFailureKind.Auth],
+    [ECredentialAvailability.Paused, ERunFailureKind.Auth],
+    [ECredentialAvailability.QuotaExhausted, ERunFailureKind.Quota],
+    [ECredentialAvailability.Cooldown, ERunFailureKind.Quota],
+    [ECredentialAvailability.DeliveryFault, ERunFailureKind.Delivery],
+    [ECredentialAvailability.ModelDenied, ERunFailureKind.ModelDenied],
+  ])('maps %s to %s', (availability, kind) => {
+    const cause = blockedBy({ availability })
+    const failure = runFailureOf({ message: cause.message, cause })
+    expect(failure.kind).toBe(kind)
+    expect(failure).toMatchObject({
+      providerId: 'anthropic',
+      modelId: 'claude-opus-5',
+      accountId: 'acct-1',
+    })
+  })
+
+  it('carries the cooldown until as resetAt, even wrapped in a stream error', () => {
+    const until = '2026-11-01T13:00:00.000Z'
+    const cause = new ModelStreamError({
+      message: 'blocked',
+      cause: blockedBy({ availability: ECredentialAvailability.Cooldown, until }),
+    })
+    expect(runFailureOf({ message: 'blocked', cause })).toMatchObject({
+      kind: ERunFailureKind.Quota,
+      resetAt: until,
+    })
+  })
+
+  it('classifies a blocked admission as a credential rejection, so the legacy fallbacks still fire', () => {
+    const cause = blockedBy({ availability: ECredentialAvailability.QuotaExhausted })
+    expect(isCredentialRejection(cause)).toBe(true)
   })
 })

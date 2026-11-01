@@ -6,6 +6,7 @@ import {
   EAuthKind,
   EAuthProvider,
   ENoAccountReason,
+  revisionOf,
   type AccountId,
   type AccountSecret,
   type AccountStorePort,
@@ -48,13 +49,19 @@ type OwnedOauth = { stored: StoredAccount; authority: OauthAuthority }
 
 const credentialOf = (stored: StoredAccount): Credential =>
   stored.secret.kind === EAuthKind.ApiKey
-    ? { kind: EAuthKind.ApiKey, accountId: stored.id, apiKey: stored.secret.apiKey }
+    ? {
+        kind: EAuthKind.ApiKey,
+        accountId: stored.id,
+        apiKey: stored.secret.apiKey,
+        revision: revisionOf(stored),
+      }
     : {
         kind: EAuthKind.Oauth,
         accountId: stored.id,
         accessToken: stored.secret.tokens.accessToken,
         expiresAt: stored.secret.tokens.expiresAt,
         providerAccountId: stored.secret.tokens.accountId,
+        revision: revisionOf(stored),
       }
 
 export class CloudManagedCredentialPort extends CredentialPort {

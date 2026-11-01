@@ -131,6 +131,41 @@ describe('the account store on a file', () => {
     expect(stored?.updatedAt).not.toBe(account.updatedAt)
   })
 
+  it('starts without a revision and bumps it on every secret replace', async () => {
+    const account = await addAnthropic('work')
+    expect(account.authorizationRevision).toBeUndefined()
+    expect((await store.read(account.id))?.authorizationRevision).toBeUndefined()
+
+    await store.replaceSecret({ accountId: account.id, secret: oauthSecret('second') })
+    expect((await store.read(account.id))?.authorizationRevision).toBe(1)
+
+    await store.replaceSecret({ accountId: account.id, secret: oauthSecret('third') })
+    expect((await store.read(account.id))?.authorizationRevision).toBe(2)
+    expect((await store.list())[0]?.authorizationRevision).toBe(2)
+  })
+
+  it('keeps the revision across a reopen of the vault file', async () => {
+    const account = await addAnthropic('work')
+    await store.replaceSecret({ accountId: account.id, secret: oauthSecret('second') })
+
+    const reopened = storeIn(directory)
+
+    expect((await reopened.read(account.id))?.authorizationRevision).toBe(1)
+  })
+
+  it('reads a vault file written before revisions existed', async () => {
+    const account = await addAnthropic('work')
+    const file = join(directory, 'auth.json')
+    const written = JSON.parse(readFileSync(file, 'utf8'))
+    for (const entry of written.accounts) delete entry.authorizationRevision
+    writeFileSync(file, JSON.stringify(written))
+
+    const stored = await storeIn(directory).read(account.id)
+
+    expect(stored?.id).toBe(account.id)
+    expect(stored?.authorizationRevision).toBeUndefined()
+  })
+
   it('survives another process having written between two of its own writes', async () => {
     const account = await addAnthropic('work')
 

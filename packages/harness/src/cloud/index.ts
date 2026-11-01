@@ -1,5 +1,6 @@
 export * from './cloud-bridge'
 export * from './account-store-proxy'
+export * from './account-dto'
 export * from './cloud-client'
 export * from './cloud-service'
 export * from './cloud-session'

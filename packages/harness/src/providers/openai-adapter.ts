@@ -13,6 +13,7 @@ import { CODEX_PLAN_LABEL, OPENAI_PROVIDER_ID } from '../models/provider-ids'
 import { ProviderAdapter } from './adapter'
 import { openaiEffortOptions } from './openai-effort'
 import { createOpenAiModel, mergedProviderOptions } from './openai-oauth'
+import type { ProviderAdmission } from './provider-admission'
 
 export { OPENAI_PROVIDER_ID }
 
@@ -23,16 +24,19 @@ export class OpenAiAdapter extends ProviderAdapter {
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]
   private readonly fetch: OpenAIProviderSettings['fetch'] | undefined
+  private readonly admission: ProviderAdmission | undefined
 
   constructor(args: {
     credentials: CredentialPort
     cards: readonly ModelCard[]
+    admission?: ProviderAdmission | undefined
     fetch?: OpenAIProviderSettings['fetch'] | undefined
   }) {
     super()
     this.credentials = args.credentials
     this.catalogue = args.cards
     this.fetch = args.fetch
+    this.admission = args.admission
   }
 
   cards(): readonly ModelCard[] {
@@ -53,6 +57,7 @@ export class OpenAiAdapter extends ProviderAdapter {
       providerId: OPENAI_PROVIDER_ID,
       modelId: args.card.ref.modelId,
       accountId: args.accountId,
+      admission: this.admission,
       ...(this.fetch === undefined ? {} : { fetch: this.fetch }),
     })
 

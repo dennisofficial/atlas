@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import {
   AccountStorePort,
   ClockPort,
+  CredentialAvailabilityPort,
   CredentialPort,
   EventLogPort,
   FileSystemPort,
@@ -12,6 +13,7 @@ import {
   toThreadId,
 } from '@dltech/atlas-core'
 
+import { InMemoryCredentialAvailability } from '../../credentials/credential-availability'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { SessionEnvironmentProcessPort } from '../../execution/session-environment'
 import { sessionDirectory, threadDataDirectory } from '../../store/sessions/paths'
@@ -74,6 +76,15 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(registeredPortToken(CredentialPort))).toBeInstanceOf(
       CloudManagedCredentialPort,
     )
+  })
+
+  it('resolves the credential availability port to one in-memory authority per container', () => {
+    const port = harness.resolve(registeredPortToken(CredentialAvailabilityPort))
+    expect(port).toBeInstanceOf(InMemoryCredentialAvailability)
+    expect(harness.resolve(registeredPortToken(CredentialAvailabilityPort))).toBe(port)
+    expect(
+      createHarnessContainer().resolve(registeredPortToken(CredentialAvailabilityPort)),
+    ).not.toBe(port)
   })
 
   it('resolves the account store to the local vault file store', () => {
