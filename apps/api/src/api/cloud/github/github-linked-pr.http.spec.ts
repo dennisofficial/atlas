@@ -25,6 +25,7 @@ import type { GithubAppInstallNoticeService } from './github-app-install-notice.
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubHookController } from './github-hook.controller'
+import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { seedLinkedPr } from './github-linked-pr.fixture'
 import { mockGithubHttp, realObservationGraph } from './github-observation-http.fixture'
 import { GithubObservationStore } from './github-observation.store'
@@ -141,6 +142,7 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
         { provide: GithubSubscriptionsService, useValue: subscriptions },
         { provide: GithubPrEventMailboxService, useValue: api.mailbox },
         { provide: SecretCipherService, useValue: delivery.cipher },
+        GithubWebhookInboxService,
         { provide: SandboxesService, useValue: { verifyTokenPrincipal: async () => null } },
         {
           provide: SESSION_VERIFIER,
