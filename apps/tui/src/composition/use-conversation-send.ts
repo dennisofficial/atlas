@@ -3,6 +3,7 @@ import {
   EConnectionView,
   userSaidDraft,
   wakesOnSend,
+  type PodSession,
   type RemoteDeltaChannel,
   type RemoteTurnRunner,
 } from '@dltech/atlas-harness'
@@ -38,12 +39,11 @@ export function usePlacementMoving(args: { app: AtlasApp; threadId: ThreadId }):
  * channel carries the current value (pendingEntries) so a late mount does not wait for the
  * next change to show what is queued.
  */
-export function useRemotePending(args: {
-  app: AtlasApp
-  cloudRunner: RemoteTurnRunner | null
-  heldForWake: ReturnType<PendingQueue<QueuedSettled>['getSnapshot']>
-}): { channel: RemoteDeltaChannel | null; entries: readonly RemotePendingEntry[] } {
-  const { app, cloudRunner, heldForWake } = args
+export function useRemotePending(args: { app: AtlasApp; cloudRunner: RemoteTurnRunner | null }): {
+  channel: RemoteDeltaChannel | null
+  entries: readonly RemotePendingEntry[]
+} {
+  const { app, cloudRunner } = args
   const channel = useMemo(() => {
     if (cloudRunner === null) return null
     if (!('onPendingChanged' in app.channel)) return null
@@ -59,21 +59,7 @@ export function useRemotePending(args: {
     () => channel?.pendingEntries() ?? EMPTY_REMOTE_PENDING,
   )
 
-  return useMemo(() => {
-    const held = heldForWake.flatMap((entry): readonly RemotePendingEntry[] =>
-      entry.kind === 'message'
-        ? [
-            {
-              id: entry.id,
-              text: entry.text,
-              reserved: false,
-              ...(entry.via === undefined ? {} : { via: entry.via }),
-            },
-          ]
-        : [],
-    )
-    return { channel, entries: held.length === 0 ? remote : [...remote, ...held] }
-  }, [channel, heldForWake, remote])
+  return useMemo(() => ({ channel, entries: remote }), [channel, remote])
 }
 
 /**
@@ -140,16 +126,22 @@ export function useSendMessage(args: {
   pending: PendingQueue<QueuedSettled>
   sending: ConversationSending
   cloudRunner: RemoteTurnRunner | null
+  cloudSession: PodSession | null
   working: boolean
   moving: boolean
   drive: TurnDriver['drive']
   setFailure: (message: string) => void
   cloudView: EConnectionView | null
-  wakeCloud: (() => void) | null
 }): (send: SendArgs) => void {
-  const { app, threadId, pending, sending, cloudRunner, working, moving, drive, setFailure } = args
-  const { cloudView, wakeCloud } = args
+  const { app, threadId, pending, sending, cloudRunner, cloudSession, working, moving, drive } =
+    args
+  const { setFailure, cloudView } = args
 
+  /**
+   * The birth window still owns a local queue: a send typed while the pod is being born has no
+   * session to carry the API lane, so it rides the channel once the pod attaches. Nothing
+   * enqueues here outside that window.
+   */
   useCloudWakeDrain({
     app,
     threadId,
@@ -174,8 +166,18 @@ export function useSendMessage(args: {
       const requestId = crypto.randomUUID()
 
       if (cloudRunner !== null && cloudView !== null && wakesOnSend(cloudView)) {
+        if (cloudSession !== null) {
+          /**
+           * The API records the intent durably and its wake claim fires there; the pod pulls the
+           * message on boot or on signal. The sending row renders "queued, waking pod" until the
+           * mirrored user-said lands and reconciles it. `files` (local paths) have no API lane —
+           * text and inline images go through, the same subset the old wake drain could deliver.
+           */
+          sending.add(text)
+          cloudSession.send({ text, images })
+          return
+        }
         pending.enqueue({ text, images, files, ...contextPart })
-        wakeCloud?.()
         return
       }
 
@@ -253,6 +255,7 @@ export function useSendMessage(args: {
     [
       app.intake,
       cloudRunner,
+      cloudSession,
       cloudView,
       drive,
       moving,
@@ -260,7 +263,6 @@ export function useSendMessage(args: {
       sending,
       setFailure,
       threadId,
-      wakeCloud,
       working,
     ],
   )

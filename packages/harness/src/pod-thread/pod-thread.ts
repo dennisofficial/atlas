@@ -141,6 +141,8 @@ export async function assemblePodThread<Opened extends Transcript>(
   const session = createPodSession({
     channel,
     sandboxes: args.bridge.sandboxes,
+    messages: args.bridge.messages,
+    ...(args.bridge.api === undefined ? {} : { api: args.bridge.api }),
     wake,
     onReload: args.onReload,
     notice: args.notice,

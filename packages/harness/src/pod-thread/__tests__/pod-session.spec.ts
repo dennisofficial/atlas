@@ -41,6 +41,7 @@ const sessionOn = (
   const session = createPodSession({
     channel,
     sandboxes: { find: async () => undefined },
+    messages: { send: async () => undefined },
     wake: async () => undefined,
     notice: recordingNotices(),
     onReload:

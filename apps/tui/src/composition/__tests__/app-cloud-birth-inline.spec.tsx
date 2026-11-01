@@ -75,6 +75,11 @@ describe('the inline boot block on a first send', () => {
         within: 20_000,
       })
       expect(arrived).toBe(true)
+      /**
+       * A first send has no pod session yet, so the API lane is not composed in — the birth
+       * keeps the local queue and the channel carries both sends in order once the pod attaches.
+       */
+      expect(bridge.sentMessages).toEqual([])
       expect(bridge.channel.sent.map((said) => said.text).slice(0, 2)).toEqual([
         'first words',
         'second words',

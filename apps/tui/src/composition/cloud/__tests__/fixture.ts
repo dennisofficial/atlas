@@ -9,7 +9,13 @@ import {
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type { PendingEntryWire, RosterWire, RuntimeCheckpoint } from '@dltech/atlas-wire'
+import type {
+  PendingEntryWire,
+  RosterWire,
+  RuntimeCheckpoint,
+  SandboxProvisionReply,
+} from '@dltech/atlas-wire'
+import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import {
   EClientRequest,
   EConnectionView,
@@ -575,6 +581,8 @@ class WatchedThreadStore extends ThreadStorePort {
 
 export type FakeBridge = CloudBridge & {
   readonly log: FakeEventLog
+  /** Sends recorded through the API lane (bridge.messages.send). */
+  readonly sentMessages: readonly { threadId: ThreadId; sendId: string; text: string }[]
   readonly threads: FakeThreadStore
   readonly ledger: FakeLedger
   readonly created: readonly {
@@ -605,6 +613,8 @@ const RUNNING: CloudSandbox = {
 
 export function fakeBridge(
   args: {
+    /** When set, the bridge carries the control-plane probe and answers provision with this. */
+    provision?: SandboxProvisionReply | undefined
     sandbox?: CloudSandbox
     createFails?: unknown
     destroyFails?: unknown
@@ -635,6 +645,7 @@ export function fakeBridge(
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
   const parkedAttaches: ThreadId[] = []
   const destroyed: ThreadId[] = []
+  const sentMessages: { threadId: ThreadId; sendId: string; text: string }[] = []
   const trail: string[] = []
 
   const watchedThreads = new WatchedThreadStore({ inner: threads, trail })
@@ -676,6 +687,24 @@ export function fakeBridge(
     attached,
     parkedAttaches,
     destroyed,
+    sentMessages,
+    messages: {
+      send: async (message) => {
+        trail.push('message')
+        sentMessages.push({
+          threadId: message.threadId,
+          sendId: message.sendId,
+          text: message.text,
+        })
+      },
+    },
+    api: {
+      threadSandbox: {
+        provision: {
+          mutate: async () => args.provision ?? { state: ESandboxProvisionState.Running },
+        },
+      },
+    },
     get channel() {
       if (channel === null) throw new Error('nothing has attached yet')
       return channel

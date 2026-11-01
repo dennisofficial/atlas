@@ -46,6 +46,7 @@ const sessionOn = (
   const session = createPodSession({
     channel,
     sandboxes: { find: args.find ?? (async () => undefined) },
+    messages: { send: async () => undefined },
     wake: () => {
       wakes += 1
       return args.wake?.() ?? new Promise<void>(() => undefined)

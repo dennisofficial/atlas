@@ -35,6 +35,7 @@ const bridgeThat = (
       return { ...(await create()), state: ECloudSandboxState.Running, created: true }
     },
   } as unknown as CloudBridge['sandboxes'],
+  messages: { send: async () => undefined },
   attach: () => ({ channel: {} }) as unknown as ReturnType<CloudBridge['attach']>,
 })
 

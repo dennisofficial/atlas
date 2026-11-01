@@ -13,6 +13,7 @@ import type {
   EConnectionView,
   ECompactScope,
   LostShell,
+  PodSession,
   RecoveredAgents,
   ThreadModel,
   ThreadStorePort,
@@ -61,7 +62,7 @@ export type ConversationArgs = {
   channelReady?: boolean | undefined
   frozen?: boolean
   cloudView?: EConnectionView | null | undefined
-  wakeCloud?: (() => void) | null | undefined
+  cloudSession?: PodSession | null | undefined
 }
 
 export type ConversationWorkspace = {

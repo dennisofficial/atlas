@@ -42,6 +42,9 @@ const rereadingClientOf = (apiOf: () => PodApiClient): PodApiClient => ({
   threadSandbox: {
     provision: { mutate: async (input) => apiOf().threadSandbox.provision.mutate(input) },
   },
+  threadMessages: {
+    send: { mutate: async (input) => apiOf().threadMessages.send.mutate(input) },
+  },
   threadPod: {
     status: { query: async (input) => apiOf().threadPod.status.query(input) },
     connect: { mutate: async (input) => apiOf().threadPod.connect.mutate(input) },

@@ -100,7 +100,7 @@ export function useConversation(args: ConversationArgs): Conversation {
   const derived = view.model
   const { sidebar } = view
   const queued = useSyncExternalStore(pending.subscribe, pending.getSnapshot)
-  const remote = useRemotePending({ app, cloudRunner, heldForWake: queued })
+  const remote = useRemotePending({ app, cloudRunner })
 
   const compaction = useCompaction({
     app,
@@ -197,7 +197,7 @@ export function useConversation(args: ConversationArgs): Conversation {
       sending,
       cloudRunner,
       cloudView: args.cloudView ?? null,
-      wakeCloud: args.wakeCloud ?? null,
+      cloudSession: args.cloudSession ?? null,
       driver: turnDriver,
       refresh,
       setFailure,

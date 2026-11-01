@@ -4,10 +4,12 @@ import {
   EPodResizeApplies,
   EPodState,
   ESandboxProvisionState,
+  EThreadMessageState,
   type PodStatus,
   type RecordedBootStep,
   type RuntimeCheckpoint,
   type SandboxProvisionReply,
+  type ThreadMessageRequest,
 } from '@dltech/atlas-wire'
 
 import type { PodApiClient, PodStreamHandlers } from '../api-pod-client'
@@ -39,6 +41,7 @@ export type ScriptedStatus = PodStatus | Error
 export type FakePodApi = {
   api: PodApiClient
   calls: string[]
+  sends: (ThreadMessageRequest & { threadId: string })[]
   statusReads: () => number
   streams: PodStreamHandlers[]
   unsubscribed: () => number
@@ -47,6 +50,7 @@ export type FakePodApi = {
   failCreateWith: (failure: unknown) => void
   failStreamWith: (failure: unknown) => void
   failConnectWith: (failure: unknown) => void
+  failSendWith: (failure: unknown) => void
   tickets: string[]
 }
 
@@ -65,7 +69,9 @@ export const createFakePodApi = (
   let createFailure: unknown
   let streamFailure: unknown
   let connectFailure: unknown
+  let sendFailure: unknown
   let minted = 0
+  const sends: (ThreadMessageRequest & { threadId: string })[] = []
 
   const api: PodApiClient = {
     threads: {
@@ -82,6 +88,16 @@ export const createFakePodApi = (
         mutate: async ({ threadId }) => {
           calls.push(`provision:${threadId}`)
           return provision
+        },
+      },
+    },
+    threadMessages: {
+      send: {
+        mutate: async (input) => {
+          calls.push(`message:${input.threadId}:${input.sendId}`)
+          if (sendFailure !== undefined) throw sendFailure
+          sends.push(input)
+          return { state: EThreadMessageState.Queued }
         },
       },
     },
@@ -148,6 +164,7 @@ export const createFakePodApi = (
   return {
     api,
     calls,
+    sends,
     statusReads: () => reads,
     streams,
     unsubscribed: () => unsubscribed,
@@ -167,6 +184,9 @@ export const createFakePodApi = (
     },
     failConnectWith: (failure) => {
       connectFailure = failure
+    },
+    failSendWith: (failure) => {
+      sendFailure = failure
     },
   }
 }

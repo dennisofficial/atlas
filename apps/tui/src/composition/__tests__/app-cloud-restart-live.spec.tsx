@@ -142,6 +142,7 @@ describe.skipIf(!liveRunRequested())(
       })
       const bridge: CloudBridge = {
         sandboxes: inner.sandboxes,
+        messages: inner.messages,
         attach: (attachArgs) => {
           const attachment = inner.attach(attachArgs)
           cloudChannel = attachment.channel

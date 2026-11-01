@@ -4,6 +4,8 @@ import type {
   PodStatus,
   ReadRuntimeCheckpointReply,
   SandboxProvisionReply,
+  ThreadMessageReply,
+  ThreadMessageRequest,
   ThreadStreamFrame,
 } from '@dltech/atlas-wire'
 
@@ -31,6 +33,11 @@ export type PodApiClient = {
   }
   threadSandbox: {
     provision: { mutate(input: ThreadInput): Promise<SandboxProvisionReply> }
+  }
+  threadMessages: {
+    send: {
+      mutate(input: ThreadInput & ThreadMessageRequest): Promise<ThreadMessageReply>
+    }
   }
   threadPod: {
     status: { query(input: ThreadInput): Promise<PodStatus> }

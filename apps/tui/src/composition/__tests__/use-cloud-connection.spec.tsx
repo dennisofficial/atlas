@@ -35,6 +35,7 @@ const sessionOver = (channel: ReturnType<typeof fakeCloudChannel>): PodSession =
   return createPodSession({
     channel,
     sandboxes: { find: async () => undefined },
+    messages: { send: async () => undefined },
     wake: async () => undefined,
     notice: noticePortBinding(),
     onReload: async () => undefined,

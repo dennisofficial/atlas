@@ -3,14 +3,22 @@ import { ENoticeTone, NOTICE_WARN_MS, type NoticePort, type ThreadId } from '@dl
 import {
   ECloudSandboxState,
   type CloudChannel,
+  type CloudMessages,
   type CloudReload,
   type CloudSandboxes,
 } from '../cloud/cloud-bridge'
 import { EConnectionView, sameConnectionView, type ConnectionView } from '../cloud/connection-view'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import { podFailureReasonOf } from './pod-failure'
+import {
+  createPodSessionSend,
+  type PodProvisionProbe,
+  type PodSessionSend,
+} from './pod-session-send'
 
 export const POD_WAKE_FAILED_NOTICE_KEY = 'cloud-wake-failed'
+export { POD_SEND_FAILED_NOTICE_KEY } from './pod-session-send'
+export type { PodProvisionProbe, PodSessionSend } from './pod-session-send'
 
 export type PodHealth = {
   view: ConnectionView
@@ -48,6 +56,7 @@ export type PodSession = {
   subscribe: (listener: () => void) => () => void
   reconnect: () => void
   wake: () => void
+  send: PodSessionSend
   settleOpen: () => void
   close: () => void
 }
@@ -84,6 +93,9 @@ const wakeFailureOf = (error: unknown): string =>
 export function createPodSession(args: {
   channel: PodSessionChannel
   sandboxes: Pick<CloudSandboxes, 'find'>
+  messages: CloudMessages
+  /** Present on cloud-provisioned threads; its provision reply gates the durable-send lane. */
+  api?: PodProvisionProbe | undefined
   wake: () => Promise<void>
   onReload: (reload: CloudReload) => Promise<void>
   notice: NoticePort
@@ -91,7 +103,7 @@ export function createPodSession(args: {
   settleMs?: number | undefined
   onClose?: (() => void) | undefined
 }): PodSession {
-  const { channel, sandboxes } = args
+  const { channel, sandboxes, messages, api } = args
   const listeners = new Set<() => void>()
   let closed = false
   let failure: string | null = null
@@ -180,6 +192,15 @@ export function createPodSession(args: {
       })
   }
 
+  const send: PodSessionSend = createPodSessionSend({
+    channel,
+    messages,
+    ...(api === undefined ? {} : { api }),
+    wake,
+    notice: args.notice,
+    closed: () => closed,
+  })
+
   const settleOpen = (): void => {
     if (closed || settled) return
     settled = true
@@ -235,6 +256,7 @@ export function createPodSession(args: {
     },
     reconnect: () => channel.reconnect(),
     wake,
+    send,
     settleOpen,
     close() {
       closed = true

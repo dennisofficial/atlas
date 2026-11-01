@@ -109,7 +109,7 @@ export function useWorkspaceSession(args: {
     channelReady,
     frozen: cloudView === EConnectionView.Disconnected,
     cloudView,
-    wakeCloud,
+    cloudSession,
   })
 
   const tokens = useDraftTokens({
