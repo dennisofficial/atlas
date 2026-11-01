@@ -1,7 +1,7 @@
 import type { Server } from 'bun'
 
 import { CHANNEL_SUBPROTOCOL, tokenFromSubprotocols } from '@dltech/atlas-harness'
-import { channelTicketValid } from '@dltech/atlas-wire'
+import { channelTicketThread } from '@dltech/atlas-wire'
 
 import type { ServeDrain } from './serve-drain'
 import type { SessionHandlers, SessionSocket, SocketState } from './socket-session'
@@ -59,6 +59,12 @@ export function startSessionServer(args: {
   handlers: () => SessionHandlers | undefined
   drain: () => ServeDrain | undefined
   health: () => unknown
+  /**
+   * Whether a ticketed thread belongs to the served session family. Absent (and while the app is
+   * still booting, when no roster exists to ask) any well-formed ticket admits, matching the
+   * root-thread tickets every released API mints.
+   */
+  admitsThread?: ((threadId: string) => Promise<boolean>) | undefined
 }): { server: Server<SocketState>; handshake: SessionServerHandshake } {
   const { token } = args
   const held = new Set<SessionSocket>()
@@ -137,15 +143,19 @@ export function startSessionServer(args: {
         return new Response(`expected the ${CHANNEL_SUBPROTOCOL} subprotocol`, { status: 400 })
       }
       const credential = tokenFromSubprotocols(offered)
-      const admitted =
-        tokenMatches({ expected: token, offered: credential }) ||
-        (credential !== null &&
-          channelTicketValid({
-            serveToken: token,
-            threadId: args.threadId,
-            ticket: credential,
-            nowMs: Date.now(),
-          }))
+      let admitted = tokenMatches({ expected: token, offered: credential })
+      if (!admitted && credential !== null) {
+        const hinted = channelTicketThread({
+          serveToken: token,
+          ticket: credential,
+          nowMs: Date.now(),
+        })
+        if (hinted !== null) {
+          if (args.admitsThread === undefined) admitted = hinted === args.threadId
+          else if (args.handlers() === undefined) admitted = true
+          else admitted = await args.admitsThread(hinted)
+        }
+      }
       if (!admitted) return unauthorized()
       if (bootFailure !== null) return booting()
 

@@ -7,6 +7,7 @@ import {
   resumeDeclaredServicesNow,
   settleLostShellsInBackground,
 } from './serve-background'
+import { wakeChildrenWithPendingInput } from './serve-pending-children'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 export function createServeWorkspaceSession(args: {
@@ -46,6 +47,7 @@ export function createServeWorkspaceSession(args: {
         const adopted = await Promise.allSettled([
           adoptChildrenNow({ app: adoptingApp, threadId, log, settling, note }),
         ])
+        await wakeChildrenWithPendingInput({ app, threadId, log })
         return [...lost, ...adopted]
       })
       .then((results) => {

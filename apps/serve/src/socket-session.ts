@@ -70,6 +70,8 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     buffer,
     log,
     send,
+    ...(args.childSend === undefined ? {} : { childSend: args.childSend }),
+    ...(args.admitsThread === undefined ? {} : { admitsThread: args.admitsThread }),
   })
 
   const router = createRequestRouter({
@@ -125,6 +127,32 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     send({ socket: args.socket, frame: { kind: EServeFrame.Error, message: args.reason } })
     log({ event: EServeEvent.ClientRefused, reason: args.reason })
     args.socket.close(POLICY_VIOLATION, args.reason)
+  }
+
+  const admitHello = (given: { socket: SessionSocket; hello: HelloFrame }): void => {
+    const { socket, hello } = given
+    const admitsThread = args.admitsThread
+    if (hello.threadId === threadId) {
+      greet({ socket, hello })
+      return
+    }
+    if (admitsThread === undefined) {
+      refuse({ socket, reason: 'this sandbox serves one thread' })
+      return
+    }
+    void admitsThread(hello.threadId)
+      .then((admittedFamily) => {
+        if (!live.has(socket)) return
+        if (!admittedFamily) {
+          refuse({ socket, reason: 'this sandbox serves one thread' })
+          return
+        }
+        greet({ socket, hello })
+      })
+      .catch(() => {
+        if (!live.has(socket)) return
+        refuse({ socket, reason: 'this sandbox serves one thread' })
+      })
   }
 
   const greetRest = createSocketGreeter({
@@ -233,11 +261,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
           return
         }
         socket.data.helloed = true
-        if (frame.threadId !== threadId) {
-          refuse({ socket, reason: 'this sandbox serves one thread' })
-          return
-        }
-        greet({ socket, hello: frame })
+        admitHello({ socket, hello: frame })
         return
       }
 

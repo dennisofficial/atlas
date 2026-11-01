@@ -90,6 +90,7 @@ describe('the operator agent-steer ops', () => {
       },
       resume: async () => ({ ok: true, snapshot: CHILD }),
       stop: async () => ({ ok: true, snapshot: CHILD }),
+      wake: async () => ({ ok: true, snapshot: CHILD }),
     })
 
     const reply = await steer({
@@ -117,6 +118,7 @@ describe('the operator agent-steer ops', () => {
         return { ok: true, snapshot: CHILD }
       },
       stop: async () => ({ ok: true, snapshot: CHILD }),
+      wake: async () => ({ ok: true, snapshot: CHILD }),
     })
 
     const reply = await steer({ client, id: 'resume-1', op: EClientRequest.ResumeAgent, params })
@@ -130,6 +132,7 @@ describe('the operator agent-steer ops', () => {
     const { client } = await start({
       say: async () => ({ ok: true, snapshot: CHILD }),
       resume: async () => ({ ok: true, snapshot: CHILD }),
+      wake: async () => ({ ok: true, snapshot: CHILD }),
       stop: async (asked) => {
         seen.push({ by: asked.by })
         return {
@@ -156,6 +159,7 @@ describe('the operator agent-steer ops', () => {
         reason: 'agent child-steered is finished, so a queued resume is dropped',
       }),
       stop: async () => ({ ok: true, snapshot: CHILD }),
+      wake: async () => ({ ok: true, snapshot: CHILD }),
     })
 
     const reply = await steer({ client, id: 'resume-2', op: EClientRequest.ResumeAgent, params })
@@ -175,6 +179,7 @@ describe('the operator agent-steer ops', () => {
       },
       resume: async () => ({ ok: true, snapshot: CHILD }),
       stop: async () => ({ ok: true, snapshot: CHILD }),
+      wake: async () => ({ ok: true, snapshot: CHILD }),
     })
 
     const reply = await steer({

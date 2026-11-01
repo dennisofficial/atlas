@@ -102,3 +102,71 @@ describe('session server channel tickets', () => {
     expect(withToken.status).toBe(200)
   })
 })
+
+describe('family admission', () => {
+  const serverWithFamily = (args: {
+    handlers: boolean
+    admitsThread: (threadId: string) => Promise<boolean>
+  }): { port: number } => {
+    const { server } = startSessionServer({
+      port: 0,
+      token: TOKEN,
+      threadId: THREAD,
+      handlers: () =>
+        args.handlers
+          ? ({
+              open: () => undefined,
+              message: () => undefined,
+              close: () => undefined,
+              broadcast: () => undefined,
+              replayDeferred: () => undefined,
+              broadcastRoster: () => undefined,
+              broadcastPrStates: () => undefined,
+              broadcastSubscriptions: () => undefined,
+              park: () => undefined,
+              hangUp: () => undefined,
+              abortHistory: () => undefined,
+              clients: () => 0,
+              settling: () => false,
+              whenSettled: async () => undefined,
+            } as never)
+          : undefined,
+      drain: () => undefined,
+      health: () => ({ ok: true }),
+      admitsThread: args.admitsThread,
+    })
+    servers.push(server)
+    return { port: server.port ?? 0 }
+  }
+
+  it('admits a ticket minted for a family thread once booted', async () => {
+    const { port } = serverWithFamily({
+      handlers: true,
+      admitsThread: async (asked) => asked === 'thread-child',
+    })
+
+    expect(await opens({ port, credential: ticketFor({ threadId: 'thread-child' }) })).toBe(true)
+  })
+
+  it('refuses a ticket naming a thread outside the family once booted', async () => {
+    const { port } = serverWithFamily({
+      handlers: true,
+      admitsThread: async (asked) => asked === 'thread-child',
+    })
+
+    expect(await upgradeStatus({ port, credential: ticketFor({ threadId: 'thread-b' }) })).toBe(401)
+  })
+
+  it('admits a well-formed ticket without consulting the family while booting', async () => {
+    const asked: string[] = []
+    const { port } = serverWithFamily({
+      handlers: false,
+      admitsThread: async (thread) => (asked.push(thread), false),
+    })
+
+    expect(await upgradeStatus({ port, credential: ticketFor({ threadId: 'thread-child' }) })).toBe(
+      101,
+    )
+    expect(asked).toEqual([])
+  })
+})

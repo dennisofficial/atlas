@@ -1,5 +1,6 @@
 import { atlasDirectory } from '@dltech/atlas-harness'
 
+import { admitsFamilyThread } from './family-admission'
 import type { ServeArgs, ServeHandle } from './serve-args'
 import { finishServeBoot } from './serve-boot-finish'
 import { listenWhileBooting } from './serve-boot-listener'
@@ -21,6 +22,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     sandboxSessionId,
     startedAt,
     log,
+    admitsThread: args.admitsThread ?? admitsFamilyThread({ root: threadId, atlasHome }),
   })
 
   try {

@@ -16,6 +16,7 @@ import {
   type LifecycleFrame,
   type SignalFrame,
 } from './frame-buffer'
+import { admitsFamilyThread } from './family-admission'
 import { workspaceRefusalOf } from './materialize-workspace'
 import { createRuntimeCheckpointCapture } from './runtime-checkpoint'
 import { bindRuntimeCheckpoint } from './runtime-checkpoint-binding'
@@ -137,9 +138,21 @@ export async function finishServeBoot(args: {
     },
   })
   const contextReader = createSessionContextReader({ threadId, home: atlasHome })
+  const admitsThread = admitsFamilyThread({ root: threadId, atlasHome })
   const handlers = createSessionHandlers({
     activity: app.activity,
     threadId,
+    admitsThread,
+    ...(app.agents === undefined
+      ? {}
+      : {
+          childSend: {
+            agents: app.agents,
+            runner: app.runner,
+            log: app.log,
+            ids: app.ids,
+          },
+        }),
     buffer,
     inFlight: () => inFlight(),
     liveStepId: () => liveStepId(),

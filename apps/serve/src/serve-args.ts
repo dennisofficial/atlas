@@ -34,6 +34,8 @@ export type ServeArgs = {
   ensureWorkspace?: EnsureWorkspace | undefined
   profile?: ApplyEnvironmentProfile | undefined
   contextFiles?: WorkspaceFiles | undefined
+  /** Whether a ticketed thread belongs to the served family; specs inject a fake family. */
+  admitsThread?: ((threadId: string) => Promise<boolean>) | undefined
 }
 
 export type ServeHandle = {

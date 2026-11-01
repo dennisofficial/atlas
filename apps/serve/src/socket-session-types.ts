@@ -16,6 +16,7 @@ import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { ServeProcesses } from './process-requests'
 import type { TranscriptReaders } from './requests'
 import type {
+  ChildSend,
   ServeAgentSteer,
   ServePrStates,
   ServeCommands,
@@ -64,6 +65,10 @@ export type HelloFrame = Extract<ClientFrame, { kind: EClientFrame.Hello }>
 export type SessionHandlersArgs = {
   activity: SessionActivityPort
   threadId: ThreadId
+  /** Whether a Hello'd thread belongs to the served session family; absent admits only the root. */
+  admitsThread?: ((threadId: string) => Promise<boolean>) | undefined
+  /** Delivers a Send addressed at a family thread; absent refuses the Send with an error frame. */
+  childSend?: ChildSend | undefined
   buffer: FrameBuffer
   inFlight: () => readonly SignalFrame[]
   liveStepId: () => StepId | null

@@ -26,7 +26,7 @@ const driver = {
   settled: async () => undefined,
 } as unknown as ServeTurnDriver
 
-const rig = () => {
+const rig = (options?: { admitsThread?: (threadId: string) => Promise<boolean> }) => {
   const handlers = createSessionHandlers({
     activity: {
       read: async () => {
@@ -34,6 +34,7 @@ const rig = () => {
       },
     },
     threadId: served,
+    ...(options?.admitsThread === undefined ? {} : { admitsThread: options.admitsThread }),
     buffer: createFrameBuffer({ capacity: 16 }),
     inFlight: () => [],
     liveStepId: () => null,
@@ -126,6 +127,19 @@ describe('hello admission', () => {
 
   it('refuses a thread the serve does not serve', async () => {
     const { hello, kinds, closed } = rig()
+    await hello({ threadId: stranger })
+    expect(kinds()).not.toContain(EServeFrame.Ready)
+    expect(closed()).toBe(true)
+  })
+
+  it('admits a family thread the admitsThread check accepts', async () => {
+    const { hello, kinds } = rig({ admitsThread: async (asked) => asked === stranger })
+    await hello({ threadId: stranger })
+    expect(kinds()).toContain(EServeFrame.Ready)
+  })
+
+  it('refuses a thread the admitsThread check rejects', async () => {
+    const { hello, kinds, closed } = rig({ admitsThread: async () => false })
     await hello({ threadId: stranger })
     expect(kinds()).not.toContain(EServeFrame.Ready)
     expect(closed()).toBe(true)
