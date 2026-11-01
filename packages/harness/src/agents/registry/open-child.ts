@@ -1,5 +1,5 @@
 import {
-  agentLabel,
+  childThreadTitle,
   EAgentStart,
   EMessageOrigin,
   type EExecutionLocation,
@@ -35,7 +35,7 @@ export async function openChildThread({
     runId: ids.nextRunId(),
     model,
     drafts: [{ type: 'user-said', text: brief, via: EMessageOrigin.ParentAgent }],
-    title: agentLabel({ agentType: agentType.name, intent }),
+    title: childThreadTitle({ agentType: agentType.name, intent }),
     agent: { spawnedBy, type: agentType.name },
     ...(spawner?.workspace == null ? {} : { workspace: spawner.workspace }),
     ...(spawner === undefined ? {} : { repo: spawner.repo }),

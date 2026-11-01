@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
+import { displayedThreadTitle } from '@dltech/atlas-core'
+
 export type ActiveNaming = { threadId: string; title: string | null; naming: boolean }
 export type ThreadNaming = { title: string | null; naming: boolean }
 
@@ -49,6 +51,7 @@ export function rowNamingOf(args: {
   listedTitle: string | null
   published: ThreadNaming | null
 }): ThreadNaming {
-  const title = args.published?.title ?? args.listedTitle
+  const raw = args.published?.title ?? args.listedTitle
+  const title = raw === null ? null : displayedThreadTitle(raw)
   return { title, naming: title === null && (args.published?.naming ?? false) }
 }

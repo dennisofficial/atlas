@@ -3,7 +3,7 @@ import { seedThread } from '@dltech/atlas-db/testing'
 import { encodeSettingValue } from '@dltech/atlas-wire/web'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { sealSecretValue } from '../secrets/sealed-secret'
-import { seedProject } from '../web-settings.fake-db'
+import { seedProject } from '../../../test/web-settings.fake-db'
 
 export const PROJECT = 'proj-1'
 export const THREAD = 'thr-1'

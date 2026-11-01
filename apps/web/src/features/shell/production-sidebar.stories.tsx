@@ -19,6 +19,7 @@ import {
   observationCapSessions,
   project,
 } from './production-sidebar-fixtures'
+import { MacWindowSimulation } from './production-sidebar-mac-window'
 import { FixtureObservationControls } from './production-sidebar-observation-controls'
 import { ThreadList } from './shell-thread-list'
 import { ShellTopBar } from './shell-top-bar'
@@ -29,10 +30,12 @@ function ProductionSidebar({
   desktopWidth = '18rem',
   nested = false,
   observationCap = false,
+  mac,
 }: {
   desktopWidth?: string
   nested?: boolean
   observationCap?: boolean
+  mac?: { fullscreen: boolean }
 }) {
   const fixtureSessions = observationCap
     ? observationCapSessions
@@ -49,7 +52,10 @@ function ProductionSidebar({
   const [archived, setArchived] = useState<string[]>([])
   const [searches, setSearches] = useState(0)
   const entries: ProjectThreads[] = [
-    { project, sessions: archiveFixtureSessions({ sessions: fixtureSessions, archived }) },
+    {
+      project,
+      sessions: archiveFixtureSessions({ sessions: fixtureSessions, archived }),
+    },
   ]
   const handleNavigate = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target
@@ -127,6 +133,7 @@ function ProductionSidebar({
         </div>
       </SidebarProvider>
       <Toaster />
+      {mac ? <MacWindowSimulation fullscreen={mac.fullscreen} /> : null}
     </ThreadActionsContext.Provider>
   )
 }
@@ -140,4 +147,12 @@ export default {
 export const Interactive = { args: { desktopWidth: '18rem' } }
 export const NarrowDefault256 = { args: { desktopWidth: '16rem' } }
 export const NestedFamilies = { args: { desktopWidth: '18rem', nested: true } }
-export const ObservationCap = { args: { desktopWidth: '18rem', observationCap: true } }
+export const ObservationCap = {
+  args: { desktopWidth: '18rem', observationCap: true },
+}
+export const MacWindow = {
+  args: { desktopWidth: '18rem', mac: { fullscreen: false } },
+}
+export const MacFullscreen = {
+  args: { desktopWidth: '18rem', mac: { fullscreen: true } },
+}

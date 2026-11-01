@@ -1,32 +1,42 @@
-html[data-desktop]:not([data-fullscreen]) [data-slot="sidebar-inner"] > :first-child {
+html[data-desktop] {
+  --desktop-titlebar-height: calc(var(--spacing) * 11);
+  --desktop-traffic-lights-inset: calc(var(--spacing) * 20);
+}
+
+[data-desktop-wordmark] {
+  display: none;
+}
+
+html[data-desktop]:not([data-fullscreen])
+  [data-slot="sidebar"]:not([data-state="collapsed"])
+  [data-desktop-wordmark] {
+  display: flex;
   box-sizing: border-box;
-  height: calc(var(--spacing) * 13);
-  padding-block: 0;
-  padding-left: calc(var(--spacing) * 22);
+  height: var(--desktop-titlebar-height);
+  margin-top: calc(var(--spacing) * -2);
+  padding-left: calc(var(--desktop-traffic-lights-inset) - var(--spacing) * 2);
 }
 
 html[data-desktop]:not([data-fullscreen])
   [data-slot="sidebar"][data-state="collapsed"]
   [data-slot="sidebar-inner"]
   > :first-child {
-  height: auto;
-  margin-top: calc(var(--spacing) * 13);
-  padding: calc(var(--spacing) * 2);
+  margin-top: var(--desktop-titlebar-height);
 }
 
 html[data-desktop]:not([data-fullscreen]) header[data-chrome] {
-  height: calc(var(--spacing) * 13);
+  height: var(--desktop-titlebar-height);
 }
 
 html[data-desktop]:not([data-fullscreen]) header[data-chrome="titlebar-start"] {
-  padding-left: calc(var(--spacing) * 22);
+  padding-left: var(--desktop-traffic-lights-inset);
 }
 
 html[data-desktop]:not([data-fullscreen])
   [data-slot="sidebar"][data-state="collapsed"]
   ~ [data-slot="sidebar-inset"]
   header[data-chrome="titlebar"] {
-  padding-left: calc(var(--spacing) * 22);
+  padding-left: var(--desktop-traffic-lights-inset);
 }
 
 html[data-desktop]
@@ -99,5 +109,5 @@ html[data-vibrancy]
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 0;
-  height: calc(var(--spacing) * 13);
+  height: var(--desktop-titlebar-height);
 }

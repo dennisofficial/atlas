@@ -10,6 +10,7 @@ import {
   type Credential,
   type CredentialRequest,
 } from '@dltech/atlas-harness/titling'
+import { revisionOf, storedAccountSchema, type CredentialRevision } from '@dltech/atlas-core'
 import type { AccountLease } from '@dltech/atlas-wire'
 import type { OauthConnectionsService } from '../../platform/oauth-connections/oauth-connections.service'
 
@@ -18,6 +19,14 @@ export const accountsOf = (lease: AccountLease): Account[] =>
     const parsed = accountSchema.safeParse(stored)
     return parsed.success ? [parsed.data] : []
   })
+
+const revisionFor = (stored: AccountLease['accounts'][number]): CredentialRevision | undefined => {
+  const parsed = storedAccountSchema.safeParse({
+    ...stored,
+    ...(stored.secretVersion === undefined ? {} : { authorizationRevision: stored.secretVersion }),
+  })
+  return parsed.success ? revisionOf(parsed.data) : undefined
+}
 
 export class ApiCredentialPort extends CredentialPort {
   private readonly rejected = new Map<string, string>()
@@ -49,9 +58,16 @@ export class ApiCredentialPort extends CredentialPort {
     const { account } = choice
     const stored = this.args.lease.accounts.find((candidate) => candidate.id === account.id)
     const secret = stored?.secret
+    const revision = stored === undefined ? undefined : revisionFor(stored)
+    const stamp = revision === undefined ? {} : { revision }
     if (secret === undefined) throw new Error(`account ${account.id} has no secret`)
     if (secret.kind === EAuthKind.ApiKey) {
-      return { kind: EAuthKind.ApiKey, accountId: account.id, apiKey: secret.apiKey }
+      return {
+        kind: EAuthKind.ApiKey,
+        accountId: account.id,
+        apiKey: secret.apiKey,
+        ...stamp,
+      }
     }
 
     const connectionId = secret.authority?.connectionId
@@ -64,6 +80,7 @@ export class ApiCredentialPort extends CredentialPort {
         ...(secret.tokens.accountId === undefined
           ? {}
           : { providerAccountId: secret.tokens.accountId }),
+        ...stamp,
       }
     }
     const rejectedToken = this.rejected.get(account.id)
@@ -80,6 +97,7 @@ export class ApiCredentialPort extends CredentialPort {
       ...(issued.providerAccountId === undefined
         ? {}
         : { providerAccountId: issued.providerAccountId }),
+      ...stamp,
     }
   }
 

@@ -1,6 +1,5 @@
 import { createOpenAI, type OpenAIProviderSettings } from '@ai-sdk/openai'
 import {
-  APICallError,
   type LanguageModelV4,
   type LanguageModelV4CallOptions,
   type LanguageModelV4StreamPart,
@@ -17,8 +16,13 @@ import {
 } from '@dltech/atlas-core'
 
 import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
+import { CODEX_PLAN_LABEL } from '../models/provider-ids'
+import { isConfirmedAuthRefusal } from './auth-repair'
 import { failingAs, withFailureAccount } from './failure-account'
+import { withStreamProvenance } from './stream-provenance'
 import { openaiCacheOptions } from './openai-cache'
+import { admittedByAccount, type ProviderAdmission } from './provider-admission'
+import { providerKey } from './provider-key'
 import { withOpenAiCompatibleReasoning } from './openai-reasoning'
 import { generationFromStream } from './stream-generation'
 
@@ -27,7 +31,6 @@ import { generationFromStream } from './stream-generation'
 // request shaped the way codex shapes it (store off, encrypted reasoning content carried so a
 // follow-up turn can thread it back). Constants verified against openai/codex `codex-rs`.
 const CHATGPT_BASE_URL = 'https://chatgpt.com/backend-api/codex'
-const REFUSED_STATUSES = [401, 403]
 
 const SUBSCRIPTION_REQUEST: SharedV4ProviderOptions = {
   openai: { store: false, include: ['reasoning.encrypted_content'] },
@@ -35,8 +38,12 @@ const SUBSCRIPTION_REQUEST: SharedV4ProviderOptions = {
 
 type AuthorizedModel = { model: LanguageModelV4; credential: Credential }
 
-const wasRefused = (error: unknown): boolean =>
-  APICallError.isInstance(error) && REFUSED_STATUSES.includes(error.statusCode ?? 0)
+const provenanceOf = (args: { credential: Credential; providerId: string; modelId: string }) => ({
+  accountId: args.credential.accountId,
+  providerId: args.providerId,
+  modelId: args.modelId,
+  authorizationDelivered: true,
+})
 
 const terminalResponse = (part: LanguageModelV4StreamPart): boolean => {
   if (part.type !== 'raw') return false
@@ -85,6 +92,7 @@ export function createOpenAiModel(args: {
   providerId: string
   modelId: string
   accountId?: AccountId | undefined
+  admission?: ProviderAdmission | undefined
   fetch?: OpenAIProviderSettings['fetch'] | undefined
 }): LanguageModelV4 {
   const authorizedModel = async (): Promise<AuthorizedModel> => {
@@ -92,13 +100,21 @@ export function createOpenAiModel(args: {
       provider: EAuthProvider.OpenAI,
       accountId: args.accountId,
     })
+    providerKey({ credential, label: CODEX_PLAN_LABEL })
 
-    const model = createOpenAI({
+    const provider = createOpenAI({
       name: args.providerId,
       ...settingsOf(credential),
       ...(args.fetch === undefined ? {} : { fetch: args.fetch }),
     }).responses(args.modelId)
 
+    const model = admittedByAccount({
+      admission: args.admission,
+      model: provider,
+      credential,
+      providerId: args.providerId,
+      modelId: args.modelId,
+    })
     return { model, credential }
   }
 
@@ -129,6 +145,8 @@ export function createOpenAiModel(args: {
     })
   }
 
+  const identity = { providerId: args.providerId, modelId: args.modelId }
+
   const throughACredentialTheServerAccepts = async <TResult>(
     call: (authorized: AuthorizedModel) => PromiseLike<TResult>,
   ): Promise<TResult> => {
@@ -137,15 +155,21 @@ export function createOpenAiModel(args: {
     try {
       return await call(authorized)
     } catch (error) {
-      withFailureAccount({ error, accountId: authorized.credential.accountId })
-      if (!wasRefused(error)) throw error
+      withFailureAccount({
+        error,
+        ...provenanceOf({ ...identity, credential: authorized.credential }),
+      })
+      if (!isConfirmedAuthRefusal(error)) throw error
 
       await args.credentials.discard(authorized.credential)
 
       const retried = await authorizedModel()
       if (secretOf(retried.credential) === secretOf(authorized.credential)) throw error
 
-      return await failingAs({ accountId: retried.credential.accountId, run: () => call(retried) })
+      return await failingAs({
+        ...provenanceOf({ ...identity, credential: retried.credential }),
+        run: () => call(retried),
+      })
     }
   }
 
@@ -168,8 +192,11 @@ export function createOpenAiModel(args: {
         })
       }),
     doStream: (options) =>
-      throughACredentialTheServerAccepts((authorized) =>
-        authorized.model.doStream(shaped({ authorized, options })),
+      throughACredentialTheServerAccepts(async (authorized) =>
+        withStreamProvenance({
+          result: await authorized.model.doStream(shaped({ authorized, options })),
+          provenance: provenanceOf({ ...identity, credential: authorized.credential }),
+        }),
       ),
   }
 }

@@ -3,6 +3,7 @@ import { z } from 'zod'
 export enum EModelProviderStatus {
   Connected = 'connected',
   Expired = 'expired',
+  Unavailable = 'unavailable',
 }
 
 export const modelEntrySchema = z.object({

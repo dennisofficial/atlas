@@ -9,7 +9,8 @@ import {
 } from '@dltech/atlas-core'
 
 import { FaultingModelPort, faultFromEnv } from '../faulting-model'
-import { modelFailureOf } from '../failure'
+import { EProviderFailureKind } from '@dltech/atlas-core'
+import { normalized, transient } from './normalize-fixture'
 
 const ASSEMBLED = { messages: [], instructions: [], trace: [] } as unknown as Assembled
 
@@ -97,7 +98,10 @@ describe('a model port that fails on purpose', () => {
     const thrown = await stepping(faulting).catch((error: unknown) => error)
 
     expect(APICallError.isInstance(thrown)).toBe(true)
-    expect(modelFailureOf(thrown)).toEqual({ status: 529 })
+    expect(normalized(thrown)).toMatchObject({
+      ...transient(EProviderFailureKind.Overloaded),
+      statusCode: 529,
+    })
   })
 
   it('carries a retry-after the retry loop will obey', async () => {
@@ -108,7 +112,9 @@ describe('a model port that fails on purpose', () => {
 
     const thrown = await stepping(faulting).catch((error: unknown) => error)
 
-    expect(modelFailureOf(thrown)).toEqual({ status: 429, retryAfterMs: 5_000 })
+    const failure = normalized(thrown)
+    expect(failure).toMatchObject(transient(EProviderFailureKind.RateLimited))
+    expect(failure.retryAt).toBe('2026-10-31T12:00:05.000Z')
   })
 
   it('steps through to the real model once it has failed its count', async () => {

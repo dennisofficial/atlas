@@ -20,6 +20,7 @@ export const sharedPortBindings = {
   LogPort: { runtime: 'shared', transport: null },
   ModelPort: { runtime: 'shared', transport: null },
   CredentialPort: { runtime: 'shared', transport: null },
+  CredentialAvailabilityPort: { runtime: 'shared', transport: null },
   AccountStorePort: { runtime: 'shared', transport: RemoteAccountStore },
   ProcessPort: { runtime: 'shared', transport: null },
   FileSystemPort: { runtime: 'shared', transport: null },

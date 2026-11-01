@@ -1,5 +1,7 @@
 import { GITHUB_REPO_PATTERN, type PrStateWire, type WireThread } from '@dltech/atlas-wire/web'
 
+import { currentBranchOf } from './header-model'
+
 export type PullRequestEntry = {
   repo: string
   number: number
@@ -101,8 +103,7 @@ export function pullRequestEntriesOf(args: {
   family?: readonly WireThread[]
 }): PullRequestEntry[] {
   const { thread, states } = args
-  const branch = thread.worktree?.branch
-  const currentBranch = branch === undefined || branch === '' ? undefined : branch
+  const currentBranch = currentBranchOf(thread)
   const liveByIdentity = new Map(states.map((state) => [pullRequestKeyOf(state), state]))
   const linked = (thread.pullRequests ?? []).map((pullRequest) =>
     entryOf({
@@ -118,7 +119,7 @@ export function pullRequestEntriesOf(args: {
   const knownRepos = discoveryReposOf(thread)
   const ambiguousRepos = new Set(
     family
-      .filter((member) => member.id !== thread.id && member.worktree?.branch === currentBranch)
+      .filter((member) => member.id !== thread.id && currentBranchOf(member) === currentBranch)
       .flatMap((member) => [...discoveryReposOf(member)]),
   )
   const linkedIdentities = new Set(linked.map(pullRequestKeyOf))

@@ -42,6 +42,7 @@ const sharedConfig: NextConfig = {
     '@dltech/atlas-api-router',
     '@dltech/atlas-client',
     '@dltech/atlas-core',
+    '@dltech/atlas-harness',
     '@dltech/atlas-models',
     '@dltech/atlas-ui',
     '@dltech/atlas-wire',

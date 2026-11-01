@@ -4,6 +4,9 @@ import {
   EAuthKind,
   EAuthProvider,
   EImageTier,
+  EProviderFailureKind,
+  EProviderFailureScope,
+  EProviderRetry,
   type Credential,
   type CredentialPort,
   type CredentialRequest,
@@ -99,5 +102,27 @@ describe('a provider adapter asking for a credential', () => {
 
     expect((thrown as Error | undefined)?.message).toContain('OpenRouter account')
     expect((thrown as Error | undefined)?.message).toContain('carries no key')
+  })
+
+  it('classifies the empty key as Delivery with the account attached, before any request', async () => {
+    const { normalizeProviderFailure } = await import('../../model/failure')
+    const adapter = new OpenRouterAdapter({
+      credentials: withoutAKey,
+      cards: [cardOn(OPENROUTER_PROVIDER_ID)],
+    })
+
+    let thrown: unknown
+    try {
+      await adapter.model({ card: cardOn(OPENROUTER_PROVIDER_ID), effort }).doGenerate({} as never)
+    } catch (error) {
+      thrown = error
+    }
+
+    expect(normalizeProviderFailure({ cause: thrown, nowMs: 0 })).toMatchObject({
+      kind: EProviderFailureKind.Delivery,
+      scope: EProviderFailureScope.Request,
+      retry: EProviderRetry.Never,
+      accountId: 'acc_1',
+    })
   })
 })

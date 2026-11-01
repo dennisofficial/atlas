@@ -66,7 +66,9 @@ export class ModelsService {
         status:
           provider.status === 'expired'
             ? EModelProviderStatus.Expired
-            : EModelProviderStatus.Connected,
+            : provider.status === 'unavailable'
+              ? EModelProviderStatus.Unavailable
+              : EModelProviderStatus.Connected,
       })),
       ...(live?.error === undefined ? {} : { liveError: live.error }),
     }

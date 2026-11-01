@@ -2,8 +2,10 @@ import { describe, expect, it } from 'bun:test'
 import { APICallError } from '@ai-sdk/provider'
 import { StreamProviderError } from 'ai'
 
+import { EProviderRetry } from '@dltech/atlas-core'
+
 import { ModelStreamError } from '../errors'
-import { modelFailureOf } from '../failure'
+import { normalized } from './normalize-fixture'
 
 type FailureInput = { code: string; message: string }
 const factories: ReadonlyArray<
@@ -41,7 +43,10 @@ describe.each(factories)('permanent statusless %s provider failures', (_name, bu
     'invalid_request_error',
   ])('rejects %s before either the retry flag or network-message fallback', (code) => {
     const error = build({ code, message: 'fetch failed' })
-    expect(modelFailureOf(error)).toBeNull()
-    expect(modelFailureOf(new ModelStreamError({ message: 'wrapped', cause: error }))).toBeNull()
+
+    expect(normalized(error).retry).toBe(EProviderRetry.Never)
+    expect(normalized(new ModelStreamError({ message: 'wrapped', cause: error })).retry).toBe(
+      EProviderRetry.Never,
+    )
   })
 })

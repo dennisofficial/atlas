@@ -237,6 +237,7 @@ describe('childModelSelection', () => {
       url: 'https://api.openai.com/v1/responses',
       requestBodyValues: {},
       statusCode: 401,
+      data: { error: { code: 'invalid_api_key' } },
     })
 
     it('falls back to the session model and answers from it', async () => {

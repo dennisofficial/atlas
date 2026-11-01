@@ -155,6 +155,57 @@ describe('the openai model authenticated by a ChatGPT subscription', () => {
     expect(recorder.requests[1]?.headers.get('authorization')).toBe('Bearer token-rotated')
   })
 
+  describe('renewing only for a confirmed auth refusal', () => {
+    it.each([
+      ['a generic 403', 403, '{"error":{"message":"forbidden","type":"permission_error"}}'],
+      ['a model denial', 404, '{"error":{"message":"no model","code":"model_not_found"}}'],
+      [
+        'a hard quota 429',
+        429,
+        '{"error":{"message":"out of credit","code":"insufficient_quota"}}',
+      ],
+      [
+        'a missing authorization header',
+        401,
+        '{"error":{"message":"Missing Authentication header","code":"invalid_api_key"}}',
+      ],
+    ])('never discards or resends for %s', async (_name, status, refusalBody) => {
+      const recorder = refusingFirstFetch({ body: streamedResponse(), status, refusalBody })
+      const credentials = subscriptionCredentials('token-one', 'token-two')
+      const model = createOpenAiModel({
+        credentials,
+        providerId: 'openai',
+        modelId: 'gpt-5.1-codex',
+        fetch: recorder.fetch,
+      })
+
+      await expect(generateText({ model, prompt: 'ping', maxRetries: 0 })).rejects.toThrow()
+
+      expect(recorder.requests).toHaveLength(1)
+      expect(credentials.discarded).toEqual([])
+    })
+
+    it('does not resend when the renewed pair carries the same secret', async () => {
+      const recorder = refusingFirstFetch({
+        body: streamedResponse(),
+        status: 401,
+        refusalBody: refusal,
+      })
+      const credentials = subscriptionCredentials('token-same')
+      const model = createOpenAiModel({
+        credentials,
+        providerId: 'openai',
+        modelId: 'gpt-5.1-codex',
+        fetch: recorder.fetch,
+      })
+
+      await expect(generateText({ model, prompt: 'ping', maxRetries: 0 })).rejects.toThrow()
+
+      expect(recorder.requests).toHaveLength(1)
+      expect(credentials.discarded).toEqual(['token-same'])
+    })
+  })
+
   it('refuses to send a subscription token with no account id anywhere', async () => {
     const recorder = recordingFetch({ body: streamedResponse() })
     const model = createOpenAiModel({

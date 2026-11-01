@@ -106,6 +106,7 @@ describe('the harness container graph', () => {
       'track-worktree',
       'outside-project',
       'invalidateFacts',
+      'track-checkout',
     ])
     expect(await hooks.onChunk({ chunk: delta })).toBe(delta)
   })

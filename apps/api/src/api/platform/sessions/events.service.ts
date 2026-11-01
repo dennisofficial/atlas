@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import type {
   AppendEventsInput,
@@ -6,8 +6,10 @@ import type {
   PodEventsReply,
   ReplaceEventsInput,
 } from '@dltech/atlas-wire'
+import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
 import { applyPodEvents } from '../sandboxes/pod-events'
 import { appendStoredWithin, nextEventId, readComposedRows, readOwnRows } from './append'
+import { SUBSCRIPTION_EVENT_TYPES } from './thread-subscriptions'
 import { bumpHistoryRevision } from './history-revision'
 import { ownedThread } from './ownership'
 import { ThreadSignalsService } from './thread-signals.service'
@@ -16,7 +18,25 @@ import type { EventDto } from './sessions.types'
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly signals: ThreadSignalsService) {}
+  constructor(
+    private readonly signals: ThreadSignalsService,
+    @Optional()
+    @Inject(PrSubscriptionLinks)
+    private readonly prLinks?: PrSubscriptionLinks,
+  ) {}
+
+  private async syncPrLinks(args: {
+    userId: string
+    threadId: string
+    events: readonly EventDto[]
+  }): Promise<void> {
+    if (this.prLinks === undefined) return
+    const rows = args.events.filter((event) => SUBSCRIPTION_EVENT_TYPES.includes(event.type))
+    if (rows.length === 0) return
+    await this.prLinks
+      .syncFromEvents({ userId: args.userId, threadId: args.threadId, events: rows })
+      .catch(() => undefined)
+  }
 
   async append(args: {
     userId: string
@@ -36,6 +56,11 @@ export class EventsService {
     )
     if (appended !== undefined) {
       await this.signals.eventsAppended({ threadId: args.threadId, ...appended })
+      await this.syncPrLinks({
+        userId: args.userId,
+        threadId: args.threadId,
+        events: appended.events,
+      })
     }
     return events
   }

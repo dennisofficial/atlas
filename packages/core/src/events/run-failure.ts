@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { classifyProviderFailure, EProviderFailureKind } from '../models/provider-failure'
+
 export enum ERunFailureKind {
   Auth = 'auth',
   Quota = 'quota',
@@ -8,6 +10,8 @@ export enum ERunFailureKind {
   Overloaded = 'overloaded',
   MissingCredential = 'missing-credential',
   Stalled = 'stalled',
+  Delivery = 'delivery',
+  ModelDenied = 'model-denied',
   ContextOverflow = 'context-overflow',
   ExchangeFault = 'exchange-fault',
   LoopGuard = 'loop-guard',
@@ -18,7 +22,11 @@ export enum ERunFailureKind {
   Other = 'other',
 }
 
-export type RunFailureAgent = { agentId: string; agentType: string; intent: string }
+export type RunFailureAgent = {
+  agentId: string
+  agentType: string
+  intent: string
+}
 
 export type RunFailure = {
   kind: ERunFailureKind
@@ -28,6 +36,8 @@ export type RunFailure = {
   providerId?: string | undefined
   modelId?: string | undefined
   accountId?: string | undefined
+  retryAt?: string | undefined
+  resetAt?: string | undefined
   agent?: RunFailureAgent | undefined
 }
 
@@ -39,56 +49,57 @@ export const runFailureSchema: z.ZodType<RunFailure> = z.object({
   providerId: z.string().min(1).optional(),
   modelId: z.string().min(1).optional(),
   accountId: z.string().min(1).optional(),
+  retryAt: z.string().optional(),
+  resetAt: z.string().optional(),
   agent: z
-    .object({ agentId: z.string().min(1), agentType: z.string(), intent: z.string() })
+    .object({
+      agentId: z.string().min(1),
+      agentType: z.string(),
+      intent: z.string(),
+    })
     .optional(),
 })
 
-const AUTH_STATUSES: ReadonlySet<number> = new Set([401, 403])
-const QUOTA_STATUSES: ReadonlySet<number> = new Set([402])
-const AUTH_IDENTIFIERS: ReadonlySet<string> = new Set([
-  'invalid_api_key',
-  'authentication_error',
-  'authentication',
-  'invalid_authentication',
-  'permission_error',
-])
-const QUOTA_IDENTIFIERS: ReadonlySet<string> = new Set([
-  'insufficient_quota',
-  'billing_hard_limit_reached',
-  'payment_required',
-])
-const OVERLOADED_IDENTIFIERS: ReadonlySet<string> = new Set(['overloaded_error', 'overloaded'])
-const TOO_MANY_REQUESTS = 429
-const OVERLOADED_STATUS = 529
-const FIRST_SERVER_ERROR = 500
+const RUN_KIND_OF_PROVIDER_KIND: Readonly<Record<EProviderFailureKind, ERunFailureKind>> = {
+  [EProviderFailureKind.Auth]: ERunFailureKind.Auth,
+  [EProviderFailureKind.Quota]: ERunFailureKind.Quota,
+  [EProviderFailureKind.RateLimited]: ERunFailureKind.RateLimited,
+  [EProviderFailureKind.Network]: ERunFailureKind.Network,
+  [EProviderFailureKind.Overloaded]: ERunFailureKind.Overloaded,
+  [EProviderFailureKind.Stalled]: ERunFailureKind.Stalled,
+  [EProviderFailureKind.Delivery]: ERunFailureKind.Delivery,
+  [EProviderFailureKind.ModelDenied]: ERunFailureKind.ModelDenied,
+  [EProviderFailureKind.ContextOverflow]: ERunFailureKind.ContextOverflow,
+  [EProviderFailureKind.InvalidRequest]: ERunFailureKind.Other,
+  [EProviderFailureKind.Cancelled]: ERunFailureKind.Other,
+  [EProviderFailureKind.Other]: ERunFailureKind.Other,
+}
+
+export const runFailureKindOfProviderKind = (kind: EProviderFailureKind): ERunFailureKind =>
+  RUN_KIND_OF_PROVIDER_KIND[kind]
 
 export function runFailureKindOf(args: {
   statusCode?: number | undefined
   providerCode?: string | number | undefined
   providerType?: string | undefined
+  providerId?: string | undefined
+  providerMessage?: string | undefined
   dropped?: boolean | undefined
+  authorizationDelivered?: boolean | undefined
 }): ERunFailureKind {
-  const { statusCode } = args
-  const identifiers = [args.providerCode, args.providerType]
-    .filter((value): value is string | number => value !== undefined)
-    .map((value) => String(value).toLowerCase())
-  const named = (set: ReadonlySet<string>): boolean =>
-    identifiers.some((identifier) => set.has(identifier))
-
-  if (named(QUOTA_IDENTIFIERS)) return ERunFailureKind.Quota
-  if (statusCode !== undefined && QUOTA_STATUSES.has(statusCode)) return ERunFailureKind.Quota
-  if (named(AUTH_IDENTIFIERS)) return ERunFailureKind.Auth
-  if (statusCode !== undefined && AUTH_STATUSES.has(statusCode)) return ERunFailureKind.Auth
-  if (statusCode === TOO_MANY_REQUESTS) return ERunFailureKind.RateLimited
-  if (named(OVERLOADED_IDENTIFIERS) || statusCode === OVERLOADED_STATUS) {
-    return ERunFailureKind.Overloaded
-  }
-  if (statusCode !== undefined && statusCode >= FIRST_SERVER_ERROR) {
-    return ERunFailureKind.Overloaded
-  }
-  if (statusCode === undefined && args.dropped === true) return ERunFailureKind.Network
-  return ERunFailureKind.Other
+  const normalized = classifyProviderFailure({
+    evidence: {
+      message: args.providerMessage ?? '',
+      statusCode: args.statusCode,
+      providerCode: args.providerCode === undefined ? undefined : String(args.providerCode),
+      providerType: args.providerType,
+      providerId: args.providerId,
+      providerMessage: args.providerMessage,
+      transport: args.dropped,
+      authorizationDelivered: args.authorizationDelivered,
+    },
+  })
+  return runFailureKindOfProviderKind(normalized.kind)
 }
 
 export enum ERunRemedy {
@@ -106,8 +117,11 @@ export function remediesOf(kind: ERunFailureKind): readonly ERunRemedy[] {
     case ERunFailureKind.Quota:
     case ERunFailureKind.MissingCredential:
       return [ERunRemedy.FixCredential, ERunRemedy.Retry, ERunRemedy.SwitchModel]
+    case ERunFailureKind.Delivery:
+      return [ERunRemedy.FixCredential, ERunRemedy.Retry]
     case ERunFailureKind.RateLimited:
     case ERunFailureKind.Overloaded:
+    case ERunFailureKind.ModelDenied:
       return [ERunRemedy.Retry, ERunRemedy.SwitchModel]
     case ERunFailureKind.ContextOverflow:
       return [ERunRemedy.Compact, ERunRemedy.SwitchModel]

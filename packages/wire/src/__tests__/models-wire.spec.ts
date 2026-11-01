@@ -41,6 +41,14 @@ describe('modelsResponseSchema', () => {
     ).toBe(true)
   })
 
+  it('accepts an unavailable provider carrying its catalogue models', () => {
+    const parsed = modelsResponseSchema.parse({
+      providers: [{ ...connected, id: 'openrouter', status: 'unavailable', live: false }],
+    })
+
+    expect(parsed.providers[0]?.status).toBe(EModelProviderStatus.Unavailable)
+  })
+
   it('rejects an unknown status', () => {
     expect(
       modelsResponseSchema.safeParse({ providers: [{ ...connected, status: 'limited' }] }).success,

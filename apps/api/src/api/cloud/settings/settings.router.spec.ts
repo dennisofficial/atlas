@@ -4,7 +4,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { INestApplication } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { createPersonalApp, trpcMutate, trpcQuery } from '../personal-resources.router.fixture'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { SettingsRouter } from './settings.router'
 import { SettingsService } from './settings.service'
 
@@ -23,7 +23,7 @@ describe('SettingsRouter', () => {
 
   afterEach(() => app.close())
 
-  it('set accepts raw legacy uploads that patch rejects', async () => {
+  it('set and patch reject the same malformed values', async () => {
     const uploads: Array<[string, unknown]> = [
       ['sandbox.vcpus', '4'],
       ['sandbox.vcpus', 3],
@@ -33,10 +33,18 @@ describe('SettingsRouter', () => {
     ]
     for (const [key, value] of uploads) {
       const encoded = encodeSettingValue(value)
-      await mutate('settings.set', 'session-a', { key, value: encoded }).expect(200)
+      await mutate('settings.set', 'session-a', { key, value: encoded }).expect(400)
       await mutate('settings.patch', 'session-a', { values: { [key]: encoded } }).expect(400)
     }
-    expect(await settings()).toHaveLength(3)
+    expect(await settings()).toHaveLength(0)
+  })
+
+  it('set accepts a valid value for a known key', async () => {
+    await mutate('settings.set', 'session-a', {
+      key: 'sandbox.vcpus',
+      value: encodeSettingValue(4),
+    }).expect(200)
+    expect(await settings()).toHaveLength(1)
   })
 
   it('set passes an unknown key through untouched', async () => {

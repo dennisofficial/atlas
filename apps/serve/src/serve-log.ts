@@ -53,6 +53,7 @@ export enum EServeEvent {
   CloudStateFailed = 'serve.cloud-state-failed',
   FileMountSkipped = 'serve.file-mount-skipped',
   FileMountNoticeFailed = 'serve.file-mount-notice-failed',
+  ThreadOpenFailed = 'serve.thread-open-failed',
   SettingsDropped = 'serve.settings-dropped',
   RotationFailed = 'serve.rotation-failed',
   SigningKeyReady = 'serve.signing-key-ready',
@@ -68,6 +69,7 @@ export enum EServeEvent {
   BootReportFailed = 'serve.boot-report-failed',
   Hydrated = 'serve.hydrated',
   HydrateFailed = 'serve.hydrate-failed',
+  PullFailed = 'serve.pull-failed',
   ResumeRefused = 'serve.resume-refused',
   EventsFlushed = 'serve.events-flushed',
   EventsTruncated = 'serve.events-truncated',
@@ -78,6 +80,8 @@ export enum EServeEvent {
   ThreadModelPersistFailed = 'serve.thread-model-persist-failed',
   RenameForwardFailed = 'serve.rename-forward-failed',
   BootPhase = 'serve.boot-phase',
+  ContextMirrored = 'serve.context-mirrored',
+  ContextMirrorFailed = 'serve.context-mirror-failed',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

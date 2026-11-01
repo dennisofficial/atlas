@@ -12,6 +12,7 @@ const ENDINGS: Readonly<Record<ESubscriptionEnd, string>> = {
   [ESubscriptionEnd.Unsubscribed]: 'removed by the operator',
   [ESubscriptionEnd.Expired]: 'expired',
   [ESubscriptionEnd.Completed]: 'completed',
+  [ESubscriptionEnd.Archived]: 'ended because the thread was archived',
 }
 
 const notice = (content: string): string => systemNotice({ kind: 'subscription', content })

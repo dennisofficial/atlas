@@ -52,6 +52,7 @@ export class SettingsService {
 
   async set(args: { userId: string; key: string; value: string }): Promise<void> {
     assertValidKey(args.key)
+    assertValidValue({ key: args.key, value: args.value })
     await db.orm.public.UserSetting.upsert({
       create: {
         id: `set_${randomUUID()}`,

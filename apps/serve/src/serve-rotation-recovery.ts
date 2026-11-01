@@ -36,6 +36,7 @@ export async function createServeRotationRecovery(args: {
     'current' | 'parkReopened' | 'consumeReceipt'
   >
   let guarded: { app: ServeApp; checkpoint: GuardedCheckpoint } | undefined
+  let releaseGuardGate: (() => void) | undefined
   let continuationStarted = false
   let consumption: Promise<void> | undefined
   let preparingNextRotation = false
@@ -79,7 +80,7 @@ export async function createServeRotationRecovery(args: {
   const guard = async (given: { app: ServeApp; checkpoint: GuardedCheckpoint }): Promise<void> => {
     guarded = given
     if (state === null) return
-    given.app.intake?.suspend()
+    releaseGuardGate = given.app.intake?.suspend()
     await given.app.family?.freeze?.({ threadId: args.threadId })
     if (children === undefined && (resumeChildren?.length ?? 0) > 0) {
       children = await trackRotationChildren({
@@ -106,11 +107,13 @@ export async function createServeRotationRecovery(args: {
   }
 
   const release = async (): Promise<void> => {
+    const gate = releaseGuardGate
+    releaseGuardGate = undefined
+    gate?.()
     if (guarded === undefined || preparingNextRotation) return
     await guarded.app.family?.resumeChildren?.({ threadId: args.threadId })
     if (preparingNextRotation) return
     await reopenToServing()
-    guarded.app.intake?.resume()
   }
 
   const continueParent = async (given: {

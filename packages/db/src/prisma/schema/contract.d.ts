@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'8c06c16b9fa177877b5bb7b893f77c96e2f071c40b5f85bc4e5a4bfd8b0d102a'>;
+  StorageHashBase<'72a4fc277c7232110726a3363cb7622f7be63fc3f17c5f520460010f70357979'>;
 export type ExecutionHash =
   ExecutionHashBase<'e5139d1de8d5766e0bfebef978a82018efb9a20a4c75ca8470538fe80225e0c7'>;
 export type ProfileHash =
@@ -357,6 +357,27 @@ export namespace Models {
     session: public_Session;
     user: public_User;
     readonly [RelationKeys]?: 'oauthConnections' | 'session' | 'user';
+  };
+  export type public_ComposerDraft = {
+    attachments: FieldOutputTypes['public']['ComposerDraft']['attachments'];
+    scopeKey: FieldOutputTypes['public']['ComposerDraft']['scopeKey'];
+    text: FieldOutputTypes['public']['ComposerDraft']['text'];
+    threadId: FieldOutputTypes['public']['ComposerDraft']['threadId'];
+    updatedAt: FieldOutputTypes['public']['ComposerDraft']['updatedAt'];
+    userId: FieldOutputTypes['public']['ComposerDraft']['userId'];
+    thread: public_Thread | null;
+    user: public_User;
+    readonly [RelationKeys]?: 'thread' | 'user';
+  };
+  export type public_ContextFile = {
+    content: FieldOutputTypes['public']['ContextFile']['content'];
+    digest: FieldOutputTypes['public']['ContextFile']['digest'];
+    id: FieldOutputTypes['public']['ContextFile']['id'];
+    path: FieldOutputTypes['public']['ContextFile']['path'];
+    threadId: FieldOutputTypes['public']['ContextFile']['threadId'];
+    updatedAt: FieldOutputTypes['public']['ContextFile']['updatedAt'];
+    thread: public_Thread;
+    readonly [RelationKeys]?: 'thread';
   };
   export type public_DeviceCode = {
     clientId: FieldOutputTypes['public']['DeviceCode']['clientId'];
@@ -736,6 +757,7 @@ export namespace Models {
     updatedAt: FieldOutputTypes['public']['Thread']['updatedAt'];
     userId: FieldOutputTypes['public']['Thread']['userId'];
     working: FieldOutputTypes['public']['Thread']['working'];
+    contextFiles: public_ContextFile[];
     events: public_Event[];
     forks: public_Thread[];
     mainOfSession: public_Session | null;
@@ -747,6 +769,7 @@ export namespace Models {
     turns: public_Turn[];
     user: public_User;
     readonly [RelationKeys]?:
+      | 'contextFiles'
       | 'events'
       | 'forks'
       | 'mainOfSession'
@@ -798,6 +821,7 @@ export namespace Models {
     agentAccounts: public_AgentAccount[];
     authSessions: public_AuthSession[];
     cloudSandboxes: public_CloudSandbox[];
+    composerDrafts: public_ComposerDraft[];
     createdProjects: public_Project[];
     deviceCodes: public_DeviceCode[];
     githubConnection: public_GithubConnection | null;
@@ -829,6 +853,7 @@ export namespace Models {
       | 'agentAccounts'
       | 'authSessions'
       | 'cloudSandboxes'
+      | 'composerDrafts'
       | 'createdProjects'
       | 'deviceCodes'
       | 'githubConnection'
@@ -937,6 +962,8 @@ export declare const models: {
     AgentAccount: Models.public_AgentAccount;
     AuthSession: Models.public_AuthSession;
     CloudSandbox: Models.public_CloudSandbox;
+    ComposerDraft: Models.public_ComposerDraft;
+    ContextFile: Models.public_ContextFile;
     DeviceCode: Models.public_DeviceCode;
     Event: Models.public_Event;
     GithubAppInstallation: Models.public_GithubAppInstallation;
@@ -1650,6 +1677,148 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly ComposerDraft: {
+              columns: {
+                readonly attachments: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly scopeKey: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly text: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly threadId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ['userId', 'scopeKey'];
+                readonly name: 'ComposerDraft_pkey';
+              };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'ComposerDraft_threadId_idx';
+                  readonly columns: readonly ['threadId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ComposerDraft';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ComposerDraft';
+                    readonly columns: readonly ['threadId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Thread';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly ContextFile: {
+              columns: {
+                readonly content: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly digest: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly path: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly threadId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['threadId', 'path'];
+                  readonly name: 'ContextFile_threadId_path_key';
+                },
+              ];
+              indexes: readonly [];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ContextFile';
+                    readonly columns: readonly ['threadId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Thread';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -4911,6 +5080,14 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'UserSetting';
     };
+    readonly ComposerDraft: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ComposerDraft';
+    };
+    readonly ContextFile: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ContextFile';
+    };
     readonly DeviceCode: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'DeviceCode';
@@ -5574,6 +5751,131 @@ type ContractBase = Omit<
                 readonly wakeClaim: { readonly column: 'wakeClaim' };
                 readonly wakeFailedAt: { readonly column: 'wakeFailedAt' };
                 readonly workspaceRemoteUrl: { readonly column: 'workspaceRemoteUrl' };
+              };
+            };
+          };
+          readonly ComposerDraft: {
+            readonly fields: {
+              readonly attachments: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly scopeKey: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly text: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly threadId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly thread: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Thread';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['threadId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'ComposerDraft';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly attachments: { readonly column: 'attachments' };
+                readonly scopeKey: { readonly column: 'scopeKey' };
+                readonly text: { readonly column: 'text' };
+                readonly threadId: { readonly column: 'threadId' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly ContextFile: {
+            readonly fields: {
+              readonly content: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly digest: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly path: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly threadId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: {
+              readonly thread: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Thread';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['threadId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'ContextFile';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly content: { readonly column: 'content' };
+                readonly digest: { readonly column: 'digest' };
+                readonly id: { readonly column: 'id' };
+                readonly path: { readonly column: 'path' };
+                readonly threadId: { readonly column: 'threadId' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
               };
             };
           };
@@ -7783,6 +8085,17 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly contextFiles: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ContextFile';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['threadId'];
+                };
+              };
               readonly events: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -8167,6 +8480,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'CloudSandbox';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
+              readonly composerDrafts: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ComposerDraft';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {

@@ -13,7 +13,8 @@ import { WakeSignalSource } from '../../wake/wake-signal-source'
 import { runModelStream } from '../ai-sdk-model-port'
 import { wakeAbortsStream } from '../wake-aware-model'
 import { StreamStallError } from '../errors'
-import { modelFailureOf } from '../failure'
+import { EProviderFailureKind } from '@dltech/atlas-core'
+import { normalized, transient } from './normalize-fixture'
 import { providerPartsFor } from '../testing/scripted-model'
 
 const identity: ProviderIdentity = { id: 'anthropic', modelId: 'claude-opus-5' }
@@ -70,7 +71,7 @@ describe('a stream in flight when the machine wakes', () => {
     wakeOnNextTask(wake)
     const error = await running.catch((caught: unknown) => caught)
 
-    expect(modelFailureOf(error)).toEqual({})
+    expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Stalled))
   })
 
   it('leaves a stream alone when no wake fires', async () => {

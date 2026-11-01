@@ -1,8 +1,9 @@
-import type { LinkedPullRequestDto, ThreadWorktreeDto } from './sessions.types'
+import type { LinkedPullRequestDto, ThreadCheckoutDto, ThreadWorktreeDto } from './sessions.types'
 import type { SessionReader } from './fork-chain'
 import { walkReferences } from './reference-walk'
 
 const WORKTREE_EVENT_TYPES = ['worktree-entered', 'worktree-exited', 'directory-changed']
+const CHECKOUT_EVENT_TYPE = 'checkout-observed'
 const PULL_REQUEST_EVENT_TYPE = 'pull-request-linked'
 
 const enteredFrom = (body: string): ThreadWorktreeDto | null => {
@@ -14,6 +15,21 @@ const enteredFrom = (body: string): ThreadWorktreeDto | null => {
     if (typeof path !== 'string' || typeof branch !== 'string') return null
 
     return { path, branch }
+  } catch {
+    return null
+  }
+}
+
+const checkoutFrom = (body: string): ThreadCheckoutDto | null => {
+  try {
+    const parsed: unknown = JSON.parse(body)
+    if (typeof parsed !== 'object' || parsed === null) return null
+
+    const { path, branch, detached } = parsed as Record<string, unknown>
+    if (typeof path !== 'string' || typeof detached !== 'boolean') return null
+    if (typeof branch !== 'string' && branch !== null) return null
+
+    return { path, branch, detached }
   } catch {
     return null
   }
@@ -51,6 +67,23 @@ export function threadWorktrees(args: {
       return {
         value: latest.type === 'worktree-entered' ? enteredFrom(latest.body) : null,
       }
+    },
+  })
+}
+
+export function threadCheckouts(args: {
+  reader: SessionReader
+  threadIds: readonly string[]
+}): Promise<Map<string, ThreadCheckoutDto | null>> {
+  return walkReferences<ThreadCheckoutDto | null>({
+    reader: args.reader,
+    threadIds: args.threadIds,
+    eventTypes: [CHECKOUT_EVENT_TYPE],
+    fallback: () => null,
+    pick: (events) => {
+      const latest = events.at(-1)
+      if (latest === undefined) return null
+      return { value: checkoutFrom(latest.body) }
     },
   })
 }

@@ -1,10 +1,12 @@
-import type { ApiClient } from '@dltech/atlas-api-router'
+import type { ApiClient, ApiClientOptions } from '@dltech/atlas-api-router'
 import {
   type CompactThreadInput,
   type ForkThreadInput,
   type PodEvent,
   type PodEventsReply,
 } from '@dltech/atlas-wire'
+
+import { EventSource } from 'eventsource'
 
 import { cloudCall, createHarnessApiClient } from './api-trpc-client'
 import {
@@ -36,19 +38,44 @@ type MarkArgs = {
 
 export class SessionsClient {
   private readonly client: ApiClient
+  private readonly streamClient: ApiClient
 
   constructor(args: {
     url: string
     token: string
     clientVersion?: string
     fetchFn?: typeof fetch
+    EventSource?: ApiClientOptions['EventSource']
   }) {
-    this.client = createHarnessApiClient({
+    const shared = {
       url: args.url,
       token: args.token,
       clientVersion: args.clientVersion ?? 'dev',
       fetchFn: args.fetchFn ?? fetch,
+    }
+    this.client = createHarnessApiClient(shared)
+    this.streamClient = createHarnessApiClient({
+      ...shared,
+      timeoutMs: null,
+      EventSource: args.EventSource ?? EventSource,
     })
+  }
+
+  watchEvents(args: {
+    threadId: string
+    onTick: () => void
+    onFailure: (reason: string) => void
+    onEnded: () => void
+  }): () => void {
+    const subscription = this.streamClient.sandboxSelf.watchEvents.subscribe(
+      { threadId: args.threadId },
+      {
+        onData: args.onTick,
+        onError: (failure) => args.onFailure(failure.message),
+        onComplete: args.onEnded,
+      },
+    )
+    return () => subscription.unsubscribe()
   }
 
   async createThread(args: {

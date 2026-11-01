@@ -1,6 +1,8 @@
 import { transcriptOfRange, type Event } from '@dltech/atlas-core'
 import { generateText, type LanguageModel } from 'ai'
 
+import { NO_SDK_RETRIES } from './no-sdk-retries'
+
 const SUMMARY_INSTRUCTION = [
   'You compact a coding session so the agent can keep working after its earlier turns are dropped.',
   'The summary replaces those turns entirely, so anything the agent still needs must be in it.',
@@ -60,6 +62,7 @@ export async function summaryFor(args: {
       model: args.model,
       system: SUMMARY_INSTRUCTION,
       prompt: transcript,
+      maxRetries: NO_SDK_RETRIES,
       ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
     })
   } catch (fault) {

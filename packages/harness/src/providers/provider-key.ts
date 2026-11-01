@@ -1,5 +1,7 @@
 import { secretOf, type Credential } from '@dltech/atlas-core'
 
+import { withFailureAccount } from './failure-account'
+
 export class MissingKeyError extends Error {
   constructor(label: string) {
     super(`The ${label} account Atlas resolved carries no key. Add one with /auth.`)
@@ -17,5 +19,9 @@ export function providerKey(args: { credential: Credential; label: string }): st
   const held = secretOf(args.credential)
   if (held.length > 0) return held
 
-  throw new MissingKeyError(args.label)
+  throw withFailureAccount({
+    error: new MissingKeyError(args.label),
+    accountId: args.credential.accountId,
+    authorizationDelivered: false,
+  })
 }

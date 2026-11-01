@@ -20,6 +20,8 @@ export type ThreadWorktreeDto = {
   branch: string
 }
 
+export type ThreadCheckoutDto = NonNullable<WireThread['checkout']>
+
 export type LinkedPullRequestDto = NonNullable<WireThread['pullRequests']>[number]
 
 export type ThreadDraft = {
@@ -50,6 +52,7 @@ export type ThreadDto = {
   repo: string | null
   model?: ThreadModelDto | undefined
   worktree?: ThreadWorktreeDto | undefined
+  checkout?: ThreadCheckoutDto | undefined
   pullRequests?: LinkedPullRequestDto[] | undefined
   subscriptions?: ThreadSubscriptionDto[] | undefined
   executionLocation?: string | undefined

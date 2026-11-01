@@ -15,4 +15,24 @@ describe('failed outcome wire', () => {
       failure,
     })
   })
+
+  it('keeps retryAt and resetAt on the failure', () => {
+    const failure = {
+      kind: 'quota',
+      message: 'out',
+      retryAt: '2026-10-31T12:00:00.000Z',
+      resetAt: '2026-11-01T00:00:00+02:00',
+    }
+    expect(turnOutcomeWireSchema.parse({ ...base, failure })).toMatchObject({ failure })
+  })
+
+  it.each(['delivery', 'model-denied', 'from-the-future'])('accepts the %s kind', (kind) => {
+    const failure = { kind, message: 'x' }
+    expect(turnOutcomeWireSchema.parse({ ...base, failure })).toMatchObject({ failure })
+  })
+
+  it('rejects a retryAt that is not an ISO instant', () => {
+    const failure = { kind: 'quota', message: 'out', retryAt: 'soon' }
+    expect(turnOutcomeWireSchema.safeParse({ ...base, failure }).success).toBe(false)
+  })
 })

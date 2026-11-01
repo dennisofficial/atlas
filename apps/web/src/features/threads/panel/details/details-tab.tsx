@@ -25,7 +25,7 @@ export function DetailsTab(props: { agents: AgentsData; subscriptions: Subscript
   const { threadId, channel, agentId } = useThreadPanel()
   const processes = useProcesses({ threadId, channel })
   const declared = useDeclaredServices(channel)
-  const context = useContextFiles(channel)
+  const context = useContextFiles({ threadId, channel })
   const adhoc = adhocFoldOf({
     data: processes,
     declared: declaredNamesOf(declared.view),
@@ -36,27 +36,25 @@ export function DetailsTab(props: { agents: AgentsData; subscriptions: Subscript
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3">
-        {drilled ? (
-          <AgentDrill data={props.agents} />
-        ) : (
-          <>
-            <HeadSection />
-            <PodSection />
-            <GithubSection />
-            <ContextSection files={context} />
-            <ServicesSection
-              data={declared}
-              onOpenLog={handleOpenServiceLog}
-              adhoc={{ data: processes, fold: adhoc }}
-            />
-            <BackgroundSection data={processes} />
-            <TodoSection />
-            <CrewSection data={props.agents} />
-            <SubscriptionsSection data={props.subscriptions} />
-          </>
-        )}
-      </div>
+      {drilled ? (
+        <AgentDrill data={props.agents} />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3">
+          <HeadSection />
+          <PodSection />
+          <GithubSection />
+          <ContextSection files={context} />
+          <ServicesSection
+            data={declared}
+            onOpenLog={handleOpenServiceLog}
+            adhoc={{ data: processes, fold: adhoc }}
+          />
+          <BackgroundSection data={processes} />
+          <TodoSection />
+          <CrewSection data={props.agents} />
+          <SubscriptionsSection data={props.subscriptions} />
+        </div>
+      )}
       <ProcessLogSheet data={processes} />
       <DetailsFooter />
     </div>
