@@ -7,6 +7,7 @@ import React, { act } from 'react'
 import { contextDirectory, sessionDirectory } from '@dltech/atlas-harness'
 
 import { grammarsReady, teardown } from '../../ui/markdown/__tests__/harness'
+import { frameShowing } from '../../ui/__tests__/waiting'
 import { App } from '../app'
 import { editorIn, spokenIn, THREAD } from './app-fixture'
 import { fakeApp, scriptedModelPort } from './fake-app'
@@ -42,8 +43,7 @@ describe('context pane in a conversation', () => {
       await act(async () => {
         await setup.mockMouse.click(column, row)
       })
-      await setup.flush()
-      const viewer = setup.captureCharFrame()
+      const viewer = await frameShowing({ setup, text: 'const item1 = 1' })
       expect(viewer).toContain('const item1 = 1')
       expect(
         viewer
