@@ -12,6 +12,7 @@ import type { LocalThread, ThreadEventsQuery, ThreadEventsReply } from './wire'
 
 export interface IThreadReads {
   threads: () => Promise<LocalThread[]>
+  setArchived: (args: { threadId: string; archived: boolean }) => Promise<boolean>
   rename: (args: { threadId: string; title: string }) => Promise<boolean>
   events: (args: {
     threadId: string
@@ -61,6 +62,11 @@ export function createThreadReads({
           }),
         ),
       )
+    },
+    setArchived: async ({ threadId, archived }) => {
+      const id = await known(threadId)
+      if (id === undefined) return false
+      return store.threads.setArchived({ threadId: id, archived })
     },
     rename: async ({ threadId, title }) => {
       const id = await known(threadId)

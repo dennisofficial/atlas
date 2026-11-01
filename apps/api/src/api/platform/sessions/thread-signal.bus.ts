@@ -1,10 +1,8 @@
 import {
   projectSchema,
-  threadListActivitySchema,
   threadStreamFrameSchema,
   wireThreadSchema,
   type Project,
-  type ThreadListActivity,
   type ThreadStreamFrame,
 } from '@dltech/atlas-wire'
 import { Logger, type Provider } from '@nestjs/common'
@@ -16,11 +14,6 @@ import { RedisService } from '../../../_lib/redis/redis.service'
 export const THREAD_SIGNAL_CHANNEL = 'atlas:thread-signals'
 
 export type ThreadFrameSignal = { threadId: string; frame: ThreadStreamFrame }
-export type ListSignal = {
-  userId: string
-  threadId: string
-  activity?: ThreadListActivity | undefined
-}
 export type ThreadChangedSignal = {
   userId: string
   threadId: string
@@ -39,7 +32,6 @@ export type ProjectChangedSignal = { userId: string; project: Project }
 export type ProjectRemovedSignal = { userId: string; projectId: string; removed: true }
 export type ThreadSignal =
   | ThreadFrameSignal
-  | ListSignal
   | ThreadChangedSignal
   | ProjectChangedSignal
   | ProjectRemovedSignal
@@ -47,11 +39,6 @@ export type ThreadSignal =
 const threadFrameSignalSchema = z.strictObject({
   threadId: z.string().min(1),
   frame: threadStreamFrameSchema,
-})
-const listSignalSchema = z.strictObject({
-  userId: z.string().min(1),
-  threadId: z.string().min(1),
-  activity: threadListActivitySchema.optional(),
 })
 const threadChangedSessionSchema = z.strictObject({
   id: z.string().min(1),
@@ -78,7 +65,6 @@ const projectRemovedSignalSchema = z.strictObject({
 })
 const threadSignalSchema = z.union([
   threadFrameSignalSchema,
-  listSignalSchema,
   threadChangedSignalSchema,
   projectChangedSignalSchema,
   projectRemovedSignalSchema,
@@ -92,9 +78,6 @@ export const isProjectChangedSignal = (signal: ThreadSignal): signal is ProjectC
 
 export const isProjectRemovedSignal = (signal: ThreadSignal): signal is ProjectRemovedSignal =>
   'removed' in signal
-
-export const isListSignal = (signal: ThreadSignal): signal is ListSignal =>
-  !('frame' in signal) && !('thread' in signal) && !('project' in signal) && !('removed' in signal)
 
 export function parseThreadSignal(args: { raw: string }): ThreadSignal | undefined {
   try {

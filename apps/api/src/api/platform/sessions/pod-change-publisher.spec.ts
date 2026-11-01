@@ -19,7 +19,7 @@ describe('PodChangePublisher', () => {
   it('enriches once on the publishing side, not once per subscriber', async () => {
     const read = spyOn(podSnapshot, 'readPodFrame').mockResolvedValue(podSnapshotFrame({ rev: 1 }))
     const signals = new ThreadSignalsService(new DrainStateService())
-    const list = spyOn(signals, 'listChangedForOwner').mockResolvedValue()
+    const list = spyOn(signals, 'threadChanged').mockImplementation(() => {})
     const first = mock(() => {})
     const second = mock(() => {})
     signals.openStream({ threadId: 'thr-1', onFrame: first })
@@ -32,11 +32,11 @@ describe('PodChangePublisher', () => {
     signals.closeAll()
   })
 
-  it('logs read failure, publishes a legacy bare Pod and still invalidates the owner list', async () => {
+  it('logs read failure, publishes a legacy bare Pod and still signals the thread change', async () => {
     spyOn(podSnapshot, 'readPodFrame').mockRejectedValue(new Error('read unavailable'))
     const warn = spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
     const signals = new ThreadSignalsService(new DrainStateService())
-    const list = spyOn(signals, 'listChangedForOwner').mockResolvedValue()
+    const list = spyOn(signals, 'threadChanged').mockImplementation(() => {})
     const seen = mock(() => {})
     signals.openStream({ threadId: 'thr-1', onFrame: seen })
     await expect(signals.podChanged({ threadId: 'thr-1' })).resolves.toBeUndefined()
@@ -56,12 +56,12 @@ describe('PodChangePublisher', () => {
     const publish = async (signal: ThreadFrameSignal) => {
       frames.push(signal)
     }
-    const listChanged = mock(async () => {})
-    const one = publisher.publish({ threadId: 'thr-1', publish, listChanged })
-    const two = publisher.publish({ threadId: 'thr-1', publish, listChanged })
+    const threadChanged = mock(() => {})
+    const one = publisher.publish({ threadId: 'thr-1', publish, threadChanged })
+    const two = publisher.publish({ threadId: 'thr-1', publish, threadChanged })
     await flush()
     expect(read).toHaveBeenCalledTimes(1)
-    const other = publisher.publish({ threadId: 'thr-2', publish, listChanged })
+    const other = publisher.publish({ threadId: 'thr-2', publish, threadChanged })
     await other
     expect(frames.map((frame) => frame.threadId)).toEqual(['thr-2'])
     first.resolve(podSnapshotFrame({ state: EPodState.Booting, rev: 1 }))

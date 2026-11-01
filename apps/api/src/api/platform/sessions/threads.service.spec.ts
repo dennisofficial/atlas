@@ -276,10 +276,10 @@ describe('ThreadsService', () => {
     expect(recent?.id).toBe(fresh.id)
   })
 
-  it('rename publishes a title frame after updating the row', async () => {
-    const { signals, framesOf } = recordingSignals()
+  it('rename signals the thread change after updating the row', async () => {
+    const { signals, changedThreads } = recordingSignals()
     const created = await new ThreadsService(signals).create({ userId: USER_A, draft: {} })
-    const frames = framesOf(created.id)
+    changedThreads.length = 0
 
     await new ThreadsService(signals).rename({
       userId: USER_A,
@@ -287,7 +287,7 @@ describe('ThreadsService', () => {
       draft: { title: 'renamed' },
     })
 
-    expect(frames).toEqual([{ type: EThreadStreamFrame.Title }])
+    expect(changedThreads).toEqual([created.id])
   })
 
   it('rename, chooseModel and adopt write their fields', async () => {

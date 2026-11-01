@@ -171,7 +171,7 @@ export class ThreadMessagesService {
   private async unarchive(args: { userId: string; threadId: string }): Promise<void> {
     const session = await sessionOfThread({ reader: db, threadId: args.threadId })
     await db.orm.public.Session.where({ id: session.id }).update({ archivedAt: null })
-    await this.signals.listChanged(args)
+    this.signals.threadChanged({ threadId: args.threadId })
   }
 
   async takeBack(args: { userId: string; threadId: string; sendId: string }): Promise<void> {

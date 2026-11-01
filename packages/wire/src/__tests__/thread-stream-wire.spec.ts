@@ -19,9 +19,6 @@ describe('the thread stream wire', () => {
     expect(threadStreamFrameSchema.parse({ type: EThreadStreamFrame.Heartbeat })).toEqual({
       type: EThreadStreamFrame.Heartbeat,
     })
-    expect(threadStreamFrameSchema.parse({ type: EThreadStreamFrame.Title })).toEqual({
-      type: EThreadStreamFrame.Title,
-    })
   })
 
   it('parses the state-carrying frames', () => {

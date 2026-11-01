@@ -9,6 +9,7 @@ const reads: IThreadReads = {
   threads: async () => {
     throw new Error('root-list-failed')
   },
+  setArchived: async () => true,
   rename: async () => true,
   events: async () => undefined,
   readCursor: async () => undefined,

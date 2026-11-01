@@ -64,6 +64,7 @@ const localPodOf = ({ record, state }: { record: PodRecord; state: ELocalPodStat
   projectId: record.projectId,
   ...(record.model === undefined ? {} : { model: record.model.ref, effort: record.model.effort }),
   ...(record.title === undefined ? {} : { title: record.title }),
+  archivedAt: record.archivedAt,
   createdAt: record.createdAt,
   state,
 })

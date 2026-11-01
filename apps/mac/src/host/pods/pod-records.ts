@@ -104,4 +104,5 @@ export const localThreadOf = ({
   ...(record.model === undefined ? {} : { model: record.model.ref, effort: record.model.effort }),
   createdAt: record.createdAt,
   updatedAt: record.updatedAt,
+  archivedAt: record.archivedAt,
 })

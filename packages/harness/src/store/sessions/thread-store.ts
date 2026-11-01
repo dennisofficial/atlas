@@ -40,7 +40,11 @@ import { writeSessionMetaForRoot } from './session-meta'
 import type { ForkArgs, MarkArgs, RewindArgs, ThreadStoreContext } from './thread-store-context'
 import { blankMeta, sessionDirFor, sessionDirForNew } from './thread-store-fields'
 import { forkThread, markThreadHistory, rewindThread } from './thread-store-history'
-import { updateThreadMeta, writePlacementMeta } from './thread-store-mutations'
+import {
+  setThreadArchivedMeta,
+  updateThreadMeta,
+  writePlacementMeta,
+} from './thread-store-mutations'
 
 export class ThreadNeedsOpeningDrafts extends Error {
   constructor() {
@@ -235,6 +239,10 @@ export class JsonlThreadStore implements ThreadStorePort {
       },
     })
     for (const listener of [...this.modelChosenListeners]) listener({ threadId, model })
+  }
+
+  async setArchived(args: { threadId: ThreadId; archived: boolean }): Promise<boolean> {
+    return setThreadArchivedMeta({ context: this.context(), ...args })
   }
 
   async chooseRunner({ threadId, runner }: { threadId: ThreadId; runner: ERunner }): Promise<void> {

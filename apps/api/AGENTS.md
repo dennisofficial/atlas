@@ -30,8 +30,9 @@ the per-conversation fields (project, repo, workspace, execution location, title
 Procedures still take a `threadId` and resolve its session (`sessionOfThread`, and `podSessionOf`,
 which walks a teammate's `managedBySessionId` to the session that owns the pod). Create a session
 and its main thread with `createSessionWithMainThread`: `Session.mainThreadId` is nullable because
-the two rows point at each other. `sessions.list` returns top-level sessions with teammates nested;
-`threads.list` returns session main threads only. better-auth's table is `AuthSession`.
+the two rows point at each other. `threads.live` streams the sidebar as a snapshot of flat
+`LiveThreadRow`s plus the user's projects, then upserts; a teammate row names its manager through
+`managedBySessionId`. `threads.list` returns session main threads only. better-auth's table is `AuthSession`.
 
 A thread's owner is fixed at creation (`Thread.userId`). `ScopedConfigService.vercelCredentials`
 resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team and project id. A
