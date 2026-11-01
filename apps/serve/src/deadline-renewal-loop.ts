@@ -1,5 +1,9 @@
 import { EDeadlineDecision, deadlineRenewal, type DeadlinePolicy } from '@dltech/atlas-core'
-import { SANDBOX_SESSION_HARD_LIMIT_MS, type SandboxDeadlineObservation } from '@dltech/atlas-wire'
+import {
+  SANDBOX_SESSION_HARD_LIMIT_MS,
+  type SandboxDeadlineObservation,
+  type SandboxRolloverReply,
+} from '@dltech/atlas-wire'
 
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -9,6 +13,7 @@ export const DEADLINE_LEAD_MS = 20 * 60_000
 
 export type DeadlineControl = {
   renew: (args: { until: number }) => Promise<SandboxDeadlineObservation>
+  rollover?: (() => Promise<SandboxRolloverReply>) | undefined
 }
 
 export type DeadlineState = {
@@ -39,6 +44,7 @@ export function startDeadlineRenewal(args: {
   tickMs?: number | undefined
   hardLimitMs?: number | undefined
   workSummary?: (() => unknown) | undefined
+  onCapped?: (() => void) | undefined
 }): DeadlineRenewalLoop {
   const now = args.now ?? Date.now
   const policy: DeadlinePolicy = {
@@ -52,6 +58,7 @@ export function startDeadlineRenewal(args: {
   let failures = 0
   let halted = false
   let cappedLogged = false
+  let rolloverRequested = false
 
   const observe = (observation: SandboxDeadlineObservation): void => {
     expiresAt = observation.expiresAt ?? undefined
@@ -124,6 +131,10 @@ export function startDeadlineRenewal(args: {
         working,
         work: args.workSummary?.(),
       })
+    }
+    if (decision.capped && working && !rolloverRequested && args.onCapped !== undefined) {
+      rolloverRequested = true
+      args.onCapped()
     }
     if (decision.kind === EDeadlineDecision.Hold) return Promise.resolve()
     inFlight = renew(decision.until, working).finally(() => {

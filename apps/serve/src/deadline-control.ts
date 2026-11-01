@@ -27,6 +27,10 @@ export function deadlineControlFor(args: {
         client.sandboxSelf.renewDeadline.mutate({ sessionId, until }).catch((failure: unknown) => {
           throw controlPlaneError(failure)
         }),
+      rollover: () =>
+        client.sandboxRollover.request.mutate({ sessionId }).catch((failure: unknown) => {
+          throw controlPlaneError(failure)
+        }),
     }
   }
   const token = args.env.VERCEL_TOKEN

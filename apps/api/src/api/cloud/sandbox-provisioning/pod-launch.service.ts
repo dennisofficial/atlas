@@ -1,4 +1,4 @@
-import { BadGatewayException, Inject, Injectable, Logger } from '@nestjs/common'
+import { BadGatewayException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import {
   EBootStep,
   EBootStepState,
@@ -8,7 +8,7 @@ import {
 import { db, type Row } from '@dltech/atlas-db'
 import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { sessionOfThread } from '../../platform/sessions/session-of-thread'
+import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { failureText } from '../github/github-sandbox-wake-boot'
@@ -110,10 +110,15 @@ export class PodLaunchService {
     return claim
   }
 
-  async dispatch(args: { threadId: string; claim: RowClaim }): Promise<boolean> {
+  async dispatch(args: {
+    threadId: string
+    claim: RowClaim
+    stopSessionId?: string | undefined
+  }): Promise<boolean> {
     const payload: PodProvisionPayload = {
       threadId: args.threadId,
       wakeClaim: args.claim.wakeClaim.toISOString(),
+      ...(args.stopSessionId === undefined ? {} : { stopSessionId: args.stopSessionId }),
     }
     try {
       await this.dispatcher.dispatch({
@@ -153,6 +158,20 @@ export class PodLaunchService {
     await this.signals.podChanged({ threadId: thread.id })
     const dispatched = await this.dispatch({ threadId: thread.id, claim })
     return { reply: booting, dispatchFailed: !dispatched }
+  }
+
+  async rollover(args: { threadId: string; sessionId: string }): Promise<{ dispatched: boolean }> {
+    const { threadId, sessionId } = args
+    const thread = await db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
+    const podSessionId = await podSessionOf({ reader: db, threadId })
+    const existing = await db.orm.public.CloudSandbox.first({ sessionId: podSessionId })
+    if (existing === null) throw new NotFoundException('this thread has no pod to roll over')
+    const claim = await this.claim({ thread, existing })
+    if (claim === null) return { dispatched: false }
+    await this.signals.podChanged({ threadId })
+    const dispatched = await this.dispatch({ threadId, claim, stopSessionId: sessionId })
+    if (!dispatched) throw dispatchFailure()
+    return { dispatched: true }
   }
 
   private async recordDispatchFailure(args: { threadId: string; claim: RowClaim }): Promise<void> {

@@ -6,6 +6,7 @@ import type { RuntimeCheckpointBinding } from './runtime-checkpoint-binding'
 import type { ServeApp } from './serve-app'
 import { createServeDrain, type ServeDrain } from './serve-drain'
 import type { ServeLog } from './serve-log'
+import { createServeRollover, type ServeRollover } from './serve-rollover'
 import type { ServeTurnDriver } from './turn-driver'
 
 export function bindServeDrain(args: {
@@ -20,6 +21,7 @@ export function bindServeDrain(args: {
   checkpoint: Pick<RuntimeCheckpointBinding, 'finalizeRotation' | 'current'>
   close: (given: { reason: string }) => Promise<void>
   exit: (code: number) => void
+  beforeRetire?: ((given: { reason: string }) => Promise<void>) | undefined
   log: ServeLog
 }): ServeDrain {
   let pendingParent = false
@@ -72,6 +74,7 @@ export function bindServeDrain(args: {
     },
     retire: async ({ reason }) => {
       try {
+        await args.beforeRetire?.({ reason })
         await args.close({ reason })
       } finally {
         args.exit(0)
@@ -79,4 +82,36 @@ export function bindServeDrain(args: {
     },
     log: args.log,
   })
+}
+
+export function bindSessionDrain(args: {
+  recovery: { drain: (given: { drain: ServeDrain; reason: string }) => ReturnType<ServeDrain> }
+  handlers: { replayDeferred: () => void; whenSettled: () => Promise<void> }
+  session: { whenStarted: () => Promise<void> }
+  idle: () => { halt: () => void; reset: () => void }
+  drain: Pick<
+    Parameters<typeof bindServeDrain>[0],
+    'app' | 'driver' | 'threadId' | 'atlasHome' | 'sandboxSessionId' | 'owed' | 'checkpoint'
+  >
+  close: (given: { reason: string }) => Promise<void>
+  exit: (code: number) => void
+  log: ServeLog
+}): { drainSession: ServeDrain; rollover: ServeRollover } {
+  const rollover = createServeRollover({ log: args.log })
+  const drain = bindServeDrain({
+    ...args.drain,
+    haltIdle: () => args.idle().halt(),
+    whenMutationsSettled: async () => {
+      await args.session.whenStarted()
+      await args.handlers.whenSettled()
+    },
+    close: args.close,
+    exit: args.exit,
+    beforeRetire: rollover.beforeRetire,
+    log: args.log,
+  })
+  const drainSession: ServeDrain = (given) =>
+    args.recovery.drain({ drain, ...given }).finally(args.handlers.replayDeferred)
+  rollover.bind({ drain: drainSession, rearm: () => args.idle().reset() })
+  return { drainSession, rollover }
 }

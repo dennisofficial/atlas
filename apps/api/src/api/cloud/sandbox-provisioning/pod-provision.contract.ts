@@ -6,6 +6,7 @@ export const POD_PROVISION_TASK_ID = 'pod-provision'
 export const podProvisionPayloadSchema = z.object({
   threadId: z.string().min(1),
   wakeClaim: z.iso.datetime(),
+  stopSessionId: z.string().min(1).optional(),
 })
 
 export type PodProvisionPayload = z.infer<typeof podProvisionPayloadSchema>
