@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { DEFAULT_IMAGE_TIER } from '@dltech/atlas-core'
-import { EConnectionView } from '@dltech/atlas-harness'
+import { composerDraftScope, EConnectionView } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { restoredImages } from '../ui/draft-images'
@@ -11,6 +11,7 @@ import { useSince } from '../ui/hooks/use-since'
 import { channelTakingTurns } from './cloud/channel-ready'
 import { pasteDirectoryOf } from './paste-directory'
 import { unplacedThread } from './cloud/use-unborn-thread'
+import { useComposerDraftSync } from './use-composer-draft-sync'
 import { useProjectPrompt } from './use-project-prompt'
 import { useThreadBirth } from './use-thread-birth'
 import { useCloudHealth } from './use-cloud-connection'
@@ -148,6 +149,20 @@ export function useWorkspaceSession(args: {
 
   const projectPrompt = useProjectPrompt()
 
+  const unplaced = unplacedThread({ opened: props.opened, started: conversation.started })
+
+  useComposerDraftSync({
+    cloud: props.app.cloud,
+    scope: composerDraftScope({
+      threadId: conversation.threadId,
+      cloudThread: props.cloudSession !== null,
+      unborn: unplaced,
+    }),
+    value: draft.value,
+    editor: draft.editor,
+    tokens,
+  })
+
   const birth = useThreadBirth({
     projectPrompt,
     app: props.localApp,
@@ -159,7 +174,7 @@ export function useWorkspaceSession(args: {
     adopt: (opened) => props.onLeaveCloud(opened),
     onReload: props.onReload,
     threadId: conversation.threadId,
-    unplaced: unplacedThread({ opened: props.opened, started: conversation.started }),
+    unplaced,
     attached: props.cloudSession !== null,
     onArrival: (send) => conversation.handleSend(send),
   })
