@@ -4,6 +4,9 @@ import { APICallError } from '@ai-sdk/provider'
 
 import {
   DEFAULT_RETRY_POLICY,
+  EProviderFailureKind,
+  EProviderFailureScope,
+  EProviderRetry,
   ERetryReason,
   ModelPort,
   planRetry,
@@ -95,7 +98,18 @@ describe('default cadence for unanswered provider requests', () => {
   it('budgets at most 165 seconds across five unanswered requests and their backoffs', () => {
     let waitingMs = 0
     for (let attempts = 1; attempts <= DEFAULT_RETRY_POLICY.maxAttempts; attempts += 1) {
-      const decision = planRetry({ failure: {}, attempts, policy: DEFAULT_RETRY_POLICY, jitter: 1 })
+      const decision = planRetry({
+        failure: {
+          kind: EProviderFailureKind.Stalled,
+          scope: EProviderFailureScope.Route,
+          retry: EProviderRetry.Transient,
+          message: 'unanswered',
+        },
+        attempts,
+        policy: DEFAULT_RETRY_POLICY,
+        jitter: 1,
+        nowMs: 0,
+      })
       if (decision.retry) waitingMs += decision.delayMs
     }
     expect(DEFAULT_STREAM_TIMEOUT.ttfbMs).toBe(30_000)

@@ -4,7 +4,9 @@ import { APICallError } from '@ai-sdk/provider'
 import { StreamProviderError } from 'ai'
 
 import { ModelStreamError } from '../errors'
-import { modelFailureOf } from '../failure'
+import { EProviderFailureKind as K, EProviderRetry } from '@dltech/atlas-core'
+
+import { never, normalized, transient } from './normalize-fixture'
 
 const UPSTREAM_TEXT = 'The upstream provider returned an error while processing this request.'
 
@@ -52,98 +54,85 @@ const kinds: ReadonlyArray<
 
 describe.each(kinds)('reading the upstream provider failure off %s', (_name, build) => {
   it('retries a 400 that carries the upstream provider message, whatever the SDK flag says', () => {
-    const failure = modelFailureOf(
+    const failure = normalized(
       build({ statusCode: 400, message: UPSTREAM_TEXT, isRetryable: false }),
     )
 
-    expect(failure).toEqual({ status: 400, retryable: true })
+    expect(failure).toMatchObject({ ...transient(K.Overloaded), statusCode: 400 })
   })
 
   it('matches that message case-insensitively and trimmed', () => {
-    const failure = modelFailureOf(
-      build({
-        statusCode: 400,
-        message: `  ${UPSTREAM_TEXT.toUpperCase()}\n`,
-      }),
+    const failure = normalized(
+      build({ statusCode: 400, message: `  ${UPSTREAM_TEXT.toUpperCase()}\n` }),
     )
 
-    expect(failure).toEqual({ status: 400, retryable: true })
+    expect(failure).toMatchObject(transient(K.Overloaded))
   })
 
   it('does not retry an arbitrary 400', () => {
-    expect(modelFailureOf(build({ statusCode: 400, message: 'bad tool schema' }))).toEqual({
-      status: 400,
-    })
+    expect(normalized(build({ statusCode: 400, message: 'bad tool schema' }))).toMatchObject(
+      never(K.InvalidRequest),
+    )
   })
 
   it('does not match the message as a substring', () => {
     const message = `${UPSTREAM_TEXT} Also your prompt is malformed.`
 
-    expect(modelFailureOf(build({ statusCode: 400, message }))).toEqual({
-      status: 400,
-    })
+    expect(normalized(build({ statusCode: 400, message }))).toMatchObject(never(K.InvalidRequest))
   })
 
   it('honors a custom retryable flag on a 400', () => {
-    expect(modelFailureOf(build({ statusCode: 400, isRetryable: true }))).toEqual({
-      status: 400,
-      retryable: true,
-    })
+    expect(normalized(build({ statusCode: 400, isRetryable: true }))).toMatchObject(
+      transient(K.Other),
+    )
   })
 
   it.each([408, 409])('honors the retryable flag on a %i', (statusCode) => {
-    expect(modelFailureOf(build({ statusCode, isRetryable: true }))).toEqual({
-      status: statusCode,
-      retryable: true,
+    expect(normalized(build({ statusCode, isRetryable: true }))).toMatchObject({
+      ...transient(K.Other),
+      statusCode,
     })
   })
 
   it.each([401, 402, 403, 404, 413, 422])(
     'keeps %i non-retryable despite the upstream text and a flag',
     (statusCode) => {
-      const failure = modelFailureOf(
-        build({ statusCode, message: UPSTREAM_TEXT, isRetryable: true }),
-      )
+      const failure = normalized(build({ statusCode, message: UPSTREAM_TEXT, isRetryable: true }))
 
-      expect(failure).toEqual({ status: statusCode })
+      expect(failure.retry).toBe(EProviderRetry.Never)
+      expect(failure.statusCode).toBe(statusCode)
     },
   )
 
   it.each(['upstream_error', 'server_error', 'internal_server_error', 'service_unavailable'])(
     'retries a 400 whose provider code is %s',
     (code) => {
-      const failure = modelFailureOf(build({ statusCode: 400, data: { error: { code } } }))
-
-      expect(failure).toEqual({ status: 400, retryable: true })
+      expect(normalized(build({ statusCode: 400, data: { error: { code } } }))).toMatchObject(
+        transient(K.Overloaded),
+      )
     },
   )
 
   it('retries a 400 whose provider type is a server fault', () => {
-    const failure = modelFailureOf(
-      build({ statusCode: 400, data: { error: { type: 'server_error' } } }),
-    )
-
-    expect(failure).toEqual({ status: 400, retryable: true })
+    expect(
+      normalized(build({ statusCode: 400, data: { error: { type: 'server_error' } } })),
+    ).toMatchObject(transient(K.Overloaded))
   })
 
   it.each([
-    'invalid_request_error',
-    'invalid_request',
-    'invalid_api_key',
-    'insufficient_quota',
-    'context_length_exceeded',
-    'billing_hard_limit_reached',
-    'payment_required',
-  ])('keeps a 400 flagged retryable fail-fast when the provider says %s', (code) => {
-    const failure = modelFailureOf(
-      build({
-        statusCode: 400,
-        isRetryable: true,
-        data: { error: { code } },
-      }),
+    ['invalid_request_error', K.InvalidRequest],
+    ['invalid_request', K.InvalidRequest],
+    ['insufficient_quota', K.Quota],
+    ['billing_hard_limit_reached', K.Quota],
+    ['payment_required', K.Quota],
+    ['context_length_exceeded', K.ContextOverflow],
+    ['invalid_api_key', K.Auth],
+  ])('keeps a 400 flagged retryable fail-fast when the provider says %s', (code, kind) => {
+    const failure = normalized(
+      build({ statusCode: 400, isRetryable: true, data: { error: { code } } }),
     )
 
-    expect(failure).toEqual({ status: 400 })
+    expect(failure).toMatchObject(never(kind))
   })
 
   it.each(['invalid_request_error', 'invalid_request'])(
@@ -151,68 +140,48 @@ describe.each(kinds)('reading the upstream provider failure off %s', (_name, bui
     (label) => {
       const data = { error: { type: label, code: label } }
 
-      expect(modelFailureOf(build({ statusCode: 400, message: UPSTREAM_TEXT, data }))).toEqual({
-        status: 400,
-        retryable: true,
-      })
+      expect(normalized(build({ statusCode: 400, message: UPSTREAM_TEXT, data }))).toMatchObject(
+        transient(K.Overloaded),
+      )
     },
   )
 
   it('lets an upstream code win over the generic invalid_request_error type', () => {
-    const data = {
-      error: { type: 'invalid_request_error', code: 'upstream_error' },
-    }
+    const data = { error: { type: 'invalid_request_error', code: 'upstream_error' } }
 
-    expect(modelFailureOf(build({ statusCode: 400, isRetryable: false, data }))).toEqual({
-      status: 400,
-      retryable: true,
-    })
+    expect(normalized(build({ statusCode: 400, isRetryable: false, data }))).toMatchObject(
+      transient(K.Overloaded),
+    )
   })
 
   it.each([
-    'invalid_api_key',
-    'insufficient_quota',
-    'context_length_exceeded',
-    'billing_hard_limit_reached',
-    'payment_required',
-  ])('keeps a 400 fail-fast when a permanent code %s rides with the upstream message', (code) => {
-    const data = { error: { type: 'invalid_request_error', code } }
+    ['invalid_api_key', K.Auth],
+    ['insufficient_quota', K.Quota],
+    ['context_length_exceeded', K.ContextOverflow],
+    ['billing_hard_limit_reached', K.Quota],
+    ['payment_required', K.Quota],
+  ])(
+    'keeps a 400 fail-fast when a permanent code %s rides with the upstream message',
+    (code, kind) => {
+      const data = { error: { type: 'invalid_request_error', code } }
 
-    expect(
-      modelFailureOf(
-        build({
-          statusCode: 400,
-          message: UPSTREAM_TEXT,
-          isRetryable: true,
-          data,
-        }),
-      ),
-    ).toEqual({
-      status: 400,
-    })
-  })
+      expect(
+        normalized(build({ statusCode: 400, message: UPSTREAM_TEXT, isRetryable: true, data })),
+      ).toMatchObject(never(kind))
+    },
+  )
 
   it('does not block existing 429 and 5xx behavior with an invalid-request identifier', () => {
     const data = { error: { code: 'invalid_request_error' } }
 
-    expect(modelFailureOf(build({ statusCode: 503, data }))).toEqual({
-      status: 503,
-    })
-    expect(modelFailureOf(build({ statusCode: 429, data }))).toEqual({
-      status: 429,
-    })
-  })
-
-  it('does not add a retryable override to statuses core already retries', () => {
-    expect(modelFailureOf(build({ statusCode: 502, message: UPSTREAM_TEXT }))).toEqual({
-      status: 502,
-    })
+    expect(normalized(build({ statusCode: 503, data }))).toMatchObject(transient(K.Overloaded))
+    expect(normalized(build({ statusCode: 429, data }))).toMatchObject(transient(K.RateLimited))
   })
 })
 
 describe('keeping the retry-after on an upstream provider failure', () => {
-  it('carries retry-after next to the override', () => {
-    const failure = modelFailureOf(
+  it('carries retryAt next to the classification', () => {
+    const failure = normalized(
       providerError({
         statusCode: 400,
         message: UPSTREAM_TEXT,
@@ -220,27 +189,18 @@ describe('keeping the retry-after on an upstream provider failure', () => {
       }),
     )
 
-    expect(failure).toEqual({
-      status: 400,
-      retryable: true,
-      retryAfterMs: 7_000,
-    })
+    expect(failure).toMatchObject(transient(K.Overloaded))
+    expect(failure.retryAt).toBe('2026-10-31T12:00:07.000Z')
   })
 })
 
 describe('refusing to trust the upstream text without a provider error', () => {
   it('refuses a plain Error carrying the upstream text', () => {
-    expect(modelFailureOf(new Error(UPSTREAM_TEXT))).toBeNull()
+    expect(normalized(new Error(UPSTREAM_TEXT))).toMatchObject(never(K.Other))
   })
 
   it('refuses a wrapped plain Error carrying the upstream text', () => {
-    expect(modelFailureOf(wrapped(new Error(UPSTREAM_TEXT)))).toBeNull()
-  })
-
-  it('refuses an api error with the upstream text and no status', () => {
-    expect(modelFailureOf(providerError({ message: UPSTREAM_TEXT, isRetryable: false }))).toEqual(
-      {},
-    )
+    expect(normalized(wrapped(new Error(UPSTREAM_TEXT)))).toMatchObject(never(K.Other))
   })
 })
 
@@ -248,93 +208,71 @@ describe('reading a mid-stream provider error that carries no status', () => {
   it('retries one that carries the exact upstream message despite isRetryable false', () => {
     const error = streamError({ message: UPSTREAM_TEXT, isRetryable: false })
 
-    expect(modelFailureOf(error)).toEqual({})
-    expect(modelFailureOf(wrapped(error))).toEqual({})
+    expect(normalized(error)).toMatchObject(transient(K.Overloaded))
+    expect(normalized(wrapped(error))).toMatchObject(transient(K.Overloaded))
   })
 
   it('matches the message case-insensitively and trimmed', () => {
     expect(
-      modelFailureOf(
-        streamError({
-          message: `\n ${UPSTREAM_TEXT.toUpperCase()} `,
-          isRetryable: false,
-        }),
+      normalized(
+        streamError({ message: `\n ${UPSTREAM_TEXT.toUpperCase()} `, isRetryable: false }),
       ),
-    ).toEqual({})
+    ).toMatchObject(transient(K.Overloaded))
   })
 
   it.each(['upstream_error', 'server_error', 'internal_server_error', 'service_unavailable'])(
     'retries one whose provider code is %s',
     (code) => {
       expect(
-        modelFailureOf(streamError({ isRetryable: false, data: { error: { code } } })),
-      ).toEqual({})
+        normalized(streamError({ isRetryable: false, data: { error: { code } } })),
+      ).toMatchObject(transient(K.Overloaded))
     },
   )
-
-  it('retries one whose provider type is an upstream identifier', () => {
-    expect(
-      modelFailureOf(
-        streamError({
-          isRetryable: false,
-          data: { error: { type: 'server_error' } },
-        }),
-      ),
-    ).toEqual({})
-  })
 
   it('lets the upstream message win over the generic invalid_request_error label', () => {
     const data = { error: { type: 'invalid_request_error' } }
 
     expect(
-      modelFailureOf(streamError({ message: UPSTREAM_TEXT, isRetryable: false, data })),
-    ).toEqual({})
+      normalized(streamError({ message: UPSTREAM_TEXT, isRetryable: false, data })),
+    ).toMatchObject(transient(K.Overloaded))
     const invalid = streamError({ message: 'bad tool schema', isRetryable: true, data })
-    expect(modelFailureOf(invalid)).toBeNull()
-    expect(modelFailureOf(wrapped(invalid))).toBeNull()
+    expect(normalized(invalid)).toMatchObject(never(K.Other))
+    expect(normalized(wrapped(invalid))).toMatchObject(never(K.Other))
   })
 
   it('refuses an unrecognised message with no status', () => {
     expect(
-      modelFailureOf(streamError({ message: 'bad tool schema', isRetryable: false })),
-    ).toBeNull()
+      normalized(streamError({ message: 'bad tool schema', isRetryable: false })),
+    ).toMatchObject(never(K.Other))
   })
 
   it('refuses a message that merely contains the upstream text', () => {
     expect(
-      modelFailureOf(
-        streamError({
-          message: `${UPSTREAM_TEXT} Plus more.`,
-          isRetryable: false,
-        }),
-      ),
-    ).toBeNull()
+      normalized(streamError({ message: `${UPSTREAM_TEXT} Plus more.`, isRetryable: false })),
+    ).toMatchObject(never(K.Other))
   })
 
   it.each([
-    'invalid_api_key',
-    'insufficient_quota',
-    'context_length_exceeded',
-    'billing_hard_limit_reached',
-    'payment_required',
-  ])(
-    'refuses a no-status billing or limit error coded %s even with the upstream message',
-    (code) => {
-      const data = { error: { code } }
+    ['invalid_api_key', K.Auth],
+    ['insufficient_quota', K.Quota],
+    ['context_length_exceeded', K.ContextOverflow],
+    ['billing_hard_limit_reached', K.Quota],
+    ['payment_required', K.Quota],
+  ])('refuses a no-status error coded %s even with the upstream message', (code, kind) => {
+    const data = { error: { code } }
 
-      for (const isRetryable of [false, true]) {
-        const error = streamError({ message: UPSTREAM_TEXT, isRetryable, data })
-        expect(modelFailureOf(error)).toBeNull()
-        expect(modelFailureOf(wrapped(error))).toBeNull()
-      }
-    },
-  )
+    for (const isRetryable of [false, true]) {
+      const error = streamError({ message: UPSTREAM_TEXT, isRetryable, data })
+      expect(normalized(error)).toMatchObject(never(kind))
+      expect(normalized(wrapped(error))).toMatchObject(never(kind))
+    }
+  })
 
   it('refuses a no-status billing error with an invalid-request label', () => {
-    const data = {
-      error: { type: 'invalid_request_error', code: 'insufficient_quota' },
-    }
+    const data = { error: { type: 'invalid_request_error', code: 'insufficient_quota' } }
 
-    expect(modelFailureOf(streamError({ message: 'billing hard limit reached', data }))).toBeNull()
+    expect(normalized(streamError({ message: 'billing hard limit reached', data })).retry).toBe(
+      EProviderRetry.Never,
+    )
   })
 })

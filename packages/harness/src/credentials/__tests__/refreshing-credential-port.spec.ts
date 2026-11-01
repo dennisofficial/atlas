@@ -144,6 +144,7 @@ describe('RefreshingCredentialPort', () => {
     const error = await failureOf(portWith({ client: failing(400) }).read())
 
     expect(error.failure).toBe(ECredentialFailure.Expired)
+    expect(error.providerRefused).toBe(true)
     expect(error.message).toContain('/auth')
     expect(error.message).not.toContain('refresh-1')
     expect(await statusOf(account.id)).toBe(EAccountStatus.Expired)
@@ -258,6 +259,7 @@ describe('RefreshingCredentialPort', () => {
 
     const error = await failureOf(port.read())
     expect(error.failure).toBe(ECredentialFailure.Expired)
+    expect(error.providerRefused).toBe(false)
     expect(await statusOf(account.id)).toBe(EAccountStatus.Active)
   })
 

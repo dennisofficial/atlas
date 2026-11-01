@@ -235,6 +235,7 @@ export * from './models/effort-ladder'
 export * from './models/favourites'
 export * from './models/pressure'
 export * from './models/usage'
+export * from './models/provider-failure'
 export * from './models/retry'
 export * from './models/utility-roles'
 

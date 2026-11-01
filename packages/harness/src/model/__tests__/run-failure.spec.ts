@@ -1,11 +1,11 @@
 import { APICallError } from '@ai-sdk/provider'
 import { describe, expect, it } from 'bun:test'
 
-import { ERunFailureKind, toAccountId } from '@dltech/atlas-core'
+import { EProviderFailureKind, ERunFailureKind, toAccountId } from '@dltech/atlas-core'
 
 import { withFailureAccount } from '../../providers/failure-account'
 import { ModelStreamError } from '../errors'
-import { modelFailureOf } from '../failure'
+import { NOW_MS, normalized } from './normalize-fixture'
 import { CredentialError, ECredentialFailure } from '../../credentials/credential-error'
 import { MissingKeyError } from '../../providers/provider-key'
 import { StreamStallError } from '../errors'
@@ -77,9 +77,11 @@ describe('runFailureOf', () => {
     )
   })
 
-  it('does not read network from message text of a plain error', () => {
+  it('reads a dropped connection off a plain error the same way the retry loop does', () => {
     for (const message of ['socket hang up', 'fetch failed', 'terminated', 'econnreset']) {
-      expect(runFailureOf({ message, cause: new Error(message) }).kind).toBe(ERunFailureKind.Other)
+      expect(runFailureOf({ message, cause: new Error(message) }).kind).toBe(
+        ERunFailureKind.Network,
+      )
     }
   })
 
@@ -113,10 +115,13 @@ describe('runFailureOf', () => {
   })
 
   it('leaves retry classification unchanged by the account tag', () => {
-    const plain = unauthorized()
-    const before = modelFailureOf(plain)
-    withFailureAccount({ error: plain, accountId: toAccountId('acct-1') })
-    expect(modelFailureOf(plain)).toEqual(before)
+    const before = normalized(unauthorized())
+    const tagged = normalized(
+      withFailureAccount({ error: unauthorized(), accountId: toAccountId('acct-1') }),
+    )
+    expect(tagged.kind).toBe(before.kind)
+    expect(tagged.retry).toBe(before.retry)
+    expect(tagged.accountId).toBe(toAccountId('acct-1'))
   })
 
   it.each([
@@ -142,14 +147,65 @@ describe('runFailureOf', () => {
     ).toBe(ERunFailureKind.Stalled)
   })
 
-  it('classifies a missing key and credential errors', () => {
+  it('reports a missing key and undeliverable credentials as delivery, never an invalid key', () => {
     expect(runFailureOf({ message: 'x', cause: new MissingKeyError('Inference.net') }).kind).toBe(
-      ERunFailureKind.MissingCredential,
+      ERunFailureKind.Delivery,
     )
     const credential = (failure: ECredentialFailure) =>
       runFailureOf({ message: 'x', cause: new CredentialError({ failure, message: 'x' }) }).kind
-    expect(credential(ECredentialFailure.NotFound)).toBe(ERunFailureKind.MissingCredential)
-    expect(credential(ECredentialFailure.RefreshFailed)).toBe(ERunFailureKind.Auth)
+    for (const failure of [
+      ECredentialFailure.NotFound,
+      ECredentialFailure.Expired,
+      ECredentialFailure.Unreadable,
+      ECredentialFailure.Unsupported,
+    ]) {
+      expect(credential(failure)).toBe(ERunFailureKind.Delivery)
+    }
+  })
+
+  it('does not call a failed token refresh an invalid key', () => {
+    const cause = new CredentialError({ failure: ECredentialFailure.RefreshFailed, message: 'x' })
+    expect(runFailureOf({ message: 'x', cause }).kind).toBe(ERunFailureKind.Network)
+  })
+
+  it('reports a grant the provider refused to renew as auth', () => {
+    const cause = new CredentialError({
+      failure: ECredentialFailure.Expired,
+      message: 'x',
+      providerRefused: true,
+    })
+    expect(runFailureOf({ message: 'x', cause }).kind).toBe(ERunFailureKind.Auth)
+  })
+
+  it('keeps an expired credential nobody asked the provider about as delivery', () => {
+    const cause = new CredentialError({ failure: ECredentialFailure.Expired, message: 'x' })
+    expect(runFailureOf({ message: 'x', cause }).kind).toBe(ERunFailureKind.Delivery)
+  })
+
+  it('reports retryAt from Retry-After and leaves resetAt unset', () => {
+    const cause = new APICallError({
+      message: 'slow down',
+      url: 'https://x',
+      requestBodyValues: {},
+      statusCode: 429,
+      responseHeaders: { 'retry-after': '30' },
+    })
+    const failure = runFailureOf({ message: 'slow down', cause, nowMs: NOW_MS })
+    expect(failure.kind).toBe(ERunFailureKind.RateLimited)
+    expect(failure.retryAt).toBe('2026-10-31T12:00:30.000Z')
+    expect(failure.resetAt).toBeUndefined()
+  })
+
+  it('reports the same identity and reason the retry loop saw', () => {
+    const cause = withFailureAccount({
+      error: unauthorized(),
+      accountId: toAccountId('acct-1'),
+    })
+    const seen = normalized(cause)
+    const failure = runFailureOf({ message: 'x', cause })
+    expect(failure.accountId).toBe(seen.accountId)
+    expect(failure.kind).toBe(ERunFailureKind.Auth)
+    expect(seen.kind).toBe(EProviderFailureKind.Auth)
   })
 
   it('classifies an escaped exception as crashed', () => {
