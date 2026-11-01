@@ -38,3 +38,17 @@ export const sandboxActivityPostSchema = z.object({
   lastOutcome: z.enum(['completed', 'failed', 'stopped']).nullable().optional(),
 })
 export type SandboxActivityPost = z.infer<typeof sandboxActivityPostSchema>
+
+export const sandboxSelfRenewDeadlineRequestSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  until: z.number().int().nonnegative(),
+})
+export type SandboxSelfRenewDeadlineRequest = z.infer<typeof sandboxSelfRenewDeadlineRequestSchema>
+
+export const sandboxDeadlineObservationSchema = z.object({
+  sessionId: z.string().min(1),
+  expiresAt: z.number().int().nullable(),
+  startedAt: z.number().int().nullable(),
+  extendedByMs: z.number().int().nonnegative(),
+})
+export type SandboxDeadlineObservation = z.infer<typeof sandboxDeadlineObservationSchema>

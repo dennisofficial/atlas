@@ -32,6 +32,14 @@ export const vercel = {
   stopSession: vi.fn(
     async (_args: { threadId: string; name: string; sessionId?: string | undefined }) => undefined,
   ),
+  renewDeadline: vi.fn(
+    async (args: { threadId: string; name: string; sessionId: string; until: number }) => ({
+      sessionId: args.sessionId,
+      expiresAt: args.until,
+      startedAt: 1_000,
+      extendedByMs: 5_000,
+    }),
+  ),
 }
 
 export const previews = {

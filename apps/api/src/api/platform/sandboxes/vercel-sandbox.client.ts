@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import { Sandbox } from '@vercel/sandbox'
-import { assertLiveSession, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
+import {
+  assertLiveSession,
+  renewSessionDeadline,
+  SERVE_TOKEN_PATH,
+  type SandboxDeadlineObservation,
+} from '@dltech/atlas-wire'
 import { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
 import { ESandboxState } from './sandboxes.types'
 import { asBadGateway, isSandboxMissing } from './vercel-sandbox.errors'
@@ -102,6 +107,26 @@ export class VercelSandboxClient {
       await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
       if (isSandboxMissing(failure)) return
+      throw asBadGateway(failure)
+    }
+  }
+
+  async renewDeadline(args: {
+    threadId: string
+    name: string
+    sessionId: string
+    until: number
+  }): Promise<SandboxDeadlineObservation> {
+    try {
+      const sandbox = await this.get({ ...args, resume: false })
+      return await renewSessionDeadline({
+        sandbox,
+        name: args.name,
+        sessionId: args.sessionId,
+        until: args.until,
+      })
+    } catch (failure) {
+      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
       throw asBadGateway(failure)
     }
   }

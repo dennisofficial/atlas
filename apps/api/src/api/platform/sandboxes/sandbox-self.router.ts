@@ -7,6 +7,8 @@ import {
   sandboxActivityPostSchema,
   sandboxExposePortReplySchema,
   sandboxExposePortRequestSchema,
+  sandboxDeadlineObservationSchema,
+  sandboxSelfRenewDeadlineRequestSchema,
   sandboxSelfStopRequestSchema,
   type BootStepsPost,
   type PodChildRegister,
@@ -16,6 +18,8 @@ import {
   type SandboxActivityPost,
   type SandboxExposePortReply,
   type SandboxExposePortRequest,
+  type SandboxDeadlineObservation,
+  type SandboxSelfRenewDeadlineRequest,
   type SandboxSelfStopRequest,
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
@@ -72,6 +76,22 @@ export class SandboxSelfRouter {
   async stop(@Input() input: SandboxSelfStopRequest, @Ctx() ctx: SandboxTrpcCtx): Promise<void> {
     const sandbox = await identityOf(ctx)
     await this.vercel.stopSession({ ...sandbox, sessionId: input.sessionId })
+  }
+
+  @Mutation({
+    input: sandboxSelfRenewDeadlineRequestSchema,
+    output: sandboxDeadlineObservationSchema,
+  })
+  async renewDeadline(
+    @Input() input: SandboxSelfRenewDeadlineRequest,
+    @Ctx() ctx: SandboxTrpcCtx,
+  ): Promise<SandboxDeadlineObservation> {
+    const sandbox = await identityOf(ctx)
+    return this.vercel.renewDeadline({
+      ...sandbox,
+      sessionId: input.sessionId,
+      until: input.until,
+    })
   }
 
   @Mutation({ input: bootStepsPostSchema, output: z.void() })

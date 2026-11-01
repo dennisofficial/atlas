@@ -155,13 +155,17 @@ describe('startServeIdleStop', () => {
     test.stop.halt()
   })
 
-  it('a service with a client attached never parks, however long it runs', () => {
+  it('a service with a client attached is not work: it parks at the service window', () => {
     const test = idleHarness({ runningServices: 1, clientsAttached: 1 })
 
     test.stop.check()
-    test.advance(24 * 60 * 60_000)
+    test.advance(30 * 60_000 - 1)
     test.stop.check()
     expect(test.due).toHaveLength(0)
+
+    test.advance(1)
+    test.stop.check()
+    expect(test.due).toHaveLength(1)
     test.stop.halt()
   })
 
@@ -183,21 +187,14 @@ describe('startServeIdleStop', () => {
     test.stop.halt()
   })
 
-  it('a client detaching starts the service window fresh from the detach', () => {
+  it('a client detaching does not restart the service window', () => {
     const test = idleHarness({ runningServices: 1, clientsAttached: 1 })
 
     test.stop.check()
     test.advance(20 * 60_000)
-    test.stop.check()
-    expect(test.due).toHaveLength(0)
-
     test.live.clientsAttached = 0
     test.stop.check()
-    test.advance(30 * 60_000 - 1)
-    test.stop.check()
-    expect(test.due).toHaveLength(0)
-
-    test.advance(1)
+    test.advance(10 * 60_000)
     test.stop.check()
     expect(test.due).toHaveLength(1)
     test.stop.halt()
@@ -217,23 +214,30 @@ describe('startServeIdleStop', () => {
     test.stop.halt()
   })
 
-  it('a service stopping with a client attached still demands the full short window', () => {
+  it('operator activity noted while a service runs restarts the window', () => {
     const test = idleHarness({ runningServices: 1, clientsAttached: 1 })
 
     test.stop.check()
-    test.advance(60 * 60_000)
+    test.advance(25 * 60_000)
+    test.stop.note()
+    test.advance(25 * 60_000)
     test.stop.check()
     expect(test.due).toHaveLength(0)
 
-    test.live.runningServices = 0
-    test.stop.check()
-    test.advance(5 * 60_000 - 1)
-    test.stop.check()
-    expect(test.due).toHaveLength(0)
-
-    test.advance(1)
+    test.advance(5 * 60_000)
     test.stop.check()
     expect(test.due).toHaveLength(1)
+    test.stop.halt()
+  })
+
+  it('exposes the quiet origin and clears it while work runs', () => {
+    const test = idleHarness({})
+
+    test.stop.check()
+    expect(test.stop.quietSince()).toBe(1_000_000)
+    test.live.runningChildren = 1
+    test.stop.check()
+    expect(test.stop.quietSince()).toBeUndefined()
     test.stop.halt()
   })
 

@@ -1,4 +1,5 @@
 import { Sandbox } from '@vercel/sandbox'
+import type { SandboxDeadlineObservation } from './sandbox-self-wire.js'
 
 import { SANDBOX_WORKSPACE_PATH } from './serve-env.js'
 
@@ -12,7 +13,7 @@ export const SANDBOX_SERVE_PORT = 3000
  */
 export const WORKSPACE_PATH = SANDBOX_WORKSPACE_PATH
 
-/** Set once at creation and never extended: an idle sandbox parks itself. */
+/** The boot deadline; serve renews it while work runs (`deadlineRenewal`) and parks when quiet. */
 export const SANDBOX_TIMEOUT_MS = 4 * 60 * 60 * 1000
 
 export const SANDBOX_SNAPSHOT_RETENTION = { count: 1, deleteEvicted: true } as const
@@ -168,5 +169,42 @@ export const observationOf = (sandbox: Sandbox): SandboxObservation => {
     state: stateOf(sandbox.status),
     ...(sandboxSessionId === undefined ? {} : { sandboxSessionId }),
     ...(url === undefined ? {} : { url }),
+  }
+}
+
+export const SANDBOX_SESSION_HARD_LIMIT_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Extends exactly the session serve runs in. `Session.extendTimeout` is used instead of
+ * `Sandbox.extendTimeout` because the latter wraps the call in `withResume`, which would wake a
+ * stopped sandbox into a new session (@vercel/sandbox 3.3.0 dist/sandbox.js:819).
+ */
+export const renewSessionDeadline = async (args: {
+  sandbox: Sandbox
+  name: string
+  sessionId: string
+  until: number
+}): Promise<SandboxDeadlineObservation> => {
+  assertLiveSession({
+    sandbox: args.sandbox,
+    name: args.name,
+    expected: args.sessionId,
+  })
+  const session = args.sandbox.currentSession()
+  if (session.status !== 'running')
+    throw new Error(
+      `refusing to renew sandbox ${args.name}: session ${args.sessionId} is ${session.status}`,
+    )
+  const before = args.sandbox.expiresAt?.getTime()
+  const extendedByMs = before === undefined ? 0 : Math.max(0, Math.ceil(args.until - before))
+  if (extendedByMs > 0)
+    await session.extendTimeout(extendedByMs, {
+      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+    })
+  return {
+    sessionId: session.sessionId,
+    expiresAt: args.sandbox.expiresAt?.getTime() ?? null,
+    startedAt: session.startedAt?.getTime() ?? null,
+    extendedByMs,
   }
 }

@@ -35,7 +35,6 @@ export function serveIdleDue(args: {
   if (args.pendingInput === true) return false
   const quietMs = args.now - args.lastActivityAt
   if (args.runningServices === 0) return quietMs >= args.idleMinutes * 60_000
-  if ((args.clientsAttached ?? 0) > 0) return false
   return quietMs >= (args.serviceIdleMinutes ?? args.idleMinutes) * 60_000
 }
 

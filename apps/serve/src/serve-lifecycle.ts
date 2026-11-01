@@ -14,6 +14,7 @@ import type { ServeTurnDriver } from './turn-driver'
 export const PARK_STOP_CYCLE_LIMIT = 3
 
 const PARK_ACTIVITY_DEADLINE_MS = 2_000
+const EXTERNAL_SIGNALS = new Set(['SIGTERM', 'SIGINT'])
 
 export function createServeLifecycle(args: {
   app: ServeApp
@@ -47,12 +48,15 @@ export function createServeLifecycle(args: {
     closing ??= (async () => {
       args.haltIdle()
       args.app.intake?.suspend()
-      args.log({
-        event: EServeEvent.ShutdownRequested,
-        threadId: args.threadId,
-        reason,
-        work: args.work(),
-      })
+      const work = args.work()
+      args.log({ event: EServeEvent.ShutdownRequested, threadId: args.threadId, reason, work })
+      if (EXTERNAL_SIGNALS.has(reason) && runtimeHasWork(work))
+        args.log({
+          event: EServeEvent.TerminatedWithWork,
+          threadId: args.threadId,
+          reason,
+          work,
+        })
       args.detach()
       args.driver.interrupt()
       args.handlers.abortHistory?.()

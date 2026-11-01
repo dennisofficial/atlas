@@ -64,6 +64,7 @@ describe('SandboxSelfRouter', () => {
     })
     previews.expose.mockClear()
     vercel.stopSession.mockClear()
+    vercel.renewDeadline.mockClear()
   })
 
   it('lets a sandbox token expose a port and returns the url and tunnel token', async () => {
@@ -113,6 +114,27 @@ describe('SandboxSelfRouter', () => {
       threadId: 'thr-1',
       name: 'atlas-thread-1',
       sessionId: 'ses_live',
+    })
+  })
+
+  it('renews the deadline of the session the token names', async () => {
+    const reply = await send('renewDeadline', SANDBOX_TOKEN, {
+      sessionId: 'ses_live',
+      until: 2_000_000,
+    })
+
+    expect(reply.status).toBe(200)
+    expect(vercel.renewDeadline).toHaveBeenCalledWith({
+      threadId: 'thr-1',
+      name: 'atlas-thread-1',
+      sessionId: 'ses_live',
+      until: 2_000_000,
+    })
+    expect(reply.body.result.data).toEqual({
+      sessionId: 'ses_live',
+      expiresAt: 2_000_000,
+      startedAt: 1_000,
+      extendedByMs: 5_000,
     })
   })
 

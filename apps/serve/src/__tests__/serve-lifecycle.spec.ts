@@ -204,7 +204,7 @@ describe('sandbox lifecycle ownership', () => {
     })
   }
 
-  it('refuses final park when a service is running with a client still attached', async () => {
+  it('parks a running service even with a client attached: presence is not work', async () => {
     let stopped = false
     const test = fixture({
       work: () => ({ ...quiet(), servicesRunning: 1, clientsAttached: 1 }),
@@ -213,8 +213,7 @@ describe('sandbox lifecycle ownership', () => {
       },
     })
     await test.lifecycle.park()
-    expect(stopped).toBe(false)
-    expect(test.checkpoint.current()?.phase).toBe(ERuntimePhase.Serving)
+    expect(stopped).toBe(true)
     test.app.intake?.dispose()
   })
 

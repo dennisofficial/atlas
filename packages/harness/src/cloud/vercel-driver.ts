@@ -20,7 +20,9 @@ import {
   type VercelSdk,
   asVercelFailure,
   isSandboxMissing,
+  renewSessionDeadline,
   SandboxMissingError,
+  type SandboxDeadlineObservation,
 } from '@dltech/atlas-wire'
 import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
 import { tailServeLog, writeBootstrapFile } from './vercel-driver-probes'
@@ -158,6 +160,19 @@ export class VercelDriver {
       await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
       if (isSandboxMissing(failure)) return
+      throw asVercelFailure(failure)
+    }
+  }
+
+  async renewDeadline(args: {
+    name: string
+    sessionId: string
+    until: number
+  }): Promise<SandboxDeadlineObservation> {
+    try {
+      const sandbox = await this.sandboxNamed(args.name, { resume: false })
+      return await renewSessionDeadline({ sandbox, ...args })
+    } catch (failure) {
       throw asVercelFailure(failure)
     }
   }
