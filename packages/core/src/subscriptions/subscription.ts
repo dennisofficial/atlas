@@ -18,6 +18,7 @@ export enum ESubscriptionEnd {
   Unsubscribed = 'unsubscribed',
   Expired = 'expired',
   Completed = 'completed',
+  Archived = 'archived',
 }
 
 export type Subscription = {

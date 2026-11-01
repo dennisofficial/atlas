@@ -100,6 +100,7 @@ async function seedEvent(args: {
     body: JSON.stringify(args.body),
     userId: 'usr-1',
   })
+  await db.orm.public.Thread.where({ id: args.threadId }).update({ head: args.seq })
 }
 
 export async function seedSubscription(
