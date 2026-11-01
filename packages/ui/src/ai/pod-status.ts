@@ -7,6 +7,7 @@ export enum EPodState {
 }
 
 export const VCPU_STEPS = [2, 4, 8]
+export const DEFAULT_VCPUS = 2
 
 export class ResizeDeclinedError extends Error {
   constructor() {
@@ -19,9 +20,9 @@ const RAM_PER_VCPU_GB = 2
 
 export interface PodStatus {
   state: EPodState
-  vcpus: number
-  podId: string
-  region: string
+  vcpus?: number
+  podId?: string
+  region?: string
   pendingVcpus?: number
 }
 
@@ -50,9 +51,13 @@ export function chipLabel(status: PodStatus): string {
   if (restarting && status.pendingVcpus !== undefined) {
     return `Restarting · ${sizeLabel(status.pendingVcpus)}`
   }
-  if (status.state === EPodState.Running) return sizeLabel(status.vcpus)
+  if (status.state === EPodState.Running) {
+    return status.vcpus === undefined ? STATE_LABEL[status.state] : sizeLabel(status.vcpus)
+  }
   const label = STATE_LABEL[status.state]
-  return showsSize(status.state) ? `${label} · ${sizeLabel(status.vcpus)}` : label
+  return showsSize(status.state) && status.vcpus !== undefined
+    ? `${label} · ${sizeLabel(status.vcpus)}`
+    : label
 }
 
 export function canResize(state: EPodState): boolean {
