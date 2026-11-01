@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'72a4fc277c7232110726a3363cb7622f7be63fc3f17c5f520460010f70357979'>;
+  StorageHashBase<'3bbee15ea729039a843a4a8f048d85ed430d10fddef8805972ff255d857056e3'>;
 export type ExecutionHash =
-  ExecutionHashBase<'e5139d1de8d5766e0bfebef978a82018efb9a20a4c75ca8470538fe80225e0c7'>;
+  ExecutionHashBase<'faa076f0172fbf52e4a49338942c9b342e8d7c90e878f8786c1593b18fc3b459'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -378,6 +378,25 @@ export namespace Models {
     updatedAt: FieldOutputTypes['public']['ContextFile']['updatedAt'];
     thread: public_Thread;
     readonly [RelationKeys]?: 'thread';
+  };
+  export type public_CredentialAvailability = {
+    accountId: FieldOutputTypes['public']['CredentialAvailability']['accountId'];
+    availability: FieldOutputTypes['public']['CredentialAvailability']['availability'];
+    createdAt: FieldOutputTypes['public']['CredentialAvailability']['createdAt'];
+    fence: FieldOutputTypes['public']['CredentialAvailability']['fence'];
+    id: FieldOutputTypes['public']['CredentialAvailability']['id'];
+    modelId: FieldOutputTypes['public']['CredentialAvailability']['modelId'];
+    probeExpiresAt: FieldOutputTypes['public']['CredentialAvailability']['probeExpiresAt'];
+    probeId: FieldOutputTypes['public']['CredentialAvailability']['probeId'];
+    providerId: FieldOutputTypes['public']['CredentialAvailability']['providerId'];
+    reason: FieldOutputTypes['public']['CredentialAvailability']['reason'];
+    revision: FieldOutputTypes['public']['CredentialAvailability']['revision'];
+    since: FieldOutputTypes['public']['CredentialAvailability']['since'];
+    until: FieldOutputTypes['public']['CredentialAvailability']['until'];
+    updatedAt: FieldOutputTypes['public']['CredentialAvailability']['updatedAt'];
+    userId: FieldOutputTypes['public']['CredentialAvailability']['userId'];
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
   };
   export type public_DeviceCode = {
     clientId: FieldOutputTypes['public']['DeviceCode']['clientId'];
@@ -823,6 +842,7 @@ export namespace Models {
     cloudSandboxes: public_CloudSandbox[];
     composerDrafts: public_ComposerDraft[];
     createdProjects: public_Project[];
+    credentialAvailabilities: public_CredentialAvailability[];
     deviceCodes: public_DeviceCode[];
     githubConnection: public_GithubConnection | null;
     githubNoticeDismissals: public_GithubAppNoticeDismissal[];
@@ -855,6 +875,7 @@ export namespace Models {
       | 'cloudSandboxes'
       | 'composerDrafts'
       | 'createdProjects'
+      | 'credentialAvailabilities'
       | 'deviceCodes'
       | 'githubConnection'
       | 'githubNoticeDismissals'
@@ -964,6 +985,7 @@ export declare const models: {
     CloudSandbox: Models.public_CloudSandbox;
     ComposerDraft: Models.public_ComposerDraft;
     ContextFile: Models.public_ContextFile;
+    CredentialAvailability: Models.public_CredentialAvailability;
     DeviceCode: Models.public_DeviceCode;
     Event: Models.public_Event;
     GithubAppInstallation: Models.public_GithubAppInstallation;
@@ -1819,6 +1841,125 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'Thread';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly CredentialAvailability: {
+              columns: {
+                readonly accountId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly availability: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly fence: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly modelId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly probeExpiresAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly probeId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly providerId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly reason: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly revision: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly since: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly until: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['userId', 'accountId', 'providerId', 'modelId'] },
+              ];
+              indexes: readonly [];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'CredentialAvailability';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -5088,6 +5229,10 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'ContextFile';
     };
+    readonly CredentialAvailability: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'CredentialAvailability';
+    };
     readonly DeviceCode: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'DeviceCode';
@@ -5876,6 +6021,122 @@ type ContractBase = Omit<
                 readonly path: { readonly column: 'path' };
                 readonly threadId: { readonly column: 'threadId' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
+          readonly CredentialAvailability: {
+            readonly fields: {
+              readonly accountId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly availability: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly fence: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly modelId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly probeExpiresAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly probeId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly providerId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly reason: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly revision: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly since: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly until: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'CredentialAvailability';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly accountId: { readonly column: 'accountId' };
+                readonly availability: { readonly column: 'availability' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly fence: { readonly column: 'fence' };
+                readonly id: { readonly column: 'id' };
+                readonly modelId: { readonly column: 'modelId' };
+                readonly probeExpiresAt: { readonly column: 'probeExpiresAt' };
+                readonly probeId: { readonly column: 'probeId' };
+                readonly providerId: { readonly column: 'providerId' };
+                readonly reason: { readonly column: 'reason' };
+                readonly revision: { readonly column: 'revision' };
+                readonly since: { readonly column: 'since' };
+                readonly until: { readonly column: 'until' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
               };
             };
           };
@@ -8509,6 +8770,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['createdById'];
                 };
               };
+              readonly credentialAvailabilities: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'CredentialAvailability';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
               readonly deviceCodes: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -9299,6 +9571,23 @@ type ContractBase = Omit<
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'CloudSetting';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'cuid2'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'CredentialAvailability';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'CredentialAvailability';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };

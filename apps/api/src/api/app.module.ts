@@ -15,6 +15,7 @@ import { HttpErrorMiddleware } from '../_module/trpc/http-error.middleware'
 import { ThrottleMiddleware } from '../_module/trpc/throttle.middleware'
 import { apiErrorFormatter } from '../_module/trpc/trpc-error-formatter'
 import { AccountsModule } from './platform/accounts/accounts.module'
+import { CredentialAvailabilityModule } from './platform/credential-availability/credential-availability.module'
 import { AuthModule } from './platform/auth/auth.module'
 import { GithubModule } from './cloud/github/github.module'
 import { GithubRealtimeModule } from './cloud/github/github-realtime.module'
@@ -72,6 +73,7 @@ import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
     AuthModule,
     DesktopAuthModule,
     AccountsModule,
+    CredentialAvailabilityModule,
     OauthConnectionsModule,
     ProviderSignInModule,
     ModelsModule,
