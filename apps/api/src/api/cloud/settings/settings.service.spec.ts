@@ -105,8 +105,8 @@ describe('SettingsService', () => {
     ])
   })
 
-  describe('legacy PUT stays permissive while PATCH validates', () => {
-    const rawUploads: Array<[string, string]> = [
+  describe('set validates values the same as patch', () => {
+    const malformedUploads: Array<[string, string]> = [
       ['sandbox.vcpus', encodeSettingValue('4')],
       ['sandbox.vcpus', encodeSettingValue(3)],
       ['sandbox.vcpus', encodeSettingValue(2.5)],
@@ -114,27 +114,29 @@ describe('SettingsService', () => {
       ['model.id', encodeSettingValue('garbage')],
     ]
 
-    it('set stores every raw upload the harness accepts', async () => {
-      for (const [key, value] of rawUploads) {
-        await service.set({ userId: USER_A, key, value })
-        expect((await settings()).find((row) => row.key === key)?.value).toBe(value)
+    it('set and patch reject the same malformed values', async () => {
+      for (const [key, value] of malformedUploads) {
+        await expect(service.set({ userId: USER_A, key, value })).rejects.toBeInstanceOf(
+          BadRequestException,
+        )
+        await expect(
+          service.patch({ userId: USER_A, values: { [key]: value } }),
+        ).rejects.toBeInstanceOf(BadRequestException)
       }
-      expect(await service.list({ userId: USER_A })).toHaveLength(3)
+      expect(await settings()).toHaveLength(0)
+    })
+
+    it('set still accepts a valid value for a known key and an unknown key', async () => {
+      await service.set({ userId: USER_A, key: 'sandbox.vcpus', value: encodeSettingValue(4) })
+      await service.set({ userId: USER_A, key: 'anything.else', value: encodeSettingValue('raw') })
+
+      expect(await settings()).toHaveLength(2)
     })
 
     it('set still refuses a malformed key', async () => {
       await expect(
         service.set({ userId: USER_A, key: 'sandbox..vcpus', value: encodeSettingValue(4) }),
       ).rejects.toBeInstanceOf(BadRequestException)
-    })
-
-    it('patch rejects the same values', async () => {
-      for (const [key, value] of rawUploads) {
-        await expect(
-          service.patch({ userId: USER_A, values: { [key]: value } }),
-        ).rejects.toBeInstanceOf(BadRequestException)
-      }
-      expect(await settings()).toHaveLength(0)
     })
   })
 })

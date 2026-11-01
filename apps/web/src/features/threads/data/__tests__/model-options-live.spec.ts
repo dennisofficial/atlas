@@ -17,6 +17,7 @@ const openAi = response([
         id: 'openai/gpt-live',
         label: 'GPT Live',
         contextWindow: 400_000,
+        imageTier: 'high-resolution',
         efforts: ['low', 'high', 'bogus'],
         inputPerMillion: 1.25,
         outputPerMillion: 10,
@@ -25,6 +26,7 @@ const openAi = response([
         id: 'openai/gpt-cheap',
         label: 'Cheap',
         contextWindow: 1_048_576,
+        imageTier: 'standard',
         efforts: [],
         inputPerMillion: 0.2,
         outputPerMillion: 0.8,
@@ -41,16 +43,20 @@ describe('modelOptionsFromResponse', () => {
     expect(models[0]).toMatchObject({
       id: 'openai/gpt-live',
       label: 'GPT Live',
-      provider: 'OpenAI',
+      provider: 'Codex Plan',
       context: '400k',
       contextTokens: 400_000,
       efforts: ['low', 'high'],
       rate: '$10.00/M',
-      monogram: 'O',
+      monogram: 'C',
+      images: true,
     })
+    expect(models[0]?.disabled).toBeUndefined()
     expect(models[0]?.brand).toBeDefined()
     expect(models[1]).toMatchObject({ context: '1M', rate: '$0.80/M' })
+    expect(models[1]?.images).toBe(false)
     expect(models[2]?.rate).toBeUndefined()
+    expect(models[2]?.images).toBeUndefined()
     expect(reconnectProviders).toEqual([])
   })
 
@@ -74,8 +80,53 @@ describe('modelOptionsFromResponse', () => {
       ]),
     })
 
-    expect(reconnectProviders).toEqual(['Anthropic'])
+    expect(reconnectProviders).toEqual(['Claude Plan'])
     expect(models).toEqual([])
+  })
+
+  it('keeps an unavailable provider visible as disabled options, not a reconnect row', () => {
+    const { models, reconnectProviders } = modelOptionsFromResponse({
+      response: response([
+        {
+          id: 'openrouter',
+          label: 'OpenRouter',
+          status: EModelProviderStatus.Unavailable,
+          live: false,
+          models: [
+            { id: 'openrouter/a/b', label: 'A B', contextWindow: 128_000, efforts: [] },
+            { id: 'openrouter/c/d', label: 'C D', contextWindow: 128_000, efforts: [] },
+          ],
+        },
+        ...openAi.providers,
+      ]),
+    })
+
+    expect(reconnectProviders).toEqual([])
+    const dormant = models.filter((model) => model.provider === 'OpenRouter')
+    expect(dormant.map((model) => model.id)).toEqual(['openrouter/a/b', 'openrouter/c/d'])
+    expect(
+      dormant.every((model) => model.disabled === true && model.disabledNote === 'no key'),
+    ).toBe(true)
+    expect(models.filter((model) => model.provider === 'Codex Plan').some((m) => m.disabled)).toBe(
+      false,
+    )
+  })
+
+  it('labels every provider with the same name the TUI switcher uses', () => {
+    const providers = ['anthropic', 'openai', 'openrouter', 'inference'].map((id) => ({
+      id,
+      label: id,
+      status: EModelProviderStatus.Connected,
+      live: false,
+      models: [{ id: `${id}/m`, label: 'M', contextWindow: 1000, efforts: [] }],
+    }))
+    const { models } = modelOptionsFromResponse({ response: response(providers) })
+    expect(models.map((model) => model.provider)).toEqual([
+      'Claude Plan',
+      'Codex Plan',
+      'OpenRouter',
+      'Inference.net',
+    ])
   })
 
   it('keeps a thread model the response no longer offers selectable', () => {
