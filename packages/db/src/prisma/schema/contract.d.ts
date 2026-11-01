@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'caebce66b301daa2b9656ec07c05eb8b99897e579769a0b0b2d2d29183f93ed9'>;
+  StorageHashBase<'ec7794377e3325dd741a9d5a725424432965809ff130632875c2154e47158890'>;
 export type ExecutionHash =
   ExecutionHashBase<'1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb'>;
 export type ProfileHash =
@@ -2840,7 +2840,11 @@ type ContractBase = Omit<
                 readonly threadId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
                   readonly many: false;
                 };
                 readonly userId: {
@@ -2853,8 +2857,8 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [
                 {
-                  readonly columns: readonly ['userId', 'repoFullName', 'branch'];
-                  readonly name: 'GithubSubscription_userId_repoFullName_branch_key';
+                  readonly columns: readonly ['userId', 'repoFullName', 'branch', 'threadId'];
+                  readonly name: 'GithubSubscription_userId_repoFullName_branch_threadId_key';
                 },
               ];
               indexes: readonly [
@@ -7061,7 +7065,7 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly threadId: {
-                readonly nullable: true;
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly userId: {
