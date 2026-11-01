@@ -20,6 +20,15 @@ function isSameSegment(previous: Segment, next: Segment): boolean {
       isSameItem({ previous: previous.item, next: next.item })
     )
   }
+  if (previous.kind === ESegmentKind.Images) {
+    return (
+      next.kind === ESegmentKind.Images &&
+      previous.id === next.id &&
+      previous.at === next.at &&
+      previous.images.length === next.images.length &&
+      previous.images.every((image, index) => image.id === next.images[index]?.id)
+    )
+  }
   return (
     next.kind === ESegmentKind.Work &&
     previous.id === next.id &&

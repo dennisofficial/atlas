@@ -1,3 +1,5 @@
+import type { MessageImage } from '@dltech/atlas-ui/ai/message'
+
 import {
   ETranscriptKind,
   type ReportItem,
@@ -19,6 +21,7 @@ export enum ETurnKind {
 export enum ESegmentKind {
   Work = 'work',
   Message = 'message',
+  Images = 'images',
 }
 
 export type WorkSegment = {
@@ -38,7 +41,14 @@ export type MessageSegment = {
   final: boolean
 }
 
-export type Segment = WorkSegment | MessageSegment
+export type ImagesSegment = {
+  kind: ESegmentKind.Images
+  id: string
+  images: MessageImage[]
+  at?: string
+}
+
+export type Segment = WorkSegment | MessageSegment | ImagesSegment
 
 export type UserTurn = {
   kind: ETurnKind.User
@@ -93,6 +103,11 @@ const finishedAtOf = (item: WorkItem): string | undefined =>
     ? latestOf([item.at, ...item.calls.flatMap((call) => [call.at, call.settledAt])])
     : item.at
 
+const imagesReadIn = (item: WorkItem): MessageImage[] =>
+  item.kind === ETranscriptKind.Tools
+    ? item.calls.flatMap((call) => (call.image === undefined ? [] : [call.image]))
+    : []
+
 function workSegmentOf(args: {
   turnId: string
   after: string
@@ -125,13 +140,32 @@ function segmentsOf(args: {
   const flush = (answeredAt?: string) => {
     if (pending.length > 0)
       segments.push(
-        workSegmentOf({ turnId: args.turnId, after, items: pending, startedAt, answeredAt }),
+        workSegmentOf({
+          turnId: args.turnId,
+          after,
+          items: pending,
+          startedAt,
+          answeredAt,
+        }),
       )
     pending = []
   }
   args.items.forEach((item, index) => {
     if (item.kind !== ETranscriptKind.Agent) {
       pending.push(item)
+      const images = imagesReadIn(item)
+      if (images.length === 0) return
+      const at = finishedAtOf(item)
+      flush(at)
+      const id = `${args.turnId}:images:${item.id}`
+      segments.push({
+        kind: ESegmentKind.Images,
+        id,
+        images,
+        ...(at === undefined ? {} : { at }),
+      })
+      after = id
+      startedAt = at
       return
     }
     flush(item.at)
@@ -142,6 +176,15 @@ function segmentsOf(args: {
   })
   flush()
   return segments
+}
+
+function workStartAfter(args: {
+  tail: Segment | undefined
+  fallback: string | undefined
+}): string | undefined {
+  if (args.tail?.kind === ESegmentKind.Message) return args.tail.item.at
+  if (args.tail?.kind === ESegmentKind.Images) return args.tail.at
+  return args.fallback
 }
 
 function withRunningTail(args: {
@@ -155,8 +198,13 @@ function withRunningTail(args: {
   if (tail?.kind === ESegmentKind.Work)
     return [...segments.slice(0, -1), { ...tail, running: true }]
   const after = tail?.id ?? TURN_START
-  const startedAt = tail?.kind === ESegmentKind.Message ? tail.item.at : args.startedAt
-  const placeholder = workSegmentOf({ turnId: args.turnId, after, items: [], startedAt })
+  const startedAt = workStartAfter({ tail, fallback: args.startedAt })
+  const placeholder = workSegmentOf({
+    turnId: args.turnId,
+    after,
+    items: [],
+    startedAt,
+  })
   return [...segments, { ...placeholder, running: true }]
 }
 
