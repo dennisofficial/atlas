@@ -16,8 +16,6 @@ import {
   type LifecycleFrame,
   type SignalFrame,
 } from './frame-buffer'
-import { admitsFamilyThread } from './family-admission'
-import { workspaceRefusalOf } from './materialize-workspace'
 import { createRuntimeCheckpointCapture } from './runtime-checkpoint'
 import { bindRuntimeCheckpoint } from './runtime-checkpoint-binding'
 import { runtimeWork } from './runtime-work'
@@ -37,7 +35,7 @@ import { handlerOptionsOf } from './serve-handler-options'
 import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
 import { bindServeSubscriptions } from './serve-subscriptions'
 import { subscribeLegacyWake } from './serve-wake'
-import { createSessionHandlers } from './socket-session'
+import { createBootedSessionHandlers } from './serve-session-handlers'
 import { createServeWorkspaceSession } from './serve-workspace-session'
 
 export async function finishServeBoot(args: {
@@ -138,46 +136,21 @@ export async function finishServeBoot(args: {
     },
   })
   const contextReader = createSessionContextReader({ threadId, home: atlasHome })
-  const admitsThread = admitsFamilyThread({ root: threadId, atlasHome })
-  const handlers = createSessionHandlers({
-    activity: app.activity,
+  const handlers = createBootedSessionHandlers({
+    app,
     threadId,
-    admitsThread,
-    ...(app.agents === undefined
-      ? {}
-      : {
-          childSend: {
-            agents: app.agents,
-            runner: app.runner,
-            log: app.log,
-            ids: app.ids,
-          },
-        }),
+    atlasHome,
+    workspace,
     buffer,
-    inFlight: () => inFlight(),
-    liveStepId: () => liveStepId(),
     driver,
-    files: app.files,
-    context: contextReader,
+    contextReader,
     admissionClosed,
     checkpoint: checkpoint.current,
     checkpointChanged: () => captureRunning(),
-    refusal: () => workspaceRefusalOf(workspace) ?? null,
+    inFlight: () => inFlight(),
+    liveStepId: () => liveStepId(),
     log,
-    roster: app.roster,
-    titling: app.titling,
-    prStates: app.prStates,
-    subscriptions: app.subscriptions,
-    commands: app.commands,
-    mcp: app.mcp,
-    rewind: app.rewind,
-    compaction: app.compaction,
-    agents: app.agents,
-    processes: app.processes,
-    operatorInput: app.operatorInput,
-    pending: app.pending,
-    tools: { changes: app.changes, terminal: app.terminal },
-    ...handlerOptionsOf({ app, log, persist: { ...args, clientVersion, fetchFn } }),
+    options: handlerOptionsOf({ app, log, persist: { ...args, clientVersion, fetchFn } }),
   })
   const detachSubscriptions = bindServeSubscriptions({
     app,
