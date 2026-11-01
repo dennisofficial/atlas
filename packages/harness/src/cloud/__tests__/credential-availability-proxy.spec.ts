@@ -11,10 +11,13 @@ import {
 } from '@dltech/atlas-core'
 
 import { InMemoryCredentialAvailability } from '../../credentials/credential-availability'
-import { CredentialAvailabilityProxy } from '../credential-availability-proxy'
+import {
+  CredentialAvailabilityProxy,
+  RemoteSettlementUnreachableError,
+} from '../credential-availability-proxy'
 import { CloudSessionStore } from '../cloud-session'
 import { isTrpcUrl, trpcCallOf, trpcData } from './accounts-trpc-fake'
-import { key, probePermit, revision } from './availability-fixture'
+import { key, probePermit, quotaFailure, revision } from './availability-fixture'
 
 const clock: ClockPort = { now: () => '2026-11-01T12:00:00.000Z' }
 
@@ -116,17 +119,45 @@ describe('CredentialAvailabilityProxy', () => {
     expect(remoteCalls).toEqual([])
   })
 
-  it('drops a remote permit settlement when the session ended mid-flight', async () => {
-    sessions.write({ url: 'http://cloud.test', token: 'tok-1', email: null })
-    const permit = permitOf(await proxy.admit({ key, revision }))
-    sessions.clear()
+  describe('a remote permit whose cloud session ended mid-flight', () => {
+    const remotePermit = async (): Promise<AdmissionPermit> => {
+      sessions.write({ url: 'http://cloud.test', token: 'tok-1', email: null })
+      const permit = permitOf(await proxy.admit({ key, revision }))
+      sessions.clear()
+      return permit
+    }
 
-    await proxy.complete({
-      permit,
-      completion: { outcome: EAdmissionCompletion.Succeeded },
+    it('drops a succeeded completion, leaving the lease to reclaim it', async () => {
+      const permit = await remotePermit()
+
+      await proxy.complete({
+        permit,
+        completion: { outcome: EAdmissionCompletion.Succeeded },
+      })
+
+      expect(remoteCalls.map((call) => call.procedure)).toEqual(['credentialAvailability.admit'])
     })
 
-    expect(remoteCalls.map((call) => call.procedure)).toEqual(['credentialAvailability.admit'])
+    it('surfaces a failed completion instead of dropping the provider evidence', async () => {
+      const permit = await remotePermit()
+
+      await expect(
+        proxy.complete({
+          permit,
+          completion: { outcome: EAdmissionCompletion.Failed, failure: quotaFailure },
+        }),
+      ).rejects.toBeInstanceOf(RemoteSettlementUnreachableError)
+      expect(remoteCalls.map((call) => call.procedure)).toEqual(['credentialAvailability.admit'])
+    })
+
+    it('surfaces a probe promotion instead of dropping it', async () => {
+      const permit = await remotePermit()
+
+      await expect(proxy.promoteProbe({ permit, failure: quotaFailure })).rejects.toBeInstanceOf(
+        RemoteSettlementUnreachableError,
+      )
+      expect(remoteCalls.map((call) => call.procedure)).toEqual(['credentialAvailability.admit'])
+    })
   })
 
   it('rebuilds the remote client when the token changes', async () => {

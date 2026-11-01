@@ -9,13 +9,16 @@ import {
   EProviderFailureScope,
   EProviderRetry,
 } from '@dltech/atlas-wire'
-import type { INestApplication } from '@nestjs/common'
+import { UnauthorizedException, type INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { seedUsers } from '../../../../test/session-seed'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { as, createMiddlewareApp } from '../../../_module/trpc/trpc-middleware.fixture'
+import { SandboxesService } from '../sandboxes/sandboxes.service'
+import { ETokenPrincipalKind } from '../sandboxes/token-principal'
+import { SessionOrSandboxMiddleware } from '../sessions/session-or-sandbox.middleware'
 import { CredentialAvailabilityRouter } from './credential-availability.router'
 import { CredentialAvailabilityService } from './credential-availability.service'
 
@@ -53,12 +56,32 @@ describe('CredentialAvailabilityRouter', () => {
         CredentialAvailabilityRouter,
         CredentialAvailabilityService,
         SessionMiddleware,
+        SessionOrSandboxMiddleware,
         {
           provide: SESSION_VERIFIER,
           useValue: {
             async verify(req: { headers: { authorization?: string } }) {
               const userId = USERS[(req.headers.authorization ?? '').replace(/^Bearer /, '')]
               return userId === undefined ? null : { userId, sessionId: 's', email: '' }
+            },
+          },
+        },
+        {
+          provide: SandboxesService,
+          useValue: {
+            async verifyTokenPrincipal(args: { token: string }) {
+              if (args.token === 'pod-token') {
+                return { kind: ETokenPrincipalKind.Pod, threadId: 'thr-1', userId: 'user-p' }
+              }
+              if (args.token === 'sandbox-token') {
+                return {
+                  kind: ETokenPrincipalKind.Sandbox,
+                  id: 'sbx-1',
+                  threadId: 'thr-1',
+                  userId: 'user-s',
+                }
+              }
+              throw new UnauthorizedException()
             },
           },
         },
@@ -71,7 +94,7 @@ describe('CredentialAvailabilityRouter', () => {
   })
 
   beforeEach(async () => {
-    await seedUsers('user-a', 'user-b')
+    await seedUsers('user-a', 'user-b', 'user-s', 'user-p')
   })
 
   it('answers 401 on every procedure without a session', async () => {
@@ -140,5 +163,63 @@ describe('CredentialAvailabilityRouter', () => {
       action: EAvailabilityControl.Resume,
     })
     expect(resumed.body.result.data.availability).toBe(ECredentialAvailability.Available)
+  })
+
+  describe('sandbox and pod tokens', () => {
+    const settle = (permit: unknown) => ({
+      permit,
+      completion: {
+        outcome: EAdmissionCompletion.Failed,
+        failure: {
+          kind: EProviderFailureKind.Quota,
+          scope: EProviderFailureScope.Credential,
+          retry: EProviderRetry.Never,
+          message: 'quota exhausted',
+        },
+      },
+    })
+
+    it('lets a sandbox token admit, complete and inspect as its owner', async () => {
+      const admitted = await mutate('admit', 'sandbox-token', input)
+      expect(admitted.status).toBe(200)
+      const { permit } = admitted.body.result.data
+
+      expect((await mutate('complete', 'sandbox-token', settle(permit))).status).toBe(200)
+
+      const snapshot = await inspect('sandbox-token')
+      expect(snapshot.body.result.data.availability).toBe(ECredentialAvailability.QuotaExhausted)
+      expect((await inspect('token-a')).body.result.data.availability).toBe(
+        ECredentialAvailability.Available,
+      )
+      expect((await db.orm.public.CredentialAvailability.all())[0]?.userId).toBe('user-s')
+    })
+
+    it('lets a pod token admit and promote a probe as its owner', async () => {
+      const admitted = await mutate('admit', 'pod-token', input)
+      expect(admitted.status).toBe(200)
+      expect(admitted.body.result.data.admitted).toBe(true)
+      const { permit } = admitted.body.result.data
+      expect(
+        (
+          await mutate('promoteProbe', 'pod-token', {
+            permit,
+            failure: settle(permit).completion.failure,
+          })
+        ).status,
+      ).toBe(200)
+      expect((await inspect('pod-token')).status).toBe(200)
+    })
+
+    it('rejects an unknown bearer on admit', async () => {
+      expect((await mutate('admit', 'forged-token', input)).status).toBe(401)
+    })
+
+    it('keeps control session-only', async () => {
+      const body = { ...input, action: EAvailabilityControl.Pause }
+
+      expect((await mutate('control', 'sandbox-token', body)).status).toBe(401)
+      expect((await mutate('control', 'pod-token', body)).status).toBe(401)
+      expect((await mutate('control', 'token-a', body)).status).toBe(200)
+    })
   })
 })

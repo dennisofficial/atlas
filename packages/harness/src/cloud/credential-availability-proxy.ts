@@ -1,5 +1,6 @@
 import {
   CredentialAvailabilityPort,
+  EAdmissionCompletion,
   type AdmissionCompletion,
   type AdmissionDecision,
   type AdmissionPermit,
@@ -13,6 +14,13 @@ import {
 import { cloudClientFor } from './cloud-client'
 import type { CloudSession } from './cloud-session'
 import { RemoteCredentialAvailability } from './remote-credential-availability'
+
+export class RemoteSettlementUnreachableError extends Error {
+  constructor() {
+    super('the cloud session ended before a remote availability settlement could be delivered')
+    this.name = 'RemoteSettlementUnreachableError'
+  }
+}
 
 export class CredentialAvailabilityProxy extends CredentialAvailabilityPort {
   private readonly local: CredentialAvailabilityPort
@@ -47,7 +55,8 @@ export class CredentialAvailabilityProxy extends CredentialAvailabilityPort {
     failure: NormalizedProviderFailure
   }): Promise<void> {
     const authority = this.authorityOf(args.permit)
-    if (authority !== undefined) await authority.promoteProbe(args)
+    if (authority === undefined) throw new RemoteSettlementUnreachableError()
+    await authority.promoteProbe(args)
   }
 
   async complete(args: {
@@ -55,7 +64,10 @@ export class CredentialAvailabilityProxy extends CredentialAvailabilityPort {
     completion: AdmissionCompletion
   }): Promise<void> {
     const authority = this.authorityOf(args.permit)
-    if (authority !== undefined) await authority.complete(args)
+    if (authority !== undefined) return authority.complete(args)
+    if (args.completion.outcome === EAdmissionCompletion.Failed) {
+      throw new RemoteSettlementUnreachableError()
+    }
   }
 
   control(args: {

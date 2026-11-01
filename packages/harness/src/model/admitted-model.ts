@@ -61,16 +61,22 @@ export function admittedModel(args: AdmittedModelArgs): LanguageModelV4 {
     signal: AbortSignal | undefined
   }): Promise<void> => {
     const { permit } = settle
-    if (settle.signal?.aborted === true) {
-      await complete({ permit, completion: { outcome: EAdmissionCompletion.Cancelled } })
-      return
+    try {
+      if (settle.signal?.aborted === true) {
+        await complete({ permit, completion: { outcome: EAdmissionCompletion.Cancelled } })
+        return
+      }
+      const failure = failureOf(settle.error)
+      if (permit.probe) {
+        await availability.promoteProbe({ permit, failure })
+        return
+      }
+      await complete({ permit, completion: { outcome: EAdmissionCompletion.Failed, failure } })
+    } catch {
+      // A settle that the authority could not record (e.g. a remote settlement whose session is
+      // unreachable) must not mask the provider error that triggered it. The lease reclaims the
+      // barrier; the caller keeps the original failure.
     }
-    const failure = failureOf(settle.error)
-    if (permit.probe) {
-      await availability.promoteProbe({ permit, failure })
-      return
-    }
-    await complete({ permit, completion: { outcome: EAdmissionCompletion.Failed, failure } })
   }
 
   const observed = (observing: {
@@ -89,7 +95,11 @@ export function admittedModel(args: AdmittedModelArgs): LanguageModelV4 {
     const settle = async (completion: AdmissionCompletion): Promise<void> => {
       if (settled) return
       settled = true
-      await complete({ permit, completion })
+      try {
+        await complete({ permit, completion })
+      } catch {
+        // Same rule as settleFailure: an unrecordable settle must not corrupt a live stream.
+      }
     }
 
     const failed = (failure: NormalizedProviderFailure): Promise<void> =>
@@ -111,7 +121,12 @@ export function admittedModel(args: AdmittedModelArgs): LanguageModelV4 {
       if (permit.probe && !promoted) {
         promoted = true
         pendingFailure = failure
-        await availability.promoteProbe({ permit, failure })
+        try {
+          await availability.promoteProbe({ permit, failure })
+        } catch {
+          // An unrecordable probe promotion must not corrupt a live stream; the barrier persists
+          // and the pending failure still completes the permit when the stream ends.
+        }
         return
       }
       await failed(failure)
