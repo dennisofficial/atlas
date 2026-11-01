@@ -1,24 +1,34 @@
 'use client'
 
 import {
+  BracesIcon,
   CircleIcon,
   CircleXIcon,
+  DatabaseIcon,
+  GlobeIcon,
   LoaderCircleIcon,
   PlayIcon,
   RefreshCwIcon,
   ScrollTextIcon,
+  SquareArrowOutUpRightIcon,
   SquareIcon,
   TriangleAlertIcon,
+  type LucideIcon,
 } from 'lucide-react'
 
 import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
+import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
 import type { DeclaredServiceStateWire, DeclaredServiceViewWire } from '@dltech/atlas-wire/web'
 
 import {
+  EOpenTarget,
+  EServiceKind,
   hasServicesToShow,
   linkSplitOf,
+  openTargetOf,
   restartEmphasizedOf,
   serviceActionsOf,
+  serviceKindOf,
   serviceStateLabelOf,
 } from '../../data/services-model'
 import type { DeclaredServicesData } from '../../data/use-declared-services'
@@ -37,6 +47,28 @@ function StateIcon({ state }: { state: DeclaredServiceStateWire }) {
   if (state === 'stale') return <RefreshCwIcon aria-hidden className="size-3.5 text-warning" />
   if (state === 'stopped') return <CircleIcon aria-hidden className="size-2.5" />
   return <CircleXIcon aria-hidden className="size-3.5 text-destructive" />
+}
+
+const KIND_ICONS: Record<EServiceKind, LucideIcon> = {
+  [EServiceKind.Web]: GlobeIcon,
+  [EServiceKind.Api]: BracesIcon,
+  [EServiceKind.Database]: DatabaseIcon,
+}
+
+function TypeIcon({ service }: { service: DeclaredServiceViewWire }) {
+  const kind = serviceKindOf(service)
+  if (kind === undefined) return null
+  const Icon = KIND_ICONS[kind]
+  return (
+    <span role="img" aria-label={`${kind} service`} title={kind} className="flex">
+      <Icon aria-hidden className="size-3.5" />
+    </span>
+  )
+}
+
+export type ServicesPreview = {
+  ports: readonly PreviewPort[]
+  onOpen: (serviceId: string) => void
 }
 
 function ServiceLinks({ service }: { service: DeclaredServiceViewWire }) {
@@ -64,18 +96,26 @@ function ServiceLinks({ service }: { service: DeclaredServiceViewWire }) {
 function ServiceRow(props: {
   service: DeclaredServiceViewWire
   data: DeclaredServicesData
+  preview?: ServicesPreview
   onOpenLog: (serviceId: string) => void
 }) {
-  const { service, data, onOpenLog } = props
+  const { service, data, preview, onOpenLog } = props
   const { name, state, serviceId } = service
   const actions = serviceActionsOf(state)
   const busy = data.busyName !== null
   const reason = service.reason ?? undefined
+  const handleOpen = () => {
+    if (serviceId === undefined) return
+    const target = openTargetOf({ service, ports: preview?.ports ?? [] })
+    if (target === EOpenTarget.Preview) preview?.onOpen(serviceId)
+    else onOpenLog(serviceId)
+  }
   return (
     <DetailRow
       mono
       icon={<StateIcon state={state} />}
       label={name}
+      meta={<TypeIcon service={service} />}
       detail={
         <>
           {serviceStateLabelOf(state)}
@@ -86,6 +126,12 @@ function ServiceRow(props: {
       }
       actions={
         <>
+          <ActionButton
+            icon={SquareArrowOutUpRightIcon}
+            label={`Open ${name}`}
+            disabled={serviceId === undefined}
+            onAction={handleOpen}
+          />
           {serviceId === undefined ? null : (
             <ActionButton
               icon={ScrollTextIcon}
@@ -139,6 +185,7 @@ export type AdhocServices = { data: ProcessesData; fold: AdhocFold }
 export function ServicesSection(props: {
   data: DeclaredServicesData
   onOpenLog: (serviceId: string) => void
+  preview?: ServicesPreview
   adhoc?: AdhocServices
 }) {
   const { view, error } = props.data
@@ -152,7 +199,12 @@ export function ServicesSection(props: {
     <DetailsSection title="Services" count={services.length + adhocShown}>
       {services.map((service) => (
         <div key={service.name} className="flex flex-col">
-          <ServiceRow service={service} data={props.data} onOpenLog={props.onOpenLog} />
+          <ServiceRow
+            service={service}
+            data={props.data}
+            preview={props.preview}
+            onOpenLog={props.onOpenLog}
+          />
           {error?.name === service.name ? <WarningRow text={error.reason} /> : null}
         </div>
       ))}

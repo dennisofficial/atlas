@@ -1,5 +1,7 @@
 'use client'
 
+import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
+
 import type { AgentsData } from '../../data/use-agents'
 import { useContextFiles } from '../../data/use-context-files'
 import { useDeclaredServices } from '../../data/use-declared-services'
@@ -21,7 +23,12 @@ import { ServicesSection } from './services-section'
 import { SubscriptionsSection } from './subscriptions-section'
 import { TodoSection } from './todo-section'
 
-export function DetailsTab(props: { agents: AgentsData; subscriptions: SubscriptionsData }) {
+export function DetailsTab(props: {
+  agents: AgentsData
+  subscriptions: SubscriptionsData
+  previewPorts: readonly PreviewPort[]
+  onOpenPreview: (serviceId: string) => void
+}) {
   const { threadId, channel, agentId } = useThreadPanel()
   const processes = useProcesses({ threadId, channel })
   const declared = useDeclaredServices(channel)
@@ -47,6 +54,7 @@ export function DetailsTab(props: { agents: AgentsData; subscriptions: Subscript
           <ServicesSection
             data={declared}
             onOpenLog={handleOpenServiceLog}
+            preview={{ ports: props.previewPorts, onOpen: props.onOpenPreview }}
             adhoc={{ data: processes, fold: adhoc }}
           />
           <BackgroundSection data={processes} />

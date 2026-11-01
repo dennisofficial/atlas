@@ -1,3 +1,5 @@
+import type { EServiceType } from './service-type'
+
 export enum EDeclaredServiceState {
   Stopped = 'stopped',
   Starting = 'starting',
@@ -16,6 +18,7 @@ export type DeclaredServiceLink = {
 export type DeclaredServiceView = {
   name: string
   state: EDeclaredServiceState
+  type?: EServiceType | undefined
   serviceId?: string | undefined
   port?: number | undefined
   url?: string | undefined

@@ -1,3 +1,4 @@
+import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
 import type {
   DeclaredServiceLinkWire,
   DeclaredServiceStateWire,
@@ -6,7 +7,13 @@ import type {
   ServiceSnapshotWire,
 } from '@dltech/atlas-wire/web'
 
-export type ServiceActions = { start: boolean; restart: boolean; stop: boolean }
+import { previewIdOf } from './preview-ports'
+
+export type ServiceActions = {
+  start: boolean
+  restart: boolean
+  stop: boolean
+}
 
 const ACTIONS: Record<DeclaredServiceStateWire, ServiceActions> = {
   stopped: { start: true, restart: false, stop: false },
@@ -62,3 +69,29 @@ export const sameViewOf = (args: {
   previous: DeclaredServicesViewWire | null
   next: DeclaredServicesViewWire
 }): boolean => JSON.stringify(args.previous) === JSON.stringify(args.next)
+
+export enum EServiceKind {
+  Web = 'web',
+  Api = 'api',
+  Database = 'database',
+}
+
+export enum EOpenTarget {
+  Preview = 'preview',
+  Log = 'log',
+}
+
+export function serviceKindOf(service: DeclaredServiceViewWire): EServiceKind | undefined {
+  return Object.values(EServiceKind).find((kind) => kind === service.type)
+}
+
+export function openTargetOf(args: {
+  service: DeclaredServiceViewWire
+  ports: readonly PreviewPort[]
+}): EOpenTarget {
+  const { service, ports } = args
+  if (service.serviceId === undefined) return EOpenTarget.Log
+  if (serviceKindOf(service) !== EServiceKind.Web) return EOpenTarget.Log
+  const id = previewIdOf(service.serviceId)
+  return ports.some((port) => port.id === id) ? EOpenTarget.Preview : EOpenTarget.Log
+}

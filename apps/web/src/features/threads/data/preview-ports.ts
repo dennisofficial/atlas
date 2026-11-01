@@ -5,6 +5,8 @@ const MAX_LABEL = 28
 
 type Candidate = { port: PreviewPort; startedAt: string }
 
+export const previewIdOf = (serviceId: string): string => `service:${serviceId}`
+
 const labelOf = (args: { description: string; command: string }): string => {
   const text = args.description.trim() || args.command.trim()
   return text.length > MAX_LABEL ? `${text.slice(0, MAX_LABEL - 1)}…` : text
@@ -19,7 +21,7 @@ function fromService(service: ServiceSnapshotWire): Candidate | null {
   return {
     startedAt: service.startedAt,
     port: {
-      id: `service:${service.serviceId}`,
+      id: previewIdOf(service.serviceId),
       port: exposure.containerPort,
       label: labelOf(service),
       url: exposure.url,

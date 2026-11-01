@@ -43,6 +43,7 @@ services:
 | `setup`  | List of shell commands run in `cwd` once per service before its first start.             |
 | `portal` | `true` (or `{ url?, title?, description? }`): publish a public URL for this service.     |
 | `portals` | Extra links `{ url, title, description? }`; a `/` path resolves against the public URL. |
+| `type`   | Optional; `web`, `api`, or `database`. Drives how the web UI opens the service (preview vs logs). |
 
 Names are lowercase letters, digits and dashes, at most 32 characters. Only services with `portal`
 get a public URL. Entries Atlas rejects are listed in the workspace hint and in the tool reply;

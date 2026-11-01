@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { EServiceType } from './service-type'
+
 export const SERVICE_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,31}$/
 
 export const VITE_ALLOWED_HOSTS_ENV = '__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS'
@@ -55,6 +57,7 @@ export const serviceDeclarationSchema = z.strictObject({
   setup: z.array(z.string().min(1)).min(1).optional(),
   portal: servicePortalSchema.optional(),
   portals: z.array(serviceLinkSchema).optional(),
+  type: z.nativeEnum(EServiceType).optional(),
 })
 
 export const servicesFileSchema = z.object({
