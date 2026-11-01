@@ -14,9 +14,6 @@ import { TAKE_BACK_TOO_LATE_MESSAGE } from './thread-messages.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
-const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
-const SAID = (sendId: string, text: string) =>
-  JSON.stringify({ type: 'user-said', text, requestId: sendId })
 
 const podAnswer = (seq: number) => ({
   seq,
@@ -49,6 +46,10 @@ describe('ThreadMessagesService.takeBack', () => {
   it('lets the next send reuse the freed seq', async () => {
     const { service } = messagesWith()
     await service.send(ARGS)
+    await recordBootSteps({
+      threadId: 'thr-1',
+      steps: [{ step: EBootStep.Provision, state: EBootStepState.Running }],
+    })
     await service.takeBack(target)
 
     await service.send({ ...ARGS, sendId: 'snd-2', text: 'again' })
@@ -73,14 +74,6 @@ describe('ThreadMessagesService.takeBack', () => {
     })
     expect(await eventsOf()).toHaveLength(2)
     expect(await threadRow()).toMatchObject({ historyRev: 0 })
-  })
-
-  it('refuses with 409 when a serve is running for the thread', async () => {
-    await appendRaw({ type: 'user-said', body: SAID('snd-1', 'hello') })
-    const { service } = messagesWith({ endpoint: ENDPOINT })
-
-    await expect(service.takeBack(target)).rejects.toMatchObject({ status: 409 })
-    expect(await eventsOf()).toHaveLength(1)
   })
 
   it('refuses with 409 once the pod answer reached Postgres', async () => {

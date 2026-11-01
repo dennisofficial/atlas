@@ -69,6 +69,7 @@ export enum EServeEvent {
   BootReportFailed = 'serve.boot-report-failed',
   Hydrated = 'serve.hydrated',
   HydrateFailed = 'serve.hydrate-failed',
+  PullFailed = 'serve.pull-failed',
   ResumeRefused = 'serve.resume-refused',
   EventsFlushed = 'serve.events-flushed',
   EventsTruncated = 'serve.events-truncated',

@@ -26,8 +26,11 @@ export type RowClaim = { token: string; wakeClaim: Date; name: string; sandboxId
 export const relaunchableOf = (row: Row<'CloudSandbox'> | null): boolean =>
   row === null || wakeableOf(row) || failedAfterClaim(row)
 
-export const appendableOf = (row: Row<'CloudSandbox'> | null): boolean =>
-  relaunchableOf(row) || (row !== null && standingStateOf(row) === ESandboxProvisionState.Booting)
+export const appendableOf = (row: Row<'CloudSandbox'> | null): boolean => {
+  if (relaunchableOf(row)) return true
+  const standing = row === null ? undefined : standingStateOf(row)
+  return standing === ESandboxProvisionState.Booting || standing === ESandboxProvisionState.Running
+}
 
 function tokenOfExisting(args: { existing: Row<'CloudSandbox'>; cipher: SecretCipherService }): {
   token: string

@@ -160,6 +160,16 @@ export class PodLaunchService {
     return { reply: booting, dispatchFailed: !dispatched }
   }
 
+  async dispatchClaimed(args: { thread: Row<'Thread'>; claim: RowClaim }): Promise<boolean> {
+    const { thread, claim } = args
+    const session = await sessionOfThread({ reader: db, threadId: thread.id })
+    if (session.executionLocation === null) {
+      await db.orm.public.Session.where({ id: session.id }).update({ executionLocation: 'cloud' })
+    }
+    await this.signals.podChanged({ threadId: thread.id })
+    return this.dispatch({ threadId: thread.id, claim })
+  }
+
   async rollover(args: { threadId: string; sessionId: string }): Promise<{ dispatched: boolean }> {
     const { threadId, sessionId } = args
     const thread = await db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()

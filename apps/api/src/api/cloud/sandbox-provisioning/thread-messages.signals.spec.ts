@@ -1,9 +1,18 @@
-import { EThreadStreamFrame } from '@dltech/atlas-wire'
+import { EBootStep, EBootStepState, EThreadStreamFrame } from '@dltech/atlas-wire'
+import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it, vi } from 'bun:test'
+import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { recordingSignals } from '../../platform/sessions/thread-signals.fixture'
-import { messagesWith, seedThread, sessionRow } from './sandbox-provisioning.fixture'
+import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
+import {
+  fakeScoped,
+  messagesWith,
+  seedProvisionedRow,
+  seedThread,
+  sessionRow,
+} from './sandbox-provisioning.fixture'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 const head = (args: { head: number; historyRev: number }) =>
@@ -51,26 +60,42 @@ describe('ThreadMessagesService signals', () => {
     expect(changedThreads).toContain('thr-1')
   })
 
-  it('a live send to an archived thread unarchives it too', async () => {
-    await db.orm.public.Session.where({ id: 'ses_thr-1' }).update({ archivedAt: new Date() })
+  it('a duplicate sendId appends nothing and signals no events', async () => {
+    const { signals, framesOf } = recordingSignals()
+    const { service } = messagesWith({ signals })
+    await service.send(ARGS)
+    await recordBootSteps({
+      threadId: 'thr-1',
+      steps: [{ step: EBootStep.Provision, state: EBootStepState.Running }],
+    })
+    const frames = framesOf('thr-1')
 
-    await messagesWith({
-      endpoint: { token: 'tok', url: 'https://serve.example.test' },
-    }).service.send(ARGS)
+    await service.send(ARGS)
 
-    expect((await sessionRow())?.archivedAt).toBeNull()
+    expect(frames.filter((frame) => frame.type !== EThreadStreamFrame.Pod)).toEqual([])
   })
 
-  it('a live delivery appends nothing and signals nothing', async () => {
+  it('a send to a booting pod signals the head but no pod change', async () => {
+    await seedProvisionedRow()
     const { signals, framesOf } = recordingSignals()
     const frames = framesOf('thr-1')
 
-    await messagesWith({
-      signals,
-      endpoint: { token: 'tok', url: 'https://serve.example.test' },
-    }).service.send(ARGS)
+    await messagesWith({ signals }).service.send(ARGS)
 
-    expect(frames).toEqual([])
+    expect(frames).toContainEqual(head({ head: 1, historyRev: 0 }))
+    expect(frames).not.toContainEqual(pod)
+  })
+
+  it('a credential gap signals the kept message and a pod change', async () => {
+    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
+    const { signals, framesOf } = recordingSignals()
+    const frames = framesOf('thr-1')
+
+    await messagesWith({ signals, scoped }).service.send(ARGS)
+
+    expect(frames).toContainEqual(head({ head: 1, historyRev: 0 }))
+    expect(frames).toContainEqual(pod)
   })
 
   it('takeBack signals the wound-back head', async () => {

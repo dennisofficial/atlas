@@ -7,7 +7,6 @@ import { ScopedConfigModule } from '../scoped-config/scoped-config.module'
 import { SandboxRolloverRouter } from './sandbox-rollover.router'
 import { SandboxProvisioningRouter } from './sandbox-provisioning.router'
 import { SandboxProvisioningService } from './sandbox-provisioning.service'
-import { deliverToServe, SERVE_SEND } from './serve-send'
 import { ThreadLauncherModule } from './thread-launcher.module'
 import { ThreadMessagesRouter } from './thread-messages.router'
 import { ThreadMessagesService } from './thread-messages.service'
@@ -26,7 +25,6 @@ import { ThreadPodService } from './thread-pod.service'
     ThreadPodRouter,
     SandboxRolloverRouter,
     SandboxTokenMiddleware,
-    { provide: SERVE_SEND, useValue: deliverToServe },
   ],
 })
 export class SandboxProvisioningModule {}
