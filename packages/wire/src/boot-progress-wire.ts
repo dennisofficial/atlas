@@ -292,4 +292,4 @@ export const podStatusSchema = z.object({
 })
 export type PodStatus = z.infer<typeof podStatusSchema>
 
-export { podConnectReplySchema, type PodConnectReply } from './pod-connect-wire.js'
+export { podConnectReplySchema, type PodConnectReply } from './pod-connect-wire'
