@@ -3,7 +3,6 @@ import {
   callIdsIn,
   dedupeCallIds,
   EMPTY_STEP_RAW_RETRIES,
-  ERunFailureKind,
   pendingCalls,
   projectDirectoryOf,
   retriableEmptyStep,
@@ -12,7 +11,6 @@ import {
   type RunId,
 } from '@dltech/atlas-core'
 
-import { TurnFault } from '../model/turn-fault'
 import { guardRepeatLoop } from './loop-guard'
 import { watchStepLoop } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
@@ -27,7 +25,8 @@ import {
   preparedFailureMessage,
   type StepPrepareDeps,
 } from './step-prepare'
-import { swallowedReport } from './turn-faults'
+import { idleOrSwallowed } from './swallowed-outcome'
+import { waitingIfBlocked } from './waiting-outcome'
 import { committedSinceLastMessage, messageArrivedSince, settlePendingCall } from './turn-position'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { closeQuietStep } from './close-quiet-step'
@@ -145,21 +144,7 @@ export async function runTrackedTurn(
       !awaitsReply(owned) &&
       !messageArrivedSince({ events: owned, seenThrough: position.seenThrough })
     ) {
-      const swallowed = position.committedCalls.at(-1)
-      if (swallowed !== undefined) {
-        const message = swallowedReport(swallowed)
-        return {
-          status: ETurnStatus.Failed,
-          runId,
-          message,
-          cause: new TurnFault({
-            kind: ERunFailureKind.ToolSettlement,
-            message,
-            detail: swallowed,
-          }),
-        }
-      }
-      return { status: ETurnStatus.Idle, runId }
+      return idleOrSwallowed({ swallowed: position.committedCalls.at(-1), runId })
     }
 
     const watched = await watchStepLoop({
@@ -237,6 +222,8 @@ export async function runTrackedTurn(
       })
 
     let stepped = await stepOnce()
+    const denied = await waitingIfBlocked({ deps, stepped, threadId, runId })
+    if (denied !== undefined) return denied
     position.modelSteps += 1
 
     if (
@@ -247,6 +234,8 @@ export async function runTrackedTurn(
       position.silentRetries += 1
       spend.countStep(stepped.result.usage)
       stepped = await stepOnce()
+      const deniedRetry = await waitingIfBlocked({ deps, stepped, threadId, runId })
+      if (deniedRetry !== undefined) return deniedRetry
     }
 
     position.settleAttempted = undefined
@@ -260,6 +249,7 @@ export async function runTrackedTurn(
     if (!stepped.ok) {
       return { status: ETurnStatus.Failed, runId, message: stepped.message, cause: stepped.cause }
     }
+    await deps.waitState?.admitted({ threadId })
 
     if (abortSignal.aborted) {
       const abandoned = dedupeCallIds({

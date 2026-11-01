@@ -65,6 +65,7 @@ export function wireSupervisor(args: SupervisorDeps): SupervisorParts {
     roster,
     notices,
     launchDirectory: args.launchDirectory,
+    ...(args.waitState === undefined ? {} : { waitState: args.waitState }),
   })
   const relocation: Relocation = { deps: args, sink, roster, steps, recovery, delivery }
 

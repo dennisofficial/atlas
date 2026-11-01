@@ -25,6 +25,7 @@ import type { HookChain } from '../hooks/registry'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import type { ApplyLoopCut } from '../store/sessions/ops/cut-loop'
 import type { ToolDispatcher } from '../tools/dispatch'
+import type { ModelWaitObserver } from '../model-recovery/wait-state'
 import type { LoopWatch } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
 import type { PendingDrain } from './pending-intake'
@@ -82,6 +83,7 @@ export type TurnDeps = {
   launchDirectory?: string | undefined
   retry?: RetryDeps | undefined
   sleepPrevention?: SleepPrevention | undefined
+  waitState?: ModelWaitObserver | undefined
 }
 
 export class LoopTurnRunner extends TurnRunner {
@@ -143,6 +145,7 @@ export class LoopTurnRunner extends TurnRunner {
       autoCompactAtPercent: deps.autoCompactAtPercent ?? (() => AUTO_COMPACT_OFF),
       launchDirectory: deps.launchDirectory ?? process.cwd(),
       retry: deps.retry,
+      waitState: deps.waitState,
     }
   }
 

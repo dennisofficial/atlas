@@ -6,11 +6,12 @@ import type {
   ToolDeclaration,
 } from '@dltech/atlas-core'
 
+import type { ModelAdmissionBlockedError } from '../model/admission-blocked'
 import { ModelStreamError } from '../model/errors'
 
 export type SteppedTurn =
   | { ok: true; result: ModelStepResult }
-  | { ok: false; message: string; cause: unknown }
+  | { ok: false; message: string; cause: unknown; blocked?: ModelAdmissionBlockedError }
 
 export async function takeModelStep(args: {
   model: ModelPort

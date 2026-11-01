@@ -103,6 +103,7 @@ export async function pauseThreadChildren({
       isStepping(child) ||
       (stepping.includes(child) &&
         child.status !== EAgentStatus.Paused &&
+        child.status !== EAgentStatus.WaitingForModel &&
         child.status !== EAgentStatus.Finished),
   )
   if (unsafe !== undefined)

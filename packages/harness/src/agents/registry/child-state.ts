@@ -11,6 +11,7 @@ import {
   type ProviderIdentity,
   type RosteredAgent,
   type ThreadId,
+  type WaitEpisodeRef,
 } from '@dltech/atlas-core'
 
 import { PauseSignal } from '../../loop/pause-signal'
@@ -35,6 +36,7 @@ export type ChildState = {
   endedAt: string | undefined
   deliveredAt: string | undefined
   waitingOn: string | undefined
+  waitingFor: WaitEpisodeRef | undefined
   abort: AbortController
   pause: PauseSignal
   pending: SteerMessage[]
@@ -62,6 +64,23 @@ export const isStepping = (child: ChildState): boolean =>
 
 export const isHeld = (child: ChildState): boolean =>
   isRunning(child) && child.steppingSince === undefined
+
+export const isWaiting = (child: ChildState): boolean =>
+  child.status === EAgentStatus.WaitingForModel
+
+export function parkWaiting({
+  child,
+  episode,
+}: {
+  child: ChildState
+  episode: WaitEpisodeRef
+}): void {
+  child.status = EAgentStatus.WaitingForModel
+  child.waitingFor = episode
+  child.steppingSince = undefined
+  child.endedAt = undefined
+  child.waitingOn = undefined
+}
 
 export function freshChild({
   agentId,
@@ -97,6 +116,7 @@ export function freshChild({
     endedAt: undefined,
     deliveredAt: undefined,
     waitingOn: undefined,
+    waitingFor: undefined,
     abort: new AbortController(),
     pause: new PauseSignal(),
     pending: [],
@@ -134,6 +154,7 @@ export function recoveredChild({
     endedAt: agent.endedAt,
     deliveredAt: undefined,
     waitingOn: undefined,
+    waitingFor: undefined,
     abort: new AbortController(),
     pause: new PauseSignal(),
     pending: [],
@@ -166,6 +187,7 @@ export function reviseFromTransfer({
   child.endedAt = agent.endedAt
   child.deliveredAt = undefined
   child.waitingOn = undefined
+  child.waitingFor = undefined
   child.abort = new AbortController()
   child.pause = new PauseSignal()
   child.context = undefined
@@ -191,6 +213,7 @@ export function snapshotOf(child: ChildState): AgentSnapshot {
     context: child.context,
     model: child.model,
     ...(child.waitingOn === undefined ? {} : { waitingOn: child.waitingOn }),
+    ...(child.waitingFor === undefined ? {} : { waitingFor: child.waitingFor }),
   }
 }
 

@@ -4,6 +4,7 @@ import type {
   ERunFailureKind,
   ProviderIdentity,
   ThreadId,
+  WaitEpisodeRef,
 } from '@dltech/atlas-core'
 
 export type ChildContext = {
@@ -38,6 +39,8 @@ export type AgentSnapshot = {
   model?: ProviderIdentity | undefined
   /** The running background shell that holds an idle child open, e.g. `bash "bun test"` — absent once nothing does. */
   waitingOn?: string | undefined
+  /** The model-availability episode a WaitingForModel child is parked on. */
+  waitingFor?: WaitEpisodeRef | undefined
 }
 
 /**

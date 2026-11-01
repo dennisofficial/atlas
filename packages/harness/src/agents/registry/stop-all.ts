@@ -1,6 +1,6 @@
 import { EKilledBy } from '@dltech/atlas-core'
 
-import { isHeld, isStepping, type ChildState } from './child-state'
+import { isHeld, isStepping, isWaiting, type ChildState } from './child-state'
 import type { ChildSteps } from './child-steps'
 import type { AgentRoster } from './roster'
 
@@ -32,7 +32,7 @@ export function stopChild({
   by: EKilledBy
   steps: ChildSteps
 }): void {
-  if (isHeld(child)) return steps.endHeld({ child, killedBy: by })
+  if (isHeld(child) || isWaiting(child)) return steps.endHeld({ child, killedBy: by })
   if (!isStepping(child)) return
   child.killedBy = by
   child.abort.abort()

@@ -16,6 +16,8 @@ import {
 
 import { preparedFailureMessage, type PreparedStep } from './step-prepare'
 
+import { blockedErrorOf, type ModelAdmissionBlockedError } from '../model/admission-blocked'
+import { causeChainOf } from '../model/cause-chain'
 import { normalizeProviderFailure } from '../model/failure'
 import { takeModelStep, type SteppedTurn } from './model-step'
 
@@ -91,7 +93,13 @@ function interruptibleSleep(args: {
 
 type StepAttempt =
   | { ok: true; stepped: SteppedTurn }
-  | { ok: false; message: string; cause: unknown; thrown: boolean }
+  | {
+      ok: false
+      message: string
+      cause: unknown
+      thrown: boolean
+      blocked?: ModelAdmissionBlockedError | undefined
+    }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -112,9 +120,21 @@ async function attemptModelStep(args: {
   try {
     const stepped = await takeModelStep(args)
     if (stepped.ok) return { ok: true, stepped }
-    return { ok: false, message: stepped.message, cause: stepped.cause, thrown: false }
+    return {
+      ok: false,
+      message: stepped.message,
+      cause: stepped.cause,
+      thrown: false,
+      blocked: blockedErrorOf(causeChainOf(stepped.cause)),
+    }
   } catch (error) {
-    return { ok: false, message: messageOf(error), cause: error, thrown: true }
+    return {
+      ok: false,
+      message: messageOf(error),
+      cause: error,
+      thrown: true,
+      blocked: blockedErrorOf(causeChainOf(error)),
+    }
   }
 }
 
@@ -168,6 +188,15 @@ export async function takeModelStepWithRetry(args: {
       }
 
       if (args.signal.aborted) return settled()
+
+      if (attempt.blocked !== undefined) {
+        return {
+          ok: false,
+          message: attempt.message,
+          cause: attempt.cause,
+          blocked: attempt.blocked,
+        }
+      }
 
       attempts += 1
 

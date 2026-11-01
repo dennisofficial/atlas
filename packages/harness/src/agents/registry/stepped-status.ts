@@ -38,6 +38,7 @@ export async function steppedStatus({
       child.failureCause = safeFailureMessage(outcome.message)
       child.failureKind = runFailureOf({ message: outcome.message, cause: outcome.cause }).kind
     }
+    if (outcome.status === ETurnStatus.WaitingForModel) child.waitingFor = outcome.waiting.episode
     return statusOf(outcome)
   } catch {
     return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed

@@ -11,6 +11,7 @@ export const statusOf = (outcome: TurnOutcome): EAgentStatus => {
   if (outcome.status === ETurnStatus.Interrupted) return EAgentStatus.Stopped
   if (outcome.status === ETurnStatus.RelocationPaused) return EAgentStatus.Paused
   if (outcome.status === ETurnStatus.Paused) return EAgentStatus.Blocked
+  if (outcome.status === ETurnStatus.WaitingForModel) return EAgentStatus.WaitingForModel
   return EAgentStatus.Finished
 }
 

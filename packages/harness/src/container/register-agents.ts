@@ -18,6 +18,8 @@ import type { AgentType } from '../agents/types/agent-type'
 import { BUILT_IN_AGENT_TYPES } from '../agents/types/built-ins'
 import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { releaseEndedWorktree } from '../composition/worktree-claims'
+import { ModelWaitState } from '../model-recovery/wait-state'
+import { ModelWaitStateToken } from '../model-recovery/wait-state-token'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ThreadStorePort } from '../store'
@@ -42,8 +44,40 @@ const optionalLog = (resolver: DependencyContainer): LogPort | undefined =>
 const embeddedAgentTypes = (): readonly AgentType[] =>
   BUILT_IN_AGENT_TYPES.map((agentType) => ({ ...agentType, origin: EDefinitionOrigin.BuiltIn }))
 
+const publishingLog = ({
+  container,
+  resolver,
+}: {
+  container: DependencyContainer
+  resolver: DependencyContainer
+}): EventLogPort =>
+  withEventsAppendedPublishing({
+    log: resolver.resolve(registeredPortToken(EventLogPort)),
+    channel: () =>
+      container.isRegistered(DeltaChannelToken, true)
+        ? container.resolve(DeltaChannelToken)
+        : undefined,
+    onListenerError: (cause) =>
+      optionalLog(resolver)?.warn({
+        source: 'agents.publication',
+        message: 'a channel listener threw on an events-appended publication',
+        error: cause instanceof Error ? cause.message : String(cause),
+      }),
+  })
+
 export function registerAgents({ container }: { container: DependencyContainer }): void {
   let live: AgentSupervisor | undefined
+
+  container.register(ModelWaitStateToken, {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new ModelWaitState({
+          log: publishingLog({ container, resolver }),
+          ids: resolver.resolve(registeredPortToken(IdPort)),
+          threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
+        }),
+    ),
+  })
 
   container.register(AgentTypesToken, { useValue: embeddedAgentTypes() })
 
@@ -54,19 +88,8 @@ export function registerAgents({ container }: { container: DependencyContainer }
   container.register(registeredPortToken(AgentRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
       live = new AgentSupervisor({
-        log: withEventsAppendedPublishing({
-          log: resolver.resolve(registeredPortToken(EventLogPort)),
-          channel: () =>
-            container.isRegistered(DeltaChannelToken, true)
-              ? container.resolve(DeltaChannelToken)
-              : undefined,
-          onListenerError: (cause) =>
-            optionalLog(resolver)?.warn({
-              source: 'agents.publication',
-              message: 'a channel listener threw on an events-appended publication',
-              error: cause instanceof Error ? cause.message : String(cause),
-            }),
-        }),
+        log: publishingLog({ container, resolver }),
+        waitState: resolver.resolve(ModelWaitStateToken),
         threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
         ids: resolver.resolve(registeredPortToken(IdPort)),
         clock: resolver.resolve(registeredPortToken(ClockPort)),
