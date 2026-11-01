@@ -3,6 +3,7 @@ import { podEventOf } from '@dltech/atlas-harness'
 import { MAX_POD_EVENTS_PER_FLUSH, type PodEvent } from '@dltech/atlas-wire'
 
 import { type ApiRemote, createApiClient, detailsOf, httpStatusOf } from './api-client'
+import { EForkResolution } from './serve-fork-resolution'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 export enum EFlushReply {
@@ -47,6 +48,10 @@ export type EventFlusher = {
 const reasonOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
+export type ResolveFork = (args: { forkSeq: number }) => Promise<EForkResolution>
+
+type ShipResult = { conflict: false; count: number } | { conflict: true; seq: number | undefined }
+
 export function createEventFlusher(args: {
   threadId: ThreadId
   events: Pick<EventLogPort, 'readOwn'>
@@ -55,31 +60,68 @@ export function createEventFlusher(args: {
   truncate: TruncatePodEvents
   log: ServeLog
   refusalSettles?: boolean | undefined
+  resolveFork?: ResolveFork | undefined
 }): EventFlusher {
   const { threadId, log } = args
   let durable = args.durableHead
   let chain: Promise<boolean> = Promise.resolve(true)
   let queued: Promise<boolean> | undefined
 
-  const shipBatch = async (batch: readonly PodEvent[]): Promise<boolean> => {
-    const reply = await args.post(batch)
-    if (reply.kind === EFlushReply.Conflict) {
-      log({ event: EServeEvent.EventFlushConflict, threadId, seq: reply.seq, durableHead: durable })
+  const shipPending = async (): Promise<ShipResult> => {
+    const pending = await args.events.readOwn({ threadId, fromSeq: durable })
+    const events = pending.map(podEventOf)
+    for (let start = 0; start < events.length; start += MAX_POD_EVENTS_PER_FLUSH) {
+      const reply = await args.post(events.slice(start, start + MAX_POD_EVENTS_PER_FLUSH))
+      if (reply.kind === EFlushReply.Conflict) return { conflict: true, seq: reply.seq }
+      durable = Math.max(durable, reply.head)
+    }
+    return { conflict: false, count: events.length }
+  }
+
+  const truncateApi = async (toSeq: number): Promise<boolean> => {
+    try {
+      durable = await args.truncate(toSeq)
+      log({ event: EServeEvent.EventsTruncated, threadId, head: durable })
+      return true
+    } catch (failure) {
+      log({ event: EServeEvent.EventFlushFailed, threadId, reason: reasonOf(failure) })
       return false
     }
-    durable = Math.max(durable, reply.head)
-    return true
+  }
+
+  const logConflict = (seq: number | undefined): void =>
+    log({ event: EServeEvent.EventFlushConflict, threadId, seq, durableHead: durable })
+
+  const healFork = async (forkSeq: number): Promise<ShipResult | undefined> => {
+    const resolution = await args.resolveFork?.({ forkSeq })
+    if (resolution === EForkResolution.Deferred) {
+      log({ event: EServeEvent.EventForkDeferred, threadId, forkSeq })
+      return undefined
+    }
+    if (!(await truncateApi(forkSeq - 1))) return undefined
+    return shipPending()
   }
 
   const once = async (): Promise<boolean> => {
     try {
-      const pending = await args.events.readOwn({ threadId, fromSeq: durable })
-      const events = pending.map(podEventOf)
-      for (let start = 0; start < events.length; start += MAX_POD_EVENTS_PER_FLUSH) {
-        const shipped = await shipBatch(events.slice(start, start + MAX_POD_EVENTS_PER_FLUSH))
-        if (!shipped) return false
+      let result = await shipPending()
+      if (result.conflict) {
+        const forkSeq = result.seq
+        const healable =
+          args.resolveFork !== undefined && forkSeq !== undefined && forkSeq > durable
+        if (!healable) {
+          logConflict(forkSeq)
+          return false
+        }
+        const healed = await healFork(forkSeq)
+        if (healed === undefined) return false
+        if (healed.conflict) {
+          logConflict(healed.seq)
+          return false
+        }
+        result = healed
       }
-      if (events.length > 0) log({ event: EServeEvent.EventsFlushed, threadId, head: durable })
+      if (result.count > 0) log({ event: EServeEvent.EventsFlushed, threadId, head: durable })
       return true
     } catch (failure) {
       if (args.refusalSettles === true && failure instanceof ControlPlaneRefusal) {
@@ -102,17 +144,8 @@ export function createEventFlusher(args: {
     return next
   }
 
-  const truncateTo = async (toSeq: number): Promise<boolean> => {
-    if (toSeq >= durable) return true
-    try {
-      durable = await args.truncate(toSeq)
-      log({ event: EServeEvent.EventsTruncated, threadId, head: durable })
-      return true
-    } catch (failure) {
-      log({ event: EServeEvent.EventFlushFailed, threadId, reason: reasonOf(failure) })
-      return false
-    }
-  }
+  const truncateTo = async (toSeq: number): Promise<boolean> =>
+    toSeq >= durable || truncateApi(toSeq)
 
   const rebase = (given: { toSeq: number }): Promise<boolean> => {
     queued = undefined

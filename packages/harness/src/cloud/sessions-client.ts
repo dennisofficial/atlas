@@ -206,12 +206,14 @@ export class SessionsClient {
 
   async readEvents(args: {
     threadId: string
+    fromSeq?: number | undefined
     upTo?: number | undefined
     own?: boolean | undefined
   }): Promise<WireEvent[]> {
     return await cloudCall(
       this.client.threadEvents.read.query({
         threadId: args.threadId,
+        ...(args.fromSeq === undefined ? {} : { fromSeq: args.fromSeq }),
         ...(args.upTo === undefined ? {} : { upTo: args.upTo }),
         ...(args.own === true ? { own: true } : {}),
       }),

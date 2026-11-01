@@ -10,6 +10,8 @@ import {
   httpTruncatePodEvents,
   type EventFlusher,
 } from './serve-event-flush'
+import { resolveForkFor } from './serve-fork-ports'
+import type { ThreadRedeliveryPort } from './serve-redelivery'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 export type ChildIdentity = {
@@ -48,6 +50,7 @@ export function createChildMirror(args: {
   register: RegisterChild
   remote: ApiRemote
   refusalSettles: boolean
+  redelivery: ThreadRedeliveryPort
   log: ServeLog
   bindActivity?: ((threadId: ThreadId) => { detach: () => void }) | undefined
 }): ChildMirror {
@@ -68,6 +71,14 @@ export function createChildMirror(args: {
         post: httpPostPodEvents(args.remote, child.threadId),
         truncate: httpTruncatePodEvents(args.remote, child.threadId),
         refusalSettles: args.refusalSettles,
+        resolveFork: resolveForkFor({
+          threadId: child.threadId,
+          remote: args.remote,
+          events: args.events,
+          canRedeliverNow: () => args.redelivery.canRedeliverNow(child.threadId),
+          redeliver: (input) => args.redelivery.redeliver({ threadId: child.threadId, input }),
+          log,
+        }),
         log,
       })
       if (!detached) activity = args.bindActivity?.(child.threadId)

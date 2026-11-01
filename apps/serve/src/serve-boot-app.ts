@@ -9,6 +9,7 @@ import { bootReporterFor, strictBootSinkFor, trackAgentStep } from './serve-boot
 import { composeBootApp } from './serve-compose-boot'
 import { hydrateWhenRegistered } from './serve-hydrate'
 import { apiThreadModel } from './serve-thread-model-boot'
+import { createRedeliveryHolder } from './serve-redelivery'
 import { bindServeWriteBehind } from './serve-write-behind'
 import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
 import { fileMountNoticeOf } from './file-mount-notice'
@@ -91,6 +92,7 @@ export async function bootServeApp(args: {
       },
     })
     await recordNoticeEvents({ posts: collected.posts, threadId, app, log })
+    const redelivery = createRedeliveryHolder()
     const writeBehind = bindServeWriteBehind({
       env,
       app,
@@ -98,6 +100,7 @@ export async function bootServeApp(args: {
       durableHead: hydrated?.remoteHead ?? 0,
       remote,
       log,
+      redelivery,
     })
     const sessionDir = sessionDirectory({ home: atlasHome, sessionId: threadId })
     const contextMirror = bindContextFilesMirror({
@@ -151,6 +154,7 @@ export async function bootServeApp(args: {
       fetchFn,
       clientVersion,
       writeBehind,
+      redelivery,
       contextMirror,
       refreshCloudState,
     }

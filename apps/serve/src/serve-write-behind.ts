@@ -13,9 +13,11 @@ import {
   type RegisterChild,
 } from './serve-child-mirror'
 import { createEventFlusher, httpPostPodEvents, httpTruncatePodEvents } from './serve-event-flush'
+import { resolveForkFor } from './serve-fork-ports'
 import { mirrorHistoryEdits } from './serve-history-mirror'
 import type { ServeLog } from './serve-log'
 import { forwardRenamesToApi } from './serve-rename-forward'
+import type { ThreadRedeliveryPort } from './serve-redelivery'
 
 export type ServeWriteBehind = {
   flush: () => Promise<boolean>
@@ -58,6 +60,7 @@ export function bindServeWriteBehind(args: {
   durableHead: number
   remote: { controlPlaneUrl: string; token: string; clientVersion: string; fetchFn: typeof fetch }
   log: ServeLog
+  redelivery: ThreadRedeliveryPort
   register?: RegisterChild | undefined
 }): ServeWriteBehind | undefined {
   if (!mirrorsThreadState(args.env)) return undefined
@@ -70,6 +73,14 @@ export function bindServeWriteBehind(args: {
     post: httpPostPodEvents(remote),
     truncate: httpTruncatePodEvents(remote),
     refusalSettles,
+    resolveFork: resolveForkFor({
+      threadId: args.threadId,
+      remote,
+      events: app.log,
+      canRedeliverNow: () => args.redelivery.canRedeliverNow(args.threadId),
+      redeliver: (input) => args.redelivery.redeliver({ threadId: args.threadId, input }),
+      log,
+    }),
     log,
   })
   const register = args.register ?? httpRegisterChild(remote)
@@ -86,6 +97,7 @@ export function bindServeWriteBehind(args: {
       register,
       remote,
       refusalSettles,
+      redelivery: args.redelivery,
       log,
       bindActivity: (threadId) =>
         bindChildActivity({ threadId, channel: app.channel, remote, log }),

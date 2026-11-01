@@ -16,6 +16,7 @@ import {
 
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 import { EServeEvent, type ServeLogLine } from '../serve-log'
+import { createRedeliveryHolder } from '../serve-redelivery'
 import { bindServeWriteBehind } from '../serve-write-behind'
 
 import { fakeServeApp, type FakeServeApp } from './fakes'
@@ -193,6 +194,7 @@ describe('park after a failed flush', () => {
     const store = await seedLocal({ home, count: 2 })
     const lines: ServeLogLine[] = []
     const behind = bindServeWriteBehind({
+      redelivery: createRedeliveryHolder(),
       env: args.env,
       app: fakeServeApp({ threadId, root: '/workspace', intake: true, log: store.log }),
       threadId,

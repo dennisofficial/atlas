@@ -31,6 +31,7 @@ import { bindServePull } from './serve-pull'
 import { resumeWhenRegistered } from './serve-resume-boot'
 import { createServeLifecycle } from './serve-lifecycle'
 import { createServeDriver } from './serve-driver'
+import { redeliverThrough } from './serve-redelivery'
 import { handlerOptionsOf } from './serve-handler-options'
 import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
 import { bindServeSubscriptions } from './serve-subscriptions'
@@ -61,6 +62,7 @@ export async function finishServeBoot(args: {
     workspace,
     fetchFn,
     writeBehind,
+    redelivery,
     contextMirror,
     clientVersion,
     refreshCloudState,
@@ -133,6 +135,7 @@ export async function finishServeBoot(args: {
       await app.mcp?.refresh()
     },
   })
+  redelivery.bind(redeliverThrough({ root: threadId, driver, app }))
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
   const unsubscribeWake = subscribeLegacyWake({
     app,
