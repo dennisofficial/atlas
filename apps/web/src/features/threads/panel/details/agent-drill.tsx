@@ -20,22 +20,24 @@ export function AgentDrill(props: { data: AgentsData }) {
   const fallback = detail === undefined ? undefined : panelAgentOf({ view: detail, now })
 
   return (
-    <DetailsSection title="Sub-agent">
+    <DetailsSection title="Sub-agent" className="min-h-0 flex-1 p-3">
       <Button variant="ghost" size="sm" className="self-start" onClick={clearAgent}>
         <ArrowLeftIcon />
         Back
       </Button>
-      {fallback !== undefined ? (
-        <AgentTranscript key={fallback.id} agentId={fallback.id} fallback={fallback} />
-      ) : !loaded ? (
-        error === null ? (
-          <AgentsLoading />
+      <div className="flex min-h-0 flex-1 flex-col">
+        {fallback !== undefined ? (
+          <AgentTranscript key={fallback.id} agentId={fallback.id} fallback={fallback} />
+        ) : !loaded ? (
+          error === null ? (
+            <AgentsLoading />
+          ) : (
+            <AgentsFailed message={error.message} />
+          )
         ) : (
-          <AgentsFailed message={error.message} />
-        )
-      ) : (
-        <Muted>Agent unavailable</Muted>
-      )}
+          <Muted>Agent unavailable</Muted>
+        )}
+      </div>
     </DetailsSection>
   )
 }
