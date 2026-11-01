@@ -46,6 +46,7 @@ export const REWIND_DISPOSITION = {
   'service-started': ERewindDisposition.Discard,
   'background-shell-started': ERewindDisposition.Discard,
   'location-changed': ERewindDisposition.Keep,
+  'checkout-observed': ERewindDisposition.Keep,
   'pr-event': ERewindDisposition.Keep,
   'agent-ended': ERewindDisposition.KeepUnlessCreatorCut,
   'service-ended': ERewindDisposition.KeepUnlessCreatorCut,

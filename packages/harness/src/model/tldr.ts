@@ -2,6 +2,8 @@ import { ETldrStatus, transcriptOfRange, type Event } from '@dltech/atlas-core'
 import { Output, streamText, type LanguageModel } from 'ai'
 import { z } from 'zod'
 
+import { NO_SDK_RETRIES } from './no-sdk-retries'
+
 const TLDR_INSTRUCTION = [
   'You write the tl;dr footer for one turn of a coding-agent session between Operator and Atlas.',
   'The transcript runs from the operator\u2019s latest message to the end of the turn.',
@@ -75,6 +77,7 @@ export async function tldrFor(args: {
       system: TLDR_INSTRUCTION,
       prompt,
       onError: () => undefined,
+      maxRetries: NO_SDK_RETRIES,
       ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
     })
 

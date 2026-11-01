@@ -6,10 +6,15 @@ import { createHistoryAdmission } from './history-admission'
 import { dismissFailureFor } from './dismiss-failure'
 import { createRotationSettle } from './rotation-settle'
 import { createTurnCommit } from './turn-commit'
+import { createWorkingHold } from './working-hold'
 import { messageOf } from './turn-message'
 import type { ServeTurnDriver, TurnDriverHooks, TurnRunOptions } from './turn-driver-types'
 
-export type { ServeTurnDriver, TurnDriverHooks, TurnRunOptions } from './turn-driver-types'
+export type {
+  ServeTurnDriver,
+  TurnDriverHooks,
+  TurnRunOptions,
+} from './turn-driver-types'
 
 export function createTurnDriver(
   args: {
@@ -64,6 +69,7 @@ export function createTurnDriver(
   const runUntilQuiet = async (initial: { resume: boolean }): Promise<void> => {
     args.onTurnStarted()
     let resumeThisTurn = initial.resume
+    const working = createWorkingHold(args.holdWorking)
     turnFailure = null
     try {
       do {
@@ -74,12 +80,22 @@ export function createTurnDriver(
         pause = new PauseSignal()
         if (relocationFrozen) pause.pause()
         const resuming = resumeRelocation || resumeThisTurn
+        working.take()
         if (!resuming) await args.beforeTurn?.().catch(() => undefined)
         resumeRelocation = false
         resumeThisTurn = false
         const outcome = resuming
-          ? await app.runner.resume({ threadId: served, signal: controller.signal, pause })
-          : await app.runner.runTurn({ threadId: served, signal: controller.signal, pause })
+          ? await app.runner.resume({
+              threadId: served,
+              signal: controller.signal,
+              pause,
+            })
+          : await app.runner.runTurn({
+              threadId: served,
+              signal: controller.signal,
+              pause,
+            })
+        if (!again || relocationFrozen) working.release()
         await finishOutcome(outcome)
       } while (again && !relocationFrozen)
     } catch (error) {
@@ -87,6 +103,7 @@ export function createTurnDriver(
       await app.turnPolicy?.onCrashed({ threadId: served }).catch(() => undefined)
       args.onFailure(messageOf(error))
     } finally {
+      working.release()
       outcomePending = false
       abort = null
       pause = null
@@ -212,7 +229,10 @@ export function createTurnDriver(
         await finishOutcome(
           lastOutcome?.status === ETurnStatus.RelocationPaused
             ? lastOutcome
-            : { status: ETurnStatus.RelocationPaused, runId: app.ids.nextRunId() },
+            : {
+                status: ETurnStatus.RelocationPaused,
+                runId: app.ids.nextRunId(),
+              },
         )
       })()
       relocationSettling = preparing
@@ -277,7 +297,8 @@ export function createTurnDriver(
           blocked: () =>
             turning !== null || committing !== null || relocationFrozen || history.held(),
           wake: () => {
-            handle.sayOrRun()
+            if (!handle.sayOrRun()) return undefined
+            return turning ?? undefined
           },
         },
       })

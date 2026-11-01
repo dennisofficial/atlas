@@ -2,6 +2,8 @@ import { generateText, type LanguageModel } from 'ai'
 
 import { critiqueRequestOf, type ClassifierPolicy } from '@dltech/atlas-core'
 
+import { NO_SDK_RETRIES } from '../model/no-sdk-retries'
+
 export const CRITIQUE_OUTPUT_TOKEN_LIMIT = 1024
 
 export enum ECritique {
@@ -33,6 +35,7 @@ export async function critiqueConfiguration({
       system: request.system,
       prompt: request.prompt,
       maxOutputTokens: CRITIQUE_OUTPUT_TOKEN_LIMIT,
+      maxRetries: NO_SDK_RETRIES,
       ...(signal === undefined ? {} : { abortSignal: signal }),
     })
 

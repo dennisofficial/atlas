@@ -63,6 +63,7 @@ describe('port registry', () => {
       'LogPort',
       'ModelPort',
       'CredentialPort',
+      'CredentialAvailabilityPort',
       'AccountStorePort',
       'ProcessPort',
       'FileSystemPort',

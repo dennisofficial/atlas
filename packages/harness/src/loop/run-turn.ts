@@ -263,17 +263,14 @@ export class LoopTurnRunner extends TurnRunner {
       )
       status = outcome.status
       if (outcome.status === ETurnStatus.Failed) {
-        await recordRunFailure({
-          log: this.log,
-          threadId,
-          runId,
-          failure: runFailureOf({
-            message: outcome.message,
-            cause: outcome.cause,
-            providerId: this.model.identity.id,
-            modelId: this.model.identity.modelId,
-          }),
+        const failure = runFailureOf({
+          message: outcome.message,
+          cause: outcome.cause,
+          providerId: this.model.identity.id,
+          modelId: this.model.identity.modelId,
         })
+        await recordRunFailure({ log: this.log, threadId, runId, failure })
+        return { ...outcome, failure }
       }
       return outcome
     } catch (error) {

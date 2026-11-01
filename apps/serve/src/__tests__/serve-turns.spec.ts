@@ -21,7 +21,10 @@ afterEach(releaseServeSpec)
 describe('startServe', () => {
   it('runs a turn from the log head on a run frame, commits nothing, and answers with the outcome', async () => {
     const { handle, app } = await start({
-      runTurn: async () => ({ status: ETurnStatus.Completed, runId: toRunId('run-1') }),
+      runTurn: async () => ({
+        status: ETurnStatus.Completed,
+        runId: toRunId('run-1'),
+      }),
     })
 
     const client = await connect({ port: handle.port, token: TOKEN })
@@ -48,7 +51,10 @@ describe('startServe', () => {
         publisher.onChunk(textChunk('one'))
         if (turns === 1) await held.opened
         publisher.onChunk(textChunk('two'))
-        return { status: ETurnStatus.Completed, runId: toRunId(`run-${turns}`) }
+        return {
+          status: ETurnStatus.Completed,
+          runId: toRunId(`run-${turns}`),
+        }
       },
     })
 
@@ -56,7 +62,10 @@ describe('startServe', () => {
     first.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     await first.waitFor((frame) => frame.kind === EServeFrame.Ready)
     first.send({ kind: EClientFrame.Run })
-    await first.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 1)
+    const firstChunk = await first.waitFor(
+      (frame) => frame.kind === EServeFrame.Signal && frame.signal.type === 'chunk',
+    )
+    if (firstChunk.kind !== EServeFrame.Signal) throw new Error('expected the first chunk')
     first.close()
     await first.closed
 
@@ -67,18 +76,18 @@ describe('startServe', () => {
     }
 
     const second = await connect({ port: handle.port, token: TOKEN })
-    second.send(hello({ channelCursor: 1, lastEventSeq: 0 }))
+    second.send(hello({ channelCursor: firstChunk.seq, lastEventSeq: 0 }))
     const replayed = await second.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
 
     expect(replayed).toEqual({
       kind: EServeFrame.TurnEnded,
       outcome: { status: ETurnStatus.Completed, runId: toRunId('run-1') },
     })
-    expect(second.frames.map((frame) => frame.kind)).toEqual([
-      EServeFrame.Ready,
-      EServeFrame.Signal,
-      EServeFrame.TurnEnded,
-    ])
+    expect(
+      second.frames.map((frame) =>
+        frame.kind === EServeFrame.Signal ? frame.signal.type : frame.kind,
+      ),
+    ).toEqual([EServeFrame.Ready, 'chunk', 'turn-working', EServeFrame.TurnEnded])
 
     second.send({ kind: EClientFrame.Run })
     await second.waitFor(
@@ -102,7 +111,10 @@ describe('startServe', () => {
     first.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     await first.waitFor((frame) => frame.kind === EServeFrame.Ready)
     first.send({ kind: EClientFrame.Run })
-    await first.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 1)
+    const firstChunk = await first.waitFor(
+      (frame) => frame.kind === EServeFrame.Signal && frame.signal.type === 'chunk',
+    )
+    if (firstChunk.kind !== EServeFrame.Signal) throw new Error('expected the first chunk')
     first.close()
     await first.closed
 
@@ -113,10 +125,13 @@ describe('startServe', () => {
     }
 
     const second = await connect({ port: handle.port, token: TOKEN })
-    second.send(hello({ channelCursor: 1, lastEventSeq: 0 }))
+    second.send(hello({ channelCursor: firstChunk.seq, lastEventSeq: 0 }))
     const failure = await second.waitFor((frame) => frame.kind === EServeFrame.Error)
 
-    expect(failure).toEqual({ kind: EServeFrame.Error, message: 'the control plane answered 401' })
+    expect(failure).toEqual({
+      kind: EServeFrame.Error,
+      message: 'the control plane answered 401',
+    })
   })
 
   it('refuses a run frame that arrives mid-turn rather than queueing a second turn', async () => {
@@ -126,7 +141,10 @@ describe('startServe', () => {
       runTurn: async () => {
         turns += 1
         if (turns === 1) await held.opened
-        return { status: ETurnStatus.Completed, runId: toRunId(`run-${turns}`) }
+        return {
+          status: ETurnStatus.Completed,
+          runId: toRunId(`run-${turns}`),
+        }
       },
     })
 
@@ -151,7 +169,10 @@ describe('startServe', () => {
     const { handle } = await start({
       runTurn: async () => {
         turns += 1
-        return { status: ETurnStatus.Completed, runId: toRunId(`run-${turns}`) }
+        return {
+          status: ETurnStatus.Completed,
+          runId: toRunId(`run-${turns}`),
+        }
       },
     })
 
@@ -203,6 +224,9 @@ describe('startServe', () => {
     client.send({ kind: EClientFrame.Run })
     const failure = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
 
-    expect(failure).toEqual({ kind: EServeFrame.Error, message: 'the control plane answered 401' })
+    expect(failure).toEqual({
+      kind: EServeFrame.Error,
+      message: 'the control plane answered 401',
+    })
   })
 })

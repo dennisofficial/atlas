@@ -1,6 +1,7 @@
 import type { AccountStorePort } from './account-store.port'
 import type { AgentFileSystemPort } from './agent-filesystem.port'
 import type { ClockPort } from './clock.port'
+import type { CredentialAvailabilityPort } from './credential-availability.port'
 import type { CredentialPort } from './credential.port'
 import type { DecisionPort } from './decision.port'
 import type { EventLogPort } from './event-log.port'
@@ -48,6 +49,9 @@ export interface PortRegistryEntries {
   readonly LogPort: PortRegistryEntry<LogPort> & { readonly transport: 'none' }
   readonly ModelPort: PortRegistryEntry<ModelPort> & { readonly transport: 'none' }
   readonly CredentialPort: PortRegistryEntry<CredentialPort> & { readonly transport: 'none' }
+  readonly CredentialAvailabilityPort: PortRegistryEntry<CredentialAvailabilityPort> & {
+    readonly transport: 'none'
+  }
   readonly AccountStorePort: PortRegistryEntry<AccountStorePort> & {
     readonly transport: 'detached'
   }

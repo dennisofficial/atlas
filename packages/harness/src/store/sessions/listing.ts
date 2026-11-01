@@ -19,7 +19,7 @@ import { readMeta, readMetaSync, threadMetaSchema, type ThreadMeta } from './met
 import { sessionsDirectory, threadMetaFile, threadsDirectory } from './paths'
 import { planSegments } from './compose'
 import { placesForSegments } from './session-place-reader'
-import type { ThreadWorktree } from './thread-places'
+import type { ThreadCheckout, ThreadWorktree } from './thread-places'
 import { warnDirectoryUnreadable } from './listing-cleanup'
 import { selectedRoots } from './listing-selected'
 
@@ -33,6 +33,7 @@ const ENRICH_CONCURRENCY = 8
 
 export type ListingPlaces = {
   worktree: ThreadWorktree | null
+  checkout: ThreadCheckout | null
   pullRequests: LinkedPullRequest[]
 }
 
@@ -166,6 +167,7 @@ function withPlaces({
   return {
     ...summary,
     ...(places.worktree === null ? {} : { worktree: places.worktree }),
+    ...(places.checkout === null ? {} : { checkout: places.checkout }),
     ...(places.pullRequests.length === 0 ? {} : { pullRequests: places.pullRequests }),
   }
 }
@@ -237,7 +239,7 @@ async function enrichRoots({
   const rows: ListingRow[] = entries.map((entry) => ({
     entry,
     summary: basicOf({ entry }),
-    places: { worktree: null, pullRequests: [] },
+    places: { worktree: null, checkout: null, pullRequests: [] },
   }))
   onUpdate?.(snapshotOf({ rows }))
 

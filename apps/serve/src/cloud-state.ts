@@ -4,7 +4,6 @@ import {
   accountOf,
   EAuthProvider,
   serialiseSettingsDocument,
-  storedAccountSchema,
   toAccountId,
   type JsonValue,
   type StoredAccount,
@@ -18,6 +17,7 @@ import {
   decodeSettingValue,
   fileVaultBackend,
   SANDBOX_SERVE_TOKEN_PREFIX,
+  storedAccountOfDto,
   SECRETS_VERSION,
   SecretCipher,
   type VaultFile,
@@ -42,8 +42,11 @@ const isProviderKnown = (provider: string): provider is EAuthProvider =>
 
 const storedAccountsOf = (entries: readonly unknown[]): StoredAccount[] =>
   entries.flatMap((entry) => {
-    const parsed = storedAccountSchema.safeParse(entry)
-    return parsed.success ? [parsed.data] : []
+    try {
+      return [storedAccountOfDto(entry)]
+    } catch {
+      return []
+    }
   })
 
 const writeVault = (args: {

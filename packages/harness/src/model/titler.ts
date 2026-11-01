@@ -2,6 +2,8 @@ import { inlinable, type SaidImage } from '@dltech/atlas-core'
 import { generateText, Output, type LanguageModel, type ModelMessage } from 'ai'
 import { z } from 'zod'
 
+import { NO_SDK_RETRIES } from './no-sdk-retries'
+
 const TITLE_INSTRUCTION = [
   "You name coding sessions from the developer's opening message or an excerpt of the session so far.",
   'An excerpt opens at the start of the session and ends with what was said most recently; sessions',
@@ -72,6 +74,7 @@ export async function titleFor(args: {
         ? { prompt: asked }
         : { messages: askWithImages({ asked, images: shown }) }),
       output: Output.object({ schema: TITLE_SCHEMA }),
+      maxRetries: NO_SDK_RETRIES,
       ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
     })
 

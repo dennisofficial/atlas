@@ -13,8 +13,11 @@ import { eventLogFile } from './paths'
 
 export type ThreadWorktree = { path: string; branch: string }
 
+export type ThreadCheckout = { path: string | null; branch: string | null; detached: boolean }
+
 export type ThreadPlaces = {
   worktree: ThreadWorktree | null
+  checkout: ThreadCheckout | null
   pullRequests: LinkedPullRequest[]
 }
 
@@ -42,7 +45,11 @@ const inFlight = new Map<string, Promise<Event[]>>()
 const READ_BLOCK_BYTES = 65_536
 
 const WORKTREE_EVENT_TYPES = new Set(['worktree-entered', 'worktree-exited', 'directory-changed'])
-const PLACE_EVENT_TYPES = new Set([...WORKTREE_EVENT_TYPES, 'pull-request-linked'])
+const PLACE_EVENT_TYPES = new Set([
+  ...WORKTREE_EVENT_TYPES,
+  'checkout-observed',
+  'pull-request-linked',
+])
 
 async function signatureOf({ file }: { file: string }): Promise<FileSignature | undefined> {
   const stats = await stat(file).catch(() => undefined)
@@ -204,6 +211,21 @@ function worktreeFrom({
   return null
 }
 
+function checkoutFrom({
+  segmentEvents,
+}: {
+  segmentEvents: readonly Event[][]
+}): ThreadCheckout | null {
+  for (let index = segmentEvents.length - 1; index >= 0; index -= 1) {
+    const latest = (segmentEvents[index] ?? [])
+      .filter((event) => event.type === 'checkout-observed')
+      .at(-1)
+    if (latest?.type !== 'checkout-observed') continue
+    return { path: latest.path, branch: latest.branch, detached: latest.detached }
+  }
+  return null
+}
+
 function linkedFrom({ segmentEvents }: { segmentEvents: readonly Event[][] }): LinkedPullRequest[] {
   const linked: Event[] = []
   for (const events of segmentEvents) {
@@ -228,6 +250,7 @@ export async function placesForSegments({
   )
   return {
     worktree: worktreeFrom({ segmentEvents: events }),
+    checkout: checkoutFrom({ segmentEvents: events }),
     pullRequests: linkedFrom({ segmentEvents: events }),
   }
 }

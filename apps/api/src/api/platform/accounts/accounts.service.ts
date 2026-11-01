@@ -28,6 +28,7 @@ function toAccountDto(row: Row<'AgentAccount'>): AccountDto {
     ...(row.email === null ? {} : { email: row.email }),
     ...(row.subscription === null ? {} : { subscription: row.subscription }),
     ...(row.importedFrom === null ? {} : { importedFrom: row.importedFrom }),
+    secretVersion: row.secretVersion,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }

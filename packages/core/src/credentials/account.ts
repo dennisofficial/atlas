@@ -75,6 +75,7 @@ export const accountSchema = z.object({
   email: z.string().optional(),
   subscription: z.string().optional(),
   importedFrom: z.string().optional(),
+  authorizationRevision: z.number().int().nonnegative().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

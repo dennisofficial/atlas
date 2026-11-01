@@ -1,30 +1,46 @@
 import { describe, expect, it } from 'bun:test'
 
-import { cardsForProvider } from '@dltech/atlas-models'
+import { EImageTier } from '@dltech/atlas-core'
+import { cardsForProvider, withoutDatedDuplicates } from '@dltech/atlas-models'
 
 import { modelOptionsOf } from '../model-options'
 
 const account = (provider: string, status = 'active') => ({ provider, kind: 'oauth', status })
 
+const CLAUDE = 'Claude Plan'
+const CODEX = 'Codex Plan'
+const ALL_LABELS = [CLAUDE, CODEX, 'OpenRouter', 'Inference.net']
+const selectable = (options: { disabled?: boolean }[]) =>
+  options.filter((option) => option.disabled !== true)
+const countOf = (provider: string) => withoutDatedDuplicates(cardsForProvider(provider)).length
+
 describe('modelOptionsOf', () => {
-  it('lists only the connected providers in catalogue order', () => {
+  it('lists all four providers in catalogue order, unconnected ones disabled', () => {
     const { models, reconnectProviders } = modelOptionsOf({
       accounts: [account('openai'), account('anthropic')],
     })
-    const providers = [...new Set(models.map((model) => model.provider))]
-    expect(providers).toEqual(['Anthropic', 'OpenAI'])
-    expect(models.length).toBe(
-      cardsForProvider('anthropic').length + cardsForProvider('openai').length,
-    )
+    expect([...new Set(models.map((model) => model.provider))]).toEqual(ALL_LABELS)
+    expect(selectable(models)).toHaveLength(countOf('anthropic') + countOf('openai'))
     expect(reconnectProviders).toEqual([])
+  })
+
+  it('marks providers without an account disabled with a no-key note', () => {
+    const { models } = modelOptionsOf({ accounts: [account('anthropic')] })
+    const dormant = models.filter((model) => model.provider !== CLAUDE)
+    expect(dormant.length).toBeGreaterThan(0)
+    expect(dormant.every((model) => model.disabled === true)).toBe(true)
+    expect(dormant.every((model) => model.disabledNote === 'no key')).toBe(true)
+    expect(
+      models.filter((model) => model.provider === CLAUDE).every((model) => !model.disabled),
+    ).toBe(true)
   })
 
   it('turns a provider whose only accounts expired into a reconnect row without models', () => {
     const { models, reconnectProviders } = modelOptionsOf({
       accounts: [account('anthropic'), account('openai', 'expired')],
     })
-    expect(reconnectProviders).toEqual(['OpenAI'])
-    expect(models.some((model) => model.provider === 'OpenAI')).toBe(false)
+    expect(reconnectProviders).toEqual([CODEX])
+    expect(models.some((model) => model.provider === CODEX)).toBe(false)
   })
 
   it('keeps a provider connected when another account for it is still active', () => {
@@ -32,19 +48,42 @@ describe('modelOptionsOf', () => {
       accounts: [account('openai', 'expired'), account('openai', 'limited')],
     })
     expect(reconnectProviders).toEqual([])
-    expect(models.some((model) => model.provider === 'OpenAI')).toBe(true)
+    expect(selectable(models.filter((model) => model.provider === CODEX))).toHaveLength(
+      countOf('openai'),
+    )
   })
 
   it('ignores accounts for providers outside the catalogue', () => {
     const { models, reconnectProviders } = modelOptionsOf({
       accounts: [account('mystery'), account('mystery', 'expired')],
     })
-    expect(models).toEqual([])
+    expect(selectable(models)).toEqual([])
     expect(reconnectProviders).toEqual([])
   })
 
-  it('has no models without accounts', () => {
-    expect(modelOptionsOf({ accounts: [] })).toEqual({ models: [], reconnectProviders: [] })
+  it('offers every provider disabled without accounts', () => {
+    const { models, reconnectProviders } = modelOptionsOf({ accounts: [] })
+    expect([...new Set(models.map((model) => model.provider))]).toEqual(ALL_LABELS)
+    expect(selectable(models)).toEqual([])
+    expect(reconnectProviders).toEqual([])
+  })
+
+  it('drops dated aliases that a plain alias already covers', () => {
+    const raw = cardsForProvider('anthropic')
+    const { models } = modelOptionsOf({ accounts: [account('anthropic')] })
+    const ids = models.filter((model) => model.provider === CLAUDE).map((model) => model.id)
+    expect(ids.length).toBe(countOf('anthropic'))
+    expect(ids.length).toBeLessThan(raw.length)
+  })
+
+  it('maps the card image tier onto the image-support flag', () => {
+    const { models } = modelOptionsOf({ accounts: [account('anthropic'), account('openai')] })
+    const cards = [...cardsForProvider('anthropic'), ...cardsForProvider('openai')]
+    const high = cards.find((card) => card.imageTier === EImageTier.HighResolution)
+    const standard = cards.find((card) => card.imageTier === EImageTier.Standard)
+    const idOf = (card: typeof high) => `${card?.ref.providerId}/${card?.ref.modelId}`
+    expect(models.find((model) => model.id === idOf(high))?.images).toBe(true)
+    expect(models.find((model) => model.id === idOf(standard))?.images).toBe(false)
   })
 
   it('takes id, label, context and efforts from the card', () => {

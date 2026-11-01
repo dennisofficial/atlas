@@ -272,4 +272,58 @@ describe('the bounded place reader', () => {
     expect(after.worktree?.branch).toBe('dennis/after-fork')
     expect(after.pullRequests.map((pr) => pr.number)).toEqual([401])
   })
+
+  it('reads the latest observed checkout, including an explicit no-branch observation', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+    const threadId = toThreadId('spec-thread-checkout')
+    await log.append({
+      threadId,
+      runId: ids.nextRunId(),
+      drafts: [
+        { type: 'checkout-observed', path: '/work', branch: 'main', detached: false },
+        { type: 'checkout-observed', path: '/work', branch: 'x', detached: false },
+      ],
+    })
+    const switched = await placesForSegments({ segments: [segmentOf({ home, threadId })] })
+    expect(switched.checkout).toEqual({ path: '/work', branch: 'x', detached: false })
+
+    await log.append({
+      threadId,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'checkout-observed', path: '/tmp', branch: null, detached: false }],
+    })
+    const cleared = await placesForSegments({ segments: [segmentOf({ home, threadId })] })
+    expect(cleared.checkout).toEqual({ path: '/tmp', branch: null, detached: false })
+  })
+
+  it('reports no checkout when nothing was observed, and lets a fork inherit or override its parent', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+    const parent = toThreadId('spec-thread-checkout-parent')
+    const child = toThreadId('spec-thread-checkout-child')
+    await log.append({ threadId: child, runId: ids.nextRunId(), drafts: [said('hi')] })
+    await log.append({
+      threadId: parent,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'checkout-observed', path: '/work', branch: 'main', detached: false }],
+    })
+    const none = await placesForSegments({ segments: [segmentOf({ home, threadId: child })] })
+    expect(none.checkout).toBeNull()
+
+    const inherited = await placesForSegments({
+      segments: [segmentOf({ home, threadId: parent }), segmentOf({ home, threadId: child })],
+    })
+    expect(inherited.checkout?.branch).toBe('main')
+
+    await log.append({
+      threadId: child,
+      runId: ids.nextRunId(),
+      drafts: [{ type: 'checkout-observed', path: '/n', branch: null, detached: false }],
+    })
+    const overridden = await placesForSegments({
+      segments: [segmentOf({ home, threadId: parent }), segmentOf({ home, threadId: child })],
+    })
+    expect(overridden.checkout).toEqual({ path: '/n', branch: null, detached: false })
+  })
 })

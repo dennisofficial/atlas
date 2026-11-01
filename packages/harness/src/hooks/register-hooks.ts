@@ -5,6 +5,8 @@ import {
   BeforeTurnHook,
   DecisionPort,
   EventLogPort,
+  OnThreadOpenHook,
+  ProcessPort,
   ToolDefinition,
   WorkspaceFactsPort,
 } from '@dltech/atlas-core'
@@ -36,7 +38,13 @@ import { ServiceShapeHook } from './service-shape-hook'
 import { RecordFileStateHook } from './record-file-state'
 import { SkillSuggestionHook } from './skill-suggestion'
 import { threadEnvironmentFrom } from './thread-environment'
+import { OpenCheckoutHook, TrackCheckoutHook } from './track-checkout'
 import { TrackWorktreeHook } from './track-worktree'
+
+const checkoutObserverOf = (resolver: DependencyContainer) => ({
+  process: resolver.resolve(registeredPortToken(ProcessPort)),
+  log: resolver.resolve(registeredPortToken(EventLogPort)),
+})
 
 export function registerBuiltinHooks({ container }: { container: DependencyContainer }): void {
   container.register(registeredPortToken(WorkspaceFactsPort), {
@@ -109,6 +117,12 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
     },
   })
   container.register(portToken(AfterToolHook), { useClass: TrackWorktreeHook })
+  container.register(portToken(AfterToolHook), {
+    useFactory: (resolver) => new TrackCheckoutHook(checkoutObserverOf(resolver)),
+  })
+  container.register(portToken(OnThreadOpenHook), {
+    useFactory: (resolver) => new OpenCheckoutHook(checkoutObserverOf(resolver)),
+  })
   container.register(portToken(AfterToolHook), {
     useFactory: (resolver) =>
       new InvalidateFactsHook(resolver.resolve(registeredPortToken(WorkspaceFactsPort))),

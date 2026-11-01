@@ -113,7 +113,7 @@ export async function persistAccess(args: {
       })
       await args.accounts.replaceSecret({ accountId: args.accountId, secret })
 
-      return { ...current, secret }
+      return (await args.accounts.read(args.accountId)) ?? { ...current, secret }
     },
   })
 }

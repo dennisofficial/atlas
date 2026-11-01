@@ -23,11 +23,22 @@ const providerOf = (view: ReturnType<typeof modelsView>, id: string) =>
   view.find((provider) => provider.id === id)
 
 describe('modelsView', () => {
-  it('lists nothing for a user holding no accounts', () => {
-    expect(modelsView({ accounts: [] })).toEqual([])
+  it('lists every catalogue provider as unavailable for a user holding no accounts', () => {
+    const view = modelsView({ accounts: [] })
+
+    expect(view.map((provider) => provider.id)).toEqual([
+      'anthropic',
+      'openai',
+      'openrouter',
+      'inference',
+    ])
+    for (const provider of view) {
+      expect(provider.status).toBe('unavailable')
+      expect(provider.models.length).toBeGreaterThan(0)
+    }
   })
 
-  it('lists only the providers the user holds, in catalogue order', () => {
+  it('lists every provider in catalogue order, held ones connected, the rest unavailable', () => {
     const view = modelsView({
       accounts: [
         held({ provider: 'openrouter', kind: 'api-key' }),
@@ -35,24 +46,45 @@ describe('modelsView', () => {
       ],
     })
 
-    expect(view.map((provider) => provider.id)).toEqual(['anthropic', 'openrouter'])
+    expect(view.map((provider) => provider.id)).toEqual([
+      'anthropic',
+      'openai',
+      'openrouter',
+      'inference',
+    ])
     expect(providerOf(view, 'anthropic')).toMatchObject({
       label: 'Claude Plan',
       status: 'connected',
       live: false,
     })
+    expect(providerOf(view, 'openai')?.status).toBe('unavailable')
+    expect(providerOf(view, 'openai')?.models.length).toBeGreaterThan(0)
+    expect(providerOf(view, 'openrouter')?.status).toBe('connected')
+    expect(providerOf(view, 'inference')?.status).toBe('unavailable')
   })
 
   it('ignores an account on a provider Atlas does not know', () => {
-    expect(modelsView({ accounts: [held({ provider: 'mystery' })] })).toEqual([])
+    const view = modelsView({ accounts: [held({ provider: 'mystery' })] })
+
+    expect(view.map((provider) => provider.id)).toEqual([
+      'anthropic',
+      'openai',
+      'openrouter',
+      'inference',
+    ])
+    expect(view.every((provider) => provider.status === 'unavailable')).toBe(true)
   })
 
   it('marks a provider whose accounts are all expired and offers no models', () => {
     const view = modelsView({ accounts: [held({ provider: 'anthropic', status: 'expired' })] })
 
-    expect(view).toEqual([
-      { id: 'anthropic', label: 'Claude Plan', status: 'expired', live: false, models: [] },
-    ])
+    expect(providerOf(view, 'anthropic')).toEqual({
+      id: 'anthropic',
+      label: 'Claude Plan',
+      status: 'expired',
+      live: false,
+      models: [],
+    })
   })
 
   it('keeps a provider connected while any account on it still works', () => {

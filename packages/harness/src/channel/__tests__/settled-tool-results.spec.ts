@@ -33,10 +33,17 @@ const readTool: ToolDefinition = {
   description: 'read a file',
   effect: EToolEffect.Read,
   inputSchema: z.object({ path: z.string() }),
-  invoke: async () => ({ ok: true, output: 'const a = 1', modelText: '1\tconst a = 1' }),
+  invoke: async () => ({
+    ok: true,
+    output: 'const a = 1',
+    modelText: '1\tconst a = 1',
+  }),
 }
 
-function announcing(inner: DeltaChannel): { channel: DeltaChannel; announced: Event[] } {
+function announcing(inner: DeltaChannel): {
+  channel: DeltaChannel
+  announced: Event[]
+} {
   const announced: Event[] = []
 
   return {
@@ -58,6 +65,7 @@ function announcing(inner: DeltaChannel): { channel: DeltaChannel; announced: Ev
           close: (closeArgs) => publisher.close(closeArgs),
           retrying: (notice) => publisher.retrying(notice),
           turnWorking: (workingArgs) => publisher.turnWorking(workingArgs),
+          holdWorking: () => publisher.holdWorking(),
           operatorInput: (inputArgs) => publisher.operatorInput(inputArgs),
         }
       },
@@ -72,7 +80,10 @@ describe('a turn that settles a tool call', () => {
       home: temp.home,
       model: scriptedModel({
         script: [
-          { text: 'reading', calls: [{ callId: 'call-1', name: 'read', input: { path: 'a.ts' } }] },
+          {
+            text: 'reading',
+            calls: [{ callId: 'call-1', name: 'read', input: { path: 'a.ts' } }],
+          },
           { text: 'one line' },
         ],
       }),
@@ -92,12 +103,18 @@ describe('a turn that settles a tool call', () => {
           launchDirectory: PROJECT_DIRECTORY,
         }),
         tools: () => registry.declarations(),
-        dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
+        dispatch: new HookedToolDispatcher({
+          registry,
+          hooks: new HookChain({}),
+        }),
       },
     })
     const thread = await harness.threads.create({})
 
-    const outcome = await runner.say({ threadId: thread.id, text: 'read a.ts' })
+    const outcome = await runner.say({
+      threadId: thread.id,
+      text: 'read a.ts',
+    })
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(announced.map((event) => event.type)).toEqual([

@@ -1,3 +1,4 @@
+import { defaultModelId } from '@dltech/atlas-harness/models'
 import { EEffort, EFFORT_LADDER, type ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
 export type ModelSelection = { id: string; effort: EEffort }
@@ -41,12 +42,14 @@ export function defaultSelectionOf(args: {
   personalId: string
   personalEffort: string
 }): ModelSelection {
-  const personal = args.models.find((model) => model.id === args.personalId)
-  const picked = personal ?? args.models[0]
-  if (picked === undefined) return UNSET_SELECTION
+  const id = defaultModelId({
+    offered: args.models.map((model) => ({ id: model.id, reachable: model.disabled !== true })),
+    personalId: args.personalId,
+  })
+  if (id === undefined) return UNSET_SELECTION
   return selectionAfterPick({
     models: args.models,
-    id: picked.id,
+    id,
     effort: effortOfName(args.personalEffort),
   })
 }

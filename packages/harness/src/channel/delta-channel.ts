@@ -33,7 +33,9 @@ export type {
   Unsubscribe,
 } from '@dltech/atlas-client/channel'
 
-export type DeltaChannelOptions = { readonly onListenerError?: ListenerErrorSink }
+export type DeltaChannelOptions = {
+  readonly onListenerError?: ListenerErrorSink
+}
 
 type ThreadState = {
   listeners: Set<ChannelListener>
@@ -44,6 +46,8 @@ type ThreadState = {
   stepId: StepId | undefined
   stepsStarted: number
   working: boolean
+  loopWorking: boolean
+  holds: number
 }
 
 const NOTHING_IN_FLIGHT: readonly StepSignal[] = Object.freeze([])
@@ -77,6 +81,8 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
       stepId: undefined,
       stepsStarted: 0,
       working: false,
+      loopWorking: false,
+      holds: 0,
       operatorInput: null,
     }
     threads.set(threadId, created)
@@ -121,7 +127,10 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
     deliver({ listeners: args.state.listeners, signal: args.signal })
   }
 
-  const WORKING_SIGNAL: StepSignal = Object.freeze({ type: 'turn-working', working: true })
+  const WORKING_SIGNAL: StepSignal = Object.freeze({
+    type: 'turn-working',
+    working: true,
+  })
 
   const stableReplay = (state: ThreadState): readonly ChannelSignal[] => {
     if (state.replay !== undefined) return state.replay
@@ -146,12 +155,13 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
     notify(args)
   }
 
-  const markWorking = (args: { threadId: ThreadId; state: ThreadState; working: boolean }) => {
-    if (args.state.working === args.working) return
-    args.state.working = args.working
+  const announceWorking = (args: { threadId: ThreadId; state: ThreadState }) => {
+    const working = args.state.loopWorking || args.state.holds > 0
+    if (args.state.working === working) return
+    args.state.working = working
     args.state.replay = undefined
-    notify({ state: args.state, signal: { type: 'turn-working', working: args.working } })
-    if (!args.working) forgetIfIdle({ threadId: args.threadId, state: args.state })
+    notify({ state: args.state, signal: { type: 'turn-working', working } })
+    if (!working) forgetIfIdle({ threadId: args.threadId, state: args.state })
   }
 
   const startStep = (args: { threadId: ThreadId; state: ThreadState }): StepId => {
@@ -180,7 +190,12 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
     args.state.replay = undefined
     notify({
       state: args.state,
-      signal: { type: 'step-ended', stepId, end: args.end, supersededBy: args.supersededBy },
+      signal: {
+        type: 'step-ended',
+        stepId,
+        end: args.end,
+        supersededBy: args.supersededBy,
+      },
     })
     forgetIfIdle({ threadId: args.threadId, state: args.state })
     return true
@@ -219,7 +234,10 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
         },
 
         toolOutput({ callId, text }) {
-          publish({ state: stateFor(threadId), signal: { type: 'tool-output', callId, text } })
+          publish({
+            state: stateFor(threadId),
+            signal: { type: 'tool-output', callId, text },
+          })
         },
 
         eventsAppended(args) {
@@ -270,12 +288,35 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
 
         retrying(notice) {
           const state = stateFor(threadId)
-          endStep({ threadId, state, end: EStepEnd.Retried, supersededBy: null })
-          notify({ state: stateFor(threadId), signal: { type: 'retry-waiting', ...notice } })
+          endStep({
+            threadId,
+            state,
+            end: EStepEnd.Retried,
+            supersededBy: null,
+          })
+          notify({
+            state: stateFor(threadId),
+            signal: { type: 'retry-waiting', ...notice },
+          })
         },
 
         turnWorking({ working }) {
-          markWorking({ threadId, state: stateFor(threadId), working })
+          const state = stateFor(threadId)
+          state.loopWorking = working
+          announceWorking({ threadId, state })
+        },
+
+        holdWorking() {
+          const state = stateFor(threadId)
+          state.holds += 1
+          announceWorking({ threadId, state })
+          let released = false
+          return () => {
+            if (released) return
+            released = true
+            state.holds -= 1
+            announceWorking({ threadId, state })
+          }
         },
 
         operatorInput({ open, onListenerError }) {

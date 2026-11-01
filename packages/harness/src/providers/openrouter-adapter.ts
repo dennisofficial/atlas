@@ -13,6 +13,8 @@ import { OPENROUTER_LABEL, OPENROUTER_PROVIDER_ID } from '../models/provider-ids
 import { ProviderAdapter } from './adapter'
 import { openrouterEffortOptions } from './openrouter-effort'
 import { failingAs } from './failure-account'
+import { withStreamProvenance } from './stream-provenance'
+import { admittedByAccount, type ProviderAdmission } from './provider-admission'
 import { providerKey } from './provider-key'
 
 export { OPENROUTER_PROVIDER_ID }
@@ -32,16 +34,19 @@ export class OpenRouterAdapter extends ProviderAdapter {
 
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]
+  private readonly admission: ProviderAdmission | undefined
   private readonly baseUrl: string | undefined
 
   constructor(args: {
     credentials: CredentialPort
     cards: readonly ModelCard[]
+    admission?: ProviderAdmission | undefined
     baseUrl?: string | undefined
   }) {
     super()
     this.credentials = args.credentials
     this.catalogue = args.cards
+    this.admission = args.admission
     this.baseUrl = args.baseUrl
   }
 
@@ -74,7 +79,7 @@ export class OpenRouterAdapter extends ProviderAdapter {
       })
       const apiKey = providerKey({ credential, label: this.label })
 
-      const model = createOpenAICompatible({
+      const provider = createOpenAICompatible({
         name: OPENROUTER_PROVIDER_ID,
         baseURL: this.baseUrl ?? OPENROUTER_BASE_URL,
         apiKey,
@@ -83,6 +88,13 @@ export class OpenRouterAdapter extends ProviderAdapter {
         // { type: 'json_object' }, which reasoning models answer with prose-in-JSON.
         supportsStructuredOutputs: true,
       }).chatModel(args.card.ref.modelId)
+      const model = admittedByAccount({
+        admission: this.admission,
+        model: provider,
+        credential,
+        providerId: OPENROUTER_PROVIDER_ID,
+        modelId: args.card.ref.modelId,
+      })
       return { model, accountId: credential.accountId }
     }
 
@@ -91,6 +103,13 @@ export class OpenRouterAdapter extends ProviderAdapter {
       if (effort === undefined) return options
       return { ...options, providerOptions: { ...effort, ...options.providerOptions } }
     }
+
+    const provenanceOf = (accountId: AccountId) => ({
+      accountId,
+      providerId: OPENROUTER_PROVIDER_ID,
+      modelId: args.card.ref.modelId,
+      authorizationDelivered: true,
+    })
 
     return {
       specificationVersion: 'v4',
@@ -101,11 +120,22 @@ export class OpenRouterAdapter extends ProviderAdapter {
       supportedUrls: this.compatible().chatModel(args.card.ref.modelId).supportedUrls,
       doGenerate: async (options) => {
         const { model, accountId } = await authorized()
-        return failingAs({ accountId, run: () => model.doGenerate(withEffort(options)) })
+        return failingAs({
+          ...provenanceOf(accountId),
+          run: () => model.doGenerate(withEffort(options)),
+        })
       },
       doStream: async (options) => {
         const { model, accountId } = await authorized()
-        return failingAs({ accountId, run: () => model.doStream(withEffort(options)) })
+        const provenance = provenanceOf(accountId)
+        return failingAs({
+          ...provenance,
+          run: async () =>
+            withStreamProvenance({
+              result: await model.doStream(withEffort(options)),
+              provenance,
+            }),
+        })
       },
     }
   }

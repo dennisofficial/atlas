@@ -94,6 +94,8 @@ describe('AccountsRouter', () => {
     expect(created.body.result.data).not.toHaveProperty('secret')
     expect(created.body.result.data).not.toHaveProperty('subscription')
     const listed = await query('list', 'token-a')
+    expect(created.body.result.data.secretVersion).toBe(0)
+    expect(listed.body.result.data[0].secretVersion).toBe(0)
     expect(listed.body.result.data.map((account: { id: string }) => account.id)).toEqual([
       created.body.result.data.id,
     ])
@@ -145,6 +147,25 @@ describe('AccountsRouter', () => {
     expect(expired.body.result.data.status).toBe('expired')
     expect(replaced.body.result.data.status).toBe('active')
     expect(replaced.body.result.data.secret).toEqual({ kind: 'api-key', apiKey: 'sk-ant-new' })
+    expect(expired.body.result.data.secretVersion).toBe(0)
+    expect(replaced.body.result.data.secretVersion).toBe(1)
+    const listed = await query('list', 'token-a')
+    expect(listed.body.result.data[0].secretVersion).toBe(1)
+  })
+
+  it('refuses a caller-sent revision on replaceSecret', async () => {
+    const id = await createdBy('token-a')
+
+    const sent = await mutate('replaceSecret', 'token-a', {
+      accountId: id,
+      secret: { kind: 'api-key', apiKey: 'sk-ant-new' },
+      secretVersion: 9,
+    })
+
+    expect(sent.status).toBe(400)
+    expect((await query('get', 'token-a', { accountId: id })).body.result.data.secretVersion).toBe(
+      0,
+    )
   })
 
   it('rejects a bad status, an unknown key and an empty account id', async () => {

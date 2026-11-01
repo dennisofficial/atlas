@@ -1,63 +1,20 @@
 import { describe, expect, it } from 'bun:test'
 
 import { APICallError } from '@ai-sdk/provider'
-import {
-  EFinishReason,
-  ModelPort,
-  type Assembled,
-  type ModelStepResult,
-  type ProviderIdentity,
-} from '@dltech/atlas-core'
 
-import { CredentialError, ECredentialFailure } from '../../credentials/credential-error'
-import { ModelStreamError } from '../../model/errors'
 import { childFallbackModel } from '../child-fallback-model'
-
-const ASSEMBLED = { messages: [], instructions: [], trace: [] } as unknown as Assembled
-
-const REPLIED: ModelStepResult = {
-  parts: [],
-  toolCalls: [],
-  finishReason: EFinishReason.Stop,
-}
-
-const authFault = (status: number): APICallError =>
-  new APICallError({
-    message: `the provider rejected the credential with ${status}`,
-    url: 'https://provider.invalid/v1/messages',
-    requestBodyValues: {},
-    statusCode: status,
-  })
-
-const credentialFault = (failure: ECredentialFailure): CredentialError =>
-  new CredentialError({ failure, message: `credential ${failure}` })
-
-class StubModel extends ModelPort {
-  readonly identity: ProviderIdentity
-
-  public steps = 0
-
-  private readonly fault: unknown
-
-  constructor(args: { id: string; modelId: string; fault?: unknown }) {
-    super()
-    this.identity = { id: args.id, modelId: args.modelId }
-    this.fault = args.fault
-  }
-
-  async step(): Promise<ModelStepResult> {
-    this.steps += 1
-    if (this.fault !== undefined) throw this.fault
-    return REPLIED
-  }
-}
-
-const stepping = (model: ModelPort): Promise<ModelStepResult> =>
-  model.step({ assembled: ASSEMBLED, tools: [], signal: new AbortController().signal })
+import {
+  authFault,
+  quotaFault,
+  rejectedKey,
+  REPLIED,
+  StubModel,
+  stepping,
+} from './child-fallback-fixture'
 
 describe('a child model that falls back to the session model', () => {
-  it('switches straight to the parent on an auth fault, with no retry on the dead key', async () => {
-    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: authFault(401) })
+  it('switches straight to the parent on a rejected key, with no retry on it', async () => {
+    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: rejectedKey() })
     const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
     const switched: unknown[] = []
 
@@ -75,7 +32,7 @@ describe('a child model that falls back to the session model', () => {
     expect(switched).toHaveLength(1)
   })
 
-  it('treats a 402 credit wall as an auth fault, since the account cannot pay either way', async () => {
+  it('switches on a delivered 402 credit wall, since the account cannot pay either way', async () => {
     const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: authFault(402) })
     const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
 
@@ -99,7 +56,7 @@ describe('a child model that falls back to the session model', () => {
     const primary = new StubModel({
       id: 'anthropic',
       modelId: 'claude-sonnet',
-      fault: authFault(401),
+      fault: rejectedKey(),
     })
 
     const port = childFallbackModel({ primary, parentFor: () => undefined, onFallback: () => {} })
@@ -108,7 +65,7 @@ describe('a child model that falls back to the session model', () => {
   })
 
   it('surfaces the parent model s fault when the fallback also fails', async () => {
-    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: authFault(401) })
+    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: rejectedKey() })
     const parent = new StubModel({
       id: 'anthropic',
       modelId: 'claude-sonnet',
@@ -122,8 +79,38 @@ describe('a child model that falls back to the session model', () => {
     expect((thrown as APICallError).statusCode).toBe(500)
   })
 
+  it('never re-enters the primary after the fallback also failed', async () => {
+    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: rejectedKey() })
+    const parent = new StubModel({
+      id: 'anthropic',
+      modelId: 'claude-sonnet',
+      fault: authFault(500),
+    })
+
+    const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
+
+    await stepping(port).catch(() => undefined)
+    await stepping(port).catch(() => undefined)
+
+    expect(primary.steps).toBe(1)
+    expect(parent.steps).toBe(2)
+  })
+
+  it('never switches to a same-ref candidate, since parentFor refuses it', async () => {
+    const primary = new StubModel({
+      id: 'anthropic',
+      modelId: 'claude-sonnet',
+      fault: quotaFault(),
+    })
+
+    const port = childFallbackModel({ primary, parentFor: () => undefined, onFallback: () => {} })
+
+    await expect(stepping(port)).rejects.toThrow()
+    expect(primary.steps).toBe(1)
+  })
+
   it('keeps the parent model once switched, rather than retrying the dead credential next step', async () => {
-    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: authFault(401) })
+    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: rejectedKey() })
     const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
 
     const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
@@ -136,7 +123,7 @@ describe('a child model that falls back to the session model', () => {
   })
 
   it('reads the parent model lazily, so a mid-session switch is followed on the next step', async () => {
-    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: authFault(401) })
+    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: rejectedKey() })
     const first = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
     const second = new StubModel({ id: 'anthropic', modelId: 'claude-opus' })
     let current = first
@@ -152,7 +139,7 @@ describe('a child model that falls back to the session model', () => {
   })
 
   it('reports the model actually answering once it has switched', async () => {
-    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: authFault(401) })
+    const primary = new StubModel({ id: 'openrouter', modelId: 'kimi', fault: rejectedKey() })
     const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
 
     const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
@@ -171,70 +158,6 @@ describe('a child model that falls back to the session model', () => {
     expect(await stepping(port)).toBe(REPLIED)
     expect(parent.steps).toBe(0)
     expect(port.identity).toEqual(primary.identity)
-  })
-
-  describe('when the credential port fails before any request reaches the provider', () => {
-    it.each([
-      ECredentialFailure.NotFound,
-      ECredentialFailure.Expired,
-      ECredentialFailure.Unreadable,
-      ECredentialFailure.Unsupported,
-    ])('falls back to the parent on a %s credential', async (failure) => {
-      const primary = new StubModel({
-        id: 'openai',
-        modelId: 'gpt',
-        fault: credentialFault(failure),
-      })
-      const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
-      const switched: unknown[] = []
-
-      const port = childFallbackModel({
-        primary,
-        parentFor: () => parent,
-        onFallback: (fault) => switched.push(fault),
-      })
-
-      expect(await stepping(port)).toBe(REPLIED)
-      expect(parent.steps).toBe(1)
-      expect(switched).toHaveLength(1)
-    })
-
-    it('falls back when the credential error is wrapped in a stream error cause', async () => {
-      const wrapped = new ModelStreamError({
-        message: 'stream failed',
-        cause: credentialFault(ECredentialFailure.NotFound),
-      })
-      const primary = new StubModel({ id: 'openai', modelId: 'gpt', fault: wrapped })
-      const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
-
-      const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
-
-      expect(await stepping(port)).toBe(REPLIED)
-      expect(parent.steps).toBe(1)
-    })
-
-    it.each([ECredentialFailure.StoreUnavailable, ECredentialFailure.RefreshFailed])(
-      'rethrows a transient %s failure without touching the parent',
-      async (failure) => {
-        const fault = credentialFault(failure)
-        const primary = new StubModel({ id: 'openai', modelId: 'gpt', fault })
-        const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
-
-        const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
-
-        await expect(stepping(port)).rejects.toBe(fault)
-        expect(parent.steps).toBe(0)
-      },
-    )
-
-    it('rethrows the credential error when there is no parent to fall to', async () => {
-      const fault = credentialFault(ECredentialFailure.NotFound)
-      const primary = new StubModel({ id: 'openai', modelId: 'gpt', fault })
-
-      const port = childFallbackModel({ primary, parentFor: () => undefined, onFallback: () => {} })
-
-      await expect(stepping(port)).rejects.toBe(fault)
-    })
   })
 
   describe('when the retry loop gives up on a retryable fault', () => {

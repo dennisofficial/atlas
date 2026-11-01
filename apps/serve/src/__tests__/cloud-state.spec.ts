@@ -180,6 +180,23 @@ describe('applyCloudState', () => {
     })
   })
 
+  it('carries the lease secretVersion into the vault as the authorization revision', async () => {
+    const home = tempHome()
+    const cloud = cloudWith({
+      lease: {
+        accounts: [
+          { ...oauthAccount({ id: 'acc_claude', connectionId: 'oauth_cloud' }), secretVersion: 7 },
+        ],
+        active: [{ provider: EAuthProvider.Anthropic, accountId: 'acc_claude' }],
+      },
+    })
+
+    await apply({ home, cloud })
+
+    const stored = await accountStoreAt(home).read(toAccountId('acc_claude'))
+    expect(stored?.authorizationRevision).toBe(7)
+  })
+
   it('drops lease entries this build cannot read and pointers to accounts it does not hold', async () => {
     const home = tempHome()
     const cloud = cloudWith({

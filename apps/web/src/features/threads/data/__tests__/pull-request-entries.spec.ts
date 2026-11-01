@@ -245,3 +245,19 @@ describe('teammate pull requests', () => {
     expect(pinnedPullRequestOf(pullRequestEntriesOf({ thread, states: [] }))?.number).toBe(2)
   })
 })
+
+describe('pull request discovery follows the checkout', () => {
+  it('discovers by the observed checkout branch, not the worktree branch', () => {
+    const thread = threadOf({
+      id: 't',
+      repo: 'o/r',
+      worktree: onBranch('old'),
+      checkout: { path: '/w', branch: 'switched', detached: false },
+    })
+    const entries = pullRequestEntriesOf({
+      thread,
+      states: [live({ number: 1, branch: 'old' }), live({ number: 2, branch: 'switched' })],
+    })
+    expect(entries.map((entry) => entry.number)).toEqual([2])
+  })
+})

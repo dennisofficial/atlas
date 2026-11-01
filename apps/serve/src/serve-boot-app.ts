@@ -97,6 +97,15 @@ export async function bootServeApp(args: {
       remote,
       log,
     })
+    try {
+      await app.threadOpened?.({ threadId, projectDirectory: activeCwd })
+      app.channel.publisherFor({ threadId }).eventsAppended()
+    } catch (failure) {
+      log({
+        event: EServeEvent.ThreadOpenFailed,
+        reason: failure instanceof Error ? failure.message : String(failure),
+      })
+    }
     const bootNotices = [
       {
         slot: 'project-file-mounts',

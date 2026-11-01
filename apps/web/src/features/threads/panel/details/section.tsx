@@ -1,13 +1,20 @@
 import type { ReactNode, Ref } from 'react'
 
+import { cn } from '@dltech/atlas-ui/lib/utils'
+
 export function DetailsSection(props: {
   title: string
   ref?: Ref<HTMLElement>
   count?: string | number
+  className?: string
   children: ReactNode
 }) {
   return (
-    <section ref={props.ref} aria-label={props.title} className="flex flex-col gap-0.5">
+    <section
+      ref={props.ref}
+      aria-label={props.title}
+      className={cn('flex flex-col gap-0.5', props.className)}
+    >
       <div className="flex flex-col px-1 pb-1">
         <h3 className="flex items-baseline gap-1.5 text-xs font-medium text-muted-foreground">
           {props.title}

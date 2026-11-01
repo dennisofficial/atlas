@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import {
+  ECredentialFence,
   EAccountStatus,
   EAuthKind,
   EAuthProvider,
@@ -88,6 +89,8 @@ describe('RefreshingCredentialPort', () => {
       accountId: account.id,
       accessToken: 'access-1',
       expiresAt: minutesFromNow(60),
+      providerAccountId: undefined,
+      revision: { fence: ECredentialFence.Replaced, value: 0 },
     })
     expect(client.calls).toBe(0)
   })
@@ -124,6 +127,25 @@ describe('RefreshingCredentialPort', () => {
     expect(await portWith({ client }).read()).toMatchObject({ accessToken: 'access-2' })
   })
 
+  it('persists a refresh under a bumped revision', async () => {
+    const account = await vault.addAccount({
+      label: 'work',
+      secret: oauthSecret({ expiresAt: minutesFromNow(2) }),
+    })
+
+    await portWith({ client: rotating() }).read()
+
+    expect((await vault.store.read(account.id))?.authorizationRevision).toBe(1)
+  })
+
+  it('does not bump the revision when no refresh happened', async () => {
+    const account = await vault.addAccount({ label: 'work', secret: oauthSecret({}) })
+
+    await portWith({ client: rotating() }).read()
+
+    expect((await vault.store.read(account.id))?.authorizationRevision).toBeUndefined()
+  })
+
   it('spends one refresh token on two callers arriving in the same tick', async () => {
     await vault.addAccount({ label: 'work', secret: oauthSecret({ expiresAt: minutesFromNow(2) }) })
     const client = rotating()
@@ -144,6 +166,7 @@ describe('RefreshingCredentialPort', () => {
     const error = await failureOf(portWith({ client: failing(400) }).read())
 
     expect(error.failure).toBe(ECredentialFailure.Expired)
+    expect(error.providerRefused).toBe(true)
     expect(error.message).toContain('/auth')
     expect(error.message).not.toContain('refresh-1')
     expect(await statusOf(account.id)).toBe(EAccountStatus.Expired)
@@ -258,6 +281,7 @@ describe('RefreshingCredentialPort', () => {
 
     const error = await failureOf(port.read())
     expect(error.failure).toBe(ECredentialFailure.Expired)
+    expect(error.providerRefused).toBe(false)
     expect(await statusOf(account.id)).toBe(EAccountStatus.Active)
   })
 

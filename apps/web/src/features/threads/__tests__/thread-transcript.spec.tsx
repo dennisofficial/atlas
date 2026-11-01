@@ -125,6 +125,69 @@ describe('ThreadTranscript work groups', () => {
   })
 })
 
+describe('ThreadTranscript read images', () => {
+  it('breaks the work group at a picture a read returned', async () => {
+    const at = (second: number) => `2026-10-28T10:00:0${second}.000Z`
+    await mount(null, [
+      { kind: ETranscriptKind.User, id: 'u1', text: 'look at it', at: at(0) },
+      {
+        kind: ETranscriptKind.Tools,
+        id: 'tl1',
+        calls: [
+          {
+            id: 'c1',
+            kind: EToolKind.Read,
+            state: EToolState.Done,
+            label: 'shot.png',
+            image: {
+              id: 'c1#image',
+              src: 'data:image/png;base64,iVBOR',
+              alt: 'shot.png',
+            },
+          },
+        ],
+        at: at(1),
+      },
+      {
+        kind: ETranscriptKind.Tools,
+        id: 'tl2',
+        calls: [
+          {
+            id: 'c2',
+            kind: EToolKind.Shell,
+            state: EToolState.Done,
+            label: 'ran c2',
+          },
+        ],
+        at: at(2),
+      },
+      {
+        kind: ETranscriptKind.Agent,
+        id: 'a1',
+        text: 'Seen it',
+        streaming: false,
+        at: at(3),
+      },
+    ])
+
+    const picture = document.body.querySelector('img')
+    expect(picture?.getAttribute('src')).toBe('data:image/png;base64,iVBOR')
+    expect(document.body.textContent).not.toContain('Read shot.png')
+    const text = document.body.textContent ?? ''
+    expect(text.match(/Worked for/g)).toHaveLength(2)
+    const groups = [...document.body.querySelectorAll('*')].filter(
+      (node) => node.children.length === 0 && node.textContent?.startsWith('Worked for'),
+    )
+    const [first, second] = groups
+    const follows = (a: Node | undefined, b: Node | undefined) =>
+      a !== undefined &&
+      b !== undefined &&
+      (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    expect(follows(first, picture ?? undefined)).toBe(true)
+    expect(follows(picture ?? undefined, second)).toBe(true)
+  })
+})
+
 const wire = (seq: number, body: Record<string, unknown>): WireEvent => ({
   id: `evt_${seq}`,
   threadId: 'thr_1',

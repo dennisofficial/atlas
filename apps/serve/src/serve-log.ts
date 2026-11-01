@@ -53,6 +53,7 @@ export enum EServeEvent {
   CloudStateFailed = 'serve.cloud-state-failed',
   FileMountSkipped = 'serve.file-mount-skipped',
   FileMountNoticeFailed = 'serve.file-mount-notice-failed',
+  ThreadOpenFailed = 'serve.thread-open-failed',
   SettingsDropped = 'serve.settings-dropped',
   RotationFailed = 'serve.rotation-failed',
   SigningKeyReady = 'serve.signing-key-ready',

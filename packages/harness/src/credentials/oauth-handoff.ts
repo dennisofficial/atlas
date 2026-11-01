@@ -159,7 +159,7 @@ export class OauthHandoff {
         }
         await this.accounts.replaceSecret({ accountId: current.id, secret })
 
-        return { ...current, secret }
+        return (await this.accounts.read(current.id)) ?? { ...current, secret }
       },
     })
   }

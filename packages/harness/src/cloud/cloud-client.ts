@@ -1,6 +1,4 @@
 import {
-  accountSchema,
-  storedAccountSchema,
   type Account,
   type AccountDraft,
   type AccountId,
@@ -16,6 +14,7 @@ import { mcpTransportSchema as mcpTransportWireSchema } from '@dltech/atlas-wire
 import { z } from 'zod'
 
 import { mcpSpecSchema, type McpTransport } from '../mcp/config/specs'
+import { accountOfDto, storedAccountOfDto } from './account-dto'
 import { cloudCall, createHarnessApiClient } from './api-trpc-client'
 import type { CloudSession } from './cloud-session'
 import { createProjectVia, listProjectsVia, type ProjectInput } from './cloud-projects'
@@ -93,7 +92,7 @@ export class CloudClient {
 
   async listAccounts(): Promise<readonly Account[]> {
     const body = await cloudCall(this.api.accounts.list.query())
-    return z.array(accountSchema).parse(body)
+    return z.array(z.unknown()).parse(body).map(accountOfDto)
   }
 
   async readAccount(args: { accountId: AccountId }): Promise<StoredAccount | undefined> {
@@ -102,7 +101,7 @@ export class CloudClient {
     })
     if (body === undefined) return undefined
 
-    return storedAccountSchema.parse(body)
+    return storedAccountOfDto(body)
   }
 
   async addAccount(args: { draft: AccountDraft }): Promise<Account> {
@@ -119,7 +118,7 @@ export class CloudClient {
       }),
     )
 
-    return accountSchema.parse(body)
+    return accountOfDto(body)
   }
 
   async replaceAccountSecret(args: { accountId: AccountId; secret: AccountSecret }): Promise<void> {

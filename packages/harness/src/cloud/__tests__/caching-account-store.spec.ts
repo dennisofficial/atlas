@@ -182,6 +182,17 @@ describe('CachingAccountStore', () => {
     ])
   })
 
+  it('drops the cached read when a secret is replaced', async () => {
+    const { remote, store } = setup()
+
+    await store.read(account.id)
+    await store.replaceSecret({ accountId: account.id, secret })
+    remote.calls.length = 0
+    await store.read(account.id)
+
+    expect(remote.calls).toEqual([`read:${account.id}`])
+  })
+
   it('never serves a write from the cache', async () => {
     const { remote, store } = setup()
     remote.failure = unavailable

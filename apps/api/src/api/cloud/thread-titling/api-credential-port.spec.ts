@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'bun:test'
+import { ECredentialFence } from '@dltech/atlas-core'
 import { EAuthKind } from '@dltech/atlas-harness/titling'
 import type { AccountLease } from '@dltech/atlas-wire'
 import { ApiCredentialPort } from './api-credential-port'
@@ -60,6 +61,7 @@ describe('ApiCredentialPort', () => {
       kind: EAuthKind.ApiKey,
       accountId: 'a2' as never,
       apiKey: 'k2',
+      revision: { fence: ECredentialFence.Replaced, value: 0 },
     })
   })
 
