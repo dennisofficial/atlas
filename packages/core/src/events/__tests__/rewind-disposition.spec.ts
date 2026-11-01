@@ -10,7 +10,11 @@ const typesWith = (disposition: ERewindDisposition): string[] =>
 
 describe('rewindDisposition', () => {
   it('keeps the notices of things that happened outside the conversation', () => {
-    expect(typesWith(ERewindDisposition.Keep)).toEqual(['location-changed', 'pr-event'])
+    expect(typesWith(ERewindDisposition.Keep)).toEqual([
+      'checkout-observed',
+      'location-changed',
+      'pr-event',
+    ])
   })
 
   it('ties process endings to whether their creator was cut', () => {

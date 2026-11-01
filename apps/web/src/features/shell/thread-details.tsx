@@ -10,6 +10,7 @@ import {
   pullRequestKeyOf,
   type PullRequestEntry,
 } from '@/features/threads/data/pull-request-entries'
+import { currentBranchOf, isOutsideGit } from '@/features/threads/data/header-model'
 import { UNTITLED } from '@/features/threads/data/untitled'
 import { useSidebarPrObservation } from './shell-pr-observations'
 import { ThreadStatusIcon } from './shell-status-icon'
@@ -129,9 +130,13 @@ export function ThreadDetails({
           <Folder className="size-3.5 shrink-0 text-muted-foreground" />
           {projectName}
         </DetailRow>
-        <DetailRow label="Branch">
-          <span className="font-mono break-all">{thread.worktree?.branch || 'No branch yet'}</span>
-        </DetailRow>
+        {isOutsideGit(thread) ? null : (
+          <DetailRow label="Branch">
+            <span className="font-mono break-all">
+              {currentBranchOf(thread) ?? 'No branch yet'}
+            </span>
+          </DetailRow>
+        )}
         {parent ? (
           <DetailRow label="Teammate of">
             <Link href={`/threads/${encodeURIComponent(parent.id)}`} className="hover:underline">

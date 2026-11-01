@@ -40,10 +40,17 @@ export function spawnerIdOf(thread: WireThread | undefined): string | undefined 
   return thread?.agent?.spawnedBy
 }
 
-export function branchOf(thread: WireThread | undefined): string | undefined {
-  const branch = thread?.worktree?.branch
-  return branch === undefined || branch === '' ? undefined : branch
+export function currentBranchOf(thread: WireThread | undefined): string | undefined {
+  const checkout = thread?.checkout
+  if (checkout) {
+    if (checkout.detached) return 'detached'
+    return checkout.branch || undefined
+  }
+  return thread?.worktree?.branch || undefined
 }
+
+export const isOutsideGit = (thread: WireThread | undefined): boolean =>
+  thread?.checkout !== undefined && !thread.checkout.detached && !thread.checkout.branch
 
 export const entryHasConflicts = (entry: PullRequestEntry): boolean =>
   entry.mergeable === false && entry.state === EPullRequestStateWire.Open

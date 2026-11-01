@@ -211,6 +211,7 @@ export type EventBody =
       bytes?: number | undefined
     }
   | { type: 'directory-changed'; path: string; repo?: string | null | undefined }
+  | { type: 'checkout-observed'; path: string; branch: string | null; detached: boolean }
   | BackgroundShellEventBody
   | AgentEventBody
   | PolicyEventBody
@@ -271,6 +272,7 @@ export const SURVIVES_SUMMARY: readonly EventType[] = [
   'permission-revoked',
   'pull-request-linked',
   'location-changed',
+  'checkout-observed',
   'subscription-created',
   'subscription-changed',
   'subscription-ended',

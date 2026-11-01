@@ -217,6 +217,12 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     repo: z.string().min(1).nullable().optional(),
   }),
   z.object({
+    type: z.literal('checkout-observed'),
+    path: z.string().min(1),
+    branch: z.string().min(1).nullable(),
+    detached: z.boolean(),
+  }),
+  z.object({
     type: z.literal('history-compacted'),
     anchor: z.enum(ECompactionAnchor),
     fromSeq: z.number().int().positive(),
