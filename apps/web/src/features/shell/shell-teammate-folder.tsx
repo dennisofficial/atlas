@@ -48,7 +48,7 @@ export function TeammateList({ sessions, parent, projectName, activeThreadId }: 
   const { live, done } = groupTeammates(sessions.map((session) => session.mainThread))
   const nodes = new Map(sessions.map((session) => [session.mainThread.id, session]))
   return (
-    <SidebarMenuSub>
+    <SidebarMenuSub className="mr-0 ml-3.5 pr-0 pl-2">
       {[...live, ...done].map((teammate) => {
         const session = nodes.get(teammate.id)
         if (!session) return null
