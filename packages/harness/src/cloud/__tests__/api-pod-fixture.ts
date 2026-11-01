@@ -107,6 +107,7 @@ export const createFakePodApi = (
             url: 'https://pod.test',
             token,
             expiresAt: '2026-10-27T10:01:00.000Z',
+            threadId,
           }
         },
       },
