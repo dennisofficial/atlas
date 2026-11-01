@@ -8,6 +8,7 @@ import {
   EAccountOrigin,
   EAuthKind,
   EAuthProvider,
+  ECredentialFence,
   ESettingId,
   type ClockPort,
 } from '@dltech/atlas-core'
@@ -106,6 +107,7 @@ describe('serve local stores after the cloud pull', () => {
       kind: EAuthKind.ApiKey,
       accountId: heldId,
       apiKey: 'sk-ant-fake-birth',
+      revision: { fence: ECredentialFence.Replaced, value: 0 },
     })
   })
 

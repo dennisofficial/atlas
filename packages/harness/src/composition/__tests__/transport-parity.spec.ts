@@ -54,6 +54,10 @@ describe('registry-driven transport parity', () => {
 
   it('an empty transport slot is declared, never omitted, for in-process ports', () => {
     expect(sharedPortBindings.ClockPort.transport).toBeNull()
+    expect(sharedPortBindings.CredentialAvailabilityPort).toEqual({
+      runtime: 'shared',
+      transport: null,
+    })
     expect(sharedPortBindings.NoticePort.transport).toBeNull()
     expect(sharedPortBindings.ModelPort.transport).toBeNull()
     expect(sharedPortBindings.ProcessPort.transport).toBeNull()

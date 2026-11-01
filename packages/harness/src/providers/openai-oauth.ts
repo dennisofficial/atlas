@@ -21,6 +21,7 @@ import { isConfirmedAuthRefusal } from './auth-repair'
 import { failingAs, withFailureAccount } from './failure-account'
 import { withStreamProvenance } from './stream-provenance'
 import { openaiCacheOptions } from './openai-cache'
+import { admittedByAccount, type ProviderAdmission } from './provider-admission'
 import { providerKey } from './provider-key'
 import { withOpenAiCompatibleReasoning } from './openai-reasoning'
 import { generationFromStream } from './stream-generation'
@@ -91,6 +92,7 @@ export function createOpenAiModel(args: {
   providerId: string
   modelId: string
   accountId?: AccountId | undefined
+  admission?: ProviderAdmission | undefined
   fetch?: OpenAIProviderSettings['fetch'] | undefined
 }): LanguageModelV4 {
   const authorizedModel = async (): Promise<AuthorizedModel> => {
@@ -100,12 +102,19 @@ export function createOpenAiModel(args: {
     })
     providerKey({ credential, label: CODEX_PLAN_LABEL })
 
-    const model = createOpenAI({
+    const provider = createOpenAI({
       name: args.providerId,
       ...settingsOf(credential),
       ...(args.fetch === undefined ? {} : { fetch: args.fetch }),
     }).responses(args.modelId)
 
+    const model = admittedByAccount({
+      admission: args.admission,
+      model: provider,
+      credential,
+      providerId: args.providerId,
+      modelId: args.modelId,
+    })
     return { model, credential }
   }
 

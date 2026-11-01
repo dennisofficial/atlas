@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { authorityOf, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
+import { OAuthConnectionsClient } from '../../cloud/oauth-connections-client'
+import { OauthHandoff } from '../oauth-handoff'
 import { CloudManagedCredentialPort } from '../cloud-managed-credential-port'
 import { CredentialError } from '../credential-error'
 import { session, NOW, seed, setup, settledSecret } from './cloud-managed-fixture'
@@ -19,6 +21,23 @@ describe('cloud-managed credential handoff', () => {
     expect(secret.tokens.refreshToken).toBe('')
     expect(secret.authority?.connectionId).toBe('oauth_1')
     expect(api.connections.get('oauth_1')?.refresh).toBe('fake-refresh')
+  })
+
+  it('returns the stored account with the post-bump revision from a transfer', async () => {
+    const { api, accounts, addOauth } = setup()
+    const account = await addOauth()
+    const transfer = new OauthHandoff({
+      accounts,
+      clock: { now: () => NOW },
+      clients: (held) =>
+        new OAuthConnectionsClient({ url: held.url, token: held.token, fetchFn: api.fetchFn }),
+    })
+
+    const returned = await transfer.transfer({ accountId: account.id, session })
+
+    const stored = await accounts.read(account.id)
+    expect(stored?.authorizationRevision).toBeGreaterThan(0)
+    expect(returned.authorizationRevision).toBe(stored?.authorizationRevision)
   })
 
   it('persists the authority marker before the upload goes out', async () => {

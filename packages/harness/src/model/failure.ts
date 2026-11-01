@@ -9,6 +9,7 @@ import {
 
 import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
 import { MissingKeyError } from '../providers/provider-key'
+import { blockedFailureOf } from './admission-blocked'
 import { causeChainOf } from './cause-chain'
 import { ModelStreamError, StreamStallError } from './errors'
 import { normalizationOf, provenanceOf, rememberNormalization } from './failure-provenance'
@@ -112,6 +113,12 @@ export function normalizeProviderFailure(args: {
   if (remembered !== undefined) return remembered
 
   const chain = causeChainOf(args.cause)
+  const blocked = blockedFailureOf(chain)
+  if (blocked !== undefined) {
+    rememberNormalization({ cause: args.cause, normalized: blocked })
+    return blocked
+  }
+
   const providerError = chain.find(isProviderError)
   const provenance = provenanceOf(args.cause)
   const credential = credentialEvidenceOf(chain)

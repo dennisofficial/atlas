@@ -17,6 +17,7 @@ import {
 import { CLAUDE_PLAN_LABEL } from '../models/provider-ids'
 import { isConfirmedAuthRefusal } from './auth-repair'
 import { failingAs, withFailureAccount } from './failure-account'
+import { admittedByAccount, type ProviderAdmission } from './provider-admission'
 import { providerKey } from './provider-key'
 import { withStreamProvenance } from './stream-provenance'
 import { withAnthropicCompatibleReasoning } from './anthropic-reasoning'
@@ -37,6 +38,7 @@ export type AnthropicOauthModelArgs = {
   credentials: CredentialPort
   modelId: string
   accountId?: AccountId | undefined
+  admission?: ProviderAdmission | undefined
   providerOptions?: AnthropicProviderOptions | undefined
   baseURL?: string | undefined
   fetch?: AnthropicFetch | undefined
@@ -85,13 +87,20 @@ export function createAnthropicOauthModel(args: AnthropicOauthModelArgs): Langua
     const credential = await args.credentials.read({ accountId: args.accountId })
     providerKey({ credential, label: CLAUDE_PLAN_LABEL })
 
-    const model = createAnthropic({
+    const provider = createAnthropic({
       name: ANTHROPIC_PROVIDER_ID,
       ...authOf(credential),
       ...(args.baseURL === undefined ? {} : { baseURL: args.baseURL }),
       ...(args.fetch === undefined ? {} : { fetch: args.fetch }),
     })(args.modelId)
 
+    const model = admittedByAccount({
+      admission: args.admission,
+      model: provider,
+      credential,
+      providerId: ANTHROPIC_PROVIDER_ID,
+      modelId: args.modelId,
+    })
     return { model, credential }
   }
 

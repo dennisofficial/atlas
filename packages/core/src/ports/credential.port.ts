@@ -1,4 +1,5 @@
 import { EAuthKind, type AccountId, type EAuthProvider } from '../credentials/account'
+import type { CredentialRevision } from '../credentials/credential-availability'
 
 export type OauthCredential = {
   kind: EAuthKind.Oauth
@@ -6,12 +7,14 @@ export type OauthCredential = {
   accessToken: string
   expiresAt: string
   providerAccountId?: string | undefined
+  revision?: CredentialRevision | undefined
 }
 
 export type ApiKeyCredential = {
   kind: EAuthKind.ApiKey
   accountId: AccountId
   apiKey: string
+  revision?: CredentialRevision | undefined
 }
 
 export type Credential = OauthCredential | ApiKeyCredential

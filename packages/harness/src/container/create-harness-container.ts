@@ -1,5 +1,6 @@
 import {
   ClockPort,
+  CredentialAvailabilityPort,
   EExecutionLocation,
   EventLogPort,
   FileCapabilitiesPort,
@@ -18,6 +19,7 @@ import {
 } from '../composition/execution-location-state'
 
 import { restoreArchivedLocalFiles } from '../cloud/local-recovery'
+import { InMemoryCredentialAvailability } from '../credentials/credential-availability'
 import { registerBuiltinHooks } from '../hooks/register-hooks'
 import { TurnLedgerPort } from '../ledger'
 import { JsonlTurnLedger } from '../ledger/jsonl'
@@ -95,6 +97,14 @@ export function createHarnessContainer(): DependencyContainer {
 
   harness.register(registeredPortToken(ClockPort), { useClass: SystemClock })
   harness.register(registeredPortToken(IdPort), { useClass: RandomIds })
+  harness.register(registeredPortToken(CredentialAvailabilityPort), {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new InMemoryCredentialAvailability({
+          clock: resolver.resolve(registeredPortToken(ClockPort)),
+        }),
+    ),
+  })
   harness.register(registeredPortToken(TelemetryPort), {
     useFactory: instanceCachingFactory((resolver) => {
       if (!telemetryEnabled(process.env)) return new NullTelemetry()

@@ -17,6 +17,7 @@ import { ProviderAdapter } from './adapter'
 import { inferenceEffortOptions } from './inference-effort'
 import { failingAs } from './failure-account'
 import { withStreamProvenance } from './stream-provenance'
+import { admittedByAccount, type ProviderAdmission } from './provider-admission'
 import { providerKey } from './provider-key'
 
 export { INFERENCE_PROVIDER_ID }
@@ -33,16 +34,19 @@ export class InferenceAdapter extends ProviderAdapter {
 
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]
+  private readonly admission: ProviderAdmission | undefined
   private readonly fetch: OpenAICompatibleProviderSettings['fetch'] | undefined
 
   constructor(args: {
     credentials: CredentialPort
     cards: readonly ModelCard[]
+    admission?: ProviderAdmission | undefined
     fetch?: OpenAICompatibleProviderSettings['fetch'] | undefined
   }) {
     super()
     this.credentials = args.credentials
     this.catalogue = args.cards
+    this.admission = args.admission
     this.fetch = args.fetch
   }
 
@@ -66,7 +70,7 @@ export class InferenceAdapter extends ProviderAdapter {
       })
       const apiKey = providerKey({ credential, label: this.label })
 
-      const model = createOpenAICompatible({
+      const provider = createOpenAICompatible({
         name: INFERENCE_PROVIDER_ID,
         baseURL: INFERENCE_BASE_URL,
         apiKey,
@@ -75,6 +79,13 @@ export class InferenceAdapter extends ProviderAdapter {
         supportsStructuredOutputs: true,
         ...(this.fetch === undefined ? {} : { fetch: this.fetch }),
       }).chatModel(args.card.ref.modelId)
+      const model = admittedByAccount({
+        admission: this.admission,
+        model: provider,
+        credential,
+        providerId: INFERENCE_PROVIDER_ID,
+        modelId: args.card.ref.modelId,
+      })
       return { model, accountId: credential.accountId }
     }
 
