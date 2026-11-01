@@ -6,6 +6,7 @@ import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
+import { currentBranchOf } from '@/features/threads/data/header-model'
 import { EPrObservationPriority } from '@/features/threads/data/pr-observation-targets'
 import { LocalPodIcon } from '@/features/threads/thread-header'
 import { rowNamingOf, useThreadNaming } from './active-naming'
@@ -134,7 +135,7 @@ export function ThreadRowBody({
             data-thread-line="secondary"
             className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
           >
-            <ThreadWorkSummary entries={entries} branch={thread.worktree?.branch} />
+            <ThreadWorkSummary entries={entries} branch={currentBranchOf(thread)} />
             <span className="ml-auto inline-flex">{unread ? <UnreadDot /> : null}</span>
           </span>
         ) : null}
