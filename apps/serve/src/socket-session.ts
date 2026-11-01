@@ -56,9 +56,8 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const aliaser = createStepAliaser()
   let historyGeneration = 0
 
-  const send = (args: { socket: SessionSocket; frame: ServeFrame }): void => {
-    args.socket.send(encodeFrame(args.frame))
-  }
+  const send = (args: { socket: SessionSocket; frame: ServeFrame }): void =>
+    void args.socket.send(encodeFrame(args.frame))
 
   const command = createTurnCommands({
     threadId,
