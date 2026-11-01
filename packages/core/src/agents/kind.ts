@@ -31,3 +31,22 @@ export const isTurnTaking = (event: EventDraft): boolean => {
       return false
   }
 }
+
+/**
+ * The type-only half of `isTurnTaking`, for the wire path: a body that failed the local schema
+ * has no draft to inspect, but hydration still must not advance past a row whose type takes a
+ * turn — a rejected `pr-event` is a durable intent that would otherwise be skipped forever.
+ */
+export const isTurnTakingType = (type: string): boolean =>
+  type === 'user-said' ||
+  type === 'assistant-said' ||
+  type === 'tool-result' ||
+  type === 'tool-denied' ||
+  type === 'nudge' ||
+  type === 'background-shell-awaiting-input' ||
+  type === 'background-shell-matched' ||
+  type === 'background-shell-still-running' ||
+  type === 'background-shell-ended' ||
+  type === 'service-ended' ||
+  type === 'agent-ended' ||
+  type === 'pr-event'

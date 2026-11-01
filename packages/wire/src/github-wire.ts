@@ -143,6 +143,17 @@ export const githubPrStreamFrameSchema = z.discriminatedUnion('type', [
 ])
 export type GithubPrStreamFrame = z.infer<typeof githubPrStreamFrameSchema>
 
+export const githubPrAckEventsInputSchema = z.strictObject({
+  threadId: z.string().min(1),
+  eventIds: z.array(z.string().min(1)).min(1).max(200),
+})
+export type GithubPrAckEventsInput = z.infer<typeof githubPrAckEventsInputSchema>
+
+export const githubPrAckEventsOutputSchema = z.strictObject({
+  acked: z.number().int().nonnegative(),
+})
+export type GithubPrAckEventsOutput = z.infer<typeof githubPrAckEventsOutputSchema>
+
 const isAsyncIterable = <T>(value: unknown): value is AsyncIterable<T> =>
   typeof value === 'object' && value !== null && Symbol.asyncIterator in value
 

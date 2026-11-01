@@ -1,9 +1,15 @@
 import { EventLogPort, IdPort, LogPort, OnThreadOpenHook, type ThreadId } from '@dltech/atlas-core'
 
 import { withEventsAppendedPublishing } from '../channel/events-appended-log'
+import { PrSubscriptionClient } from '../cloud/pr-subscription-client'
 import { registerDisposable } from '../container/disposal'
 import { portToken, registeredPortToken, type DependencyContainer } from '../container/injection'
-import { DeltaChannelToken } from '../container/tokens'
+import {
+  ClientVersionToken,
+  CloudSessionStoreToken,
+  DeltaChannelToken,
+  ServeSessionToken,
+} from '../container/tokens'
 import { SubscriptionRegistryPort } from '../subscriptions/port'
 import { SubscriptionRegistry } from '../subscriptions/registry'
 import type { SubscriptionProvider } from '../subscriptions/provider'
@@ -20,6 +26,19 @@ export async function bindSubscriptions(args: {
   const { container } = args
   const logPort = container.resolve(registeredPortToken(LogPort))
 
+  const session = container.isRegistered(ServeSessionToken, true)
+    ? container.resolve(ServeSessionToken)
+    : container.isRegistered(CloudSessionStoreToken, true)
+      ? container.resolve(CloudSessionStoreToken).read()
+      : null
+  const ackClient =
+    session === null
+      ? undefined
+      : new PrSubscriptionClient({
+          session,
+          clientVersion: container.resolve(ClientVersionToken),
+        })
+
   const registry = new SubscriptionRegistry({
     log: withEventsAppendedPublishing({
       log: container.resolve(registeredPortToken(EventLogPort)),
@@ -34,6 +53,20 @@ export async function bindSubscriptions(args: {
     now: () => Date.now(),
     schedule: timerSchedule,
     warn: (message) => logPort.warn({ source: 'subscriptions', message }),
+    ...(ackClient === undefined
+      ? {}
+      : {
+          ackPrEvents: ({ threadId, eventIds }: { threadId: ThreadId; eventIds: string[] }) => {
+            void ackClient.ackEvents({ threadId, eventIds }).catch((cause: unknown) =>
+              logPort.warn({
+                source: 'subscriptions',
+                message: `could not ack ${eventIds.length} pr-event(s): ${
+                  cause instanceof Error ? cause.message : String(cause)
+                }`,
+              }),
+            )
+          },
+        }),
   })
 
   container.register(registeredPortToken(SubscriptionRegistryPort), { useValue: registry })

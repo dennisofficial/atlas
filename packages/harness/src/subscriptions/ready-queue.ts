@@ -5,6 +5,8 @@ import type { IntakeSource } from '../intake/message-intake'
 
 type Ready = { threadId: ThreadId; subscriptionId: string; draft: EventDraft }
 
+type Departed = { threadId: ThreadId; drafts: readonly EventDraft[] }
+
 const NOTHING: readonly Ready[] = Object.freeze([])
 
 export class ReadyQueue {
@@ -12,7 +14,10 @@ export class ReadyQueue {
   private noticed: ReadonlyMap<ThreadId, readonly Ready[]> = new Map()
   private readonly listeners = new Set<() => void>()
 
-  constructor(private readonly onDeparted?: (args: { subscriptionId: string }) => void) {}
+  constructor(
+    private readonly onDeparted?: (args: { subscriptionId: string }) => void,
+    private readonly onDelivered?: (args: Departed) => void,
+  ) {}
 
   enqueue({
     threadId,
@@ -51,6 +56,10 @@ export class ReadyQueue {
         const kept = this.queued.filter((ready) => !leaving.has(ready))
         if (kept.length === this.queued.length) return
         this.settle(kept)
+        this.onDelivered?.({
+          threadId,
+          drafts: captured.map((ready) => ready.draft),
+        })
         for (const subscriptionId of new Set(captured.map((ready) => ready.subscriptionId)))
           this.onDeparted?.({ subscriptionId })
       },

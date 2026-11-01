@@ -1,5 +1,6 @@
 import {
   subscriptionsOf,
+  type Event,
   type EventLogPort,
   type Subscription,
   type ThreadId,
@@ -15,6 +16,7 @@ export class ThreadLoader {
     private readonly deps: {
       log: EventLogPort
       merge: (subscriptions: readonly Subscription[]) => void
+      mergeEvents?: ((args: { threadId: ThreadId; events: readonly Event[] }) => void) | undefined
       warn: (message: string) => void
     },
   ) {}
@@ -48,6 +50,7 @@ export class ThreadLoader {
     if (events === null) return
 
     this.deps.merge(subscriptionsOf(events))
+    this.deps.mergeEvents?.({ threadId, events })
     this.loaded.add(threadId)
   }
 }

@@ -1,6 +1,8 @@
 import {
   ESubscriptionEnd,
   ESubscriptionStatus,
+  type Event,
+  type EventDraft,
   type Subscription,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -21,6 +23,8 @@ import { findExisting, resolveRequest } from './resolve-request'
 import { ThreadLoader } from './thread-loader'
 import type { SubscriptionRegistryDeps } from './registry-deps'
 import { readyIntakeSource, ReadyQueue } from './ready-queue'
+import { stampArrival } from './pr-event-notice'
+import { isAckablePrEvent, PrEventIntake } from './pr-event-journal'
 
 export class SubscriptionRegistry extends SubscriptionRegistryPort {
   readonly intakeSource: IntakeSource
@@ -35,6 +39,7 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
   )
   private readonly buffer: DeliveryBuffer
   private readonly journal: SubscriptionJournal
+  private readonly prEvents: PrEventIntake
   private readonly notifier = new ChangeNotifier()
   private readonly serial = new Serial()
   private disposed = false
@@ -47,6 +52,14 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
       ids: deps.ids,
       warn: (message) => this.warn(message),
     })
+    this.prEvents = new PrEventIntake({
+      log: deps.log,
+      ids: deps.ids,
+      queue: this.queue,
+      ack: deps.ackPrEvents,
+      warn: (message) => this.warn(message),
+      changed: () => this.changed(),
+    })
     this.loader = new ThreadLoader({
       log: deps.log,
       merge: (found) => {
@@ -57,6 +70,7 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
         this.reconcile()
         this.changed()
       },
+      mergeEvents: (loaded) => this.prEvents.requeueOwed(loaded),
       warn: (message) => this.warn(message),
     })
     this.runs = new ProviderRuns({
@@ -251,7 +265,13 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
   }): void {
     if (!this.isLive(subscriptionId)) return
 
-    this.buffer.offer({ subscriptionId, occurrence })
+    const subscription = this.subscriptions.get(subscriptionId)
+    if (subscription === undefined) return
+    const draft = stampArrival(occurrence.draft)
+    if (isAckablePrEvent(draft)) {
+      this.prEvents.journalArrival({ threadId: subscription.threadId, draft })
+    }
+    this.buffer.offer({ subscriptionId, occurrence: { ...occurrence, draft } })
     this.changed()
     if (occurrence.ends !== true) return
 

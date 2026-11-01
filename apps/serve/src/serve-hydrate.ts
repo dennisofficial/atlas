@@ -1,4 +1,4 @@
-import type { Event, ThreadId } from '@dltech/atlas-core'
+import { isTurnTakingType, type Event, type ThreadId } from '@dltech/atlas-core'
 import {
   readableEventFromWire,
   mirrorWriter,
@@ -17,6 +17,16 @@ import { BOOT_STEP_EVENT_TYPE, isApiProvisioned, mirrorsThreadState } from '@dlt
 import { EServeEvent, type ServeLog } from './serve-log'
 
 export type HydrateResult = { imported: number; skipped: number; head: number; remoteHead: number }
+
+export class HydrationRejected extends Error {
+  constructor(
+    readonly wire: WireEvent,
+    detail: string,
+  ) {
+    super(`unreadable turn-taking event seq ${wire.seq} of type ${wire.type}: ${detail}`)
+    this.name = 'HydrationRejected'
+  }
+}
 
 const coreEventOf = (wire: WireEvent): Event | null => {
   if (wire.type === BOOT_STEP_EVENT_TYPE) return null
@@ -37,16 +47,32 @@ export async function hydrateServeHistory(args: {
 
   const wire = await args.sessions.readEvents({ threadId, own: true })
   const past = wire.filter((row) => row.seq > localHead).sort((a, b) => a.seq - b.seq)
-  const events = past.flatMap((row) => coreEventOf(row) ?? [])
-  const skipped = past.length - events.length
-  const head = past.at(-1)?.seq ?? localHead
   const remoteHead = wire.reduce((highest, row) => Math.max(highest, row.seq), 0)
+
+  const events: Event[] = []
+  let skipped = 0
+  let head = localHead
+  for (const row of past) {
+    const event = coreEventOf(row)
+    if (event === null && isTurnTakingType(row.type)) {
+      log({
+        event: EServeEvent.HydrateRejected,
+        threadId,
+        seq: row.seq,
+        type: row.type,
+      })
+      throw new HydrationRejected(row, 'the body failed the local schema')
+    }
+    if (event === null) skipped += 1
+    else events.push(event)
+    head = row.seq
+  }
 
   if (events.length > 0) {
     const writer = args.writer ?? mirrorWriter({ home: () => atlasHome })
     await writer.appendDelta({ threadId, events })
   }
-  if (head > (events.at(-1)?.seq ?? localHead)) {
+  if (head > localHead) {
     const file = threadMetaFile({ sessionDir, threadId })
     const meta =
       readMetaSync({ file, schema: threadMetaSchema }) ??

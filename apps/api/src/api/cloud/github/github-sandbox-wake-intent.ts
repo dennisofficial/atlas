@@ -11,15 +11,21 @@ export type WakePrEvent = {
   prNumber: number
   kind: EPrEventKind
   payload: GithubPrEventPayload
+  eventId?: string
 }
 
 export type WakeEventNotice = Pick<WakePrEvent, 'userId' | 'repoFullName' | 'prNumber'>
 
 const GITHUB_PREFIX = 'github.com/'
 
-/** Stable per (thread, event): a duplicate webhook delivery never double-appends. */
+/**
+ * Stable per (thread, mailbox event): a duplicate webhook delivery never double-appends, and two
+ * distinct events on the same SHA no longer collide. Events without a mailbox id (legacy)
+ * fall back to the composite key.
+ */
 export function wakeEventKeyOf(args: { threadId: string; event: WakePrEvent }): string {
   const { event } = args
+  if (event.eventId !== undefined) return `pr-wake:${args.threadId}:${event.eventId}`
   return [
     'pr-wake',
     args.threadId,
@@ -68,6 +74,7 @@ export async function appendWakeIntent(args: {
             kind,
             url: payload.url,
             wakeKey: key,
+            ...(args.event.eventId === undefined ? {} : { eventId: args.event.eventId }),
             ...(subscriptionId === undefined ? {} : { subscriptionId }),
             ...(payload.authorLogin === undefined ? {} : { authorLogin: payload.authorLogin }),
             ...(payload.body === undefined ? {} : { body: payload.body }),

@@ -1,4 +1,4 @@
-import type { EventLogPort, IdPort } from '@dltech/atlas-core'
+import type { EventLogPort, IdPort, ThreadId } from '@dltech/atlas-core'
 
 import type { Schedule } from './delivery-buffer'
 import type { SubscriptionProvider } from './provider'
@@ -13,4 +13,5 @@ export type SubscriptionRegistryDeps = {
   schedule: Schedule
   warn?: ((message: string) => void) | undefined
   newId?: (() => string) | undefined
+  ackPrEvents?: ((args: { threadId: ThreadId; eventIds: string[] }) => void) | undefined
 }

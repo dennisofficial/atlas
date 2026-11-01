@@ -136,6 +136,19 @@ export class PrSubscriptionClient {
     })
   }
 
+  /**
+   * Fire-and-forget by contract: the caller (the subscription registry) invokes this only after a
+   * pr-event is durably journaled, and a failure here is recovered by the API's replay lease
+   * re-serving the unacked event rather than by retrying inline.
+   */
+  async ackEvents(args: { threadId: string; eventIds: string[] }): Promise<void> {
+    await this.retried({
+      procedure: 'githubPrs.ackEvents',
+      call: () =>
+        this.api.githubPrs.ackEvents.mutate({ threadId: args.threadId, eventIds: args.eventIds }),
+    })
+  }
+
   private async retried<T>(args: { procedure: string; call: () => Promise<T> }): Promise<T> {
     const path = `/v1/trpc/${args.procedure}`
     for (let attempt = 0; ; attempt += 1) {

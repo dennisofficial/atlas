@@ -16,6 +16,7 @@ const noticeOf = (event: EventDraft): NoticeStamp | undefined => {
     case 'background-shell-ended':
     case 'background-shell-matched':
     case 'background-shell-awaiting-input':
+    case 'pr-event':
       return event.notice
     default:
       return undefined
@@ -30,6 +31,7 @@ const withNotice = ({ draft, notice }: { draft: EventDraft; notice: NoticeStamp 
     case 'background-shell-ended':
     case 'background-shell-matched':
     case 'background-shell-awaiting-input':
+    case 'pr-event':
       return { ...draft, notice }
     default:
       return draft
