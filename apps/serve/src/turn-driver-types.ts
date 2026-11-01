@@ -34,4 +34,5 @@ export type TurnDriverHooks = {
   onTurnEnded: () => void
   onOutcome: (outcome: TurnOutcome) => void
   onFailure: (reason: string) => void
+  holdWorking?: (() => () => void) | undefined
 }

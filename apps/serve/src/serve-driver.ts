@@ -28,6 +28,7 @@ export function createServeDriver(args: {
     threadId: args.threadId,
     refusal: () => workspaceRefusalOf(args.workspace),
     beforeTurn: args.beforeTurn,
+    holdWorking: () => app.channel.publisherFor({ threadId: args.threadId }).holdWorking(),
     onTurnStarted: () => {
       activity.turnStarted()
       args.idleStop().note()
