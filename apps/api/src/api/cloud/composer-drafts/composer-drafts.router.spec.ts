@@ -4,7 +4,7 @@ import { composerDraftGetReplySchema } from '@dltech/atlas-wire'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { seedThreadRow } from '../../../../test/session-seed'
 import { buildSessionTrpcApp, dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { ComposerDraftsRouter } from './composer-drafts.router'
 import { ComposerDraftsService } from './composer-drafts.service'
 

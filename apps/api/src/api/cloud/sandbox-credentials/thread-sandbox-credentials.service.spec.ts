@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
-import { seedProject, seedSessionUsers } from '../web-settings.fake-db'
+import { seedProject, seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { ThreadSandboxCredentialsService } from './thread-sandbox-credentials.service'
 
 const envWith = (values: Record<string, string>): EnvService =>

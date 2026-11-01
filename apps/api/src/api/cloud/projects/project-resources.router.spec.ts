@@ -3,7 +3,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { INestApplication } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { buildProjectsApp, createProjectAs, PROJECT_BODY } from './projects.router.fixture'
 
 describe('project resources router', () => {

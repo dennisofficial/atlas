@@ -4,7 +4,7 @@ import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import type { INestApplication } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { buildProjectsApp, createProjectAs } from './projects.router.fixture'
 
 const CONTENTS = 'TOKEN=super-secret\n'

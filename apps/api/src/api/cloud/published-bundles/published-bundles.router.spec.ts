@@ -8,7 +8,7 @@ import {
   withRivalBundle,
 } from '../../../../test/fake-published-bundle-db'
 import { buildSessionTrpcApp, dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { BundleBlobStore } from './blob-store'
 import { FakeBundleBlobStore } from './published-bundles.fakes'
 import { PublishedBundlesRouter } from './published-bundles.router'

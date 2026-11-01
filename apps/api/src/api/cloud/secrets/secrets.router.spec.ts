@@ -3,7 +3,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { INestApplication } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { createPersonalApp, trpcMutate, trpcQuery } from '../personal-resources.router.fixture'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { SecretsRouter } from './secrets.router'
 import { SecretsService } from './secrets.service'
 

@@ -4,7 +4,7 @@ import { encodeSettingValue } from '@dltech/atlas-wire/web'
 import type { INestApplication } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
-import { seedSessionUsers } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { buildProjectsApp, createProjectAs, PROJECT_BODY } from './projects.router.fixture'
 
 describe('project settings and project workspace router', () => {
