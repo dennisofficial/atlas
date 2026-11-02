@@ -1,0 +1,7 @@
+{
+  "name": "d8-rtt",
+  "type": "module",
+  "dependencies": {
+    "@vercel/sandbox": "^3.9.1"
+  }
+}
