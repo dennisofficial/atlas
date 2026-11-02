@@ -20,6 +20,7 @@ import {
 
 import type { AgentIntake } from '../intake/agent-intake'
 import type { AgentRecordPort, ModelContextPort } from '../record/agent-record.port'
+import type { OnceLedger } from './once-ledger.port'
 import type { AgentOutput } from './agent-output'
 import { retryDepsFor } from './retry-deps'
 import type { HookChain } from '../hooks/registry'
@@ -78,6 +79,7 @@ export type TurnDeps = {
   waitState?: ModelWaitObserver | undefined
   normalizeFailure: NormalizeFailure
   failureDiagnostics?: FailureDiagnostics | undefined
+  onceLedger?: OnceLedger | undefined
 }
 
 export class LoopTurnRunner extends TurnRunner {
@@ -89,6 +91,7 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly retry: RetryDeps | undefined
   private readonly output: AgentOutput | undefined
   private readonly sleepPrevention: SleepPrevention | undefined
+  private readonly onceLedger: OnceLedger | undefined
   private readonly tracked: TrackedTurnDeps
   private readonly normalizeFailure: NormalizeFailure
   private readonly failureDiagnostics: FailureDiagnostics | undefined
@@ -104,6 +107,7 @@ export class LoopTurnRunner extends TurnRunner {
     this.retry = deps.retry
     this.output = deps.output
     this.sleepPrevention = deps.sleepPrevention
+    this.onceLedger = deps.onceLedger
     this.expandContext = deps.expandContext
     this.normalizeFailure = deps.normalizeFailure
     this.failureDiagnostics = deps.failureDiagnostics
@@ -137,11 +141,13 @@ export class LoopTurnRunner extends TurnRunner {
               dispatch: deps.dispatch,
               tools,
               launchDirectory: deps.launchDirectory,
+              onceLedger: deps.onceLedger,
               onToolOutput:
                 deps.output === undefined
                   ? undefined
                   : (output) => deps.output?.emit({ type: 'tool-output', output }),
             }),
+      onceLedger: deps.onceLedger,
       compact: deps.compact,
       applyLoopCut: deps.applyLoopCut,
       onLoopCut: deps.onLoopCut,
@@ -164,6 +170,7 @@ export class LoopTurnRunner extends TurnRunner {
       logPort: this.logPort,
       diagnostics: this.failureDiagnostics,
       threadId,
+      onceLedger: this.onceLedger,
     })
   }
 

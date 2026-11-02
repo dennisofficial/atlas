@@ -17,6 +17,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentRecordPort } from '../record/agent-record.port'
+import type { OnceLedger } from './once-ledger.port'
 
 import type { DispatchableCall, ToolDispatcher } from '../tools/dispatch'
 
@@ -35,6 +36,7 @@ export function createSettlePending(deps: {
   tools?: (() => readonly ToolDeclaration[]) | undefined
   launchDirectory: string
   onToolOutput?: OnToolOutputNotice | undefined
+  onceLedger?: OnceLedger | undefined
 }): SettlePending {
   const isSafe = (call: DispatchableCall): boolean => {
     const declarations = new Map((deps.tools?.() ?? []).map((tool) => [tool.name, tool]))
@@ -59,6 +61,7 @@ export function createSettlePending(deps: {
       homeDirectory: args.homeDirectory,
       activeWorktree: args.activeWorktree,
       events: args.events,
+      onceLedger: deps.onceLedger,
       onDispatchStarted: async (draft) => {
         await deps.record.append({ threadId: call.threadId, runId: call.runId, drafts: [draft] })
       },
