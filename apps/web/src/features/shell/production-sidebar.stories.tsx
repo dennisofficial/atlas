@@ -49,7 +49,7 @@ function ProductionSidebar({
   )
   const [paneHidden, setPaneHidden] = useState(false)
   const [rowsMounted, setRowsMounted] = useState(true)
-  const [archived, setArchived] = useState<string[]>([])
+  const [archived, setArchived] = useState<string[]>(['sidebar-done'])
   const [searches, setSearches] = useState(0)
   const entries: ProjectThreads[] = [
     {
@@ -114,8 +114,8 @@ function ProductionSidebar({
               {observationCap
                 ? 'This thread owns 140 PRs. Its visible row observes only the latest PR. Opening Details adds its rendered PR entries, bounded to 128 targets on the shared channel.'
                 : nested
-                  ? 'Recursive root → middle → leaf on the same repository and branch. Own PR counts: 2, 3, 1. A closed middle summarizes four; a closed root summarizes six. Neither may steal PR ownership from the shared live branch.'
-                  : 'Real ThreadList, ThreadRow, ShellTopBar and hover cards. Fixtures are isolated to this story. Main owns two PRs; teammates own three and one. Collapse the family to verify six unique PRs.'}
+                  ? 'Recursive root → middle → leaf on the same repository and branch, always expanded. Own PR counts: 2, 3, 1. Neither may steal PR ownership from the shared live branch.'
+                  : 'Real ThreadList, ThreadRow, ShellTopBar and hover cards. Fixtures are isolated to this story. Main owns two PRs; teammates stay expanded below it, and the archived teammate sits behind the Done toggle. Archive a teammate row to watch it move into Done.'}
             </p>
             <p className="text-sm">Selected: {activeThreadId ?? 'none'}</p>
             <p className="text-sm">Search activations: {searches}</p>

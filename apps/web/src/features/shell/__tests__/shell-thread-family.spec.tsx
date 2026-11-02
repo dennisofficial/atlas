@@ -160,7 +160,7 @@ describe('thread family context and rendered ownership pipeline', () => {
     }
   })
 
-  it('does not steal ownership on live updates and collapses to the unique family total', async () => {
+  it('does not steal ownership on live updates', async () => {
     const { createRoot } = await import('react-dom/client')
     const host = document.createElement('div')
     document.body.append(host)
@@ -199,18 +199,11 @@ describe('thread family context and rendered ownership pipeline', () => {
       expect(
         row('mate')?.querySelector('[aria-label="0 running, 2 passed, 1 failed"]'),
       ).not.toBeNull()
-      await act(async () =>
-        host.querySelector<HTMLButtonElement>('[aria-expanded="true"][aria-controls]')?.click(),
-      )
-      expect(row('mate') === null).toBe(true)
-      expect(row('root')?.textContent).toContain('#2')
-      expect(row('root')?.textContent).toContain('+1')
-      expect(row('root')?.textContent).not.toContain('+2')
-      await act(async () =>
-        host.querySelector<HTMLButtonElement>('[aria-expanded="false"][aria-controls]')?.click(),
-      )
-      expect(row('root')?.textContent).toContain('#1')
-      expect(row('mate')?.textContent).toContain('#2')
+      expect(
+        host.querySelector(
+          'button[aria-expanded][aria-controls]:not([aria-label="Thread details"])',
+        ),
+      ).toBeNull()
     } finally {
       await act(async () => root.unmount())
       host.remove()

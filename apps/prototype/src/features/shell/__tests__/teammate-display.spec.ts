@@ -50,15 +50,16 @@ describe('teammateDisplay', () => {
 })
 
 describe('groupTeammates', () => {
-  test('puts attention first, keeps order otherwise, and folds done teammates', () => {
-    const { live, done } = groupTeammates(TEAMMATES)
-    expect(live.map((teammate) => teammate.id)).toEqual([
+  test('puts attention first, keeps order otherwise, and folds archived teammates into done', () => {
+    const { active, done } = groupTeammates(TEAMMATES)
+    expect(active.map((teammate) => teammate.id)).toEqual([
       'tm-gutter-tokens',
       'tm-typecheck-ai',
       'tm-theme-gen',
       'tm-render-check',
+      'tm-legacy-home',
     ])
-    expect(done.map((teammate) => teammate.id)).toEqual(['tm-legacy-home', 'tm-stopped-codemod'])
+    expect(done.map((teammate) => teammate.id)).toEqual(['tm-stopped-codemod'])
   })
 })
 

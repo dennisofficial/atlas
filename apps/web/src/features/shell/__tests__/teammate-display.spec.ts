@@ -9,7 +9,7 @@ import {
   teammateCountLabel,
   teammateDisplay,
 } from '../teammate-display'
-import { threadOf } from './fixtures'
+import { agoIso, threadOf } from './fixtures'
 
 type Status = NonNullable<WireThread['status']>
 
@@ -46,16 +46,24 @@ describe('teammateDisplay', () => {
 })
 
 describe('groupTeammates', () => {
-  it('puts attention first, keeps order otherwise, and folds done teammates', () => {
-    const { live, done } = groupTeammates([
+  it('puts attention first among active teammates and folds archived ones into done', () => {
+    const archived = { ...teammateWith('archived', {}), archivedAt: agoIso(1) }
+    const { active, done } = groupTeammates([
       teammateWith('run', { working: true }),
-      teammateWith('finished', { lastOutcome: 'completed' }),
+      archived,
       teammateWith('blocked', { awaiting: 'input' }),
       teammateWith('idle', {}),
       teammateWith('failed', { lastOutcome: 'failed' }),
+      teammateWith('finished', { lastOutcome: 'completed' }),
     ])
-    expect(live.map((teammate) => teammate.id)).toEqual(['blocked', 'failed', 'run', 'idle'])
-    expect(done.map((teammate) => teammate.id)).toEqual(['finished'])
+    expect(active.map((teammate) => teammate.id)).toEqual([
+      'blocked',
+      'failed',
+      'run',
+      'idle',
+      'finished',
+    ])
+    expect(done.map((teammate) => teammate.id)).toEqual(['archived'])
   })
 })
 

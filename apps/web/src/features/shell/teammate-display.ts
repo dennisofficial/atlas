@@ -12,25 +12,23 @@ export function teammateDisplay(teammate: WireThread): EAgentDisplay {
   return EAgentDisplay.Paused
 }
 
-const isDoneTeammate = (teammate: WireThread): boolean =>
-  teammateDisplay(teammate) === EAgentDisplay.Done
-
 export function hasAttentionTeammate(teammates: readonly WireThread[]): boolean {
   return teammates.some((teammate) => needsAttention(teammateDisplay(teammate)))
 }
 
+const isArchived = (teammate: WireThread): boolean =>
+  teammate.archivedAt !== null && teammate.archivedAt !== undefined
+
 export interface TeammateGroups {
-  live: WireThread[]
+  active: WireThread[]
   done: WireThread[]
 }
 
 export function groupTeammates(teammates: readonly WireThread[]): TeammateGroups {
   const rank = (teammate: WireThread): number => (needsAttention(teammateDisplay(teammate)) ? 0 : 1)
   return {
-    live: teammates
-      .filter((teammate) => !isDoneTeammate(teammate))
-      .sort((a, b) => rank(a) - rank(b)),
-    done: teammates.filter(isDoneTeammate),
+    active: teammates.filter((teammate) => !isArchived(teammate)).sort((a, b) => rank(a) - rank(b)),
+    done: teammates.filter(isArchived),
   }
 }
 

@@ -36,6 +36,32 @@ describe('applyArchiveOverrides', () => {
     applyArchiveOverrides({ entries, overrides: new Map([['a', agoIso(0)]]) })
     expect(entries[0]?.sessions[0]?.mainThread.archivedAt).toBeUndefined()
   })
+
+  it('stamps an override on a nested teammate and its children', () => {
+    const stamp = agoIso(0)
+    const nested = [
+      {
+        project: projectOf('p1'),
+        sessions: [
+          sessionOf(threadOf({ id: 'lead' }), [
+            sessionOf(threadOf({ id: 'mate' }), [sessionOf(threadOf({ id: 'leaf' }))]),
+          ]),
+        ],
+      },
+    ]
+    const result = applyArchiveOverrides({
+      entries: nested,
+      overrides: new Map([
+        ['mate', stamp],
+        ['leaf', stamp],
+      ]),
+    })
+    const mate = result[0]?.sessions[0]?.teammates[0]
+    expect(mate?.mainThread.archivedAt).toBe(stamp)
+    expect(mate?.teammates[0]?.mainThread.archivedAt).toBe(stamp)
+    expect(result[0]?.sessions[0]?.mainThread.archivedAt).toBeUndefined()
+    expect(nested[0]?.sessions[0]?.teammates[0]?.mainThread.archivedAt).toBeUndefined()
+  })
 })
 
 describe('settleArchiveOverrides', () => {
@@ -75,5 +101,27 @@ describe('settleArchiveOverrides', () => {
   it('keeps overrides for threads the server data does not contain', () => {
     const overrides = new Map<string, string | null>([['gone', agoIso(0)]])
     expect(settleArchiveOverrides({ entries, overrides })).toBe(overrides)
+  })
+
+  it('settles an override once the server agrees on a nested teammate', () => {
+    const overrides = new Map<string, string | null>([['mate', agoIso(0)]])
+    const nested = [
+      {
+        project: projectOf('p1'),
+        sessions: [sessionOf(threadOf({ id: 'lead' }), [sessionOf(threadOf({ id: 'mate' }))])],
+      },
+    ]
+    expect(settleArchiveOverrides({ entries: nested, overrides }).size).toBe(1)
+    const synced = [
+      {
+        project: projectOf('p1'),
+        sessions: [
+          sessionOf(threadOf({ id: 'lead' }), [
+            sessionOf(threadOf({ id: 'mate', archivedAt: agoIso(0) })),
+          ]),
+        ],
+      },
+    ]
+    expect(settleArchiveOverrides({ entries: synced, overrides }).size).toBe(0)
   })
 })
