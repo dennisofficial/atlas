@@ -57,6 +57,8 @@ export type RetryDeps = {
    * request, route and delivery faults never consult it.
    */
   onGiveUp?: (() => boolean) | undefined
+  failover?: (() => boolean) | undefined
+  now?: (() => number) | undefined
 }
 
 export function sleepUnlessAborted(args: { ms: number; signal: AbortSignal }): Promise<void> {
@@ -163,6 +165,8 @@ export async function takeModelStepWithRetry(args: {
   const policy = args.retry?.policy ?? DEFAULT_RETRY_POLICY
   const sleep = args.retry?.sleep ?? sleepUnlessAborted
   const jitter = args.retry?.jitter ?? Math.random
+  const now = args.retry?.now ?? Date.now
+  const failover = args.retry?.failover ?? args.retry?.onGiveUp
 
   let wake = new AbortController()
   const stopWatching = args.retry?.clockJumps?.onJump(() => wake.abort())
@@ -201,7 +205,7 @@ export async function takeModelStepWithRetry(args: {
 
       attempts += 1
 
-      const nowMs = Date.now()
+      const nowMs = now()
       const failure = args.normalizeFailure({
         cause: attempt.cause,
         message: attempt.message,
@@ -215,7 +219,7 @@ export async function takeModelStepWithRetry(args: {
       if (!decision.retry) {
         const mayConsult = !gaveUp && asksToGiveUp(failure, attempts >= policy.maxAttempts)
         if (mayConsult) gaveUp = true
-        const consulted = mayConsult && args.retry?.onGiveUp?.() === true
+        const consulted = mayConsult && failover?.() === true
         args.retry?.log?.({
           attempt: attempts,
           maxAttempts: policy.maxAttempts,

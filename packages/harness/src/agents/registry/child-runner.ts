@@ -23,6 +23,7 @@ import { withoutSpawnableListing } from '../../tools/builtin/agent-spawn'
 import type { HookChain } from '../../hooks/registry'
 import type { PendingDrain, TurnDeps } from '../../loop/run-turn'
 import type { TurnRunner } from '../../loop/turn-runner.port'
+import type { ChildFallbackSwitch } from '../../composition/child-fallback-model'
 import { ObservingToolDispatcher } from '../../telemetry/observing-dispatcher'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { QualityStage } from '../../tools/quality-dispatch'
@@ -50,7 +51,7 @@ export type ChildRunnerDeps = {
   drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
   intake?: MessageIntake | undefined
   modelFor?:
-    | ((args: { agentType: AgentType; threadId: ThreadId }) => ModelPort | Promise<ModelPort>)
+    | ((args: { agentType: AgentType; threadId: ThreadId }) => ChildModel | Promise<ChildModel>)
     | undefined
   modelAtSpawn?:
     | ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel>)
@@ -58,6 +59,8 @@ export type ChildRunnerDeps = {
   telemetry?: TelemetryPort | undefined
   hydratePlacement?: ((args: { threadId: ThreadId }) => Promise<void>) | undefined
 }
+
+type ChildModel = ModelPort & Partial<ChildFallbackSwitch>
 
 export type ChildRunnerDepsSource = () => ChildRunnerDeps
 
@@ -175,8 +178,9 @@ export async function buildChildRunner({
     ? withoutSpawnableListing({ registry: narrowed, hidden: [TEAMMATE_AGENT_TYPE] })
     : narrowed
   const { turn } = deps
-  const model =
+  const model: ChildModel =
     deps.modelFor === undefined ? turn.model : await deps.modelFor({ agentType, threadId })
+  const failover = model.switch === undefined ? undefined : () => model.switch?.() === true
   observeModel(model.identity)
 
   const inner = new PublishingTurnRunner({
@@ -187,6 +191,7 @@ export async function buildChildRunner({
       log: observingLog({ log: turn.log, threadId, observe }),
       onContext: observeContext,
       model,
+      ...(failover === undefined ? {} : { retry: { ...turn.retry, failover } }),
       tools: () => registry.declarations(),
       dispatch: new ObservingToolDispatcher({
         inner: new HookedToolDispatcher({

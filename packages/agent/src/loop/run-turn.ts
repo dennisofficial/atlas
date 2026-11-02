@@ -45,18 +45,6 @@ import { TurnRunner } from './turn-runner.port'
 
 export type { PendingDrain }
 
-/**
- * A child model wrapped for fallback carries a `switch()` the retry loop calls when its budget is
- * spent. Probed structurally rather than by import, so the loop stays free of the composition
- * module that builds the wrapper — the main agent's model has no such handle, and a `retryFor`
- * over it reads exactly as it did before.
- */
-const giveUpOf = (model: ModelPort): (() => boolean) | undefined => {
-  const candidate = model as unknown as { switch?: unknown }
-  if (typeof candidate.switch !== 'function') return undefined
-  return () => (candidate.switch as () => boolean).call(model)
-}
-
 export type TurnDeps = {
   log: EventLogPort
   logPort?: LogPort | undefined
@@ -159,8 +147,7 @@ export class LoopTurnRunner extends TurnRunner {
   }
 
   private retryFor({ threadId }: { threadId: ThreadId }): RetryDeps | undefined {
-    const giveUp = giveUpOf(this.model)
-    if (this.logPort === undefined && giveUp === undefined) return this.retry
+    if (this.logPort === undefined) return this.retry
     const logPort = this.logPort
     const diagnostics = this.failureDiagnostics
     return {
@@ -186,7 +173,6 @@ export class LoopTurnRunner extends TurnRunner {
               })
             },
           }),
-      ...(giveUp === undefined ? {} : { onGiveUp: giveUp }),
     }
   }
 
