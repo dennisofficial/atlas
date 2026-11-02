@@ -5,6 +5,7 @@ import {
   type AccountId,
 } from '@dltech/atlas-core'
 
+import { CredentialAvailabilityProxy } from '../cloud/credential-availability-proxy'
 import type { AgentRegistryPort } from '../agents/registry/port'
 import { AvailabilityControl, EAvailabilityAuthority } from '../model-recovery/availability-control'
 import { ModelWaitStateToken } from '../model-recovery/wait-state-token'
@@ -31,8 +32,12 @@ export function bindAvailabilityControl(args: {
     return signedIn ? EAvailabilityAuthority.Cloud : EAvailabilityAuthority.Local
   }
 
+  const availability = container.resolve(registeredPortToken(CredentialAvailabilityPort))
   return new AvailabilityControl({
-    availability: container.resolve(registeredPortToken(CredentialAvailabilityPort)),
+    availability,
+    ...(availability instanceof CredentialAvailabilityProxy
+      ? { probeOutstanding: (args) => availability.probeOutstanding(args) }
+      : {}),
     accounts: container.resolve(registeredPortToken(AccountStorePort)),
     localVault,
     waitState: container.resolve(ModelWaitStateToken),

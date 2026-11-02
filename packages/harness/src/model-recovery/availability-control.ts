@@ -44,6 +44,7 @@ export type AvailabilityControlDeps = {
   waitState: Pick<ModelWaitState, 'waiting' | 'reconcile'>
   wakeChild: (args: { threadId: ThreadId }) => Promise<unknown> | undefined
   authorityOf: (accountId: AccountId) => Promise<EAvailabilityAuthority>
+  probeOutstanding?: ((args: Target) => boolean) | undefined
 }
 
 export class AvailabilityControlRefusedError extends Error {
@@ -197,6 +198,9 @@ export class AvailabilityControl {
   private async recheck(target: Target): Promise<AvailabilityControlOutcome> {
     const snapshot = await this.inspect(target)
     if (isPaused(snapshot)) return { result: EAvailabilityControlResult.Unavailable, snapshot }
+    if (this.deps.probeOutstanding?.(target) === true) {
+      return { result: EAvailabilityControlResult.ProbeInProgress, snapshot }
+    }
     await this.release({ target, scope: EReleaseScope.Model })
     return {
       result: isAvailable(snapshot)

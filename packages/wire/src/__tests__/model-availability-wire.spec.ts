@@ -106,7 +106,7 @@ describe('model availability wire', () => {
     expect(availabilityControlResultWireSchema.parse(result)).toEqual(result)
   })
 
-  it('carries a waiting child episode ref through the agent snapshot and parses a legacy one without it', () => {
+  it('declares no episode slot on the agent snapshot', () => {
     const base = {
       agentId: 'child',
       spawnedBy: 'root',
@@ -118,14 +118,8 @@ describe('model availability wire', () => {
       startedAt: '2026-11-01T00:00:00.000Z',
     }
     const waitingFor = { kind: EWaitEpisodeKind.Credential as const, key, generation: 3 }
-    const parsed = agentSnapshotWireSchema.parse(
-      JSON.parse(JSON.stringify({ ...base, waitingFor })),
-    )
-    expect(parsed.waitingFor).toEqual(waitingFor)
-    expect(agentSnapshotWireSchema.parse(base).waitingFor).toBeUndefined()
-    expect(
-      agentSnapshotWireSchema.safeParse({ ...base, waitingFor: { kind: 'nope' } }).success,
-    ).toBe(false)
+    expect(agentSnapshotWireSchema.parse({ ...base, waitingFor })).not.toHaveProperty('waitingFor')
+    expect(agentSnapshotWireSchema.parse(base)).not.toHaveProperty('waitingFor')
   })
 
   it('exports the same schemas from the browser-safe web entry', () => {

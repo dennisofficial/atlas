@@ -15,6 +15,10 @@ import { cloudClientFor } from './cloud-client'
 import type { CloudSession } from './cloud-session'
 import { RemoteCredentialAvailability } from './remote-credential-availability'
 
+export type ProbeLeaseView = {
+  probeOutstanding(args: { key: AvailabilityKey; revision: CredentialRevision }): boolean
+}
+
 export class RemoteSettlementUnreachableError extends Error {
   constructor() {
     super('the cloud session ended before a remote availability settlement could be delivered')
@@ -23,13 +27,13 @@ export class RemoteSettlementUnreachableError extends Error {
 }
 
 export class CredentialAvailabilityProxy extends CredentialAvailabilityPort {
-  private readonly local: CredentialAvailabilityPort
+  private readonly local: CredentialAvailabilityPort & Partial<ProbeLeaseView>
   private readonly session: () => CloudSession | null
   private readonly clientVersion: string | undefined
   private remote: { token: string; port: CredentialAvailabilityPort } | undefined
 
   constructor(args: {
-    local: CredentialAvailabilityPort
+    local: CredentialAvailabilityPort & Partial<ProbeLeaseView>
     session: () => CloudSession | null
     clientVersion?: string
   }) {
@@ -76,6 +80,11 @@ export class CredentialAvailabilityProxy extends CredentialAvailabilityPort {
     action: EAvailabilityControl
   }): Promise<AvailabilitySnapshot> {
     return this.current().control(args)
+  }
+
+  probeOutstanding(args: { key: AvailabilityKey; revision: CredentialRevision }): boolean {
+    if (this.current() !== this.local) return false
+    return this.local.probeOutstanding?.(args) ?? false
   }
 
   private authorityOf(permit: AdmissionPermit): CredentialAvailabilityPort | undefined {

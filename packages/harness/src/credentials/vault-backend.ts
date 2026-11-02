@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { accountSecretSchema, type AccountSecret } from '@dltech/atlas-core'
@@ -69,29 +69,45 @@ export const parseVault = (args: { text: string; where: string }): VaultReading 
   return reading
 }
 
+const signatureOf = (file: string): string | undefined => {
+  try {
+    const stat = statSync(file, { bigint: true })
+    return `${stat.ino}:${stat.size}:${stat.mtimeNs}`
+  } catch {
+    return undefined
+  }
+}
+
 export const fileVaultBackend = (file: string): VaultBackend => {
   let remainder: VaultRemainder = emptyRemainder()
+  let cached: { signature: string; vault: VaultFile } | undefined
 
   return {
     name: file,
 
     load: () => {
+      const signature = signatureOf(file)
+      if (signature !== undefined && cached?.signature === signature) return cached.vault
+
       let text: string
       try {
         text = readFileSync(file, 'utf8')
       } catch (error) {
         if (errorCodeOf(error) !== 'ENOENT') throw unreadable(file, 'the file could not be opened')
         remainder = emptyRemainder()
+        cached = undefined
         return emptyVault()
       }
 
       const reading = parseVault({ text, where: file })
       remainder = reading.remainder
+      cached = signature === undefined ? undefined : { signature, vault: reading.vault }
 
       return reading.vault
     },
 
     save: (vault) => {
+      cached = undefined
       mkdirSync(dirname(file), { recursive: true })
 
       const written = JSON.stringify(withRemainder({ vault, remainder }), null, 2)

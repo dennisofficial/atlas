@@ -75,6 +75,16 @@ export class InMemoryCredentialAvailability extends CredentialAvailabilityPort {
     })
   }
 
+  probeOutstanding(args: { key: AvailabilityKey; revision: CredentialRevision }): boolean {
+    const { nowMs, nowIso } = this.instant()
+    const state = this.states.get(stateKeyOf(args.key))
+    if (state?.probe === undefined || state.probe.leasedUntilMs <= nowMs) return false
+    return (
+      inspectState({ ...args, state, nowMs, nowIso }).availability !==
+      ECredentialAvailability.Available
+    )
+  }
+
   async admit(args: {
     key: AvailabilityKey
     revision: CredentialRevision

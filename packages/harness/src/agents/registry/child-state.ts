@@ -213,7 +213,6 @@ export function snapshotOf(child: ChildState): AgentSnapshot {
     context: child.context,
     model: child.model,
     ...(child.waitingOn === undefined ? {} : { waitingOn: child.waitingOn }),
-    ...(child.waitingFor === undefined ? {} : { waitingFor: child.waitingFor }),
   }
 }
 

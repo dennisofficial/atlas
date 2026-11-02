@@ -1,7 +1,5 @@
 import { z } from 'zod'
 
-import { waitEpisodeRefWireSchema } from './model-availability-wire'
-
 export enum EKilledBy {
   User = 'user',
   Model = 'model',
@@ -101,7 +99,6 @@ export const agentSnapshotWireSchema = z.object({
     .optional(),
   model: providerIdentitySchema.optional(),
   waitingOn: z.string().optional(),
-  waitingFor: waitEpisodeRefWireSchema.optional(),
 })
 
 export type AgentSnapshotWire = z.infer<typeof agentSnapshotWireSchema>

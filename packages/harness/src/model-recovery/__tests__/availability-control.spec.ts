@@ -103,6 +103,7 @@ async function open(args?: { authority?: EAvailabilityAuthority }) {
       return Promise.resolve()
     },
     authorityOf: async () => args?.authority ?? EAvailabilityAuthority.Local,
+    probeOutstanding: (input) => authority.probeOutstanding(input),
   })
   control.bindRootWake(({ threadId }) => rootWoken.push(threadId))
   const block = async (): Promise<void> => {
@@ -199,6 +200,39 @@ describe('operator availability control', () => {
 
     expect(probe.admitted && probe.permit.probe).toBe(true)
     expect(second.admitted).toBe(false)
+  })
+
+  it('answers ProbeInProgress and wakes nobody while a probe lease is outstanding', async () => {
+    const test = await open()
+    await test.block()
+    test.episodes.push(waitingOn({ key: test.key, threads: [root, child] }))
+    const probe = await test.authority.admit({ key: test.key, revision: test.revision })
+    expect(probe.admitted && probe.permit.probe).toBe(true)
+
+    const outcome = await test.control.control(test.request(EAvailabilityAction.Recheck))
+
+    expect(outcome.result).toBe(EAvailabilityControlResult.ProbeInProgress)
+    expect(outcome.snapshot.availability).toBe(ECredentialAvailability.QuotaExhausted)
+    expect(test.cleared).toEqual([])
+    expect(test.rootWoken).toEqual([])
+    expect(test.woken).toEqual([])
+  })
+
+  it('rechecks normally again once the probe settles', async () => {
+    const test = await open()
+    await test.block()
+    test.episodes.push(waitingOn({ key: test.key, threads: [root] }))
+    const probe = await test.authority.admit({ key: test.key, revision: test.revision })
+    if (!probe.admitted) throw new Error('expected the probe')
+    await test.authority.complete({
+      permit: probe.permit,
+      completion: { outcome: EAdmissionCompletion.Cancelled },
+    })
+
+    const outcome = await test.control.control(test.request(EAvailabilityAction.Recheck))
+
+    expect(outcome.result).toBe(EAvailabilityControlResult.Applied)
+    expect(test.rootWoken).toEqual([root])
   })
 
   it('cannot dispatch or clear a pause when rechecking while paused', async () => {

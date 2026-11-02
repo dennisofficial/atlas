@@ -58,16 +58,14 @@ const snapshotOf = (entry: OpenedSupervisor, agentId: ThreadId) =>
   entry.supervisor.list({ threadId: entry.parent }).find((one) => one.agentId === agentId)
 
 describe('a child whose model is unavailable', () => {
-  it('parks as WaitingForModel: episode stored, not stepping, not ended', async () => {
+  it('parks as WaitingForModel: not stepping, not ended', async () => {
     const { entry, agentId } = await openWaiting()
 
     const parked = snapshotOf(entry, agentId)
     expect(parked?.status).toBe(EAgentStatus.WaitingForModel)
     expect(parked?.steppingSince).toBeUndefined()
     expect(parked?.endedAt).toBeUndefined()
-    expect(parked?.waitingFor).toEqual(
-      waitingOfBlock({ error: blockedError(), threadId: agentId }).episode,
-    )
+    expect(parked).not.toHaveProperty('waitingFor')
   })
 
   it('records no ending, inherits no orphans, kills no shells and notifies nobody', async () => {
@@ -98,7 +96,7 @@ describe('a child whose model is unavailable', () => {
     expect(snapshotOf(entry, agentId)?.status).toBe(EAgentStatus.WaitingForModel)
   })
 
-  it('resumes on the same child id and log, clearing the stored episode', async () => {
+  it('resumes on the same child id and log', async () => {
     const { entry, agentId } = await openWaiting()
 
     const outcome = await entry.supervisor.resume({
@@ -110,7 +108,6 @@ describe('a child whose model is unavailable', () => {
     const resumed = snapshotOf(entry, agentId)
     expect(resumed?.status).toBe(EAgentStatus.Running)
     expect(resumed?.steppingSince).toBeDefined()
-    expect(resumed?.waitingFor).toBeUndefined()
     expect(entry.runners.resumed).toEqual([agentId])
     entry.runners.started.at(-1)?.settle(finished())
     await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })

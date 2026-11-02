@@ -107,6 +107,21 @@ describe('CredentialAvailabilityProxy', () => {
     expect(remoteCalls).toHaveLength(1)
   })
 
+  it('reports an outstanding local probe only while signed out', async () => {
+    const closed = permitOf(await proxy.admit({ key, revision }))
+    await proxy.complete({
+      permit: closed,
+      completion: { outcome: EAdmissionCompletion.Failed, failure: quotaFailure },
+    })
+    permitOf(await proxy.admit({ key, revision }))
+    expect(proxy.probeOutstanding({ key, revision })).toBe(true)
+
+    sessions.write({ url: 'http://cloud.test', token: 'tok-1', email: null })
+
+    expect(proxy.probeOutstanding({ key, revision })).toBe(false)
+    expect(remoteCalls).toEqual([])
+  })
+
   it('settles a local permit locally even after a session appears', async () => {
     const permit = permitOf(await proxy.admit({ key, revision }))
     sessions.write({ url: 'http://cloud.test', token: 'tok-1', email: null })
