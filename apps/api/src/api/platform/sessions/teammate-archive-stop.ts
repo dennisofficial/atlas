@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { EAgentStatus, EKilledBy } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { podSessionOf } from './session-of-thread'
@@ -45,14 +45,16 @@ export class TeammateArchiveStopService {
     if (sandboxStateOf(sandbox) === ESandboxState.Running && !parkedOf(sandbox)) {
       // A live pod is the only writer of its threads' logs; the ending must be written by the pod
       // (its own stop records it through the registry), never appended here, or the pod's next
-      // write-behind flush at that seq conflicts. A stop the pod could not take still leaves the
-      // session archived; the teammate is not resumed, because a parked pod boots to a roster the
-      // parked-path ending below has already settled.
+      // write-behind flush at that seq conflicts. The archive therefore stands or falls with the
+      // stop: a teammate that kept running must never sit in Done still spending.
       try {
         await this.vercel.stopTeammate({ threadId, name: sandbox.name, agentId: threadId })
       } catch (failure) {
         this.logger.warn(
           `stopping teammate ${threadId} in pod ${sandbox.name} failed: ${failureText(failure)}`,
+        )
+        throw new ServiceUnavailableException(
+          "Couldn't stop the teammate, so it wasn't marked done. Try again.",
         )
       }
       return

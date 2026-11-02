@@ -36,11 +36,12 @@ export class ThreadArchiveService {
     await ownedThread({ reader: db, userId, threadId })
     const archivedAt = archived ? new Date() : null
     const session = await sessionOfThread({ reader: db, threadId })
+    if (archivedAt !== null)
+      await this.teammateStop.stopIfManaged({ userId, sessionId: session.id, threadId })
     await db.orm.public.Session.where({ id: session.id }).update({ archivedAt })
     this.signals.threadChanged({ threadId })
     if (archivedAt === null) return
     await this.endSubscriptions({ userId, sessionId: session.id })
-    await this.teammateStop.stopIfManaged({ userId, sessionId: session.id, threadId })
     await this.dispatchCleanup({ threadId, archivedAt: archivedAt.toISOString() })
   }
 

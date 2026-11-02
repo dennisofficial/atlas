@@ -10,6 +10,9 @@ import {
 } from './archive-overrides'
 import type { ProjectThreads } from './thread-partition'
 
+const failureMessageOf = (failure: unknown): string | undefined =>
+  failure instanceof Error && failure.message.length > 0 ? failure.message : undefined
+
 const NO_OVERRIDES: ArchiveOverrides = new Map()
 export const UNDO_ARCHIVE_MS = 8000
 
@@ -63,17 +66,16 @@ export function useThreadArchive(args: {
         await archive({ threadId, archived, runner: thread.runner })
         reload()
         return true
-      } catch {
+      } catch (failure) {
         setOverrides((current) => withoutOverride({ overrides: current, threadId }))
-        toast.error(
-          isTeammate(thread.id)
-            ? archived
-              ? "Couldn't mark the teammate as done"
-              : "Couldn't reopen the teammate"
-            : archived
-              ? "Couldn't archive the thread"
-              : "Couldn't restore the thread",
-        )
+        const fallback = isTeammate(thread.id)
+          ? archived
+            ? "Couldn't mark the teammate as done"
+            : "Couldn't reopen the teammate"
+          : archived
+            ? "Couldn't archive the thread"
+            : "Couldn't restore the thread"
+        toast.error(failureMessageOf(failure) ?? fallback)
         return false
       }
     },
