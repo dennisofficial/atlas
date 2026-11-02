@@ -1,6 +1,5 @@
 import {
   EExecutionLocation,
-  ERunner,
   PromptFragment,
   type ClockPort,
   type PromptContext,
@@ -29,22 +28,12 @@ export class TodayFragment extends VolatilePromptFragment {
   }
 }
 
-const POD_LINES = [
-  "This session runs in a throwaway pod that lives exactly as long as the session; its filesystem, /tmp, and localhost are the pod's alone, not the operator's machine.",
-]
-
-const LOCAL_POD_PORTS =
-  "The service_start and bash exposePort options publish a port to the operator's machine as a loopback URL (http://<port>.sandbox.localhost:<host-port>/); bind the server to 0.0.0.0, not 127.0.0.1."
-
-const placementLines = (args: {
-  placement: EExecutionLocation | undefined
-  runner: ERunner | undefined
-}): readonly string[] => {
-  const { placement } = args
-  if (placement === EExecutionLocation.Cloud && args.runner === ERunner.Local) {
-    return [...POD_LINES, LOCAL_POD_PORTS]
+const placementLines = (placement: EExecutionLocation | undefined): readonly string[] => {
+  if (placement === EExecutionLocation.Cloud) {
+    return [
+      "This session runs in a throwaway pod that lives exactly as long as the session; its filesystem, /tmp, and localhost are the pod's alone, not the operator's machine.",
+    ]
   }
-  if (placement === EExecutionLocation.Cloud) return POD_LINES
   if (placement === EExecutionLocation.Docker) {
     return [
       "This session is running on the operator's machine in a Docker container — the container shares only the project directory and its declared mounts with the host.",
@@ -61,7 +50,7 @@ export class ExecutionLocationFragment extends VolatilePromptFragment {
   }
 
   text(ctx: PromptContext): string {
-    return placementLines({ placement: ctx.placement, runner: ctx.runner }).join(' ')
+    return placementLines(ctx.placement).join(' ')
   }
 }
 

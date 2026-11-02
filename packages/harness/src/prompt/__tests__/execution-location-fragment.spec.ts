@@ -63,12 +63,10 @@ describe('execution-location fragment', () => {
     }
   })
 
-  it('adds loopback port publishing only for a pod on the operator machine', () => {
+  it('gives a local pod the same text as a remote pod, with no loopback port claims', () => {
     const local = textFor(EExecutionLocation.Cloud, ERunner.Local)
-    expect(local).toContain('exposePort')
-    expect(local).toContain('0.0.0.0')
-    expect(local).toContain('.sandbox.localhost')
-    expect(textFor(EExecutionLocation.Cloud, ERunner.Vercel)).not.toContain('.sandbox.localhost')
+    expect(local).toBe(textFor(EExecutionLocation.Cloud, ERunner.Vercel))
+    expect(local).not.toContain('.sandbox.localhost')
   })
 
   it('no longer describes the retired lift/descend machinery', () => {
