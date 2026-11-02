@@ -2,7 +2,13 @@ import { POD_EVENT_CONFLICT_CODE, type PodEvent } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { eventsOf, seedEventRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import {
+  eventsOf,
+  seedEventRow,
+  seedThreadRow,
+  seedUsers,
+  sessionOfThreadRow,
+} from '../../../../test/session-seed'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { inertSignals, recordingSignals } from '../sessions/thread-signals.fixture'
 
@@ -350,5 +356,57 @@ describe('applyPodEvents list signals', () => {
 
     await applyPodEvents({ threadId: 'thr-1', events: [eventAt(2)], signals: recorder.signals })
     expect(changed).toEqual(['thr-1', 'thr-1', 'thr-1'])
+  })
+})
+
+describe('applyPodEvents unarchive', () => {
+  useTestDatabase()
+
+  it('unarchives an archived session when the pod mirrors a fresh user-said', async () => {
+    await seedUsers('user-a')
+    await seedThreadRow({ id: 'thr-1', userId: 'user-a', head: 0, archivedAt: new Date() })
+
+    await applyPodEvents({
+      threadId: 'thr-1',
+      events: [eventAt(1, { type: 'user-said', body: '{"type":"user-said"}' })],
+      signals: inertSignals(),
+    })
+
+    expect((await sessionOfThreadRow('thr-1'))?.archivedAt).toBeNull()
+  })
+
+  it('leaves an archived session archived when the batch holds no user-said', async () => {
+    await seedUsers('user-a')
+    await seedThreadRow({ id: 'thr-1', userId: 'user-a', head: 0, archivedAt: new Date() })
+
+    await applyPodEvents({
+      threadId: 'thr-1',
+      events: [eventAt(1, { type: 'assistant-said', body: '{"type":"assistant-said"}' })],
+      signals: inertSignals(),
+    })
+
+    expect((await sessionOfThreadRow('thr-1'))?.archivedAt).not.toBeNull()
+  })
+
+  it('does not unarchive on an idempotent replay of an already-stored user-said', async () => {
+    await seedUsers('user-a')
+    await seedThreadRow({ id: 'thr-1', userId: 'user-a', head: 1 })
+    await seedEventRow({
+      threadId: 'thr-1',
+      seq: 1,
+      runId: 'run_pod',
+      at: new Date(AT),
+      body: '{"type":"user-said"}',
+    })
+    const archived = new Date()
+    await db.orm.public.Session.where({ id: 'ses_thr-1' }).update({ archivedAt: archived })
+
+    await applyPodEvents({
+      threadId: 'thr-1',
+      events: [eventAt(1, { type: 'user-said', body: '{"type":"user-said"}' })],
+      signals: inertSignals(),
+    })
+
+    expect((await sessionOfThreadRow('thr-1'))?.archivedAt).not.toBeNull()
   })
 })

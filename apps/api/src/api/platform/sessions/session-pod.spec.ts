@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedSandboxRow, seedThreadRow, seedUsers, USER_A } from '../../../../test/session-seed'
 import { registerPodChild } from '../sandboxes/pod-child'
 import { podSessionOf } from './session-of-thread'
+import { inertTeammateStop } from './teammate-archive-stop.fixture'
 import { inertSignals } from './thread-signals.fixture'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadsHistoryService } from './threads-history.service'
@@ -39,7 +40,7 @@ describe('session-owned state', () => {
 
   it('archiving writes to the session, not the thread', async () => {
     const dispatch = { dispatch: async () => ({ runId: 'r' }) }
-    const archive = new ThreadArchiveService(dispatch, inertSignals())
+    const archive = new ThreadArchiveService(dispatch, inertSignals(), inertTeammateStop())
     await archive.setArchived({ userId: USER_A, threadId: 'brn_main', archived: true })
 
     const session = await db.orm.public.Session.where({ id: 'ses_brn_main' }).all().firstOrThrow()

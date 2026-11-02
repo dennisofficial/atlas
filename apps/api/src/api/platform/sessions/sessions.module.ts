@@ -4,6 +4,7 @@ import { SandboxesModule } from '../sandboxes/sandboxes.module'
 import { ContextFilesRouter } from './context-files.router'
 import { EventsService } from './events.service'
 import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
+import { TeammateArchiveStopService } from './teammate-archive-stop'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadReadService } from './thread-read.service'
@@ -18,6 +19,7 @@ import { TurnsService } from './turns.service'
   imports: [SandboxesModule, HealthModule, ThreadSignalsModule],
   providers: [
     ThreadsService,
+    TeammateArchiveStopService,
     ThreadArchiveService,
     ThreadReadService,
     ThreadsHistoryService,

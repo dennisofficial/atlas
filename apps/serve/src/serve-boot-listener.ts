@@ -7,7 +7,7 @@ import { SERVE_CAPABILITIES } from '@dltech/atlas-wire'
 import { EWorkspaceState, type WorkspaceReadiness } from './materialize-workspace'
 import type { ServeDrain } from './serve-drain'
 import { EServeEvent, type ServeLog } from './serve-log'
-import { startSessionServer } from './session-server'
+import { startSessionServer, type SessionServerControl } from './session-server'
 import type { SessionHandlers, SocketState } from './socket-session'
 
 export type BootedHealthArgs = {
@@ -25,6 +25,7 @@ export type BootListener = {
     handlers: SessionHandlers
     drain: ServeDrain
     health: BootedHealthArgs
+    control?: SessionServerControl | undefined
   }) => void
   /** Closes every socket held while booting with an error instead of leaving it hung. */
   fail: (given: { reason: string }) => void
@@ -81,7 +82,12 @@ export function listenWhileBooting(args: {
   admitsThread?: ((threadId: string) => Promise<boolean>) | undefined
 }): BootListener {
   let installed:
-    | { handlers: SessionHandlers; drain: ServeDrain; health: BootedHealthArgs }
+    | {
+        handlers: SessionHandlers
+        drain: ServeDrain
+        health: BootedHealthArgs
+        control?: SessionServerControl | undefined
+      }
     | undefined
 
   const { server, handshake } = startSessionServer({
@@ -90,6 +96,7 @@ export function listenWhileBooting(args: {
     threadId: args.threadId,
     handlers: () => installed?.handlers,
     drain: () => installed?.drain,
+    control: () => installed?.control,
     ...(args.admitsThread === undefined ? {} : { admitsThread: args.admitsThread }),
     health: () =>
       installed === undefined

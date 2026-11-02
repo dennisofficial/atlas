@@ -13,6 +13,8 @@ export const PARK_PATH = '/v1/park'
 
 export const DRAIN_PATH = '/v1/drain'
 
+export const AGENTS_STOP_PATH = '/v1/agents/stop'
+
 export const SESSION_PATH = '/v1/session'
 
 const MAX_IDLE_SECONDS = 255
@@ -52,6 +54,15 @@ export type SessionServerHandshake = {
   drop: (args: { reason: string }) => void
 }
 
+/** The bearer-authed controls a detached caller can reach without opening the session socket. */
+export type SessionServerControl = {
+  /**
+   * Stops everything the named family thread (agent id) still owns: the live children beneath it
+   * and its own running background shells.
+   */
+  stopChildren: (args: { agentId: string }) => Promise<unknown>
+}
+
 export function startSessionServer(args: {
   port: number
   token: string
@@ -59,6 +70,7 @@ export function startSessionServer(args: {
   handlers: () => SessionHandlers | undefined
   drain: () => ServeDrain | undefined
   health: () => unknown
+  control?: (() => SessionServerControl | undefined) | undefined
   /**
    * Whether a ticketed thread belongs to the served session family. Absent (and while the app is
    * still booting, when no roster exists to ask) any well-formed ticket admits, matching the
@@ -134,6 +146,25 @@ export function startSessionServer(args: {
             { status: 503 },
           )
         }
+      }
+
+      if (pathname === AGENTS_STOP_PATH) {
+        const control = args.control?.()
+        if (control === undefined) return booting()
+        if (request.method !== 'POST') return new Response('method not allowed', { status: 405 })
+        const offered = bearerToken(request.headers.get('authorization'))
+        if (!tokenMatches({ expected: token, offered })) return unauthorized()
+        let body: unknown
+        try {
+          body = await request.json()
+        } catch {
+          return new Response('stop-children wants { agentId }', { status: 400 })
+        }
+        const agentId = (body as { agentId?: unknown } | null)?.agentId
+        if (typeof agentId !== 'string' || agentId.length === 0) {
+          return new Response('stop-children wants { agentId }', { status: 400 })
+        }
+        return Response.json(await control.stopChildren({ agentId }))
       }
 
       if (pathname !== SESSION_PATH) return new Response('not found', { status: 404 })

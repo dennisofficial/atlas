@@ -18,6 +18,7 @@ import {
   runThreadArchiveCleanup,
   type ThreadArchiveCleanupDeps,
 } from './thread-archive-cleanup-run'
+import { inertTeammateStop } from './teammate-archive-stop.fixture'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadSignalsService } from './thread-signals.service'
 import { createSessionsRouterApp, USER_ID } from './threads-routers.fixture'
@@ -64,7 +65,7 @@ export async function createArchiveRouterFixture() {
     teardownPreviews: (args) => previews.teardown(args),
   })
   const app = await createSessionsRouterApp({
-    archive: new ThreadArchiveService(dispatcher, signals),
+    archive: new ThreadArchiveService(dispatcher, signals, inertTeammateStop()),
     signals,
   })
   return {

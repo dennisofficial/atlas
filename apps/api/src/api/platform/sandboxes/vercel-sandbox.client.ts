@@ -16,7 +16,9 @@ export const SANDBOX_SERVE_PORT = 3000
 const SANDBOX_QUICK_TIMEOUT_MS = 30_000
 const SANDBOX_DELETE_TIMEOUT_MS = 30_000
 const PARK_PATH = '/v1/park'
+const AGENTS_STOP_PATH = '/v1/agents/stop'
 export const PARK_NOTIFY_TIMEOUT_MS = 3_000
+export const TEAMMATE_STOP_TIMEOUT_MS = 10_000
 
 /**
  * The API only stores a hash of serve's session token, so it cannot call serve's authed endpoints
@@ -29,6 +31,17 @@ export const parkNoticeScript = (port: number): string =>
   `curl -sf -m 2 --connect-timeout 1 -X POST ` +
   `-H "Authorization: Bearer $_serve_token" -H "Content-Type: application/json" ` +
   `-d "$ATLAS_PARK_REASON" "http://localhost:${port}${PARK_PATH}"`
+
+/**
+ * Same localhost reach as the park notice: the API holds only a hash of serve's token, so the
+ * stop call curls serve from inside the sandbox with the token its launcher left on disk. The
+ * stopped thread id rides an env var for the same injection reason as the park reason.
+ */
+export const teammateStopScript = (port: number): string =>
+  `_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true); ` +
+  `curl -sf -m 8 --connect-timeout 1 -X POST ` +
+  `-H "Authorization: Bearer $_serve_token" -H "Content-Type: application/json" ` +
+  `-d "$ATLAS_STOP_CHILDREN" "http://localhost:${port}${AGENTS_STOP_PATH}"`
 
 export interface SandboxObservation {
   state: ESandboxState
@@ -165,6 +178,21 @@ export class VercelSandboxClient {
       if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
       throw asBadGateway(failure)
     }
+  }
+
+  /**
+   * Asks the running pod's serve to stop the children of the named family thread (a teammate's
+   * sub-agents and shells) without touching the lead's own loop. Throws on any failure; the
+   * caller treats it as best-effort because a wedged or parked pod holds nothing to stop.
+   */
+  async stopTeammate(args: { threadId: string; name: string; agentId: string }): Promise<void> {
+    const sandbox = await this.get({ ...args, resume: false })
+    await sandbox.runCommand({
+      cmd: 'sh',
+      args: ['-c', teammateStopScript(SANDBOX_SERVE_PORT)],
+      env: { ATLAS_STOP_CHILDREN: JSON.stringify({ agentId: args.agentId }) },
+      timeoutMs: TEAMMATE_STOP_TIMEOUT_MS,
+    })
   }
 
   /** Throws on any failure; swallowing it is the caller's job, so a wedged sandbox still stops. */
