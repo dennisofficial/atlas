@@ -13,6 +13,7 @@ export enum EKilledBy {
   LostContact = 'lost-contact',
   IdlePark = 'idle-park',
   Unrecorded = 'unrecorded',
+  Fault = 'fault',
 }
 
 export enum EShellStatus {

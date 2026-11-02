@@ -4,6 +4,7 @@ import { agentEnding, countedNoun, EAgentStatus } from '../../agents/status'
 import { NO_CONTENT_TEXT } from '../../events/empty-step'
 import type { Event, EventOfType } from '../../events/envelope'
 import { isNoticeArrival } from '../../events/notice-stage'
+import { ERunFailureKind } from '../../events/run-failure'
 import { EKilledBy } from '../../shells/status'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
@@ -24,14 +25,24 @@ const RELOCATED =
 
 const RETRY = 'agent_say to it to retry: a message restarts it with its thread intact.'
 
+const WEDGED =
+  'Its thread is corrupt: prompt assembly fails on every step, so a message cannot restart it — Atlas will not retry it. Spawn a fresh agent for anything still outstanding.'
+
+const wedged = (event: Ending): boolean =>
+  event.status === EAgentStatus.Failed && event.failureKind === ERunFailureKind.ExchangeFault
+
 const retryAdvice = (event: Ending): readonly string[] =>
   (event.status === EAgentStatus.Failed || event.status === EAgentStatus.Stopped) &&
-  event.killedBy !== EKilledBy.ContainerSwitch
+  event.killedBy !== EKilledBy.ContainerSwitch &&
+  !wedged(event)
     ? [RETRY]
     : []
 
 const failedCauseAdvice = (event: Ending): readonly string[] => {
   if (event.status !== EAgentStatus.Failed || event.failureCause === undefined) return []
+  if (wedged(event)) {
+    return [`It failed on this error, not on its work: ${event.failureCause} ${WEDGED}`]
+  }
   return [
     `It failed on this error, not on its work: ${event.failureCause} Respawning the same agent the same way usually fails the same way — fix the cause, switch models, or do that slice yourself.`,
   ]

@@ -1,7 +1,8 @@
-import { EAgentStatus, type ThreadId } from '@dltech/atlas-core'
+import { EAgentStatus, EKilledBy, type ThreadId } from '@dltech/atlas-core'
 
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import type { AgentType } from '../types'
+import type { ChildState } from './child-state'
 import type { AgentSnapshot } from './snapshot'
 
 export const EMPTY_BRIEF = 'a sub-agent reads nothing but its brief, so it cannot be empty'
@@ -43,18 +44,29 @@ export const retiredAgentType = (agentType: string): string =>
 export const alreadyStepping = (agentId: ThreadId): string =>
   `agent ${agentId} is already taking a step; steer it with a message or stop it first`
 
+export const wedgedAgent = ({ agentId }: { agentId: ThreadId }): string =>
+  `agent ${agentId} ended permanently: its thread fails prompt assembly on every step, so Atlas will not retry it and a message cannot repair the thread; spawn a fresh agent instead`
+
 export function terminalAgent({
   agentId,
   status,
+  killedBy,
 }: {
   agentId: ThreadId
   status: EAgentStatus
+  killedBy?: EKilledBy | undefined
 }): string {
+  if (killedBy === EKilledBy.Fault) return wedgedAgent({ agentId })
   return `agent ${agentId} is ${status}, so a queued resume is dropped rather than replayed; send a message if it should run again`
 }
 
 export const deliberatelyStopped = ({ agentId }: { agentId: ThreadId }): string =>
   `agent ${agentId} was stopped deliberately, so queued notices do not wake it; send a message if it should run again`
+
+export const killedRefusal = ({ child }: { child: ChildState }): string =>
+  child.killedBy === EKilledBy.Fault
+    ? wedgedAgent({ agentId: child.agentId })
+    : deliberatelyStopped({ agentId: child.agentId })
 
 export const TEAMMATE_FROM_MAIN_ONLY =
   'only the main session spawns teammates — end your turn asking for one, and the main agent will spawn it and hand you its id'

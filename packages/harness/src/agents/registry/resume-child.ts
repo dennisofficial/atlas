@@ -14,6 +14,7 @@ type ResumeChildArgs = {
 } & Pick<Relocation, 'deps' | 'roster' | 'steps'>
 
 const isTerminal = (child: ChildState): boolean => {
+  if (child.killedBy === EKilledBy.Fault) return true
   if (child.status === EAgentStatus.Finished) return true
   return (
     child.status === EAgentStatus.Stopped &&
@@ -35,7 +36,10 @@ async function resumeAdmitted(args: ResumeChildArgs): Promise<AgentOutcome> {
   }
   if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
   if (isTerminal(child))
-    return { ok: false, reason: terminalAgent({ agentId, status: child.status }) }
+    return {
+      ok: false,
+      reason: terminalAgent({ agentId, status: child.status, killedBy: child.killedBy }),
+    }
   const agentType = agentTypeNamed({ agentTypes: deps.agentTypes, name: child.agentType })
   if (agentType === undefined) return { ok: false, reason: retiredAgentType(child.agentType) }
   child.projectDirectory ??= await childDirectory({ deps, threadId })
