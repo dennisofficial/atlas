@@ -64,13 +64,14 @@ The censuses are static reads of the repository at commit `a0bf4110`, not live c
 
 ## Decisions at a glance
 
-|     | Decision                                                                                 | State                 |
-| --- | ---------------------------------------------------------------------------------------- | --------------------- |
-| D1  | The durable record lives in the control plane; the holder pod is the only writer of seqs | Locked                |
-| D2  | Local control plane: a daemon (`atlasd`) running the same `control` library over SQLite  | **Open**, recommended |
-| D3  | The log is append-only; history edits are appended events                                | Locked                |
-| D4  | Every durable input goes through the control-plane inbox                                 | Locked                |
-| D5  | Foundation packages plus plugins with a fixed shape (package map: 0019)                  | Locked                |
-| D6  | v2 storage and endpoints are separate from v1 (Prisma 8 `namespace v2`, verified)        | Locked                |
-| D7  | First target: web/mac with a cloud pod                                                   | Locked                |
-| D8  | The agent loop runs on control-plane workers; sandboxes only execute (0021)              | Locked                |
+|     | Decision                                                                                           | State                 |
+| --- | -------------------------------------------------------------------------------------------------- | --------------------- |
+| D1  | The durable record lives in the control plane; the holder pod is the only writer of seqs           | Locked                |
+| D2  | Local control plane: a daemon (`atlasd`) running the same `control` library over SQLite            | **Open**, recommended |
+| D3  | The log is append-only; history edits are appended events                                          | Locked                |
+| D4  | Every durable input goes through the control-plane inbox                                           | Locked                |
+| D5  | Foundation packages plus plugins with a fixed shape (package map: 0019)                            | Locked                |
+| D6  | v2 storage and endpoints are separate from v1 (Prisma 8 `namespace v2`, verified)                  | Locked                |
+| D7  | First target: web/mac with a cloud pod                                                             | Locked                |
+| D8  | The agent loop runs on the agent host; sandboxes only execute (0021)                               | Locked                |
+| D9  | Background jobs and schedules run on trigger.dev in `apps/trigger`, never in the agent host (0022) | Locked                |
