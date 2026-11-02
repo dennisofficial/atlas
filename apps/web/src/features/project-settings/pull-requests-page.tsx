@@ -6,6 +6,7 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { Input } from '@dltech/atlas-ui/components/input'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { PullRequestsSkeleton } from './project-skeletons'
 import { runAction } from '@/features/settings/data/shared/run-action'
 
 import { useProjectContext } from './data/project-context'
@@ -90,7 +91,7 @@ export function PullRequestsPage() {
   const { projectId } = useProjectContext()
   const { query, save } = useProjectSettings(projectId)
   return (
-    <QueryGate query={query} label="pull request settings">
+    <QueryGate query={query} label="pull request settings" skeleton={<PullRequestsSkeleton />}>
       {(values) => {
         const saved = prCommentEditorsOf(values)
         const handleSave = (draft: PrCommentEditors) =>

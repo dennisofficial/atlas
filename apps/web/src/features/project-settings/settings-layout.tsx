@@ -30,7 +30,7 @@ export function SettingsSection({
           <h2 id={headingId} className="text-sm font-semibold">
             {title}
           </h2>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          {description ? <div className="text-sm text-muted-foreground">{description}</div> : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
@@ -79,7 +79,7 @@ export function SettingsRow({
           <div className="flex items-center gap-2 text-sm leading-none font-medium">{title}</div>
         )}
         {description ? (
-          <p className="max-w-prose text-sm text-muted-foreground">{description}</p>
+          <div className="max-w-prose text-sm text-muted-foreground">{description}</div>
         ) : null}
       </div>
       {children ? (

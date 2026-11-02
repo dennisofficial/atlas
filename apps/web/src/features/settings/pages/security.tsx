@@ -25,6 +25,7 @@ import {
   toDevice,
 } from '../data/personal/auth-session-api'
 import { QuerySection } from '../data/personal/query-boundary'
+import { SecurityDevicesSkeleton } from '../skeletons/library-skeletons'
 import { useSaveAction } from '../data/personal/use-save-action'
 import type { SignedInDevice } from '../fixtures/settings-security'
 import { DeviceRow } from '../parts/security-device-row'
@@ -39,7 +40,10 @@ async function loadDevices(): Promise<SignedInDevice[]> {
 }
 
 export function SecurityPage() {
-  const devicesQuery = useCloudQuery({ key: 'security-sessions', load: loadDevices })
+  const devicesQuery = useCloudQuery({
+    key: 'security-sessions',
+    load: loadDevices,
+  })
   const { reload } = devicesQuery
   const { saving, run } = useSaveAction()
 
@@ -97,7 +101,11 @@ export function SecurityPage() {
         title="Signed-in devices"
         description="Browsers, terminals, and sandboxes holding a session for your account."
       >
-        <QuerySection query={devicesQuery} title="Signed-in devices">
+        <QuerySection
+          query={devicesQuery}
+          title="Signed-in devices"
+          skeleton={<SecurityDevicesSkeleton />}
+        >
           {(devices) => (
             <SettingsCard>
               {devices.map((device) => (

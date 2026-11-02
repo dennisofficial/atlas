@@ -25,6 +25,7 @@ import { EMcpTransportKind } from '@dltech/atlas-wire/web'
 
 import type { McpRow } from '@/features/settings/data/shared/mcp-mapping'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { McpPageSkeleton } from './project-skeletons'
 import { runAction } from '@/features/settings/data/shared/run-action'
 
 import { McpOauthControl, McpSignOutItem } from '@/features/settings/parts/mcp-oauth-control'
@@ -165,7 +166,7 @@ export function McpPage() {
   const { projectId } = useProjectContext()
   const { query } = useProjectMcp(projectId)
   return (
-    <QueryGate query={query} label="project MCP servers">
+    <QueryGate query={query} label="project MCP servers" skeleton={<McpPageSkeleton />}>
       {(servers) => <McpContent servers={servers} />}
     </QueryGate>
   )

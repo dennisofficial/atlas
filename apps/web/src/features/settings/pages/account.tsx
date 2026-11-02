@@ -7,6 +7,7 @@ import { useCloudQuery } from '@/lib/use-cloud-query'
 import { fetchAccountData, type AccountData } from '../data/personal/account-data'
 import { updateName } from '../data/personal/auth-session-api'
 import { QueryPage } from '../data/personal/query-boundary'
+import { AccountSkeleton } from '../skeletons/account-skeletons'
 import { useSaveAction } from '../data/personal/use-save-action'
 import { useSignInMethodActions } from '../data/personal/use-sign-in-method-actions'
 import { AccountLinkReturn } from '../parts/account-link-return'
@@ -18,9 +19,12 @@ const TITLE = 'Account'
 const DESCRIPTION = 'Your profile and how you sign in.'
 
 export function AccountPage() {
-  const query = useCloudQuery({ key: 'personal-account', load: fetchAccountData })
+  const query = useCloudQuery({
+    key: 'personal-account',
+    load: fetchAccountData,
+  })
   return (
-    <QueryPage query={query} title={TITLE} description={DESCRIPTION}>
+    <QueryPage query={query} title={TITLE} description={DESCRIPTION} skeleton={<AccountSkeleton />}>
       {(data) => <AccountContent data={data} reload={query.reload} />}
     </QueryPage>
   )
@@ -30,7 +34,10 @@ function AccountContent({ data, reload }: { data: AccountData; reload: () => voi
   const { saving, run } = useSaveAction()
   const handleSaveName = useCallback(
     async (name: string) => {
-      const saved = await run({ work: () => updateName(name), success: 'Profile updated' })
+      const saved = await run({
+        work: () => updateName(name),
+        success: 'Profile updated',
+      })
       if (saved) reload()
       return saved
     },

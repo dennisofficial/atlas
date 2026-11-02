@@ -15,6 +15,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { RepositoryStepSkeleton } from './project-skeletons'
 
 import { BranchField } from './new-project-branch-field'
 import { ConnectGithub } from './new-project-connect'
@@ -38,7 +39,11 @@ function RecentTiles({ repos, draft, patch }: PickerProps) {
         {repos.slice(0, RECENT_REPO_COUNT).map((repo) => {
           const selected = draft.repo === repo.fullName
           const handleClick = () =>
-            patch({ repo: repo.fullName, repoQuery: repo.fullName, branch: null })
+            patch({
+              repo: repo.fullName,
+              repoQuery: repo.fullName,
+              branch: null,
+            })
           return (
             <li key={repo.fullName} className="min-w-0">
               <button
@@ -127,7 +132,7 @@ function RepoPicker({ repos, draft, patch, onRefresh }: PickerProps & { onRefres
 export function RepositoryStep({ draft, patch }: { draft: ProjectDraft; patch: DraftPatch }) {
   const query = useGithubRepos()
   return (
-    <QueryGate query={query} label="repositories">
+    <QueryGate query={query} label="repositories" skeleton={<RepositoryStepSkeleton />}>
       {(repos) =>
         repos === null ? (
           <ConnectGithub />

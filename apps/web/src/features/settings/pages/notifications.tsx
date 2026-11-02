@@ -7,6 +7,7 @@ import { useSessionUser } from '../session/use-session-identity'
 
 import { notificationChanges, notificationsFrom } from '../data/personal/interface-settings'
 import { QueryPage } from '../data/personal/query-boundary'
+import { NotificationsSkeleton } from '../skeletons/agent-skeletons'
 import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
 import { type ChannelState, type ENotifyChannel } from '../fixtures/settings-interface'
 import { NotifyMatrixTable } from '../parts/interface-notify-matrix'
@@ -26,7 +27,12 @@ const DESCRIPTION = 'Decide where Atlas gets your attention.'
 export function NotificationsPage() {
   const settings = usePersonalSettings()
   return (
-    <QueryPage query={settings.query} title={TITLE} description={DESCRIPTION}>
+    <QueryPage
+      query={settings.query}
+      title={TITLE}
+      description={DESCRIPTION}
+      skeleton={<NotificationsSkeleton />}
+    >
       {(values) => <NotificationsEditor values={values} save={settings.save} />}
     </QueryPage>
   )
@@ -49,7 +55,10 @@ function NotificationsEditor({
   const { user } = useSessionUser()
 
   const handleChannelChange = (params: { channel: keyof ChannelState; enabled: boolean }) => {
-    setValue({ ...value, channels: { ...value.channels, [params.channel]: params.enabled } })
+    setValue({
+      ...value,
+      channels: { ...value.channels, [params.channel]: params.enabled },
+    })
   }
 
   const handleMatrixToggle = (params: {
@@ -61,7 +70,10 @@ function NotificationsEditor({
     if (!row) return
     setValue({
       ...value,
-      matrix: { ...value.matrix, [params.eventId]: { ...row, [params.channel]: params.checked } },
+      matrix: {
+        ...value.matrix,
+        [params.eventId]: { ...row, [params.channel]: params.checked },
+      },
     })
   }
 

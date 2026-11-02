@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 
 import { sessionUserPresent } from '@/lib/auth-api'
 
-import { PageSpinner } from './page-spinner'
+import { SetupSkeleton } from './auth-flow-skeletons'
 import { SetupDone } from './setup-done'
 
 const SIGN_IN_FOR_SETUP = '/sign-in?next=%2Fsetup'
@@ -31,6 +31,6 @@ export function SetupFlow() {
     }
   }, [router])
 
-  if (!signedIn) return <PageSpinner label="Loading…" />
+  if (!signedIn) return <SetupSkeleton />
   return <SetupDone />
 }

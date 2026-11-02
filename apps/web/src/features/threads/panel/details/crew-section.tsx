@@ -8,7 +8,8 @@ import { AgentStatusIcon } from '@dltech/atlas-ui/ai/agent-status'
 import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { AgentsFailed, AgentsLoading } from '../agents/agents-states'
+import { CrewLoading } from '../agents/agents-skeletons'
+import { AgentsFailed } from '../agents/agents-states'
 import type { AgentsData } from '../../data/use-agents'
 import { useNow } from '../../data/use-now'
 import { useRoster } from '../../data/use-roster'
@@ -143,7 +144,7 @@ export function CrewSection(props: { data: AgentsData }) {
     })
   }, [entries, roster, viewing, now, threadId, visits, expanded])
 
-  if (!loaded) return error === null ? <AgentsLoading /> : <AgentsFailed message={error.message} />
+  if (!loaded) return error === null ? <CrewLoading /> : <AgentsFailed message={error.message} />
   if (entries.length === 0 && channel === null) return null
 
   const handleToggle = (key: 'subagents' | 'teammates') =>

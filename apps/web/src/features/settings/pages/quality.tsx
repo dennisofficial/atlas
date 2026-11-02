@@ -3,6 +3,7 @@
 import { singleResponsibilityPolicy, type QualityPolicyDescriptor } from '@dltech/atlas-core'
 
 import { QueryPage } from '../data/personal/query-boundary'
+import { QualitySkeleton } from '../skeletons/agent-skeletons'
 import { ESettingFieldKind, type SettingField } from '../data/personal/setting-fields'
 import { usePersonalSettings } from '../data/personal/use-settings-draft'
 import { QUALITY_FIELDS } from '../fixtures/settings-fields'
@@ -28,7 +29,12 @@ const FIELDS = [...QUALITY_FIELDS, ...POLICIES.map(policyField)]
 export function QualityPage() {
   const settings = usePersonalSettings()
   return (
-    <QueryPage query={settings.query} title={TITLE} description={DESCRIPTION}>
+    <QueryPage
+      query={settings.query}
+      title={TITLE}
+      description={DESCRIPTION}
+      skeleton={<QualitySkeleton />}
+    >
       {(values) => (
         <SettingsPage title={TITLE} description={DESCRIPTION}>
           <SettingFieldsEditor

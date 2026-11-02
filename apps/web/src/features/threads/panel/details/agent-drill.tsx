@@ -8,7 +8,8 @@ import type { AgentsData } from '../../data/use-agents'
 import { useNow } from '../../data/use-now'
 import { AgentTranscript } from '../agents/agent-transcript'
 import { panelAgentOf } from '../agents/agents-panel-model'
-import { AgentsFailed, AgentsLoading } from '../agents/agents-states'
+import { TranscriptLoading } from '../agents/agents-skeletons'
+import { AgentsFailed } from '../agents/agents-states'
 import { useThreadPanel } from '../thread-panel-context'
 import { DetailsSection, Muted } from './section'
 
@@ -30,7 +31,7 @@ export function AgentDrill(props: { data: AgentsData }) {
           <AgentTranscript key={fallback.id} agentId={fallback.id} fallback={fallback} />
         ) : !loaded ? (
           error === null ? (
-            <AgentsLoading />
+            <TranscriptLoading />
           ) : (
             <AgentsFailed message={error.message} />
           )

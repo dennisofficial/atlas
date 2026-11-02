@@ -18,7 +18,7 @@ import { clearCloudCache } from '@/lib/query-client'
 import { DeviceConfirm } from './device-confirm'
 import { DeviceEnterForm } from './device-enter-form'
 import { DeviceResult, EDeviceResult } from './device-result'
-import { PageSpinner } from './page-spinner'
+import { DeviceConfirmSkeleton } from './auth-flow-skeletons'
 
 enum EDeviceStep {
   Checking = 'checking',
@@ -85,7 +85,7 @@ function DeviceFlow({ userCode }: { userCode: string }) {
     router.replace(`/sign-in?next=${encodeURIComponent(returnPath)}`)
   }
 
-  if (step === EDeviceStep.Checking) return <PageSpinner label="Checking the device code…" />
+  if (step === EDeviceStep.Checking) return <DeviceConfirmSkeleton />
   if (step === EDeviceStep.Expired) return <DeviceResult result={EDeviceResult.Expired} />
   if (step === EDeviceStep.Done) {
     return (

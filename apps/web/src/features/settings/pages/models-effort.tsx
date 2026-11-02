@@ -7,6 +7,7 @@ import type { SettingValues } from '@/lib/cloud-settings'
 
 import { activePresetOf, modelsChanges, modelsConfigFrom } from '../data/personal/models-settings'
 import { QueryPage } from '../data/personal/query-boundary'
+import { ModelsSkeleton } from '../skeletons/agent-skeletons'
 import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
 import {
   EPreset,
@@ -31,7 +32,12 @@ function isPreset(value: unknown): value is EPreset {
 export function ModelsEffortPage() {
   const settings = usePersonalSettings()
   return (
-    <QueryPage query={settings.query} title={TITLE} description={DESCRIPTION}>
+    <QueryPage
+      query={settings.query}
+      title={TITLE}
+      description={DESCRIPTION}
+      skeleton={<ModelsSkeleton />}
+    >
       {(values) => <ModelsEditor values={values} save={settings.save} />}
     </QueryPage>
   )

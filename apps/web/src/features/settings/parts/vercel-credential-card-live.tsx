@@ -6,8 +6,9 @@ import { toast } from 'sonner'
 import { CLOUD_CAPABILITIES } from '@/lib/cloud-capabilities'
 import { EQueryState } from '@/lib/use-cloud-query'
 
+import { VercelCardSkeleton } from '../skeletons/table-skeletons'
 import { useUserVercelCredential } from '../data/user/vercel-credential-resource'
-import { LoadFailed, LoadingBlocks } from '../data/shared/query-gate'
+import { LoadFailed, LoadingRegion } from '../data/shared/query-gate'
 import { runAction } from '../data/shared/run-action'
 import {
   requestBodyOf,
@@ -32,7 +33,13 @@ function LiveVercelCard({
   const { query, save, remove } = resource
   const [saving, setSaving] = useState(false)
 
-  if (query.state === EQueryState.Loading) return <LoadingBlocks label="the Vercel credential" />
+  if (query.state === EQueryState.Loading) {
+    return (
+      <LoadingRegion label="the Vercel credential">
+        <VercelCardSkeleton />
+      </LoadingRegion>
+    )
+  }
   if (query.state === EQueryState.Failed) {
     return (
       <LoadFailed

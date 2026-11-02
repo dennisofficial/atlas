@@ -4,10 +4,12 @@ import { useCallback } from 'react'
 import { PauseIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
+import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { QueryPage } from '../data/personal/query-boundary'
+import { UsageSandboxesSkeleton } from '../skeletons/library-skeletons'
 import { destroySandbox, fetchSandboxes, splitSandboxes } from '../data/personal/sandboxes-api'
 import { useSaveAction } from '../data/personal/use-save-action'
 import type { SandboxRow } from '../fixtures/settings-usage-rows'
@@ -113,7 +115,13 @@ export function UsageSandboxesPage() {
     [run, reload],
   )
   return (
-    <QueryPage query={query} title={TITLE} description={DESCRIPTION} rows={2}>
+    <QueryPage
+      query={query}
+      title={TITLE}
+      description={DESCRIPTION}
+      actions={<Skeleton className="size-7 rounded-lg" />}
+      skeleton={<UsageSandboxesSkeleton />}
+    >
       {(entries) => {
         const { running, paused } = splitSandboxes({ entries })
         return (

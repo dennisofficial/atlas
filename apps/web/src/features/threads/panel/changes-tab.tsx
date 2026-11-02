@@ -18,7 +18,8 @@ import {
 } from './changes/focus-changed-path'
 import { useChangesLayout } from './changes/use-changes-layout'
 import { ETabSubject } from './changes/offline-copy'
-import { TabFailed, TabLoading, TabOffline } from './changes/tab-states'
+import { TabFailed, TabOffline } from './changes/tab-states'
+import { ChangesLoading } from './changes/tab-skeletons'
 import { useThreadPanel } from './thread-panel-context'
 
 const ICON = <GitCompareIcon />
@@ -94,7 +95,7 @@ function ChangesBody(props: { channel: GitChangesChannel }) {
   if (view.status === EGitChangesStatus.Failed) {
     return <TabFailed icon={ICON} title="Changes unavailable" message={view.message} />
   }
-  if (view.status === EGitChangesStatus.Loading) return <TabLoading />
+  if (view.status === EGitChangesStatus.Loading) return <ChangesLoading />
 
   return (
     <div ref={root} className="flex h-full min-h-0 flex-col">

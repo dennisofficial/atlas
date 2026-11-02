@@ -9,6 +9,7 @@ import { routeIdAfter } from '@/lib/route-id'
 
 import { ThreadBackendProvider } from './data/use-thread-backend'
 import { ThreadView } from './thread-view'
+import { ThreadViewSkeleton } from './thread-view-skeleton'
 
 export function ThreadRoute() {
   const threadId = routeIdAfter({
@@ -16,7 +17,7 @@ export function ThreadRoute() {
     segment: 'threads',
   })
   const home = useThreadHome({ threadId, desktop: useDesktop() })
-  if (home === EThreadHome.Loading) return null
+  if (home === EThreadHome.Loading) return <ThreadViewSkeleton />
   if (home === EThreadHome.ThisMac) {
     return (
       <ThreadBackendProvider backend={localThreadBackend}>

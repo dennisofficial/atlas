@@ -1,4 +1,3 @@
-import { Spinner } from '@dltech/atlas-ui/components/spinner'
 import type { PodStatus } from '@dltech/atlas-wire/web'
 import type { ReactNode } from 'react'
 
@@ -15,14 +14,6 @@ export function TabOffline(props: {
     subject: props.subject,
   })
   return <TabPlaceholder icon={props.icon} title={title} description={description} />
-}
-
-export function TabLoading() {
-  return (
-    <div className="flex h-full items-center justify-center text-muted-foreground">
-      <Spinner />
-    </div>
-  )
 }
 
 export function TabFailed(props: { icon: ReactNode; title: string; message: string }) {

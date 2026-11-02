@@ -1,6 +1,7 @@
 'use client'
 
 import { QueryPage } from '../data/personal/query-boundary'
+import { ExperimentalSkeleton } from '../skeletons/agent-skeletons'
 import { usePersonalSettings } from '../data/personal/use-settings-draft'
 import { EXPERIMENTAL_FIELDS } from '../fixtures/settings-fields'
 import { SettingFieldsEditor } from '../parts/setting-fields-editor'
@@ -12,7 +13,12 @@ const DESCRIPTION = 'Behavior still proving itself. Every sandbox loads these wh
 export function ExperimentalPage() {
   const settings = usePersonalSettings()
   return (
-    <QueryPage query={settings.query} title={TITLE} description={DESCRIPTION}>
+    <QueryPage
+      query={settings.query}
+      title={TITLE}
+      description={DESCRIPTION}
+      skeleton={<ExperimentalSkeleton />}
+    >
       {(values) => (
         <SettingsPage title={TITLE} description={DESCRIPTION}>
           <SettingFieldsEditor

@@ -17,6 +17,7 @@ import type { SettingValues } from '@/lib/cloud-settings'
 
 import { appearanceChanges, appearanceFrom } from '../data/personal/interface-settings'
 import { QueryPage } from '../data/personal/query-boundary'
+import { AppearanceSkeleton } from '../skeletons/agent-skeletons'
 import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
 import { CODE_FONT_SIZES, EDensity, ETheme } from '../fixtures/settings-interface'
 import { ThemeCard } from '../parts/interface-theme-card'
@@ -39,7 +40,12 @@ function isTheme(value: unknown): value is ETheme {
 export function AppearancePage() {
   const settings = usePersonalSettings()
   return (
-    <QueryPage query={settings.query} title={TITLE} description={DESCRIPTION}>
+    <QueryPage
+      query={settings.query}
+      title={TITLE}
+      description={DESCRIPTION}
+      skeleton={<AppearanceSkeleton />}
+    >
       {(values) => <AppearanceEditor values={values} save={settings.save} />}
     </QueryPage>
   )

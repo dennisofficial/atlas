@@ -4,6 +4,9 @@ import { Button } from '@dltech/atlas-ui/components/button'
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
+export const CONFIG_FOOTER_CLASS =
+  'sticky bottom-0 z-10 -mx-4 -mb-6 mt-4 border-t bg-background px-4 py-3 md:-mx-8 md:-mb-10 md:px-8 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-linear-to-t before:from-background before:to-transparent'
+
 export function ConfigFooter({
   dirty,
   canSave = dirty,
@@ -16,7 +19,7 @@ export function ConfigFooter({
   onSave: () => void
 }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-4 -mb-6 mt-4 border-t bg-background px-4 py-3 md:-mx-8 md:-mb-10 md:px-8 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-linear-to-t before:from-background before:to-transparent">
+    <div className={CONFIG_FOOTER_CLASS}>
       <div className="flex items-center justify-between gap-3">
         <span
           className={cn(

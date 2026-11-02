@@ -26,6 +26,10 @@ type Profile = {
   email: string
 }
 
+export const PROFILE_ROW_CLASS = 'items-start lg:flex-row lg:items-center'
+export const PROFILE_GRID_CLASS =
+  'grid w-full min-w-0 grid-cols-2 gap-4 sm:grid-cols-3 lg:flex lg:flex-1 lg:items-start lg:justify-between lg:gap-5'
+
 const NOT_AVAILABLE = '—'
 
 function ProfileField({ label, children }: { label: string; children: ReactNode }) {
@@ -113,11 +117,11 @@ export function AccountProfileCard({
 }) {
   return (
     <SettingsCard>
-      <CardRow className="items-start lg:flex-row lg:items-center">
+      <CardRow className={PROFILE_ROW_CLASS}>
         <Avatar size="lg">
           <AvatarFallback>{initialsOf(profile.name)}</AvatarFallback>
         </Avatar>
-        <div className="grid w-full min-w-0 grid-cols-2 gap-4 sm:grid-cols-3 lg:flex lg:flex-1 lg:items-start lg:justify-between lg:gap-5">
+        <div className={PROFILE_GRID_CLASS}>
           <ProfileField label="Name">{profile.name}</ProfileField>
           <ProfileField label="Email">{profile.email}</ProfileField>
           <ProfileField label="GitHub">

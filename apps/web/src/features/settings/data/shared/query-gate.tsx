@@ -4,18 +4,21 @@ import type { ReactNode } from 'react'
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
 import { Button } from '@dltech/atlas-ui/components/button'
-import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
-const SKELETON_ROWS = ['one', 'two', 'three']
-
-export function LoadingBlocks({ label }: { label: string }) {
+export function LoadingRegion({
+  label,
+  className,
+  children,
+}: {
+  label: string
+  className?: string
+  children: ReactNode
+}) {
   return (
-    <div role="status" aria-label={`Loading ${label}`} className="flex flex-col gap-3">
-      {SKELETON_ROWS.map((row) => (
-        <Skeleton key={row} className="h-14 w-full rounded-lg" />
-      ))}
+    <div role="status" aria-busy="true" aria-label={`Loading ${label}`} className={className}>
+      {children}
     </div>
   )
 }
@@ -47,11 +50,15 @@ const keep = (content: ReactNode): ReactNode => content
 export function QueryGate<TData>({
   query,
   label,
+  skeleton,
+  className,
   wrap = keep,
   children,
 }: {
   query: CloudQuery<TData>
   label: string
+  skeleton: ReactNode
+  className?: string
   wrap?: (content: ReactNode) => ReactNode
   children: (data: TData) => ReactNode
 }) {
@@ -61,5 +68,13 @@ export function QueryGate<TData>({
       <>{wrap(<LoadFailed label={label} message={query.error.message} onRetry={query.reload} />)}</>
     )
   }
-  return <>{wrap(<LoadingBlocks label={label} />)}</>
+  return (
+    <>
+      {wrap(
+        <LoadingRegion label={label} {...(className === undefined ? {} : { className })}>
+          {skeleton}
+        </LoadingRegion>,
+      )}
+    </>
+  )
 }

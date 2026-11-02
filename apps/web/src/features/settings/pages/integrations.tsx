@@ -10,6 +10,7 @@ import {
 } from '../data/personal/github-api'
 import { fetchMcpServers } from '../data/personal/mcp-api'
 import { QuerySection } from '../data/personal/query-boundary'
+import { GithubIntegrationSkeleton, McpListSkeleton } from '../skeletons/library-skeletons'
 import { useMcpStore } from '../data/personal/use-mcp-store'
 import { INTEGRATIONS, type Integration } from '../fixtures/settings-account'
 import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
@@ -76,7 +77,7 @@ function IntegrationsList() {
   const query = useCloudQuery({ key: 'personal-github', load: fetchGithub })
   return (
     <SettingsSection title="Integrations" description="Accounts Atlas can act on your behalf.">
-      <QuerySection query={query} title="GitHub" rows={1}>
+      <QuerySection query={query} title="GitHub" skeleton={<GithubIntegrationSkeleton />}>
         {(connection) => (
           <SettingsCard>
             <GithubRow connection={connection} reload={query.reload} />
@@ -90,7 +91,7 @@ function IntegrationsList() {
 function McpSection() {
   const query = useCloudQuery({ key: 'personal-mcp', load: fetchMcpServers })
   return (
-    <QuerySection query={query} title="MCP servers" rows={2}>
+    <QuerySection query={query} title="MCP servers" skeleton={<McpListSkeleton />}>
       {(servers) => <McpContent servers={servers} reload={query.reload} />}
     </QuerySection>
   )

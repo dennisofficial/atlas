@@ -34,6 +34,7 @@ import {
   type MemoryEntry,
 } from '../fixtures/settings-memory'
 import { QueryBody } from '../data/personal/query-boundary'
+import { MemorySheetSkeleton } from '../skeletons/library-skeletons'
 import { Mono } from '../settings-layout'
 import { useDraft } from '../use-draft'
 import { MemoryTypeBadge } from './memory-row'
@@ -240,7 +241,7 @@ export function MemorySheet({
     <Sheet open={entry !== null} onOpenChange={handleOpenChange}>
       <SheetContent initialFocus={false} className="data-[side=right]:sm:max-w-xl">
         {entry ? (
-          <QueryBody query={detail} rows={2}>
+          <QueryBody query={detail} label="memory" skeleton={<MemorySheetSkeleton />}>
             {(full) =>
               full === null ? null : mode === EMemorySheetMode.Edit ? (
                 <MemoryEdit

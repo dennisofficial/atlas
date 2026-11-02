@@ -15,7 +15,7 @@ import {
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
 
-import { LoadFailed, LoadingBlocks } from '@/features/settings/data/shared/query-gate'
+import { LoadFailed, LoadingRegion } from '@/features/settings/data/shared/query-gate'
 import { EQueryState } from '@/lib/use-cloud-query'
 
 import { ProjectProvider } from './data/project-context'
@@ -23,6 +23,7 @@ import { identityOf } from './data/project-mapping'
 import { useProject } from './data/use-project'
 import { EProjectSettingsSection, projectSectionOfPath } from './project-settings-nav'
 import { ProjectSettingsShell } from './project-settings-shell'
+import { ProjectOverviewSkeleton } from './project-skeletons'
 
 const NOT_FOUND = 404
 
@@ -83,7 +84,9 @@ export function ProjectSettingsLayout({
   }
   return (
     <ProjectSettingsShell projectId={projectId} active={section} title="" bare>
-      <LoadingBlocks label="project settings" />
+      <LoadingRegion label="project settings" className="flex flex-col gap-10">
+        <ProjectOverviewSkeleton />
+      </LoadingRegion>
     </ProjectSettingsShell>
   )
 }

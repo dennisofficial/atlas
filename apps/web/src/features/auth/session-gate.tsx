@@ -3,8 +3,8 @@
 import { useCallback, type ReactNode } from 'react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
-import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
+import { ShellSkeleton } from '@/features/shell/shell-skeletons'
 import { EQueryState } from '@/lib/use-cloud-query'
 import { useSessionQuery } from '@/lib/use-session-query'
 
@@ -37,11 +37,7 @@ export function useSessionState(): { gate: GateState; retry: () => void } {
 }
 
 export function CheckingSession() {
-  return (
-    <div role="status" aria-label="Loading" className="flex min-h-svh items-center justify-center">
-      <Spinner />
-    </div>
-  )
+  return <ShellSkeleton />
 }
 
 export function SessionFailed({ message, onRetry }: { message: string; onRetry: () => void }) {

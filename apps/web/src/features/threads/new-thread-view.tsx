@@ -11,6 +11,7 @@ import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-l
 import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
 import { useDesktop } from '@/features/desktop/use-desktop'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { NewThreadSkeleton } from '@/features/projects/project-skeletons'
 import { createdThreads } from '@/features/shell/created-threads'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
@@ -166,7 +167,7 @@ export function NewThreadView() {
         <h1 className="text-center text-xl font-medium tracking-tight">
           What should Atlas work on?
         </h1>
-        <QueryGate query={query} label="projects">
+        <QueryGate query={query} label="projects" skeleton={<NewThreadSkeleton />}>
           {(projects) => (
             <Suspense>
               <Welcome projects={projects} />
