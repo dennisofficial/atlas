@@ -14,7 +14,7 @@ import {
 import { ActivityTurnRunner } from '../../activity/activity-turn-runner'
 import type { ActivityLifecycle } from '../../activity/runtime-session-activity'
 import type { SteerMessage } from './child-state'
-import { combineInput, type InputBatch } from '../../intake/input-batch'
+import { composeIntake, type AgentIntake } from '@dltech/atlas-agent'
 import type { MessageIntake } from '../../intake/message-intake'
 import type { ThreadModel } from '../../store/thread-store'
 import type { DeltaChannel } from '../../channel/delta-channel'
@@ -117,28 +117,30 @@ export type SteeringBatch = {
   release?: (() => void) | undefined
 }
 
-const peekSteering = (steering: () => SteeringBatch): (() => InputBatch) => {
+const steeringSource = (steering: () => SteeringBatch): AgentIntake => {
   let held: SteeringBatch | undefined
-  return () => {
-    const batch = held ?? steering()
-    held = batch
-    const peeked = batch.peek()
-    return {
-      drafts: steerDrafts(peeked),
-      wakesTurn: peeked.length > 0,
-      acknowledge: () => {
-        batch.acknowledge()
-        held = undefined
-      },
-      ...(batch.release === undefined
-        ? {}
-        : {
-            release: () => {
-              batch.release?.()
-              held = undefined
-            },
-          }),
-    }
+  return {
+    prepare: async () => {
+      const batch = held ?? steering()
+      held = batch
+      const peeked = batch.peek()
+      return {
+        drafts: steerDrafts(peeked),
+        wakesTurn: peeked.length > 0,
+        acknowledge: () => {
+          batch.acknowledge()
+          held = undefined
+        },
+        ...(batch.release === undefined
+          ? {}
+          : {
+              release: () => {
+                batch.release?.()
+                held = undefined
+              },
+            }),
+      }
+    },
   }
 }
 
@@ -169,7 +171,6 @@ export async function buildChildRunner({
   steering,
 }: ChildRunnerRequest & { deps: ChildRunnerDeps }): Promise<TurnRunner> {
   await deps.hydratePlacement?.({ threadId })
-  const steeringBatch = peekSteering(steering)
   const narrowed = filteredToolRegistry({
     registry: toolRegistryFor({ registry: deps.tools, agentType }),
     deny: deniedFor(agentType),
@@ -203,26 +204,10 @@ export async function buildChildRunner({
         telemetry: deps.telemetry,
       }),
       assembly: deps.assemblyFor({ agentType, model, projectDirectory }),
-      intake: {
-        prepare: async (args) => {
-          const notices = await deps.drainNotices(args)
-          const batch = combineInput([
-            steeringBatch(),
-            {
-              drafts: notices.drafts,
-              wakesTurn: notices.wakesTurn,
-              acknowledge: () => notices.acknowledge?.(),
-              ...(notices.release === undefined ? {} : { release: () => notices.release?.() }),
-            },
-          ])
-          return {
-            drafts: batch.drafts,
-            wakesTurn: batch.wakesTurn,
-            acknowledge: batch.acknowledge,
-            release: () => batch.release?.(),
-          }
-        },
-      },
+      intake: composeIntake([
+        steeringSource(steering),
+        { prepare: (args) => deps.drainNotices(args) },
+      ]),
     },
   })
   return new ActivityTurnRunner({ inner, lifecycle: deps.activity })
