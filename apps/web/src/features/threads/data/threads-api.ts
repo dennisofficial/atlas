@@ -37,7 +37,13 @@ export const postMessage = (args: {
   text: string
   images?: SaidImageWire[]
   uploads?: SaidUpload[]
-}) => cloudCall(api.threadMessages.send.mutate(args))
+  signal?: AbortSignal | undefined
+}) => {
+  const { signal, ...input } = args
+  return cloudCall(
+    api.threadMessages.send.mutate(input, signal === undefined ? undefined : { signal }),
+  )
+}
 
 export const fetchEvents = (args: { threadId: string; fromSeq?: number | undefined }) =>
   cloudCall(
