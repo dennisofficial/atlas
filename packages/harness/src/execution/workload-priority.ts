@@ -10,10 +10,6 @@ export const WORKLOAD_OOM_SCORE_ADJ = 800
 
 const PRELUDE_SHELL = '/bin/sh'
 
-/**
- * Nice applies wherever a `nice` binary exists. The OOM ranking is only touched in a cloud pod:
- * on a user's own machine the kernel's view of their processes is not ours to rewrite.
- */
 export const workloadPolicy = (args: {
   env: Record<string, string | undefined>
   platform: NodeJS.Platform
@@ -64,10 +60,6 @@ const resolvable = (args: {
   return found !== null
 }
 
-/**
- * A command the prelude could not exec is left unwrapped, so a missing binary still fails at spawn
- * exactly as it did before, rather than as an exit-127 from the wrapper.
- */
 export const demotedCommand = (args: {
   cmd: readonly string[]
   cwd?: string | undefined
