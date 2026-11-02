@@ -4,6 +4,7 @@ import { EShellStatus, toThreadId } from '@dltech/atlas-core'
 
 import type { ShellSnapshot } from '../background-shell'
 import { ENotice, ShellAttentionQueue } from '../attention'
+import { awaitingInputDraft, endedDraft, matchedDraft } from '../journal'
 import { toShellId } from '../shell-id'
 
 const THREAD = toThreadId('thread-under-test')
@@ -22,16 +23,31 @@ const snapshotOf = (args: { shellId: string; status: EShellStatus }): ShellSnaps
   awaitingInput: false,
 })
 
+const DELTA = { text: '', droppedCharacters: 0, remainingCharacters: 0 }
+
 describe('the shell notice queue as a wake-up bell', () => {
-  it('wakes the turn for any notice but never yields a draft', () => {
+  it('wakes the turn when a captured notice carries a turn-taking draft', () => {
     const ended = endedSnapshotOf('bash_1')
+    const draft = endedDraft({ snapshot: ended, delta: DELTA })
     const queue = new ShellAttentionQueue()
-    queue.queue({ kind: ENotice.Ended, snapshot: ended, threadId: THREAD })
+    queue.queue({ kind: ENotice.Ended, snapshot: ended, threadId: THREAD, draft })
+
+    const batch = queue.prepare({ threadId: THREAD })
+
+    expect(batch.drafts).toEqual([draft])
+    expect(batch.wakesTurn).toBe(true)
+    batch.acknowledge()
+    expect(queue.pending({ threadId: THREAD })).toEqual([])
+  })
+
+  it('does not wake the turn for a notice that has no draft', () => {
+    const queue = new ShellAttentionQueue()
+    queue.queue({ kind: ENotice.Ended, snapshot: endedSnapshotOf('bash_1'), threadId: THREAD })
 
     const batch = queue.prepare({ threadId: THREAD })
 
     expect(batch.drafts).toEqual([])
-    expect(batch.wakesTurn).toBe(true)
+    expect(batch.wakesTurn).toBe(false)
     batch.acknowledge()
     expect(queue.pending({ threadId: THREAD })).toEqual([])
   })
@@ -49,22 +65,31 @@ describe('the shell notice queue as a wake-up bell', () => {
   it('rings for durable facts even when the process has since ended', () => {
     const ended = endedSnapshotOf('bash_1')
     const queue = new ShellAttentionQueue()
-    queue.queue({ kind: ENotice.AwaitingInput, snapshot: ended, threadId: THREAD })
-    queue.queue({ kind: ENotice.Matched, snapshot: ended, threadId: THREAD })
+    queue.queue({
+      kind: ENotice.AwaitingInput,
+      snapshot: ended,
+      threadId: THREAD,
+      draft: awaitingInputDraft({ snapshot: ended, delta: DELTA }),
+    })
 
-    const batch = queue.prepare({ threadId: THREAD })
-
-    expect(batch.wakesTurn).toBe(true)
+    expect(queue.prepare({ threadId: THREAD }).wakesTurn).toBe(true)
   })
 
   it('rings for an alive-claim notice while its shell is still running', () => {
     const live = liveSnapshotOf('bash_1')
     const queue = new ShellAttentionQueue()
-    queue.queue({ kind: ENotice.Matched, snapshot: live, threadId: THREAD })
+    queue.queue({
+      kind: ENotice.Matched,
+      snapshot: live,
+      threadId: THREAD,
+      draft: matchedDraft({
+        snapshot: live,
+        pattern: 'ready',
+        matched: { lines: ['ready'], matchCount: 1, disarmed: false },
+      }),
+    })
 
-    const batch = queue.prepare({ threadId: THREAD })
-
-    expect(batch.wakesTurn).toBe(true)
+    expect(queue.prepare({ threadId: THREAD }).wakesTurn).toBe(true)
   })
 })
 

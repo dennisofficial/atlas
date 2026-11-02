@@ -89,3 +89,23 @@ describe('reassigning a finished thread’s service notices', () => {
     expect(queue.pending({ threadId: PARENT })).toEqual([])
   })
 })
+
+describe('the service notice queue as a wake-up bell', () => {
+  it('does not wake the turn when the captured draft is not turn-taking', () => {
+    const queue = new ServiceNoticeQueue()
+    queue.queue({
+      snapshot: snapshotOf('svc_1'),
+      threadId: THREAD,
+      draft: { type: 'service-started', serviceId: 'svc_1', command: 'sleep 30' },
+    })
+
+    expect(queue.prepare({ threadId: THREAD }).wakesTurn).toBe(false)
+  })
+
+  it('wakes the turn when a captured draft is turn-taking', () => {
+    const queue = new ServiceNoticeQueue()
+    queue.queue(noticeOf('svc_1', THREAD))
+
+    expect(queue.prepare({ threadId: THREAD }).wakesTurn).toBe(true)
+  })
+})

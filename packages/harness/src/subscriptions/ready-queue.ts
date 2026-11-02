@@ -1,4 +1,4 @@
-import type { EventDraft, ThreadId } from '@dltech/atlas-core'
+import { isTurnTaking, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../intake/input-batch'
 import type { IntakeSource } from '../intake/message-intake'
@@ -48,7 +48,7 @@ export class ReadyQueue {
     let acknowledged = false
     return {
       drafts: captured.map((ready) => ready.draft),
-      wakesTurn: captured.length > 0,
+      wakesTurn: captured.some((ready) => isTurnTaking(ready.draft)),
       acknowledge: () => {
         if (acknowledged) return
         acknowledged = true
