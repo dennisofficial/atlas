@@ -51,6 +51,7 @@ import { ObservingToolDispatcher } from '../telemetry/observing-dispatcher'
 import { PosthogTelemetry } from '../telemetry/posthog-telemetry'
 import { telemetryDistinctId } from '../telemetry/identity'
 import { HookedToolDispatcher, ToolDispatcher } from '../tools/dispatch'
+import { QualityStage } from '../tools/quality-dispatch'
 import { registerBuiltinTools } from '../tools/register-tools'
 import { ToolRegistry } from '../tools/registry'
 import { clientVersionOf } from './client-version'
@@ -216,9 +217,12 @@ export function createHarnessContainer(): DependencyContainer {
           registry: resolver.resolve(registeredPortToken(ToolRegistry)),
           hooks: resolver.resolve(HookChainToken),
           logPort: resolver.resolve(registeredPortToken(LogPort)),
-          quality: resolver.isRegistered(registeredPortToken(QualityReviewPort), true)
-            ? resolver.resolve(registeredPortToken(QualityReviewPort))
-            : undefined,
+          quality: new QualityStage({
+            logPort: resolver.resolve(registeredPortToken(LogPort)),
+            quality: resolver.isRegistered(registeredPortToken(QualityReviewPort), true)
+              ? resolver.resolve(registeredPortToken(QualityReviewPort))
+              : undefined,
+          }),
         }),
         telemetry: resolver.resolve(registeredPortToken(TelemetryPort)),
       }),

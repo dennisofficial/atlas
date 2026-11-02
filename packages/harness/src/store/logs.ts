@@ -108,10 +108,4 @@ export class JsonlLog extends LogPort {
   }
 }
 
-/** Folds an unknown thrown value into the entry fields, unwrapping `cause` chains one level deep. */
-export function logFieldsOf({ error }: { error: unknown }): Pick<LogEntry, 'error' | 'stack'> {
-  if (!(error instanceof Error)) return { error: String(error) }
-  const cause = error.cause instanceof Error ? ` — cause: ${error.cause.message}` : ''
-  if (error.stack === undefined) return { error: `${error.message}${cause}` }
-  return { error: `${error.message}${cause}`, stack: error.stack }
-}
+export { logFieldsOf } from '@dltech/atlas-agent'

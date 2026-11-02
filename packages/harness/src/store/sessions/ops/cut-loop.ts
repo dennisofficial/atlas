@@ -8,15 +8,12 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import type { ApplyLoopCut } from '@dltech/atlas-agent'
+
 import type { SessionRegistry } from '../registry'
 import { appendDrafts, truncateThreadLog } from './log-edits'
 
-export type ApplyLoopCut = (args: {
-  threadId: ThreadId
-  toSeq: number
-  throughSeq: number
-  notice: EventDraft
-}) => Promise<boolean>
+export type { ApplyLoopCut } from '@dltech/atlas-agent'
 
 export function createLoopCut({
   log,
