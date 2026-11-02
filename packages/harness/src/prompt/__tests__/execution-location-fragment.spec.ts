@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 import {
-  DEFAULT_CONTAINER_IDLE_MINUTES,
   EExecutionLocation,
   ERunner,
   promptContextFor,
@@ -43,38 +42,24 @@ describe('execution-location fragment', () => {
   })
 
   it('describes every pod the same way, never naming the provider behind it', () => {
-    const texts = POD_RUNNERS.map((runner) => textFor(EExecutionLocation.Cloud, runner))
-    for (const text of texts) {
+    for (const runner of POD_RUNNERS) {
+      const text = textFor(EExecutionLocation.Cloud, runner)
       expect(text).not.toContain('Vercel')
-      expect(text).not.toContain('cloud sandbox')
-      expect(text).toContain('/atlas/workspaces/<repo-name>')
-      expect(text).toContain("the project's configured repositories cloned beside it")
-      expect(text).toContain("run the project's own install")
-    }
-  })
-
-  it('tells a pod that idle parking clears /tmp and where durable files belong', () => {
-    for (const runner of POD_RUNNERS) {
-      const text = textFor(EExecutionLocation.Cloud, runner)
-      expect(text).toContain(`After ${DEFAULT_CONTAINER_IDLE_MINUTES} minutes without activity`)
-      expect(text).toContain('which clears /tmp')
-      expect(text).toContain('ATLAS_SESSION_DIR or /atlas/workspaces')
-    }
-  })
-
-  it('ties the pod lifetime to the session and says to leave leftovers in place', () => {
-    for (const runner of POD_RUNNERS) {
-      const text = textFor(EExecutionLocation.Cloud, runner)
       expect(text).toContain('lives exactly as long as the session')
-      expect(text).toContain('leave worktrees, clones, and scratch files in place')
     }
+  })
+
+  it('stays generic rather than prescribing pod housekeeping', () => {
+    const text = textFor(EExecutionLocation.Cloud, ERunner.Vercel)
+    expect(text).not.toContain('leave worktrees')
+    expect(text).not.toContain('node_modules')
+    expect(text).not.toContain('parks the pod')
   })
 
   it('keeps pod facts out of sessions that run on the operator machine', () => {
     for (const placement of [EExecutionLocation.Host, EExecutionLocation.Docker, undefined]) {
       const text = textFor(placement)
-      expect(text).not.toContain('/atlas/workspaces')
-      expect(text).not.toContain('leave worktrees')
+      expect(text).not.toContain('throwaway pod')
     }
   })
 

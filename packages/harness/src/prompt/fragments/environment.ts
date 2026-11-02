@@ -1,5 +1,4 @@
 import {
-  DEFAULT_CONTAINER_IDLE_MINUTES,
   EExecutionLocation,
   ERunner,
   PromptFragment,
@@ -31,10 +30,7 @@ export class TodayFragment extends VolatilePromptFragment {
 }
 
 const POD_LINES = [
-  "This session runs in a throwaway pod that lives exactly as long as the session: its filesystem, /tmp, and localhost are the pod's alone, and all of it is discarded when the session ends, so leave worktrees, clones, and scratch files in place when work finishes.",
-  "The primary repository is at /atlas/workspaces/<repo-name>, with the project's configured repositories cloned beside it; clone others there too and use explicit workdir or absolute paths.",
-  "Gitignored content (node_modules, .env) never reaches the pod, so run the project's own install before building, testing, or running it.",
-  `After ${DEFAULT_CONTAINER_IDLE_MINUTES} minutes without activity Atlas parks the pod, which clears /tmp; anything that must survive a park goes under ATLAS_SESSION_DIR or /atlas/workspaces.`,
+  "This session runs in a throwaway pod that lives exactly as long as the session; its filesystem, /tmp, and localhost are the pod's alone, not the operator's machine.",
 ]
 
 const LOCAL_POD_PORTS =
