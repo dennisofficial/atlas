@@ -19,18 +19,19 @@ export class GithubWebhookInboxService {
 
   /** Returns false when the delivery id is already in the inbox; the caller answers 200. */
   async insert(args: { deliveryId: string; event: string; payload: unknown }): Promise<boolean> {
-    return db.transaction(async (tx) => {
-      const claimed = await this.claim({ tx, deliveryId: args.deliveryId })
-      if (claimed !== undefined) return false
-      await tx.orm.public.GithubWebhookInbox.create({
-        deliveryId: args.deliveryId,
-        event: args.event,
-        payload: (args.payload ?? null) as InboxPayload,
-        receivedAt: new Date(),
-        attempts: 1,
-      })
-      return true
-    })
+    const inserted = await db.orm.public.GithubWebhookInbox.createAndCount(
+      [
+        {
+          deliveryId: args.deliveryId,
+          event: args.event,
+          payload: (args.payload ?? null) as InboxPayload,
+          receivedAt: new Date(),
+          attempts: 1,
+        },
+      ],
+      { onConflict: 'skip' },
+    )
+    return inserted > 0
   }
 
   async markProcessed(args: { deliveryId: string }): Promise<void> {
