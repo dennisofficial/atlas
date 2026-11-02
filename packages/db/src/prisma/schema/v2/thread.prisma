@@ -1,0 +1,15 @@
+// use prisma-8
+namespace v2 {
+  model V2Thread {
+    id         String                @id
+    sessionId  String
+    headSeq    Int
+    headHash   String
+    visibility String
+    createdAt  TimestamptzJsDate(3)
+    session    V2Session             @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "V2Thread_sessionId_idx")
+    events     V2Event[]
+
+    @@index([sessionId], map: "V2Thread_sessionId_idx")
+  }
+}

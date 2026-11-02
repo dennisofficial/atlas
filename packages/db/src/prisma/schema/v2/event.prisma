@@ -1,0 +1,19 @@
+// use prisma-8
+namespace v2 {
+  model V2Event {
+    threadId  String
+    seq       Int
+    id        String                @unique
+    epoch     Int
+    type      String
+    runId     String
+    at        TimestamptzJsDate(3)
+    prevHash  String
+    hash      String
+    canonical String
+    thread    V2Thread              @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "V2Event_pkey")
+
+    @@id([threadId, seq], map: "V2Event_pkey")
+    @@index([threadId, type, seq], map: "V2Event_threadId_type_seq_idx")
+  }
+}

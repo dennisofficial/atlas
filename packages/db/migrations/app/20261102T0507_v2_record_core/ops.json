@@ -1,0 +1,548 @@
+[
+  {
+    "id": "schema.v2",
+    "label": "Create schema \"v2\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"v2\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"v2\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.V2Event",
+    "label": "Create table \"V2Event\"",
+    "summary": "Creates table \"V2Event\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2Event\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Event\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2Event\"",
+        "sql": "CREATE TABLE \"v2\".\"V2Event\" (\n  \"at\" timestamptz(3) NOT NULL,\n  \"canonical\" text NOT NULL,\n  \"epoch\" int4 NOT NULL,\n  \"hash\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"prevHash\" text NOT NULL,\n  \"runId\" text NOT NULL,\n  \"seq\" int4 NOT NULL,\n  \"threadId\" text NOT NULL,\n  \"type\" text NOT NULL,\n  CONSTRAINT \"V2Event_pkey\" PRIMARY KEY (\"threadId\", \"seq\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2Event\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Event\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.V2InboxEntry",
+    "label": "Create table \"V2InboxEntry\"",
+    "summary": "Creates table \"V2InboxEntry\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2InboxEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2InboxEntry\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2InboxEntry\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2InboxEntry\"",
+        "sql": "CREATE TABLE \"v2\".\"V2InboxEntry\" (\n  \"consumedSeq\" int4,\n  \"inboxId\" int4 NOT NULL,\n  \"kind\" text NOT NULL,\n  \"payload\" text NOT NULL,\n  \"postedAt\" timestamptz(3) NOT NULL,\n  \"sessionId\" text NOT NULL,\n  CONSTRAINT \"V2InboxEntry_pkey\" PRIMARY KEY (\"sessionId\", \"inboxId\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2InboxEntry\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2InboxEntry\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.V2Lease",
+    "label": "Create table \"V2Lease\"",
+    "summary": "Creates table \"V2Lease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Lease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2Lease\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Lease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2Lease\"",
+        "sql": "CREATE TABLE \"v2\".\"V2Lease\" (\n  \"epoch\" int4 NOT NULL,\n  \"holderId\" text,\n  \"renewedAt\" timestamptz(3) NOT NULL,\n  \"sessionId\" text NOT NULL,\n  \"ttlMs\" int4 NOT NULL,\n  PRIMARY KEY (\"sessionId\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2Lease\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Lease\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.V2Session",
+    "label": "Create table \"V2Session\"",
+    "summary": "Creates table \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2Session\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Session\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2Session\"",
+        "sql": "CREATE TABLE \"v2\".\"V2Session\" (\n  \"createdAt\" timestamptz(3) NOT NULL,\n  \"id\" text NOT NULL,\n  \"nextInboxId\" int4 NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2Session\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Session\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.V2Thread",
+    "label": "Create table \"V2Thread\"",
+    "summary": "Creates table \"V2Thread\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2Thread\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Thread\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2Thread\"",
+        "sql": "CREATE TABLE \"v2\".\"V2Thread\" (\n  \"createdAt\" timestamptz(3) NOT NULL,\n  \"headHash\" text NOT NULL,\n  \"headSeq\" int4 NOT NULL,\n  \"id\" text NOT NULL,\n  \"sessionId\" text NOT NULL,\n  \"visibility\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2Thread\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Thread\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.V2Event.V2Event_id_key",
+    "label": "Add unique constraint on \"V2Event\" (id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "unique",
+        "name": "V2Event_id_key",
+        "table": "V2Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"V2Event_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2Event_id_key",
+          "v2",
+          "\"v2\".\"V2Event\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"V2Event_id_key\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Event\" ADD CONSTRAINT \"V2Event_id_key\" UNIQUE (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"V2Event_id_key\" exists on (id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "V2Event_id_key",
+          "v2",
+          "\"v2\".\"V2Event\"",
+          "u",
+          "[\"id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2Event.V2Event_threadId_type_seq_idx",
+    "label": "Create index \"V2Event_threadId_type_seq_idx\" on \"V2Event\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2Event_threadId_type_seq_idx",
+        "table": "V2Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2Event_threadId_type_seq_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Event_threadId_type_seq_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2Event_threadId_type_seq_idx\"",
+        "sql": "CREATE INDEX \"V2Event_threadId_type_seq_idx\" ON \"v2\".\"V2Event\" (\"threadId\", \"type\", \"seq\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2Event_threadId_type_seq_idx\" exists on \"V2Event\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Event_threadId_type_seq_idx\"",
+          "i",
+          "I",
+          "\"v2\".\"V2Event\"",
+          "btree",
+          "[\"threadId\",\"type\",\"seq\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2Thread.V2Thread_sessionId_idx",
+    "label": "Create index \"V2Thread_sessionId_idx\" on \"V2Thread\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2Thread_sessionId_idx",
+        "table": "V2Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2Thread_sessionId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Thread_sessionId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2Thread_sessionId_idx\"",
+        "sql": "CREATE INDEX \"V2Thread_sessionId_idx\" ON \"v2\".\"V2Thread\" (\"sessionId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2Thread_sessionId_idx\" exists on \"V2Thread\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Thread_sessionId_idx\"",
+          "i",
+          "I",
+          "\"v2\".\"V2Thread\"",
+          "btree",
+          "[\"sessionId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.V2Event.V2Event_threadId_fkey",
+    "label": "Add foreign key \"V2Event_threadId_fkey\" on \"V2Event\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "foreignKey",
+        "name": "V2Event_threadId_fkey",
+        "table": "V2Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"V2Event_threadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2Event_threadId_fkey",
+          "v2",
+          "\"v2\".\"V2Event\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"V2Event_threadId_fkey\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Event\"\nADD CONSTRAINT \"V2Event_threadId_fkey\"\nFOREIGN KEY (\"threadId\")\nREFERENCES \"v2\".\"V2Thread\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"V2Event_threadId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "V2Event_threadId_fkey",
+          "v2",
+          "\"v2\".\"V2Event\"",
+          "f",
+          "[\"threadId\"]",
+          "\"v2\".\"V2Thread\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.V2InboxEntry.V2InboxEntry_sessionId_fkey",
+    "label": "Add foreign key \"V2InboxEntry_sessionId_fkey\" on \"V2InboxEntry\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "foreignKey",
+        "name": "V2InboxEntry_sessionId_fkey",
+        "table": "V2InboxEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"V2InboxEntry_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2InboxEntry_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2InboxEntry\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"V2InboxEntry_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"v2\".\"V2InboxEntry\"\nADD CONSTRAINT \"V2InboxEntry_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"v2\".\"V2Session\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"V2InboxEntry_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "V2InboxEntry_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2InboxEntry\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"v2\".\"V2Session\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.V2Lease.V2Lease_sessionId_fkey",
+    "label": "Add foreign key \"V2Lease_sessionId_fkey\" on \"V2Lease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "foreignKey",
+        "name": "V2Lease_sessionId_fkey",
+        "table": "V2Lease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"V2Lease_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2Lease_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2Lease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"V2Lease_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Lease\"\nADD CONSTRAINT \"V2Lease_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"v2\".\"V2Session\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"V2Lease_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "V2Lease_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2Lease\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"v2\".\"V2Session\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.V2Thread.V2Thread_sessionId_fkey",
+    "label": "Add foreign key \"V2Thread_sessionId_fkey\" on \"V2Thread\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "foreignKey",
+        "name": "V2Thread_sessionId_fkey",
+        "table": "V2Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"V2Thread_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2Thread_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2Thread\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"V2Thread_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Thread\"\nADD CONSTRAINT \"V2Thread_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"v2\".\"V2Session\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"V2Thread_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "V2Thread_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2Thread\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"v2\".\"V2Session\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

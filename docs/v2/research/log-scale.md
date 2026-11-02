@@ -4,6 +4,11 @@ Part of the evidence for [v2](../README.md). A condensed transcription of a read
 of `main` at `f3d629e3`, 2026-11-02. Not a benchmark: costs are engineering estimates. Anchors are
 `file:line` and may drift.
 
+**Sizing note (2026-11-02).** 1M events was a hypothetical stress size. Production's longest thread
+is 7,989 events (8 MB); v2's design target is ~20k events per thread
+([architecture §12](../architecture.md#12-log-scale-history-is-an-archive-current-state-is-a-checkpoint)).
+The offenders below are still O(log) work worth removing where it is trivial.
+
 ## Sizing
 
 Transcripts in a real Atlas session averaged 1.5–5 KB per event, so 1M events is **1.5–5 GB per
