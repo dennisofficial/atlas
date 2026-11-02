@@ -1,7 +1,7 @@
 # Pod-side state census
 
 Part of the evidence for [v2](../README.md). A condensed transcription of a read-only exploration
-of the repository at commit `a18e7413` (2026-11-01). The original listed 92 grouped store families
+of the repository at commit `a0bf4110f` (2026-11-01). The original listed 92 grouped store families
 with full anchors; this is a lower bound, not an exhaustive per-reader/writer census (see
 [Coverage gaps](#coverage-gaps)). Statements marked _(inferred)_ are conclusions, not observations.
 
@@ -13,90 +13,112 @@ shared v1 with pod-aware wrapping.
 
 ## Headline findings
 
-- The pod and the API allocate conversation seqs independently. The flusher has no append-fork
-  recovery ([incident](incident-2026-11-01-seq466.md)).
+- The pod and the API still allocate conversation seqs independently, but the flusher now
+  reconciles an append fork instead of wedging ([incident](incident-2026-11-01-seq466.md) for the
+  old wedge): a 409 with a seq above the durable head invokes `resolveFork`
+  (`S/serve-event-flush.ts:105-125`), which redelivers user-said inputs the API took and the pod
+  never saw, truncates the API below the fork, and re-ships
+  (`S/serve-fork-reconcile.ts:37-54`, `S/serve-fork-ports.ts:85-112`). Redelivery is deferred while
+  the thread is mid-turn (`S/serve-fork-resolution.ts:118-123`, `S/serve-redelivery.ts:164-191`),
+  so a conflict at the wrong moment still returns false — the wedge is narrowed, not gone.
 - **Replication drops event identity.** `H/cloud/pod-event.ts:6-20` strips the pod event id and the
   API mints a new one (`A/api/platform/sandboxes/pod-events.ts:70-85`). The transcript identity
   digest is `[id, seq, type]` (`C/events/event-identity.ts:112-124`), so the pod log and the
   Postgres replica are never identity-equal even when contents match. There are three equality
   notions: API idempotency (content, no id: `pod-events.ts:20-28`), host pod-copy (id:
   `H/pod-thread/local-copy.ts:30-35`) and checkpoint digest (id + seq + type).
-- **Hydration never checks the overlapping prefix.** `S/serve-hydrate.ts:44-50` imports only rows
+- **Hydration never checks the overlapping prefix.** `S/serve-hydrate.ts:48-49` imports only rows
   with seq > local head, so a divergent overlapping row is silently skipped. The mirror writer's
-  `appendFrom` does the same (`H/cloud/mirror-writer.ts:111-116`).
-- **Rebase interception is narrow.** `S/serve-history-mirror.ts:33-55` wraps only `rewind.truncate`,
+  `appendFrom` does the same (`H/cloud/mirror-writer.ts:104-126`). #1642 added one hardening:
+  an unreadable turn-taking row past the head now aborts boot hydration with
+  `HydrationRejected` (`S/serve-hydrate.ts:56-70`) instead of being silently skipped.
+- **Rebase interception is narrow.** `S/serve-history-mirror.ts:27-55` wraps only `rewind.truncate`,
   `compaction.summarise` and `compaction.compact`. Loop-cut
-  (`H/store/sessions/ops/cut-loop.ts:36-65`) truncates and re-appends with new seqs and bypasses it
+  (`H/store/sessions/ops/cut-loop.ts:33-67`) truncates and re-appends with new seqs and bypasses it
   _(inferred: a second fork path)_.
 - **Several head records are read as authority.** `SessionRegistry` uses `max(parsed.head,
-meta.head)`, so metadata participates in allocation.
+meta.head)` (`H/store/sessions/registry.ts:148`), so metadata participates in allocation.
 - **Session meta is a stale second copy.** `H/store/sessions/session-meta.ts:49-64` preserves old
   worktree, PR and spend values instead of refolding them. That explains `pullRequests: null` in
   the incident.
 - Title and model each have pod, API and host copies with fire-and-forget forwarding
-  (`S/serve-rename-forward.ts:17-24`, `S/serve-thread-model-persist.ts:23-33`,
-  `H/pod-thread/rename-mirror.ts:3-9`).
+  (`S/serve-rename-forward.ts:18-25`, `S/serve-thread-model-persist.ts:23-33`,
+  `H/pod-thread/rename-mirror.ts:6-9`).
+- **A new durable blocked/waiting state** (#1644): `ModelWaitState` journals `model-waiting` /
+  `model-wait-cleared` through the normal root-thread allocator, holds the unresolved set as an
+  in-memory projection re-folded from the log
+  (`H/model-recovery/wait-state.ts:35-249`, `C/model-recovery/waiting.ts`,
+  `C/model-recovery/waiting-projector.ts:47-57`), and gates the roster status
+  `WaitingForModel` (`H/agents/registry/child-state.ts:69-83`).
 
 ## Five riskiest ownership seams
 
-1. Concurrent API and pod event allocation. A 409 freezes the flusher cursor forever.
+1. Concurrent API and pod event allocation. A 409 no longer freezes the flusher cursor when
+   `resolveFork` can heal the fork (it truncates the API replica below the fork and re-ships), but
+   an unhealable conflict, a failed truncate, or a deferred redelivery still wedges that flush.
 2. History rewrites (loop-cut) that bypass `mirrorHistoryEdits` and rebase.
 3. Several head and metadata records coexist: JSONL head, thread meta head, session meta, API
    `Thread.head`, host copies, checkpoint head.
 4. Serve rewrites whole cloud-materialized vault, settings and secrets files while harness code
-   mutates the same files. `writeVault` bypasses the AccountStore vault lock (`S/cloud-state.ts:52-73`
+   mutates the same files. `writeVault` bypasses the AccountStore vault lock (`S/cloud-state.ts:52-74`
    vs `H/credentials/account-store.ts`). _(Inferred: lost token refreshes.)_
 5. The context directory is replicated with incompatible delete semantics. The serve → API mirror
-   deletes missing files (`S/context-files-mirror.ts:40-64`); the host mirror is additive
-   (`H/cloud/mirrored-context-files.ts:192-202`). There is no shared revision protocol.
+   deletes missing files (`S/context-files-mirror.ts:51-55`); the host mirror is additive
+   (`H/cloud/mirrored-context-files.ts:192-203`). There is no shared revision protocol.
 
 ## Conversation-seq allocators (every site found)
 
 | Site                                               | Rule                                                                            | Coordination                                     |
 | -------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------ |
 | `H/store/sessions/event-log.ts:174-185`            | head + 1 + index                                                                | in-process `SessionRegistry` queue, no API fence |
-| `H/store/sessions/ops/log-edits.ts:106-120`        | head + 1 + index (loop-cut)                                                     | session queue                                    |
-| `H/store/sessions/thread-store-history.ts:87-103`  | compaction watermark reuses a vacated seq or head + 1                           | session queue                                    |
-| `H/store/sessions/event-log.ts:230-240`            | replacement: fork floor + index + 1                                             | session queue                                    |
+| `H/store/sessions/ops/log-edits.ts:108-118`        | head + 1 + index (loop-cut)                                                     | session queue                                    |
+| `H/store/sessions/thread-store-history.ts:86-103`  | compaction watermark reuses a vacated seq or head + 1                           | session queue                                    |
+| `H/store/sessions/event-log.ts:229-241`            | replacement: fork floor + index + 1                                             | session queue                                    |
 | `A/api/platform/sessions/append.ts:177-199`        | reserve a batch by bumping `Thread.head` (`thread-head.ts:10-32`, `FOR UPDATE`) | Postgres transaction, independent of the pod     |
 | `A/api/platform/sessions/events.service.ts:97-118` | API replacement: index + 1, head = row count                                    | Postgres transaction                             |
 
 Not a conversation seq: `S/frame-buffer.ts:43-47` (a transport replay counter).
 
 Sequence-preserving (non-allocating) paths: `H/store/sessions/thread-places.ts:148-204`,
-`H/cloud/mirror-writer.ts:76-145`, `S/serve-hydrate.ts:48-81`,
-`T/composition/cloud/local-transcript-files.ts:70-93`, `A/api/platform/sandboxes/pod-events.ts:54-94`,
-rewind truncation (`ops/log-edits.ts:48-85`).
+`H/cloud/mirror-writer.ts:76-147`, `S/serve-hydrate.ts:47-81`,
+`T/composition/cloud/local-transcript-files.ts:70-93`, `A/api/platform/sandboxes/pod-events.ts:38-101`,
+rewind truncation (`ops/log-edits.ts:48-83`).
 
 Incident path: `ThreadMessagesService.send` → `appendAndClaim` → `appendUserSaid` →
 `appendStoredWithin` → `advanceHead` → `Event.createAndCount`
 (`A/api/cloud/sandbox-provisioning/thread-messages.service.ts:56-67,120-147`,
 `thread-message-queue.ts:33-51`, `A/api/platform/sessions/append.ts:159-207`). The socket send goes
-`S/socket-commands.ts:71-82` → `driver.say` → the local allocator.
+`S/socket-commands.ts:71-82` → `driver.say` → the local allocator. #1649 adds the recovery path
+beside it: `EFlushReply.Conflict` → `resolveForkFor` → `orphanedInputsOf` → redeliver →
+`truncateEvents` → re-ship (`S/serve-event-flush.ts:95-125,175-190`,
+`C/events/fork-orphans.ts:9-74`).
 
 ## Append entry points
 
 All delegate to the normal JSONL allocator unless noted.
 
 - **Serve/TUI**: `S/turn-commit.ts:34`, `S/child-send.ts:49`, `S/workspace-hooks.ts:102`,
-  `S/serve-resume-boot.ts:51`, `S/serve-boot-app.ts:133`, `S/serve-lifecycle.ts:115`,
+  `S/serve-resume-boot.ts:51`, `S/serve-boot-app.ts:136`, `S/serve-lifecycle.ts:115`,
   `S/container-notice-events.ts:37`, `T/composition/use-driven-turn.ts:69`,
   `T/composition/directory-move.ts:56`, `T/composition/live-cloud.ts:130`.
-- **Loop**: `H/loop/run-turn.ts:203`, `tracked-turn.ts:86,269,275`, `resume-turn.ts:26`,
+- **Loop**: `H/loop/run-turn.ts:206`, `tracked-turn.ts:85,259,265`, `resume-turn.ts:26`,
   `pending-intake.ts:45`, `dispatch-recovery.ts:41`, `settle-pending.ts:62,97`,
   `recorded-failures.ts:20`, `turn-faults.ts:86`, `close-quiet-step.ts:82,86`,
   `shell-completion.ts:21`, `tldr-turn-runner.ts:93`, `loop-watchdog.ts:177-221`.
-- **Agents**: `H/agents/registry/agent-journal.ts:33`, `open-child.ts:47`, `say.ts:110,115`,
+- **Agents**: `H/agents/registry/agent-journal.ts:33`, `open-child.ts:47`, `say.ts:110`,
   `record-restart.ts:22`, `pending-endings.ts:31`, `pause-thread-children.ts:84`,
   `lost-children.ts:41`, `relocate-children.ts:120`.
+- **Model recovery (new since `a18e7413`)**: `H/model-recovery/wait-state.ts:205`
+  (`model-waiting` / `model-wait-cleared`, always on the root thread).
 - **Other**: `H/shells/journal.ts:232`, `H/services/service-journal.ts:113`,
   `H/services/recovery.ts:74`, `H/subscriptions/journal.ts:124`,
-  `H/subscriptions/pr-event-journal.ts:49`, `H/operator-input/registry.ts:246`,
+  `H/subscriptions/pr-event-journal.ts:49` (ack-on-append since #1642),
+  `H/operator-input/registry.ts:246`,
   `H/composition/flush-session-input.ts:16`, `session-teardown.ts:71`, `worktree-claims.ts:181`,
   `directory-move.ts:54`, `turn-policy-runner.ts:194`, `H/store/sessions/thread-store.ts:131`,
   `H/store/relocate-session.ts:42`, `H/store/rewind.ts:107`, `H/channel/dismiss-run-failure.ts:9`,
-  `publishing-turn-runner.ts:34`.
-- **Own allocator**: loop-cut (`cut-loop.ts:54,56` → `log-edits.ts:108-127`). **Stamped**:
+  `H/channel/publishing-turn-runner.ts:34`.
+- **Own allocator**: loop-cut (`cut-loop.ts:54,56` → `log-edits.ts:88-118`). **Stamped**:
   compaction (`thread-store-history.ts:98,106`).
 
 ## Store families (condensed; 92 in the original)
@@ -132,6 +154,10 @@ All delegate to the normal JSONL allocator unless noted.
 - Service logs, pod SSH signing key and allowed signers, file mounts and git exclude, cloudflared
   state, TUI dev-serve cache, reaper failure marker, `SESSION/.postgres-upload.json` (stamps
   without prefix verification).
+- Model wait episodes (`model-waiting` / `model-wait-cleared` rows in the root thread's log, new
+  since `a18e7413`, #1644): blocked/unavailable model episodes fold out of the log, so they survive
+  pod rotation and replicate like any other event (M). Their admission inputs still live in the
+  credential vault and availability caches above.
 
 **In-memory registries and caches (49–82)**
 `SessionRegistry` (the cached head drives allocation), place readers, settings service, cloud
@@ -142,12 +168,16 @@ caches, MCP handle store, skill registry, tool and prompt registries, plugin pro
 steps and recovery, pending operator messages (not durable until appended), `MessageIntake`,
 operator input, shell and service registries, journals and supervisor, `SubscriptionRegistry` and
 delivery buffers, `PlacementController` / `SessionOwner` (expected revision, but no API writer
-fence), `DeltaChannel`.
+fence), `DeltaChannel`, `ModelWaitState` (new since `a18e7413`: held/pending episode maps plus
+per-root serialization and flush promises, re-folded from the log on open).
 
 **Serve/TUI surface (83–92)**
-Flusher durable cursor (not persisted, rebuilt at boot), context flush, checkpoint capture,
+Flusher durable cursor (not persisted, rebuilt at boot; #1649 adds a deferred fork resolution — no
+durable pending-reconcile record), context flush, checkpoint capture,
 `FrameBuffer` (2048 frames, resets on restart), socket sessions and committed-send dedupe
-(memory-only), turn driver latches, TUI `ConversationStore`, composer draft sync (failures
+(memory-only), `RedeliveryHolder` (new since `a18e7413`: indirection binding the driver for fork
+redelivery, memory-only), turn driver latches (now including relocation-unwind bookkeeping,
+#1646), TUI `ConversationStore`, composer draft sync (failures
 swallowed), TUI composition caches, diagnostics.
 
 ## Coverage gaps

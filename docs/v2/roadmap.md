@@ -1,28 +1,59 @@
 # Atlas v2 roadmap
 
-Ordered slices. Status: **nothing started.** Each slice gets its own spec (goal, interfaces,
-schemas, tests, file-level plan) _before_ it is built; this file holds only the order, the goal and
-the exit criterion. The design is in [architecture.md](architecture.md).
+Ordered slices, the current state, and how the work moves between sessions. The design is in
+[architecture.md](architecture.md); the package map is [0019](../decisions/0019-v2-package-map.md).
 
-Ordering rule (D7): web and mac with a cloud pod come first, because that is the daily driver and
-where the incident happened. Local slices follow, and D2 (the local control plane) must be settled
-before slice 7.
+## How v2 is built: one slice per session
 
-| #   | Slice                     | Goal                                                                                                                                                                                                               | Exit criterion                                                                                                                                                |
-| --- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0   | Design and records        | Lock the decisions; write the design docs                                                                                                                                                                          | These docs and decision [0018](../decisions/0018-v2-pod-first-architecture.md) are merged. Protocol spec and per-slice specs are written as each slice starts |
-| 1   | Record core               | The durable record, inbox and leases exist as pure rules plus a storage-agnostic `control` library with a Postgres adapter in the v2 storage; settle schema-or-prefix (D6) and the append-only history events (P5) | Property tests pass for the seq-466 interleaving, stale-epoch writes, hash mismatch and append-only rewind; the v2 storage migrates cleanly beside v1         |
-| 2   | Cloud pod runtime         | A cloud pod holds a lease, runs the existing loop against the record ports, appends hash-chained events and consumes the inbox                                                                                     | A cloud pod on v2 completes a scripted multi-turn session with tools; a second writer attempt at the same seq is rejected                                     |
-| 3   | Views                     | Status, branch, worktree, PR links and subscriptions summary are folds in `core`, materialized by the CP at a log position                                                                                         | Every field the v1 clients derive by heuristic is a view or shown as unknown; the incident's branch and PR link appear from the log alone                     |
-| 4   | Web and Mac on v2 (cloud) | Send through the inbox; transcript from the record plus direct deltas; one session stream; sidebar from view rows                                                                                                  | **First milestone:** a real cloud session on v2 from the web, with basic chat and tools, resumable after the stream drops and after a park                    |
-| 5   | Features, one at a time   | Move sub-agents, shells and services, subscriptions and PR, memory, previews onto the feature-package shape (D5)                                                                                                   | Each feature, on its own, runs on v2 with its events, views, commands, runtime and control handlers registered; no feature imports another                    |
-| 6   | Hardening and daily use   | Use v2 for the maintainer's own cloud work; close the gaps that surfaces                                                                                                                                           | A defined period of daily work on v2 with no manual repair of a session                                                                                       |
-| 7   | Local                     | A docker pod against a control plane; then `atlasd` (D2) so the Mac host and the TUI use the same `control` library over SQLite; then the TUI on v2                                                                | A local session runs on v2 from Mac and from the TUI, offline, in exactly one control plane                                                                   |
-| 8   | v1 retirement             | Remove v1 once v2 has proven itself                                                                                                                                                                                | The maintainer decides; cutover moves everything to v2 (D6)                                                                                                   |
+Each slice is built in its own Atlas session and handed to a fresh session when it is done.
+
+1. **Start.** Read [README.md](README.md), then this file's [Current state](#current-state), then
+   the slice's spec in [slices/](slices/). If the spec does not exist, writing it is the first job,
+   and the operator approves it before building starts.
+2. **Build.** One branch and one or more PRs per slice. Every PR merges to `main` with v1 still
+   working, because v1 is the daily driver. A slice that touches v1 code (an extraction) changes
+   no v1 behaviour.
+3. **Verify.** The slice's exit criterion holds, CI is green, and the operator restarts and tests
+   v1 after the merge.
+4. **Update the docs in the same PR as the code.** Mark the slice done below, write what the next
+   session must know under Current state, and fix any doc the code proved wrong. `docs/v2` is the
+   only handover that survives: cloud session scratch and `/tmp` do not.
+5. **Hand off.** Run the handoff skill. The handoff doc points at these files; it does not repeat
+   them.
+
+## Current state
+
+_Updated at the end of every slice. Last update: 2026-11-02._
+
+- **Done:** slice 0 (design). Decision 0018 accepted, 0019 (package map) proposed; D6 storage verified (Prisma 8
+  `namespace v2`); research censuses refreshed to `a0bf4110`.
+- **Next:** slice 1, record core. Its spec is drafted at
+  [slices/01-record-core.md](slices/01-record-core.md) and needs the operator's approval before
+  building starts.
+- **Open:** D2 (local control plane), needed only at slice 9.
+- **v1 fixes found while doing v2** (shipped separately): #1649 append-fork reconcile; #1651
+  fault-killed sub-agents end once; #1653 sub-agent session-index race (a sibling's mirror write
+  could put a sub-agent in an empty session); a pending fix keeps atlas-serve out of the OOM
+  killer's path and ahead of workloads on CPU (the v1 half of architecture §11).
+
+## Slices
+
+| #   | Slice                       | Goal                                                                                                                                                                       | Exit criterion                                                                                                                                       | State       |
+| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 0   | Design and records          | Lock the decisions; write the design docs                                                                                                                                  | 0018, 0019 and these docs merged                                                                                                                     | Done        |
+| 1   | Record core                 | Pure log/inbox/lease/history rules in `core`; the `control` package with a Postgres adapter over `namespace v2`                                                            | Property tests pass for the seq-466 interleaving, stale-epoch writes, hash mismatch and append-only rewind; the v2 schema migrates cleanly beside v1  | Spec drafted |
+| 2   | `agent` package             | Extract the loop (turn runner, retries, intake, tool dispatch, model port) from `harness` into `packages/agent`; v1 imports it                                            | `harness` re-exports or imports `agent`; no v1 behaviour change; the loop runs in a test with no pod, lease or filesystem store                       | Not started |
+| 3   | Pod host (cloud)            | `packages/pod` holds a lease, runs `agent` against the record ports, appends hash-chained events, consumes the inbox; v2 pod ⇄ CP schemas in `protocol`; v2 API namespace | A cloud pod on v2 completes a scripted multi-turn session with tools; a second writer at the same seq is rejected; under a CPU and memory hog the lease never lapses, stop lands, and the watchdog kills the hog, not the harness (architecture §11) | Not started |
+| 4   | Views                       | Status, branch, worktree, PR links and subscriptions summary are folds in `core`, materialized by the CP at a log position                                                 | Every field v1 clients derive by heuristic is a view or shown as unknown; the incident's branch and PR link appear from the log alone                | Not started |
+| 5   | Client SDK, web and Mac     | `packages/client` session stream, view cache and inbox commands; web and Mac open v2 sessions behind the `engine: v2` flag                                                 | **First milestone:** a real cloud session on v2 from the web, with basic chat and tools, resumable after the stream drops and after a park            | Not started |
+| 6   | `plugin-sdk` and `commands` | The type-level event registry and plugin contract; the `commands` package and the `commands/` root with the native commands as inbox commands rendered on web and TUI      | A command defined once runs from web and TUI; a plugin's events are exhaustively typed without editing `core`                                         | Not started |
+| 7   | Plugins, one at a time      | Move crew (sub-agents and teammates), shells and services, subscriptions and GitHub, memory, previews into `plugins/` (one spec each)                                     | Each plugin runs on v2 with all its slots registered; no plugin imports another                                                                      | Not started |
+| 8   | Hardening and daily use     | Use v2 for the maintainer's own cloud work and close the gaps                                                                                                              | A defined period of daily work on v2 with no manual repair of a session                                                                              | Not started |
+| 9   | Local                       | A docker pod against a control plane; then `atlasd` (D2) over SQLite; then the TUI on v2                                                                                   | A local session runs on v2 from Mac and the TUI, offline, in exactly one control plane                                                              | Not started |
+| 10  | v1 retirement               | Remove v1 once v2 has proven itself                                                                                                                                        | The maintainer decides; cutover moves everything to v2                                                                                               | Not started |
 
 Notes:
 
-- Slice 5 is one spec per feature, not one spec for the slice.
-- Slices 1 and 2 may overlap once the record core's interfaces are fixed in its spec.
-- The v1 stopgap for the incident ships independently of this roadmap.
-- The exit criteria are the bar for calling a slice done; the specs may add stricter ones.
+- Slices 1 and 2 are independent and may swap order; slice 3 needs both.
+- Slice 7 is one spec and usually one session per plugin.
+- The exit criteria are the bar for calling a slice done; a spec may add stricter ones.

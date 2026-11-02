@@ -123,9 +123,10 @@ stop is both: a direct hint for latency and a durable inbox entry for truth.
 **P8. Features are modules with a contract.** A feature (GitHub/PR, subscriptions, shells,
 services, sub-agents, memory, previews) declares:
 `events` (schemas it emits) · `views` (pure folds) · `commands` (inbox entries it accepts) ·
-`runtime` (pod handlers) · `control` (CP handlers: observations, side effects) · `transport` (none,
-or which stream). It is registered the way ports are today, and typecheck fails if a slot is
-missing. "Native plugins" are features built on the same contract. §7 gives the package shape.
+`pod` (pod handlers) · `control` (CP handlers: observations, side effects) · `client` (headless
+client state) · `transport` (none, or which stream). It is registered the way ports are today, and
+typecheck fails if a slot is missing. Native plugins and native commands are built on this
+contract. §7 gives the package shape.
 
 ## 5. Protocol: one, three directions
 
@@ -166,48 +167,61 @@ missing. "Native plugins" are features built on the same contract. §7 gives the
 
 ## 7. Package shape
 
-A package boundary exists only where the compiler must enforce a rule (D5). Two kinds.
+Fixed by [0019](../decisions/0019-v2-package-map.md), which amends D5. Foundations live in
+`packages/`; native plugins in a top-level `plugins/`; native commands in a top-level `commands/`.
+Bun runs TypeScript raw, so a package costs no build step; the maintainer prefers a few large,
+cohesive packages where each feature's code sits in one place.
 
-**Platform packages**
+**Foundation packages (`packages/`)**
 
-| Package    | Owns                                                                                                                                                                                     |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core`     | Pure, as today, plus the log/inbox/lease _rules_ (pure state machines)                                                                                                                   |
-| `protocol` | Wire schemas for the three directions (today's `wire`, re-cut)                                                                                                                           |
-| `runtime`  | The loop host for a pod: holds a lease, appends locally, replicates, consumes the inbox. Today's harness loop moves here. The same code runs in a cloud pod, a docker pod and in-process |
-| `control`  | The CP core as a storage-agnostic library: record, inbox, leases, view materialization. Adapters: Postgres (cloud, hosted by `apps/api`) and SQLite (local, in `atlasd`, D2)             |
-| `client`   | The client SDK shared by web, Mac and TUI: session stream, view cache, commands                                                                                                          |
+| Package      | Owns                                                                                                                       |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `core`       | Pure shared vocabulary: ids, event envelope, assembly, and the record rules (log, inbox, lease, history folds)             |
+| `protocol`   | Wire schemas for the three directions (today's `wire`, without sandbox provisioning I/O or the ticket HMAC implementation) |
+| `agent`      | The loop every agent runs: turn runner, retries, intake, tool dispatch, model port. Knows nothing about pods or leases     |
+| `pod`        | Hosts agents in a pod: holds the lease, local record cache, replication, inbox consumption (0018 called this `runtime`)    |
+| `control`    | The CP library: record, inbox, leases, view materialization. Adapters: Postgres (hosted by `apps/api`), SQLite (D2)        |
+| `client`     | The client SDK and headless React hooks shared by web, TUI and Mac: session stream, view cache, commands                   |
+| `plugin-sdk` | The plugin contract (slots), the type-level registries and the loader; native and repo plugins share it                    |
+| `commands`   | The command contract: spec, arguments, registry, dispatch as inbox commands, the shared command menu and its hooks          |
+| `settings`   | Settings schema and resolution (pure) plus per-tier subpaths; plugins contribute keys                                      |
 
-**Feature packages.** A feature becomes a package when it has parts in at least two tiers. Every
-feature package has the same shape:
+`ui`, `db` and `models` are unchanged.
 
-| Subpath     | Holds                                            |
-| ----------- | ------------------------------------------------ |
-| `/core`     | The feature's events and its pure folds (views)  |
-| `/runtime`  | The pod-side handlers                            |
-| `/control`  | The CP-side handlers: observations, side effects |
-| `/protocol` | The feature's wire schemas                       |
+**Plugins (`plugins/<name>/`).** One workspace package per native plugin (github, subscriptions,
+shells, services, crew, memory, previews). Every plugin has the same subpaths:
+
+| Subpath    | Holds                                                          |
+| ---------- | -------------------------------------------------------------- |
+| `/core`    | The plugin's events, pure folds (views) and command specs      |
+| `/pod`     | Pod-side handlers: tools, hooks, inbox command handlers        |
+| `/control` | CP-side handlers: observations, side effects                   |
+| `/client`  | Headless client state and hooks; rendering in `web` and `tui`  |
+
+**Commands (`commands/`).** One workspace package with a folder per native session command: `spec.ts`,
+`pod.ts` (the handler, run in the pod from an inbox command), `client.ts` (headless hooks),
+`web.tsx` and `tui.tsx` (rendering; Mac renders the web build). A command that belongs to a feature
+lives in that plugin on the same contract.
 
 Rules:
 
-- Feature packages never import each other. Anything two features share belongs in a platform
-  package.
-- Apps compose: an app (`apps/api`, `apps/serve`, `apps/web`, the TUI, the Mac host) imports the
-  feature subpaths its tier needs and registers them. The type-level registry (P8) fails typecheck
-  if a feature is registered without its slots.
-- A feature with parts in only one tier stays a folder inside the platform package of that tier.
-- Names and exact subpaths are fixed by each slice's spec, not here. Bun runs TypeScript raw, so
-  extra packages cost no build step; the maintainer prefers fewer, larger, cohesive packages over
-  many small ones.
+- Plugins never import each other. Anything two plugins share belongs in a foundation package.
+- Every command is an inbox command handled in the pod, so it behaves identically on every client.
+- Apps compose: each app imports the tier subpaths it needs and registers them. The type-level
+  registry (P8) fails typecheck if a plugin is registered without its slots.
+- Tier boundaries are enforced by subpath exports plus a restricted-import lint rule.
+- Before any feature event leaves `core`, `plugin-sdk` provides a type-level event registry so the
+  exhaustive switches over `EventBody` stay exhaustive.
 
 ## 8. Running v1 and v2 side by side
 
 - v2 is a session kind (`engine: v2`) chosen at creation, behind a flag. v1 sessions run v1 code
   until they end. Nothing migrates; v2 starts empty, as [0012](../decisions/0012-cloud-state-starts-empty.md)
   did for pods.
-- **Storage is separate (D6).** v2 uses a Postgres `v2` schema if Prisma 8 supports it
-  (`db.orm.v2.*`); otherwise `V2`-prefixed models. This is checked in the first slice. No table has
-  a v1 writer and a v2 writer.
+- **Storage is separate (D6).** v2 uses a Postgres `v2` schema via Prisma 8's first-class
+  `namespace v2 { ... }` blocks (verified on the repo's pins, rc.24 CLI / rc.19 adapter:
+  `prisma migration plan` emits `createSchema({ schema: 'v2' })`, the client is `db.orm.v2.*`).
+  The `V2`-prefixed-model fallback is not needed. No table has a v1 writer and a v2 writer.
 - **Endpoints are separate (D6).** v2 routes live under their own namespace. v1 routes are not
   changed for v2's sake.
 - **At cutover everything goes v2.** There is no permanent dual mode and no per-table migration
@@ -219,28 +233,19 @@ Rules:
   those are the first v2 targets (D7) and v1 cloud keeps running next to them. The in-process v1
   TUI keeps working until v2 local has proven itself on real work. Nothing in v1 is removed before
   then.
-- **v1 stopgap.** v1 can still wedge the way it did on 2026-11-01. A small v1 change, tracked
-  outside v2, makes the pod reconcile an append fork with the API instead of wedging: the pod
-  re-delivers any API-taken message it never saw through its own allocator, then the API replica
-  is truncated below the fork and the pod's log is re-shipped. It applies P2 to v1 and is deleted
-  with v1.
+- **v1 stopgap (shipped, #1649).** The pod reconciles an append fork with the API instead of
+  wedging: it re-delivers any API-taken message it never saw through its own allocator, truncates
+  the API replica below the fork and re-ships its log. It applies P2 to v1 and is deleted with v1.
+  The wedge is narrowed, not gone: a failed truncate, a repeated conflict after healing, and the
+  in-memory mid-turn deferral window can still stall a flush
+  ([pod-side-state](research/pod-side-state.md)).
 
 ## 9. Order of work
 
-Outline only; [roadmap.md](roadmap.md) has the slices and exit criteria, and each slice gets a
-spec before it is built.
-
-1. Record core: pure log/inbox/lease state machines in `core`, the `control` library and the
-   Postgres adapter in the v2 storage. Property tests include the seq-466 interleaving,
-   stale-epoch writes and hash mismatch.
-2. Runtime v2 host in a cloud pod, running the existing loop against the record ports.
-3. Core views (status, branch, PR links, subscriptions) materialized by the CP.
-4. Web and Mac on v2 for cloud sessions: send via the inbox, transcript from the record plus
-   direct deltas. **First milestone: a real cloud session on v2 from the web, with basic chat and
-   tools.**
-5. Features move one at a time: sub-agents, shells/services, subscriptions/PR, memory, previews.
-6. Local: a docker pod against a control plane, then `atlasd` (D2), then the TUI on v2.
-7. v1 retirement, when the maintainer decides.
+[roadmap.md](roadmap.md) has the slices, their exit criteria, the current state and the
+session-per-slice workflow. Each slice gets a spec in [slices/](slices/) before it is built, and
+merges to `main` with v1 still working, so it can be tested between sessions. The first milestone
+is a real cloud session on v2 from the web, with basic chat and tools.
 
 ## 10. Risks
 
@@ -248,8 +253,48 @@ spec before it is built.
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | The rewrite stalls and two systems need upkeep                | v1 and v2 both need fixes for as long as they coexist                                                                                         | Shared logic stays one copy; the first milestone is usable early; features move one at a time              |
 | Sub-agent families                                            | One session holds several thread logs under one lease. Each log needs the same append rules, and spawn and ending must be events in both logs | Settled in the sub-agents slice spec before it is built; the record core must not assume one log per lease |
-| Rewind as append-only (P5)                                    | Touches assembly rules and `docs/core-contract.md`; the highest-semantic-risk change                                                          | Specified and property-tested in slice 1, before any runtime depends on it                                 |
+| Rewind as append-only (P5)                                    | Touches assembly rules and `docs/core-contract.md`; the highest-semantic-risk change                                                          | Specified and property-tested in slice 1, before the pod host depends on it                                 |
 | Vercel serverless limits (no long WebSocket; SSE about 240 s) | Streams drop routinely                                                                                                                        | Cursors on every stream; reconnect is the normal path                                                      |
 | Interim v1 pain                                               | v1 can wedge the same way while v2 is built                                                                                                   | The v1 stopgap (§8)                                                                                        |
-| The v2 schema is not supported by Prisma 8                    | Changes the shape of D6 storage                                                                                                               | The fallback (`V2`-prefixed models) is already decided; checked in slice 1                                 |
+| ~~The v2 schema is not supported by Prisma 8~~ (retired)      | Verified 2026-11-01: Prisma 8 namespaces work on the repo's pins; `db.orm.v2.*` and a managed `v2` Postgres schema in the same migration graph | None needed; D6 uses `namespace v2` blocks directly                                                        |
 | D2 stays open too long                                        | The local slices cannot be specified                                                                                                          | D2 is needed only at the local slice; cloud slices do not depend on it                                     |
+| A saturated pod starves the harness                           | Slow streaming and sends, missed lease renewals (a live pod fenced, the session flapping), the harness OOM-killed before the workload         | §11: OOM and CPU priority, a memory watchdog, lease renewal and stop that do not wait on the loop          |
+
+## 11. Pod resources: the harness outranks its workloads
+
+A pod runs two kinds of process: the **harness** (the `pod` host and the `agent` loop it runs) and
+the **workloads** the agent starts (shells, services, test runs, builds). They share the pod's CPU,
+memory and disk. When a workload saturates the pod, the model call is unaffected (it runs remotely),
+but everything the harness does locally slows: streaming, sends, event writes, flushes, lease
+renewal and stop. In v1 the harness is also the kernel's first OOM victim (it has the largest
+footprint and `oom_score_adj` 500). This is OS-level isolation, not a package boundary.
+
+What a Vercel pod allows (probed 2026-11-02, as root): `oom_score_adj` and negative nice work;
+cgroup v2 delegates `cpu`, `cpuset` and `pids` to child groups but not `memory` or `io`; there is no
+PSI (`/proc/pressure`). So memory cannot be capped per group and must be policed by the harness.
+
+**R1. The harness survives.** The harness runs at a strongly negative `oom_score_adj`; every
+workload starts with a high one, so the kernel kills workloads first. (v1 fix, carried into `pod`.)
+
+**R2. The harness keeps CPU.** Workloads run at lower priority than the harness (nice, or a
+low-`cpu.weight` cgroup), and the workload group has a `pids.max` so a fork bomb cannot take every
+process slot. Workload output is read in bounded chunks so a noisy process cannot monopolise the
+harness's event loop.
+
+**R3. A memory watchdog acts before the kernel does.** Without a per-group memory limit, the
+`pod` host watches available memory. Below a threshold it kills the largest workload process group
+and appends an event saying which workload was killed and why, so the agent sees it in its context
+and the operator in the transcript.
+
+**R4. Liveness does not wait on the loop.** Lease renewal runs on its own timer, independent of
+turn progress, and its TTL is sized for a saturated pod, so a busy pod is never fenced as dead.
+Stop arrives twice (P7): the direct hint makes the pod kill the running tool's process group at
+once rather than at the loop's next step, and the inbox entry is the durable record of it.
+
+**If the harness dies anyway**, the design absorbs it: the record is in the control plane, the
+lease expires, and a new pod resumes at the next epoch with nothing forked. At most the unflushed
+tail is lost, bounded by the flush cadence. In v1 the same death wedges or loses the session.
+
+Thresholds, TTLs and the priority mechanism are fixed in the slice 3 spec and measured on a
+saturated pod, not chosen here.
+

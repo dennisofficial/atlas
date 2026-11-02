@@ -4,13 +4,16 @@
 local and in the cloud: client ⇄ control plane ⇄ pod. The business logic (loop, tools, providers,
 assembly, compaction, prompts, hooks, skills, sub-agents) carries over; who owns what changes.
 
-**Status: design, not built.** Nothing in `docs/v2/` exists in code yet. The decisions are
-accepted ([0018](../decisions/0018-v2-pod-first-architecture.md)) except D2 (the local control
-plane), which has a recommendation and is still open. Each slice in the [roadmap](roadmap.md) gets
-its own spec before it is built.
+**Status: design done, nothing built yet.** Decisions
+[0018](../decisions/0018-v2-pod-first-architecture.md) and
+[0019](../decisions/0019-v2-package-map.md) (proposed) are the design, except D2 (the local control plane),
+which is still open. Each slice in the [roadmap](roadmap.md) gets a spec in [slices/](slices/)
+before it is built.
 
-**Start here:** read [architecture.md](architecture.md), then [roadmap.md](roadmap.md). The
-research files are the evidence the design rests on.
+**Start here (every new session):** read this file, then [roadmap.md](roadmap.md) (its _Current
+state_ says what to do next and how slices move between sessions), then the next slice's spec.
+Read [architecture.md](architecture.md) for the design. The research files are the evidence it
+rests on.
 
 ## Why v2 exists
 
@@ -32,24 +35,26 @@ v2 changes who owns what.
   everything goes v2.
 - Business logic that v2 shares with v1 is extracted into runtime-agnostic packages as each feature
   moves, and v1 imports the extracted code too. There is one copy of the logic.
-- The v1 stopgap for the incident is a separate v1 change: the pod reconciles an append fork
-  instead of wedging its event flush. It applies the v2 rule (the holder pod is the only seq
-  allocator; input the API took is re-delivered through the pod) to v1 without a redesign. It is
-  not part of v2 and is deleted with v1.
+- The v1 stopgap for the incident shipped as #1649: the pod reconciles an append fork instead of
+  wedging its event flush. It applies the v2 rule (the holder pod is the only seq allocator; input
+  the API took is re-delivered through the pod) to v1 without a redesign. It is not part of v2 and
+  is deleted with v1.
 
 ## Contents
 
 | File                                                                                             | What it is                                                                                                               |
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | [architecture.md](architecture.md)                                                               | The authoritative v2 design: principles P1–P8, tiers, protocol, state ownership, package shape, side-by-side plan, risks |
-| [roadmap.md](roadmap.md)                                                                         | Ordered slices, each with a goal and an exit criterion                                                                   |
+| [roadmap.md](roadmap.md)                                                                         | Current state, the session-per-slice workflow, and the ordered slices with exit criteria                                 |
+| [slices/](slices/)                                                                               | One spec per slice, written and approved before the slice is built                                                       |
+| [../decisions/0019-v2-package-map.md](../decisions/0019-v2-package-map.md)                       | The package map: foundations in `packages/`, plugins in `plugins/`, native commands in `commands/`                       |
 | [../decisions/0018-v2-pod-first-architecture.md](../decisions/0018-v2-pod-first-architecture.md) | The decision record for the locked decisions                                                                             |
 | [research/incident-2026-11-01-seq466.md](research/incident-2026-11-01-seq466.md)                 | The incident that triggered the redesign                                                                                 |
 | [research/pod-side-state.md](research/pod-side-state.md)                                         | Census of pod-side state: seq allocators, store families, ownership seams                                                |
 | [research/control-plane-state.md](research/control-plane-state.md)                               | Census of control-plane (API, Postgres, Redis) and client state                                                          |
 | [research/wire-surface.md](research/wire-surface.md)                                             | Census of the wire: protocols, procedures, duplicated paths                                                              |
 
-The censuses are static reads of the repository at commit `a18e7413`, not live captures. Their
+The censuses are static reads of the repository at commit `a0bf4110`, not live captures. Their
 `file:line` anchors may have moved on `main`; re-check an anchor before relying on it.
 
 ## Decisions at a glance
@@ -60,6 +65,6 @@ The censuses are static reads of the repository at commit `a18e7413`, not live c
 | D2  | Local control plane: a daemon (`atlasd`) running the same `control` library over SQLite  | **Open**, recommended |
 | D3  | The log is append-only; history edits are appended events                                | Locked                |
 | D4  | Every durable input goes through the control-plane inbox                                 | Locked                |
-| D5  | Platform packages plus feature packages with a fixed shape                               | Locked                |
-| D6  | v2 storage and endpoints are separate from v1                                            | Locked                |
+| D5  | Foundation packages plus plugins with a fixed shape (package map: 0019)                  | Locked                |
+| D6  | v2 storage and endpoints are separate from v1 (Prisma 8 `namespace v2`, verified)        | Locked                |
 | D7  | First target: web/mac with a cloud pod                                                   | Locked                |
