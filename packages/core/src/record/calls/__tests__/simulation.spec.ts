@@ -9,7 +9,7 @@ import {
   runSchedule,
   type EFlags,
   type Step,
-} from './simulation'
+} from './sim-explore'
 
 const runExploration = (args: {
   callCount: 1 | 2
