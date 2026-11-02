@@ -40,10 +40,19 @@ grace caps at 300 s, so every API merge would cut every running turn. A separate
 rarely and hands off leases within the grace.
 
 **Workers hold the per-session leases of P4.** There are N replicas. The §13 reconciler places
-sessions on workers. On SIGTERM a worker stops at the next step boundary and releases its leases;
-a new holder resumes from the record at the next epoch. An in-flight tool call becomes
-"dispatched, effects unknown" and is recovered the way v1 dispatch recovery does. An in-flight
-model stream is retried.
+sessions on workers.
+
+**A worker restart is a clean handoff.** On SIGTERM a worker takes no new sessions and pauses
+every loop it holds. A loop between steps pauses at once. A loop waiting on the model aborts the
+stream when the drain deadline (inside Render's 300 s grace) nears; the partial output is
+discarded and the new holder asks again. A loop waiting on a tool does not abort it: the tool runs
+in the sandbox daemon, which keeps it running and keeps its result under the call's idempotency key
+(`runId:callId`) until a holder confirms receipt. The worker then releases its leases, and a new
+holder resumes from the record at the next epoch and collects any pending result instead of
+re-running the call. Only an in-flight model stream is lost. "Dispatched, effects unknown" (v1
+dispatch recovery) remains only for a sandbox that dies. The `agent` loop's existing pause
+(`PauseSignal`, checked at every step boundary) becomes a general handoff pause, and its
+`RelocationPaused` outcome is renamed for that purpose in slice 3.
 
 **Input wake and live deltas go through the CP.** The API writes the inbox; the holder is
 notified through pub/sub (Redis, which v1 already runs). Render's load balancer assigns a
