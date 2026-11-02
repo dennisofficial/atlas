@@ -60,6 +60,15 @@ jobs:
             exit 1
           fi
 
+      - name: generated plugin types match the sources
+        run: |
+          bun run --cwd packages/harness plugin-types:generate
+          if [ -n "$(git status --porcelain packages/harness/src/plugin-types)" ]; then
+            git --no-pager diff packages/harness/src/plugin-types
+            echo "::error::packages/harness/src/plugin-types is stale; run 'bun run --cwd packages/harness plugin-types:generate' and commit it"
+            exit 1
+          fi
+
       - name: build binary
         run: bun run build
 
