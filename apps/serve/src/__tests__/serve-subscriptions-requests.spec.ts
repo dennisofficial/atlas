@@ -98,7 +98,11 @@ const greeted = async (subscriptions?: ServeSubscriptions) => {
     inFlight: () => [],
     liveStepId: () => null,
     driver: untouchedDriver(),
-    files: { list: async () => [], read: async () => refusedFile },
+    files: {
+      list: async () => [],
+      read: async () => refusedFile,
+      search: async () => ({ paths: [], truncated: false }),
+    },
     refusal: () => null,
     log: () => undefined,
     ...(subscriptions === undefined ? {} : { subscriptions }),

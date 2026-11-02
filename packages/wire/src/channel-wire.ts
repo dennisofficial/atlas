@@ -103,6 +103,7 @@ export enum EClientRequest {
   CompletePaths = 'complete-paths',
   BrowseDirectory = 'browse-directory',
   ReadWorkspaceFile = 'read-workspace-file',
+  SearchWorkspaceFiles = 'search-workspace-files',
   ListRoster = 'list-roster',
   ListCommands = 'list-commands',
   ListMcpServers = 'list-mcp-servers',

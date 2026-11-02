@@ -76,7 +76,11 @@ const handlersFor = (args?: { prStates?: ServePrStates }) =>
     inFlight: () => [],
     liveStepId: () => null,
     driver: untouchedDriver(),
-    files: { list: async () => [], read: async () => refusedFile },
+    files: {
+      list: async () => [],
+      read: async () => refusedFile,
+      search: async () => ({ paths: [], truncated: false }),
+    },
     refusal: () => null,
     log: () => undefined,
     ...(args?.prStates === undefined ? {} : { prStates: args.prStates }),

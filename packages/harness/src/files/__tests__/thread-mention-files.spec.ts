@@ -119,6 +119,7 @@ describe('rebaseMentionReader', () => {
       read: async () => {
         throw new Error('x')
       },
+      search: async () => ({ paths: [], truncated: false }),
       forget: () => undefined,
     }
     expect(rebaseMentionReader({ reader: remote, root: next })).toBe(remote)

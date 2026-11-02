@@ -40,7 +40,11 @@ const rig = (options?: { admitsThread?: (threadId: string) => Promise<boolean> }
     inFlight: () => [],
     liveStepId: () => null,
     driver,
-    files: { list: async () => [], read: async () => refusedFile },
+    files: {
+      list: async () => [],
+      read: async () => refusedFile,
+      search: async () => ({ paths: [], truncated: false }),
+    },
     refusal: () => null,
     log: () => undefined,
   })
@@ -92,7 +96,11 @@ describe('hello admission', () => {
         run: (options?: { resume?: boolean | undefined }) =>
           void runs.push(options?.resume === true),
       },
-      files: { list: async () => [], read: async () => refusedFile },
+      files: {
+        list: async () => [],
+        read: async () => refusedFile,
+        search: async () => ({ paths: [], truncated: false }),
+      },
       refusal: () => null,
       log: () => undefined,
       admissionClosed: () => closed,
@@ -177,7 +185,11 @@ describe('hello admission', () => {
         holdForRotation: () => () => undefined,
         beginRotation: () => ({ pause: () => undefined, waitSettled: async () => null }),
       } as unknown as ServeTurnDriver,
-      files: { list: async () => [], read: async () => refusedFile },
+      files: {
+        list: async () => [],
+        read: async () => refusedFile,
+        search: async () => ({ paths: [], truncated: false }),
+      },
       refusal: () => null,
       log: () => undefined,
       rotation,

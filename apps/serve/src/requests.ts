@@ -20,9 +20,9 @@ import {
 import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
 import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
-
 import { readWorkspaceFileParamsSchema } from '@dltech/atlas-wire'
 
+import { answerSearchWorkspaceFiles } from './file-search-request'
 import { isPendingEditOp } from './pending-requests'
 import { wireEventOf, wireThreadOf, wireTurnOf } from './session-wires'
 import type { ServeLog } from './serve-log'
@@ -111,11 +111,13 @@ async function readWorkspaceFile(args: {
 
 export async function answerRequest(args: {
   frame: RequestFrame
-  files: Pick<FileBrowser, 'list' | 'read'>
+  files: Pick<FileBrowser, 'list' | 'read' | 'search'>
 }): Promise<ReplyFrame> {
   if (args.frame.op === EClientRequest.CompletePaths) return await completePaths(args)
   if (args.frame.op === EClientRequest.BrowseDirectory) return await browseDirectory(args)
   if (args.frame.op === EClientRequest.ReadWorkspaceFile) return await readWorkspaceFile(args)
+  if (args.frame.op === EClientRequest.SearchWorkspaceFiles)
+    return await answerSearchWorkspaceFiles(args)
   return refusedRequest({ replyTo: args.frame.id, message: `unknown request op: ${args.frame.op}` })
 }
 

@@ -222,7 +222,12 @@ export async function composeOwnershipApp(args: {
       log,
       threads,
       ids,
-      files: { list: async () => [], read: async () => refusedFile, forget: () => undefined },
+      files: {
+        list: async () => [],
+        read: async () => refusedFile,
+        search: async () => ({ paths: [], truncated: false }),
+        forget: () => undefined,
+      },
       workspace: { workspace: args.cwd, repo: null },
       pending,
       intake,

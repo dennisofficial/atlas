@@ -4,6 +4,7 @@ export const PASSIVE_REQUESTS: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.CompletePaths,
   EClientRequest.BrowseDirectory,
   EClientRequest.ReadWorkspaceFile,
+  EClientRequest.SearchWorkspaceFiles,
   EClientRequest.ListRoster,
   EClientRequest.ListCommands,
   EClientRequest.ListPrStates,

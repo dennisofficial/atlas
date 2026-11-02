@@ -125,7 +125,11 @@ const rig = () => {
     inFlight: () => [],
     liveStepId: () => null,
     driver: untouchedDriver(touched),
-    files: { list: async () => [], read: async () => refusedFile },
+    files: {
+      list: async () => [],
+      read: async () => refusedFile,
+      search: async () => ({ paths: [], truncated: false }),
+    },
     refusal: () => null,
     log,
     ...options,

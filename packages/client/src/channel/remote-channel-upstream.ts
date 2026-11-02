@@ -46,6 +46,7 @@ const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.CompletePaths,
   EClientRequest.BrowseDirectory,
   EClientRequest.ReadWorkspaceFile,
+  EClientRequest.SearchWorkspaceFiles,
   EClientRequest.ListRoster,
   EClientRequest.ListCommands,
   EClientRequest.ReadEvents,

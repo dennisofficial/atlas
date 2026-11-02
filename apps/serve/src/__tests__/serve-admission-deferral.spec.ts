@@ -71,7 +71,11 @@ const rig = () => {
     inFlight: () => [],
     liveStepId: () => null,
     driver,
-    files: { list: async () => [], read: async () => refusedFile },
+    files: {
+      list: async () => [],
+      read: async () => refusedFile,
+      search: async () => ({ paths: [], truncated: false }),
+    },
     refusal: () => null,
     admissionClosed: () => current !== null && admissionClosedFor(current.phase),
     checkpoint: () => current,
