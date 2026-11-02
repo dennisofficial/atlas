@@ -1,7 +1,8 @@
 import {
   defaultPipeline,
   ENoticeTone,
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
+  NO_PROMPT_GROUPS,
   ESettingId,
   promptContextFor,
   promptModelOf,
@@ -128,7 +129,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const compiledPrompt = ({ projectDirectory }: { projectDirectory: string }) =>
     prompts.compile(
       promptContextFor({
-        agent: EPromptAgent.Main,
+        groups: ALL_PROMPT_GROUPS,
         provider: modelPort.identity,
         model: promptModelOf(models.cardFor(model.choice().ref)),
         projectDirectory,
@@ -214,7 +215,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
             subAgentPrompt({
               prompts,
               agentType,
-              agent: isTeammateType(agentType.name) ? EPromptAgent.Main : EPromptAgent.Sub,
+              groups: isTeammateType(agentType.name) ? ALL_PROMPT_GROUPS : NO_PROMPT_GROUPS,
               provider: childModel.identity,
               model: {
                 contextWindow:
@@ -240,7 +241,10 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     })
 
   const runner = ((): TurnRunner => {
-    const publishing = new PublishingTurnRunner({ channel: args.channel, deps: turn })
+    const publishing = new PublishingTurnRunner({
+      channel: args.channel,
+      deps: turn,
+    })
     const feed = args.tldr.feed
     if (
       feed === undefined ||

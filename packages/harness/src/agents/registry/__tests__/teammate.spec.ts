@@ -6,12 +6,13 @@ import {
   defaultPipeline,
   EMPTY_PROMPT,
   ENoticeStage,
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   EToolEffect,
   PromptFragment,
   type PromptContext,
   type ToolDefinition,
   type ToolOutcome,
+  NO_PROMPT_GROUPS,
 } from '@dltech/atlas-core'
 
 import { createDeltaChannel } from '../../../channel/delta-channel'
@@ -79,8 +80,13 @@ describe('spawning a teammate', () => {
 
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) return
-    const thread = await harness.threads.find({ threadId: outcome.snapshot.agentId })
-    expect(thread?.agent).toEqual({ spawnedBy: parent, type: TEAMMATE_AGENT_TYPE })
+    const thread = await harness.threads.find({
+      threadId: outcome.snapshot.agentId,
+    })
+    expect(thread?.agent).toEqual({
+      spawnedBy: parent,
+      type: TEAMMATE_AGENT_TYPE,
+    })
   })
 
   it('is refused to any agent that is itself spawned, whatever its type', async () => {
@@ -239,7 +245,7 @@ describe("a teammate's session", () => {
     readonly id = 'main-only.marker'
 
     override applies(ctx: PromptContext): boolean {
-      return ctx.agent === EPromptAgent.Main
+      return ctx.groups.length > 0
     }
 
     text(): string {
@@ -311,8 +317,8 @@ describe("a teammate's session", () => {
                 subAgentPrompt({
                   prompts,
                   agentType,
-                  agent:
-                    agentType.name === TEAMMATE_AGENT_TYPE ? EPromptAgent.Main : EPromptAgent.Sub,
+                  groups:
+                    agentType.name === TEAMMATE_AGENT_TYPE ? ALL_PROMPT_GROUPS : NO_PROMPT_GROUPS,
                   provider: harness.model.identity,
                   model: { contextWindow: 1_000_000 },
                   projectDirectory: PROJECT_DIRECTORY,

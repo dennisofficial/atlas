@@ -1,4 +1,4 @@
-import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-core'
+import { EPromptGroup, PromptFragment, type PromptContext } from '@dltech/atlas-core'
 
 export class PreferDedicatedToolsFragment extends PromptFragment {
   readonly id = 'tools.prefer-dedicated'
@@ -31,7 +31,7 @@ export class OperatorInputFragment extends PromptFragment {
   readonly id = 'tools.operator-input'
 
   override applies(ctx: PromptContext): boolean {
-    return ctx.agent === EPromptAgent.Main
+    return ctx.groups.includes(EPromptGroup.OperatorInput)
   }
 
   text(): string {

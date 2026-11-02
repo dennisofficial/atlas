@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   ESkipReason,
   PromptFragment,
   deadFragmentIds,
   reachablePromptContexts,
   type PromptContext,
+  NO_PROMPT_GROUPS,
 } from '@dltech/atlas-core'
 
 import {
@@ -23,7 +24,7 @@ import { PromptRegistry } from '../registry'
 import { FakeSkillRegistry } from './fake-skills'
 
 const CONTEXT: PromptContext = {
-  agent: EPromptAgent.Main,
+  groups: ALL_PROMPT_GROUPS,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
   model: { contextWindow: 1_000_000 },
   projectDirectory: '/prompt-primary-fixture',
@@ -130,17 +131,23 @@ describe('the builtin prompt', () => {
 
 describe('builtin registration', () => {
   it('selects every registered fragment in a reachable context', () => {
-    const fragments = resolveSet({ container: registered(), token: portToken(PromptFragment) })
+    const fragments = resolveSet({
+      container: registered(),
+      token: portToken(PromptFragment),
+    })
     expect(
       deadFragmentIds({
         fragments,
         contexts: [
           ...reachablePromptContexts({
-            agents: Object.values(EPromptAgent),
+            groupSets: [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS],
             providerIds: ['anthropic-oauth'],
             projectDirectory: '/prompt-primary-fixture',
           }),
-          { ...CONTEXT, provider: { id: 'inference', modelId: 'kimi-k3-fast' } },
+          {
+            ...CONTEXT,
+            provider: { id: 'inference', modelId: 'kimi-k3-fast' },
+          },
         ],
       }),
     ).toEqual([])

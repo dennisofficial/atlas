@@ -4,7 +4,7 @@ import {
   assemble,
   defaultPipeline,
   CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN,
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   estimateTokens,
   PromptFragment,
   promptContextFor,
@@ -69,7 +69,7 @@ const systemFor = (args: {
     prompt: () =>
       args.registry.compile(
         promptContextFor({
-          agent: EPromptAgent.Main,
+          groups: ALL_PROMPT_GROUPS,
           provider: args.provider,
           model: args.model,
           projectDirectory: '/w',
@@ -78,9 +78,10 @@ const systemFor = (args: {
     launchDirectory: PROJECT_DIRECTORY,
   })
 
-  return assemble({ ...pipeline, ctx: ctxFor(args.provider) }).assembled.system.map(
-    (block) => block.text,
-  )
+  return assemble({
+    ...pipeline,
+    ctx: ctxFor(args.provider),
+  }).assembled.system.map((block) => block.text)
 }
 
 describe('a model switch, seen through the pipeline the composition root built once', () => {
@@ -89,13 +90,21 @@ describe('a model switch, seen through the pipeline the composition root built o
       new IdentityFragment(),
       new NarrowContextFragment(),
     ])
-    let provider: ProviderIdentity = { id: 'anthropic', modelId: 'claude-opus-5' }
+    let provider: ProviderIdentity = {
+      id: 'anthropic',
+      modelId: 'claude-opus-5',
+    }
     let model: PromptModel = OPUS_WINDOW
 
     const pipeline = defaultPipeline({
       prompt: ({ projectDirectory }) =>
         registry.compile(
-          promptContextFor({ agent: EPromptAgent.Main, provider, model, projectDirectory }),
+          promptContextFor({
+            groups: ALL_PROMPT_GROUPS,
+            provider,
+            model,
+            projectDirectory,
+          }),
         ),
       launchDirectory: PROJECT_DIRECTORY,
     })
@@ -114,8 +123,14 @@ describe('a model switch, seen through the pipeline the composition root built o
   it('compiles once per model rather than once per assembly, so a turn is never a rebuild', () => {
     const counting = new CountingFragment()
     const registry = new InMemoryPromptRegistry([counting])
-    const opus: ProviderIdentity = { id: 'anthropic', modelId: 'claude-opus-5' }
-    const haiku: ProviderIdentity = { id: 'anthropic', modelId: 'claude-haiku-4-5' }
+    const opus: ProviderIdentity = {
+      id: 'anthropic',
+      modelId: 'claude-opus-5',
+    }
+    const haiku: ProviderIdentity = {
+      id: 'anthropic',
+      modelId: 'claude-haiku-4-5',
+    }
 
     systemFor({ registry, provider: opus, model: OPUS_WINDOW })
     systemFor({ registry, provider: opus, model: OPUS_WINDOW })

@@ -2,11 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN,
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   ESkipReason,
   PromptFragment,
   deadFragmentIds,
   reachablePromptContexts,
+  NO_PROMPT_GROUPS,
 } from '@dltech/atlas-core'
 
 import { InMemoryPromptRegistry } from '../registry'
@@ -17,7 +18,10 @@ const forModel = (modelId: string) => contextFor({ modelId })
 const WIDE_CONTEXT = 1_000_000
 
 const OPUS = forModel('claude-opus-5')
-const CODEX = contextFor({ modelId: 'gpt-5-codex', model: { contextWindow: 400_000 } })
+const CODEX = contextFor({
+  modelId: 'gpt-5-codex',
+  model: { contextWindow: 400_000 },
+})
 
 describe('InMemoryPromptRegistry', () => {
   it('compiles the fragments in registration order into one system block', () => {
@@ -186,7 +190,7 @@ describe('the compile memo', () => {
 
 describe('dead prose', () => {
   const contexts = reachablePromptContexts({
-    agents: Object.values(EPromptAgent),
+    groupSets: [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS],
     providerIds: ['anthropic-oauth'],
     projectDirectory: '/w',
   })

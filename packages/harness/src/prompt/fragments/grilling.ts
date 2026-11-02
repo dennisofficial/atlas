@@ -1,4 +1,4 @@
-import { EPromptAgent, type PromptContext } from '@dltech/atlas-core'
+import { EPromptGroup, type PromptContext } from '@dltech/atlas-core'
 
 import { VolatilePromptFragment } from '../volatile'
 
@@ -17,7 +17,7 @@ export class GrillingCeremonyFragment extends VolatilePromptFragment {
   }
 
   override applies(ctx: PromptContext): boolean {
-    return ctx.agent === EPromptAgent.Main
+    return ctx.groups.includes(EPromptGroup.Grilling)
   }
 
   text(): string {

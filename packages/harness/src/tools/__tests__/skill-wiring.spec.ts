@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { describe, expect, it } from 'bun:test'
 
 import {
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   EWebSearchBackend,
   PromptFragment,
   ToolDefinition,
@@ -23,7 +23,7 @@ import { registerBuiltinPromptFragments } from '../../prompt/register-prompt-fra
 import { SkillListingFragment } from '../../prompt/fragments/skills'
 
 const OPUS: PromptContext = {
-  agent: EPromptAgent.Main,
+  groups: ALL_PROMPT_GROUPS,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
   model: { contextWindow: 1_000_000 },
   projectDirectory: '/w',
@@ -32,24 +32,30 @@ const OPUS: PromptContext = {
 const wired = (): DependencyContainer => {
   const container = createHarnessContainer()
   container.register(WorkspaceRoot, { useValue: tmpdir() })
-  container.register(WorktreeDirectoryToken, { useValue: () => '.atlas/worktrees' })
-  container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })
+  container.register(WorktreeDirectoryToken, {
+    useValue: () => '.atlas/worktrees',
+  })
+  container.register(WebSearchBackendToken, {
+    useValue: () => EWebSearchBackend.DuckDuckGo,
+  })
   registerBuiltinPromptFragments({ container })
   return container
 }
 
 const skillTool = (container: DependencyContainer): ToolDefinition => {
-  const found = resolveSet({ container, token: portToken(ToolDefinition) }).find(
-    (tool) => tool.name === 'skill',
-  )
+  const found = resolveSet({
+    container,
+    token: portToken(ToolDefinition),
+  }).find((tool) => tool.name === 'skill')
   if (found === undefined) throw new Error('the container resolved no tool named "skill"')
   return found
 }
 
 const listingFragment = (container: DependencyContainer): SkillListingFragment => {
-  const found = resolveSet({ container, token: portToken(PromptFragment) }).find(
-    (fragment) => fragment.id === 'skills.listing',
-  )
+  const found = resolveSet({
+    container,
+    token: portToken(PromptFragment),
+  }).find((fragment) => fragment.id === 'skills.listing')
   if (!(found instanceof SkillListingFragment)) {
     throw new Error('the container resolved no fragment "skills.listing"')
   }
@@ -67,7 +73,9 @@ const invoke = (tool: ToolDefinition, input: unknown): Promise<ToolOutcome> =>
 
 describe('the skill registry the tool and the listing share', () => {
   it('hands the skill tool a registry it can actually ask, rather than a phantom', async () => {
-    const outcome = await invoke(skillTool(wired()), { name: 'nothing-is-named-this' })
+    const outcome = await invoke(skillTool(wired()), {
+      name: 'nothing-is-named-this',
+    })
 
     expect(outcome.ok).toBe(false)
     expect(!outcome.ok && outcome.reason).toContain('no skill is named')

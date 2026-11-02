@@ -3,7 +3,7 @@ import {
   EExecutionLocation,
   ERunner,
   promptContextFor,
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   type ProviderIdentity,
   type PromptModel,
 } from '@dltech/atlas-core'
@@ -12,7 +12,7 @@ import { ExecutionLocationFragment } from '../fragments/environment'
 
 const ctx = (placement?: EExecutionLocation, runner?: ERunner) =>
   promptContextFor({
-    agent: EPromptAgent.Main,
+    groups: ALL_PROMPT_GROUPS,
     provider: {
       id: 'test',
       modelId: 'test-model',

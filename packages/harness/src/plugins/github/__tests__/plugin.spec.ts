@@ -1,4 +1,4 @@
-import { EHookPhase, EPromptAgent, type PromptContext } from '@dltech/atlas-core'
+import { EHookPhase, ALL_PROMPT_GROUPS, type PromptContext } from '@dltech/atlas-core'
 import { afterAll, describe, expect, it } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -24,7 +24,7 @@ import { PrEventFrameSink } from '../pr-event-sink'
 import { GithubUiBridgePort } from '../ui-bridge'
 
 const CONTEXT: PromptContext = {
-  agent: EPromptAgent.Main,
+  groups: ALL_PROMPT_GROUPS,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
   model: { contextWindow: 1_000_000 },
   projectDirectory: '/w',
@@ -42,7 +42,11 @@ afterAll(async () => {
   await Promise.all(made.map((path) => rm(path, { recursive: true, force: true })))
 })
 
-const SESSION = { url: 'https://api.byatlas.io', token: 'atlas_token', email: null }
+const SESSION = {
+  url: 'https://api.byatlas.io',
+  token: 'atlas_token',
+  email: null,
+}
 
 const sessionsIn = async (args: { signedIn: boolean }): Promise<CloudSessionStore> => {
   const root = await scratch()
@@ -219,9 +223,14 @@ describe('the pull request port the plugin selects', () => {
     const { contribution } = await resolved({ signedIn: true })
 
     const port = portOf(contribution)
-    const reading = await port.read({ checkout: aCheckout({ forge: EForge.Other }) })
+    const reading = await port.read({
+      checkout: aCheckout({ forge: EForge.Other }),
+    })
 
-    expect(reading).toEqual({ lookup: EPullRequestLookup.Unavailable, retryable: false })
+    expect(reading).toEqual({
+      lookup: EPullRequestLookup.Unavailable,
+      retryable: false,
+    })
     expect(port.pushes).toBe(true)
 
     await contribution.dispose?.()

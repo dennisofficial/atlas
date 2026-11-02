@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-core'
+import {
+  ALL_PROMPT_GROUPS,
+  PromptFragment,
+  type PromptContext,
+  NO_PROMPT_GROUPS,
+  type EPromptGroup,
+} from '@dltech/atlas-core'
 
 import {
   createIsolatedContainer,
@@ -16,15 +22,15 @@ import { PromptRegistry } from '../registry'
 import { FakeSkillRegistry } from './fake-skills'
 
 const contextFor = ({
-  agent = EPromptAgent.Main,
+  groups = ALL_PROMPT_GROUPS,
   providerId,
   modelId,
 }: {
-  agent?: EPromptAgent
+  groups?: readonly EPromptGroup[]
   providerId: string
   modelId: string
 }): PromptContext => ({
-  agent,
+  groups,
   provider: { id: providerId, modelId },
   model: { contextWindow: 200_000 },
   projectDirectory: '/w',
@@ -81,7 +87,11 @@ describe('the answer-in-text fragment across the model axis', () => {
   it('applies to a sub-agent on kimi, whose answer is equally invisible', () => {
     expect(
       fragment.applies(
-        contextFor({ agent: EPromptAgent.Sub, providerId: 'inference', modelId: 'kimi-k3-fast' }),
+        contextFor({
+          groups: NO_PROMPT_GROUPS,
+          providerId: 'inference',
+          modelId: 'kimi-k3-fast',
+        }),
       ),
     ).toBe(true)
   })

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN,
   EImageTier,
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   PROMPT_MODEL_SAMPLES,
   PromptFragment,
   deadFragmentIds,
@@ -14,6 +14,7 @@ import {
   type ModelCard,
   type ModelTraitProbe,
   type PromptContext,
+  NO_PROMPT_GROUPS,
 } from '@dltech/atlas-core'
 
 import {
@@ -56,7 +57,7 @@ const builtinFragments = (): readonly PromptFragment[] =>
   resolveSet({ container: registered(), token: portToken(PromptFragment) })
 
 const baseContext = (): PromptContext => ({
-  agent: EPromptAgent.Main,
+  groups: ALL_PROMPT_GROUPS,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
   model: { contextWindow: 1_000_000 },
   projectDirectory: '/w',
@@ -90,12 +91,12 @@ describe('the sampled traits the coverage test fans over', () => {
 
   it('stays bounded by the shape of a trait rather than by how many models exist', () => {
     const contexts = reachablePromptContexts({
-      agents: Object.values(EPromptAgent),
+      groupSets: [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS],
       providerIds: ['anthropic-oauth'],
       projectDirectory: '/w',
     })
 
-    expect(contexts.length).toBe(Object.values(EPromptAgent).length * PROMPT_MODEL_SAMPLES.length)
+    expect(contexts.length).toBe(2 * PROMPT_MODEL_SAMPLES.length)
   })
 })
 
@@ -106,12 +107,12 @@ describe('no builtin fragment is prose no reachable context can select', () => {
         fragments: builtinFragments(),
         contexts: [
           ...reachablePromptContexts({
-            agents: Object.values(EPromptAgent),
+            groupSets: [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS],
             providerIds: ['anthropic-oauth'],
             projectDirectory: '/w',
           }),
           {
-            agent: EPromptAgent.Main,
+            groups: ALL_PROMPT_GROUPS,
             provider: { id: 'inference', modelId: 'kimi-k3-fast' },
             model: { contextWindow: 200_000 },
             projectDirectory: '/w',
@@ -134,7 +135,11 @@ describe('no trait is carried that no fragment reads', () => {
     const base = baseContext()
 
     expect(
-      unreadModelTraits({ fragments: builtinFragments(), base, probes: probesFor(base) }),
+      unreadModelTraits({
+        fragments: builtinFragments(),
+        base,
+        probes: probesFor(base),
+      }),
     ).toEqual([])
   })
 
@@ -143,7 +148,11 @@ describe('no trait is carried that no fragment reads', () => {
     const unreadProbe: ModelTraitProbe = { key: 'invented', model: base.model }
 
     expect(
-      unreadModelTraits({ fragments: builtinFragments(), base, probes: [unreadProbe] }),
+      unreadModelTraits({
+        fragments: builtinFragments(),
+        base,
+        probes: [unreadProbe],
+      }),
     ).toEqual(['invented'])
   })
 })

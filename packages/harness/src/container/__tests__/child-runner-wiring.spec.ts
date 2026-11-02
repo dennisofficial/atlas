@@ -4,7 +4,7 @@ import { fakeActivityLifecycle } from '../../composition/__tests__/fakes'
 import {
   defaultPipeline,
   EAgentStatus,
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   EventLogPort,
   EWebSearchBackend,
   IdPort,
@@ -77,7 +77,7 @@ function bindChildRunner({ container }: { container: DependencyContainer }): voi
             prompt: () =>
               prompts.compile(
                 promptContextFor({
-                  agent: EPromptAgent.Main,
+                  groups: ALL_PROMPT_GROUPS,
                   provider: modelPort.identity,
                   model: CHILD_MODEL,
                   projectDirectory: '/w',
@@ -130,8 +130,12 @@ async function composed(args: {
   container.register(LanguageModelToken, {
     useValue: args.model ?? scriptedModel({ script: [{ text: CHILD_REPLY }] }),
   })
-  container.register(WorktreeDirectoryToken, { useValue: () => '.atlas/worktrees' })
-  container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })
+  container.register(WorktreeDirectoryToken, {
+    useValue: () => '.atlas/worktrees',
+  })
+  container.register(WebSearchBackendToken, {
+    useValue: () => EWebSearchBackend.DuckDuckGo,
+  })
   if (args.bind) bindChildRunner({ container })
 
   const services = container.resolve(registeredPortToken(ServiceRegistryPort))
@@ -244,7 +248,10 @@ describe('the ending a parent is meant to be woken by', () => {
   }, 30_000)
 })
 
-function gatedModel(): { model: ReturnType<typeof scriptedModel>; release: () => void } {
+function gatedModel(): {
+  model: ReturnType<typeof scriptedModel>
+  release: () => void
+} {
   const model = scriptedModel({ script: [{ text: CHILD_REPLY }] })
   const streamed = model.doStream
   let release: () => void = () => undefined
@@ -273,7 +280,10 @@ const ENDING_RECORD_GRACE_MS = 200
 describe('a service the ending child leaves running', () => {
   async function endWithServiceOwnedBy(args: { owner: 'child' | 'parent' }): Promise<number> {
     const { model, release } = gatedModel()
-    const { agents, services, parent, cwd } = await composed({ bind: true, model })
+    const { agents, services, parent, cwd } = await composed({
+      bind: true,
+      model,
+    })
 
     const outcome = await agents.spawn({
       threadId: parent,

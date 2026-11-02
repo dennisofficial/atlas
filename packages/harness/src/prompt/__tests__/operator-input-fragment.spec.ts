@@ -1,10 +1,15 @@
-import { EPromptAgent, type PromptContext } from '@dltech/atlas-core'
+import {
+  ALL_PROMPT_GROUPS,
+  type PromptContext,
+  NO_PROMPT_GROUPS,
+  type EPromptGroup,
+} from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { OperatorInputFragment } from '../fragments/tools'
 
-const at = (agent: EPromptAgent): PromptContext => ({
-  agent,
+const at = (groups: readonly EPromptGroup[]): PromptContext => ({
+  groups,
   provider: { id: 'anthropic-oauth', modelId: 'claude-sonnet-4-5' },
   model: { contextWindow: 200_000 },
   projectDirectory: '/w',
@@ -29,7 +34,7 @@ describe('operator input guidance', () => {
 
   it('speaks only to the main session, which is the one that owns the tool', () => {
     const fragment = new OperatorInputFragment()
-    expect(fragment.applies(at(EPromptAgent.Main))).toBe(true)
-    expect(fragment.applies(at(EPromptAgent.Sub))).toBe(false)
+    expect(fragment.applies(at(ALL_PROMPT_GROUPS))).toBe(true)
+    expect(fragment.applies(at(NO_PROMPT_GROUPS))).toBe(false)
   })
 })

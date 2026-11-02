@@ -1,5 +1,6 @@
 import {
-  EPromptAgent,
+  NO_PROMPT_GROUPS,
+  type EPromptGroup,
   promptContextFor,
   type CompiledPrompt,
   type EExecutionLocation,
@@ -20,7 +21,7 @@ export function subAgentPrompt({
   provider,
   model,
   projectDirectory,
-  agent = EPromptAgent.Sub,
+  groups = NO_PROMPT_GROUPS,
   placement,
   runner,
 }: {
@@ -29,19 +30,32 @@ export function subAgentPrompt({
   provider: ProviderIdentity
   model: PromptModel
   projectDirectory: string
-  agent?: EPromptAgent | undefined
+  groups?: readonly EPromptGroup[] | undefined
   placement?: EExecutionLocation | undefined
   runner?: ERunner | undefined
 }): CompiledPrompt {
   const compiled = prompts.compile(
-    promptContextFor({ agent, provider, model, projectDirectory, placement, runner }),
+    promptContextFor({
+      groups,
+      provider,
+      model,
+      projectDirectory,
+      placement,
+      runner,
+    }),
   )
   const identity = agentType.prompt.trim()
 
   const parts: readonly PromptPart[] = [
     ...(identity === ''
       ? []
-      : [{ id: AGENT_TYPE_PROMPT_PART, text: identity, chars: identity.length }]),
+      : [
+          {
+            id: AGENT_TYPE_PROMPT_PART,
+            text: identity,
+            chars: identity.length,
+          },
+        ]),
     ...compiled.parts,
   ]
 

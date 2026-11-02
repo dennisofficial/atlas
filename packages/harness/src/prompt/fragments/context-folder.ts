@@ -1,10 +1,10 @@
-import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-core'
+import { EPromptGroup, PromptFragment, type PromptContext } from '@dltech/atlas-core'
 
 export class ContextFolderFragment extends PromptFragment {
   readonly id = 'environment.context-folder'
 
   override applies(ctx: PromptContext): boolean {
-    return ctx.agent === EPromptAgent.Main
+    return ctx.groups.includes(EPromptGroup.ContextFolder)
   }
 
   text(): string {
