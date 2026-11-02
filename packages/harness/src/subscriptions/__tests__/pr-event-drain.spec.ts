@@ -34,7 +34,7 @@ const drainedFixture = async () => {
   await settle()
   const batch = await fixture.registry.intakeSource.prepare({ threadId: MAIN })
   await appendPending({
-    drain: async () => batch,
+    intake: { prepare: async () => batch },
     log: fixture.log,
     ids: { nextRunId: () => 'run-drain' as never } as never,
     threadId: MAIN,

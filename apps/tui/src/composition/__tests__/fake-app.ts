@@ -845,22 +845,24 @@ export function fakeApp(args: {
       spend: { ledger, clock: new SystemClock() },
       expandContext: ({ text, context }) =>
         skillContextOf({ text, skills: skillRegistry.all(), already: context }),
-      drainPending: async ({ threadId }) => {
-        if (drainFailures > 0) {
-          drainFailures -= 1
-          throw new Error('the drain fell over')
-        }
-        const agentDrain = agents.drainNotifications({ threadId })
-        const typed = pending.forThread({ threadId }).drain().map(userSaidDraft)
-        return {
-          drafts: [
-            ...shells.drainNotifications({ threadId }),
-            ...agentDrain.drafts,
-            ...services.drainNotifications({ threadId }),
-            ...typed,
-          ],
-          wakesTurn: agentDrain.wakesTurn || typed.length > 0,
-        }
+      intake: {
+        prepare: async ({ threadId }) => {
+          if (drainFailures > 0) {
+            drainFailures -= 1
+            throw new Error('the drain fell over')
+          }
+          const agentDrain = agents.drainNotifications({ threadId })
+          const typed = pending.forThread({ threadId }).drain().map(userSaidDraft)
+          return {
+            drafts: [
+              ...shells.drainNotifications({ threadId }),
+              ...agentDrain.drafts,
+              ...services.drainNotifications({ threadId }),
+              ...typed,
+            ],
+            wakesTurn: agentDrain.wakesTurn || typed.length > 0,
+          }
+        },
       },
     },
   })

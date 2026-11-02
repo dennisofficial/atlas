@@ -121,7 +121,7 @@ function openTurn(args: {
       model: flakyModel,
       ids: opened.harness.ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),
-      drainPending: ackingDrain,
+      intake: { prepare: ackingDrain },
       retry: {
         policy: args.policy ?? FAIL_FAST,
         sleep: async () => args.actOnSleep?.(),
@@ -275,7 +275,7 @@ describe('an interrupt that lands while a retry is waiting to re-ask', () => {
       model: flakyModel,
       ids: harness.ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),
-      drainPending: queue.drain,
+      intake: { prepare: queue.drain },
       retry: {
         policy: FAIL_FAST,
         sleep: async () => {

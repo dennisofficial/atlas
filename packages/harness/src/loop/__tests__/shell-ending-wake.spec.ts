@@ -96,7 +96,7 @@ async function runEndingAfterFinalMessage(args: { wakesTurn: boolean }): Promise
       prompt: () => EMPTY_PROMPT,
       launchDirectory: PROJECT_DIRECTORY,
     }),
-    drainPending,
+    intake: { prepare: drainPending },
   })
 
   const outcome = await runner.say({
@@ -211,15 +211,17 @@ describe('an ending the occurrence already wrote', () => {
     }
 
     const drained = await appendPending({
-      drain: async ({ threadId: drainedThread }) => {
-        const prepare = registry.prepareNotifications
-        if (prepare === undefined) throw new Error('this registry prepares no notifications')
-        const batch = prepare.call(registry, { threadId: drainedThread })
-        return {
-          drafts: batch.drafts,
-          wakesTurn: batch.wakesTurn,
-          acknowledge: batch.acknowledge,
-        }
+      intake: {
+        prepare: async ({ threadId: drainedThread }) => {
+          const prepare = registry.prepareNotifications
+          if (prepare === undefined) throw new Error('this registry prepares no notifications')
+          const batch = prepare.call(registry, { threadId: drainedThread })
+          return {
+            drafts: batch.drafts,
+            wakesTurn: batch.wakesTurn,
+            acknowledge: batch.acknowledge,
+          }
+        },
       },
       log,
       ids: new RandomIds(),

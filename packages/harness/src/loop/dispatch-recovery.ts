@@ -1,47 +1,22 @@
 import {
-  crashedCalls,
-  EToolEffect,
-  rowsOwnedBy,
-  type EventLogPort,
-  type IdPort,
-  type PendingCall,
-  type ThreadId,
-} from '@dltech/atlas-core'
+  crashedCallDraft,
+  settleCrashedCalls as settleAgentCrashedCalls,
+  type ToolEffectResolver,
+} from '@dltech/atlas-agent'
+import type { EventLogPort } from '@dltech/atlas-core'
 
-type CrashLog = Pick<EventLogPort, 'readOwn' | 'append'>
-type CrashIds = Pick<IdPort, 'nextRunId'>
+export { crashedCallDraft, type ToolEffectResolver }
 
-export type ToolEffectResolver = (name: string) => EToolEffect | undefined
-
-export function crashedCallDraft(call: PendingCall) {
-  return {
-    type: 'tool-result' as const,
-    callId: call.callId,
-    name: call.name,
-    interrupted: true,
-    error: {
-      message: `${call.name} was interrupted by a process restart before its result was recorded; its effects are unknown — check before repeating it`,
+export const settleCrashedCalls = ({
+  log,
+  ...rest
+}: Omit<Parameters<typeof settleAgentCrashedCalls>[0], 'record'> & {
+  log: Pick<EventLogPort, 'readOwn' | 'append'>
+}) =>
+  settleAgentCrashedCalls({
+    ...rest,
+    record: {
+      append: (args) => log.append(args),
+      ownEvents: ({ threadId }) => log.readOwn({ threadId }),
     },
-  }
-}
-
-export async function settleCrashedCalls(args: {
-  log: CrashLog
-  ids: CrashIds
-  threadId: ThreadId
-  effectOf: ToolEffectResolver
-}): Promise<readonly PendingCall[]> {
-  const events = await args.log.readOwn({ threadId: args.threadId })
-  const crashed = crashedCalls(rowsOwnedBy({ events, threadId: args.threadId }))
-  if (crashed.length === 0) return crashed
-
-  const unrecoverable = crashed.filter((call) => args.effectOf(call.name) !== EToolEffect.Read)
-  if (unrecoverable.length === 0) return crashed
-
-  await args.log.append({
-    threadId: args.threadId,
-    runId: args.ids.nextRunId(),
-    drafts: unrecoverable.map((call) => crashedCallDraft(call)),
   })
-  return crashed
-}

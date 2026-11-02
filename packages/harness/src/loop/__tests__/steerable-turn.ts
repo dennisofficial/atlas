@@ -152,7 +152,7 @@ export async function openSteerable(args: {
       model: steered,
       ids: harness.ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
-      ...(args.withQueue === false ? {} : { drainPending: queue.drain }),
+      ...(args.withQueue === false ? {} : { intake: { prepare: queue.drain } }),
       ...(args.hooks === undefined ? {} : { hooks: args.hooks }),
       ...(args.withTools === true
         ? {

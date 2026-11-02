@@ -158,7 +158,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     dispatch: container.resolve(registeredPortToken(ToolDispatcher)),
     hooks: container.resolve(HookChainToken),
     uploads: container.resolve(registeredPortToken(SaidUploadsPort)),
-    drainPending: (args) => intake.prepare(args),
+    intake: { prepare: (args) => intake.prepare(args) },
     expandContext: args.pending.expandContext,
     spend: {
       ledger,

@@ -103,7 +103,7 @@ it('answers a real shell ending during a model reply without replacing its live 
       ids: harness.ids,
       model: responding,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: temp.home }),
-      drainPending: (request) => intake.prepare(request),
+      intake: { prepare: (request) => intake.prepare(request) },
     },
   })
 

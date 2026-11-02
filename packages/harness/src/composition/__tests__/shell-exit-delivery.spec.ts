@@ -76,7 +76,7 @@ async function openDelivery() {
       ids: harness.ids,
       model: harness.model,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: temp.home }),
-      drainPending: (request) => intake.prepare(request),
+      intake: { prepare: (request) => intake.prepare(request) },
     },
   })
   let blocked = false

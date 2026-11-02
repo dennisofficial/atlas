@@ -182,19 +182,21 @@ describe('retry and compaction preparation', () => {
       model: harness.model,
       ids: harness.ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),
-      drainPending: async () => {
-        drains += 1
-        if (drains === 1) {
-          controller.abort()
-          return {
-            drafts: [],
-            wakesTurn: false,
-            release: () => {
-              released += 1
-            },
+      intake: {
+        prepare: async () => {
+          drains += 1
+          if (drains === 1) {
+            controller.abort()
+            return {
+              drafts: [],
+              wakesTurn: false,
+              release: () => {
+                released += 1
+              },
+            }
           }
-        }
-        return { drafts: [], wakesTurn: false }
+          return { drafts: [], wakesTurn: false }
+        },
       },
     })
     const first = await runner.runTurn({ threadId: thread.id, signal: controller.signal })

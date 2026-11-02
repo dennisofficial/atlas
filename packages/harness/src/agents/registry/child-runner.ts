@@ -14,7 +14,7 @@ import {
 import { ActivityTurnRunner } from '../../activity/activity-turn-runner'
 import type { ActivityLifecycle } from '../../activity/runtime-session-activity'
 import type { SteerMessage } from './child-state'
-import { combineInput, type InputBatch } from '../../intake/input-batch'
+import { composeIntake, type AgentIntake } from '@dltech/atlas-agent'
 import type { MessageIntake } from '../../intake/message-intake'
 import type { ThreadModel } from '../../store/thread-store'
 import type { DeltaChannel } from '../../channel/delta-channel'
@@ -23,6 +23,7 @@ import { withoutSpawnableListing } from '../../tools/builtin/agent-spawn'
 import type { HookChain } from '../../hooks/registry'
 import type { PendingDrain, TurnDeps } from '../../loop/run-turn'
 import type { TurnRunner } from '../../loop/turn-runner.port'
+import type { ChildFallbackSwitch } from '../../composition/child-fallback-model'
 import { ObservingToolDispatcher } from '../../telemetry/observing-dispatcher'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { QualityStage } from '../../tools/quality-dispatch'
@@ -37,7 +38,7 @@ import {
 
 export type ChildRunnerDeps = {
   activity: ActivityLifecycle
-  turn: Omit<TurnDeps, 'drainPending'>
+  turn: Omit<TurnDeps, 'intake'>
   tools: ToolRegistry
   hooks: HookChain
   quality?: QualityReviewPort | undefined
@@ -50,7 +51,7 @@ export type ChildRunnerDeps = {
   drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
   intake?: MessageIntake | undefined
   modelFor?:
-    | ((args: { agentType: AgentType; threadId: ThreadId }) => ModelPort | Promise<ModelPort>)
+    | ((args: { agentType: AgentType; threadId: ThreadId }) => ChildModel | Promise<ChildModel>)
     | undefined
   modelAtSpawn?:
     | ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel>)
@@ -58,6 +59,8 @@ export type ChildRunnerDeps = {
   telemetry?: TelemetryPort | undefined
   hydratePlacement?: ((args: { threadId: ThreadId }) => Promise<void>) | undefined
 }
+
+type ChildModel = ModelPort & Partial<ChildFallbackSwitch>
 
 export type ChildRunnerDepsSource = () => ChildRunnerDeps
 
@@ -114,28 +117,30 @@ export type SteeringBatch = {
   release?: (() => void) | undefined
 }
 
-const peekSteering = (steering: () => SteeringBatch): (() => InputBatch) => {
+const steeringSource = (steering: () => SteeringBatch): AgentIntake => {
   let held: SteeringBatch | undefined
-  return () => {
-    const batch = held ?? steering()
-    held = batch
-    const peeked = batch.peek()
-    return {
-      drafts: steerDrafts(peeked),
-      wakesTurn: peeked.length > 0,
-      acknowledge: () => {
-        batch.acknowledge()
-        held = undefined
-      },
-      ...(batch.release === undefined
-        ? {}
-        : {
-            release: () => {
-              batch.release?.()
-              held = undefined
-            },
-          }),
-    }
+  return {
+    prepare: async () => {
+      const batch = held ?? steering()
+      held = batch
+      const peeked = batch.peek()
+      return {
+        drafts: steerDrafts(peeked),
+        wakesTurn: peeked.length > 0,
+        acknowledge: () => {
+          batch.acknowledge()
+          held = undefined
+        },
+        ...(batch.release === undefined
+          ? {}
+          : {
+              release: () => {
+                batch.release?.()
+                held = undefined
+              },
+            }),
+      }
+    },
   }
 }
 
@@ -166,7 +171,6 @@ export async function buildChildRunner({
   steering,
 }: ChildRunnerRequest & { deps: ChildRunnerDeps }): Promise<TurnRunner> {
   await deps.hydratePlacement?.({ threadId })
-  const steeringBatch = peekSteering(steering)
   const narrowed = filteredToolRegistry({
     registry: toolRegistryFor({ registry: deps.tools, agentType }),
     deny: deniedFor(agentType),
@@ -175,8 +179,9 @@ export async function buildChildRunner({
     ? withoutSpawnableListing({ registry: narrowed, hidden: [TEAMMATE_AGENT_TYPE] })
     : narrowed
   const { turn } = deps
-  const model =
+  const model: ChildModel =
     deps.modelFor === undefined ? turn.model : await deps.modelFor({ agentType, threadId })
+  const failover = model.switch === undefined ? undefined : () => model.switch?.() === true
   observeModel(model.identity)
 
   const inner = new PublishingTurnRunner({
@@ -187,6 +192,7 @@ export async function buildChildRunner({
       log: observingLog({ log: turn.log, threadId, observe }),
       onContext: observeContext,
       model,
+      ...(failover === undefined ? {} : { retry: { ...turn.retry, failover } }),
       tools: () => registry.declarations(),
       dispatch: new ObservingToolDispatcher({
         inner: new HookedToolDispatcher({
@@ -198,24 +204,10 @@ export async function buildChildRunner({
         telemetry: deps.telemetry,
       }),
       assembly: deps.assemblyFor({ agentType, model, projectDirectory }),
-      drainPending: async (args) => {
-        const notices = await deps.drainNotices(args)
-        const batch = combineInput([
-          steeringBatch(),
-          {
-            drafts: notices.drafts,
-            wakesTurn: notices.wakesTurn,
-            acknowledge: () => notices.acknowledge?.(),
-            ...(notices.release === undefined ? {} : { release: () => notices.release?.() }),
-          },
-        ])
-        return {
-          drafts: batch.drafts,
-          wakesTurn: batch.wakesTurn,
-          acknowledge: batch.acknowledge,
-          release: () => batch.release?.(),
-        }
-      },
+      intake: composeIntake([
+        steeringSource(steering),
+        { prepare: (args) => deps.drainNotices(args) },
+      ]),
     },
   })
   return new ActivityTurnRunner({ inner, lifecycle: deps.activity })

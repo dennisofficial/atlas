@@ -281,7 +281,7 @@ export function fakeServeApp(args: {
             model: scripted,
             ids: ids as unknown as ConstructorParameters<typeof LoopTurnRunner>[0]['ids'],
             assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: args.root }),
-            drainPending: (drained) => intake.prepare(drained),
+            intake: { prepare: (drained) => intake.prepare(drained) },
           },
         })
   const run: RunTurn =

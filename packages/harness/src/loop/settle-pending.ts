@@ -1,110 +1,24 @@
 import {
-  isConcurrencySafeCall,
-  partitionToolCalls,
-  pendingCalls,
-  rowsOwnedBy,
-  activeWorktreeAfter,
-  activeWorktreeOf,
-  homeDirectoryAfter,
-  homeDirectoryOf,
-  type ActiveWorktree,
-  type ThreadId,
-  type CallId,
-  type Event,
-  type EventDraft,
-  type EventLogPort,
-  type ToolDeclaration,
-  type ToolOutputChunk,
-} from '@dltech/atlas-core'
+  createSettlePending as createAgentSettlePending,
+  type OnToolOutputNotice,
+  type SettlePending,
+  type ToolOutputNotice,
+} from '@dltech/atlas-agent'
+import type { EventLogPort } from '@dltech/atlas-core'
 
-import type { DispatchableCall, ToolDispatcher } from '../tools/dispatch'
+import { eventLogAgentRecord } from './event-log-agent-record'
 
-export type ToolOutputNotice = ToolOutputChunk & { callId: CallId }
+export type { OnToolOutputNotice, SettlePending, ToolOutputNotice }
 
-export type OnToolOutputNotice = (args: ToolOutputNotice) => void
-
-export type SettlePending = (args: {
-  threadId: ThreadId
-  signal: AbortSignal
-}) => Promise<{ paused?: { callId: CallId; reason: string } }>
-
-export function createSettlePending(deps: {
+export const createSettlePending = ({
+  log,
+  ...rest
+}: Omit<Parameters<typeof createAgentSettlePending>[0], 'record' | 'launchDirectory'> & {
   log: EventLogPort
-  dispatch: ToolDispatcher
-  tools?: (() => readonly ToolDeclaration[]) | undefined
   launchDirectory?: string | undefined
-  onToolOutput?: OnToolOutputNotice | undefined
-}): SettlePending {
-  const isSafe = (call: DispatchableCall): boolean => {
-    const declarations = new Map((deps.tools?.() ?? []).map((tool) => [tool.name, tool]))
-    return isConcurrencySafeCall({ declaration: declarations.get(call.name), input: call.input })
-  }
-
-  const settleOne = async (args: {
-    call: DispatchableCall
-    events: readonly Event[]
-    signal: AbortSignal
-    projectDirectory: string
-    homeDirectory: string
-    activeWorktree: ActiveWorktree | undefined
-  }): Promise<readonly EventDraft[]> => {
-    const { call } = args
-
-    const tap = deps.onToolOutput
-    return deps.dispatch.dispatch({
-      call,
-      signal: args.signal,
-      projectDirectory: args.projectDirectory,
-      homeDirectory: args.homeDirectory,
-      activeWorktree: args.activeWorktree,
-      events: args.events,
-      onDispatchStarted: async (draft) => {
-        await deps.log.append({ threadId: call.threadId, runId: call.runId, drafts: [draft] })
-      },
-      ...(tap === undefined
-        ? {}
-        : { onOutput: (chunk: ToolOutputChunk) => tap({ callId: call.callId, ...chunk }) }),
-    })
-  }
-
-  return async ({ threadId, signal }) => {
-    const events = await deps.log.read({ threadId })
-    const owned = rowsOwnedBy({ events, threadId })
-
-    const calls = [...pendingCalls(owned)].sort((left, right) => left.ordinal - right.ordinal)
-
-    const runs = partitionToolCalls({ calls, isSafe })
-
-    const launchDirectory = deps.launchDirectory ?? process.cwd()
-    let activeWorktree: ActiveWorktree | undefined = activeWorktreeOf(events)
-    let homeDirectory = homeDirectoryOf({ events, launchDirectory })
-
-    for (const [index, run] of runs.entries()) {
-      if (signal.aborted) return {}
-
-      const current = index === 0 ? events : await deps.log.read({ threadId })
-      const projectDirectory = activeWorktree?.path ?? homeDirectory
-      const settled = await Promise.all(
-        run.map(async (call) => {
-          const drafts = await settleOne({
-            call,
-            events: current,
-            signal,
-            projectDirectory,
-            homeDirectory,
-            activeWorktree,
-          })
-          if (drafts.length > 0) await deps.log.append({ threadId, runId: call.runId, drafts })
-          return drafts
-        }),
-      )
-
-      const drafts = settled.flat()
-
-      activeWorktree = activeWorktreeAfter({ drafts, active: activeWorktree })
-      homeDirectory = homeDirectoryAfter({ drafts, home: homeDirectory })
-    }
-
-    return {}
-  }
-}
+}): SettlePending =>
+  createAgentSettlePending({
+    ...rest,
+    record: eventLogAgentRecord(log).record,
+    launchDirectory: rest.launchDirectory ?? process.cwd(),
+  })

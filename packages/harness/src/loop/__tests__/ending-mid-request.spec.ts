@@ -105,7 +105,9 @@ async function runParentWhileSecondEnds(): Promise<{
       },
     }),
     assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/launch' }),
-    drainPending: async ({ threadId }) => family.supervisor.prepareNotifications({ threadId }),
+    intake: {
+      prepare: async ({ threadId }) => family.supervisor.prepareNotifications({ threadId }),
+    },
   })
 
   const outcome = await runner.runTurn({ threadId: family.parent })

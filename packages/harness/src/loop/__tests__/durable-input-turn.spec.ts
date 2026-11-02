@@ -75,10 +75,12 @@ describe('input already written into the durable log', () => {
       ids: harness.ids,
       model: responding,
       assembly: assembly(),
-      drainPending: async () => {
-        const wakesTurn = queued
-        queued = false
-        return { drafts: [], wakesTurn }
+      intake: {
+        prepare: async () => {
+          const wakesTurn = queued
+          queued = false
+          return { drafts: [], wakesTurn }
+        },
       },
     })
 
@@ -143,15 +145,17 @@ describe('input already written into the durable log', () => {
       ids: harness.ids,
       model: harness.model,
       assembly: assembly(),
-      drainPending: async () => {
-        if (!queued) return { drafts: [], wakesTurn: false }
-        queued = false
-        await harness.log.append({
-          threadId: thread.id,
-          runId: harness.ids.nextRunId(),
-          drafts: [ending],
-        })
-        return { drafts: [], wakesTurn: true }
+      intake: {
+        prepare: async () => {
+          if (!queued) return { drafts: [], wakesTurn: false }
+          queued = false
+          await harness.log.append({
+            threadId: thread.id,
+            runId: harness.ids.nextRunId(),
+            drafts: [ending],
+          })
+          return { drafts: [], wakesTurn: true }
+        },
       },
     })
 
@@ -173,21 +177,23 @@ describe('input already written into the durable log', () => {
       ids: harness.ids,
       model: harness.model,
       assembly: assembly(),
-      drainPending: async () => {
-        drains += 1
-        if (drains !== 2) return { drafts: [], wakesTurn: false }
-        await harness.log.append({
-          threadId: thread.id,
-          runId: harness.ids.nextRunId(),
-          drafts: [ending],
-        })
-        return {
-          drafts: [],
-          wakesTurn: true,
-          acknowledge: () => {
-            acknowledgements += 1
-          },
-        }
+      intake: {
+        prepare: async () => {
+          drains += 1
+          if (drains !== 2) return { drafts: [], wakesTurn: false }
+          await harness.log.append({
+            threadId: thread.id,
+            runId: harness.ids.nextRunId(),
+            drafts: [ending],
+          })
+          return {
+            drafts: [],
+            wakesTurn: true,
+            acknowledge: () => {
+              acknowledgements += 1
+            },
+          }
+        },
       },
     })
 
