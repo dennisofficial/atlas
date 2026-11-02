@@ -39,7 +39,7 @@ beforeEach(() => {
 
 const threadOf = (archivedAt: string | null) => ({ id: 'thr_1', archivedAt }) as WireThread
 
-async function toggle(thread: WireThread): Promise<string[]> {
+async function toggle(thread: WireThread & { teammate?: boolean }): Promise<string[]> {
   const { createRoot } = await import('react-dom/client')
   const root = createRoot(document.createElement('div'))
   const archived: string[] = []
@@ -53,6 +53,7 @@ async function toggle(thread: WireThread): Promise<string[]> {
         archived.push(threadId)
         return undefined
       },
+      isTeammate: () => thread.teammate === true,
       archive: setThreadArchived,
     }).handleToggleArchive
     return null
@@ -133,6 +134,11 @@ describe('useThreadArchive', () => {
     expect(shownToasts[0]?.title).toBe('Thread archived')
     expect(shownToasts[0]?.options.description).toBe('Fix the sidebar')
     expect(shownToasts[0]?.options.action?.label).toBe('Undo')
+  })
+
+  it('frames the undo toast as done for a teammate', async () => {
+    await toggle({ ...threadOf(null), title: 'Write specs', teammate: true })
+    expect(shownToasts[0]?.title).toBe('Marked as done')
   })
 
   it('shows no undo toast for an unarchive or a failed archive', async () => {

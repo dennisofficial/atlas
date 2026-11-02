@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, Pin } from 'lucide-react'
+import { Archive, ArchiveRestore, CircleCheck, Pin, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 import type { MouseEvent } from 'react'
 
@@ -61,6 +61,14 @@ export function ThreadRowBody({
     published: useThreadNaming(thread.id),
   })
   const handleArchive = () => onToggleArchive(thread)
+  const teammate = parent !== undefined
+  const archiveLabel = teammate
+    ? archived
+      ? 'Reopen'
+      : 'Mark as done'
+    : archived
+      ? 'Unarchive thread'
+      : 'Archive thread'
   return (
     <ThreadHoverCard
       thread={thread}
@@ -71,8 +79,18 @@ export function ThreadRowBody({
       collapsed={collapsed}
       states={states}
       actions={
-        <RowAction label={archived ? 'Unarchive thread' : 'Archive thread'} onClick={handleArchive}>
-          {archived ? <ArchiveRestore /> : <Archive />}
+        <RowAction label={archiveLabel} onClick={handleArchive}>
+          {teammate ? (
+            archived ? (
+              <RotateCcw />
+            ) : (
+              <CircleCheck />
+            )
+          ) : archived ? (
+            <ArchiveRestore />
+          ) : (
+            <Archive />
+          )}
         </RowAction>
       }
       className={cn(

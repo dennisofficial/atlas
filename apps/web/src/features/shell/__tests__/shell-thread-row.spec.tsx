@@ -100,9 +100,16 @@ describe('ThreadRow with teammates', () => {
     expect(html).toContain('aria-expanded="true"')
   })
 
-  it('offers archive on a teammate row and unarchive on a done one', () => {
+  it('offers Mark as done on a teammate row and Reopen on a done one', () => {
+    expect(render(null)).toContain('aria-label="Mark as done"')
+    expect(render(null)).not.toContain('aria-label="Reopen"')
+    const active = render('fin')
+    expect(active).toContain('aria-label="Reopen"')
+    expect(active).not.toContain('aria-label="Unarchive thread"')
+  })
+
+  it('keeps Archive thread on the top-level session row', () => {
     expect(render(null)).toContain('aria-label="Archive thread"')
-    expect(render('fin')).toContain('aria-label="Unarchive thread"')
   })
 
   it('renders a plain row when there are no teammates', () => {
