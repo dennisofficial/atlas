@@ -6,11 +6,11 @@ import { PreviewFrame } from '@dltech/atlas-ui/ai/preview-frame'
 
 import { EPreviewGate, usePreviewOrigins } from '@/features/desktop/use-preview-origins'
 
-import type { usePreviews } from '../data/use-previews'
+import type { PreviewsState } from '../data/use-previews'
 import { TabPlaceholder } from './tab-placeholder'
 
-export function PreviewTab({ data }: { data: ReturnType<typeof usePreviews> }) {
-  const { ports, selectedId, select } = data
+export function PreviewTab({ data }: { data: PreviewsState }) {
+  const { ports, selectedId, src, select } = data
   const gate = usePreviewOrigins(ports.map((port) => port.frameSrc ?? port.url))
 
   if (ports.length === 0) {
@@ -35,5 +35,5 @@ export function PreviewTab({ data }: { data: ReturnType<typeof usePreviews> }) {
     )
   }
 
-  return <PreviewFrame ports={ports} selectedId={selectedId} onSelect={select} />
+  return <PreviewFrame ports={ports} selectedId={selectedId} onSelect={select} src={src} />
 }
