@@ -9,8 +9,10 @@ import {
 } from '../workload-priority'
 
 const POD_ENV = { ATLAS_API_PROVISIONED: '1' }
-const NICE_ONLY = { nice: WORKLOAD_NICE, oomScoreAdj: null }
-const BOTH = { nice: WORKLOAD_NICE, oomScoreAdj: WORKLOAD_OOM_SCORE_ADJ }
+const NICE_ONLY = { nice: WORKLOAD_NICE, oomScoreAdj: null, cgroup: null }
+const BOTH = { nice: WORKLOAD_NICE, oomScoreAdj: WORKLOAD_OOM_SCORE_ADJ, cgroup: null }
+const WORK = '/sys/fs/cgroup/atlas-work'
+const BOXED = { ...BOTH, cgroup: WORK }
 
 describe('workloadPolicy', () => {
   it('raises the oom score only on linux inside an api-provisioned pod', () => {
@@ -34,13 +36,21 @@ describe('workloadPolicy', () => {
     expect(workloadPolicy({ env: POD_ENV, platform: 'win32' })).toEqual({
       nice: null,
       oomScoreAdj: null,
+      cgroup: null,
     })
+  })
+
+  it('learns the cgroup split from the env on linux only', () => {
+    const env = { ...POD_ENV, ATLAS_WORKLOAD_CGROUP: WORK }
+    expect(workloadPolicy({ env, platform: 'linux' }).cgroup).toBe(WORK)
+    expect(workloadPolicy({ env, platform: 'darwin' }).cgroup).toBeNull()
+    expect(workloadPolicy({ env: POD_ENV, platform: 'linux' }).cgroup).toBeNull()
   })
 })
 
 describe('preludeScript', () => {
   it('is null when nothing is to be applied', () => {
-    expect(preludeScript({ policy: { nice: null, oomScoreAdj: null } })).toBeNull()
+    expect(preludeScript({ policy: { nice: null, oomScoreAdj: null, cgroup: null } })).toBeNull()
   })
 
   it('writes the oom score before the nice step and always ends in an exec of the command', () => {
@@ -55,8 +65,37 @@ describe('preludeScript', () => {
   })
 
   it('refuses a non-integer value rather than interpolating it into shell', () => {
-    expect(preludeScript({ policy: { nice: 0, oomScoreAdj: Number.NaN } })).toBeNull()
-    expect(preludeScript({ policy: { nice: 1.5, oomScoreAdj: null } })).toBeNull()
+    expect(preludeScript({ policy: { nice: 0, oomScoreAdj: Number.NaN, cgroup: null } })).toBeNull()
+    expect(preludeScript({ policy: { nice: 1.5, oomScoreAdj: null, cgroup: null } })).toBeNull()
+  })
+})
+
+describe('preludeScript with a cgroup', () => {
+  it('joins its own box first, before the oom and nice steps', () => {
+    const script = preludeScript({ policy: BOXED }) ?? ''
+    expect(
+      script.startsWith(
+        `{ b=${WORK}/w-$$; mkdir "$b" && echo 1 > "$b/memory.oom.group"; echo $$ > "$b/cgroup.procs"; } 2>/dev/null`,
+      ),
+    ).toBe(true)
+    expect(script.indexOf('cgroup.procs')).toBeLessThan(script.indexOf('oom_score_adj'))
+    expect(script.indexOf('cgroup.procs')).toBeLessThan(script.indexOf('nice -n'))
+    expect(script.trimEnd().endsWith('exec "$@"')).toBe(true)
+  })
+
+  it('works when it is the only step', () => {
+    const script = preludeScript({ policy: { nice: null, oomScoreAdj: null, cgroup: WORK } })
+    expect(script).toContain('cgroup.procs')
+  })
+
+  it('refuses a path that could carry shell syntax', () => {
+    for (const cgroup of ['/a b', '/a;rm -rf /', 'relative/path', '/a$(x)', "/a'b", '']) {
+      expect(preludeScript({ policy: { ...BOTH, cgroup } })).toBeNull()
+    }
+  })
+
+  it('is unchanged when the cgroup is null', () => {
+    expect(preludeScript({ policy: BOTH })).not.toContain('cgroup')
   })
 })
 
@@ -70,7 +109,9 @@ describe('demotedCommand', () => {
 
   it('leaves the command unwrapped when the policy is empty', () => {
     const cmd = ['bash', '-c', 'true']
-    expect(demotedCommand({ cmd, policy: { nice: null, oomScoreAdj: null } })).toEqual(cmd)
+    expect(
+      demotedCommand({ cmd, policy: { nice: null, oomScoreAdj: null, cgroup: null } }),
+    ).toEqual(cmd)
   })
 
   it('leaves an unresolvable executable unwrapped so the spawn error is unchanged', () => {
