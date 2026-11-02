@@ -87,6 +87,7 @@ export enum EServeEvent {
   RenameForwardFailed = 'serve.rename-forward-failed',
   BootPhase = 'serve.boot-phase',
   PriorityApplied = 'serve.priority-applied',
+  WorkloadCgroups = 'serve.workload-cgroups',
   ContextMirrored = 'serve.context-mirrored',
   ContextMirrorFailed = 'serve.context-mirror-failed',
 }

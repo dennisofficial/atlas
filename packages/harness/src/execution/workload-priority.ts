@@ -1,14 +1,18 @@
 import { mirrorsThreadState } from '@dltech/atlas-wire'
 
+import { WORKLOAD_CGROUP_ENV } from './workload-cgroups'
+
 export type WorkloadPolicy = {
   readonly nice: number | null
   readonly oomScoreAdj: number | null
+  readonly cgroup: string | null
 }
 
 export const WORKLOAD_NICE = 10
 export const WORKLOAD_OOM_SCORE_ADJ = 800
 
 const PRELUDE_SHELL = '/bin/sh'
+const SAFE_CGROUP_PATH = /^\/[A-Za-z0-9/_-]+$/
 
 export const workloadPolicy = (args: {
   env: Record<string, string | undefined>
@@ -17,6 +21,7 @@ export const workloadPolicy = (args: {
   nice: args.platform === 'win32' ? null : WORKLOAD_NICE,
   oomScoreAdj:
     args.platform === 'linux' && mirrorsThreadState(args.env) ? WORKLOAD_OOM_SCORE_ADJ : null,
+  cgroup: args.platform === 'linux' ? (args.env[WORKLOAD_CGROUP_ENV] ?? null) : null,
 })
 
 /**
@@ -28,8 +33,15 @@ export const workloadPolicy = (args: {
  * missing `nice` falls through to the bare command.
  */
 export const preludeScript = (args: { policy: WorkloadPolicy }): string | null => {
-  const { nice, oomScoreAdj } = args.policy
+  const { nice, oomScoreAdj, cgroup } = args.policy
   const steps: string[] = []
+
+  if (cgroup !== null) {
+    if (!SAFE_CGROUP_PATH.test(cgroup)) return null
+    steps.push(
+      `{ b=${cgroup}/w-$$; mkdir "$b" && echo 1 > "$b/memory.oom.group"; echo $$ > "$b/cgroup.procs"; } 2>/dev/null`,
+    )
+  }
 
   if (oomScoreAdj !== null) {
     if (!Number.isInteger(oomScoreAdj)) return null

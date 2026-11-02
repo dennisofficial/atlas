@@ -39,8 +39,12 @@ _Updated at the end of every slice. Last update: 2026-11-02._
   fault-killed sub-agents end once; #1653 sub-agent session-index race (a sibling's mirror write
   could put a sub-agent in an empty session); #1657 keeps atlas-serve out of the OOM killer's path and
   ahead of workloads on CPU (the v1 half of architecture §11; measured in
-  [pod-saturation](research/pod-saturation.md)). Still open in v1: the fork bomb, which wedges a
-  pod; the measured fix is the `atlas-serve` / `atlas-work` cgroup split with `pids.max` (§11 R2).
+  [pod-saturation](research/pod-saturation.md)). The fork bomb, which wedged a pod, is fixed by
+  the `atlas-serve` / `atlas-work` cgroup split with `pids.max` and a box per workload (§11 R2;
+  shipped in #1684).
+  Measured since: `+memory` also delegates once the root is empty (`memory.max` contains a hog),
+  `cgroup.kill` catches setsid escapees, and the split does not survive snapshot/resume, so it must
+  be applied on every boot ([pod-saturation](research/pod-saturation.md) scenario 5).
 - **Design added 2026-11-02, read before specifying slices 1, 3, 4 and 5:** architecture §12 (a
   thread runs at 1M events: ranged reads only, materialized current state, artifacts out of line,
   tail-first clients; evidence [log-scale](research/log-scale.md)) and §13 (the lease is liveness;

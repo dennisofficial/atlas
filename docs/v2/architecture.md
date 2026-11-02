@@ -270,23 +270,25 @@ footprint and `oom_score_adj` 500). This is OS-level isolation, not a package bo
 What a Vercel pod allows (measured 2026-11-02, as root, [pod-saturation](research/pod-saturation.md)):
 `oom_score_adj` and negative nice work. Child cgroups with `cpu` and `pids` work **once the root
 cgroup is emptied** (every process, pid 1 included, moved into a child first), and a `pids.max` on
-the workload group fully contains a fork bomb that otherwise wedges the VM. Whether `memory` can be
-delegated the same way is untested. There is no PSI (`/proc/pressure`). #1657 (OOM ordering and
+the workload group fully contains a fork bomb that otherwise wedges the VM. `memory` delegates the
+same way, and `memory.max` on the workload group OOM-kills inside that group only. The layout is
+boot state: snapshot/resume is a fresh boot that discards it, so it is applied on every boot. There is no PSI (`/proc/pressure`). #1657 (OOM ordering and
 nice) is measured to protect the harness from memory exhaustion, not from a fork bomb.
 
 **R1. The harness survives.** The harness runs at a strongly negative `oom_score_adj`; every
 workload starts with a high one, so the kernel kills workloads first. (v1 fix, carried into `pod`.)
 
-**R2. The harness keeps CPU and process slots.** At boot the pod empties the root cgroup into an
+**R2. The harness keeps CPU and process slots.** At every boot (create and resume) the pod empties the root cgroup into an
 `atlas-serve` group (high `cpu.weight`) and spawns every workload into `atlas-work` (low
 `cpu.weight`, `pids.max`), so a fork bomb hits its cap instead of the pod's pid table. Stop kills
 every pid in `atlas-work` for the thread, so a workload that calls `setsid` cannot escape it. Workload output is read in bounded chunks so a noisy process cannot monopolise the
 harness's event loop.
 
-**R3. A memory watchdog acts before the kernel does.** Unless `memory.max` on the workload
-group proves available (then it replaces the watchdog), the `pod` host watches available memory. Below a threshold it kills the largest workload process group
-and appends an event saying which workload was killed and why, so the agent sees it in its context
-and the operator in the transcript.
+**R3. Workloads have a memory ceiling.** `memory.max` on the workload group (measured available)
+makes the kernel OOM-kill inside `atlas-work` before the pod runs out, so the harness never competes
+with a hog for the last page. The `pod` host reads `memory.events` and appends an event saying which
+workload was killed and why, so the agent sees it in its context and the operator in the transcript.
+The kill scope (one shared group or a child per thread or workload) is fixed in the slice 3 spec.
 
 **R4. Liveness does not wait on the loop.** Lease renewal runs on its own timer, independent of
 turn progress, and its TTL is sized for a saturated pod, so a busy pod is never fenced as dead.
