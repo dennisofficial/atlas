@@ -1,5 +1,7 @@
 import { runFailureWith, type NormalizeFailure } from '../model/run-failure'
-import type { EventLogPort, RunFailure, RunId, ThreadId } from '@dltech/atlas-core'
+import type { RunFailure, RunId, ThreadId } from '@dltech/atlas-core'
+
+import type { AgentRecordPort } from '../record/agent-record.port'
 
 const recordedFailures = new WeakSet<object>()
 
@@ -11,13 +13,13 @@ export const failureRecorded = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && recordedFailures.has(error)
 
 export async function recordRunFailure(args: {
-  log: EventLogPort
+  record: AgentRecordPort
   threadId: ThreadId
   runId: RunId
   failure: RunFailure
 }): Promise<void> {
   try {
-    await args.log.append({
+    await args.record.append({
       threadId: args.threadId,
       runId: args.runId,
       drafts: [{ type: 'run-failed', failure: args.failure }],
@@ -29,7 +31,7 @@ export async function recordRunFailure(args: {
 }
 
 export async function recordEscapedFailure(args: {
-  log: EventLogPort
+  record: AgentRecordPort
   threadId: ThreadId
   runId: RunId
   error: unknown
@@ -39,7 +41,7 @@ export async function recordEscapedFailure(args: {
   if (failureRecorded(args.error)) return
   const { error } = args
   await recordRunFailure({
-    log: args.log,
+    record: args.record,
     threadId: args.threadId,
     runId: args.runId,
     failure: runFailureWith({

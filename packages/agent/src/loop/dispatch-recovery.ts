@@ -2,13 +2,14 @@ import {
   crashedCalls,
   EToolEffect,
   rowsOwnedBy,
-  type EventLogPort,
   type IdPort,
   type PendingCall,
   type ThreadId,
 } from '@dltech/atlas-core'
 
-type CrashLog = Pick<EventLogPort, 'readOwn' | 'append'>
+import type { AgentRecordPort } from '../record/agent-record.port'
+
+type CrashLog = Pick<AgentRecordPort, 'ownEvents' | 'append'>
 type CrashIds = Pick<IdPort, 'nextRunId'>
 
 export type ToolEffectResolver = (name: string) => EToolEffect | undefined
@@ -26,19 +27,19 @@ export function crashedCallDraft(call: PendingCall) {
 }
 
 export async function settleCrashedCalls(args: {
-  log: CrashLog
+  record: CrashLog
   ids: CrashIds
   threadId: ThreadId
   effectOf: ToolEffectResolver
 }): Promise<readonly PendingCall[]> {
-  const events = await args.log.readOwn({ threadId: args.threadId })
+  const events = await args.record.ownEvents({ threadId: args.threadId })
   const crashed = crashedCalls(rowsOwnedBy({ events, threadId: args.threadId }))
   if (crashed.length === 0) return crashed
 
   const unrecoverable = crashed.filter((call) => args.effectOf(call.name) !== EToolEffect.Read)
   if (unrecoverable.length === 0) return crashed
 
-  await args.log.append({
+  await args.record.append({
     threadId: args.threadId,
     runId: args.ids.nextRunId(),
     drafts: unrecoverable.map((call) => crashedCallDraft(call)),

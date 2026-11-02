@@ -8,7 +8,6 @@ import {
   type ThreadId,
   type ChunkFilter,
   type EventDraft,
-  type EventLogPort,
   type SaidFile,
   type SaidImage,
   type SaidUpload,
@@ -21,6 +20,7 @@ import {
 
 import { logFieldsOf } from '../logging/log-fields'
 import type { AgentIntake } from '../intake/agent-intake'
+import type { AgentRecordPort, ModelContextPort } from '../record/agent-record.port'
 import type { HookChain } from '../hooks/registry'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import type { ApplyLoopCut } from '../loop-cut'
@@ -47,7 +47,8 @@ import { TurnRunner } from './turn-runner.port'
 export type { PendingDrain }
 
 export type TurnDeps = {
-  log: EventLogPort
+  record: AgentRecordPort
+  modelContext: ModelContextPort
   logPort?: LogPort | undefined
   model: ModelPort
   ids: IdPort
@@ -80,7 +81,7 @@ export type TurnDeps = {
 }
 
 export class LoopTurnRunner extends TurnRunner {
-  private readonly log: EventLogPort
+  private readonly record: AgentRecordPort
   private readonly model: ModelPort
   private readonly ids: IdPort
   private readonly spend: TurnLedgerDeps | undefined
@@ -94,7 +95,7 @@ export class LoopTurnRunner extends TurnRunner {
 
   constructor(deps: TurnDeps) {
     super()
-    this.log = deps.log
+    this.record = deps.record
     this.model = deps.model
     this.ids = deps.ids
     this.spend = deps.spend
@@ -111,7 +112,8 @@ export class LoopTurnRunner extends TurnRunner {
       ((assembled: Assembled) => estimateTokensFor(imageTierOf(deps.model))(assembled))
 
     this.tracked = {
-      log: deps.log,
+      record: deps.record,
+      modelContext: deps.modelContext,
       model: deps.model,
       ids: deps.ids,
       assembly: deps.assembly,
@@ -126,7 +128,7 @@ export class LoopTurnRunner extends TurnRunner {
         deps.dispatch === undefined
           ? undefined
           : createSettlePending({
-              log: deps.log,
+              record: deps.record,
               dispatch: deps.dispatch,
               tools,
               launchDirectory: deps.launchDirectory,
@@ -200,7 +202,7 @@ export class LoopTurnRunner extends TurnRunner {
   }): Promise<TurnOutcome> {
     const held = context ?? []
     const expanded = this.expandContext?.({ text, context: held }) ?? []
-    await this.log.append({
+    await this.record.append({
       threadId,
       runId: this.ids.nextRunId(),
       drafts: [...held, ...expanded, saidBody({ text, requestId, images, files, uploads })],
@@ -222,7 +224,7 @@ export class LoopTurnRunner extends TurnRunner {
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
     await appendResumeDrafts({
-      log: this.log,
+      record: this.record,
       ids: this.ids,
       threadId,
       expandContext: this.expandContext,
@@ -270,13 +272,13 @@ export class LoopTurnRunner extends TurnRunner {
           providerId: this.model.identity.id,
           modelId: this.model.identity.modelId,
         })
-        await recordRunFailure({ log: this.log, threadId, runId, failure })
+        await recordRunFailure({ record: this.record, threadId, runId, failure })
         return { ...outcome, failure }
       }
       return outcome
     } catch (error) {
       await recordEscapedFailure({
-        log: this.log,
+        record: this.record,
         threadId,
         runId,
         error,

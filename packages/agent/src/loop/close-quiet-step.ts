@@ -29,10 +29,10 @@ export async function closeQuietStep({
   signal: AbortSignal
   interrupted: () => Promise<TurnOutcome>
 }): Promise<QuietStep> {
-  const { log, ids } = deps
-  const latest = await log.read({ threadId })
+  const { record, ids } = deps
+  const latest = await record.composedEvents({ threadId })
   if (messageArrivedSince({ events: latest, seenThrough: position.seenThrough })) {
-    await appendShellCompletionNudge({ log, threadId, runId, seenThrough: position.seenThrough })
+    await appendShellCompletionNudge({ record, threadId, runId, seenThrough: position.seenThrough })
     position.silentSteps = 0
     position.silentRetries = 0
     return CONTINUE
@@ -40,7 +40,7 @@ export async function closeQuietStep({
 
   const speech = await appendPending({
     intake: deps.intake,
-    log,
+    record,
     ids,
     threadId,
     signal,
@@ -59,7 +59,7 @@ export async function closeQuietStep({
     result: stepped,
     threadId,
     runId,
-    log,
+    record,
     silentSteps: position.silentSteps,
   })
   if (silenced.kind === 'failed') {
@@ -79,11 +79,11 @@ export async function closeQuietStep({
     return CONTINUE
   }
   if (silenced.kind === 'no-content') {
-    await log.append({ threadId, runId, drafts: [noContentDraft()] })
+    await record.append({ threadId, runId, drafts: [noContentDraft()] })
   }
 
   const closing = (await deps.hooks?.afterTurn({ threadId })) ?? []
-  if (closing.length > 0) await log.append({ threadId, runId, drafts: closing })
+  if (closing.length > 0) await record.append({ threadId, runId, drafts: closing })
 
   return { kind: 'done', outcome: { status: ETurnStatus.Completed, runId } }
 }

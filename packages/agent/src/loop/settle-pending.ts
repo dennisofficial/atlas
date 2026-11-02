@@ -12,10 +12,11 @@ import {
   type CallId,
   type Event,
   type EventDraft,
-  type EventLogPort,
   type ToolDeclaration,
   type ToolOutputChunk,
 } from '@dltech/atlas-core'
+
+import type { AgentRecordPort } from '../record/agent-record.port'
 
 import type { DispatchableCall, ToolDispatcher } from '../tools/dispatch'
 
@@ -29,7 +30,7 @@ export type SettlePending = (args: {
 }) => Promise<{ paused?: { callId: CallId; reason: string } }>
 
 export function createSettlePending(deps: {
-  log: EventLogPort
+  record: AgentRecordPort
   dispatch: ToolDispatcher
   tools?: (() => readonly ToolDeclaration[]) | undefined
   launchDirectory: string
@@ -59,7 +60,7 @@ export function createSettlePending(deps: {
       activeWorktree: args.activeWorktree,
       events: args.events,
       onDispatchStarted: async (draft) => {
-        await deps.log.append({ threadId: call.threadId, runId: call.runId, drafts: [draft] })
+        await deps.record.append({ threadId: call.threadId, runId: call.runId, drafts: [draft] })
       },
       ...(tap === undefined
         ? {}
@@ -68,7 +69,7 @@ export function createSettlePending(deps: {
   }
 
   return async ({ threadId, signal }) => {
-    const events = await deps.log.read({ threadId })
+    const events = await deps.record.composedEvents({ threadId })
     const owned = rowsOwnedBy({ events, threadId })
 
     const calls = [...pendingCalls(owned)].sort((left, right) => left.ordinal - right.ordinal)
@@ -81,7 +82,7 @@ export function createSettlePending(deps: {
     for (const [index, run] of runs.entries()) {
       if (signal.aborted) return {}
 
-      const current = index === 0 ? events : await deps.log.read({ threadId })
+      const current = index === 0 ? events : await deps.record.composedEvents({ threadId })
       const projectDirectory = activeWorktree?.path ?? homeDirectory
       const settled = await Promise.all(
         run.map(async (call) => {
@@ -93,7 +94,7 @@ export function createSettlePending(deps: {
             homeDirectory,
             activeWorktree,
           })
-          if (drafts.length > 0) await deps.log.append({ threadId, runId: call.runId, drafts })
+          if (drafts.length > 0) await deps.record.append({ threadId, runId: call.runId, drafts })
           return drafts
         }),
       )

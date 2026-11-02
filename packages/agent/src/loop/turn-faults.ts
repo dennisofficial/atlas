@@ -5,13 +5,14 @@ import {
   ERunFailureKind,
   silentStep,
   type CallId,
-  type EventLogPort,
   type ExchangeFault,
   type LoopCut,
   type ModelStepResult,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
+
+import type { AgentRecordPort } from '../record/agent-record.port'
 
 import { TurnFault } from '../model/turn-fault'
 
@@ -54,13 +55,13 @@ export async function nudgeSilentStep({
   result,
   threadId,
   runId,
-  log,
+  record,
   silentSteps,
 }: {
   result: ModelStepResult
   threadId: ThreadId
   runId: RunId
-  log: EventLogPort
+  record: AgentRecordPort
   silentSteps: number
 }): Promise<SilentOutcome> {
   const finish = result.finishReason
@@ -83,6 +84,6 @@ export async function nudgeSilentStep({
     return { kind: 'no-content' }
   }
 
-  await log.append({ threadId, runId, drafts: [emptyStepNudgeDraft()] })
+  await record.append({ threadId, runId, drafts: [emptyStepNudgeDraft()] })
   return { kind: 'nudged' }
 }

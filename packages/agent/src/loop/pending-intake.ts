@@ -1,5 +1,7 @@
+import type { EventDraft, IdPort, ThreadId } from '@dltech/atlas-core'
+
 import type { AgentIntake } from '../intake/agent-intake'
-import type { EventDraft, EventLogPort, IdPort, ThreadId } from '@dltech/atlas-core'
+import type { AgentRecordPort } from '../record/agent-record.port'
 
 export type PendingDrain = {
   drafts: readonly EventDraft[]
@@ -14,13 +16,13 @@ export type DrainedPending =
 
 export async function appendPending({
   intake,
-  log,
+  record,
   ids,
   threadId,
   signal,
 }: {
   intake: AgentIntake | undefined
-  log: EventLogPort
+  record: AgentRecordPort
   ids: IdPort
   threadId: ThreadId
   signal?: AbortSignal | undefined
@@ -41,7 +43,7 @@ export async function appendPending({
 
   if (waiting.drafts.length > 0) {
     try {
-      await log.append({ threadId, runId: ids.nextRunId(), drafts: waiting.drafts })
+      await record.append({ threadId, runId: ids.nextRunId(), drafts: waiting.drafts })
     } catch (cause) {
       waiting.release?.()
       return { ok: false, cause }

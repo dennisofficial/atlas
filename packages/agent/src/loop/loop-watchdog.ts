@@ -14,11 +14,12 @@ import {
   type DecisionPort,
   type Event,
   type EventDraft,
-  type EventLogPort,
   type LoopWatchStep,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
+
+import type { AgentRecordPort } from '../record/agent-record.port'
 
 import type { ApplyLoopCut } from '../loop-cut'
 
@@ -133,7 +134,7 @@ export async function watchStepLoop({
   threadId,
   runId,
   signal,
-  log,
+  record,
   applyLoopCut,
   onLoopWatch,
   onLoopWatchCut,
@@ -145,7 +146,7 @@ export async function watchStepLoop({
   threadId: ThreadId
   runId: RunId
   signal: AbortSignal
-  log: EventLogPort
+  record: AgentRecordPort
   applyLoopCut: ApplyLoopCut | undefined
   onLoopWatch: (() => void) | undefined
   onLoopWatchCut: ((args: { steps: number }) => void) | undefined
@@ -174,14 +175,14 @@ export async function watchStepLoop({
   // reaches the tip — so on the cut path the verdict lands after the truncation, where it
   // survives as the record of what was removed.
   if (watch.verdict === ELoopWatch.Clear) {
-    if (judged !== undefined) await log.append({ threadId, runId, drafts: [judged] })
+    if (judged !== undefined) await record.append({ threadId, runId, drafts: [judged] })
     state.warned = false
     state.cutAnchors.length = 0
     return { kind: 'step' }
   }
 
   if (watch.verdict !== ELoopWatch.Looping) {
-    if (judged !== undefined) await log.append({ threadId, runId, drafts: [judged] })
+    if (judged !== undefined) await record.append({ threadId, runId, drafts: [judged] })
     return { kind: 'step' }
   }
 
@@ -204,13 +205,13 @@ export async function watchStepLoop({
     })
     if (applied) {
       state.cutAnchors.push(target)
-      if (judged !== undefined) await log.append({ threadId, runId, drafts: [judged] })
+      if (judged !== undefined) await record.append({ threadId, runId, drafts: [judged] })
       onLoopWatchCut?.({ steps: throughSeq - target })
       return { kind: 'rewind' }
     }
   }
 
-  if (judged !== undefined) await log.append({ threadId, runId, drafts: [judged] })
+  if (judged !== undefined) await record.append({ threadId, runId, drafts: [judged] })
 
   if (state.warned) {
     onLoopStop?.()
@@ -218,7 +219,7 @@ export async function watchStepLoop({
   }
 
   state.warned = true
-  await log.append({ threadId, runId, drafts: [loopWatchNudgeDraft()] })
+  await record.append({ threadId, runId, drafts: [loopWatchNudgeDraft()] })
   onLoopWatch?.()
   return { kind: 'rewind' }
 }

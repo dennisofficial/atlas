@@ -51,7 +51,7 @@ export async function runTrackedTurn(
     spend: TurnSpendTally
   },
 ): Promise<TurnOutcome> {
-  const { log, ids } = deps
+  const { record, ids } = deps
   const abortSignal = signal ?? new AbortController().signal
   const position = openPosition()
   const preparedAssembly: StepPrepareDeps = {
@@ -72,22 +72,22 @@ export async function runTrackedTurn(
     status: ETurnStatus.Interrupted,
     runId,
     committed: committedSinceLastMessage(
-      rowsOwnedBy({ events: await log.read({ threadId }), threadId }),
+      rowsOwnedBy({ events: await record.composedEvents({ threadId }), threadId }),
     ),
   })
 
   const projectDirectory = projectDirectoryOf({
-    events: await log.read({ threadId }),
+    events: await record.composedEvents({ threadId }),
     launchDirectory: deps.launchDirectory,
   })
 
   const opening = (await deps.hooks?.beforeTurn({ threadId, projectDirectory })) ?? []
-  if (opening.length > 0) await log.append({ threadId, runId, drafts: opening })
+  if (opening.length > 0) await record.append({ threadId, runId, drafts: opening })
 
   for (;;) {
     if (pause?.paused === true) return { status: ETurnStatus.RelocationPaused, runId }
 
-    const beforeDrain = await log.read({ threadId })
+    const beforeDrain = await record.composedEvents({ threadId })
     const ownedBeforeDrain = rowsOwnedBy({ events: beforeDrain, threadId })
 
     const settled = await settlePendingCall({
@@ -110,7 +110,7 @@ export async function runTrackedTurn(
 
     const intake = await appendPending({
       intake: deps.intake,
-      log,
+      record,
       ids,
       threadId,
       signal: abortSignal,
@@ -119,7 +119,8 @@ export async function runTrackedTurn(
       if (abortSignal.aborted) return interrupted()
       throw intake.cause
     }
-    const events = intake.drained || intake.wakesTurn ? await log.read({ threadId }) : beforeDrain
+    const events =
+      intake.drained || intake.wakesTurn ? await record.composedEvents({ threadId }) : beforeDrain
     const owned = rowsOwnedBy({ events, threadId })
 
     const guarded = await guardRepeatLoop({
@@ -156,7 +157,7 @@ export async function runTrackedTurn(
       threadId,
       runId,
       signal: abortSignal,
-      log,
+      record,
       applyLoopCut: deps.applyLoopCut,
       onLoopWatch: deps.onLoopWatch,
       onLoopWatchCut: deps.onLoopWatchCut,
@@ -175,17 +176,17 @@ export async function runTrackedTurn(
     const prepareAttempt = async () => {
       const retryIntake = await appendPending({
         intake: deps.intake,
-        log,
+        record,
         ids,
         threadId,
         signal: abortSignal,
       })
       if (!retryIntake.ok) throw retryIntake.cause
-      const latest = await log.read({ threadId })
+      const latest = await record.composedEvents({ threadId })
       preparedThrough = rowsOwnedBy({ events: latest, threadId }).at(-1)?.seq
       const prepared = await prepareStepAssembly(preparedAssembly, {
         threadId,
-        events: latest,
+        events: (await deps.modelContext.read({ threadId })).events,
         step: position.modelSteps,
         previous: undefined,
         signal: abortSignal,
@@ -196,7 +197,7 @@ export async function runTrackedTurn(
 
     const prepared = await prepareStepAssembly(preparedAssembly, {
       threadId,
-      events,
+      events: (await deps.modelContext.read({ threadId })).events,
       step: position.modelSteps,
       previous: position.previous,
       signal: abortSignal,
@@ -260,13 +261,18 @@ export async function runTrackedTurn(
         drafts: interruptedDrafts(stepped.result),
         taken: callIdsIn(events),
       })
-      if (abandoned.length > 0) await log.append({ threadId, runId, drafts: abandoned })
-      await appendShellCompletionNudge({ log, threadId, runId, seenThrough: position.seenThrough })
+      if (abandoned.length > 0) await record.append({ threadId, runId, drafts: abandoned })
+      await appendShellCompletionNudge({
+        record,
+        threadId,
+        runId,
+        seenThrough: position.seenThrough,
+      })
       return interrupted()
     }
 
     const drafts = dedupeCallIds({ drafts: draftsFor(stepped.result), taken: callIdsIn(events) })
-    if (drafts.length > 0) await log.append({ threadId, runId, drafts })
+    if (drafts.length > 0) await record.append({ threadId, runId, drafts })
 
     for (const draft of drafts) {
       if (draft.type === 'tool-called')
