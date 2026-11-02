@@ -93,7 +93,7 @@ export function sessionCheckoutsOf(args: {
           key: keyOf({ branch: entry.branch, path: viaId }),
           branch: entry.branch,
           path: undefined,
-          label: entry.via.title ? displayedThreadTitle(entry.via.title) : 'Sub-agent',
+          label: undefined,
           main: false,
           threadIds: [entry.via.threadId],
           rowKeys: [],
