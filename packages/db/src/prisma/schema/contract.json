@@ -2422,6 +2422,13 @@
                   "kind": "scalar"
                 }
               },
+              "checksIgnored": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "checksPassed": {
                 "nullable": false,
                 "type": {
@@ -2515,6 +2522,9 @@
               "fields": {
                 "checksFailed": {
                   "column": "checksFailed"
+                },
+                "checksIgnored": {
+                  "column": "checksIgnored"
                 },
                 "checksPassed": {
                   "column": "checksPassed"
@@ -8894,6 +8904,15 @@
                   },
                   "nullable": false
                 },
+                "checksIgnored": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
                 "checksPassed": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -12215,7 +12234,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "18518cc2afa8b273ce1fbe178c79fb8ae7141b1872f63117c8606ff5be9eb08f"
+    "storageHash": "b7782ac406600db0ef366864169b3abf3a72449cdd7025c573d7515f54a34342"
   },
   "execution": {
     "executionHash": "1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb",

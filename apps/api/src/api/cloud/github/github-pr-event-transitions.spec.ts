@@ -6,7 +6,7 @@ import {
   type PrTransitionSnapshot,
 } from './github-pr-event-transitions'
 
-const base = { state: 'open', headSha: 'abc', url: 'https://x' }
+const base = { state: 'open', headSha: 'abc', url: 'https://x', checksIgnored: 0 }
 
 const runningNoMergeable: PrTransitionSnapshot = {
   state: 'open',
@@ -14,6 +14,7 @@ const runningNoMergeable: PrTransitionSnapshot = {
   checksRunning: 10,
   checksPassed: 0,
   checksFailed: 0,
+  checksIgnored: 0,
   mergeable: null,
 }
 
@@ -118,6 +119,7 @@ describe('transitionsOf', () => {
         checksRunning: 0,
         checksPassed: 0,
         checksFailed: 0,
+        checksIgnored: 0,
         mergeable: null,
       },
       next: { ...base, checksRunning: 0, checksPassed: 0, checksFailed: 0, mergeable: true },
@@ -168,6 +170,7 @@ describe('transitionsOf', () => {
         checksRunning: 0,
         checksPassed: 10,
         checksFailed: 0,
+        checksIgnored: 0,
         mergeable: null,
       },
       next: { ...base, checksRunning: 0, checksPassed: 10, checksFailed: 0, mergeable: null },
@@ -183,6 +186,7 @@ describe('transitionsOf', () => {
       checksRunning: 0,
       checksPassed: 10,
       checksFailed: 0,
+      checksIgnored: 0,
       mergeable: null,
     }
     const newTip = { ...base, headSha: 'bbbbbbb2' }
@@ -241,6 +245,7 @@ describe('transitionsOf', () => {
             checksRunning: 0,
             checksPassed: 10,
             checksFailed: 0,
+            checksIgnored: 0,
             mergeable: null,
           },
         }),
@@ -257,6 +262,7 @@ describe('transitionsOf', () => {
           checksRunning: 0,
           checksPassed: 3,
           checksFailed: 0,
+          checksIgnored: 0,
           mergeable: true,
         },
         next: {
@@ -266,6 +272,7 @@ describe('transitionsOf', () => {
           checksRunning: 0,
           checksPassed: 3,
           checksFailed: 0,
+          checksIgnored: 0,
           mergeable: true,
         },
         options: { verdictTiming: timing },

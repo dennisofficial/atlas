@@ -7,6 +7,8 @@ export enum EChecksState {
 
 export type ChecksTally = { running: number; passed: number; failed: number }
 
+export type ChecksCount = ChecksTally & { ignored: number }
+
 export const NO_CHECKS: ChecksTally = { running: 0, passed: 0, failed: 0 }
 
 export enum ECheckOutcome {
@@ -63,14 +65,15 @@ export function latestAttemptOutcomes(attempts: readonly CheckAttempt[]): ECheck
   return kept.map((attempt) => attempt.outcome)
 }
 
-export function checksTally(outcomes: readonly ECheckOutcome[]): ChecksTally {
-  return outcomes.reduce<ChecksTally>(
+export function checksTally(outcomes: readonly ECheckOutcome[]): ChecksCount {
+  return outcomes.reduce<ChecksCount>(
     (tally, outcome) => ({
       running: tally.running + (outcome === ECheckOutcome.Running ? 1 : 0),
       passed: tally.passed + (outcome === ECheckOutcome.Passed ? 1 : 0),
       failed: tally.failed + (outcome === ECheckOutcome.Failed ? 1 : 0),
+      ignored: tally.ignored + (outcome === ECheckOutcome.Ignored ? 1 : 0),
     }),
-    NO_CHECKS,
+    { ...NO_CHECKS, ignored: 0 },
   )
 }
 

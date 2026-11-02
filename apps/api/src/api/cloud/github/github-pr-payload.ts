@@ -20,6 +20,7 @@ export function payloadFieldsOf(args: { pull: GithubWebhookPullRequest }): Githu
     checksRunning: 0,
     checksPassed: 0,
     checksFailed: 0,
+    checksIgnored: 0,
     mergeable: null,
     updatedAt: new Date(),
   }

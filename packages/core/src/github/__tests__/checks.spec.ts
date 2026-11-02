@@ -49,11 +49,11 @@ describe('checksTally', () => {
         ECheckOutcome.Running,
         ECheckOutcome.Ignored,
       ]),
-    ).toEqual({ running: 1, passed: 2, failed: 1 })
+    ).toEqual({ running: 1, passed: 2, failed: 1, ignored: 1 })
   })
 
   it('is all zeroes with nothing to count', () => {
-    expect(checksTally([])).toEqual({ running: 0, passed: 0, failed: 0 })
+    expect(checksTally([])).toEqual({ running: 0, passed: 0, failed: 0, ignored: 0 })
   })
 })
 

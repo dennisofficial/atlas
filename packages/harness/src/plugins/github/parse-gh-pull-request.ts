@@ -1,3 +1,4 @@
+import { type ChecksCount } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import {
@@ -9,6 +10,7 @@ import {
   latestAttemptOutcomes,
   statusContextOutcomeOf,
   type CheckAttempt,
+  type ChecksTally,
   type PrComment,
   type PrReview,
   type PullRequest,
@@ -144,6 +146,12 @@ const stateOf = (args: { state: string; isDraft: boolean }): EPullRequestState |
   return null
 }
 
+const podTallyOf = ({ running, passed, failed }: ChecksCount): ChecksTally => ({
+  running,
+  passed,
+  failed,
+})
+
 export function parseGhPullRequest(value: unknown): PullRequest | null {
   const parsed = GhPullRequestSchema.safeParse(value)
   if (!parsed.success) return null
@@ -160,7 +168,7 @@ export function parseGhPullRequest(value: unknown): PullRequest | null {
     headSha: parsed.data.headRefOid,
     state,
     checks: checksRollup(outcomes),
-    tally: checksTally(outcomes),
+    tally: podTallyOf(checksTally(outcomes)),
     mergeable: MERGEABLE[parsed.data.mergeable ?? ''] ?? null,
     comments: parsed.data.comments.slice(-GH_ENTRY_WINDOW).map(commentOf),
     reviews: parsed.data.reviews.slice(-GH_ENTRY_WINDOW).map(reviewOf),

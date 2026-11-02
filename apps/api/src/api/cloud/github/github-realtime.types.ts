@@ -47,6 +47,7 @@ export interface GithubPrStateDto {
   checksRunning: number
   checksPassed: number
   checksFailed: number
+  checksIgnored: number
   mergeable: boolean | null
   updatedAt: string
 }

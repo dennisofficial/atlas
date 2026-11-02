@@ -41,6 +41,7 @@ export interface PullRequestCacheFields {
   checksRunning: number
   checksPassed: number
   checksFailed: number
+  checksIgnored: number
   mergeable: boolean | null
 }
 
@@ -82,6 +83,7 @@ export function pullRequestCacheFieldsOf(args: {
     checksRunning: tally.running,
     checksPassed: tally.passed,
     checksFailed: tally.failed,
+    checksIgnored: tally.ignored,
     mergeable: args.pull.mergeable,
   }
 }
