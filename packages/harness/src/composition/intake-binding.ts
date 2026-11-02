@@ -45,6 +45,7 @@ export function bindIntake<Command>(args: {
         return (
           args.waitState?.blocked({ threadId }) === true ||
           current === undefined ||
+          current.status === EAgentStatus.Failed ||
           (current.status === EAgentStatus.Running && current.steppingSince !== undefined) ||
           current.killedBy !== undefined
         )
