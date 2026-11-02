@@ -6,7 +6,7 @@ import type { Event } from '@dltech/atlas-core'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
 import type { DetailsInput } from '../panel/details/details-input'
-import { currentBranchOf, sandboxSettingsHrefOf } from './header-model'
+import { sandboxSettingsHrefOf } from './header-model'
 import type { PullRequestsView } from './use-pull-requests'
 
 export function useDetailsInput(args: {
@@ -20,7 +20,6 @@ export function useDetailsInput(args: {
     () => ({
       title: thread?.title ?? null,
       events,
-      branch: currentBranchOf(thread),
       repoPath: thread?.repo ?? undefined,
       worktreePath: thread?.worktree?.path,
       pullRequests,

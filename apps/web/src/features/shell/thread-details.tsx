@@ -11,6 +11,7 @@ import {
   type PullRequestEntry,
 } from '@/features/threads/data/pull-request-entries'
 import { currentBranchOf, isOutsideGit } from '@/features/threads/data/header-model'
+import { sessionCheckoutsOf } from '@/features/threads/data/session-checkouts'
 import { UNTITLED } from '@/features/threads/data/untitled'
 import { useSidebarPrObservation } from './shell-pr-observations'
 import { ThreadStatusIcon } from './shell-status-icon'
@@ -91,15 +92,36 @@ export function ThreadDetails({
   states,
 }: ThreadDetailsProps) {
   const family = useThreadFamily()
-  const own = threadPullRequestsOf({ thread, teammates: [], collapsed: false, states, family })
+  const checkouts = sessionCheckoutsOf({
+    thread,
+    family: teammates,
+    entries: [],
+  }).checkouts
+  const own = threadPullRequestsOf({
+    thread,
+    teammates: [],
+    collapsed: false,
+    states,
+    family,
+  })
   const teammateEntries = teammates.flatMap((teammate) =>
-    threadPullRequestsOf({ thread: teammate, teammates: [], collapsed: false, states, family }),
+    threadPullRequestsOf({
+      thread: teammate,
+      teammates: [],
+      collapsed: false,
+      states,
+      family,
+    }),
   )
   const represented = new Set([...own, ...teammateEntries].map(pullRequestKeyOf))
   const borrowed = collapsed
-    ? threadPullRequestsOf({ thread, teammates, collapsed: true, states, family }).filter(
-        (entry) => !represented.has(pullRequestKeyOf(entry)),
-      )
+    ? threadPullRequestsOf({
+        thread,
+        teammates,
+        collapsed: true,
+        states,
+        family,
+      }).filter((entry) => !represented.has(pullRequestKeyOf(entry)))
     : []
   const observationRef = useSidebarPrObservation(
     thread.runner === 'local' ? [] : [...own, ...teammateEntries, ...borrowed],
@@ -130,7 +152,20 @@ export function ThreadDetails({
           <Folder className="size-3.5 shrink-0 text-muted-foreground" />
           {projectName}
         </DetailRow>
-        {isOutsideGit(thread) ? null : (
+        {checkouts.length > 1 ? (
+          checkouts.map((checkout) => (
+            <DetailRow key={checkout.key} label={checkout.label ?? 'Branch'}>
+              <span className="flex min-w-0 flex-col items-end">
+                <span className="font-mono break-all">{checkout.branch}</span>
+                {checkout.path === undefined ? null : (
+                  <span className="max-w-full truncate text-muted-foreground" title={checkout.path}>
+                    {checkout.path}
+                  </span>
+                )}
+              </span>
+            </DetailRow>
+          ))
+        ) : isOutsideGit(thread) ? null : (
           <DetailRow label="Branch">
             <span className="font-mono break-all">
               {currentBranchOf(thread) ?? 'No branch yet'}

@@ -13,6 +13,7 @@ import {
   subscriptionForPullRequest,
   type PullRequestBell,
 } from './subscription-model'
+import { sessionCheckoutsOf, type CheckoutView } from './session-checkouts'
 import { mergePrStates } from './pr-states-merge'
 import { useApiPrStates } from './use-api-pr-states'
 import { usePrStates } from './use-pr-states'
@@ -24,15 +25,18 @@ export type PullRequestsView = {
   bells: Record<string, PullRequestBell>
   handleToggle: (key: string) => void
   observationRef?: RefCallback<HTMLElement>
+  checkouts: CheckoutView[]
+  looseKeys: string[]
 }
 
 export function usePullRequests(args: {
   threadId: string
   channel: ServeChannel | null
   thread: WireThread | undefined
+  family?: readonly WireThread[]
   subscribe?: ApiPrStatesSubscribe
 }): PullRequestsView {
-  const { threadId, channel, thread } = args
+  const { threadId, channel, thread, family } = args
   const liveStates = usePrStates(channel)
   const { registry, observe } = usePrObservationRegistry()
   const cloud = thread !== undefined && thread.runner !== 'local'
@@ -50,6 +54,10 @@ export function usePullRequests(args: {
     channel,
   })
   const list = useMemo(() => pullRequestListOf({ thread, states }), [thread, states])
+  const grouped = useMemo(
+    () => sessionCheckoutsOf({ thread, family: family ?? [], entries: list.entries }),
+    [thread, family, list],
+  )
   const bells = useMemo(
     () => pullRequestBellsOf({ entries: list.entries, subscriptions, busy }),
     [list, subscriptions, busy],
@@ -69,7 +77,7 @@ export function usePullRequests(args: {
   )
 
   return useMemo(
-    () => ({ rows: list.rows, bells, handleToggle, observationRef }),
-    [list, bells, handleToggle, observationRef],
+    () => ({ rows: list.rows, bells, handleToggle, observationRef, ...grouped }),
+    [list, bells, handleToggle, observationRef, grouped],
   )
 }

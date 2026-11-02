@@ -96,3 +96,19 @@ export const hasThread = (args: {
   args.entries.some((entry) =>
     mainThreadsOf(entry.sessions).some((thread) => thread.id === args.threadId),
   )
+
+export function descendantsOfThread(args: {
+  entries: readonly ProjectThreads[]
+  threadId: string
+}): WireThread[] {
+  const find = (sessions: readonly SessionNode[]): SessionNode | undefined => {
+    for (const session of sessions) {
+      if (session.mainThread.id === args.threadId) return session
+      const nested = find(session.teammates)
+      if (nested !== undefined) return nested
+    }
+    return undefined
+  }
+  const node = find(args.entries.flatMap((entry) => entry.sessions))
+  return node === undefined ? [] : mainThreadsOf(node.teammates)
+}
