@@ -1,7 +1,8 @@
 # Wire-surface census
 
 Part of the evidence for [v2](../README.md). A condensed transcription of a read-only, static
-exploration of the repository at commit `a18e7413` (2026-11-01), not a capture of live traffic.
+exploration of the repository at commit `a0bf4110` (2026-11-01, refreshed after #1640–#1649),
+not a capture of live traffic.
 The full report had per-procedure tables with anchors; this keeps the counts, the topology, the
 duplicated paths and the gaps. Statements marked _(inferred)_ are conclusions, not observations.
 
@@ -15,7 +16,7 @@ Atlas has no single client ⇄ control plane ⇄ runtime protocol. There are fiv
 1. tRPC over HTTP and SSE from clients to the API (`/v1/trpc`, `packages/api-router/src/client.ts:24-64`).
 2. A direct WebSocket from clients to serve (`/v1/session`, subprotocols `atlas.v1` and
    `bearer.<token|ticket>`, `apps/serve/src/session-server.ts:99-194`). The API only mints a 60 s
-   HMAC ticket (`thread-pod.service.ts:141-158`) and never relays the live channel.
+   HMAC ticket (`thread-pod.service.ts:141`) and never relays the live channel.
 3. Bidirectional best-effort event replication between serve and the API (`sandboxSelf.events` up,
    `sandboxSelf.watchEvents` tick plus read down), with independent seq allocation.
 4. Independent side channels for activity, checkpoint, context files, boot steps, PR mailbox and
@@ -25,7 +26,7 @@ Atlas has no single client ⇄ control plane ⇄ runtime protocol. There are fiv
    `DeltaChannel`).
 
 Local Docker pods use the same serve WebSocket but replicate nothing to the API (the
-`mirrorsThreadState` gate, `packages/wire/src/boot-progress-wire.ts:46-60`).
+`mirrorsThreadState` gate, `packages/wire/src/boot-progress-wire.ts:58-60`).
 
 ## Counts
 
@@ -60,8 +61,10 @@ Local Docker pods use the same serve WebSocket but replicate nothing to the API 
    [seq-466 incident](incident-2026-11-01-seq466.md).
 3. **PR events.** Four paths: API mailbox SSE → runtime journal; API wake-intent appends `pr-event`
    into the transcript (`github-sandbox-wake-intent.ts:46-94`); the TUI forwards it as an ordinary
-   WebSocket send (`pr-event-forwarder.ts:89-126`); the runtime journals it and acks. Both the API
-   and the runtime originate `pr-event` history.
+   WebSocket send (`apps/tui/src/composition/cloud/pr-event-forwarder.ts:89-126`); the runtime
+   journals it and acks. Both the API and the runtime originate `pr-event` history. Since #1640/#1642
+   this lane additionally carries a webhook inbox, a delivery ack ledger (`GithubPrEventDelivery`),
+   per-thread subscriptions and a verdict ledger — more durable records on the same duplicated path.
 4. **PR state.** Direct API SSE (`githubPrs.states`) vs API → runtime → serve `pr-states` vs the
    API sidebar enrichment folded from transcript events (`places.ts`). PR state can be healthy
    while the transcript-derived link, branch and worktree are stale (the incident symptom).
@@ -70,7 +73,9 @@ Local Docker pods use the same serve WebSocket but replicate nothing to the API 
 6. **Title and model.** API rename and `chooseModel` _and_ serve `rename-thread` and
    `set-thread-model`, with fire-and-forget forwarding, a home copy and the Mac REST rename.
 7. **History edits.** API rewind/compact/summarise/replace on Postgres directly _and_ serve edits
-   plus rebase. Clients can reach both.
+   plus rebase. Clients can reach both. Since #1649 the serve flush also reconciles an append fork
+   (truncate the API replica below the fork, re-ship the pod's log) instead of wedging — the v1
+   stopgap; the underlying two-allocator shape is unchanged.
 8. **Threads and children.** API create/open _and_ runtime spawn plus `sandboxSelf.registerChild`.
 9. **Activity, checkpoint, lifecycle, boot.** WebSocket signals, `read-activity`, the API activity
    mirror, the checkpoint copy and provider inspection; boot steps come from both an API task and
@@ -107,7 +112,7 @@ Local Docker pods use the same serve WebSocket but replicate nothing to the API 
 
 ## Skew
 
-`atlas.v1`, protocol current 32, minimum 29, with range overlap and capability filtering
+`atlas.v1`, protocol current 33, minimum 29, with range overlap and capability filtering
 (`channel-wire.ts:18-54`, `capabilities.ts`). The boot drift policy is stricter than range
 admission. The CI skew checker covers versions and three enums, not structural schema changes.
 [Decision 0017](../../decisions/0017-wire-protocol-skew.md)'s API-on-send relaunch story no longer
