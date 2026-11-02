@@ -27,3 +27,4 @@ says what it supersedes. Tactical choices and decisions that were later reversed
 | [0017](0017-wire-protocol-skew.md) | The newer side talks down: the wire protocol tolerates skew |
 | [0018](0018-v2-pod-first-architecture.md) | v2 is a pod-first redesign: one writer per fact, the record in the control plane |
 | [0019](0019-v2-package-map.md) | v2 package map: foundations in `packages/`, plugins and commands in their own roots |
+| [0020](0020-v2-sub-agent-worktrees-and-peer-sessions.md) | v2 sub-agents work in a worktree pinned at spawn and never subscribe; peer sessions replace nested teammates |

@@ -6,6 +6,7 @@ import { EFileChange } from '../file-tree'
 import {
   ChangesPanel,
   type ChangedFile,
+  buildChangeTree,
   formatCount,
   splitPath,
   totalChanges,
@@ -105,5 +106,69 @@ describe('ChangesPanel', () => {
 
     expect(html).toContain('No changes in this scope.')
     expect(html).toContain('0 files')
+  })
+})
+
+describe('buildChangeTree', () => {
+  const file = (path: string): ChangedFile => ({
+    path,
+    added: 2,
+    removed: 1,
+    change: EFileChange.Modified,
+  })
+
+  it('nests files under directories, folders first, with rolled-up counts', () => {
+    const tree = buildChangeTree([file('b.ts'), file('src/z.ts'), file('src/a.ts')])
+
+    expect(tree.map((node) => node.name)).toEqual(['src', 'b.ts'])
+    const src = tree[0]
+    if (src?.kind !== 'dir') throw new Error('expected dir')
+    expect(src.path).toBe('src')
+    expect(src.added).toBe(4)
+    expect(src.children.map((node) => node.name)).toEqual(['a.ts', 'z.ts'])
+  })
+
+  it('compacts single-child directory chains', () => {
+    const tree = buildChangeTree([file('packages/ui/src/a.ts'), file('packages/ui/src/b.ts')])
+
+    expect(tree).toHaveLength(1)
+    const dir = tree[0]
+    if (dir?.kind !== 'dir') throw new Error('expected dir')
+    expect(dir.name).toBe('packages/ui/src')
+    expect(dir.path).toBe('packages/ui/src')
+  })
+
+  it('stops compacting where a directory also holds files or branches', () => {
+    const tree = buildChangeTree([file('a/x.ts'), file('a/b/y.ts'), file('a/c/z.ts')])
+    const dir = tree[0]
+    if (dir?.kind !== 'dir') throw new Error('expected dir')
+    expect(dir.name).toBe('a')
+    expect(dir.children.map((node) => node.name)).toEqual(['b', 'c', 'x.ts'])
+  })
+})
+
+describe('ChangesPanel tree layout', () => {
+  it('groups files under folder rows and offers the layout toggle', () => {
+    const html = render({ layout: 'tree' })
+
+    expect(html).toContain('data-changed-folder="packages/ui/src/ai"')
+    expect(html).toContain('data-changed-path="packages/ui/src/ai/plan.tsx"')
+    expect(html).toContain('Group files by directory')
+    expect(html).toContain('List files flat')
+  })
+
+  it('hides the contents of a collapsed folder', () => {
+    const html = render({
+      layout: 'tree',
+      collapsedFolders: ['packages/ui/src/ai'],
+    })
+
+    expect(html).not.toContain('data-changed-path="packages/ui/src/ai/plan.tsx"')
+  })
+
+  it('shows the directory beside the name only in the flat layout', () => {
+    const dirLabel = 'truncate text-xs text-muted-foreground">packages/ui/src/ai<'
+    expect(render({ layout: 'flat' })).toContain(dirLabel)
+    expect(render({ layout: 'tree' })).not.toContain(dirLabel)
   })
 })

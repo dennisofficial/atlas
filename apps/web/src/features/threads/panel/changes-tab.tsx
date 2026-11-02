@@ -10,7 +10,13 @@ import { EChangeScope } from '@dltech/atlas-wire/web'
 import { CHANGE_SCOPES, changeScopeOf } from '../data/git-changes-map'
 import type { GitChangesChannel } from '../data/git-changes-load'
 import { EGitChangesStatus, useGitChanges } from '../data/use-git-changes'
-import { findChangedRow, resolveChangedPath, withExpanded } from './changes/focus-changed-path'
+import {
+  findChangedRow,
+  resolveChangedPath,
+  withExpanded,
+  withoutCollapsedAncestors,
+} from './changes/focus-changed-path'
+import { useChangesLayout } from './changes/use-changes-layout'
 import { ETabSubject } from './changes/offline-copy'
 import { TabFailed, TabLoading, TabOffline } from './changes/tab-states'
 import { useThreadPanel } from './thread-panel-context'
@@ -47,6 +53,8 @@ function ChangesBody(props: { channel: GitChangesChannel }) {
   const { working, changesPath } = useThreadPanel()
   const [scope, setScope] = useState(EChangeScope.All)
   const [expanded, setExpanded] = useState<string[]>([])
+  const [collapsedFolders, setCollapsedFolders] = useState<string[]>([])
+  const { layout, setLayout } = useChangesLayout()
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined)
   const root = useRef<HTMLDivElement>(null)
   const { view } = useGitChanges({ channel: props.channel, scope, working })
@@ -56,6 +64,7 @@ function ChangesBody(props: { channel: GitChangesChannel }) {
   const handleWiden = () => setScope(EChangeScope.All)
   const handleFocus = (path: string) => {
     setExpanded((current) => withExpanded({ expanded: current, path }))
+    setCollapsedFolders((current) => withoutCollapsedAncestors({ collapsed: current, path }))
     setScrollTarget(path)
   }
   useFocusedPath({
@@ -104,6 +113,10 @@ function ChangesBody(props: { channel: GitChangesChannel }) {
           scopes={CHANGE_SCOPES}
           scope={scope}
           onScopeChange={handleScopeChange}
+          layout={layout}
+          onLayoutChange={setLayout}
+          collapsedFolders={collapsedFolders}
+          onCollapsedFoldersChange={setCollapsedFolders}
           expanded={expanded}
           onExpandedChange={setExpanded}
         />

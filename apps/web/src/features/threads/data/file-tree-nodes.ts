@@ -72,19 +72,33 @@ export function nodesOf(
   const directory = args.directory ?? ROOT_DIRECTORY
   const listed = args.listings.get(directory) ?? []
   if (directory === ROOT_DIRECTORY && !args.listings.has(ROOT_DIRECTORY)) return []
-  const deleted = deletedEntriesUnder({ directory, listed, changes: args.changes })
+  const deleted = deletedEntriesUnder({
+    directory,
+    listed,
+    changes: args.changes,
+  })
   const entries = deleted.length === 0 ? listed : orderedEntries([...listed, ...deleted])
 
   return entries.map((entry): FileNode => {
     const path = pathWithin({ directory, name: entry.name })
     const ignored = isIgnored({ path, ignored: args.ignored })
     if (entry.isDirectory) {
+      const loaded = args.listings.has(path)
       return decorated({
-        node: { path, name: entry.name, children: nodesOf({ ...args, directory: path }) },
+        node: {
+          path,
+          name: entry.name,
+          children: nodesOf({ ...args, directory: path }),
+          ...(loaded ? {} : { loaded: false }),
+        },
         change: folderChangeOf({ directory: path, changes: args.changes }),
         ignored,
       })
     }
-    return decorated({ node: { path, name: entry.name }, change: args.changes.get(path), ignored })
+    return decorated({
+      node: { path, name: entry.name },
+      change: args.changes.get(path),
+      ignored,
+    })
   })
 }

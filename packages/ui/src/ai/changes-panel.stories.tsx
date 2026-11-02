@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react'
 
-import { ChangesPanel, type ChangesPanelProps } from './changes-panel'
+import { ChangesPanel, type ChangesLayout, type ChangesPanelProps } from './changes-panel'
 
 import { CHANGED_FILES, CHANGE_SCOPES } from './changes-panel.fixtures'
 
@@ -35,11 +35,33 @@ export const SingleFile: Story = {
   },
 }
 
+export const Tree: Story = { args: { layout: 'tree' } }
+
+export const TreeFileExpanded: Story = {
+  args: {
+    layout: 'tree',
+    defaultExpanded: ['packages/ui/src/ai/task-dock.tsx'],
+  },
+}
+
+export const TreeFolderCollapsed: Story = {
+  args: { layout: 'tree', collapsedFolders: ['packages/ui/src'] },
+}
+
 export const NoChanges: Story = { args: { files: [] } }
 
 function InteractivePanel(args: ChangesPanelProps) {
   const [scope, setScope] = useState(args.scope)
-  return <ChangesPanel {...args} scope={scope} onScopeChange={setScope} />
+  const [layout, setLayout] = useState<ChangesLayout>('flat')
+  return (
+    <ChangesPanel
+      {...args}
+      scope={scope}
+      onScopeChange={setScope}
+      layout={layout}
+      onLayoutChange={setLayout}
+    />
+  )
 }
 
 export const Interactive: Story = {

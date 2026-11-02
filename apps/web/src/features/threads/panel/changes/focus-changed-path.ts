@@ -1,4 +1,4 @@
-import { splitPath, type ChangedFile } from '@dltech/atlas-ui/ai/changes-panel'
+import type { ChangedFile } from '@dltech/atlas-ui/ai/changes-panel'
 
 export function resolveChangedPath(args: {
   files: readonly ChangedFile[]
@@ -13,13 +13,16 @@ export function withExpanded(args: { expanded: readonly string[]; path: string }
   return args.expanded.includes(args.path) ? [...args.expanded] : [...args.expanded, args.path]
 }
 
+export function withoutCollapsedAncestors(args: {
+  collapsed: readonly string[]
+  path: string
+}): string[] {
+  return args.collapsed.filter((folder) => !args.path.startsWith(`${folder}/`))
+}
+
 export function findChangedRow(args: { root: ParentNode; path: string }): Element | null {
-  const { name, dir } = splitPath(args.path)
-  for (const row of args.root.querySelectorAll('button[aria-expanded]')) {
-    const label = row.children[1]
-    const rowName = label?.children[0]?.textContent
-    const rowDir = label?.children[1]?.textContent ?? ''
-    if (rowName === name && rowDir === dir) return row
+  for (const row of args.root.querySelectorAll('[data-changed-path]')) {
+    if (row.getAttribute('data-changed-path') === args.path) return row
   }
   return null
 }

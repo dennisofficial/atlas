@@ -1,3 +1,4 @@
+import { workloadCommand } from '../../execution/workload-priority'
 import type { McpTransport } from '../config/specs'
 import {
   parseCapabilities,
@@ -48,9 +49,10 @@ export class StdioTransport implements ServerTransport {
       return Promise.reject(new Error('the transport is already connected'))
     if (this.closed) return Promise.reject(new Error('the transport is closed'))
 
+    const env = scrubEnv(this.spec.env)
     this.child = Bun.spawn({
-      cmd: [this.spec.command, ...(this.spec.args ?? [])],
-      env: scrubEnv(this.spec.env),
+      cmd: workloadCommand({ cmd: [this.spec.command, ...(this.spec.args ?? [])], env }),
+      env,
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'ignore',

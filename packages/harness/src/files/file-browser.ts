@@ -6,7 +6,6 @@ import { isUnderPath, type DirectoryEntry } from '@dltech/atlas-core'
 
 export const MAX_MENTION_BYTES = 128 * 1024
 export const MAX_VIEW_BYTES = 2 * 1024 * 1024
-export const MAX_LEVEL_ENTRIES = 500
 
 export enum EFileLoad {
   Text = 'text',
@@ -51,7 +50,6 @@ const entriesOf = async (directory: string): Promise<readonly DirectoryEntry[]> 
   return read
     .map((entry) => ({ name: entry.name, isDirectory: entry.isDirectory() }))
     .sort((left, right) => left.name.localeCompare(right.name))
-    .slice(0, MAX_LEVEL_ENTRIES)
 }
 
 export type ReachableRoots = () => readonly string[] | undefined

@@ -154,7 +154,7 @@ contract. §7 gives the package shape.
 | History edits                            | API rewind/replace/summarise/fork + pod rewind/compact/loop-cut       | pod, as appended events (P5)                                          | none needed                                                              |
 | Child / teammate threads                 | API create/open + pod spawn + registerChild                           | pod mints and logs `agent-spawned`; CP materializes rows from the log | CP rows are a view                                                       |
 | Title, model                             | API rename/chooseModel + serve requests + forwarding + home copy      | inbox command → pod logs `title-set` / `model-set`                    | view                                                                     |
-| PR links, branch, worktree               | events + session meta + client heuristics                             | log events                                                            | view                                                                     |
+| PR links, branch, worktree               | events + session meta + client heuristics                             | log events (`checkout-placed` / `checkout-left` per thread, 0020)     | view: the session's checkout set, with PR state joined by github         |
 | Subscriptions                            | runtime registry + event projection + GithubSubscription rows         | log events (intent)                                                   | CP derives transport leases from the view                                |
 | PR state / checks                        | GitHub → CP cache, pod cache, client merge                            | CP observation store                                                  | joined into views; pod reads it                                          |
 | Activity / status                        | pod → Thread.working etc., checkpoint, boot steps                     | fold(log) + lease liveness                                            | view                                                                     |
@@ -189,7 +189,7 @@ cohesive packages where each feature's code sits in one place.
 `ui`, `db` and `models` are unchanged.
 
 **Plugins (`plugins/<name>/`).** One workspace package per native plugin (github, subscriptions,
-shells, services, crew, memory, previews). Every plugin has the same subpaths:
+shells, services, crew, sessions, memory, previews). Every plugin has the same subpaths:
 
 | Subpath    | Holds                                                          |
 | ---------- | -------------------------------------------------------------- |
@@ -252,7 +252,7 @@ is a real cloud session on v2 from the web, with basic chat and tools.
 | Risk                                                          | Why it matters                                                                                                                                | Mitigation                                                                                                 |
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | The rewrite stalls and two systems need upkeep                | v1 and v2 both need fixes for as long as they coexist                                                                                         | Shared logic stays one copy; the first milestone is usable early; features move one at a time              |
-| Sub-agent families                                            | One session holds several thread logs under one lease. Each log needs the same append rules, and spawn and ending must be events in both logs | Settled in the sub-agents slice spec before it is built; the record core must not assume one log per lease |
+| Sub-agent families                                            | One session holds several thread logs under one lease. Each log needs the same append rules, and spawn and ending must be events in both logs | Narrowed by [0020](../decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md): teammates become peer sessions, so only short-lived sub-agents with no PR or CI share a lease. Settled in the crew spec; the record core must not assume one log per lease |
 | Rewind as append-only (P5)                                    | Touches assembly rules and `docs/core-contract.md`; the highest-semantic-risk change                                                          | Specified and property-tested in slice 1, before the pod host depends on it                                 |
 | Vercel serverless limits (no long WebSocket; SSE about 240 s) | Streams drop routinely                                                                                                                        | Cursors on every stream; reconnect is the normal path                                                      |
 | Interim v1 pain                                               | v1 can wedge the same way while v2 is built                                                                                                   | The v1 stopgap (§8)                                                                                        |
@@ -288,8 +288,11 @@ and the operator in the transcript.
 
 **R4. Liveness does not wait on the loop.** Lease renewal runs on its own timer, independent of
 turn progress, and its TTL is sized for a saturated pod, so a busy pod is never fenced as dead.
-Stop arrives twice (P7): the direct hint makes the pod kill the running tool's process group at
-once rather than at the loop's next step, and the inbox entry is the durable record of it.
+Stop (the operator's stop/interrupt button) arrives twice (P7): the direct hint aborts the turn and
+kills the running tool's process group, and the inbox entry is the durable record of it. v1 already
+kills on abort (the serve Interrupt frame aborts the turn; the tool's abort listener kills the
+process group); what fails under load is the harness reaching the hint late because a workload
+holds the CPU, which R2 prevents.
 
 **If the harness dies anyway**, the design absorbs it: the record is in the control plane, the
 lease expires, and a new pod resumes at the next epoch with nothing forked. At most the unflushed
