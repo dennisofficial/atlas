@@ -71,7 +71,7 @@ export type TurnDeps = {
   onLoopWatchCut?: ((args: { steps: number }) => void) | undefined
   onLoopStop?: (() => void) | undefined
   autoCompactAtPercent?: (() => number) | undefined
-  launchDirectory?: string | undefined
+  launchDirectory: string
   retry?: RetryDeps | undefined
   sleepPrevention?: SleepPrevention | undefined
   waitState?: ModelWaitObserver | undefined
@@ -140,7 +140,7 @@ export class LoopTurnRunner extends TurnRunner {
       onLoopWatchCut: deps.onLoopWatchCut,
       onLoopStop: deps.onLoopStop,
       autoCompactAtPercent: deps.autoCompactAtPercent ?? (() => AUTO_COMPACT_OFF),
-      launchDirectory: deps.launchDirectory ?? process.cwd(),
+      launchDirectory: deps.launchDirectory,
       retry: deps.retry,
       waitState: deps.waitState,
       normalizeFailure: deps.normalizeFailure,

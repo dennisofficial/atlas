@@ -32,7 +32,7 @@ export function createSettlePending(deps: {
   log: EventLogPort
   dispatch: ToolDispatcher
   tools?: (() => readonly ToolDeclaration[]) | undefined
-  launchDirectory?: string | undefined
+  launchDirectory: string
   onToolOutput?: OnToolOutputNotice | undefined
 }): SettlePending {
   const isSafe = (call: DispatchableCall): boolean => {
@@ -75,9 +75,8 @@ export function createSettlePending(deps: {
 
     const runs = partitionToolCalls({ calls, isSafe })
 
-    const launchDirectory = deps.launchDirectory ?? process.cwd()
     let activeWorktree: ActiveWorktree | undefined = activeWorktreeOf(events)
-    let homeDirectory = homeDirectoryOf({ events, launchDirectory })
+    let homeDirectory = homeDirectoryOf({ events, launchDirectory: deps.launchDirectory })
 
     for (const [index, run] of runs.entries()) {
       if (signal.aborted) return {}
