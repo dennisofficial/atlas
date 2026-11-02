@@ -22,7 +22,11 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
   const { working, openChanges } = useThreadPanel()
   const [selected, setSelected] = useState<string | undefined>(undefined)
   const turnEnds = useTurnEndCount(working)
-  const tree = useFileTree({ channel: props.channel, refreshKey: turnEnds })
+  const {
+    view: tree,
+    open,
+    setOpen,
+  } = useFileTree({ channel: props.channel, refreshKey: turnEnds })
   const { view: changes } = useGitChanges({
     channel: props.channel,
     scope: EChangeScope.All,
@@ -44,6 +48,9 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
     [tree, changed, ignored],
   )
 
+  const handleOpenChange = (change: { path: string; open: boolean }) =>
+    setOpen({ directory: change.path, open: change.open })
+
   const handleSelect = (path: string) => {
     setSelected(path)
     if (changed.has(path)) openChanges(path)
@@ -61,7 +68,13 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
 
   return (
     <div className="h-full overflow-auto p-2">
-      <FileTree nodes={nodes} selected={selected} onSelect={handleSelect} defaultOpen={false} />
+      <FileTree
+        nodes={nodes}
+        selected={selected}
+        onSelect={handleSelect}
+        open={open}
+        onOpenChange={handleOpenChange}
+      />
     </div>
   )
 }

@@ -88,6 +88,7 @@ expected.
 - `sidebar.tsx`: `collapsible="none"` draws the same side edge border as the other modes. `SidebarFooter` gained `variant: 'default' | 'bordered'` (top `border-sidebar-border` edge) and `SidebarMenuButton` gained `size="avatar"` (`h-10`, `px-1` when collapsed) for the account row.
 - `card.tsx`: `CardFooter` owns `gap-2` between its buttons; `variant: 'default' | 'list'` and the `CardRow` part, for divided settings lists; a table directly inside a list card gets the card's edge inset; `tone: 'default' | 'destructive'` tints the ring for danger zones.
 - `button.tsx`: `ghost` shows the selected state for `aria-current="page"` / `"true"`, so nav and tree rows never add `bg-muted` themselves.
+- `button.tsx`: `variant="tree"` is `ghost` without the `aria-expanded` highlight, so open folder rows in the file tree stay unhighlighted (only hover and the selected `aria-current="true"` row take `bg-muted`).
 - `message.tsx`: `MessageHeader`/`MessageFooter` take the `px-3` bubble inset only when the message has a bubble, and the header owns `gap-2`.
 - `message-scroller.tsx`: `MessageScrollerContent` owns the transcript gutter (`px-4 py-6`).
 - `bubble.tsx`: `variant: 'pending'` (muted surface, dashed border: the unsent look; a `BubbleContent` hosting a textarea shows the focus ring on the bubble border).
