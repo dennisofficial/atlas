@@ -31,6 +31,10 @@ _Updated at the end of every slice. Last update: 2026-11-02._
 - **Open:** D2 (local control plane), needed only at slice 9. 0020 (sub-agent worktrees, peer
   sessions) proposed; whether teammates survive as a preset or a toggle is decided in the sessions
   plugin spec.
+- **Needs triage:** credential availability (truthful waiting for a dead or exhausted model
+  account, operator recheck/pause, explicit recovery). v1 slices 1–4A are merged and 4B is built
+  but unmerged; whether v2 adopts that design or rebuilds it is undecided. See
+  [research/credential-availability/](research/credential-availability/README.md).
 - **v1 fixes found while doing v2** (shipped separately): #1649 append-fork reconcile; #1651
   fault-killed sub-agents end once; #1653 sub-agent session-index race (a sibling's mirror write
   could put a sub-agent in an empty session); a pending fix keeps atlas-serve out of the OOM
