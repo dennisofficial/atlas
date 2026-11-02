@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 import { createDeltaChannel } from '@dltech/atlas-harness'
+import { EAgentStatus, type RosterWire } from '@dltech/atlas-wire'
 
 import { bindChildActivity } from '../serve-activity-binding'
 import type { ActivityState } from '../serve-activity-reporter'
@@ -33,6 +34,47 @@ describe('bindChildActivity adapter', () => {
     binding.detach()
     channel.publisherFor({ threadId: child }).turnWorking({ working: false })
     expect(states).toHaveLength(1)
+  })
+
+  it('reports working from a roster agent the child owns, never the lead’s', () => {
+    const lead = toThreadId('lead')
+    const channel = createDeltaChannel()
+    const states: ActivityState[] = []
+    const listeners = new Set<() => void>()
+    let current: RosterWire = {
+      agents: [{ spawnedBy: lead, status: EAgentStatus.Running } as RosterWire['agents'][number]],
+      shells: [],
+      services: [],
+    }
+    const binding = bindChildActivity({
+      threadId: child,
+      channel,
+      roster: {
+        snapshot: () => current,
+        subscribe: (listener) => {
+          listeners.add(listener)
+          return () => {
+            listeners.delete(listener)
+          }
+        },
+      },
+      remote,
+      log: () => undefined,
+      reporter: { report: (state) => states.push(state), whenIdle: async () => undefined },
+    })
+    expect(states).toEqual([])
+    current = {
+      agents: [
+        { spawnedBy: lead, status: EAgentStatus.Running } as RosterWire['agents'][number],
+        { spawnedBy: child, status: EAgentStatus.Running } as RosterWire['agents'][number],
+      ],
+      shells: [],
+      services: [],
+    }
+    for (const listener of listeners) listener()
+    expect(states).toEqual([{ working: true, awaiting: null }])
+    binding.detach()
+    expect(listeners.size).toBe(0)
   })
 
   it('constructs the child HTTP reporter and sends its threadId without a null outcome', async () => {

@@ -11,7 +11,7 @@ import {
 
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { ETurnStatus } from '../../loop/turn-outcome'
-import { EAgentStatus, EStepEnd, type RosterWire } from '@dltech/atlas-wire'
+import { EAgentStatus, EShellStatus, EStepEnd, type RosterWire } from '@dltech/atlas-wire'
 import { RuntimeSessionActivity } from '../runtime-session-activity'
 
 const threadId = toThreadId('root')
@@ -146,6 +146,62 @@ describe('runtime session activity', () => {
       observedOutcome: { outcome: 'stopped' },
     })
     activity.close()
+  })
+
+  it('scopes background to the thread’s own agents and shells', async () => {
+    const teammate = toThreadId('teammate')
+    const theirs = {
+      agents: [
+        {
+          agentId: 'their-child' as RosterWire['agents'][number]['agentId'],
+          spawnedBy: teammate,
+          agentType: 'explore',
+          intent: 'scout',
+          status: EAgentStatus.Running,
+          turns: 0,
+          toolCalls: 0,
+          lastTool: undefined,
+          startedAt: '',
+          endedAt: undefined,
+        },
+      ],
+      shells: [
+        {
+          shellId: 'their-shell' as RosterWire['shells'][number]['shellId'],
+          threadId: teammate,
+          command: 'sleep 1',
+          description: 'theirs',
+          status: EShellStatus.Running,
+          startedAt: '',
+          lastOutputAt: '',
+          totalCharacters: 0,
+          awaitingInput: false,
+        },
+      ],
+    }
+    const activity = arrange({
+      roster: { read: async () => theirs, subscribe: () => () => {} },
+    })
+    expect(await activity.read({ threadId })).toMatchObject({ working: false })
+    activity.close()
+
+    const ours = arrange({
+      roster: {
+        read: async () => ({
+          agents: [
+            {
+              ...theirs.agents[0]!,
+              agentId: 'our-child' as RosterWire['agents'][number]['agentId'],
+              spawnedBy: threadId,
+            },
+          ],
+          shells: [],
+        }),
+        subscribe: () => () => {},
+      },
+    })
+    expect(await ours.read({ threadId })).toMatchObject({ working: true })
+    ours.close()
   })
 
   it('does not infer terminal outcomes from paused, idle, relocation or channel step ends', async () => {
