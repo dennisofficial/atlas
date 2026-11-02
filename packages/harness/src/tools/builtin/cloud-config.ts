@@ -9,12 +9,7 @@ import {
 import type { CloudConfigAccessSource } from '../../cloud/cloud-config-access'
 
 import { cloudConfigInputSchema, ECloudConfigScope } from './cloud-config-input'
-import {
-  NOT_SIGNED_IN,
-  runCloudConfig,
-  type CloudConfigTarget,
-  SANDBOX_PERSONAL_REFUSAL,
-} from './cloud-config-run'
+import { NOT_SIGNED_IN, runCloudConfig, type CloudConfigTarget } from './cloud-config-run'
 
 const description = [
   'Read and change Atlas Cloud configuration for the session project, or for the signed-in user.',
@@ -23,7 +18,7 @@ const description = [
   'setting covers Atlas setting keys only; kind secret is an environment variable (name like FOO_BAR) exported to the agent shells and services.',
   'list never returns secret or file values. read returns them: do not echo them to the user unless asked.',
   'Settings and secrets apply before the next turn. Files and mcp servers apply on the next sandbox start.',
-  'Personal scope cannot be read or changed from a cloud sandbox. projectId defaults to the project of this session.',
+  'projectId defaults to the project of this session.',
 ].join(' ')
 
 export class CloudConfigTool extends SchemaTool<typeof cloudConfigInputSchema> {
@@ -44,7 +39,6 @@ export class CloudConfigTool extends SchemaTool<typeof cloudConfigInputSchema> {
     const access = await this.access({ threadId })
     if (access === null) return { ok: false, reason: NOT_SIGNED_IN }
     const personal = input.scope === ECloudConfigScope.Personal
-    if (personal && access.inSandbox) return { ok: false, reason: SANDBOX_PERSONAL_REFUSAL }
     const projectId = input.projectId ?? access.projectId
     if (projectId === null && !personal) {
       return { ok: false, reason: 'this session has no Atlas Cloud project; pass projectId' }

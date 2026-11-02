@@ -87,8 +87,68 @@ describe('McpServersRouter', () => {
 
   it('requires a session on every procedure', async () => {
     await trpcQuery({ app, procedure: 'mcpServers.list' }).expect(401)
-    await trpcQuery({ app, procedure: 'mcpServers.list', token: 'pod-token-a' }).expect(401)
-    await put({ name: 'fs', disabled: true }, 'sandbox-token-a').expect(401)
     await trpcMutate({ app, procedure: 'mcpServers.remove', input: { name: 'fs' } }).expect(401)
+  })
+
+  describe('sandbox reach', () => {
+    it('lets a sandbox list, put and remove its owner\u2019s personal servers', async () => {
+      const empty = await trpcQuery({
+        app,
+        procedure: 'mcpServers.list',
+        token: 'sandbox-token-a',
+      }).expect(200)
+      expect(empty.body.result.data.servers).toEqual([])
+
+      await put({ name: 'fs', disabled: true }, 'sandbox-token-a').expect(200)
+      const listed = await trpcQuery({
+        app,
+        procedure: 'mcpServers.list',
+        token: 'sandbox-token-a',
+      }).expect(200)
+      expect(listed.body.result.data.servers.map((row: { name: string }) => row.name)).toEqual([
+        'fs',
+      ])
+
+      await trpcMutate({
+        app,
+        procedure: 'mcpServers.remove',
+        token: 'sandbox-token-a',
+        input: { name: 'fs' },
+      }).expect(200)
+      expect(await servers()).toHaveLength(0)
+    })
+
+    it('a sandbox touches only its owner\u2019s servers', async () => {
+      await put({ name: 'fs', disabled: true }, 'session-b').expect(200)
+
+      const listed = await trpcQuery({
+        app,
+        procedure: 'mcpServers.list',
+        token: 'sandbox-token-a',
+      }).expect(200)
+      expect(listed.body.result.data.servers).toEqual([])
+
+      await put({ name: 'fs', disabled: true }, 'sandbox-token-a').expect(200)
+      expect((await servers()).map((row) => row.userId).sort()).toEqual(['user-a', 'user-b'])
+
+      await trpcMutate({
+        app,
+        procedure: 'mcpServers.remove',
+        token: 'sandbox-token-a',
+        input: { name: 'fs' },
+      }).expect(200)
+      expect((await servers()).map((row) => row.userId)).toEqual(['user-b'])
+    })
+
+    it('refuses a pod bearer on list, put and remove', async () => {
+      await trpcQuery({ app, procedure: 'mcpServers.list', token: 'pod-token-a' }).expect(403)
+      await put({ name: 'fs', disabled: true }, 'pod-token-a').expect(403)
+      await trpcMutate({
+        app,
+        procedure: 'mcpServers.remove',
+        token: 'pod-token-a',
+        input: { name: 'fs' },
+      }).expect(403)
+    })
   })
 })
