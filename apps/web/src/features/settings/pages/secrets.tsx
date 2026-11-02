@@ -5,6 +5,7 @@ import { useCallback } from 'react'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { QueryPage } from '../data/personal/query-boundary'
+import { SecretsSkeleton } from '../skeletons/library-skeletons'
 import {
   deleteSecret,
   fetchSecretSummaries,
@@ -23,7 +24,10 @@ const DESCRIPTION =
   'Every shell and service in your cloud threads gets these as environment variables. A project value with the same name wins.'
 
 export function SecretsPage() {
-  const query = useCloudQuery({ key: 'personal-secrets', load: fetchSecretSummaries })
+  const query = useCloudQuery({
+    key: 'personal-secrets',
+    load: fetchSecretSummaries,
+  })
   const { run } = useSaveAction()
   const { reload } = query
 
@@ -45,13 +49,16 @@ export function SecretsPage() {
   )
   const handleRemove = useCallback(
     (name: string) => {
-      void run({ work: () => deleteSecret(name), success: `Deleted ${name}` }).then(reload)
+      void run({
+        work: () => deleteSecret(name),
+        success: `Deleted ${name}`,
+      }).then(reload)
     },
     [run, reload],
   )
 
   return (
-    <QueryPage query={query} title={TITLE} description={DESCRIPTION}>
+    <QueryPage query={query} title={TITLE} description={DESCRIPTION} skeleton={<SecretsSkeleton />}>
       {(summaries) => (
         <SettingsPage title={TITLE} description={DESCRIPTION}>
           <EnvSecretsContent

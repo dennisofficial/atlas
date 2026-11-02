@@ -15,6 +15,7 @@ import {
   type InstructionsDoc,
 } from '../data/personal/instructions-api'
 import { QueryPage } from '../data/personal/query-boundary'
+import { InstructionsActionsSkeleton, InstructionsSkeleton } from '../skeletons/library-skeletons'
 import { useSaveAction } from '../data/personal/use-save-action'
 import { INSTRUCTIONS_CHAR_LIMIT } from '../fixtures/settings-agent'
 import { SettingsPage } from '../settings-layout'
@@ -39,9 +40,17 @@ function CharCount({ length }: { length: number }) {
 }
 
 export function InstructionsPage() {
-  const query = useCloudQuery({ key: 'personal-instructions', load: fetchInstructions })
+  const query = useCloudQuery({
+    key: 'personal-instructions',
+    load: fetchInstructions,
+  })
   return (
-    <QueryPage query={query} title="Instructions" rows={1}>
+    <QueryPage
+      query={query}
+      title="Instructions"
+      actions={<InstructionsActionsSkeleton />}
+      skeleton={<InstructionsSkeleton />}
+    >
       {(doc) => <InstructionsEditor doc={doc} onSaved={query.reload} />}
     </QueryPage>
   )
@@ -64,7 +73,10 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
   const handleSave = useCallback(async () => {
     const saved = await run({
       work: async () => {
-        const next = await saveInstructions({ text: draft.value, baseRevision: revision })
+        const next = await saveInstructions({
+          text: draft.value,
+          baseRevision: revision,
+        })
         setRevision(next.revision)
       },
       success: 'Instructions saved',

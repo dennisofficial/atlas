@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
 
-import { PageSpinner } from '@/features/auth/page-spinner'
 import { SetupFlow } from '@/features/auth/setup-flow'
+import { SetupSkeleton } from '@/features/auth/auth-flow-skeletons'
 
 export default function Page() {
   return (
-    <Suspense fallback={<PageSpinner label="Loading…" />}>
+    <Suspense fallback={<SetupSkeleton />}>
       <SetupFlow />
     </Suspense>
   )

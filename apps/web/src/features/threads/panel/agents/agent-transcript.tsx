@@ -23,7 +23,7 @@ import { useThreadSignals } from '../../data/use-thread-signals'
 import { TurnView, type TranscriptActions } from '../../transcript/transcript-turn'
 import { TabPlaceholder } from '../tab-placeholder'
 import { useThreadPanel } from '../thread-panel-context'
-import { AgentsLoading } from './agents-states'
+import { TranscriptLoading } from './agents-skeletons'
 
 const NO_MODELS: ReadonlyMap<string, string> = new Map()
 
@@ -121,7 +121,7 @@ export function AgentTranscript(props: { agentId: string; fallback: AgentsPanelA
       />
     )
   }
-  if (!loaded) return <AgentsLoading />
+  if (!loaded) return <TranscriptLoading />
   return (
     <AgentTranscriptBody
       events={events}

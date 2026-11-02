@@ -13,7 +13,8 @@ import { EChangeScope } from '@dltech/atlas-wire/web'
 import type { FileTreeChannel } from '../data/file-tree-source'
 import type { GitChangesChannel } from '../data/git-changes-load'
 import { ETabSubject } from './changes/offline-copy'
-import { TabFailed, TabLoading, TabOffline } from './changes/tab-states'
+import { TabFailed, TabOffline } from './changes/tab-states'
+import { FilesLoading } from './changes/tab-skeletons'
 import { useThreadPanel } from './thread-panel-context'
 
 const ICON = <FolderTreeIcon />
@@ -52,7 +53,7 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
   if (tree.status === EFileTreeStatus.Failed) {
     return <TabFailed icon={ICON} title="Files unavailable" message={tree.message} />
   }
-  if (tree.status === EFileTreeStatus.Loading) return <TabLoading />
+  if (tree.status === EFileTreeStatus.Loading) return <FilesLoading />
   if (nodes.length === 0) {
     return (
       <TabFailed icon={ICON} title="No files yet" message="This workspace has no project files." />

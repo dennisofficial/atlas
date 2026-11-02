@@ -19,6 +19,7 @@ import {
   type Account,
 } from '../data/personal/accounts-api'
 import { QueryPage } from '../data/personal/query-boundary'
+import { ProvidersSkeleton } from '../skeletons/library-skeletons'
 import { EProviderSignInState, useProviderSignIn } from '../data/personal/use-provider-sign-in'
 import { useSaveAction } from '../data/personal/use-save-action'
 import { API_KEY_PROVIDERS, EProviderId } from '../fixtures/settings-agent'
@@ -63,7 +64,12 @@ export function ProvidersPage() {
     load: fetchAccounts,
   })
   return (
-    <QueryPage query={query} title={TITLE} description={DESCRIPTION}>
+    <QueryPage
+      query={query}
+      title={TITLE}
+      description={DESCRIPTION}
+      skeleton={<ProvidersSkeleton />}
+    >
       {(accounts) => <ProvidersContent accounts={accounts} reload={query.reload} />}
     </QueryPage>
   )

@@ -22,13 +22,14 @@ import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { NewProjectHost } from './new-project-host'
 import { ProjectRow } from './project-row'
+import { PROJECT_LIST_CLASS, ProjectListSkeleton } from './project-skeletons'
 
 export const PROJECTS_PATH = '/projects'
 export const NEW_PROJECT_PARAM = 'new'
 
 function ProjectList({ projects }: { projects: readonly Project[] }) {
   return (
-    <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+    <ul className={PROJECT_LIST_CLASS}>
       {projects.map((project) => (
         <ProjectRow key={project.id} project={project} />
       ))}
@@ -82,7 +83,7 @@ export function ProjectsView() {
             New project
           </Button>
         </header>
-        <QueryGate query={query} label="projects">
+        <QueryGate query={query} label="projects" skeleton={<ProjectListSkeleton />}>
           {(projects) =>
             projects.length === 0 ? (
               <NoProjects onNewProject={handleNewProject} />

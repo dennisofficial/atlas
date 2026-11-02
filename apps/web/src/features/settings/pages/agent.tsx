@@ -12,6 +12,7 @@ import {
 } from '../data/personal/agent-settings'
 import { fieldChanges, fieldValuesFrom } from '../data/personal/setting-fields'
 import { QueryPage } from '../data/personal/query-boundary'
+import { AgentSkeleton } from '../skeletons/agent-skeletons'
 import { useAgentKeys } from '../data/personal/use-agent-keys'
 import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
 import {
@@ -38,7 +39,12 @@ const URL_ERROR = 'Enter an absolute http:// or https:// URL'
 export function AgentPage() {
   const settings = usePersonalSettings()
   return (
-    <QueryPage query={settings.query} title={TITLE} description={DESCRIPTION}>
+    <QueryPage
+      query={settings.query}
+      title={TITLE}
+      description={DESCRIPTION}
+      skeleton={<AgentSkeleton />}
+    >
       {(values) => <AgentEditor values={values} save={settings.save} />}
     </QueryPage>
   )

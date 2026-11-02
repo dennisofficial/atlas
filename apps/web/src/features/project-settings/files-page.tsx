@@ -30,6 +30,7 @@ import {
 import { DEFAULT_FILE_MOUNT_MODE, REAUTH_REQUIRED_CODE } from '@dltech/atlas-wire/web'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { FilesSkeleton } from './project-skeletons'
 import { relativeTimeOf } from '@/features/settings/data/shared/relative-time'
 import { runAction } from '@/features/settings/data/shared/run-action'
 import { ReauthDialog } from '@/features/settings/parts/reauth-dialog'
@@ -205,7 +206,7 @@ export function FilesPage() {
 
   return (
     <SettingsSection title="Files" description={DESCRIPTION}>
-      <QueryGate query={own.query} label="project files">
+      <QueryGate query={own.query} label="project files" skeleton={<FilesSkeleton />}>
         {(snapshot) => (
           <>
             {snapshot.mounts.length === 0 ? null : (

@@ -62,7 +62,7 @@ describe('RightPanel', () => {
   })
 
   it('loads the Details tab before the thread events arrive', () => {
-    expect(render({ tab: ERightTab.Details })).toContain('data-slot="spinner"')
+    expect(render({ tab: ERightTab.Details })).toContain('aria-label="Loading agents"')
   })
 
   it('tells the Changes tab owner the pod is connecting when there is no channel', () => {

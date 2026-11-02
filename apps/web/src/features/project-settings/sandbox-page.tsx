@@ -18,6 +18,7 @@ import { RadioGroup, RadioGroupItem } from '@dltech/atlas-ui/components/radio-gr
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { SandboxPageSkeleton } from './project-skeletons'
 import { runAction } from '@/features/settings/data/shared/run-action'
 
 import { useProjectContext } from './data/project-context'
@@ -179,7 +180,7 @@ export function SandboxPage() {
   const { projectId } = useProjectContext()
   const { query, save } = useSandbox(projectId)
   return (
-    <QueryGate query={query} label="sandbox settings">
+    <QueryGate query={query} label="sandbox settings" skeleton={<SandboxPageSkeleton />}>
       {(sandbox) => {
         const handleSave = (patch: Partial<typeof sandbox>) =>
           runAction({

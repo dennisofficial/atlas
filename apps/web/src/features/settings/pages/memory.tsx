@@ -19,6 +19,7 @@ import {
   type MemoryScopeGroup,
 } from '../fixtures/settings-memory'
 import { QueryPage } from '../data/personal/query-boundary'
+import { MemorySearchSkeleton, MemorySkeleton } from '../skeletons/library-skeletons'
 import { useMemoryEntry } from '../data/personal/use-memory-entry'
 import { LibraryConfirmDialog } from '../parts/library-confirm-dialog'
 import { MemoryList } from '../parts/memory-list'
@@ -68,7 +69,13 @@ const PAGE_DESCRIPTION =
 export function MemoryPage() {
   const memory = useMemoryGroups()
   return (
-    <QueryPage query={memory.query} title={PAGE_TITLE} description={PAGE_DESCRIPTION}>
+    <QueryPage
+      query={memory.query}
+      title={PAGE_TITLE}
+      description={PAGE_DESCRIPTION}
+      actions={<MemorySearchSkeleton />}
+      skeleton={<MemorySkeleton />}
+    >
       {(groups) => <MemoryContent groups={groups} memory={memory} />}
     </QueryPage>
   )
@@ -87,7 +94,12 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
   const group = groups.find((candidate) => candidate.id === groupId) ?? groups[0]
   const openEntry = group?.memories.find((entry) => entry.name === openName) ?? null
   const detail = useMemoryEntry({
-    group: group ?? { id: '', scope: EMemoryScope.Global, project: null, memories: [] },
+    group: group ?? {
+      id: '',
+      scope: EMemoryScope.Global,
+      project: null,
+      memories: [],
+    },
     summary: openEntry,
   })
   if (!group) return null
@@ -145,7 +157,10 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
   }
   const handleSave = (entry: MemoryEntry) => saveMemory({ group, entry })
   const handleClearConfirm = async () => {
-    await deleteMemories({ group, names: group.memories.map((entry) => entry.name) })
+    await deleteMemories({
+      group,
+      names: group.memories.map((entry) => entry.name),
+    })
     setSelectedNames([])
     setOpenName(null)
   }

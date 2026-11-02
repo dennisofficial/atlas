@@ -2,30 +2,16 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
 
 import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
-import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { LoadFailed } from '@/features/settings/data/shared/query-gate'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
 import { archiveThread } from './archive-thread'
+import { ThreadsSkeleton } from './shell-skeletons'
 import { ThreadList } from './shell-thread-list'
 import { ThreadActionsContext } from './thread-actions-context'
 import type { ProjectThreads } from './thread-partition'
 import { useThreadArchive } from './use-thread-archive'
-
-const SKELETON_ROWS = ['one', 'two', 'three', 'four', 'five']
-
-function ThreadsSkeleton() {
-  return (
-    <SidebarGroup role="status" aria-label="Loading threads">
-      <div className="flex flex-col gap-2">
-        {SKELETON_ROWS.map((row) => (
-          <Skeleton key={row} className="h-7 w-full" />
-        ))}
-      </div>
-    </SidebarGroup>
-  )
-}
 
 export function ShellSidebarContent({
   query,

@@ -5,15 +5,14 @@ import { AlertCircleIcon } from 'lucide-react'
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
 import { Button } from '@dltech/atlas-ui/components/button'
-import { CardRow } from '@dltech/atlas-ui/components/card'
-import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import type { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
-import { SettingsCard, SettingsPage, SettingsSection } from '../../settings-layout'
+import { SettingsPage, SettingsSection } from '../../settings-layout'
+import { LoadingRegion } from '../shared/query-gate'
 
-const DEFAULT_ROWS = 3
+const PAGE_BODY_CLASS = 'flex flex-col gap-8'
 
 export function QueryFailure({ error, onRetry }: { error: CloudApiError; onRetry: () => void }) {
   return (
@@ -30,35 +29,26 @@ export function QueryFailure({ error, onRetry }: { error: CloudApiError; onRetry
   )
 }
 
-export function QueryLoading({ rows = DEFAULT_ROWS }: { rows?: number }) {
-  return (
-    <div role="status" aria-busy="true" aria-label="Loading">
-      <SettingsCard>
-        {Array.from({ length: rows }, (_, index) => (
-          <CardRow key={index} className="flex-row items-center">
-            <Skeleton className="size-8 shrink-0" />
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Skeleton className="h-3.5 w-1/3" />
-              <Skeleton className="h-3 w-2/3" />
-            </div>
-          </CardRow>
-        ))}
-      </SettingsCard>
-    </div>
-  )
-}
-
 export function QueryBody<TData>({
   query,
-  rows,
+  label,
+  skeleton,
+  className,
   children,
 }: {
   query: CloudQuery<TData>
-  rows?: number
+  label: string
+  skeleton: ReactNode
+  className?: string
   children: (data: TData) => ReactNode
 }) {
-  if (query.state === EQueryState.Loading)
-    return <QueryLoading {...(rows === undefined ? {} : { rows })} />
+  if (query.state === EQueryState.Loading) {
+    return (
+      <LoadingRegion label={label} {...(className === undefined ? {} : { className })}>
+        {skeleton}
+      </LoadingRegion>
+    )
+  }
   if (query.state === EQueryState.Failed) {
     return <QueryFailure error={query.error} onRetry={query.reload} />
   }
@@ -69,19 +59,25 @@ export function QueryPage<TData>({
   query,
   title,
   description,
-  rows,
+  actions,
+  skeleton,
   children,
 }: {
   query: CloudQuery<TData>
   title: string
   description?: ReactNode
-  rows?: number
+  actions?: ReactNode
+  skeleton: ReactNode
   children: (data: TData) => ReactNode
 }) {
   if (query.state === EQueryState.Ready) return <>{children(query.data)}</>
   return (
-    <SettingsPage title={title} {...(description === undefined ? {} : { description })}>
-      <QueryBody query={query} {...(rows === undefined ? {} : { rows })}>
+    <SettingsPage
+      title={title}
+      {...(description === undefined ? {} : { description })}
+      {...(actions === undefined ? {} : { actions })}
+    >
+      <QueryBody query={query} label={title} skeleton={skeleton} className={PAGE_BODY_CLASS}>
         {children}
       </QueryBody>
     </SettingsPage>
@@ -92,19 +88,25 @@ export function QuerySection<TData>({
   query,
   title,
   description,
-  rows,
+  actions,
+  skeleton,
   children,
 }: {
   query: CloudQuery<TData>
   title: string
   description?: ReactNode
-  rows?: number
+  actions?: ReactNode
+  skeleton: ReactNode
   children: (data: TData) => ReactNode
 }) {
   if (query.state === EQueryState.Ready) return <>{children(query.data)}</>
   return (
-    <SettingsSection title={title} {...(description === undefined ? {} : { description })}>
-      <QueryBody query={query} {...(rows === undefined ? {} : { rows })}>
+    <SettingsSection
+      title={title}
+      {...(description === undefined ? {} : { description })}
+      {...(actions === undefined ? {} : { actions })}
+    >
+      <QueryBody query={query} label={title} skeleton={skeleton}>
         {children}
       </QueryBody>
     </SettingsSection>

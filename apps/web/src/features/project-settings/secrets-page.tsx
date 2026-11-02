@@ -1,6 +1,7 @@
 'use client'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { EnvSecretsSkeleton } from '@/features/settings/skeletons/table-skeletons'
 import { revealSecret } from '@/features/settings/data/shared/resource-api'
 import { runAction } from '@/features/settings/data/shared/run-action'
 import type { SecretPair } from '@/features/settings/parts/env-secrets-dialogs'
@@ -28,7 +29,10 @@ export function SecretsPage() {
           : `Saved ${pairs.length} secrets`,
     })
   const handleRemove = (name: string) => {
-    void runAction({ work: () => own.remove(name), success: `Deleted ${name}` })
+    void runAction({
+      work: () => own.remove(name),
+      success: `Deleted ${name}`,
+    })
   }
 
   return (
@@ -36,9 +40,12 @@ export function SecretsPage() {
       title="Secrets & Env Vars"
       description="Order of precedence: default, then personal, then project. The project value wins. Every shell and service in a cloud thread gets them as environment variables."
     >
-      <QueryGate query={own.query} label="project secrets">
+      <QueryGate query={own.query} label="project secrets" skeleton={<EnvSecretsSkeleton />}>
         {(snapshot) => {
-          const rows = projectSecretRows({ secrets: snapshot.secrets, now: snapshot.fetchedAt })
+          const rows = projectSecretRows({
+            secrets: snapshot.secrets,
+            now: snapshot.fetchedAt,
+          })
           return (
             <EnvSecretsContent
               rows={rows}

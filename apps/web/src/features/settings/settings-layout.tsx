@@ -36,7 +36,9 @@ export function SettingsPage({
         <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="flex min-w-0 flex-col gap-1">
             <h1 className="text-lg font-semibold">{title}</h1>
-            {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+            {description ? (
+              <div className="text-sm text-muted-foreground">{description}</div>
+            ) : null}
           </div>
           {actions ? (
             <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>
@@ -65,7 +67,7 @@ export function SettingsSection({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-sm font-medium">{title}</h2>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          {description ? <div className="text-sm text-muted-foreground">{description}</div> : null}
         </div>
         {actions ? (
           <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>
@@ -116,7 +118,7 @@ export function SettingsRow({
         {media ? <div className="flex shrink-0 items-center">{media}</div> : null}
         <div className="flex min-w-48 flex-1 flex-col gap-0.5">
           <div className="flex items-center gap-2 text-sm font-medium">{title}</div>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          {description ? <div className="text-sm text-muted-foreground">{description}</div> : null}
         </div>
         {control ? (
           <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2">{control}</div>

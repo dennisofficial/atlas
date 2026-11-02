@@ -7,7 +7,7 @@ const webSource = fileURLToPath(new URL('../../web/src', import.meta.url))
 const config: StorybookConfig = {
   stories: [
     '../../../packages/ui/src/**/*.stories.@(ts|tsx)',
-    '../../web/src/features/shell/production-sidebar.stories.tsx',
+    '../../web/src/features/**/*.stories.@(ts|tsx)',
   ],
   framework: {
     name: '@storybook/nextjs-vite',

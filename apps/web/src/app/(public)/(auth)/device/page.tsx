@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
 
-import { PageSpinner } from '@/features/auth/page-spinner'
 import { DeviceAuthorizer } from '@/features/auth/device-authorizer'
+import { DeviceConfirmSkeleton } from '@/features/auth/auth-flow-skeletons'
 
 export default function Page() {
   return (
-    <Suspense fallback={<PageSpinner label="Loading…" />}>
+    <Suspense fallback={<DeviceConfirmSkeleton />}>
       <DeviceAuthorizer />
     </Suspense>
   )
