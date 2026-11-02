@@ -41,7 +41,7 @@ _Updated at the end of every slice. Last update: 2026-11-02._
   ahead of workloads on CPU (the v1 half of architecture §11; measured in
   [pod-saturation](research/pod-saturation.md)). The fork bomb, which wedged a pod, is fixed by
   the `atlas-serve` / `atlas-work` cgroup split with `pids.max` and a box per workload (§11 R2;
-  shipped in #PR).
+  shipped in #1684).
   Measured since: `+memory` also delegates once the root is empty (`memory.max` contains a hog),
   `cgroup.kill` catches setsid escapees, and the split does not survive snapshot/resume, so it must
   be applied on every boot ([pod-saturation](research/pod-saturation.md) scenario 5).
