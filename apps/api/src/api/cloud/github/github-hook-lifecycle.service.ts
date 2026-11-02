@@ -7,6 +7,7 @@ import { db, or } from '@dltech/atlas-db'
 import { HOOK_EVENTS as GITHUB_HOOK_EVENTS } from './github-hook-events'
 import { ERepoHookStatus } from './github-realtime.types'
 import { GithubAppInstallationsService } from './github-app-installations.service'
+import { GithubHookTeardown } from './github-hook-teardown'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import { isUniqueViolation } from './unique-violation'
@@ -26,6 +27,7 @@ export type EnsureHookResult = 'created' | 'existing' | 'app-backed' | 'poll-bac
 export class GithubHookLifecycleService {
   private readonly logger = new Logger(GithubHookLifecycleService.name)
   private readonly verifiedAliveAt = new Map<string, number>()
+  private readonly teardown: GithubHookTeardown
 
   constructor(
     private readonly github: GithubService,
@@ -34,7 +36,9 @@ export class GithubHookLifecycleService {
     private readonly env: EnvService,
     private readonly installations: GithubAppInstallationsService,
     private readonly observations: GithubObservationStore,
-  ) {}
+  ) {
+    this.teardown = new GithubHookTeardown(github, reads)
+  }
 
   ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
     return withGithubRequestBudget({
@@ -118,7 +122,7 @@ export class GithubHookLifecycleService {
         })
       if (claimed !== 1) continue
       try {
-        await this.teardown({ repoFullName: candidate.repoFullName })
+        await this.teardown.run({ repoFullName: candidate.repoFullName })
       } catch (failure) {
         await db.orm.public.GithubRepoHook.where({
           repoFullName: candidate.repoFullName,
@@ -249,40 +253,6 @@ export class GithubHookLifecycleService {
         return 'existing'
       throw failure
     }
-  }
-
-  private async teardown(args: { repoFullName: string }): Promise<void> {
-    const hook = await db.orm.public.GithubRepoHook.where((hook) =>
-      hook.repoFullName.ilike(repoPattern(args.repoFullName)),
-    ).first()
-    if (hook === null) return
-
-    const token = await this.github.findToken({ userId: hook.createdBy })
-    if (token === undefined) {
-      await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).update({
-        status: ERepoHookStatus.Orphaned,
-        sweepLeaseUntil: null,
-      })
-      return
-    }
-
-    const [owner, repo] = args.repoFullName.split('/') as [string, string]
-    const outcome = await this.reads.deleteHook({
-      source: EGithubCallSource.HookSweep,
-      token,
-      owner,
-      repo,
-      hookId: Number(hook.hookId),
-    })
-    if (outcome === 'unauthorized') {
-      await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).update({
-        status: ERepoHookStatus.Orphaned,
-        sweepLeaseUntil: null,
-      })
-      return
-    }
-
-    await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).deleteAndCount()
   }
 
   private hookUrl(args: { repoFullName: string }): string {

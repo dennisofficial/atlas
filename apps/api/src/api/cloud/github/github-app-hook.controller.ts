@@ -14,7 +14,9 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler'
+import { BackgroundWork } from '../../../_core/ports/background-work'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { GithubAppSyncService } from './github-app-sync.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { installLandingPage } from './github-app-install-landing'
 import { GithubDeliveryService } from './github-delivery.service'
@@ -44,6 +46,8 @@ export class GithubAppHookController {
     private readonly installations: GithubAppInstallationsService,
     private readonly env: EnvService,
     private readonly inbox: GithubWebhookInboxService,
+    private readonly appSync: GithubAppSyncService,
+    private readonly background: BackgroundWork,
   ) {}
 
   /**
@@ -95,6 +99,15 @@ export class GithubAppHookController {
       return { received: true }
     }
 
+    const installationId = (payload as { installation?: { id?: unknown } }).installation?.id
+    if (typeof installationId === 'number') {
+      this.background.keepAlive(
+        this.appSync.syncUnknownInstallation({ installationId }).catch((failure: unknown) => {
+          this.logger.warn(`unknown installation sync failed: ${String(failure)}`)
+        }),
+      )
+    }
+
     if (deliveryId !== undefined) {
       const fresh = await this.inbox.insert({ deliveryId, event, payload })
       if (!fresh) return { received: true }
@@ -116,6 +129,11 @@ export class GithubAppHookController {
 
   private async handleLifecycle(args: { event: string; payload: unknown }): Promise<void> {
     if (args.event === 'installation') {
+      const lifecycle = args.payload as GithubAppInstallationWebhookPayload
+      if (lifecycle.action !== 'deleted' && lifecycle.repositories === undefined) {
+        this.background.keepAlive(this.appSync.syncNow())
+        return
+      }
       await this.installations.applyInstallation(
         args.payload as GithubAppInstallationWebhookPayload,
       )

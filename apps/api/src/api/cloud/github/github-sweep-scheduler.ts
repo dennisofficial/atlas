@@ -1,6 +1,6 @@
 import { Injectable, type DynamicModule, type Provider } from '@nestjs/common'
 import { Interval, ScheduleModule } from '@nestjs/schedule'
-import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
+import { GithubHookSweepService } from './github-hook-sweep.service'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubDeliveryService } from './github-delivery.service'
@@ -17,7 +17,7 @@ export function runsOffVercel(): boolean {
 export class GithubSweepSchedulerService {
   constructor(
     private readonly pollSweeper: GithubPollSweeperService,
-    private readonly hookLifecycle: GithubHookLifecycleService,
+    private readonly hookSweep: GithubHookSweepService,
     private readonly webhookInbox: GithubWebhookInboxService,
     private readonly deliveries: GithubDeliveryService,
   ) {}
@@ -29,7 +29,7 @@ export class GithubSweepSchedulerService {
 
   @Interval(HOOK_SWEEP_INTERVAL_MS)
   async handleHookTick(): Promise<void> {
-    await this.hookLifecycle.handleSweep()
+    await this.hookSweep.handleSweep()
   }
 
   @Interval(WEBHOOK_RECONCILE_INTERVAL_MS)
