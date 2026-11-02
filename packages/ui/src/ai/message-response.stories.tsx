@@ -80,6 +80,34 @@ export const Diagram: Story = {
   args: { children: DIAGRAM },
 }
 
+const LARGE_DIAGRAM = [
+  '```mermaid',
+  'sequenceDiagram',
+  '  participant C as Client',
+  '  participant CP as Control plane',
+  '  participant R as Redis',
+  '  participant W1 as Worker 1',
+  '  participant W2 as Worker 2',
+  '  participant PG as Postgres',
+  '  C->>CP: send message',
+  '  CP->>PG: append event and enqueue turn',
+  '  CP->>R: publish wake',
+  '  R->>W1: wake',
+  '  R->>W2: wake',
+  '  W1->>PG: claim lease (wins)',
+  '  W2->>PG: claim lease (loses)',
+  '  W1->>PG: stream events',
+  '  W1->>R: publish live output',
+  '  R->>CP: live output',
+  '  CP->>C: stream to client',
+  '  W1->>PG: release lease',
+  '```',
+].join('\n')
+
+export const LargeDiagram: Story = {
+  args: { children: LARGE_DIAGRAM },
+}
+
 const EXTENDED = [
   'Task list:',
   '',

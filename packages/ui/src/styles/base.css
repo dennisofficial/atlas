@@ -89,3 +89,11 @@ html {
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Streamdown's fullscreen mermaid leaves the svg at width="100%" with no height inside a
+   flex item whose width is auto; WebKit resolves that circle to 0x0, so the diagram is blank
+   in Safari and WKWebView while Chromium happens to render it. */
+[data-streamdown="mermaid-fullscreen"] [role="img"] > svg {
+  width: 100%;
+  height: auto;
+}
