@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   pullRequestCacheFieldsOf,
   pullRequestStateOf,
+  type RestCheckRun,
   type RestPullRequest,
 } from './github-pull-request-mapping'
 
@@ -29,27 +30,59 @@ describe('pullRequestStateOf', () => {
   })
 })
 
+const run = (over: Partial<RestCheckRun>): RestCheckRun => ({
+  name: 'build',
+  status: 'completed',
+  conclusion: 'success',
+  started_at: '2026-11-02T04:25:00Z',
+  ...over,
+})
+
 describe('pullRequestCacheFieldsOf', () => {
-  it('tallies check runs by conclusion bucket', () => {
+  it('tallies check runs by outcome and leaves skipped and neutral out', () => {
     const fields = pullRequestCacheFieldsOf({
       pull: pull({ mergeable: true, mergeable_state: 'clean' }),
       checkRuns: [
-        { status: 'in_progress', conclusion: null },
-        { status: 'completed', conclusion: 'success' },
-        { status: 'completed', conclusion: 'neutral' },
-        { status: 'completed', conclusion: 'failure' },
-        { status: 'completed', conclusion: 'cancelled' },
+        run({ name: 'a', status: 'in_progress', conclusion: null }),
+        run({ name: 'b' }),
+        run({ name: 'c', conclusion: 'neutral' }),
+        run({ name: 'd', conclusion: 'skipped' }),
+        run({ name: 'e', conclusion: 'failure' }),
+        run({ name: 'f', conclusion: 'cancelled' }),
       ],
       statuses: [],
     })
 
     expect(fields).toMatchObject({
       checksRunning: 1,
-      checksPassed: 2,
+      checksPassed: 1,
       checksFailed: 2,
       mergeable: true,
       headBranch: 'dennis/add-the-thing',
     })
+  })
+
+  it('counts a re-run once, by its newest attempt', () => {
+    const fields = pullRequestCacheFieldsOf({
+      pull: pull({}),
+      checkRuns: [
+        run({ conclusion: 'cancelled', started_at: '2026-11-02T04:25:00Z' }),
+        run({ conclusion: 'success', started_at: '2026-11-02T04:26:00Z' }),
+      ],
+      statuses: [],
+    })
+
+    expect(fields).toMatchObject({ checksRunning: 0, checksPassed: 1, checksFailed: 0 })
+  })
+
+  it('reads a head whose checks were all skipped as nothing running, passed or failed', () => {
+    const fields = pullRequestCacheFieldsOf({
+      pull: pull({}),
+      checkRuns: [run({ name: 'release', conclusion: 'skipped' })],
+      statuses: [],
+    })
+
+    expect(fields).toMatchObject({ checksRunning: 0, checksPassed: 0, checksFailed: 0 })
   })
 
   it('keeps only the latest commit status per context', () => {
@@ -57,9 +90,9 @@ describe('pullRequestCacheFieldsOf', () => {
       pull: pull({}),
       checkRuns: [],
       statuses: [
-        { context: 'ci/build', state: 'success' },
-        { context: 'ci/build', state: 'pending' },
-        { context: 'deploy', state: 'failure' },
+        { context: 'ci/build', state: 'success', created_at: '2026-11-02T04:25:00Z' },
+        { context: 'ci/build', state: 'pending', created_at: '2026-11-02T04:20:00Z' },
+        { context: 'deploy', state: 'failure', created_at: '2026-11-02T04:25:00Z' },
       ],
     })
 

@@ -30,6 +30,7 @@ const stateSchema = z.object({
   checksRunning: z.number(),
   checksPassed: z.number(),
   checksFailed: z.number(),
+  checksIgnored: z.number(),
   mergeable: z.boolean().nullable(),
   updatedAt: z.string(),
 })

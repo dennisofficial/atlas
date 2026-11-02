@@ -120,6 +120,7 @@ export function snapshotOf(row: Row<'GithubPrState'> | null): PrTransitionSnapsh
     checksRunning: row.checksRunning,
     checksPassed: row.checksPassed,
     checksFailed: row.checksFailed,
+    checksIgnored: row.checksIgnored,
     mergeable: row.mergeable,
   }
 }

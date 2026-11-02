@@ -6,6 +6,7 @@ export type PrTransitionSnapshot = {
   checksRunning: number
   checksPassed: number
   checksFailed: number
+  checksIgnored: number
   mergeable: boolean | null
 }
 
@@ -30,6 +31,10 @@ export type PrTransitionOptions = {
  * per-head ledger (github-pr-head-checks.ts) owes them on any settled observation, so verdicts
  * are discharged outside this diff.
  */
+function completedCount(snapshot: PrTransitionSnapshot): number {
+  return snapshot.checksPassed + snapshot.checksFailed + snapshot.checksIgnored
+}
+
 export function transitionsOf(args: {
   prior: PrTransitionSnapshot | null
   next: PrTransitionSnapshot & { url: string }
@@ -39,12 +44,9 @@ export function transitionsOf(args: {
 
   const verdictTiming = args.options?.verdictTiming ?? 'fail-fast'
   const events: PrTransitionEvent[] = []
-  const checksSettled =
-    args.next.checksRunning === 0 && args.next.checksPassed + args.next.checksFailed > 0
+  const checksSettled = args.next.checksRunning === 0 && completedCount(args.next) > 0
   const settledFromRunning = checksSettled && args.prior.checksRunning > 0
-  const completedMore =
-    args.next.checksPassed + args.next.checksFailed >
-    args.prior.checksPassed + args.prior.checksFailed
+  const completedMore = completedCount(args.next) > completedCount(args.prior)
   const failureAlreadyAnnounced = args.next.checksFailed > 0 && args.prior.checksFailed > 0
 
   if (verdictTiming === 'fail-fast') {
@@ -85,8 +87,7 @@ export function transitionsOf(args: {
     )
   }
 
-  const checksQuiet =
-    args.next.checksRunning === 0 || args.next.checksPassed + args.next.checksFailed === 0
+  const checksQuiet = args.next.checksRunning === 0 || completedCount(args.next) === 0
   if (args.next.mergeable !== null && args.prior.mergeable !== args.next.mergeable && checksQuiet) {
     events.push(
       eventOf(args, EPrEventKind.Mergeability, String(args.next.mergeable), {

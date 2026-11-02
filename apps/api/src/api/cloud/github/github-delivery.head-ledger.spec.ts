@@ -42,6 +42,32 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
   })
 
+  it('settles an all-skipped head green rather than leaving it unsettled', async () => {
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest: async () => ({
+        ...REST_FIELDS,
+        checksRunning: 0,
+        checksPassed: 0,
+        checksFailed: 0,
+        checksIgnored: 2,
+      }),
+    })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0, checksFailed: 0 })
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    const ledger = await db.orm.public.GithubPrHeadCheck.where({
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      headSha: 'abc123',
+    }).all()
+    expect(ledger[0]).toMatchObject({ verdict: 'green' })
+    expect(ledger[0]?.settledAt).not.toBeNull()
+  })
+
   it('records the ledger row against the head SHA with the verdict event claimed', async () => {
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },

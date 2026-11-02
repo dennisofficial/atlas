@@ -20,6 +20,7 @@ export function stateFieldsOf(row: Row<'GithubPrState'>): GithubPrStateFields & 
     checksRunning: row.checksRunning,
     checksPassed: row.checksPassed,
     checksFailed: row.checksFailed,
+    checksIgnored: row.checksIgnored,
     mergeable: row.mergeable,
   }
 }
@@ -39,6 +40,7 @@ export function carryChecks(args: {
     checksRunning: args.prior.checksRunning,
     checksPassed: args.prior.checksPassed,
     checksFailed: args.prior.checksFailed,
+    checksIgnored: args.prior.checksIgnored,
     mergeable: args.prior.mergeable,
   }
 }
@@ -59,6 +61,7 @@ export function provisionalFieldsOf(args: {
     checksRunning: shaMoved ? 1 : Math.max(args.prior.checksRunning, 1),
     checksPassed: shaMoved ? 0 : args.prior.checksPassed,
     checksFailed: shaMoved ? 0 : args.prior.checksFailed,
+    checksIgnored: shaMoved ? 0 : args.prior.checksIgnored,
     mergeable: null,
     updatedAt: new Date(),
   }

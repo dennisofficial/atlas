@@ -17,6 +17,7 @@ export type LockedPrState = {
   checksRunning: number
   checksPassed: number
   checksFailed: number
+  checksIgnored: number
   mergeable: boolean | null
 }
 
@@ -68,6 +69,7 @@ export async function readPrStateForUpdate(args: {
       'checksRunning',
       'checksPassed',
       'checksFailed',
+      'checksIgnored',
       'mergeable',
     )
       .where((f, fns) =>
@@ -87,6 +89,7 @@ export function snapshotOfLocked(row: {
   checksRunning: number
   checksPassed: number
   checksFailed: number
+  checksIgnored: number
   mergeable: boolean | null
 }): PrTransitionSnapshot {
   return {
@@ -95,6 +98,7 @@ export function snapshotOfLocked(row: {
     checksRunning: row.checksRunning,
     checksPassed: row.checksPassed,
     checksFailed: row.checksFailed,
+    checksIgnored: row.checksIgnored,
     mergeable: row.mergeable,
   }
 }
@@ -118,7 +122,7 @@ export async function dischargeHeadVerdict(args: {
   emitVerdict: (verdict: EHeadVerdict, eventKey: string) => Promise<void>
 }): Promise<void> {
   const running = args.next.checksRunning > 0
-  const completed = args.next.checksPassed + args.next.checksFailed > 0
+  const completed = args.next.checksPassed + args.next.checksFailed + args.next.checksIgnored > 0
   const settled = !running && completed
   const orm = args.tx === undefined ? db.orm : args.tx.orm
 

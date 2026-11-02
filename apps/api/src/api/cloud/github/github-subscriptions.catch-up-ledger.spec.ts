@@ -23,6 +23,7 @@ const SETTLED_FIELDS = {
   checksRunning: 0,
   checksPassed: 4,
   checksFailed: 0,
+  checksIgnored: 0,
   mergeable: true,
 }
 

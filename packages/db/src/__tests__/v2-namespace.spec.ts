@@ -8,6 +8,11 @@ import { applyMigrations } from '../testing/migrations'
 const MIGRATION = '20261102T0507_v2_record_core'
 const MIGRATIONS_DIR = join(import.meta.dirname, '..', '..', 'migrations', 'app')
 const V2_TABLES = ['V2Event', 'V2InboxEntry', 'V2Lease', 'V2Session', 'V2Thread']
+const MIGRATION_DIRECTORIES = readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name !== 'refs')
+  .map((entry) => entry.name)
+  .sort()
+const NEXT_MIGRATION = MIGRATION_DIRECTORIES[MIGRATION_DIRECTORIES.indexOf(MIGRATION) + 1]
 const suffix = `${process.pid}_${Date.now()}`
 const FULL = `atlas_test_v2ns_full_${suffix}`
 const BEFORE = `atlas_test_v2ns_before_${suffix}`
@@ -24,7 +29,13 @@ async function withLane<T>(work: (client: pg.Client) => Promise<T>): Promise<T> 
   }
 }
 
-async function build({ name, stopBefore }: { name: string; stopBefore?: string }): Promise<void> {
+async function build({
+  name,
+  stopBefore,
+}: {
+  name: string
+  stopBefore?: string | undefined
+}): Promise<void> {
   await withLane((client) => client.query(`CREATE DATABASE ${quoteIdent(name)}`))
   const client = new pg.Client({ connectionString: databaseUrl({ lane: laneUrl(), name }) })
   await client.connect()
@@ -69,7 +80,7 @@ function opsStatements(directory: string): string[] {
 
 describe('v2 namespace migration', () => {
   beforeAll(async () => {
-    await build({ name: FULL })
+    await build({ name: FULL, stopBefore: NEXT_MIGRATION })
     await build({ name: BEFORE, stopBefore: MIGRATION })
   }, 180_000)
 
@@ -103,12 +114,8 @@ describe('v2 namespace migration', () => {
     expect(typeOf('V2InboxEntry', 'payload')).toBe('text')
   })
 
-  it('is the newest migration and confines every forward op to schema v2', () => {
-    const directories = readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && entry.name !== 'refs')
-      .map((entry) => entry.name)
-      .sort()
-    expect(directories.at(-1)).toBe(MIGRATION)
+  it('confines every forward op to schema v2', () => {
+    expect(MIGRATION_DIRECTORIES).toContain(MIGRATION)
     const statements = opsStatements(MIGRATION)
     expect(statements.length).toBeGreaterThan(0)
     for (const sql of statements) {
