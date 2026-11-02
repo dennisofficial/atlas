@@ -135,12 +135,14 @@ rm -f "$launch_js"
 run 'chmod 644 /tmp/chromium-launch.js'
 expect 'headless chromium launches as uid 501' 'chromium OK' run501 'node /tmp/chromium-launch.js'
 
-expect 'playwright-cli resolves on PATH' '/usr/local/bin/playwright-cli' run 'command -v playwright-cli'
-expect 'playwright-cli runs' '.' run 'playwright-cli --version'
 expect 'a chromium build is baked into the shared browsers path' 'chromium' \
   run 'ls /opt/playwright'
-expect 'playwright-cli open renders with the baked browser as uid 501' 'Page URL: about:blank' \
-  run501 'cd /tmp/smoke-home && playwright-cli open about:blank && playwright-cli close'
+
+expect 'agent-browser resolves on PATH' '/usr/local/bin/agent-browser' run 'command -v agent-browser'
+expect 'agent-browser runs' 'agent-browser ' run 'agent-browser --version'
+expect 'agent-browser serves its bundled skills' 'name: core' run501 'agent-browser skills get core'
+expect 'agent-browser renders with the baked browser as uid 501' 'atlas' \
+  run501 "cd /tmp/smoke-home && agent-browser open 'data:text/html,<h1>atlas</h1>' >/dev/null && agent-browser get text h1 && agent-browser close >/dev/null"
 
 run 'git init -q /opt/smoke-repo'
 expect_fail 'git refuses a root-owned repo without safe.directory (no blanket star baked)' \
