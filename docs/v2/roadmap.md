@@ -38,7 +38,7 @@ _Updated at the end of every slice. Last update: 2026-11-02._
   Follow-up PR: supersede a thinking-only request (spec section), behind a setting.
 - **Decided 2026-11-02: D8, [0021](../decisions/0021-v2-loop-runs-on-control-plane-workers.md).** The agent
   loop runs on long-lived control-plane workers (Render, Virginia; a separate `apps/worker` service
-  is the recommended shape, pending operator confirmation); sandboxes stay on Vercel Sandbox and
+  in the Comp AI Render workspace, confirmed by the operator); sandboxes stay on Vercel Sandbox and
   only execute, through a small in-sandbox daemon over one persistent WebSocket (measured
   3.6-6.5 ms p50 per call).
 - **Next: slice 3, the worker host and the sandbox daemon (0021).**

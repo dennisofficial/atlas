@@ -32,8 +32,8 @@ sandbox.** Sandboxes stay on Vercel Sandbox and only execute. Each sandbox runs 
 daemon — exec, files, grep, background shells, services, stdio MCP, terminal, and private
 `operator_input` delivery — reached by the worker over one persistent WebSocket.
 
-**Worker host: Render, Virginia region, in the operator's company org.** The service shape is
-recommended, pending operator confirmation: a new `apps/worker` service (plain Bun, no Nest or
+**Worker host: Render, Virginia region, in the operator's company org (the Comp AI workspace).**
+The operator confirmed the shape on 2026-11-02: a new `apps/worker` service (plain Bun, no Nest or
 tRPC; a Render Background Worker), with the API staying on Vercel. The alternative considered was
 moving the whole API to Render and running loops in it; it is rejected because Render's shutdown
 grace caps at 300 s, so every API merge would cut every running turn. A separate worker deploys
