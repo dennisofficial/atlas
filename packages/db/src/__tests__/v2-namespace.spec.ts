@@ -29,7 +29,13 @@ async function withLane<T>(work: (client: pg.Client) => Promise<T>): Promise<T> 
   }
 }
 
-async function build({ name, stopBefore }: { name: string; stopBefore?: string }): Promise<void> {
+async function build({
+  name,
+  stopBefore,
+}: {
+  name: string
+  stopBefore?: string | undefined
+}): Promise<void> {
   await withLane((client) => client.query(`CREATE DATABASE ${quoteIdent(name)}`))
   const client = new pg.Client({ connectionString: databaseUrl({ lane: laneUrl(), name }) })
   await client.connect()
