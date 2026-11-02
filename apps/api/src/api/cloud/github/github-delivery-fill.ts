@@ -1,11 +1,12 @@
 import type { Logger } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
+import type { CommitCheckInput } from './github-commit-checks'
 import type { GithubPrStateRecord } from './github-realtime.types'
 import { GithubUserReadFailed, type GithubUserReads } from './github-user-reads'
 
 export type RestFill =
-  | { kind: 'filled'; fields: GithubPrStateRecord }
+  | { kind: 'filled'; fields: GithubPrStateRecord; checks: CommitCheckInput[] | null }
   | { kind: 'skipped' }
   | { kind: 'deferred' }
 
@@ -24,7 +25,9 @@ export async function tryRestFill(args: {
   owner: string
   repo: string
   prNumber: number
+  collect?: boolean
 }): Promise<RestFill> {
+  let collected: CommitCheckInput[] | null = null
   try {
     const fields = await args.reads.readPullRequest({
       source: EGithubCallSource.DeliveryFill,
@@ -32,8 +35,15 @@ export async function tryRestFill(args: {
       owner: args.owner,
       repo: args.repo,
       number: args.prNumber,
+      ...(args.collect === true
+        ? {
+            collectChecks: ({ checks }: { checks: CommitCheckInput[] }) => {
+              collected = checks
+            },
+          }
+        : {}),
     })
-    return { kind: 'filled', fields: { ...fields, updatedAt: new Date() } }
+    return { kind: 'filled', fields: { ...fields, updatedAt: new Date() }, checks: collected }
   } catch (failure) {
     if (
       failure instanceof GithubUserReadFailed &&

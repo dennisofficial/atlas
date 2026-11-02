@@ -6,7 +6,6 @@ import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 import {
   pruneCommitChecks,
   recordCommitChecksLocked,
-  commitChecksTally,
   restCommitChecksOf,
 } from './github-commit-checks'
 import {
@@ -18,12 +17,9 @@ import {
   seedSubscription,
   serviceWith,
 } from './github-delivery.fixture'
+import { RUNNING, setupTrackedPr, tallyOf } from './github-delivery.checks.fixture'
 import { HOOK_EVENTS } from './github-hook-events'
 
-const tallyOf = (headSha: string) =>
-  db.transaction((tx) => commitChecksTally({ tx, repoFullName: 'compai/app', headSha }))
-
-const RUNNING = { status: 'in_progress', conclusion: null, completed_at: null }
 const STATUS_PAYLOAD = (state: string, updated: string) => ({
   id: 9,
   sha: 'abc123',
@@ -34,27 +30,10 @@ const STATUS_PAYLOAD = (state: string, updated: string) => ({
   repository: { full_name: 'compai/app' },
 })
 
-const setup = async (readPullRequest = vi.fn(async () => REST_FIELDS)) => {
-  const harness = serviceWith({
-    tokens: { 'usr-creator': 'ghu_creator' },
-    readPullRequest,
-  })
-  await seedHook({ createdBy: 'usr-creator' })
-  await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-  await seedPrState({
-    ...FILLED_PR_STATE,
-    checksRunning: 0,
-    checksPassed: 0,
-    mergeable: null,
-  })
-  return { ...harness, readPullRequest }
-}
-
 describe('GithubDeliveryService check rows', () => {
   useTestDatabase()
 
   beforeEach(prepareDelivery)
-
   it('tallies a full CI sequence from webhooks and confirms settlement with one REST read', async () => {
     const readPullRequest = vi.fn(async () => ({
       ...REST_FIELDS,
@@ -62,7 +41,7 @@ describe('GithubDeliveryService check rows', () => {
       checksPassed: 5,
       checksIgnored: 1,
     }))
-    const { service } = await setup(readPullRequest)
+    const { service } = await setupTrackedPr(readPullRequest)
     const run = (id: number, over: object) =>
       service.handle({
         event: 'check_run',
@@ -96,7 +75,7 @@ describe('GithubDeliveryService check rows', () => {
   })
 
   it('keeps a completed run completed when its in_progress delivery arrives late', async () => {
-    const { service } = await setup()
+    const { service } = await setupTrackedPr()
     await service.handle({
       event: 'check_run',
       payload: checkRunPayload({ conclusion: 'failure' }),
@@ -113,7 +92,7 @@ describe('GithubDeliveryService check rows', () => {
   })
 
   it('counts a re-run once, as the newer outcome', async () => {
-    const { service } = await setup()
+    const { service } = await setupTrackedPr()
     await service.handle({
       event: 'check_run',
       payload: checkRunPayload({ id: 1, conclusion: 'failure' }),
@@ -134,7 +113,7 @@ describe('GithubDeliveryService check rows', () => {
   })
 
   it('does not change counts for a sha that is not the PR head', async () => {
-    const { service, readPullRequest } = await setup()
+    const { service, readPullRequest } = await setupTrackedPr()
     await service.handle({
       event: 'check_run',
       payload: checkRunPayload({ ...RUNNING, head_sha: 'old999' }),
@@ -148,7 +127,7 @@ describe('GithubDeliveryService check rows', () => {
   })
 
   it('handles status events and subscribes the hook to them', async () => {
-    const { service } = await setup()
+    const { service } = await setupTrackedPr()
 
     expect(HOOK_EVENTS).toContain('status')
     expect(
@@ -161,7 +140,7 @@ describe('GithubDeliveryService check rows', () => {
   })
 
   it('makes no GitHub call for a push, a check_suite or a non-head pull_request action', async () => {
-    const { service, readPullRequest } = await setup()
+    const { service, readPullRequest } = await setupTrackedPr()
     await service.handle({
       event: 'push',
       payload: {
@@ -269,45 +248,6 @@ describe('GithubDeliveryService check rows', () => {
     expect(rest.checksPassed + rest.checksIgnored + rest.checksRunning).toBe(4)
   })
 
-  it('concurrent deliveries for one run id always end completed', async () => {
-    const { service } = await setup()
-    for (let i = 0; i < 8; i++) {
-      const id = 100 + i
-      await Promise.all([
-        service.handle({ event: 'check_run', payload: checkRunPayload({ id, ...RUNNING }) }),
-        service.handle({ event: 'check_run', payload: checkRunPayload({ id }) }),
-      ])
-      const row = await db.orm.public.GithubCommitCheck.where({
-        repoFullName: 'compai/app',
-        headSha: 'abc123',
-        checkKey: `run:${id}`,
-      }).first()
-      expect(row?.outcome).toBe('passed')
-    }
-  })
-
-  it('concurrent deliveries for different runs leave the PR row equal to the full tally', async () => {
-    const { service } = await setup()
-    for (let round = 0; round < 4; round++) {
-      await Promise.all(
-        [1, 2, 3, 4, 5, 6].map((n) =>
-          service.handle({
-            event: 'check_run',
-            payload: checkRunPayload({ id: round * 10 + n, name: `job-${round}-${n}`, ...RUNNING }),
-          }),
-        ),
-      )
-      const tally = await tallyOf('abc123')
-      expect((await prStateRows())[0]).toMatchObject({
-        checksRunning: tally.running,
-        checksPassed: tally.passed,
-        checksFailed: tally.failed,
-        checksIgnored: tally.ignored,
-      })
-      expect(tally.running).toBe((round + 1) * 6)
-    }
-  })
-
   it('prunes every stale row across shas and keeps fresh ones', async () => {
     const old = new Date(Date.now() - 30 * 86_400_000)
     for (const sha of ['s1', 's2', 's3']) {
@@ -346,7 +286,7 @@ describe('GithubDeliveryService check rows', () => {
   })
 
   it('prunes rows untouched for more than 14 days', async () => {
-    const { service } = await setup()
+    const { service } = await setupTrackedPr()
     await service.handle({
       event: 'check_run',
       payload: checkRunPayload(RUNNING),

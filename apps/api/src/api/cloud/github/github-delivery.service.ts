@@ -70,7 +70,7 @@ export class GithubDeliveryService {
         })
         if (token === undefined) return { kind: 'skipped' }
         const [owner, repo] = args.repoFullName.split('/') as [string, string]
-        return this.restFill({ token, owner, repo, prNumber: args.prNumber })
+        return this.restFill({ token, owner, repo, prNumber: args.prNumber, collect: true })
       },
     })
   }
@@ -201,6 +201,7 @@ export class GithubDeliveryService {
     owner: string
     repo: string
     prNumber: number
+    collect?: boolean
   }): Promise<RestFill> {
     return tryRestFill({ reads: this.reads, logger: this.logger, ...args })
   }

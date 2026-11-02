@@ -85,14 +85,18 @@ export class GithubDeliveryChecks {
         continue
       }
       const write = await db.transaction(async (tx) => {
-        await lockCommit({ tx, repoFullName, headSha })
+        const restHead = rest.kind === 'filled' ? rest.fields.headSha : headSha
+        await lockCommit({ tx, repoFullName, headSha: restHead })
+        if (rest.kind === 'filled' && rest.checks !== null) {
+          await recordCommitChecks({ tx, repoFullName, headSha: restHead, checks: rest.checks })
+        }
+        const tally = await commitChecksTally({ tx, repoFullName, headSha: restHead })
         const fields =
           rest.kind === 'filled'
-            ? rest.fields
-            : withTally({
-                pr: await currentRow({ tx, repoFullName, prNumber }),
-                tally: await commitChecksTally({ tx, repoFullName, headSha }),
-              })
+            ? rest.checks === null
+              ? rest.fields
+              : { ...rest.fields, ...countsOf(tally) }
+            : withTally({ pr: await currentRow({ tx, repoFullName, prNumber }), tally })
         return this.deps.writer.writeState({ tx, repoFullName, prNumber, fields })
       })
       await this.deps.writer.publish(write)
