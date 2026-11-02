@@ -28,3 +28,4 @@ says what it supersedes. Tactical choices and decisions that were later reversed
 | [0018](0018-v2-pod-first-architecture.md)                | v2 is a pod-first redesign: one writer per fact, the record in the control plane                             |
 | [0019](0019-v2-package-map.md)                           | v2 package map: foundations in `packages/`, plugins and commands in their own roots                          |
 | [0020](0020-v2-sub-agent-worktrees-and-peer-sessions.md) | v2 sub-agents work in a worktree pinned at spawn and never subscribe; peer sessions replace nested teammates |
+| [0021](0021-v2-loop-runs-on-control-plane-workers.md)    | v2 runs the agent loop on control-plane workers; sandboxes stay on Vercel Sandbox and only execute           |
