@@ -9,6 +9,7 @@ import { SUBSCRIPTION_EVENT_TYPES } from '../sessions/thread-subscriptions'
 import type { ThreadSignalPublisher } from '../sessions/thread-signals.service'
 
 const ASSISTANT_SAID = 'assistant-said'
+const USER_SAID = 'user-said'
 
 const conflictAt = (seq: number): ConflictException =>
   new ConflictException({
@@ -111,7 +112,30 @@ export async function applyPodEvents(args: {
     }
   }
   if (assistantMoved) args.signals.threadChanged({ threadId })
+  if (appended !== undefined && (await unarchiveIfMessaged({ threadId, appended }))) {
+    args.signals.threadChanged({ threadId })
+  }
   return { head, assistantMoved }
+}
+
+/**
+ * A message is the wake: when the pod mirrors a fresh user-said into a Done (archived) family
+ * thread, the session leaves Done so the sidebar shows it active again. An idempotent replay
+ * appends nothing, so only a batch that stored a user-said can carry a wake.
+ */
+async function unarchiveIfMessaged(args: {
+  threadId: string
+  appended: { events: { type: string }[] }
+}): Promise<boolean> {
+  if (!args.appended.events.some((event) => event.type === USER_SAID)) return false
+  const thread = await db.orm.public.Thread.where({ id: args.threadId }).select('sessionId').first()
+  if (thread === null) return false
+  const session = await db.orm.public.Session.where({ id: thread.sessionId })
+    .select('archivedAt')
+    .first()
+  if (session === null || session.archivedAt === null) return false
+  await db.orm.public.Session.where({ id: thread.sessionId }).update({ archivedAt: null })
+  return true
 }
 
 export async function truncatePodEvents(args: {

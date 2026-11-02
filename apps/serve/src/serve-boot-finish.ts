@@ -26,6 +26,7 @@ import { bootServeApp } from './serve-boot-app'
 import { bindServeActivity } from './serve-activity-binding'
 import { bindServeIdleStop, noopIdle } from './serve-idle-binding'
 import type { BootListener } from './serve-boot-listener'
+import { serveControlOf } from './serve-boot-control'
 import { bindSessionDrain } from './serve-drain-binding'
 import { bindServePull } from './serve-pull'
 import { resumeWhenRegistered } from './serve-resume-boot'
@@ -228,6 +229,7 @@ export async function finishServeBoot(args: {
     log,
   })
 
+  const control = serveControlOf(app)
   boot.complete({
     handlers,
     drain: drainSession,
@@ -238,6 +240,7 @@ export async function finishServeBoot(args: {
       nextSeq: () => buffer.nextSeq(),
       resumable,
     },
+    ...(control === undefined ? {} : { control }),
   })
 
   log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })

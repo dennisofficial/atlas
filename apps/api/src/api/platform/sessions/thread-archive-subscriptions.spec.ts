@@ -7,6 +7,7 @@ import { JobDispatcher, type JobDispatch } from '../../../_core/ports/job-dispat
 import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
 import { seedSubscription } from '../../../../test/github-seed'
 import { seedEventRow, seedThreadRow, seedUsers, USER_A } from '../../../../test/session-seed'
+import { inertTeammateStop } from './teammate-archive-stop.fixture'
 import { inertSignals } from './thread-signals.fixture'
 import { ThreadArchiveService } from './thread-archive.service'
 
@@ -61,7 +62,12 @@ describe('ThreadArchiveService subscription teardown', () => {
   beforeEach(async () => {
     await seedUsers(USER_A)
     links = new FakeLinks()
-    service = new ThreadArchiveService(new FakeDispatcher(), inertSignals(), links)
+    service = new ThreadArchiveService(
+      new FakeDispatcher(),
+      inertSignals(),
+      inertTeammateStop(),
+      links,
+    )
   })
 
   it('appends subscription-ended and drops the wake link when archiving a subscribed thread', async () => {

@@ -23,7 +23,10 @@ import {
 } from './request-reply'
 
 export type ServeProcesses = {
-  shells: Pick<ShellRegistryPort, 'start' | 'peek' | 'kill'>
+  shells: Pick<ShellRegistryPort, 'start' | 'peek' | 'kill'> & {
+    /** Present on the real registry so the done-thread control can stop a thread's own shells. */
+    list?: ShellRegistryPort['list'] | undefined
+  }
   services: Pick<ServiceRegistryPort, 'list' | 'stop' | 'declared' | 'ensureDeclared' | 'restart'>
   cwd: string
 }

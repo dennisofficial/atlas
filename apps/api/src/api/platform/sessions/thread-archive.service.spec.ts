@@ -13,6 +13,7 @@ import {
   STAMP,
 } from '../../../../test/session-seed'
 import { THREAD_ARCHIVE_CLEANUP_TASK_ID } from './thread-archive-cleanup.contract'
+import { inertTeammateStop } from './teammate-archive-stop.fixture'
 import { inertSignals } from './thread-signals.fixture'
 import { ThreadArchiveService } from './thread-archive.service'
 
@@ -36,7 +37,7 @@ describe('ThreadArchiveService', () => {
     await seedUsers(USER_A, USER_B)
     await seedThreadRow({ id: 'thr_1' })
     dispatcher = new FakeDispatcher()
-    service = new ThreadArchiveService(dispatcher, inertSignals())
+    service = new ThreadArchiveService(dispatcher, inertSignals(), inertTeammateStop())
   })
 
   it('archives without touching updatedAt and dispatches the cleanup once', async () => {

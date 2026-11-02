@@ -141,7 +141,8 @@ export type ServeModelBridge = {
   select: (next: { ref: string; effort: string }) => void
 }
 
-export type ServeAgentSteer = Pick<AgentRegistryPort, 'say' | 'resume' | 'stop' | 'wake'>
+export type ServeAgentSteer = Pick<AgentRegistryPort, 'say' | 'resume' | 'stop' | 'wake'> &
+  Partial<Pick<AgentRegistryPort, 'stopChildren'>>
 
 /** The ports a Send addressed at a family (non-root) thread is delivered through. */
 export type ChildSend = {

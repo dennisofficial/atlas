@@ -7,6 +7,7 @@ import { sessionOfThread } from './session-of-thread'
 import { ownedThread } from './ownership'
 import { appendStoredWithin, nextRunId } from './append'
 import { threadsSubscriptions } from './thread-subscriptions'
+import { TeammateArchiveStopService } from './teammate-archive-stop'
 import { ThreadSignalsService } from './thread-signals.service'
 import {
   threadArchiveCleanupIdempotencyKey,
@@ -24,6 +25,7 @@ export class ThreadArchiveService {
   constructor(
     @Inject(JobDispatcher) private readonly dispatcher: JobDispatcher,
     private readonly signals: ThreadSignalsService,
+    private readonly teammateStop: TeammateArchiveStopService,
     @Optional()
     @Inject(PrSubscriptionLinks)
     private readonly prLinks?: PrSubscriptionLinks,
@@ -38,6 +40,7 @@ export class ThreadArchiveService {
     this.signals.threadChanged({ threadId })
     if (archivedAt === null) return
     await this.endSubscriptions({ userId, sessionId: session.id })
+    await this.teammateStop.stopIfManaged({ userId, sessionId: session.id, threadId })
     await this.dispatchCleanup({ threadId, archivedAt: archivedAt.toISOString() })
   }
 

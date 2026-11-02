@@ -288,6 +288,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       resume: (steer) => app.agents.resume(steer),
       stop: (steer) => app.agents.stop(steer),
       wake: (steer) => app.agents.wake(steer),
+      stopChildren: (steer) => app.agents.stopChildren(steer),
     },
     processes: { shells: app.shells, services: app.services, cwd: args.cwd },
     operatorInput: app.operatorInput,
