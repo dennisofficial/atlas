@@ -29,6 +29,7 @@ import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
+import { useSessionFamily } from '@/features/shell/use-session-family'
 import { usePullRequests } from './data/use-pull-requests'
 import { userRewindPoints } from './data/rewind'
 import { useRewind } from './data/use-rewind'
@@ -81,7 +82,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
     if (source.live) afterConnect({ threadId, send: sendLive })
   }, [source.live, afterConnect, threadId, sendLive])
   const rightPanel = useRightPanel()
-  const pullRequests = usePullRequests({ threadId, channel, thread: thread.data })
+  const family = useSessionFamily(threadId)
+  const pullRequests = usePullRequests({ threadId, channel, thread: thread.data, family })
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
