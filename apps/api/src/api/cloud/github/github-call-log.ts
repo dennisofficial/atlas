@@ -1,6 +1,7 @@
 export enum EGithubCallSource {
   PollSweep = 'poll-sweep',
   HookSweep = 'hook-sweep',
+  AppSync = 'app-sync',
   DeliveryFill = 'delivery-fill',
   HookLifecycle = 'hook-lifecycle',
   RepoList = 'repo-list',

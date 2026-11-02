@@ -32,6 +32,37 @@ export class GithubAppInstallationsService {
     })
   }
 
+  async heldRepos(args: { installationId: bigint }): Promise<string[]> {
+    const held = await db.orm.public.GithubAppInstallation.first({
+      installationId: args.installationId,
+    })
+    return (held?.repos ?? []).filter((repo): repo is string => repo !== null)
+  }
+
+  async upsert(args: {
+    installationId: bigint
+    accountLogin: string
+    accountType: string
+    repos: string[]
+    suspendedAt: Date | null
+  }): Promise<void> {
+    const { installationId, ...fields } = args
+    await db.orm.public.GithubAppInstallation.upsert({
+      conflictOn: { installationId },
+      create: { installationId, ...fields },
+      update: fields,
+    })
+  }
+
+  async retainOnly(args: { installationIds: bigint[] }): Promise<void> {
+    const keep = new Set(args.installationIds)
+    const rows = await db.orm.public.GithubAppInstallation.select('installationId').all()
+    for (const { installationId } of rows) {
+      if (keep.has(installationId)) continue
+      await db.orm.public.GithubAppInstallation.where({ installationId }).deleteAndCount()
+    }
+  }
+
   async applyInstallation(payload: GithubAppInstallationWebhookPayload): Promise<void> {
     const { installation } = payload
     const installationId = BigInt(installation.id)

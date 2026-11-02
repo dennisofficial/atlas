@@ -6,6 +6,10 @@ import { HealthModule } from '../../platform/health/health.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { GithubAppHookController } from './github-app-hook.controller'
 import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
+import { GithubAppClient } from './github-app-client'
+import { GithubAppSyncGate } from './github-app-sync-gate'
+import { GithubAppSyncService } from './github-app-sync.service'
+import { GithubHookSweepService } from './github-hook-sweep.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
@@ -49,6 +53,10 @@ import { GithubObservationStore } from './github-observation.store'
     GithubPrFanoutService,
     GithubSandboxWakeService,
     GithubAppInstallationsService,
+    GithubAppClient,
+    GithubAppSyncGate,
+    GithubAppSyncService,
+    GithubHookSweepService,
     GithubAppInstallNoticeService,
     sandboxWakeBootProvider,
     backgroundWorkProvider(),

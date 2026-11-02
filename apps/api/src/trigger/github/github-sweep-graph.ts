@@ -5,6 +5,10 @@ import { ProcessBackgroundWork } from '../../_lib/background-work/background-wor
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { RedisService } from '../../_lib/redis/redis.service'
 import { GithubAppInstallationsService } from '../../api/cloud/github/github-app-installations.service'
+import { GithubAppClient } from '../../api/cloud/github/github-app-client'
+import { GithubAppSyncGate } from '../../api/cloud/github/github-app-sync-gate'
+import { GithubAppSyncService } from '../../api/cloud/github/github-app-sync.service'
+import { GithubHookSweepService } from '../../api/cloud/github/github-hook-sweep.service'
 import { GithubDeviceClient } from '../../api/cloud/github/github-device-client'
 import { GithubHookLifecycleService } from '../../api/cloud/github/github-hook-lifecycle.service'
 import { GithubPollSweeperService } from '../../api/cloud/github/github-poll-sweeper.service'
@@ -32,6 +36,7 @@ import { buildWorkerThreadSignals } from '../thread-signals-graph'
 export type GithubSweepGraph = {
   pollSweeper: GithubPollSweeperService
   hookLifecycle: GithubHookLifecycleService
+  hookSweep: GithubHookSweepService
   webhookInbox: GithubWebhookInboxService
   deliveries: GithubDeliveryService
   wake: GithubSandboxWakeService
@@ -73,13 +78,21 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     fanout,
   )
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
+  const installations = new GithubAppInstallationsService()
   const hookLifecycle = new GithubHookLifecycleService(
     github,
     reads,
     cipher,
     env,
-    new GithubAppInstallationsService(),
+    installations,
     observations,
+  )
+  const hookSweep = new GithubHookSweepService(
+    new GithubAppSyncService(new GithubAppClient(env), installations, new GithubAppSyncGate(redis)),
+    hookLifecycle,
+    installations,
+    github,
+    reads,
   )
 
   return {
@@ -94,6 +107,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       observations,
     ),
     hookLifecycle,
+    hookSweep,
     webhookInbox: new GithubWebhookInboxService(),
     deliveries: new GithubDeliveryService(
       github,
