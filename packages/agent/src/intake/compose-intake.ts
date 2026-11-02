@@ -6,9 +6,9 @@ export function composeIntake(sources: readonly AgentIntake[]): AgentIntake {
     async prepare(args) {
       const batches: InputBatch[] = []
       try {
-        for (const source of sources) {
+        for (const source of [...sources].reverse()) {
           const drain = await source.prepare(args)
-          batches.push({
+          batches.unshift({
             drafts: drain.drafts,
             wakesTurn: drain.wakesTurn,
             acknowledge: () => drain.acknowledge?.(),
