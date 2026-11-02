@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { waitingForModelWireSchema } from './model-availability-wire'
 import { sandboxProvisionReplySchema } from './sandbox-self-wire'
 
 export const wireThreadSchema = z.object({
@@ -49,6 +50,7 @@ export const wireThreadSchema = z.object({
       working: z.boolean(),
       awaiting: z.enum(['approval', 'input']).nullable(),
       lastOutcome: z.enum(['completed', 'failed', 'stopped']).nullable(),
+      waitingForModel: waitingForModelWireSchema.nullable().optional(),
       podState: z.enum(['none', 'booting', 'running', 'parked', 'failed']),
       lastAssistantSeq: z.number().int(),
       readSeq: z.number().int().nullable(),

@@ -37,6 +37,7 @@ describe('thread status assembly', () => {
       working: false,
       awaiting: null,
       lastOutcome: null,
+      waitingForModel: null,
       podState: 'none',
       lastAssistantSeq: 0,
       readSeq: null,
@@ -70,6 +71,45 @@ describe('thread status assembly', () => {
       lastOutcome: 'completed',
       podState: 'parked',
     })
+  })
+
+  it('returns the stored waiting snapshot even when the pod is parked or absent', async () => {
+    const waiting = {
+      episode: {
+        kind: 'credential',
+        key: { providerId: 'anthropic', accountId: 'acc-1', modelId: 'claude' },
+        generation: 3,
+      },
+      cause: 'availability',
+      providerId: 'anthropic',
+      accountId: 'acc-1',
+      modelId: null,
+      reason: 'quota',
+      resetAt: null,
+      affectedThreadIds: ['thr-1'],
+    }
+    await seedThreadRow({
+      id: 'thr-1',
+      working: true,
+      awaiting: 'input',
+      waitingForModel: JSON.stringify(waiting),
+    })
+    expect(await statusOf()).toMatchObject({ waitingForModel: waiting, podState: 'none' })
+
+    await seedSandboxRow({ threadId: 'thr-1', state: 'parked', serveUrl: null })
+    expect(await statusOf()).toMatchObject({
+      working: false,
+      awaiting: null,
+      waitingForModel: waiting,
+      podState: 'parked',
+    })
+  })
+
+  it('maps an unreadable stored waiting snapshot to null', async () => {
+    await seedThreadRow({ id: 'thr-1', waitingForModel: 'not json' })
+    expect((await statusOf())?.waitingForModel).toBeNull()
+    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ waitingForModel: '{"x":1}' })
+    expect((await statusOf())?.waitingForModel).toBeNull()
   })
 
   it('derives failed from the latest boot step', async () => {

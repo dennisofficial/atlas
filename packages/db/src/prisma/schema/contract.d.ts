@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'18518cc2afa8b273ce1fbe178c79fb8ae7141b1872f63117c8606ff5be9eb08f'>;
+  StorageHashBase<'254bd86691d48e697948d9fbb8eaf42cfa74accbfe88ccea3a8b3915d32bb7f0'>;
 export type ExecutionHash =
   ExecutionHashBase<'1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb'>;
 export type ProfileHash =
@@ -801,6 +801,7 @@ export namespace Models {
     spawnerThreadId: FieldOutputTypes['public']['Thread']['spawnerThreadId'];
     updatedAt: FieldOutputTypes['public']['Thread']['updatedAt'];
     userId: FieldOutputTypes['public']['Thread']['userId'];
+    waitingForModel: FieldOutputTypes['public']['Thread']['waitingForModel'];
     working: FieldOutputTypes['public']['Thread']['working'];
     contextFiles: public_ContextFile[];
     events: public_Event[];
@@ -4771,6 +4772,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly waitingForModel: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly working: {
                   readonly dataType: 'pg/bool';
                   readonly codecId: 'pg/bool@1';
@@ -8694,6 +8701,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly waitingForModel: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly working: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
@@ -8844,6 +8855,7 @@ type ContractBase = Omit<
                 readonly spawnerThreadId: { readonly column: 'spawnerThreadId' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
+                readonly waitingForModel: { readonly column: 'waitingForModel' };
                 readonly working: { readonly column: 'working' };
               };
             };

@@ -1,4 +1,4 @@
-import { EBootStepState, EPodState } from '@dltech/atlas-wire'
+import { EBootStepState, EPodState, waitingForModelWireSchema } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { podSessionsOf } from './session-of-thread'
 import type { ThreadWithSession } from './thread-with-session'
@@ -13,6 +13,16 @@ const awaitingOf = (value: string | null): Awaiting =>
 
 const outcomeOf = (value: string | null): Outcome =>
   value === 'completed' || value === 'failed' || value === 'stopped' ? value : null
+
+const waitingOf = (value: string | null): ThreadStatusDto['waitingForModel'] => {
+  if (value === null) return null
+  try {
+    const parsed = waitingForModelWireSchema.safeParse(JSON.parse(value))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
+}
 
 const bootStateOf = (value: string): EBootStepState | undefined =>
   Object.values(EBootStepState).find((state) => state === value)
@@ -62,6 +72,7 @@ export async function threadStatuses(args: {
         working: running && row.working,
         awaiting: running ? awaitingOf(row.awaiting) : null,
         lastOutcome: outcomeOf(row.lastOutcome),
+        waitingForModel: waitingOf(row.waitingForModel),
         podState,
         lastAssistantSeq: row.lastAssistantSeq,
         readSeq: readByThread.get(row.id) ?? null,

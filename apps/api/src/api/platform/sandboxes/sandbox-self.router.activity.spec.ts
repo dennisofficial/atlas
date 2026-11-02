@@ -68,6 +68,33 @@ describe('SandboxSelfRouter.activity', () => {
     expect((await threadById('thr-1'))?.lastOutcome).toBeNull()
   })
 
+  it('persists, keeps and clears waitingForModel independently of working and awaiting', async () => {
+    const snapshot = JSON.stringify({ providerId: 'anthropic' })
+    await send(SANDBOX_TOKEN, { working: false, awaiting: null, waitingForModel: snapshot })
+    expect((await threadById('thr-1'))?.waitingForModel).toBe(snapshot)
+
+    await send(SANDBOX_TOKEN, { working: true, awaiting: 'input' })
+    await send(SANDBOX_TOKEN, { working: false, awaiting: null })
+    expect((await threadById('thr-1'))?.waitingForModel).toBe(snapshot)
+
+    await send(SANDBOX_TOKEN, { working: false, awaiting: null, waitingForModel: null })
+    expect((await threadById('thr-1'))?.waitingForModel).toBeNull()
+  })
+
+  it('signals a change when only waitingForModel changes', async () => {
+    const frames = routerSignals.changedThreads
+    frames.length = 0
+    await send(SANDBOX_TOKEN, { working: false, awaiting: null, waitingForModel: '{"a":1}' })
+    await send(SANDBOX_TOKEN, { working: false, awaiting: null, waitingForModel: '{"a":1}' })
+    await send(SANDBOX_TOKEN, { working: false, awaiting: null, waitingForModel: null })
+    expect(frames).toEqual(['thr-1', 'thr-1'])
+  })
+
+  it('rejects an empty waitingForModel string', async () => {
+    const reply = await send(SANDBOX_TOKEN, { working: false, awaiting: null, waitingForModel: '' })
+    expect(reply.status).toBe(400)
+  })
+
   it('accepts a local pod lease token', async () => {
     const reply = await send(POD_TOKEN, { working: true, awaiting: 'input' })
 

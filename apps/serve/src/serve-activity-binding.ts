@@ -15,6 +15,7 @@ import {
   type ActivityReporter,
 } from './serve-activity-reporter'
 import type { ServeApp } from './serve-app'
+import { waitingAwareReport } from './serve-activity-waiting'
 import type { ServeLog } from './serve-log'
 
 export { backgroundRunning } from '@dltech/atlas-harness/activity'
@@ -48,7 +49,7 @@ export function bindServeActivity(args: {
     log: args.app.log,
     channel: args.app.channel,
     roster: args.app.roster,
-    report: reporter.report,
+    report: waitingAwareReport(reporter),
   })
   return {
     tracker: binding.tracker,
@@ -76,6 +77,6 @@ export function bindChildActivity(args: {
   return bindChildThreadActivity({
     threadId: args.threadId,
     channel: args.channel,
-    report: reporter.report,
+    report: waitingAwareReport(reporter),
   })
 }

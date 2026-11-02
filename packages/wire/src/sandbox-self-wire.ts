@@ -36,6 +36,7 @@ export const sandboxActivityPostSchema = z.object({
   working: z.boolean(),
   awaiting: z.enum(['approval', 'input']).nullable(),
   lastOutcome: z.enum(['completed', 'failed', 'stopped']).nullable().optional(),
+  waitingForModel: z.string().min(1).nullable().optional(),
 })
 export type SandboxActivityPost = z.infer<typeof sandboxActivityPostSchema>
 

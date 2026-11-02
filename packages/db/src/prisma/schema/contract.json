@@ -5276,6 +5276,13 @@
                   "kind": "scalar"
                 }
               },
+              "waitingForModel": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "working": {
                 "nullable": false,
                 "type": {
@@ -5514,6 +5521,9 @@
                 },
                 "userId": {
                   "column": "userId"
+                },
+                "waitingForModel": {
+                  "column": "waitingForModel"
                 },
                 "working": {
                   "column": "working"
@@ -11452,6 +11462,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "waitingForModel": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "working": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -12215,7 +12230,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "18518cc2afa8b273ce1fbe178c79fb8ae7141b1872f63117c8606ff5be9eb08f"
+    "storageHash": "254bd86691d48e697948d9fbb8eaf42cfa74accbfe88ccea3a8b3915d32bb7f0"
   },
   "execution": {
     "executionHash": "1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb",
