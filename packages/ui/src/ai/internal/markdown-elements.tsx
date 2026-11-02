@@ -1,6 +1,6 @@
 'use client'
 
-import type { ComponentProps } from 'react'
+import { createContext, useContext, type ComponentProps, type MouseEvent } from 'react'
 import { cn } from 'cn'
 import type { Components, ExtraProps } from 'streamdown'
 
@@ -16,6 +16,13 @@ import {
 import { MarkdownCode } from './markdown-code'
 
 const INCOMPLETE_LINK = 'streamdown:incomplete-link'
+
+export type MarkdownLinkClick = (args: {
+  href: string
+  event: MouseEvent<HTMLAnchorElement>
+}) => void
+
+export const MarkdownLinkClickContext = createContext<MarkdownLinkClick | undefined>(undefined)
 
 type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
 
@@ -45,10 +52,16 @@ function MarkdownLink({
   children,
   target: _target,
   rel: _rel,
+  onClick,
   ...props
 }: ComponentProps<'a'> & ExtraProps) {
+  const onLinkClick = useContext(MarkdownLinkClickContext)
   if (href === INCOMPLETE_LINK) return <span>{children}</span>
   const inPage = href?.startsWith('#') ?? false
+  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    onClick?.(event)
+    if (href !== undefined) onLinkClick?.({ href, event })
+  }
 
   return (
     <a
@@ -60,6 +73,7 @@ function MarkdownLink({
         className,
       )}
       {...props}
+      onClick={handleClick}
     >
       {children}
     </a>

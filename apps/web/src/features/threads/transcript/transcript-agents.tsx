@@ -2,7 +2,6 @@
 
 import { EAgentStatus } from '@dltech/atlas-core'
 import { EAgentDisplay } from '@dltech/atlas-ui/ai/agent-status'
-import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Subagent } from '@dltech/atlas-ui/ai/subagent'
 import { SubagentReports } from '@dltech/atlas-ui/ai/subagent-report'
 import { formatElapsed } from '@dltech/atlas-client/transcript'
@@ -10,12 +9,13 @@ import { Button } from '@dltech/atlas-ui/components/button'
 
 import { spanMsOf } from '../data/clock-time'
 import { spawnDomId, type ReportItem, type SpawnItem } from '../data/transcript-agents'
+import { TranscriptMarkdown } from './transcript-markdown'
 
 function outcomeOf(item: SpawnItem) {
   if (item.status === EAgentStatus.Running) return undefined
   if (item.errorText !== undefined) return <p className="text-destructive">{item.errorText}</p>
   if (item.result === undefined) return undefined
-  return <MessageResponse>{item.result}</MessageResponse>
+  return <TranscriptMarkdown>{item.result}</TranscriptMarkdown>
 }
 
 export function SpawnCard({

@@ -4,7 +4,6 @@ import { memo } from 'react'
 
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/message-images'
-import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { formatElapsed } from '@dltech/atlas-client/transcript'
@@ -24,6 +23,7 @@ import {
 } from '../data/transcript-turns'
 import { ReportNotice, SpawnCard } from './transcript-agents'
 import { TranscriptNotice } from './transcript-notice'
+import { TranscriptMarkdown } from './transcript-markdown'
 import { ToolRow } from './transcript-tool-row'
 
 export type TranscriptRewind = {
@@ -130,9 +130,9 @@ function SegmentView({
         caret={false}
         copyText={item.text}
       >
-        <MessageResponse isAnimating={item.streaming} caret="block">
+        <TranscriptMarkdown isAnimating={item.streaming} caret="block">
           {item.text}
-        </MessageResponse>
+        </TranscriptMarkdown>
       </AgentMessage>
     )
   }
@@ -202,7 +202,7 @@ function TurnViewBody({
           }
         >
           {turn.item.text.trim().length === 0 ? undefined : (
-            <MessageResponse>{turn.item.text}</MessageResponse>
+            <TranscriptMarkdown>{turn.item.text}</TranscriptMarkdown>
           )}
         </UserMessage>
       )

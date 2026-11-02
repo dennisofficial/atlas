@@ -19,6 +19,7 @@ export interface PreviewFrameProps {
   ports: PreviewPort[]
   selectedId?: string
   onSelect: (id: string) => void
+  src?: string
   title?: string
 }
 
@@ -84,10 +85,11 @@ function OfflineNotice({ preview }: { preview: PreviewPort }) {
 
 interface BrowserFrameProps {
   preview: PreviewPort
+  src?: string
   title: string
 }
 
-function BrowserFrame({ preview, title }: BrowserFrameProps) {
+function BrowserFrame({ preview, src, title }: BrowserFrameProps) {
   const [reloadKey, setReloadKey] = useState(0)
   const live = preview.status === EPreviewStatus.Live
 
@@ -107,22 +109,24 @@ function BrowserFrame({ preview, title }: BrowserFrameProps) {
         </Button>
         <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md bg-muted px-2 py-1">
           <LockIcon className="size-3 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 truncate font-mono text-xs text-foreground">{preview.url}</span>
+          <span className="min-w-0 truncate font-mono text-xs text-foreground">
+            {src ?? preview.url}
+          </span>
         </div>
         <Button
           variant="ghost"
           size="icon-xs"
           aria-label="Open in a new tab"
           nativeButton={false}
-          render={<a href={preview.url} target="_blank" rel="noreferrer noopener" />}
+          render={<a href={src ?? preview.url} target="_blank" rel="noreferrer noopener" />}
         >
           <ExternalLinkIcon />
         </Button>
       </div>
       {live ? (
         <iframe
-          key={`${preview.id}-${preview.url}-${reloadKey}`}
-          src={preview.frameSrc ?? preview.url}
+          key={`${preview.id}-${src ?? preview.url}-${reloadKey}`}
+          src={src ?? preview.frameSrc ?? preview.url}
           title={title}
           className="min-h-0 w-full flex-1 bg-background"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
@@ -138,6 +142,7 @@ export function PreviewFrame({
   ports,
   selectedId,
   onSelect,
+  src,
   title = 'Preview',
 }: PreviewFrameProps) {
   const selected = selectedPortOf({ ports, selectedId })
@@ -159,7 +164,7 @@ export function PreviewFrame({
           />
         ))}
       </ul>
-      <BrowserFrame preview={selected} title={title} />
+      <BrowserFrame preview={selected} src={src} title={title} />
     </div>
   )
 }

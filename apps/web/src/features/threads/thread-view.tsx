@@ -44,6 +44,7 @@ import { useThreadCommands } from './commands/use-thread-commands'
 import { ThreadMainSlot } from './context-viewer/main-slot'
 import { ComposerFooter } from './composer-footer'
 import { ThreadPanelProvider } from './panel/thread-panel-context'
+import { ThreadPreviewsProvider } from './panel/thread-previews-provider'
 import { useRightPanel } from './panel/use-right-panel'
 import { useThreadPanelValue } from './panel/use-thread-panel-value'
 import { isBootStarting } from './sandbox-boot-props'
@@ -229,68 +230,70 @@ export function ThreadView({ threadId }: { threadId: string }) {
 
   return (
     <ThreadPanelProvider value={panel}>
-      <div className="flex min-h-0 flex-1 flex-col">
-        {header}
-        <ThreadLayout
-          tab={rightPanel.tab}
-          onTabChange={rightPanel.setTab}
-          sheetOpen={rightPanel.sheetOpen}
-          onSheetOpenChange={rightPanel.setSheetOpen}
-        >
-          {error !== null && !loaded ? <ThreadLoadError error={error} /> : null}
-          <ThreadMainSlot
-            footer={
-              <ComposerFooter
-                notConfigured={notConfigured}
-                operator={{
-                  request: operator.request,
-                  submitting: operator.submitting,
-                  onSubmit: (value) => void operator.handleSubmit(value),
-                }}
-                rewind={{
-                  pick: rewind.pick,
-                  applying: rewind.applying,
-                  onCancel: rewind.handleCancel,
-                  onConfirm: () => void rewind.handleConfirm(),
-                }}
-                dock={dock}
-                strip={attention.strip}
-                usage={dock.usage}
-                modelPicker={{
-                  picker: model.picker,
-                  selection: model.selection,
-                  onSelectionChange: handleModelChange,
-                  open: commands.modelOpen,
-                  onOpenChange: commands.setModelOpen,
-                }}
-                value={draft}
-                onValueChange={setDraft}
-                onSubmit={handleSubmit}
-                onEscape={() => void handleEscape()}
-                sending={sending || handoff.waiting || images.uploading}
-                working={working}
-                onStop={handleStop}
-                {...images.composerProps}
-                commandSpecs={commands.specs}
-                placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
-              />
-            }
+      <ThreadPreviewsProvider channel={channel} rightPanel={rightPanel}>
+        <div className="flex min-h-0 flex-1 flex-col">
+          {header}
+          <ThreadLayout
+            tab={rightPanel.tab}
+            onTabChange={rightPanel.setTab}
+            sheetOpen={rightPanel.sheetOpen}
+            onSheetOpenChange={rightPanel.setSheetOpen}
           >
-            <ThreadTranscript
-              items={view.items}
-              failureCard={attention.card}
-              failedLabel={attention.failedLabel}
-              pod={pod}
-              working={working}
-              onRetryBoot={() => void handleRetryBoot()}
-              rewind={{
-                points: rewindPoints,
-                onRewind: (picked) => void rewind.handlePick(picked),
-              }}
-            />
-          </ThreadMainSlot>
-        </ThreadLayout>
-      </div>
+            {error !== null && !loaded ? <ThreadLoadError error={error} /> : null}
+            <ThreadMainSlot
+              footer={
+                <ComposerFooter
+                  notConfigured={notConfigured}
+                  operator={{
+                    request: operator.request,
+                    submitting: operator.submitting,
+                    onSubmit: (value) => void operator.handleSubmit(value),
+                  }}
+                  rewind={{
+                    pick: rewind.pick,
+                    applying: rewind.applying,
+                    onCancel: rewind.handleCancel,
+                    onConfirm: () => void rewind.handleConfirm(),
+                  }}
+                  dock={dock}
+                  strip={attention.strip}
+                  usage={dock.usage}
+                  modelPicker={{
+                    picker: model.picker,
+                    selection: model.selection,
+                    onSelectionChange: handleModelChange,
+                    open: commands.modelOpen,
+                    onOpenChange: commands.setModelOpen,
+                  }}
+                  value={draft}
+                  onValueChange={setDraft}
+                  onSubmit={handleSubmit}
+                  onEscape={() => void handleEscape()}
+                  sending={sending || handoff.waiting || images.uploading}
+                  working={working}
+                  onStop={handleStop}
+                  {...images.composerProps}
+                  commandSpecs={commands.specs}
+                  placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
+                />
+              }
+            >
+              <ThreadTranscript
+                items={view.items}
+                failureCard={attention.card}
+                failedLabel={attention.failedLabel}
+                pod={pod}
+                working={working}
+                onRetryBoot={() => void handleRetryBoot()}
+                rewind={{
+                  points: rewindPoints,
+                  onRewind: (picked) => void rewind.handlePick(picked),
+                }}
+              />
+            </ThreadMainSlot>
+          </ThreadLayout>
+        </div>
+      </ThreadPreviewsProvider>
     </ThreadPanelProvider>
   )
 }
