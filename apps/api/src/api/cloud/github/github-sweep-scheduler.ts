@@ -7,7 +7,7 @@ import { GithubDeliveryService } from './github-delivery.service'
 
 export const POLL_SWEEP_INTERVAL_MS = 30_000
 export const HOOK_SWEEP_INTERVAL_MS = 60_000
-export const WEBHOOK_RECONCILE_INTERVAL_MS = 5 * 60_000
+export const WEBHOOK_RECONCILE_INTERVAL_MS = 60_000
 
 export function runsOffVercel(): boolean {
   return process.env.VERCEL !== '1'
@@ -35,7 +35,7 @@ export class GithubSweepSchedulerService {
   @Interval(WEBHOOK_RECONCILE_INTERVAL_MS)
   async handleWebhookReconcileTick(): Promise<void> {
     await this.webhookInbox.handleReconcile({
-      process: (entry) => this.deliveries.handle(entry),
+      process: (entry) => this.deliveries.handle({ ...entry, replay: true }),
     })
   }
 }
