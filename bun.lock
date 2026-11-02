@@ -234,6 +234,17 @@
         "zod": "^4.4.3",
       },
     },
+    "packages/agent": {
+      "name": "@dltech/atlas-agent",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/api-router": {
       "name": "@dltech/atlas-api-router",
       "version": "0.1.0",
@@ -331,6 +342,7 @@
         "@ai-sdk/openai": "^4.0.101",
         "@ai-sdk/openai-compatible": "^3.0.77",
         "@ai-sdk/provider": "4.0.33",
+        "@dltech/atlas-agent": "workspace:*",
         "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-client": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
@@ -747,6 +759,8 @@
     "@distilled.cloud/zerossl": ["@distilled.cloud/zerossl@1.0.0-rc.15", "", { "dependencies": { "@distilled.cloud/core": "1.0.0-rc.15" }, "peerDependencies": { "effect": "^4.0.0" } }, "sha512-lu69h33Ib18kATq0W1c1zw6CH3YkUvKWGj1QUi8lbuINXPXHb2/88ATzehDQr5GM/qxtO+azgglhs/NVOf4UVw=="],
 
     "@dltech/atlas": ["@dltech/atlas@workspace:apps/tui"],
+
+    "@dltech/atlas-agent": ["@dltech/atlas-agent@workspace:packages/agent"],
 
     "@dltech/atlas-api": ["@dltech/atlas-api@workspace:apps/api"],
 

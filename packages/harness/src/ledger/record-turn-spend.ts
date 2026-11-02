@@ -10,16 +10,11 @@ import {
   type TelemetryPort,
 } from '@dltech/atlas-core'
 
-import type { TurnLedgerPort } from './turn-ledger.port'
+import type { TurnLedgerDeps, TurnLedgerPort, TurnSpendTally } from '@dltech/atlas-agent'
+
+export type { TurnLedgerDeps, TurnSpendTally }
 
 export const TURN_CRASHED = 'crashed'
-
-export type TurnLedgerDeps = {
-  ledger?: TurnLedgerPort | undefined
-  clock?: ClockPort | undefined
-  onLedgerFailure?: ((error: unknown) => void) | undefined
-  telemetry?: TelemetryPort | undefined
-}
 
 export type RecordTurnSpendArgs = TurnLedgerDeps & {
   threadId: ThreadId
@@ -76,11 +71,6 @@ export async function recordTurnSpend(args: RecordTurnSpendArgs): Promise<void> 
   if (args.status === TURN_CRASHED) {
     args.telemetry?.exception({ kind: 'turn-crashed', messageClass: 'crashed' })
   }
-}
-
-export type TurnSpendTally = {
-  countStep(usage: ModelUsage | undefined): void
-  settle(args: { threadId: ThreadId; runId: RunId; status: string }): Promise<void>
 }
 
 export function openTurnSpend(args: TurnLedgerDeps & { model: ProviderIdentity }): TurnSpendTally {

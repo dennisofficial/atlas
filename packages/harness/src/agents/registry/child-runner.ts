@@ -25,6 +25,7 @@ import type { PendingDrain, TurnDeps } from '../../loop/run-turn'
 import type { TurnRunner } from '../../loop/turn-runner.port'
 import { ObservingToolDispatcher } from '../../telemetry/observing-dispatcher'
 import { HookedToolDispatcher } from '../../tools/dispatch'
+import { QualityStage } from '../../tools/quality-dispatch'
 import { filteredToolRegistry, type ToolRegistry } from '../../tools/registry'
 import {
   AGENT_TOOL_NAMES,
@@ -192,7 +193,7 @@ export async function buildChildRunner({
           registry,
           hooks: deps.hooks,
           logPort: turn.logPort,
-          quality: deps.quality,
+          quality: new QualityStage({ quality: deps.quality, logPort: turn.logPort }),
         }),
         telemetry: deps.telemetry,
       }),

@@ -14,6 +14,8 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 
+import type { QualityReviewOutcome, QualityStagePort } from '@dltech/atlas-agent'
+
 import { createQualityBudget, settleReview } from '../quality/deadline'
 import { logFieldsOf } from '../store/logs'
 
@@ -25,11 +27,6 @@ const NUDGE_LIFETIME_STEPS = 1
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
-
-export type QualityReviewOutcome = {
-  reviews: readonly CodeQualityReviewedBody[]
-  nudge: EventDraft | undefined
-}
 
 const NO_REVIEW: QualityReviewOutcome = { reviews: [], nudge: undefined }
 
@@ -224,7 +221,9 @@ async function qualityReviewFor(args: {
   }
 }
 
-export class QualityStage {
+export type { QualityReviewOutcome }
+
+export class QualityStage implements QualityStagePort {
   constructor(
     private readonly deps: {
       quality: QualityReviewPort | undefined

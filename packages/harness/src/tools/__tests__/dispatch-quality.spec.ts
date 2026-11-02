@@ -14,6 +14,7 @@ import {
 
 import { HookChain } from '../../hooks/registry'
 import { HookedToolDispatcher } from '../dispatch'
+import { QualityStage } from '../quality-dispatch'
 import { InMemoryToolRegistry } from '../registry'
 import {
   FakeQuality,
@@ -214,7 +215,7 @@ describe('dispatching without quality review, or when it is switched off', () =>
           },
         ],
       }),
-      quality,
+      quality: new QualityStage({ quality, logPort: undefined }),
     })
 
     const drafts = await dispatchWrite(dispatcher)

@@ -18,6 +18,7 @@ import {
 
 import { HookChain } from '../../hooks/registry'
 import { HookedToolDispatcher, type DispatchableCall } from '../dispatch'
+import { QualityStage } from '../quality-dispatch'
 import { InMemoryToolRegistry } from '../registry'
 
 export const writeCall: DispatchableCall = {
@@ -112,7 +113,7 @@ export function qualityDispatcher(args: {
   return new HookedToolDispatcher({
     registry: new InMemoryToolRegistry([definition]),
     hooks: new HookChain({}),
-    ...(args.quality === undefined ? {} : { quality: args.quality }),
+    quality: new QualityStage({ quality: args.quality, logPort: args.logPort }),
     ...(args.logPort === undefined ? {} : { logPort: args.logPort }),
   })
 }
