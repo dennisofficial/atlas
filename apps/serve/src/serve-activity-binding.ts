@@ -4,6 +4,7 @@ import {
   bindChildThreadActivity,
   bindThreadActivity,
   NOOP_ACTIVITY_TRACKER,
+  type ActivityRoster,
   type ActivityTracker,
 } from '@dltech/atlas-harness/activity'
 import { mirrorsThreadState } from '@dltech/atlas-wire'
@@ -63,6 +64,7 @@ export function bindServeActivity(args: {
 export function bindChildActivity(args: {
   threadId: ThreadId
   channel: Pick<DeltaChannel, 'subscribe'>
+  roster?: ActivityRoster | undefined
   remote: ApiRemote
   log: ServeLog
   reporter?: ActivityReporter | undefined
@@ -76,6 +78,7 @@ export function bindChildActivity(args: {
   return bindChildThreadActivity({
     threadId: args.threadId,
     channel: args.channel,
+    roster: args.roster,
     report: reporter.report,
   })
 }

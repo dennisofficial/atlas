@@ -6,7 +6,7 @@ import type { WireThread } from '@dltech/atlas-wire/web'
 
 import { ThreadRow } from '../shell-thread-row'
 import { ThreadActionsContext } from '../thread-actions-context'
-import { sessionOf, threadOf } from './fixtures'
+import { agoIso, sessionOf, threadOf } from './fixtures'
 
 const statusOf = (status: Partial<NonNullable<WireThread['status']>>) =>
   ({
@@ -37,6 +37,7 @@ const manager = sessionOf(threadOf({ id: 'boss', title: 'Ship sidebar' }), [
     threadOf({
       id: 'fin',
       title: 'Write specs',
+      archivedAt: agoIso(1),
       status: statusOf({ lastOutcome: 'completed' }),
     }),
   ),
@@ -52,36 +53,69 @@ const render = (activeThreadId: string | null, session = manager): string =>
   )
 
 describe('ThreadRow with teammates', () => {
-  it('collapses the folder and flags attention when nothing inside is active', () => {
+  it('always lists teammates expanded without a lead toggle or count', () => {
     const html = render(null)
-    expect(html).toContain('Show 3 teammates')
-    expect(html).toContain('Needs attention')
-    expect(html).not.toContain('Port folder')
-  })
-
-  it('opens on an active teammate, lists attention first and includes completed teammates', () => {
-    const html = render('run')
-    expect(html).toContain('Hide 3 teammates')
-    expect(html).toContain('href="/threads/run"')
-    expect(html.indexOf('Fix types')).toBeLessThan(html.indexOf('Port folder'))
-    expect(html).not.toContain('1 done')
-    expect(html).toContain('Write specs')
-  })
-
-  it('opens the folder when the session main thread is active', () => {
-    const html = render('boss')
-    expect(html).toContain('Hide 3 teammates')
     expect(html).toContain('Port folder')
+    expect(html).toContain('Fix types')
+    expect(html).not.toContain('teammate')
+    expect(html).not.toContain('Show')
+    expect(html).not.toContain('Hide')
   })
 
-  it('keeps completed teammates first class when selected', () => {
-    expect(render('fin')).toContain('Write specs')
+  it('orders attention ahead of running teammates', () => {
+    const html = render('run')
+    expect(html.indexOf('Fix types')).toBeLessThan(html.indexOf('Port folder'))
   })
 
-  it('renders a plain row without a toggle when there are no teammates', () => {
+  it('keeps a completed teammate in the active list', () => {
+    const completed = sessionOf(threadOf({ id: 'boss', title: 'Ship sidebar' }), [
+      sessionOf(
+        threadOf({
+          id: 'fin',
+          title: 'Write specs',
+          status: statusOf({ lastOutcome: 'completed' }),
+        }),
+      ),
+    ])
+    expect(render(null, completed)).toContain('Write specs')
+  })
+
+  it('folds archived teammates into a collapsed Done group', () => {
+    const html = render(null)
+    expect(html).not.toContain('href="/threads/fin"')
+    expect(html).toContain('Done')
+    expect(html).toContain('aria-expanded="false"')
+  })
+
+  it('renders no Done group without archived teammates', () => {
+    const unarchived = sessionOf(threadOf({ id: 'boss', title: 'Ship sidebar' }), [
+      sessionOf(threadOf({ id: 'run', title: 'Port folder', status: statusOf({ working: true }) })),
+    ])
+    expect(render(null, unarchived)).not.toContain('Done')
+  })
+
+  it('expands the Done group when the archived teammate is the active thread', () => {
+    const html = render('fin')
+    expect(html).toContain('href="/threads/fin"')
+    expect(html).toContain('aria-expanded="true"')
+  })
+
+  it('offers Mark as done on a teammate row and Reopen on a done one', () => {
+    expect(render(null)).toContain('aria-label="Mark as done"')
+    expect(render(null)).not.toContain('aria-label="Reopen"')
+    const active = render('fin')
+    expect(active).toContain('aria-label="Reopen"')
+    expect(active).not.toContain('aria-label="Unarchive thread"')
+  })
+
+  it('keeps Archive thread on the top-level session row', () => {
+    expect(render(null)).toContain('aria-label="Archive thread"')
+  })
+
+  it('renders a plain row when there are no teammates', () => {
     const html = render(null, sessionOf(threadOf({ id: 'solo', title: 'Solo' })))
     expect(html).toContain('href="/threads/solo"')
-    expect(html).not.toContain('teammate')
+    expect(html).not.toContain('Done')
   })
 
   describe('title growth', () => {

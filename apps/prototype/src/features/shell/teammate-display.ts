@@ -26,7 +26,7 @@ export function hasAttentionTeammate(teammates: AppTeammate[]): boolean {
 }
 
 export interface TeammateGroups {
-  live: AppTeammate[]
+  active: AppTeammate[]
   done: AppTeammate[]
 }
 
@@ -34,10 +34,10 @@ export function groupTeammates(teammates: AppTeammate[]): TeammateGroups {
   const rank = (teammate: AppTeammate): number =>
     needsAttention(teammateDisplay(teammate)) ? 0 : 1
   return {
-    live: teammates
-      .filter((teammate) => !isDoneTeammate(teammate))
+    active: teammates
+      .filter((teammate) => teammate.archived !== true)
       .sort((a, b) => rank(a) - rank(b)),
-    done: teammates.filter(isDoneTeammate),
+    done: teammates.filter((teammate) => teammate.archived === true),
   }
 }
 

@@ -38,7 +38,6 @@ const remarkPlugins = [
 const allowedTags = { blockquote: ['cite', 'dataAlert'] }
 const remendOptions = { handlers: [starRuleHandler] }
 const linkSafety = { enabled: false }
-const controls = { mermaid: { panZoom: false } }
 
 export const MessageResponse = memo(
   function MessageResponse({ className, components, onLinkClick, ...props }: MessageResponseProps) {
@@ -54,7 +53,6 @@ export const MessageResponse = memo(
           )}
           allowedTags={allowedTags}
           components={merged}
-          controls={controls}
           linkSafety={linkSafety}
           mermaid={mermaidOptions}
           plugins={plugins}

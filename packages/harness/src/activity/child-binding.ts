@@ -3,8 +3,9 @@ import { toRunId, type ThreadId } from '@dltech/atlas-core'
 import type { DeltaChannel } from '../channel/delta-channel'
 import { EStepEnd } from '../channel/signal'
 import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
+import { backgroundRunning } from './binding'
 import { createActivityTracker } from './state'
-import type { ActivityReport } from './types'
+import type { ActivityReport, ActivityRoster } from './types'
 
 const CHILD_RUN = toRunId('child-turn')
 
@@ -24,6 +25,7 @@ const turnOutcomeOfStepEnd = (end: EStepEnd): TurnOutcome | undefined => {
 export function bindChildThreadActivity(args: {
   threadId: ThreadId
   channel: Pick<DeltaChannel, 'subscribe'>
+  roster?: ActivityRoster | undefined
   report: (state: ActivityReport) => void
 }): { detach: () => void } {
   const tracker = createActivityTracker({ report: args.report })
@@ -41,5 +43,19 @@ export function bindChildThreadActivity(args: {
       else tracker.turnEnded()
     },
   })
-  return { detach }
+  const roster = args.roster
+  const refreshBackground = (): void => {
+    if (roster !== undefined)
+      tracker.setBackground(
+        backgroundRunning({ threadId: args.threadId, roster: roster.snapshot() }),
+      )
+  }
+  const unsubscribeRoster = roster?.subscribe(refreshBackground)
+  refreshBackground()
+  return {
+    detach: () => {
+      detach()
+      unsubscribeRoster?.()
+    },
+  }
 }

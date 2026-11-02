@@ -11,7 +11,7 @@ import type { AppThread } from './fixtures/app'
 import type { AppTeammate } from './fixtures/teammates'
 import { TeammateRow } from './shell-teammate-row'
 import { ThreadRowBody } from './shell-thread-row-body'
-import { groupTeammates, hasAttentionTeammate, teammateCountLabel } from './teammate-display'
+import { groupTeammates } from './teammate-display'
 import { useFollowActive } from './use-follow-active'
 
 export interface ThreadFolderProps {
@@ -39,36 +39,10 @@ function DoneToggle({ count, open, onToggle }: DoneToggleProps) {
         <ChevronRight
           className={cn('size-3.5 shrink-0 transition-transform', open && 'rotate-90')}
         />
-        <span>{count} done</span>
+        <span className="shrink-0">Done</span>
+        <span className="ml-auto font-mono text-xs tabular-nums">{count}</span>
       </button>
     </SidebarMenuSubItem>
-  )
-}
-
-interface FolderToggleProps {
-  open: boolean
-  count: number
-  attention: boolean
-  onToggle: () => void
-}
-
-function FolderToggle({ open, count, attention, onToggle }: FolderToggleProps) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      aria-label={`${open ? 'Hide' : 'Show'} ${teammateCountLabel(count)}`}
-      className="flex h-5 items-center gap-1 rounded-md px-1 text-muted-foreground outline-hidden hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-    >
-      {open ? null : <span className="font-mono text-xs tabular-nums">{count}</span>}
-      {open || !attention ? null : (
-        <span className="size-1.5 rounded-full bg-warning">
-          <span className="sr-only">Needs attention</span>
-        </span>
-      )}
-      <ChevronRight className={cn('size-3.5 transition-transform', open && 'rotate-90')} />
-    </button>
   )
 }
 
@@ -78,11 +52,8 @@ export function ThreadFolder({
   activeThreadId,
   defaultCardOpen,
 }: ThreadFolderProps) {
-  const { live, done } = groupTeammates(teammates)
-  const holdsActive =
-    thread.id === activeThreadId || teammates.some((teammate) => teammate.id === activeThreadId)
+  const { active, done } = groupTeammates(teammates)
   const activeIsDone = done.some((teammate) => teammate.id === activeThreadId)
-  const folder = useFollowActive(holdsActive)
   const doneFold = useFollowActive(activeIsDone)
 
   const renderRow = (teammate: AppTeammate) => (
@@ -95,24 +66,14 @@ export function ThreadFolder({
         thread={thread}
         active={thread.id === activeThreadId}
         defaultCardOpen={defaultCardOpen}
-        trailing={
-          <FolderToggle
-            open={folder.open}
-            count={teammates.length}
-            attention={hasAttentionTeammate(teammates)}
-            onToggle={folder.handleToggle}
-          />
-        }
       />
-      {folder.open ? (
-        <SidebarMenuSub className="mr-0 ml-3.5 gap-0.5 pr-0 pl-2">
-          {live.map(renderRow)}
-          {done.length > 0 ? (
-            <DoneToggle count={done.length} open={doneFold.open} onToggle={doneFold.handleToggle} />
-          ) : null}
-          {doneFold.open ? done.map(renderRow) : null}
-        </SidebarMenuSub>
-      ) : null}
+      <SidebarMenuSub className="mr-0 ml-3.5 gap-0.5 pr-0 pl-2">
+        {active.map(renderRow)}
+        {done.length > 0 ? (
+          <DoneToggle count={done.length} open={doneFold.open} onToggle={doneFold.handleToggle} />
+        ) : null}
+        {doneFold.open ? done.map(renderRow) : null}
+      </SidebarMenuSub>
     </SidebarMenuItem>
   )
 }

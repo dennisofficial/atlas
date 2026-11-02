@@ -2,8 +2,8 @@
 
 Authoritative design for v2. Status: **design, not built.** The decisions it applies are recorded
 in [0018](../decisions/0018-v2-pod-first-architecture.md) and
-[0021](../decisions/0021-v2-loop-runs-on-control-plane-workers.md) (the loop runs on control-plane
-workers; sandboxes only execute). One decision, D2 (the local control
+[0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md) (the loop runs on the agent
+host; sandboxes only execute). One decision, D2 (the local control
 plane), is still open and is marked where it matters. Where this file and the v1 code disagree
 about _what v2 should be_, this file wins; where they disagree about what v1 _does_, the code wins.
 
@@ -44,16 +44,16 @@ Patching each seam keeps the fork. v2 changes who owns what and keeps the busine
 
 ```
   clients             control plane                       runtimes
-  web / mac / tui <-> record + inbox + leases + views <-> workers run the loop (cloud: Render, 0021)
+  web / mac / tui <-> record + inbox + leases + views <-> agent hosts run the loop (cloud: Render, 0021)
                       (cloud: NestJS + Postgres;          sandboxes execute only:
                        local: atlasd over SQLite [D2, open]) cloud Vercel sandbox daemon | local docker | in-process
 ```
 
-| Tier                   | Owns                                                                                                                                                                                                                                                                                          | Does not own                                                                 |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| **Client**             | Rendering views, sending commands, caches and drafts                                                                                                                                                                                                                                          | Any fact. It never infers state with heuristics                              |
-| **Control plane (CP)** | The durable record, the inbox, holder leases, materialized views, external observations (GitHub), config, credentials, identity                                                                                                                                                               | Allocating conversation seqs; the workspace                                  |
-| **Runtime**            | Split by [0021](../decisions/0021-v2-loop-runs-on-control-plane-workers.md): the **worker** runs the loop for the sessions it holds and allocates conversation seqs; the **sandbox** holds the world (workspace, git, processes, files) and executes what the worker calls through its daemon | The durable record. A sandbox disk is a cache of the record plus world state |
+| Tier                   | Owns                                                                                                                                                                                                                                                                                           | Does not own                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Client**             | Rendering views, sending commands, caches and drafts                                                                                                                                                                                                                                           | Any fact. It never infers state with heuristics                              |
+| **Control plane (CP)** | The durable record, the inbox, holder leases, materialized views, external observations (GitHub), config, credentials, identity                                                                                                                                                                | Allocating conversation seqs; the workspace                                  |
+| **Runtime**            | Split by [0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md): the **agent host** runs the loop for the sessions it holds and allocates conversation seqs; the **sandbox** holds the world (workspace, git, processes, files) and executes what the agent host calls through its daemon | The durable record. A sandbox disk is a cache of the record plus world state |
 
 Clients and pods are agnostic to where the other is: a client talks to _a_ control plane, a pod
 talks to _a_ control plane, and neither needs to know whether the other is local or cloud.
@@ -95,7 +95,7 @@ This replaces the three equality notions found in v1 (API content equality, host
 equality, checkpoint digest of id+seq+type).
 
 **P4. Epoch fencing replaces liveness guessing.** The CP grants one holder lease per session at
-epoch N. The holder is a control-plane worker ([0021](../decisions/0021-v2-loop-runs-on-control-plane-workers.md)).
+epoch N. The holder is an agent host ([0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md)).
 Every move, wake, resize, rollover or recreation increments the epoch. The CP rejects
 writes from an older epoch. A holder that loses its lease stops its loop. Parking becomes: flush the
 log, release the lease. The fence replaces the wake-claim CAS, checkpoint revision races, the
@@ -149,7 +149,7 @@ contract. §7 gives the package shape.
 
 | State                                    | v1 writers today                                                      | v2 single writer                                                         | Replicas                                                                 |
 | ---------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| Conversation events / seq                | pod (4 allocators) + API (send, append, open, wake, archive, history) | holder (a control-plane worker, 0021)                                    | CP record (durable), clients (views, log suffix)                         |
+| Conversation events / seq                | pod (4 allocators) + API (send, append, open, wake, archive, history) | holder (an agent host, 0021)                                             | CP record (durable), clients (views, log suffix)                         |
 | Operator input                           | WS send (pod intake) + API send (Postgres append)                     | CP inbox                                                                 | pod consumes; `input-consumed` in log                                    |
 | History edits                            | API rewind/replace/summarise/fork + pod rewind/compact/loop-cut       | holder, as appended events (P5)                                          | none needed                                                              |
 | Child / teammate threads                 | API create/open + pod spawn + registerChild                           | holder mints and logs `agent-spawned`; CP materializes rows from the log | CP rows are a view                                                       |
@@ -263,12 +263,12 @@ is a real cloud session on v2 from the web, with basic chat and tools.
 
 ## 11. Pod resources: the daemon outranks its workloads
 
-The loop no longer runs in the sandbox ([0021](../decisions/0021-v2-loop-runs-on-control-plane-workers.md)),
+The loop no longer runs in the sandbox ([0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md)),
 so what must survive saturation is the **daemon**: the small in-sandbox process that executes what
-the worker calls (exec, files, grep, background shells, services, stdio MCP, terminal). A sandbox
+the agent host calls (exec, files, grep, background shells, services, stdio MCP, terminal). A sandbox
 runs two kinds of process: the **daemon** and the **workloads** the agent starts (shells, services,
 test runs, builds). They share the sandbox's CPU, memory and disk. When a workload saturates the
-sandbox, every tool call the worker makes through the daemon slows. In v1 the in-sandbox process is
+sandbox, every tool call the agent host makes through the daemon slows. In v1 the in-sandbox process is
 also the kernel's first OOM victim (it has the largest footprint and `oom_score_adj` 500). This is
 OS-level isolation, not a package boundary.
 
@@ -296,7 +296,7 @@ with a hog for the last page. The daemon reads `memory.events` and reports which
 workload was killed and why, so the agent sees it in its context and the operator in the transcript.
 The kill scope (one shared group or a child per thread or workload) is fixed in the slice 3 spec.
 
-**R4. Liveness does not wait on the loop.** The worker renews the lease on its own timer,
+**R4. Liveness does not wait on the loop.** The agent host renews the lease on its own timer,
 independent of turn progress, and its TTL is sized for a saturated sandbox, so a busy sandbox is
 never fenced as dead.
 Stop (the operator's stop/interrupt button) arrives twice (P7): the direct hint aborts the turn and
@@ -306,7 +306,7 @@ process group); what fails under load is the daemon reaching the hint late becau
 holds the CPU, which R2 prevents.
 
 **If the holder dies anyway**, the design absorbs it: the record is in the control plane, the
-lease expires, and a new worker resumes at the next epoch with nothing forked. At most the unflushed
+lease expires, and a new agent host resumes at the next epoch with nothing forked. At most the unflushed
 tail is lost, bounded by the flush cadence. In v1 the same death wedges or loses the session.
 
 Thresholds, TTLs and the priority mechanism are fixed in the slice 3 spec and measured on a
@@ -381,23 +381,23 @@ up to about fifteen minutes; a pod that dies idle is noticed only when someone n
 wakes it (`thread-pod.service.ts`, `pod-not-running`). Nothing in the pod reports its own death.
 
 **v2.** The holder lease (P4) is the liveness signal. The control plane knows a holder is gone
-when its lease is not renewed within the TTL, whatever the cause: crash, OOM kill, a worker deploy,
+when its lease is not renewed within the TTL, whatever the cause: crash, OOM kill, an agent host deploy,
 a stopped sandbox. Status is `fold(log) ∧ lease liveness`, so a dead holder shows as dead within
 one TTL, and the reconciler (below) acts on it.
 
 **Kubernetes practices v2 follows.** Atlas's control plane and pods are a small orchestrator, and
 these are the parts of Kubernetes' design that fit:
 
-| Kubernetes                                                                                                                                                   | v2                                                                                                                                                                                                                                                           |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [Lease objects](https://kubernetes.io/docs/concepts/architecture/leases/): holder, duration, renew time, transition count                                    | The P4 holder lease; the transition count is the epoch                                                                                                                                                                                                       |
-| [Liveness, readiness and startup probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) are distinct | Lease renewal is liveness (R4). Readiness is "booted, hydrated, consuming the inbox", and only a ready pod is sent work. Boot has its own deadline, so a slow boot is not mistaken for a dead pod                                                            |
-| [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/) reconcile desired state to observed state                                        | One CP reconciler per session: "has unconsumed inbox entries and no live holder" → grant a lease to a worker and provision a sandbox. It replaces v1's scattered wake claims, rotation recovery and cron sweeps. Every step is idempotent and safe to repeat |
-| Restart with backoff (CrashLoopBackOff)                                                                                                                      | Reprovisioning backs off exponentially and is shown as a status with a reason, never a silent loop                                                                                                                                                           |
-| [QoS classes set `oom_score_adj`](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/)                                           | R1: the harness runs like a Guaranteed pod, workloads like BestEffort                                                                                                                                                                                        |
-| Requests and limits are cgroup settings                                                                                                                      | R2/R3: `atlas-serve` and `atlas-work` cgroups with `cpu.weight`, `pids.max`, and `memory.max` if it proves available                                                                                                                                         |
-| [Graceful termination](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination): SIGTERM, a grace period, then kill                | Park = flush the log, release the lease within a grace period; past it, the CP fences the epoch and moves on                                                                                                                                                 |
-| Pod conditions with a reason and a transition time                                                                                                           | Views expose status as conditions (`Ready`, `Holding`, `Degraded` with reason and since), not bare booleans                                                                                                                                                  |
+| Kubernetes                                                                                                                                                   | v2                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Lease objects](https://kubernetes.io/docs/concepts/architecture/leases/): holder, duration, renew time, transition count                                    | The P4 holder lease; the transition count is the epoch                                                                                                                                                                                                            |
+| [Liveness, readiness and startup probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) are distinct | Lease renewal is liveness (R4). Readiness is "booted, hydrated, consuming the inbox", and only a ready pod is sent work. Boot has its own deadline, so a slow boot is not mistaken for a dead pod                                                                 |
+| [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/) reconcile desired state to observed state                                        | One CP reconciler per session: "has unconsumed inbox entries and no live holder" → grant a lease to an agent host and provision a sandbox. It replaces v1's scattered wake claims, rotation recovery and cron sweeps. Every step is idempotent and safe to repeat |
+| Restart with backoff (CrashLoopBackOff)                                                                                                                      | Reprovisioning backs off exponentially and is shown as a status with a reason, never a silent loop                                                                                                                                                                |
+| [QoS classes set `oom_score_adj`](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/)                                           | R1: the harness runs like a Guaranteed pod, workloads like BestEffort                                                                                                                                                                                             |
+| Requests and limits are cgroup settings                                                                                                                      | R2/R3: `atlas-serve` and `atlas-work` cgroups with `cpu.weight`, `pids.max`, and `memory.max` if it proves available                                                                                                                                              |
+| [Graceful termination](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination): SIGTERM, a grace period, then kill                | Park = flush the log, release the lease within a grace period; past it, the CP fences the epoch and moves on                                                                                                                                                      |
+| Pod conditions with a reason and a transition time                                                                                                           | Views expose status as conditions (`Ready`, `Holding`, `Degraded` with reason and since), not bare booleans                                                                                                                                                       |
 
 Not adopted: running Kubernetes itself. Vercel Sandbox is the runtime; v2 copies the control
 patterns, not the platform.

@@ -1,4 +1,5 @@
-import type { Event } from '../events/envelope'
+import { EMessageOrigin, saidBy } from '../events/body'
+import type { Event, EventOfType } from '../events/envelope'
 import { reachesModel } from '../events/notice-stage'
 import { EExecutionLocation } from '../execution/location'
 import { elapsedPhrase } from '../shells/elapsed'
@@ -31,7 +32,7 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
 
   if (event.type === 'history-compacted')
     return `Summary of the conversation before this: ${event.summary}`
-  if (event.type === 'user-said') return `Operator: ${clipped(event.text, payloadLimit)}`
+  if (event.type === 'user-said') return saidLine(event, payloadLimit)
 
   if (event.type === 'assistant-said') {
     const spoken = event.parts
@@ -88,6 +89,16 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
     return `Atlas moved the project directory to ${event.path}`
 
   return undefined
+}
+
+function saidLine(event: EventOfType<'user-said'>, limit: number): string {
+  const speaker =
+    saidBy(event) === EMessageOrigin.Operator
+      ? 'Operator'
+      : saidBy(event) === EMessageOrigin.PeerAgent
+        ? 'Peer agent'
+        : 'Main agent'
+  return `${speaker}: ${clipped(event.text, limit)}`
 }
 
 const isProse = (event: Event): boolean =>

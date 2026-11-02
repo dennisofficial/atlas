@@ -7,8 +7,15 @@ import { EGrantScope } from '../../../policy/classifier/grant'
 import { EClassifierMode, ETriage } from '../../../policy/classifier/triage'
 import { EJudgment } from '../../../policy/classifier/verdict'
 import type { Assembled } from '../../assembled'
-import { contextFor, envelopedAs, log, operatorSaidAs } from '../../__tests__/log-fixture'
+import {
+  agentSaidAs,
+  contextFor,
+  envelopedAs,
+  log,
+  operatorSaidAs,
+} from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
+import { EMessageOrigin } from '../../../events/body'
 
 const empty: Assembled = { system: [], messages: [] }
 
@@ -31,6 +38,53 @@ describe('messagesFromEvents', () => {
         origin: { eventId: toEventId('event-2'), seq: 2 },
       },
     ])
+  })
+
+  it('wraps a message the main agent sent in the agent-said lane, not the operator lane', () => {
+    const events = log([
+      { type: 'user-said', text: 'count the call sites', via: EMessageOrigin.ParentAgent },
+    ])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(assembled.messages[0]?.message).toEqual({
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: agentSaidAs({ from: 'the main agent', text: 'count the call sites' }),
+        },
+      ],
+    })
+  })
+
+  it('names a peer agent in the agent-said lane', () => {
+    const events = log([
+      { type: 'user-said', text: 'carrying a steer', via: EMessageOrigin.PeerAgent },
+    ])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(assembled.messages[0]?.message).toEqual({
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: agentSaidAs({ from: 'a peer agent', text: 'carrying a steer' }),
+        },
+      ],
+    })
+  })
+
+  it('keeps an explicit operator message in the operator-said lane', () => {
+    const events = log([{ type: 'user-said', text: 'yes, ship it', via: EMessageOrigin.Operator }])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(assembled.messages[0]?.message).toEqual({
+      role: 'user',
+      content: [{ type: 'text', text: operatorSaidAs('yes, ship it') }],
+    })
   })
 
   it('carries reasoning parts and their provider options through untouched', () => {

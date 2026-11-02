@@ -42,35 +42,36 @@ v2 changes who owns what.
 
 ## Contents
 
-| File                                                                                             | What it is                                                                                                                                 |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| [architecture.md](architecture.md)                                                               | The authoritative v2 design: principles P1–P8, tiers, protocol, state ownership, package shape, side-by-side plan, risks                   |
-| [roadmap.md](roadmap.md)                                                                         | Current state, the session-per-slice workflow, and the ordered slices with exit criteria                                                   |
-| [slices/](slices/)                                                                               | One spec per slice, written and approved before the slice is built                                                                         |
-| [../decisions/0019-v2-package-map.md](../decisions/0019-v2-package-map.md)                       | The package map: foundations in `packages/`, plugins in `plugins/`, native commands in `commands/`                                         |
-| [../decisions/0018-v2-pod-first-architecture.md](../decisions/0018-v2-pod-first-architecture.md) | The decision record for the locked decisions                                                                                               |
-| [research/incident-2026-11-01-seq466.md](research/incident-2026-11-01-seq466.md)                 | The incident that triggered the redesign                                                                                                   |
-| [research/pod-side-state.md](research/pod-side-state.md)                                         | Census of pod-side state: seq allocators, store families, ownership seams                                                                  |
-| [research/control-plane-state.md](research/control-plane-state.md)                               | Census of control-plane (API, Postgres, Redis) and client state                                                                            |
-| [research/wire-surface.md](research/wire-surface.md)                                             | Census of the wire: protocols, procedures, duplicated paths                                                                                |
-| [research/log-scale.md](research/log-scale.md)                                                   | Census of whole-log work in v1 (sized at a hypothetical 1M events; the design target is ~20k)                                              |
-| [research/pod-saturation.md](research/pod-saturation.md)                                         | Measured: CPU, memory and fork-bomb saturation in a Vercel pod, before and after #1657, and the cgroup process cap                         |
-| [research/d8/](research/d8/)                                                                     | D8 evidence (0021): sandbox round-trip measurement and its probe scripts, production tool calls per turn, host providers, legacy prior art |
-| [research/slice-2/](research/slice-2/)                                                           | Slice 2 censuses: per-kind branches, intake paths and loop seams in v1 `harness` (anchors at `5203552d4`)                                  |
-| [research/credential-availability/](research/credential-availability/README.md)                  | **Needs triage.** v1 credential-availability stack (waiting for model, recheck/pause, recovery): specs and v1 status                       |
+| File                                                                                             | What it is                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [architecture.md](architecture.md)                                                               | The authoritative v2 design: principles P1–P8, tiers, protocol, state ownership, package shape, side-by-side plan, risks                                                               |
+| [roadmap.md](roadmap.md)                                                                         | Current state, the session-per-slice workflow, and the ordered slices with exit criteria                                                                                               |
+| [slices/](slices/)                                                                               | One spec per slice, written and approved before the slice is built; [slices/03-teammates.md](slices/03-teammates.md) is a design section (teammates as parallel sessions), not a slice |
+| [../decisions/0019-v2-package-map.md](../decisions/0019-v2-package-map.md)                       | The package map: foundations in `packages/`, plugins in `plugins/`, native commands in `commands/`                                                                                     |
+| [../decisions/0018-v2-pod-first-architecture.md](../decisions/0018-v2-pod-first-architecture.md) | The decision record for the locked decisions                                                                                                                                           |
+| [research/incident-2026-11-01-seq466.md](research/incident-2026-11-01-seq466.md)                 | The incident that triggered the redesign                                                                                                                                               |
+| [research/pod-side-state.md](research/pod-side-state.md)                                         | Census of pod-side state: seq allocators, store families, ownership seams                                                                                                              |
+| [research/control-plane-state.md](research/control-plane-state.md)                               | Census of control-plane (API, Postgres, Redis) and client state                                                                                                                        |
+| [research/wire-surface.md](research/wire-surface.md)                                             | Census of the wire: protocols, procedures, duplicated paths                                                                                                                            |
+| [research/log-scale.md](research/log-scale.md)                                                   | Census of whole-log work in v1 (sized at a hypothetical 1M events; the design target is ~20k)                                                                                          |
+| [research/pod-saturation.md](research/pod-saturation.md)                                         | Measured: CPU, memory and fork-bomb saturation in a Vercel pod, before and after #1657, and the cgroup process cap                                                                     |
+| [research/d8/](research/d8/)                                                                     | D8 evidence (0021): sandbox round-trip measurement and its probe scripts, production tool calls per turn, host providers, legacy prior art                                             |
+| [research/slice-2/](research/slice-2/)                                                           | Slice 2 censuses: per-kind branches, intake paths and loop seams in v1 `harness` (anchors at `5203552d4`)                                                                              |
+| [research/credential-availability/](research/credential-availability/README.md)                  | **Needs triage.** v1 credential-availability stack (waiting for model, recheck/pause, recovery): specs and v1 status                                                                   |
 
 The censuses are static reads of the repository at commit `a0bf4110`, not live captures. Their
 `file:line` anchors may have moved on `main`; re-check an anchor before relying on it.
 
 ## Decisions at a glance
 
-|     | Decision                                                                                 | State                 |
-| --- | ---------------------------------------------------------------------------------------- | --------------------- |
-| D1  | The durable record lives in the control plane; the holder pod is the only writer of seqs | Locked                |
-| D2  | Local control plane: a daemon (`atlasd`) running the same `control` library over SQLite  | **Open**, recommended |
-| D3  | The log is append-only; history edits are appended events                                | Locked                |
-| D4  | Every durable input goes through the control-plane inbox                                 | Locked                |
-| D5  | Foundation packages plus plugins with a fixed shape (package map: 0019)                  | Locked                |
-| D6  | v2 storage and endpoints are separate from v1 (Prisma 8 `namespace v2`, verified)        | Locked                |
-| D7  | First target: web/mac with a cloud pod                                                   | Locked                |
-| D8  | The agent loop runs on control-plane workers; sandboxes only execute (0021)              | Locked                |
+|     | Decision                                                                                           | State                 |
+| --- | -------------------------------------------------------------------------------------------------- | --------------------- |
+| D1  | The durable record lives in the control plane; the holder pod is the only writer of seqs           | Locked                |
+| D2  | Local control plane: a daemon (`atlasd`) running the same `control` library over SQLite            | **Open**, recommended |
+| D3  | The log is append-only; history edits are appended events                                          | Locked                |
+| D4  | Every durable input goes through the control-plane inbox                                           | Locked                |
+| D5  | Foundation packages plus plugins with a fixed shape (package map: 0019)                            | Locked                |
+| D6  | v2 storage and endpoints are separate from v1 (Prisma 8 `namespace v2`, verified)                  | Locked                |
+| D7  | First target: web/mac with a cloud pod                                                             | Locked                |
+| D8  | The agent loop runs on the agent host; sandboxes only execute (0021)                               | Locked                |
+| D9  | Background jobs and schedules run on trigger.dev in `apps/trigger`, never in the agent host (0022) | Locked                |

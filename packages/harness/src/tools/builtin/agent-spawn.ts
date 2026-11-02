@@ -36,7 +36,7 @@ const PROSE = [
 ].join(' ')
 
 const TEAMMATE_NOTE =
-  'The teammate type is the exception: a full session that works beside you rather than under you, which only the main session may spawn. A teammate goes silent between its reports, and silent is not dead: check agent_list before respawning one you have lost track of. It speaks through report_to_main, and only a failure or a stop reaches you without one.'
+  'The teammate type is the exception: a full session that works beside you rather than under you, which only the main session may spawn. You message a teammate with agent_say like any agent you started, and it messages you through report_to_main — but the operator owns it and talks to it directly, so it is not your job to relay everything it hears or everything it says, and its lifecycle is the operator’s, not yours. A teammate goes silent between its reports, and silent is not dead: only a failure or a stop reaches you without one.'
 
 function typeListing(types: readonly AgentType[]): string {
   if (types.length === 0) return 'No agent type is registered, so nothing can be spawned yet.'

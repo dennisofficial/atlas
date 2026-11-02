@@ -1,6 +1,6 @@
-import { Archive, ArchiveRestore, Pin } from 'lucide-react'
+import { Archive, ArchiveRestore, CircleCheck, Pin, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
-import type { MouseEvent, ReactNode } from 'react'
+import type { MouseEvent } from 'react'
 
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { cn } from '@dltech/atlas-ui/lib/utils'
@@ -26,24 +26,20 @@ export interface ThreadRowBodyProps {
   thread: WireThread
   projectName: string
   active: boolean
-  trailing?: ReactNode
   teammates?: readonly WireThread[]
   teammateParents?: ReadonlyMap<string, WireThread>
   parent?: WireThread | undefined
   collapsed?: boolean
-  onSelect?: (() => void) | undefined
 }
 
 export function ThreadRowBody({
   thread,
   projectName,
   active,
-  trailing,
   teammates = [],
   teammateParents,
   parent,
   collapsed = false,
-  onSelect,
 }: ThreadRowBodyProps) {
   const { onToggleArchive } = useThreadActions()
   const { density } = useSidebarDensity()
@@ -65,10 +61,14 @@ export function ThreadRowBody({
     published: useThreadNaming(thread.id),
   })
   const handleArchive = () => onToggleArchive(thread)
-  const handleSelect = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey)
-      onSelect?.()
-  }
+  const teammate = parent !== undefined
+  const archiveLabel = teammate
+    ? archived
+      ? 'Reopen'
+      : 'Mark as done'
+    : archived
+      ? 'Unarchive thread'
+      : 'Archive thread'
   return (
     <ThreadHoverCard
       thread={thread}
@@ -78,10 +78,19 @@ export function ThreadRowBody({
       parent={parent}
       collapsed={collapsed}
       states={states}
-      hasDisclosure={Boolean(trailing)}
       actions={
-        <RowAction label={archived ? 'Unarchive thread' : 'Archive thread'} onClick={handleArchive}>
-          {archived ? <ArchiveRestore /> : <Archive />}
+        <RowAction label={archiveLabel} onClick={handleArchive}>
+          {teammate ? (
+            archived ? (
+              <RotateCcw />
+            ) : (
+              <CircleCheck />
+            )
+          ) : archived ? (
+            <ArchiveRestore />
+          ) : (
+            <Archive />
+          )}
         </RowAction>
       }
       className={cn(
@@ -93,7 +102,6 @@ export function ThreadRowBody({
         ref={observationRef}
         href={`/threads/${encodeURIComponent(thread.id)}`}
         aria-current={active ? 'page' : undefined}
-        onClick={handleSelect}
         data-density={density}
         className={cn(
           'block min-w-0 flex-1 rounded-md px-2 group-hover/thread:[&_[data-thread-line=primary]]:pr-12 group-focus-within/thread:[&_[data-thread-line=primary]]:pr-12 pointer-coarse:[&_[data-thread-line=primary]]:pr-12 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:overflow-hidden',
@@ -133,7 +141,6 @@ export function ThreadRowBody({
         ) : null}
       </Link>
       <div className="flex shrink-0 items-center pt-1 group-data-[collapsible=icon]:hidden">
-        {trailing}
         {pinned ? (
           <Pin
             role="img"

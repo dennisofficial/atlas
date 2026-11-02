@@ -30,7 +30,10 @@ export function bindThreadActivity(args: {
   approvals.refresh()
   const roster = args.roster
   const refreshBackground = (): void => {
-    if (roster !== undefined) tracker.setBackground(backgroundRunning(roster.snapshot()))
+    if (roster !== undefined)
+      tracker.setBackground(
+        backgroundRunning({ threadId: args.threadId, roster: roster.snapshot() }),
+      )
   }
   const unsubscribeRoster = roster?.subscribe(refreshBackground)
   refreshBackground()
@@ -43,6 +46,13 @@ export function bindThreadActivity(args: {
   }
 }
 
-export const backgroundRunning = (roster: Pick<RosterWire, 'agents' | 'shells'>): boolean =>
-  roster.agents.some((agent) => agent.status === EAgentStatus.Running) ||
-  roster.shells.some((shell) => shell.status === EShellStatus.Running)
+export const backgroundRunning = (args: {
+  threadId: ThreadId
+  roster: Pick<RosterWire, 'agents' | 'shells'>
+}): boolean =>
+  args.roster.agents.some(
+    (agent) => agent.status === EAgentStatus.Running && agent.spawnedBy === args.threadId,
+  ) ||
+  args.roster.shells.some(
+    (shell) => shell.status === EShellStatus.Running && shell.threadId === args.threadId,
+  )

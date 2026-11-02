@@ -1,7 +1,7 @@
 # D8 — Tool-call round-trip cost from a Render worker into a Vercel Sandbox
 
 **Question:** if the Atlas agent loop runs on a Render control-plane worker in Virginia
-(decision [0021](../../../decisions/0021-v2-loop-runs-on-control-plane-workers.md)), what does
+(decision [0021](../../../decisions/0021-v2-loop-runs-on-the-agent-host.md)), what does
 one tool-call round trip into a Vercel Sandbox (`iad1`) cost over one persistent WebSocket?
 Measured 2026-11-02 from a temporary Render Background Worker `atlas-v2-rtt-probe`
 (region `virginia`, plan `starter`, image `docker.io/oven/bun:1`, created and deleted via the

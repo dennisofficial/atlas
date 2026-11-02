@@ -44,7 +44,7 @@ describe('SecretsRouter', () => {
     expect(await secrets()).toHaveLength(0)
   })
 
-  it('reveals one value to a fresh session of its owner only', async () => {
+  it('reveals one value to a fresh session or the owner\u2019s sandbox only', async () => {
     await set('session-a', { name: 'OPENAI_KEY', value: 'sk-1' }).expect(200)
     const reveal = (token?: string, name = 'OPENAI_KEY') =>
       trpcQuery({ app, procedure: 'secrets.reveal', token, input: { name } })
@@ -53,8 +53,7 @@ describe('SecretsRouter', () => {
     expect(ok.body.result.data).toEqual({ value: 'sk-1' })
     await reveal('session-b').expect(404)
     await reveal().expect(401)
-    await reveal('pod-token-a').expect(401)
-    await reveal('sandbox-token-a').expect(401)
+    await reveal('pod-token-a').expect(403)
   })
 
   it('answers REAUTH_REQUIRED and no value to a session older than the fresh window', async () => {
@@ -96,6 +95,99 @@ describe('SecretsRouter', () => {
     const other = await query('secrets.details', 'session-b').expect(200)
     expect(other.body.result.data.secrets).toEqual([])
     await query('secrets.details').expect(401)
+    await query('secrets.details', 'pod-token-a').expect(403)
+  })
+
+  describe('sandbox reach', () => {
+    it('lets a sandbox list, set and remove its owner\u2019s personal secrets', async () => {
+      const sandboxList = await query('secrets.details', 'sandbox-token-a').expect(200)
+      expect(sandboxList.body.result.data.secrets).toEqual([])
+
+      await set('sandbox-token-a', { name: 'EXA_KEY', value: 'exa-1' }).expect(200)
+      const rows = await db.orm.public.UserSecret.where((row) => row.userId.eq('user-a')).all()
+      expect(rows.map((row) => row.name)).toEqual(['EXA_KEY'])
+
+      const listed = await query('secrets.details', 'sandbox-token-a').expect(200)
+      expect(listed.body.result.data.secrets.map((row: { name: string }) => row.name)).toEqual([
+        'EXA_KEY',
+      ])
+
+      const removed = await trpcMutate({
+        app,
+        procedure: 'secrets.remove',
+        token: 'sandbox-token-a',
+        input: { name: 'EXA_KEY' },
+      }).expect(200)
+      expect(removed.body).toEqual({ result: {} })
+      expect(await db.orm.public.UserSecret.where((row) => row.id.neq('')).all()).toHaveLength(0)
+    })
+
+    it('reveals a personal secret to its owner\u2019s sandbox', async () => {
+      await set('session-a', { name: 'OPENAI_KEY', value: 'sk-1' }).expect(200)
+
+      const reply = await trpcQuery({
+        app,
+        procedure: 'secrets.reveal',
+        token: 'sandbox-token-a',
+        input: { name: 'OPENAI_KEY' },
+      }).expect(200)
+      expect(reply.body.result.data).toEqual({ value: 'sk-1' })
+    })
+
+    it('cannot read another user\u2019s personal secrets', async () => {
+      await set('session-b', { name: 'B_KEY', value: 'b-plaintext' }).expect(200)
+
+      const listed = await query('secrets.details', 'sandbox-token-a').expect(200)
+      expect(listed.body.result.data.secrets).toEqual([])
+      expect(listed.text).not.toContain('b-plaintext')
+      await trpcQuery({
+        app,
+        procedure: 'secrets.reveal',
+        token: 'sandbox-token-a',
+        input: { name: 'B_KEY' },
+      }).expect(404)
+
+      const removed = await trpcMutate({
+        app,
+        procedure: 'secrets.remove',
+        token: 'sandbox-token-a',
+        input: { name: 'B_KEY' },
+      }).expect(200)
+      expect(
+        await db.orm.public.UserSecret.where((row) => row.userId.eq('user-b')).all(),
+      ).toHaveLength(1)
+      await set('sandbox-token-a', { name: 'B_KEY', value: 'takeover' }).expect(200)
+      expect(
+        (await db.orm.public.UserSecret.where((row) => row.userId.eq('user-b')).all()).map(
+          (row) => row.name,
+        ),
+      ).toEqual(['B_KEY'])
+      expect(
+        (await db.orm.public.UserSecret.where((row) => row.userId.eq('user-a')).all()).map(
+          (row) => row.name,
+        ),
+      ).toEqual(['B_KEY'])
+    })
+
+    it('refuses a pod bearer on secrets.details, reveal, set and remove', async () => {
+      await set('session-a', { name: 'OPENAI_KEY', value: 'sk-1' }).expect(200)
+
+      await query('secrets.details', 'pod-token-a').expect(403)
+      await trpcQuery({
+        app,
+        procedure: 'secrets.reveal',
+        token: 'pod-token-a',
+        input: { name: 'OPENAI_KEY' },
+      }).expect(403)
+      await set('pod-token-a', { name: 'X', value: 'v' }).expect(403)
+      await trpcMutate({
+        app,
+        procedure: 'secrets.remove',
+        token: 'pod-token-a',
+        input: { name: 'OPENAI_KEY' },
+      }).expect(403)
+      expect(await db.orm.public.UserSecret.where((row) => row.id.neq('')).all()).toHaveLength(1)
+    })
   })
 
   it('accepts a well-formed body and rejects an unknown property or a missing value', async () => {

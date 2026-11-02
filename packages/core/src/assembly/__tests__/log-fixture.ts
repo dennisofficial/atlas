@@ -52,3 +52,10 @@ export const envelopedAs = ({ tag, body }: { tag: string; body: string }): strin
 
 export const operatorSaidAs = (text: string): string =>
   envelopedAs({ tag: 'operator-said', body: text })
+
+export const agentSaidAs = ({ from, text }: { from: string; text: string }): string =>
+  expect.stringMatching(
+    new RegExp(
+      `^<agent-said from="${escapeRegExp(from)}">\\n${escapeRegExp(text)}\\n</agent-said>$`,
+    ),
+  )

@@ -34,15 +34,29 @@ export class SettingsRouter {
     await this.settings.patch({ userId: ctx.auth.userId, values: input.values })
   }
 
-  @Mutation({ input: personalSettingSetSchema, output: z.void() })
-  @UseMiddlewares(SessionMiddleware)
-  async set(@Input() input: PersonalSettingSet, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
+  @Mutation({
+    input: personalSettingSetSchema,
+    output: z.void(),
+    meta: meta({ sandboxReachable: true }),
+  })
+  @UseMiddlewares(SessionOrSandboxMiddleware)
+  async set(
+    @Input() input: PersonalSettingSet,
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+  ): Promise<void> {
     await this.settings.set({ userId: ctx.auth.userId, key: input.key, value: input.value })
   }
 
-  @Mutation({ input: personalSettingKeySchema, output: z.void() })
-  @UseMiddlewares(SessionMiddleware)
-  async remove(@Input() input: PersonalSettingKey, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
+  @Mutation({
+    input: personalSettingKeySchema,
+    output: z.void(),
+    meta: meta({ sandboxReachable: true }),
+  })
+  @UseMiddlewares(SessionOrSandboxMiddleware)
+  async remove(
+    @Input() input: PersonalSettingKey,
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+  ): Promise<void> {
     await this.settings.remove({ userId: ctx.auth.userId, key: input.key })
   }
 }

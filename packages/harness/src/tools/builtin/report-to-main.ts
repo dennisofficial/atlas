@@ -17,13 +17,13 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Report to the main agent: the session that spawned you and stands between you and the developer.',
-  'Only teammates report this way, and it is the only way the main agent hears you.',
-  'Ending your turn never tells it anything: a finished turn is bookkeeping, and going quiet between reports is how you are meant to run. Only a failure or a stop reaches it by itself.',
-  'So when you are done or blocked, report deliberately \u2014 the report is your voice, ending your turn is not.',
-  'Every report carries a kind. done, blocked and needs-decision wake the main agent: the work is finished, you cannot proceed, or you need a decision only the developer can make. progress is recorded and shown to the developer but does not wake the main agent \u2014 it lands with the next real wake, so use it for status, never for something that needs action.',
+  'Report to the main agent: the peer session that spawned you and coordinates the work beside you.',
+  'Only teammates report this way, and it is how the main agent hears from you. The operator you answer to directly, in your own conversation \u2014 never through a report.',
+  'Ending your turn never tells the main agent anything: a finished turn is bookkeeping, and going quiet between reports is how you are meant to run. Only a failure or a stop reaches it by itself.',
+  'So when the work touches the main agent, report deliberately: your work overlaps, you are done with something it asked for, or you found something that changes what it should do.',
+  'Every report carries a kind. done, blocked and needs-decision wake the main agent: the work is finished, you cannot proceed, or you need a decision you want the main agent to weigh in on. progress is recorded and shown to the developer but does not wake the main agent \u2014 it lands with the next real wake, so use it for status, never for something that needs action.',
   'Lead with the outcome and carry the whole of it \u2014 none of your steps are in its history, so what you write here is all it gets.',
-  'It reaches the main agent whether or not it is mid-turn, and it is what the developer sees of you, so write it for both.',
+  'It reaches the main agent whether or not it is mid-turn, so write it for a peer catching up cold.',
 ].join(' ')
 
 export class ReportToMainTool extends SchemaTool<typeof inputSchema> {

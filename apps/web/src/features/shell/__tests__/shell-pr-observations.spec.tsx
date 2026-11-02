@@ -92,7 +92,7 @@ describe('sidebar visible summary and card observations', () => {
       expect(main.textContent).toContain('#140')
       expect(main.textContent).toContain('+139')
       expect(main.querySelector('[aria-label="Pull request open"]')).not.toBeNull()
-      expect(container.querySelector('a[href="/threads/child"]')).toBeNull()
+      expect(container.querySelector('a[href="/threads/child"]')).not.toBeNull()
       await act(async () =>
         intersections.emit([
           { element: main, visible: true },
@@ -195,14 +195,13 @@ describe('sidebar visible summary and card observations', () => {
       await act(async () => intersections.emit([{ element: main, visible: false }]))
       expect(numbers(source)).toEqual([])
       await act(async () => intersections.emit([{ element: main, visible: true }]))
-      const disclosure = main.parentElement?.querySelector<HTMLButtonElement>(
-        'button[aria-expanded][aria-controls]:not([aria-label="Thread details"])',
-      )
-      if (disclosure === null || disclosure === undefined)
-        throw new Error('Missing teammate disclosure')
-      await act(async () => disclosure.click())
-      expect(numbers(source)).toEqual([6])
-      expect(container.querySelector('a[href="/threads/mate"]')).toBeNull()
+      expect(numbers(source)).toEqual([2])
+      expect(
+        main.parentElement?.querySelector(
+          'button[aria-expanded][aria-controls]:not([aria-label="Thread details"])',
+        ),
+      ).toBeNull()
+      expect(container.querySelector('a[href="/threads/mate"]')).not.toBeNull()
       expect(source.active()).toBe(1)
       expect(source.peak()).toBe(1)
       expect(intersections.observers).toHaveLength(1)

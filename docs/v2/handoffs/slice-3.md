@@ -1,4 +1,4 @@
-# Handoff: Atlas v2, start slice 3 (worker host + sandbox daemon)
+# Handoff: Atlas v2, start slice 3 (agent host + sandbox daemon)
 
 Written 2026-11-02 at the end of the slice 2 session. Everything this file refers to is in the
 repository; nothing from that session's scratch or context folder survives.
@@ -13,11 +13,11 @@ repository; nothing from that session's scratch or context folder survives.
 1. `docs/v2/README.md`
 2. `docs/v2/roadmap.md`: Current state ("Next: slice 3") and the slice 3 row (goal, exit criteria,
    must-settle list)
-3. `docs/decisions/0021-v2-loop-runs-on-control-plane-workers.md`: the loop runs on control-plane
-   workers, the sandbox daemon, the clean handoff on a worker restart, the durability guarantees
+3. `docs/decisions/0021-v2-loop-runs-on-the-agent-host.md`: the loop runs on
+   the agent host, the sandbox daemon, the clean handoff on an agent host restart, the durability guarantees
 4. `docs/v2/architecture.md` §3, §11, §12, §13; decisions 0018-0020
-5. `docs/v2/slices/01-record-core.md` (the `ControlPlane` interface the worker calls) and
-   `docs/v2/slices/02-agent.md` (the `agent` ports the worker supplies: record, model context,
+5. `docs/v2/slices/01-record-core.md` (the `ControlPlane` interface the agent host calls) and
+   `docs/v2/slices/02-agent.md` (the `agent` ports the agent host supplies: record, model context,
    intake, output, tools)
 6. Evidence: `docs/v2/research/d8/` (round-trip measurement and its probe scripts, production
    tool calls per turn, host providers, legacy prior art) and `docs/v2/research/slice-2/` (v1
@@ -25,24 +25,24 @@ repository; nothing from that session's scratch or context folder survives.
 
 ## The job
 
-Write `docs/v2/slices/03-worker-host.md`, walk the operator through it point by point, and build
+Write `docs/v2/slices/03-agent-host.md`, walk the operator through it point by point, and build
 nothing until it is approved.
 
 ## Settled, and where it is recorded
 
-- **Worker:** a separate `apps/worker` service (plain Bun, no Nest or tRPC), a Render Background
-  Worker in Virginia, in the Render **Comp AI** workspace (`tea-cvi2tf7noe9s73aqppe0`). The API
+- **Agent host:** a separate `apps/agent-host` service (plain Bun, no Nest or tRPC), a Render Background
+  Worker named `atlas-agent-host` in Virginia, in the Render **Comp AI** workspace (`tea-cvi2tf7noe9s73aqppe0`). The API
   stays on Vercel. Recorded in 0021 and the roadmap.
 - **Render access:** the API key is the Atlas Cloud project secret `RENDER_API_KEY`, exported to
   every shell. It was validated against `GET https://api.render.com/v1/owners`. Create the Render
-  service only once `apps/worker` exists on a branch. The operator must make sure Render's GitHub
+  service only once `apps/agent-host` exists on a branch. The operator must make sure Render's GitHub
   app can see `dennisofficial/atlas`; the API cannot grant that.
 - **Measure first:** the first deliverable is the round-trip probe run from Render into a Vercel
   `iad1` sandbox. The Vercel-to-Vercel baseline and the scripts that produced it are in
   `docs/v2/research/d8/rtt.md` and `docs/v2/research/d8/probe/` (it uses `VERCEL_TOKEN`, also a
   project secret).
-- **Clean pause is a requirement:** a worker restart pauses each loop at a step boundary and hands
-  the lease on; only an in-flight model stream is lost (0021, "A worker restart is a clean
+- **Clean pause is a requirement:** an agent host restart pauses each loop at a step boundary and hands
+  the lease on; only an in-flight model stream is lost (0021, "An agent host restart is a clean
   handoff").
 - **Owned by later slices, already in the roadmap:** one session per sandbox disk, branch and PR
   tracking from git refs, ~1 s append latency (slice 3) and ~1 s open-to-current (slice 5), local
@@ -67,5 +67,5 @@ nothing until it is approved.
 
 ## Suggested skills
 
-`atlas` (services, cloud secrets), `codebase-design` (seams: worker host, daemon, execution port),
+`atlas` (services, cloud secrets), `codebase-design` (seams: agent host, daemon, execution port),
 `tdd` (agree seams before tests), `code-review`, and `handoff` at the end.
