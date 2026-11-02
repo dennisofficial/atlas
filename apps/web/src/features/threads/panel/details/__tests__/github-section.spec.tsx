@@ -98,7 +98,7 @@ describe('right panel branch', () => {
     expect(container.textContent).toBe('')
   })
 
-  it('renders a single checkout with its pull request and no group label or path', async () => {
+  it('shows the pull request in place of its branch, with no path', async () => {
     await renderWith({
       thread: threadOf({
         id: 'm',
@@ -106,7 +106,7 @@ describe('right panel branch', () => {
         pullRequests: [link(1, 'main-b')],
       }),
     })
-    expect(branchRows().length).toBe(1)
+    expect(branchRows().length).toBe(0)
     expect(container.textContent).toContain('#1')
     expect(container.textContent).not.toContain('/w/main')
   })
@@ -126,12 +126,27 @@ describe('right panel branch', () => {
     })
     await renderWith({ thread: main, family: [sub] })
     const text = container.textContent ?? ''
-    expect(branchRows().length).toBe(2)
-    expect(text.indexOf('main-b')).toBeLessThan(text.indexOf('sub-b'))
-    expect(text.indexOf('#1')).toBeLessThan(text.indexOf('sub-b'))
-    expect(text.indexOf('sub-b')).toBeLessThan(text.indexOf('#2'))
-    expect(text).toContain('Fix it')
-    expect(text).toContain('/w/sub')
+    expect(branchRows().length).toBe(0)
+    expect(text.indexOf('#1')).toBeLessThan(text.indexOf('#2'))
+    expect(text).not.toContain('/w/sub')
+  })
+
+  it('shows a branch row only for a checkout without a pull request', async () => {
+    const main = threadOf({
+      id: 'm',
+      worktree: { path: '/w/main', branch: 'main-b' },
+      pullRequests: [link(1, 'main-b')],
+    })
+    const mate = threadOf({
+      id: 's',
+      title: 'Mate',
+      worktree: { path: '/w/sub', branch: 'sub-b' },
+    })
+    await renderWith({ thread: main, family: [mate] })
+    const rows = [...branchRows()].map((row) => row.textContent)
+    expect(rows).toEqual(['sub-b'])
+    expect(container.textContent).toContain('#1')
+    expect(container.textContent).not.toContain('/w/sub')
   })
 
   it('merges threads on the same checkout into one group', async () => {

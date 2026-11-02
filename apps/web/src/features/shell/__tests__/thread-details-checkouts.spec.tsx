@@ -27,7 +27,7 @@ describe('thread details checkouts', () => {
     const html = render([mate('/w/sub', 'sub-b')])
     expect(html.indexOf('main-b')).toBeLessThan(html.indexOf('sub-b'))
     expect(html).toContain('>Helper<')
-    expect(html).toContain('/w/sub')
+    expect(html).not.toContain('/w/sub')
   })
 
   it('merges a teammate on the same checkout', () => {
