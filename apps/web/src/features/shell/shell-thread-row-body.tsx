@@ -96,7 +96,7 @@ export function ThreadRowBody({
         onClick={handleSelect}
         data-density={density}
         className={cn(
-          'block min-w-0 flex-1 rounded-md px-2 group-hover/thread:pr-14 group-focus-within/thread:pr-14 pointer-coarse:pr-14 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:overflow-hidden',
+          'block min-w-0 flex-1 rounded-md px-2 group-hover/thread:[&_[data-thread-line=primary]]:pr-12 group-focus-within/thread:[&_[data-thread-line=primary]]:pr-12 pointer-coarse:[&_[data-thread-line=primary]]:pr-12 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:overflow-hidden',
           compact ? 'py-2' : 'py-1.5',
         )}
       >
