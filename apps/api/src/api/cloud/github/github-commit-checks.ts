@@ -7,7 +7,7 @@ import {
   type CheckAttempt,
   type ChecksCount,
 } from '@dltech/atlas-core'
-import { db } from '@dltech/atlas-db'
+import { db, type Tx } from '@dltech/atlas-db'
 import { normalizedRepo } from './github-pr-identity'
 
 export const COMMIT_CHECK_RETENTION_MS = 14 * 24 * 60 * 60 * 1_000
@@ -65,14 +65,39 @@ export function commitStatusInputOf(status: CommitStatusShape): CommitCheckInput
   }
 }
 
+export async function lockCommit(args: {
+  tx: Tx
+  repoFullName: string
+  headSha: string
+}): Promise<void> {
+  const key = `${normalizedRepo(args.repoFullName)}@${args.headSha}`
+  await args.tx.execute(
+    args.tx.raw.sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`.affectedCount().build(),
+  )
+}
+
+export async function recordCommitChecksLocked(args: {
+  repoFullName: string
+  headSha: string
+  checks: readonly CommitCheckInput[]
+}): Promise<void> {
+  if (args.checks.length === 0) return
+  await db.transaction(async (tx) => {
+    await lockCommit({ tx, ...args })
+    await recordCommitChecks({ tx, ...args })
+  })
+}
+
 export async function recordCommitChecks(args: {
+  tx: Tx
   repoFullName: string
   headSha: string
   checks: readonly CommitCheckInput[]
 }): Promise<void> {
   if (args.checks.length === 0) return
   const repoFullName = normalizedRepo(args.repoFullName)
-  await db.transaction(async (tx) => {
+  {
+    const { tx } = args
     const existing = await tx.orm.public.GithubCommitCheck.where({
       repoFullName,
       headSha: args.headSha,
@@ -107,14 +132,15 @@ export async function recordCommitChecks(args: {
         update: fields,
       })
     }
-  })
+  }
 }
 
 export async function commitChecksTally(args: {
+  tx: Tx
   repoFullName: string
   headSha: string
 }): Promise<ChecksCount> {
-  const rows = await db.orm.public.GithubCommitCheck.where({
+  const rows = await args.tx.orm.public.GithubCommitCheck.where({
     repoFullName: normalizedRepo(args.repoFullName),
     headSha: args.headSha,
   }).all()
@@ -130,7 +156,12 @@ export async function commitChecksTally(args: {
 
 export async function pruneCommitChecks(args: { now: Date }): Promise<void> {
   const cutoff = new Date(args.now.getTime() - COMMIT_CHECK_RETENTION_MS)
-  await db.orm.public.GithubCommitCheck.where((row) => row.updatedAt.lt(cutoff)).delete()
+  await db.execute(
+    db.raw
+      .sql`DELETE FROM "GithubCommitCheck" WHERE "updatedAt" < ${cutoff.toISOString()}::timestamptz`
+      .affectedCount()
+      .build(),
+  )
 }
 
 export function restCommitChecksOf(args: {

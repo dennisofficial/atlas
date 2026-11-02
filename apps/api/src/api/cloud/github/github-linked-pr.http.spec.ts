@@ -247,7 +247,7 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
         },
       })
       await waitFor(() =>
-        expect(states(reconnect.frames).some((frame) => frame.state.checksFailed === 1)).toBe(true),
+        expect(states(reconnect.frames).some((frame) => frame.state.checksFailed === 2)).toBe(true),
       )
       expect(await db.orm.public.GithubPrEvent.all()).toEqual([])
       expect(await db.orm.public.GithubSubscription.all()).toHaveLength(expired ? 2 : 0)

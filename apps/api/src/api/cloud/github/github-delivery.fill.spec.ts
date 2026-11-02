@@ -123,6 +123,7 @@ describe('GithubDeliveryService fill', () => {
       owner: 'compai',
       repo: 'app',
       number: 42,
+      collectChecks: expect.any(Function),
     })
     expect((await prStateRows())[0]?.checksPassed).toBe(2)
   })

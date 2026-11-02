@@ -9,7 +9,11 @@ import type {
   RestPullRequest,
 } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
-import { recordCommitChecks, restCommitChecksOf } from './github-commit-checks'
+import {
+  type CommitCheckInput,
+  recordCommitChecksLocked,
+  restCommitChecksOf,
+} from './github-commit-checks'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 
 const GITHUB_API = 'https://api.github.com'
@@ -53,6 +57,7 @@ export class GithubUserReads {
     owner: string
     repo: string
     number: number
+    collectChecks?: (args: { headSha: string; checks: CommitCheckInput[] }) => void
   }): Promise<PullRequestCacheFields> {
     const pull = await this.get<RestPullRequest>({
       source: args.source,
@@ -70,14 +75,19 @@ export class GithubUserReads {
       path: `/repos/${args.owner}/${args.repo}/commits/${pull.head.sha}/status`,
     })
 
-    await recordCommitChecks({
-      repoFullName: `${args.owner}/${args.repo}`,
-      headSha: pull.head.sha,
-      checks: restCommitChecksOf({
-        checkRuns: checkRuns.check_runs,
-        statuses: statuses.statuses,
-      }),
+    const checks = restCommitChecksOf({
+      checkRuns: checkRuns.check_runs,
+      statuses: statuses.statuses,
     })
+    if (args.collectChecks === undefined) {
+      await recordCommitChecksLocked({
+        repoFullName: `${args.owner}/${args.repo}`,
+        headSha: pull.head.sha,
+        checks,
+      })
+    } else {
+      args.collectChecks({ headSha: pull.head.sha, checks })
+    }
 
     return pullRequestCacheFieldsOf({
       pull,

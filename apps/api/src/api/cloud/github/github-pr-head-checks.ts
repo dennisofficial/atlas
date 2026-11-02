@@ -173,11 +173,12 @@ export async function dischargeHeadVerdict(args: {
  * targeting keep it until the verdict lands or the post-terminal window closes.
  */
 export async function unsettledHeadExists(args: {
+  tx?: Tx
   repoFullName: string
   prNumber: number
   headSha: string
 }): Promise<boolean> {
-  const row = await db.orm.public.GithubPrHeadCheck.where({
+  const row = await (args.tx ?? db).orm.public.GithubPrHeadCheck.where({
     repoFullName: args.repoFullName,
     prNumber: args.prNumber,
     headSha: args.headSha,

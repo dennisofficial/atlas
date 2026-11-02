@@ -4,9 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { prStateRows, seedPrState } from '../../../../test/github-seed'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 import {
-  commitChecksTally,
   pruneCommitChecks,
-  recordCommitChecks,
+  recordCommitChecksLocked,
   restCommitChecksOf,
 } from './github-commit-checks'
 import {
@@ -18,9 +17,9 @@ import {
   seedSubscription,
   serviceWith,
 } from './github-delivery.fixture'
+import { RUNNING, setupTrackedPr, tallyOf } from './github-delivery.checks.fixture'
 import { HOOK_EVENTS } from './github-hook-events'
 
-const RUNNING = { status: 'in_progress', conclusion: null, completed_at: null }
 const STATUS_PAYLOAD = (state: string, updated: string) => ({
   id: 9,
   sha: 'abc123',
@@ -31,27 +30,10 @@ const STATUS_PAYLOAD = (state: string, updated: string) => ({
   repository: { full_name: 'compai/app' },
 })
 
-const setup = async (readPullRequest = vi.fn(async () => REST_FIELDS)) => {
-  const harness = serviceWith({
-    tokens: { 'usr-creator': 'ghu_creator' },
-    readPullRequest,
-  })
-  await seedHook({ createdBy: 'usr-creator' })
-  await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-  await seedPrState({
-    ...FILLED_PR_STATE,
-    checksRunning: 0,
-    checksPassed: 0,
-    mergeable: null,
-  })
-  return { ...harness, readPullRequest }
-}
-
 describe('GithubDeliveryService check rows', () => {
   useTestDatabase()
 
   beforeEach(prepareDelivery)
-
   it('tallies a full CI sequence from webhooks and confirms settlement with one REST read', async () => {
     const readPullRequest = vi.fn(async () => ({
       ...REST_FIELDS,
@@ -59,7 +41,7 @@ describe('GithubDeliveryService check rows', () => {
       checksPassed: 5,
       checksIgnored: 1,
     }))
-    const { service } = await setup(readPullRequest)
+    const { service } = await setupTrackedPr(readPullRequest)
     const run = (id: number, over: object) =>
       service.handle({
         event: 'check_run',
@@ -83,10 +65,7 @@ describe('GithubDeliveryService check rows', () => {
     })
 
     expect(readPullRequest).toHaveBeenCalledTimes(1)
-    const tally = await commitChecksTally({
-      repoFullName: 'compai/app',
-      headSha: 'abc123',
-    })
+    const tally = await tallyOf('abc123')
     expect(tally).toEqual({ running: 0, passed: 5, failed: 0, ignored: 1 })
     expect((await prStateRows())[0]).toMatchObject({
       checksRunning: tally.running,
@@ -96,7 +75,7 @@ describe('GithubDeliveryService check rows', () => {
   })
 
   it('keeps a completed run completed when its in_progress delivery arrives late', async () => {
-    const { service } = await setup()
+    const { service } = await setupTrackedPr()
     await service.handle({
       event: 'check_run',
       payload: checkRunPayload({ conclusion: 'failure' }),
@@ -106,19 +85,14 @@ describe('GithubDeliveryService check rows', () => {
       payload: checkRunPayload(RUNNING),
     })
 
-    expect(
-      await commitChecksTally({
-        repoFullName: 'compai/app',
-        headSha: 'abc123',
-      }),
-    ).toMatchObject({
+    expect(await tallyOf('abc123')).toMatchObject({
       running: 0,
       failed: 1,
     })
   })
 
   it('counts a re-run once, as the newer outcome', async () => {
-    const { service } = await setup()
+    const { service } = await setupTrackedPr()
     await service.handle({
       event: 'check_run',
       payload: checkRunPayload({ id: 1, conclusion: 'failure' }),
@@ -132,19 +106,14 @@ describe('GithubDeliveryService check rows', () => {
       }),
     })
 
-    expect(
-      await commitChecksTally({
-        repoFullName: 'compai/app',
-        headSha: 'abc123',
-      }),
-    ).toMatchObject({
+    expect(await tallyOf('abc123')).toMatchObject({
       passed: 1,
       failed: 0,
     })
   })
 
   it('does not change counts for a sha that is not the PR head', async () => {
-    const { service, readPullRequest } = await setup()
+    const { service, readPullRequest } = await setupTrackedPr()
     await service.handle({
       event: 'check_run',
       payload: checkRunPayload({ ...RUNNING, head_sha: 'old999' }),
@@ -158,7 +127,7 @@ describe('GithubDeliveryService check rows', () => {
   })
 
   it('handles status events and subscribes the hook to them', async () => {
-    const { service } = await setup()
+    const { service } = await setupTrackedPr()
 
     expect(HOOK_EVENTS).toContain('status')
     expect(
@@ -171,7 +140,7 @@ describe('GithubDeliveryService check rows', () => {
   })
 
   it('makes no GitHub call for a push, a check_suite or a non-head pull_request action', async () => {
-    const { service, readPullRequest } = await setup()
+    const { service, readPullRequest } = await setupTrackedPr()
     await service.handle({
       event: 'push',
       payload: {
@@ -249,7 +218,7 @@ describe('GithubDeliveryService check rows', () => {
         updated_at: '2026-11-02T04:26:00Z',
       },
     ]
-    await recordCommitChecks({
+    await recordCommitChecksLocked({
       repoFullName: 'compai/app',
       headSha: 'abc123',
       checks: restCommitChecksOf({ checkRuns, statuses }),
@@ -270,12 +239,7 @@ describe('GithubDeliveryService check rows', () => {
       statuses,
     })
 
-    expect(
-      await commitChecksTally({
-        repoFullName: 'compai/app',
-        headSha: 'abc123',
-      }),
-    ).toEqual({
+    expect(await tallyOf('abc123')).toEqual({
       running: rest.checksRunning,
       passed: rest.checksPassed,
       failed: rest.checksFailed,
@@ -284,8 +248,45 @@ describe('GithubDeliveryService check rows', () => {
     expect(rest.checksPassed + rest.checksIgnored + rest.checksRunning).toBe(4)
   })
 
+  it('prunes every stale row across shas and keeps fresh ones', async () => {
+    const old = new Date(Date.now() - 30 * 86_400_000)
+    for (const sha of ['s1', 's2', 's3']) {
+      for (const key of ['run:1', 'run:2']) {
+        await db.orm.public.GithubCommitCheck.create({
+          repoFullName: 'compai/app',
+          headSha: sha,
+          checkKey: key,
+          name: key,
+          startedAt: null,
+          outcome: 'passed',
+          sourceUpdatedAt: old,
+        })
+      }
+    }
+    await db.execute(
+      db.raw
+        .sql`UPDATE "GithubCommitCheck" SET "updatedAt" = ${old.toISOString()}::timestamptz WHERE "headSha" IN ('s1', 's2', 's3')`
+        .affectedCount()
+        .build(),
+    )
+    await db.orm.public.GithubCommitCheck.create({
+      repoFullName: 'compai/app',
+      headSha: 'fresh',
+      checkKey: 'run:1',
+      name: 'x',
+      startedAt: null,
+      outcome: 'passed',
+      sourceUpdatedAt: new Date(),
+    })
+
+    await pruneCommitChecks({ now: new Date() })
+
+    const left = await db.orm.public.GithubCommitCheck.all()
+    expect(left.map((row) => row.headSha)).toEqual(['fresh'])
+  })
+
   it('prunes rows untouched for more than 14 days', async () => {
-    const { service } = await setup()
+    const { service } = await setupTrackedPr()
     await service.handle({
       event: 'check_run',
       payload: checkRunPayload(RUNNING),
