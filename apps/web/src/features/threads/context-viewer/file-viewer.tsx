@@ -52,6 +52,7 @@ export function FileViewer({ path }: { path: string }) {
   )
   const marks = useMemo(() => lineMarksOf(changedFile?.lines ?? []), [changedFile])
   const text = loaded.state === 'ready' && loaded.file.type === 'text' ? loaded.file.content : null
+  const handleViewDiff = () => openChanges(path)
 
   return (
     <section aria-label="File" className="flex h-full min-h-0 flex-col">
@@ -64,7 +65,7 @@ export function FileViewer({ path }: { path: string }) {
           {path}
         </p>
         {changedFile === undefined ? null : (
-          <Button variant="outline" size="sm" onClick={() => openChanges(path)}>
+          <Button variant="outline" size="sm" onClick={handleViewDiff}>
             <GitCompareIcon />
             View diff
           </Button>
