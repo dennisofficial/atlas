@@ -15,7 +15,7 @@ const canLowerOomScore = (): boolean => {
   if (process.platform !== 'linux') return false
   try {
     const current = readFileSync(OOM_PATH, 'utf8').trim()
-    writeFileSync(OOM_PATH, String(Number(current) - 1))
+    writeFileSync(OOM_PATH, SERVE_LIKE_ADJ)
     writeFileSync(OOM_PATH, current)
     return true
   } catch {
