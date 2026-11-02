@@ -96,7 +96,6 @@ beside it: `EFlushReply.Conflict` → `resolveForkFor` → `orphanedInputsOf` �
 ## Append entry points
 
 All delegate to the normal JSONL allocator unless noted.
-
 - **Serve/TUI**: `S/turn-commit.ts:34`, `S/child-send.ts:49`, `S/workspace-hooks.ts:102`,
   `S/serve-resume-boot.ts:51`, `S/serve-boot-app.ts:136`, `S/serve-lifecycle.ts:115`,
   `S/container-notice-events.ts:37`, `T/composition/use-driven-turn.ts:69`,
@@ -124,7 +123,6 @@ All delegate to the normal JSONL allocator unless noted.
 ## Store families (condensed; 92 in the original)
 
 **Durable, file-backed (1–48)**
-
 - Conversation JSONL `THREAD.events.jsonl`: local authority, but Postgres is a second writable
   record (M).
 - `THREAD.meta.json` (title, head, ancestry, placement, …): mixed; head participates in

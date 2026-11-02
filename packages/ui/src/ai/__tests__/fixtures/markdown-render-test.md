@@ -4,21 +4,23 @@ This message covers the common Markdown features. Each section says what it test
 
 ## 1. Inline formatting
 
-This is **bold**, this is *italic*, and this is ***bold italic***. Here is ~~strikethrough~~, `inline code`, and **bold text with `code` inside it**. A [link to example.com](https://example.com), an autolink <https://example.com>, and a bare URL https://example.com. Escaped characters: \*not italic\*, \`not code\`, \# not a heading.
+This is **bold**, this is _italic_, and this is **_bold italic_**. Here is ~~strikethrough~~, `inline code`, and **bold text with `code` inside it**. A [link to example.com](https://example.com), an autolink <https://example.com>, and a bare URL https://example.com. Escaped characters: \*not italic\*, \`not code\`, \# not a heading.
 
 Keyboard keys via HTML: <kbd>Ctrl</kbd> + <kbd>C</kbd>. Sub/superscript via HTML: H<sub>2</sub>O and x<sup>2</sup>.
 
 ## 2. Headings
 
 ### Level 3
+
 #### Level 4
+
 ##### Level 5
+
 ###### Level 6
 
 ## 3. Lists
 
 Unordered, nested:
-
 - First item
 - Second item
   - Nested item
@@ -26,20 +28,17 @@ Unordered, nested:
 - Third item
 
 Ordered, with a custom start number:
-
 3. Starts at three
 4. Continues
-   1. Nested ordered
-   2. Another
+1. Nested ordered
+2. Another
 
 Task list:
-
 - [x] Render headings
 - [x] Render code fences
 - [ ] Render footnotes (we'll see)
 
 A list item with a paragraph and a code block inside it:
-
 1. Install dependencies:
 
    ```bash
@@ -72,18 +71,24 @@ TypeScript:
 
 ```typescript
 enum EHookPhase {
-  Before = "before",
-  After = "after",
+  Before = 'before',
+  After = 'after',
 }
 
 interface HookResult<T> {
-  readonly phase: EHookPhase;
-  readonly value: T;
+  readonly phase: EHookPhase
+  readonly value: T
 }
 
-export async function runHook<T>({ phase, run }: { phase: EHookPhase; run: () => Promise<T> }): Promise<HookResult<T>> {
-  const value = await run();
-  return { phase, value };
+export async function runHook<T>({
+  phase,
+  run,
+}: {
+  phase: EHookPhase
+  run: () => Promise<T>
+}): Promise<HookResult<T>> {
+  const value = await run()
+  return { phase, value }
 }
 ```
 
@@ -227,20 +232,20 @@ graph LR
 
 ## 6. Tables
 
-| Package | Depends on | Pure? |
-| :------ | :--------: | ----: |
-| `core` | `zod` | ✅ |
-| `harness` | core | ❌ |
-| `ui` | nothing | ✅ |
+| Package   | Depends on | Pure? |
+| :-------- | :--------: | ----: |
+| `core`    |   `zod`    |    ✅ |
+| `harness` |    core    |    ❌ |
+| `ui`      |  nothing   |    ✅ |
 
 The colons in the separator row set the column alignment: left, centre, and right.
 
 A table with inline formatting and a long cell:
 
-| Feature | Notes |
-| --- | --- |
-| **Bold** | Works in cells |
-| `code` | Also works |
+| Feature   | Notes                                                                                                                       |
+| --------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Bold**  | Works in cells                                                                                                              |
+| `code`    | Also works                                                                                                                  |
 | Long text | This cell holds a long sentence, to test how the table handles wrapping when the content is wider than the available width. |
 
 ## 7. Math (if supported)
@@ -262,7 +267,7 @@ Here is a sentence with a footnote.[^1] And another.[^note]
 
 ---
 
-***
+---
 
 ## 10. Collapsible section (HTML)
 
@@ -270,7 +275,6 @@ Here is a sentence with a footnote.[^1] And another.[^note]
 <summary>Click to expand</summary>
 
 Hidden content with **formatting** and a list:
-
 - one
 - two
 

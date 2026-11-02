@@ -11,7 +11,6 @@ minified identifiers below (`H4`, `Yo`, `l1`, `f0.cwd`, …) are from that artif
 strings are verbatim from it.
 
 Two access limitations to be transparent about:
-
 - `docs.anthropic.com`, `code.claude.com`, and `docs.claude.com` were unreachable from the
   research machine (TLS interception / OpenDNS block). Official-docs wording is cited secondhand —
   verbatim quotes preserved inside GitHub issues on the official `anthropics/claude-code`
@@ -23,11 +22,10 @@ Two access limitations to be transparent about:
 
 ## 1. Read/Write/Edit schemas: absolute paths are demanded in prose, not enforced
 
-All three tools declare `file_path` as a plain string with an absolute-path *description*; nothing
+All three tools declare `file_path` as a plain string with an absolute-path _description_; nothing
 in the schema (zod `strictObject`) validates absoluteness.
 
 Verbatim from the bundle (`cli.js@2.0.77`):
-
 - Read: `file_path: h.string().describe("The absolute path to the file to read")`
 - Write: `file_path: h.string().describe("The absolute path to the file to write (must be
   absolute, not relative)")`
@@ -75,7 +73,6 @@ Edit, verbatim (https://ccprompts.info/prompts/tool/tool-file-edit, confirmed in
 
 This is the central finding. The description says absolute-only, but **no code path rejects a
 relative path**. Every file tool resolves it against the harness-tracked current working directory:
-
 - Read `validateInput`/`call`: `Yo(A)` = `isAbsolute(A) ? A : resolve(l1(), A)` where `l1()` is the
   tracked cwd.
 - Edit `validateInput`: `let Y = isAbsolute(A) ? A : resolve(l1(), A)` — same pattern.
@@ -83,7 +80,7 @@ relative path**. Every file tool resolves it against the harness-tracked current
   directory, passes absolutes through `normalize()`, and resolves relatives against the tracked
   cwd (`resolve(B, Z)` with `B = l1() ?? originalCwd`).
 
-Evidence that Anthropic *knows* models send relative paths anyway and measures it rather than
+Evidence that Anthropic _knows_ models send relative paths anyway and measures it rather than
 blocking it: Edit's read-before-write rejection carries telemetry
 `meta: { isFilePathAbsolute: String(isAbsolute(A)) }` on both the "not read yet" and "string not
 found" errors — they record how often the model disobeys the prose instead of hard-failing on it.
@@ -113,7 +110,6 @@ canonicalizes it (`realpathSync`) and stores it in `f0.cwd`. The next Bash spawn
 `cwd: <stored cwd>`.
 
 Qualifiers, all verified in the bundle or in the official issue tracker:
-
 - **cd only sticks on success.** The readback runs only when the command succeeded and wasn't a
   background task (`if (m && !Y && !m.backgroundTaskId) try { TL(...) }`). Official issue
   [#30720](https://github.com/anthropics/claude-code/issues/30720): "When a Bash tool command
@@ -145,7 +141,6 @@ Qualifiers, all verified in the bundle or in the official issue tracker:
 Claim under test (`docs/architecture.md:890-891`): Claude Code "lets one cwd move and pays for it
 in validation: seven read-back rejections, forced approval for compound `cd`, per-subagent cwd
 pinning."
-
 - **"lets one cwd move"** — **Verified.** §3: one mutable `f0.cwd`, moved by `pwd` readback.
 - **"forced approval for compound cd"** — **Verified, verbatim.** The Bash permission gate
   contains two distinct hard-`ask` paths (bundle):
@@ -171,7 +166,7 @@ pinning."
 - **"per-subagent cwd pinning"** — **Not found in 2.0.77; refuted for that version.** The subagent
   spawn (`Task` tool path) invokes the query loop with **no cwd parameter at all**; subagents run
   against the same global `f0.cwd` as the parent (their Bash calls spawn with the shared tracked
-  cwd and mutate the same state on readback). What subagents *do* get is (a) a **copy** of the
+  cwd and mutate the same state on readback). What subagents _do_ get is (a) a **copy** of the
   parent's `readFileState` (`readFileState: P2A(parent.readFileState)` — a clone of the
   read-before-write map, so a subagent may edit files the parent read), and (b) the parent's
   `additionalWorkingDirectories` threaded into the subagent system-prompt builder. No per-subagent
@@ -181,7 +176,7 @@ pinning."
 ## 5. Other notable findings
 
 - **Path normalization before permission checks — verified.** Both the deny check and the
-  allow-rule evaluation run on the *resolved* absolute path, not the model's raw string:
+  allow-rule evaluation run on the _resolved_ absolute path, not the model's raw string:
   `SF(Y, permissionContext, "edit"|"read", "deny")` where `Y = isAbsolute(A) ? A : resolve(cwd,
   A)`, and Write uses the fuller `H4` normalizer. The path the human approved against is the
   canonical one. The workspace-containment check (`MP`) additionally flattens the macOS
@@ -189,10 +184,10 @@ pinning."
   spuriously broken by that alias.
 - **Tilde expansion — verified, but inconsistent across tools.** `H4` expands `~` and `~/...` to
   the home directory; Write (and anything else routed through `H4`) accepts tilde paths. Read's
-  `Yo` and Edit's *validateInput* resolver are plain `isAbsolute ? A : resolve(cwd, A)` — a `~`
+  `Yo` and Edit's _validateInput_ resolver are plain `isAbsolute ? A : resolve(cwd, A)` — a `~`
   path there resolves to `<cwd>/~/...` and fails. Edit's `call` then re-resolves through `H4`, so
   the validate and execute paths of Edit can key on different strings for tilde inputs.
-- **Read-before-write is keyed on the resolved path *string* — verified.** `readFileState` is an
+- **Read-before-write is keyed on the resolved path _string_ — verified.** `readFileState` is an
   LRU map (`max: 1000`) keyed by the resolved absolute path. Read populates it with
   `{ content, timestamp: mtimeMs(path), offset, limit }`; Write/Edit look up
   `readFileState.get(resolvedPath)` and reject with "File has not been read yet. Read it first
@@ -207,15 +202,15 @@ pinning."
   search-engine extraction, not directly): "Claude Code checks file permissions against Edit
   (path) and Read (path) rules only. If you write a path rule for Write, NotebookEdit, Glob, or
   the legacy MultiEdit tool instead, Claude Code accepts the rule but never consults it, and warns
-  at startup…" — i.e. Write permission is governed by the *Edit* rules, consistent with Write and
+  at startup…" — i.e. Write permission is governed by the _Edit_ rules, consistent with Write and
   Edit sharing the same read-before-write state machine in the bundle.
 
 ## Implications for Atlas
 
 1. **The absolute-path requirement is prose in Claude Code, not schema.** Atlas currently encodes
    in zod what Anthropic encodes in the system prompt plus a forgiving resolver. The observed
-   Claude Code failure mode — model sends a relative path — is *measured and repaired in the error
-   channel* ("Current working directory: …"), not rejected. Atlas's hard-reject dies before the
+   Claude Code failure mode — model sends a relative path — is _measured and repaired in the error
+   channel_ ("Current working directory: …"), not rejected. Atlas's hard-reject dies before the
    Guard hook that was designed to absolutize: the ordering bug means Atlas is stricter than the
    reference harness it cites, in a way that produces dead turns rather than teaching moments.
 2. **Fixing the ordering (Guard absolutizes before validation) matches the reference design.**

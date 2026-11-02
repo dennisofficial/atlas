@@ -1,7 +1,7 @@
 # Atlas architecture
 
-Authoritative. Where the code disagrees about *mechanism*, the code wins; where it disagrees about
-*intent*, change the code. Every load-bearing claim here was established by a spike, not by argument
+Authoritative. Where the code disagrees about _mechanism_, the code wins; where it disagrees about
+_intent_, change the code. Every load-bearing claim here was established by a spike, not by argument
 — evidence in `docs/research/`, seams in `docs/core-contract.md`.
 
 The v2 redesign (pod-first state ownership) is designed in `docs/v2/`; this file describes v1.
@@ -71,7 +71,8 @@ async function runTurn({ threadId, signal }: { threadId: string; signal: AbortSi
     settleAttempted = undefined
     const { parts, toolCalls } = await modelStep({ assembled, tools, signal })
 
-    if (parts.length > 0) await log.append({ threadId, drafts: [{ type: 'assistant-said', parts }] })
+    if (parts.length > 0)
+      await log.append({ threadId, drafts: [{ type: 'assistant-said', parts }] })
     for (const [ordinal, call] of toolCalls.entries()) {
       await log.append({ threadId, drafts: [{ type: 'tool-called', ordinal, ...call }] })
     }
@@ -89,7 +90,7 @@ const resume = runTurn
 **A turn never returns `Completed` with an unanswered message behind it.** There are three edges back
 to the read, not one: a settlement finished, the step emitted tool calls, and — before the hooks that
 close the turn — something the model has not seen arrived while the last step was running. A message
-the developer typed mid-turn is pulled from the composer's queue at the boundary *before* assembling,
+the developer typed mid-turn is pulled from the composer's queue at the boundary _before_ assembling,
 never appended when it was typed: a message not yet consumed is a draft the developer may still edit
 or take back, and an append-only log cannot represent that. Draining at the boundary also puts the
 message after the assistant turn it followed, which is what keeps the prompt from ending on the
@@ -117,9 +118,9 @@ model calls rather than loop iterations because `nudge.lifetimeSteps` is specifi
 **A run of identical calls is cut out of the log, not argued with.** A model that calls the same
 tool with the same input and gets the same result, three times running with nothing in between, is
 polling — and a generative model repeats whatever its own history shows, so a reminder appended
-*after* the run just joins the pattern it was meant to break. `loopCutPlan` (`core/events/loop-cut`)
+_after_ the run just joins the pattern it was meant to break. `loopCutPlan` (`core/events/loop-cut`)
 instead finds the run at the tail — one or more rounds repeating as a unit, every call settled,
-every result byte-identical — and the loop rewinds the thread to just after the *first* occurrence:
+every result byte-identical — and the loop rewinds the thread to just after the _first_ occurrence:
 the information stays, the repetition goes. Two guards keep the cut honest. The unit's calls must
 all be `repeatable` — a declared Read tool, or a `bash` command the classifier's own reading proves
 read-only deed by deed, never a backgrounded one — and the store re-verifies before deleting: a
@@ -132,7 +133,7 @@ detection in one turn fails it naming the call — the same stuck-detector shape
 
 **`settlePending` is built by the loop, not injected into it.** `TurnDeps` takes `dispatch`; the loop
 constructs `settlePending` from `dispatch` and the log it already holds. Injecting a pre-built
-`settlePending` meant it closed over a *different* log than the loop wrote through — two logs writing
+`settlePending` meant it closed over a _different_ log than the loop wrote through — two logs writing
 one thread in a single turn, which the delta-publishing wrapper makes reachable. Absent `dispatch`,
 the loop pauses on a pending call exactly as it did before tools existed, which is what a subagent
 given no tools needs.
@@ -141,7 +142,7 @@ given no tools needs.
 what makes a turn which paused and resumed produce a log identical to one that completed in a single
 pass — the property the whole event-log design exists to protect.
 
-**Resume is almost not implemented.** `resume` *is* `runTurn`, because position is a pure function of
+**Resume is almost not implemented.** `resume` _is_ `runTurn`, because position is a pure function of
 the log. Proven by serializing the log, discarding every in-memory object, rebuilding with a
 different model script, and completing the turn. A durable pause is `return`.
 
@@ -301,7 +302,7 @@ that nobody reattaches to. There is no independent spool-directory sweep.
 **Every ending notifies, and the model does not get a say.** There was a `notifyOnExit` axis —
 `always` / `on-failure` / `never` — and it is gone. An option nobody should choose should not exist:
 a model that opted out of hearing about a shell reasons about a dev server that died ten minutes ago,
-and a shell a *human* killed is the case where the model most needs telling and the one an
+and a shell a _human_ killed is the case where the model most needs telling and the one an
 outcome-shaped policy stayed quietest about. So a kill notifies, a failure notifies, a clean exit
 notifies, and teardown notifies.
 
@@ -379,7 +380,7 @@ flow rather than feed its old one-time code to a new process.
 ## Services
 
 A background shell is work the model is waiting on; a **service** is infrastructure the model works
-*against* — a dev server, a watcher, anything that should stay up while the work continues. The
+_against_ — a dev server, a watcher, anything that should stay up while the work continues. The
 registries are separate because the lifetimes are: a service never times out, never holds a turn
 open, has no watch and no awaiting-input, and nothing about it is scoped to the thread that started
 it. `harness/src/services/` mirrors `harness/src/shells/` member for member over those axioms —
@@ -391,7 +392,7 @@ whatever `ShellRegistryPort` does.
 window and an overflow kill cannot serve. So stdout and stderr share one append-mode fd under
 `<atlasHome>/services/<id>.log` — interleaving in the log matches interleaving in time — and the
 model reads it with the file tools it already has. There is no `service_output` tool: the
-`service_start` reply names the path, and an ending carries a tail read *at handover*, so a notice
+`service_start` reply names the path, and an ending carries a tail read _at handover_, so a notice
 dropped rather than delivered loses nothing. This is the legacy registry's shape
 (`deprecated/tui`'s `ServiceRegistryService`) carried forward where the shell buffer's shape does
 not fit.
@@ -475,7 +476,7 @@ workspace, the write access — is identical.
 
 **How a child's speech reaches its parent is a property of the agent type, declared once and read
 everywhere — never a branch on the type's name.** `AgentType.speaks` (harness/agents/types) is an
-`ESpeech`. `OnEnd` — the default, every built-in type but one: the ending *is* the report, so the
+`ESpeech`. `OnEnd` — the default, every built-in type but one: the ending _is_ the report, so the
 notice wakes the parent, `agentEndingsBlock` renders it to the model as `<agents-ended>`, it counts
 as turn-taking, and the transcript shows the ending line. `ByReport` — `teammate`: the child is a
 peer session whose turns end for reasons of its own, so it speaks only by calling `report_to_main`
@@ -535,7 +536,7 @@ the brief decide.
 to children, so a child's own log never holds a `worktree-entered`, and folding it with the process
 launch directory would anchor a child to a checkout the session has since left — its prompt, its
 relative path resolution and the outside-project nudge would all name the wrong directory. The
-supervisor therefore snapshots `projectDirectoryOf` over the *parent's* log at spawn and hands it
+supervisor therefore snapshots `projectDirectoryOf` over the _parent's_ log at spawn and hands it
 down as the child's `launchDirectory`, so the fold every consumer already runs lands on the session's
 real directory. The snapshot does not follow a parent that moves worktrees mid-child: children are
 briefed against the directory at spawn and are short-lived.
@@ -548,7 +549,7 @@ seen the file — the guard reporting a fact about a conversation that did not h
 
 **The guard is three separate properties, and one verb does not cover them.**
 
-*Exclusion, which eliminates the agent-versus-agent race.* `withPathLock` is a per-path in-process
+_Exclusion, which eliminates the agent-versus-agent race._ `withPathLock` is a per-path in-process
 async mutex, and `FileWriteGuardPort.underLock` takes the lock, re-verifies against **that thread's**
 recorded view, and only then writes — the whole read-modify-write inside the lock, rather than a
 decision in the hook and a write in the tool with nothing holding the file between. Because every
@@ -556,14 +557,14 @@ sub-agent runs in this one process, that closes the race outright rather than sh
 proven concurrently and not sequentially: two writes raced through `Promise.all` yield exactly one
 success and one refusal.
 
-*Detection, which closes the content-blind predicate.* `FileView` carries a `digest`, and
+_Detection, which closes the content-blind predicate._ `FileView` carries a `digest`, and
 `movedSince` consults it only when `mtimeMs` and `size` both agree — precisely the coarse-filesystem
 case the old predicate missed, where a same-size edit inside one timestamp tick read as unchanged.
 Unconditional rather than size-thresholded, deliberately: a threshold would put a silent hole on
 exactly the large generated files a formatter is most likely to rewrite. Measured at 0.8 ms on a
 10 MB file, against tool calls in the tens of milliseconds.
 
-*Neither, for a concurrent external editor.* That one is only **narrowed**. No in-process lock can
+_Neither, for a concurrent external editor._ That one is only **narrowed**. No in-process lock can
 see another OS process, and a pre-rename re-stat was deliberately not added — it would shrink the
 window to a syscall gap and never to zero, which is a worse trade than saying plainly that the
 window exists. `writeFileAtomically` is a fourth thing again, solving neither: it guarantees no
@@ -591,7 +592,7 @@ never foreclosed" is no longer the design. Recursion was foreclosed on purpose.
 
 **Nothing per-run belongs in the DI container; wanting a child container is a smell that
 run-varying config got injected instead of passed.** A child's runner is constructed at spawn time
-with its own registry, dispatcher, model and assembly. The supervisor holds a *thunk* for those
+with its own registry, dispatcher, model and assembly. The supervisor holds a _thunk_ for those
 deps rather than the deps themselves, because `agent_spawn` is a `ToolDefinition` the registry
 constructs and resolving a child's tools eagerly would close the cycle.
 
@@ -613,8 +614,8 @@ view and opening it again, which a clock kept in the view cannot do.
 
 This is the one rule inherited from legacy Atlas, and it was learned the hard way. The old harness
 let a child's prose persist as the parent's own, because frames arrived interleaved on one stream
-and transport was mistaken for authorship — a thread that delegated a fifteen-file sweep *in order
-not to read fifteen files* ended up with all fifteen reads in its scrollback, and
+and transport was mistaken for authorship — a thread that delegated a fifteen-file sweep _in order
+not to read fifteen files_ ended up with all fifteen reads in its scrollback, and
 `deprecated/tui/scripts/backfill-delegate-prose.ts` exists to delete what that bug wrote.
 
 **Never append a child's events to the parent's log.** New Atlas is structurally immune — a child's
@@ -622,7 +623,7 @@ rows carry the child's `threadId` — and it must stay that way. What the parent
 `agent-spawned` row, live counts on it, and one `agent-ended` carrying the child's final prose.
 
 **The same rule has a second door, and `agentEndingsBlock` is what shuts it.** Twenty children
-finishing is twenty `agent-ended` rows each carrying prose, so the rule groups *contiguous* endings
+finishing is twenty `agent-ended` rows each carrying prose, so the rule groups _contiguous_ endings
 into a wave and renders one `<agents-ended>` block per wave. The headline states the count and then
 says the quiet part out loud — none of the children's own steps are in the parent's history and
 none are coming, so what is quoted here is all of it. Some endings carry an extra sentence of
@@ -637,9 +638,9 @@ between the turns either side of it. There was never a trade-off between convers
 and wave collapsing — a per-event rule would have had the first and structurally could not have had
 the second.
 
-**Its slot in `defaultRules` is load-bearing in both directions.** It runs *after*
+**Its slot in `defaultRules` is load-bearing in both directions.** It runs _after_
 `messagesFromEvents`, because it merges into `input.messages` and there is nothing to merge into
-before that. It runs *before* `compactedHistory`, because the block carries the anchor ending's
+before that. It runs _before_ `compactedHistory`, because the block carries the anchor ending's
 seq: placed after, an ending that compaction had already replaced would be spliced back in on top
 of the summary that replaced it, and the same report would return forever. Both were verified by
 perturbation, not by reading.
@@ -656,7 +657,7 @@ agents wake it four times, each announcement in the same step as another `agent_
 a step carrying any tool call continues the loop and only a text-only step ends the turn. So
 `runningAgentsBlock` appends a tail reminder naming the running children — the sibling of
 `runningShellsBlock`, sharing `appendedAtTail` with it — and it states the mechanism rather than only
-forbidding the poll: ending the turn *is* the wait, because an ending that lands while nothing is
+forbidding the poll: ending the turn _is_ the wait, because an ending that lands while nothing is
 running opens the turn that delivers it.
 
 **The roster carries nothing that moves.** agentId, type and intent, and no turn count, no tool-call
@@ -704,7 +705,7 @@ appears, and nothing anywhere says why. So `parseAgentType` returns an `EAgentTy
 empty, bad name, no description, no prompt, bad `max-effect`, unusable model, unreadable — and
 `AgentTypeSource.load` returns `{ types, refusals }` rather than a bare list. `AgentTypeCatalog`
 also reports what was `shadowed`, because a project type silently overriding a user type is the
-other way to be confused about which prose is running. A *missing* directory stays silent, since
+other way to be confused about which prose is running. A _missing_ directory stays silent, since
 not having written any agent types is not a mistake; an unreadable one is a refusal.
 
 **`model:` is honoured and validated**, which reverses an earlier deferral. The reasoning that
@@ -802,13 +803,13 @@ nothing went wrong, and not to re-spawn it unless asked.
 
 **`Unrecorded` is the fourth member and it is named for what is provable.** Not `Crash`, not
 `ProcessLoss` — Atlas does not observe a process dying, it observes that no ending was ever
-written. It reads as *"was lost before anything recorded how it ended"*: never the word "stopped",
+written. It reads as _"was lost before anything recorded how it ended"_: never the word "stopped",
 never an actor, because inventing either would be the same lie in the other direction. The status
 stays `Stopped`, and the advice note tells the parent the work may be half-applied and to check
 before redoing it. The name generalises to any reconstructed ending, not only a crash.
 
 **Reconstruction is explicit, awaited, and separate from reading.** `ChildRecovery` splits the two:
-read-only roster rebuilding stays lazy behind `hydrate`, while `recordLostAgents` — which *writes*
+read-only roster rebuilding stays lazy behind `hydrate`, while `recordLostAgents` — which _writes_
 the missing `agent-ended` — is called once per conversation from `openConversation`, never from a
 render or a `getSnapshot`. Nothing auto-resumes a recovered child. That is the operator's call,
 because one that died mid-`bash` may have left the tree changed.
@@ -816,7 +817,7 @@ because one that died mid-`bash` may have left the tree changed.
 **A restart is recorded, because an unrecorded one rebuilds as the stale ending before it.**
 A message to a settled child, a queued-notice wake, and a relocation each append
 one `agent-restarted` row to the parent's log before the child steps again. Without it, a process
-that dies mid-restart leaves the parent's log saying the child *ended* — and the rebuilt roster
+that dies mid-restart leaves the parent's log saying the child _ended_ — and the rebuilt roster
 shows that stale ending with its old counts, which the sidebar and `agent_list` then report as
 fact while the model concludes the resume never happened. With it, the rebuild reads an un-ended
 child, `recordLostAgents` settles it as `Unrecorded` on open, and the transcript says what is
@@ -824,7 +825,7 @@ true: the child was restarted and nothing recorded how that ended. A rewind trea
 like a cut spawn — the child it revived is a creation of the cut region and is destroyed with it.
 
 **A settled loss needs no second surface, and did not get one.** `settleLostChildren` writes a real
-`agent-ended` carrying `Unrecorded`, `openConversation` does that *before* reading events, and the
+`agent-ended` carrying `Unrecorded`, `openConversation` does that _before_ reading events, and the
 transcript renders it like any other ending — so reopening a conversation already says a sub-agent
 "was lost before anything recorded how it ended, after N turns and M tool calls". A notice would
 have carried less than that row does and would not have persisted in scrollback.
@@ -896,7 +897,7 @@ A long conversation walks into the context ceiling, so `assemble` re-deriving th
 log every step is not sustainable on its own. Compaction is what bounds it, and the shape it takes is
 decided by one question: does it destroy the rows it compacts?
 
-**One thread, one log.** The log *is* the thread, so every operation that adjusts context acts on the
+**One thread, one log.** The log _is_ the thread, so every operation that adjusts context acts on the
 current log rather than producing a second conversation. Rewind truncates it. Compaction replaces a range of it with a summary.
 A sub-agent may one day inherit its parent's prefix **by reference**, which would be safe precisely
 because that child is read-only over the inherited rows and its depth is bounded by agent nesting
@@ -910,7 +911,7 @@ with an empty log holding only its brief. The reason is not caution about the in
 it is that the spawn site cannot fork at all: a child forked from inside `agent_spawn`'s own tool
 call is refused by `forkTarget`'s `UnsettledToolCall` guard, and bypassing that guard puts the
 parent's dangling `tool_use` in the child's assembled prefix, where `exchangeFaults` fails the turn
-before the model is called. Choosing a fork seq *before* the call does not help, because a parallel
+before the model is called. Choosing a fork seq _before_ the call does not help, because a parallel
 batch leaves siblings unsettled at any seq. Reference forking is therefore its own effort, and it
 needs an assembly answer first rather than a store one.
 
@@ -929,10 +930,9 @@ return events whose `threadId` is a different thread. An audit of every consumer
 now closed — four of them by the fresh-only sub-agent work, which needed the same guarantees for a
 different reason — and the list is kept because it is the acceptance criteria reference forking will
 be held to:
-
 1. **Closed. The loop reads `readOwn` for control flow.** `pendingCalls`, `outstandingApproval` and
    `awaitsReply` all read `rowsOwnedBy` rather than the composed list. Over a composed read they saw the
-   *parent's* state, and a child forked from inside a tool call inherits an unsettled `tool-called` by
+   _parent's_ state, and a child forked from inside a tool call inherits an unsettled `tool-called` by
    construction: it would either pause forever awaiting a tool it never called, or re-dispatch the
    spawning tool and fork again. An inherited unanswered approval wedges a child the same way, because
    the answer can only be written on the parent above the fork point, where the child can never see it.
@@ -979,20 +979,20 @@ truncates when a range is unsafe.
 **`context-loaded` is exempt from the delete.** It means "here is the current content of X", not history,
 so compacting it away would strip a thread's `CLAUDE.md` permanently — and `append`'s content-keyed
 idempotency means an unchanged re-offer resolves to the row that is no longer there. The delete therefore
-spares `context-loaded`, the assembly rule renders those messages *ahead* of the summary, and the
+spares `context-loaded`, the assembly rule renders those messages _ahead_ of the summary, and the
 summariser's transcript render leaves them out so they are not duplicated into the prose. Instructions,
 then the compacted history, then the live turns.
 
-**Compaction has two anchors, and they are not symmetric.** A *prefix* compaction replaces the oldest
+**Compaction has two anchors, and they are not symmetric.** A _prefix_ compaction replaces the oldest
 turns and puts the summary at the high end of the range it replaced, immediately before the survivors. A
-*suffix* compaction — the operator pointing at a message and saying "summarise from here" — replaces the
+_suffix_ compaction — the operator pointing at a message and saying "summarise from here" — replaces the
 newest turns and puts the summary at the low end, immediately after the survivors. `ECompactionAnchor`
 records which, explicitly rather than by inference, because two things downstream need to tell them apart.
 
 The first is the rewind floor. `compactedThrough` counts only prefix compactions: a suffix compaction
 deletes the tail and leaves everything below it intact, so it must not stop the operator rewinding into
-rows that are still there. The second is the guard. A prefix cut orphans a tool *result* whose call it
-removed, which the provider rejects; a suffix cut strands a dispatched *call* whose result it summarised
+rows that are still there. The second is the guard. A prefix cut orphans a tool _result_ whose call it
+removed, which the provider rejects; a suffix cut strands a dispatched _call_ whose result it summarised
 away, so the next turn runs the tool a second time. Those are different failures found by different
 projections, which is why `suffixCompactionTarget` is its own function rather than a parameter on the
 first.
@@ -1014,8 +1014,8 @@ system block, and compaction never touches `system`, the entry worth protecting 
 is every message-cache anchor after the watermark, because anchors are absolute positions counted from the
 front — so expect one cold turn, and prefer compacting rarely and deeply over often and shallowly.
 
-**Summarising is I/O, so it is not a rule.** `core/compaction` decides *whether* a watermark is safe
-(`compactionTarget`) and *where* it should go (`planCompaction`); `harness/store/compact.ts` performs the
+**Summarising is I/O, so it is not a rule.** `core/compaction` decides _whether_ a watermark is safe
+(`compactionTarget`) and _where_ it should go (`planCompaction`); `harness/store/compact.ts` performs the
 operation, and the summary itself comes from a one-shot model call shaped like the session titler.
 `core/budget/resolveBudget` is the controller above the pipeline: it re-runs the pure assembly against
 each rung of a recency ladder, measuring candidates by actually re-assembling them rather than by
@@ -1124,7 +1124,7 @@ the tools refuse with a reason and the index says memory is unavailable.
 
 **The name is the memory's identity.** A memory named for the claim it makes (`bun-deflate-is-raw-not-zlib`)
 is superseded by writing that name again, which upserts and bumps the revision. This is the cheap version of
-a result from the shared-memory literature: contradictions are on average *more* similar to the original than
+a result from the shared-memory literature: contradictions are on average _more_ similar to the original than
 duplicates are, so no similarity threshold separates "restates" from "overturns" — you need a stable identity
 key instead. `edit_memory` carries the revision the model read and the server refuses a stale one, so a
 concurrent writer is never silently overwritten.
@@ -1152,11 +1152,11 @@ and a Haiku model is already provisioned, so the seam is there when the index st
 
 ## Three timelines
 
-| Timeline | Owner | Restored by |
-| --- | --- | --- |
-| **Conversation** — messages, reasoning, tool calls, approvals | EventLog (per-session JSONL) | move the thread head |
-| **Control** — pending tool, retries, interrupt reason | *derived from the log* | re-read the log |
-| **World** — files, git index, worktree, subprocesses | Execution ports and external systems | not restored by conversation rewind |
+| Timeline                                                      | Owner                                | Restored by                         |
+| ------------------------------------------------------------- | ------------------------------------ | ----------------------------------- |
+| **Conversation** — messages, reasoning, tool calls, approvals | EventLog (per-session JSONL)         | move the thread head                |
+| **Control** — pending tool, retries, interrupt reason         | _derived from the log_               | re-read the log                     |
+| **World** — files, git index, worktree, subprocesses          | Execution ports and external systems | not restored by conversation rewind |
 
 The middle row is where frameworks want to sell you a checkpointer. We don't have one because we
 don't need one.
@@ -1174,7 +1174,7 @@ The **launch directory** is fixed for the life of the process: it is what `--cwd
 the only one held in the container, as `WorkspaceRoot`. The **project directory** is where the
 session is working — the session's home directory, or the worktree it has entered. Home starts as
 the launch directory and moves only when a `worktree-exited` records a `returnTo`, which is what
-leaving a worktree the session was *launched* inside does: the session is re-homed to the
+leaving a worktree the session was _launched_ inside does: the session is re-homed to the
 repository's main checkout rather than sent back to a checkout it just left. The project directory
 is the single anchor: it anchors `.atlas/settings.json`, project skills, the instruction-file
 descent, every relative path a tool is given, and the directory every bash command starts in.
@@ -1201,7 +1201,7 @@ the container would have been the checkpointer the two rules exist to refuse. `e
 moves it the only way anything moves here — tool output an `AfterTool` hook turns into an event,
 never a setter.
 
-A session *launched* inside a worktree holds no `worktree-entered` at all, so "is this session in a
+A session _launched_ inside a worktree holds no `worktree-entered` at all, so "is this session in a
 worktree" cannot be read from the log alone — the old guard did exactly that, and such a session
 could never leave. When the log is silent, `exit_worktree` asks git instead: `probeWorkspace`
 resolves the launch directory's toplevel, and `repositoryAt` confirms that toplevel is a listed
@@ -1317,7 +1317,7 @@ them, the terminal status, and the span. It is accounting, so it is deliberately
 rewind consults it, and a failed write is reported and swallowed rather than failing the turn. It
 stores tokens, never money: cost is derived from the counts and `modelId` at read time, so a
 corrected rate applies to history instead of only to turns run after the correction. Cache reads and
-cache writes are counted *inside* `inputTokens` rather than on top of it, which is why
+cache writes are counted _inside_ `inputTokens` rather than on top of it, which is why
 `contextTokens()` sums input and output alone and the ledger keeps all four tiers — "how full is the
 window" and "what did this cost" are different questions over the same numbers.
 
@@ -1327,7 +1327,7 @@ conflating it with `Failed` would make the ledger lie about whether the turn end
 ledger settles from a `finally` around the loop rather than before each `return`, because the loop
 has nine terminal exits and a tenth is one refactor away.
 
-The **raw tape** is every provider stream part, verbatim, as JSONL — tapped *above* `toCoreChunk`, so
+The **raw tape** is every provider stream part, verbatim, as JSONL — tapped _above_ `toCoreChunk`, so
 a part the conversion drops to `null` is still recorded, which is the failure class the tape exists to
 catch. Off unless `ATLAS_RAW_TAPE` is set, one file per process, closed by the disposal registry
 rather than by the stream function that taps it. It rotates at a segment cap instead of falling
@@ -1412,7 +1412,6 @@ because the keychain is one platform's and the vault is not.
 the turn — nothing above the port has to know a refresh happened.
 
 Credential decisions are pure and live in `core/credentials/`, tested with plain data:
-
 - `refreshDecision` — fresh, due inside a five-minute skew, or unrefreshable.
 - `chooseAccount` — which account answers. An `expired` account is ranked last but never excluded,
   because a refresh is the only thing that clears that status and excluding it makes the door
@@ -1616,7 +1615,7 @@ Resolution order, most specific first: `--model` for the conversation the proces
 the thread's own pair, then the settings default, then `fallbackRef` — the shipped Anthropic
 default when its provider is set up, the first reachable provider's first card when it is not,
 because a default nobody can run is no default at all. A thread naming a model that left the
-catalogue — or whose account is gone — falls back *whole*, so an effort never outlives the model
+catalogue — or whose account is gone — falls back _whole_, so an effort never outlives the model
 that offered it.
 
 **A child's model and effort are chosen at spawn and change only by an explicit operator pick.**
@@ -1659,7 +1658,7 @@ it actually ran on rather than re-deriving it from a default that may have moved
 
 ## Notices
 
-Everything the TUI says *about* the app rather than *in* the conversation — copied, a plugin that
+Everything the TUI says _about_ the app rather than _in_ the conversation — copied, a plugin that
 refused to load, the nudge classifier gone unreachable, sub-agents a dead process never recorded —
 goes through one notice system, so no feature hand-rolls its own toast, pill or pop-up again.
 
@@ -1798,28 +1797,28 @@ Max 300 lines per file. Tests in a sibling `__tests__/` as `*.spec.ts`.
 
 ## Decisions
 
-| Concern | Decision |
-| --- | --- |
-| Loop substrate | **Hand-rolled.** No LangGraph, no Mastra |
-| Canonical record | Append-only event log — `messages[]` with types |
-| Prompt | Derived per step by `assemble`; never accumulated |
-| Checkpoints | None. Position is derived |
-| Storage | Per-session JSONL files (`<home>/sessions/<id>/`); no database |
-| Model layer | AI SDK, `streamText` one step, as normalization only |
-| Provider interface | `LanguageModelV4` |
-| Context operations | Ours, model-agnostic |
-| Sub-agents | A spawned thread, not a recursive call. Depth capped at one by the child's tool registry |
-| DI | **tsyringe.** Class tokens, `@injectAll` for the hook and tool sets — see `.scratch/tsyringe-di/spec.md` |
-| Hook discovery | Glob at dev time, generated manifest for `--compile` |
-| Format evolution | Versioned event payloads; readers tolerate every historical shape; a newer `format` in a session's meta refuses loudly |
-| Packages | `core`, `harness`, `apps/tui` — raw TS source, no build step |
-| Runtime | Bun — runtime and package manager; tests run `bun test` (`evals` stays on Vitest, as evalite is a vitest harness) |
-| Task runner | **Turborepo.** `turbo run typecheck \| test \| build`; per-package scripts stay `tsc` / `bun test` |
-| Fenced-code highlighting | **Two tiers.** tree-sitter wasm where a small maintainer build exists; a declarative lexer for the long tail |
+| Concern                  | Decision                                                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Loop substrate           | **Hand-rolled.** No LangGraph, no Mastra                                                                               |
+| Canonical record         | Append-only event log — `messages[]` with types                                                                        |
+| Prompt                   | Derived per step by `assemble`; never accumulated                                                                      |
+| Checkpoints              | None. Position is derived                                                                                              |
+| Storage                  | Per-session JSONL files (`<home>/sessions/<id>/`); no database                                                         |
+| Model layer              | AI SDK, `streamText` one step, as normalization only                                                                   |
+| Provider interface       | `LanguageModelV4`                                                                                                      |
+| Context operations       | Ours, model-agnostic                                                                                                   |
+| Sub-agents               | A spawned thread, not a recursive call. Depth capped at one by the child's tool registry                               |
+| DI                       | **tsyringe.** Class tokens, `@injectAll` for the hook and tool sets — see `.scratch/tsyringe-di/spec.md`               |
+| Hook discovery           | Glob at dev time, generated manifest for `--compile`                                                                   |
+| Format evolution         | Versioned event payloads; readers tolerate every historical shape; a newer `format` in a session's meta refuses loudly |
+| Packages                 | `core`, `harness`, `apps/tui` — raw TS source, no build step                                                           |
+| Runtime                  | Bun — runtime and package manager; tests run `bun test` (`evals` stays on Vitest, as evalite is a vitest harness)      |
+| Task runner              | **Turborepo.** `turbo run typecheck \| test \| build`; per-package scripts stay `tsc` / `bun test`                     |
+| Fenced-code highlighting | **Two tiers.** tree-sitter wasm where a small maintainer build exists; a declarative lexer for the long tail           |
 
 **`core` owns its own message type.** `Assembled` cannot hold `ModelMessage` without `core` depending
 on the AI SDK, which would make model-agnosticism aspirational rather than real — and AI SDK ships
-V2/V3/V4 simultaneously, so `core` would churn on their versioning. The type is deliberately *thin*
+V2/V3/V4 simultaneously, so `core` would churn on their versioning. The type is deliberately _thin_
 and structurally close to `ModelMessage`, with
 `providerOptions: Record<string, Record<string, JsonValue>>` passed through opaquely, so conversion in
 `harness/model/` is near-identity and no provider capability needs modelling in `core`. The nesting is
@@ -1876,7 +1875,7 @@ long-lived process that amortises it away.
 What Nest would have given us is ordered teardown. tsyringe has no lifecycle at all, so disposal is an
 explicit registry the composition root owns.
 
-**Ports are `abstract class`, not `interface`,** so the token *is* the contract — no symbol table, no
+**Ports are `abstract class`, not `interface`,** so the token _is_ the contract — no symbol table, no
 stringly-typed `@inject`. `core` therefore emits runtime values, which costs it nothing: still zero
 dependencies, still no I/O.
 

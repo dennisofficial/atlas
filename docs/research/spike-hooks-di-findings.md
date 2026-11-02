@@ -10,7 +10,8 @@ Adding a hook costs one file and no edits elsewhere, enforced mechanically rathe
 ```ts
 test('no file under src/ mentions the new hooks', () => {
   const mentions = sourceFiles(SRC_DIR).filter((file) =>
-    NEW_HOOK_NAMES.some((name) => readFileSync(file, 'utf8').includes(name)))
+    NEW_HOOK_NAMES.some((name) => readFileSync(file, 'utf8').includes(name)),
+  )
   expect(mentions).toEqual([])
 })
 ```
@@ -26,15 +27,15 @@ manifest (below).
 
 ## Nest does not earn its weight — measured
 
-| | |
-| --- | --- |
+|                                                   |                                |
+| ------------------------------------------------- | ------------------------------ |
 | `import @nestjs/core + common + reflect-metadata` | **~50 ms every process start** |
-| — `rxjs` alone, which the harness never uses | 17 ms |
-| `reflect-metadata` alone | 0.8 ms |
-| `NestFactory.createApplicationContext` (warm) | 0.87 ms median |
-| glob discovery alone | 0.03 ms |
-| hand-wiring 3 hooks + 3 tools with `new` | 0.04 ms |
-| `node_modules` | 14.4 MB (rxjs alone 11 MB) |
+| — `rxjs` alone, which the harness never uses      | 17 ms                          |
+| `reflect-metadata` alone                          | 0.8 ms                         |
+| `NestFactory.createApplicationContext` (warm)     | 0.87 ms median                 |
+| glob discovery alone                              | 0.03 ms                        |
+| hand-wiring 3 hooks + 3 tools with `new`          | 0.04 ms                        |
+| `node_modules`                                    | 14.4 MB (rxjs alone 11 MB)     |
 
 The container is essentially free; the import is the entire bill, and for a TUI it is 50 ms of dead
 time before the first frame on every launch. The strongest evidence sits inside the spike: its own
@@ -75,7 +76,7 @@ ENOENT: no such file or directory, open '/$bunfs/root/hooks/'
 
 Nothing statically imports the hook files, so they are not in the bundle, and `Bun.Glob` is scanning
 a virtual filesystem. **The one-file property and `--compile` are in direct tension.** Resolution: run
-the same glob at *build* time and emit static imports, with the composition root reading the
+the same glob at _build_ time and emit static imports, with the composition root reading the
 decorator registry instead of the disk. A spec fails if the manifest drifts from the directory.
 Compiled boot: 7.6 ms, ~40 ms total process. **This applies to any DI choice — it is a Bun bundling
 fact, not a Nest one.**
@@ -99,7 +100,7 @@ same two hooks constructed in both orders.
 real: `WorkspaceBoundaryHook` canonicalises `path` to its realpath, which on macOS turns
 `/var/folders/...` into `/private/var/...`, after which `ClaudeMdInjectionHook` failed to find memory
 files **for every write** because its root was still the symlinked form. Two hooks, each correct
-alone, silently disagreeing about what a path *is*. Only a test exercising write + injection together
+alone, silently disagreeing about what a path _is_. Only a test exercising write + injection together
 caught it. **Any harness letting hooks rewrite tool input needs a stated normalisation contract.**
 
 ## A privilege-escalation shape, found and closed
@@ -129,7 +130,7 @@ stage.
    found by the core-loop spike.
 2. **The signature has no context, so dedup leaks into every hook.** "Load `CLAUDE.md` once" is a
    question about the log, but `(call, output)` cannot see it, so the hook had to inject the log.
-   **Fix: make `append` idempotent on `(threadId, slot, key)`** — `context-loaded.key` already *is*
+   **Fix: make `append` idempotent on `(threadId, slot, key)`** — `context-loaded.key` already _is_
    the identity — and the hook goes back to stateless.
 
 What hooks wanted and could not do: fail the turn or annul a tool result; see a batch (ten parallel
@@ -141,7 +142,7 @@ tool's `effect` should be on the call.
 API key in 16 lines.
 
 A tool that throws is mapped to a `tool-result` carrying `{error}` with dispatch status `failed`,
-not `denied` — *denied should mean policy said no, not that the disk was missing.*
+not `denied` — _denied should mean policy said no, not that the disk was missing._
 
 ## Other cracks
 

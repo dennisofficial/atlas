@@ -12,7 +12,6 @@ contributions are welcome.
 ## The dev loop
 
 All root scripts are turbo tasks:
-
 - `bun run typecheck` — `tsc --noEmit` across the workspace.
 - `bun run test` — every package's `bun test` suite (`BUN_TEST_INCREMENTAL=1 bun run test` reruns only
   what changed). Point `ATLAS_HOME` at a scratch directory and keep

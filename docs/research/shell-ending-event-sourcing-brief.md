@@ -7,7 +7,6 @@ This is the working brief every teammate reads. The design rationale is in
 
 One sentence: **the durable event log is the only announcement channel for a
 shell ending, and the ending event is written at occurrence, not at drain.**
-
 - `startBackgroundShell`'s settle continuation appends the `background-shell-ended`
   event (full remaining output + after-shell hook drafts) the moment the shell
   settles. After this, the log is complete at all times.

@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-13. **Scope:** the whole Atlas Cloud container setup — lifecycle (birth, park,
 wake, hot-swap), module boundaries, skills delivery, memory sync, reconnection machinery, and
-state ownership — read against the *target* architecture after decision #13 (greenfield: no cloud
+state ownership — read against the _target_ architecture after decision #13 (greenfield: no cloud
 sandboxes in use, the relocation engine is being deleted, every thread is born-placed). Read-only
 audit; nothing here is implemented.
 
@@ -31,7 +31,7 @@ The greenfield model, as the locked decisions intend it:
 **Placement is chosen once.** Every thread is born-placed (#2, #13): the composer placement chip
 (#8, #11) picks cloud or host before first send; birth is blocking-but-cancellable with real
 progress (#9, #11); a pre-send flip discards the unstarted birth and rebirths with the draft
-(#12). After first send, placement is immutable — not guarded, *unwritable*. The relocation
+(#12). After first send, placement is immutable — not guarded, _unwritable_. The relocation
 engine (lift/descend, portable state, context archive) is deleted early (#13); the placement move
 machinery in `PlacementController` goes with it, leaving `placeAtCreation` / `markBorn` /
 CAS-on-revision as the whole write surface.
@@ -45,7 +45,7 @@ the channel, owning no feature logic.
 **The lifecycle has one story.** Provision → serve → (hot-swap at wake boundaries, drain-sealed)
 → park → wake → destroy. Hot-swap stays (#1) — and, per the placement research (§5.4), it is more
 aggressive than anything publicly documented: amp, the closest comparable, only drain-restarts its
-long-lived runner *when no thread is running*. Under born-placed, cloud sessions are longer-lived
+long-lived runner _when no thread is running_. Under born-placed, cloud sessions are longer-lived
 (they can never be lifted home to escape a bad serve), so the drain path and the park/wake swap
 window carry more weight than they did when #1 was locked. The state the lifecycle moves through
 lives on the drive (event logs, thread metas, rotation receipt, runtime checkpoint, sync cursors);
@@ -93,7 +93,7 @@ re-audits it.
   (`packages/harness/src/composition/placement-controller.ts:252`) is the designed path — CAS,
   monotone revision, publish gates. `apps/serve/src/placement-hydration.ts:37` calls
   `threads.writePlacement` directly, hand-computing `revision: held.revision + 1` and clearing
-  `move`, on the boot path where a stranded move is the *normal* case. **[slice-08]** — this is
+  `move`, on the boot path where a stranded move is the _normal_ case. **[slice-08]** — this is
   relocation-restore machinery; under #13 the whole function shrinks to "born record exists or
   boot refuses," which makes the bypass deletable rather than fixable. But slice 08's stated scope
   does not name it (see 2.2, finding on deletion coverage).
@@ -142,7 +142,6 @@ re-audits it.
 
 (Deep-module vocabulary: a module is deep when much behavior sits behind a small interface; the
 deletion test asks whether deleting it makes complexity vanish or reappear across callers.)
-
 - **[structural] `packages/harness/src/cloud/` is a bag, not a module.** ~110 live files, ~11,200
   LOC (after excluding deletion-marked relocation/portable/context-archive code), one flat
   directory, one 34-line `export *` barrel (`cloud/index.ts`), no sub-boundaries. Six latent
@@ -163,7 +162,7 @@ deletion test asks whether deleting it makes complexity vanish or reappear acros
   `cloud/relocation/freeze-family` (`packages/harness/src/composition/compose-session.ts:5` —
   verified). Slice 08's premise "nothing live depends on it" is false as written; the deletion has
   a small prerequisite extraction. **[slice-08 scope]**
-- **[structural] Born-placed birth *is* `liftToCloud` with `started: false`.**
+- **[structural] Born-placed birth _is_ `liftToCloud` with `started: false`.**
   `apps/tui/src/composition/use-thread-birth.ts:78` drives the relocation engine's lift with
   `capture: null` short-circuits — provisioning, overlay progress, cancel-to-host, and `markBorn`
   sequencing all ride on the engine being deleted. Slice 08 must extract a `birthInCloud` from
@@ -176,7 +175,7 @@ deletion test asks whether deleting it makes complexity vanish or reappear acros
   surface author must learn grows monotonically with every feature.
 - **[worth-fixing] The #6 manifests are `Partial<>`.** `port-bindings.ts:49,64` declare
   `satisfies Partial<ComposedPortBindings>`; the full-type requirement bites only at the
-  `composeHarness` call sites. Adding a registry key *does* break both apps' typecheck (as #6
+  `composeHarness` call sites. Adding a registry key _does_ break both apps' typecheck (as #6
   requires — verified), but the first error surfaces diffusely at every call site rather than
   once, naming the manifest. Also verified consistent with #6's "compile-time only": the `ports`
   value is never read at runtime.
@@ -197,7 +196,7 @@ deletion test asks whether deleting it makes complexity vanish or reappear acros
   (healthy) plus a ~1,050-LOC sandbox-boot operational toolkit (drive lifecycle, serve
   install/launch, swap lock). Two real consumers make the seam real, but the package name lies
   about what it holds; the boot half is behavior, not contract.
-- **[fine] The remote-* port adapters are the strongest boundary in the stack** — one adapter per
+- _*[fine] The remote-* port adapters are the strongest boundary in the stack_* — one adapter per
   registered port, write-refusal encoded in the adapter (`remote-event-log.ts:36-40`), consumers
   narrowing via `Pick<>` (`mirrored-event-log.ts:20-23`). The mirror machinery
   (`mirrored-event-log.ts` + `mirror-writer.ts` + `transcript-syncer.ts`) is deep and well-shaped;
@@ -218,7 +217,7 @@ deletion test asks whether deleting it makes complexity vanish or reappear acros
   TUI (`apps/tui/src/composition/use-conversation.ts:107`) — nothing in `apps/serve` calls it, so
   a cloud session never pulls the user layer at boot or wake;
   (b) even if started, the skill registry's one `reload()` runs at compose
-  (`compose.ts:186-189`), *before* any pull could land, and no serve-side reload trigger exists
+  (`compose.ts:186-189`), _before_ any pull could land, and no serve-side reload trigger exists
   (only the TUI's `/skills` command). The files wouldn't be pulled; if they were, the roster
   wouldn't see them. Decision #5's "boot/wake pulls latest" is false on the surface it was written
   for. (A third suspected gap — serve possibly binding `NullUserLayerSync` because `cloud.json`
@@ -266,7 +265,7 @@ deletion test asks whether deleting it makes complexity vanish or reappear acros
   `files/atomic-write.ts:28-50`), (2) the model's `bash` — no path interception possible by design
   (architecture.md:1247-1249), (3) the operator's editor, inside or outside Atlas, (4) the sync
   engine's own apply, (5) legacy adoption at compose. A write seam covers (1) and (4) only, so it
-  would still need the scan fallback — and the scan-vs-state hash diff already exists and *is* the
+  would still need the scan fallback — and the scan-vs-state hash diff already exists and _is_ the
   correctness mechanism; the watcher is a latency hint over it. Echo loops are structurally
   impossible (`applying`/`missedWhileApplying`, `engine.ts:69-109`, plus the hash short-circuit in
   `push.ts:18`). Conflict copies and `.atlas-partial` temp files are excluded from scan, watch,
@@ -346,15 +345,14 @@ deletion test asks whether deleting it makes complexity vanish or reappear acros
 
 State-ownership summary (full table in the state report):
 
-| State kind | Authority | Shadows | Survives |
-| --- | --- | --- | --- |
-| Event log | serve's drive JSONL (client writes rejected, `mirrored-event-log.ts:53`) | local mirror; serve frame buffer; **API DB `Thread`/`Event`/`Turn`** | drive: park/wake/recreation |
-| Runtime checkpoint | serve (`runtime-checkpoint.ts:42`), monotone revision | drive file; API column; socket broadcast; TUI `parkedTranscript` thread meta | drive copy: everything but drive delete |
-| Placement | owning thread store, CAS (`placement-controller.ts:252`) | controller Map; serve hydration writes; API `executionLocation` string; `location-changed` events | thread meta on owning side |
-| Sandbox row | nobody singly — API `state` reconciled by convention against checkpoint phase + Vercel inspect | three encodings plus channel state | API row: sandbox recreation |
-| Rotation receipt | serve, drive, sealed once, fenced by sessionId | none — the model citizen | the recreation it describes |
-| Sync cursors | per-device `user-layer-sync.json`; server `UserFile` rows | — | drive (serve) / local disk (TUI) |
-
+| State kind         | Authority                                                                                      | Shadows                                                                                           | Survives                                |
+| ------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Event log          | serve's drive JSONL (client writes rejected, `mirrored-event-log.ts:53`)                       | local mirror; serve frame buffer; **API DB `Thread`/`Event`/`Turn`**                              | drive: park/wake/recreation             |
+| Runtime checkpoint | serve (`runtime-checkpoint.ts:42`), monotone revision                                          | drive file; API column; socket broadcast; TUI `parkedTranscript` thread meta                      | drive copy: everything but drive delete |
+| Placement          | owning thread store, CAS (`placement-controller.ts:252`)                                       | controller Map; serve hydration writes; API `executionLocation` string; `location-changed` events | thread meta on owning side              |
+| Sandbox row        | nobody singly — API `state` reconciled by convention against checkpoint phase + Vercel inspect | three encodings plus channel state                                                                | API row: sandbox recreation             |
+| Rotation receipt   | serve, drive, sealed once, fenced by sessionId                                                 | none — the model citizen                                                                          | the recreation it describes             |
+| Sync cursors       | per-device `user-layer-sync.json`; server `UserFile` rows                                      | —                                                                                                 | drive (serve) / local disk (TUI)        |
 - **[structural] The API DB session tables are a permanent stale twin of the log.**
   `Thread`/`Event`/`Turn` (`apps/api/prisma/schema.prisma:36-110`) are written by the owner client
   over REST while connected, read back by `cloudListing` — and go stale the moment the client
@@ -377,7 +375,7 @@ State-ownership summary (full table in the state report):
   **[slice-08]** — the endpoint is lift/descend-era machinery; delete it, don't guard it.
 - **[worth-fixing] Four copies of the checkpoint digest** — drive file, API mirror column, socket
   broadcast, TUI thread meta (`parkedTranscript`, earned by a best-effort race with a 5 s timeout,
-  `park-persistence.ts:67-87`). Keep the checkpoint (it is a signed *summary* of the log, not a
+  `park-persistence.ts:67-87`). Keep the checkpoint (it is a signed _summary_ of the log, not a
   second record of position — log-is-authoritative done right); kill or justify each replica.
 - **[worth-fixing] `CloudSandbox.lastActivityAt` is written only at lifecycle transitions, never
   by live activity** — yet the subscription sweeper's `liveUntil` adds a 24 h window to it
@@ -389,7 +387,7 @@ State-ownership summary (full table in the state report):
   digest as fourth/fifth orderings. Individually sound; never stated as one pattern. Slice 07's
   mirror revision is about to become the fourth ad-hoc instance.
 - **[fine] Log-is-authoritative holds inside the runtime boundary** — no checkpoint of loop
-  position exists anywhere; the checkpoint stores transcript *identity* (head/count/digest) and
+  position exists anywhere; the checkpoint stores transcript _identity_ (head/count/digest) and
   phase, never resumable state. The "one record" rule is honored. Mirror discipline is mechanical,
   not aspirational (rejected client writes, digest-verified repair, head-extension enforcement).
   The rotation receipt is the model citizen: single store, sealed once, fenced by sandboxSessionId,
@@ -400,7 +398,6 @@ State-ownership summary (full table in the state report):
 ## 3. Contradictions of locked decisions
 
 These are the findings that matter most; each names the decision it contradicts.
-
 1. **#5 — "Boot/wake pulls latest" is false on the cloud surface.** The sync engine starts only
    from `markActiveThread`, called only by the TUI (`compose.ts:302-304` →
    `use-conversation.ts:107`). Serve never starts it, so a born-placed cloud session — the default
@@ -410,7 +407,7 @@ These are the findings that matter most; each names the decision it contradicts.
    **This must be fixed before slice 08**, or #13's "sync IS the delivery" deletes the only
    remaining cloud delivery path (the descend memory tar) while its replacement is inert.
 2. **#13 — "the relocation engine is deleted EARLY … nothing live depends on it"** is false as
-   written. Live dependencies on the deletion-marked subtree: born-placed birth *is*
+   written. Live dependencies on the deletion-marked subtree: born-placed birth _is_
    `liftToCloud({ started: false })` (`use-thread-birth.ts:78`); the composition root imports
    `holdFamilyIntake` from `relocation/freeze-family` (`compose-session.ts:5`); the surviving
    bridge's interface types live in `relocation/cloud-bridge.ts`; and the placement move engine
@@ -457,10 +454,10 @@ large ≈ a slice). Each is checked against the locked decisions.
 
 **R1. Fix the serve-side sync engine before anything else is deleted.** Start the engine from
 serve boot (not `markActiveThread`), resolve the `cloud.json`/`ServeSessionToken` binding
-question, and reload the skill registry after the boot pull. *Payoff:* makes #5 true on the
+question, and reload the skill registry after the boot pull. _Payoff:_ makes #5 true on the
 default surface; unblocks #13's archive/descend deletion; without it, greenfield cloud threads
-have no user-layer delivery at all. *Cost:* small-medium — the credential-seam decision is the
-real work. *Decisions:* respects #3/#5/#13; no reopens. This is a fix to slice 06's reach more
+have no user-layer delivery at all. _Cost:_ small-medium — the credential-seam decision is the
+real work. _Decisions:_ respects #3/#5/#13; no reopens. This is a fix to slice 06's reach more
 than a revamp, but it gates 08, so it leads the list.
 
 **R2. One lifecycle record, one state machine, one owner.** Promote the sandbox lifecycle to a
@@ -469,13 +466,13 @@ enum (`Provisioning → Serving → Draining → Drained(receipt) → Parked →
 serve at the transitions it owns (drain seal, park finalize) and by the driver at its own
 (provision, swap). `probeSandboxForResume`, the drain gate's wedge/legacy proofs, and boot
 recovery become reads of the record instead of inference over stamps + health + receipts. The
-rotation receipt survives as the *payload* of the Drained state (its sessionId fence is genuinely
+rotation receipt survives as the _payload_ of the Drained state (its sessionId fence is genuinely
 good). The API's `CloudSandbox.state` column becomes a read-time derivation from the mirrored
-checkpoint, deleting the four-encodings-reconciled-by-convention problem (2.6). *Payoff:* high —
+checkpoint, deleting the four-encodings-reconciled-by-convention problem (2.6). _Payoff:_ high —
 the five phase-1 defects were all inference-edge bugs; this deletes the graph they lived in, and
 it is the substrate the warm pool (#10) will need, since a standing sandbox lives permanently in
-exactly this machinery. *Cost:* medium — a schema, writers at the six existing transition points,
-and deletion of the inference edges; greenfield means no compat window is owed. *Decisions:*
+exactly this machinery. _Cost:_ medium — a schema, writers at the six existing transition points,
+and deletion of the inference edges; greenfield means no compat window is owed. _Decisions:_
 respects #1 (hot-swap stays — the swap becomes a state transition, not a protocol archaeology
 dig), enables #10, embodies #13.
 
@@ -483,72 +480,71 @@ dig), enables #10, embodies #13.
 Extract `birthInCloud({ threadId, placement })` — provision, bootstrap write, authorize, attach,
 `placeAtCreation`/`markBorn`, overlay progress, cancel-to-host — from `liftToCloud`'s ribs; move
 `CloudBridge`/`CloudSandboxes` and `holdFamilyIntake` out of `relocation/`; then delete the
-engine, *including* the placement move machinery in composition (`move()`/`recover()`/
+engine, _including_ the placement move machinery in composition (`move()`/`recover()`/
 `PlacementTransaction`, the `born?: null` marker, `EPlacementMoveKind.Lift/Descend`), serve's
-placement hydration, and the API's `PATCH /location`. *Payoff:* high for #13 execution — turns
+placement hydration, and the API's `PATCH /location`. _Payoff:_ high for #13 execution — turns
 "immutable at creation" from a guarded convention into the absence of any writer, and unblocks 08
-honestly. *Cost:* medium — mostly deletion plus the birth extraction; the extraction is
-prerequisite, not optional. *Decisions:* this is #13 implemented fully; it extends slice 08's
+honestly. _Cost:_ medium — mostly deletion plus the birth extraction; the extraction is
+prerequisite, not optional. _Decisions:_ this is #13 implemented fully; it extends slice 08's
 stated scope (move engine, hydration, location endpoint, context-archive quartet), which the plan
 should record.
 
 **R4. Split the delta channel and make the reconnect ladder an explicit state machine.**
 `remote-delta-channel.ts` becomes socket-lifecycle / frame-fanout / wake-park-control behind the
 unchanged `RemoteDeltaChannel` type; the five reconnect entry points become named states and
-transitions with one budget, one generation fence, one Closed vocabulary. *Payoff:* the file
+transitions with one budget, one generation fence, one Closed vocabulary. _Payoff:_ the file
 every cloud feature touches becomes reviewable; the 2026-10-09 wedge class of bugs lived exactly
-here; slice 05d's pool claim cannot be safely added to the current shape. *Cost:* medium — the
-file is already fully injectable, so the rewrite runs against the existing spec suite. *Decisions:*
+here; slice 05d's pool claim cannot be safely added to the current shape. _Cost:_ medium — the
+file is already fully injectable, so the rewrite runs against the existing spec suite. _Decisions:_
 respects all; none reopened.
 
 **R5. Move serve's lifecycle ceremonies into harness as a registered port.** A
 `SessionLifecyclePort` — runtime binding owned by harness (park ceremony, drain ceremony), the
 `/v1/park` + `/v1/drain` endpoints as its transport slot — pulls the policy out of the transport
 app, fixes the parked-marker hand-publish (as harness publishing coverage), and makes the
-ceremonies composable into any surface. *Payoff:* medium-high — the last feature-policy islands
-in serve come under the #6 contract; the strata become honestly drawn. *Cost:* medium. *Decisions:*
+ceremonies composable into any surface. _Payoff:_ medium-high — the last feature-policy islands
+in serve come under the #6 contract; the strata become honestly drawn. _Cost:_ medium. _Decisions:_
 implements #6's spirit where the letter doesn't reach; respects #1.
 
 **R6. Declare what the API's session tables are, then enforce it.** Either (a) declare
 `Thread`/`Event`/`Turn` a non-authoritative listing projection with a stated freshness bound and
 delete the append path, or (b) serve write-through. (a) is the decision-consistent option — (b) is
 a second writer to the log's facts, the drift the one-record rule exists to prevent. One
-confirmation first: whether any live caller still appends (none found outside specs). *Payoff:*
-removes the one surface (`/resume` listing) that reads state nobody keeps fresh. *Cost:*
-small-medium for (a). *Decisions:* extends #4's authority story to the API tier — arguably a
+confirmation first: whether any live caller still appends (none found outside specs). _Payoff:_
+removes the one surface (`/resume` listing) that reads state nobody keeps fresh. _Cost:_
+small-medium for (a). _Decisions:_ extends #4's authority story to the API tier — arguably a
 decision to record, not one to reopen.
 
 **R7. Give `harness/src/cloud/` internal module boundaries.** Six sub-directories with their own
 entry points (client / channel / remote-ports / mirror / sandbox / account-sync) replacing the
-flat `export *` barrel. *Payoff:* slice 08's deletion becomes a directory listing instead of an
+flat `export *` barrel. _Payoff:_ slice 08's deletion becomes a directory listing instead of an
 import trace; the sync/mirror additions get named homes; the next reviewer starts from the map,
-not the archaeology. *Cost:* low-medium — mechanical import churn. Do it *before* or *as part of*
+not the archaeology. _Cost:_ low-medium — mechanical import churn. Do it _before_ or _as part of_
 R3's deletion, not after.
 
 **R8. Consume the sync SSE fanout (or `sinceRevision` on a timer).** The API already ships
 per-mutation fanout with heartbeats; wiring it turns "pull at boot" into live convergence, which
 is the Dropbox shape #3 describes. Note the fanout is per-replica in-memory — fine at one API
-replica, silently wrong at two; say which is true of the deployment. *Payoff:* medium — mid-session
-skill/memory propagation without restarts. *Cost:* medium (reconnect/backoff is the real work;
-half-cost variant: `sinceRevision` polling). *Decisions:* implements #3's shape; respects #5
+replica, silently wrong at two; say which is true of the deployment. _Payoff:_ medium — mid-session
+skill/memory propagation without restarts. _Cost:_ medium (reconnect/backoff is the real work;
+half-cost variant: `sinceRevision` polling). _Decisions:_ implements #3's shape; respects #5
 (silent).
 
 **R9. One stated revision/CAS pattern.** A short section in `docs/core-contract.md` (or a small
 core helper) naming the shape — monotone integer + store-side CAS + conflict surfaced as value —
 so slice 07's mirror revision is the first standard instance rather than the fourth ad-hoc one.
-*Payoff:* review surface shrinks; the pattern is already proven three times. *Cost:* small.
+_Payoff:_ review surface shrinks; the pattern is already proven three times. _Cost:_ small.
 
 **R10. Write the survival invariant.** One paragraph in architecture.md: the drive survives
 park/wake/recreation (workspace, logs, metas, receipts, sync cursors); the API DB survives sandbox
 loss (identity, tokens, subscriptions, checkpoint mirror, user files); local disk survives client
 restart (mirror, parkedTranscript, cursors); the sandbox runtime filesystem survives nothing. Plus
-the doc-drift fixes (2.6 of contradictions). *Payoff:* half this audit's questions would have been
-answered from the doc. *Cost:* trivial.
+the doc-drift fixes (2.6 of contradictions). _Payoff:_ half this audit's questions would have been
+answered from the doc. _Cost:_ trivial.
 
 **Deferred deliberately (with reasons):**
-
 - **Shrink `HarnessApp`** (group the ~45 members into feature handles): real but high-churn across
-  both surfaces; revisit after phase 2. *Direction noted, not recommended now.*
+  both surfaces; revisit after phase 2. _Direction noted, not recommended now._
 - **Skill-level sync generations** (atomic multi-file skill updates): high cost relative to payoff
   while pulls converge and the boot window is shielded; revisit only if R8 ships and half-applied
   skills become observable.
@@ -559,11 +555,10 @@ answered from the doc. *Cost:* trivial.
 - **amp-style spawn pacing instead of a warm pool** (burst + interval + queue, server-side;
   research §5.2): the cheap alternative to #10's standing sandboxes. #10 is already deferred until
   the lifecycle proves out; if R2 lands, revisit whether a pacing queue answers the cold-start
-  problem without a pool that lives permanently in the park/wake/swap machinery. *This is the one
-  place the review suggests a decision may eventually deserve reopening — not now.*
+  problem without a pool that lives permanently in the park/wake/swap machinery. _This is the one
+  place the review suggests a decision may eventually deserve reopening — not now._
 
 **Open questions the audits could not close** (each cheap to answer, each gates a revamp):
-
 1. Does `cloud.json` reach the sandbox drive on any live path? (Gates R1's binding half; no
    writer found — needs one live check.)
 2. Does anything in production call the API's event/turn append endpoints for cloud threads?

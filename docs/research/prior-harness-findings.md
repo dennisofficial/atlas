@@ -29,14 +29,14 @@ commented "the bot's persisted conversation (the real, durable history)."
 Six further channels exist for one purpose — put something in front of the model without putting it
 in `messages`:
 
-| Channel | Its own comment |
-| --- | --- |
-| `recalled` | "Re-injected each llm call like the persona, NEVER written into `messages`" |
-| `context` (4 slices) | rendered by `renderContext()` into every call |
-| `memorySuggestions` | "injected into the context so the agent sees and acts on it" |
-| `draft` | "NEVER enters `messages`: durable history records only what was actually said" |
-| `toolLoopInstruction` | "NEVER persisted into `messages`… cleared by `llmNode` after it renders" |
-| `relaySeed` | "NEVER appended into `messages`… mirrors `draft` / `toolLoopInstruction`" |
+| Channel               | Its own comment                                                                |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `recalled`            | "Re-injected each llm call like the persona, NEVER written into `messages`"    |
+| `context` (4 slices)  | rendered by `renderContext()` into every call                                  |
+| `memorySuggestions`   | "injected into the context so the agent sees and acts on it"                   |
+| `draft`               | "NEVER enters `messages`: durable history records only what was actually said" |
+| `toolLoopInstruction` | "NEVER persisted into `messages`… cleared by `llmNode` after it renders"       |
+| `relaySeed`           | "NEVER appended into `messages`… mirrors `draft` / `toolLoopInstruction`"      |
 
 `relaySeed`'s comment names the duplication outright. This is a context-assembly pipeline
 discovered incrementally and implemented six times, each with a hand-managed lifetime.
@@ -69,7 +69,6 @@ weird" recollection, and it is inherent to boundary-only steering rather than to
 ## AI SDK facts (verified against `ai@7.0.77`, `@ai-sdk/anthropic@4.0.41`)
 
 Installed into a scratchpad and read from `node_modules`, not from memory.
-
 - **`@ai-sdk/provider` is separately installable** (`4.0.7`). Own model implementations need only
   the types package.
 - **`LanguageModelV2`, `V3`, and `V4` all ship side by side.** V3 is already superseded; V4 adds
@@ -90,11 +89,11 @@ Installed into a scratchpad and read from `node_modules`, not from memory.
 Exposed through `providerOptions.anthropic.contextManagement.edits`; what was actually cleared comes
 back in `providerMetadata.anthropic.contextManagement`.
 
-| Edit type | Effect |
-| --- | --- |
-| `clear_thinking_20251015` | `keep: { type: 'thinking_turns', value: N }` — keeps only the N most recent thinking turns |
+| Edit type                  | Effect                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `clear_thinking_20251015`  | `keep: { type: 'thinking_turns', value: N }` — keeps only the N most recent thinking turns  |
 | `clear_tool_uses_20250919` | drops old tool call/result pairs; `keep`, `clearAtLeast`, `clearToolInputs`, `excludeTools` |
-| `compact_20260112` | summarizes earlier context when token limits are reached |
+| `compact_20260112`         | summarizes earlier context when token limits are reached                                    |
 
 The first row is the "tail the last 10–20 thinking blocks" requirement, already implemented
 server-side. The third is what the prior harness hand-built as `summaries` + `summarizedUpTo` +

@@ -5,7 +5,6 @@ Status: proposal. Drives the event-sourced shell-ending refactor.
 ## The defect being removed
 
 A background-shell ending today has **two delivery channels**:
-
 1. The durable event log, via a `background-shell-ended` event.
 2. The `shell_kill` tool result, which returns the final snapshot and all output
    in-band.
@@ -13,7 +12,6 @@ A background-shell ending today has **two delivery channels**:
 The moment `shell_kill` was allowed to return the ending as its result, the same
 fact had two channels, and every downstream consumer has had to reconcile them.
 The accumulated machinery is all reconciliation over that single fork:
-
 - `endingClaimed` — suppress the notice because the tool result already told.
 - `outputClaimed` — the hollow notice that exists only to carry hook drafts.
 - teardown's `recordEndings` — synthesize an ending for anything the log lacks.
@@ -32,7 +30,6 @@ in any one reconciler; they are the cost of the fork.
 **If it is not in the log, it did not happen.**
 
 One channel, written once, at occurrence:
-
 1. **The event log is the only announcement channel.** The only way any shell
    ending reaches anyone — model, UI, teardown, recovery, rewind, a future
    surface — is as a `background-shell-ended` event in the durable log.

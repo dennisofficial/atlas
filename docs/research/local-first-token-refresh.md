@@ -41,12 +41,12 @@ renewable cloud authentication. [A1][O1][O2]
 
 ## Provider findings
 
-| Credential surface | First-party evidence | What can be concluded |
-| --- | --- | --- |
-| Claude subscription OAuth | Current Claude Code legal/authentication docs [A1][A2] | Third-party Claude.ai login/credential intermediation is not supported for this raw-call harness. No public subscription-token multi-holder rotation/grace contract was established. |
-| Existing Codex login | Pinned OpenAI Codex client source [O6] | Refresh uses `https://auth.openai.com/oauth/token`; the client handles `refresh_token_reused`, expired, and invalidated errors and serializes within its auth manager. Client source does not guarantee independent copies are renewable. |
-| OpenAI OSS Sign in with ChatGPT | Registration, sessions, token reference, VM docs [O1]-[O5] | Supported documented flow issues an app/client registration, requires per-host identifiers, replaces refresh tokens, and says to serialize the same session's refreshes. VM copying transfers one session; it does not mint another grant. |
-| MCP OAuth | MCP 2025-11-25 authorization specification and RFC 9700 [M1][M2] | OAuth belongs to the MCP authorization server. The MCP text requires rotation for public clients; RFC 9700 permits sender-constrained refresh tokens or rotation. Neither offers a generic multi-holder copying guarantee. |
+| Credential surface              | First-party evidence                                             | What can be concluded                                                                                                                                                                                                                      |
+| ------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Claude subscription OAuth       | Current Claude Code legal/authentication docs [A1][A2]           | Third-party Claude.ai login/credential intermediation is not supported for this raw-call harness. No public subscription-token multi-holder rotation/grace contract was established.                                                       |
+| Existing Codex login            | Pinned OpenAI Codex client source [O6]                           | Refresh uses `https://auth.openai.com/oauth/token`; the client handles `refresh_token_reused`, expired, and invalidated errors and serializes within its auth manager. Client source does not guarantee independent copies are renewable.  |
+| OpenAI OSS Sign in with ChatGPT | Registration, sessions, token reference, VM docs [O1]-[O5]       | Supported documented flow issues an app/client registration, requires per-host identifiers, replaces refresh tokens, and says to serialize the same session's refreshes. VM copying transfers one session; it does not mint another grant. |
+| MCP OAuth                       | MCP 2025-11-25 authorization specification and RFC 9700 [M1][M2] | OAuth belongs to the MCP authorization server. The MCP text requires rotation for public clients; RFC 9700 permits sender-constrained refresh tokens or rotation. Neither offers a generic multi-holder copying guarantee.                 |
 
 ### Claude: technical compatibility is not provider support
 
@@ -168,17 +168,17 @@ exercised. A request barrier forces concurrent requests to use the predecessor b
 there are no sleeps. A controlled response-loss branch consumes the successful issuer response,
 then throws before Atlas receives it.
 
-| Asserted scenario | Observed result |
-| --- | --- |
-| Two detached copies, sequential | One renewal succeeds; the other cannot refresh. Provider account becomes expired; MCP drops its tokens. |
-| Two detached copies, concurrent | Exactly one usable result; exactly one `invalid_grant` refusal. |
-| Reuse revokes family | Winner's next renewal fails too. This is an explicit simulator policy. |
-| Independent local + two sandbox grants | All three renew twice: six accepted exchanges, zero refusals. |
-| Explicit reusable issuer | Both detached copies renew. Sharing outcome depends on issuer policy. |
-| Rotation response lost | Provider retry spends predecessor and fails; MCP already cleared its tokens and does not retry. No copy can recover the lost successor. |
-| Concurrent reads on one port/flow | Provider port coalesces to one exchange; MCP flow sends two, and one loses. |
-| Shared store, refusal delayed until winner persisted | Provider reread recovers the winner; MCP loser clears the shared winner's tokens. |
-| Serialized reread of shared latest state, three holders | All three get usable credentials over two cycles, with two exchanges and no reuse, even under family-revocation policy. |
+| Asserted scenario                                       | Observed result                                                                                                                         |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Two detached copies, sequential                         | One renewal succeeds; the other cannot refresh. Provider account becomes expired; MCP drops its tokens.                                 |
+| Two detached copies, concurrent                         | Exactly one usable result; exactly one `invalid_grant` refusal.                                                                         |
+| Reuse revokes family                                    | Winner's next renewal fails too. This is an explicit simulator policy.                                                                  |
+| Independent local + two sandbox grants                  | All three renew twice: six accepted exchanges, zero refusals.                                                                           |
+| Explicit reusable issuer                                | Both detached copies renew. Sharing outcome depends on issuer policy.                                                                   |
+| Rotation response lost                                  | Provider retry spends predecessor and fails; MCP already cleared its tokens and does not retry. No copy can recover the lost successor. |
+| Concurrent reads on one port/flow                       | Provider port coalesces to one exchange; MCP flow sends two, and one loses.                                                             |
+| Shared store, refusal delayed until winner persisted    | Provider reread recovers the winner; MCP loser clears the shared winner's tokens.                                                       |
+| Serialized reread of shared latest state, three holders | All three get usable credentials over two cycles, with two exchanges and no reuse, even under family-revocation policy.                 |
 
 **27 scenarios passed**, nine for each protocol, on Bun 1.4.2. The coordination test is a single-process
 queue over shared memory, not a deployed distributed-lock implementation. It demonstrates the required
@@ -220,7 +220,6 @@ all readers must use one durable refresh authority. If that authority is the ter
 connected-only mode and clearly refuse detachment. If it is one surviving sandbox, local and sibling
 sandboxes must reach it for renewal; do not promote another owner on timeout and race the old one.
 This is a separate availability/topology choice, not a fix inherent in portable snapshots.
-
 1. **Keep local stores canonical for user configuration and explicit cloud backup.** Backup is a
    snapshot, not a refresh owner or a live synchronization/coordination mechanism. Never restore a
    predecessor over a current grant simply because the backed-up account ID matches.

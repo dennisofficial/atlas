@@ -1,7 +1,7 @@
 # Core contract
 
 The seams of `@dltech/atlas-core`. Derived from four spikes, not from argument — every clause below
-that carries a *why* earned it by breaking in code. Evidence lives in `docs/research/`.
+that carries a _why_ earned it by breaking in code. Evidence lives in `docs/research/`.
 
 Supersedes `docs/spike-contract.md`, which the spikes were briefed to attack and did.
 
@@ -23,10 +23,17 @@ drifting on rewind is permanent work. This is why no graph framework is used.
 ## Events
 
 ```ts
-type EventEnvelope = { id: string; seq: number; threadId: string
-                       runId: string; parentRunId?: string; depth: number; at: string }
-type EventDraft = EventBody                      // what callers and hooks author
-type Event = EventBody & EventEnvelope           // what the log returns
+type EventEnvelope = {
+  id: string
+  seq: number
+  threadId: string
+  runId: string
+  parentRunId?: string
+  depth: number
+  at: string
+}
+type EventDraft = EventBody // what callers and hooks author
+type Event = EventBody & EventEnvelope // what the log returns
 ```
 
 Only the log assigns `id`/`seq`/`at` — `seq` is its core invariant. **Hooks return
@@ -39,30 +46,49 @@ depth is capped at one by the tool registry it is handed, not by a counter read 
 
 ```ts
 type EventBody =
-  | { type: 'user-said';          text: string; via?: EMessageOrigin }
-  | { type: 'assistant-said';     parts: AssistantPart[]; interrupted?: boolean }
-  | { type: 'tool-called';        callId: string; name: string; input: unknown; ordinal: number }
-  | { type: 'tool-result';        callId: string; name: string; output: unknown
-                                  modelText?: string
-                                  error?: { message: string }; snapshotId?: string }
-  | { type: 'tool-denied';        callId: string; name: string; reason: string }
+  | { type: 'user-said'; text: string; via?: EMessageOrigin }
+  | { type: 'assistant-said'; parts: AssistantPart[]; interrupted?: boolean }
+  | { type: 'tool-called'; callId: string; name: string; input: unknown; ordinal: number }
+  | {
+      type: 'tool-result'
+      callId: string
+      name: string
+      output: unknown
+      modelText?: string
+      error?: { message: string }
+      snapshotId?: string
+    }
+  | { type: 'tool-denied'; callId: string; name: string; reason: string }
   | { type: 'approval-requested'; callId: string; reason: string }
-  | { type: 'approval-answered';  callId: string; decision: EDecision; editedInput?: unknown }
-  | { type: 'context-loaded';     slot: string; key: string; content: string; triggeredBy?: string }
-  | { type: 'nudge';              text: string; lifetimeSteps: number }
-  | { type: 'background-shell-ended'
-                                  shellId: string; command: string; description?: string
-                                  status: EShellStatus; exitCode?: number
-                                  output: string
-                                  droppedCharacters: number; remainingCharacters: number }
-  | { type: 'agent-spawned';      agentId: string; agentType: string; intent: string
-                                  mode: EAgentStart }
-  | { type: 'agent-ended';        agentId: string; agentType: string; intent: string
-                                  status: EAgentStatus; killedBy?: EKilledBy
-                                  prose: string; turns: number; toolCalls: number }
+  | { type: 'approval-answered'; callId: string; decision: EDecision; editedInput?: unknown }
+  | { type: 'context-loaded'; slot: string; key: string; content: string; triggeredBy?: string }
+  | { type: 'nudge'; text: string; lifetimeSteps: number }
+  | {
+      type: 'background-shell-ended'
+      shellId: string
+      command: string
+      description?: string
+      status: EShellStatus
+      exitCode?: number
+      output: string
+      droppedCharacters: number
+      remainingCharacters: number
+    }
+  | { type: 'agent-spawned'; agentId: string; agentType: string; intent: string; mode: EAgentStart }
+  | {
+      type: 'agent-ended'
+      agentId: string
+      agentType: string
+      intent: string
+      status: EAgentStatus
+      killedBy?: EKilledBy
+      prose: string
+      turns: number
+      toolCalls: number
+    }
 ```
 
-- **`tool-result.error` distinguishes a crash from a denial.** *Denied* means policy said no; a
+- **`tool-result.error` distinguishes a crash from a denial.** _Denied_ means policy said no; a
   missing file is not a denial. Without this, assembly renders a crash to the model as a successful
   JSON result.
 - **`tool-result.modelText` is what the model reads; `output` is what the log and the UI read.** One
@@ -201,14 +227,14 @@ interface EventLog {
 until a thread is forked by reference, at which point the child holds no copy of the prefix it inherits
 and `read` has to stitch the parent's rows up to the fork point onto the child's own. Two readers need
 the difference: assembly and the transcript want the composed view, because that is the conversation;
-anything reasoning about what this thread may *write* wants `readOwn`, because a child must never mutate
+anything reasoning about what this thread may _write_ wants `readOwn`, because a child must never mutate
 a row it does not own.
 
 **Nothing that writes a thread row and event rows together is on this interface.** Both need one
 transaction over two tables, so both live on `ThreadStorePort`: `fork({ from, seq, mode, title })`
 next to `rewind`, and `createWithFirstEvents` for opening a thread that must not exist empty — a
 sub-agent's, whose brief is the only thing making it its turn. Neither transaction extends to a
-*second* thread's rows, and that boundary is deliberate rather than incidental: `retryOnWriteConflict`
+_second_ thread's rows, and that boundary is deliberate rather than incidental: `retryOnWriteConflict`
 re-runs the closure on `SQLITE_BUSY`, so a transaction spanning two live threads would either retry
 forever against the other thread's turn or duplicate its own effect on each attempt. `forkFrom` was specified here in an earlier revision and never implemented past
 a `throw`; the mode it lacked — copy for a fork the user keeps, reference for a sub-agent inheriting its
@@ -284,9 +310,12 @@ type RuleContext = {
   previous?: Assembled
 }
 
-function assemble(args: { rules: readonly Rule[]; annotators?: readonly Annotator[]
-                          ctx: RuleContext
-                          onRuleFailure?: ERuleFailurePolicy }): { assembled: Assembled; trace: AssemblyTrace }
+function assemble(args: {
+  rules: readonly Rule[]
+  annotators?: readonly Annotator[]
+  ctx: RuleContext
+  onRuleFailure?: ERuleFailurePolicy
+}): { assembled: Assembled; trace: AssemblyTrace }
 
 type AssemblyPipeline = { rules: readonly Rule[]; annotators: readonly Annotator[] }
 ```
@@ -312,7 +341,7 @@ cache read at ~0.1x input and rejects a fifth `cache_control`, so placement is a
 spent deliberately: one on the **last system block** — tools render before system, so that single
 marker caches tools and system together — and up to three across the conversation, the last of which
 sits on the final content block so the next step reads the whole prefix back. The others are
-*anchors* at absolute multiples of `CACHE_ANCHOR_STRIDE_BLOCKS` (15) content blocks. Absolute is the
+_anchors_ at absolute multiples of `CACHE_ANCHOR_STRIDE_BLOCKS` (15) content blocks. Absolute is the
 load-bearing word: the log only ever grows at the end, so a position counted from the front is the
 same position next step, which is what lets a later request read what an earlier one wrote. Counted
 from the end they would move every step, write entries nothing ever reads, and cost the write
@@ -332,7 +361,7 @@ write premium buys nothing there. Anthropic requires the longer-lived entry to r
 system does. Fixing them at construction is also what stops a mid-session flip, which would bust the
 prefix it was meant to protect.
 
-**Budget enforcement is not a rule.** It is a controller *above* the pipeline that re-runs assembly
+**Budget enforcement is not a rule.** It is a controller _above_ the pipeline that re-runs assembly
 at escalating pressure and truncates only if the whole ladder fails. In-pipeline it overshot a
 1500-token budget down to 176 — discarding 92% of remaining context — because the only safe move for
 a pure function is dropping a whole turn group. The controller kept 26 messages where the rule kept 7.
@@ -342,10 +371,10 @@ what the next request will actually carry. It returns a recommendation — `fits
 `exhausted` — because producing the summary is a model call and the controller is pure.
 
 **`compactedHistory` is the second content rule, and it only orders — it elides nothing.** Because
-compaction deletes, the log the rules see already *is* what the model reads, so there is nothing to
+compaction deletes, the log the rules see already _is_ what the model reads, so there is nothing to
 filter. What the rule does is place the summary: it renders the deepest watermark as a user message
 wrapped in a `<system-reminder>` — never a system block, which would move the cached prefix — and puts
-the surviving `context-loaded` messages *ahead* of it, so the prompt reads instructions, then compacted
+the surviving `context-loaded` messages _ahead_ of it, so the prompt reads instructions, then compacted
 history, then live turns. It needed no edit to `messagesFromEvents`, which is what `AssembledMessage`
 carrying provenance bought: the rule partitions on `origin.seq` without knowing how the groups were
 built.
@@ -374,34 +403,43 @@ Anthropic's signature actually lands — and must be written back under the requ
 ## Hooks
 
 ```ts
-enum EStage { Guard, Policy, Observe }
+enum EStage {
+  Guard,
+  Policy,
+  Observe,
+}
 
 type HookOutcome = { additionalContext?: string; drafts?: readonly EventDraft[] }
 
-type BeforeTurn    = (args: { threadId: string }) => Promise<HookOutcome>
-type BeforeStep    = (args: { assembled: Assembled; trace: AssemblyTrace }) => Promise<Assembled>  // persists
-type BeforeRequest = (p: ProviderPrompt) => Promise<ProviderPrompt>          // transient, per-provider
-type BeforeTool    = (args: { call: ToolCall }) => Promise<BeforeToolOutcome>
-type AfterTool     = (args: { call: ToolCall; result: ToolOutcome; projectDirectory: string; signal: AbortSignal }) => Promise<HookOutcome>
-type AfterShell    = (args: { threadId: string; shell: EndedShell }) => Promise<HookOutcome>  // fired by the shell registry
-type OnChunk       = (c: Chunk) => Promise<Chunk | null>
-type AfterTurn     = (args: { threadId: string }) => Promise<HookOutcome>
-type OnThreadOpen  = (args: { threadId: string; projectDirectory: string }) => Promise<HookOutcome>  // fired by the app
+type BeforeTurn = (args: { threadId: string }) => Promise<HookOutcome>
+type BeforeStep = (args: { assembled: Assembled; trace: AssemblyTrace }) => Promise<Assembled> // persists
+type BeforeRequest = (p: ProviderPrompt) => Promise<ProviderPrompt> // transient, per-provider
+type BeforeTool = (args: { call: ToolCall }) => Promise<BeforeToolOutcome>
+type AfterTool = (args: {
+  call: ToolCall
+  result: ToolOutcome
+  projectDirectory: string
+  signal: AbortSignal
+}) => Promise<HookOutcome>
+type AfterShell = (args: { threadId: string; shell: EndedShell }) => Promise<HookOutcome> // fired by the shell registry
+type OnChunk = (c: Chunk) => Promise<Chunk | null>
+type AfterTurn = (args: { threadId: string }) => Promise<HookOutcome>
+type OnThreadOpen = (args: { threadId: string; projectDirectory: string }) => Promise<HookOutcome> // fired by the app
 
 type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEffect }
 ```
 
 - **A draft-returning hook returns `HookOutcome`, not `EventDraft[]`.** `drafts` is the old return
   value unchanged. `additionalContext` is the shorter road for the common case — a hook with something
-  to *tell the model* rather than an event to record — and `hookOutcomeDrafts` in `core/hooks` renders
+  to _tell the model_ rather than an event to record — and `hookOutcomeDrafts` in `core/hooks` renders
   it as a `context-loaded` draft with `slot` = the hook's name and `key` = `'additional-context'`.
   That is not a convenience wrapper over a free choice of event: `context-loaded` is the only body the
-  prompt projection renders *and* dedupes *and* supersedes, and all three are what "here is my current
+  prompt projection renders _and_ dedupes _and_ supersedes, and all three are what "here is my current
   extra context" needs. Byte-identical context reappends to nothing, changed context replaces what the
   hook said last time, and a hook can never bury the prompt under its own history. Blank context is
   dropped rather than spent on an empty `<system-reminder>`.
 - **`BeforeTurn` is the mirror of `AfterTurn`** — once per turn, before the first assembly, so what it
-  loads is in the prompt the turn opens with. It sits *outside* the loop rather than behind the
+  loads is in the prompt the turn opens with. It sits _outside_ the loop rather than behind the
   awaits-a-reply check `AfterTurn` sits on the far side of, because context loaded after assembly is
   context the step never saw. The asymmetry is deliberate and cheap: `AfterTurn` gated itself to stop
   turn-taking drafts restarting the loop it closes, a hazard `BeforeTurn` does not have, and a turn
@@ -432,7 +470,7 @@ type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEff
   `HOOK_BUDGET_MS`, or returns `undefined` is reported through `onMishap` and degrades by phase kind:
   a collect phase contributes no drafts, a transform phase passes its value through unchanged, and
   `BeforeTool` keeps its existing fail-closed `Deny` carrying the reason. `AfterShell` keeps a
-  *second*, chain-wide budget on top, because N well-behaved-but-slow hooks would otherwise stretch
+  _second_, chain-wide budget on top, because N well-behaved-but-slow hooks would otherwise stretch
   teardown to N budgets. The third failure mode is the one worth naming: `BeforeStep`,
   `BeforeRequest` and `OnChunk` are pipelines whose return value replaces the thing, so a hook
   written `async () => {}` silently handed the model `undefined` or muted the stream. **`undefined`
@@ -538,17 +576,17 @@ the suspicious one. The read-before-write gate distinguishes three states: absen
 continues, and unverifiable denies while naming the errno.
 
 **Tool input is validated twice, and neither is redundant.** `dispatch` parses `call.input` against
-the declaration's schema *before* the `BeforeTool` chain, which turns a malformed call into one
+the declaration's schema _before_ the `BeforeTool` chain, which turns a malformed call into one
 correctable `tool-result` and means a guard hook never does input archaeology. Each tool re-parses
 inside `invoke`, which is **structurally forced**: `ToolInvocation.input` is `unknown`, so parsing is
 the only route to typed input without a cast, and what reaches `invoke` is `outcome.input` from the
-winning Allow — the post-hook value dispatch never saw. So dispatch validates what the *model* sent
-and the tool validates what the *hooks* produced.
+winning Allow — the post-hook value dispatch never saw. So dispatch validates what the _model_ sent
+and the tool validates what the _hooks_ produced.
 
 **The AI SDK validates too, and its verdict is discarded.** `doParseToolCall` in `ai@7` parses the
 model's arguments against the declared schema and throws `InvalidToolInputError`, but
 `parseToolCall`'s outer catch swallows it and emits a normal `tool-call` part carrying
-`invalid: true`, `error`, and the raw input — or the raw *string*, when the arguments were not valid
+`invalid: true`, `error`, and the raw input — or the raw _string_, when the arguments were not valid
 JSON. `harness/model/chunk-conversion.ts` then maps the valid and invalid branches identically. So
 Atlas's parse is not the first validation, it is the first **enforcement**, and the SDK is not a line
 of defence to lean on while discarding its output. Carrying `invalid`/`error` through `Chunk` would
@@ -566,7 +604,7 @@ round trip later.
 
 **The contract is deliberately narrow: every fault is a request Atlas must not send.** That is what
 makes it safe to wire to a refusal, and it is why `toolName` mismatch between a result and its call
-is *not* checked — a genuine projection bug that will corrupt the TUI, but neither a rejection nor a
+is _not_ checked — a genuine projection bug that will corrupt the TUI, but neither a rejection nor a
 request with a meaning Atlas did not intend.
 
 Almost every member of that set is there because **the provider will reject it**, which is the
@@ -582,7 +620,6 @@ that intent rather than left standing.**
 
 It was written against `@ai-sdk/anthropic`'s own converter, which corrected two invariants that
 looked obvious and were wrong:
-
 - **`groupIntoBlocks` maps a `tool` message into a `user` block**, and consecutive `user`/`tool`
   messages append to the same open block. The provider never sees our message list; it sees merged
   turns. So "no `tool` message except directly after an assistant turn" is a false positive —
@@ -597,13 +634,12 @@ looked obvious and were wrong:
 
 A fault that is not certain is worse than a missing one, because the loop refuses the step on it. So
 the validator declines to guess, and these stay unchecked:
-
-1. **A whitespace-only text part.** An *empty* text block is rejected; whether a whitespace-only one
+1. **A whitespace-only text part.** An _empty_ text block is rejected; whether a whitespace-only one
    is, is unverified. This was briefly checked as `text.trim() === ''` and it hard-failed ordinary
    turns — Claude commonly emits a whitespace-only text block after a thinking block — so it is now
    `text === ''` only.
 2. **Reasoning parts replayed without a signature.** Provider-opaque; `core` cannot know what a valid
-   signature looks like. This is a shape the validator does not fault and the provider *does* reject,
+   signature looks like. This is a shape the validator does not fault and the provider _does_ reject,
    and it is the only one known.
 3. **`ToolCallPart.input` that is not JSON-serialisable.** A real 400 class, but proving it needs the
    `unknown`-to-`JsonValue` validator this document refuses to invent.
@@ -640,7 +676,6 @@ converts. This was the leaning; it is now implemented. Swapping the model layer 
 untouched, which is the difference between model-agnostic being true and aspirational.
 
 Three consequences worth knowing before touching it:
-
 - **`providerOptions` is `Record<string, Record<string, JsonValue>>`, not `Record<string, unknown>`.**
   The looser form is not assignable to the SDK's provider options, so conversion would need either a
   cast or a validator — and a validator over the thinking-signature bag is precisely where the silent
@@ -683,6 +718,6 @@ Three consequences worth knowing before touching it:
 ## Style
 
 Max 300 lines per file. No comments — name things instead; the only exception is a fact external to
-the repo that cannot drift, of which this document's *why* clauses are the canonical list. No
+the repo that cannot drift, of which this document's _why_ clauses are the canonical list. No
 `as any`, no `@ts-ignore`. Strict TS with `noUncheckedIndexedAccess`. Named parameters for 2+
 arguments. `E`-prefixed enums. Tests in a sibling `__tests__/` as `*.spec.ts`, run with `bun test`.

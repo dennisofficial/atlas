@@ -12,7 +12,6 @@ meant a staging tier, a preview key and database preview branches.
 
 No API preview environments, now or later. No staging deploy tier and no database preview branches.
 The Vercel bundle always builds against the production tier (`apps/api/build.ts`).
-
 - Pre-merge proof of a Vercel build: `apps/api/src/vercel-bundle.integration.spec.ts`, which runs the
   built function in a read-only `oven/bun` container (`apps/api/test/bundle-container.ts`) under
   `ATLAS_LIVE_DOCKER=1`.

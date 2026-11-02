@@ -40,15 +40,15 @@ sign-in file. If you want a completely fresh seed: `WEBTERM_RESET_HOME=1 bun run
 
 ## Configuration (all optional env)
 
-| Var                  | Default                              | Meaning                                  |
-| -------------------- | ------------------------------------ | ---------------------------------------- |
-| `WEBTERM_PORT`       | `7681`                               | Port to listen on                        |
-| `WEBTERM_TOKEN`      | random per boot                      | Access token (`?token=` / basic auth)    |
-| `WEBTERM_SOURCE_HOME`| `$ATLAS_HOME` or `~/.atlas`          | Home to seed credentials from            |
-| `WEBTERM_HOME`       | `<repo>/.atlas-home/webterm`         | Scratch home the terminal runs against   |
-| `WEBTERM_CWD`        | repo root                            | Shell start directory                    |
-| `WEBTERM_RESET_HOME` | unset                                | `1` wipes and re-seeds the scratch home  |
-| `WEBTERM_AUTOLAUNCH` | `1`                                  | `0` opens a plain shell, no auto `atlas-dev` |
+| Var                   | Default                      | Meaning                                      |
+| --------------------- | ---------------------------- | -------------------------------------------- |
+| `WEBTERM_PORT`        | `7681`                       | Port to listen on                            |
+| `WEBTERM_TOKEN`       | random per boot              | Access token (`?token=` / basic auth)        |
+| `WEBTERM_SOURCE_HOME` | `$ATLAS_HOME` or `~/.atlas`  | Home to seed credentials from                |
+| `WEBTERM_HOME`        | `<repo>/.atlas-home/webterm` | Scratch home the terminal runs against       |
+| `WEBTERM_CWD`         | repo root                    | Shell start directory                        |
+| `WEBTERM_RESET_HOME`  | unset                        | `1` wipes and re-seeds the scratch home      |
+| `WEBTERM_AUTOLAUNCH`  | `1`                          | `0` opens a plain shell, no auto `atlas-dev` |
 
 The token matters on the sandbox: the exposed URL is effectively public, so the page and
 the websocket both refuse connections without it.

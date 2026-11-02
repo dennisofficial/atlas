@@ -11,7 +11,6 @@ The TUI tile and `/resume` show PR and CI state for the checkout a session stand
 now, a signed-in session got that state by polling the Atlas Cloud API, which served a Neon
 cache fed by the `atlas-by-dl` GitHub App's installation webhooks. That design broke in two
 ways:
-
 1. **Wrong ownership model.** Atlas Cloud is a per-person harness, not an org harness. An app
    installation grants org-wide visibility the installing user may not have, and sees repos
    that have nothing to do with the session. The only correct access boundary is the user's
@@ -58,7 +57,6 @@ The GitHub connection switches from GitHub-App device flow to a plain **OAuth Ap
 device flow. Rationale: OAuth App tokens do not expire until revoked. The current
 GitHub-App user tokens die silently every 8 hours (the known #563 issue), which would
 re-break webhook management on a timer even after this redesign.
-
 - Env: `GITHUB_OAUTH_CLIENT_ID` (new). `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` and the
   `GITHUB_APP_*` keys are retired once the app module is deleted.
 - Requested scopes: `repo read:org admin:repo_hook admin:ssh_signing_key workflow`. (`workflow` is
@@ -161,7 +159,6 @@ The hook URL embeds the repo so the handler can load the per-repo secret without
 Deliberately exempt from the rate limiter: a throttled webhook is a failed delivery, GitHub
 does not retry failed deliveries, and the HMAC check already rejects junk callers, so the
 only traffic a ceiling ever caught was real events. Handler is **stateless**:
-
 1. Verify `x-hub-signature-256` against the hook's secret. Unknown repo or bad signature → 401.
 2. Normalize the event (`pull_request`, `check_suite`, `check_run`, `push`). Persist nothing
    raw — the old `GithubWebhookEvent` firehose is dropped; `GithubPrState` is the record.
@@ -212,7 +209,6 @@ subscribe-pull. No delivery ever fails for lack of a token.
 `PullRequestPort` gains a pushing implementation: `SsePullRequestPort`
 (`packages/harness/src/cloud/`), `pushes: true`. Constructed when the session has cloud
 credentials (signed in or serve); the `gh` poller stays for signed-out sessions.
-
 - On `read({ checkout })` / `readLinked({ repo, number })`: subscribe (idempotent), answer
   from the pull-on-subscribe response, and from then on the service's readings are fed by
   the stream.
@@ -237,7 +233,6 @@ since all event types live in `@dltech/atlas-core` — drafted by the github plu
 the tracked reading changes (turn end for the poller, each push for SSE; change-only, so a
 chatty check_run stream cannot fill the log). A new plugin projection folds the latest state
 per PR, exactly as `pullRequestsOf` folds links.
-
 - `/resume` (`thread-chips.ts`) reads the projection instead of firing `gh`/API calls per
   row. Chips render instantly; a muted chip means "no state recorded," and the live source
   corrects it after open.
@@ -255,7 +250,6 @@ snapshot for a turn that began without an event — and this replaces agent-spaw
 `gh run watch` babysitting shells.
 
 Event classes, all wake-worthy, dedupe transition-only (never on steady state or re-delivery):
-
 - CI verdict: checks went green or failed on the tracked head
 - Mergeability change — held while checks are still running
   (`transitionsOf` in the realtime module emits it only when checks are quiet), so it lands
@@ -328,7 +322,6 @@ through the same BeforeTool phase, so background shells are covered without a se
 ## Migration away from the app design
 
 In the same PR series:
-
 1. Add the new models + endpoints alongside the old module.
 2. Switch the harness port to SSE; `PullRequestsClient` (`/v1/github/prs` polling) is
    deleted once nothing references it.
@@ -345,21 +338,21 @@ state instead.
 
 ## Fallbacks and failure modes
 
-| Failure | Behavior |
-| --- | --- |
-| Signed out | `gh` polling, unchanged (degraded mode) |
-| Serve holds only a thread-scoped sandbox token | The realtime procedures accept it through `SessionOrSandboxMiddleware` + `sandboxReachable` and act as the owning user; a future removal of that opt-in kills cloud tracking silently — the port now logs a warn the moment the API starts refusing it |
-| Direct (never-lifted) cloud arrival | The arrival's `location-changed` carries the restored checkout's `remoteUrl`/`branch` (probed server-side), so the cloud-checkout fold can build a tracked checkout without a lift marker |
-| Cloud session dead (401) | Tile shows last-known state muted; re-sign-in restores |
-| User not repo admin (hook create 403/404) | Subscription marked poll-backed: the API polls GitHub as the user every 30s for that repo's subscribed PRs, pushes diffs over the same SSE stream |
-| PR/CI event with the sandbox parked | The API wakes it: `GithubSandboxWakeService` recreates the sandbox and boots serve through the shared `@dltech/atlas-wire` boot machinery under a fresh token; an attached TUI forwards the event as input and wins the race. A boot failure leaves the mailbox row, which replays on the next natural open |
-| Sandbox parked longer than the 24h `PARK_WAKE_WINDOW_MS` | Never woken; events accumulate in the mailbox and replay on the next natural open |
-| Lost webhook delivery (deploy kill, 5xx, GitHub never retries) | Re-anchor sweep: a hook-backed PR whose state row went 10 min without webhook writes (or has none at all) gets one REST read as the subscribing user, which also recreates the missing row that would blind later check events for that PR |
-| Hook deleted on the GitHub side | Next subscribe verifies the row against GitHub (memoized 5 min) and recreates the hook |
-| OAuth token revoked mid-session | Subscriptions keep receiving payload-derived state; computed fields gap until re-auth; next subscribe-pull fails loudly in settings |
-| API restart | Stateless handler; subscriptions/hooks read back from Postgres; drain completes open SSE streams and 503s new ones, so clients reconnect to the new instance and catch up |
-| Delivery storm (100s of check_runs) | `GithubPrState` upsert is idempotent; SSE push coalesced per PR to latest state within a 1s window |
-| Multi-instance API (future) | Fan-out is in-process for now (one DO instance); the seam is a fan-out publisher interface, Neon `LISTEN/NOTIFY` when a second instance ships |
+| Failure                                                        | Behavior                                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Signed out                                                     | `gh` polling, unchanged (degraded mode)                                                                                                                                                                                                                                                                     |
+| Serve holds only a thread-scoped sandbox token                 | The realtime procedures accept it through `SessionOrSandboxMiddleware` + `sandboxReachable` and act as the owning user; a future removal of that opt-in kills cloud tracking silently — the port now logs a warn the moment the API starts refusing it                                                      |
+| Direct (never-lifted) cloud arrival                            | The arrival's `location-changed` carries the restored checkout's `remoteUrl`/`branch` (probed server-side), so the cloud-checkout fold can build a tracked checkout without a lift marker                                                                                                                   |
+| Cloud session dead (401)                                       | Tile shows last-known state muted; re-sign-in restores                                                                                                                                                                                                                                                      |
+| User not repo admin (hook create 403/404)                      | Subscription marked poll-backed: the API polls GitHub as the user every 30s for that repo's subscribed PRs, pushes diffs over the same SSE stream                                                                                                                                                           |
+| PR/CI event with the sandbox parked                            | The API wakes it: `GithubSandboxWakeService` recreates the sandbox and boots serve through the shared `@dltech/atlas-wire` boot machinery under a fresh token; an attached TUI forwards the event as input and wins the race. A boot failure leaves the mailbox row, which replays on the next natural open |
+| Sandbox parked longer than the 24h `PARK_WAKE_WINDOW_MS`       | Never woken; events accumulate in the mailbox and replay on the next natural open                                                                                                                                                                                                                           |
+| Lost webhook delivery (deploy kill, 5xx, GitHub never retries) | Re-anchor sweep: a hook-backed PR whose state row went 10 min without webhook writes (or has none at all) gets one REST read as the subscribing user, which also recreates the missing row that would blind later check events for that PR                                                                  |
+| Hook deleted on the GitHub side                                | Next subscribe verifies the row against GitHub (memoized 5 min) and recreates the hook                                                                                                                                                                                                                      |
+| OAuth token revoked mid-session                                | Subscriptions keep receiving payload-derived state; computed fields gap until re-auth; next subscribe-pull fails loudly in settings                                                                                                                                                                         |
+| API restart                                                    | Stateless handler; subscriptions/hooks read back from Postgres; drain completes open SSE streams and 503s new ones, so clients reconnect to the new instance and catch up                                                                                                                                   |
+| Delivery storm (100s of check_runs)                            | `GithubPrState` upsert is idempotent; SSE push coalesced per PR to latest state within a 1s window                                                                                                                                                                                                          |
+| Multi-instance API (future)                                    | Fan-out is in-process for now (one DO instance); the seam is a fan-out publisher interface, Neon `LISTEN/NOTIFY` when a second instance ships                                                                                                                                                               |
 
 ## Slices
 

@@ -15,7 +15,6 @@ punishes: twenty blocks per request.
 
 Two defects were found while establishing the numbers, and both matter more than the tuning question
 that prompted the investigation:
-
 1. `imagesInContext` counts images across the whole transcript with no notion of the current turn, so
    attaching ten images to one message retires eight of them **before the first model step of the turn
    that attached them**. Executed, not inferred — see [The ten-image case](#the-ten-image-case).
@@ -42,10 +41,10 @@ heuristic does not appear in the current documentation.
 
 ### There are two limits, and the token limit usually binds
 
-| Resolution tier | Models | Max long edge | Max visual tokens |
-| --- | --- | --- | --- |
-| High-resolution | Claude 4.7 and later | 2576 px | 4784 |
-| Standard | All other models | 1568 px | 1568 |
+| Resolution tier | Models               | Max long edge | Max visual tokens |
+| --------------- | -------------------- | ------------- | ----------------- |
+| High-resolution | Claude 4.7 and later | 2576 px       | 4784              |
+| Standard        | All other models     | 1568 px       | 1568              |
 
 > "Claude finds the largest aspect-preserving size that satisfies both of the model's image limits …
 > For nearly all photos and screenshots, the visual token limit is what determines the final size. The
@@ -58,19 +57,19 @@ A 1075×1520 A4 scan has both sides under 1568 px and is still resized to 924×1
 `39 × 55 = 2145` tokens exceeds the standard tier's 1568.
 
 That page carries a reference implementation — binary search along the long edge, banker's rounding on
-the short edge, with the edge test applied to the *padded* size (`⌈w/28⌉ × 28 ≤ maxEdge`). It is worth
+the short edge, with the edge test applied to the _padded_ size (`⌈w/28⌉ × 28 ≤ maxEdge`). It is worth
 porting verbatim rather than approximating. Ported and validated against the doc's own example, it
 reproduces `resizedSize(1075, 1520) → (924, 1307)`.
 
 Measured against the current `visualTokens`:
 
-| Image | `visualTokens` says | Actual, high-res tier | Error | Actual, standard tier |
-| --- | --- | --- | --- | --- |
-| 6000×4000 photo | 5,704 | 2352×1568 = **4,704** | +21% | 1344×896 = 1,536 |
-| 2576×1673 screenshot | 5,520 | 2380×1546 = **4,760** | +16% | 1372×891 = 1,568 |
-| 3024×1964 (MBP full screen) | 5,520 | 2380×1546 = **4,760** | +16% | 1372×891 = 1,568 |
-| 2000×1299 screenshot | 3,384 | 3,384 | 0% | 1372×891 = 1,568 |
-| 900×900 synthetic | 1,089 | 1,089 | 0% | 1,089 |
+| Image                       | `visualTokens` says | Actual, high-res tier | Error | Actual, standard tier |
+| --------------------------- | ------------------- | --------------------- | ----- | --------------------- |
+| 6000×4000 photo             | 5,704               | 2352×1568 = **4,704** | +21%  | 1344×896 = 1,536      |
+| 2576×1673 screenshot        | 5,520               | 2380×1546 = **4,760** | +16%  | 1372×891 = 1,568      |
+| 3024×1964 (MBP full screen) | 5,520               | 2380×1546 = **4,760** | +16%  | 1372×891 = 1,568      |
+| 2000×1299 screenshot        | 3,384               | 3,384                 | 0%    | 1372×891 = 1,568      |
+| 900×900 synthetic           | 1,089               | 1,089                 | 0%    | 1,089                 |
 
 The handoff's "settled facts" of 5,520 and 5,704 tokens per screenshot are inflated for this reason and
 should not be carried forward.
@@ -111,7 +110,7 @@ anything. Twenty total image blocks is therefore a real ceiling for a harness, w
 ### Resizing locally saves no tokens
 
 Confirmed and unchanged: token cost is computed on the size the API resizes to, so pre-resizing to the
-ceiling saves upload bytes only. What pre-resizing *does* buy is determinism —
+ceiling saves upload bytes only. What pre-resizing _does_ buy is determinism —
 `transformations: {"oversized_image": "error"}` turns silent server-side resizing into a 400 naming the
 exact target size, which is the mechanism to use if coordinates ever become load-bearing.
 
@@ -132,15 +131,15 @@ Opus 5 is 512 tokens. Maximum 4 breakpoints, lookback window 20 blocks — both 
 
 ### What retirement actually costs
 
-Retiring an image rewrites the transcript *behind* the newest content, so it invalidates every cached
+Retiring an image rewrites the transcript _behind_ the newest content, so it invalidates every cached
 block after the retired image. At Opus 5's $5/MTok input price, with a 4,784-token image:
 
 | Transcript after the retired image | One-time re-write | Break-even |
-| --- | --- | --- |
-| 5,000 tok | $0.03 | 12 steps |
-| 20,000 tok | $0.12 | 48 steps |
-| 50,000 tok | $0.29 | 120 steps |
-| 120,000 tok | $0.69 | 288 steps |
+| ---------------------------------- | ----------------- | ---------- |
+| 5,000 tok                          | $0.03             | 12 steps   |
+| 20,000 tok                         | $0.12             | 48 steps   |
+| 50,000 tok                         | $0.29             | 120 steps  |
+| 120,000 tok                        | $0.69             | 288 steps  |
 
 Retirement saves `4784 × 0.1 = 478` tok-eq per step, or $0.0024. The invalidation is real but cheap;
 the reason not to retire aggressively is not that retirement is expensive, it is that it **buys almost
@@ -174,14 +173,14 @@ assembly rule is the only place that destroys them.
 
 ## What other harnesses do
 
-| Harness | Images retained | Resize before send | Crop / region read | Configurable |
-| --- | --- | --- | --- | --- |
-| [OpenCode](https://github.com/sst/opencode/blob/dev/packages/core/src/session/compaction.ts) | All, every turn. No image-specific eviction; only whole-history compaction drops them, leaving `[Attached image/png: name]` | Yes — Photon/WASM Lanczos3 to [2000×2000 px / 5 MB](https://github.com/sst/opencode/blob/dev/packages/core/src/image/photon.ts) | No | Yes — `attachment.image.{auto_resize,max_width,max_height,max_base64_bytes}` |
-| [Aider](https://github.com/Aider-AI/aider/blob/main/aider/coders/base_coder.py) | All, re-encoded and re-sent every request | None — raw bytes to a base64 data URL | No | No; `detail: high` is hardcoded |
-| [Cline](https://github.com/cline/cline/blob/main/apps/vscode/src/core/prompts/responses.ts) | Whole-message sliding window, not image-aware | None | No | No |
-| [Continue](https://github.com/continuedev/continue) | Prunes oldest whole messages; images counted as a flat 1024 tokens | Unverified | No | Unverified |
-| Claude Code | Undocumented | Undocumented | Undocumented | Undocumented |
-| pi.dev | Unverified | Unverified | Unverified | Unverified |
+| Harness                                                                                      | Images retained                                                                                                             | Resize before send                                                                                                              | Crop / region read | Configurable                                                                 |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------- |
+| [OpenCode](https://github.com/sst/opencode/blob/dev/packages/core/src/session/compaction.ts) | All, every turn. No image-specific eviction; only whole-history compaction drops them, leaving `[Attached image/png: name]` | Yes — Photon/WASM Lanczos3 to [2000×2000 px / 5 MB](https://github.com/sst/opencode/blob/dev/packages/core/src/image/photon.ts) | No                 | Yes — `attachment.image.{auto_resize,max_width,max_height,max_base64_bytes}` |
+| [Aider](https://github.com/Aider-AI/aider/blob/main/aider/coders/base_coder.py)              | All, re-encoded and re-sent every request                                                                                   | None — raw bytes to a base64 data URL                                                                                           | No                 | No; `detail: high` is hardcoded                                              |
+| [Cline](https://github.com/cline/cline/blob/main/apps/vscode/src/core/prompts/responses.ts)  | Whole-message sliding window, not image-aware                                                                               | None                                                                                                                            | No                 | No                                                                           |
+| [Continue](https://github.com/continuedev/continue)                                          | Prunes oldest whole messages; images counted as a flat 1024 tokens                                                          | Unverified                                                                                                                      | No                 | Unverified                                                                   |
+| Claude Code                                                                                  | Undocumented                                                                                                                | Undocumented                                                                                                                    | Undocumented       | Undocumented                                                                 |
+| pi.dev                                                                                       | Unverified                                                                                                                  | Unverified                                                                                                                      | Unverified         | Unverified                                                                   |
 
 Two things stand out.
 
@@ -204,7 +203,7 @@ The tile-family models (gpt-4o, gpt-4.1, gpt-5.1) make `low` a flat price — 85
 dimensions — which is the clean version of the "how much fidelity do you need" control. The
 patch-family models (gpt-5.2 onward) reuse the name for a resize directive and the
 [docs warn](https://developers.openai.com/api/docs/guides/images-vision) that "`low` does not always
-use fewer tokens than `high`"; on gpt-5.4, `low` is the *larger* budget. The lesson for a per-read
+use fewer tokens than `high`"; on gpt-5.4, `low` is the _larger_ budget. The lesson for a per-read
 detail hint (idea 3 in the handoff) is to express it as a token budget, not as an opaque quality name
 that has already meant two incompatible things at one vendor.
 
@@ -214,7 +213,7 @@ that has already meant two incompatible things at one vendor.
   `load: () => null` whenever a subagent view is focused, so every attached image degrades to a path
   line. Not a tuning knob — a capability gap.
 - **Paste-time `sips -Z` conflicts with region-crop.** `apps/tui/src/ui/clipboard-image.ts:125-136`
-  writes a copy into the conversation image directory and then shrinks *that copy*, so the operator's
+  writes a copy into the conversation image directory and then shrinks _that copy_, so the operator's
   clipboard source is never mutated — the handoff's stated concern does not apply. The resize is still
   wrong: it saves zero tokens and permanently discards the resolution that `NativeImage.extract()`
   would need to send one pane of a four-pane screenshot at native size.
@@ -223,15 +222,15 @@ that has already meant two incompatible things at one vendor.
 
 ## What was landed
 
-| Change | Commit |
-| --- | --- |
+| Change                                                                                              | Commit     |
+| --------------------------------------------------------------------------------------------------- | ---------- |
 | `projection.ts` holds the two-limit search and the tier table; `visualTokens` measures against both | `3e1ed33c` |
-| Retirement fires at twenty image blocks rather than two; `context.imagesKept` removed | `792a07cb` |
-| Paste-time `sips` gone; one delivery plan holding only the ceilings the API enforces | `d9508552` |
-| Breakpoint placement around images pinned by test | `dfb5c043` |
-| Estimator takes its tier from the model; dimensions ride the part instead of being decoded | `f4383f54` |
-| A subagent is handed the pixels, through the steering queue as well as the append | `6b403209` |
-| `read` takes a `region`, cut by a PNG decode rather than a shell-out | `c91b7197` |
+| Retirement fires at twenty image blocks rather than two; `context.imagesKept` removed               | `792a07cb` |
+| Paste-time `sips` gone; one delivery plan holding only the ceilings the API enforces                | `d9508552` |
+| Breakpoint placement around images pinned by test                                                   | `dfb5c043` |
+| Estimator takes its tier from the model; dimensions ride the part instead of being decoded          | `f4383f54` |
+| A subagent is handed the pixels, through the steering queue as well as the append                   | `6b403209` |
+| `read` takes a `region`, cut by a PNG decode rather than a shell-out                                | `c91b7197` |
 
 A visual-token budget was **considered and dropped**. Once retirement fires only at the twenty-block
 cliff, the budget has nothing left to price: the block count is what the API punishes, and the
@@ -262,12 +261,12 @@ instead, which also keeps the arithmetic exact and the tests pure.
 
 ## Still open
 
-| # | Change | Rationale |
-| --- | --- | --- |
-| 1 | Crop a format that is not PNG | Declined by name today; JPEG needs a decoder, and gains less, since a photograph downscales gracefully |
-| 2 | Let the TUI's own display path know the tier | `projection.ts` takes one and the loop passes it; the three display call sites still default |
-| 3 | Consider the Files API for attachments | Upload once, reference by `file_id`; removes the resend-bytes-per-turn cost that paste-time resize was half-addressing |
-| 4 | Verify pi.dev, and Claude Code's retention | Both unverified above rather than guessed |
+| #   | Change                                       | Rationale                                                                                                              |
+| --- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 1   | Crop a format that is not PNG                | Declined by name today; JPEG needs a decoder, and gains less, since a photograph downscales gracefully                 |
+| 2   | Let the TUI's own display path know the tier | `projection.ts` takes one and the loop passes it; the three display call sites still default                           |
+| 3   | Consider the Files API for attachments       | Upload once, reference by `file_id`; removes the resend-bytes-per-turn cost that paste-time resize was half-addressing |
+| 4   | Verify pi.dev, and Claude Code's retention   | Both unverified above rather than guessed                                                                              |
 
 Not recommended: **model-generated alt text on retirement.** The existing placeholder already carries
 path, media type and dimensions, and the model can re-`read` the file. A real description would need to

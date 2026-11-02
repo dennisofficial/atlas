@@ -92,7 +92,6 @@ pod, no client, no endpoint beyond what the adapter's own tests need. Slice 3 bu
 ## Interfaces
 
 Fixed by this spec's implementation, reviewed before slice 3 starts:
-
 - `RecordStorePort.append(args: { threadId, epoch, events: readonly V2Event[] }) ->
   { ok: true; appended } | { ok: false; refusal: AppendRefusal; head: HeadState }` — the head is
   returned on refusal so the caller can resync without a second round trip.
@@ -131,7 +130,6 @@ Fixed by this spec's implementation, reviewed before slice 3 starts:
 
 Property tests over the pure rules with a fast-check-style generator (or the repo's equivalent —
 check what `core/src/__tests__` already uses before adding a dependency):
-
 1. **seq-466 interleaving**: two concurrent inputs become inbox ids 1 and 2; one holder turns them
    into seqs 466 and 467; a second writer's append at 466 is refused.
 2. **Stale epoch**: a write at epoch N after the lease moved to N+1 is refused with `stale-epoch`.

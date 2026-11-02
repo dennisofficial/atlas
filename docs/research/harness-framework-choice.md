@@ -5,7 +5,6 @@ Research snapshot: 2026-08-24. External claims below use first-party OpenAI, Ver
 ## Decision
 
 For the original minimal model/tool-loop spike, **Vercel AI SDK Core** had the better DX. The requirement is now full Claude Code parity, including rewind/fork, durable human intervention, pre-tool policy, crash recovery, and workspace restoration. Under that stricter requirement, use a hybrid:
-
 - AI SDK Core performs exactly one streamed model step and normalizes provider/tool protocol.
 - A thin LangGraph graph owns resumable control flow, checkpoints, forks, and interrupts.
 - Atlas remains authoritative for the append-only event log, conversation projections, permissions, scheduling, credentials, and workspace snapshots.
@@ -18,10 +17,10 @@ The model transport and loop framework are independent choices. A small `ChatGPT
 
 The companion spike made real Anthropic calls with both of the user's Claude subscription identities:
 
-| Harness | Work / Teams OAuth | Personal / Max OAuth |
-| --- | --- | --- |
-| Vercel AI SDK | Passed | Passed |
-| LangGraph | Passed | Passed |
+| Harness       | Work / Teams OAuth | Personal / Max OAuth |
+| ------------- | ------------------ | -------------------- |
+| Vercel AI SDK | Passed             | Passed               |
+| LangGraph     | Passed             | Passed               |
 
 Each case completed the same two-model-call, one-tool-call loop. The work credential came from Claude Code's normal credential storage; the personal credential was selected from Atlas's encrypted account vault and decrypted only in memory. No credential was copied into source or output.
 
@@ -35,10 +34,10 @@ Yes, in the narrow technical sense that matters for this spike: OpenAI's own Cod
 
 OpenAI documents two distinct routes:
 
-| Login mode | Endpoint | Billing/access surface |
-| --- | --- | --- |
+| Login mode                  | Endpoint                                          | Billing/access surface                         |
+| --------------------------- | ------------------------------------------------- | ---------------------------------------------- |
 | ChatGPT-managed Codex login | `https://chatgpt.com/backend-api/codex/responses` | ChatGPT/Codex subscription or workspace access |
-| Platform API key | `https://api.openai.com/v1/responses` | Separately billed API usage |
+| Platform API key            | `https://api.openai.com/v1/responses`             | Separately billed API usage                    |
 
 The split is described by OpenAI's engineering article on the Codex loop and encoded in the official client. [Unrolling the Codex agent loop](https://openai.com/index/unrolling-the-codex-agent-loop/), [Codex model-provider source](https://github.com/openai/codex/blob/main/codex-rs/model-provider-info/src/lib.rs)
 
@@ -54,7 +53,6 @@ Accept: text/event-stream
 The request is a streaming Responses request to `/responses`. Current Codex source provides the bearer token and account-routing header, and its Responses client consumes Server-Sent Events. [Codex auth provider](https://github.com/openai/codex/blob/main/codex-rs/model-provider/src/auth.rs), [Codex Responses client](https://github.com/openai/codex/blob/main/codex-rs/codex-api/src/endpoint/responses.rs)
 
 The minimum safe conclusion is therefore:
-
 - A current ChatGPT Codex credential is mechanically capable of authenticating GPT inference through the Codex backend.
 - This does **not** turn the OAuth token into a general `api.openai.com` API key. OpenAI states that ChatGPT and API billing are separate. [OpenAI billing guidance](https://help.openai.com/en/articles/8156019-is-api-usage-included-in-chatgpt-subscriptions-even-if-i-have-a-paid-chatgpt-account)
 - The usable models, request fields, rate limits, and product policy are those of the Codex backend, not arbitrary Platform API entitlements.
@@ -66,22 +64,21 @@ Atlas's backend-era Codex auth code persists the full `auth.json` document as AE
 
 ```ts
 type CodexAuth = {
-  OPENAI_API_KEY: string | null;
-  auth_mode?: "chatgpt";
+  OPENAI_API_KEY: string | null
+  auth_mode?: 'chatgpt'
   tokens: {
-    id_token: string;
-    access_token: string;
-    refresh_token: string;
-    account_id?: string | null;
-  };
-  last_refresh?: string;
-};
+    id_token: string
+    access_token: string
+    refresh_token: string
+    account_id?: string | null
+  }
+  last_refresh?: string
+}
 ```
 
 That shape matches the official Codex storage type, although OpenAI does not present `auth.json` as a stable third-party API. Codex may store credentials in the OS credential store instead of the file depending on configuration. [Official auth storage source](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs)
 
 Relevant Atlas source:
-
 - `backend/src/host/agent-credentials/oauth/codex-oauth.client.ts` creates and refreshes the OAuth token set and assembles `auth.json`.
 - `backend/src/host/agent-credentials/oauth/codex-auth.service.ts` validates the shape and decodes identity metadata without verifying the JWT as an authorization decision.
 - `backend/src/host/agent-credentials/agent-credential.service.ts` encrypts the complete blob at rest.
@@ -96,25 +93,25 @@ Vercel's OpenAI provider uses the Responses API by default and accepts a custom 
 An illustrative spike configuration is:
 
 ```ts
-import { createOpenAI } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { createOpenAI } from '@ai-sdk/openai'
+import { streamText } from 'ai'
 
 const provider = createOpenAI({
-  baseURL: "https://chatgpt.com/backend-api/codex",
+  baseURL: 'https://chatgpt.com/backend-api/codex',
   apiKey: auth.tokens.access_token,
   headers: {
-    "ChatGPT-Account-ID": auth.tokens.account_id!,
+    'ChatGPT-Account-ID': auth.tokens.account_id!,
   },
-});
+})
 
 const result = streamText({
   model: provider(modelId),
-  prompt: "Reply with exactly: Atlas GPT OAuth spike succeeded",
+  prompt: 'Reply with exactly: Atlas GPT OAuth spike succeeded',
   abortSignal,
   providerOptions: {
     openai: { store: false },
   },
-});
+})
 
 for await (const part of result.fullStream) {
   // Never log request headers, auth, or raw credential objects.
@@ -153,17 +150,17 @@ history  live per-thread state
 
 ### Comparison against Atlas requirements
 
-| Concern | Vercel AI SDK Core | LangGraph JS | Atlas-specific judgment |
-| --- | --- | --- | --- |
-| First custom loop | `streamText` + tools + `stopWhen`, or `ToolLoopAgent` | State schema, model node, tool node, conditional and back edges | AI SDK is less ceremony for Atlas's existing loop. |
-| Streaming | `fullStream` yields typed text, reasoning, tool, finish, and error parts | Event streaming projects messages, state, tools, subgraphs, checkpoints, tasks, and custom events | AI SDK maps more directly to the existing `EngineEvent` normalizer; LangGraph wins node-level inspection. |
-| UI reactivity | App consumes the async stream and updates its own store | App consumes graph events/state projections | Both work; neither should own React state. Atlas's external store should remain the UI source of truth. |
-| Cancellation | First-class `AbortSignal`, also passed into tool execution | Graph run options accept `AbortSignal` | Both fit. AI SDK maps directly to Atlas's `RunningTurn.interrupt()` through one `AbortController`. |
-| Tool approvals | `needsApproval` returns an approval request; the app adds an approval response and calls again | `interrupt()` checkpoints graph state and resumes with `Command` | LangGraph is stronger for durable pause/resume. AI SDK is simpler if Atlas owns pending approval state, as it already owns messages and turns. |
-| Persistence/resume | Application-managed | Built-in checkpointers and `thread_id`; checkpoint per graph super-step | AI SDK avoids a second persistence model. LangGraph wins only if graph checkpoints become authoritative. |
-| Crash recovery/time travel | Must be designed in Atlas | Built in with a durable checkpointer | This is the clearest reason to adopt LangGraph later. |
-| State ownership | Minimal framework state; Atlas stays authoritative | Graph state and checkpoints naturally become authoritative | Layering LangGraph under the existing SQLite/store model risks dual sources of truth. |
-| Provider integration | Direct custom provider interface; OpenAI factory exposes base URL, headers, and fetch | Usually a LangChain chat-model adapter, or arbitrary code inside a node | AI SDK is the shorter path for the private Codex Responses transport. |
+| Concern                    | Vercel AI SDK Core                                                                             | LangGraph JS                                                                                      | Atlas-specific judgment                                                                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| First custom loop          | `streamText` + tools + `stopWhen`, or `ToolLoopAgent`                                          | State schema, model node, tool node, conditional and back edges                                   | AI SDK is less ceremony for Atlas's existing loop.                                                                                             |
+| Streaming                  | `fullStream` yields typed text, reasoning, tool, finish, and error parts                       | Event streaming projects messages, state, tools, subgraphs, checkpoints, tasks, and custom events | AI SDK maps more directly to the existing `EngineEvent` normalizer; LangGraph wins node-level inspection.                                      |
+| UI reactivity              | App consumes the async stream and updates its own store                                        | App consumes graph events/state projections                                                       | Both work; neither should own React state. Atlas's external store should remain the UI source of truth.                                        |
+| Cancellation               | First-class `AbortSignal`, also passed into tool execution                                     | Graph run options accept `AbortSignal`                                                            | Both fit. AI SDK maps directly to Atlas's `RunningTurn.interrupt()` through one `AbortController`.                                             |
+| Tool approvals             | `needsApproval` returns an approval request; the app adds an approval response and calls again | `interrupt()` checkpoints graph state and resumes with `Command`                                  | LangGraph is stronger for durable pause/resume. AI SDK is simpler if Atlas owns pending approval state, as it already owns messages and turns. |
+| Persistence/resume         | Application-managed                                                                            | Built-in checkpointers and `thread_id`; checkpoint per graph super-step                           | AI SDK avoids a second persistence model. LangGraph wins only if graph checkpoints become authoritative.                                       |
+| Crash recovery/time travel | Must be designed in Atlas                                                                      | Built in with a durable checkpointer                                                              | This is the clearest reason to adopt LangGraph later.                                                                                          |
+| State ownership            | Minimal framework state; Atlas stays authoritative                                             | Graph state and checkpoints naturally become authoritative                                        | Layering LangGraph under the existing SQLite/store model risks dual sources of truth.                                                          |
+| Provider integration       | Direct custom provider interface; OpenAI factory exposes base URL, headers, and fetch          | Usually a LangChain chat-model adapter, or arbitrary code inside a node                           | AI SDK is the shorter path for the private Codex Responses transport.                                                                          |
 
 AI SDK's multi-step loop supports `stopWhen`, per-step `prepareStep`, `onStepFinish`, and a fully manual loop when more control is needed. `ToolLoopAgent` is the convenience wrapper, not a requirement. [AI SDK agents](https://ai-sdk.dev/docs/agents/overview), [loop control](https://ai-sdk.dev/docs/agents/loop-control), [tools and approvals](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling)
 
@@ -187,18 +184,17 @@ Define a provider-neutral engine port and let AI SDK be one implementation:
 
 ```ts
 interface HarnessTurn {
-  steer(input: UserInput): boolean;
-  interrupt(): Promise<void>;
-  done: Promise<TurnResult>;
+  steer(input: UserInput): boolean
+  interrupt(): Promise<void>
+  done: Promise<TurnResult>
 }
 
 interface HarnessEngine {
-  start(args: TurnArgs & { onEvent(event: EngineEvent): void }): HarnessTurn;
+  start(args: TurnArgs & { onEvent(event: EngineEvent): void }): HarnessTurn
 }
 ```
 
 Behind that port:
-
 - `CodexSubscriptionModel` owns only request/response translation for the ChatGPT Codex endpoint.
 - `AiSdkHarnessEngine` owns the agent loop, tool dispatch, and `AbortController`.
 - Atlas continues to own credentials, policy, approvals, event persistence, rotation, and OpenTUI-visible state.

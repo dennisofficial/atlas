@@ -29,7 +29,6 @@ which leaves stdin un-raw and sizes the renderer to a default rather than the wi
 ## Why it still exists
 
 Two things a settled transcript cannot show, and no unit test can either:
-
 - **A run in flight.** The streaming window and the height ratchet only happen while a turn runs, so
   the busiest real run in the thread is replayed on a clock, looping. Real commands, real output;
   only the timing is invented.
@@ -38,16 +37,16 @@ Two things a settled transcript cannot show, and no unit test can either:
 
 ## Where the design lives now
 
-| | |
-| --- | --- |
-| `src/store/tool-runs.ts` | calls and runs, with the tool's output still attached |
-| `src/store/tools/classify.ts` | one call in, one `Classification` out |
-| `src/store/tools/bash.ts` | what a shell line actually did |
-| `src/store/tools/aggregate.ts` | classifications in, rows out — pure, so density is measurable |
-| `src/ui/components/blocks/tool-run-block.tsx` | the three levels |
-| `src/ui/components/blocks/tool-detail.tsx` | one renderer per shape of output |
-| `src/ui/tool-marks.ts` | how loudly the gutter speaks |
-| `src/ui/hooks/use-high-water.ts` | a live block grows and never shrinks |
+|                                               |                                                               |
+| --------------------------------------------- | ------------------------------------------------------------- |
+| `src/store/tool-runs.ts`                      | calls and runs, with the tool's output still attached         |
+| `src/store/tools/classify.ts`                 | one call in, one `Classification` out                         |
+| `src/store/tools/bash.ts`                     | what a shell line actually did                                |
+| `src/store/tools/aggregate.ts`                | classifications in, rows out — pure, so density is measurable |
+| `src/ui/components/blocks/tool-run-block.tsx` | the three levels                                              |
+| `src/ui/components/blocks/tool-detail.tsx`    | one renderer per shape of output                              |
+| `src/ui/tool-marks.ts`                        | how loudly the gutter speaks                                  |
+| `src/ui/hooks/use-high-water.ts`              | a live block grows and never shrinks                          |
 
 ## Two things still blocked by the data
 

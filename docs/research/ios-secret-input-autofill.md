@@ -6,14 +6,13 @@ Research date: 2026-10-31. Scope: native “Use Strong Password? / Save & Fill�
 
 **There is no evidenced web-author switch that guarantees “masked editable secret, but never password-manager UI.”** `autocomplete="off"` is the appropriate request for these values, not an enforceable veto. Do not use `new-password` for an existing API key: it explicitly describes a newly created account password. [1][2]
 
-**Do not conclude that CSS masking itself necessarily turns a text input into native secure text entry.** The inspected WebKit implementation computes the native trait from password type, *previous* password type, or a host override—not `textSecurity()`. Its input-type classifier likewise does not inspect that CSS property. CSS does mask rendered text. These are separate mechanisms. Safari's complete strong-password classification is not established by these open-source paths; the reported popup on a freshly loaded text-only page remains a real observation, not something this source analysis disproves. [3][4][5]
+**Do not conclude that CSS masking itself necessarily turns a text input into native secure text entry.** The inspected WebKit implementation computes the native trait from password type, _previous_ password type, or a host override—not `textSecurity()`. Its input-type classifier likewise does not inspect that CSS property. CSS does mask rendered text. These are separate mechanisms. Safari's complete strong-password classification is not established by these open-source paths; the reported popup on a freshly loaded text-only page remains a real observation, not something this source analysis disproves. [3][4][5]
 
 Best next step: first test the current text implementation after a **full reload/new document**, not merely a hot update from the previous password implementation. WebKit intentionally retains secure-entry behavior on an input that **has ever been a password field**. If the popup persists on a fresh document, a masked `<textarea autocomplete="off">` is a source-motivated **experiment**, not a guaranteed fix. If that also fails, use visible editing with masking outside edit mode, or retain native password entry and accept manager involvement. [3][6][7]
 
 ## Actual repository control
 
 `apps/web/src/features/projects/new-project-secrets-editor.tsx`:
-
 - Lines 71–89: value `Input` has `type="text"`, `autoComplete="off"`, `autoCapitalize="none"`, `autoCorrect="off"`, `spellCheck={false}`, `data-1p-ignore`, and `data-lpignore="true"`.
 - Lines 72, 80–84: id is `project-secret-value-${index}`; CSS toggles `-webkit-text-security:disc` / `none`. No `name`, `inputMode`, `passwordrules`, or password autocomplete token is specified on this control.
 - Lines 53–65: the adjacent Name field is a text-like `Input`, with placeholder `API_KEY`; its label is “Name”, value label is “Value”.
@@ -51,7 +50,6 @@ traits.secureTextEntry = _focusedElementInformation.elementType == WebKit::Input
 ### Why textarea is worth testing — supported distinction, speculative outcome
 
 [7], `WebPageIOS.mm:2849–2888`, has separate branches:
-
 - Textarea: passes value, autocomplete field name, inputmode, and editing traits.
 - Input: additionally calls `AutofillElements::computeAutofillElements`, sets `acceptsAutofilledLoginCredentials`, and copies `hasEverBeenPasswordField`.
 
@@ -72,13 +70,13 @@ traits.secureTextEntry = _focusedElementInformation.elementType == WebKit::Input
 
 **Recommended investigation order:** validate clean-node behavior first, then trial a masked textarea on the actual iPhone. Do not ship another confidently worded attribute-only “fix”.
 
-| Option | Benefit | Cost / uncertainty |
-| --- | --- | --- |
-| Current text input + CSS disc, freshly mounted | Smallest change; preserves single-line editing and masking | Already reported ineffective; clean-node test only isolates historical type. No suppression guarantee. |
-| Textarea + CSS disc + `autocomplete="off"` | Retains visual masking; avoids identified input-only autofill/history paths | Candidate only. Audit multiline/paste handling, sizing, Enter behavior, VoiceOver, reveal, selection, keyboard privacy, and CSS-off exposure. No device result yet. |
-| Visible text editing; mask stored/blurred display | Removes both password type and CSS-security signal from the active editor | Deliberate shoulder-surfing/screen-recording exposure while editing. Safari can still apply heuristics. Explain visibility and provide deliberate edit/reveal affordances. |
-| Native password field + `autocomplete="off"` | Native secure-entry behavior rather than visual masking alone | Accept that password-manager/generation UI may occur. Never label API keys `new-password`. |
-| Existing Paste .env/import-oriented flow | Already avoids a persistent masked entry field during paste | Less convenient for manual edits; clipboard itself is sensitive. No guarantee for Safari UI. An import-only redesign is a separate product decision. |
+| Option                                            | Benefit                                                                     | Cost / uncertainty                                                                                                                                                         |
+| ------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current text input + CSS disc, freshly mounted    | Smallest change; preserves single-line editing and masking                  | Already reported ineffective; clean-node test only isolates historical type. No suppression guarantee.                                                                     |
+| Textarea + CSS disc + `autocomplete="off"`        | Retains visual masking; avoids identified input-only autofill/history paths | Candidate only. Audit multiline/paste handling, sizing, Enter behavior, VoiceOver, reveal, selection, keyboard privacy, and CSS-off exposure. No device result yet.        |
+| Visible text editing; mask stored/blurred display | Removes both password type and CSS-security signal from the active editor   | Deliberate shoulder-surfing/screen-recording exposure while editing. Safari can still apply heuristics. Explain visibility and provide deliberate edit/reveal affordances. |
+| Native password field + `autocomplete="off"`      | Native secure-entry behavior rather than visual masking alone               | Accept that password-manager/generation UI may occur. Never label API keys `new-password`.                                                                                 |
+| Existing Paste .env/import-oriented flow          | Already avoids a persistent masked entry field during paste                 | Less convenient for manual edits; clipboard itself is sensitive. No guarantee for Safari UI. An import-only redesign is a separate product decision.                       |
 
 Avoid hidden dummy credentials, arbitrary autocomplete strings, renaming labels to deceive managers, readonly-until-focus tricks, synthetic keyboards, or custom bullet-value editors as purported fixes: no primary-source suppression contract was found, and these trade stable editing/accessibility for heuristic evasion.
 

@@ -22,7 +22,7 @@ Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync` and delete
   wire format. `src/__tests__/timestamp-wire.spec.ts` fails if a timestamp column regresses.
 - better-auth writes `User`, `Session`, `Account`, `Verification` and `DeviceCode` through the
   shared pool, so their model and field names must match its schema. The auth spec in `apps/api/src/api/platform/auth/` fails when they drift.
-- An `upsert` target (`conflictOn`) must be the primary key or a `@@unique`. A unique *index*
+- An `upsert` target (`conflictOn`) must be the primary key or a `@@unique`. A unique _index_
   (`@@index(..., unique: true)`) does not qualify.
 - Project ownership: `ownerUserId` is required; `createdById` records who made it.
 - The user-scope config models are `UserSecret`, `UserMcpServer` and `UserSetting`; `@@map` keeps
@@ -33,7 +33,6 @@ Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync` and delete
 Prisma 8 packages live under `migrations/app/<ts>_<slug>/` (`migration.ts`, `migration.json`,
 `ops.json`), with content-addressed snapshots under `migrations/snapshots/` and the `db` ref at
 `migrations/app/refs/db.json`.
-
 - Plan: `bun run contract:emit && bunx prisma migration plan --name <slug>`. `migration plan`
   chains from the `db` ref, never from the newest directory on disk. Keep the ref at the graph tip
   (`bunx prisma migration ref set db <hash>` after planning), or pass `--from <tip hash>`.

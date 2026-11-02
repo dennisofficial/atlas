@@ -30,21 +30,21 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 
 ## Package layout
 
-| Package                      | Depends on     | Owns                                                          |
-| ---------------------------- | -------------- | ------------------------------------------------------------- |
-| `@dltech/atlas-core`         | `zod` only     | Events, IDs, context assembly, hook and port contracts. Pure.  |
-| `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store. Its `/models` subpath (`@dltech/atlas-harness/models`) is browser-safe: the live Codex list over injected fetch/cache/clock ports and the pure catalogue composition, with no `node:*`, Bun or `@ai-sdk/*` reachable. |
-| `@dltech/atlas-models` (`packages/models`) | core, `zod` | The generated model catalogue (models.dev + inference.net cards), its generator scripts, and the pure card helpers. Shared by harness and web. |
-| `@dltech/atlas-ui`           | nothing        | Design tokens and shadcn (Base UI) components + AI patterns, with their co-located stories. No Atlas imports. |
-| `@dltech/atlas-storybook` (`apps/storybook`) | ui | The Storybook host: loads the stories co-located in `ui`. |
-| `@dltech/atlas-prototype` (`apps/prototype`) | ui | The clickable north-star prototype of apps/web: same route tree and feature folders, hardcoded fixtures, no backend. |
-| `@dltech/atlas-wire`         | `zod`, `@vercel/sandbox` | The wire contract: channel/session zod schemas, protocol version, serve-env constants — plus the sandbox boot primitives (create/resume retries, serve install/launch) shared by harness and the API. No in-repo deps. |
-| `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
-| `@dltech/atlas-serve` (`apps/serve`) | core, harness, wire, api-router | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build. |
-| `@dltech/atlas-db` (`packages/db`) | `@prisma/orm-postgres`, `pg` | The Postgres contract (one model per file), Prisma 8 migrations, the lazy `db` client and test databases. No in-repo deps. |
-| `@dltech/atlas-api-router` (`packages/api-router`) | `@dltech/atlas-wire`, `@trpc/client`, `@trpc/server`, `zod` | The generated `AppRouter` type (nestjs-trpc output, committed; the pre-commit hook regenerates it when api or wire sources are staged, CI's `check` job fails on drift, and `nestjs-trpc watch` runs in api dev) and the browser-safe tRPC client (`createApiClient`, bearer or same-origin cookies, SSE subscriptions) every client shares. Clients import it instead of reaching into `apps/api`. |
-| `@dltech/atlas-api` (`apps/api`) | `@dltech/atlas-wire`, `@dltech/atlas-db`, `@dltech/atlas-harness/models` (subpath only) | Atlas Cloud backend (NestJS + better-auth + Prisma 8 over Postgres). |
-| `web` (`apps/web`) | client, core, models, ui, wire | Atlas Cloud frontend (Next.js App Router; deploys to Vercel). |
+| Package                                            | Depends on                                                                              | Owns                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-core`                               | `zod` only                                                                              | Events, IDs, context assembly, hook and port contracts. Pure.                                                                                                                                                                                                                                                                                                                                       |
+| `@dltech/atlas-harness`                            | core                                                                                    | The loop, hooks, tools, model adapters, credentials, store. Its `/models` subpath (`@dltech/atlas-harness/models`) is browser-safe: the live Codex list over injected fetch/cache/clock ports and the pure catalogue composition, with no `node:*`, Bun or `@ai-sdk/*` reachable.                                                                                                                   |
+| `@dltech/atlas-models` (`packages/models`)         | core, `zod`                                                                             | The generated model catalogue (models.dev + inference.net cards), its generator scripts, and the pure card helpers. Shared by harness and web.                                                                                                                                                                                                                                                      |
+| `@dltech/atlas-ui`                                 | nothing                                                                                 | Design tokens and shadcn (Base UI) components + AI patterns, with their co-located stories. No Atlas imports.                                                                                                                                                                                                                                                                                       |
+| `@dltech/atlas-storybook` (`apps/storybook`)       | ui                                                                                      | The Storybook host: loads the stories co-located in `ui`.                                                                                                                                                                                                                                                                                                                                           |
+| `@dltech/atlas-prototype` (`apps/prototype`)       | ui                                                                                      | The clickable north-star prototype of apps/web: same route tree and feature folders, hardcoded fixtures, no backend.                                                                                                                                                                                                                                                                                |
+| `@dltech/atlas-wire`                               | `zod`, `@vercel/sandbox`                                                                | The wire contract: channel/session zod schemas, protocol version, serve-env constants — plus the sandbox boot primitives (create/resume retries, serve install/launch) shared by harness and the API. No in-repo deps.                                                                                                                                                                              |
+| `@dltech/atlas` (`apps/tui`)                       | core, harness                                                                           | OpenTUI + React terminal app; binds its stores into the shared root.                                                                                                                                                                                                                                                                                                                                |
+| `@dltech/atlas-serve` (`apps/serve`)               | core, harness, wire, api-router                                                         | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build.                                                                                                                                                                                                                                                                                     |
+| `@dltech/atlas-db` (`packages/db`)                 | `@prisma/orm-postgres`, `pg`                                                            | The Postgres contract (one model per file), Prisma 8 migrations, the lazy `db` client and test databases. No in-repo deps.                                                                                                                                                                                                                                                                          |
+| `@dltech/atlas-api-router` (`packages/api-router`) | `@dltech/atlas-wire`, `@trpc/client`, `@trpc/server`, `zod`                             | The generated `AppRouter` type (nestjs-trpc output, committed; the pre-commit hook regenerates it when api or wire sources are staged, CI's `check` job fails on drift, and `nestjs-trpc watch` runs in api dev) and the browser-safe tRPC client (`createApiClient`, bearer or same-origin cookies, SSE subscriptions) every client shares. Clients import it instead of reaching into `apps/api`. |
+| `@dltech/atlas-api` (`apps/api`)                   | `@dltech/atlas-wire`, `@dltech/atlas-db`, `@dltech/atlas-harness/models` (subpath only) | Atlas Cloud backend (NestJS + better-auth + Prisma 8 over Postgres).                                                                                                                                                                                                                                                                                                                                |
+| `web` (`apps/web`)                                 | client, core, models, ui, wire                                                          | Atlas Cloud frontend (Next.js App Router; deploys to Vercel).                                                                                                                                                                                                                                                                                                                                       |
 
 A package boundary is worth it only where the compiler should enforce a dependency rule.
 
@@ -67,7 +67,7 @@ and prompt fragments; only the UI contributions (projections, surfaces) are TUI-
 to the same harness over different transports — nothing more. The harness is location-agnostic: a
 session behaves identically whether its loop runs on the local machine or in a cloud container, and
 two sessions of different kinds must think identically, not just act identically — same hooks, same
-tools, same prompt fragments. The TUI is *only* a UI — no ad-hoc behavior, no feature logic of its
+tools, same prompt fragments. The TUI is _only_ a UI — no ad-hoc behavior, no feature logic of its
 own. Anything a session does — classifiers, guardrails, decision models, tools — is harness-level
 machinery the shared root composes into every session kind, configured per session; if it cannot be
 composed into every session kind, it does not belong in a session at all. Surface-specific behavior
@@ -96,17 +96,17 @@ testing tiers).
 
 `deprecated/` holds frozen reference code and is **not a Bun workspace member**:
 
-| Path                      | What it was                                                            |
-| ------------------------- | ---------------------------------------------------------------------- |
-| `deprecated/tui`          | The previous Atlas TUI, built over the Claude and Codex agent SDKs.    |
-| `deprecated/agent-engine` | `@workspace/agent-engine` — never-run EngineAdapter port. Prior art.   |
-| `deprecated/codex-sdk`    | `@workspace/codex-sdk` — JSON-RPC client for the `codex app-server`.   |
-| `deprecated/backend`      | Paused NestJS cloud harness.                                           |
-| `deprecated/web`          | Paused Next.js front end for the cloud harness.                        |
-| `deprecated/shared`       | `@workspace/shared` — DTOs and enums for backend + web.                |
-| `deprecated/docs`         | The design docs for the above: wireframes, architecture, decisions.    |
-| `deprecated/.github`      | The CI and blue/green deploy workflows for the cloud stack.            |
-| `deprecated/infra`        | Dockerfiles, Caddy, deploy scripts, prod compose.                      |
+| Path                      | What it was                                                          |
+| ------------------------- | -------------------------------------------------------------------- |
+| `deprecated/tui`          | The previous Atlas TUI, built over the Claude and Codex agent SDKs.  |
+| `deprecated/agent-engine` | `@workspace/agent-engine` — never-run EngineAdapter port. Prior art. |
+| `deprecated/codex-sdk`    | `@workspace/codex-sdk` — JSON-RPC client for the `codex app-server`. |
+| `deprecated/backend`      | Paused NestJS cloud harness.                                         |
+| `deprecated/web`          | Paused Next.js front end for the cloud harness.                      |
+| `deprecated/shared`       | `@workspace/shared` — DTOs and enums for backend + web.              |
+| `deprecated/docs`         | The design docs for the above: wireframes, architecture, decisions.  |
+| `deprecated/.github`      | The CI and blue/green deploy workflows for the cloud stack.          |
+| `deprecated/infra`        | Dockerfiles, Caddy, deploy scripts, prod compose.                    |
 
 Read it for prior art. Never import from it, never extend it, and do not fix it. It does not
 install and is not expected to build.
@@ -128,7 +128,6 @@ install and is not expected to build.
 it silently rots the moment the code beneath it changes. Two artifacts, one truth, no enforcement.
 
 Make the code say it instead:
-
 - Rename the variable, function, or type until the line explains itself.
 - Extract a well-named function rather than heading a block with a comment.
 - Encode the constraint in the type system, where it is checked.
@@ -156,7 +155,6 @@ standard decorators and silently drops constructor-parameter decorators, so `@in
 reaches tests.
 
 Therefore classes never carry tsyringe decorators — the registrar decides construction:
-
 - Zero-argument constructor → `container.register(token, { useClass: X })`.
 - Any constructor parameters → `container.register(token, { useFactory: (resolver) =>
   new X(resolver.resolve(dep)) })`.
@@ -200,7 +198,6 @@ OpenTUI repaints **every visible renderable every frame** — there is no dirty-
 the renderable count of the visible tree is the per-frame cost, and the frame count is the rest.
 These are measured facts from the September 2026 perf round (#338, #340, #342, #343, #346); the
 throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx`.
-
 - **One `<text>` with styled spans, never a `<box>` + `<text>` per cell.** A row of N elements costs
   N × (5 native handles + a Yoga node) and is repainted every frame; one text with spans draws the
   same pixels for a fraction of it. Gutter numbers, signs, background tints: they are all spans.
@@ -229,7 +226,7 @@ throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx
   Reserve `feat` for "a user can do something today they couldn't yesterday" — cosmetic tweaks,
   restyles, and behavior polish are `fix` or `refactor`.
 - **A change the released serve or TUI cannot talk to must cut a release.** The API deploys on
-  every merge, but sandboxes download the latest *release* of serve. A `refactor` that moves or
+  every merge, but sandboxes download the latest _release_ of serve. A `refactor` that moves or
   removes a route serve calls leaves every new sandbox hanging on "Start Atlas" until the next
   release (#1400 did exactly that). Title such an api-only PR `fix` or `feat`.
 
@@ -243,7 +240,6 @@ whole workspace; `bun.lock` is committed. Workspace members are declared in the 
 The runtime was already Bun and still is, for the reasons it always was: OpenTUI's renderer is a
 Zig library reachable only through Bun's FFI, and `bun build --compile` produces the shipped
 binary. The package manager has simply stopped being a second tool.
-
 - `typescript`, `react`, `react-dom`, and their `@types` are pinned repo-wide via root
   `package.json` → `overrides`; don't bump them in one package. Those pins are the only thing
   keeping a single instance of each — Bun's isolated linker does not dedupe across versions.
@@ -259,7 +255,6 @@ binary. The package manager has simply stopped being a second tool.
 `turbo run <task>`; `turbo.json` holds the graph. Per-package scripts still call `tsc` and
 `bun test` directly — turbo orchestrates, it is not the runner. CI runs tests through `bun test`, not
 turbo: turbo's package-level replay would stop the incremental cache from ever being seeded.
-
 - Run one package with `turbo run <task> --filter @dltech/atlas-core`, or `bun run <script>` inside
   the package.
 - `typecheck` and `test` declare `outputs: []` — they produce no artifacts, only an exit code.
