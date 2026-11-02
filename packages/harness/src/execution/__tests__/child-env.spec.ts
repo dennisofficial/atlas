@@ -13,6 +13,15 @@ describe('withoutLauncherPrivateEnv', () => {
     expect(stripped).toEqual({ PATH: '/usr/bin', NODE_ENV: 'production' })
   })
 
+  it('drops the workload cgroup path so children never inherit the split', () => {
+    const stripped = withoutLauncherPrivateEnv({
+      PATH: '/usr/bin',
+      ATLAS_WORKLOAD_CGROUP: '/sys/fs/cgroup/atlas-work',
+    })
+
+    expect(stripped).toEqual({ PATH: '/usr/bin' })
+  })
+
   it('hands back the same object when there is nothing to strip', () => {
     const env = { PATH: '/usr/bin' }
 

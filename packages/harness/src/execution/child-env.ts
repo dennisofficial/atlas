@@ -6,7 +6,10 @@
  * the launcher asks for. The next launch replays it and the interface never renders a frame.
  * https://bun.com/docs/runtime/modules#transpiler-cache
  */
-const LAUNCHER_PRIVATE_KEYS: readonly string[] = ['BUN_RUNTIME_TRANSPILER_CACHE_PATH']
+const LAUNCHER_PRIVATE_KEYS: readonly string[] = [
+  'BUN_RUNTIME_TRANSPILER_CACHE_PATH',
+  'ATLAS_WORKLOAD_CGROUP',
+]
 
 export const withoutLauncherPrivateEnv = (
   env: Record<string, string | undefined>,

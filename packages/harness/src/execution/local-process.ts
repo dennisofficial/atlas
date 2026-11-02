@@ -7,6 +7,7 @@ import {
 
 import { withoutLauncherPrivateEnv } from './child-env'
 import { vendoredRipgrep } from './vendored-ripgrep'
+import { killWorkloadBox } from './workload-cgroups'
 import { workloadCommand } from './workload-priority'
 
 export const SIGKILL_GRACE_MS = 5_000
@@ -46,7 +47,10 @@ const handleFor = (child: PipedSubprocess): LocalProcessHandle => {
       if (fired) return
       fired = true
       signalGroup({ child, signal: 'SIGTERM' })
-      setTimeout(() => signalGroup({ child, signal: 'SIGKILL' }), SIGKILL_GRACE_MS).unref()
+      setTimeout(() => {
+        signalGroup({ child, signal: 'SIGKILL' })
+        killWorkloadBox({ pid: child.pid })
+      }, SIGKILL_GRACE_MS).unref()
     },
   }
 }
