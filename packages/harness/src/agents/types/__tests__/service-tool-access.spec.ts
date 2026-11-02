@@ -4,7 +4,7 @@ import { EToolEffect } from '@dltech/atlas-core'
 
 import { filteredToolRegistry, InMemoryToolRegistry } from '../../../tools/registry'
 import { toolNamed } from '../../../tools/__tests__/fixtures'
-import { AGENT_TOOL_NAMES, WORKTREE_TOOL_NAMES } from '../agent-type'
+import { AGENT_TOOL_NAMES } from '../agent-type'
 
 const named = (name: string) =>
   toolNamed({
@@ -25,7 +25,7 @@ const wholeToolset = () =>
 const asAChildSees = () =>
   filteredToolRegistry({
     registry: wholeToolset(),
-    deny: [...AGENT_TOOL_NAMES, ...WORKTREE_TOOL_NAMES, 'operator_input'],
+    deny: [...AGENT_TOOL_NAMES, 'subscribe', 'operator_input'],
   })
 
 describe('what a child may do with the session’s services', () => {
@@ -37,11 +37,11 @@ describe('what a child may do with the session’s services', () => {
     expect(child.find('service_list')).toBeDefined()
   })
 
-  it('still loses agent, worktree and operator tools', () => {
+  it('still loses agent, subscribe and operator tools', () => {
     const child = asAChildSees()
 
     expect(child.find('agent_spawn')).toBeUndefined()
-    expect(child.find('enter_worktree')).toBeUndefined()
+    expect(child.find('subscribe')).toBeUndefined()
     expect(child.find('operator_input')).toBeUndefined()
   })
 

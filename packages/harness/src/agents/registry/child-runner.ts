@@ -30,7 +30,6 @@ import {
   AGENT_TOOL_NAMES,
   isTeammateType,
   TEAMMATE_AGENT_TYPE,
-  WORKTREE_TOOL_NAMES,
   toolRegistryFor,
   type AgentType,
 } from '../types'
@@ -63,7 +62,7 @@ export type ChildRunnerDepsSource = () => ChildRunnerDeps
 
 const SUB_AGENT_DENIED: readonly string[] = [
   ...AGENT_TOOL_NAMES,
-  ...WORKTREE_TOOL_NAMES,
+  'subscribe',
   'operator_input',
   'write_memory',
   'edit_memory',

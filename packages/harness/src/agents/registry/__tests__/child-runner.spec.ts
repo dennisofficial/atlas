@@ -25,7 +25,7 @@ import { scriptedModel, type ScriptedStep } from '../../../model/testing/scripte
 import { AtlasIdentityFragment } from '../../../prompt/fragments/identity'
 import { InMemoryPromptRegistry } from '../../../prompt/registry'
 import { InMemoryToolRegistry } from '../../../tools/registry'
-import { AGENT_TOOL_NAMES, toolRegistryFor, type AgentType } from '../../types'
+import { AGENT_TOOL_NAMES, WORKTREE_TOOL_NAMES, toolRegistryFor, type AgentType } from '../../types'
 import { childRunnerSource } from '../child-runner'
 import { subAgentPrompt } from '../child-prompt'
 import { AgentSupervisor } from '../supervisor'
@@ -286,6 +286,19 @@ describe("a child's tools", () => {
       )
     }
     expect(invoked).toEqual([])
+  })
+
+  it('is handed the worktree tools but never subscribe, which its parent owns', async () => {
+    const spawned = await spawn({
+      script: [{ text: 'nothing to do' }],
+      agentType: agentTypeNamed({ name: 'builder' }),
+      tools: [...WORKTREE_TOOL_NAMES.map(toolNamed), toolNamed('subscribe'), toolNamed('read')],
+    })
+
+    expect(spawned.model.doStreamCalls[0]?.tools?.map((tool) => tool.name)).toEqual([
+      ...WORKTREE_TOOL_NAMES,
+      'read',
+    ])
   })
 
   it('keeps read_memory but loses every memory mutation tool', async () => {
