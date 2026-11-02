@@ -58,8 +58,9 @@ _Updated at the end of every slice. Last update: 2026-11-02._
 - **Scale target:** ~20k events per thread, from production data (architecture §12). Earlier 1M
   figures were a hypothetical stress size; whole-log work is removed only where that is trivial.
 - **Open:** D2 (local control plane), needed only at slice 9. 0020 (sub-agent worktrees, peer
-  sessions) proposed; whether teammates survive as a preset or a toggle is decided in the sessions
-  plugin spec.
+  sessions) proposed; teammates survive as the peer-session preset — placement, ownership and
+  conversation separated, the operator owning and archiving — settled in
+  [slices/03-teammates.md](slices/03-teammates.md) (a design section, not a build slice).
 - **Needs triage:** credential availability (truthful waiting for a dead or exhausted model
   account, operator recheck/pause, explicit recovery). v1 slices 1–4A are merged and 4B is built
   but unmerged; whether v2 adopts that design or rebuilds it is undecided. See
