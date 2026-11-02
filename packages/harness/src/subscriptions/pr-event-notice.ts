@@ -1,4 +1,10 @@
-import { ENoticeStage, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import {
+  deliveredDraft,
+  ENoticeStage,
+  noticeIdOf,
+  type EventDraft,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 export type PrEventAck = (args: { threadId: ThreadId; eventIds: string[] }) => void
 
@@ -26,6 +32,11 @@ export const stampArrival = (draft: EventDraft): EventDraft => {
     notice: { id: prEventNoticeIdOf(prEvent.eventId), stage: ENoticeStage.Arrived },
   }
   return stamped
+}
+
+export const deliveredForm = (arrived: EventDraft): EventDraft => {
+  const id = noticeIdOf(arrived)
+  return id === undefined ? arrived : deliveredDraft({ draft: arrived, id })
 }
 
 export function collectAckableEventIds(drafts: readonly EventDraft[]): {
