@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'d5e5a2706e61e5fad472ac8388a376b8687daeed64e300ae3ff8330aa637fc5d'>;
+  StorageHashBase<'712e9415480d7312b1c0679aa42628889abb92f08bf073f4db41d727bba8e240'>;
 export type ExecutionHash =
   ExecutionHashBase<'f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f'>;
 export type ProfileHash =
@@ -450,6 +450,7 @@ export namespace Models {
     readonly [RelationKeys]?: 'user';
   };
   export type public_GithubCommitCheck = {
+    appSlug: FieldOutputTypes['public']['GithubCommitCheck']['appSlug'];
     checkKey: FieldOutputTypes['public']['GithubCommitCheck']['checkKey'];
     headSha: FieldOutputTypes['public']['GithubCommitCheck']['headSha'];
     name: FieldOutputTypes['public']['GithubCommitCheck']['name'];
@@ -2403,6 +2404,12 @@ type ContractBase = Omit<
             };
             readonly GithubCommitCheck: {
               columns: {
+                readonly appSlug: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly checkKey: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -2457,6 +2464,12 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['repoFullName', 'headSha', 'checkKey'] };
               uniques: readonly [];
               indexes: readonly [
+                {
+                  readonly name: 'GithubCommitCheck_repoFullName_appSlug_idx_27a9561c';
+                  readonly prefix: 'GithubCommitCheck_repoFullName_appSlug_idx';
+                  readonly columns: readonly ['repoFullName', 'appSlug'];
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'GithubCommitCheck_updatedAt_idx_8c508b31';
                   readonly prefix: 'GithubCommitCheck_updatedAt_idx';
@@ -7102,6 +7115,10 @@ type ContractBase = Omit<
           };
           readonly GithubCommitCheck: {
             readonly fields: {
+              readonly appSlug: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly checkKey: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -7148,6 +7165,7 @@ type ContractBase = Omit<
               readonly table: 'GithubCommitCheck';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly appSlug: { readonly column: 'appSlug' };
                 readonly checkKey: { readonly column: 'checkKey' };
                 readonly headSha: { readonly column: 'headSha' };
                 readonly name: { readonly column: 'name' };

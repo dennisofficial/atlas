@@ -2,18 +2,10 @@ import { Injectable } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import { rateLimitOf } from './github-rate-limit'
-import type {
-  PullRequestCacheFields,
-  RestCheckRun,
-  RestCommitStatus,
-  RestPullRequest,
-} from './github-pull-request-mapping'
+import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
-import {
-  type CommitCheckInput,
-  recordCommitChecksLocked,
-  restCommitChecksOf,
-} from './github-commit-checks'
+import { type CommitCheckInput, recordCommitChecksLocked } from './github-commit-checks'
+import { readHeadChecks } from './github-head-checks-read'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 
 const GITHUB_API = 'https://api.github.com'
@@ -64,21 +56,15 @@ export class GithubUserReads {
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/pulls/${args.number}`,
     })
-    const checkRuns = await this.get<{ check_runs: RestCheckRun[] }>({
-      source: args.source,
-      token: args.token,
-      path: `/repos/${args.owner}/${args.repo}/commits/${pull.head.sha}/check-runs?per_page=100`,
+    const head = await readHeadChecks({
+      get: <T>(path: string) => this.get<T>({ source: args.source, token: args.token, path }),
+      owner: args.owner,
+      repo: args.repo,
+      headSha: pull.head.sha,
+      withSuites: args.collectChecks !== undefined,
     })
-    const statuses = await this.get<{ statuses: RestCommitStatus[] }>({
-      source: args.source,
-      token: args.token,
-      path: `/repos/${args.owner}/${args.repo}/commits/${pull.head.sha}/status`,
-    })
+    const { checks } = head
 
-    const checks = restCommitChecksOf({
-      checkRuns: checkRuns.check_runs,
-      statuses: statuses.statuses,
-    })
     if (args.collectChecks === undefined) {
       await recordCommitChecksLocked({
         repoFullName: `${args.owner}/${args.repo}`,
@@ -91,8 +77,8 @@ export class GithubUserReads {
 
     return pullRequestCacheFieldsOf({
       pull,
-      checkRuns: checkRuns.check_runs,
-      statuses: statuses.statuses,
+      checkRuns: head.checkRuns,
+      statuses: head.statuses,
     })
   }
 

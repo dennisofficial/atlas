@@ -99,6 +99,7 @@ export function mockGithubHttp() {
           },
         ],
       })
+    if (url.pathname.endsWith('/check-suites')) return Response.json({ check_suites: [] })
     if (url.pathname.endsWith('/status')) return Response.json({ statuses: [] })
     if (url.pathname.endsWith('/pulls')) return Response.json([{ number: 42 }])
     await accessGate?.({ signal: init?.signal })

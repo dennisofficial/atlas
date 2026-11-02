@@ -25,6 +25,7 @@ export interface RestCheckRun {
   conclusion: string | null
   started_at: string | null
   completed_at: string | null
+  app?: { slug: string } | null
 }
 
 export interface RestCommitStatus {

@@ -18,6 +18,7 @@ import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import type {
   GithubCheckRunWebhookPayload,
+  GithubCheckSuiteWebhookPayload,
   GithubIssueCommentWebhookPayload,
   GithubPullRequestReviewCommentWebhookPayload,
   GithubPullRequestReviewWebhookPayload,
@@ -117,6 +118,9 @@ export class GithubDeliveryService {
 
     if (args.event === 'check_run') {
       await this.checks.handleCheckRun(args.payload as GithubCheckRunWebhookPayload)
+    }
+    if (args.event === 'check_suite') {
+      await this.checks.handleCheckSuite(args.payload as GithubCheckSuiteWebhookPayload)
     }
     if (args.event === 'status') {
       await this.checks.handleStatus(args.payload as GithubStatusWebhookPayload)

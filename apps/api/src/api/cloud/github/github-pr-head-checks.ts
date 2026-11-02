@@ -26,8 +26,9 @@ export function verdictEventKeyOf(args: {
   prNumber: number
   headSha: string
   verdict: EHeadVerdict
+  settlement: string
 }): string {
-  return `${args.repoFullName}:${args.prNumber}:${args.headSha}:verdict:${args.verdict}`
+  return `${args.repoFullName}:${args.prNumber}:${args.headSha}:verdict:${args.verdict}:${args.settlement}`
 }
 
 export function eventDedupeKeyOf(args: {
@@ -126,7 +127,7 @@ export async function dischargeHeadVerdict(args: {
   const settled = !running && completed
   const orm = args.tx === undefined ? db.orm : args.tx.orm
 
-  await orm.public.GithubPrHeadCheck.upsert({
+  const ledger = await orm.public.GithubPrHeadCheck.upsert({
     conflictOn: {
       repoFullName: args.repoFullName,
       prNumber: args.prNumber,
@@ -155,6 +156,7 @@ export async function dischargeHeadVerdict(args: {
     prNumber: args.prNumber,
     headSha: args.next.headSha,
     verdict,
+    settlement: ledger.firstSeenRunningAt?.getTime().toString() ?? 'none',
   })
   const discharged = await orm.public.GithubPrHeadCheck.where({
     repoFullName: args.repoFullName,

@@ -31,7 +31,14 @@ export interface GithubPullRequestWebhookPayload {
 
 export interface GithubCheckSuiteWebhookPayload {
   action: string
-  check_suite: { head_sha: string; head_branch: string | null }
+  check_suite: {
+    id?: number
+    status?: string | null
+    updated_at?: string | null
+    app?: { slug: string } | null
+    head_sha: string
+    head_branch: string | null
+  }
   repository: GithubWebhookRepository
 }
 
@@ -45,6 +52,7 @@ export interface GithubCheckRunWebhookPayload {
     started_at: string | null
     completed_at: string | null
     head_sha: string
+    app?: { slug: string } | null
     pull_requests?: { number: number }[]
     check_suite?: { head_branch?: string | null }
   }
