@@ -36,7 +36,7 @@ export class DeclaredServicesFragment extends VolatilePromptFragment {
       file: servicesFileOf({ root }),
     })
     const lines = [
-      ".atlas/services.yaml declares this workspace's services. Start one declared service with service_start({ name }) or several with services_ensure before you need a URL or a running server; both start what is missing, restart what changed, wait for health, and return the URLs. Never pass a command for a declared name - when one is wrong, fix services.yaml and start it again rather than starting it by hand. Load the atlas skill and read its references/services.md for the schema and troubleshooting.",
+      ".atlas/services.yaml declares this workspace's services. Start a declared service with service_start({ name }) before you need its URL or a running server: it starts what is missing along with what it needs, restarts it when its declaration changed, waits for health on a fresh start, and returns the URL. Never pass a command for a declared name - when one is wrong, fix services.yaml and start it again rather than starting it by hand. Load the atlas skill and read its references/services.md for the schema and troubleshooting.",
     ]
     if (services.length > 0) {
       lines.push(`Declared services: ${services.map((service) => service.name).join(', ')}.`)
@@ -54,7 +54,7 @@ export class DeclaredServicesFragment extends VolatilePromptFragment {
     )
     if (stale.length > 0) {
       lines.push(
-        `Stale (services.yaml changed since they started; call services_ensure to restart): ${stale.map((service) => service.name).join(', ')}.`,
+        `Stale (services.yaml changed since they started; call service_start({ name }) to restart): ${stale.map((service) => service.name).join(', ')}.`,
       )
     }
     for (const rejection of rejections) {

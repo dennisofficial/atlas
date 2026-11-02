@@ -57,6 +57,11 @@ describe('classifying a notice row by stage', () => {
     expect(recordsLifecycle(row)).toBe(false)
   })
 
+  it('keeps a service ending that an auto-restart follows from the model', () => {
+    expect(reachesModel({ ...serviceEnded, restarting: true } as EventDraft)).toBe(false)
+    expect(reachesModel(serviceEnded)).toBe(true)
+  })
+
   it('never shows a bookkeeping ending to the model', () => {
     expect(reachesModel(agentEnded({ relayed: false }))).toBe(false)
     expect(recordsLifecycle(agentEnded({ relayed: false }))).toBe(true)

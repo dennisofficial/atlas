@@ -109,6 +109,7 @@ export class DeclaredServicesSupport {
       processes: this.args.processes,
       root: this.args.root,
       threadId: entry.threadId,
+      declaredServices: read.services,
       options: this.args.options,
     }
     const launched = await launchDeclared({ declared, context })

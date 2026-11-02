@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentStatus, EServiceStatus, toThreadId, type Event } from '@dltech/atlas-core'
 
 import { durableEntries } from '../durable-entries'
+import { brokenBy } from '../tool-attachments'
 import { EEntryKind } from '../transcript-model'
 import { log } from './fixture'
 
@@ -73,5 +74,19 @@ describe('transcript events for notices stamped at arrival and delivery', () => 
     const events = log([agentEnded(), serviceEnded()])
 
     expect(kindsOf(events)).toEqual([EEntryKind.AgentEnded, EEntryKind.ServiceEnded])
+  })
+
+  it('shows nothing for an ending that an auto-restart follows', () => {
+    const events = log([{ type: 'user-said', text: 'go' }, serviceEnded({ restarting: true })])
+
+    expect(kindsOf(events)).toEqual([EEntryKind.OperatorSaid])
+  })
+
+  it('does not split a run of tool calls for an ending that an auto-restart follows', () => {
+    const quiet = log([{ type: 'user-said', text: 'go' }, serviceEnded({ restarting: true })])
+    const loud = log([{ type: 'user-said', text: 'go' }, serviceEnded()])
+
+    expect(brokenBy(quiet[1] as Event)).toBe(false)
+    expect(brokenBy(loud[1] as Event)).toBe(true)
   })
 })

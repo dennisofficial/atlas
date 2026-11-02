@@ -11,7 +11,7 @@ const breaksEveryRun = (event: Event): boolean =>
   event.type === 'background-shell-awaiting-input' ||
   event.type === 'background-shell-matched' ||
   event.type === 'background-shell-still-running' ||
-  event.type === 'service-ended' ||
+  (event.type === 'service-ended' && event.restarting !== true) ||
   (event.type === 'agent-ended' && event.relayed !== false) ||
   (event.type === 'agent-reported' && event.kind !== EReportKind.Progress) ||
   event.type === 'pr-event' ||

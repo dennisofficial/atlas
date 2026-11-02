@@ -12,8 +12,11 @@ export type ServiceNotice = {
   draft: EventDraft
 }
 
-export function serviceEndedDraft(args: { snapshot: ServiceSnapshot }): EventDraft {
-  const { snapshot } = args
+export function serviceEndedDraft(args: {
+  snapshot: ServiceSnapshot
+  restarting?: true | undefined
+}): EventDraft {
+  const { snapshot, restarting } = args
 
   return {
     type: 'service-ended',
@@ -26,6 +29,7 @@ export function serviceEndedDraft(args: { snapshot: ServiceSnapshot }): EventDra
     exitCode: snapshot.exitCode,
     logPath: snapshot.logPath,
     tail: logTail({ path: snapshot.logPath, characters: ENDING_TAIL_CHARACTERS }),
+    restarting,
   }
 }
 

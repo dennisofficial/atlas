@@ -47,8 +47,11 @@ export const isNoticeArrival = (event: EventDraft): boolean =>
 export const isNoticeDelivery = (event: EventDraft): boolean =>
   noticeOf(event)?.stage === ENoticeStage.Delivered
 
+const isRestartingService = (event: EventDraft): boolean =>
+  event.type === 'service-ended' && event.restarting === true
+
 export const reachesModel = (event: EventDraft): boolean =>
-  !isNoticeArrival(event) && !isBookkeepingEnding(event)
+  !isNoticeArrival(event) && !isBookkeepingEnding(event) && !isRestartingService(event)
 
 export const recordsLifecycle = (event: EventDraft): boolean => !isNoticeDelivery(event)
 

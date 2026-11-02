@@ -15,6 +15,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { resolvedReferences } from './declared-references'
 import { loadDeclaredServices, type DeclaredService } from './declared-services'
 import { awaitReady, probeService, type ReadyTiming } from './service-health'
 import type { ServiceSnapshot } from './service-process'
@@ -31,6 +32,7 @@ export type DeclaredContext = {
   processes: ProcessPort
   root: string
   threadId: ThreadId
+  declaredServices: readonly DeclaredService[]
   options: DeclaredEnsureOptions | undefined
 }
 
@@ -78,7 +80,7 @@ export function resolvedFromRunning({
   return resolved
 }
 
-async function exposureFor({
+export async function exposureFor({
   declared,
   port,
   context,
@@ -144,6 +146,7 @@ export async function launchDeclared({
     isFree: processPortProbe({ processes: context.processes }),
   })
   const published = await exposureFor({ declared, port, context })
+  const resolved = await resolvedReferences({ declared, context })
   const started = await services.start({
     threadId,
     name: declared.name,
@@ -156,7 +159,7 @@ export async function launchDeclared({
     env: {
       ...interpolateServiceEnv({
         env: declared.env ?? {},
-        resolved: resolvedFromRunning({ services }),
+        resolved,
       }),
       ...serviceEnv({ port, threadId, publicUrl: published.exposure?.url }),
     },

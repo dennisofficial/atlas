@@ -43,7 +43,16 @@ export class ServiceEndings {
       this.announce({ entry, draft: entry.draft })
       return
     }
-    void this.persist(entry)
+    void this.persist({ entry })
+  }
+
+  restarting(entry: TrackedService): void {
+    if (entry.announced || entry.ending !== undefined) return
+
+    entry.draft = serviceEndedDraft({ snapshot: entry.service.snapshot(), restarting: true })
+    entry.announced = true
+    this.onAnnounced()
+    if (this.journal !== undefined) void this.persist({ entry, owed: false })
   }
 
   needsRetry(entry: TrackedService): boolean {
@@ -62,7 +71,7 @@ export class ServiceEndings {
     this.journal?.disown({ threadId: entry.threadId, serviceId: entry.service.serviceId })
   }
 
-  persist(entry: TrackedService): Promise<void> {
+  persist({ entry, owed }: { entry: TrackedService; owed?: boolean | undefined }): Promise<void> {
     const { journal } = this
     const { draft } = entry
     if (journal === undefined || draft === undefined || entry.ending !== undefined) {
@@ -70,7 +79,7 @@ export class ServiceEndings {
     }
 
     const ending: Promise<void> = journal
-      .ended({ threadId: entry.threadId, serviceId: entry.service.serviceId, draft })
+      .ended({ threadId: entry.threadId, serviceId: entry.service.serviceId, draft, owed })
       .then((written) => {
         if (written.appended && this.isCurrent(entry))
           this.announce({ entry, draft: written.delivered })

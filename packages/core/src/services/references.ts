@@ -24,6 +24,7 @@ export type ResolvedServiceReference = {
 type OrderableService = {
   name: string
   env?: Readonly<Record<string, string>> | undefined
+  needs?: readonly string[] | undefined
   portal?: unknown
 }
 
@@ -43,6 +44,13 @@ export function serviceReferencesOf(
   return references
 }
 
+export function serviceDependenciesOf(service: Pick<OrderableService, 'env' | 'needs'>): string[] {
+  const referenced = serviceReferencesOf(service.env)
+    .filter(({ field }) => field !== EServiceReferenceField.PublicUrl)
+    .map(({ target }) => target)
+  return [...new Set([...(service.needs ?? []), ...referenced])]
+}
+
 function closureOf({
   services,
   wanted,
@@ -56,7 +64,8 @@ function closureOf({
   for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
     if (closure.has(name)) continue
     closure.add(name)
-    for (const { target } of serviceReferencesOf(byName.get(name)?.env)) pending.push(target)
+    const service = byName.get(name)
+    if (service !== undefined) pending.push(...serviceDependenciesOf(service))
   }
   return closure
 }
@@ -116,7 +125,11 @@ export function orderDeclaredServices({
         seen.add(`portal:${target}`)
       }
     }
-    const dependencies = [...new Set(serviceReferencesOf(service.env).map(({ target }) => target))]
+    for (const target of new Set(service.needs ?? [])) {
+      if (byName.has(target)) continue
+      problems.push({ name, detail: `needs undeclared service "${target}"` })
+    }
+    const dependencies = serviceDependenciesOf(service)
     for (const target of services
       .map((item) => item.name)
       .filter((item) => dependencies.includes(item))) {

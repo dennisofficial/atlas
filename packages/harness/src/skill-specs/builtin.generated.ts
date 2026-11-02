@@ -3,7 +3,7 @@
 import type { BuiltInSkillSpec } from './types'
 
 export const BUILT_IN_SKILL_SPECS: readonly BuiltInSkillSpec[] = [
-  { name: "atlas", summary: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (services_ensure, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions and cloud logs." },
+  { name: "atlas", summary: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions and cloud logs." },
   { name: "commit", summary: "Stage the current work and write a conventional commit message for it.", argumentHint: "[scope]" },
   { name: "resolving-merge-conflicts", summary: "Use when you need to resolve an in-progress git merge/rebase conflict." },
   { name: "ui-design", summary: "Default guidance for every UI task. Use whenever designing, building, changing, polishing, debugging, or reviewing web, mobile, or terminal interfaces, including layout, spacing, visual hierarchy, typography, color palettes, components, forms, tables, dashboards, navigation, images, and empty, loading, or error states." },

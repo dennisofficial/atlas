@@ -55,7 +55,10 @@ export class Processes implements ProcessPort {
     return null
   }
 
+  exposureFails = false
+
   async exposePort({ containerPort }: { containerPort: number }): Promise<PortExposureOutcome> {
+    if (this.exposureFails) return { ok: false, reason: 'no tunnel' }
     return {
       ok: true,
       exposure: {
