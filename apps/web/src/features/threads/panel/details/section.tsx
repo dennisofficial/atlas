@@ -5,7 +5,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 export function DetailsSection(props: {
   title: string
   ref?: Ref<HTMLElement>
-  count?: string | number
+  count?: ReactNode
   className?: string
   children: ReactNode
 }) {
