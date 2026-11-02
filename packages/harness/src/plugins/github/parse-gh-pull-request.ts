@@ -1,11 +1,13 @@
 import { z } from 'zod'
 
 import {
+  checkRunOutcomeOf,
   checksRollup,
   checksTally,
   ECheckOutcome,
   EPullRequestState,
   latestAttemptOutcomes,
+  statusContextOutcomeOf,
   type CheckAttempt,
   type PrComment,
   type PrReview,
@@ -96,28 +98,6 @@ export const GhPullRequestSchema = z.object({
   reviews: droppingEntry(ReviewSchema),
 })
 
-const COMPLETED = 'COMPLETED'
-
-const CHECK_RUN_CONCLUSIONS: Record<string, ECheckOutcome> = {
-  SUCCESS: ECheckOutcome.Passed,
-  NEUTRAL: ECheckOutcome.Ignored,
-  SKIPPED: ECheckOutcome.Ignored,
-  STALE: ECheckOutcome.Ignored,
-  FAILURE: ECheckOutcome.Failed,
-  TIMED_OUT: ECheckOutcome.Failed,
-  STARTUP_FAILURE: ECheckOutcome.Failed,
-  ACTION_REQUIRED: ECheckOutcome.Failed,
-  CANCELLED: ECheckOutcome.Failed,
-}
-
-const STATUS_CONTEXT_STATES: Record<string, ECheckOutcome> = {
-  SUCCESS: ECheckOutcome.Passed,
-  PENDING: ECheckOutcome.Running,
-  EXPECTED: ECheckOutcome.Running,
-  FAILURE: ECheckOutcome.Failed,
-  ERROR: ECheckOutcome.Failed,
-}
-
 const PULL_REQUEST_STATES: Record<string, EPullRequestState> = {
   MERGED: EPullRequestState.Merged,
   CLOSED: EPullRequestState.Closed,
@@ -126,10 +106,9 @@ const PULL_REQUEST_STATES: Record<string, EPullRequestState> = {
 type RollupEntry = z.infer<typeof RollupEntrySchema>
 
 const outcomeOf = (entry: RollupEntry): ECheckOutcome => {
-  if (!('status' in entry)) return STATUS_CONTEXT_STATES[entry.state] ?? ECheckOutcome.Ignored
-  if (entry.status !== COMPLETED) return ECheckOutcome.Running
+  if (!('status' in entry)) return statusContextOutcomeOf(entry.state)
 
-  return CHECK_RUN_CONCLUSIONS[entry.conclusion] ?? ECheckOutcome.Ignored
+  return checkRunOutcomeOf({ status: entry.status, conclusion: entry.conclusion })
 }
 
 const attemptOf = (entry: RollupEntry): CheckAttempt => {

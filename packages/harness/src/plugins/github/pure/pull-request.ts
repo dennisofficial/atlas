@@ -1,17 +1,6 @@
-import { EPullRequestState } from '@dltech/atlas-core'
+import { EChecksState, EPullRequestState, NO_CHECKS, type ChecksTally } from '@dltech/atlas-core'
 
-export { EPullRequestState }
-
-export enum EChecksState {
-  None = 'none',
-  Running = 'running',
-  Passing = 'passing',
-  Failing = 'failing',
-}
-
-export type ChecksTally = { running: number; passed: number; failed: number }
-
-export const NO_CHECKS: ChecksTally = { running: 0, passed: 0, failed: 0 }
+export { EChecksState, EPullRequestState, NO_CHECKS, type ChecksTally }
 
 export type PrComment = {
   id: string

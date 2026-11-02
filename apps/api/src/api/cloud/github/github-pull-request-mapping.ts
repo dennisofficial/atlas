@@ -1,3 +1,11 @@
+import {
+  checkRunOutcomeOf,
+  checksTally,
+  latestAttemptOutcomes,
+  statusContextOutcomeOf,
+  type CheckAttempt,
+} from '@dltech/atlas-core'
+
 export interface RestPullRequest {
   number: number
   title: string
@@ -11,13 +19,16 @@ export interface RestPullRequest {
 }
 
 export interface RestCheckRun {
+  name: string
   status: string
   conclusion: string | null
+  started_at: string | null
 }
 
 export interface RestCommitStatus {
   context: string
   state: string
+  created_at: string | null
 }
 
 export interface PullRequestCacheFields {
@@ -33,48 +44,6 @@ export interface PullRequestCacheFields {
   mergeable: boolean | null
 }
 
-const RUNNING_CONCLUSIONS = new Set(['queued', 'in_progress', 'waiting', 'requested', 'pending'])
-const PASSED_CONCLUSIONS = new Set(['success', 'neutral', 'skipped'])
-const FAILED_CONCLUSIONS = new Set([
-  'failure',
-  'cancelled',
-  'timed_out',
-  'action_required',
-  'startup_failure',
-])
-
-function tallyCheckRun(
-  tally: { running: number; passed: number; failed: number },
-  run: RestCheckRun,
-): void {
-  if (run.status !== 'completed' || RUNNING_CONCLUSIONS.has(run.status)) {
-    tally.running += 1
-    return
-  }
-  if (run.conclusion !== null && PASSED_CONCLUSIONS.has(run.conclusion)) {
-    tally.passed += 1
-    return
-  }
-  if (run.conclusion !== null && FAILED_CONCLUSIONS.has(run.conclusion)) {
-    tally.failed += 1
-  }
-}
-
-function tallyCommitStatus(
-  tally: { running: number; passed: number; failed: number },
-  status: RestCommitStatus,
-): void {
-  if (status.state === 'pending') {
-    tally.running += 1
-    return
-  }
-  if (status.state === 'success') {
-    tally.passed += 1
-    return
-  }
-  if (status.state === 'failure' || status.state === 'error') tally.failed += 1
-}
-
 export function pullRequestStateOf(pull: RestPullRequest): string {
   if (pull.state === 'open') return pull.draft ? 'draft' : 'open'
   return pull.merged_at === null ? 'closed' : 'merged'
@@ -85,14 +54,23 @@ export function pullRequestCacheFieldsOf(args: {
   checkRuns: readonly RestCheckRun[]
   statuses: readonly RestCommitStatus[]
 }): PullRequestCacheFields {
-  const tally = { running: 0, passed: 0, failed: 0 }
-  for (const run of args.checkRuns) tallyCheckRun(tally, run)
-
   const latestByContext = new Map<string, RestCommitStatus>()
   for (const status of args.statuses) {
     if (!latestByContext.has(status.context)) latestByContext.set(status.context, status)
   }
-  for (const status of latestByContext.values()) tallyCommitStatus(tally, status)
+  const attempts: CheckAttempt[] = [
+    ...args.checkRuns.map((run) => ({
+      name: run.name,
+      startedAt: run.started_at,
+      outcome: checkRunOutcomeOf({ status: run.status, conclusion: run.conclusion }),
+    })),
+    ...[...latestByContext.values()].map((status) => ({
+      name: status.context,
+      startedAt: status.created_at,
+      outcome: statusContextOutcomeOf(status.state),
+    })),
+  ]
+  const tally = checksTally(latestAttemptOutcomes(attempts))
 
   return {
     title: args.pull.title,
