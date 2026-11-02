@@ -19,17 +19,17 @@ metadata, runtime activity, GitHub state and local optimistic state.
 
 ## Models that copy pod or runtime state
 
-| Model                   | Overlap                                                                                                                                             |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Event`                 | pod log mirror, API-allocated events, and API-edited history                                                                                        |
-| `Thread`                | head, `lastAssistantSeq`, working/awaiting/outcome/`activityAt`, lineage and model overlap pod stores. `rev` can rise without `Event` progress      |
-| `Session`               | title, repo, workspace, execution and teammate metadata overlap pod session meta                                                                    |
-| `CloudSandbox`          | runtime checkpoint, endpoint/version and activity mixed with API provisioning authority. A checkpoint write does not check `Event` completeness     |
-| `ContextFile`           | pod context mirror (latest upload or delete-missing wins)                                                                                           |
-| `Turn`                  | runtime accounting mirror, upserted by `runId`                                                                                                      |
+| Model                   | Overlap                                                                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Event`                 | pod log mirror, API-allocated events, and API-edited history                                                                                                                                                           |
+| `Thread`                | head, `lastAssistantSeq`, working/awaiting/outcome/`activityAt`, lineage and model overlap pod stores. `rev` can rise without `Event` progress                                                                         |
+| `Session`               | title, repo, workspace, execution and teammate metadata overlap pod session meta                                                                                                                                       |
+| `CloudSandbox`          | runtime checkpoint, endpoint/version and activity mixed with API provisioning authority. A checkpoint write does not check `Event` completeness                                                                        |
+| `ContextFile`           | pod context mirror (latest upload or delete-missing wins)                                                                                                                                                              |
+| `Turn`                  | runtime accounting mirror, upserted by `runId`                                                                                                                                                                         |
 | `GithubSubscription`    | per-thread transport subscription (unique key includes `threadId`; a teammate keeps its own row) plus a projection derived from conversation events (created, changed and ended; rewind and replace do not rebuild it) |
-| `GithubPrEventDelivery` | per-thread delivery row: leased (`leaseExpiresAt`) when served to a stream, acked (`ackedAt`, plus mailbox `consumedAt`) when the harness journals the event; distinct from event-mirror success |
-| `SandboxBootStep`       | API provisioning progress plus pod-reported agent-start                                                                                             |
+| `GithubPrEventDelivery` | per-thread delivery row: leased (`leaseExpiresAt`) when served to a stream, acked (`ackedAt`, plus mailbox `consumedAt`) when the harness journals the event; distinct from event-mirror success                       |
+| `SandboxBootStep`       | API provisioning progress plus pod-reported agent-start                                                                                                                                                                |
 
 **External GitHub projections** (not pod copies): `GithubPrState`, `GithubAppInstallation`,
 `GithubPrHeadCheck` (also a durable verdict obligation).
@@ -45,7 +45,6 @@ user config, secrets, MCP and MCP OAuth; `Memory` (revision); `PublishedBundle`;
 ## Every production `Event` / `Thread.head` mutation
 
 **Storage primitives**
-
 - `appendStoredWithin` (`S/append.ts:159-208`, head += n).
 - `EventsService.replaceWithin` (`S/events.service.ts:78-122`, delete all and re-insert from 1).
 - `applyPodEvents` (`P/pod-events.ts:38-115`) and `truncatePodEvents` (`:117-148`).
@@ -57,7 +56,6 @@ user config, secrets, MCP and MCP OAuth; `Memory` (revision); `PublishedBundle`;
 
 **API seq-allocating callers (9)**. The source report counted nine; this list splits `threads.open`
 into its two cases to reach nine _(inferred)_.
-
 1. `threadEvents.append`.
 2. `threads.open`, new thread.
 3. `threads.open`, reopen suffix.
@@ -74,7 +72,6 @@ into its two cases to reach nine _(inferred)_.
 `fork`, `sandboxSelf.registerChild`.
 
 **Observations**
-
 - API locks are per Postgres `Thread` and reserve no pod-local seq space.
 - Import requires increasing seqs but not contiguous ones.
 - Summarise can change history without changing head (`historyRev` covers it).
@@ -115,7 +112,6 @@ health and drain flags.
 ## Since the previous census (`a18e7413` → `a0bf4110f`)
 
 No Prisma model was added or removed (still 48). Four merged PRs touched census seams:
-
 - #1640 and #1642 merged before the previous census; their state is folded into the model table
   above (`GithubSubscription.threadId` key, delivery lease and ack columns).
 - #1646 adds a 5-minute trigger.dev sweep (`apps/api/src/trigger/pod-provision/stuck-session-sweep.task.ts`)

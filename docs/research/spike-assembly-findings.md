@@ -23,19 +23,19 @@ ordered pipeline. It did.
 Same rules, same data, two array positions swapped:
 
 ```ts
-reduceThenBudget.messages.length  // 28
-budgetThenReduce.messages.length  // 10
+reduceThenBudget.messages.length // 28
+budgetThenReduce.messages.length // 10
 ```
 
 A `phase` enum with a startup-time order check was added, and then shown to be insufficient at n=6:
 `enforceTokenBudget` is classified Budget but **writes to the system block**, so one rule already
-needs two phases at once. Any summarizing rule drops *and* injects by definition.
+needs two phases at once. Any summarizing rule drops _and_ injects by definition.
 
 The failure that costs money is worse: cache-breakpoint validity is a **between-step** property.
 
 ```ts
-expect(roomyMarked).toBe(tightMarked)                             // same breakpoint index
-expect(tight.system.length).toBeGreaterThan(roomy.system.length)  // different cached prefix
+expect(roomyMarked).toBe(tightMarked) // same breakpoint index
+expect(tight.system.length).toBeGreaterThan(roomy.system.length) // different cached prefix
 ```
 
 Both pipelines were internally well-ordered. No within-step annotation can express this.
@@ -90,10 +90,9 @@ parameters, per the repo's own 2+-args rule.
 **Async is not needed, and the contract already explains why.** Loading a skill body from disk
 belongs in `AfterTool`, which appends a `context-loaded` event; `injectLoadedContext` then renders it
 as a pure function of the log. The only case forcing async is a rule discovering mid-assembly that it
-needs content not yet in the log — and the fix is a rule returning a *request* the harness fulfils
+needs content not yet in the log — and the fix is a rule returning a _request_ the harness fulfils
 before the next step, not `async Rule`. Making rules async makes every rewind, fork, and dry-run
 assembly an I/O operation.
-
 1. **Fallible-tolerant.** One throwing rule currently kills the turn. Under `ERuleFailurePolicy.SkipRule`
    the rule is skipped, its input passes through, and the failure is recorded on the trace. Degraded
    context beats a dead turn.
@@ -123,7 +122,6 @@ type Assembled = { system: SystemBlock[]; messages: ModelMessage[] }
 The eight-rule pipeline reads beautifully, but for a reason that will not survive: these rules happen
 to form a clean funnel (build, add, subtract, fit, annotate, clean). That is a property of the
 sample, not of the abstraction. Four failure modes, all already visible at six:
-
 1. Array position encodes semantics appearing nowhere in the names.
 2. The Reduce phase becomes an unordered bag with intra-phase constraints the enum cannot express.
 3. O(rules × messages) — twenty passes over a 500-message log on every step of every turn.

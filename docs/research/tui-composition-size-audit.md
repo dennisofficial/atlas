@@ -12,19 +12,19 @@ These counts describe the baseline, not a standing exemption or a claim that thi
 
 ## Largest production files
 
-| Lines | Path |
-| ---: | --- |
-| 2,342 | `apps/tui/src/composition/app.tsx` |
-| 682 | `packages/core/src/settings/registry.ts` |
-| 646 | `apps/tui/src/composition/use-conversation.ts` |
-| 645 | `packages/harness/src/cloud/remote-delta-channel.ts` |
-| 625 | `packages/harness/src/shells/shell-registry.ts` |
-| 574 | `packages/harness/src/cloud/vercel-driver.ts` |
-| 565 | `apps/serve/src/socket-session.ts` |
-| 542 | `apps/serve/src/index.ts` |
-| 527 | `packages/harness/src/composition/compose.ts` |
-| 517 | `apps/tui/src/composition/use-turn-driver.ts` |
-| 504 | `apps/tui/src/composition/use-accounts.ts` |
+| Lines | Path                                                 |
+| ----: | ---------------------------------------------------- |
+| 2,342 | `apps/tui/src/composition/app.tsx`                   |
+|   682 | `packages/core/src/settings/registry.ts`             |
+|   646 | `apps/tui/src/composition/use-conversation.ts`       |
+|   645 | `packages/harness/src/cloud/remote-delta-channel.ts` |
+|   625 | `packages/harness/src/shells/shell-registry.ts`      |
+|   574 | `packages/harness/src/cloud/vercel-driver.ts`        |
+|   565 | `apps/serve/src/socket-session.ts`                   |
+|   542 | `apps/serve/src/index.ts`                            |
+|   527 | `packages/harness/src/composition/compose.ts`        |
+|   517 | `apps/tui/src/composition/use-turn-driver.ts`        |
+|   504 | `apps/tui/src/composition/use-accounts.ts`           |
 
 The largest test/helper examples were `apps/serve/src/__tests__/serve.spec.ts` (1,547), the harness Vercel driver spec (1,115), and TUI composition's `fake-app.ts` (1,023). No Storybook files exceeded 300 lines.
 

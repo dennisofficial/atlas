@@ -20,7 +20,6 @@ the timer arms on every boot. Defaults: park after 5 min quiet, 30 min when serv
 and resets on any activity. When due it calls `lifecycle.park()` (`serve-boot-finish.ts:287`).
 
 **What park does** (`apps/serve/src/serve-lifecycle.ts:67-150`), in order:
-
 1. Latches a process-local `parking` flag and closes admission:
    `admission.closed = true` + intake suspend (`:69-71`).
 2. Refuses and reopens if work is active (`:74-79`).
@@ -41,13 +40,13 @@ and resets on any activity. When due it calls `lifecycle.park()` (`serve-boot-fi
 **The admission flag is a bare mutable object.** `const admission = { closed: false }` is created
 at `serve-boot-finish.ts:52` and passed **by reference** into five writers:
 
-| Writer | File:line |
-|---|---|
-| lifecycle `close()` | `apps/serve/src/serve-lifecycle.ts:37` |
-| lifecycle `park()` | `serve-lifecycle.ts:70` |
-| drain binding `closeAdmission` | `apps/serve/src/serve-drain-binding.ts:44` |
-| recovery `guard()` | `apps/serve/src/serve-rotation-recovery.ts:75` |
-| recovery `drain()` | `serve-rotation-recovery.ts:144` |
+| Writer                         | File:line                                      |
+| ------------------------------ | ---------------------------------------------- |
+| lifecycle `close()`            | `apps/serve/src/serve-lifecycle.ts:37`         |
+| lifecycle `park()`             | `serve-lifecycle.ts:70`                        |
+| drain binding `closeAdmission` | `apps/serve/src/serve-drain-binding.ts:44`     |
+| recovery `guard()`             | `apps/serve/src/serve-rotation-recovery.ts:75` |
+| recovery `drain()`             | `serve-rotation-recovery.ts:144`               |
 
 and five reopeners (`reopenAdmission` at `serve-lifecycle.ts:60`, drain reopen at
 `serve-drain-binding.ts:48`, `release` / `continueParent` / `releaseFailedDrain` at
@@ -71,7 +70,6 @@ reconciled lazily by status probes (`sandbox-endpoint.ts:51-70`).
 
 **Who initiates.** Three entry points, all converging on the same wire-layer boot primitives
 (`packages/wire`: `mountWithRetries`, `createServeLauncher`, swap lock):
-
 - **Client wake** — any `send`/`run`/`request` on a channel in `Parked`/`Closed` state fires
   `kickWake` (`packages/harness/src/cloud/remote-delta-channel.ts:654-666`, call sites `:813-855`),
   and the turn runner gates its drive on `ensureAttached()` → `channel.beginWake()` + injected
@@ -93,15 +91,15 @@ reconciled lazily by status probes (`sandbox-endpoint.ts:51-70`).
 fresh, from three unrelated signals: provider status (`:220-237`), in-sandbox stamp files
 (`SERVE_VERSION_PATH`/`SERVE_PROTOCOL_PATH` via `runCommand`, `:239-252`), and — only on the
 rotation path — a `/v1/health` curl (`probeRuntimeActivity`, `:100-125`). Its verdict enum
-`ESandboxProbe` (`:14-20`: Missing/Kept/Replaced/RotationNeeded/Swapped) is a *decision about what
-to do next*, not a lifecycle state. The provider-`stopped` branch is the wake-from-parked path:
+`ESandboxProbe` (`:14-20`: Missing/Kept/Replaced/RotationNeeded/Swapped) is a _decision about what
+to do next_, not a lifecycle state. The provider-`stopped` branch is the wake-from-parked path:
 resume in place and swap serve (`:230-232`, → `Swapped`).
 
 **Reattach.** `provisionSandbox`: ensureDrive → probe → `mountWithRetries` → launchServe → return
 placement, with rollback deleting only what the call created (`:38-71,223-236`). On the serve side,
 boot over parked state is safe at HEAD: `admission.closed = false` from construction
 (`serve-boot-finish.ts:52`); the only boot-time closer is `recovery.guard`, and only for a
-*foreign-session* rotation receipt (`serve-rotation-recovery.ts:68-84`); a same-session receipt is
+_foreign-session_ rotation receipt (`serve-rotation-recovery.ts:68-84`); a same-session receipt is
 `sourceRestart`, consumed and deleted without latching (`:34-39,71-74` — the #1216 fix). A fresh
 `running` checkpoint at revision N+1 unconditionally overwrites the parked one (revision-fenced at
 `sandbox-checkpoint.controller.ts:67-82`).
@@ -127,15 +125,15 @@ the same lifecycle.
 `serve-lifecycle.ts:67-150` has seven branches; three of them leave admission latched in a
 process that keeps running:
 
-| Branch | Condition | Admission | Recovery |
-|---|---|---|---|
-| Refused (work active) | `:75-79` | reopened | fine (#1197) |
-| Pre-finalize failure | throw before finalize | reopened | fine (#1197) |
-| Finalize success | `:110-119` | closed | process exits — fine |
-| **Post-finalize stop failure ×3** | `:114-129` | **closed, live process** | idle timer re-armed (`:130-131`) — retry only if `rearmIdle` supplied |
-| **Throw between finalize and retry loop** | e.g. `args.log`/`handlers.park` throws at `:112-113` with `finalized=true` | **closed, `parking=true` forever** | none — `park()` re-entry blocked at `:68`, timer halted, no re-arm |
-| Legacy exit (no VERCEL_* env) | `:104-109` | closed, exits | no parked checkpoint written at all |
-| Guarded rotation boot | `serve-rotation-recovery.ts:75` | closed | only `recover()`/`activate()` reaching `release()` (`:90`) reopens; a throw in `recover()` (e.g. `startChildren` rejects, `:119`) leaves it latched |
+| Branch                                    | Condition                                                                  | Admission                          | Recovery                                                                                                                                            |
+| ----------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Refused (work active)                     | `:75-79`                                                                   | reopened                           | fine (#1197)                                                                                                                                        |
+| Pre-finalize failure                      | throw before finalize                                                      | reopened                           | fine (#1197)                                                                                                                                        |
+| Finalize success                          | `:110-119`                                                                 | closed                             | process exits — fine                                                                                                                                |
+| **Post-finalize stop failure ×3**         | `:114-129`                                                                 | **closed, live process**           | idle timer re-armed (`:130-131`) — retry only if `rearmIdle` supplied                                                                               |
+| **Throw between finalize and retry loop** | e.g. `args.log`/`handlers.park` throws at `:112-113` with `finalized=true` | **closed, `parking=true` forever** | none — `park()` re-entry blocked at `:68`, timer halted, no re-arm                                                                                  |
+| Legacy exit (no VERCEL_* env)             | `:104-109`                                                                 | closed, exits                      | no parked checkpoint written at all                                                                                                                 |
+| Guarded rotation boot                     | `serve-rotation-recovery.ts:75`                                            | closed                             | only `recover()`/`activate()` reaching `release()` (`:90`) reopens; a throw in `recover()` (e.g. `startChildren` rejects, `:119`) leaves it latched |
 
 The checkpoint seal (`runtime-checkpoint.ts:185`) compounds the last-middle rows: once `parked` is
 captured, that process can never overwrite it with `running` — the API keeps showing
@@ -178,7 +176,7 @@ transcript tail — sees "parked"; the process is alive and refusing.
 **Part B — the wake/keep path cannot see the wedge.** The wedge detector added in #1210
 (`wedgeProofOf`, `packages/harness/src/cloud/serve-drain-client.ts:68-77`: admission closed AND
 every work signal present and empty) lives **only on the drain seam** — reached from
-`requireSafePreparation` (`:101-137`) during a *rotation*, i.e. only when the probe already decided
+`requireSafePreparation` (`:101-137`) during a _rotation_, i.e. only when the probe already decided
 to replace the serve. But the probe's keep verdict never looks: on a provider-`running` sandbox
 whose stamps match the pin, `probeSandboxForResume` returns `Kept` (`resume-probe.ts:297-298`)
 **without ever curling `/v1/health`**. The launcher then keeps the serve because it answers health:
@@ -197,10 +195,10 @@ the drain gate (never reached), not in the API (checkpoint mirror is storage-onl
 service reads `row.state`, which a serve-initiated park never flips).
 
 **Which part is new since "fantastic"?** The wedge holes (Part A) predate phase 1 — #1216 narrowed
-but did not close them. What changed in the phase-1 window is the *system around them*: hot-swap
+but did not close them. What changed in the phase-1 window is the _system around them_: hot-swap
 (#1183) and the in-sandbox swap lock (#1219) made "resume in place and keep the sandbox" the
 dominant path (recreate-from-image was rejected, decision #1), so a wedged-but-running serve is
-now *preserved across wakes by design* instead of being destroyed and recreated as a side effect
+now _preserved across wakes by design_ instead of being destroyed and recreated as a side effect
 of an outdated-version rotation. The version stamp is the only swap trigger on the keep path — and
 on v1.106.3 the wedged serve and the pin agree, so nothing ever fires. The wedge didn't get worse;
 the blast containment around it was removed. And #1245 (merged 2026-10-14, the day before the
@@ -229,7 +227,6 @@ class** (admission latched closed, serve alive, refusal on every frame) reached 
 hole** (the keep-seam blind spot, §2.1 Part B) — but the reason phase 1 could fix five defects and
 leave this one standing is structural: **there is no lifecycle, only inference**. "Is this sandbox
 wedged?" is answered independently by at least four readers over four different records:
-
 1. The serve itself, over a process-local boolean with five writers (`admission.closed`).
 2. The client's probe, over provider status + stamp files (`resume-probe.ts`) — no health read on
    the keep path.
@@ -254,7 +251,6 @@ architectural, not local. Applying the codebase-design lens:
 
 The sandbox lifecycle — the thing the operator means by "parked" — has **no owner, no interface,
 and no durable record**. Its state is emergent across six independent signals:
-
 1. `admission.closed` — a volatile process-local boolean (`serve-boot-finish.ts:52`), five
    writers, five reopeners, zero persistence, zero invariants.
 2. The drive checkpoint's `phase` (`runtime-checkpoint.ts:152-188`) — sealed terminal, written
@@ -287,7 +283,7 @@ state.
   `/v1/drain` → receipt → recovery → launcher), as the arch review already found
   (`docs/research/cloud-arch-review.md`, §2.1 "six-module handshake"). No forensic question ("was
   that drain consumed?", "why is admission closed?") has a single place to go.
-- **The wedge detector sits at the wrong seam** — the only code that can *recognize* a wedged
+- **The wedge detector sits at the wrong seam** — the only code that can _recognize_ a wedged
   serve (`wedgeProofOf`) is reachable only from the drain path, while the keep path (the common
   case) never collects the signal. A detection capability that its caller can't reach is a seam
   drawn around the transport operation (drain) instead of the lifecycle question (is this runtime
@@ -300,7 +296,7 @@ state.
 
 To be fair to the design: the **rotation receipt's sessionId fence**, the **revision-gated
 checkpoint mirror**, the **swap lock**, and the **capability seam** are all good — small,
-falsifiable, durable. The park *ceremony* itself (transcript marker → checkpoint → client notice →
+falsifiable, durable. The park _ceremony_ itself (transcript marker → checkpoint → client notice →
 provider stop) is the right sequence. What is missing is not quality in the parts but the thing
 they should all be reading and writing: one state.
 
@@ -324,7 +320,7 @@ Provisioning → Serving → Parking → Parked → Waking → Draining → Drai
 
 - **One writer per transition, owned by the layer that performs it**: serve writes
   Parking/Parked/Draining/Drained (the transitions it executes); the driver writes
-  Provisioning/Waking/Replacing. The rotation receipt survives as the *payload* of `Drained` (its
+  Provisioning/Waking/Replacing. The rotation receipt survives as the _payload_ of `Drained` (its
   sessionId fence is genuinely good — keep it, as a field, not a separate file).
 - **Admission becomes a pure function of state**: `admissionClosed = state ∈ {Parking, Parked,
   Draining, Drained}`. The shared mutable boolean is deleted. The five-writer convention becomes a
@@ -371,7 +367,7 @@ Provisioning → Serving → Parking → Parked → Waking → Draining → Drai
 fleet (and is worth shipping ahead of any redesign). 4.2.2 is a second small PR. 4.1 is the
 structural work — medium-sized, mostly deletion plus the schema, and it is the substrate the warm
 pool (decision #10) will need anyway, since a standing sandbox lives permanently in exactly this
-machinery. Doing 4.2 first also *validates* 4.1's premise: if moving wedge detection to the keep
+machinery. Doing 4.2 first also _validates_ 4.1's premise: if moving wedge detection to the keep
 seam ends the recurrence, the diagnosis (inference graph, wrong seam) is confirmed in production.
 
 **What not to do:** do not add a sixth inference edge (e.g. teaching the probe to curl health on

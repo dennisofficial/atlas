@@ -22,18 +22,18 @@ cohesive foundation packages, with each feature's code kept in one place where a
 **Foundations live in `packages/`. Plugins live in a top-level `plugins/`, and native commands in a
 top-level `commands/`.**
 
-| Package | Owns |
-| --- | --- |
-| `core` | Pure shared vocabulary: ids, the event envelope, assembly, and the record rules (log, inbox, lease, history folds). Feature-specific events leave core for their plugin |
-| `protocol` | Wire schemas only (today's `wire` without the sandbox provisioning I/O or the ticket HMAC implementation) |
-| `agent` | The loop: turn runner, retries, intake, tool dispatch, model port. Every agent is this loop. It knows nothing about pods, leases or replication |
-| `pod` | Hosts agents in a pod: holds the lease, keeps the local record cache, replicates, consumes the inbox. This is 0018's `runtime`, renamed so it is not confused with `agent` |
-| `control` | The control-plane library, plus storage adapters (Postgres now, SQLite at D2) |
-| `client` | The client SDK and headless React hooks shared by web, TUI (OpenTUI is React) and Mac |
-| `plugin-sdk` | The plugin contract (slots: events, views, commands, settings, tools, hooks, prompts, pod, control, client), the type-level registries, the loader. Native and repo plugins use the same contract |
-| `commands` | The command contract and machinery: spec, argument parsing, registry, dispatch to the pod, the shared command menu and its headless hooks |
-| `settings` | The settings schema and resolution (pure), plus per-tier subpaths. Plugins contribute keys |
-| `ui`, `db`, `models` | Unchanged |
+| Package              | Owns                                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core`               | Pure shared vocabulary: ids, the event envelope, assembly, and the record rules (log, inbox, lease, history folds). Feature-specific events leave core for their plugin                           |
+| `protocol`           | Wire schemas only (today's `wire` without the sandbox provisioning I/O or the ticket HMAC implementation)                                                                                         |
+| `agent`              | The loop: turn runner, retries, intake, tool dispatch, model port. Every agent is this loop. It knows nothing about pods, leases or replication                                                   |
+| `pod`                | Hosts agents in a pod: holds the lease, keeps the local record cache, replicates, consumes the inbox. This is 0018's `runtime`, renamed so it is not confused with `agent`                        |
+| `control`            | The control-plane library, plus storage adapters (Postgres now, SQLite at D2)                                                                                                                     |
+| `client`             | The client SDK and headless React hooks shared by web, TUI (OpenTUI is React) and Mac                                                                                                             |
+| `plugin-sdk`         | The plugin contract (slots: events, views, commands, settings, tools, hooks, prompts, pod, control, client), the type-level registries, the loader. Native and repo plugins use the same contract |
+| `commands`           | The command contract and machinery: spec, argument parsing, registry, dispatch to the pod, the shared command menu and its headless hooks                                                         |
+| `settings`           | The settings schema and resolution (pure), plus per-tier subpaths. Plugins contribute keys                                                                                                        |
+| `ui`, `db`, `models` | Unchanged                                                                                                                                                                                         |
 
 **`plugins/<name>/`**: one workspace package per native plugin (github, subscriptions, shells,
 services, crew, memory, previews, ...). Each has tier subpaths: `/core` (events and pure folds),

@@ -2,14 +2,14 @@
 
 The approved Atlas mark is Split Apex: a clay, open A with a diagonal gap in its right leg. Use the same silhouette on every surface.
 
-| File | Use |
-| --- | --- |
-| `atlas-mark.png` | Transparent master, 1254 × 1254. |
-| `atlas-icon.png` | Transparent general-purpose icon, 1024 × 1024. |
-| `atlas-icon-dark.png` | Opaque general-purpose icon, 1024 × 1024. |
-| `atlas-bot-avatar.png` | Transparent GitHub/Linear app logo, 512 × 512. |
-| `atlas-bot-avatar-dark.png` | Opaque GitHub/Linear bot avatar, 512 × 512. |
-| `favicon.ico` | Transparent browser icon with 16, 32, and 48px entries. |
+| File                        | Use                                                     |
+| --------------------------- | ------------------------------------------------------- |
+| `atlas-mark.png`            | Transparent master, 1254 × 1254.                        |
+| `atlas-icon.png`            | Transparent general-purpose icon, 1024 × 1024.          |
+| `atlas-icon-dark.png`       | Opaque general-purpose icon, 1024 × 1024.               |
+| `atlas-bot-avatar.png`      | Transparent GitHub/Linear app logo, 512 × 512.          |
+| `atlas-bot-avatar-dark.png` | Opaque GitHub/Linear bot avatar, 512 × 512.             |
+| `favicon.ico`               | Transparent browser icon with 16, 32, and 48px entries. |
 
 All opaque assets use exactly **#272422** as the background. Preserve the transparent master’s clay artwork, proportions, diagonal gap, and clear space. The original artwork was generated with the built-in image generation tool; exports resize that master and preserve its alpha, or composite onto the specified solid background. Do not redraw each usage independently.
 

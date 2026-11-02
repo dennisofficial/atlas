@@ -18,7 +18,6 @@ serve binary + state (`/vercel/sandbox/atlas-serve{,.log,.lock,.token,.headers}`
 ## 1. Is `/vercel/sandbox`'s exclusion from snapshots documented anywhere?
 
 **No.** I found no mention of any per-path snapshot exclusion in:
-
 - The snapshots concept page (https://vercel.com/docs/sandbox/concepts/snapshots, last updated
   2026-08-26) — describes capture as "its filesystem" with no exclusion list.
 - The persistence concept page
@@ -31,7 +30,7 @@ serve binary + state (`/vercel/sandbox/atlas-serve{,.log,.lock,.token,.headers}`
 - The `@vercel/sandbox` SDK source (`packages/vercel-sandbox/src/` in
   https://github.com/vercel/sandbox and the published 3.3.0 dist) — grepped for
   "ephemeral", "excluded", "tmpfs", "mount": no snapshot-scope language anywhere. The SDK only
-  *requests* snapshots (`session.cjs` → `client.createSnapshot(...)`); capture is server-side and
+  _requests_ snapshots (`session.cjs` → `client.createSnapshot(...)`); capture is server-side and
   the server is closed-source.
 - The SDK and image changelogs (`packages/vercel-sandbox/CHANGELOG.md`,
   `images/*/CHANGELOG.md` in vercel/sandbox) — no entry mentions exclusions.
@@ -50,7 +49,6 @@ Note that example is stale against SDK v3 (it uses `Snapshot.list()` as a plain 
 have been re-run since the platform behavior changed.
 
 **What `/vercel/sandbox` is, per primary sources:**
-
 - It is the **session's default working directory**. The SDK's `Sandbox.cwd` getter is documented
   as "The default working directory of the current session (e.g. `/vercel/sandbox`)"
   (`packages/vercel-sandbox/src/sandbox.ts:553-556` in the repo clone). `writeFiles` "Defaults to
@@ -77,8 +75,7 @@ verified fact is the observed behavior: contents do not survive stop/resume.
 ## 2. What path does Vercel use for workspaces that should persist?
 
 There is no documented "this directory persists" workspace path. What exists:
-
-- **The SDK's default cwd is `/vercel/sandbox`** (§1) — the path our probe shows is *not*
+- **The SDK's default cwd is `/vercel/sandbox`** (§1) — the path our probe shows is _not_
   snapshot-safe. Git `source`s clone into a subdirectory of the cwd named after the repo
   (repo `skills/sandbox/SKILL.md`: "Git sources are cloned into a subdirectory named after the
   repository... run commands with `cwd: \"sandbox-example-next\"`"), and all README/SDK
@@ -116,7 +113,6 @@ Our probe's finding that **`/tmp` survived** contradicts nothing in the docs —
 `/vercel/sandbox`.
 
 Adjacent verified facts about snapshot scope/limits:
-
 - Snapshot statuses include `failed` — "The capture didn't complete, so the snapshot can't be
   used. Take a new snapshot to retry." (snapshots concept page). Capture is not guaranteed.
 - Default expiration 30 days after last use; `keepLastSnapshots: { count: 1 }` is the
@@ -168,7 +164,7 @@ Adjacent verified facts about snapshot scope/limits:
 
 Constraint set, all verified above: snapshots capture the ordinary rootfs (`/root` and `/tmp`
 probe-verified today); `/vercel/sandbox` is probe-verified excluded; docs promise "entire
-filesystem" and name no exclusions, so *any* path choice rests on the probe, not on a Vercel
+filesystem" and name no exclusions, so _any_ path choice rests on the probe, not on a Vercel
 guarantee; the SDK's relative-path conveniences default into the excluded directory, so all
 file operations must use absolute paths (Atlas already does).
 
@@ -183,7 +179,6 @@ file operations must use absolute paths (Atlas already does).
 > recommendations below stand on their own merits — `/workspace` and `/opt/atlas/` are plain
 > rootfs with Vercel-owned precedent — but they are hygiene, not a workaround for a snapshot
 > exclusion that does not exist.
-
 - **(a) User workspace → `/workspace`.** Two Vercel-owned precedents root agent workspaces
   there: the Vercel Academy agent-harness course ("The contents of `/workspace` (or wherever
   your sandbox roots)") and eve's `/workspace` seeding. It is an ordinary root-level directory
@@ -200,7 +195,7 @@ file operations must use absolute paths (Atlas already does).
   SDK's sudo wrapper sets `HOME=/root` and sources root's dotfiles (README "Sudo access"
   section), so `/root` is shared with every `sudo: true` command's environment; `/opt` is
   cleaner and equally ordinary rootfs. `/tmp` survived the probe too, but it is the platform's
-  conventional scratch space and the obvious first candidate if Vercel ever *does* publish an
+  conventional scratch space and the obvious first candidate if Vercel ever _does_ publish an
   exclusion list — do not build on it.
 - Keep everything out of `/vercel/sandbox` permanently: the SDK's `writeFiles`/`mkDir`
   relative-path default and the official skill's "Writable path: `/vercel/sandbox`" guidance

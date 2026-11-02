@@ -57,7 +57,6 @@ bun run --cwd evals eval:efficacy --run <run-dir> --dataset <manifest> --judgmen
 ## Artifact contract
 
 Every run writes one fresh UUID directory under `--output-parent` (never reuses or deletes earlier runs):
-
 - `invocation.manifest.json` — written BEFORE the child starts: code/adapter digests, dataset hash,
   enabled policy ids, batch mode, exact planned case/trial/variant ids, deadlines, mode, start timestamp.
 - `child.stdout.log` / `child.stderr.log` — complete child diagnostics.

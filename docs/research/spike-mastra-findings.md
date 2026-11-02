@@ -9,14 +9,13 @@ Source: `.spikes/mastra/` (gitignored). 18 passing tests, `tsc --noEmit` clean. 
 
 The stated worry was that Mastra owns `MastraDBMessage`, memory, and storage, so adopting it means
 surrendering the event log as the record. **That is disproven.**
-
 - **Boots under Bun with no shims.**
 - **Memory is fully removable.** `memory` is optional on `AgentConfig`; omit it and `hasOwnMemory()`
   is false, no threads written.
 - **`processInputStep` accepts a fully externally-supplied message list every step.** At step 1 of a
   tool loop, Mastra's own threaded state held the assistant tool-invocation and its result, while the
   prompt actually delivered to the model contained only what our log derived.
-- **It controls all three dimensions**: messages, system block (it *replaces* agent-level
+- **It controls all three dimensions**: messages, system block (it _replaces_ agent-level
   `instructions` rather than merging), and — importantly — **reasoning `providerOptions` survives the
   round-trip verbatim**, signature intact.
 - **PostHog telemetry is moot.** Opt-out exists via `MASTRA_TELEMETRY_DISABLED`, its only caller is
@@ -36,9 +35,8 @@ Not in the messages. In **loop position**.
 running **two records of the same run**: our event log for messages, and Mastra's opaque workflow
 snapshot for position, which we do not author, cannot rewind, and cannot fork.
 
-Resume *does* survive a real process kill — proven with two separate `bun` processes, A suspending on
+Resume _does_ survive a real process kill — proven with two separate `bun` processes, A suspending on
 an approval-gated tool and exiting, B approving cold and completing. But it cost two things:
-
 - **A standalone `Agent` suspends and can never be resumed** — `approveToolCall` throws
   `AGENT_RESUME_NO_SNAPSHOT_FOUND`. It must be registered on a `Mastra` instance with storage.
 - **`@mastra/core` ships no durable workflow store.** Its own `FilesystemStore` does not implement
@@ -60,12 +58,12 @@ after which the whole kill/resume path works from source and compiled.
 
 ## What it costs
 
-| | baseline (`ai` only) | with `@mastra/core` |
-| --- | --- | --- |
-| bundled JS | 0.59 MB | 9.25 MB (**15.7×**) |
-| `node_modules` | — | 136 MB, 159 packages (70 MB is `@mastra/core`) |
-| compiled binary | 61 MB | 69 MB |
-| modules bundled | 100 | 652 |
+|                 | baseline (`ai` only) | with `@mastra/core`                            |
+| --------------- | -------------------- | ---------------------------------------------- |
+| bundled JS      | 0.59 MB              | 9.25 MB (**15.7×**)                            |
+| `node_modules`  | —                    | 136 MB, 159 packages (70 MB is `@mastra/core`) |
+| compiled binary | 61 MB                | 69 MB                                          |
+| modules bundled | 100                  | 652                                            |
 
 Used: the `Processor` pipeline and the approval suspend machinery — **~10–15%**. Disabled or ignored:
 memory, `MastraDBMessage` as record, threads, 23 of 24 storage domains, skills, workspaces, MCP, A2A,

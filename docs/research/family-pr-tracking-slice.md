@@ -20,6 +20,7 @@ hook-driven **family tracker** reconciles the tracked checkout set per thread at
 ## Slices (disjoint trees)
 
 ### A — harness core (load-bearing) — `packages/harness/src/plugins/github/`
+
 1. `pull-request-service.ts` — `tracked` becomes a set keyed by `checkoutKey`. `track({ checkouts })`
    reconcile (mirrors `watch({links})`): gained key force-read at once, lost key forgotten + in-flight
    dropped. Replace single-slot `track`/`stopTracking`. `expectingUntil` per-key (`Map<string,number>`).
@@ -44,6 +45,7 @@ Pin specs to update: `packages/harness/src/plugins/github/__tests__/` — tracki
 pull-request-watching, pull-request-service, pull-request-states-wire, serve-boot, hooks, ci-watch-hook.
 
 ### B — TUI surface — `apps/tui/src/plugins/github/`
+
 1. `use-pull-request.ts` — retire visible-conversation `track`/`stopTracking` (L177, L189-193); the
    family tracker owns the set. Readings via `service.snapshot({key})` (set-safe).
 2. `pull-request-entries.ts` + surface/sidebar — `pullRequestEntries` takes the tracked set; sidebar
@@ -55,9 +57,11 @@ pull-request-watching, pull-request-service, pull-request-states-wire, serve-boo
 Specs: `apps/tui/src/plugins/github/__tests__/use-pull-request-triggers.spec.tsx`, follow-session.spec.tsx.
 
 ## Sequencing
+
 A first (B needs A's service interface), then B. Review assembled diff → typecheck + targeted tests → PR.
 
 ## Validation
+
 - `turbo run typecheck --filter @dltech/atlas-harness` and `--filter @dltech/atlas`.
 - Targeted `bun test` on touched specs.
 - Family behavior spec: second thread on a PR branch → service tracks both checkouts and a teammate

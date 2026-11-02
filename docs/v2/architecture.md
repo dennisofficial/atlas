@@ -14,7 +14,6 @@ v1 was born as one process: the TUI owned the loop, the log, the metadata and th
 [docs/architecture.md](../architecture.md) ("One record") held because there was one place to
 write. Pods moved the loop into a container, and every piece of state that used to have one home
 now has two or three, joined by best-effort replication with no ownership rules:
-
 - Six places assign conversation seqs: four in the pod, two in the API
   ([pod-side-state](research/pod-side-state.md)).
 - Nine API code paths append to the event log; the pod appends in about 60 more
@@ -77,7 +76,6 @@ is storage-agnostic so that either answer fits.
 replica that says how far behind it may be. Each row in the §6 table follows this rule.
 
 **P2. Two streams per session: inbox in, log out.**
-
 - _Inbox_: operator inputs (send, take-back, stop, model change, rename, rewind request). Only the
   CP creates inbox entries, each with a monotonic inbox id (D4). The pod consumes entries and
   records the inbox id it consumed in the log (`input-consumed{inboxId}`). Take-back of an entry
@@ -136,7 +134,6 @@ contract. §7 gives the package shape.
 | **Pod → CP**                              | `append(epoch, events[])` (batched, contiguous, hash-chained); `lease.renew`; observation reports                                                                       | HTTP                                                 |
 | **CP → pod**                              | Inbox entries and lease revocations                                                                                                                                     | An inbox stream (SSE) held open by the pod           |
 | **Client ⇄ pod** (direct, ephemeral only) | Deltas, PTY, file tree, interrupt hint                                                                                                                                  | WebSocket, authorized by a CP-minted ticket as today |
-
 - Streams reconnect with cursors. Vercel serverless caps SSE at about 240 s, so reconnect is the
   normal case, not an error path.
 - Version negotiation carries over from [0017](../decisions/0017-wire-protocol-skew.md). The skew
@@ -183,7 +180,7 @@ cohesive packages where each feature's code sits in one place.
 | `control`    | The CP library: record, inbox, leases, view materialization. Adapters: Postgres (hosted by `apps/api`), SQLite (D2)        |
 | `client`     | The client SDK and headless React hooks shared by web, TUI and Mac: session stream, view cache, commands                   |
 | `plugin-sdk` | The plugin contract (slots), the type-level registries and the loader; native and repo plugins share it                    |
-| `commands`   | The command contract: spec, arguments, registry, dispatch as inbox commands, the shared command menu and its hooks          |
+| `commands`   | The command contract: spec, arguments, registry, dispatch as inbox commands, the shared command menu and its hooks         |
 | `settings`   | Settings schema and resolution (pure) plus per-tier subpaths; plugins contribute keys                                      |
 
 `ui`, `db` and `models` are unchanged.
@@ -191,12 +188,12 @@ cohesive packages where each feature's code sits in one place.
 **Plugins (`plugins/<name>/`).** One workspace package per native plugin (github, subscriptions,
 shells, services, crew, sessions, memory, previews). Every plugin has the same subpaths:
 
-| Subpath    | Holds                                                          |
-| ---------- | -------------------------------------------------------------- |
-| `/core`    | The plugin's events, pure folds (views) and command specs      |
-| `/pod`     | Pod-side handlers: tools, hooks, inbox command handlers        |
-| `/control` | CP-side handlers: observations, side effects                   |
-| `/client`  | Headless client state and hooks; rendering in `web` and `tui`  |
+| Subpath    | Holds                                                         |
+| ---------- | ------------------------------------------------------------- |
+| `/core`    | The plugin's events, pure folds (views) and command specs     |
+| `/pod`     | Pod-side handlers: tools, hooks, inbox command handlers       |
+| `/control` | CP-side handlers: observations, side effects                  |
+| `/client`  | Headless client state and hooks; rendering in `web` and `tui` |
 
 **Commands (`commands/`).** One workspace package with a folder per native session command: `spec.ts`,
 `pod.ts` (the handler, run in the pod from an inbox command), `client.ts` (headless hooks),
@@ -204,7 +201,6 @@ shells, services, crew, sessions, memory, previews). Every plugin has the same s
 lives in that plugin on the same contract.
 
 Rules:
-
 - Plugins never import each other. Anything two plugins share belongs in a foundation package.
 - Every command is an inbox command handled in the pod, so it behaves identically on every client.
 - Apps compose: each app imports the tier subpaths it needs and registers them. The type-level
@@ -249,16 +245,16 @@ is a real cloud session on v2 from the web, with basic chat and tools.
 
 ## 10. Risks
 
-| Risk                                                          | Why it matters                                                                                                                                | Mitigation                                                                                                 |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| The rewrite stalls and two systems need upkeep                | v1 and v2 both need fixes for as long as they coexist                                                                                         | Shared logic stays one copy; the first milestone is usable early; features move one at a time              |
-| Sub-agent families                                            | One session holds several thread logs under one lease. Each log needs the same append rules, and spawn and ending must be events in both logs | Narrowed by [0020](../decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md): teammates become peer sessions, so only short-lived sub-agents with no PR or CI share a lease. Settled in the crew spec; the record core must not assume one log per lease |
-| Rewind as append-only (P5)                                    | Touches assembly rules and `docs/core-contract.md`; the highest-semantic-risk change                                                          | Specified and property-tested in slice 1, before the pod host depends on it                                 |
-| Vercel serverless limits (no long WebSocket; SSE about 240 s) | Streams drop routinely                                                                                                                        | Cursors on every stream; reconnect is the normal path                                                      |
-| Interim v1 pain                                               | v1 can wedge the same way while v2 is built                                                                                                   | The v1 stopgap (§8)                                                                                        |
-| ~~The v2 schema is not supported by Prisma 8~~ (retired)      | Verified 2026-11-01: Prisma 8 namespaces work on the repo's pins; `db.orm.v2.*` and a managed `v2` Postgres schema in the same migration graph | None needed; D6 uses `namespace v2` blocks directly                                                        |
-| D2 stays open too long                                        | The local slices cannot be specified                                                                                                          | D2 is needed only at the local slice; cloud slices do not depend on it                                     |
-| A saturated pod starves the harness                           | Slow streaming and sends, missed lease renewals (a live pod fenced, the session flapping), the harness OOM-killed before the workload         | §11: OOM and CPU priority, a memory watchdog, lease renewal and stop that do not wait on the loop          |
+| Risk                                                          | Why it matters                                                                                                                                 | Mitigation                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The rewrite stalls and two systems need upkeep                | v1 and v2 both need fixes for as long as they coexist                                                                                          | Shared logic stays one copy; the first milestone is usable early; features move one at a time                                                                                                                                                                 |
+| Sub-agent families                                            | One session holds several thread logs under one lease. Each log needs the same append rules, and spawn and ending must be events in both logs  | Narrowed by [0020](../decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md): teammates become peer sessions, so only short-lived sub-agents with no PR or CI share a lease. Settled in the crew spec; the record core must not assume one log per lease |
+| Rewind as append-only (P5)                                    | Touches assembly rules and `docs/core-contract.md`; the highest-semantic-risk change                                                           | Specified and property-tested in slice 1, before the pod host depends on it                                                                                                                                                                                   |
+| Vercel serverless limits (no long WebSocket; SSE about 240 s) | Streams drop routinely                                                                                                                         | Cursors on every stream; reconnect is the normal path                                                                                                                                                                                                         |
+| Interim v1 pain                                               | v1 can wedge the same way while v2 is built                                                                                                    | The v1 stopgap (§8)                                                                                                                                                                                                                                           |
+| ~~The v2 schema is not supported by Prisma 8~~ (retired)      | Verified 2026-11-01: Prisma 8 namespaces work on the repo's pins; `db.orm.v2.*` and a managed `v2` Postgres schema in the same migration graph | None needed; D6 uses `namespace v2` blocks directly                                                                                                                                                                                                           |
+| D2 stays open too long                                        | The local slices cannot be specified                                                                                                           | D2 is needed only at the local slice; cloud slices do not depend on it                                                                                                                                                                                        |
+| A saturated pod starves the harness                           | Slow streaming and sends, missed lease renewals (a live pod fenced, the session flapping), the harness OOM-killed before the workload          | §11: OOM and CPU priority, a memory watchdog, lease renewal and stop that do not wait on the loop                                                                                                                                                             |
 
 ## 11. Pod resources: the harness outranks its workloads
 
@@ -300,4 +296,3 @@ tail is lost, bounded by the flush cadence. In v1 the same death wedges or loses
 
 Thresholds, TTLs and the priority mechanism are fixed in the slice 3 spec and measured on a
 saturated pod, not chosen here.
-

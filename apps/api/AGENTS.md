@@ -79,7 +79,6 @@ dynamic-imports the fake hangs the file under bun. Fake-timer helpers `advanceTi
 
 Routes are nestjs-trpc routers, not controllers (the only controllers left are health and the
 GitHub webhooks).
-
 - Write a `@Router({ alias })` class in the feature module and list it as a provider. Each method is a
   `@Query`, `@Mutation` or `@Subscription` that declares both `input` and `output` as zod schemas
   from `@dltech/atlas-wire`; the generated file may import only `@trpc/server`, `zod` and wire, and
@@ -306,7 +305,6 @@ trigger.dev is a required platform for this package, not an optional add-on. Tas
 `node-24`, `maxDuration: 300`). The project is **Atlas** (`proj_yvwotwceptrneuuasamk`, org DL
 Technologies LLC). The SDK, `@trigger.dev/build` and the `trigger.dev` CLI are pinned together at
 one exact version; bump all three at once.
-
 - **One dispatch seam.** API code enqueues work through `JobDispatcher`
   (`src/_core/ports/job-dispatcher.ts`), bound globally by `TriggerModule`
   (`src/_lib/trigger/`). `dispatch({ task, payload, idempotencyKey, tags })` returns `{ runId }`.

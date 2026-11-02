@@ -12,7 +12,6 @@ control of every container on the machine.
 ## Decision
 
 A local pod runs `Privileged: true`, with three limits:
-
 - never mount the host Docker socket;
 - never bind-mount a host path;
 - attach only the pod's own named volumes: `<pod>-workspace` on `/atlas/workspaces` and

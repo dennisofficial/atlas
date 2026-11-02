@@ -7,7 +7,7 @@ behaves the same on either. The loop, the transcript and the tools live in serve
 detached client of it over the wire protocol. Detached clients, the TUI and the web app, also drive
 the pod's background shells and services over the channel: start a shell, read its output, kill it,
 stop a service, tail its log (channel protocol 28, `packages/wire/src/channel-wire.ts`). An operator
-can start a shell in a pod; starting a *service* stays model-only, exactly as in-process.
+can start a shell in a pod; starting a _service_ stays model-only, exactly as in-process.
 
 This file describes pods as they are on `main`. Why they are shaped this way is in
 `docs/decisions/`. Much of the code still says "sandbox" where it means pod
@@ -18,7 +18,6 @@ This file describes pods as they are on `main`. Why they are shaped this way is 
 Pods sit behind the `experimental.pods` setting, default off (`packages/core/src/settings/registry.ts`,
 env `ATLAS_EXPERIMENTAL_PODS`). `composeAtlas` reads it once at launch and exposes it as `app.pods`
 (`apps/tui/src/composition/compose.ts`), so changing it needs a restart.
-
 - **Off (the default):** sessions run in-process on the host. There is no runner chip, no Atlas
   Cloud sign-in gate and no Docker preflight on send (`apps/tui/src/composition/use-thread-birth.ts`).
   A host thread can still move its tools into Docker with `/container docker`; that is the
@@ -40,7 +39,6 @@ preference, `placement.lastBorn`, which is also the default for the next thread
 (`apps/tui/src/composition/cloud/born-cloud.ts`, `apps/tui/src/composition/cloud/use-unborn-thread.ts`).
 
 The first send runs, in order (`apps/tui/src/composition/cloud/born-cloud.ts`):
-
 1. The Atlas Cloud sign-in gate. Signed out, the sign-in prompt opens.
 2. For Vercel, a check that Vercel credentials are configured.
 3. The runner preflight. Local pings the Docker socket; Vercel checks that its token, team and
@@ -65,7 +63,6 @@ additional repos (`Project` in `packages/db/src/prisma/schema/projects/project.p
 ([0010](decisions/0010-projects-resolved-from-origin.md)). At birth the TUI reads the launch
 directory's `origin` remote and matches it to one of the user's Projects
 (`apps/tui/src/composition/cloud/use-project-resolution.ts`, `packages/harness/src/cloud/project-match.ts`):
-
 - A GitHub remote that matches a Project uses it.
 - A GitHub remote with no match prompts to create a Project, prefilled with the repo and its
   default branch.
@@ -77,14 +74,14 @@ The `projectId` is stored in the thread meta, and a wake passes the same one bac
 
 ## The two runners
 
-| | Local | Vercel |
-| --- | --- | --- |
-| Driver | `DockerPodDriver`, Docker Engine API over the Unix socket (`packages/harness/src/cloud/local-pod/driver.ts`) | `VercelDriver` over `@vercel/sandbox` (`packages/harness/src/cloud/vercel-driver.ts`) |
-| Image | `ghcr.io/dennisofficial/atlas-sandbox:latest`, pulled anonymously (`packages/harness/src/cloud/local-pod/pod-create.ts`) | the `sandbox.image` setting, default `atlas-sandbox:latest` in Vercel's registry |
-| Name | `atlas-pod-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/local-pod/pod-create.ts`) | `atlas-thread-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/sandbox-names.ts`) |
-| Ports | serve, published on `127.0.0.1` (`packages/harness/src/cloud/local-pod/pod-create.ts`) | serve, provider-routed (`packages/wire/src/sandbox-sdk.ts`) |
-| Resize | live, `POST /containers/<id>/update` | applies on restart |
-| Persistence | named volumes, kept across park and wake | a persistent sandbox in `iad1` (`packages/wire/src/sandbox-mount.ts`) |
+|             | Local                                                                                                                    | Vercel                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Driver      | `DockerPodDriver`, Docker Engine API over the Unix socket (`packages/harness/src/cloud/local-pod/driver.ts`)             | `VercelDriver` over `@vercel/sandbox` (`packages/harness/src/cloud/vercel-driver.ts`)       |
+| Image       | `ghcr.io/dennisofficial/atlas-sandbox:latest`, pulled anonymously (`packages/harness/src/cloud/local-pod/pod-create.ts`) | the `sandbox.image` setting, default `atlas-sandbox:latest` in Vercel's registry            |
+| Name        | `atlas-pod-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/local-pod/pod-create.ts`)                          | `atlas-thread-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/sandbox-names.ts`) |
+| Ports       | serve, published on `127.0.0.1` (`packages/harness/src/cloud/local-pod/pod-create.ts`)                                   | serve, provider-routed (`packages/wire/src/sandbox-sdk.ts`)                                 |
+| Resize      | live, `POST /containers/<id>/update`                                                                                     | applies on restart                                                                          |
+| Persistence | named volumes, kept across park and wake                                                                                 | a persistent sandbox in `iad1` (`packages/wire/src/sandbox-mount.ts`)                       |
 
 `exposePort` works the same on both runners: serve asks the API (`sandboxSelf.exposePort`), which
 routes `https://<port>-<label>.byatlas.dev` through the thread's Cloudflare tunnel and hands back its
@@ -103,7 +100,6 @@ build uploads a locally built binary instead (`packages/harness/src/cloud/local-
 
 The TUI creates the pod and stages a fresh boot (`packages/harness/src/cloud/local-pod-bridge.ts`,
 `packages/harness/src/cloud/local-cloud-bridge.ts`, `packages/harness/src/cloud/local-cloud-bootstrap.ts`):
-
 - **The serve token.** The client generates one per thread and keeps it in its local secrets as
   `sandbox-serve:<threadId>` (`packages/harness/src/cloud/sandbox-attachment.ts`). For a local pod
   the client registers it with the tRPC mutation `podLeases.register` under the operator's Atlas
@@ -182,11 +178,10 @@ and the `atlas push` bundle ([0011](decisions/0011-explicit-atlas-push.md)).
 8. **Thread meta.** A fresh pod writes its thread meta with the `projectId`, and a local pod stamps
    `runner: local` (`apps/serve/src/serve-boot.ts`).
 9. **Compose.** Serve composes the shared harness with the pod's serve token as its Atlas Cloud
-    credential (`apps/serve/src/compose-serve.ts`), then hands its handlers to the listener and
-    arms the idle timer (`apps/serve/src/serve-boot-finish.ts`).
+   credential (`apps/serve/src/compose-serve.ts`), then hands its handlers to the listener and
+   arms the idle timer (`apps/serve/src/serve-boot-finish.ts`).
 
 Three pulls happen after boot.
-
 - **Cloud state, before each turn.** Settings reach a pod only from Cloud scoped config: at boot
   and again before every turn. `createCloudStateRefresh` re-runs `applyCloudState` with a 5 s
   budget and one attempt, rewrites `settings.json`, `secrets.json` and `auth.json` only when the
@@ -221,7 +216,6 @@ Only signed-in host sessions run the engine.
 Whether a setting lives locally or in Atlas Cloud is a property of the setting, `storage`
 (`ESettingStorage`, default Cloud), not of its page (`packages/core/src/settings/definition.ts`,
 `packages/core/src/settings/registry.ts`). The Local settings are terminal or host specific:
-
 - Appearance: `appearance.accent`, `appearance.blockPadding`, `appearance.composerEdge`,
   `appearance.logo`.
 - Display: `transcript.smoothStreaming`, `transcript.thinkingBlocks`, `transcript.imageRows`,

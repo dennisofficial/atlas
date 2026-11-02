@@ -10,7 +10,6 @@ These are **findings**, not decisions. The contract rewrite happens once all fou
 820 source lines across 24 files. **Largest file: 84 lines.** Nothing approached the 300-line cap.
 
 Seams the tests actually exercise by swapping them:
-
 - **`EventLog`** — in-memory ↔ SQLite. Only the runner and settle path import it, via append/read/head.
   `read({upTo})` already supports rewind. A real database changes exactly one thing: `seq` assignment,
   which needs a per-thread unique constraint or a transaction rather than array length.
@@ -54,7 +53,7 @@ spike scale; not invisible at 500 events. Needs incremental assembly over a cach
 
 1. **`BeforeTool: (call) => ...` breaks resume, silently.** On resume the call is still pending, so
    the hook fires again and returns `ask` again — an infinite pause. A resolver must read
-   `approval-answered` from the log *before* the hook is consulted. Either the hook receives the log
+   `approval-answered` from the log _before_ the hook is consulted. Either the hook receives the log
    in its context, or the contract states the resolver explicitly.
 2. **No event for a tool that failed.** `tool-result` implies success and `tool-denied` means policy
    refused; a throwing tool has no slot, so a crash renders to the model as a JSON success. Add

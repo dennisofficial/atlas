@@ -5,7 +5,6 @@ filesystem paths in their read/write/edit tools — schema contract, resolution 
 description prose, working-directory model, and related context-engineering details.
 
 Both upstream repositories have been renamed/transfered, and GitHub redirects the old names:
-
 - `sst/opencode` → `anomalyco/opencode`, default branch `dev`, HEAD `5cf9f517cfec3ef68d3e68a12a6a4b3163947f44`.
   Note: the current `dev` branch is an Effect-Schema rewrite of the tools — the older zod-based
   implementations the question anticipated are gone from this branch. Semantics are unchanged.
@@ -21,7 +20,7 @@ Base URL: `https://github.com/anomalyco/opencode/blob/5cf9f517cfec3ef68d3e68a12a
 ### 1. Schema: both relative and absolute accepted
 
 The schema types `filePath` as a plain string; nothing rejects a relative path. The parameter
-*description* says "absolute", but that is prose, not validation.
+_description_ says "absolute", but that is prose, not validation.
 
 read — [packages/opencode/src/tool/read.ts#L28-L36](https://github.com/anomalyco/opencode/blob/5cf9f517cfec3ef68d3e68a12a6a4b3163947f44/packages/opencode/src/tool/read.ts#L28-L36):
 
@@ -37,9 +36,9 @@ write — [packages/opencode/src/tool/write.ts#L20-L25](https://github.com/anoma
 
 ```ts
 export const Parameters = Schema.Struct({
-  content: Schema.String.annotate({ description: "The content to write to the file" }),
+  content: Schema.String.annotate({ description: 'The content to write to the file' }),
   filePath: Schema.String.annotate({
-    description: "The absolute path to the file to write (must be absolute, not relative)",
+    description: 'The absolute path to the file to write (must be absolute, not relative)',
   }),
 })
 ```
@@ -114,7 +113,7 @@ The bash description steers the model away from cd
 ([packages/opencode/src/tool/shell/prompt.ts#L260-L261](https://github.com/anomalyco/opencode/blob/5cf9f517cfec3ef68d3e68a12a6a4b3163947f44/packages/opencode/src/tool/shell/prompt.ts#L260-L261)
 and [#L112](https://github.com/anomalyco/opencode/blob/5cf9f517cfec3ef68d3e68a12a6a4b3163947f44/packages/opencode/src/tool/shell/prompt.ts#L112)):
 
-> `All commands run in the current working directory by default. Use the `workdir` parameter if you need to run a command in a different directory. AVOID using `cd <directory> && <command>` patterns - use `workdir` instead.`
+> `All commands run in the current working directory by default. Use the `workdir`parameter if you need to run a command in a different directory. AVOID using`cd <directory> && <command>`patterns - use`workdir` instead.`
 
 So file tools and bash share one fixed anchor (`instance.directory`); `workdir` moves the shell for
 one call only, and file tools never see that movement.
@@ -134,7 +133,7 @@ one call only, and file tools never see that movement.
   `FSUtil.resolve(filePath)`, which realpaths (symlink-resolving) with an ENOENT fallback
   ([edit.ts#L35-L45](https://github.com/anomalyco/opencode/blob/5cf9f517cfec3ef68d3e68a12a6a4b3163947f44/packages/opencode/src/tool/edit.ts#L35-L45),
   [packages/core/src/fs-util.ts#L247-L255](https://github.com/anomalyco/opencode/blob/5cf9f517cfec3ef68d3e68a12a6a4b3163947f44/packages/core/src/fs-util.ts#L247-L255)).
-  The path used for actual I/O is *not* canonicalized — only the lock key is.
+  The path used for actual I/O is _not_ canonicalized — only the lock key is.
 - **No read-before-write enforcement.** write.txt claims "This tool will fail if you did not read
   the file first" and edit.txt claims "You must use your `Read` tool at least once... This tool will
   error", but neither write.ts nor edit.ts contains such a check at this SHA, and a repository code
@@ -160,10 +159,12 @@ read — [packages/coding-agent/src/core/tools/read.ts#L15-L19](https://github.c
 
 ```ts
 const readSchema = Type.Object({
-	path: Type.String({ description: "Path to the file to read (relative or absolute)" }),
-	offset: Type.Optional(Type.Number({ description: "Line number to start reading from (1-indexed)" })),
-	limit: Type.Optional(Type.Number({ description: "Maximum number of lines to read" })),
-});
+  path: Type.String({ description: 'Path to the file to read (relative or absolute)' }),
+  offset: Type.Optional(
+    Type.Number({ description: 'Line number to start reading from (1-indexed)' }),
+  ),
+  limit: Type.Optional(Type.Number({ description: 'Maximum number of lines to read' })),
+})
 ```
 
 write — [packages/coding-agent/src/core/tools/write.ts#L12-L15](https://github.com/earendil-works/pi/blob/17de82d7bea18a6589677a9761baabc2060c9efb/packages/coding-agent/src/core/tools/write.ts#L12-L15):
@@ -177,7 +178,6 @@ edit — [packages/coding-agent/src/core/tools/edit.ts#L33-L42](https://github.c
 Every file tool resolves `resolveToCwd(path, ctx?.cwd || cwd)`: the per-call `ExtensionContext.cwd`
 wins, falling back to the `cwd` captured when the tool definition was created. Both are the same
 session cwd in practice.
-
 - read — [read.ts#L101](https://github.com/earendil-works/pi/blob/17de82d7bea18a6589677a9761baabc2060c9efb/packages/coding-agent/src/core/tools/read.ts#L101):
   `const absolutePath = await resolveReadPathAsync(path, ctx?.cwd || cwd);`
 - write — [write.ts#L66](https://github.com/earendil-works/pi/blob/17de82d7bea18a6589677a9761baabc2060c9efb/packages/coding-agent/src/core/tools/write.ts#L66):
@@ -189,10 +189,16 @@ session cwd in practice.
 delegates to `resolvePath` ([packages/coding-agent/src/utils/paths.ts#L102-L106](https://github.com/earendil-works/pi/blob/17de82d7bea18a6589677a9761baabc2060c9efb/packages/coding-agent/src/utils/paths.ts#L102-L106)):
 
 ```ts
-export function resolvePath(input: string, baseDir: string = process.cwd(), options: PathInputOptions = {}): string {
-	const normalized = normalizePath(input, options);
-	const normalizedBaseDir = normalizePath(baseDir);
-	return isAbsolute(normalized) ? nodeResolvePath(normalized) : nodeResolvePath(normalizedBaseDir, normalized);
+export function resolvePath(
+  input: string,
+  baseDir: string = process.cwd(),
+  options: PathInputOptions = {},
+): string {
+  const normalized = normalizePath(input, options)
+  const normalizedBaseDir = normalizePath(baseDir)
+  return isAbsolute(normalized)
+    ? nodeResolvePath(normalized)
+    : nodeResolvePath(normalizedBaseDir, normalized)
 }
 ```
 
@@ -221,7 +227,7 @@ parameter descriptions ("(relative or absolute)"). The system prompt does carry 
 (`buildSystemPrompt` gets `cwd` — [agent-session.ts#L1089](https://github.com/earendil-works/pi/blob/17de82d7bea18a6589677a9761baabc2060c9efb/packages/coding-agent/src/core/agent-session.ts#L1089)),
 so the model knows what "relative" means.
 
-### 4. Session cwd is fixed per session but can be *rebound* on resume; bash shares it
+### 4. Session cwd is fixed per session but can be _rebound_ on resume; bash shares it
 
 Within a session the anchor is immutable — SessionManager has no cwd setter. But pi supports
 **changing the effective cwd when resuming or importing a session** via `cwdOverride`
@@ -276,7 +282,6 @@ Atlas currently hard-rejects relative paths in the read/edit/write zod schemas, 
 hook was designed to absolutize them against a movable project directory — and validation runs
 before the hook, so relative paths die before the hook can fix them. Against these two reference
 harnesses:
-
 1. **Both harnesses accept relative paths at the schema layer and resolve inside `execute`.**
    Neither puts path absoluteness in validation. Atlas's zod-level rejection is stricter than both
    references; the natural fix is to make the schema permissive (plain string) and absolutize in the
@@ -292,7 +297,7 @@ harnesses:
    against that same directory); pi pins a session cwd (bash has no `workdir` at all). Neither
    tracks `cd`. Both spawn a fresh shell per bash call. Atlas's "movable project directory" is a
    genuine divergence: if the project directory can move, pi's resume-time rebind is the model to
-   copy — when the anchor changes, *recreate everything cwd-bound* (tool definitions, system prompt,
+   copy — when the anchor changes, _recreate everything cwd-bound_ (tool definitions, system prompt,
    resource loading) so file tools and bash never disagree about what `relative` means. A cd that
    only moves bash's cwd while file tools stay anchored elsewhere would be a state no reference
    harness permits.

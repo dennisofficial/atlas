@@ -3,7 +3,6 @@
 This is the single source of truth for the lift/descend revamp. Every builder works against these
 interfaces. If a slice discovers the contract is wrong, STOP and report — do not improvise a divergent
 shape. Dennis's directions that this encodes:
-
 - **Everything moves.** Parent, subagents, teammates — one session, one archive, one commit point.
 - **Pause, don't interrupt.** Loops halt at a resumable seam (pre-LLM-request), transfer, then resume
   on the far side. The model never sees a broken/aborted turn.
@@ -75,8 +74,8 @@ Pure, in harness (no I/O of its own — node effects are injected async thunks).
 // packages/harness/src/cloud/relocation/dag.ts
 export type RelocationNode<Ctx> = {
   id: string
-  needs: readonly string[]          // node ids that must complete first
-  run: (ctx: Ctx) => Promise<void>  // the effect; injected, does the real work
+  needs: readonly string[] // node ids that must complete first
+  run: (ctx: Ctx) => Promise<void> // the effect; injected, does the real work
   /** True for the single commit node. See commit semantics below. */
   commit?: boolean
 }
@@ -85,8 +84,8 @@ export type RelocationPlan<Ctx> = readonly RelocationNode<Ctx>[]
 
 export type RelocationRun =
   | { ok: true }
-  | { ok: false; phase: 'pre-commit'; failed: string; error: unknown }   // abort-safe: GC + stay put
-  | { ok: false; phase: 'committed'; failed: string; error: unknown }     // moved: re-attach/reverse
+  | { ok: false; phase: 'pre-commit'; failed: string; error: unknown } // abort-safe: GC + stay put
+  | { ok: false; phase: 'committed'; failed: string; error: unknown } // moved: re-attach/reverse
 
 export async function runRelocation<Ctx>(args: {
   plan: RelocationPlan<Ctx>

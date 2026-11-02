@@ -23,7 +23,6 @@ Open http://localhost:3100/proto. That is the entry point; the app also works st
 ## The chrome
 
 `/proto` wraps every page in three panels:
-
 - **Left**: a tree of every page, generated from `src/app`. Dynamic routes list their samples. The
   filter box narrows it.
 - **Centre**: the page in an iframe, so `h-svh`, `fixed` and `md:` breakpoints see the frame size.
@@ -64,7 +63,6 @@ const { state, queued } = usePrototype({
 ## Mirror rules
 
 `__tests__/mirror.spec.ts` enforces:
-
 - Every `page.tsx` and `layout.tsx` under `apps/web/src/app` exists at the same path here. `api/`,
   `health/`, `route.ts` and `manifest.ts` are ignored, as is `src/app/proto/` (the chrome).
 - Every folder under `apps/web/src/features` exists under `src/features`. Extras such as `shared`

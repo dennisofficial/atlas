@@ -2,7 +2,6 @@
 
 The Cloudflare Worker behind `https://install.byatlas.io`, the public install URL for the `atlas`
 binary. It proxies `install.sh` from this repo:
-
 - `/` serves `install.sh` from `main`.
 - `/tui-v<version>` serves `install.sh` as of that release tag, for pinned installs.
 - Responses are edge-cached for 5 minutes.

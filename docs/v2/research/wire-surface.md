@@ -12,7 +12,6 @@ names inside the area named in the same sentence.
 ## Headline
 
 Atlas has no single client ⇄ control plane ⇄ runtime protocol. There are five:
-
 1. tRPC over HTTP and SSE from clients to the API (`/v1/trpc`, `packages/api-router/src/client.ts:24-64`).
 2. A direct WebSocket from clients to serve (`/v1/session`, subprotocols `atlas.v1` and
    `bearer.<token|ticket>`, `apps/serve/src/session-server.ts:99-194`). The API only mints a 60 s

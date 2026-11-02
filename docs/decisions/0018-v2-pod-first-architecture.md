@@ -20,7 +20,6 @@ local and cloud as placements of the same shape. The business logic (loop, tools
 assembly, prompts, hooks, skills, sub-agents) carries over. The design is
 [docs/v2/architecture.md](../v2/architecture.md); the ordered slices are
 [docs/v2/roadmap.md](../v2/roadmap.md).
-
 - **D1.** The durable record lives in the control plane. The holder pod is the only writer of
   seqs. Clients and pods are agnostic to where the other is.
 - **D3.** The log is append-only. History edits (rewind, summarise, compact, loop-cut) are appended

@@ -35,11 +35,11 @@ The toolbar **Theme** menu switches Dark (default) and Light. It toggles the `li
 
 ## Where stories go
 
-| Story                                  | Location                                         | Title prefix   |
-| -------------------------------------- | ------------------------------------------------ | -------------- |
-| A vendored component                   | `packages/ui/src/components/<name>.stories.tsx`  | `Components/`  |
-| An AI pattern                          | `packages/ui/src/ai/<name>.stories.tsx`          | `AI/`          |
-| Colors and type                        | `packages/ui/src/tokens/`                        | `Foundations/` |
+| Story                | Location                                        | Title prefix   |
+| -------------------- | ----------------------------------------------- | -------------- |
+| A vendored component | `packages/ui/src/components/<name>.stories.tsx` | `Components/`  |
+| An AI pattern        | `packages/ui/src/ai/<name>.stories.tsx`         | `AI/`          |
+| Colors and type      | `packages/ui/src/tokens/`                       | `Foundations/` |
 
 Page prototypes live in `apps/prototype`, not here.
 

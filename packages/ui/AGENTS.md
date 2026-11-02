@@ -31,17 +31,16 @@ host: it loads these stories and owns the `App/` prototypes.
 
 Import through the package `exports`:
 
-| Specifier                          | What                                              |
-| ---------------------------------- | ------------------------------------------------- |
-| `@dltech/atlas-ui/components/<name>` | A vendored component (`button`, `dialog`, …)    |
-| `@dltech/atlas-ui/ai/<name>`       | An AI pattern                                     |
-| `@dltech/atlas-ui/lib/utils`       | `cn`                                              |
-| `@dltech/atlas-ui/hooks/<name>`    | Hooks                                             |
-| `@dltech/atlas-ui/tokens`          | Token values (`semantic`, `primitives`, `font`, `radiusScale`) |
-| `@dltech/atlas-ui/theme.css`, `base.css`, `fonts.css` | Stylesheets                    |
+| Specifier                                             | What                                                           |
+| ----------------------------------------------------- | -------------------------------------------------------------- |
+| `@dltech/atlas-ui/components/<name>`                  | A vendored component (`button`, `dialog`, …)                   |
+| `@dltech/atlas-ui/ai/<name>`                          | An AI pattern                                                  |
+| `@dltech/atlas-ui/lib/utils`                          | `cn`                                                           |
+| `@dltech/atlas-ui/hooks/<name>`                       | Hooks                                                          |
+| `@dltech/atlas-ui/tokens`                             | Token values (`semantic`, `primitives`, `font`, `radiusScale`) |
+| `@dltech/atlas-ui/theme.css`, `base.css`, `fonts.css` | Stylesheets                                                    |
 
 Inside the package, use the `imports` aliases: `#components/*`, `#lib/*`, `#hooks/*`.
-
 - An app imports the stylesheets once in its global CSS
   (`@import "@dltech/atlas-ui/theme.css"; @import "@dltech/atlas-ui/base.css";`) and points
   Tailwind's `@source` at this package's `src/` so component classes are generated. The package
@@ -72,7 +71,6 @@ Inside the package, use the `imports` aliases: `#components/*`, `#lib/*`, `#hook
 
 Each container owns its inset; callers never add it. `shadcn add --diff` noise on these files is
 expected.
-
 - `select.tsx`: the inset moved from the optional `SelectGroup` onto the internal `SelectPrimitive.List`, so ungrouped items are inset too. `SelectTrigger` gained `variant: 'default' | 'ghost'` (borderless, Button-ghost hover) so consumers never fake it with `border-0`.
 - `command.tsx`: `CommandGroup` lost its extra `p-1`, and items use the shared menu row (`rounded-md px-1.5 py-1 gap-1.5`), so Command rows match DropdownMenu.
 - `popover.tsx`: a popover whose direct child is a `Command` drops its own padding and gap, so consumers never pass `p-0 gap-0`.

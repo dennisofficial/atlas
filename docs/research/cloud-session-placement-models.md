@@ -23,7 +23,6 @@ on a runner, or in a local CLI session." — https://ampcode.com/docs/threads
 **The executor is chosen at birth and does not migrate.** A thread is started in one of
 three executor kinds, and there is no documented "move this thread to another executor"
 operation:
-
 - **Orb** — a remote machine amp creates per thread (amp's cloud). Chosen in the web
   composer ("New Orb"), or from the CLI with `amp -ox`, or from the TUI command palette
   ("thread: new in orb"). — https://ampcode.com/docs/orbs/getting-started,
@@ -35,10 +34,9 @@ operation:
 
 **Cross-surface continuity is built into each direction separately rather than as one
 symmetric "transfer" primitive:**
-
 - **Cloud (orb) → local:** `amp sync <thread>` mirrors an orb thread's git changes into
   your local checkout while the agent keeps working remotely. The agent itself does not
-  relocate; the *workspace changes* do. — https://ampcode.com/docs/orbs ("Sync Changes to
+  relocate; the _workspace changes_ do. — https://ampcode.com/docs/orbs ("Sync Changes to
   Your Computer")
 - **Orb → CLI attach:** `amp threads continue T-…` attaches the CLI to an orb thread;
   `amp threads continue T-… -ox 'msg'` sends one message that "runs on the thread's own
@@ -54,13 +52,13 @@ symmetric "transfer" primitive:**
 
 **What is shared between surfaces:** the thread itself (prompts, replies, tool calls,
 changed files) is server-side state on ampcode.com and is visible from every client. What
-is *not* shared: the execution environment. Each executor kind has its own filesystem; amp
+is _not_ shared: the execution environment. Each executor kind has its own filesystem; amp
 never moves a running agent's machine. When a thread runs in an orb, the web UI shows
-Changes/Portals/Files/Terminal panes that open *into the orb's machine*. —
+Changes/Portals/Files/Terminal panes that open _into the orb's machine_. —
 https://ampcode.com/docs/threads ("Inside a Thread")
 
 **Verdict for question 1:** amp is closest to "born cloud or born local" — placement is
-chosen at thread creation and never migrates the executor. But it is not *only* that: amp
+chosen at thread creation and never migrates the executor. But it is not _only_ that: amp
 adds three compensating primitives (thread-as-shared-state readable everywhere, remote
 control of local threads from web/mobile, and `amp sync` to pull orb changes to a local
 checkout) so that the lack of executor migration is rarely felt as a wall.
@@ -75,7 +73,6 @@ https://ampcode.com/docs/orbs/customizing ("Amp's default E2B orbs currently run
 Cloud us-west1")
 
 **Persist-by-default with park/wake.** The lifecycle is explicitly documented:
-
 - "When the agent is done, the orb goes to sleep, and a sleeping orb costs nothing, even
   if it sleeps for weeks. When you send another prompt, the orb wakes up with your
   conversation, files, and services still in place." — https://ampcode.com/docs/orbs
@@ -89,7 +86,6 @@ Cloud us-west1")
   https://ampcode.com/docs/orbs/customizing
 
 **Two snapshot layers:**
-
 1. **Project snapshot** — a saved copy of a prepared orb (repo + everything
    `.agents/setup` installed). Reused across threads in the project for up to 72 hours,
    refreshed when stale or when the repo source/shared config changed. Not invalidated by
@@ -170,7 +166,7 @@ amp has four distinct distribution channels, each with different placement seman
   and restart into the new version once no thread is running, at most once per 12 hours.
   — https://ampcode.com/docs/cli/settings, https://ampcode.com/docs/cli/runners ("Keep a
   Runner Updated")
-- **[unconfirmed]** How the amp binary *inside a running orb* is versioned or hot-swapped
+- **[unconfirmed]** How the amp binary _inside a running orb_ is versioned or hot-swapped
   mid-thread is not documented. Docs only say orbs "include" amp and that the executor is
   "restored" on wake.
 
@@ -188,7 +184,7 @@ tooling travels with the repo (`.agents/skills`, `.agents/setup`, `.amp/settings
 - **Placement:** sessions run in an Anthropic-managed isolated VM per session (or a
   self-hosted environment). Start from browser, mobile, desktop, or `claude --cloud`. —
   https://code.claude.com/docs/en/claude-code-on-the-web
-- **Transfer:** asymmetric. `claude --teleport` pulls a cloud session *into* the terminal
+- **Transfer:** asymmetric. `claude --teleport` pulls a cloud session _into_ the terminal
   (fetches the pushed branch, loads conversation history; the terminal copy diverges —
   "new work there stays local and doesn't appear in the cloud session"). You **cannot
   push an existing terminal session to the cloud**; `--cloud` always creates a new
@@ -206,7 +202,7 @@ tooling travels with the repo (`.agents/skills`, `.agents/setup`, `.amp/settings
 - **Config distribution:** cloud sessions read "cloud environments" (saved config:
   network allowlist, env vars, setup scripts cached ~5 min), plus repo `.claude/settings.json`
   and `.claude/agents/`; credentials stay outside the VM behind a GitHub proxy. —
-  https://code.claude.com/docs/en/claude-code-on-the-web, 
+  https://code.claude.com/docs/en/claude-code-on-the-web,
   https://code.claude.com/docs/en/cloud-environments (referenced)
 
 ### 4.2 OpenAI Codex Cloud — born-cloud tasks from published environments
@@ -303,13 +299,12 @@ release and (b) has user skills + memory + settings that must reach the sandbox.
 ### 5.1 Placement: born-placed, with three escape hatches instead of transfer
 
 Every product except Devin avoids symmetric live migration:
-
 - **amp, Cursor, Codex, Copilot:** executor chosen at creation, never moves. Continuity
   is provided by (1) shared server-side thread state readable from any client, (2) remote
   control of a local session from web/mobile (amp Cross-Client Access, Claude Remote
   Control), and (3) artifact-level moves — `amp sync` mirrors the orb's git branch to a
   local checkout; Claude `--teleport` copies the session down and deliberately forks it.
-- **Devin** is the outlier with true bidirectional `/handoff`, and it is a *copy* —
+- **Devin** is the outlier with true bidirectional `/handoff`, and it is a _copy_ —
   package context + branch + diff, create a new session elsewhere — not a process
   migration.
 - **Claude Code** proves the asymmetric middle is shippable: `--teleport` (cloud→local,
@@ -345,7 +340,6 @@ make first-boot-in-a-repo fast without conflating it with session resume.
 ### 5.3 Config distribution: host the user layer server-side; the executor reads local, the cloud fetches hosted
 
 The consistent pattern across amp, Codex, Claude, and Cursor:
-
 1. **Repo-committed config travels with the clone** (`.agents/skills`,
    `.claude/settings.json`, `.cursor/environment.json`, `copilot-setup-steps.yml`,
    AGENTS.md). Zero distribution machinery needed — but zero user-level customization.
@@ -368,7 +362,7 @@ requirement argues for amp's hosted-layer design — a server-side copy of the u
 document that cloud sessions pull at boot/wake. Atlas already has the client-pushed
 variant ("whole user document pushed to cloud sessions on Ready and on change" — see
 project memory "Settings sync is client-only"); amp's model shows the alternative where
-the cloud side *owns* the user layer and the local machine is just another client of it.
+the cloud side _owns_ the user layer and the local machine is just another client of it.
 If Atlas drops session transfer, the push-on-Ready model loses its hardest case (mid-
 session relocation) and the remaining question — who is source of truth for user settings
 when a cloud session runs for days — is one amp answers with "the server is."
@@ -391,6 +385,6 @@ when a cloud session runs for days — is one amp answers with "the server is."
 Implication for Atlas: the hot-swap-per-release design is more aggressive than anything
 publicly documented. The market-standard shape is "swap at sleep/wake boundaries and
 drain-restart long-lived daemons," which Atlas already approximates with rotation +
-drain. If born-placed placement makes cloud sessions *longer-lived* (they can never be
+drain. If born-placed placement makes cloud sessions _longer-lived_ (they can never be
 lifted home to escape a bad serve), the drain path and the park/wake swap window become
 more load-bearing, not less.

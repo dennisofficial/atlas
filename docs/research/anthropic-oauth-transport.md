@@ -29,7 +29,6 @@ const anthropic = createAnthropic({
 ```
 
 Four mechanical facts, each read from the installed package:
-
 - **Passing both `apiKey` and `authToken` throws** before any request is made.
 - **The `authToken` JSDoc is wrong.** It claims a default from `ANTHROPIC_AUTH_TOKEN`. No such
   environment read exists in the code; the name appears only in the doc comment. Pass it explicitly.
