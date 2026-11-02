@@ -21,12 +21,13 @@ const wholeToolset = () =>
     named('exit_worktree'),
     named('worktree_list'),
     named('agent_spawn'),
+    named('subscribe'),
   ])
 
 const asAChildSees = () =>
   filteredToolRegistry({
     registry: wholeToolset(),
-    deny: [...AGENT_TOOL_NAMES, ...WORKTREE_TOOL_NAMES],
+    deny: [...AGENT_TOOL_NAMES, 'subscribe'],
   })
 
 describe('who may reshape the session', () => {
@@ -40,18 +41,18 @@ describe('who may reshape the session', () => {
     expect(offered).toContain('worktree_list')
   })
 
-  it('offers none of them to a child, which cannot move a session it does not own', () => {
+  it('offers them to a child too, which moves only itself', () => {
     const offered = asAChildSees()
       .declarations()
       .map((declaration) => declaration.name)
 
-    expect(offered).toEqual(['read', 'bash'])
+    expect(offered).toEqual(['read', 'bash', ...WORKTREE_TOOL_NAMES])
   })
 
-  it('refuses to hand a child one by name, not merely to advertise it', () => {
+  it('withholds subscribe from a child, whose parent owns the pull request', () => {
     const child = asAChildSees()
 
-    for (const name of WORKTREE_TOOL_NAMES) expect(child.find(name)).toBeUndefined()
-    expect(child.find('read')).toBeDefined()
+    expect(child.find('subscribe')).toBeUndefined()
+    expect(child.find('agent_spawn')).toBeUndefined()
   })
 })
