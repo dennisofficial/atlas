@@ -6,8 +6,9 @@ import {
 } from '@dltech/atlas-core'
 
 import { atlasBinDirectory } from '../store/paths'
+import { resolvedReferences } from './declared-references'
 import type { DeclaredService } from './declared-services'
-import { cwdOf, resolvedFromRunning, type DeclaredContext } from './declared-launch'
+import { cwdOf, type DeclaredContext } from './declared-launch'
 
 const SETUP_TAIL_CHARACTERS = 2_000
 
@@ -43,12 +44,13 @@ export async function runSetup({
   spawn: ProcessPort['spawn']
   threadId: ThreadId
 }): Promise<string | undefined> {
+  const resolved = await resolvedReferences({ declared, context })
   const env = {
     ...process.env,
     PATH: `${atlasBinDirectory()}:${process.env.PATH ?? ''}`,
     ...interpolateServiceEnv({
       env: declared.env ?? {},
-      resolved: resolvedFromRunning({ services: context.services }),
+      resolved,
     }),
   }
   for (const command of declared.setup ?? []) {

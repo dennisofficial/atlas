@@ -63,7 +63,7 @@ here.
 An `env` value can point at another declared service:
 
 - `${services.<name>.url}`: the internal URL, `http://127.0.0.1:<port>`. Use it for server-to-server calls.
-- `${services.<name>.publicUrl}`: the public portal URL. The target must declare a `portal`. It does not imply starting the target: if that service is not running the reference stays uninterpolated. Add it to `needs` to start it first.
+- `${services.<name>.publicUrl}`: the public portal URL — what a browser sees. The target must declare a `portal`. It resolves without starting the target: the portal URL is published ahead of the first start and the target reuses it when it later starts. `url` is localhost for server-to-server calls; `publicUrl` is for browsers.
 - `${services.<name>.port}`: the port number.
 
 Dependencies are `needs: [name, ...]` plus env references to `url` or `port`. They start first and each

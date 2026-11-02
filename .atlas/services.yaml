@@ -19,6 +19,8 @@ services:
     command: bun run dev -H 0.0.0.0
     cwd: apps/web
     health: /
+    env:
+      ATLAS_API_ORIGIN: ${services.api.url}
     setup:
       - bun install
     portal:

@@ -180,7 +180,14 @@ export async function ensureDeclaredServices({
   options?: DeclaredEnsureOptions | undefined
 }): Promise<readonly EnsuredService[]> {
   const read = await (options?.load ?? loadDeclaredServices)({ root })
-  const context: DeclaredContext = { services, processes, root, threadId, options }
+  const context: DeclaredContext = {
+    services,
+    processes,
+    root,
+    threadId,
+    declaredServices: read.services,
+    options,
+  }
   const results: EnsuredService[] = read.rejections.map((rejection) => ({
     name: rejection.name ?? '.atlas/services.yaml',
     status: EEnsureStatus.Invalid,
