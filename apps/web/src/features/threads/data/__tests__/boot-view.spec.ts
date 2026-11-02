@@ -40,8 +40,8 @@ const ALL_STEPS = [
   EBootStep.Provision,
   EBootStep.Serve,
   EBootStep.Clone,
-  EBootStep.Setup,
   EBootStep.Settings,
+  EBootStep.Setup,
   EBootStep.Context,
   EBootStep.Agent,
 ]

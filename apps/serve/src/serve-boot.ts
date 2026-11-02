@@ -139,27 +139,11 @@ export async function bootServeFiles(args: {
     }
   }
 
-  const setupStartedAt = Date.now()
   const spec = await fetchSpecOnce().catch(() => null)
   applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
-  if (workspace.state !== EWorkspaceState.Failed && notice !== undefined) {
-    const applyContainer = args.containerSetup ?? createContainerSetup({})
-    await trackContainerSetup({
-      reporter,
-      setup: () =>
-        applyContainer({
-          cwd,
-          atlasHome,
-          env,
-          setupScript: spec?.setupScript,
-          notice,
-        }),
-    })
-  }
   if (spec?.projectId && !spec.githubToken) {
     log({ event: EServeEvent.GithubTokenAbsent, projectId: spec.projectId })
   }
-  log({ event: EServeEvent.BootPhase, phase: 'setup', ms: Date.now() - setupStartedAt })
   const signingStartedAt = Date.now()
   await applySigningKey({ env, atlasHome, log, ...remote, prefetched: prefetchedSigningKey })
   log({ event: EServeEvent.BootPhase, phase: 'signing', ms: Date.now() - signingStartedAt })
@@ -186,20 +170,45 @@ export async function bootServeFiles(args: {
 
   const identity =
     spec === null || spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
-  const contextStartedAt = Date.now()
-  await reporter.track({
-    step: EBootStep.Context,
-    work: async () => {
-      const context = { atlasHome, ...remote, log, files: args.contextFiles }
-      await applyPublishedBundle({
-        ...context,
-        projectDirectory: cwd,
-        prefetched: prefetchedBundle,
+
+  const runSetup = async () => {
+    const setupStartedAt = Date.now()
+    if (workspace.state !== EWorkspaceState.Failed && notice !== undefined) {
+      const applyContainer = args.containerSetup ?? createContainerSetup({})
+      await trackContainerSetup({
+        reporter,
+        setup: () =>
+          applyContainer({
+            cwd,
+            atlasHome,
+            env,
+            setupScript: spec?.setupScript,
+            notice,
+          }),
       })
-      await applyCloudInstructions({ ...context, prefetched: prefetchedInstructions })
-    },
-  })
-  log({ event: EServeEvent.BootPhase, phase: 'context', ms: Date.now() - contextStartedAt })
+    }
+    log({ event: EServeEvent.BootPhase, phase: 'setup', ms: Date.now() - setupStartedAt })
+  }
+  const runContext = async () => {
+    const contextStartedAt = Date.now()
+    await reporter.track({
+      step: EBootStep.Context,
+      work: async () => {
+        const context = { atlasHome, ...remote, log, files: args.contextFiles }
+        await applyPublishedBundle({
+          ...context,
+          projectDirectory: cwd,
+          prefetched: prefetchedBundle,
+        })
+        await applyCloudInstructions({ ...context, prefetched: prefetchedInstructions })
+      },
+    })
+    log({ event: EServeEvent.BootPhase, phase: 'context', ms: Date.now() - contextStartedAt })
+  }
+  const settled = await Promise.allSettled([runSetup(), runContext()])
+  for (const outcome of settled) {
+    if (outcome.status === 'rejected') throw outcome.reason
+  }
 
   const sessionDir = sessionDirectory({ home: atlasHome, sessionId: threadId })
   const metaFile = threadMetaFile({ sessionDir, threadId })

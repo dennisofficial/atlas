@@ -35,8 +35,8 @@ export const BOOT_STEP_ORDER: readonly EBootStep[] = [
   EBootStep.Provision,
   EBootStep.Serve,
   EBootStep.Clone,
-  EBootStep.Setup,
   EBootStep.Settings,
+  EBootStep.Setup,
   EBootStep.Context,
   EBootStep.Agent,
 ]

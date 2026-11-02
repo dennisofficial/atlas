@@ -15,11 +15,7 @@ import {
 export const FAILED_FALLBACK = 'The sandbox failed to start.'
 export const SETUP_SCRIPT_FAILED_DETAIL = 'The agent was told why. The session continues.'
 
-const LATER_THAN_SETUP: readonly EBootStep[] = [
-  EBootStep.Settings,
-  EBootStep.Context,
-  EBootStep.Agent,
-]
+const LATER_THAN_SETUP: readonly EBootStep[] = [EBootStep.Context, EBootStep.Agent]
 
 const isSetupUnrecorded = (attempt: readonly RecordedBootStep[]): boolean =>
   !attempt.some((step) => step.step === EBootStep.Setup) &&

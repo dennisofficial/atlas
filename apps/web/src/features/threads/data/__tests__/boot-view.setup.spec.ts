@@ -30,8 +30,8 @@ const doneSteps = (ids: EBootStep[], outcomes: Partial<Record<EBootStep, EBootSt
     rec({ step, state: EBootStepState.Done, at: index * 2000 + 1000, outcome: outcomes[step] }),
   ])
 
-const BEFORE = [EBootStep.Provision, EBootStep.Serve, EBootStep.Clone]
-const AFTER = [EBootStep.Settings, EBootStep.Context, EBootStep.Agent]
+const BEFORE = [EBootStep.Provision, EBootStep.Serve, EBootStep.Clone, EBootStep.Settings]
+const AFTER = [EBootStep.Context, EBootStep.Agent]
 
 describe('setup script boot row', () => {
   it('labels the running step', () => {

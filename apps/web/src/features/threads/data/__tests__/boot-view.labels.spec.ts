@@ -95,8 +95,8 @@ describe('bootViewOf step labels', () => {
       'Create sandbox',
       'Start Atlas',
       'Clone repository',
-      'Run setup script',
       'Apply settings',
+      'Run setup script',
       'Load skills and instructions',
       'Start agent',
     ])
