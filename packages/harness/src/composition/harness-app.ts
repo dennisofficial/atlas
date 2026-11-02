@@ -11,6 +11,7 @@ import type {
 
 import type { SessionActivityPort } from '../activity/port'
 import type { AgentRegistryPort } from '../agents/registry/port'
+import type { AvailabilityControl } from '../model-recovery/availability-control'
 import type { AgentTypeCatalog } from '../agents/types/registry'
 import type { FileOpener } from '../browser/open-file'
 import type { UrlOpener } from '../browser/open-url'
@@ -106,6 +107,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   ids: IdPort
   pending: PendingQueues<Command>
   intake?: MessageIntake | undefined
+  availabilityControl?: AvailabilityControl | undefined
   shells: ShellRegistryPort
   agents: AgentRegistryPort
   operatorInput: OperatorInputPort

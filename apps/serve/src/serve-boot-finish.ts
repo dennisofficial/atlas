@@ -137,6 +137,9 @@ export async function finishServeBoot(args: {
   })
   redelivery.bind(redeliverThrough({ root: threadId, driver, app }))
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
+  const unbindAvailabilityWake = app.availability?.bindRootWake(({ threadId: waiting }) => {
+    if (waiting === threadId) driver.sayOrRun()
+  })
   const unsubscribeWake = subscribeLegacyWake({
     app,
     threadId,
@@ -258,6 +261,7 @@ export async function finishServeBoot(args: {
     detach: () => {
       recovery.detach()
       detachIntake?.()
+      unbindAvailabilityWake?.()
       unsubscribeWake?.()
       detachSubscriptions()
       writeBehind?.detach()

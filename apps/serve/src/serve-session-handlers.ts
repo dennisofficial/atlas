@@ -70,6 +70,7 @@ export function createBootedSessionHandlers(args: {
     compaction: app.compaction,
     agents: app.agents,
     processes: app.processes,
+    availability: app.availability,
     operatorInput: app.operatorInput,
     pending: app.pending,
     tools: { changes: app.changes, terminal: app.terminal },

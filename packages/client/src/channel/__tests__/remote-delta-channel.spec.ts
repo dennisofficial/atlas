@@ -114,6 +114,7 @@ describe('opening the session socket', () => {
       lastEventSeq: 12,
       protocol: CHANNEL_PROTOCOL_VERSION,
       minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
+      capabilities: [ECapability.ModelAvailabilityControls],
     })
   })
 
@@ -155,6 +156,7 @@ describe('a durable head that reads off the wire', () => {
       lastEventSeq: 31,
       protocol: CHANNEL_PROTOCOL_VERSION,
       minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
+      capabilities: [ECapability.ModelAvailabilityControls],
     })
   })
 
@@ -459,6 +461,7 @@ describe('losing the socket', () => {
       lastEventSeq: 7,
       protocol: CHANNEL_PROTOCOL_VERSION,
       minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
+      capabilities: [ECapability.ModelAvailabilityControls],
     })
   })
 
@@ -572,6 +575,7 @@ describe('driving a turn over the wire', () => {
         lastEventSeq: 0,
         protocol: CHANNEL_PROTOCOL_VERSION,
         minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
+        capabilities: [ECapability.ModelAvailabilityControls],
       },
       { kind: EClientFrame.Run },
     ])

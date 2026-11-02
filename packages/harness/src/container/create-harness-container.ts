@@ -1,4 +1,5 @@
 import {
+  AccountStorePort,
   ClockPort,
   CredentialAvailabilityPort,
   EExecutionLocation,
@@ -105,6 +106,10 @@ export function createHarnessContainer(): DependencyContainer {
         new CredentialAvailabilityProxy({
           local: new InMemoryCredentialAvailability({
             clock: resolver.resolve(registeredPortToken(ClockPort)),
+            manualPausedAt: async (accountId) =>
+              (await resolver.resolve(registeredPortToken(AccountStorePort)).list()).find(
+                (account) => account.id === accountId,
+              )?.manuallyPausedAt ?? null,
           }),
           session: () =>
             resolver.isRegistered(ServeSessionToken, true)

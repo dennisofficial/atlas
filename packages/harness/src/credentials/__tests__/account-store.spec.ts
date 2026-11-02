@@ -8,6 +8,7 @@ import {
   EAccountStatus,
   EAuthKind,
   EAuthProvider,
+  ManualPauseConflictError,
   type AccountSecret,
   type ClockPort,
 } from '@dltech/atlas-core'
@@ -207,5 +208,56 @@ describe('the account store on a file', () => {
 
     expect(failure).toBeInstanceOf(CredentialError)
     expect((failure as CredentialError).failure).toBe(ECredentialFailure.Unreadable)
+  })
+})
+
+describe('the manual pause overlay', () => {
+  it('round-trips, survives a vault reload and bumps the control generation', async () => {
+    const added = await addAnthropic('work')
+
+    const paused = await store.setManualPause({ accountId: added.id, paused: true })
+
+    expect(paused.manuallyPausedAt).not.toBeNull()
+    expect(paused.availabilityControlGeneration).toBe(1)
+    const reloaded = await storeIn(directory).read(added.id)
+    expect(reloaded?.manuallyPausedAt).toBe(paused.manuallyPausedAt)
+
+    const cleared = await store.setManualPause({ accountId: added.id, paused: false })
+    expect(cleared.manuallyPausedAt).toBeNull()
+    expect(cleared.availabilityControlGeneration).toBe(2)
+  })
+
+  it('is preserved when the secret is replaced and leaves the secret revision alone', async () => {
+    const added = await addAnthropic('work')
+    await store.setManualPause({ accountId: added.id, paused: true })
+    const before = await store.read(added.id)
+
+    await store.replaceSecret({ accountId: added.id, secret: oauthSecret('replacement') })
+
+    const after = await store.read(added.id)
+    expect(after?.manuallyPausedAt).toBe(before?.manuallyPausedAt)
+    expect(before?.authorizationRevision).toBeUndefined()
+    expect(after?.authorizationRevision).toBe(1)
+  })
+
+  it('raises a typed conflict on a stale control generation', async () => {
+    const added = await addAnthropic('work')
+    await store.setManualPause({ accountId: added.id, paused: true })
+
+    const failure = await store
+      .setManualPause({ accountId: added.id, expectedControlGeneration: 0, paused: false })
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(ManualPauseConflictError)
+    expect((await store.read(added.id))?.manuallyPausedAt).not.toBeNull()
+  })
+
+  it('still parses a vault written before the overlay existed', async () => {
+    const added = await addAnthropic('work')
+
+    const stored = await store.read(added.id)
+
+    expect(stored?.manuallyPausedAt).toBeUndefined()
+    expect(stored?.availabilityControlGeneration).toBeUndefined()
   })
 })

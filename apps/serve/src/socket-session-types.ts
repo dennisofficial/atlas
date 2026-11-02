@@ -4,7 +4,7 @@ import type { SessionActivityPort } from '@dltech/atlas-harness/activity'
 import type { ThreadId } from '@dltech/atlas-core'
 import type { CapabilitySet, RuntimeCheckpoint } from '@dltech/atlas-wire'
 
-import type { StepId } from '@dltech/atlas-harness'
+import type { AvailabilityControl, StepId } from '@dltech/atlas-harness'
 import type { ClientFrame, EClientFrame, ServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
 import type { TitlingTurnRunner } from '@dltech/atlas-harness'
@@ -106,5 +106,6 @@ export type SessionHandlersArgs = {
   tools?: SessionTools | undefined
   /** The sandbox's own shell and service registries; absent in fakes, which refuse the process ops. */
   processes?: ServeProcesses | undefined
+  availability?: AvailabilityControl | undefined
   /** The session-directory mirror's read surface; absent in fakes, which refuse the ops. */
 }

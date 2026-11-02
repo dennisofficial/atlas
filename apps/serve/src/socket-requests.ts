@@ -5,6 +5,7 @@ import type { FileBrowser } from '@dltech/atlas-harness'
 import type { RotationStateWire } from '@dltech/atlas-wire'
 
 import { routeActivityRead } from './activity-requests'
+import { routeAvailabilityRequest } from './availability-requests'
 import { isAgentSteerOp } from './agent-steer'
 import { routeAgentSteerRequest } from './agent-steer-routing'
 import { createCompactionRequests, isCompactionOp } from './compaction-requests'
@@ -61,6 +62,7 @@ export function createRequestRouter(args: {
   persistModel?: ThreadModelPersister | undefined
   tools?: SessionTools | undefined
   processes?: ServeProcesses | undefined
+  availability?: import('@dltech/atlas-harness').AvailabilityControl | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } =
     args
@@ -102,6 +104,15 @@ export function createRequestRouter(args: {
         root: threadId,
         activity: args.activity,
         threads: transcript?.threads,
+        reply: (reply) => send({ socket, frame: reply }),
+      })
+    )
+      return
+    if (
+      routeAvailabilityRequest({
+        frame,
+        availability: args.availability,
+        capabilities: () => socket.data.capabilities,
         reply: (reply) => send({ socket, frame: reply }),
       })
     )

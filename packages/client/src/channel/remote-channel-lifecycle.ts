@@ -3,6 +3,7 @@ import {
   CHANNEL_PROTOCOL_MIN_VERSION,
   CHANNEL_PROTOCOL_VERSION,
   CHANNEL_SUBPROTOCOL,
+  ECapability,
   EClientFrame,
   encodeFrame,
 } from './channel-wire'
@@ -37,6 +38,7 @@ export function createChannelLifecycle(core: ChannelCore) {
         lastEventSeq: seq,
         protocol: CHANNEL_PROTOCOL_VERSION,
         minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
+        capabilities: [ECapability.ModelAvailabilityControls],
       })
 
     if (typeof head === 'number') {

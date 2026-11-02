@@ -192,3 +192,24 @@ describe('InMemoryCredentialAvailability', () => {
     expect((await authority.admit({ key, revision })).admitted).toBe(true)
   })
 })
+
+describe('the manual pause overlay on the authority', () => {
+  it('blocks admission before any barrier exists and lifts when the overlay clears', async () => {
+    const clock = steppedClock()
+    let pausedAt: string | null = clock.now()
+    const authority = new InMemoryCredentialAvailability({
+      clock,
+      manualPausedAt: async () => pausedAt,
+    })
+
+    const blocked = await authority.admit({ key, revision })
+    expect(blocked.admitted).toBe(false)
+    expect((await authority.inspect({ key, revision })).availability).toBe(
+      ECredentialAvailability.Paused,
+    )
+
+    pausedAt = null
+    const admitted = await authority.admit({ key, revision })
+    expect(admitted.admitted).toBe(true)
+  })
+})

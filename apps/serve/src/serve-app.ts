@@ -18,6 +18,7 @@ import type {
 
 import type {
   AgentRegistryPort,
+  AvailabilityControl,
   ExpandContext,
   SubscriptionRegistryPort,
   DeltaChannel,
@@ -254,6 +255,7 @@ export type ServeApp = {
   /** The shell and service registries the operator's process-control ops reach; absent in a fake, which refuses them. */
   processes?: ServeProcesses | undefined
   operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined
+  availability?: AvailabilityControl | undefined
   compaction?: CompactionPort | undefined
   rotation?: RotationPort | undefined
   /** The session's placement controller; serve hydrates it to cloud once boot settles. */

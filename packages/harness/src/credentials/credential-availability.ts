@@ -3,11 +3,13 @@ import {
   completeState,
   controlState,
   CredentialAvailabilityPort,
+  ECredentialAvailability,
   inspectState,
   promoteProbeState,
   type AdmissionCompletion,
   type AdmissionDecision,
   type AdmissionPermit,
+  type AccountId,
   type AvailabilityKey,
   type AvailabilitySnapshot,
   type AvailabilityState,
@@ -23,10 +25,29 @@ const stateKeyOf = (key: AvailabilityKey): string =>
 export class InMemoryCredentialAvailability extends CredentialAvailabilityPort {
   private readonly clock: ClockPort
   private readonly states = new Map<string, AvailabilityState>()
+  private readonly manualPausedAt: (accountId: AccountId) => Promise<string | null>
 
-  constructor(args: { clock: ClockPort }) {
+  constructor(args: {
+    clock: ClockPort
+    manualPausedAt?: ((accountId: AccountId) => Promise<string | null>) | undefined
+  }) {
     super()
     this.clock = args.clock
+    this.manualPausedAt = args.manualPausedAt ?? (async () => null)
+  }
+
+  private async manualPause(args: {
+    key: AvailabilityKey
+    revision: CredentialRevision
+  }): Promise<AvailabilitySnapshot | undefined> {
+    const since = await this.manualPausedAt(args.key.accountId)
+    if (since === null) return undefined
+    return {
+      key: args.key,
+      availability: ECredentialAvailability.Paused,
+      revision: args.revision,
+      since,
+    }
   }
 
   private instant(): { nowIso: string; nowMs: number } {
@@ -44,6 +65,8 @@ export class InMemoryCredentialAvailability extends CredentialAvailabilityPort {
     key: AvailabilityKey
     revision: CredentialRevision
   }): Promise<AvailabilitySnapshot> {
+    const paused = await this.manualPause(args)
+    if (paused !== undefined) return paused
     return inspectState({
       key: args.key,
       revision: args.revision,
@@ -56,6 +79,10 @@ export class InMemoryCredentialAvailability extends CredentialAvailabilityPort {
     key: AvailabilityKey
     revision: CredentialRevision
   }): Promise<AdmissionDecision> {
+    const paused = await this.manualPause(args)
+    if (paused !== undefined) {
+      return { admitted: false, block: { key: args.key, snapshot: paused } }
+    }
     const { decision, next } = admitState({
       key: args.key,
       revision: args.revision,

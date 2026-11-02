@@ -1,3 +1,4 @@
+import { bindAvailabilityControl } from './availability-binding'
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 
@@ -403,6 +404,7 @@ export async function composeHarness<
     ids,
     pending,
     intake,
+    availabilityControl: bindAvailabilityControl({ container, agents }),
     shells,
     agents,
     services,

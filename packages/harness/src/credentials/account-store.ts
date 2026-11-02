@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import {
   AccountStorePort,
   EAccountStatus,
+  ManualPauseConflictError,
   toAccountId,
   type Account,
   type AccountDraft,
@@ -116,6 +117,37 @@ export class AccountStore extends AccountStorePort {
       accountId: args.accountId,
       change: (account) => ({ ...account, status: args.status, updatedAt: this.clock.now() }),
     })
+  }
+
+  override async setManualPause(args: {
+    accountId: AccountId
+    expectedControlGeneration?: number | undefined
+    paused: boolean
+  }): Promise<StoredAccount> {
+    await this.mutateAccount({
+      accountId: args.accountId,
+      change: (account) => {
+        const generation = account.availabilityControlGeneration ?? 0
+        if (
+          args.expectedControlGeneration !== undefined &&
+          args.expectedControlGeneration !== generation
+        ) {
+          throw new ManualPauseConflictError({
+            accountId: args.accountId,
+            expected: args.expectedControlGeneration,
+            actual: generation,
+          })
+        }
+        return {
+          ...account,
+          manuallyPausedAt: args.paused ? this.clock.now() : null,
+          availabilityControlGeneration: generation + 1,
+        }
+      },
+    })
+    const stored = await this.read(args.accountId)
+    if (stored === undefined) throw new Error(`account ${args.accountId} is not in the vault`)
+    return stored
   }
 
   async remove(accountId: AccountId): Promise<void> {

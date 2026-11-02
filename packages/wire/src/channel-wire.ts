@@ -151,6 +151,8 @@ export enum EClientRequest {
   ListDeclaredServices = 'list-declared-services',
   EnsureDeclaredServices = 'ensure-declared-services',
   RestartService = 'restart-service',
+  ReadModelAvailability = 'read-model-availability',
+  ControlLocalModelAvailability = 'control-local-model-availability',
 }
 
 export const serveFrameSchema = z.discriminatedUnion('kind', [
