@@ -23,7 +23,10 @@ beforeEach(() => {
     async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
       const method = init?.method ?? 'GET'
       calls.push({ path: String(input), method })
-      if (method === 'POST') return new Response(null, { status: 202 })
+      if (method === 'POST') {
+        body = { state: 'restarting', version: '1.2.3' }
+        return new Response(null, { status: 202 })
+      }
       return Response.json(body)
     },
     { preconnect: realFetch.preconnect },
@@ -94,6 +97,26 @@ describe('UpdateCard', () => {
       path: '/desktop/update/restart',
       method: 'POST',
     })
+    expect(button('Restarting…')?.disabled).toBe(true)
+    await unmount()
+  })
+
+  it('keeps restarting while the host reports restarting', async () => {
+    asDesktop()
+    body = { state: 'restarting', version: '1.2.3' }
+    const unmount = await mount(<UpdateCard />)
+    expect(button('Restarting…')?.disabled).toBe(true)
+    await unmount()
+  })
+
+  it('shows a restart failure and lets you retry', async () => {
+    asDesktop()
+    body = { state: 'ready', version: '1.2.3', error: 'Cannot apply update: gone' }
+    const unmount = await mount(<UpdateCard />)
+    expect(document.querySelector('[role="alert"]')?.textContent).toBe('Cannot apply update: gone')
+    expect(button('Restart to update')?.disabled).toBe(false)
+    await act(async () => button('Restart to update')?.click())
+    expect(document.querySelector('[role="alert"]')).toBeNull()
     expect(button('Restarting…')?.disabled).toBe(true)
     await unmount()
   })

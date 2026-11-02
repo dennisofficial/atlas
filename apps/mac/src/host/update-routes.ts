@@ -1,11 +1,13 @@
 export enum EDesktopUpdateState {
   Idle = 'idle',
   Ready = 'ready',
+  Restarting = 'restarting',
 }
 
 export interface IDesktopUpdateStatus {
   state: EDesktopUpdateState
   version?: string
+  error?: string
 }
 
 export interface IDesktopUpdatesPort {

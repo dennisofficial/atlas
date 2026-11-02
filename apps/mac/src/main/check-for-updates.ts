@@ -1,10 +1,11 @@
 import { Updater, Utils } from 'electrobun/main'
-import { checkNow, EManualCheckOutcome, restartToLatest, type TOnReady } from './auto-update'
+import { checkNow, EManualCheckOutcome, restartToPrepared } from './auto-update'
+import type { IUpdateState } from './update-state'
 
 const RESTART_BUTTON = 0
 
-export async function runCheckForUpdates({ onReady }: { onReady: TOnReady }): Promise<void> {
-  const result = await checkNow({ updater: Updater, onReady })
+export async function runCheckForUpdates({ state }: { state: IUpdateState }): Promise<void> {
+  const result = await checkNow({ updater: Updater, onReady: state.markReady })
   if (result.outcome === EManualCheckOutcome.Current) {
     await Utils.showMessageBox({
       type: 'info',
@@ -34,5 +35,5 @@ export async function runCheckForUpdates({ onReady }: { onReady: TOnReady }): Pr
     defaultId: RESTART_BUTTON,
     cancelId: 1,
   })
-  if (response === RESTART_BUTTON) await restartToLatest({ updater: Updater, onReady })
+  if (response === RESTART_BUTTON) await restartToPrepared({ updater: Updater, state })
 }

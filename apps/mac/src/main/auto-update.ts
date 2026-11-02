@@ -1,11 +1,13 @@
 import { writeLog } from './crash-log'
 
 export const UPDATE_INTERVAL_MS = 5 * 60 * 1000
+export const RESTART_GRACE_MS = 15 * 1000
+export const RESTART_FAILED_MESSAGE = 'Atlas could not restart to install the update.'
 
 export interface IUpdaterPort {
   checkForUpdate: () => Promise<{ updateAvailable: boolean; error: string }>
   downloadUpdate: () => Promise<void>
-  updateInfo: () => { updateReady: boolean; version: string }
+  updateInfo: () => { updateReady: boolean; version: string; error: string }
   applyUpdate: () => Promise<void>
 }
 
@@ -34,15 +36,44 @@ export async function runUpdateCycle({
   }
 }
 
-export async function restartToLatest({
+export interface IRestartStatePort {
+  markRestarting: () => void
+  markFailed: (args: { message: string }) => void
+}
+
+export type TScheduleFallback = (args: { run: () => void; ms: number }) => void
+
+const scheduleUnref: TScheduleFallback = ({ run, ms }) => {
+  setTimeout(run, ms).unref()
+}
+
+export async function restartToPrepared({
   updater,
-  onReady,
+  state,
+  schedule = scheduleUnref,
 }: {
   updater: IUpdaterPort
-  onReady: TOnReady
+  state: IRestartStatePort
+  schedule?: TScheduleFallback
 }): Promise<void> {
-  await runUpdateCycle({ updater, onReady })
-  await updater.applyUpdate()
+  state.markRestarting()
+  const errorBefore = updater.updateInfo().error
+  const fail = (message: string) => {
+    writeLog({ label: 'restart-for-update', error: message })
+    state.markFailed({ message })
+  }
+  try {
+    await updater.applyUpdate()
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error))
+    return
+  }
+  const errorAfter = updater.updateInfo().error
+  if (errorAfter.length > 0 && errorAfter !== errorBefore) {
+    fail(errorAfter)
+    return
+  }
+  schedule({ run: () => fail(RESTART_FAILED_MESSAGE), ms: RESTART_GRACE_MS })
 }
 
 export function startAutoUpdate({
