@@ -31,11 +31,10 @@ export class TodayFragment extends VolatilePromptFragment {
 }
 
 const POD_LINES = [
-  "This session runs in a throwaway pod. Its filesystem, /tmp, and localhost belong to the pod, not the operator's machine.",
-  'The primary repository is at /atlas/workspaces/<repo-name>, and repositories the project configures are cloned beside it; clone others there too and use explicit workdir or absolute paths to work in them.',
-  "Gitignored content (node_modules, .env) does not reach the pod, so run the project's own install before building, testing, or running it.",
-  `After ${DEFAULT_CONTAINER_IDLE_MINUTES} minutes without activity Atlas parks the pod, and parking clears /tmp; keep anything that must outlast a pause under ATLAS_SESSION_DIR or /atlas/workspaces.`,
-  'The whole pod is discarded with the session, so leave worktrees, clones, and scratch files in place when work finishes.',
+  "This session runs in a throwaway pod that lives exactly as long as the session: its filesystem, /tmp, and localhost are the pod's alone, and all of it is discarded when the session ends, so leave worktrees, clones, and scratch files in place when work finishes.",
+  "The primary repository is at /atlas/workspaces/<repo-name>, with the project's configured repositories cloned beside it; clone others there too and use explicit workdir or absolute paths.",
+  "Gitignored content (node_modules, .env) never reaches the pod, so run the project's own install before building, testing, or running it.",
+  `After ${DEFAULT_CONTAINER_IDLE_MINUTES} minutes without activity Atlas parks the pod, which clears /tmp; anything that must survive a park goes under ATLAS_SESSION_DIR or /atlas/workspaces.`,
 ]
 
 const LOCAL_POD_PORTS =
@@ -75,14 +74,11 @@ export class SessionPathsFragment extends PromptFragment {
 
   text(): string {
     return [
-      'Every command you run sees ATLAS_SESSION_DIR, the directory shared by this conversation and its sub-agents and teammates,',
-      'ATLAS_CONTEXT_DIR, a folder inside it for plans, decisions, and working notes durable for the whole session and readable by every thread in it,',
-      'and ATLAS_THREAD_DIR, a directory private to your own thread.',
-      'These directories live and die with the session.',
-      'Keep temporary probes, seed scripts, and one-off downloads in $ATLAS_SESSION_DIR/scratch.',
-      'Keep private scratch under ATLAS_THREAD_DIR.',
-      'Keep plans, decisions, coordination notes, and supporting artifacts under ATLAS_CONTEXT_DIR.',
-      'Use these variables in Bash commands or file-tool paths; Atlas resolves them for the calling thread.',
+      'Every command sees three session directories: ATLAS_SESSION_DIR, shared by this conversation and its sub-agents and teammates;',
+      'ATLAS_CONTEXT_DIR inside it, for the plans, decisions, coordination notes, and artifacts every thread reads;',
+      'and ATLAS_THREAD_DIR, private to your own thread.',
+      'Put temporary probes, seed scripts, and one-off downloads in $ATLAS_SESSION_DIR/scratch and private scratch in ATLAS_THREAD_DIR.',
+      'Use these variables in bash commands or file-tool paths; Atlas resolves them for the calling thread.',
     ].join(' ')
   }
 }

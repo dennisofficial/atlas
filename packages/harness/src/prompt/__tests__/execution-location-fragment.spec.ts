@@ -48,7 +48,7 @@ describe('execution-location fragment', () => {
       expect(text).not.toContain('Vercel')
       expect(text).not.toContain('cloud sandbox')
       expect(text).toContain('/atlas/workspaces/<repo-name>')
-      expect(text).toContain('repositories the project configures are cloned beside it')
+      expect(text).toContain("the project's configured repositories cloned beside it")
       expect(text).toContain("run the project's own install")
     }
   })
@@ -57,16 +57,16 @@ describe('execution-location fragment', () => {
     for (const runner of POD_RUNNERS) {
       const text = textFor(EExecutionLocation.Cloud, runner)
       expect(text).toContain(`After ${DEFAULT_CONTAINER_IDLE_MINUTES} minutes without activity`)
-      expect(text).toContain('parking clears /tmp')
+      expect(text).toContain('which clears /tmp')
       expect(text).toContain('ATLAS_SESSION_DIR or /atlas/workspaces')
     }
   })
 
-  it('tells a pod to leave leftovers in place because the pod is discarded', () => {
+  it('ties the pod lifetime to the session and says to leave leftovers in place', () => {
     for (const runner of POD_RUNNERS) {
-      expect(textFor(EExecutionLocation.Cloud, runner)).toContain(
-        'leave worktrees, clones, and scratch files in place',
-      )
+      const text = textFor(EExecutionLocation.Cloud, runner)
+      expect(text).toContain('lives exactly as long as the session')
+      expect(text).toContain('leave worktrees, clones, and scratch files in place')
     }
   })
 
