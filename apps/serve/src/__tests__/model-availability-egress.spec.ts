@@ -120,7 +120,11 @@ const handlers = createSessionHandlers({
   inFlight: () => [],
   liveStepId: () => null,
   driver: untouchedDriver(),
-  files: { list: async () => [], read: async () => refusedFile },
+  files: {
+    list: async () => [],
+    read: async () => refusedFile,
+    search: async () => ({ paths: [], truncated: false }),
+  },
   refusal: () => null,
   log: () => undefined,
   roster: { snapshot: () => roster, subscribe: () => () => undefined },

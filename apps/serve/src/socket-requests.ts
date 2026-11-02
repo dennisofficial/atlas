@@ -39,7 +39,7 @@ export function createRequestRouter(args: {
   activity: SessionActivityPort
   threadId: ThreadId
   driver: ServeTurnDriver
-  files: Pick<FileBrowser, 'list' | 'read'>
+  files: Pick<FileBrowser, 'list' | 'read' | 'search'>
   log: ServeLog
   snapshot: ServeRoster['snapshot']
   commands?: ServeCommands | undefined

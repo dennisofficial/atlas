@@ -2,7 +2,9 @@ import { open, readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 
-import { isUnderPath, type DirectoryEntry } from '@dltech/atlas-core'
+import { isUnderPath, rankPaths, type DirectoryEntry } from '@dltech/atlas-core'
+
+import { listWorkspaceFiles } from './workspace-file-list'
 
 export const MAX_MENTION_BYTES = 128 * 1024
 export const MAX_VIEW_BYTES = 2 * 1024 * 1024
@@ -52,6 +54,11 @@ const entriesOf = async (directory: string): Promise<readonly DirectoryEntry[]> 
     .sort((left, right) => left.name.localeCompare(right.name))
 }
 
+export type FileSearchResult = {
+  paths: { path: string; positions: number[] }[]
+  truncated: boolean
+}
+
 export type ReachableRoots = () => readonly string[] | undefined
 
 const reachable = (args: { roots: readonly string[]; path: string }): boolean =>
@@ -65,6 +72,7 @@ export class FileBrowser {
   private readonly reachableRoots: ReachableRoots | undefined
   private readonly levels = new Map<string, Promise<readonly DirectoryEntry[]>>()
   private readonly known = new Map<string, Promise<boolean>>()
+  private listing: Promise<string[]> | undefined
 
   constructor(args: { root: string; reachableRoots?: ReachableRoots | undefined }) {
     this.root = args.root
@@ -132,7 +140,24 @@ export class FileBrowser {
       })
   }
 
+  async search(args: { query: string; limit: number }): Promise<FileSearchResult> {
+    if (args.query.trim() === '') return { paths: [], truncated: false }
+    this.listing ??= listWorkspaceFiles({ root: this.root }).catch((error: unknown) => {
+      this.listing = undefined
+      throw error
+    })
+    const roots = this.reachableRoots?.()
+    const listed = await this.listing
+    const paths =
+      roots === undefined
+        ? listed
+        : listed.filter((path) => reachable({ roots, path: join(this.root, path) }))
+    const { matches, truncated } = rankPaths({ query: args.query, paths, limit: args.limit })
+    return { paths: matches.map(({ path, positions }) => ({ path, positions })), truncated }
+  }
+
   forget(): void {
+    this.listing = undefined
     this.levels.clear()
     this.known.clear()
   }

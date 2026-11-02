@@ -1,6 +1,6 @@
 import type { DirectoryEntry } from '@dltech/atlas-core'
 
-import type { LoadedFile, ViewedFile } from './file-browser'
+import type { FileSearchResult, LoadedFile, ViewedFile } from './file-browser'
 import type { MentionReader } from './mention-reader'
 
 export const MENTION_FILES_CONNECTING =
@@ -20,6 +20,10 @@ export class UnavailableMentionFiles implements MentionReader {
   }
 
   read(_path: string): Promise<ViewedFile> {
+    return Promise.reject(new Error(MENTION_FILES_CONNECTING))
+  }
+
+  search(_args: { query: string; limit: number }): Promise<FileSearchResult> {
     return Promise.reject(new Error(MENTION_FILES_CONNECTING))
   }
 

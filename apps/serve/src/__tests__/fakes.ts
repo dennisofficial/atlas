@@ -362,6 +362,7 @@ export function fakeServeApp(args: {
     files: {
       list: async (directory: string) => args.entries?.[directory] ?? [],
       read: async () => refusedFile,
+      search: async () => ({ paths: [], truncated: false }),
       forget: () => {
         forgotten += 1
       },

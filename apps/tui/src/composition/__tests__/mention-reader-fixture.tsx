@@ -60,6 +60,7 @@ export function scriptedReader(): ScriptedReader {
     },
     load: () => Promise.reject(new Error('the composer never loads')),
     read: () => Promise.reject(new Error('the composer never reads')),
+    search: () => Promise.reject(new Error('the composer never searches')),
     forget: () => undefined,
   }
 }

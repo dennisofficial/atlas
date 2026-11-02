@@ -15,6 +15,7 @@ import type { GitChangesChannel } from '../data/git-changes-load'
 import { ETabSubject } from './changes/offline-copy'
 import { TabFailed, TabOffline } from './changes/tab-states'
 import { FilesLoading } from './changes/tab-skeletons'
+import { FileSearchBody } from './file-search-panel'
 import { useThreadPanel } from './thread-panel-context'
 
 const ICON = <FolderTreeIcon />
@@ -68,7 +69,14 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
   }
 
   return (
-    <div className="h-full overflow-auto p-2">
+    <FileSearchBody
+      channel={props.channel}
+      refreshKey={turnEnds}
+      changes={changed}
+      ignored={ignored}
+      selected={selected}
+      onOpen={handleSelect}
+    >
       <FileTree
         nodes={nodes}
         selected={selected}
@@ -76,7 +84,7 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
         open={open}
         onOpenChange={handleOpenChange}
       />
-    </div>
+    </FileSearchBody>
   )
 }
 

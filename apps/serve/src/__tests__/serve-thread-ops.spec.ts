@@ -252,6 +252,50 @@ describe('thread titling', () => {
 })
 
 describe('answerRequest', () => {
+  it('answers search-workspace-files with the ranked paths and a default limit', async () => {
+    const { answerRequest } = await import('../requests')
+    const asked: { query: string; limit: number }[] = []
+    const found = { paths: [{ path: 'a.ts', positions: [0] }], truncated: false }
+
+    const reply = await answerRequest({
+      frame: {
+        kind: EClientFrame.Request,
+        id: 'sf-1',
+        op: EClientRequest.SearchWorkspaceFiles,
+        params: { query: 'a' },
+      },
+      files: {
+        list: async () => [],
+        read: async () => refusedFile,
+        search: async (args) => {
+          asked.push(args)
+          return found
+        },
+      },
+    })
+    expect(reply.ok).toBe(true)
+    expect(reply.data).toEqual(found)
+    expect(asked).toEqual([{ query: 'a', limit: 100 }])
+  })
+
+  it('refuses search-workspace-files without a query', async () => {
+    const { answerRequest } = await import('../requests')
+    const reply = await answerRequest({
+      frame: {
+        kind: EClientFrame.Request,
+        id: 'sf-2',
+        op: EClientRequest.SearchWorkspaceFiles,
+        params: {},
+      },
+      files: {
+        list: async () => [],
+        read: async () => refusedFile,
+        search: async () => ({ paths: [], truncated: false }),
+      },
+    })
+    expect(reply.ok).toBe(false)
+  })
+
   it('answers read-workspace-file with the viewed file', async () => {
     const { answerRequest } = await import('../requests')
     const file: ViewedFile = {
@@ -269,7 +313,11 @@ describe('answerRequest', () => {
         op: EClientRequest.ReadWorkspaceFile,
         params: { path: 'a.ts' },
       },
-      files: { list: async () => [], read: async () => file },
+      files: {
+        list: async () => [],
+        read: async () => file,
+        search: async () => ({ paths: [], truncated: false }),
+      },
     })
     expect(reply.ok).toBe(true)
     expect(reply.data).toEqual({ file })
@@ -284,7 +332,11 @@ describe('answerRequest', () => {
         op: EClientRequest.ReadWorkspaceFile,
         params: {},
       },
-      files: { list: async () => [], read: async () => refusedFile },
+      files: {
+        list: async () => [],
+        read: async () => refusedFile,
+        search: async () => ({ paths: [], truncated: false }),
+      },
     })
     expect(reply.ok).toBe(false)
     expect(JSON.stringify(reply.data)).toContain('wants { path }')
@@ -300,7 +352,11 @@ describe('answerRequest', () => {
         op: 'an-op-from-a-newer-client' as EClientRequest,
         params: {},
       },
-      files: { list: async () => [], read: async () => refusedFile },
+      files: {
+        list: async () => [],
+        read: async () => refusedFile,
+        search: async () => ({ paths: [], truncated: false }),
+      },
     })
 
     expect(reply.ok).toBe(false)

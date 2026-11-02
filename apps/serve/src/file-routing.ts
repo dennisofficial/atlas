@@ -7,7 +7,7 @@ import type { ReplyFrame, RequestFrame } from './request-reply'
 
 export const routeFileRequest = (args: {
   frame: RequestFrame
-  files: Pick<FileBrowser, 'list' | 'read'>
+  files: Pick<FileBrowser, 'list' | 'read' | 'search'>
   reply: (reply: ReplyFrame) => void
 }): void => {
   const { frame, files, reply } = args

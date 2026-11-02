@@ -128,7 +128,12 @@ const rig = (): Rig => {
       onModelChosen: () => () => undefined,
     },
     ids: { nextRunId: () => toRunId('run-append') },
-    files: { list: async () => [], read: async () => refusedFile, forget: () => undefined },
+    files: {
+      list: async () => [],
+      read: async () => refusedFile,
+      search: async () => ({ paths: [], truncated: false }),
+      forget: () => undefined,
+    },
     workspace: { workspace: '/workspace', repo: null },
     adoptChildren: async () => [],
     whenChildrenSettled: async () => undefined,

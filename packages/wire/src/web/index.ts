@@ -1,6 +1,7 @@
 export * from '../composer-draft-wire'
 export * from '../memory-wire'
 export * from '../workspace-file-wire'
+export * from '../file-search-wire'
 export * from '../project-wire'
 export * from '../session-node-wire'
 export * from '../thread-live-wire'
