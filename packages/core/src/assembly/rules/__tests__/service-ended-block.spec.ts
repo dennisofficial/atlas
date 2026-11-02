@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { EServiceStatus } from '../../../services/status'
 import { EKilledBy } from '../../../shells/status'
+import { contextFor, log } from '../../__tests__/log-fixture'
+import { messagesFromEvents } from '../messages-from-events'
 import { serviceEndedBlock } from '../service-ended-block'
 import { runningServicesReminder } from '../running-services-block'
 
@@ -107,5 +109,33 @@ describe('the running-services reminder', () => {
     expect(reminder).toContain('another thread is not told when one exits')
     expect(reminder).toContain('service_stop({ id }) applies when that tool is available')
     expect(reminder).not.toMatch(/never|polling|service_list/)
+  })
+})
+
+describe('a service ending that an auto-restart follows', () => {
+  const rendered = (restarting: true | undefined) =>
+    messagesFromEvents()(
+      { system: [], messages: [] },
+      contextFor({
+        events: log([
+          {
+            type: 'service-ended',
+            serviceId: 'svc_1',
+            command: 'bun run dev',
+            status: EServiceStatus.Exited,
+            exitCode: 1,
+            tail: 'boom',
+            restarting,
+          },
+        ]),
+      }),
+    ).messages
+
+  it('produces no message for the model', () => {
+    expect(rendered(true)).toHaveLength(0)
+  })
+
+  it('still renders an ordinary ending', () => {
+    expect(rendered(undefined)).toHaveLength(1)
   })
 })

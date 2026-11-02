@@ -7,7 +7,7 @@ import {
   planCountOf,
   planDoneLabelOf,
   settledLabelOf,
-  tokenFiguresOf,
+  tokenStatsOf,
   turnsLabelOf,
 } from '../details-model'
 
@@ -31,14 +31,13 @@ describe('details model', () => {
       uncachedInputTokens: 1500,
       costUsd: null,
     }
-    expect(tokenFiguresOf(base)).toBe('↑ 1.5k  ↓ 200')
-    expect(
-      tokenFiguresOf({
-        ...base,
-        cacheReadTokens: 500,
-        uncachedInputTokens: 1000,
-      }),
-    ).toBe('↑ 1.0k  ↓ 200  cache 500')
+    expect(tokenStatsOf(base)).toEqual({ input: '1.5k', output: '200', cached: null })
+    expect(tokenStatsOf({ ...base, cacheReadTokens: 500, uncachedInputTokens: 1000 })).toEqual({
+      input: '1.0k',
+      output: '200',
+      cached: '500',
+    })
+    expect(tokenStatsOf({ ...base, inputTokens: 0, outputTokens: 0 })).toBeNull()
   })
 
   it('labels the settled toggle', () => {

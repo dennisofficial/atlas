@@ -12,14 +12,14 @@ import {
 import type { AppTeammate } from '../shell/fixtures/teammates'
 import { threadPath } from '../shell/thread-href'
 import { toPanelAgent } from './agent-adapters'
-import { subagentRowsOf, teammateRowsOf } from './details/crew-rows'
+import { teammateRowsOf } from './details/crew-rows'
 import type { AgentRun } from './agent-run'
 import type { PodPanelState } from './pod-state'
 import { ContextViewer } from './details/context-viewer'
 import { useEscapeClose } from './details/use-escape-close'
 import { RightPanel } from './right-panel'
 import type { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
-import { DEFAULT_TITLE, SessionHeader, type SessionHeaderProps } from './session-header'
+import { SessionHeader, type SessionHeaderProps } from './session-header'
 import { ERightTab, ESessionState } from './session-types'
 import { TeammateTranscript } from './teammate-transcript'
 import { ThreadComposer } from './thread-composer'
@@ -139,9 +139,7 @@ export function SessionPane({
             initialPreviewId={initialPreviewId}
             pod={pod}
             agents={panelAgents}
-            title={header.title ?? DEFAULT_TITLE}
             teammates={teammateRowsOf(teammates)}
-            subagents={subagentRowsOf(agents)}
             detailId={detailId}
             onDetailChange={setDetailId}
             onOpenTeammate={handleOpenTeammate}

@@ -28,12 +28,12 @@ describe('DeclaredServicesFragment', () => {
     expect(new DeclaredServicesFragment().text(ctx())).toBe('')
   })
 
-  it('lists declared names and points at services_ensure', () => {
+  it('lists declared names and points at service_start', () => {
     writeServices({
       text: 'services:\n  web:\n    command: bun dev\n  api:\n    command: bun api\n',
     })
     const text = new DeclaredServicesFragment().text(ctx())
-    expect(text).toContain('services_ensure')
+    expect(text).toContain('service_start({ name })')
     expect(text).toContain('Declared services: web, api.')
   })
 

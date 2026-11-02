@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
+import { TableCell, TableRow } from '@dltech/atlas-ui/components/table'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 import { cn } from '@dltech/atlas-ui/lib/utils'
@@ -19,6 +19,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 import { ChecksTally } from '../../checks-tally'
 import type { PullRequestRow } from '../../data/pull-request-rows'
 import type { PullRequestBell } from '../../data/subscription-model'
+import { BODY_CELL, MID_COLUMN } from './table-parts'
 
 const STATE_ICON: Record<string, { icon: LucideIcon; tone: string; label: string }> = {
   open: { icon: GitPullRequestIcon, tone: 'text-pr-open', label: 'Open' },
@@ -86,45 +87,67 @@ function BellToggle(props: {
   )
 }
 
+function ChecksAndConflicts({ row }: { row: PullRequestRow }) {
+  if (row.checks === undefined && !row.conflicts) return null
+  return (
+    <span className="inline-flex items-center justify-end gap-1.5 text-xs">
+      {row.checks === undefined ? null : <ChecksTally checks={row.checks} />}
+      {row.conflicts ? <ConflictIndicator /> : null}
+    </span>
+  )
+}
+
 export function PullRequestRowItem(props: {
   row: PullRequestRow
+  checkoutBranch?: string
   bell: PullRequestBell | undefined
   onToggleBell: (key: string) => void
 }) {
   const { row, bell, onToggleBell } = props
+  const branchShown = row.branch !== props.checkoutBranch
   return (
-    <DetailRow
-      icon={<StateIcon state={row.state} />}
-      label={
+    <TableRow>
+      <TableCell className={`${BODY_CELL} w-6`}>
+        <span className="flex size-4 items-center justify-center">
+          <StateIcon state={row.state} />
+        </span>
+      </TableCell>
+      <TableCell className={`${BODY_CELL} w-full max-w-0`}>
         <a
           href={row.url}
           target="_blank"
           rel="noreferrer"
-          className="rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="block truncate rounded-sm text-sm font-medium tabular-nums outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          <span className="font-medium tabular-nums">{row.label}</span>{' '}
-          <span className="font-mono text-xs text-muted-foreground">{row.branch}</span>
+          {row.label}
         </a>
-      }
-      detail={row.via}
-      meta={
-        row.checks === undefined && !row.conflicts ? undefined : (
-          <span className="inline-flex items-center gap-1.5">
-            {row.checks === undefined ? null : <ChecksTally checks={row.checks} />}
-            {row.conflicts ? <ConflictIndicator /> : null}
+        {branchShown ? (
+          <span className="block truncate font-mono text-xs text-muted-foreground">
+            {row.branch}
           </span>
-        )
-      }
-      actions={
-        bell ? (
-          <BellToggle
-            bell={bell}
-            label={`${bell.label} ${row.label}`}
-            size="icon-xs"
-            onToggle={() => onToggleBell(row.key)}
-          />
-        ) : undefined
-      }
-    />
+        ) : null}
+        {row.via === undefined ? null : (
+          <span className="block truncate text-xs text-muted-foreground">{row.via}</span>
+        )}
+      </TableCell>
+      <TableCell className={`${BODY_CELL} ${MID_COLUMN} text-right`}>
+        <ChecksAndConflicts row={row} />
+      </TableCell>
+      <TableCell className={`${BODY_CELL} text-right`}>
+        <span className="flex items-center justify-end gap-1">
+          <span className="@[480px]:hidden">
+            <ChecksAndConflicts row={row} />
+          </span>
+          {bell ? (
+            <BellToggle
+              bell={bell}
+              label={`${bell.label} ${row.label}`}
+              size="icon-xs"
+              onToggle={() => onToggleBell(row.key)}
+            />
+          ) : null}
+        </span>
+      </TableCell>
+    </TableRow>
   )
 }

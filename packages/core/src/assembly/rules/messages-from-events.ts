@@ -332,6 +332,7 @@ function walkEvents({
     }
 
     if (event.type === 'service-ended') {
+      if (event.restarting === true) continue
       groups.push({
         message: {
           role: 'user',

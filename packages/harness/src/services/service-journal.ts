@@ -55,7 +55,9 @@ export class ServiceEventJournal {
     return this.enqueue({ ...args, kind: EServiceRecord.Start })
   }
 
-  ended(args: ServiceKey & { draft: EventDraft }): Promise<ServiceJournalAppend> {
+  ended(
+    args: ServiceKey & { draft: EventDraft; owed?: boolean | undefined },
+  ): Promise<ServiceJournalAppend> {
     const key = keyOf(args)
     if (this.endingWrites.has(key) && !this.failedEndings.has(key)) {
       return Promise.resolve({ appended: false, reason: EServiceJournalSkip.Ended })
@@ -66,8 +68,8 @@ export class ServiceEventJournal {
     const ending = this.enqueue({
       ...args,
       kind: EServiceRecord.Ending,
-      draft: arrivedDraft({ draft: args.draft, id }),
-      delivered: deliveredDraft({ draft: args.draft, id }),
+      draft: args.owed === false ? args.draft : arrivedDraft({ draft: args.draft, id }),
+      delivered: args.owed === false ? undefined : deliveredDraft({ draft: args.draft, id }),
     })
     this.endingWrites.set(key, ending)
     void ending.then((result) => {

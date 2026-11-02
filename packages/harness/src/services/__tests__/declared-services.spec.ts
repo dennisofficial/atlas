@@ -62,6 +62,28 @@ describe('parseDeclaredServices', () => {
   })
 })
 
+describe('needs', () => {
+  it('loads needs and rejects an empty or badly named list', () => {
+    const text = [
+      'services:',
+      '  api:',
+      '    command: x',
+      '    needs: [db, cache]',
+      '  empty:',
+      '    command: x',
+      '    needs: []',
+      '  bad:',
+      '    command: x',
+      '    needs: [Bad_Name]',
+    ].join('\n')
+    const result = parseDeclaredServices({ text, file: 'f' })
+    expect(result.services.map((service) => [service.name, service.needs])).toEqual([
+      ['api', ['db', 'cache']],
+    ])
+    expect(result.rejections.map((r) => r.name)).toEqual(['empty', 'bad'])
+  })
+})
+
 describe('allocateServicePort', () => {
   it('prefers a declared port', async () => {
     const port = await allocateServicePort({

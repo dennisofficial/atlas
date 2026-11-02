@@ -1,6 +1,6 @@
 ---
 name: atlas
-description: Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (services_ensure, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions and cloud logs.
+description: Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions and cloud logs.
 ---
 
 # Atlas
@@ -47,7 +47,7 @@ Read the page for the task; do not load them all.
 | Page | Covers |
 | --- | --- |
 | `references/config.md` | Settings, instruction files, skills, agent types, MCP, verifying a change |
-| `references/services.md` | Writing a good `services.yaml`, `services.yaml` fields, `services_ensure`, `setup`, portals, env references, stale services, `service_start`, URLs, framework host allow-listing, crash loops |
+| `references/services.md` | Writing a good `services.yaml`, `services.yaml` fields, `needs`, `setup`, portals, env references, stale services, `service_start`, URLs, framework host allow-listing, crash loops |
 | `references/cloud.md` | Placement, Vercel sandbox setup, `/container`, sign-in and backup, parking, cloud logs |
 | `references/cloud-config.md` | `cloud_config` tool: project and personal settings, secrets, MCP servers, file mounts |
 | `references/container.md` | Docker image resolution, `container.json` fields, setup recipe |

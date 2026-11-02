@@ -42,24 +42,12 @@ function CrewGroup(props: { title: string; rows: CrewRow[]; onOpen: (row: CrewRo
   )
 }
 
-export function CrewSection(props: {
-  teammates: CrewRow[]
-  subagents: CrewRow[]
-  onOpenTeammate: (id: string) => void
-  onOpenAgent: (id: string) => void
-}) {
+export function CrewSection(props: { teammates: CrewRow[]; onOpenTeammate: (id: string) => void }) {
   return (
-    <>
-      <CrewGroup
-        title="Teammates"
-        rows={props.teammates}
-        onOpen={(row) => props.onOpenTeammate(row.id)}
-      />
-      <CrewGroup
-        title="Sub-agents"
-        rows={props.subagents}
-        onOpen={(row) => props.onOpenAgent(row.id)}
-      />
-    </>
+    <CrewGroup
+      title="Teammates"
+      rows={props.teammates}
+      onOpen={(row) => props.onOpenTeammate(row.id)}
+    />
   )
 }

@@ -26,9 +26,7 @@ export interface RightPanelProps {
   initialPreviewId?: string
   pod?: PodPanelState
   agents: AgentsPanelAgent[]
-  title: string
   teammates: CrewRow[]
-  subagents: CrewRow[]
   detailId?: string
   onDetailChange: (id: string | undefined) => void
   onOpenTeammate: (id: string) => void
@@ -48,9 +46,7 @@ export function RightPanel({
   initialPreviewId,
   pod,
   agents,
-  title,
   teammates,
-  subagents,
   detailId,
   onDetailChange,
   onOpenTeammate,
@@ -71,10 +67,8 @@ export function RightPanel({
       <RightTabStrip counts={{ [ERightTab.Details]: running }} />
       <TabsContent value={ERightTab.Details} className="min-h-0 flex-1">
         <DetailsTab
-          title={title}
           agents={agents}
           teammates={teammates}
-          subagents={subagents}
           detailId={detailId}
           onDetailChange={onDetailChange}
           onOpenTeammate={onOpenTeammate}

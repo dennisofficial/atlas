@@ -4,6 +4,7 @@ import {
   EServiceReferenceField,
   interpolateServiceEnv,
   orderDeclaredServices,
+  serviceDependenciesOf,
   serviceReferencesOf,
 } from '../references'
 
@@ -88,6 +89,63 @@ describe('orderDeclaredServices', () => {
         ],
       }).ok,
     ).toBe(true)
+  })
+})
+
+describe('needs', () => {
+  it('orders needs first and pulls them into the closure', () => {
+    const services = [{ name: 'api', needs: ['db'] }, { name: 'db' }, { name: 'x' }]
+    expect(orderDeclaredServices({ services, wanted: ['api'] })).toEqual({
+      ok: true,
+      order: ['db', 'api'],
+    })
+  })
+
+  it('rejects needs of an undeclared service', () => {
+    expect(orderDeclaredServices({ services: [{ name: 'api', needs: ['db'] }] })).toEqual({
+      ok: false,
+      problems: [{ name: 'api', detail: 'needs undeclared service "db"' }],
+    })
+  })
+
+  it('reports a cycle through needs', () => {
+    const result = orderDeclaredServices({
+      services: [
+        { name: 'a', needs: ['b'] },
+        { name: 'b', env: { X: '${services.a.port}' } },
+      ],
+    })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.problems[0]?.detail).toContain('a -> b -> a')
+  })
+
+  it('does not treat publicUrl as a dependency', () => {
+    const services = [
+      { name: 'api', env: { W: '${services.web.publicUrl}' } },
+      { name: 'web', portal: true },
+    ]
+    expect(orderDeclaredServices({ services, wanted: ['api'] })).toEqual({
+      ok: true,
+      order: ['api'],
+    })
+    expect(serviceDependenciesOf(services[0]!)).toEqual([])
+  })
+
+  it('still rejects publicUrl of a service without a portal', () => {
+    const result = orderDeclaredServices({
+      services: [{ name: 'api', env: { W: '${services.web.publicUrl}' } }, { name: 'web' }],
+    })
+    expect(result.ok).toBe(false)
+  })
+
+  it('merges needs with url and port references without duplicates', () => {
+    expect(
+      serviceDependenciesOf({
+        needs: ['db', 'web'],
+        env: { A: '${services.web.url}', B: '${services.cache.port}' },
+      }),
+    ).toEqual(['db', 'web', 'cache'])
   })
 })
 

@@ -16,7 +16,6 @@ import { CrewSection } from './crew-section'
 import { DetailsFooter } from './footer'
 import { GithubSection } from './github-section'
 import { HeadSection } from './head-section'
-import { PodSection } from './pod-section'
 import { ProcessLogSheet } from './process-log-sheet'
 import { adhocFoldOf, BackgroundSection } from './processes-sections'
 import { ServicesSection } from './services-section'
@@ -46,9 +45,8 @@ export function DetailsTab(props: {
       {drilled ? (
         <AgentDrill data={props.agents} />
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3">
+        <div className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3">
           <HeadSection />
-          <PodSection />
           <GithubSection />
           <ContextSection files={context} />
           <ServicesSection

@@ -56,7 +56,6 @@ const BUILTIN_NAMES = [
   'service_start',
   'service_stop',
   'service_list',
-  'services_ensure',
   'service_restart',
   'task_write',
   'skill',

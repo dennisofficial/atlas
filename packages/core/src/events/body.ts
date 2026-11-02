@@ -239,6 +239,7 @@ export type EventBody =
       exitCode?: number | undefined
       logPath?: string | undefined
       tail: string
+      restarting?: true | undefined
       notice?: NoticeStamp | undefined
     }
   | {

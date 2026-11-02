@@ -3,7 +3,7 @@ import { appendFileSync } from 'node:fs'
 import type { ClockPort } from '@dltech/atlas-core'
 
 import type { ServiceStartArgs, StartedServiceOutcome } from './service-registry-port'
-import { ERestartVerdict, type ServiceSupervisor } from './service-supervisor'
+import { ERestartVerdict, type RestartVerdict, type ServiceSupervisor } from './service-supervisor'
 
 export class ServiceRestarter {
   private readonly supervisor: ServiceSupervisor
@@ -34,15 +34,15 @@ export class ServiceRestarter {
     launch: ServiceStartArgs
     name: string
     logPath?: string
-  }): void {
-    if (this.closed) return
+  }): RestartVerdict | undefined {
+    if (this.closed) return undefined
 
     const verdict = this.supervisor.recordCrash({ name, nowMs: Date.parse(this.clock.now()) })
-    if (verdict === undefined) return
+    if (verdict === undefined) return undefined
 
     if (verdict.verdict === ERestartVerdict.GiveUp) {
       this.noteCrashLoop({ name, crashes: verdict.crashes, logPath })
-      return
+      return verdict
     }
 
     this.supervisor.restartAfter({
@@ -50,6 +50,7 @@ export class ServiceRestarter {
       delayMs: verdict.delayMs,
       run: () => void this.restarted({ launch, name }),
     })
+    return verdict
   }
 
   private async restarted({
