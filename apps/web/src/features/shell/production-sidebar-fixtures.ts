@@ -87,6 +87,16 @@ const manager = sessionOf(
         status: statusOf({ lastOutcome: 'completed', readSeq: 8 }),
       }),
     ),
+    sessionOf(
+      threadOf({
+        id: 'sidebar-done',
+        title: 'Retire the legacy folder toggle',
+        parent: { threadId: 'sidebar-main', forkSeq: 3 },
+        agent: { spawnedBy: 'sidebar-main', type: 'teammate' },
+        worktree: { path: '/workspace/done', branch: 'dennis/sidebar-done' },
+        status: statusOf({ lastOutcome: 'completed', readSeq: 8 }),
+      }),
+    ),
   ],
 )
 

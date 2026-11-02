@@ -24,6 +24,7 @@ export interface AppTeammate {
   branch: string
   brief: string
   outcome?: string
+  archived?: boolean
 }
 
 export const TEAMMATES: AppTeammate[] = [
@@ -87,6 +88,7 @@ export const TEAMMATES: AppTeammate[] = [
     run: EAgentStatus.Stopped,
     sandbox: ESandboxState.Ready,
     branch: 'dennis/icon-import-codemod',
+    archived: true,
     brief:
       'Rewrite every direct icon import in the storybook app to go through the shared icon barrel.',
   },

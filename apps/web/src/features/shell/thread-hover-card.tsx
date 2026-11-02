@@ -12,20 +12,17 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@dltech/atlas-ui/components/popover'
-import { cn } from '@dltech/atlas-ui/lib/utils'
 import { ThreadDetails, type ThreadDetailsProps } from './thread-details'
 
 export function ThreadHoverCard({
   className,
   children,
   actions,
-  hasDisclosure = false,
   ...details
 }: ThreadDetailsProps & {
   className?: string
   children: ReactNode
   actions?: ReactNode
-  hasDisclosure?: boolean
 }) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -72,12 +69,7 @@ export function ThreadHoverCard({
           }
         >
           {children}
-          <div
-            className={cn(
-              'absolute top-1 flex items-center opacity-0 pointer-events-none group-hover/thread:opacity-100 group-hover/thread:pointer-events-auto group-focus-within/thread:opacity-100 group-focus-within/thread:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto group-data-[collapsible=icon]:hidden',
-              hasDisclosure ? 'right-10' : 'right-1',
-            )}
-          >
+          <div className="absolute top-1 right-1 flex items-center opacity-0 pointer-events-none group-hover/thread:opacity-100 group-hover/thread:pointer-events-auto group-focus-within/thread:opacity-100 group-focus-within/thread:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto group-data-[collapsible=icon]:hidden">
             {actions}
             <PopoverTrigger
               ref={detailsButton}

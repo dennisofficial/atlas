@@ -177,7 +177,7 @@ describe('shared row details access', () => {
     expect(button.getAttribute('aria-expanded')).toBe('false')
   })
 
-  it('shows all own PRs with titles, state, checks and conflicts and explains collapsed teammate aggregation', async () => {
+  it('shows all own PRs with titles, state, checks and conflicts without a collapsed aggregation note', async () => {
     await view.render({
       active: null,
       states: [
@@ -194,7 +194,7 @@ describe('shared row details access', () => {
     await showDetails('main')
     expect(popup()?.textContent).toContain('Fix 1')
     expect(popup()?.textContent).toContain('Fix 2')
-    expect(popup()?.textContent).toContain('Collapsed summary includes unique pull requests')
+    expect(popup()?.textContent).not.toContain('Collapsed summary includes unique pull requests')
     expect(popup()?.textContent).toContain('Teammate title')
     expect(popup()?.textContent).toContain('Completed title')
     expect(popup()?.querySelector('[aria-label="0 running, 3 passed, 1 failed"]')).not.toBeNull()

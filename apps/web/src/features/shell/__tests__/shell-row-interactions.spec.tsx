@@ -14,36 +14,26 @@ afterEach(async () => {
 })
 
 describe('shared sidebar row interactions', () => {
-  it('renders full main and completed teammate rows, removes children on disclosure, and follows a different active family member', async () => {
+  it('renders full main and completed teammate rows always expanded and follows a different active family member', async () => {
     await view.render()
     expect(view.link('done').textContent).toContain('#6')
-    expect(view.container?.textContent).not.toContain('done')
-    const toggle = view.find<HTMLButtonElement>('button[aria-label="Hide 2 teammates"]')
-    const controlled = document.getElementById(toggle.getAttribute('aria-controls') ?? '')
-    expect(controlled?.contains(view.link('mate'))).toBe(true)
-    expect(toggle.closest('a')).toBeNull()
-    await view.click('button[aria-label="Hide 2 teammates"]')
-    expect(view.container?.querySelector('a[href="/threads/mate"]')).toBeNull()
+    expect(view.link('mate')).not.toBeNull()
+    expect(view.link('done')).not.toBeNull()
+    expect(view.container?.querySelector('button[aria-label*="teammate"]')).toBeNull()
     expect(view.link('main').getAttribute('aria-current')).toBe('page')
-    expect(view.link('main').textContent).toContain('+5')
+    expect(view.link('main').textContent).not.toContain('+5')
     await view.render({ active: 'main' })
-    expect(view.find('button[aria-label="Show 2 teammates"]').getAttribute('aria-expanded')).toBe(
-      'false',
-    )
+    expect(view.link('mate')).not.toBeNull()
     await view.render({ active: 'mate' })
     expect(view.link('mate').getAttribute('aria-current')).toBe('page')
-    expect(view.find('button[aria-label="Hide 2 teammates"]').getAttribute('aria-expanded')).toBe(
-      'true',
-    )
     await view.render({ active: 'main' })
-    await view.click('button[aria-label="Hide 2 teammates"]')
     view.link('main').addEventListener('click', (event) => event.preventDefault())
     await view.click('a[href="/threads/main"]')
     expect(view.link('main').getAttribute('aria-current')).toBe('page')
     expect(view.link('mate')).not.toBeNull()
   })
 
-  it('changes all rows to one line with neutral own 2/3/1 badges and aggregates unique 6 only when closed', async () => {
+  it('changes all rows to one line with neutral own 2/3/1 badges and never aggregates', async () => {
     await view.render()
     expect(view.link('main').textContent).toContain('#2')
     expect(view.link('mate').textContent).toContain('#5')
@@ -57,12 +47,8 @@ describe('shared sidebar row interactions', () => {
       expect(view.link(id).textContent).not.toContain('#')
     }
     expect(view.link('main').querySelector('[data-pr-count]')?.className).not.toContain('warning')
-    await view.click('button[aria-label="Hide 2 teammates"]')
-    expect(view.link('main').querySelector('[data-pr-count]')?.textContent).toBe('6')
     await view.density(ESidebarDensity.Comfortable)
-    expect(view.container?.querySelector('a[href="/threads/mate"]')).toBeNull()
-    expect(view.link('main').textContent).toContain('+5')
-    await view.click('button[aria-label="Show 2 teammates"]')
+    expect(view.link('mate')).not.toBeNull()
     expect(view.link('main').textContent).toContain('+1')
     expect(view.link('mate').textContent).toContain('+2')
   })
@@ -78,21 +64,21 @@ describe('shared sidebar row interactions', () => {
       mergeable: null,
     }
     await view.render({ active: null, states: [state] })
-    expect(view.link('main').querySelector('[aria-label="Idle"]')).not.toBeNull()
+    expect(view.link('done').querySelector('[aria-label="Parked"]')).not.toBeNull()
     expect(
-      view.link('main').querySelector('[aria-label="2 running, 3 passed, 0 failed"]'),
+      view.link('done').querySelector('[aria-label="2 running, 3 passed, 0 failed"]'),
     ).not.toBeNull()
     await view.render({
       active: null,
       states: [{ ...state, checksRunning: 0, checksFailed: 1, mergeable: false }],
     })
     expect(
-      view.link('main').querySelector('[aria-label="0 running, 3 passed, 1 failed"]'),
+      view.link('done').querySelector('[aria-label="0 running, 3 passed, 1 failed"]'),
     ).not.toBeNull()
-    expect(view.link('main').querySelector('[aria-label="Merge conflicts"]')).not.toBeNull()
+    expect(view.link('done').querySelector('[aria-label="Merge conflicts"]')).not.toBeNull()
     await view.render({ active: null, states: [{ ...state, state: 'merged', checksRunning: 0 }] })
-    expect(view.link('main').querySelector('[aria-label="Pull request merged"]')).not.toBeNull()
-    expect(view.link('main').querySelector('[aria-label="Idle"]')).not.toBeNull()
+    expect(view.link('done').querySelector('[aria-label="Pull request merged"]')).not.toBeNull()
+    expect(view.link('done').querySelector('[aria-label="Parked"]')).not.toBeNull()
   })
 
   it('keeps unread inside the status icon, with local identity, pin and archive/unarchive actions', async () => {
