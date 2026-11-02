@@ -17,6 +17,8 @@ results and at turn end (`packages/harness/src/plugins/github/tracking.ts:37-52`
 display follows the main thread only (`tracking.ts:59-66`). The operator finds teammates hard to
 orchestrate and the nesting, PR and CI handling hard to maintain.
 
+Amended 2026-11-02: the Context below was stale (sub-agents already carry the worktree tools and are denied `subscribe` in `child-runner.ts`); decision 3 is replaced by git-ref tracking.
+
 ## Decision
 
 **1. A sub-agent carries `enter_worktree`, `exit_worktree` and `worktree_list` and may move
@@ -29,13 +31,12 @@ sub-agent that ends inside a worktree leaves it on disk for the parent, who need
 did when it ends. The parent opens the pull request and owns its CI subscription. `subscribe` is on
 the sub-agent denied list; the worktree tools are not.
 
-**3. Checkouts are a session view, not per-thread tracking.** Placement is an event:
-`checkout-placed { threadId, directory, branch, worktree? }` and `checkout-left`, logged by the pod
-at session start, at a spawn into a worktree, on any thread's `enter_worktree` / `exit_worktree`, and
-when a branch change is detected. The checkout set is a pure fold in `core` (slice 4), because more
-than one plugin reads it. The github plugin derives its `(repo, branch)` targets from that view and
-joins PR state from the CP observation store onto it. The sidebar shows every checkout of the
-session, main's and its sub-agents', as the session's own; it does not nest them under the child.
+**3. Branches and PRs are read from git, not tracked per thread.** Amended 2026-11-02. The pod reads
+`refs/heads` and `git worktree list` of every repo it cloned (on a ref-change watch and at each turn
+end) and logs changes to the branch set. The session view is every local branch except the default
+branch; the github plugin joins PR state from the CP observation store onto it. This replaces
+per-thread `checkout-placed` / `checkout-left` events. It holds because a pod owns its clone: local
+pods clone like cloud pods and never bind-mount the operator's checkout (slice 9).
 
 **4. Peer sessions replace nested teammates.** A sessions plugin gives the agent `spawn_session`,
 `message_session` and `list_sessions`. Its commands run in the control plane, which creates

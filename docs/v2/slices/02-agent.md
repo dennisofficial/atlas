@@ -1,6 +1,6 @@
 # Slice 2 spec: the `agent` package
 
-Status: **approved 2026-11-02.** Sibling to [roadmap.md](../roadmap.md) slice 2. Applies
+Status: **approved 2026-11-02, built.** Two `AgentOutput` variants are deferred: the chunk filter and `waitState` stay callbacks, because moving them onto the port would add an event and change v1 timing. Sibling to [roadmap.md](../roadmap.md) slice 2. Applies
 [architecture.md](../architecture.md) §7 and §12 L4, and [0019](../../decisions/0019-v2-package-map.md).
 Evidence (read at `5203552d4`): the per-kind branch census, the intake census and the loop-seam
 census summarized below; anchors are `packages/harness/src/…` unless stated.
