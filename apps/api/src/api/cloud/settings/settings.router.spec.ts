@@ -167,17 +167,38 @@ describe('SettingsRouter', () => {
 
     it('refuses a pod bearer on every settings write', async () => {
       const pod = 'pod-token-a'
-      await mutate('settings.set', pod, { key: 'sandbox.image', value: 'x' }).expect(401)
-      await mutate('settings.remove', pod, { key: 'sandbox.image' }).expect(401)
+      await mutate('settings.set', pod, { key: 'sandbox.image', value: 'x' }).expect(403)
+      await mutate('settings.remove', pod, { key: 'sandbox.image' }).expect(403)
       await mutate('settings.patch', pod, { values: { 'sandbox.image': 'x' } }).expect(401)
       expect((await settings()).map((row) => row.value).sort()).toEqual(['image-a', 'image-b'])
     })
 
-    it('refuses a sandbox bearer on a personal write', async () => {
-      await mutate('settings.set', 'sandbox-token-a', { key: 'sandbox.image', value: 'x' }).expect(
-        401,
-      )
-      expect((await settings()).map((row) => row.value).sort()).toEqual(['image-a', 'image-b'])
+    it('lets a sandbox set and remove its owner\u2019s personal settings', async () => {
+      const setReply = await mutate('settings.set', 'sandbox-token-a', {
+        key: 'sandbox.image',
+        value: 'image-c',
+      })
+      expect(setReply.status).toBe(200)
+      expect(await db.orm.public.UserSetting.where({ userId: 'user-a' }).all()).toHaveLength(1)
+      expect((await settings()).map((row) => row.value).sort()).toEqual(['image-b', 'image-c'])
+
+      const removed = await mutate('settings.remove', 'sandbox-token-a', { key: 'sandbox.image' })
+      expect(removed.status).toBe(200)
+      expect(await db.orm.public.UserSetting.where({ userId: 'user-a' }).all()).toHaveLength(0)
+      expect(await db.orm.public.UserSetting.where({ userId: 'user-b' }).all()).toHaveLength(1)
+    })
+
+    it('a sandbox touches only its owner\u2019s personal settings', async () => {
+      await mutate('settings.set', 'sandbox-token-a', {
+        key: 'sandbox.image',
+        value: 'image-c',
+      }).expect(200)
+      expect(
+        (await db.orm.public.UserSetting.where({ userId: 'user-b' }).all()).map((row) => row.value),
+      ).toEqual(['image-b'])
+
+      await mutate('settings.remove', 'sandbox-token-a', { key: 'sandbox.image' }).expect(200)
+      expect(await db.orm.public.UserSetting.where({ userId: 'user-b' }).all()).toHaveLength(1)
     })
 
     it('still lists and removes settings for a session', async () => {

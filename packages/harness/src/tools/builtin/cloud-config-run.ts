@@ -8,8 +8,6 @@ import { cloudCall } from '../../cloud/api-trpc-client'
 import { ECloudConfigAction, ECloudConfigKind, type CloudConfigInput } from './cloud-config-input'
 import { encodeToolSetting } from './cloud-config-setting'
 
-export const SANDBOX_PERSONAL_REFUSAL =
-  'Personal settings can be changed only from a signed-in terminal or the web'
 export const NOT_SIGNED_IN = 'Not signed in to Atlas Cloud'
 
 const fail = (reason: string): ToolOutcome => ({ ok: false, reason })

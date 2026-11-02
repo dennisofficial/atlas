@@ -41,7 +41,22 @@ const client = {
     },
     patchSettings: { mutate: record('patchSettings', undefined) },
   },
-  settings: { set: { mutate: record('settingsSet', undefined) } },
+  settings: {
+    set: { mutate: record('settingsSet', undefined) },
+    list: { query: record('settingsList', { settings: [{ key: 'sandbox.image', value: 'img' }] }) },
+    remove: { mutate: record('settingsRemove', undefined) },
+  },
+  secrets: {
+    details: { query: record('secretsDetails', { secrets: [{ name: 'OPENAI_KEY' }] }) },
+    reveal: { query: record('secretsReveal', { value: 'sk-sandbox' }) },
+    set: { mutate: record('secretsSet', undefined) },
+    remove: { mutate: record('secretsRemove', undefined) },
+  },
+  mcpServers: {
+    list: { query: record('mcpServersList', { servers: [{ name: 'docs' }] }) },
+    put: { mutate: record('mcpServersPut', undefined) },
+    remove: { mutate: record('mcpServersRemove', undefined) },
+  },
 } as unknown as ApiClient
 
 const invoke = (args: { access: CloudConfigAccess | null; input: unknown }): Promise<ToolOutcome> =>
@@ -53,7 +68,7 @@ const invoke = (args: { access: CloudConfigAccess | null; input: unknown }): Pro
     threadId: toThreadId('t'),
   })
 
-const sandbox: CloudConfigAccess = { client, inSandbox: true, projectId: 'p1' }
+const sandbox: CloudConfigAccess = { client, projectId: 'p1' }
 
 describe('CloudConfigTool', () => {
   it('refuses without a session', async () => {
@@ -64,13 +79,30 @@ describe('CloudConfigTool', () => {
     expect(outcome).toEqual({ ok: false, reason: 'Not signed in to Atlas Cloud' })
   })
 
-  it('refuses personal scope from a sandbox', async () => {
-    const outcome = await invoke({
+  it('reaches the personal client procedures from a sandbox', async () => {
+    calls.length = 0
+    const listed = await invoke({
       access: sandbox,
-      input: { scope: 'personal', kind: 'setting', action: 'set', name: 'a', value: 'b' },
+      input: { scope: 'personal', kind: 'secret', action: 'list' },
     })
-    expect(outcome.ok).toBe(false)
-    expect(outcome.ok === false && outcome.reason).toContain('signed-in terminal or the web')
+    expect(listed.ok && listed.modelText).toContain('OPENAI_KEY')
+
+    const read = await invoke({
+      access: sandbox,
+      input: { scope: 'personal', kind: 'secret', action: 'read', name: 'OPENAI_KEY' },
+    })
+    expect(read.ok && read.modelText).toBe('sk-sandbox')
+
+    const set = await invoke({
+      access: sandbox,
+      input: { scope: 'personal', kind: 'secret', action: 'set', name: 'EXA', value: 'e1' },
+    })
+    expect(set.ok).toBe(true)
+    expect(calls).toEqual([
+      'secretsDetails null',
+      'secretsReveal {"name":"OPENAI_KEY"}',
+      'secretsSet {"name":"EXA","value":"e1"}',
+    ])
   })
 
   it('lists secret names without values and defaults the project', async () => {
@@ -115,7 +147,7 @@ describe('CloudConfigTool', () => {
     })
     expect(listed.ok && listed.modelText).toBe('file mounts:\n~/a.pem (mode 600)')
     await invoke({
-      access: { ...sandbox, inSandbox: false },
+      access: sandbox,
       input: {
         scope: 'personal',
         kind: 'setting',

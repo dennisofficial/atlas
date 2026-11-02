@@ -9,7 +9,6 @@ import type { CloudSessionStore } from './cloud-session'
 
 export type CloudConfigAccess = {
   client: ApiClient
-  inSandbox: boolean
   projectId: string | null
 }
 
@@ -23,13 +22,11 @@ export const cloudConfigAccessOf = (args: {
   threads: ThreadStorePort
   clientVersion: string
 }): CloudConfigAccessSource => {
-  const inSandbox = args.serveSession !== null
   return async ({ threadId }) => {
     const session = args.serveSession ?? args.sessionStore?.read() ?? null
     if (session === null) return null
     const thread = await args.threads.find({ threadId })
     return {
-      inSandbox,
       projectId: thread?.projectId ?? null,
       client: createHarnessApiClient({
         url: session.url,
