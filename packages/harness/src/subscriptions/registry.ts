@@ -23,7 +23,7 @@ import { findExisting, resolveRequest } from './resolve-request'
 import { ThreadLoader } from './thread-loader'
 import type { SubscriptionRegistryDeps } from './registry-deps'
 import { readyIntakeSource, ReadyQueue } from './ready-queue'
-import { stampArrival } from './pr-event-notice'
+import { deliveredForm, stampArrival } from './pr-event-notice'
 import { isAckablePrEvent, PrEventIntake } from './pr-event-journal'
 
 export class SubscriptionRegistry extends SubscriptionRegistryPort {
@@ -271,7 +271,10 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
     if (isAckablePrEvent(draft)) {
       this.prEvents.journalArrival({ threadId: subscription.threadId, draft })
     }
-    this.buffer.offer({ subscriptionId, occurrence: { ...occurrence, draft } })
+    this.buffer.offer({
+      subscriptionId,
+      occurrence: { ...occurrence, draft: deliveredForm(draft) },
+    })
     this.changed()
     if (occurrence.ends !== true) return
 
