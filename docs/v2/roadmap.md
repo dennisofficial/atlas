@@ -31,7 +31,14 @@ _Updated at the end of every slice. Last update: 2026-11-02._
   Postgres `v2` schema (migration `20261102T0337_v2_record_core`). The scale check
   (`ATLAS_SCALE_TESTS=1`, 20k events) is flat: 50-event append ≈8 ms, 500-event ranged read
   ≈18 ms at both ends, index scan on `(threadId, seq)`.
-- **Next:** slice 2 (`agent` extraction) or slice 3 (pod host); slice 3 needs both 1 and 2. Slice 3's
+- **Next: slice 2, the `agent` package.** Its spec does not exist yet; writing it is the first job.
+  The operator's requirement (2026-11-02): every agent (main, sub-agent, teammate) is the same loop
+  and behaves identically: the same intake and queue, the same way of talking and emitting output,
+  the same tool dispatch, hooks and prompt assembly. What differs between kinds is configuration
+  passed in (prompt fragments, tool set, policy), never a code path inside the loop. The spec maps
+  today's per-kind branches in `harness` and says where each one goes. Under 0020 a teammate is a
+  peer session, so it is the same loop in its own session.
+- **Then:** slice 3 (pod host), which needs slices 1 and 2. Slice 3's
   spec must settle: oversize single events against the 4 MB body cap (L5), the `engine: v2`
   session flag and who sees it, and that v1's API stays the only writer of users, projects,
   credentials and settings until cutover.
