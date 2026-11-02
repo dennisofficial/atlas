@@ -71,3 +71,4 @@ The censuses are static reads of the repository at commit `a0bf4110`, not live c
 | D5  | Foundation packages plus plugins with a fixed shape (package map: 0019)                  | Locked                |
 | D6  | v2 storage and endpoints are separate from v1 (Prisma 8 `namespace v2`, verified)        | Locked                |
 | D7  | First target: web/mac with a cloud pod                                                   | Locked                |
+| D8  | The agent loop runs on control-plane workers; sandboxes only execute (0021)              | Locked                |
