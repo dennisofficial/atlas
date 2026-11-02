@@ -17,6 +17,7 @@ export const BOOT_STEP_LABELS: Readonly<Record<EBootStep, string>> = {
   [EBootStep.Provision]: 'starting the pod',
   [EBootStep.Serve]: 'starting the session server',
   [EBootStep.Clone]: 'cloning the project',
+  [EBootStep.Setup]: 'running the setup script',
   [EBootStep.Context]: 'loading context',
   [EBootStep.Settings]: 'applying settings',
   [EBootStep.Agent]: 'starting the agent',

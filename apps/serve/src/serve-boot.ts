@@ -43,6 +43,7 @@ import { projectWorkspaceSpecFetcher } from './project-workspace-spec'
 import { applyPublishedBundle, startBundleFetch } from './published-bundle'
 import { applySigningKey, startSigningKeyFetch } from './signing-key-env'
 import { trackClone } from './serve-boot-reporter'
+import { trackContainerSetup } from './serve-boot-setup-step'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { resolveWorkspaceDir, writeRecordedWorkspaceDir } from './workspace-dir'
 import type { WorkspaceFiles } from './workspace-files'
@@ -69,7 +70,7 @@ export async function bootServeFiles(args: {
   notice?: NoticePort | undefined
   containerSetup?: ContainerSetup | undefined
 }) {
-  const { env, threadId, atlasHome, log } = args
+  const { env, threadId, atlasHome, log, notice } = args
   const reporter = args.reporter ?? NOOP_BOOT_REPORTER
   const fetchSpecOnce = lazy(
     projectWorkspaceSpecFetcher({
@@ -141,15 +142,19 @@ export async function bootServeFiles(args: {
   const setupStartedAt = Date.now()
   const spec = await fetchSpecOnce().catch(() => null)
   applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
-  if (workspace.state !== EWorkspaceState.Failed && args.notice !== undefined) {
+  if (workspace.state !== EWorkspaceState.Failed && notice !== undefined) {
     const applyContainer = args.containerSetup ?? createContainerSetup({})
-    await applyContainer({
-      cwd,
-      atlasHome,
-      env,
-      setupScript: spec?.setupScript,
-      notice: args.notice,
-    }).catch(() => undefined)
+    await trackContainerSetup({
+      reporter,
+      setup: () =>
+        applyContainer({
+          cwd,
+          atlasHome,
+          env,
+          setupScript: spec?.setupScript,
+          notice,
+        }),
+    })
   }
   if (spec?.projectId && !spec.githubToken) {
     log({ event: EServeEvent.GithubTokenAbsent, projectId: spec.projectId })

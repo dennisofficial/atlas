@@ -48,10 +48,10 @@ silently dropped). Every field is optional.
 
 Behaviour of the scripts:
 
-- `setup` runs only when the container is newly created. If it exits non-zero the sandbox fails to start with the
+- Local Docker only: `setup` runs only when the container is newly created. If it exits non-zero the sandbox fails to start with the
   last ~2000 characters of output; fix the script, remove the container and start again. Setup does not rerun when
   the container is merely restarted or reused.
-- `start` runs on every bring-up, including reuse of an existing container. A non-zero exit only produces a warning.
+- Local Docker only: `start` runs on every bring-up, including reuse of an existing container. A non-zero exit only produces a warning.
 - Changing `image`, `env`, `mounts` or limits makes Atlas remove and recreate the container at the next start. If it
   was running, its shells are killed (Atlas says so); `setup` then runs again.
 
@@ -106,8 +106,11 @@ repo or worktree root). The host (`/container off`) reads none of it.
 Cloud (Vercel) sandboxes, whether started from Atlas Cloud web or the TUI, apply `setup`, `start` and `env` from
 `.atlas/container.json` once the repo is cloned: `setup` runs once per sandbox (a failed setup retries on the next
 boot), `start` runs on every boot, and `env` reaches the session's shells and services. The project's Setup script
-in the Atlas Cloud project settings, when non-empty, runs in place of `setup`. A failed `setup` or `start` is shown
-with the end of its output. Cloud sandboxes cannot change their image, so `image`, `dockerfile` and `mounts` are
+in the Atlas Cloud project settings, when non-empty, runs in place of `setup`. The boot card shows a "Run setup
+script" step while they run. A failing setup or start script never stops the sandbox: the step ends as "Setup script
+failed", the sandbox starts anyway, and the agent is told which script failed and gets the end of its output as
+context (a failed `setup` skips `start` and retries next boot). Each script is capped at 15 minutes; a timeout counts
+as a failure. Cloud sandboxes cannot change their image, so `image`, `dockerfile` and `mounts` are
 not applied there and Atlas says so; the cloud image comes from the `sandbox.image` setting
 (`ATLAS_SANDBOX_IMAGE`). devcontainer.json and bare Dockerfiles are local-Docker only.
 

@@ -13,11 +13,28 @@ import {
 } from '@dltech/atlas-wire/web'
 
 export const FAILED_FALLBACK = 'The sandbox failed to start.'
+export const SETUP_SCRIPT_FAILED_DETAIL = 'The agent was told why. The session continues.'
+
+const LATER_THAN_SETUP: readonly EBootStep[] = [
+  EBootStep.Settings,
+  EBootStep.Context,
+  EBootStep.Agent,
+]
+
+const isSetupUnrecorded = (attempt: readonly RecordedBootStep[]): boolean =>
+  !attempt.some((step) => step.step === EBootStep.Setup) &&
+  attempt.some((step) => LATER_THAN_SETUP.includes(step.step))
+
+const orderFor = (attempt: readonly RecordedBootStep[]): readonly EBootStep[] =>
+  isSetupUnrecorded(attempt)
+    ? BOOT_STEP_ORDER.filter((id) => id !== EBootStep.Setup)
+    : BOOT_STEP_ORDER
 
 const BOOT_LABELS: Record<EBootStep, string> = {
   [EBootStep.Provision]: 'Create sandbox',
   [EBootStep.Serve]: 'Start Atlas',
   [EBootStep.Clone]: 'Clone repository',
+  [EBootStep.Setup]: 'Run setup script',
   [EBootStep.Context]: 'Load skills and instructions',
   [EBootStep.Settings]: 'Apply settings',
   [EBootStep.Agent]: 'Start agent',
@@ -29,6 +46,9 @@ const OUTCOME_LABELS: Record<EBootStepOutcome, string> = {
   [EBootStepOutcome.Cloned]: 'Clone repository',
   [EBootStepOutcome.Reused]: 'Reuse repository',
   [EBootStepOutcome.NoRepository]: 'No repository to clone',
+  [EBootStepOutcome.NoSetupScript]: 'No setup script',
+  [EBootStepOutcome.SetupScriptSkipped]: 'Setup script already ran',
+  [EBootStepOutcome.SetupScriptFailed]: 'Setup script failed',
 }
 
 const RESUMED_CLONE_LABEL = 'Check repository'
@@ -131,9 +151,14 @@ function attemptViewOf(args: {
 }): BootView {
   const attempt = [...args.steps].sort(byAt)
   const folded = foldBootSteps(attempt.map(eventOf))
-  const recorded = BOOT_STEP_ORDER.map((id): BootStepView => {
+  const recorded = orderFor(attempt).map((id): BootStepView => {
     const status = folded[id]
-    const detail = status.state === EBootStepState.Error ? status.error : undefined
+    const detail =
+      status.state === EBootStepState.Error
+        ? status.error
+        : status.outcome === EBootStepOutcome.SetupScriptFailed
+          ? SETUP_SCRIPT_FAILED_DETAIL
+          : undefined
     const children = childrenOf({ id, status })
     return {
       id,
@@ -171,7 +196,7 @@ export function bootViewOf(args: { pod: PodStatus | null; now: number }): BootVi
 
 export function settledBootViewOf(attempt: readonly RecordedBootStep[]): BootView {
   const folded = foldBootSteps(attempt.map(eventOf))
-  const finished = BOOT_STEP_ORDER.every((id) => folded[id].state === EBootStepState.Done)
+  const finished = orderFor(attempt).every((id) => folded[id].state === EBootStepState.Done)
   return attemptViewOf({ steps: attempt, failed: !finished, now: 0 })
 }
 
