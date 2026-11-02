@@ -48,11 +48,11 @@ export class GithubDeliveryService {
   constructor(
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
-    private readonly fanout: GithubPrFanoutService,
+    fanout: GithubPrFanoutService,
     _cipher: SecretCipherService,
-    private readonly mailbox: GithubPrEventMailboxService,
+    mailbox: GithubPrEventMailboxService,
     private readonly discussion: GithubPrDiscussionDeliveryService,
-    private readonly signals: ThreadSignalsService,
+    signals: ThreadSignalsService,
     private readonly observations: GithubObservationStore,
   ) {
     this.writer = new GithubPrStateWriter({
