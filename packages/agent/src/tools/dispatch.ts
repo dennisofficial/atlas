@@ -24,6 +24,7 @@ import {
 import { logFieldsOf } from '../logging/log-fields'
 import { withinBudget, type OnHookMishap } from '../hooks/budget'
 import type { HookChain, RegisteredHook } from '../hooks/registry'
+import type { OnceLedger } from '../loop/once-ledger.port'
 import {
   invalidInputDraft,
   markDispatchStarted,
@@ -52,6 +53,7 @@ export type DispatchArgs = {
   activeWorktree?: ActiveWorktree | undefined
   onOutput?: OnToolOutput | undefined
   onDispatchStarted?: ((draft: EventDraft) => Promise<void>) | undefined
+  onceLedger?: OnceLedger | undefined
 }
 
 export abstract class ToolDispatcher {
@@ -121,7 +123,14 @@ export class HookedToolDispatcher extends ToolDispatcher {
 
     const { outcome, drafts } = resolveBeforeTool({
       call: candidate,
-      outcomes: await this.consultBeforeTool({ call: candidate, projectDirectory, events, signal }),
+      outcomes: await this.consultBeforeTool({
+        call: candidate,
+        projectDirectory,
+        events,
+        signal,
+        onceLedger: args.onceLedger,
+        runId: call.runId,
+      }),
     })
 
     if (outcome.decision === EBeforeToolDecision.Deny) {
@@ -206,18 +215,28 @@ export class HookedToolDispatcher extends ToolDispatcher {
     projectDirectory: string
     events: readonly Event[]
     signal: AbortSignal
+    onceLedger: OnceLedger | undefined
+    runId: RunId
   }): Promise<ConsultedHook[]> {
     const consulted: ConsultedHook[] = []
     let input = args.call.input
 
     for (const hook of this.hooks.beforeTool) {
-      const outcome = await this.outcomeOf({
-        hook,
-        call: { ...args.call, input },
-        projectDirectory: args.projectDirectory,
-        events: args.events,
-        signal: args.signal,
-      })
+      const decide = () =>
+        this.outcomeOf({
+          hook,
+          call: { ...args.call, input },
+          projectDirectory: args.projectDirectory,
+          events: args.events,
+          signal: args.signal,
+        })
+      const outcome =
+        args.onceLedger === undefined
+          ? await decide()
+          : await args.onceLedger.once({
+              key: `hook:${hook.name}:${args.runId}:${args.call.callId}`,
+              decide,
+            })
       if (outcome.decision === EBeforeToolDecision.Allow) input = outcome.input
       consulted.push({ hookName: hook.name, outcome })
     }
