@@ -96,6 +96,49 @@ describe('VercelSandboxWakeBoot', () => {
     expect(launch.mock.calls[0]?.[0]).toMatchObject({ token: 'fresh-token' })
   })
 
+  it('prefetches the clone once on create, after mount and before prepare and launch', async () => {
+    const { boot, args, launch } = harness({ created: true })
+    const order: string[] = []
+    launch.mockImplementation(async () => {
+      order.push('launch')
+    })
+
+    await boot.boot({
+      ...args,
+      prefetchClone: async () => {
+        order.push('prefetch')
+      },
+      prepare: async () => {
+        order.push('prepare')
+      },
+    })
+
+    expect(order).toEqual(['prefetch', 'prepare', 'launch'])
+  })
+
+  it('never prefetches on resume', async () => {
+    const { boot, args } = harness({ created: false })
+    const prefetchClone = vi.fn(async () => undefined)
+
+    await boot.boot({ ...args, prefetchClone })
+
+    expect(prefetchClone).not.toHaveBeenCalled()
+  })
+
+  it('a throwing prefetch does not fail the boot', async () => {
+    const { boot, args, launch } = harness({ created: true })
+
+    const result = await boot.boot({
+      ...args,
+      prefetchClone: async () => {
+        throw new Error('exec failed')
+      },
+    })
+
+    expect(result.created).toBe(true)
+    expect(launch).toHaveBeenCalledTimes(1)
+  })
+
   it('never retries a failed pinned launch with latest', async () => {
     const { boot, args, launch } = harness({ created: false, launchFails: true })
 

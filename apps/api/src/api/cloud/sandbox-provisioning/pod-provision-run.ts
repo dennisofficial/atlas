@@ -19,6 +19,7 @@ import {
 } from './pod-provision.contract'
 import { apiProvisionedEnvironment } from './pod-telemetry-identity'
 import { podVcpusOf } from './pod-size'
+import { clonePrefetcherOf } from './pod-clone-prefetch'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
 import { rollbackIfDestroyed } from './pod-provision-rollback'
 import { restartForResize, type ResizeRestartTiming } from './pod-resize-restart'
@@ -74,6 +75,12 @@ export async function runPodProvision(args: {
       db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow(),
       sessionPromise,
     ])
+    const prefetchClone = clonePrefetcherOf({
+      userId: thread.userId,
+      projectId: session.projectId,
+      cipher: deps.cipher,
+      log: deps.log,
+    })
     const credentials = await deps.scoped.vercelCredentials({ thread })
     const vcpus = await podVcpusOf({ sessionId: session.id, userId: thread.userId })
     const resizing = row.pendingVcpus !== null
@@ -114,6 +121,7 @@ export async function runPodProvision(args: {
         pepper: deps.telemetryPepper,
       }),
       reporter,
+      prefetchClone,
       prepare: workspaceSpecWriter({ projectId: session.projectId, model: thread.modelRef }),
     })
     await reporter.flush()

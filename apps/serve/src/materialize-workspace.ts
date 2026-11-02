@@ -5,6 +5,7 @@ import { runGit, type GitRun } from '@dltech/atlas-harness'
 
 import { EBootStepState, MAX_BOOT_STEP_TEXT, type CloneRepoProgress } from '@dltech/atlas-wire'
 
+import { beginPrefetchAdoption, type PrefetchAdoptionDeps } from './adopt-prefetched-clone'
 import {
   branchFlagsOf,
   cloneAdditionalRepo,
@@ -104,6 +105,7 @@ export function createEnsureWorkspace(args: {
   git?: GitRunner | undefined
   files?: WorkspaceFiles | undefined
   profile?: ApplyEnvironmentProfile | undefined
+  prefetch?: PrefetchAdoptionDeps | undefined
 }): EnsureWorkspace {
   const git = args.git ?? runGit
   const files = args.files ?? nodeWorkspaceFiles
@@ -159,10 +161,13 @@ export function createEnsureWorkspace(args: {
     const invalid = validateAdditionalRepos({ cwd, repos: extras })
     if (invalid !== null) return failed(EWorkspaceStep.Clone, scrub(invalid))
 
-    try {
-      await files.empty(cwd)
-    } catch (error) {
-      return failed(EWorkspaceStep.Clear, messageOf(error))
+    const prefetch = await beginPrefetchAdoption({ cwd, files, deps: args.prefetch })
+    if (prefetch === undefined) {
+      try {
+        await files.empty(cwd)
+      } catch (error) {
+        return failed(EWorkspaceStep.Clear, messageOf(error))
+      }
     }
 
     const repos: CloneRepoProgress[] = [
@@ -186,6 +191,14 @@ export function createEnsureWorkspace(args: {
     progress?.(repos.map((one) => ({ ...one })))
 
     const clonePrimary = async (): Promise<string | null> => {
+      if (prefetch !== undefined) {
+        if (await prefetch.adopted) return null
+        try {
+          await files.empty(cwd)
+        } catch (error) {
+          return messageOf(error)
+        }
+      }
       const cloned = await git({
         args: [
           'clone',
