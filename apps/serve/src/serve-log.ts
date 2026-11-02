@@ -86,6 +86,7 @@ export enum EServeEvent {
   ThreadModelPersistFailed = 'serve.thread-model-persist-failed',
   RenameForwardFailed = 'serve.rename-forward-failed',
   BootPhase = 'serve.boot-phase',
+  PriorityApplied = 'serve.priority-applied',
   ContextMirrored = 'serve.context-mirrored',
   ContextMirrorFailed = 'serve.context-mirror-failed',
 }

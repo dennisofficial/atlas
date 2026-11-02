@@ -1,6 +1,7 @@
 import { EServeEnv } from '@dltech/atlas-wire'
 
 import { withoutLauncherPrivateEnv } from '../execution/child-env'
+import { workloadCommand } from '../execution/workload-priority'
 
 import { TerminalPort, type TerminalListener } from './terminal.port'
 
@@ -56,7 +57,7 @@ export class BunTerminalPort extends TerminalPort {
       reachedEof = resolve
     })
 
-    const child = Bun.spawn([shellOf(env)], {
+    const child = Bun.spawn(workloadCommand({ cmd: [shellOf(env)], cwd: this.args.root, env }), {
       cwd: this.args.root,
       env: terminalEnv(env),
       terminal: {

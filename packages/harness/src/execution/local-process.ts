@@ -7,6 +7,7 @@ import {
 
 import { withoutLauncherPrivateEnv } from './child-env'
 import { vendoredRipgrep } from './vendored-ripgrep'
+import { workloadCommand } from './workload-priority'
 
 export const SIGKILL_GRACE_MS = 5_000
 
@@ -65,7 +66,7 @@ export class LocalProcessPort implements ProcessPort {
   spawn(args: SpawnCommand): LocalProcessHandle {
     return handleFor(
       Bun.spawn({
-        cmd: [...args.cmd],
+        cmd: workloadCommand(args),
         cwd: args.cwd,
         stdin: 'ignore',
         stdout: 'pipe',
@@ -78,7 +79,7 @@ export class LocalProcessPort implements ProcessPort {
 
   async launchDetached(args: SpawnCommand): Promise<void> {
     const child = Bun.spawn({
-      cmd: [...args.cmd],
+      cmd: workloadCommand(args),
       cwd: args.cwd,
       stdin: 'ignore',
       stdout: 'ignore',
