@@ -96,7 +96,7 @@ describe('the built-in agent types', () => {
 
     expect(teammate.prompt).toContain('report_to_main')
     expect(teammate.prompt).toContain('Ending your turn never tells it anything')
-    expect(teammate.prompt).toContain('cannot ask the developer')
+    expect(teammate.prompt).toContain('the operator reads')
   })
 
   it('tells the teammate that going quiet between reports is how it is meant to run', async () => {
