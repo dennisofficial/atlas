@@ -288,8 +288,11 @@ and the operator in the transcript.
 
 **R4. Liveness does not wait on the loop.** Lease renewal runs on its own timer, independent of
 turn progress, and its TTL is sized for a saturated pod, so a busy pod is never fenced as dead.
-Stop arrives twice (P7): the direct hint makes the pod kill the running tool's process group at
-once rather than at the loop's next step, and the inbox entry is the durable record of it.
+Stop (the operator's stop/interrupt button) arrives twice (P7): the direct hint aborts the turn and
+kills the running tool's process group, and the inbox entry is the durable record of it. v1 already
+kills on abort (the serve Interrupt frame aborts the turn; the tool's abort listener kills the
+process group); what fails under load is the harness reaching the hint late because a workload
+holds the CPU, which R2 prevents.
 
 **If the harness dies anyway**, the design absorbs it: the record is in the control plane, the
 lease expires, and a new pod resumes at the next epoch with nothing forked. At most the unflushed
