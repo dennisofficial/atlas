@@ -255,6 +255,8 @@ is a real cloud session on v2 from the web, with basic chat and tools.
 | ~~The v2 schema is not supported by Prisma 8~~ (retired)      | Verified 2026-11-01: Prisma 8 namespaces work on the repo's pins; `db.orm.v2.*` and a managed `v2` Postgres schema in the same migration graph | None needed; D6 uses `namespace v2` blocks directly                                                                                                                                                                                                           |
 | D2 stays open too long                                        | The local slices cannot be specified                                                                                                           | D2 is needed only at the local slice; cloud slices do not depend on it                                                                                                                                                                                        |
 | A saturated pod starves the harness                           | Slow streaming and sends, missed lease renewals (a live pod fenced, the session flapping), the harness OOM-killed before the workload          | §11: OOM and CPU priority, a memory watchdog, lease renewal and stop that do not wait on the loop                                                                                                                                                             |
+| Long threads (1M events, 1.5–5 GB)                            | v1 re-folds the whole log per append, step, request and refresh ([log-scale](research/log-scale.md))                                           | §12: ranged reads only, current state as checkpoints, artifacts out of line, tail-first clients                                                                                                                                                               |
+| A pod dies and nobody notices                                 | v1 notices only via a 5-minute sweep gated on an unanswered message; an idle dead pod is never flagged                                         | §13: the lease is liveness; one reconciler per session acts on expiry                                                                                                                                                                                         |
 
 ## 11. Pod resources: the harness outranks its workloads
 
@@ -265,20 +267,24 @@ but everything the harness does locally slows: streaming, sends, event writes, f
 renewal and stop. In v1 the harness is also the kernel's first OOM victim (it has the largest
 footprint and `oom_score_adj` 500). This is OS-level isolation, not a package boundary.
 
-What a Vercel pod allows (probed 2026-11-02, as root): `oom_score_adj` and negative nice work;
-cgroup v2 delegates `cpu`, `cpuset` and `pids` to child groups but not `memory` or `io`; there is no
-PSI (`/proc/pressure`). So memory cannot be capped per group and must be policed by the harness.
+What a Vercel pod allows (measured 2026-11-02, as root, [pod-saturation](research/pod-saturation.md)):
+`oom_score_adj` and negative nice work. Child cgroups with `cpu` and `pids` work **once the root
+cgroup is emptied** (every process, pid 1 included, moved into a child first), and a `pids.max` on
+the workload group fully contains a fork bomb that otherwise wedges the VM. Whether `memory` can be
+delegated the same way is untested. There is no PSI (`/proc/pressure`). #1657 (OOM ordering and
+nice) is measured to protect the harness from memory exhaustion, not from a fork bomb.
 
 **R1. The harness survives.** The harness runs at a strongly negative `oom_score_adj`; every
 workload starts with a high one, so the kernel kills workloads first. (v1 fix, carried into `pod`.)
 
-**R2. The harness keeps CPU.** Workloads run at lower priority than the harness (nice, or a
-low-`cpu.weight` cgroup), and the workload group has a `pids.max` so a fork bomb cannot take every
-process slot. Workload output is read in bounded chunks so a noisy process cannot monopolise the
+**R2. The harness keeps CPU and process slots.** At boot the pod empties the root cgroup into an
+`atlas-serve` group (high `cpu.weight`) and spawns every workload into `atlas-work` (low
+`cpu.weight`, `pids.max`), so a fork bomb hits its cap instead of the pod's pid table. Stop kills
+every pid in `atlas-work` for the thread, so a workload that calls `setsid` cannot escape it. Workload output is read in bounded chunks so a noisy process cannot monopolise the
 harness's event loop.
 
-**R3. A memory watchdog acts before the kernel does.** Without a per-group memory limit, the
-`pod` host watches available memory. Below a threshold it kills the largest workload process group
+**R3. A memory watchdog acts before the kernel does.** Unless `memory.max` on the workload
+group proves available (then it replaces the watchdog), the `pod` host watches available memory. Below a threshold it kills the largest workload process group
 and appends an event saying which workload was killed and why, so the agent sees it in its context
 and the operator in the transcript.
 
@@ -296,3 +302,88 @@ tail is lost, bounded by the flush cadence. In v1 the same death wedges or loses
 
 Thresholds, TTLs and the priority mechanism are fixed in the slice 3 spec and measured on a
 saturated pod, not chosen here.
+
+## 12. Log scale: history is an archive, current state is a checkpoint
+
+v2 must run a thread of **1,000,000 events (1.5–5 GB)** as smoothly as a fresh one. The
+[log-scale census](research/log-scale.md) found that v1 fails this everywhere for one reason: it
+uses the log as its state database, re-deriving current state by folding history from seq 0 on
+every append, step, request and refresh. v2 separates the two. **The log is an archive that is
+only ever read in ranges; the running session works from current-state checkpoints plus a bounded
+tail.**
+
+**L1. Every read is bounded.** Ports expose `readRange({ afterSeq, maxEvents, maxBytes })` and
+`readTail({ maxEvents, maxBytes })`, returning `{ events, nextCursor, head }`. There is no "read
+all" on any port. `head()` and identity are metadata, never a transcript read. Range bounds have
+one convention (exclusive `afterSeq`) across every tier.
+
+**L2. Append is O(batch).** Head seq and head hash live on the thread record and are compared and
+swapped there; nothing scans to append. Local storage repairs a torn tail by reading only the final
+record, never the file.
+
+**L3. Current state is materialized, not refolded.** Every fold that the loop, the pod or the CP
+needs per step or per request (pending calls and approvals, model wait, worktree and checkout,
+live contexts, agents, shells and services, subscriptions, owed notices, token totals, the
+visible-history mapping of P5) is an incremental step function. Its state is kept at a known
+`(epoch, seq)`, advanced in the same transaction as the append, and resumed as checkpoint plus
+suffix. This generalizes P6: a view is a fold, and a fold always runs incrementally.
+
+**L4. Assembly reads the model's context, not the transcript.** A step reads the latest summary,
+the live context records and the uncompacted tail, so covered history is never converted into
+messages, stringified or token-counted. The full log stays available for browsing and rewind.
+Compaction planning uses per-event token estimates kept with the record (prefix sums), not
+repeated scans.
+
+**L5. Large payloads live out of line.** Tool outputs, images and raw provider data above a size
+threshold are stored as artifacts. The event carries a reference, byte length, hash, and a bounded
+preview and model-facing summary. Limits are in bytes, not just event counts: 500 events can still
+be gigabytes.
+
+**L6. Replication and verification are incremental.** Pull and flush move from a known cursor in
+bounded pages until caught up. Chain verification checks a fetched suffix against a trusted head
+hash. A history edit knows its affected range; nothing serializes whole logs to find what changed.
+
+**L7. Clients are tail-first with eviction.** Every client follows the TUI's existing window
+(`apps/tui/src/composition/thread-reads.ts`: 1500-event pages, 3000 retained, eviction): open at
+the tail, page older history on demand, evict distant pages, append by touching only new rows.
+Projections run over the window, seeded from CP views, never over the whole history. Rendering is
+virtualized below the turn, so one huge turn cannot defeat it.
+
+**L8. Lookups by key are indexed.** Idempotency keys, wake dedupe and subscription ids are columns
+with indexes, not `LIKE` searches of event bodies.
+
+Every slice's exit criterion includes a scale check against a seeded long thread, sized to what the
+slice touches: append and ranged reads (slice 1), a pod step and resume (slice 3), view
+materialization (slice 4), opening and following a session (slice 5).
+
+## 13. Liveness and lifecycle: what the control plane knows about a pod
+
+**v1 today.** The API learns that a pod died only indirectly. A sweep every five minutes
+(`apps/api/src/trigger/pod-provision/stuck-session-sweep.task.ts`) looks at running sandboxes whose
+`lastActivityAt` is more than ten minutes old **and** that hold an unanswered `user-said`
+(`apps/api/src/api/cloud/sandbox-provisioning/stuck-sessions.ts`), then probes `/v1/health` and
+treats 404 or 410 as dead (`stuck-session-recovery.ts`). A pod that dies mid-turn can look alive for
+up to about fifteen minutes; a pod that dies idle is noticed only when someone next connects or
+wakes it (`thread-pod.service.ts`, `pod-not-running`). Nothing in the pod reports its own death.
+
+**v2.** The holder lease (P4) is the liveness signal. The control plane knows a pod is gone when
+its lease is not renewed within the TTL, whatever the cause: crash, OOM kill, fork bomb, Vercel
+stopping the sandbox. Status is `fold(log) ∧ lease liveness`, so a dead pod shows as dead within
+one TTL, and the reconciler (below) acts on it.
+
+**Kubernetes practices v2 follows.** Atlas's control plane and pods are a small orchestrator, and
+these are the parts of Kubernetes' design that fit:
+
+| Kubernetes                                                                                                                                                   | v2                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Lease objects](https://kubernetes.io/docs/concepts/architecture/leases/): holder, duration, renew time, transition count                                    | The P4 holder lease; the transition count is the epoch                                                                                                                                                                                       |
+| [Liveness, readiness and startup probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) are distinct | Lease renewal is liveness (R4). Readiness is "booted, hydrated, consuming the inbox", and only a ready pod is sent work. Boot has its own deadline, so a slow boot is not mistaken for a dead pod                                            |
+| [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/) reconcile desired state to observed state                                        | One CP reconciler per session: "has unconsumed inbox entries and no live holder" → grant a lease and provision a pod. It replaces v1's scattered wake claims, rotation recovery and cron sweeps. Every step is idempotent and safe to repeat |
+| Restart with backoff (CrashLoopBackOff)                                                                                                                      | Reprovisioning backs off exponentially and is shown as a status with a reason, never a silent loop                                                                                                                                           |
+| [QoS classes set `oom_score_adj`](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/)                                           | R1: the harness runs like a Guaranteed pod, workloads like BestEffort                                                                                                                                                                        |
+| Requests and limits are cgroup settings                                                                                                                      | R2/R3: `atlas-serve` and `atlas-work` cgroups with `cpu.weight`, `pids.max`, and `memory.max` if it proves available                                                                                                                         |
+| [Graceful termination](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination): SIGTERM, a grace period, then kill                | Park = flush the log, release the lease within a grace period; past it, the CP fences the epoch and moves on                                                                                                                                 |
+| Pod conditions with a reason and a transition time                                                                                                           | Views expose status as conditions (`Ready`, `Holding`, `Degraded` with reason and since), not bare booleans                                                                                                                                  |
+
+Not adopted: running Kubernetes itself. Vercel Sandbox is the runtime; v2 copies the control
+patterns, not the platform.

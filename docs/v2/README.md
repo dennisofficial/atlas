@@ -53,6 +53,8 @@ v2 changes who owns what.
 | [research/pod-side-state.md](research/pod-side-state.md)                                         | Census of pod-side state: seq allocators, store families, ownership seams                                                |
 | [research/control-plane-state.md](research/control-plane-state.md)                               | Census of control-plane (API, Postgres, Redis) and client state                                                          |
 | [research/wire-surface.md](research/wire-surface.md)                                             | Census of the wire: protocols, procedures, duplicated paths                                                              |
+| [research/log-scale.md](research/log-scale.md)                                                   | Census of whole-log work in v1 and what breaks at 1M events per thread                                                   |
+| [research/pod-saturation.md](research/pod-saturation.md)                                         | Measured: CPU, memory and fork-bomb saturation in a Vercel pod, before and after #1657, and the cgroup process cap       |
 | [research/credential-availability/](research/credential-availability/README.md)                  | **Needs triage.** v1 credential-availability stack (waiting for model, recheck/pause, recovery): specs and v1 status     |
 
 The censuses are static reads of the repository at commit `a0bf4110`, not live captures. Their
