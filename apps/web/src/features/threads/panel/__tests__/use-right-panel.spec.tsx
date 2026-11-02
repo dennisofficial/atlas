@@ -99,4 +99,22 @@ describe('useRightPanel', () => {
     await act(async () => state().closeContextFile())
     expect(state().contextPath).toBeUndefined()
   })
+  it('openFile shows the file, clears the context file and closes the sheet', async () => {
+    const state = await mount()
+    await act(async () => state().openContextFile('a.md'))
+    await act(async () => state().openFile('src/a.ts'))
+    expect(state().filePath).toBe('src/a.ts')
+    expect(state().contextPath).toBeUndefined()
+    expect(state().sheetOpen).toBe(false)
+    await act(async () => state().closeFile())
+    expect(state().filePath).toBeUndefined()
+  })
+
+  it('openChanges leaves the file view', async () => {
+    const state = await mount()
+    await act(async () => state().openFile('src/a.ts'))
+    await act(async () => state().openChanges('src/a.ts'))
+    expect(state().filePath).toBeUndefined()
+    expect(state().tab).toBe(ERightTab.Changes)
+  })
 })

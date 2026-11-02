@@ -10,7 +10,7 @@ import { useThreadPanel } from '../panel/thread-panel-context'
 import { copyTextOf, isMarkdownPath } from './context-model'
 import { type LoadedContextFile, useContextFile } from './use-context-file'
 
-function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
   useEffect(() => {
     if (!copied) return undefined
@@ -35,7 +35,7 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-function Notice({ children }: { children: string }) {
+export function Notice({ children }: { children: string }) {
   return <p className="text-sm text-muted-foreground">{children}</p>
 }
 

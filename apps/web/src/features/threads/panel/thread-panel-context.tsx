@@ -18,6 +18,7 @@ export type ThreadPanelValue = {
   changesPath: string | undefined
   agentId: string | undefined
   contextPath: string | undefined
+  filePath: string | undefined
   openChanges: (path?: string) => void
   openAgent: (id: string) => void
   openDetails: () => void
@@ -25,6 +26,8 @@ export type ThreadPanelValue = {
   openContextFile: (path: string) => void
   toggleContextFile: (path: string) => void
   closeContextFile: () => void
+  openFile: (path: string) => void
+  closeFile: () => void
   closePanel: () => void
   refreshPod: () => void
 }
