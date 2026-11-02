@@ -158,25 +158,24 @@ RUN mkdir -p /opt/playwright-runner /opt/playwright \
   && ./node_modules/.bin/playwright --version \
   && if [ "$TARGETPLATFORM" = "$BUILDPLATFORM" ]; then node -e "const{chromium}=require('/opt/playwright-runner/node_modules/playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).then(()=>console.log('chromium launch OK')).catch(e=>{console.error(e);process.exit(1)})"; fi
 
-ARG PLAYWRIGHT_CLI_VERSION=0.1.20
-# The agent CLI bundles its own playwright-core with its own browser revision, so it installs
-# its browser itself into the shared browsers path; the playwright-runner build above does not
-# satisfy it. Its default browser is the Google Chrome *channel* (an executable the image does
-# not carry at /opt/google/chrome/chrome), so PLAYWRIGHT_MCP_BROWSER points bare
-# `playwright-cli open` at the baked chromium build instead.
-ENV PLAYWRIGHT_MCP_BROWSER=chromium
-RUN mkdir -p /opt/playwright-cli \
-  && cd /opt/playwright-cli \
-  && printf '{"name":"atlas-playwright-cli","private":true}\n' > package.json \
-  && npm install "@playwright/cli@${PLAYWRIGHT_CLI_VERSION}" \
-  && ln -s /opt/playwright-cli/node_modules/.bin/playwright-cli /usr/local/bin/playwright-cli \
-  && playwright-cli install-browser chrome-for-testing \
-  && chmod -R a+rwX /opt/playwright /opt/playwright-cli \
-  && playwright-cli --version \
-  && if [ "$TARGETPLATFORM" = "$BUILDPLATFORM" ]; then playwright-cli open about:blank && playwright-cli close; fi \
-  # the validation open above leaves a root-owned daemon socket dir that a non-root runtime
-  # user cannot write into
-  && rm -rf /tmp/pw-* /opt/playwright-cli/.playwright-cli
+ARG AGENT_BROWSER_VERSION=0.41.1
+# vercel-labs/agent-browser ships every platform's native binary inside the npm tarball, without
+# the execute bit, and its postinstall only chmods one; the symlink targets the native binary
+# directly so no node wrapper runs per call. It detects the baked chromium under
+# PLAYWRIGHT_BROWSERS_PATH, so no `agent-browser install` Chrome download is needed.
+RUN arch="$(uname -m)" \
+  && case "$arch" in x86_64) aarch=x64;; aarch64) aarch=arm64;; esac \
+  && mkdir -p /opt/agent-browser \
+  && cd /opt/agent-browser \
+  && printf '{"name":"atlas-agent-browser","private":true}\n' > package.json \
+  && npm install --ignore-scripts "agent-browser@${AGENT_BROWSER_VERSION}" \
+  && chmod 755 "/opt/agent-browser/node_modules/agent-browser/bin/agent-browser-linux-${aarch}" \
+  && ln -s "/opt/agent-browser/node_modules/agent-browser/bin/agent-browser-linux-${aarch}" /usr/local/bin/agent-browser \
+  && chmod -R a+rwX /opt/agent-browser \
+  && agent-browser --version \
+  && agent-browser skills get core >/dev/null \
+  && if [ "$TARGETPLATFORM" = "$BUILDPLATFORM" ]; then agent-browser open 'data:text/html,<h1>atlas</h1>' && agent-browser get text h1 | grep -qx atlas && agent-browser close; fi \
+  && rm -rf /root/.agent-browser
 
 RUN curl -fsSL https://mise.jdx.dev/gpg-key.pub -o /tmp/mise-key.pub \
   && gpg --dearmor --yes -o /etc/apt/keyrings/mise-archive-keyring.gpg /tmp/mise-key.pub \
@@ -244,7 +243,7 @@ RUN mkdir -p /opt/corepack/bin \
 ARG VERCEL_CLI_VERSION=62.7.0
 # Dedicated prefix rather than npm -g: npm resolves its global prefix from the node it runs
 # under, and node here is a mise shim whose prefix is off-PATH. /opt + a symlink is how the
-# playwright-cli block above already solves the same problem.
+# agent-browser block above already solves the same problem.
 RUN mkdir -p /opt/vercel-cli \
   && cd /opt/vercel-cli \
   && printf '{"name":"atlas-vercel-cli","private":true}\n' > package.json \

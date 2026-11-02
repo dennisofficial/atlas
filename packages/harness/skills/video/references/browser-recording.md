@@ -4,221 +4,113 @@
 
 Proof-of-work or a demo of a **real, live app**: staging, an authenticated flow, a PR's UI
 change. The state lives on a server, so there is no seekable, deterministic render to make. Drive
-the real app with Playwright and record its screencast.
+the real app with `agent-browser` and record it with its native recorder.
 
 For a polished launch clip, a README hero, or anything you can compose from captured data,
-render it with HyperFrames instead ([hyperframes.md](hyperframes.md)).
+render it with HyperFrames instead ([hyperframes.md](hyperframes.md)). For a Screen Studio-style
+promo of the live app — a real recording re-framed with a director camera, drawn cursor and
+captions — use [promo.md](promo.md), which records without `--cursor` and draws its own.
 
-## Why a cursor
+## The recorder
 
-Playwright's screencast captures the page, never the OS pointer, and the browser is usually
-headless. Without help the viewer sees things change with no hint of what was clicked or typed.
-The fix is an in-page virtual cursor: DOM the screencast captures natively.
-[assets/cursor-inject.js](../assets/cursor-inject.js) installs an arrow, a hover glow, and a click
-ripple, and exposes `window.__pwCursor = { tap, point, aside, move, hover, unhover, click }`.
+```bash
+agent-browser record start out.mp4 --fps 60 --cursor
+agent-browser record stop
+```
+
+`record` writes the mp4 itself (H.264, yuv420p, constant frame rate). `--cursor` draws an arrow,
+a hover glow and a click ripple into the page, so the viewer sees what was clicked. The page is
+recorded as-is: no new tab, no navigation. Do not hand-roll a cursor or a frame receiver.
+
+Measured on a 4K take against https://demo.playwright.dev/todomvc:
+
+- **Exactly one cursor**; the click ripple fires at the click point, in place; no ghost cursor.
+- **A glide produces about 50 unique frames per second** at 60 fps (longest gap inside a glide:
+  3 frames, 50 ms). Drive it with `mouse move --duration --steps`, see below.
+- **`--fps` is the capture rate**, default 30. Always pass `--fps 60` for UI demos.
+- A static page produces repeated frames, which is expected.
 
 ## Resolution and scale
 
-The page is always laid out at a **1920×1080 CSS viewport**, whatever the output quality. Only the
-pixel density changes, so a 720p take and a 4K take show the same layout, the same amount of page
-and the same cursor proportion. The cursor `SIZE` is 36 CSS px (1.9% of the frame width) and
-scales with the output on its own.
-
-The default is **4K: 3840×2160**. Smaller outputs reuse the same setup and only change the
-screencast `size` (1920×1080, 1280×720).
-
-How the density is set, all verified by reading the JPEG headers of the delivered frames:
-
-- **Launch flag `--force-device-scale-factor=2`** gives the screencast true 3840×2160 pixels. Put
-  it in a playwright-cli config file, with the viewport.
-- **Context `deviceScaleFactor: 2` does not.** The page reports DPR 2, but the screencast still
-  delivers 1920×1080 frames, so a "4K" file is an upscale.
-- Under the flag, `devicePixelRatio` reads `1` and the viewport stays 1920×1080. Only the
-  screencast gets the extra pixels.
-- **Fractional DPR for 720p does not work**: `--force-device-scale-factor=0.6667` breaks the
-  viewport (1921×1081) and no frames arrive. Keep the same launch and ask for
-  `size: { width: 1280, height: 720 }`; the screencast scales down, layout unchanged.
-
-If a narrow app is unreadable at 1920 CSS px, set `document.body.style.zoom = '2'` after load.
-Use one fixed number for every output size, never one derived from it. `tap`, `point` and `aside`
-read `getBoundingClientRect()`, which stays correct under zoom, and the cursor lives on
-`documentElement`, so zoom does not scale it.
-
-## Frame rate
-
-`page.screencast.start` takes `path`, `size`, `quality` (JPEG quality), `onFrame` and `annotate`.
-There is no fps option, and `playwright-cli video-start` only takes `--size`.
-
-- **`path:` records a webm at a hard-coded 25 fps.** Measured: about 24 unique frames per second.
-- **`onFrame` delivers the raw JPEG frames with timestamps.** Chromium produces a frame on each
-  repaint, so a glide arrives at about 58 unique frames per second (the longest gap inside a glide
-  was 35 ms), and a static page produces almost none. At 2560×1440 and at 3840×2160 the numbers
-  were the same.
-
-Place each frame on its 1/60 s tick yourself, as below. Do not feed the timestamps to ffmpeg's
-concat demuxer: it reads images at 25 fps and rounds every duration to 40 ms, which halves the
-glide frame rate (measured 26 unique fps in the mp4 from 63 in the raw frames) and reads as judder.
-
-So record with `onFrame` and assemble the video yourself, as below. Frame interpolation
-(`minterpolate`) is not needed and is not recommended: on a 25 fps take it smeared the cursor and
-left ghost patches around the text.
-
-## Setup
-
-Save this as an absolute-path config file, for example `/tmp/browser-cli.json`:
-
-```json
-{
-  "browser": {
-    "launchOptions": { "args": ["--force-device-scale-factor=2"] },
-    "contextOptions": { "viewport": { "width": 1920, "height": 1080 } }
-  }
-}
-```
-
-Open the browser with it, then install the cursor before the first navigation the video shows.
-Init scripts apply on the next navigation, so installing after `goto` misses that page. The config
-is read when the browser opens: to change it, `close` and reopen.
+Lay the page out at a **1920×1080 CSS viewport** whatever the output quality, so a 720p take and a
+4K take show the same page. The default is **4K: 3840×2160**. Set the density with the scale
+argument of `set viewport`:
 
 ```bash
-playwright-cli --config /tmp/browser-cli.json open
-playwright-cli run-code --filename <skill dir>/assets/cursor-inject.js
-playwright-cli run-code --filename hero.js
-playwright-cli close
+agent-browser set viewport 1920 1080 2
 ```
 
-`<skill dir>` is the directory the skill loader names when it loads this skill.
+Verified with `ffprobe` on the recorded mp4:
 
-Retakes inside the same `open` session keep earlier state, such as localStorage. Reset it with
-`localStorage.clear()` plus a reload, as the script below does, or `close`, reopen, and inject
-again.
+- `set viewport 1920 1080 2` gives true **3840×2160** frames, and the page still reports
+  `innerWidth` 1920 (`devicePixelRatio` 2). A crop of text at 1:1 is crisp.
+- `--args "--force-device-scale-factor=2"` alone does **not** raise the recording: the mp4 stays
+  1920×1080. It is not needed.
+- `set viewport 1920 1080` (no scale) records 1920×1080. For a 1280×720 file, re-encode the 4K
+  take with `ffmpeg -vf scale=1280:-2`.
 
-## Receive the frames
+Set the viewport on a page that is already open, **before** `record start` and before navigating
+to the page the video shows.
 
-`run-code` has no filesystem access and no `fetch`, but `page.request.post` works, so the script
-posts each frame to a small local receiver, bundled as
-[assets/recv.py](../assets/recv.py). Start it before the run as a background process or service,
-and stop it afterwards. Use an empty output directory for each take:
+**4K at 60 fps can outrun the encoder on a heavy page.** On a 4 vCPU sandbox, a dense app UI died
+with `Recording encoder fell behind by more than 16 buffered frames` and left an unplayable mp4
+(`moov atom not found`). The same page recorded cleanly at 4K/30 fps and at 1080p/60 fps. If the
+error appears, drop to one of those and say which in the handover; a light page (TodoMVC) records
+4K/60 fine. The promo lane records at 4K/30 for exactly this reason and retakes automatically when
+the mp4 comes out moov-less — see [promo.md](promo.md).
 
-```bash
-python3 <skill dir>/assets/recv.py /abs/path/frames 8799
-```
-
-After the run, turn the frames into a constant 60 fps mp4 with
-[assets/assemble.py](../assets/assemble.py). It puts each frame on its nearest 1/60 s tick, moves a
-frame that would share a tick to the next free one, and repeats each frame until the next frame's
-tick, writing one symlink per tick. The `scale` filter converts the JPEG's full range to the TV
-range players expect. Use a fresh ticks directory per take:
-
-```bash
-python3 <skill dir>/assets/assemble.py frames ticks
-ffmpeg -framerate 60 -i ticks/%06d.jpg \
-  -vf "scale=in_range=full:out_range=tv,format=yuv420p" \
-  -c:v libx264 -crf 18 -color_range tv -movflags +faststart out.mp4
-```
-
-Pacing flags such as `--disable-frame-rate-limit --disable-gpu-vsync` raise the raw frame count
-but space the frames unevenly, so the motion gets jerkier. Leave them off.
+If a narrow app is unreadable at 1920 CSS px, run `agent-browser eval "document.body.style.zoom = '2'"`
+after load. Use one fixed number for every output size, never one derived from it. `get box`
+reports the zoomed geometry, so glides and clicks still land on the target. The promo lane never
+uses this page zoom — it zooms the recorded frame in the composition instead.
 
 ## Hero script
 
-Each action is two lines: `tap` on the element, then the real action. Type with `pressSequentially`
-at a ~70ms delay. The screencast `size` picks the output quality; it must keep the 16:9 shape.
+Selectors (CSS) or snapshot refs (`agent-browser snapshot -i`, then `@e3`) both work. Refs only
+exist after a `snapshot` in the current page, so re-snapshot after a navigation.
 
-| Call | Does |
-| --- | --- |
-| `el => __pwCursor.tap(el)` | Glide to the center, hover glow, then ripple and press. Resolves as the effect fires, so the real `.click()` after it lands with the ripple. |
-| `el => __pwCursor.point(el)` | Glide to the center and wait for it to arrive. For "look at this result" holds. |
-| `el => __pwCursor.aside(el)` | Jump to a spot ~120px right and ~70px down of the center, clear of its text. |
-| `move(x, y)`, `hover(x, y)`, `click(x, y)`, `unhover()` | The low-level pieces `tap` is built from. |
+Move the cursor with `mouse move x y --duration <ms> --steps <n> --human`, to the centre of the
+target from `get box`, then `click`. This runs as written against the TodoMVC demo:
 
-- **Call `aside` before typing.** After the click the cursor sits on top of the text being typed.
-  Settle ~180ms first.
-- **Layout shifts after a click** (a filter shrinks the list, the cursor is left over empty
-  space): `point` at the result before a long hold.
-- **Skip the dead lead-in:** `goto`, wait for the load state, *then* `screencast.start`, then
-  settle ~250ms. The init script still applies.
-- **Await every post** before returning, or the last frames are lost.
-
-This script runs as written against https://demo.playwright.dev/todomvc, with the receiver on port
-8799. Adapt the target locators and the dwell times.
-
-```js
-async page => {
-  const SIZE = { width: 3840, height: 2160 };
-  const RECEIVER = 'http://127.0.0.1:8799';
-  const settle = ms => page.waitForTimeout(ms);
-  const posts = [];
-
-  await page.goto('https://demo.playwright.dev/todomvc');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForLoadState('networkidle').catch(() => {});
-  await page.evaluate(() => { document.body.style.zoom = '2'; });
-  await page.screencast.start({
-    size: SIZE,
-    onFrame: ({ data, timestamp }) => {
-      posts.push(page.request.post(RECEIVER, { headers: { 'x-ts': String(timestamp) }, data }));
-    },
-  });
-  await settle(250);
-
-  const input = page.getByPlaceholder('What needs to be done?');
-  await input.evaluate(el => __pwCursor.tap(el));
-  await input.click();
-  await settle(180);
-  await input.evaluate(el => __pwCursor.aside(el));
-  await input.pressSequentially('Record a demo with a cursor', { delay: 70 });
-  await settle(250);
-  await input.press('Enter');
-  await settle(500);
-
-  await input.pressSequentially('Verify the output', { delay: 70 });
-  await settle(250);
-  await input.press('Enter');
-  await settle(800);
-
-  const firstToggle = page.getByTestId('todo-item').first().getByRole('checkbox');
-  await firstToggle.evaluate(el => __pwCursor.tap(el));
-  await firstToggle.check();
-  await settle(1300);
-
-  const completed = page.getByRole('link', { name: 'Completed' });
-  await completed.evaluate(el => __pwCursor.tap(el));
-  await completed.click();
-  await page.getByTestId('todo-item').first().evaluate(el => __pwCursor.point(el));
-  await settle(1400);
-
-  await page.screencast.stop();
-  await Promise.all(posts);
+```bash
+set -e
+glide() {
+  read -r x y < <(agent-browser get box "$1" | awk '/^x:/{x=$2}/^y:/{y=$2}/^width:/{w=$2}/^height:/{h=$2}END{printf "%d %d\n", x+w/2, y+h/2}')
+  agent-browser mouse move "$x" "$y" --duration "${2:-700}" --steps 90 --human >/dev/null
 }
+agent-browser close >/dev/null 2>&1 || true
+agent-browser open about:blank >/dev/null
+agent-browser set viewport 1920 1080 2 >/dev/null
+agent-browser open https://demo.playwright.dev/todomvc >/dev/null
+agent-browser wait --load networkidle >/dev/null
+agent-browser eval 'localStorage.clear()' >/dev/null
+agent-browser reload >/dev/null
+agent-browser wait --load networkidle >/dev/null
+agent-browser mouse move 160 900 >/dev/null
+agent-browser record start /abs/path/hero.mp4 --fps 60 --cursor
+sleep 0.3
+INPUT='input.new-todo'
+glide $INPUT; agent-browser click $INPUT >/dev/null; sleep 0.2
+agent-browser type $INPUT "Record a demo with a cursor" >/dev/null; agent-browser press Enter >/dev/null; sleep 0.5
+agent-browser type $INPUT "Verify the output" >/dev/null; agent-browser press Enter >/dev/null; sleep 0.8
+glide "li:first-child input.toggle"; agent-browser click "li:first-child input.toggle" >/dev/null; sleep 1.0
+glide "a[href='#/completed']"; agent-browser click "a[href='#/completed']" >/dev/null; sleep 1.2
+agent-browser record stop
 ```
 
-`run-code` takes a single function expression: no `import`, `require`, or filesystem access.
-
-If you only need a quick, non-smooth clip, `page.screencast.start({ path: '/abs/path/demo.webm', size })`
-writes a 25 fps webm at that absolute path with no receiver; a relative path resolves against the
-directory `playwright-cli open` ran in. Convert it with
-`ffmpeg -i in.webm -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart out.mp4`.
-
-## Cursor correctness rules
-
-Each rule below came from a bug in an earlier version. Keep all three when changing the script.
-
-- **Position with `transform` only, never `left`/`top`.** Elements stay at `left:0; top:0` and are
-  placed with `translate(x, y)`. The glow and ripple get their x/y with `transition: none`; only
-  scale and opacity animate afterwards. Otherwise the ripple **travels** from its previous
-  position to the new click.
-- **Dedup with `document.getElementById('__pw-cursor')?.isConnected`.** The elements are appended
-  to `documentElement`, a sibling of `body`, so `body.contains(cursor)` is always false and every
-  call would append another cursor. The symptom is **stacked cursors**.
-- **Move with a CSS `transition` on `transform`, not per-frame `requestAnimationFrame`.** Set each
-  target instantly and let the transition animate. Playwright's screencast captures on damage
-  rectangles and does not reliably repaint an overlay moved by per-frame script writes: the DOM
-  holds one cursor, but the video keeps the old rasterized position on screen as a **ghost
-  cursor**, which reads as several cursors. A real CSS transition is composited continuously and
-  is captured cleanly. The same cause is why the cursor starts off-screen rather than at the
-  default `0,0`: whatever paints first in a region the screencast never repaints stays there.
+- **Glide, then click.** `click` alone teleports the cursor to the target; `mouse move` with
+  `--duration` and `--steps` is what makes it travel. Measured with 60, 90 and 120
+  steps: all gave ~50 unique fps.
+- **Skip the dead lead-in:** navigate and wait for the load state *then* `record start`, and park
+  the mouse off the area of interest first (`mouse move 160 900`): the cursor sits where the last
+  move left it.
+- **Typing:** after the click the cursor sits on the text being typed. Move it aside
+  (`mouse move` to a point clear of the field) before a long type.
+- **Layout shifts after a click:** glide to the result before a long hold.
+- Use `sleep` for dwell times; `agent-browser wait <ms>` also works.
+- Retakes in the same browser keep state such as localStorage. Reset with `eval 'localStorage.clear()'`
+  plus `reload`, or `agent-browser close` and reopen.
+- Always run `record stop`; the mp4 is finalised there.
 
 ## Pacing
 
@@ -233,8 +125,8 @@ Right after the first interactive login (magic link, OAuth), save the state, and
 takes instead of logging in again:
 
 ```bash
-playwright-cli state-save auth.json
-playwright-cli state-load auth.json
+agent-browser state save auth.json
+agent-browser state load auth.json
 ```
 
 The file holds live session credentials. Keep it out of git (add it to `.gitignore` or save it
@@ -243,23 +135,27 @@ outside the repo) and never paste it into a PR or chat.
 ## Verify the output
 
 Look at the video before delivering it. Check that there is **exactly one cursor** on screen, and
-that each ripple fires in place rather than sliding in from elsewhere. Zero cursors before the
-first `move` is expected: the cursor starts off-screen. Check the first frame too: no cursor stuck
-in the top-left corner. Check `ffprobe` reports the size you asked for and `pix_fmt=yuv420p`.
-
-Extract frames at the moments that matter, as in
-[assembly.md](assembly.md#encoding-the-deliverables). Pick one mid-glide and one at a click:
+that each ripple fires in place. Check `ffprobe` reports the size you asked for and
+`pix_fmt=yuv420p`:
 
 ```bash
-ffmpeg -ss 6.45 -i out.mp4 -frames:v 1 mid-glide.png
+ffprobe -v error -show_entries stream=width,height,pix_fmt,r_frame_rate -of default=nw=1 hero.mp4
 ```
 
-Read the PNGs. To confirm the pixels are real and not an upscale, crop a block of text at 1:1: the
-letter edges should be crisp, not soft.
-
-Then step through 6–8 consecutive frames mid-glide. The cursor must move on every frame, with
-steps shrinking smoothly. Repeated positions mean the assembly snapped frames together:
+Extract frames at the moments that matter, as in
+[assembly.md](assembly.md#encoding-the-deliverables). Pick one mid-glide and one at a click, and
+read the PNGs:
 
 ```bash
-ffmpeg -ss 6.2 -i out.mp4 -frames:v 8 glide-%02d.png
+ffmpeg -ss 1.2 -i hero.mp4 -frames:v 1 mid-glide.png
+```
+
+To confirm the pixels are real and not an upscale, crop a block of text at 1:1: the letter edges
+should be crisp. For an overview of a whole take, `ffmpeg -i hero.mp4 -vf "fps=3,scale=960:-1,tile=4x6" -frames:v 1 sheet.png`,
+or pass `--contact-sheet` to `record start`.
+
+To count unique frames in a glide, hash the frames and count changes:
+
+```bash
+ffmpeg -v error -i hero.mp4 -vf "scale=480:-1,format=gray" -f framemd5 - | grep -v '^#' | awk -F, '{print $6}' | uniq | wc -l
 ```

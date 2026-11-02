@@ -3,12 +3,15 @@
 import { embeddedFile, type EmbeddedSkillFile } from "../embedded-bundle"
 
 export const FILES: readonly EmbeddedSkillFile[] = [
-  embeddedFile({ path: "assets/assemble.py", digest: "3a3599263d0c883bdc93ca50dc30c21a8e2511f348f5b278375ffbb0ac5591a6", load: () => import("../../../skills/video/assets/assemble.py" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "assets/cursor-inject.js", digest: "435a45a674e2295b31632c80cd78a621e7fc6bf4bd6e436c529364cb6e3eeca9", load: () => import("../../../skills/video/assets/cursor-inject.js" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "assets/recv.py", digest: "8e634bd10fc86e8abe6c3baf6c66641da1e975b432ab6a24fa0ee97490d22c23", load: () => import("../../../skills/video/assets/recv.py" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "references/assembly.md", digest: "66ac493ec36f10977e875e12f1043dd664ed16d513ce7873a562f8d86899352e", load: () => import("../../../skills/video/references/assembly.md" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "references/browser-recording.md", digest: "f871d21acbb09669d25a7a0c0515b1a2b8d73edcf1f16058cfd39aa1df1946f4", load: () => import("../../../skills/video/references/browser-recording.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "assets/promo/gen_html.py", digest: "2811e4a7efb322a23ef2b8653cb75805c7021fb4d6998179ec463def5f7f9fe9", load: () => import("../../../skills/video/assets/promo/gen_html.py" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "assets/promo/measure.py", digest: "39f04c257103d6d152f99e59515845f8c18b7609ad7fe8c64ea6a3eb57d10dd5", load: () => import("../../../skills/video/assets/promo/measure.py" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "assets/promo/plan.py", digest: "ab1fc177f171c75e91d88e9837db59b8ccdee61a5f18269d7275420f2b834d60", load: () => import("../../../skills/video/assets/promo/plan.py" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "assets/promo/record.py", digest: "cb83bed651f05c27efa11426d33d66384ed8fae3ec8720bb4b8e620051789ec8", load: () => import("../../../skills/video/assets/promo/record.py" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "assets/promo/tipcheck.py", digest: "c0e5b059beca935450cff208c556fc34005b5bc37477ca19b831f982cccc5d18", load: () => import("../../../skills/video/assets/promo/tipcheck.py" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/assembly.md", digest: "dcb0a86dfeb63078334b9956261dd3a000e7915c86adf4da9ca4f0cf00a82095", load: () => import("../../../skills/video/references/assembly.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/browser-recording.md", digest: "b93e7998c286b526549c68376b4324e2de5030e60b4e9b528bcbab5bfb709017", load: () => import("../../../skills/video/references/browser-recording.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/hyperframes.md", digest: "d2be7be86e748138db2f55b7da1f8a15e509c108e814d73fd7470b959ee11f71", load: () => import("../../../skills/video/references/hyperframes.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/promo.md", digest: "67d16569fc9b5eaf4f1ad2bfd2a40fb21ab02140fa6f67610a1f6c9028e90dbd", load: () => import("../../../skills/video/references/promo.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/remotion.md", digest: "a3e8a6f9d1fdd9e68f750e631312826c3d5f6e06df4a87d9ac99eda351819897", load: () => import("../../../skills/video/references/remotion.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/terminal.md", digest: "4490ae6dc8a13a46bd8e0b96ad40ddcde0317bf677590fb55e6cd146be6399fc", load: () => import("../../../skills/video/references/terminal.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/workflow.md", digest: "f966c34766085189e3e7def6a66e57d3fd0a09e2dc30cee7a9517f6b405d9036", load: () => import("../../../skills/video/references/workflow.md" as string, { with: { type: 'file' } }) }),

@@ -1,6 +1,6 @@
 ---
 name: video
-description: Create videos programmatically — product demos, README clips, feature announcements, explainers, and motion graphics — rendered deterministically from code. Use when the user wants to make, generate, or render a video, demo GIF, product walkthrough, launch clip, or animated showcase of an app, CLI, library, PR, or website. Covers HyperFrames (HTML-native), Remotion (React), terminal recording (VHS, asciinema), ffmpeg assembly, the deterministic-frame rendering pattern, and browser demo recording of a live web app with a visible cursor (Playwright screencast, proof-of-work, PR demo). Not for generative AI video (Veo/Sora), which cannot show a real product.
+description: Create videos programmatically — product demos, README clips, feature announcements, explainers, and motion graphics — rendered deterministically from code. Use when the user wants to make, generate, or render a video, demo GIF, product walkthrough, launch clip, or animated showcase of an app, CLI, library, PR, or website. Covers HyperFrames (HTML-native), Remotion (React), terminal recording (VHS, asciinema), ffmpeg assembly, the deterministic-frame rendering pattern, and browser demo recording of a live web app with a visible cursor (agent-browser record, proof-of-work, PR demo), including Screen Studio-style promos: a real app recording re-framed with a director camera (subject-filling zooms, pans, drawn cursor, captions) into a polished launch clip. Not for generative AI video (Veo/Sora), which cannot show a real product.
 ---
 
 # Video creation
@@ -20,7 +20,8 @@ of a real, live web app, which cannot be rendered deterministically; it must fol
 | Mostly a terminal session                             | **VHS or asciinema** | [references/terminal.md](references/terminal.md) |
 | Built on an existing React/Remotion codebase          | **Remotion**   | [references/remotion.md](references/remotion.md) |
 | A simple slideshow, title card, or diagram animation  | **ffmpeg only** | [references/assembly.md](references/assembly.md) |
-| A recording of a real web app flow (proof-of-work, PR demo, authenticated staging) | **Playwright screencast + injected cursor** | [references/browser-recording.md](references/browser-recording.md) |
+| A recording of a real web app flow (proof-of-work, PR demo, authenticated staging) | **agent-browser record --cursor** | [references/browser-recording.md](references/browser-recording.md) |
+| A polished promo or launch clip of a real web app (Screen Studio style) | **agent-browser + HyperFrames camera** | [references/promo.md](references/promo.md) |
 
 Default to HyperFrames. It renders plain HTML files with `data-*` timing attributes through
 headless Chrome + ffmpeg — no build step, Apache-2.0, purpose-built for agents — and its own
@@ -40,7 +41,9 @@ For any approach, the workflow and the deterministic-rendering rules in
    durations into a JSON file the composition reads. Never invent plausible-looking output.
 3. **Build the composition** with the chosen tool.
 4. **Verify frame-by-frame.** Render single frames or short spans, look at the images, fix,
-   repeat. Never render the full video as the first check.
+   repeat. Never render the full video as the first check. Quality bar: verify the **motion**,
+   not just stills — a 10fps strip of every transition, read by you, before handing over. Checking
+   only the still frames is what lets camera bugs through.
 5. **Draft render for review.** Render the whole video at draft spec (1920×1080, 30 fps, draft
    quality — about 10s for a 20s clip) and hand it over. Tell the user plainly that it is a
    low-resolution draft so iterations stay fast, and that the final export will be at their
@@ -59,4 +62,4 @@ The browser-recording lane has its own length and verification steps in
 
 Needs Node 22+ and ffmpeg. Check `command -v ffmpeg` first; install with the platform's
 package manager when missing. Browsers: HyperFrames and Remotion each manage their own
-pinned Chrome; a Playwright-installed Chromium also works for hand-rolled capture.
+pinned Chrome; `agent-browser` drives the sandbox Chromium for live-app capture and hand-rolled frame capture.

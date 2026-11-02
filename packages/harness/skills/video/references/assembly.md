@@ -55,18 +55,27 @@ generated graphics rather than a product UI.
 
 When neither HyperFrames nor Remotion fits — a one-off, or a page that must be a real app
 route — the core trick is small enough to write inline. Drive headless Chromium with
-Playwright; for each frame, pause every animation and set its time, tick a page hook for
+`agent-browser`; for each frame, pause every animation and set its time, tick a page hook for
 anything CSS can't express, then screenshot:
 
-```js
-const frame = 90, fps = 30;
-await page.evaluate((t) => {
-  for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; }
-  window.tick?.(t);              // page-owned hook: typed text so far, counters, meters
-}, (frame / fps) * 1000);
-await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-await page.screenshot({ path: `frames/${String(frame).padStart(4, "0")}.png` });
+```bash
+agent-browser open file:///abs/path/page.html
+agent-browser set viewport 1920 1080
+for frame in $(seq 0 89); do
+  agent-browser eval "(async t => {
+    for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; }
+    window.tick?.(t);
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  })($frame / 30 * 1000)" >/dev/null
+  agent-browser screenshot "/abs/path/frames/$(printf %04d $frame).png" >/dev/null
+done
 ```
+
+Screenshot paths must be absolute: the daemon resolves a relative path against its own
+working directory, not yours.
+
+`window.tick` is a page-owned hook: typed text so far, counters, meters. Each `agent-browser`
+call has startup overhead; `agent-browser batch` runs a list of commands in one call.
 
 Rules that make this work:
 
