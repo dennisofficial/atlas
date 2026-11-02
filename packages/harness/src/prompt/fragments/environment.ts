@@ -29,23 +29,28 @@ export class TodayFragment extends VolatilePromptFragment {
   }
 }
 
-const POD_LINE =
-  "This session is running in a local Docker pod on the operator's machine; your filesystem, /tmp, and localhost are the pod's, not the operator's machine. " +
+const POD_LINES = [
+  "This session runs in a throwaway pod that lives exactly as long as the session; its filesystem, /tmp, and localhost are the pod's alone, not the operator's machine.",
+]
+
+const LOCAL_POD_PORTS =
   "The service_start and bash exposePort options publish a port to the operator's machine as a loopback URL (http://<port>.sandbox.localhost:<host-port>/); bind the server to 0.0.0.0, not 127.0.0.1."
 
-const placementLine = (args: {
+const placementLines = (args: {
   placement: EExecutionLocation | undefined
   runner: ERunner | undefined
-}): string => {
+}): readonly string[] => {
   const { placement } = args
-  if (placement === EExecutionLocation.Cloud && args.runner === ERunner.Local) return POD_LINE
-  if (placement === EExecutionLocation.Cloud) {
-    return "This session is running in the cloud — a Vercel sandbox; your filesystem, /tmp, and localhost are the sandbox's alone, not the operator's machine."
+  if (placement === EExecutionLocation.Cloud && args.runner === ERunner.Local) {
+    return [...POD_LINES, LOCAL_POD_PORTS]
   }
+  if (placement === EExecutionLocation.Cloud) return POD_LINES
   if (placement === EExecutionLocation.Docker) {
-    return "This session is running on the operator's machine in a Docker container — the container shares only the project directory and its declared mounts with the host."
+    return [
+      "This session is running on the operator's machine in a Docker container — the container shares only the project directory and its declared mounts with the host.",
+    ]
   }
-  return "This session is running locally on the operator's machine (the host)."
+  return ["This session is running locally on the operator's machine (the host)."]
 }
 
 export class ExecutionLocationFragment extends VolatilePromptFragment {
@@ -56,13 +61,7 @@ export class ExecutionLocationFragment extends VolatilePromptFragment {
   }
 
   text(ctx: PromptContext): string {
-    return [
-      placementLine({ placement: ctx.placement, runner: ctx.runner }),
-      'New cloud workspaces place the primary repository at /atlas/workspaces/<repo-name>.',
-      'Repositories the project configures are already cloned beside it; clone others there too and use explicit workdir or absolute paths to work in them.',
-      'Adjacent clones are ephemeral; sandbox cleanup deletes them.',
-      "Gitignored content (node_modules, .env) does not reach a cloud sandbox, so run the project's own install before building, testing, or running it there.",
-    ].join(' ')
+    return placementLines({ placement: ctx.placement, runner: ctx.runner }).join(' ')
   }
 }
 
@@ -71,14 +70,11 @@ export class SessionPathsFragment extends PromptFragment {
 
   text(): string {
     return [
-      'Every command you run sees ATLAS_SESSION_DIR, the directory shared by this conversation and its sub-agents and teammates,',
-      'ATLAS_CONTEXT_DIR, a folder inside it for plans, decisions, and working notes durable for the whole session and readable by every thread in it,',
-      'and ATLAS_THREAD_DIR, a directory private to your own thread.',
-      'These directories live and die with the session.',
-      'Keep temporary probes, seed scripts, and one-off downloads in $ATLAS_SESSION_DIR/scratch.',
-      'Keep private scratch under ATLAS_THREAD_DIR.',
-      'Keep plans, decisions, coordination notes, and supporting artifacts under ATLAS_CONTEXT_DIR.',
-      'Use these variables in Bash commands or file-tool paths; Atlas resolves them for the calling thread.',
+      'Every command sees three session directories: ATLAS_SESSION_DIR, shared by this conversation and its sub-agents and teammates;',
+      'ATLAS_CONTEXT_DIR inside it, for the plans, decisions, coordination notes, and artifacts every thread reads;',
+      'and ATLAS_THREAD_DIR, private to your own thread.',
+      'Put temporary probes, seed scripts, and one-off downloads in $ATLAS_SESSION_DIR/scratch and private scratch in ATLAS_THREAD_DIR.',
+      'Use these variables in bash commands or file-tool paths; Atlas resolves them for the calling thread.',
     ].join(' ')
   }
 }

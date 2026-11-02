@@ -16,7 +16,7 @@ describe('SessionPathsFragment', () => {
     const compiled = text()
     expect(compiled).toContain('temporary probes')
     expect(compiled).toContain('$ATLAS_SESSION_DIR/scratch')
-    expect(compiled).toContain('Keep private scratch under ATLAS_THREAD_DIR')
+    expect(compiled).toContain('private scratch in ATLAS_THREAD_DIR')
     expect(compiled).toContain('coordination notes')
     expect(compiled).toContain('ATLAS_CONTEXT_DIR')
   })
@@ -27,8 +27,9 @@ describe('SessionPathsFragment', () => {
     expect(compiled).not.toContain('worktree configuration and instructions')
   })
 
-  it('states that session directories live and die with the session', () => {
-    expect(text()).toContain('live and die with the session')
+  it('leaves lifetime to the execution-location fragment and the folder layout to the context-folder fragment', () => {
+    expect(text()).not.toContain('live and die with the session')
+    expect(text()).not.toContain('durable for the whole session')
     expect(text()).not.toContain('cloud lifts')
   })
 })

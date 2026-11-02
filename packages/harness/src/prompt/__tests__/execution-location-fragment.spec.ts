@@ -23,66 +23,61 @@ const ctx = (placement?: EExecutionLocation, runner?: ERunner) =>
     runner,
   })
 
+const textFor = (placement?: EExecutionLocation, runner?: ERunner) =>
+  new ExecutionLocationFragment().text(ctx(placement, runner))
+
+const POD_RUNNERS = [ERunner.Local, ERunner.Vercel, undefined]
+
 describe('execution-location fragment', () => {
   it('states the session placement declaratively so the model never guesses from a path', () => {
-    expect(new ExecutionLocationFragment().text(ctx(EExecutionLocation.Cloud))).toContain(
-      'This session is running in the cloud',
-    )
-    expect(new ExecutionLocationFragment().text(ctx(EExecutionLocation.Docker))).toContain(
-      'in a Docker container',
-    )
-    expect(new ExecutionLocationFragment().text(ctx(EExecutionLocation.Host))).toContain(
+    expect(textFor(EExecutionLocation.Cloud)).toContain('This session runs in a throwaway pod')
+    expect(textFor(EExecutionLocation.Docker)).toContain('in a Docker container')
+    expect(textFor(EExecutionLocation.Host)).toContain(
       "running locally on the operator's machine (the host)",
     )
   })
 
   it('defaults to host when placement is absent', () => {
-    expect(new ExecutionLocationFragment().text(ctx(undefined))).toContain(
-      "running locally on the operator's machine (the host)",
-    )
+    expect(textFor(undefined)).toContain("running locally on the operator's machine (the host)")
   })
 
-  it('explains sibling cloning and ephemeral cloud workspaces', () => {
-    const text = new ExecutionLocationFragment().text(ctx())
-    expect(text).toContain('/atlas/workspaces/<repo-name>')
-    expect(text).toContain('Repositories the project configures are already cloned beside it')
-    expect(text).toContain('Adjacent clones are ephemeral')
-    expect(text).toContain('sandbox cleanup deletes them')
+  it('describes every pod the same way, never naming the provider behind it', () => {
+    for (const runner of POD_RUNNERS) {
+      const text = textFor(EExecutionLocation.Cloud, runner)
+      expect(text).not.toContain('Vercel')
+      expect(text).toContain('lives exactly as long as the session')
+    }
   })
 
-  it('tells the model gitignored content does not reach a cloud sandbox and to install on demand', () => {
-    const text = new ExecutionLocationFragment().text(ctx())
-    expect(text).toContain('Gitignored content')
-    expect(text).toContain('does not reach a cloud sandbox')
-    expect(text).toContain("project's own install")
+  it('stays generic rather than prescribing pod housekeeping', () => {
+    const text = textFor(EExecutionLocation.Cloud, ERunner.Vercel)
+    expect(text).not.toContain('leave worktrees')
+    expect(text).not.toContain('node_modules')
+    expect(text).not.toContain('parks the pod')
+  })
+
+  it('keeps pod facts out of sessions that run on the operator machine', () => {
+    for (const placement of [EExecutionLocation.Host, EExecutionLocation.Docker, undefined]) {
+      const text = textFor(placement)
+      expect(text).not.toContain('throwaway pod')
+    }
+  })
+
+  it('adds loopback port publishing only for a pod on the operator machine', () => {
+    const local = textFor(EExecutionLocation.Cloud, ERunner.Local)
+    expect(local).toContain('exposePort')
+    expect(local).toContain('0.0.0.0')
+    expect(local).toContain('.sandbox.localhost')
+    expect(textFor(EExecutionLocation.Cloud, ERunner.Vercel)).not.toContain('.sandbox.localhost')
   })
 
   it('no longer describes the retired lift/descend machinery', () => {
-    const text = new ExecutionLocationFragment().text(ctx())
+    const text = textFor()
     expect(text).not.toContain('Lift and descend')
     expect(text).not.toContain('descend leaves them behind')
   })
 
-  it('describes a local pod, not a Vercel sandbox, when the runner is local', () => {
-    const text = new ExecutionLocationFragment().text(ctx(EExecutionLocation.Cloud, ERunner.Local))
-    expect(text).toContain('local Docker pod on the operator')
-    expect(text).not.toContain('Vercel')
-    expect(text).not.toContain('cannot publish pod ports')
-    expect(text).not.toContain('curl')
-    expect(text).toContain('exposePort')
-    expect(text).toContain('0.0.0.0')
-    expect(text).toContain('.sandbox.localhost')
-  })
-
-  it('keeps the Vercel line for a vercel or unknown runner', () => {
-    for (const runner of [ERunner.Vercel, undefined]) {
-      expect(new ExecutionLocationFragment().text(ctx(EExecutionLocation.Cloud, runner))).toContain(
-        'a Vercel sandbox',
-      )
-    }
-  })
-
-  it('stamps the runner so a pod and a sandbox never share a cache entry', () => {
+  it('stamps the runner so a local pod and a remote pod never share a cache entry', () => {
     const fragment = new ExecutionLocationFragment()
     expect(fragment.stamp(ctx(EExecutionLocation.Cloud, ERunner.Local))).not.toBe(
       fragment.stamp(ctx(EExecutionLocation.Cloud, ERunner.Vercel)),
