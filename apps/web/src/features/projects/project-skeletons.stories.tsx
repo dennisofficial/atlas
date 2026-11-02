@@ -5,7 +5,11 @@ import {
   ProjectListSkeleton,
   RepositoryStepSkeleton,
 } from './project-skeletons'
+import type { GithubRepoSummary } from '@dltech/atlas-wire/web'
+
 import { ProjectRow } from './project-row'
+import { RecentTiles, RepoPicker } from './new-project-repository-step'
+import { EProjectSource, type ProjectDraft } from './new-project-types'
 import { ProjectOverviewSkeleton } from '../project-settings/project-skeletons'
 
 function Pair({ loading, loaded }: { loading: ReactNode; loaded: ReactNode }) {
@@ -51,11 +55,38 @@ export const ProjectList = {
   ),
 }
 
+const draft: ProjectDraft = {
+  source: EProjectSource.Existing,
+  repo: null,
+  repoQuery: '',
+  branch: null,
+  name: '',
+  nameTouched: false,
+  description: '',
+  additionalRepos: [],
+  secrets: [],
+}
+
+const repos: GithubRepoSummary[] = ['atlas', 'docs', 'scratch', 'website'].map((name) => ({
+  fullName: `dennisofficial/${name}`,
+  isPrivate: name === 'scratch',
+  pushedAt: '2026-11-01T00:00:00Z',
+  defaultBranch: 'main',
+}))
+
+const noop = () => {}
+
 export const RepositoryStep = {
   render: () => (
-    <div className="grid grid-cols-2 gap-12 bg-background p-10">
-      <RepositoryStepSkeleton />
-    </div>
+    <Pair
+      loading={<RepositoryStepSkeleton />}
+      loaded={
+        <div className="flex flex-col gap-4">
+          <RecentTiles repos={repos} draft={draft} patch={noop} />
+          <RepoPicker repos={repos} draft={draft} patch={noop} onRefresh={noop} />
+        </div>
+      }
+    />
   ),
 }
 

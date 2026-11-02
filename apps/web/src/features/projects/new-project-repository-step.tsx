@@ -31,7 +31,7 @@ interface PickerProps {
   patch: DraftPatch
 }
 
-function RecentTiles({ repos, draft, patch }: PickerProps) {
+export function RecentTiles({ repos, draft, patch }: PickerProps) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs font-medium text-muted-foreground">Recent repositories</p>
@@ -74,7 +74,12 @@ function RecentTiles({ repos, draft, patch }: PickerProps) {
   )
 }
 
-function RepoPicker({ repos, draft, patch, onRefresh }: PickerProps & { onRefresh: () => void }) {
+export function RepoPicker({
+  repos,
+  draft,
+  patch,
+  onRefresh,
+}: PickerProps & { onRefresh: () => void }) {
   const choices = repoChoices({ repos, query: draft.repoQuery })
   const error = repoInputError({ query: draft.repoQuery, choices })
   const handleValueChange = (next: string | null) =>
