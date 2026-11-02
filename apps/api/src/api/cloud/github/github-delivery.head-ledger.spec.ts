@@ -2,7 +2,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { prEventRows, seedPrState } from '../../../../test/github-seed'
 import {
-  CHECK_SUITE_PAYLOAD,
+  SETTLING_CHECK_RUN_PAYLOAD,
   FILLED_PR_STATE,
   prepareDelivery,
   PULL_REQUEST_PAYLOAD,
@@ -30,9 +30,17 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 0, checksFailed: 0 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 0,
+      checksPassed: 0,
+      checksFailed: 0,
+    })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)
@@ -55,9 +63,17 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0, checksFailed: 0 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 1,
+      checksPassed: 0,
+      checksFailed: 0,
+    })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const ledger = await db.orm.public.GithubPrHeadCheck.where({
       repoFullName: 'compai/app',
@@ -80,9 +96,16 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 0 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 0,
+      checksPassed: 0,
+    })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const ledger = await db.orm.public.GithubPrHeadCheck.where({
       repoFullName: 'compai/app',
@@ -107,10 +130,20 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 1,
+      checksPassed: 0,
+    })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)
@@ -124,13 +157,27 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
       checksFailed: 0,
       mergeable: true,
     })
-    const { service } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' }, readPullRequest })
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 0, mergeable: null })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 0,
+      checksPassed: 0,
+      mergeable: null,
+    })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const events = await prEventRows()
     expect(events.filter((row) => row.kind === 'verdict')).toHaveLength(1)
@@ -149,7 +196,10 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
-    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
+    })
 
     const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)
@@ -159,7 +209,10 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
     // The payload write materializes a zero-check row, so the fill's null→true mergeability
     // flip announces once; a replayed delivery must not add a second row of either kind.
-    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
+    })
     const events = await prEventRows()
     expect(events.filter((row) => row.kind === 'verdict')).toHaveLength(1)
     expect(events.filter((row) => row.kind === 'mergeability')).toHaveLength(1)
@@ -177,13 +230,23 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-fast', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0, checksFailed: 0 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 1,
+      checksPassed: 0,
+      checksFailed: 0,
+    })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)
-    expect(verdicts[0]).toMatchObject({ payload: { verdict: 'failed', settled: true } })
+    expect(verdicts[0]).toMatchObject({
+      payload: { verdict: 'failed', settled: true },
+    })
   })
 
   it('keeps a merged PR check-targetable while its head owes a verdict', async () => {
@@ -208,7 +271,10 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
       updatedAt: new Date(),
     })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)

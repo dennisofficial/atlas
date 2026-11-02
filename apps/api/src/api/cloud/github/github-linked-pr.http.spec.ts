@@ -72,7 +72,10 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
             fetch: (target, init) =>
               fetch(target, {
                 ...init,
-                headers: { ...init?.headers, authorization: `Bearer ${userId}` },
+                headers: {
+                  ...init?.headers,
+                  authorization: `Bearer ${userId}`,
+                },
               }),
           }),
         }),
@@ -107,9 +110,19 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
     const prefix = `test:observe:http:${randomUUID()}:`
     const tokens = { [OWNER]: 'owner', [OTHER]: 'other' }
     api = realObservationGraph({ redis, prefix, tokens })
-    delivery = realObservationGraph({ redis: remote, prefix, tokens, appBacked: false })
-    await delivery.hooks.ensureHook({ userId: OWNER, repoFullName: 'CompAI/App' })
-    const hook = await db.orm.public.GithubRepoHook.first({ repoFullName: 'compai/app' })
+    delivery = realObservationGraph({
+      redis: remote,
+      prefix,
+      tokens,
+      appBacked: false,
+    })
+    await delivery.hooks.ensureHook({
+      userId: OWNER,
+      repoFullName: 'CompAI/App',
+    })
+    const hook = await db.orm.public.GithubRepoHook.first({
+      repoFullName: 'compai/app',
+    })
     if (hook === null) throw new Error('webhook transport was not established')
     hookSecret = hook.secret
     const subscriptions = new GithubSubscriptionsService(
@@ -143,7 +156,10 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
         { provide: GithubPrEventMailboxService, useValue: api.mailbox },
         { provide: SecretCipherService, useValue: delivery.cipher },
         GithubWebhookInboxService,
-        { provide: SandboxesService, useValue: { verifyTokenPrincipal: async () => null } },
+        {
+          provide: SandboxesService,
+          useValue: { verifyTokenPrincipal: async () => null },
+        },
         {
           provide: SESSION_VERIFIER,
           useValue: {
@@ -170,8 +186,16 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
   for (const expired of [false, true]) {
     it(`delivers CI and cached reconnect replay with ${expired ? 'expired' : 'zero'} agent subscriptions, isolates another active observer, and releases on cancel`, async () => {
       if (expired) {
-        await seedSubscription({ userId: OWNER, liveUntil: new Date(0), expiresAt: new Date(0) })
-        await seedSubscription({ userId: OTHER, liveUntil: new Date(0), expiresAt: new Date(0) })
+        await seedSubscription({
+          userId: OWNER,
+          liveUntil: new Date(0),
+          expiresAt: new Date(0),
+        })
+        await seedSubscription({
+          userId: OTHER,
+          liveUntil: new Date(0),
+          expiresAt: new Date(0),
+        })
       }
       const owner = subscribe(OWNER)
       const other = subscribe(OTHER)
@@ -198,7 +222,10 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
       owner.close()
       await waitFor(async () =>
         expect(
-          await delivery.observations.owners({ repoFullName: 'compai/app', prNumber: 42 }),
+          await delivery.observations.owners({
+            repoFullName: 'compai/app',
+            prNumber: 42,
+          }),
         ).toEqual([]),
       )
       const reconnect = subscribe(OWNER)
@@ -207,9 +234,17 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
         state: { repoFullName: 'compai/app', prNumber: 42, checksPassed: 1 },
       })
       http.failChecks()
-      await deliver('check_suite', {
+      await deliver('check_run', {
         repository: { full_name: 'COMPAI/APP' },
-        check_suite: { head_sha: 'abc123', head_branch: 'dennis/add-the-thing' },
+        check_run: {
+          id: 2,
+          name: 'lint',
+          status: 'completed',
+          conclusion: 'failure',
+          started_at: '2026-11-02T04:25:00Z',
+          completed_at: '2026-11-02T04:26:00Z',
+          head_sha: 'abc123',
+        },
       })
       await waitFor(() =>
         expect(states(reconnect.frames).some((frame) => frame.state.checksFailed === 1)).toBe(true),
@@ -230,8 +265,11 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
       ).toBe(true),
     )
     expect(states(owner.frames)).toEqual([])
-    expect(await delivery.observations.owners({ repoFullName: 'compai/app', prNumber: 7 })).toEqual(
-      [],
-    )
+    expect(
+      await delivery.observations.owners({
+        repoFullName: 'compai/app',
+        prNumber: 7,
+      }),
+    ).toEqual([])
   })
 })

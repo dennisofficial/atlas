@@ -42,7 +42,10 @@ export function mockGithubHttp() {
     if (token !== null && limited.has(token))
       return Response.json(
         {},
-        { status: 429, headers: { 'retry-after': '3600', 'x-ratelimit-resource': 'core' } },
+        {
+          status: 429,
+          headers: { 'retry-after': '3600', 'x-ratelimit-resource': 'core' },
+        },
       )
     if (token !== null && denied.has(token)) return Response.json({}, { status: 404 })
     const repository = url.pathname.match(/^\/repos\/([^/]+\/[^/]+)$/)?.[1]
@@ -57,6 +60,7 @@ export function mockGithubHttp() {
               'check_suite',
               'check_run',
               'push',
+              'status',
               'issue_comment',
               'pull_request_review',
               'pull_request_review_comment',
@@ -76,12 +80,24 @@ export function mockGithubHttp() {
         merged_at: null,
         mergeable: true,
         mergeable_state: 'clean',
-        head: { ref: 'dennis/add-the-thing', sha: 'abc123', repo: { full_name: 'CompAI/App' } },
+        head: {
+          ref: 'dennis/add-the-thing',
+          sha: 'abc123',
+          repo: { full_name: 'CompAI/App' },
+        },
       })
     }
     if (url.pathname.includes('/check-runs'))
       return Response.json({
-        check_runs: [{ status: 'completed', conclusion: checksFailed ? 'failure' : 'success' }],
+        check_runs: [
+          {
+            id: 1,
+            name: 'build',
+            started_at: '2026-11-02T04:25:00Z',
+            status: 'completed',
+            conclusion: checksFailed ? 'failure' : 'success',
+          },
+        ],
       })
     if (url.pathname.endsWith('/status')) return Response.json({ statuses: [] })
     if (url.pathname.endsWith('/pulls')) return Response.json([{ number: 42 }])
@@ -165,5 +181,16 @@ export function realObservationGraph(args: {
     hooks,
     observations,
   )
-  return { github, observations, fanout, reads, cipher, hooks, mailbox, delivery, poll, wakes }
+  return {
+    github,
+    observations,
+    fanout,
+    reads,
+    cipher,
+    hooks,
+    mailbox,
+    delivery,
+    poll,
+    wakes,
+  }
 }

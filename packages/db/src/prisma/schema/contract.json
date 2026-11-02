@@ -56,6 +56,10 @@
       "model": "GithubAppNoticeDismissal",
       "namespace": "public"
     },
+    "GithubCommitCheck": {
+      "model": "GithubCommitCheck",
+      "namespace": "public"
+    },
     "GithubConnection": {
       "model": "GithubConnection",
       "namespace": "public"
@@ -1985,6 +1989,103 @@
               },
               "namespaceId": "public",
               "table": "GithubAppNoticeDismissal"
+            }
+          },
+          "GithubCommitCheck": {
+            "fields": {
+              "checkKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "headSha": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "outcome": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "repoFullName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceUpdatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "startedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "checkKey": {
+                  "column": "checkKey"
+                },
+                "headSha": {
+                  "column": "headSha"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "outcome": {
+                  "column": "outcome"
+                },
+                "repoFullName": {
+                  "column": "repoFullName"
+                },
+                "sourceUpdatedAt": {
+                  "column": "sourceUpdatedAt"
+                },
+                "startedAt": {
+                  "column": "startedAt"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GithubCommitCheck"
             }
           },
           "GithubConnection": {
@@ -9067,6 +9168,75 @@
               },
               "uniques": []
             },
+            "GithubCommitCheck": {
+              "columns": {
+                "checkKey": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "headSha": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "outcome": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "repoFullName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sourceUpdatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "startedAt": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "updatedAt"
+                  ],
+                  "name": "GithubCommitCheck_updatedAt_idx_8c508b31",
+                  "prefix": "GithubCommitCheck_updatedAt_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "repoFullName",
+                  "headSha",
+                  "checkKey"
+                ]
+              },
+              "uniques": []
+            },
             "GithubConnection": {
               "columns": {
                 "createdAt": {
@@ -13122,10 +13292,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "bfe49ff940f6329635e9a44412cf28f85606a57b78b461784714fd97ae950a68"
+    "storageHash": "d5e5a2706e61e5fad472ac8388a376b8687daeed64e300ae3ff8330aa637fc5d"
   },
   "execution": {
-    "executionHash": "1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb",
+    "executionHash": "f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f",
     "mutations": {
       "defaults": [
         {
@@ -13255,6 +13425,21 @@
           },
           "ref": {
             "entry": "GithubAppInstallation",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "GithubCommitCheck",
             "field": "updatedAt",
             "namespace": "public"
           }

@@ -19,16 +19,19 @@ export interface RestPullRequest {
 }
 
 export interface RestCheckRun {
+  id: number
   name: string
   status: string
   conclusion: string | null
   started_at: string | null
+  completed_at: string | null
 }
 
 export interface RestCommitStatus {
   context: string
   state: string
   created_at: string | null
+  updated_at: string | null
 }
 
 export interface PullRequestCacheFields {
@@ -63,7 +66,10 @@ export function pullRequestCacheFieldsOf(args: {
     ...args.checkRuns.map((run) => ({
       name: run.name,
       startedAt: run.started_at,
-      outcome: checkRunOutcomeOf({ status: run.status, conclusion: run.conclusion }),
+      outcome: checkRunOutcomeOf({
+        status: run.status,
+        conclusion: run.conclusion,
+      }),
     })),
     ...[...latestByContext.values()].map((status) => ({
       name: status.context,

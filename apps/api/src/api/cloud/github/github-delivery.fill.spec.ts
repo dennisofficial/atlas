@@ -3,7 +3,8 @@ import { EGithubCallSource } from './github-call-log'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { prStateRows, seedPrState } from '../../../../test/github-seed'
 import {
-  CHECK_SUITE_PAYLOAD,
+  checkRunPayload,
+  SETTLING_CHECK_RUN_PAYLOAD,
   FILLED_PR_STATE,
   prepareDelivery,
   PULL_REQUEST_PAYLOAD,
@@ -27,7 +28,10 @@ describe('GithubDeliveryService fill', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
 
-    const outcome = await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    const outcome = await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
+    })
 
     expect(outcome.handled).toBe(true)
     expect(readPullRequest).toHaveBeenCalledWith({
@@ -50,7 +54,10 @@ describe('GithubDeliveryService fill', () => {
     const { service } = serviceWith({ tokens: {}, readPullRequest })
     await seedHook({ createdBy: 'usr-gone' })
 
-    const outcome = await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    const outcome = await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
+    })
 
     expect(outcome.handled).toBe(true)
     expect(readPullRequest).not.toHaveBeenCalled()
@@ -67,15 +74,24 @@ describe('GithubDeliveryService fill', () => {
     const readPullRequest = vi.fn(async () => {
       throw new GithubUserReadFailed('bad credentials', 401)
     })
-    const { service } = serviceWith({ tokens: { 'usr-creator': 'ghu_dead' }, readPullRequest })
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_dead' },
+      readPullRequest,
+    })
     await seedHook({ createdBy: 'usr-creator' })
 
-    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
+    })
 
-    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42, mergeable: null })
+    expect((await prStateRows())[0]).toMatchObject({
+      prNumber: 42,
+      mergeable: null,
+    })
   })
 
-  it('a check_suite delivery fills every affected open PR', async () => {
+  it('a settling check_run confirms every affected open PR with one REST read', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({
       tokens: { 'usr-sub': 'ghu_sub' },
@@ -99,13 +115,7 @@ describe('GithubDeliveryService fill', () => {
       updatedAt: new Date(),
     })
 
-    await service.handle({
-      event: 'check_suite',
-      payload: {
-        check_suite: { head_sha: 'abc123', head_branch: 'dennis/add-the-thing' },
-        repository: { full_name: 'compai/app' },
-      },
-    })
+    await service.handle({ event: 'check_run', payload: checkRunPayload() })
 
     expect(readPullRequest).toHaveBeenCalledWith({
       source: EGithubCallSource.DeliveryFill,
@@ -125,15 +135,14 @@ describe('GithubDeliveryService fill', () => {
     await service.handle({
       event: 'check_run',
       payload: {
-        check_run: { head_sha: 'other', check_suite: { head_branch: 'someone/else' } },
-        repository: { full_name: 'compai/app' },
+        ...checkRunPayload({ head_sha: 'other' }),
       },
     })
 
     expect(readPullRequest).not.toHaveBeenCalled()
   })
 
-  it('a check event pushes a provisional running state before the fill lands', async () => {
+  it('a running check_run updates counts from stored rows with no REST read', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service, fanout } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
@@ -141,51 +150,53 @@ describe('GithubDeliveryService fill', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksPassed: 3, checksRunning: 0 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksPassed: 3,
+      checksRunning: 0,
+    })
     const pushes = vi.spyOn(fanout, 'push')
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: checkRunPayload({
+        status: 'in_progress',
+        conclusion: null,
+        completed_at: null,
+      }),
+    })
 
-    expect(pushes).toHaveBeenCalledTimes(2)
+    expect(readPullRequest).not.toHaveBeenCalled()
+    expect(pushes).toHaveBeenCalledTimes(1)
     expect(pushes.mock.calls[0]?.[0].state).toMatchObject({
       prNumber: 42,
       checksRunning: 1,
-      checksPassed: 3,
-      mergeable: null,
-    })
-    expect(pushes.mock.calls[1]?.[0].state).toMatchObject({
-      prNumber: 42,
-      checksRunning: 1,
-      checksPassed: 2,
+      checksPassed: 0,
       mergeable: true,
     })
   })
 
-  it('keeps the provisional state when the check fill dies', async () => {
+  it('falls back to the row tally when the settle confirmation token is rejected', async () => {
     const readPullRequest = vi.fn(async () => {
       throw new GithubUserReadFailed('bad credentials', 401)
     })
-    const { service, fanout } = serviceWith({
+    const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_dead' },
       readPullRequest,
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
     await seedPrState({ ...FILLED_PR_STATE, updatedAt: new Date() })
-    const pushes = vi.spyOn(fanout, 'push')
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
-
-    expect(pushes).toHaveBeenCalledTimes(1)
-    expect(pushes.mock.calls[0]?.[0].state).toMatchObject({
-      prNumber: 42,
-      checksRunning: 1,
-      mergeable: null,
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
     })
+
     expect((await prStateRows())[0]).toMatchObject({
       prNumber: 42,
-      checksRunning: 1,
-      mergeable: null,
+      checksRunning: 0,
+      checksPassed: 1,
     })
   })
 
@@ -193,8 +204,12 @@ describe('GithubDeliveryService fill', () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: {}, readPullRequest })
 
-    expect(await service.handle({ event: 'ping', payload: {} })).toEqual({ handled: true })
-    expect(await service.handle({ event: 'issues', payload: {} })).toEqual({ handled: false })
+    expect(await service.handle({ event: 'ping', payload: {} })).toEqual({
+      handled: true,
+    })
+    expect(await service.handle({ event: 'issues', payload: {} })).toEqual({
+      handled: false,
+    })
     expect(readPullRequest).not.toHaveBeenCalled()
     expect(await prStateRows()).toHaveLength(0)
   })

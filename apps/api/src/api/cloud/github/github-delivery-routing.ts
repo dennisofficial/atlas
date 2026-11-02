@@ -1,12 +1,6 @@
 import { and, or, type Row } from '@dltech/atlas-db'
 import { normalizedRepo, repoPattern } from './github-pr-identity'
-import type { CheckTarget } from './github-pr-state-fields'
 import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
-import type {
-  GithubCheckRunWebhookPayload,
-  GithubCheckSuiteWebhookPayload,
-  GithubPushWebhookPayload,
-} from './github-webhook.types'
 
 /**
  * A subscription whose heartbeats stopped is still live when it is thread-linked to a sandbox
@@ -107,30 +101,4 @@ export function dtoOf(row: Row<'GithubPrState'>): GithubPrStateDto {
     mergeable: row.mergeable,
     updatedAt: row.updatedAt.toISOString(),
   }
-}
-
-export function checkTargetOf(args: { event: string; payload: unknown }): CheckTarget | null {
-  if (args.event === 'check_suite') {
-    const payload = args.payload as GithubCheckSuiteWebhookPayload
-    return {
-      repoFullName: payload.repository.full_name,
-      branch: payload.check_suite.head_branch,
-      sha: payload.check_suite.head_sha,
-    }
-  }
-  if (args.event === 'check_run') {
-    const payload = args.payload as GithubCheckRunWebhookPayload
-    return {
-      repoFullName: payload.repository.full_name,
-      branch: payload.check_run.check_suite?.head_branch ?? null,
-      sha: payload.check_run.head_sha,
-    }
-  }
-  if (args.event === 'push') {
-    const payload = args.payload as GithubPushWebhookPayload
-    const branch = payload.ref.replace(/^refs\/heads\//, '')
-    if (branch === payload.ref) return null
-    return { repoFullName: payload.repository.full_name, branch, sha: null }
-  }
-  return null
 }
