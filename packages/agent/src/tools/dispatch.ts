@@ -1,13 +1,9 @@
 import {
   EBeforeToolDecision,
-  EToolEffect,
   hookOutcomeDrafts,
   resolveBeforeTool,
   type ActiveWorktree,
-  type BeforeTool,
-  type BeforeToolOutcome,
   type CallId,
-  type ConsultedHook,
   type Event,
   type EventDraft,
   type RunId,
@@ -23,15 +19,15 @@ import {
 
 import { logFieldsOf } from '../logging/log-fields'
 import { withinBudget, type OnHookMishap } from '../hooks/budget'
-import type { HookChain, RegisteredHook } from '../hooks/registry'
+import type { HookChain } from '../hooks/registry'
 import type { OnceLedger } from '../loop/once-ledger.port'
+import { consultBeforeToolHooks } from './consult-before-tool'
 import {
   invalidInputDraft,
   markDispatchStarted,
   markerFailureDraft,
   unknownToolDraft,
 } from './dispatch-drafts'
-import { outcomeWhenAHookDidNotAnswerInTime } from './hook-silence'
 import { NO_QUALITY_STAGE, type QualityStagePort } from './quality-stage'
 import type { ToolRegistry } from './registry'
 import { resultDraft } from './tool-result-draft'
@@ -64,9 +60,6 @@ const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
 const NO_OUTCOME: HookOutcome = {}
-
-const changesTheWorld = (effect: EToolEffect): boolean =>
-  effect === EToolEffect.Write || effect === EToolEffect.Destructive
 
 export class HookedToolDispatcher extends ToolDispatcher {
   private readonly registry: ToolRegistry
@@ -123,7 +116,9 @@ export class HookedToolDispatcher extends ToolDispatcher {
 
     const { outcome, drafts } = resolveBeforeTool({
       call: candidate,
-      outcomes: await this.consultBeforeTool({
+      outcomes: await consultBeforeToolHooks({
+        hooks: this.hooks,
+        onMishap: this.onMishap,
         call: candidate,
         projectDirectory,
         events,
@@ -186,62 +181,6 @@ export class HookedToolDispatcher extends ToolDispatcher {
       ...(await this.observeAfterTool({ call: allowed, result, projectDirectory, signal })),
       ...(qualityOutcome.nudge === undefined ? [] : [qualityOutcome.nudge]),
     ]
-  }
-
-  private async outcomeOf(args: {
-    hook: RegisteredHook<BeforeTool>
-    call: ToolCall
-    projectDirectory: string
-    events: readonly Event[]
-    signal: AbortSignal
-  }): Promise<BeforeToolOutcome> {
-    return withinBudget({
-      label: args.hook.name,
-      run: () =>
-        args.hook.run({
-          call: args.call,
-          projectDirectory: args.projectDirectory,
-          events: args.events,
-          signal: args.signal,
-        }),
-      fallback: (mishap) => outcomeWhenAHookDidNotAnswerInTime({ mishap, call: args.call }),
-      budgetMs: this.hooks.bounds.budgetMs,
-      onMishap: this.onMishap,
-    })
-  }
-
-  private async consultBeforeTool(args: {
-    call: ToolCall
-    projectDirectory: string
-    events: readonly Event[]
-    signal: AbortSignal
-    onceLedger: OnceLedger | undefined
-    runId: RunId
-  }): Promise<ConsultedHook[]> {
-    const consulted: ConsultedHook[] = []
-    let input = args.call.input
-
-    for (const hook of this.hooks.beforeTool) {
-      const decide = () =>
-        this.outcomeOf({
-          hook,
-          call: { ...args.call, input },
-          projectDirectory: args.projectDirectory,
-          events: args.events,
-          signal: args.signal,
-        })
-      const outcome =
-        args.onceLedger === undefined
-          ? await decide()
-          : await args.onceLedger.once({
-              key: `hook:${hook.name}:${args.runId}:${args.call.callId}`,
-              decide,
-            })
-      if (outcome.decision === EBeforeToolDecision.Allow) input = outcome.input
-      consulted.push({ hookName: hook.name, outcome })
-    }
-
-    return consulted
   }
 
   private async invokeTool(args: {
