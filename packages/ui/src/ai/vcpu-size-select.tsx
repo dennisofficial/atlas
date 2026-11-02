@@ -52,7 +52,12 @@ export function VcpuSizeSelect({
   const items = vcpuSizeItems({ sizes, options })
 
   return (
-    <Select value={value} onValueChange={handleValueChange} disabled={disabled}>
+    <Select
+      items={items.map((item) => ({ value: item.value, label: item.label }))}
+      value={value}
+      onValueChange={handleValueChange}
+      disabled={disabled}
+    >
       <SelectTrigger id={id} size="sm" className="w-full" aria-label={ariaLabel}>
         <SelectValue />
       </SelectTrigger>

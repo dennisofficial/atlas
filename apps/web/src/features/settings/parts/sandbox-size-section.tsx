@@ -61,7 +61,7 @@ export function SandboxSizeSection({
                     {
                       value: 'default',
                       label: 'Account default',
-                      detail: 'Uses your Sandbox size',
+                      detail: 'Your personal default',
                     },
                   ]
                 : undefined
