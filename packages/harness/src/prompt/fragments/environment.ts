@@ -1,4 +1,5 @@
 import {
+  DEFAULT_CONTAINER_IDLE_MINUTES,
   EExecutionLocation,
   ERunner,
   PromptFragment,
@@ -29,23 +30,32 @@ export class TodayFragment extends VolatilePromptFragment {
   }
 }
 
-const POD_LINE =
-  "This session is running in a local Docker pod on the operator's machine; your filesystem, /tmp, and localhost are the pod's, not the operator's machine. " +
+const POD_LINES = [
+  "This session runs in a throwaway pod. Its filesystem, /tmp, and localhost belong to the pod, not the operator's machine.",
+  'The primary repository is at /atlas/workspaces/<repo-name>, and repositories the project configures are cloned beside it; clone others there too and use explicit workdir or absolute paths to work in them.',
+  "Gitignored content (node_modules, .env) does not reach the pod, so run the project's own install before building, testing, or running it.",
+  `After ${DEFAULT_CONTAINER_IDLE_MINUTES} minutes without activity Atlas parks the pod, and parking clears /tmp; keep anything that must outlast a pause under ATLAS_SESSION_DIR or /atlas/workspaces.`,
+  'The whole pod is discarded with the session, so leave worktrees, clones, and scratch files in place when work finishes.',
+]
+
+const LOCAL_POD_PORTS =
   "The service_start and bash exposePort options publish a port to the operator's machine as a loopback URL (http://<port>.sandbox.localhost:<host-port>/); bind the server to 0.0.0.0, not 127.0.0.1."
 
-const placementLine = (args: {
+const placementLines = (args: {
   placement: EExecutionLocation | undefined
   runner: ERunner | undefined
-}): string => {
+}): readonly string[] => {
   const { placement } = args
-  if (placement === EExecutionLocation.Cloud && args.runner === ERunner.Local) return POD_LINE
-  if (placement === EExecutionLocation.Cloud) {
-    return "This session is running in the cloud — a Vercel sandbox; your filesystem, /tmp, and localhost are the sandbox's alone, not the operator's machine."
+  if (placement === EExecutionLocation.Cloud && args.runner === ERunner.Local) {
+    return [...POD_LINES, LOCAL_POD_PORTS]
   }
+  if (placement === EExecutionLocation.Cloud) return POD_LINES
   if (placement === EExecutionLocation.Docker) {
-    return "This session is running on the operator's machine in a Docker container — the container shares only the project directory and its declared mounts with the host."
+    return [
+      "This session is running on the operator's machine in a Docker container — the container shares only the project directory and its declared mounts with the host.",
+    ]
   }
-  return "This session is running locally on the operator's machine (the host)."
+  return ["This session is running locally on the operator's machine (the host)."]
 }
 
 export class ExecutionLocationFragment extends VolatilePromptFragment {
@@ -56,13 +66,7 @@ export class ExecutionLocationFragment extends VolatilePromptFragment {
   }
 
   text(ctx: PromptContext): string {
-    return [
-      placementLine({ placement: ctx.placement, runner: ctx.runner }),
-      'New cloud workspaces place the primary repository at /atlas/workspaces/<repo-name>.',
-      'Repositories the project configures are already cloned beside it; clone others there too and use explicit workdir or absolute paths to work in them.',
-      'Adjacent clones are ephemeral; sandbox cleanup deletes them.',
-      "Gitignored content (node_modules, .env) does not reach a cloud sandbox, so run the project's own install before building, testing, or running it there.",
-    ].join(' ')
+    return placementLines({ placement: ctx.placement, runner: ctx.runner }).join(' ')
   }
 }
 
