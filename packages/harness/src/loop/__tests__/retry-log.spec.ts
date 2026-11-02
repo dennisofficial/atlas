@@ -56,6 +56,7 @@ async function runFailingTurn(): Promise<LogEntry[]> {
     },
   }
   const runner = new LoopTurnRunner({
+    launchDirectory: process.cwd(),
     log: opened.harness.log,
     logPort: log,
     model: failing,

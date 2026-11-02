@@ -86,6 +86,7 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
 
   const turnDeps: TurnDeps = {
     log,
+    launchDirectory: args.launchDirectory ?? process.cwd(),
     model,
     ids,
     assembly:
@@ -101,7 +102,6 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
     hooks: args.hooks,
     spend: { ledger, clock },
     applyLoopCut: createLoopCut({ log, registry, clock, ids }),
-    launchDirectory: args.launchDirectory,
     ...(args.watchLoop === undefined ? {} : { watchLoop: args.watchLoop }),
     ...(args.expandContext === undefined ? {} : { expandContext: args.expandContext }),
     ...(args.compact === undefined ? {} : { compact: args.compact }),

@@ -46,6 +46,7 @@ function runnerWith(args: {
   model?: AtlasHarness['model']
 }): LoopTurnRunner {
   return new LoopTurnRunner({
+    launchDirectory: process.cwd(),
     log: args.harness.log,
     model: args.model ?? args.harness.model,
     ids: args.harness.ids,

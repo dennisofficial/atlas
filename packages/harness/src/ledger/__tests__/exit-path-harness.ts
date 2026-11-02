@@ -148,6 +148,7 @@ export async function openExitPathHarness(args: {
     stepsTaken: model.taken,
     failures: () => failures,
     runner: buildRunner({
+      launchDirectory: process.cwd(),
       log,
       model: model.port,
       ids,

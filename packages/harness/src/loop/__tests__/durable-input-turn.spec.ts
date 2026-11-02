@@ -71,6 +71,7 @@ describe('input already written into the durable log', () => {
       },
     }
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       ids: harness.ids,
       model: responding,
@@ -116,6 +117,7 @@ describe('input already written into the durable log', () => {
       },
     }
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       ids: harness.ids,
       model: responding,
@@ -141,6 +143,7 @@ describe('input already written into the durable log', () => {
     })
     let queued = true
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       ids: harness.ids,
       model: harness.model,
@@ -173,6 +176,7 @@ describe('input already written into the durable log', () => {
     let drains = 0
     let acknowledgements = 0
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       ids: harness.ids,
       model: harness.model,

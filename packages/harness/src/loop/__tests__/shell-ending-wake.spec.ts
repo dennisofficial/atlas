@@ -89,6 +89,7 @@ async function runEndingAfterFinalMessage(args: { wakesTurn: boolean }): Promise
   }
 
   const runner = new LoopTurnRunner({
+    launchDirectory: process.cwd(),
     log: harness.log,
     model: steered,
     ids: harness.ids,

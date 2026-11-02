@@ -48,6 +48,7 @@ function runnerOver(args: {
   onLedgerFailure?: (error: unknown) => void
 }): TurnRunner {
   return new LoopTurnRunner({
+    launchDirectory: process.cwd(),
     log: args.harness.log,
     model: args.model ?? args.harness.model,
     ids: args.harness.ids,
@@ -182,6 +183,7 @@ describe('the ledger is accounting, not the turn', () => {
     const thread = await harness.threads.create({})
 
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,

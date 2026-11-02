@@ -60,7 +60,7 @@ async function run(args: { fault: () => unknown; giveUp: () => boolean }) {
       policy: POLICY,
       sleep: async () => {},
       jitter: () => 1,
-      onGiveUp: () => {
+      failover: () => {
         consulted += 1
         return args.giveUp()
       },
@@ -69,7 +69,7 @@ async function run(args: { fault: () => unknown; giveUp: () => boolean }) {
   return { model, consulted: () => consulted, stepped }
 }
 
-describe('consulting onGiveUp', () => {
+describe('consulting failover', () => {
   it.each([
     ['a hard quota 429', { status: 429, code: 'insufficient_quota' }],
     ['a rejected key', { status: 401, code: 'invalid_api_key' }],
@@ -139,7 +139,7 @@ describe('consulting onGiveUp', () => {
       retry: {
         policy: POLICY,
         sleep: async () => {},
-        onGiveUp: () => {
+        failover: () => {
           model.step = async () => REPLIED
           return true
         },

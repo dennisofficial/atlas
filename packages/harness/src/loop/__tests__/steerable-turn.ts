@@ -148,6 +148,7 @@ export async function openSteerable(args: {
     queue,
     threadId: thread.id,
     runner: new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: steered,
       ids: harness.ids,

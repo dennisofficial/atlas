@@ -95,6 +95,7 @@ describe('a turn that settles a tool call', () => {
     const runner = new PublishingTurnRunner({
       channel,
       deps: {
+        launchDirectory: '/w',
         log: harness.log,
         model: harness.model,
         ids: harness.ids,

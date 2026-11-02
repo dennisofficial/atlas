@@ -39,6 +39,7 @@ const openHarness = (script: readonly ScriptedStep[]): Promise<AtlasHarness> =>
   openHarnessWith(scriptedModel({ script }))
 
 const depsOf = (harness: AtlasHarness): TurnDeps => ({
+  launchDirectory: '/w',
   log: harness.log,
   model: harness.model,
   ids: harness.ids,

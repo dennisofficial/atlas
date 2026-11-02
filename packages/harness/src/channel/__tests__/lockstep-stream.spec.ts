@@ -127,6 +127,7 @@ describe('a streamed turn, released one model part at a time', () => {
       const runner = new PublishingTurnRunner({
         channel,
         deps: {
+          launchDirectory: '/w',
           log: harness.log,
           model: harness.model,
           ids: harness.ids,

@@ -50,6 +50,7 @@ describe('tool output streaming through settle-pending', () => {
     })
     const notices: ToolOutputNotice[] = []
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: narratingDispatch((callId) => [
         { stream: 'stdout', text: `begin ${callId}\n` },
@@ -84,6 +85,7 @@ describe('tool output streaming through settle-pending', () => {
     })
     let carried: unknown = 'untouched'
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: {
         dispatch: async (args) => {

@@ -99,6 +99,7 @@ it('answers a real shell ending during a model reply without replacing its live 
   const runner = new PublishingTurnRunner({
     channel,
     deps: {
+      launchDirectory: '/w',
       log: harness.log,
       ids: harness.ids,
       model: responding,

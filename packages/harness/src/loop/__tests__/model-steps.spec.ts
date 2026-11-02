@@ -72,6 +72,7 @@ async function openScripted(args: { script: readonly ScriptedStep[] }): Promise<
     model,
     steps,
     runner: new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,
@@ -142,6 +143,7 @@ describe('the shape of the prompt the loop is about to send', () => {
     })
 
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,
@@ -240,6 +242,7 @@ describe('a dispatch that settles nothing', () => {
     const registry = new InMemoryToolRegistry([touchTool])
     let dispatched = 0
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,

@@ -13,12 +13,10 @@ export type { OnToolOutputNotice, SettlePending, ToolOutputNotice }
 export const createSettlePending = ({
   log,
   ...rest
-}: Omit<Parameters<typeof createAgentSettlePending>[0], 'record' | 'launchDirectory'> & {
+}: Omit<Parameters<typeof createAgentSettlePending>[0], 'record'> & {
   log: EventLogPort
-  launchDirectory?: string | undefined
 }): SettlePending =>
   createAgentSettlePending({
     ...rest,
     record: eventLogAgentRecord(log).record,
-    launchDirectory: rest.launchDirectory ?? process.cwd(),
   })

@@ -72,6 +72,7 @@ async function openDelivery() {
   const runner = new PublishingTurnRunner({
     channel,
     deps: {
+      launchDirectory: '/w',
       log: harness.log,
       ids: harness.ids,
       model: harness.model,

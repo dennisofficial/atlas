@@ -24,7 +24,7 @@ export type TurnDeps = Omit<
   | 'output'
 > & {
   log: EventLogPort
-  launchDirectory?: string | undefined
+  launchDirectory: string
   onToolOutput?: ((output: ToolOutputNotice) => void) | undefined
   onContext?: ((args: { tokens: number; window: number }) => void) | undefined
 }
@@ -46,7 +46,7 @@ export class LoopTurnRunner extends AgentLoopTurnRunner {
       ...deps,
       output: outputOf(deps),
       ...eventLogAgentRecord(deps.log),
-      launchDirectory: deps.launchDirectory ?? process.cwd(),
+      launchDirectory: deps.launchDirectory,
       normalizeFailure: normalizeProviderFailure,
       failureDiagnostics: modelFailureDiagnosticsOf,
     })

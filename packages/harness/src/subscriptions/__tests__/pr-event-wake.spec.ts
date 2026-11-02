@@ -66,6 +66,7 @@ describe('a turn woken only by a pr-event', () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 0))
 
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       ids: harness.ids,
       model: harness.model,

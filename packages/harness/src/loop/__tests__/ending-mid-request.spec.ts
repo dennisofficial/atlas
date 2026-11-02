@@ -95,6 +95,7 @@ async function runParentWhileSecondEnds(): Promise<{
   await noticesQueued({ family, count: 1 })
 
   const runner = new LoopTurnRunner({
+    launchDirectory: process.cwd(),
     log: family.harness.log,
     ids: family.harness.ids,
     model: endingDuringFirstStep({

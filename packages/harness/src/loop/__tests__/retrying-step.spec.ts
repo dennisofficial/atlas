@@ -127,7 +127,7 @@ describe('retrying a model step that failed for a reason worth retrying', () => 
     expect(model.steps).toBe(POLICY.maxAttempts)
   })
 
-  it('hands the spent model to onGiveUp, and retries once more when a fallback answers', async () => {
+  it('hands the spent model to failover, and retries once more when a fallback answers', async () => {
     const model = new ScriptedModel(['fail', 'fail', 'fail', 'fail', 'fail'])
     const controller = new AbortController()
     const givenUp: unknown[] = []
@@ -142,7 +142,7 @@ describe('retrying a model step that failed for a reason worth retrying', () => 
         policy: POLICY,
         sleep: async () => {},
         jitter: () => 1,
-        onGiveUp: () => {
+        failover: () => {
           givenUp.push(model.steps)
           model.step = async () => {
             model.steps += 1
@@ -158,7 +158,7 @@ describe('retrying a model step that failed for a reason worth retrying', () => 
     expect(model.steps).toBe(POLICY.maxAttempts + 1)
   })
 
-  it('settles the failure when onGiveUp finds no fallback to try', async () => {
+  it('settles the failure when failover finds no fallback to try', async () => {
     const model = new ScriptedModel(['fail', 'fail', 'fail', 'fail', 'fail'])
     const controller = new AbortController()
     const givenUp: unknown[] = []
@@ -173,7 +173,7 @@ describe('retrying a model step that failed for a reason worth retrying', () => 
         policy: POLICY,
         sleep: async () => {},
         jitter: () => 1,
-        onGiveUp: () => {
+        failover: () => {
           givenUp.push(model.steps)
           return false
         },

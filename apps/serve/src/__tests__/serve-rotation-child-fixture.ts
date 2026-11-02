@@ -121,6 +121,7 @@ export async function rotationChildFixture() {
           new PublishingTurnRunner({
             channel: app.channel,
             deps: {
+              launchDirectory: process.cwd(),
               log: disk.log,
               ids,
               assembly: defaultPipeline({

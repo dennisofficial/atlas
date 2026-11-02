@@ -93,6 +93,7 @@ describe('retry and compaction preparation', () => {
     let compacted = false
     let asked = 0
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       ids: harness.ids,
       model: {
@@ -178,6 +179,7 @@ describe('retry and compaction preparation', () => {
     let drains = 0
     let released = 0
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,
