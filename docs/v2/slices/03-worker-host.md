@@ -475,6 +475,26 @@ need no daemon. Dispatch recovery's v1 rule covers them.
   for its health (version, `bootId`); if no daemon answers or the version differs from the bundle
   the worker carries, it uploads the bundle and starts it, then applies the cgroup layout (point
   10). Runtime setup (clone, setup script) runs once per sandbox disk, recorded in the log.
+- **Prewarm: the model starts while the sandbox wakes** (operator idea, 2026-11-02). Waking a
+  parked sandbox and the first model step both take seconds, and the loop no longer lives in the
+  sandbox, so on claim the worker starts both at once. The sandbox is a `ready` promise inside
+  remote calls: a tool call issued before it resolves waits for it (status "Starting sandbox"),
+  and everything that does not touch the sandbox (the model, worker-side tools) proceeds.
+  - **What the first step needs from the sandbox disk** (instruction files, skills) is already in
+    the record as `context-loaded` from earlier turns, so a resumed session never waits for it.
+    A brand-new session's first turn has no copy yet, so it waits for the clone before its first
+    step, as v1 does today.
+  - **Durable and resumable without new state.** Waking is idempotent: the sandbox is found by
+    its name (`atlas-v2-<sessionId>`), and `mountWithRetries` resumes it or returns the running
+    one. A worker that dies mid-wake leaves nothing half-done that matters; the next holder calls
+    the same wake again and gets the same sandbox. The model step was in flight, so it is re-asked
+    (point 5). No tool can have started, because no tool runs before `ready` (point 6, rule 1
+    still holds: `tool-dispatched` commits first, then the call waits for `ready`, then `run`).
+  - **A wake that fails** retries with backoff (the existing `wire` retries); the waiting tool
+    call stays pending, and status shows the reason. After the retries are spent the call ends
+    with a typed `sandbox-unavailable` result, so the model sees why, never a hang.
+  - Exit test: a parked session's first model token arrives before the sandbox is ready, and a
+    holder killed mid-wake is resumed by another that reuses the same sandbox (fault matrix F21).
 - **Keep alive.** While a turn, a shell or a service is running, the worker extends the Vercel
   session deadline (`renewSessionDeadline`, `packages/wire/src/sandbox-sdk.ts:184`), as serve does
   today.
@@ -712,6 +732,7 @@ invariants holding, the turn completed, and the user-visible states in the expec
 | F18 | Stop the sandbox mid turn (Vercel side) *                               | Worker resumes the sandbox, sees a new `bootId`, continues        |
 | F19 | Both workers restarted at once (a deploy of both) *                     | Sessions resume when the first comes back; nothing lost           |
 | F20 | Stop pressed during F3's outage                                         | Stop lands when the link returns, or via inbox ≤ 2 s; bash killed |
+| F21 | Holder killed while waking a parked sandbox, model already streaming *  | New holder reuses the same sandbox; step re-asked; no tool ran    |
 
 ## Delivery
 
