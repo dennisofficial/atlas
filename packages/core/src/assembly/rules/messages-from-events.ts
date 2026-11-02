@@ -1,8 +1,8 @@
 import { EAgentRestart } from '../../agents/restart'
-import { operatorSaid } from '../../context/envelope'
+import { agentSaid, operatorSaid } from '../../context/envelope'
 import { contextBlock } from '../../context/render'
 import { currentContextEvents } from '../../context/supersede'
-import type { AssistantPart } from '../../events/body'
+import { EMessageOrigin, saidBy, type AssistantPart } from '../../events/body'
 import { callIdsIn, freshCallId } from '../../events/dedupe-call-ids'
 import type { Event, EventOfType, EventRef } from '../../events/envelope'
 import { isNoticeArrival } from '../../events/notice-stage'
@@ -165,8 +165,14 @@ function saidContent({
     })
   }
 
+  const said = [event.text, ...named].join('\n')
+  const text =
+    saidBy(event) === EMessageOrigin.Operator
+      ? operatorSaid({ text: said })
+      : agentSaid({ from: agentSenderOf(event), text: said })
+
   return [
-    { type: 'text', text: operatorSaid({ text: [event.text, ...named].join('\n') }) },
+    { type: 'text', text },
     ...(event.uploads === undefined || event.uploads.length === 0
       ? []
       : [
@@ -177,6 +183,10 @@ function saidContent({
         ]),
     ...shown,
   ]
+}
+
+function agentSenderOf(event: EventOfType<'user-said'>): string {
+  return saidBy(event) === EMessageOrigin.PeerAgent ? 'a peer agent' : 'the main agent'
 }
 
 type Walk = { groups: readonly Group[]; settlements: ReadonlyMap<string, SettledCall> }
