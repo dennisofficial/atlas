@@ -14,7 +14,7 @@ get_context_remaining — all ship `strict: false`.
 
 Genuinely optional parameters are represented the classic JSON Schema way: **listed in
 `properties` but omitted from `required`**, with `additionalProperties: false`. The optionality
-is carried by the parameter _description_ ("Defaults to …", "omit to use …"), not by the type
+is carried by the parameter *description* ("Defaults to …", "omit to use …"), not by the type
 system.
 
 `codex-rs/core/src/tools/handlers/shell_spec.rs:35-113` — the exec_command tool:
@@ -53,7 +53,7 @@ parameter to use the 10000 ms default."
 `codex-rs/core/src/tools/handlers/get_context_remaining_spec.rs:10-19` — even a zero-parameter
 tool sends `strict: false`.
 
-Where codex _does_ use `"type": ["string", "null"]` null-unions is in **output schemas**
+Where codex *does* use `"type": ["string", "null"]` null-unions is in **output schemas**
 (`output_schema`), not input parameters — e.g.
 `codex-rs/core/src/tools/handlers/multi_agents_spec.rs:395-400`:
 
@@ -85,7 +85,7 @@ From https://developers.openai.com/api/docs/guides/function-calling (Strict mode
 >
 > 1. `additionalProperties` must be set to `false` for each object in the `parameters`.
 > 1. All fields in `properties` must be marked as `required`.
-    >
+>
 > You can denote optional fields by adding `null` as a `type` option (see example below).
 
 The doc's own strict-mode example:
@@ -160,6 +160,7 @@ strict?: boolean;
 ```
 
 The OpenAI provider only sends `strict` when the tool sets it:
+
 - Responses: `packages/openai/src/responses/openai-responses-prepare-tools.ts:620` —
   `...(tool.strict != null ? { strict: tool.strict } : {})`
 - Chat: `packages/openai/src/chat/openai-chat-prepare-tools.ts:42` — same pattern.

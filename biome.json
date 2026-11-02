@@ -13,6 +13,7 @@
       "!deprecated",
       "!packages/harness/skills",
       "!.agents/skills",
+      "!docs/research/openai-tool-schema-optional-params.md",
       "!packages/db/.agents",
       "!packages/db/src/prisma/**/contract.d.ts",
       "!packages/db/src/prisma/**/contract.json",
