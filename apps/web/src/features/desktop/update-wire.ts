@@ -3,11 +3,13 @@ import { z } from 'zod'
 export enum EDesktopUpdateState {
   Idle = 'idle',
   Ready = 'ready',
+  Restarting = 'restarting',
 }
 
 export const desktopUpdateSchema = z.object({
   state: z.enum(EDesktopUpdateState),
   version: z.string().min(1).optional(),
+  error: z.string().min(1).optional(),
 })
 export type DesktopUpdate = z.infer<typeof desktopUpdateSchema>
 

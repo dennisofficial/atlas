@@ -5,7 +5,7 @@ import { createDesktopHost } from '../host'
 import { defaultDesktopHome, podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
 import { EMenuAction, installApplicationMenu } from './menu'
-import { restartToLatest, startAutoUpdate } from './auto-update'
+import { restartToPrepared, startAutoUpdate } from './auto-update'
 import { runCheckForUpdates } from './check-for-updates'
 import { createUpdateState } from './update-state'
 import { DESKTOP_PRELOAD } from './preload'
@@ -35,7 +35,7 @@ await runLogged(async () => {
     auth: { home: defaultDesktopHome(), openExternal: (url) => Utils.openExternal(url) },
     updates: {
       status: updateState.status,
-      restart: () => restartToLatest({ updater: Updater, onReady: updateState.markReady }),
+      restart: () => restartToPrepared({ updater: Updater, state: updateState }),
     },
     window: {
       titlebarDoubleClick: () => {
@@ -75,7 +75,7 @@ await runLogged(async () => {
     const action = (event as { data?: { action?: string } }).data?.action
     if (action === EMenuAction.Settings) win.webview.loadURL(`${host.url}/settings`)
     if (action === EMenuAction.CheckForUpdates)
-      void runCheckForUpdates({ onReady: updateState.markReady }).catch((error: unknown) =>
+      void runCheckForUpdates({ state: updateState }).catch((error: unknown) =>
         writeLog({ label: 'check-for-updates', error }),
       )
     if (action === EMenuAction.Reload) win.webview.loadURL(win.webview.url ?? host.url)

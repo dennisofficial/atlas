@@ -34,7 +34,12 @@ export function UpdateCard() {
           </Button>
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-2">
+        {update.error === undefined ? null : (
+          <p role="alert" className="text-sm text-destructive">
+            {update.error}
+          </p>
+        )}
         <Button size="sm" className="w-full" disabled={update.restarting} onClick={update.restart}>
           {update.restarting ? 'Restarting…' : 'Restart to update'}
         </Button>
