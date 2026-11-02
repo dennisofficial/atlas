@@ -119,9 +119,10 @@ export type EventBody =
       parts: readonly AssistantPart[]
       interrupted?: boolean | undefined
       placeholder?: EAssistantPlaceholder | undefined
+      aborted?: 'handoff' | undefined
     }
   | { type: 'tool-called'; callId: CallId; name: string; input?: unknown; ordinal: number }
-  | { type: 'tool-dispatched'; callId: CallId; name: string }
+  | { type: 'tool-dispatched'; callId: CallId; name: string; bootId?: string | undefined }
   | {
       type: 'tool-result'
       callId: CallId

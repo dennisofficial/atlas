@@ -34,4 +34,40 @@ describe('v2EventSchema', () => {
     }
     expect(v2EventSchema.safeParse(compacted).success).toBe(false)
   })
+
+  it('accepts a fact-recorded body and rejects a malformed one', () => {
+    const [plain] = mint({ count: 1 })
+    const fact = {
+      ...plain,
+      type: 'fact-recorded',
+      key: 'hook:can-write:run-1:call-1',
+      kind: 'hook-decision',
+      value: { decision: 'deny', reason: 'no' },
+    }
+    delete (fact as { text?: string }).text
+    expect(v2EventSchema.safeParse(fact).success).toBe(true)
+    expect(v2EventSchema.safeParse({ ...fact, key: '' }).success).toBe(false)
+  })
+
+  it('accepts an assistant-said aborted by a handoff and a tool-dispatched with a bootId', () => {
+    const [plain] = mint({ count: 1 })
+    const aborted = {
+      ...plain,
+      type: 'assistant-said',
+      parts: [{ type: 'text', text: 'partial' }],
+      aborted: 'handoff',
+    }
+    delete (aborted as { text?: string }).text
+    expect(v2EventSchema.safeParse(aborted).success).toBe(true)
+
+    const dispatched = {
+      ...plain,
+      type: 'tool-dispatched',
+      callId: 'call-1',
+      name: 'bash',
+      bootId: 'boot-7',
+    }
+    delete (dispatched as { text?: string }).text
+    expect(v2EventSchema.safeParse(dispatched).success).toBe(true)
+  })
 })
