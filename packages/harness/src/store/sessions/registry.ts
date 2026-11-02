@@ -99,10 +99,8 @@ export class SessionRegistry {
 
     if (!this.threadIndexBuilt) {
       this.threadIndexBuilt = true
-      await this.scanThreadIndex()
-      const found = this.threadIndex.get(threadId)
-      if (found !== undefined) return found
-      return undefined
+      const scanned = await this.scanThreadIndex()
+      return scanned.get(threadId)
     }
 
     // A transcript transfer can drop a thread's meta after the index was already built — a moved
@@ -112,8 +110,8 @@ export class SessionRegistry {
     // rewind-cut child, a mistyped id), so it does not rescan on every lookup.
     if (this.missedAfterBuild.has(threadId)) return undefined
     this.missedAfterBuild.add(threadId)
-    await this.scanThreadIndex()
-    return this.threadIndex.get(threadId)
+    const scanned = await this.scanThreadIndex()
+    return scanned.get(threadId)
   }
 
   async sessionDirFor({ threadId }: { threadId: ThreadId }): Promise<string> {
@@ -227,7 +225,8 @@ export class SessionRegistry {
     this.parentCache.delete(file)
   }
 
-  private async scanThreadIndex(): Promise<void> {
+  private async scanThreadIndex(): Promise<ReadonlyMap<string, string>> {
+    const scanned = new Map<string, string>()
     const root = sessionsDirectory({ home: this.home })
     const sessions = await readdir(root, { withFileTypes: true }).catch(() => [])
     for (const session of sessions) {
@@ -241,9 +240,11 @@ export class SessionRegistry {
           schema: threadMetaSchema,
           logPort: this.logPort,
         })
-        if (meta !== undefined) this.threadIndex.set(meta.id, sessionDir)
+        if (meta !== undefined) scanned.set(meta.id, sessionDir)
       }
     }
+    for (const [threadId, sessionDir] of scanned) this.threadIndex.set(threadId, sessionDir)
+    return scanned
   }
 
   private async readEventLog({
