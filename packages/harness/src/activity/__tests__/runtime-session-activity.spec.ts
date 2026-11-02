@@ -215,7 +215,7 @@ describe('runtime session activity', () => {
         reason: 'approval',
       },
       { status: ETurnStatus.Idle, runId: toRunId('idle') },
-      { status: ETurnStatus.RelocationPaused, runId: toRunId('relocation') },
+      { status: ETurnStatus.HandoffPaused, runId: toRunId('relocation') },
     ] as const) {
       activity.turnStarted({ threadId })
       activity.turnOutcome({ threadId, outcome })

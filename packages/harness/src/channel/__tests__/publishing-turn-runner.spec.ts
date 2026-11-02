@@ -111,7 +111,7 @@ describe('resuming a published turn', () => {
 
     const outcome = await runner.resume({ threadId, pause })
 
-    expect(outcome.status).toBe(ETurnStatus.RelocationPaused)
+    expect(outcome.status).toBe(ETurnStatus.HandoffPaused)
   })
 })
 

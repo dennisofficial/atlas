@@ -228,7 +228,7 @@ export function fakeCloudChannel(
       const runId = toRunId(`serve-${channelThreadId}`)
       queueMicrotask(() => {
         for (const listener of [...turnEndings])
-          listener({ status: ETurnStatus.RelocationPaused, runId })
+          listener({ status: ETurnStatus.HandoffPaused, runId })
       })
     },
     dismissFailure: () => true,

@@ -16,7 +16,7 @@ const gate = <T>() => {
   return { promise, resolve, reject }
 }
 const outcome = (
-  status: ETurnStatus.Completed | ETurnStatus.Idle | ETurnStatus.RelocationPaused,
+  status: ETurnStatus.Completed | ETurnStatus.Idle | ETurnStatus.HandoffPaused,
 ): TurnOutcome => ({ status, runId: toRunId('pause-run') })
 const fixture = (app = fakeServeApp({ threadId, root: '/workspace' })) => {
   const outcomes: TurnOutcome[] = []
@@ -78,7 +78,7 @@ describe('confirmed relocation preparation', () => {
       expect(test.failures).toEqual([])
       expect(test.outcomes.map((one) => one.status)).toEqual([
         previous.status,
-        ETurnStatus.RelocationPaused,
+        ETurnStatus.HandoffPaused,
       ])
       expect(test.driver.relocationResumable()).toBe(false)
       test.driver.resume()
@@ -101,7 +101,7 @@ describe('confirmed relocation preparation', () => {
     await test.driver.settled()
     expect(test.failures).toEqual(['old model crash'])
     await test.driver.beginRelocation()
-    expect(test.outcomes.map((one) => one.status)).toEqual([ETurnStatus.RelocationPaused])
+    expect(test.outcomes.map((one) => one.status)).toEqual([ETurnStatus.HandoffPaused])
     expect(test.driver.relocationResumable()).toBe(false)
   })
 
@@ -129,14 +129,14 @@ describe('confirmed relocation preparation', () => {
     test.driver.run()
     const first = test.driver.beginRelocation()
     expect(test.driver.beginRelocation()).toBe(first)
-    parent.resolve(outcome(ETurnStatus.RelocationPaused))
+    parent.resolve(outcome(ETurnStatus.HandoffPaused))
     await Bun.sleep(1)
     expect(pauses).toBe(1)
     expect(test.outcomes).toEqual([])
     expect(signal?.aborted).toBe(false)
     children.resolve()
     await first
-    expect(test.outcomes.map((one) => one.status)).toEqual([ETurnStatus.RelocationPaused])
+    expect(test.outcomes.map((one) => one.status)).toEqual([ETurnStatus.HandoffPaused])
     expect(test.driver.relocationResumable()).toBe(true)
     expect(test.driver.beginRelocation()).toBe(first)
   })
@@ -170,7 +170,7 @@ describe('confirmed relocation preparation', () => {
       expect(test.outcomes.map((one) => one.status)).toEqual([status])
       children.resolve()
       await preparation
-      expect(test.outcomes.map((one) => one.status)).toEqual([status, ETurnStatus.RelocationPaused])
+      expect(test.outcomes.map((one) => one.status)).toEqual([status, ETurnStatus.HandoffPaused])
       expect(test.driver.relocationResumable()).toBe(false)
       test.driver.resume()
       await Bun.sleep(1)
@@ -353,7 +353,7 @@ describe('confirmed relocation preparation', () => {
     expect(attempts).toBe(2)
     expect(test.outcomes.map((one) => one.status)).toEqual([
       ETurnStatus.Idle,
-      ETurnStatus.RelocationPaused,
+      ETurnStatus.HandoffPaused,
     ])
   })
 
@@ -394,9 +394,7 @@ describe('confirmed relocation preparation', () => {
     resumed.resolve()
     await second
     expect(order).toEqual(['freeze', 'pause', 'resume', 'resumed', 'freeze', 'pause'])
-    expect(test.outcomes.filter((one) => one.status === ETurnStatus.RelocationPaused)).toHaveLength(
-      2,
-    )
+    expect(test.outcomes.filter((one) => one.status === ETurnStatus.HandoffPaused)).toHaveLength(2)
     await expect(test.driver.say({ text: 'cannot write after fresh proof' })).rejects.toThrow(
       'paused',
     )

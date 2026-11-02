@@ -13,7 +13,7 @@ export const activityOutcomeOf = (outcome: TurnOutcome): ActivityOutcome | undef
       return 'stopped'
     case ETurnStatus.Paused:
     case ETurnStatus.Idle:
-    case ETurnStatus.RelocationPaused:
+    case ETurnStatus.HandoffPaused:
     case ETurnStatus.WaitingForModel:
       return undefined
   }

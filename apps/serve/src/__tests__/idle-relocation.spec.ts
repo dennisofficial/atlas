@@ -48,6 +48,6 @@ describe('an idle session relocation', () => {
     expect(order).toEqual(['pause children'])
     release()
     await preparation
-    expect(order).toEqual(['pause children', ETurnStatus.RelocationPaused])
+    expect(order).toEqual(['pause children', ETurnStatus.HandoffPaused])
   })
 })

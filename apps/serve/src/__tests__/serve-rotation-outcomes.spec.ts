@@ -63,7 +63,7 @@ describe('rotation continuation durability', () => {
     retained.consume({ kind: EServeFrame.Error, message: 'the process disappeared' })
     retained.consume({
       kind: EServeFrame.TurnEnded,
-      outcome: { status: ETurnStatus.RelocationPaused, runId },
+      outcome: { status: ETurnStatus.HandoffPaused, runId },
     })
     retained.consume({
       kind: EServeFrame.TurnEnded,
