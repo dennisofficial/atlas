@@ -59,6 +59,26 @@ notified through pub/sub (Redis, which v1 already runs). Render's load balancer 
 WebSocket to a random instance, so there is no client-to-worker routing: live deltas flow
 worker → pub/sub → API SSE.
 
+**The agent is durable: any turn resumes from the record on any worker.** The design follows
+[Pi Durable](https://earendil.com/posts/pi-durable/) (Earendil, 2026-10-01, experimental); Atlas
+borrows the pattern, not the package, because Atlas owns its loop and already has a control plane
+over Postgres. The guarantees:
+
+| Guarantee                                  | Where it comes from                                                                                                             |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| A turn resumes from the record at any step | The loop's step boundaries and `resume` (slice 2)                                                                               |
+| A tool's intent is recorded before it runs | `tool-dispatched` is appended before invocation and dispatch fails closed if it is not (slice 2)                                |
+| A tool survives a worker death             | The daemon keeps running the call and holds its result under `runId:callId` until a holder confirms receipt (new, slice 3)      |
+| A tool is rerun only if safe               | Read-effect calls rerun; others whose sandbox died are reported as interrupted with output so far (v1 dispatch recovery)        |
+| Input is consumed exactly once             | CP inbox ids, consumed through `input-consumed` (slice 1)                                                                       |
+| One owner at a time                        | The epoch-fenced lease (slice 1)                                                                                                |
+| A hook decides once                        | A hook's decision is recorded in the log and the first write wins, so a hook rerun after a restart reads it back (new, slice 3) |
+| Timers survive a restart                   | Retry backoff and delivery windows (the PR delivery buffer) are recorded deadlines, not in-memory timers (new, slice 3)         |
+| Aborted model output is kept               | A stream cut by a handoff stays in the record marked aborted, and the next holder asks again (new, slice 3)                     |
+
+Atlas goes further than Pi Durable on tools: a Pi tool runs in the harness process and dies with
+it, while an Atlas tool runs in the sandbox and outlives the worker that started it.
+
 ## Why
 
 - The measured numbers make a remote loop affordable: 3.6–6.5 ms p50 per tool call over a
