@@ -38,6 +38,12 @@ _Updated at the end of every slice. Last update: 2026-11-02._
   passed in (prompt fragments, tool set, policy), never a code path inside the loop. The spec maps
   today's per-kind branches in `harness` and says where each one goes. Under 0020 a teammate is a
   peer session, so it is the same loop in its own session.
+  **Intake is one seam for every source.** An agent's input arrives through one intake, whatever
+  produced it: the operator, another agent (a message or a sub-agent's report is another agent's
+  output delivered to this agent's intake), a subscription notice, a shell or service ending, a
+  hook. Agent-to-agent talk is not a special channel; it is one more producer feeding an intake,
+  the same as a subscription or a bash completion. The spec names that intake interface and lists
+  today's separate delivery paths in `harness` that it replaces.
 - **Then:** slice 3 (pod host), which needs slices 1 and 2. Slice 3's
   spec must settle: oversize single events against the 4 MB body cap (L5), the `engine: v2`
   session flag and who sees it, and that v1's API stays the only writer of users, projects,
