@@ -1,9 +1,12 @@
-import { NotFoundException } from '@nestjs/common'
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import type { AnyTask } from '@trigger.dev/sdk'
 import { JobDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
+import { db } from '@dltech/atlas-db'
+import type { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
 import {
+  seedSandboxRow,
   seedThreadRow,
   seedUsers,
   sessionOfThreadRow,
@@ -12,8 +15,10 @@ import {
   USER_B,
   STAMP,
 } from '../../../../test/session-seed'
+import { VercelSandboxClient } from '../sandboxes/vercel-sandbox.client'
 import { THREAD_ARCHIVE_CLEANUP_TASK_ID } from './thread-archive-cleanup.contract'
 import { inertTeammateStop } from './teammate-archive-stop.fixture'
+import { TeammateArchiveStopService } from './teammate-archive-stop'
 import { inertSignals } from './thread-signals.fixture'
 import { ThreadArchiveService } from './thread-archive.service'
 
@@ -26,6 +31,29 @@ class FakeDispatcher extends JobDispatcher {
     this.calls.push(args)
     return { runId: 'run_1' }
   }
+}
+
+const neverLookedUp: SandboxCredentials = {
+  forThread: () => Promise.reject(new Error('a spec never reaches Vercel credentials')),
+}
+
+const teammateStopWith = (
+  stopTeammate: (args: { threadId: string; name: string; agentId: string }) => Promise<void>,
+): TeammateArchiveStopService => {
+  const vercel = new VercelSandboxClient(neverLookedUp)
+  vercel.stopTeammate = stopTeammate
+  return new TeammateArchiveStopService(vercel, inertSignals())
+}
+
+const seedRunningTeammate = async () => {
+  await seedThreadRow({ id: 'brn_lead' })
+  await seedSandboxRow({ threadId: 'brn_lead' })
+  await db.orm.public.SandboxBootStep.create({
+    sessionId: 'ses_brn_lead',
+    step: 'provision',
+    state: 'done',
+  })
+  await seedThreadRow({ id: 'brn_mate', managedBySessionId: 'ses_brn_lead' })
 }
 
 describe('ThreadArchiveService', () => {
@@ -82,5 +110,40 @@ describe('ThreadArchiveService', () => {
     await service.setArchived({ userId: USER_A, threadId: 'thr_1', archived: true })
 
     expect((await sessionOfThreadRow('thr_1'))?.archivedAt).toBeInstanceOf(Date)
+  })
+
+  it('refuses to archive a running teammate whose stop fails', async () => {
+    await seedRunningTeammate()
+    service = new ThreadArchiveService(
+      dispatcher,
+      inertSignals(),
+      teammateStopWith(() => Promise.reject(new Error('pod gone'))),
+    )
+
+    await expect(
+      service.setArchived({ userId: USER_A, threadId: 'brn_mate', archived: true }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException)
+
+    expect((await sessionOfThreadRow('brn_mate'))?.archivedAt).toBeNull()
+    expect(dispatcher.calls).toHaveLength(0)
+  })
+
+  it('stops a running teammate first and then archives it', async () => {
+    await seedRunningTeammate()
+    const stops: string[] = []
+    service = new ThreadArchiveService(
+      dispatcher,
+      inertSignals(),
+      teammateStopWith(async ({ agentId }) => {
+        stops.push(agentId)
+      }),
+    )
+
+    await service.setArchived({ userId: USER_A, threadId: 'brn_mate', archived: true })
+
+    expect(stops).toEqual(['brn_mate'])
+    expect((await sessionOfThreadRow('brn_mate'))?.archivedAt).toBeInstanceOf(Date)
+    expect(dispatcher.calls).toHaveLength(1)
+    expect((await sessionOfThreadRow('brn_lead'))?.archivedAt).toBeNull()
   })
 })

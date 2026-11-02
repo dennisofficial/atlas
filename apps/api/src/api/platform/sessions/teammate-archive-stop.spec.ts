@@ -1,3 +1,4 @@
+import { ServiceUnavailableException } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { db } from '@dltech/atlas-db'
@@ -128,12 +129,18 @@ describe('TeammateArchiveStopService', () => {
     expect(await leadEndings()).toHaveLength(0)
   })
 
-  it('a failed stop in a running pod leaves the log untouched', async () => {
+  it('a failed stop in a running pod refuses the archive and leaves the log untouched', async () => {
     await seedManagedTeammate({})
     const service = serviceWith(() => Promise.reject(new Error('pod gone')))
 
-    await service.stopIfManaged({ userId: USER_A, sessionId: 'ses_brn_mate', threadId: 'brn_mate' })
+    const failure = await service
+      .stopIfManaged({ userId: USER_A, sessionId: 'ses_brn_mate', threadId: 'brn_mate' })
+      .catch((error: unknown) => error)
 
+    expect(failure).toBeInstanceOf(ServiceUnavailableException)
+    expect((failure as ServiceUnavailableException).message).toBe(
+      "Couldn't stop the teammate, so it wasn't marked done. Try again.",
+    )
     expect(await leadEndings()).toHaveLength(0)
   })
 })
