@@ -838,6 +838,7 @@ export function fakeApp(args: {
   const runner = new PublishingTurnRunner({
     channel,
     deps: {
+      launchDirectory: FAKE_CONFIG.cwd,
       log,
       model: args.model,
       ids,

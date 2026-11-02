@@ -62,6 +62,7 @@ async function readingsOf({ script }: { script: readonly ScriptedStep[] }): Prom
   const registry = new InMemoryToolRegistry([touchTool])
   const readings: { tokens: number; window: number }[] = []
   const runner = new LoopTurnRunner({
+    launchDirectory: process.cwd(),
     log: harness.log,
     model: harness.model,
     ids: harness.ids,

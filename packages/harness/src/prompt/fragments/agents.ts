@@ -1,10 +1,10 @@
-import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-core'
+import { EPromptGroup, PromptFragment, type PromptContext } from '@dltech/atlas-core'
 
 export class DelegationFragment extends PromptFragment {
   readonly id = 'agents.delegation'
 
   override applies(ctx: PromptContext): boolean {
-    return ctx.agent === EPromptAgent.Main
+    return ctx.groups.includes(EPromptGroup.Delegation)
   }
 
   text(): string {

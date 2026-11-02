@@ -73,6 +73,7 @@ async function runProbeTurn(args: { wakeAfterStep: number }) {
   }
 
   const runner = new LoopTurnRunner({
+    launchDirectory: process.cwd(),
     log: harness.log,
     model: counting,
     ids: harness.ids,

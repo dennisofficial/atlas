@@ -86,6 +86,7 @@ describe('a tool that joins while the turn is running', () => {
       sources: [source],
     })
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,
@@ -143,6 +144,7 @@ describe('a tool that joins while the turn is running', () => {
       sources: [source],
     })
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,
@@ -211,6 +213,7 @@ describe('settling against declarations that arrive late', () => {
     let held: readonly ToolDeclaration[] = []
     const dispatcher = new OverlapDispatcher()
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: dispatcher,
       tools: () => held,

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EDefinitionOrigin,
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   promptContextFor,
   type PromptContext,
+  NO_PROMPT_GROUPS,
+  type EPromptGroup,
 } from '@dltech/atlas-core'
 
 import { subAgentPrompt } from '../../agents/registry/child-prompt'
@@ -22,9 +24,12 @@ const BODY = 'UI_DESIGN_SOURCE_BODY_MARKER'
 const PROVIDER = { id: 'anthropic-oauth', modelId: 'claude-opus-5' }
 const MODEL = { contextWindow: 1_000_000 }
 
-const contextFor = (args: { agent: EPromptAgent; projectDirectory?: string }): PromptContext =>
+const contextFor = (args: {
+  groups: readonly EPromptGroup[]
+  projectDirectory?: string
+}): PromptContext =>
   promptContextFor({
-    agent: args.agent,
+    groups: args.groups,
     provider: PROVIDER,
     model: MODEL,
     projectDirectory: args.projectDirectory ?? '/w',
@@ -34,7 +39,9 @@ const promptsOver = (skills: FakeSkillRegistry): PromptRegistry => {
   const container = createIsolatedContainer()
   container.register(GrillingCeremonyEnabledToken, { useValue: () => false })
   registerBuiltinPromptFragments({ container })
-  container.register(registeredPortToken(SkillRegistryPort), { useValue: skills })
+  container.register(registeredPortToken(SkillRegistryPort), {
+    useValue: skills,
+  })
   return container.resolve(registeredPortToken(PromptRegistry))
 }
 
@@ -46,9 +53,15 @@ const withUiDesign = (): FakeSkillRegistry =>
 const occurrences = ({ text, needle }: { text: string; needle: string }): number =>
   text.split(needle).length - 1
 
-const textOf = ({ prompts, agent }: { prompts: PromptRegistry; agent: EPromptAgent }): string =>
+const textOf = ({
+  prompts,
+  groups,
+}: {
+  prompts: PromptRegistry
+  groups: readonly EPromptGroup[]
+}): string =>
   prompts
-    .compile(contextFor({ agent }))
+    .compile(contextFor({ groups }))
     .blocks.map((block) => block.text)
     .join('\n\n')
 
@@ -56,8 +69,13 @@ describe('the standing ui-design directive in the shipped prompt registry', () =
   it('appears exactly once for main and sub-agent contexts', () => {
     const prompts = promptsOver(withUiDesign())
 
-    for (const agent of Object.values(EPromptAgent)) {
-      expect(occurrences({ text: textOf({ prompts, agent }), needle: DIRECTIVE_LEAD })).toBe(1)
+    for (const groups of [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS]) {
+      expect(
+        occurrences({
+          text: textOf({ prompts, groups }),
+          needle: DIRECTIVE_LEAD,
+        }),
+      ).toBe(1)
     }
   })
 
@@ -65,14 +83,14 @@ describe('the standing ui-design directive in the shipped prompt registry', () =
     const prompts = promptsOver(withUiDesign())
 
     for (const type of BUILT_IN_AGENT_TYPES) {
-      const agent = type.name === 'teammate' ? EPromptAgent.Main : EPromptAgent.Sub
+      const groups = type.name === 'teammate' ? ALL_PROMPT_GROUPS : NO_PROMPT_GROUPS
       const compiled = subAgentPrompt({
         prompts,
         agentType: { ...type, origin: EDefinitionOrigin.BuiltIn },
         provider: PROVIDER,
         model: MODEL,
         projectDirectory: '/w',
-        agent,
+        groups,
       })
       const text = compiled.blocks.map((block) => block.text).join('\n\n')
 
@@ -91,18 +109,21 @@ describe('the standing ui-design directive in the shipped prompt registry', () =
       }),
     )
 
-    expect(textOf({ prompts: absent, agent: EPromptAgent.Main })).toContain(
+    expect(textOf({ prompts: absent, groups: ALL_PROMPT_GROUPS })).toContain(
       'Load the skill that matches your task',
     )
-    expect(textOf({ prompts: absent, agent: EPromptAgent.Main })).not.toContain('ui-design')
-    expect(textOf({ prompts: disabled, agent: EPromptAgent.Main })).not.toContain('ui-design')
+    expect(textOf({ prompts: absent, groups: ALL_PROMPT_GROUPS })).not.toContain('ui-design')
+    expect(textOf({ prompts: disabled, groups: ALL_PROMPT_GROUPS })).not.toContain('ui-design')
   })
 
   it('keeps the system text byte-identical when the project directory moves', () => {
     const prompts = promptsOver(withUiDesign())
-    const first = prompts.compile(contextFor({ agent: EPromptAgent.Main, projectDirectory: '/w' }))
+    const first = prompts.compile(contextFor({ groups: ALL_PROMPT_GROUPS, projectDirectory: '/w' }))
     const moved = prompts.compile(
-      contextFor({ agent: EPromptAgent.Main, projectDirectory: '/w/.atlas/worktrees/feature' }),
+      contextFor({
+        groups: ALL_PROMPT_GROUPS,
+        projectDirectory: '/w/.atlas/worktrees/feature',
+      }),
     )
 
     expect(moved.blocks).toEqual(first.blocks)
@@ -110,13 +131,16 @@ describe('the standing ui-design directive in the shipped prompt registry', () =
 
   it('never preloads the skill body, leaving that to the skill tool', () => {
     expect(
-      textOf({ prompts: promptsOver(withUiDesign()), agent: EPromptAgent.Main }),
+      textOf({
+        prompts: promptsOver(withUiDesign()),
+        groups: ALL_PROMPT_GROUPS,
+      }),
     ).not.toContain(BODY)
   })
 
   it('does not depend on the advisory relevance hint, which is delivered outside the system prompt', () => {
     const prompts = promptsOver(withUiDesign())
-    const before = textOf({ prompts, agent: EPromptAgent.Main })
+    const before = textOf({ prompts, groups: ALL_PROMPT_GROUPS })
 
     expect(before).toContain(DIRECTIVE_LEAD)
     expect(before).toContain('independently of the skill-relevance hint')

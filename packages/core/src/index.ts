@@ -147,7 +147,7 @@ export * from './plan/plan'
 export * from './plan/from-events'
 export * from './plan/fold'
 
-export * from './prompt/agent'
+export * from './prompt/group'
 export * from './prompt/context'
 export * from './prompt/fragment'
 export * from './prompt/compiled'

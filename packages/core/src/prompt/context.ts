@@ -1,11 +1,11 @@
 import type { ProviderIdentity } from '../provider'
 import type { EExecutionLocation } from '../execution/location'
 import type { ERunner } from '../execution/runner'
-import type { EPromptAgent } from './agent'
+import type { EPromptGroup } from './group'
 import type { PromptModel } from './model'
 
 export type PromptContext = {
-  agent: EPromptAgent
+  groups: readonly EPromptGroup[]
   provider: ProviderIdentity
   model: PromptModel
   projectDirectory: string
@@ -16,23 +16,23 @@ export type PromptContext = {
 }
 
 export function promptContextFor({
-  agent,
+  groups,
   provider,
   model,
   projectDirectory,
   placement,
   runner,
 }: {
-  agent: EPromptAgent
+  groups: readonly EPromptGroup[]
   provider: ProviderIdentity
   model: PromptModel
   projectDirectory: string
   placement?: EExecutionLocation | undefined
   runner?: ERunner | undefined
 }): PromptContext {
-  return { agent, provider, model, projectDirectory, placement, runner }
+  return { groups, provider, model, projectDirectory, placement, runner }
 }
 
-export function promptContextKey({ agent, provider, projectDirectory }: PromptContext): string {
-  return JSON.stringify([agent, provider.id, provider.modelId, projectDirectory])
+export function promptContextKey({ groups, provider, projectDirectory }: PromptContext): string {
+  return JSON.stringify([[...groups].sort(), provider.id, provider.modelId, projectDirectory])
 }

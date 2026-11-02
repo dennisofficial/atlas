@@ -31,23 +31,23 @@ _Updated at the end of every slice. Last update: 2026-11-02._
   Postgres `v2` schema (migration `20261102T0507_v2_record_core`). The scale check
   (`ATLAS_SCALE_TESTS=1`, 20k events) is flat: 50-event append ≈8 ms, 500-event ranged read
   ≈18 ms at both ends, index scan on `(threadId, seq)`.
-- **Next: slice 2, the `agent` package.** Its spec does not exist yet; writing it is the first job.
-  The operator's requirement (2026-11-02): every agent (main, sub-agent, teammate) is the same loop
-  and behaves identically: the same intake and queue, the same way of talking and emitting output,
-  the same tool dispatch, hooks and prompt assembly. What differs between kinds is configuration
-  passed in (prompt fragments, tool set, policy), never a code path inside the loop. The spec maps
-  today's per-kind branches in `harness` and says where each one goes. Under 0020 a teammate is a
-  peer session, so it is the same loop in its own session.
-  **Intake is one seam for every source.** An agent's input arrives through one intake, whatever
-  produced it: the operator, another agent (a message or a sub-agent's report is another agent's
-  output delivered to this agent's intake), a subscription notice, a shell or service ending, a
-  hook. Agent-to-agent talk is not a special channel; it is one more producer feeding an intake,
-  the same as a subscription or a bash completion. The spec names that intake interface and lists
-  today's separate delivery paths in `harness` that it replaces.
-- **Then:** slice 3 (pod host), which needs slices 1 and 2. Slice 3's
-  spec must settle: oversize single events against the 4 MB body cap (L5), the `engine: v2`
+- **Done:** slice 2, the `agent` package ([spec](slices/02-agent.md); PRs #1696, #1702 and the exit PR).
+  `packages/agent` holds the loop, intake, retries and dispatcher; `harness` re-exports it. Prompt
+  fragment groups replaced `ctx.agent`; `./testing` ships in-memory record, intake, scripted model and
+  fake tools; six exit tests run the loop with no pod, lease or filesystem. v1 unchanged.
+  Follow-up PR: supersede a thinking-only request (spec section), behind a setting.
+- **Next: slice 3, the pod host.**
+- **Slice 3 spec must settle:** oversize single events against the 4 MB body cap (L5), the `engine: v2`
   session flag and who sees it, and that v1's API stays the only writer of users, projects,
-  credentials and settings until cutover.
+  credentials and settings until cutover; the pod disk is one session (pods are 1:1 with sessions, no
+  `sessions/<id>/` level; threads keep their own subdirectory); branch and PR tracking reads the git
+  refs of the pod's own clones (`refs/heads` plus the worktree list), logged as events, and the
+  session view is every local branch except the default (slices 3, 4 and the github plugin); the pod
+  appends to the CP within ~1 s in small batches (exit check: append latency).
+  **Slice 5 exit gains:** opening a session active a moment ago shows its latest event within ~1 s,
+  cold and warm cache (clients open from the CP tail plus a cache keyed by (epoch, seq), then follow
+  the stream; the pod is never on the open path). **Slice 9:** local pods clone, never bind-mount
+  the operator's checkout.
 - **Scale target:** ~20k events per thread, from production data (architecture §12). Earlier 1M
   figures were a hypothetical stress size; whole-log work is removed only where that is trivial.
 - **Open:** D2 (local control plane), needed only at slice 9. 0020 (sub-agent worktrees, peer
@@ -78,7 +78,7 @@ _Updated at the end of every slice. Last update: 2026-11-02._
 | --- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | 0   | Design and records          | Lock the decisions; write the design docs                                                                                                                                                                                                                                   | 0018, 0019 and these docs merged                                                                                                                                                                                                                     | Done        |
 | 1   | Record core                 | Pure log/inbox/lease/history rules in `core`; the `control` package with a Postgres adapter over `namespace v2`                                                                                                                                                             | Property tests pass for the seq-466 interleaving, stale-epoch writes, hash mismatch and append-only rewind; the v2 schema migrates cleanly beside v1                                                                                                 | Done        |
-| 2   | `agent` package             | Extract the loop (turn runner, retries, intake, tool dispatch, model port) from `harness` into `packages/agent`; v1 imports it                                                                                                                                              | `harness` re-exports or imports `agent`; no v1 behaviour change; the loop runs in a test with no pod, lease or filesystem store                                                                                                                      | Not started |
+| 2   | `agent` package             | Extract the loop (turn runner, retries, intake, tool dispatch, model port) from `harness` into `packages/agent`; v1 imports it                                                                                                                                              | `harness` re-exports or imports `agent`; no v1 behaviour change; the loop runs in a test with no pod, lease or filesystem store                                                                                                                      | Done        |
 | 3   | Pod host (cloud)            | `packages/pod` holds a lease, runs `agent` against the record ports, appends hash-chained events, consumes the inbox; v2 pod ⇄ CP schemas in `protocol`; v2 API namespace                                                                                                   | A cloud pod on v2 completes a scripted multi-turn session with tools; a second writer at the same seq is rejected; under a CPU and memory hog the lease never lapses, stop lands, and the watchdog kills the hog, not the harness (architecture §11) | Not started |
 | 4   | Views                       | Status, the session's checkout set (every thread's branch and worktree, 0020), PR links and subscriptions summary are folds in `core`, materialized by the CP at a log position                                                                                             | Every field v1 clients derive by heuristic is a view or shown as unknown; the incident's branch and PR link appear from the log alone                                                                                                                | Not started |
 | 5   | Client SDK, web and Mac     | `packages/client` session stream, view cache and inbox commands; web and Mac open v2 sessions behind the `engine: v2` flag                                                                                                                                                  | **First milestone:** a real cloud session on v2 from the web, with basic chat and tools, resumable after the stream drops and after a park                                                                                                           | Not started |

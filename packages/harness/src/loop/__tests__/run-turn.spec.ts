@@ -243,6 +243,7 @@ describe('a turn that settles its own tool call', () => {
 
     const registry = new InMemoryToolRegistry([writeToolIn(root)])
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,
@@ -287,6 +288,7 @@ async function runnerDispatchingWith(
   return {
     harness,
     runner: new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,

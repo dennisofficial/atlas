@@ -56,6 +56,7 @@ export async function openHooked(args: {
     harness,
     model,
     runner: new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,

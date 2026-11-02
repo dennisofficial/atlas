@@ -48,6 +48,7 @@ describe('a failed turn is persisted', () => {
       },
     }
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: opened.harness.log,
       model: failing,
       ids: opened.harness.ids,
@@ -142,6 +143,7 @@ describe('a failed turn is persisted', () => {
       },
     }
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: opened.harness.log,
       model: failing,
       ids: opened.harness.ids,
@@ -174,6 +176,7 @@ describe('a failed turn is persisted', () => {
       append: log.append.bind(log),
     }
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: brokenLog as typeof log,
       model: opened.harness.model,
       ids: opened.harness.ids,

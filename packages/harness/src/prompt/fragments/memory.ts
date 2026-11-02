@@ -1,4 +1,4 @@
-import { EPromptAgent, memoryPromptText, type PromptContext } from '@dltech/atlas-core'
+import { EPromptGroup, memoryPromptText, type PromptContext } from '@dltech/atlas-core'
 
 import type { MemoryIndexState } from '../../memory/memory-index-state'
 import { VolatilePromptFragment } from '../volatile'
@@ -15,7 +15,7 @@ export class MemoryFragment extends VolatilePromptFragment {
   }
 
   override applies(ctx: PromptContext): boolean {
-    return ctx.agent === EPromptAgent.Main
+    return ctx.groups.includes(EPromptGroup.Memory)
   }
 
   stamp(): string {

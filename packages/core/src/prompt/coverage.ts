@@ -1,4 +1,4 @@
-import type { EPromptAgent } from './agent'
+import type { EPromptGroup } from './group'
 import type { PromptContext } from './context'
 import type { PromptFragment } from './fragment'
 import { PROMPT_MODEL_SAMPLES, type PromptModel } from './model'
@@ -6,16 +6,16 @@ import { PROMPT_MODEL_SAMPLES, type PromptModel } from './model'
 export type ModelTraitProbe = { key: string; model: PromptModel }
 
 export function reachablePromptContexts(args: {
-  agents: readonly EPromptAgent[]
+  groupSets: readonly (readonly EPromptGroup[])[]
   providerIds: readonly string[]
   projectDirectory: string
 }): readonly PromptContext[] {
   const { projectDirectory } = args
 
-  return args.agents.flatMap((agent) =>
+  return args.groupSets.flatMap((groups) =>
     args.providerIds.flatMap((id) =>
       PROMPT_MODEL_SAMPLES.map((model) => ({
-        agent,
+        groups,
         provider: { id, modelId: `sampled-${model.contextWindow}` },
         model,
         projectDirectory,
@@ -49,8 +49,10 @@ export function unreadModelTraits(args: {
   return args.probes
     .filter(
       (probe) =>
-        renderOf({ fragments: args.fragments, ctx: { ...args.base, model: probe.model } }) ===
-        baseline,
+        renderOf({
+          fragments: args.fragments,
+          ctx: { ...args.base, model: probe.model },
+        }) === baseline,
     )
     .map((probe) => probe.key)
 }

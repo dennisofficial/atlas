@@ -277,6 +277,7 @@ export function fakeServeApp(args: {
       : new PublishingTurnRunner({
           channel,
           deps: {
+            launchDirectory: process.cwd(),
             log: log as unknown as ConstructorParameters<typeof LoopTurnRunner>[0]['log'],
             model: scripted,
             ids: ids as unknown as ConstructorParameters<typeof LoopTurnRunner>[0]['ids'],

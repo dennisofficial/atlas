@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPromptAgent, PromptFragment } from '@dltech/atlas-core'
+import { ALL_PROMPT_GROUPS, PromptFragment, NO_PROMPT_GROUPS } from '@dltech/atlas-core'
 
 import { createIsolatedContainer, portToken, registeredPortToken } from '../../container/injection'
 import { newMemoryIndexState } from '../../memory/memory-index-state'
@@ -21,7 +21,9 @@ describe('the memory fragment in the composed prompt', () => {
       useValue: new FakeSkillRegistry({ skills: [] }),
     })
     registerBuiltinPromptFragments({ container })
-    container.register(portToken(PromptFragment), { useValue: new MemoryFragment({ state }) })
+    container.register(portToken(PromptFragment), {
+      useValue: new MemoryFragment({ state }),
+    })
 
     const compiled = container.resolve(registeredPortToken(PromptRegistry)).compile(mainContext)
 
@@ -30,7 +32,9 @@ describe('the memory fragment in the composed prompt', () => {
   })
 
   it('names the memory tools and the index it renders', () => {
-    const text = new MemoryFragment({ state: { ...newMemoryIndexState(), text: 'INDEX' } }).text()
+    const text = new MemoryFragment({
+      state: { ...newMemoryIndexState(), text: 'INDEX' },
+    }).text()
 
     expect(text).toContain('write_memory')
     expect(text).toContain('read_memory')
@@ -46,7 +50,7 @@ describe('the memory fragment in the composed prompt', () => {
   it('is withheld from a sub-agent, so children never become concurrent writers', () => {
     const fragment = new MemoryFragment({ state: newMemoryIndexState() })
 
-    expect(fragment.applies({ ...mainContext, agent: EPromptAgent.Main })).toBe(true)
-    expect(fragment.applies({ ...mainContext, agent: EPromptAgent.Sub })).toBe(false)
+    expect(fragment.applies({ ...mainContext, groups: ALL_PROMPT_GROUPS })).toBe(true)
+    expect(fragment.applies({ ...mainContext, groups: NO_PROMPT_GROUPS })).toBe(false)
   })
 })

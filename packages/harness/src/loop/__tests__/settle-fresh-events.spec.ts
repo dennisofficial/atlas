@@ -74,7 +74,11 @@ describe('settling calls that each need to see what the one before them wrote', 
         { type: 'nudge', text: `after ${call.callId}`, lifetimeSteps: 1 },
       ],
     })
-    const settle = createSettlePending({ log: harness.log, dispatch })
+    const settle = createSettlePending({
+      launchDirectory: process.cwd(),
+      log: harness.log,
+      dispatch,
+    })
 
     await settle({ threadId, signal: new AbortController().signal })
 
@@ -106,7 +110,11 @@ describe('settling calls that each need to see what the one before them wrote', 
       ],
     })
     const dispatch = new RecordingDispatcher()
-    const settle = createSettlePending({ log: harness.log, dispatch })
+    const settle = createSettlePending({
+      launchDirectory: process.cwd(),
+      log: harness.log,
+      dispatch,
+    })
 
     await settle({ threadId, signal: new AbortController().signal })
 
@@ -124,6 +132,7 @@ describe('settling calls that each need to see what the one before them wrote', 
     })
     const dispatch = new RecordingDispatcher()
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch,
       tools: () => [SAFE_READ],
@@ -147,6 +156,7 @@ describe('settling calls that each need to see what the one before them wrote', 
       holdFor: (call) => (call.callId === toCallId('read-slow') ? 80 : 0),
     })
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch,
       tools: () => [SAFE_READ],

@@ -28,6 +28,7 @@ describe('settling a step whose calls may share a batch', () => {
     })
     const trace = freshTrace()
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: tracingDispatch({ trace }),
       tools: () => TOOLS,
@@ -50,6 +51,7 @@ describe('settling a step whose calls may share a batch', () => {
     })
     const trace = freshTrace()
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: tracingDispatch({
         trace,
@@ -77,6 +79,7 @@ describe('settling a step whose calls may share a batch', () => {
     })
     const trace = freshTrace()
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: tracingDispatch({ trace }),
       tools: () => TOOLS,
@@ -101,6 +104,7 @@ describe('settling a step whose calls may share a batch', () => {
     })
     const trace = freshTrace()
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: tracingDispatch({ trace }),
       tools: () => TOOLS,
@@ -123,7 +127,11 @@ describe('settling a step whose calls may share a batch', () => {
       ],
     })
     const trace = freshTrace()
-    const settle = createSettlePending({ log: harness.log, dispatch: tracingDispatch({ trace }) })
+    const settle = createSettlePending({
+      launchDirectory: process.cwd(),
+      log: harness.log,
+      dispatch: tracingDispatch({ trace }),
+    })
 
     await settle({ threadId, signal: new AbortController().signal })
 
@@ -138,6 +146,7 @@ describe('settling a step whose calls may share a batch', () => {
     })
     const trace = freshTrace()
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: tracingDispatch({ trace }),
       tools: () => TOOLS,
@@ -161,6 +170,7 @@ describe('settling a step whose calls may share a batch', () => {
     const controller = new AbortController()
     const trace = freshTrace()
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: tracingDispatch({
         trace,
@@ -207,6 +217,7 @@ describe('settling a step whose calls may share a batch', () => {
       ],
     })
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: tracingDispatch({ trace: freshTrace() }),
       tools: () => TOOLS,

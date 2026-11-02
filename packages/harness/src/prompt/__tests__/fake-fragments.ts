@@ -1,4 +1,4 @@
-import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-core'
+import { ALL_PROMPT_GROUPS, PromptFragment, type PromptContext } from '@dltech/atlas-core'
 
 export const contextFor = (args: {
   modelId: string
@@ -6,7 +6,7 @@ export const contextFor = (args: {
   providerId?: string
   projectDirectory?: string
 }): PromptContext => ({
-  agent: EPromptAgent.Main,
+  groups: ALL_PROMPT_GROUPS,
   provider: { id: args.providerId ?? 'anthropic-oauth', modelId: args.modelId },
   model: args.model ?? { contextWindow: 1_000_000 },
   projectDirectory: args.projectDirectory ?? '/w',

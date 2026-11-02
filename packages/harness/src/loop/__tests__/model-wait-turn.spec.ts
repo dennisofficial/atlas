@@ -68,6 +68,7 @@ async function openDenied(args: { admittedSteps: number }) {
     threads: harness.threads,
   })
   const runner = new LoopTurnRunner({
+    launchDirectory: process.cwd(),
     log: harness.log,
     model: gated,
     ids: harness.ids,
@@ -82,7 +83,7 @@ async function openDenied(args: { admittedSteps: number }) {
       sleep: async ({ ms }) => {
         sleeps.push(ms)
       },
-      onGiveUp: () => {
+      failover: () => {
         giveUps += 1
         return false
       },

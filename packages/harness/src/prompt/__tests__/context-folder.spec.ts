@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  EPromptAgent,
+  ALL_PROMPT_GROUPS,
   ESkipReason,
   PromptFragment,
   deadFragmentIds,
   reachablePromptContexts,
   type PromptContext,
+  NO_PROMPT_GROUPS,
 } from '@dltech/atlas-core'
 
 import {
@@ -22,17 +23,19 @@ import { PromptRegistry } from '../registry'
 import { FakeSkillRegistry } from './fake-skills'
 
 const MAIN: PromptContext = {
-  agent: EPromptAgent.Main,
+  groups: ALL_PROMPT_GROUPS,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
   model: { contextWindow: 1_000_000 },
   projectDirectory: '/w',
 }
 
-const SUB: PromptContext = { ...MAIN, agent: EPromptAgent.Sub }
+const SUB: PromptContext = { ...MAIN, groups: NO_PROMPT_GROUPS }
 
 const registered = ({ grilling = false }: { grilling?: boolean } = {}) => {
   const container = createIsolatedContainer()
-  container.register(GrillingCeremonyEnabledToken, { useValue: () => grilling })
+  container.register(GrillingCeremonyEnabledToken, {
+    useValue: () => grilling,
+  })
   container.register(registeredPortToken(SkillRegistryPort), {
     useValue: new FakeSkillRegistry({ skills: [] }),
   })
@@ -112,13 +115,16 @@ describe('the grilling ceremony flag', () => {
 
 describe('builtin registration with the flag bound', () => {
   it('selects every registered fragment in a reachable context', () => {
-    const fragments = resolveSet({ container: registered(), token: portToken(PromptFragment) })
+    const fragments = resolveSet({
+      container: registered(),
+      token: portToken(PromptFragment),
+    })
     expect(
       deadFragmentIds({
         fragments,
         contexts: [
           ...reachablePromptContexts({
-            agents: Object.values(EPromptAgent),
+            groupSets: [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS],
             providerIds: ['anthropic-oauth'],
             projectDirectory: '/w',
           }),

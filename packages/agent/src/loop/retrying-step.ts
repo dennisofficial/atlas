@@ -56,7 +56,6 @@ export type RetryDeps = {
    * budget, granted once; returning false (or leaving it unset) settles the failure. Permanent
    * request, route and delivery faults never consult it.
    */
-  onGiveUp?: (() => boolean) | undefined
   failover?: (() => boolean) | undefined
   now?: (() => number) | undefined
 }
@@ -166,7 +165,7 @@ export async function takeModelStepWithRetry(args: {
   const sleep = args.retry?.sleep ?? sleepUnlessAborted
   const jitter = args.retry?.jitter ?? Math.random
   const now = args.retry?.now ?? Date.now
-  const failover = args.retry?.failover ?? args.retry?.onGiveUp
+  const failover = args.retry?.failover
 
   let wake = new AbortController()
   const stopWatching = args.retry?.clockJumps?.onJump(() => wake.abort())

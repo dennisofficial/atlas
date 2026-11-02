@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPromptAgent, ESkipReason, type PromptContext } from '@dltech/atlas-core'
+import {
+  ALL_PROMPT_GROUPS,
+  NO_PROMPT_GROUPS,
+  ESkipReason,
+  type PromptContext,
+} from '@dltech/atlas-core'
 
 import { SkillListingFragment } from '../fragments/skills'
 import { InMemoryPromptRegistry } from '../registry'
@@ -8,20 +13,27 @@ import { SayingFragment } from './fake-fragments'
 import { FakeSkillRegistry, fakeSkill } from './fake-skills'
 
 const OPUS: PromptContext = {
-  agent: EPromptAgent.Main,
+  groups: ALL_PROMPT_GROUPS,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
   model: { contextWindow: 1_000_000 },
   projectDirectory: '/w',
 }
 
 const CORPUS = [
-  fakeSkill({ name: 'research', description: 'Investigate a question against primary sources' }),
+  fakeSkill({
+    name: 'research',
+    description: 'Investigate a question against primary sources',
+  }),
   fakeSkill({
     name: 'grilling',
     description: 'Stress-test a plan',
     whenToUse: 'before committing',
   }),
-  fakeSkill({ name: 'daily-update', description: 'Post the standup', modelInvocable: false }),
+  fakeSkill({
+    name: 'daily-update',
+    description: 'Post the standup',
+    modelInvocable: false,
+  }),
 ]
 
 const fragmentOver = (registry: FakeSkillRegistry): SkillListingFragment =>
@@ -66,7 +78,9 @@ describe('the skill listing fragment', () => {
 
   it('emits nothing when no skill is model-invocable', () => {
     const text = listingOver(
-      new FakeSkillRegistry({ skills: [fakeSkill({ name: 'private', modelInvocable: false })] }),
+      new FakeSkillRegistry({
+        skills: [fakeSkill({ name: 'private', modelInvocable: false })],
+      }),
     )
 
     expect(text).toBe('')
@@ -79,8 +93,8 @@ describe('the skill listing fragment', () => {
   it('applies to every agent the prompt is compiled for', () => {
     const fragment = fragmentOver(new FakeSkillRegistry({ skills: CORPUS }))
 
-    for (const agent of Object.values(EPromptAgent)) {
-      expect(fragment.applies({ ...OPUS, agent })).toBe(true)
+    for (const groups of [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS]) {
+      expect(fragment.applies({ ...OPUS, groups })).toBe(true)
     }
   })
 })
@@ -129,7 +143,12 @@ describe('the standing ui-design directive', () => {
   it('does not ride on a skill that merely mentions ui-design', () => {
     const text = listingOver(
       new FakeSkillRegistry({
-        skills: [fakeSkill({ name: 'better-ui', description: 'Polish; pairs with ui-design' })],
+        skills: [
+          fakeSkill({
+            name: 'better-ui',
+            description: 'Polish; pairs with ui-design',
+          }),
+        ],
       }),
     )
 
@@ -141,7 +160,9 @@ describe('the standing ui-design directive', () => {
       fakeSkill({ name: `crowd-${index}`, description: 'x'.repeat(300) }),
     )
     const text = fragmentOver(
-      new FakeSkillRegistry({ skills: [...crowd, fakeSkill({ name: 'ui-design' })] }),
+      new FakeSkillRegistry({
+        skills: [...crowd, fakeSkill({ name: 'ui-design' })],
+      }),
     ).text({ ...OPUS, model: { contextWindow: 20_000 } })
 
     expect(text).toContain(UI_DIRECTIVE)
@@ -161,7 +182,9 @@ describe('the standing ui-design directive', () => {
 
   it('is the same text for every agent the prompt compiles for', () => {
     const fragment = fragmentOver(new FakeSkillRegistry({ skills: withUiDesign }))
-    const texts = Object.values(EPromptAgent).map((agent) => fragment.text({ ...OPUS, agent }))
+    const texts = [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS].map((groups) =>
+      fragment.text({ ...OPUS, groups }),
+    )
 
     expect(new Set(texts).size).toBe(1)
     expect(texts[0]).toContain(UI_DIRECTIVE)

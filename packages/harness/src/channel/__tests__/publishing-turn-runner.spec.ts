@@ -45,6 +45,7 @@ async function openTurn(script: readonly ScriptedStep[]) {
   const runner = new PublishingTurnRunner({
     channel,
     deps: {
+      launchDirectory: '/w',
       log: harness.log,
       model: harness.model,
       ids: harness.ids,

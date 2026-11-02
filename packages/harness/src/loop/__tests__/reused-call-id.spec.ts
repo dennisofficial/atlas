@@ -75,6 +75,7 @@ function runnerFor(harness: AtlasHarness, root: string, log?: EventLogPort): Loo
   ])
 
   return new LoopTurnRunner({
+    launchDirectory: process.cwd(),
     log: log ?? harness.log,
     model: harness.model,
     ids: harness.ids,
@@ -186,6 +187,7 @@ describe('the transcript where it happened (thread brn_55fd05fb, kimi-k3-fast, 2
     ])
 
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: harness.model,
       ids: harness.ids,

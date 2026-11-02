@@ -117,6 +117,7 @@ function openTurn(args: {
     )
 
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: flakyLog,
       model: flakyModel,
       ids: opened.harness.ids,
@@ -271,6 +272,7 @@ describe('an interrupt that lands while a retry is waiting to re-ask', () => {
     }
 
     const runner = new LoopTurnRunner({
+      launchDirectory: process.cwd(),
       log: harness.log,
       model: flakyModel,
       ids: harness.ids,

@@ -16,7 +16,11 @@ describe('settling the calls a step left pending', () => {
       calls: [{ callId: 'call-1', name: 'edit' }],
     })
     const seen: DispatchableCall[] = []
-    const settle = createSettlePending({ log: harness.log, dispatch: scriptedDispatch({ seen }) })
+    const settle = createSettlePending({
+      launchDirectory: process.cwd(),
+      log: harness.log,
+      dispatch: scriptedDispatch({ seen }),
+    })
 
     const settled = await settle({ threadId, signal: new AbortController().signal })
 
@@ -41,7 +45,11 @@ describe('settling the calls a step left pending', () => {
       ],
     })
     const seen: DispatchableCall[] = []
-    const settle = createSettlePending({ log: harness.log, dispatch: scriptedDispatch({ seen }) })
+    const settle = createSettlePending({
+      launchDirectory: process.cwd(),
+      log: harness.log,
+      dispatch: scriptedDispatch({ seen }),
+    })
 
     await settle({ threadId, signal: new AbortController().signal })
 
@@ -60,6 +68,7 @@ describe('settling the calls a step left pending', () => {
     const controller = new AbortController()
     const seen: DispatchableCall[] = []
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: scriptedDispatch({
         seen,
@@ -102,6 +111,7 @@ describe('settling the calls a step left pending', () => {
       ],
     })
     const settle = createSettlePending({
+      launchDirectory: process.cwd(),
       log: harness.log,
       dispatch: scriptedDispatch({ seen: [] }),
     })
