@@ -9,7 +9,7 @@ const { description } = new ReportToMainTool((() => {
 
 describe('the report_to_main description', () => {
   it('says a finished turn never reaches the main agent but a failure does', () => {
-    expect(description).toContain('Ending your turn never tells it anything')
+    expect(description).toContain('Ending your turn never tells the main agent anything')
     expect(description).toContain('Only a failure or a stop reaches it by itself')
   })
 
