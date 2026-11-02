@@ -17,7 +17,8 @@ import {
 import { EWorkspaceState, EWorkspaceStep, type EnsureWorkspace } from '../materialize-workspace'
 import { startServe } from '../index'
 import { bootServeFiles } from '../serve-boot'
-import { bootReporterFor } from '../serve-boot-reporter'
+import { bootReporterFor, serveBootSink } from '../serve-boot-reporter'
+import { SERVE_BUILD_VERSION } from '../serve-version'
 
 import { fakeServeApp } from './fakes'
 import { trpcOk, trpcUrl } from './trpc-fake'
@@ -209,5 +210,36 @@ describe('serve boot clone outcome', () => {
 
   it('reports a fresh clone as cloned', async () => {
     expect((await cloneDoneOf(EWorkspaceState.Materialized))?.outcome).toBe(EBootStepOutcome.Cloned)
+  })
+})
+
+describe('serveBootSink', () => {
+  const bodiesOf = async (serveVersion?: string) => {
+    const bodies: unknown[] = []
+    const fetchFn = (async (_input: string | URL | Request, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)))
+      return trpcOk(undefined)
+    }) as unknown as typeof fetch
+    await serveBootSink({
+      controlPlaneUrl,
+      token: 'serve-token',
+      clientVersion: 'dev',
+      fetchFn,
+      ...(serveVersion === undefined ? {} : { serveVersion }),
+    })([{ step: EBootStep.Agent, state: EBootStepState.Running }])
+    return bodies.map((body) => bootStepsPostSchema.parse(body))
+  }
+
+  it('sends the build version of the running binary with the steps', async () => {
+    const [body] = await bodiesOf()
+
+    expect(body?.serveVersion).toBe(SERVE_BUILD_VERSION)
+    expect(body?.steps).toHaveLength(1)
+  })
+
+  it('sends an injected version instead', async () => {
+    const [body] = await bodiesOf('9.9.9')
+
+    expect(body?.serveVersion).toBe('9.9.9')
   })
 })

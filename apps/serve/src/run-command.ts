@@ -31,6 +31,14 @@ const minutesText = (timeoutMs: number): string => {
   return `${Number.isInteger(minutes) ? minutes : minutes.toFixed(2)} minutes`
 }
 
+const killGroup = (spawned: { pid: number; kill: (signal: NodeJS.Signals) => void }): void => {
+  try {
+    process.kill(-spawned.pid, 'SIGKILL')
+  } catch {
+    spawned.kill('SIGKILL')
+  }
+}
+
 export const runCommand: CommandRunner = async ({ command, cwd, stdin, env, timeoutMs }) => {
   try {
     const spawned = Bun.spawn(
@@ -41,6 +49,7 @@ export const runCommand: CommandRunner = async ({ command, cwd, stdin, env, time
         stdout: 'pipe',
         stderr: 'pipe',
         stdin: stdin === undefined ? 'ignore' : 'pipe',
+        detached: timeoutMs !== undefined,
       },
     )
     if (stdin !== undefined) {
@@ -62,7 +71,7 @@ export const runCommand: CommandRunner = async ({ command, cwd, stdin, env, time
     const raced = await Promise.race([finished, expiry])
     clearTimeout(timer)
     if (raced === TIMED_OUT && timeoutMs !== undefined) {
-      spawned.kill('SIGKILL')
+      killGroup(spawned)
       const note = `timed out after ${minutesText(timeoutMs)}`
       const output = stderr.text()
       return {

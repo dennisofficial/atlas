@@ -85,6 +85,11 @@ export {
 export type { BoundPort } from './execution/docker/ports'
 export { LocalProcessPort } from './execution/local-process'
 export { applyServePriority, type ServePriorityReport } from './execution/serve-priority'
+export {
+  prepareWorkloadCgroups,
+  sweepIdleWorkloadBoxes,
+  type WorkloadCgroupsReport,
+} from './execution/workload-cgroups'
 export { workloadCommand } from './execution/workload-priority'
 export { LocalFileSystemPort } from './execution/local-filesystem'
 export { LoginEnvProcessPort } from './execution/login-env-process'

@@ -5,7 +5,7 @@ import pg from 'pg'
 import { databaseUrl, laneUrl, quoteIdent } from '../testing/lane'
 import { applyMigrations } from '../testing/migrations'
 
-const MIGRATION = '20261102T0337_v2_record_core'
+const MIGRATION = '20261102T0507_v2_record_core'
 const MIGRATIONS_DIR = join(import.meta.dirname, '..', '..', 'migrations', 'app')
 const V2_TABLES = ['V2Event', 'V2InboxEntry', 'V2Lease', 'V2Session', 'V2Thread']
 const suffix = `${process.pid}_${Date.now()}`

@@ -56,4 +56,22 @@ describe('PodSection', () => {
     expect(container.textContent).toContain('Running')
     expect(container.textContent).not.toContain('No pod yet')
   })
+
+  it('shows the atlas-serve version the pod reported', async () => {
+    await renderWith({
+      state: EPodState.Running,
+      steps: [],
+      resources: { sandboxId: 'sbx_1', region: 'iad1', serveVersion: '1.94.2' },
+    })
+    expect(container.textContent).toContain('atlas-serve 1.94.2')
+  })
+
+  it('shows no version line when the pod never reported one', async () => {
+    await renderWith({
+      state: EPodState.Parked,
+      steps: [],
+      resources: { sandboxId: 'sbx_1', region: 'iad1' },
+    })
+    expect(container.textContent).not.toContain('atlas-serve')
+  })
 })

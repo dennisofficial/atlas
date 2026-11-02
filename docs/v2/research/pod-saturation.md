@@ -135,22 +135,58 @@ sequence: empty the root cgroup → enable `+cpu +pids` in `subtree_control` →
 children → set `pids.max` / `cpu.weight` → move serve into the high-weight child and spawn
 workloads into the capped child.**
 
+## Scenario 5 — memory delegation, `cgroup.kill`, snapshot/resume (2026-11-02, later run)
+
+Three fresh sandboxes (same shape as above, `persistent: true`), driven by an in-pod probe
+script run as root through `runCommand`. Setup, on every boot it ran: `mkdir atlas-serve
+atlas-work`, move every root pid into `atlas-serve` (three passes; the only failures were
+pids that had already exited), then `echo '+cpu +pids +memory' > cgroup.subtree_control`,
+`atlas-work`: `pids.max 2048`, `cpu.weight 20`, `memory.max 1G`, `memory.swap.max 0`,
+`memory.oom.group 1`; `atlas-serve`: `cpu.weight 500`. Every write returned 0, and the root
+was empty after setup on all three boots.
+
+| test                                                                   | result                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `+memory` once the root is empty                                       | **Works.** `subtree_control` = `cpu memory pids`; `memory.max` accepted                                                                                                                                                                                                                                                                                                                     |
+| hog (`tail /dev/zero`) in `atlas-work`, guard process in `atlas-serve` | Cgroup-local OOM at 1 GiB in under 0.6 s: dmesg `Memory cgroup out of memory: Killed process … (tail)` then `Tasks in …/atlas-work are going to be killed due to memory.oom.group set`; `memory.events` `oom_kill 2 oom_group_kill 1`; guard alive; pod memory never left ~8 GB available                                                                                                   |
+| unbounded `:(){ :\|:& };:` in `atlas-work` (setsid)                    | Clamped at `pids.current 2048` within 1 s; `pids.events max` climbed past 8,000 rejected forks over 10 s; pod total 2,054 procs; `runCommand` stayed responsive (65 ms) and could fork                                                                                                                                                                                                      |
+| `echo 1 > atlas-work/cgroup.kill` during the bomb                      | All 2,048 gone in under 300 ms; pod back to 6 procs                                                                                                                                                                                                                                                                                                                                         |
+| `setsid tail -f /dev/null` in `atlas-work`, then `cgroup.kill`         | Killed; `atlas-work` empty                                                                                                                                                                                                                                                                                                                                                                  |
+| new `runCommand` after setup                                           | Lands in `atlas-serve` (it inherits from the moved command channel), so workloads must be placed in `atlas-work` explicitly                                                                                                                                                                                                                                                                 |
+| **stop (snapshot) → `Sandbox.get({ resume: true })`**                  | **The cgroup layout does not survive.** Resume is a fresh boot: new `boot_id`, uptime reset, every proc back in the root, `subtree_control` empty, `atlas-serve`/`atlas-work` gone. The filesystem does survive (a marker file written before stop was read after). Re-running the same setup on the resumed boot succeeded identically, and the memory and pid tests gave the same results |
+
+So the split is boot-time state, not image or disk state: it has to be applied on **every
+boot, create and resume alike**, before serve spawns its first workload. It cannot be baked
+into the image or done once in `onCreate`.
+
+`memory.oom.group 1` kills every task in `atlas-work`, not only the hog. With one shared
+`atlas-work` that means every running workload of every thread dies together. The 1 GiB limit
+was a test value, not a sizing.
+
+**Per-workload boxes (measured, two runs).** `atlas-work` keeps `memory.max` and `pids.max` with
+`memory.oom.group 0`, enables `+memory +pids` in its own `subtree_control`, and each workload gets
+a child (`w-innocent`, `w-culprit`) with `memory.oom.group 1`. The innocent box held a 200 MB
+process plus a sibling; the culprit box held a hog plus a sibling. When the hog pushed
+`atlas-work` past 1 GiB, dmesg said `Tasks in …/atlas-work/w-culprit are going to be killed`:
+the hog and its sibling died, both innocent processes lived, `w-culprit/memory.events` showed
+`oom_group_kill 1` and `w-innocent` showed none. The parent's limit triggers the OOM; the
+`oom.group` of the child holding the victim decides the kill scope. Empty boxes `rmdir` cleanly.
+
 ## What is still unknown
 
 - **20,000-child bounded fork** was not run (the 5k case already showed the group-kill
   problem; 20k would only re-measure pid-table headroom, not serve protection).
-- Whether a cgroup restructure at sandbox boot is safe to automate: moving pid 1 and the
-  Vercel `sandbox-init` machinery into a child cgroup at runtime worked, but doing it on
-  every boot before serve starts, and how it interacts with sandbox snapshot/resume, is
-  untested.
+- ~~Whether a cgroup restructure at sandbox boot survives snapshot/resume.~~ Answered in
+  scenario 5: it does not survive, and re-applying it on resume works.
 - The `atlas-sandbox` image has `ulimit -u` unset, so a cheaper partial mitigation — a
   per-process `ulimit -u` in the workload prelude — is untested and would only cap per-user
   processes, not the pod-wide table.
 - A workload that calls `setsid` itself escapes the group kill; only a cgroup (kill every
-  pid in `atlas-work`, or `cgroup.kill`) catches it.
-- Whether `+memory` can be enabled once the root is emptied. The earlier probe failed with the
-  root still holding processes, the same no-internal-process constraint that blocked
-  `+cpu +pids`; if it works, `atlas-work/memory.max` replaces the harness memory watchdog.
+  pid in `atlas-work`, or `cgroup.kill`) catches it. Scenario 5 measured `cgroup.kill` doing so.
+- ~~Whether `+memory` can be enabled once the root is emptied.~~ Answered in scenario 5: it
+  can, and `atlas-work/memory.max` contains a hog without a pod-wide OOM.
+- Whether Vercel's own `sandbox-init` misbehaves over a long session after being moved into
+  `atlas-serve` (the runs above lasted minutes).
 - The real atlas-serve under load. The stand-in is a trivial responder; real serve does
   whole-log work on every append and pull ([log-scale](log-scale.md)), so it competes for CPU
   far more than the stand-in and gains more from nice than scenario 1 shows.

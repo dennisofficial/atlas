@@ -53,7 +53,7 @@ import { podSessionOf } from '../sessions/session-of-thread'
 import { lockThread } from '../sessions/thread-head'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { threadStreamFrames } from '../sessions/thread-stream.frames'
-import { recordBootSteps } from './sandbox-boot-steps'
+import { recordBootSteps, recordRunningServeVersion } from './sandbox-boot-steps'
 import { applyThreadActivity } from './thread-activity'
 import { registerPodChild } from './pod-child'
 import { deleteContextFile, deleteMissingContextFiles, putContextFile } from './pod-context-files'
@@ -130,6 +130,9 @@ export class SandboxSelfRouter {
     await db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
       await recordBootSteps({ writer: tx, threadId, steps: input.steps })
+      if (input.serveVersion !== undefined) {
+        await recordRunningServeVersion({ writer: tx, threadId, serveVersion: input.serveVersion })
+      }
     })
     await this.signals.podChanged({ threadId })
   }

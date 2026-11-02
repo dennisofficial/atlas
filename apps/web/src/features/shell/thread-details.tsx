@@ -155,14 +155,7 @@ export function ThreadDetails({
         {checkouts.length > 1 ? (
           checkouts.map((checkout) => (
             <DetailRow key={checkout.key} label={checkout.label ?? 'Branch'}>
-              <span className="flex min-w-0 flex-col items-end">
-                <span className="font-mono break-all">{checkout.branch}</span>
-                {checkout.path === undefined ? null : (
-                  <span className="max-w-full truncate text-muted-foreground" title={checkout.path}>
-                    {checkout.path}
-                  </span>
-                )}
-              </span>
+              <span className="font-mono break-all">{checkout.branch}</span>
             </DetailRow>
           ))
         ) : isOutsideGit(thread) ? null : (

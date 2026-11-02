@@ -50,10 +50,8 @@ function StateIcon({ state }: { state: string | undefined }) {
 function ConflictIndicator() {
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={<span className="flex items-center justify-center self-end text-warning" />}
-      >
-        <TriangleAlertIcon role="img" aria-label="Merge conflicts" className="size-3.5 shrink-0" />
+      <TooltipTrigger render={<span className="inline-flex items-center text-warning" />}>
+        <TriangleAlertIcon role="img" aria-label="Merge conflicts" className="size-3 shrink-0" />
       </TooltipTrigger>
       <TooltipContent side="bottom">Merge conflicts</TooltipContent>
     </Tooltip>
@@ -111,7 +109,7 @@ export function PullRequestRowItem(props: {
       detail={row.via}
       meta={
         row.checks === undefined && !row.conflicts ? undefined : (
-          <span className="flex flex-col items-end">
+          <span className="inline-flex items-center gap-1.5">
             {row.checks === undefined ? null : <ChecksTally checks={row.checks} />}
             {row.conflicts ? <ConflictIndicator /> : null}
           </span>

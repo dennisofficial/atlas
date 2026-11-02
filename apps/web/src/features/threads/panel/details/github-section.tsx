@@ -17,13 +17,13 @@ function CheckoutBranch({ checkout }: { checkout: CheckoutView }) {
           {checkout.label}
         </p>
       )}
-      <DetailRow
-        label={checkout.branch}
-        detail={checkout.path}
-        title={checkout.path}
-        icon={<GitBranchIcon aria-hidden className="size-3.5" />}
-        mono
-      />
+      {checkout.rowKeys.length > 0 ? null : (
+        <DetailRow
+          label={checkout.branch}
+          icon={<GitBranchIcon aria-hidden className="size-3.5" />}
+          mono
+        />
+      )}
     </>
   )
 }

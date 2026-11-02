@@ -19,17 +19,23 @@ services:
     command: bun run dev -H 0.0.0.0
     cwd: apps/web
     health: /
+    setup:
+      - bun install
     portal:
       title: Atlas web
   storybook:
     command: bun run dev --host 0.0.0.0
     cwd: apps/storybook
     health: /
+    setup:
+      - bun install
     portal:
       title: Storybook
   prototype:
     command: bun run dev -H 0.0.0.0
     cwd: apps/prototype
     health: /
+    setup:
+      - bun install
     portal:
       title: Prototype

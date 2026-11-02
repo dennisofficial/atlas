@@ -130,9 +130,7 @@ function SegmentView({
         caret={false}
         copyText={item.text}
       >
-        <TranscriptMarkdown isAnimating={item.streaming} caret="block">
-          {item.text}
-        </TranscriptMarkdown>
+        <TranscriptMarkdown isAnimating={item.streaming}>{item.text}</TranscriptMarkdown>
       </AgentMessage>
     )
   }
