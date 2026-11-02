@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { GENESIS_HASH, type InboxEntry } from '@dltech/atlas-core'
 
 import { consumeInbox } from '../src/consume-inbox'
-import { InMemoryControlStore } from '../src/memory'
+import { InMemoryControlStore } from '../src/testing/memory'
 import type { ControlTx } from '../src/port'
 import { AppendAbort } from '../src/refusal'
 

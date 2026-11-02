@@ -1,5 +1,5 @@
-import { InMemoryControlStore } from '../src/memory'
-import { describeControlPlaneConformance } from '../src/conformance'
+import { InMemoryControlStore } from '../src/testing/memory'
+import { describeControlPlaneConformance } from '../src/testing/conformance'
 
 let store = new InMemoryControlStore()
 

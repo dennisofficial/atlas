@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { visibleEvents, ECompactionAnchor, type V2Body } from '@dltech/atlas-core'
 
-import { LeaseConflictError } from '../errors'
-import type { ControlStorePort } from '../port'
+import { LeaseConflictError } from '../../errors'
+import type { ControlStorePort } from '../../port'
 import {
   appendBodies,
   HOLDER,

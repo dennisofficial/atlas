@@ -171,7 +171,7 @@ reading and discarding them.
 ## `packages/control` (new workspace package `@dltech/atlas-control`)
 
 Dependencies: `@dltech/atlas-core`, `zod`; `@dltech/atlas-db` only from the `./postgres` subpath.
-Exports `.` (library, port, in-memory adapter, conformance suite factory) and `./postgres`. No
+Exports `.` (library and port), `./postgres`, and `./testing` (in-memory adapter and conformance suite factory; never deployed). No
 Nest, tRPC or HTTP.
 
 ### The storage port (one seam, two adapters)
@@ -218,7 +218,7 @@ export abstract class ControlStorePort {
 
 ### Adapters
 
-- **In-memory** (`src/memory/`): the second adapter that makes the port real, and the fast lane for
+- **In-memory** (`src/testing/memory/`, subpath `./testing` only): the second adapter that makes the port real, and the fast lane for
   the conformance suite. Transactions are serialized and roll back on throw.
 - **Postgres** (`src/postgres/`, subpath `./postgres`): `PostgresControlStore` over a given `Db`,
   using `tx.orm.v2.*` / `tx.sql.v2.*` inside `db.transaction`.

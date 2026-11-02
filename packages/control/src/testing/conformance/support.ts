@@ -7,8 +7,8 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 
-import { ControlPlane } from '../control-plane'
-import type { ControlStorePort } from '../port'
+import { ControlPlane } from '../../control-plane'
+import type { ControlStorePort } from '../../port'
 
 export const SESSION = 'session-1'
 export const THREAD = 'thread-1'

@@ -7,7 +7,7 @@ import {
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
-} from '../port'
+} from '../../port'
 
 type SessionRow = { nextInboxId: number }
 

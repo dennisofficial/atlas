@@ -5,7 +5,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { ControlPlane } from '../src/control-plane'
 import { PostgresControlStore } from '../src/postgres'
-import { mint, said, SESSION, THREAD } from '../src/conformance/support'
+import { mint, said, SESSION, THREAD } from '../src/testing/conformance/support'
 
 const enabled = process.env.ATLAS_SCALE_TESTS === '1'
 const TOTAL = 20_000

@@ -20,6 +20,14 @@ describe('control package boundaries', () => {
     expect(hits.filter((file) => !file.startsWith('postgres/'))).toEqual([])
   })
 
+  it('keeps the in-memory store and conformance suite off the deployable entries', async () => {
+    const deployable = await importsOf(/from ['"]\.\/testing|from ['"]\.\.\/testing/)
+    expect(deployable).toEqual([])
+    const { InMemoryControlStore } = await import('@dltech/atlas-control/testing')
+    expect(InMemoryControlStore).toBeDefined()
+    expect(Object.keys(await import('@dltech/atlas-control'))).not.toContain('InMemoryControlStore')
+  })
+
   it('imports no Nest, tRPC or HTTP stack', async () => {
     expect(await importsOf(/from ['"](@nestjs|@trpc|express|(node:)?https?)[/'"]/)).toEqual([])
   })
