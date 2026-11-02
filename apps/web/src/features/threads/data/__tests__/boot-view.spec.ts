@@ -40,6 +40,7 @@ const ALL_STEPS = [
   EBootStep.Provision,
   EBootStep.Serve,
   EBootStep.Clone,
+  EBootStep.Setup,
   EBootStep.Settings,
   EBootStep.Context,
   EBootStep.Agent,
@@ -102,6 +103,7 @@ describe('bootViewOf', () => {
       EBootStepState.Pending,
       EBootStepState.Pending,
       EBootStepState.Pending,
+      EBootStepState.Pending,
     ])
     expect(view?.steps[0]?.label).toBe('Create sandbox')
     expect(view?.steps[1]?.label).toBe('Start Atlas')
@@ -113,7 +115,7 @@ describe('bootViewOf', () => {
       now: T0 + 999_000,
     })
     expect(view?.state).toBe(EBootStepState.Done)
-    expect(view?.elapsedMs).toBe(11_000)
+    expect(view?.elapsedMs).toBe(13_000)
     expect(view?.startedAtMs).toBeUndefined()
   })
 

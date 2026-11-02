@@ -7,6 +7,7 @@ export enum EBootStep {
   Provision = 'provision',
   Serve = 'serve',
   Clone = 'clone',
+  Setup = 'setup',
   Context = 'context',
   Settings = 'settings',
   Agent = 'agent',
@@ -25,12 +26,16 @@ export enum EBootStepOutcome {
   Cloned = 'cloned',
   Reused = 'reused',
   NoRepository = 'no-repository',
+  NoSetupScript = 'no-setup-script',
+  SetupScriptSkipped = 'setup-script-skipped',
+  SetupScriptFailed = 'setup-script-failed',
 }
 
 export const BOOT_STEP_ORDER: readonly EBootStep[] = [
   EBootStep.Provision,
   EBootStep.Serve,
   EBootStep.Clone,
+  EBootStep.Setup,
   EBootStep.Settings,
   EBootStep.Context,
   EBootStep.Agent,
@@ -104,7 +109,7 @@ export type BootReporter = {
     step: EBootStep
     detail?: string | undefined
     work: () => Promise<T>
-    outcomeOf?: ((result: T) => EBootStepOutcome) | undefined
+    outcomeOf?: ((result: T) => EBootStepOutcome | undefined) | undefined
   }) => Promise<T>
 }
 
@@ -175,7 +180,7 @@ export function createBootReporter(args: {
     step: EBootStep
     detail?: string | undefined
     work: () => Promise<T>
-    outcomeOf?: ((result: T) => EBootStepOutcome) | undefined
+    outcomeOf?: ((result: T) => EBootStepOutcome | undefined) | undefined
   }): Promise<T> => {
     const detail = tracked.detail === undefined ? {} : { detail: tracked.detail }
     enqueue({ step: tracked.step, state: EBootStepState.Running, ...detail })

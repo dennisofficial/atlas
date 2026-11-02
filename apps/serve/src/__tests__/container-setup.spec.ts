@@ -2,7 +2,11 @@ import { describe, expect, it } from 'bun:test'
 
 import { ENoticeTone, type NoticePost } from '@dltech/atlas-core'
 
-import { createContainerSetup, CONTAINER_SETUP_MARKER } from '../container-setup'
+import {
+  CONTAINER_SETUP_MARKER,
+  createContainerSetup,
+  EContainerSetupResult,
+} from '../container-setup'
 import type { CommandRunner } from '../run-command'
 import type { WorkspaceFiles } from '../workspace-files'
 
@@ -145,7 +149,7 @@ describe('cloud container.json application', () => {
 
     await h.apply()
 
-    const post = h.posts.find((p) => p.text.includes('setup failed'))
+    const post = h.posts.find((p) => p.text.includes('setup script'))
     expect(post?.tone).toBe(ENoticeTone.Warn)
     expect(post?.ttlMs).toBeNull()
     expect(post?.text.endsWith('TAIL')).toBe(true)
@@ -161,7 +165,9 @@ describe('cloud container.json application', () => {
 
     await h.apply()
 
-    expect(h.posts.some((p) => p.text.includes('start') && p.text.includes('nope'))).toBe(true)
+    expect(h.posts.some((p) => p.text.includes('start script') && p.text.includes('nope'))).toBe(
+      true,
+    )
   })
 
   it('surfaces an unparseable container.json', async () => {
@@ -171,5 +177,59 @@ describe('cloud container.json application', () => {
 
     expect(h.posts.some((p) => p.text.includes('container.json'))).toBe(true)
     expect(h.attempts.map((a) => a.command[2])).toEqual(['echo hi'])
+  })
+
+  it('returns None, Ran, Skipped and Failed', async () => {
+    expect(await harness({}).apply()).toBe(EContainerSetupResult.None)
+    const ran = harness({ contents: json({ setup: 'x' }) })
+    expect(await ran.apply()).toBe(EContainerSetupResult.Ran)
+    expect(await ran.apply()).toBe(EContainerSetupResult.Skipped)
+    const failed = harness({ contents: json({ setup: 'x' }), fail: () => 'no' })
+    expect(await failed.apply()).toBe(EContainerSetupResult.Failed)
+  })
+
+  it('names the script, its source, and that the sandbox started anyway', async () => {
+    const h = harness({
+      contents: json({ setup: 'a', start: 'b' }),
+      fail: (script) => (script === 'a' ? 'oops' : undefined),
+    })
+
+    await h.apply()
+    const text = h.posts.find((p) => p.ttlMs === null)?.text ?? ''
+
+    expect(text).toContain('setup script (.atlas/container.json "setup")')
+    expect(text).toContain('sandbox started anyway')
+    expect(text).toContain('start script was skipped')
+    expect(text.endsWith('oops')).toBe(true)
+    expect(h.attempts.map((a) => a.command[2])).toEqual(['a'])
+  })
+
+  it('names project settings when the override fails', async () => {
+    const h = harness({ fail: () => 'bad' })
+
+    await h.apply('npm ci')
+
+    expect(h.posts[0]?.text).toContain('setup script (project settings)')
+  })
+
+  it('passes the 15 minute cap to scripts and never throws', async () => {
+    const seen: (number | undefined)[] = []
+    const result = await createContainerSetup({
+      files: {
+        exists: async () => false,
+        read: async () => '',
+        write: async () => undefined,
+        writeBytes: async () => undefined,
+        ensureDirectory: async () => undefined,
+        empty: async () => undefined,
+      },
+      run: async (attempt) => {
+        seen.push(attempt.timeoutMs)
+        throw new Error('runner exploded')
+      },
+    })({ cwd: CWD, atlasHome: HOME, env: {}, setupScript: 'x', notice: { notify: () => {} } })
+
+    expect(seen).toEqual([15 * 60_000])
+    expect(result).toBe(EContainerSetupResult.Failed)
   })
 })

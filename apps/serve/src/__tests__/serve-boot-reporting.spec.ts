@@ -180,6 +180,8 @@ describe('startServe boot reporting', () => {
     expect(events.map((event) => `${event.step}:${event.state}`)).toEqual([
       'clone:running',
       'clone:done',
+      'setup:running',
+      'setup:done',
       'settings:running',
       'settings:done',
       'context:running',
