@@ -1,0 +1,138 @@
+# 05 — Explicit alternative and safe resume
+
+Status: buildable spec against `eeee3e7ef`; planning only. Shared authority is `$ATLAS_CONTEXT_DIR/contracts.md`: this slice consumes its admission/promotion lifecycle and finite episode identities. Preview uses public inspect/list snapshots only;03's opaque admission/report receipts never reach clients or event logs. Depends on01–04 admission for every actual request. Family-only recovery is locked; bulk-account recovery and make-default mutation are a separate followup, not this slice. No second credential store or execution checkpoint.
+
+## Delivered vertical slice and deliberate exclusions
+
+**Continue with another model** previews an eligible concrete route and finite affected targets, then atomically commits a session-family routing decision and resumes those waiting threads from their existing logs. Default scope is **This session family**: the selected root plus explicitly enumerated inheriting, affected descendants. Pinned or provenance-unknown children remain excluded until individually selected with explicit retarget consent. A family is ownership/spawn ancestry, not every conversation with the same provider.
+
+**Stage account-wide “all affected sessions” and “make default” mutations to a separate followup, not this slice.** Cross-runtime bulk completion, ownership, disconnected/pinned children and atomic settings updates would make this slice substantially less reviewable. Do not display inactive checkboxes or promise future bulk behavior. The concrete delivered UI offers only family recovery and per-child retarget confirmation; it clearly says “Other sessions and your default model will not change.” Provider settings can link users to each other waiting session without changing it. There is no unbounded backend “all” flag or settings write in the recovery request. This is a complete narrow recovery feature, not a TODO contract.
+
+## Existing seams and hazards
+
+Paths relative to `/atlas/workspaces/atlas`.
+- `apps/serve/src/thread-model.ts:17–30,65–106`: verifies ancestry, requires `retarget:true` for a supervised child, persists root selections separately. Reuse ownership validation, but do not compose today's `chooseModel` then `run()` as recovery: it has no eligibility/preview/atomicity contract.
+- `packages/harness/src/store/sessions/thread-store.ts:211–237`: child freeze uses saved ref+effort, with no selection-provenance field. **Equal models do not prove inheritance**. Add provenance; historical unknown is protected as pinned.
+- `packages/harness/src/composition/child-model.ts:46–57,61–84,122–145`: selects pins/inheritance then saves the pair, and currently applies helper→parent fallback. Preserve that existing narrow behavior through01–05 until equivalent06 recovery ships: actual helper and current-session candidates each cross02/03 admission; at most one helper→eligible current-session hop; no emitted-output restart, default/pin rewrite, third route or recursive fallback. Same bounded preservation applies to existing utility→session behavior at `composition/utility-model.ts:95–108`. This is not approval for a new automatic main fallback. Show the helper's effective route/account and cause, not a misleading claim the selected main failed.
+- `packages/harness/src/composition/model-selection.ts:18–43` and `model/switchable-model.ts:22–45`: mutable selection/getters can race a live call; capture one immutable effective route per attempt. Main root model selection is not itself the routing authority.
+- `packages/harness/src/loop/run-turn.ts:215–235` resumes by `appendResumeDrafts` + `runTurn`; `loop/tracked-turn.ts:91–109` settles only pending calls, and `274–281` appends results/calls before looping. `docs/architecture.md:142–160` explicitly defines resume and the only never-dispatched calls that may legitimately dispatch later.
+- `packages/harness/src/agents/registry/resume-child.ts:29–53` resumes the same child through `runner.resume`; do not spawn a replacement. `child-steps.ts:82–109` and slice04's non-ending wait branch preserve its identity.
+- `apps/tui/src/composition/use-turn-driver.ts:92–107,109–154` distinguishes resume from destructive “resume fresh”; recovery must never call `discardInterrupted`, rewind or fresh resume. `apps/serve/src/turn-driver.ts:76–82` shows resume currently skips beforeTurn;02/03 admission must still revalidate credentials on this path.
+- `packages/harness/src/model/ai-sdk-model-port.ts:144–172` currently drops accumulator contents on non-aborted stream error; `loop/model-step.ts:11–34` drops structured error metadata. Address partial visibility explicitly instead of assuming every failed stream had no output.
+- `apps/web/src/features/threads/data/model-options.ts:82–98,128–145` offers providers based on connected status and preserves the selected row; that is not authority eligibility. `data/use-model-picker.ts:54–60` reads personal defaults separately. Do not filter away or overwrite the operator's preferred/current choice because its account is waiting.
+
+## Small shared interface
+
+New core `model-recovery/types.ts`, `model-recovery/plan.ts`, `model-recovery/route-events.ts`; browser clients see core/wire types only, not harness implementation imports. `CredentialRevision` and `AvailabilitySnapshot` are02's exact types. Preview fingerprints contain public snapshot fields only, not03 admission permits.
+
+```ts
+export enum EModelSelectionOrigin {
+  Operator = 'operator',
+  Inherited = 'inherited',
+  AgentType = 'agent-type',
+  UtilitySetting = 'utility-setting',
+  LegacyUnknown = 'legacy-unknown',
+}
+export enum ERecoveryDisposition {
+  Committed = 'committed',
+  Conflict = 'conflict',
+  Ineligible = 'ineligible',
+  Busy = 'busy',
+  Unsupported = 'unsupported',
+}
+export type EffectiveModelRoute = {
+  ref: ModelRef
+  effort: EEffort
+  accountId: string
+  credentialRevision: CredentialRevision
+}
+export type RecoveryPreviewInput = {
+  rootThreadId: ThreadId
+  episode: WaitEpisodeRef
+  alternative: EffectiveModelRoute
+  explicitRetargetThreadIds: readonly ThreadId[]
+}
+export type RecoveryTarget = {
+  threadId: ThreadId
+  ownHead: number
+  selected: { ref: string; effort: string }
+  origin: EModelSelectionOrigin
+  explicitRetarget: boolean
+}
+export type RecoveryPreview = {
+  input: RecoveryPreviewInput
+  rootOwnHead: number
+  familyGeneration: string
+  targets: readonly RecoveryTarget[]
+  excluded: readonly { threadId: ThreadId; reason: string }[]
+  warnings: readonly { id: string; text: string }[]
+  availability: readonly AvailabilitySnapshot[]
+  eligibilityFingerprint: string
+}
+export type RecoveryCommitInput = {
+  requestId: string
+  preview: RecoveryPreview
+  acceptedWarningIds: readonly string[]
+}
+export type RecoveryCommitResult = {
+  disposition: ERecoveryDisposition
+  decisionSeq: number | null
+  targets: readonly { threadId: ThreadId; resumed: boolean; reason: string | null }[]
+}
+export abstract class ModelRecoveryPort {
+  abstract preview(args: RecoveryPreviewInput): Promise<RecoveryPreview>
+  abstract commit(args: RecoveryCommitInput): Promise<RecoveryCommitResult>
+}
+```
+
+Only family scope is expressible. Preview is data, not a server-owned ephemeral reservation. `eligibilityFingerprint` canonically encodes public route/revision/snapshot generations returned by fresh inspect/list; it is only a stale-preview witness, never proof of admission or authorization. Commit repeats fresh inspect/list and recomputes all facts; actual model request obtains its own03 admission permit privately. Never trust client-supplied target ownership, warnings or generation. IDs are bounded (max128 explicit targets); >128 affected descendants refuses with a clear message and offers individual waiting-child recovery, not truncation advertised as “all.” The interface returns typed Conflict/Busy/Ineligible rather than throwing for expected races; malformed/unauthorized input is a transport error.
+
+## Concrete implementation and ordering
+
+1. **Record provenance honestly.** Extend `ThreadModel`/thread metadata, `ThreadStorePort.chooseModel` and wire thread model schema with `origin?: EModelSelectionOrigin`; local saved metadata owns it and existing API thread model transport mirrors it. Spawn chooser in `composition/child-model.ts` returns origin at the branch making the selection; an operator retarget sets Operator. Undefined legacy provenance is LegacyUnknown, never inferred from equality. Add a saved-model origin to utility-setting resolution too. This is routing metadata, not account availability. Defaults/account preference writers are untouched.
+2. **A durable route decision, not preference rewrite.** Add `model-route-committed` root event `{ requestId, episode, fromRoutes, toRoute, targets, acceptedWarnings, actor }` where `episode` is04's `WaitEpisodeRef` union — preview and commit carry it verbatim; commit revalidates the credential arm against a fresh authority snapshot and the control-plane arm against a fresh admission attempt, rejecting Stale rather than inventing a key. A control-plane or missing-credential episode is recoverable through the same dialog once the authority answers; no AvailabilityKey is fabricated for it. `targets` contains concrete ids+old selection/provenance+explicit-retarget flags. Core defines real enum `EModelRouteActor.Operator='operator'` and `.ApprovedAlternate='approved-alternate'` rather than a string literal, and bodies land in BOTH `packages/core/src/events/body.ts` and the zod discriminated union in `packages/core/src/events/schema.ts` (same two-file rule as04). Its seq is the routing generation. The family resolver reads that root event and applies it only to the named still-matching targets; it overrides effective route without rewriting their `ThreadSummary.model`, personal settings or agent-type pins. UI shows both **Selected** and **Using for this recovery**. New children are not included: a finite preview must not silently authorize future descendants. A child spawned while the family is waiting keeps its own selection and may wait for another decision. Recovered threads stay on the alternate until an explicit normal model choice supersedes their override; original credential recovery merely restores eligibility. An explicit normal model choice appends a `model-route-cleared` event for that thread before replacing its selection, under the same routing lock, so an old recovery cannot reassert itself.
+3. **One per-family serialization seam.** Add harness `model-recovery/runtime-recovery.ts`, `family-route.ts`, `family-lock.ts`. Build previews from `threads.spawned` ancestry, live roster and own log heads. At commit enter the shared family routing lock; close new model/spawn admission briefly, reject Busy if any selected target has a live stream or tool batch still settling (do not interrupt or wait indefinitely), refresh ownership/active-main fence, log heads, provenance, selected routes and fresh03 public availability snapshots. Recompute exact targets/warnings. Changed heads/roster/config/credentials => Conflict, no routing mutation and a new preview is required. Do not run preflight helpers that contact an unapproved provider.
+4. **Commit policy with the existing canonical writer.** Add optional `expectedHead?:number` to `EventLogPort.append` arguments; mismatch throws typed `EventHeadConflict { actualHead }`. Implement compare+append inside the existing session writer queue in `store/sessions/event-log.ts:46–57`, never read-head outside the queue. Wire read/write adapters and test fakes must enforce it rather than silently ignore it. `runtime-recovery` uses expected root own head for one append containing the complete decision. Concurrent two clients => one wins, one Conflict. Duplicate requestId is looked up under the same lock before validating stale preview, and returns the original decision (no second resume). No multi-thread preference writes or partial cross-thread commit are necessary: the one root decision is canonical for the finite family. Runtime binding requires one active family owner, using existing session authority fencing; host/detached clients call the owner rather than independently append route decisions. `JsonlSessionAuthority` currently fences only the active main (`store/sessions/session-authority.ts:37–54`); therefore family-lock is shared by all composition paths in that owner, and local attach may not establish a second concurrent owner for the same session. Reject an unfenced owner rather than claim process-local mutex is a cross-runtime CAS.
+5. **Publish then resume.** After durable append, release routing admission and publish the route view to all clients. Queue one resume for each included waiting thread; root uses existing `runner.resume`, descendants `agents.resume` with their immediate spawner owner. Verify the same decision is still current immediately before waking; if user stopped/finished the target meanwhile, do not resume. Admission rechecks the concrete account revision on the actual request. If it became unavailable after commit, the decision remains visible but the thread returns WaitingForModel, not rollback/default rewrite. Crash after append/before wake is safe: boot reconstructs the effective decision and existing resumability, then schedules once. Resuming is not a durable extra execution checkpoint: position and pending tools remain functions of each thread's existing log. A transport timeout is reconciled by the same requestId/read decision, never blindly resubmits a different mutation.
+6. **Immutable actual-route identity and truthful ledger — prerequisite here, not deferred to06.** Replace mutable calls through `switchable-model` at the attempt seam with one resolved immutable route/traits handle per model step (`{ route: EffectiveModelRoute, traits: ModelTraits }` captured at assembly) threaded through gate, adapter, account lease, diagnostics and ledger. `ModelStepResult` gains `identity: ProviderIdentity & { accountId: string | null }` set by the port that actually answered; the preserved legacy `childFallbackModel` and utility `fallback-model.ts` propagate the ACTIVE port's identity through `step` — their `provider/modelId` getters (`model/fallback-model.ts:114–123`) lie during fallback and carry no usage/identity plumbing today. `recordTurnSpend` opens each turn with `this.model.identity` (`loop/run-turn.ts:246–247`) and writes one providerId/modelId row (`ledger/record-turn-spend.ts:49–50`, `ledger/jsonl/ledger-lines.ts:17–32`), so any route change misattributes the whole turn. Minimum correct change reusing the existing ledger: add optional `routeSpends: readonly { providerId, modelId, accountId, steps, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens }[]` to `TurnSpend`, one segment per distinct actual route accumulated by `countStep(usage, identity)`; the row's `providerId`/`modelId` keep the LAST answering route for compatibility and never price mixed totals. Update `JsonlTurnLedger` line schema (additive optional, v1-compatible), `RemoteTurnLedger`, `recordTurnInputSchema`/`wireTurnSchema` (`packages/wire/src/thread-routes-wire.ts:169–182`, `session-wire.ts:70–84`), API `TurnsService.record` upsert + `toTurnDto` (`apps/api/src/api/platform/sessions/turns.service.ts:40–55`, `rows.ts:54–69`) with a nullable JSON `routeSpends` column on the existing Turn model (Prisma-8 migration per04's rules), and UI spend projections pricing by segment. No new ledger store, no per-step rows, no `tallyThreadTreeSpend` redesign. Gate-denied steps record no segment. Before alternate call rebuild assembly for that target's provider, supported tool declarations, context window and image tier; never pass primary-provider prepared context blindly to a new provider. After resume read the canonical log again, settle outstanding tool calls once, then assemble. No copied messages array, synthetic replacement user prompt, completed-tool replay, rewind, shell stop or child respawn.
+7. **Partial-stream behavior.** Add `PartialModelStepError` in harness `model/errors.ts` carrying original failure, accumulated `ModelStepResult`, effective route, and `deliveredContent:boolean`. `runModelStream` preserves its accumulator on a non-abort fault; model-step/retrying-step preserve that structure. Already-delivered assistant text is appended once as `assistant-said { interrupted:true }`; incomplete tool arguments and calls not committed as a successful step never dispatch. Successful committed `tool-called` rows use normal settlement; no result can be manufactured for a call that did not exist. A recovery cannot race an active stream: commit returns Busy without altering it. Once the partial step has settled, explicit recovery resumes via the existing interrupted-tail nudge, does not send the operator's prompt twice, and does not merge output from two models into one successful step. A failing provider may still charge for partial usage: preserve its usage/identity even without successful completion. No automatic cross-route retry after visible output in this slice. Existing legacy helper→current-session fallback remains only within the bounded no-output/gated behavior described above; main has no new automatic alternate.
+8. **Persist policy semantics through history operations — anchored rules, not assertions.** Compaction's keep-list is `SURVIVES_SUMMARY` (`packages/core/src/events/body.ts:267–277`, consumed by the destructive summary in `packages/harness/src/store/sessions/thread-store-history.ts:73–79`): add `model-route-committed`, `model-route-cleared`, `model-waiting` and `model-wait-cleared` so the destructive path cannot summarize away the current route decision, a per-thread clear, or an unresolved wait episode; the non-destructive watermark path needs no list change because it drops no rows. Forks: the copy-fork filter at `thread-store-history.ts:156–160` currently excludes only subscription events; extend that exclusion with route/wait bookkeeping (route decisions, waits and clears) so a copied history never re-asserts another family's recovery or its wait state — a copy fork starts from its own selections. Reference forks read ancestors through `planSegments` (`packages/harness/src/store/sessions/compose.ts:25–58`): the family-route projector must read route/consent events only from the thread's OWN session segments, skipping rows belonging to an ancestor session id — a reference fork of another session inherits its prompt prefix, not its model consent. Rewind's cut (`thread-store-history.ts:43–49`) removes route events at the cut boundary and recomputes the route from what survives; it never changes account authority. Rotation compacts the SAME thread in place (`packages/harness/src/rotation/rotation-orchestrator.ts:64–78`, `compactThread` with `destructive:false`), so there is NO new-main migration and no policy transfer step: the current route/wait events live in that same log and the SURVIVES_SUMMARY additions cover the destructive variant rotation never uses. Remove any claim of new-main migration from the plan; only an actual new-thread handoff (fork/rotation main replacement, if one lands) would need explicit policy transfer, and none is specified. No new replay of previously dispatched calls is introduced.
+
+Focused history tests required (future implementation): `store/sessions/__tests__/recovery-history.spec.ts` covering destructive summary retains route+cleared+unresolved-wait events through `markThreadHistory` with `discardRows:true`; copy fork drops route/wait bookkeeping while retaining ordinary content; reference fork across sessions never reads the ancestor session's route events (family filter) while within-session reference fork still sees them; rewind across a route commit recomputes the previous route and does not restore the discarded alternate; rotation (`destructive:false`) leaves current route and wait projection intact.
+
+## Eligibility and consent checks (same shared module for every surface)
+
+Preview resolves actual account access, not just a catalogue row or `Connected` provider. Show disabled unavailable alternatives with reason and account label; current preferred model remains visible. Alternative must differ from the denied concrete route, have a fresh inspect/list snapshot and still pass03 admission at dispatch, support required tool calling/structured output/image inputs and selected effort, and fit the reassembled prompt plus required output reserve. Unsupported effort requires another explicit choice, never silent downgrade. Optional context compaction is **not** performed on commit: if the target context does not fit, return Ineligible with size/window and offer existing explicit Compact separately; then preview again. Missing traits are conservatively ineligible for required capability.
+
+Warnings name: model/provider **data destination** (different provider receives existing conversation, tool outputs and files already in context), account/billing mode and published input/output/cache rates where known, subscription→API cost change, and remaining capability differences that do not invalidate execution. Unknown price is “Price unavailable; provider charges may apply,” explicitly acknowledged, not free. Cross-provider or billing-account changes always need a matching warning acknowledgement. Warning ids bind the preview route/revision so a stale acknowledgement cannot authorize a new account. Never select another account on the same provider silently if its billing identity differs.
+
+## Surface and transport edits
+
+- Add wire `model-recovery-wire.ts` strict preview/commit/results schemas, `EClientRequest.PreviewModelRecovery`/`CommitModelRecovery`, and `ECapability.ModelRecovery`. Existing `thread-model.ts` ownership walk becomes a shared serve request helper, used by new `apps/serve/src/model-recovery.ts`; requests carry only owner-family scope. Browser-safe `packages/client/src/channel/model-recovery-client.ts` wraps channel requests. Harness `model-recovery/remote-recovery.ts` implements ModelRecoveryPort over that client. Register in harness `container/port-registry.ts`; add shared runtime/remote binding in `composition/port-bindings.ts`, explicit `transport:null` for in-process serve, and expose through `harness-app.ts`/session owner/Cloud attachments. Shared `composeHarness` constructs the module once, not in React hooks.
+- Add web `features/threads/model-recovery-dialog.tsx` and `data/use-model-recovery.ts`; waiting strip opens this dialog rather than ordinary picker. Reuse picker search/list presentation, but feed authoritative eligible routes, account labels and blocked explanations. Preview shows exact affected list, excluded pinned children and individual retarget toggles; main confirm **Continue with <model>** acknowledges listed warnings. Ordinary model picker remains a selection editor and does not become an account-status writer. Add TUI `ui/components/model-recovery.tsx` and `composition/use-model-recovery.ts` with the same preview/commit view; use drawer conventions and hoverable actions.
+- Loading: “Checking eligible models” / “Preparing recovery”; no eligible routes: “No eligible alternative” + Providers/Recheck; no filter results: Clear search; fetch failure: inline error+Try again, not an empty list. During commit disable duplicate confirm, keep dialog open through typed result, display per-target resumed/waiting/finished outcomes. Conflict reloads preview and requires reconfirmation, not auto-accept. No root close before durable commit succeeds.
+- 320/375px sheet has one column, wrapped cost/data warnings, scrollable target list and visible confirm; no tooltip-only reason. Focus trap, labelled radio/list choices, keyboard search/selection, checkbox labels including child name and retarget meaning, focus returned on cancel, inline error announced politely. TUI supports Escape back/cancel, Enter preview/confirm, visible warnings and static wait state without animation. All tests cover repeated submit and two attached clients.
+- Feature slot: core pure eligibility/plan and harness orchestration/route projection. Runtime slot: one in-process family owner module on host and serve, with02/03 account adapter. Transport slot: detached ModelRecoveryPort, remote harness adapter and browser client over the same serve requests. EventLogPort already detached; extend all its bindings for expectedHead. No Cloud settings mutation is used in this slice. Local unsigned host has identical recovery semantics against its local account authority; web and remote TUI use serve's authority, not their own stale account cache.
+
+## Test files, commands and release
+
+New core `model-recovery/__tests__/plan.spec.ts`; harness `model-recovery/__tests__/runtime-recovery.spec.ts`, `__tests__/partial-recovery.spec.ts`, `agents/registry/__tests__/recovery-family.spec.ts`; wire `__tests__/model-recovery-wire.spec.ts`; client `channel/__tests__/model-recovery-client.spec.ts`; serve `src/__tests__/model-recovery.spec.ts`; web `features/threads/__tests__/model-recovery-dialog.spec.tsx`; TUI `composition/__tests__/model-recovery.spec.tsx` and UI render spec. Extend existing `store/sessions/__tests__/child-model.spec.ts`, `event-log.spec.ts`, serve child-model/ownership/retarget specs and partial-stream specs.
+
+Required cases: family selection never changes defaults or pinned/unknown children; explicit retarget lists only selected pins; stale account replacement and removed model; context/tool/image/effort incompatibility; expensive/unknown-price and cross-provider consent; concurrent preview/stream/retarget/stop/spawn; one-winning commit; duplicate request after lost ACK; crash after commit; host/serve/detached parity; completed write tool exactly once before/after recovery; pending unstarted call dispatches once; child id retained; interrupted partial text persisted once; active successful stream not aborted; existing child/utility fallback retained only as one gated helper→eligible current-session hop with truthful effective identity, no main automatic fallback; credential recovery never flips an alternate back.
+
+```sh
+bun run --cwd packages/core test src/model-recovery
+bun run --cwd packages/harness test src/model-recovery src/agents/registry src/store/sessions src/loop src/model
+bun run --cwd packages/wire test
+bun run --cwd packages/client test src/channel
+bun run --cwd apps/serve test src/__tests__/model-recovery.spec.ts src/__tests__/serve-child-retarget.spec.ts src/__tests__/thread-model-ownership.spec.ts
+bun run --cwd apps/web test src/features/threads/__tests__/model-recovery-dialog.spec.tsx
+bun run --cwd apps/tui test src/composition/__tests__/model-recovery.spec.tsx src/ui/__tests__/model-recovery-render.spec.tsx
+bun run typecheck
+bun run lint
+bun run --cwd apps/serve build:serve
+bun run --cwd apps/tui build
+bun run --cwd apps/web build:desktop
+```
+
+Install using root `bun install --frozen-lockfile` first in implementation; run per-package so Bun preload applies. Rendering keyboard/mobile/TUI checks are required later; none run by this planning pass. Ship `feat` release (serve/TUI/web/Mac), capability-gate requests on old serve, and regenerate api-router if shared DTOs change. Additive request capability needs no further protocol bump beyond04, but event readers must tolerate the bookkeeping variants and older clients must show authoritative chosen/effective identity via a readable transcript event instead of silently asserting the preferred model answered. New serve without capability has no recovery command; do not implement fallback as a client-side sequence of chooseModel+retry.

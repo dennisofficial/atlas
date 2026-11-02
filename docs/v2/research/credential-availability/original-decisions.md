@@ -1,0 +1,14 @@
+# Credential availability plan — planning constraints
+
+- 2026-10-31: This pass produces implementation-ready vertical-slice specs only; no application edits, production mutations, commits or pushes. Operator asked for delegated planning, not implementation yet.
+- Availability is separate from credential health, model selection and default preferences; one unavailable credential must not rewrite defaults or disable unrelated accounts/models.
+- Normalize failure meaning once; confirmed hard quota/auth differs from transient429/network/overload, and missing Cloud auth delivery is not proof the stored key is invalid.
+- All main/child/utility model calls must cross the shared harness admission seam, including ongoing/resumed turns and cached OAuth access tokens. Preserve in-process host sessions as first-class runtimes.
+- Use API-owned account identity and existing secretVersion where applicable; fence stale observations against credential replacement. Do not create a second credential store or a second execution checkpoint.
+- Recovery is at model-step boundaries through the existing event log; never replay completed tool effects, abort successful streams, kill useful processes, or silently retarget explicitly pinned child selections.
+- No new unapproved cross-provider substitution. Preserve existing narrowly bounded helper→current-session fallback during foundations instead of deleting working behavior before replacement UX lands; every candidate must pass admission, malformed/delivery/cancelled faults cannot be hidden by fallback, and no primary↔alternate oscillation. Main automatic alternate remains opt-in in06. Explicit recovery defaults to the session family; bulk scope and make-default are deliberate. Recovery restores eligibility, not automatic switching of active sessions back to the original model.
+- No generic fallback graph/rule engine. A single pre-approved alternate is the final optional slice; core useful outcome must ship without it.
+- Scope refinement:05 delivers finite session-family recovery only; account-wide bulk and make-default mutations are deferred, no placeholder UI.03 splits into independently releasable03a API-key authority and03b OAuth integration, not one giant credential rewrite.
+- contracts.md locks one five-method execution interface and a nonterminal promoteProbe lifecycle; first output cannot terminate observation or lose later SSE failure. Actual-route identity/accounting is required before explicit recovery05, not deferred solely to optional06.
+- Provider reset times must come from provider evidence; no guessed midnight. Manual pause is distinct from automatic temporary unavailability.
+- Specs use checkout eeee3e7ef (main at planning start), exact read anchors and real package test commands; refresh/rebase anchors before implementation because other sessions have parallel work in flight.
