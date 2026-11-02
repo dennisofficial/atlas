@@ -32,7 +32,7 @@ export function pullRequestRowOf(entry: PullRequestEntry): PullRequestRow {
     state: entry.state,
     checks: checksTallyOf(entry),
     conflicts: entryHasConflicts(entry),
-    via: entry.via === undefined ? undefined : `via ${entry.via.title ?? 'teammate'}`,
+    via: entry.via?.title ? `via ${entry.via.title}` : undefined,
   }
 }
 

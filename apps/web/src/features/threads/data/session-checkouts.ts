@@ -8,7 +8,6 @@ import { UNTITLED } from './untitled'
 export type CheckoutView = {
   key: string
   branch: string
-  path: string | undefined
   label: string | undefined
   main: boolean
   threadIds: string[]
@@ -37,15 +36,6 @@ export function checkoutOf(
   }
 }
 
-export function quietPathOf(args: {
-  path: string | undefined
-  root: WireThread
-}): string | undefined {
-  const { path, root } = args
-  if (path === undefined || path === root.workspace || path === root.repo) return undefined
-  return path
-}
-
 export function threadLabelOf(thread: WireThread): string {
   return thread.title ? displayedThreadTitle(thread.title) : UNTITLED
 }
@@ -69,7 +59,7 @@ export function sessionCheckoutsOf(args: {
     }
     views.set(key, {
       key,
-      ...checkout,
+      branch: checkout.branch,
       label: main ? undefined : threadLabelOf(member),
       main,
       threadIds: [member.id],
@@ -92,7 +82,6 @@ export function sessionCheckoutsOf(args: {
         owner = {
           key: keyOf({ branch: entry.branch, path: viaId }),
           branch: entry.branch,
-          path: undefined,
           label: undefined,
           main: false,
           threadIds: [entry.via.threadId],
@@ -104,12 +93,5 @@ export function sessionCheckoutsOf(args: {
     if (owner === undefined) looseKeys.push(key)
     else owner.rowKeys.push(key)
   }
-  const checkouts =
-    all.length > 1
-      ? all.map((view) => ({
-          ...view,
-          path: quietPathOf({ path: view.path, root: thread }),
-        }))
-      : all.map((view) => ({ ...view, path: undefined }))
-  return { checkouts, looseKeys }
+  return { checkouts: all, looseKeys }
 }

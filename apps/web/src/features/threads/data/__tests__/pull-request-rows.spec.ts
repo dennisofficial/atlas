@@ -69,6 +69,6 @@ describe('pullRequestListOf', () => {
       }),
       states: [],
     })
-    expect(list.rows.map((row) => row.via)).toEqual([undefined, 'via fix it', 'via teammate'])
+    expect(list.rows.map((row) => row.via)).toEqual([undefined, 'via fix it', undefined])
   })
 })
