@@ -1,1 +1,4 @@
-export { ETurnStatus, type TurnOutcome } from '@dltech/atlas-client/channel'
+export {
+  ETurnStatus,
+  type TurnOutcome,
+} from '@dltech/atlas-agent'
