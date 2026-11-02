@@ -169,9 +169,9 @@ describe('shared row details access', () => {
     expect(popup()?.textContent).toContain('Teammate of')
     expect(popup()?.textContent).toContain('Main title')
     for (const number of [3, 4, 5]) expect(popup()?.textContent).toContain(`Fix ${number}`)
-    expect(popup()?.querySelector('[aria-label="Archive thread"]')).toBeNull()
+    expect(popup()?.querySelector('[aria-label="Mark as done"]')).toBeNull()
     expect(
-      view.link('mate').parentElement?.querySelector('[aria-label="Archive thread"]'),
+      view.link('mate').parentElement?.querySelector('[aria-label="Mark as done"]'),
     ).not.toBeNull()
     await escapeFrom(button)
     expect(button.getAttribute('aria-expanded')).toBe('false')

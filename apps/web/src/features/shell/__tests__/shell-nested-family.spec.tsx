@@ -143,7 +143,7 @@ describe('recursive shared thread rows', () => {
     await act(async () => {
       view
         .link('middle')
-        .parentElement?.querySelector<HTMLButtonElement>('[aria-label="Archive thread"]')
+        .parentElement?.querySelector<HTMLButtonElement>('[aria-label="Mark as done"]')
         ?.click()
     })
     expect(view.archived).toEqual([nestedFamily.teammates[0]?.mainThread])

@@ -31,6 +31,7 @@ export function useThreadArchive(args: {
   entries: readonly ProjectThreads[] | undefined
   reload: () => void
   onArchived: (threadId: string) => AfterUndo | undefined
+  isTeammate?: (threadId: string) => boolean
   archive: (args: {
     threadId: string
     archived: boolean
@@ -38,6 +39,7 @@ export function useThreadArchive(args: {
   }) => Promise<unknown>
 }) {
   const { entries, reload, onArchived, archive } = args
+  const isTeammate = args.isTeammate ?? (() => false)
   const [overrides, setOverrides] = useState<ArchiveOverrides>(NO_OVERRIDES)
 
   const settled = entries === undefined ? overrides : settleArchiveOverrides({ entries, overrides })
@@ -63,11 +65,19 @@ export function useThreadArchive(args: {
         return true
       } catch {
         setOverrides((current) => withoutOverride({ overrides: current, threadId }))
-        toast.error(archived ? "Couldn't archive the thread" : "Couldn't restore the thread")
+        toast.error(
+          isTeammate(thread.id)
+            ? archived
+              ? "Couldn't mark the teammate as done"
+              : "Couldn't reopen the teammate"
+            : archived
+              ? "Couldn't archive the thread"
+              : "Couldn't restore the thread",
+        )
         return false
       }
     },
-    [reload, archive],
+    [reload, archive, isTeammate],
   )
 
   const handleToggleArchive = useCallback(
@@ -78,7 +88,7 @@ export function useThreadArchive(args: {
       const handleUndo = async () => {
         if (await persist({ thread, archived: false })) afterUndo?.()
       }
-      toast('Thread archived', {
+      toast(isTeammate(thread.id) ? 'Marked as done' : 'Thread archived', {
         description: thread.title,
         duration: UNDO_ARCHIVE_MS,
         action: { label: 'Undo', onClick: () => void handleUndo() },
