@@ -240,6 +240,36 @@ describe('SandboxSelfRouter', () => {
       expect(await db.orm.public.SandboxBootStep.all()).toHaveLength(1)
     })
 
+    it('stores the running serve version without touching the boot pin', async () => {
+      await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
+        serveVersion: '1.0.0',
+      })
+
+      const reply = await send('bootSteps', SANDBOX_TOKEN, {
+        serveVersion: '1.4.2',
+        steps: [{ step: EBootStep.Agent, state: EBootStepState.Running }],
+      })
+
+      expect(reply.status).toBe(200)
+      const row = await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).first()
+      expect(row?.runningServeVersion).toBe('1.4.2')
+      expect(row?.serveVersion).toBe('1.0.0')
+    })
+
+    it('leaves the running serve version untouched when the batch carries none', async () => {
+      await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
+        runningServeVersion: '1.4.2',
+      })
+
+      const reply = await send('bootSteps', SANDBOX_TOKEN, {
+        steps: [{ step: EBootStep.Agent, state: EBootStepState.Running }],
+      })
+
+      expect(reply.status).toBe(200)
+      const row = await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).first()
+      expect(row?.runningServeVersion).toBe('1.4.2')
+    })
+
     it('answers 404 and records nothing when the thread row is gone', async () => {
       await db.orm.public.Session.where({ id: 'ses_thr-1' }).delete()
 

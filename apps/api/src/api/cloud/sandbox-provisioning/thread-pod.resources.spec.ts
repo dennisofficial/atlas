@@ -57,6 +57,19 @@ describe('ThreadPodService resources', () => {
     })
   })
 
+  it('reports the running serve version from the row when one was recorded', async () => {
+    await seedSandboxRow({
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      sandboxId: 'sbx-9',
+      runningServeVersion: '1.4.2',
+    })
+
+    const pod = await podServiceOver(realEndpoints(), vercelWith({})).status(scope)
+
+    expect(pod.resources?.serveVersion).toBe('1.4.2')
+  })
+
   it('keeps the row identity when Vercel cannot be read', async () => {
     await seedSandboxRow({
       threadId: 'thr-1',

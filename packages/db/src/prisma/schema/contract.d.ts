@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'18518cc2afa8b273ce1fbe178c79fb8ae7141b1872f63117c8606ff5be9eb08f'>;
+  StorageHashBase<'0834414e0459aa522b528ad39c1e21aa6c956e9acaab3ea39fda62a03f21d075'>;
 export type ExecutionHash =
   ExecutionHashBase<'1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb'>;
 export type ProfileHash =
@@ -338,6 +338,7 @@ export namespace Models {
     pendingVcpus: FieldOutputTypes['public']['CloudSandbox']['pendingVcpus'];
     pinnedModel: FieldOutputTypes['public']['CloudSandbox']['pinnedModel'];
     region: FieldOutputTypes['public']['CloudSandbox']['region'];
+    runningServeVersion: FieldOutputTypes['public']['CloudSandbox']['runningServeVersion'];
     runtimeCheckpoint: FieldOutputTypes['public']['CloudSandbox']['runtimeCheckpoint'];
     runtimeCheckpointRevision: FieldOutputTypes['public']['CloudSandbox']['runtimeCheckpointRevision'];
     sandboxId: FieldOutputTypes['public']['CloudSandbox']['sandboxId'];
@@ -1524,6 +1525,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly runningServeVersion: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly runtimeCheckpoint: {
@@ -5955,6 +5962,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly runningServeVersion: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly runtimeCheckpoint: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
@@ -6075,6 +6086,7 @@ type ContractBase = Omit<
                 readonly pendingVcpus: { readonly column: 'pendingVcpus' };
                 readonly pinnedModel: { readonly column: 'pinnedModel' };
                 readonly region: { readonly column: 'region' };
+                readonly runningServeVersion: { readonly column: 'runningServeVersion' };
                 readonly runtimeCheckpoint: { readonly column: 'runtimeCheckpoint' };
                 readonly runtimeCheckpointRevision: {
                   readonly column: 'runtimeCheckpointRevision';

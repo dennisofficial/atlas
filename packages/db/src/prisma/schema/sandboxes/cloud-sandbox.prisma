@@ -16,6 +16,7 @@ model CloudSandbox {
   pinnedModel               String?
   serveUrl                  String?
   serveVersion              String?
+  runningServeVersion       String?
   wakeFailedAt              TimestamptzJsDate(3)?
   wakeClaim                 TimestamptzJsDate(3)?
   pendingSend               Jsonb?

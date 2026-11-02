@@ -252,6 +252,7 @@ export const latestBootAttemptOf = (steps: readonly RecordedBootStep[]): Recorde
 
 export const bootStepsPostSchema = z.object({
   steps: z.array(bootStepEventSchema).min(1).max(50),
+  serveVersion: z.string().min(1).max(64).optional(),
 })
 export type BootStepsPost = z.infer<typeof bootStepsPostSchema>
 
@@ -269,6 +270,7 @@ export const podResourcesSchema = z.object({
   vcpus: z.number().int().positive().optional(),
   memoryMb: z.number().int().positive().optional(),
   pendingVcpus: z.number().int().positive().optional(),
+  serveVersion: z.string().optional(),
 })
 export type PodResources = z.infer<typeof podResourcesSchema>
 

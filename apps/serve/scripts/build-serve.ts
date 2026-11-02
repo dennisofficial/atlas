@@ -74,12 +74,17 @@ await writeSupervisorBundle()
 await generateSkills()
 await generatePluginTypes()
 
+const serveVersion = process.env.ATLAS_VERSION === '' ? undefined : process.env.ATLAS_VERSION
+
 const cmd = [
   'bun',
   'build',
   '--compile',
   '--define',
   `ATLAS_VENDORED_RG_VERSION:${JSON.stringify(version)}`,
+  ...(serveVersion === undefined
+    ? []
+    : ['--define', `ATLAS_SERVE_VERSION:${JSON.stringify(serveVersion)}`]),
   ...(target === undefined ? [] : ['--target', target]),
   'src/main.ts',
   '--outfile',
