@@ -65,14 +65,21 @@ export function createSocketGreeter(args: {
     })
     const blocked = args.refusal()
     if (blocked !== null) send({ socket, frame: { kind: EServeFrame.Error, message: blocked } })
-    const queued = pending === undefined ? [] : pendingEntriesOf({ pending, threadId: threadId() })
+    const queued =
+      pending === undefined
+        ? []
+        : pendingEntriesOf({ pending, threadId: socket.data.threadId ?? threadId() })
     if (queued.length > 0)
       send({
         socket,
         frame: {
           kind: EServeFrame.Signal,
           seq: Math.max(0, buffer.nextSeq() - 1),
-          signal: { type: 'pending-changed', entries: queued },
+          signal: {
+            type: 'pending-changed',
+            entries: queued,
+            threadId: socket.data.threadId ?? threadId(),
+          },
         },
       })
     const rotating = args.rotation()

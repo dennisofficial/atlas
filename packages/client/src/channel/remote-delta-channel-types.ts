@@ -12,6 +12,7 @@ import type {
 
 import type { DeltaChannel, Unsubscribe } from './delta-channel-types'
 import { EStepEnd } from './signal'
+import type { ScopedSignal } from './thread-scoped-signals'
 import type { TurnOutcome } from './turn-outcome'
 import type { EClientRequest } from './channel-wire'
 import type { ConnectionView } from './connection-view'
@@ -74,8 +75,16 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onRoster(listener: (roster: RosterWire) => void): Unsubscribe
   onPrStates(listener: (states: readonly PrStateWire[]) => void): Unsubscribe
   onSubscriptions(listener: (subscriptions: SubscriptionsWire) => void): Unsubscribe
-  pendingEntries(): readonly PendingEntryWire[]
+  pendingEntries(args?: { threadId?: ThreadId | undefined }): readonly PendingEntryWire[]
   onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): Unsubscribe
+  /** The scoped thread's pending queue; untagged frames land under the channel's root thread. */
+  pendingEntriesOf(args: { threadId: ThreadId }): readonly PendingEntryWire[]
+  onPendingChangedOf(
+    threadId: ThreadId,
+    listener: (entries: readonly PendingEntryWire[]) => void,
+  ): Unsubscribe
+  /** Working and events echoes for any family thread, tagged by the serve; untagged frames read as the root thread's. */
+  onScopedSignal(listener: (scoped: ScopedSignal) => void): Unsubscribe
   onThreadRenamed(listener: (renamed: ThreadRenamedFrame) => void): Unsubscribe
   onThreadTitling(listener: (frame: ThreadTitlingFrame) => void): Unsubscribe
   onThreadModelChanged(listener: (changed: ThreadModelChangedFrame) => void): Unsubscribe

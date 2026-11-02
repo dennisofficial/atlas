@@ -180,9 +180,9 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       maxAttempts: 0,
     })
     channel = live
-    update({ pending: live.pendingEntries(), channel: live })
+    update({ pending: live.pendingEntriesOf({ threadId }), channel: live })
     releases.push(
-      live.onPendingChanged((entries) => update({ pending: entries })),
+      live.onPendingChangedOf(threadId, (entries) => update({ pending: entries })),
       live.subscribe({ threadId, listener: handleSignal }),
       live.onConnection(() => handleConnection(live)),
       live.onThreadModelChanged((changed) => args.onModelChanged?.(changed.model)),

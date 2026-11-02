@@ -9,6 +9,8 @@ import type {
   TerminalOutputWire,
 } from '@dltech/atlas-wire/web'
 
+import { toThreadId, type ThreadId } from '@dltech/atlas-core'
+
 import { EClientFrame } from './channel-wire'
 import { ESocketLiveness } from './connection-view'
 import type { ChannelListener } from './delta-channel-types'
@@ -19,6 +21,7 @@ import { createInFlightReplay } from './remote-channel-in-flight'
 import { registryOf } from './remote-channel-registry'
 import { webSocketFactory, type ChannelSocket } from './remote-channel-socket'
 import { createUpstreamPipe } from './remote-channel-upstream'
+import { createScopedSignalHub, isScopedSignal } from './thread-scoped-signals'
 import {
   INTERRUPT_ACK_TIMEOUT_MS,
   STRANDED_STEP_END,
@@ -58,16 +61,17 @@ export type ChannelState = {
   interruptPending: boolean
   interruptSentGeneration: number
   heldPending: readonly PendingEntryWire[]
+  heldPendingByThread: Map<ThreadId, readonly PendingEntryWire[]>
   helloPending: boolean
   heldUntilHello: string[]
   capabilities: CapabilitySet
 }
 
-export function createChannelCore(args: RemoteDeltaChannelOptions) {
-  const scheduleTimeout = args.scheduleTimeout ?? afterDelay
+export function createChannelCore(channelArgs: RemoteDeltaChannelOptions) {
+  const scheduleTimeout = channelArgs.scheduleTimeout ?? afterDelay
   const state: ChannelState = {
-    url: args.url,
-    token: args.token,
+    url: channelArgs.url,
+    token: channelArgs.token,
     channelCursor: null,
     attempt: 0,
     socket: null,
@@ -77,6 +81,7 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     interruptPending: false,
     interruptSentGeneration: -1,
     heldPending: NOTHING_PENDING,
+    heldPendingByThread: new Map(),
     helloPending: false,
     heldUntilHello: [],
     capabilities: new Set(),
@@ -94,6 +99,10 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     terminalOutputs: registryOf<TerminalOutputWire>(),
     terminalExits: registryOf<TerminalExitWire>(),
     pendingChanges: registryOf<readonly PendingEntryWire[]>(),
+    pendingChangesScoped: registryOf<{
+      threadId: ThreadId
+      entries: readonly PendingEntryWire[]
+    }>(),
     threadRenames: registryOf<ThreadRenamedFrame>(),
     threadTitlings: registryOf<ThreadTitlingFrame>(),
     threadModelChanges: registryOf<ThreadModelChangedFrame>(),
@@ -102,11 +111,12 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     failures: registryOf<ChannelFailure>(),
     serverErrors: registryOf<ChannelFailure>(),
   }
-  const checkpoints = createCheckpointHolder({ threadId: args.threadId })
+  const scopedSignals = createScopedSignalHub({ root: () => channelArgs.threadId })
+  const checkpoints = createCheckpointHolder({ threadId: channelArgs.threadId })
   const inFlight = createInFlightReplay()
   const upstream = createUpstreamPipe({
-    timeoutMs: args.requestTimeoutMs,
-    unwrittenTimeoutMs: args.unwrittenRequestTimeoutMs,
+    timeoutMs: channelArgs.requestTimeoutMs,
+    unwrittenTimeoutMs: channelArgs.unwrittenRequestTimeoutMs,
     scheduleTimeout,
   })
   const facts = createConnectionFacts({
@@ -118,9 +128,16 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     detached: false,
   })
 
-  const settlePending = (entries: readonly PendingEntryWire[]): void => {
-    state.heldPending = entries
-    on.pendingChanges.emit(entries)
+  const settlePending = (pending: {
+    threadId: ThreadId
+    entries: readonly PendingEntryWire[]
+  }): void => {
+    state.heldPendingByThread.set(pending.threadId, pending.entries)
+    if (pending.threadId === channelArgs.threadId) {
+      state.heldPending = pending.entries
+      on.pendingChanges.emit(pending.entries)
+    }
+    on.pendingChangesScoped.emit(pending)
   }
 
   const acceptCheckpoint = (checkpoint: RuntimeCheckpoint | null | undefined): void => {
@@ -134,7 +151,7 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     upstream.send({ kind: EClientFrame.Interrupt })
     const sentGeneration = state.generation
     scheduleTimeout({
-      delayMs: args.interruptAckTimeoutMs ?? INTERRUPT_ACK_TIMEOUT_MS,
+      delayMs: channelArgs.interruptAckTimeoutMs ?? INTERRUPT_ACK_TIMEOUT_MS,
       run: () => {
         if (!state.interruptPending || state.interruptSentGeneration !== sentGeneration) return
         if (facts.facts().socket !== ESocketLiveness.Open) return
@@ -171,7 +188,14 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
         })
       }
     }
-    if (signal.type === 'pending-changed') settlePending(signal.entries)
+    scopedSignals.deliver(signal)
+    if (signal.type === 'pending-changed') {
+      const threadId =
+        isScopedSignal(signal) && signal.threadId !== undefined
+          ? toThreadId(signal.threadId)
+          : channelArgs.threadId
+      settlePending({ threadId, entries: signal.entries })
+    }
   }
 
   const endStrandedStep = () => {
@@ -181,7 +205,7 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
   }
 
   return {
-    args,
+    args: channelArgs,
     state,
     attached,
     listeners,
@@ -190,12 +214,13 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     inFlight,
     upstream,
     facts,
-    lastEventSeq: args.lastEventSeq ?? (() => 0),
-    socketFactory: args.socketFactory ?? webSocketFactory,
-    backoffMs: args.backoffMs ?? defaultBackoffMs,
-    maxAttempts: args.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
-    scheduleRetry: args.scheduleRetry ?? afterDelay,
-    scheduleKeepalive: args.scheduleKeepalive ?? intervalKeepaliveScheduler,
+    scopedSignals,
+    lastEventSeq: channelArgs.lastEventSeq ?? (() => 0),
+    socketFactory: channelArgs.socketFactory ?? webSocketFactory,
+    backoffMs: channelArgs.backoffMs ?? defaultBackoffMs,
+    maxAttempts: channelArgs.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
+    scheduleRetry: channelArgs.scheduleRetry ?? afterDelay,
+    scheduleKeepalive: channelArgs.scheduleKeepalive ?? intervalKeepaliveScheduler,
     scheduleTimeout,
     settlePending,
     acceptCheckpoint,

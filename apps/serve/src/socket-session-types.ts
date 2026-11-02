@@ -5,7 +5,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import type { CapabilitySet, RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type { StepId } from '@dltech/atlas-harness'
-import type { ClientFrame, EClientFrame, ServeFrame } from '@dltech/atlas-harness'
+import type { ClientFrame, DeltaChannel, EClientFrame, ServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
 import type { TitlingTurnRunner } from '@dltech/atlas-harness'
 
@@ -36,6 +36,8 @@ export type SocketState = {
   alias: StepAlias | null
   greeting: number
   greeted: boolean
+  /** The family thread this socket's Hello named; absent until it is admitted. */
+  threadId?: ThreadId | undefined
   /** Decoded frames the greeter holds until the socket is greeted. */
   held: ClientFrame[]
   /** Raw frames buffered while the socket is held across a still-running boot. */
@@ -64,6 +66,8 @@ export type SessionHandlers = {
 export type HelloFrame = Extract<ClientFrame, { kind: EClientFrame.Hello }>
 
 export type SessionHandlersArgs = {
+  /** The session's delta channel; the socket echoes each viewed thread's signals to its viewers. */
+  channel?: Pick<DeltaChannel, 'subscribe'> | undefined
   activity: SessionActivityPort
   threadId: ThreadId
   /** Whether a Hello'd thread belongs to the served session family; absent admits only the root. */

@@ -8,14 +8,15 @@ import {
   type ServeFrame,
 } from '@dltech/atlas-harness'
 
-import { createBroadcastEncoder, sendFrame as send } from './frame-egress'
+import { sendFrame as send } from './frame-egress'
+import { childEchoOf } from './serve-child-echo'
 import { createHelloAdmission } from './hello-family'
 import { protocolRefusal } from './hello-admission'
 import { unreadableRequestReplyOf } from './unreadable-request'
 import { pendingEntriesOf } from './requests'
 import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
-import { createSnapshotBroadcasts } from './socket-broadcast'
+import { createBroadcast, createSnapshotBroadcasts, retagForSocket } from './socket-broadcast'
 import { createTurnCommands } from './socket-commands'
 import { createRequestRouter } from './socket-requests'
 import { createDeferredFrames } from './socket-deferred-frames'
@@ -27,7 +28,7 @@ import type {
   SessionSocket,
 } from './socket-session-types'
 import { createMutationTracker, isReadOnlyFrame, routeStateRequest } from './socket-state-requests'
-import { createStepAliaser, endsAliasedStep, retagged } from './step-alias'
+import { createStepAliaser } from './step-alias'
 
 export type {
   HelloFrame,
@@ -55,6 +56,12 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
   let historyGeneration = 0
+  const echo = childEchoOf({
+    channel: args.channel,
+    attached: () => [...attached],
+    buffer,
+    root: threadId,
+  })
 
   const command = createTurnCommands({
     threadId,
@@ -106,15 +113,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     return current === null ? {} : { checkpoint: current }
   }
 
-  const forSocket = (args: { socket: SessionSocket; frame: ServeFrame }): ServeFrame => {
-    const alias = args.socket.data.alias
-    if (alias === null) return args.frame
-
-    const frame = retagged({ frame: args.frame, alias })
-    if (endsAliasedStep({ frame: args.frame, alias })) args.socket.data.alias = null
-    return frame
-  }
-
   const refuse = (args: { socket: SessionSocket; reason: string }): void => {
     send({ socket: args.socket, frame: { kind: EServeFrame.Error, message: args.reason } })
     log({ event: EServeEvent.ClientRefused, reason: args.reason })
@@ -136,7 +134,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     aliaser,
     attached,
     send,
-    forSocket,
+    forSocket: retagForSocket,
     drive: (driven) => drive(driven),
     log,
     rotation: () => router.rotation.current(),
@@ -145,7 +143,10 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const { admitHello } = createHelloAdmission({
     threadId,
     live,
-    greetRest,
+    greetRest: (greeting) => {
+      echo.viewed(greeting.socket)
+      greetRest(greeting)
+    },
     refuse,
     transcript,
     admitsThread: args.admitsThread,
@@ -167,17 +168,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     admitted(args)
   }
 
-  const broadcast = (frame: ServeFrame): void => {
-    const encodedFor = createBroadcastEncoder(frame)
-    for (const socket of attached) {
-      if (socket.data.alias === null) {
-        socket.send(encodedFor(socket))
-        continue
-      }
-      send({ socket, frame: forSocket({ socket, frame }) })
-    }
-    if (frame.kind === EServeFrame.Checkpoint) deferred.replay()
-  }
+  const broadcast = createBroadcast({ attached, deferred, aliaser })
 
   const unsubscribePending = pending?.subscribe(() => {
     broadcast(
@@ -245,6 +236,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     close({ socket }) {
       live.delete(socket)
       deferred.drop({ socket })
+      echo.detached(socket)
       if (!attached.delete(socket)) return
       log({
         event: EServeEvent.ClientDetached,

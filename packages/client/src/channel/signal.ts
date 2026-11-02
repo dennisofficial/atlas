@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { CallId, Chunk, ERetryReason, EventRef } from '@dltech/atlas-core'
+import type { CallId, Chunk, ERetryReason, EventRef, ThreadId } from '@dltech/atlas-core'
 
 export const stepIdSchema = z.string().min(1).brand<'StepId'>()
 
@@ -27,7 +27,11 @@ export type RetryWaitingSignal = {
   reason: ERetryReason
 }
 
-export type TurnWorkingSignal = { type: 'turn-working'; working: boolean }
+export type TurnWorkingSignal = {
+  type: 'turn-working'
+  working: boolean
+  threadId?: ThreadId | undefined
+}
 
 type PendingEntrySignal = { id: string; text: string; via?: string | undefined; reserved: boolean }
 
@@ -41,11 +45,15 @@ export type OperatorInputRequest = {
 export type ChannelSignal =
   | StepSignal
   | TurnWorkingSignal
-  | { type: 'events-appended' }
+  | { type: 'events-appended'; threadId?: ThreadId | undefined }
   | { type: 'context-changed' }
   | { type: 'session-files-changed'; revision: number }
   | RetryWaitingSignal
   | { type: 'retry-cleared' }
-  | { type: 'pending-changed'; entries: PendingEntrySignal[] }
-  | { type: 'operator-input'; request: OperatorInputRequest | null }
+  | { type: 'pending-changed'; entries: PendingEntrySignal[]; threadId?: ThreadId | undefined }
+  | {
+      type: 'operator-input'
+      request: OperatorInputRequest | null
+      threadId?: ThreadId | undefined
+    }
   | { type: 'rotation-changed'; rotation: RotationStateWire }

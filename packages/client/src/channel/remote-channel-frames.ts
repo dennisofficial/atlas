@@ -48,7 +48,7 @@ export function createFrameHandler(core: ChannelCore) {
     const turnInFlight = frame.turnInFlight === true
     if (turnInFlight !== inFlight.working())
       core.deliver({ type: 'turn-working', working: turnInFlight })
-    core.settlePending(NOTHING_PENDING)
+    core.settlePending({ threadId: core.args.threadId, entries: NOTHING_PENDING })
     on.readies.emit({ turnInFlight, transcriptCurrent: frame.transcriptCurrent })
     facts.update({
       phase: accepted?.phase ?? ERuntimePhase.Serving,
