@@ -401,3 +401,58 @@ these are the parts of Kubernetes' design that fit:
 
 Not adopted: running Kubernetes itself. Vercel Sandbox is the runtime; v2 copies the control
 patterns, not the platform.
+
+## 14. Archive is read-only, and an archived session costs nothing
+
+**v1 today.** Archive (`apps/api/src/api/platform/sessions/thread-archive.service.ts`) sets
+`Session.archivedAt`, ends the session's subscriptions and dispatches a one-shot cleanup that parks
+the pod. It is not read-only: a send unarchives and boots (`thread-messages.service.ts`), Retry
+ignores `archivedAt` (`sandbox-provisioning.service.ts`), and a teammate session on the same pod
+keeps its subscriptions and can wake it. A failed cleanup dispatch is only logged. Storage is never
+freed: sandboxes are `persistent` with `keepLastSnapshots: 1` (`packages/wire/src/sandbox-mount.ts`),
+so every archived session keeps a stopped sandbox and its latest snapshot until the v1 archived
+sandbox sweep deletes it after seven days.
+
+**v2.** Archive is the operator inbox command of [slices/03-teammates.md](slices/03-teammates.md),
+logged as `session-archived`. Because the record lives in the CP and a sandbox is only a cache of
+record plus world state (0021), deleting an archived sandbox loses nothing the session needs.
+
+**A1. Archived is a state the CP enforces.** While the latest archive event is `session-archived`,
+the command handlers accept only `unarchive` and reads. Every other command — say, retry, resize,
+model change, subscribe, a peer's `message_session`, PR/CI deliveries — is refused with a typed
+`Archived` rejection. Sending does not unarchive; unarchive is an explicit operator command.
+
+**A2. The reconciler never places an archived session.** §13's rule becomes "unconsumed inbox
+entries, no live holder, and not archived". Archiving increments the epoch, so a worker mid-turn
+stops at its next append and the turn ends with an `archived` outcome.
+
+**A3. Archive ends what the session owns, as events.** Subscriptions end with reason `archived`,
+owed notices are dropped, shells and services stop. Peers placed on the same pod are unaffected;
+the pod is released only when no placed session holds it.
+
+**A4. Archive stops the sandbox; retention deletes it.** The sandbox stops at archive. Seven days
+after archive the sandbox and its snapshots are deleted; the record, artifacts and views stay.
+There is no unsaved-work guard: uncommitted or unpushed work in an archived sandbox is the
+operator's to lose. Unarchive after deletion provisions a fresh sandbox and re-clones from the
+session's checkout view (slice 4), like any lost sandbox.
+
+**A5. Retention is reconciled, not dispatched once.** A CP reconciler pass ("archived, sandbox
+exists, grace elapsed → delete") replaces v1's fire-once cleanup. It is idempotent, so a failed
+delete is retried on the next pass.
+
+**A6. Auto-archive.** A session with no inbox activity and no live holder for 72 hours — the web
+sidebar's Inactive window (`apps/web/src/features/shell/thread-partition.ts`, `INACTIVE_AFTER_MS`)
+— is archived by the CP with actor `clock`. Pinned sessions are exempt.
+
+**A7. Sandboxes stop sooner.** The loop runs on the worker (0021), so a sandbox is needed only while
+tools, shells or services run. Its idle stop drops from v1's 30 minutes
+(`apps/serve/src/idle-stop.ts`) to 5–10 minutes; slice 3 measures resume latency before the number
+is fixed. The worker keeps the lease and the conversation, and the next tool call reprovisions.
+
+| Slice                 | Owns                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| 3 worker host         | A2 epoch fence on archive; sandbox stop at archive; A7 idle stop and its measurement |
+| 4 views               | Archived state in the session view; the checkout view a re-clone starts from         |
+| 6 commands            | `archive` / `unarchive` inbox commands; the A1 rejection on web and TUI              |
+| 7 subscriptions       | A3 subscription teardown and refused deliveries                                      |
+| CP reconciler (3 / 8) | A4/A5 retention pass; A6 auto-archive                                                |
