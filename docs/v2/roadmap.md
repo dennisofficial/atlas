@@ -30,6 +30,9 @@ _Updated at the end of every slice. Last update: 2026-11-02._
 - **Next:** slice 1, record core. Its spec is drafted at
   [slices/01-record-core.md](slices/01-record-core.md) and needs the operator's approval before
   building starts.
+- **Scale requirement (2026-11-02):** a thread must run at 1M events (architecture §12). Slice 1's
+  operator-approved corrections added bounded reads, O(batch) append on the thread row, an
+  incremental `visibleEvents` and a ~100k-event Postgres exit test; reconcile the spec with §12.
 - **Open:** D2 (local control plane), needed only at slice 9.
 - **v1 fixes found while doing v2** (shipped separately): #1649 append-fork reconcile; #1651
   fault-killed sub-agents end once; #1653 sub-agent session-index race (a sibling's mirror write

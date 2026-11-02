@@ -259,6 +259,7 @@ is a real cloud session on v2 from the web, with basic chat and tools.
 | ~~The v2 schema is not supported by Prisma 8~~ (retired)      | Verified 2026-11-01: Prisma 8 namespaces work on the repo's pins; `db.orm.v2.*` and a managed `v2` Postgres schema in the same migration graph | None needed; D6 uses `namespace v2` blocks directly                                                        |
 | D2 stays open too long                                        | The local slices cannot be specified                                                                                                          | D2 is needed only at the local slice; cloud slices do not depend on it                                     |
 | A saturated pod starves the harness                           | Slow streaming and sends, missed lease renewals (a live pod fenced, the session flapping), the harness OOM-killed before the workload         | §11: OOM and CPU priority, a memory watchdog, lease renewal and stop that do not wait on the loop          |
+| Long threads (1M events, 1.5–5 GB)                            | v1 re-folds the whole log per append, step, request and refresh ([log-scale](research/log-scale.md))                                         | §12: ranged reads only, current state as checkpoints, artifacts out of line, tail-first clients            |
 
 ## 11. Pod resources: the harness outranks its workloads
 
@@ -300,4 +301,57 @@ tail is lost, bounded by the flush cadence. In v1 the same death wedges or loses
 
 Thresholds, TTLs and the priority mechanism are fixed in the slice 3 spec and measured on a
 saturated pod, not chosen here.
+
+## 12. Log scale: history is an archive, current state is a checkpoint
+
+v2 must run a thread of **1,000,000 events (1.5–5 GB)** as smoothly as a fresh one. The
+[log-scale census](research/log-scale.md) found that v1 fails this everywhere for one reason: it
+uses the log as its state database, re-deriving current state by folding history from seq 0 on
+every append, step, request and refresh. v2 separates the two. **The log is an archive that is
+only ever read in ranges; the running session works from current-state checkpoints plus a bounded
+tail.**
+
+**L1. Every read is bounded.** Ports expose `readRange({ afterSeq, maxEvents, maxBytes })` and
+`readTail({ maxEvents, maxBytes })`, returning `{ events, nextCursor, head }`. There is no "read
+all" on any port. `head()` and identity are metadata, never a transcript read. Range bounds have
+one convention (exclusive `afterSeq`) across every tier.
+
+**L2. Append is O(batch).** Head seq and head hash live on the thread record and are compared and
+swapped there; nothing scans to append. Local storage repairs a torn tail by reading only the final
+record, never the file.
+
+**L3. Current state is materialized, not refolded.** Every fold that the loop, the pod or the CP
+needs per step or per request (pending calls and approvals, model wait, worktree and checkout,
+live contexts, agents, shells and services, subscriptions, owed notices, token totals, the
+visible-history mapping of P5) is an incremental step function. Its state is kept at a known
+`(epoch, seq)`, advanced in the same transaction as the append, and resumed as checkpoint plus
+suffix. This generalizes P6: a view is a fold, and a fold always runs incrementally.
+
+**L4. Assembly reads the model's context, not the transcript.** A step reads the latest summary,
+the live context records and the uncompacted tail, so covered history is never converted into
+messages, stringified or token-counted. The full log stays available for browsing and rewind.
+Compaction planning uses per-event token estimates kept with the record (prefix sums), not
+repeated scans.
+
+**L5. Large payloads live out of line.** Tool outputs, images and raw provider data above a size
+threshold are stored as artifacts. The event carries a reference, byte length, hash, and a bounded
+preview and model-facing summary. Limits are in bytes, not just event counts: 500 events can still
+be gigabytes.
+
+**L6. Replication and verification are incremental.** Pull and flush move from a known cursor in
+bounded pages until caught up. Chain verification checks a fetched suffix against a trusted head
+hash. A history edit knows its affected range; nothing serializes whole logs to find what changed.
+
+**L7. Clients are tail-first with eviction.** Every client follows the TUI's existing window
+(`apps/tui/src/composition/thread-reads.ts`: 1500-event pages, 3000 retained, eviction): open at
+the tail, page older history on demand, evict distant pages, append by touching only new rows.
+Projections run over the window, seeded from CP views, never over the whole history. Rendering is
+virtualized below the turn, so one huge turn cannot defeat it.
+
+**L8. Lookups by key are indexed.** Idempotency keys, wake dedupe and subscription ids are columns
+with indexes, not `LIKE` searches of event bodies.
+
+Every slice's exit criterion includes a scale check against a seeded long thread, sized to what the
+slice touches: append and ranged reads (slice 1), a pod step and resume (slice 3), view
+materialization (slice 4), opening and following a session (slice 5).
 
