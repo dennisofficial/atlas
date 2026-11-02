@@ -62,7 +62,7 @@ describe('activity tracker', () => {
         reason: 'r',
       }),
       activityOutcomeOf({ status: ETurnStatus.Idle, runId }),
-      activityOutcomeOf({ status: ETurnStatus.RelocationPaused, runId }),
+      activityOutcomeOf({ status: ETurnStatus.HandoffPaused, runId }),
     ]).toEqual(['completed', 'failed', 'stopped', undefined, undefined, undefined])
   })
 

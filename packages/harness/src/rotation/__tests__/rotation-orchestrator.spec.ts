@@ -184,7 +184,7 @@ describe('LocalRotation settle boundary', () => {
       text: 'denied tool call lands before the watermark is read',
     })
 
-    settledTurn.resolve({ status: ETurnStatus.RelocationPaused, runId: fixture.ids.nextRunId() })
+    settledTurn.resolve({ status: ETurnStatus.HandoffPaused, runId: fixture.ids.nextRunId() })
     const outcome = await requested
 
     if (outcome.kind !== 'rotated') throw new Error('expected rotated')

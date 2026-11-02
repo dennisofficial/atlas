@@ -58,7 +58,7 @@ const boot = async (over: { holdTurn?: Promise<void>; failChildPause?: boolean }
         order.push('turn-started')
         await over.holdTurn
         while (pause?.paused !== true) await Bun.sleep(1)
-        return { status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') }
+        return { status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') }
       },
     }),
     family: {

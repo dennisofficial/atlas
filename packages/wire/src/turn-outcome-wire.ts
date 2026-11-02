@@ -8,7 +8,7 @@ export enum ETurnStatus {
   Paused = 'paused',
   Idle = 'idle',
   Interrupted = 'interrupted',
-  RelocationPaused = 'relocation-paused',
+  HandoffPaused = 'relocation-paused',
   Failed = 'failed',
   WaitingForModel = 'waiting-for-model',
 }
@@ -36,7 +36,7 @@ export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
     committed: z.boolean(),
   }),
   z.object({
-    status: z.literal(ETurnStatus.RelocationPaused),
+    status: z.literal(ETurnStatus.HandoffPaused),
     runId: runIdWireSchema,
   }),
   z.object({

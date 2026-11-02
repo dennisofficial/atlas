@@ -59,7 +59,7 @@ describe('serve composes the 24h rollover', () => {
           order.push('turn-started')
           while (pause?.paused !== true) await Bun.sleep(1)
           order.push('turn-paused')
-          return { status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') }
+          return { status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') }
         },
       }),
       family: {

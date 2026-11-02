@@ -8,7 +8,7 @@ import { CountingIds, openStoreFixture } from '../../store/__tests__/harness'
 import { TitlingTurnRunner } from '../titling-turn-runner'
 import { recordingNotices } from './fakes'
 
-const done: TurnOutcome = { status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') }
+const done: TurnOutcome = { status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') }
 
 class SettledRunner extends TurnRunner {
   say(): Promise<TurnOutcome> {

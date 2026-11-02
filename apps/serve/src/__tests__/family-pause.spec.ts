@@ -59,7 +59,7 @@ const pauseBlocksTurn: RunTurn = ({ pause }) =>
   new Promise<TurnOutcome>((resolve) => {
     const check = () => {
       if (pause?.paused === true) {
-        resolve({ status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') })
+        resolve({ status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') })
         return
       }
       setTimeout(check, 1)
@@ -69,7 +69,7 @@ const pauseBlocksTurn: RunTurn = ({ pause }) =>
 
 const relocationPaused = (frame: { kind: EServeFrame; outcome?: unknown }): boolean =>
   frame.kind === EServeFrame.TurnEnded &&
-  (frame.outcome as { status: ETurnStatus }).status === ETurnStatus.RelocationPaused
+  (frame.outcome as { status: ETurnStatus }).status === ETurnStatus.HandoffPaused
 
 describe('pausing the whole family on a drain', () => {
   it('answers a failed pause with a readable error instead of relocation proof', async () => {
@@ -150,7 +150,7 @@ describe('pausing the whole family on a drain', () => {
         return new Promise<TurnOutcome>((resolve) => {
           const check = () => {
             if (pause?.paused === true) {
-              resolve({ status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') })
+              resolve({ status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') })
               return
             }
             setTimeout(check, 1)

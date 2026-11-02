@@ -85,7 +85,7 @@ export async function runTrackedTurn(
   if (opening.length > 0) await record.append({ threadId, runId, drafts: opening })
 
   for (;;) {
-    if (pause?.paused === true) return { status: ETurnStatus.RelocationPaused, runId }
+    if (pause?.paused === true) return { status: ETurnStatus.HandoffPaused, runId }
 
     const beforeDrain = await record.composedEvents({ threadId })
     const ownedBeforeDrain = rowsOwnedBy({ events: beforeDrain, threadId })
@@ -221,7 +221,10 @@ export async function runTrackedTurn(
         onChunk: deps.onChunk,
         assembled,
         signal: abortSignal,
-        retry: deps.retry,
+        retry:
+          deps.retry === undefined
+            ? undefined
+            : { ...deps.retry, runId, step: position.modelSteps },
         normalizeFailure: deps.normalizeFailure,
         prepare: prepareAttempt,
       })

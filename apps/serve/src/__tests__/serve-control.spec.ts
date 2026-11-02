@@ -51,7 +51,7 @@ describe('startServe', () => {
         await pause?.waitIfPaused()
         pausedSeen = true
         await halt.opened
-        return { status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') }
+        return { status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') }
       },
     })
 
@@ -68,8 +68,7 @@ describe('startServe', () => {
     halt.open()
     await client.waitFor(
       (frame) =>
-        frame.kind === EServeFrame.TurnEnded &&
-        frame.outcome.status === ETurnStatus.RelocationPaused,
+        frame.kind === EServeFrame.TurnEnded && frame.outcome.status === ETurnStatus.HandoffPaused,
     )
   })
 

@@ -27,7 +27,7 @@ import { recordingNotices } from './fakes'
 
 const THREAD = toThreadId('resume-pause')
 
-const paused: TurnOutcome = { status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') }
+const paused: TurnOutcome = { status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') }
 
 class PauseRecordingRunner extends TurnRunner {
   readonly resumedWith: (PauseSignal | undefined)[] = []
@@ -87,7 +87,7 @@ describe('resuming a turn through the policy decorator', () => {
     const outcome = await policy.resume({ threadId: THREAD, pause })
     await policy.resume({ threadId: THREAD })
 
-    expect(outcome.status).toBe(ETurnStatus.RelocationPaused)
+    expect(outcome.status).toBe(ETurnStatus.HandoffPaused)
     expect(inner.resumedWith[0]).toBe(pause)
     expect(inner.resumedWith[1]).toBeUndefined()
     await fixture.close()
@@ -110,7 +110,7 @@ describe('resuming a turn through the titling decorator', () => {
 
     const outcome = await titling.resume({ threadId: THREAD, pause })
 
-    expect(outcome.status).toBe(ETurnStatus.RelocationPaused)
+    expect(outcome.status).toBe(ETurnStatus.HandoffPaused)
     expect(inner.resumedWith[0]).toBe(pause)
     await fixture.close()
   })

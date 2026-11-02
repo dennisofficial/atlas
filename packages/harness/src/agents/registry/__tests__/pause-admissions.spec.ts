@@ -14,7 +14,7 @@ const gate = () => {
   return { promise, open }
 }
 
-const paused = () => ({ status: ETurnStatus.RelocationPaused as const, runId: finished().runId })
+const paused = () => ({ status: ETurnStatus.HandoffPaused as const, runId: finished().runId })
 
 const spawn = async (entry: OpenedSupervisor): Promise<ThreadId> => {
   const spawned = await entry.supervisor.spawn({
