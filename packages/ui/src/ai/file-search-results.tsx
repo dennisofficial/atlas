@@ -42,17 +42,35 @@ function Highlighted({
 }) {
   return (
     <>
-      {[...text].map((character, index) =>
-        positions.has(offset + index) ? (
-          <mark key={index} className="bg-transparent font-semibold text-foreground">
-            {character}
+      {matchRunsOf({ text, offset, positions }).map((run, index) =>
+        run.matched ? (
+          <mark key={index} className="rounded-xs bg-primary/25 text-inherit">
+            {run.text}
           </mark>
         ) : (
-          character
+          run.text
         ),
       )}
     </>
   )
+}
+
+export function matchRunsOf(args: {
+  text: string
+  offset: number
+  positions: Set<number>
+}): { text: string; matched: boolean }[] {
+  const runs: { text: string; matched: boolean }[] = []
+  ;[...args.text].forEach((character, index) => {
+    const matched = args.positions.has(args.offset + index)
+    const last = runs.at(-1)
+    if (last !== undefined && last.matched === matched) {
+      last.text += character
+      return
+    }
+    runs.push({ text: character, matched })
+  })
+  return runs
 }
 
 export function FileSearchResults({
