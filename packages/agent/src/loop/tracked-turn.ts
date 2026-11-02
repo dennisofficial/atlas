@@ -214,8 +214,7 @@ export async function runTrackedTurn(
     const assembled = prepared.assembled
     position.previous = assembled
 
-    const retry =
-      deps.retry === undefined ? undefined : { ...deps.retry, runId, step: position.modelSteps }
+    const retry = deps.retry && { ...deps.retry, runId, step: position.modelSteps }
     const stepOnce = () =>
       takeModelStepWithRetry({
         model: deps.model,
