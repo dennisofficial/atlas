@@ -1,6 +1,6 @@
 import type { DirectoryEntry, ThreadId } from '@dltech/atlas-core'
 
-import { EFileLoad, type LoadedFile } from '../files/file-browser'
+import { EFileLoad, type LoadedFile, type ViewedFile } from '../files/file-browser'
 import type { MentionReader } from '../files/mention-reader'
 
 import {
@@ -8,6 +8,7 @@ import {
   listMentionFilesReplySchema,
   mentionFileExistsReplySchema,
   readMentionFileReplySchema,
+  readWorkspaceFileReplySchema,
 } from './channel-wire'
 import type { RemoteDeltaChannel } from './remote-delta-channel'
 
@@ -44,6 +45,16 @@ export class RemoteMentionFiles implements MentionReader {
     const { file } = readMentionFileReplySchema.parse(reply)
     if (file.type === 'text') return { ...file, type: EFileLoad.Text }
     if (file.type === 'listing') return { ...file, type: EFileLoad.Listing }
+    return { ...file, type: EFileLoad.Refused }
+  }
+
+  async read(path: string): Promise<ViewedFile> {
+    const reply = await this.channel.request({
+      op: EClientRequest.ReadWorkspaceFile,
+      params: { path },
+    })
+    const { file } = readWorkspaceFileReplySchema.parse(reply)
+    if (file.type === 'text') return { ...file, type: EFileLoad.Text }
     return { ...file, type: EFileLoad.Refused }
   }
 

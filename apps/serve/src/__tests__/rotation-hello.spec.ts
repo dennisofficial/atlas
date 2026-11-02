@@ -15,6 +15,7 @@ import {
 import { createFrameBuffer } from '../frame-buffer'
 import { createSessionHandlers, type SessionSocket } from '../socket-session'
 import type { ServeTurnDriver } from '../turn-driver'
+import { refusedFile } from './fakes'
 
 const served = toThreadId('hello-served')
 const stranger = toThreadId('hello-stranger')
@@ -39,7 +40,7 @@ const rig = (options?: { admitsThread?: (threadId: string) => Promise<boolean> }
     inFlight: () => [],
     liveStepId: () => null,
     driver,
-    files: { list: async () => [] },
+    files: { list: async () => [], read: async () => refusedFile },
     refusal: () => null,
     log: () => undefined,
   })
@@ -91,7 +92,7 @@ describe('hello admission', () => {
         run: (options?: { resume?: boolean | undefined }) =>
           void runs.push(options?.resume === true),
       },
-      files: { list: async () => [] },
+      files: { list: async () => [], read: async () => refusedFile },
       refusal: () => null,
       log: () => undefined,
       admissionClosed: () => closed,
@@ -176,7 +177,7 @@ describe('hello admission', () => {
         holdForRotation: () => () => undefined,
         beginRotation: () => ({ pause: () => undefined, waitSettled: async () => null }),
       } as unknown as ServeTurnDriver,
-      files: { list: async () => [] },
+      files: { list: async () => [], read: async () => refusedFile },
       refusal: () => null,
       log: () => undefined,
       rotation,

@@ -1,6 +1,6 @@
 import type { DirectoryEntry } from '@dltech/atlas-core'
 
-import type { LoadedFile } from './file-browser'
+import type { LoadedFile, ViewedFile } from './file-browser'
 import type { MentionReader } from './mention-reader'
 
 export const MENTION_FILES_CONNECTING =
@@ -16,6 +16,10 @@ export class UnavailableMentionFiles implements MentionReader {
   }
 
   load(_path: string): Promise<LoadedFile> {
+    return Promise.reject(new Error(MENTION_FILES_CONNECTING))
+  }
+
+  read(_path: string): Promise<ViewedFile> {
     return Promise.reject(new Error(MENTION_FILES_CONNECTING))
   }
 

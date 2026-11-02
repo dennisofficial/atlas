@@ -74,7 +74,7 @@ export type SessionHandlersArgs = {
   inFlight: () => readonly SignalFrame[]
   liveStepId: () => StepId | null
   driver: ServeTurnDriver
-  files: Pick<FileBrowser, 'list'>
+  files: Pick<FileBrowser, 'list' | 'read'>
   refusal: () => string | null
   admissionClosed?: (() => boolean) | undefined
   checkpoint?: (() => RuntimeCheckpoint | null) | undefined

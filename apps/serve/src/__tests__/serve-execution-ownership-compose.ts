@@ -39,6 +39,7 @@ import { JsonlThreadStore } from '../../../../packages/harness/src/store/session
 import type { ServeApp } from '../index'
 import { OWNERSHIP_AGENT_TYPE } from './serve-execution-ownership-fixture'
 import { scriptedPort, type OwnershipStep } from './serve-execution-ownership-model'
+import { refusedFile } from './fakes'
 
 export type OwnershipRegistries = {
   shells: BunShellRegistry
@@ -221,7 +222,7 @@ export async function composeOwnershipApp(args: {
       log,
       threads,
       ids,
-      files: { list: async () => [], forget: () => undefined },
+      files: { list: async () => [], read: async () => refusedFile, forget: () => undefined },
       workspace: { workspace: args.cwd, repo: null },
       pending,
       intake,

@@ -5,7 +5,13 @@ import { join } from 'node:path'
 
 import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { EFileLoad, FileBrowser, MAX_MENTION_BYTES, resolveMentionPath } from '../file-browser'
+import {
+  EFileLoad,
+  FileBrowser,
+  MAX_MENTION_BYTES,
+  MAX_VIEW_BYTES,
+  resolveMentionPath,
+} from '../file-browser'
 
 let root: string
 
@@ -247,5 +253,41 @@ describe('FileBrowser behind a reachable set, as a container thread sees it', ()
       type: EFileLoad.Text,
       content: 'borrowed',
     })
+  })
+})
+
+describe('FileBrowser.read', () => {
+  it('returns a whole file past the mention cap', async () => {
+    const content = 'a'.repeat(MAX_MENTION_BYTES + 10)
+    write({ at: 'big.txt', content })
+    expect(await browser().read('big.txt')).toEqual({
+      type: EFileLoad.Text,
+      path: 'big.txt',
+      content,
+      truncated: false,
+      bytes: content.length,
+    })
+  })
+
+  it('truncates beyond the view cap and reports the true size', async () => {
+    write({ at: 'huge.txt', content: 'b'.repeat(MAX_VIEW_BYTES + 5) })
+    const read = await browser().read('huge.txt')
+    expect(read).toMatchObject({ type: EFileLoad.Text, truncated: true, bytes: MAX_VIEW_BYTES + 5 })
+    if (read.type === EFileLoad.Text) expect(read.content.length).toBe(MAX_VIEW_BYTES)
+  })
+
+  it('refuses binary, missing, directory and unreachable paths', async () => {
+    write({ at: 'a.bin', content: new Uint8Array([1, 0, 2]) })
+    write({ at: 'dir/x.ts', content: 'x' })
+    const reasonOf = async (path: string, files = browser()) => {
+      const read = await files.read(path)
+      return read.type === EFileLoad.Refused ? read.reason : read.type
+    }
+    expect(await reasonOf('a.bin')).toBe('it is binary')
+    expect(await reasonOf('nope.ts')).toBe('it does not exist')
+    expect(await reasonOf('dir')).toBe('it is not a file')
+    const walled = new FileBrowser({ root, reachableRoots: () => [join(root, 'dir')] })
+    expect(await reasonOf('a.bin', walled)).toBe('it is outside what the sandbox can reach')
+    expect(await reasonOf('dir/x.ts', walled)).toBe(EFileLoad.Text)
   })
 })

@@ -20,6 +20,7 @@ import {
 import { ETurnStatus } from '@dltech/atlas-harness'
 
 import { createTurnDriver, type ServeApp } from '../index'
+import { refusedFile } from './fakes'
 
 const THREAD = toThreadId('thread-race')
 const OTHER = toThreadId('thread-other')
@@ -127,7 +128,7 @@ const rig = (): Rig => {
       onModelChosen: () => () => undefined,
     },
     ids: { nextRunId: () => toRunId('run-append') },
-    files: { list: async () => [], forget: () => undefined },
+    files: { list: async () => [], read: async () => refusedFile, forget: () => undefined },
     workspace: { workspace: '/workspace', repo: null },
     adoptChildren: async () => [],
     whenChildrenSettled: async () => undefined,

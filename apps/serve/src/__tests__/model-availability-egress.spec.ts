@@ -22,6 +22,7 @@ import { createFrameBuffer } from '../frame-buffer'
 import type { ServeAgentSteer } from '../serve-app'
 import { createSessionHandlers, type SessionSocket } from '../socket-session'
 import type { ServeTurnDriver } from '../turn-driver'
+import { refusedFile } from './fakes'
 
 const threadId = toThreadId('br_egress')
 
@@ -119,7 +120,7 @@ const handlers = createSessionHandlers({
   inFlight: () => [],
   liveStepId: () => null,
   driver: untouchedDriver(),
-  files: { list: async () => [] },
+  files: { list: async () => [], read: async () => refusedFile },
   refusal: () => null,
   log: () => undefined,
   roster: { snapshot: () => roster, subscribe: () => () => undefined },

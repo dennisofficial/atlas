@@ -185,6 +185,7 @@ describe('runtime-owned composer mentions', () => {
       exists: async () => true,
       forget: () => undefined,
       load: async (path: string) => ({ type: EFileLoad.Refused, path, reason: 'it is binary' }),
+      read: async (path: string) => ({ type: EFileLoad.Refused, path, reason: 'it is binary' }),
     }
     expect(
       await dispatchSubmission({

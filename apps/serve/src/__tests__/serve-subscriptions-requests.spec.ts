@@ -19,6 +19,7 @@ import { createFrameBuffer } from '../frame-buffer'
 import type { ServeSubscriptions } from '../serve-app'
 import { createSessionHandlers, type SessionSocket } from '../socket-session'
 import type { ServeTurnDriver } from '../turn-driver'
+import { refusedFile } from './fakes'
 
 const threadId = 'br_subs' as ThreadId
 
@@ -97,7 +98,7 @@ const greeted = async (subscriptions?: ServeSubscriptions) => {
     inFlight: () => [],
     liveStepId: () => null,
     driver: untouchedDriver(),
-    files: { list: async () => [] },
+    files: { list: async () => [], read: async () => refusedFile },
     refusal: () => null,
     log: () => undefined,
     ...(subscriptions === undefined ? {} : { subscriptions }),

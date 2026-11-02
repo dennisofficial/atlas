@@ -8,6 +8,7 @@ import { createFrameBuffer } from '../frame-buffer'
 import { createSessionHandlers, type SessionSocket } from '../socket-session'
 import type { ServePrStates } from '../serve-app'
 import type { ServeTurnDriver } from '../turn-driver'
+import { refusedFile } from './fakes'
 
 const threadId = 'br_pr' as ThreadId
 
@@ -75,7 +76,7 @@ const handlersFor = (args?: { prStates?: ServePrStates }) =>
     inFlight: () => [],
     liveStepId: () => null,
     driver: untouchedDriver(),
-    files: { list: async () => [] },
+    files: { list: async () => [], read: async () => refusedFile },
     refusal: () => null,
     log: () => undefined,
     ...(args?.prStates === undefined ? {} : { prStates: args.prStates }),
