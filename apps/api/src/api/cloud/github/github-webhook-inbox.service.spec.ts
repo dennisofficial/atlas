@@ -20,6 +20,22 @@ describe('GithubWebhookInboxService', () => {
     expect(rows[0]).toMatchObject({ deliveryId: 'd-1', event: 'ping', attempts: 1 })
   })
 
+  it('accepts exactly one of two simultaneous inserts of the same delivery id', async () => {
+    const service = inbox()
+
+    for (let round = 0; round < 12; round += 1) {
+      const deliveryId = `race-${round}`
+      const results = await Promise.all([
+        service.insert({ deliveryId, event: 'check_run', payload: { copy: 'app' } }),
+        service.insert({ deliveryId, event: 'check_run', payload: { copy: 'hook' } }),
+      ])
+
+      expect(results.filter(Boolean)).toHaveLength(1)
+      const rows = await db.orm.public.GithubWebhookInbox.where({ deliveryId }).all()
+      expect(rows).toHaveLength(1)
+    }
+  })
+
   it('marks a row processed and skips it on reconcile', async () => {
     const service = inbox()
     await service.insert({ deliveryId: 'd-2', event: 'ping', payload: {} })
