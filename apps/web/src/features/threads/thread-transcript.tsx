@@ -21,6 +21,7 @@ import { useNow, useNowEvery } from './data/use-now'
 import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
+import { ModelWaitCard, type ModelWaitCardProps } from '@dltech/atlas-ui/ai/model-wait-card'
 import { RunFailureCard, type RunFailureCardProps } from './transcript/run-failure-card'
 import { TurnView, type TranscriptRewind } from './transcript/transcript-turn'
 
@@ -69,6 +70,7 @@ function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => vo
 export function ThreadTranscript({
   items,
   failureCard,
+  waitCard,
   failedLabel,
   pod,
   working,
@@ -77,6 +79,7 @@ export function ThreadTranscript({
 }: {
   items: readonly TranscriptRow[]
   failureCard: RunFailureCardProps | null
+  waitCard: ModelWaitCardProps | null
   failedLabel: string | null
   pod: PodStatus | null
   working: boolean
@@ -115,6 +118,11 @@ export function ThreadTranscript({
         </ChatItem>,
         ...bootAfter(index),
       ])}
+      {waitCard !== null ? (
+        <ChatItem id="model-wait">
+          <ModelWaitCard {...waitCard} />
+        </ChatItem>
+      ) : null}
       {failureCard !== null ? (
         <ChatItem id="turn-failure">
           <RunFailureCard {...failureCard} />

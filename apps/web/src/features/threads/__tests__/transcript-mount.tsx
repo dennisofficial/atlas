@@ -59,6 +59,7 @@ export const mountWith = async (args: {
           <ThreadTranscript
             items={args.rows ?? items}
             failureCard={args.failureCard ?? null}
+            waitCard={null}
             failedLabel={args.failedLabel ?? null}
             pod={null}
             working={false}

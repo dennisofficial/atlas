@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { toast } from 'sonner'
+import { useMemo, useState } from 'react'
 
 import { liveSteps } from '@dltech/atlas-client/transcript'
 
@@ -12,7 +11,6 @@ import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
 import { notConfiguredOf } from './data/not-configured'
 import { restoredDraftOf } from './data/take-back'
-import type { ModelSelection } from './data/model-selection'
 import { useThreadBackend } from './data/use-thread-backend'
 import { useThreadNaming } from './data/use-thread-naming'
 import { eventsFromWire } from './data/events-from-wire'
@@ -22,7 +20,9 @@ import { useComposerDock } from './data/use-composer-dock'
 import { useComposerAttachments } from './data/use-composer-attachments'
 import { useComposerDraft } from './data/use-composer-draft'
 import { useComposerHandoff } from './data/use-composer-handoff'
-import { useRunAttention } from './data/use-run-attention'
+import { useAfterConnect } from './data/use-after-connect'
+import { useThreadAttention } from './data/use-thread-attention'
+import { useThreadViewActions } from './data/use-thread-view-actions'
 import { useTranscriptView } from './data/use-transcript-view'
 import { useOperatorInput } from './data/use-operator-input'
 import { useReveal } from './data/use-reveal'
@@ -30,8 +30,7 @@ import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
 import { usePullRequests } from './data/use-pull-requests'
-import { userRewindPoints } from './data/rewind'
-import { useRewind } from './data/use-rewind'
+import { useThreadRewind } from './data/use-thread-rewind'
 import { useMarkRead } from './data/use-mark-read'
 import { useThreadMetadata } from './data/use-thread-metadata'
 import { useThreadSignals } from './data/use-thread-signals'
@@ -73,12 +72,14 @@ export function ThreadView({ threadId }: { threadId: string }) {
     liveEligible,
     onModelChanged: model.handleRemoteChange,
   })
-  const { events, steps, outputs, loaded, error, working, channel, sendLive, chooseModel } = source
+  const { events, steps, outputs, loaded, error, working, channel, sendLive } = source
   const { sending, send, retryBoot } = useSend()
-  const { afterConnect } = backend
-  useEffect(() => {
-    if (source.live) afterConnect({ threadId, send: sendLive })
-  }, [source.live, afterConnect, threadId, sendLive])
+  useAfterConnect({
+    live: source.live,
+    threadId,
+    afterConnect: backend.afterConnect,
+    send: sendLive,
+  })
   const rightPanel = useRightPanel()
   const pullRequests = usePullRequests({ threadId, channel, thread: thread.data })
   const spawnerId = spawnerIdOf(thread.data)
@@ -125,17 +126,13 @@ export function ThreadView({ threadId }: { threadId: string }) {
     pending: source.pending,
     onSettle: (settled) => setDraft((current) => clearedDraftOf({ current, handoff: settled })),
   })
-  const rewindPoints = useMemo(() => new Set(userRewindPoints(parsed).keys()), [parsed])
-  const rewind = useRewind({
-    situation: () => ({
-      threadId,
-      events: parsed,
-      live: source.live,
-      working,
-      podState: pod?.state ?? null,
-    }),
+  const { rewind, rewindPoints } = useThreadRewind({
+    threadId,
+    events: parsed,
     source,
-    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
+    working,
+    podState: pod?.state ?? null,
+    setDraft,
   })
   const eligibleNow = isPodLiveEligible(pod)
   if (eligibleNow !== liveEligible) setLiveEligible(eligibleNow)
@@ -183,18 +180,23 @@ export function ThreadView({ threadId }: { threadId: string }) {
       refresh()
     },
   })
-  const handleModelChange = (next: ModelSelection) =>
-    void model.handleChange({ next, chooseLive: chooseModel })
-  const handleRetryBoot = async () => {
-    await retryBoot(threadId)
-    refresh()
-  }
-  const handleStop = () => {
-    if (source.interrupt()) return
-    toast.error('Could not reach the sandbox to stop the turn')
-  }
+  const { handleModelChange, handleRetryBoot, handleStop } = useThreadViewActions({
+    threadId,
+    source,
+    model,
+    retryBoot,
+    refresh,
+  })
 
-  const attention = useRunAttention({ events: parsed, live, source, commands, panel })
+  const { attention, availability } = useThreadAttention({
+    threadId,
+    events: parsed,
+    live,
+    source,
+    commands,
+    panel,
+    waitingSnapshot: thread.data?.status?.waitingForModel,
+  })
 
   const naming = useThreadNaming({
     threadId,
@@ -279,6 +281,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
             <ThreadTranscript
               items={view.items}
               failureCard={attention.card}
+              waitCard={availability.card}
               failedLabel={attention.failedLabel}
               pod={pod}
               working={working}

@@ -1,5 +1,7 @@
 'use client'
 
+import type { ReactNode } from 'react'
+
 import { Button } from '@dltech/atlas-ui/components/button'
 
 import { KEY_PREFIXES, type ApiKeyEntry, type ApiKeyProvider } from '../fixtures/settings-agent'
@@ -11,12 +13,14 @@ export function ApiKeyRow({
   provider,
   entry,
   busy = false,
+  availability,
   onSave,
   onRemove,
 }: {
   provider: ApiKeyProvider
   entry: ApiKeyEntry | null
   busy?: boolean
+  availability?: ReactNode
   onSave: (key: string) => void
   onRemove: () => void
 }) {
@@ -58,6 +62,8 @@ export function ApiKeyRow({
           />
         )
       }
-    />
+    >
+      {entry ? availability : null}
+    </SettingsRow>
   )
 }

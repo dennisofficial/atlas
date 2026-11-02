@@ -27,6 +27,8 @@ import { ProviderSignInPanel } from '../parts/provider-sign-in-panel'
 import { SubscriptionRow, type SubscriptionAccount } from '../parts/agent-subscription-row'
 import { EOauthProvider } from '@dltech/atlas-wire/web'
 import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
+import { AccountAvailabilityControls } from '../parts/account-availability-controls'
+import { useAccountAvailability } from '../data/personal/use-account-availability'
 import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Providers'
@@ -82,6 +84,7 @@ function ProvidersContent({
     void invalidateCloud([MODEL_PICKER_KEY])
   }, [reloadAccounts, invalidateCloud])
   const { saving, run } = useSaveAction()
+  const availabilityOf = useAccountAvailability({ reload: reloadAccounts })
 
   const handleKeySave = useCallback(
     (args: { provider: EProviderId; apiKey: string; existingId: string | null }) =>
@@ -134,6 +137,14 @@ function ProvidersContent({
                 subscription={subscription}
                 account={account}
                 busy={saving}
+                availability={
+                  account === null ? null : (
+                    <AccountAvailabilityControls
+                      accountLabel={account.label}
+                      view={availabilityOf(account.id)}
+                    />
+                  )
+                }
                 reload={reload}
                 onSignOut={(accountId) => void handleRemove({ accountId, success: 'Signed out' })}
               />
@@ -154,6 +165,14 @@ function ProvidersContent({
                 provider={provider}
                 entry={entry}
                 busy={saving}
+                availability={
+                  entry === null ? null : (
+                    <AccountAvailabilityControls
+                      accountLabel={entry.label}
+                      view={availabilityOf(entry.id)}
+                    />
+                  )
+                }
                 onSave={(apiKey) =>
                   void handleKeySave({
                     provider: provider.id,
@@ -183,12 +202,14 @@ function SubscriptionSignInRow({
   subscription,
   account,
   busy,
+  availability,
   reload,
   onSignOut,
 }: {
   subscription: (typeof SUBSCRIPTIONS)[number]
   account: Account | null
   busy: boolean
+  availability: React.ReactNode
   reload: () => void
   onSignOut: (accountId: string) => void
 }) {
@@ -204,6 +225,7 @@ function SubscriptionSignInRow({
       signInLabel={`Sign in with ${subscription.name.split(' ')[0]}`}
       account={subscriptionView(account)}
       busy={busy}
+      availability={availability}
       signInBusy={control.flow.status !== EProviderSignInState.Idle}
       signInPanel={
         <ProviderSignInPanel

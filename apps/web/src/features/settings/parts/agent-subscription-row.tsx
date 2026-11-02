@@ -26,6 +26,7 @@ export function SubscriptionRow({
   busy = false,
   signInBusy = false,
   signInPanel,
+  availability,
   onSignIn,
   onSignOut,
 }: {
@@ -38,6 +39,7 @@ export function SubscriptionRow({
   busy?: boolean
   signInBusy?: boolean
   signInPanel?: ReactNode
+  availability?: ReactNode
   onSignIn?: () => void
   onSignOut: () => void
 }) {
@@ -82,6 +84,7 @@ export function SubscriptionRow({
         </Button>
       }
     >
+      {availability}
       {account.limitUsedPercent === undefined ? null : (
         <div className="flex flex-col gap-1.5 pl-11">
           <Progress value={account.limitUsedPercent} />

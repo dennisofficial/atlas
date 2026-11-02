@@ -101,6 +101,7 @@ const setup = async () => {
             <ThreadTranscript
               items={rows}
               failureCard={null}
+              waitCard={null}
               failedLabel={null}
               pod={null}
               working={working}

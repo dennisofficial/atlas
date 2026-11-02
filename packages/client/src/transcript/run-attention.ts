@@ -9,9 +9,11 @@ import {
   type Event,
   type RunFailure,
   type RunId,
+  type WaitingForModel,
 } from '@dltech/atlas-core'
 
 import type { InFlightStep } from './in-flight-steps'
+import { MODEL_WAIT_TITLE, modelWaitViewOf, type ModelWaitView } from './model-wait'
 import { failureKindOf, pickFailure } from './pick-failure'
 import { failureDismissedForTail, latestRunFailure, legacyFailureOf } from './run-failure'
 
@@ -25,6 +27,7 @@ export type RunAttention = {
   remedies: RunAttentionRemedy[]
   dismissible: boolean
   busyReason: string | null
+  modelWait: ModelWaitView | null
 }
 
 export type FailedAgent = {
@@ -58,7 +61,28 @@ export function runAttentionOf(args: {
   turnInFlight: boolean
   channelReady: boolean
   settling?: boolean | undefined
+  waitingSnapshot?: WaitingForModel | null | undefined
+  waitingLive?: readonly WaitingForModel[] | null | undefined
+  accountLabelOf?: ((accountId: string) => string | undefined) | undefined
 }): RunAttention | null {
+  const modelWait = modelWaitViewOf({
+    events: args.events,
+    snapshot: args.waitingSnapshot,
+    live: args.waitingLive,
+    accountLabelOf: args.accountLabelOf,
+  })
+  if (modelWait !== null) {
+    return {
+      failure: null,
+      message: MODEL_WAIT_TITLE,
+      failureSeq: null,
+      runId: null,
+      remedies: [],
+      dismissible: false,
+      busyReason: null,
+      modelWait,
+    }
+  }
   const idleAndReady =
     !args.working && !args.turnInFlight && args.channelReady && args.settling !== true
 
@@ -78,6 +102,7 @@ export function runAttentionOf(args: {
       remedies,
       dismissible: picked.failureSeq !== null,
       busyReason: busyReasonOf(remedies),
+      modelWait: null,
     }
   }
 
@@ -98,6 +123,7 @@ export function runAttentionOf(args: {
     remedies: [{ remedy: ERunRemedy.Resume, enabled: true }],
     dismissible: true,
     busyReason: null,
+    modelWait: null,
   }
 }
 
@@ -134,6 +160,7 @@ function agentFailureAttention(args: {
     remedies: remediesFor({ kind: ERunFailureKind.AgentFailed, idleAndReady: true }),
     dismissible: true,
     busyReason: null,
+    modelWait: null,
   }
 }
 

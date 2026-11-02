@@ -7,7 +7,7 @@ import {
   runAttentionOf,
   type InFlightStep,
 } from '@dltech/atlas-client/transcript'
-import { ERunRemedy, providerLabelOf, type Event } from '@dltech/atlas-core'
+import { ERunRemedy, providerLabelOf, type Event, type WaitingForModel } from '@dltech/atlas-core'
 import type { RunAttentionStripProps } from '@dltech/atlas-ui/ai/run-attention-strip'
 
 import { PROVIDERS_HREF } from '@/features/settings/settings-nav'
@@ -42,6 +42,7 @@ export function useRunAttention(args: {
     handleCommand: (text: string) => Promise<boolean>
   }
   panel: Pick<ThreadPanelValue, 'openAgent'>
+  waiting?: { live: readonly WaitingForModel[] | null; snapshot: WaitingForModel | null }
 }): RunAttentionView {
   const { events, live, source, commands, panel } = args
   const { openAgent } = panel
@@ -54,8 +55,17 @@ export function useRunAttention(args: {
   const channelReady = source.live && source.channel !== null
 
   const attention = useMemo(
-    () => runAttentionOf({ events, live, working, turnInFlight: working, channelReady }),
-    [events, live, working, channelReady],
+    () =>
+      runAttentionOf({
+        events,
+        live,
+        working,
+        turnInFlight: working,
+        channelReady,
+        waitingLive: args.waiting?.live ?? null,
+        waitingSnapshot: args.waiting?.snapshot ?? null,
+      }),
+    [events, live, working, channelReady, args.waiting?.live, args.waiting?.snapshot],
   )
 
   const attentionKey =
@@ -79,7 +89,7 @@ export function useRunAttention(args: {
   const handleFixCredential = useCallback(() => router.push(PROVIDERS_HREF), [router])
 
   return useMemo(() => {
-    if (attention === null) return NONE
+    if (attention === null || attention.modelWait !== null) return NONE
     const { failure, failureSeq } = attention
     const accountId = failure?.accountId
     const copy = runAttentionCopy({
