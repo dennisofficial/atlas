@@ -1,0 +1,74 @@
+import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
+
+export type ThreadRow = {
+  threadId: string
+  sessionId: string
+  headSeq: number
+  headHash: Hash
+  visibility: string
+}
+
+export type StoredEvent = {
+  threadId: string
+  seq: number
+  id: string
+  epoch: number
+  type: string
+  runId: string
+  at: string
+  prevHash: Hash
+  hash: Hash
+  canonical: string
+}
+
+export type ReadEventsParams = {
+  threadId: string
+  afterSeq: number
+  throughSeq: number
+  limit: number
+  onlyTypes?: readonly string[] | undefined
+}
+
+export class SeqConflictError extends Error {
+  constructor() {
+    super('thread sequence conflict')
+    this.name = 'SeqConflictError'
+  }
+}
+
+export interface ControlTx {
+  createSession(params: { sessionId: string; at: string }): Promise<void>
+  createThread(params: {
+    threadId: string
+    sessionId: string
+    visibility: string
+    at: string
+  }): Promise<void>
+  lockThread(threadId: string): Promise<ThreadRow | undefined>
+  readThread(threadId: string): Promise<ThreadRow | undefined>
+  writeThreadHead(params: {
+    threadId: string
+    expectedHeadSeq: number
+    headSeq: number
+    headHash: Hash
+    visibility: string
+  }): Promise<boolean>
+  insertEvents(rows: readonly StoredEvent[]): Promise<void>
+  readEvents(params: ReadEventsParams): Promise<StoredEvent[]>
+  readLease(sessionId: string): Promise<Lease | undefined>
+  writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean>
+  allocateInboxId(sessionId: string): Promise<number>
+  insertInboxEntry(entry: InboxEntry): Promise<void>
+  readInboxEntry(params: { sessionId: string; inboxId: number }): Promise<InboxEntry | undefined>
+  markInboxConsumed(params: { sessionId: string; inboxId: number; seq: number }): Promise<boolean>
+  deleteInboxEntry(params: { sessionId: string; inboxId: number }): Promise<boolean>
+  readInboxEntries(params: {
+    sessionId: string
+    afterId: number
+    limit: number
+  }): Promise<InboxEntry[]>
+}
+
+export abstract class ControlStorePort {
+  abstract transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T>
+}

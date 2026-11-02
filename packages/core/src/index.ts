@@ -55,6 +55,7 @@ export * from './budget/resolve-budget'
 export * from './events/schema'
 export * from './events/stamp'
 export * from './subscriptions'
+export * from './record'
 
 export * from './message/hoist-tool-files'
 export * from './message/message'

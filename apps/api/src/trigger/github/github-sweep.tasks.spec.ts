@@ -29,10 +29,10 @@ describe('github sweep tasks', () => {
     })
   })
 
-  it('registers the webhook inbox reconcile every five minutes with three attempts', () => {
+  it('registers the webhook inbox reconcile every minute with three attempts', () => {
     expect(githubWebhookReconcileTask).toMatchObject({
       id: 'github-webhook-reconcile',
-      cron: '*/5 * * * *',
+      cron: '*/1 * * * *',
       retry: { maxAttempts: 3 },
     })
   })

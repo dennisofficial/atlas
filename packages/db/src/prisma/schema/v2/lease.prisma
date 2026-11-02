@@ -1,0 +1,11 @@
+// use prisma-8
+namespace v2 {
+  model V2Lease {
+    sessionId String                @id
+    epoch     Int
+    holderId  String?
+    renewedAt TimestamptzJsDate(3)
+    ttlMs     Int
+    session   V2Session             @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  }
+}
