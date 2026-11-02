@@ -12,6 +12,7 @@
       "**",
       "!deprecated",
       "!packages/harness/skills",
+      "!.agents/skills",
       "!packages/db/.agents",
       "!packages/db/src/prisma/**/contract.d.ts",
       "!packages/db/src/prisma/**/contract.json",
@@ -35,7 +36,7 @@
   },
   "markdown": {
     "formatter": {
-      "enabled": false
+      "enabled": true
     },
     "linter": {
       "enabled": false
@@ -43,7 +44,8 @@
   },
   "yaml": {
     "formatter": {
-      "enabled": false
+      "enabled": true,
+      "quoteStyle": "single"
     },
     "linter": {
       "enabled": false
