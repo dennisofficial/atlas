@@ -172,7 +172,7 @@ describe('a child taking its first step', () => {
           message.content.some(
             (part) =>
               part.type === 'text' &&
-              /^<operator-said[^>]*>\ncount the call sites of assemble\n<\/operator-said>$/.test(
+              /^<agent-said from="the main agent">\ncount the call sites of assemble\n<\/agent-said>$/.test(
                 part.text,
               ),
           ),

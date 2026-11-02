@@ -4,6 +4,7 @@ export const ENVELOPE_CONTEXT_TAG = 'system-context'
 export const ENVELOPE_NOTICE_TAG = 'system-notice'
 export const ENVELOPE_UNTRUSTED_TAG = 'system-untrusted'
 export const ENVELOPE_OPERATOR_TAG = 'operator-said'
+export const ENVELOPE_AGENT_TAG = 'agent-said'
 
 const escapeAttribute = (value: string): string => value.replaceAll('"', '%22')
 
@@ -19,6 +20,7 @@ const RESERVED_TAGS = [
   ENVELOPE_NOTICE_TAG,
   ENVELOPE_UNTRUSTED_TAG,
   ENVELOPE_OPERATOR_TAG,
+  ENVELOPE_AGENT_TAG,
 ] as const
 
 /**
@@ -100,5 +102,13 @@ export function operatorSaid(args: { text: string }): string {
     `<${ENVELOPE_OPERATOR_TAG}>`,
     neutraliseEnvelopeTags(args.text),
     `</${ENVELOPE_OPERATOR_TAG}>`,
+  ].join('\n')
+}
+
+export function agentSaid(args: { from: string; text: string }): string {
+  return [
+    `<${ENVELOPE_AGENT_TAG}${attributesOf({ from: args.from })}>`,
+    neutraliseEnvelopeTags(args.text),
+    `</${ENVELOPE_AGENT_TAG}>`,
   ].join('\n')
 }

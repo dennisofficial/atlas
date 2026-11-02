@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EAgentRestart } from '../../agents/restart'
 import { EAgentStatus } from '../../agents/status'
+import { EMessageOrigin } from '../../events/body'
 import { toThreadId } from '../../events/ids'
 import { EExecutionLocation } from '../../execution/location'
 import { transcriptOfRange } from '../render-range'
@@ -44,6 +45,18 @@ describe('transcriptOfRange', () => {
 
     expect(transcriptOfRange({ events, throughSeq: 2 })).toBe(
       'Operator: build the parser\nAtlas: done',
+    )
+  })
+
+  it('labels a message by who sent it, not always Operator', () => {
+    const events = eventsFrom([
+      { type: 'user-said', text: 'count the callers', via: EMessageOrigin.ParentAgent },
+      { type: 'user-said', text: 'carrying a steer', via: EMessageOrigin.PeerAgent },
+      said('mine'),
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 3 })).toBe(
+      'Main agent: count the callers\nPeer agent: carrying a steer\nOperator: mine',
     )
   })
 
