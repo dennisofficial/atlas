@@ -16,6 +16,7 @@ export interface FileNode {
   path: string
   name: string
   children?: FileNode[]
+  loaded?: boolean
   change?: EFileChange
   ignored?: boolean
 }
@@ -25,6 +26,8 @@ export interface FileTreeProps {
   selected?: string
   onSelect?: (path: string) => void
   defaultOpen?: boolean
+  open?: string[]
+  onOpenChange?: (args: { path: string; open: boolean }) => void
 }
 
 interface NodeProps {
@@ -32,12 +35,26 @@ interface NodeProps {
   selected?: string
   onSelect?: (path: string) => void
   defaultOpen: boolean
+  open?: string[]
+  onOpenChange?: (args: { path: string; open: boolean }) => void
 }
 
 const CHANGE_MARK: Record<EFileChange, { mark: string; label: string; tint: string }> = {
-  [EFileChange.Added]: { mark: 'A', label: 'added', tint: 'text-diff-add-foreground' },
-  [EFileChange.Modified]: { mark: 'M', label: 'modified', tint: 'text-warning' },
-  [EFileChange.Deleted]: { mark: 'D', label: 'deleted', tint: 'text-diff-remove-foreground' },
+  [EFileChange.Added]: {
+    mark: 'A',
+    label: 'added',
+    tint: 'text-diff-add-foreground',
+  },
+  [EFileChange.Modified]: {
+    mark: 'M',
+    label: 'modified',
+    tint: 'text-warning',
+  },
+  [EFileChange.Deleted]: {
+    mark: 'D',
+    label: 'deleted',
+    tint: 'text-diff-remove-foreground',
+  },
 }
 
 export function nameClassOf(node: Pick<FileNode, 'change' | 'ignored' | 'children'>): string {
@@ -70,13 +87,41 @@ function IgnoredMark() {
   return <span className="sr-only">, ignored by git</span>
 }
 
-function FileTreeNode({ node, selected, onSelect, defaultOpen }: NodeProps) {
+function LoadingRow() {
+  return (
+    <div role="status" className="px-2.5 py-1 font-mono text-xs text-muted-foreground">
+      Loading…
+    </div>
+  )
+}
+
+export function openPropsOf(args: {
+  path: string
+  open: string[] | undefined
+  defaultOpen: boolean
+  onOpenChange: NodeProps['onOpenChange']
+}) {
+  const { path, open, onOpenChange } = args
+  if (open === undefined) {
+    return {
+      defaultOpen: args.defaultOpen,
+      onOpenChange: (next: boolean) => onOpenChange?.({ path, open: next }),
+    }
+  }
+  return {
+    open: open.includes(path),
+    onOpenChange: (next: boolean) => onOpenChange?.({ path, open: next }),
+  }
+}
+
+function FileTreeNode({ node, selected, onSelect, defaultOpen, open, onOpenChange }: NodeProps) {
   if (node.children) {
+    const isOpen = open?.includes(node.path) ?? defaultOpen
     return (
-      <Collapsible defaultOpen={defaultOpen}>
+      <Collapsible {...openPropsOf({ path: node.path, open, defaultOpen, onOpenChange })}>
         <CollapsibleTrigger
           render={
-            <Button variant="ghost" size="sm" className="w-full justify-start font-mono text-xs" />
+            <Button variant="tree" size="sm" className="w-full justify-start font-mono text-xs" />
           }
         >
           <ChevronRightIcon className="transition-transform group-data-panel-open/button:rotate-90" />
@@ -87,6 +132,7 @@ function FileTreeNode({ node, selected, onSelect, defaultOpen }: NodeProps) {
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="ml-4 flex flex-col border-l pl-1">
+            {node.loaded === false && isOpen ? <LoadingRow /> : null}
             {node.children.map((child) => (
               <FileTreeNode
                 key={child.path}
@@ -94,6 +140,8 @@ function FileTreeNode({ node, selected, onSelect, defaultOpen }: NodeProps) {
                 selected={selected}
                 onSelect={onSelect}
                 defaultOpen={defaultOpen}
+                open={open}
+                onOpenChange={onOpenChange}
               />
             ))}
           </div>
@@ -106,7 +154,7 @@ function FileTreeNode({ node, selected, onSelect, defaultOpen }: NodeProps) {
 
   return (
     <Button
-      variant="ghost"
+      variant="tree"
       size="sm"
       aria-current={selected === node.path ? 'true' : undefined}
       className="w-full justify-start font-mono text-xs"
@@ -120,7 +168,14 @@ function FileTreeNode({ node, selected, onSelect, defaultOpen }: NodeProps) {
   )
 }
 
-export function FileTree({ nodes, selected, onSelect, defaultOpen = true }: FileTreeProps) {
+export function FileTree({
+  nodes,
+  selected,
+  onSelect,
+  defaultOpen = true,
+  open,
+  onOpenChange,
+}: FileTreeProps) {
   return (
     <div className="flex flex-col">
       {nodes.map((node) => (
@@ -130,6 +185,8 @@ export function FileTree({ nodes, selected, onSelect, defaultOpen = true }: File
           selected={selected}
           onSelect={onSelect}
           defaultOpen={defaultOpen}
+          open={open}
+          onOpenChange={onOpenChange}
         />
       ))}
     </div>

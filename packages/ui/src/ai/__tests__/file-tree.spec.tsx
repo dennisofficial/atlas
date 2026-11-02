@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { EFileChange, FileTree, nameClassOf, type FileNode } from '../file-tree'
+import { EFileChange, FileTree, nameClassOf, openPropsOf, type FileNode } from '../file-tree'
 
 const NODES: FileNode[] = [
   {
@@ -42,5 +42,32 @@ describe('FileTree git decoration', () => {
       ', ignored by git',
     ])
       expect(markup).toContain(label)
+  })
+})
+
+describe('FileTree lazy folders', () => {
+  const lazy: FileNode[] = [{ path: 'src', name: 'src', children: [], loaded: false }]
+
+  it('shows a loading row inside an open, unloaded folder only', () => {
+    expect(renderToStaticMarkup(<FileTree nodes={lazy} open={['src']} />)).toContain('Loading')
+    expect(renderToStaticMarkup(<FileTree nodes={lazy} open={[]} />)).not.toContain('Loading')
+  })
+
+  it('controls openness from the open list and reports changes', () => {
+    const seen: unknown[] = []
+    const props = openPropsOf({
+      path: 'src',
+      open: ['src'],
+      defaultOpen: false,
+      onOpenChange: (change) => seen.push(change),
+    })
+    expect(props.open).toBe(true)
+    props.onOpenChange(false)
+    expect(seen).toEqual([{ path: 'src', open: false }])
+  })
+
+  it('never gives folder rows the expanded highlight', () => {
+    const markup = renderToStaticMarkup(<FileTree nodes={lazy} />)
+    expect(markup).not.toContain('aria-expanded:bg-muted')
   })
 })

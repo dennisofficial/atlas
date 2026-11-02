@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react'
 
-import { FileTree } from './file-tree'
+import { FileTree, type FileNode } from './file-tree'
 
 import { CHANGED_FILES } from '../fixtures/agent'
 
@@ -37,3 +37,31 @@ function SelectableTree() {
 }
 
 export const Selectable: Story = { render: () => <SelectableTree /> }
+
+const DEEP: FileNode[] = [
+  {
+    path: 'apps',
+    name: 'apps',
+    children: [
+      {
+        path: 'apps/web',
+        name: 'web',
+        children: [
+          { path: 'apps/web/src', name: 'src', children: [], loaded: false },
+          { path: 'apps/web/package.json', name: 'package.json' },
+        ],
+      },
+    ],
+  },
+]
+
+function LazyTree() {
+  const [open, setOpen] = useState<string[]>(['apps'])
+  const handleOpenChange = (change: { path: string; open: boolean }) =>
+    setOpen((previous) =>
+      change.open ? [...previous, change.path] : previous.filter((path) => path !== change.path),
+    )
+  return <FileTree nodes={DEEP} open={open} onOpenChange={handleOpenChange} />
+}
+
+export const Lazy: Story = { render: () => <LazyTree /> }

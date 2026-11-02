@@ -35,7 +35,7 @@ describe('nodesOf', () => {
     ['src', [file('a.ts'), dir('deep')]],
   ])
 
-  it('nests loaded directories and leaves unloaded ones empty', () => {
+  it('nests loaded directories and flags unloaded ones', () => {
     const nodes = nodesOf({ listings, changes: new Map(), ignored: new Set() })
     expect(nodes).toEqual([
       {
@@ -43,7 +43,7 @@ describe('nodesOf', () => {
         name: 'src',
         children: [
           { path: 'src/a.ts', name: 'a.ts' },
-          { path: 'src/deep', name: 'deep', children: [] },
+          { path: 'src/deep', name: 'deep', children: [], loaded: false },
         ],
       },
       { path: 'README.md', name: 'README.md' },
