@@ -10,6 +10,7 @@ export function PodSection() {
       <DetailRow
         label="Pod"
         icon={<ServerIcon aria-hidden className="size-3.5" />}
+        detail={<span className="font-mono">atlas-serve 1.94.2</span>}
         actions={<PodStatusChip status={RUNNING_POD} onResize={simulateResize} settingsHref="#" />}
       />
     </section>

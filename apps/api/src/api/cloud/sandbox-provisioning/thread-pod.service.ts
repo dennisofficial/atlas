@@ -129,6 +129,7 @@ export class ThreadPodService {
     const identity = {
       sandboxId: row.sandboxId,
       region: row.region,
+      ...(row.runningServeVersion === null ? {} : { serveVersion: row.runningServeVersion }),
       ...(row.pendingVcpus === null ? {} : { pendingVcpus: row.pendingVcpus }),
     }
     const live = await this.liveResources.resolve({

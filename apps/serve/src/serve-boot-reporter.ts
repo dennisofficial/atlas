@@ -13,18 +13,23 @@ import {
 import { controlPlaneError, createApiClient } from './api-client'
 import { EWorkspaceState, type WorkspaceReadiness } from './materialize-workspace'
 import { EServeEvent, type ServeLog } from './serve-log'
+import { SERVE_BUILD_VERSION } from './serve-version'
 
 export const serveBootSink = (args: {
   controlPlaneUrl: string
   token: string
   clientVersion: string
   fetchFn: typeof fetch
+  serveVersion?: string
 }): BootStepSink => {
   const client = createApiClient(args)
+  const serveVersion = args.serveVersion ?? SERVE_BUILD_VERSION
   return async (events) => {
-    await client.sandboxSelf.bootSteps.mutate({ steps: [...events] }).catch((failure: unknown) => {
-      throw controlPlaneError(failure)
-    })
+    await client.sandboxSelf.bootSteps
+      .mutate({ steps: [...events], serveVersion })
+      .catch((failure: unknown) => {
+        throw controlPlaneError(failure)
+      })
   }
 }
 

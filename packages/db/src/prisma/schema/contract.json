@@ -848,6 +848,13 @@
                   "kind": "scalar"
                 }
               },
+              "runningServeVersion": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "runtimeCheckpoint": {
                 "nullable": true,
                 "type": {
@@ -1040,6 +1047,9 @@
                 },
                 "region": {
                   "column": "region"
+                },
+                "runningServeVersion": {
+                  "column": "runningServeVersion"
                 },
                 "runtimeCheckpoint": {
                   "column": "runtimeCheckpoint"
@@ -7569,6 +7579,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "runningServeVersion": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "runtimeCheckpoint": {
                   "codecId": "pg/jsonb@1",
                   "dataType": "pg/jsonb",
@@ -12215,7 +12230,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "18518cc2afa8b273ce1fbe178c79fb8ae7141b1872f63117c8606ff5be9eb08f"
+    "storageHash": "0834414e0459aa522b528ad39c1e21aa6c956e9acaab3ea39fda62a03f21d075"
   },
   "execution": {
     "executionHash": "1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb",
