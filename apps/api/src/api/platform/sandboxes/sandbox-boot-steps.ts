@@ -40,6 +40,18 @@ export async function recordBootSteps(args: {
   )
 }
 
+export async function recordRunningServeVersion(args: {
+  writer: Writer
+  threadId: string
+  serveVersion: string
+}): Promise<void> {
+  const sessionId = await podSessionOf({ reader: args.writer, threadId: args.threadId })
+  await args.writer.orm.public.CloudSandbox.where({ sessionId }).update({
+    runningServeVersion: args.serveVersion,
+    updatedAt: new Date(),
+  })
+}
+
 export async function hasBootSteps(args: {
   reader?: Writer | undefined
   threadId: string

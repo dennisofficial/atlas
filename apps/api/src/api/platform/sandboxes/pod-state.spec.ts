@@ -23,6 +23,7 @@ const sandbox = (partial: Partial<Row<'CloudSandbox'>> = {}): Row<'CloudSandbox'
   pinnedModel: null,
   serveUrl: null,
   serveVersion: null,
+  runningServeVersion: null,
   wakeFailedAt: null,
   wakeClaim: null,
   pendingSend: null,
