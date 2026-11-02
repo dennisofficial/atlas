@@ -255,7 +255,7 @@ is a real cloud session on v2 from the web, with basic chat and tools.
 | ~~The v2 schema is not supported by Prisma 8~~ (retired)      | Verified 2026-11-01: Prisma 8 namespaces work on the repo's pins; `db.orm.v2.*` and a managed `v2` Postgres schema in the same migration graph | None needed; D6 uses `namespace v2` blocks directly                                                                                                                                                                                                           |
 | D2 stays open too long                                        | The local slices cannot be specified                                                                                                           | D2 is needed only at the local slice; cloud slices do not depend on it                                                                                                                                                                                        |
 | A saturated pod starves the harness                           | Slow streaming and sends, missed lease renewals (a live pod fenced, the session flapping), the harness OOM-killed before the workload          | §11: OOM and CPU priority, a memory watchdog, lease renewal and stop that do not wait on the loop                                                                                                                                                             |
-| Long threads (1M events, 1.5–5 GB)                            | v1 re-folds the whole log per append, step, request and refresh ([log-scale](research/log-scale.md))                                           | §12: ranged reads only, current state as checkpoints, artifacts out of line, tail-first clients                                                                                                                                                               |
+| Long threads (~20k events, tens of MB)                        | v1 re-folds the whole log per append, step, request and refresh ([log-scale](research/log-scale.md))                                           | §12: ranged reads only, current state as checkpoints, artifacts out of line, tail-first clients                                                                                                                                                               |
 | A pod dies and nobody notices                                 | v1 notices only via a 5-minute sweep gated on an unanswered message; an idle dead pod is never flagged                                         | §13: the lease is liveness; one reconciler per session acts on expiry                                                                                                                                                                                         |
 
 ## 11. Pod resources: the harness outranks its workloads
@@ -305,7 +305,12 @@ saturated pod, not chosen here.
 
 ## 12. Log scale: history is an archive, current state is a checkpoint
 
-v2 must run a thread of **1,000,000 events (1.5–5 GB)** as smoothly as a fresh one. The
+v2 must run its longest realistic thread as smoothly as a fresh one. Production on 2026-11-02: the
+longest thread was 7,989 events and 8 MB of bodies (one day of work), p50/p90/p99 per thread
+177/637/2,056 events, the largest single event 2.9 MB; sessions last hours to days. The design
+target is **~20k events (tens of MB) per thread**. The rules below remove whole-log work where
+doing so is trivial; they are not tuning for sizes Atlas does not reach, and the nearer limit is a
+single large event against the 4 MB API body cap (L5). The
 [log-scale census](research/log-scale.md) found that v1 fails this everywhere for one reason: it
 uses the log as its state database, re-deriving current state by folding history from seq 0 on
 every append, step, request and refresh. v2 separates the two. **The log is an archive that is

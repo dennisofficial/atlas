@@ -87,11 +87,16 @@ export function ensureTestDatabase(): Promise<void> {
   return ready
 }
 
+const TRUNCATED_SCHEMAS = ['public', 'v2']
+
 export async function truncateAll(): Promise<void> {
   const pool = sharedPool()
-  const tables = await pool.query<{ tablename: string }>(
-    "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
+  const tables = await pool.query<{ schemaname: string; tablename: string }>(
+    'SELECT schemaname, tablename FROM pg_tables WHERE schemaname = ANY($1) ORDER BY schemaname, tablename',
+    [TRUNCATED_SCHEMAS],
   )
-  const list = tables.rows.map((row) => `"public".${quoteIdent(row.tablename)}`).join(', ')
+  const list = tables.rows
+    .map((row) => `${quoteIdent(row.schemaname)}.${quoteIdent(row.tablename)}`)
+    .join(', ')
   if (list.length > 0) await pool.query(`TRUNCATE ${list} CASCADE`)
 }

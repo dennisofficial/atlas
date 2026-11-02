@@ -1,0 +1,11 @@
+// use prisma-8
+namespace v2 {
+  model V2Session {
+    id          String                @id
+    nextInboxId Int
+    createdAt   TimestamptzJsDate(3)
+    threads     V2Thread[]
+    inbox       V2InboxEntry[]
+    lease       V2Lease?
+  }
+}
