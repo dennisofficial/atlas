@@ -54,11 +54,11 @@ export function ThreadLayout(props: ThreadLayoutProps) {
 
   return (
     <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-      <ResizablePanel id="transcript" minSize="35%">
+      <ResizablePanel id="transcript" minSize="25%">
         <div className="flex h-full min-w-0 flex-col">{children}</div>
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel id="right-panel" defaultSize="33%" minSize="26%" maxSize="50%">
+      <ResizablePanel id="right-panel" defaultSize="33%" minSize="26%" maxSize="75%">
         <RightPanel tab={tab} onTabChange={onTabChange} />
       </ResizablePanel>
     </ResizablePanelGroup>

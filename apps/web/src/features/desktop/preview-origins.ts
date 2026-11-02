@@ -10,10 +10,15 @@ export function previewOriginsOf(urls: readonly string[]): string[] {
   return [...origins].sort()
 }
 
-export async function postPreviewOrigins(origins: readonly string[]): Promise<void> {
-  await fetch(PREVIEW_ORIGINS_PATH, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ origins }),
-  }).catch(() => undefined)
+export async function postPreviewOrigins(origins: readonly string[]): Promise<boolean> {
+  try {
+    const response = await fetch(PREVIEW_ORIGINS_PATH, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ origins }),
+    })
+    return response.ok
+  } catch {
+    return false
+  }
 }
