@@ -4,8 +4,9 @@ import type { SettlePending } from './settle-pending'
 
 export type TrackedTurnDeps = Omit<
   import('./run-turn').TurnDeps,
-  'logPort' | 'dispatch' | 'onToolOutput' | 'spend'
+  'logPort' | 'dispatch' | 'output' | 'spend'
 > & {
+  onContext: ((args: { tokens: number; window: number }) => void) | undefined
   tools: () => readonly ToolDeclaration[]
   countTokens: (assembled: Assembled) => number
   settlePending: SettlePending | undefined

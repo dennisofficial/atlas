@@ -21,6 +21,7 @@ import {
 import { logFieldsOf } from '../logging/log-fields'
 import type { AgentIntake } from '../intake/agent-intake'
 import type { AgentRecordPort, ModelContextPort } from '../record/agent-record.port'
+import type { AgentOutput } from './agent-output'
 import type { HookChain } from '../hooks/registry'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import type { ApplyLoopCut } from '../loop-cut'
@@ -56,8 +57,7 @@ export type TurnDeps = {
   tools?: (() => readonly ToolDeclaration[]) | undefined
   countTokens?: ((assembled: Assembled) => number) | undefined
   onChunk?: ChunkFilter | undefined
-  onToolOutput?: OnToolOutputNotice | undefined
-  onContext?: ((args: { tokens: number; window: number }) => void) | undefined
+  output?: AgentOutput | undefined
   dispatch?: ToolDispatcher | undefined
   hooks?: HookChain | undefined
   uploads?: SaidUploadsPort | undefined
@@ -87,6 +87,7 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly spend: TurnLedgerDeps | undefined
   private readonly logPort: LogPort | undefined
   private readonly retry: RetryDeps | undefined
+  private readonly output: AgentOutput | undefined
   private readonly sleepPrevention: SleepPrevention | undefined
   private readonly tracked: TrackedTurnDeps
   private readonly normalizeFailure: NormalizeFailure
@@ -101,6 +102,7 @@ export class LoopTurnRunner extends TurnRunner {
     this.spend = deps.spend
     this.logPort = deps.logPort
     this.retry = deps.retry
+    this.output = deps.output
     this.sleepPrevention = deps.sleepPrevention
     this.expandContext = deps.expandContext
     this.normalizeFailure = deps.normalizeFailure
@@ -120,7 +122,10 @@ export class LoopTurnRunner extends TurnRunner {
       tools,
       countTokens,
       onChunk: deps.onChunk,
-      onContext: deps.onContext,
+      onContext:
+        deps.output === undefined
+          ? undefined
+          : ({ tokens, window }) => deps.output?.emit({ type: 'context-size', tokens, window }),
       hooks: deps.hooks,
       uploads: deps.uploads,
       intake: deps.intake,
@@ -132,7 +137,10 @@ export class LoopTurnRunner extends TurnRunner {
               dispatch: deps.dispatch,
               tools,
               launchDirectory: deps.launchDirectory,
-              onToolOutput: deps.onToolOutput,
+              onToolOutput:
+                deps.output === undefined
+                  ? undefined
+                  : (output) => deps.output?.emit({ type: 'tool-output', output }),
             }),
       compact: deps.compact,
       applyLoopCut: deps.applyLoopCut,
@@ -150,11 +158,21 @@ export class LoopTurnRunner extends TurnRunner {
   }
 
   private retryFor({ threadId }: { threadId: ThreadId }): RetryDeps | undefined {
-    if (this.logPort === undefined) return this.retry
+    const output = this.output
+    if (this.logPort === undefined && output === undefined) return this.retry
     const logPort = this.logPort
+    const held = this.retry?.onWaiting
     const diagnostics = this.failureDiagnostics
     return {
       ...this.retry,
+      ...(output === undefined
+        ? {}
+        : {
+            onWaiting: (notice) => {
+              output.emit({ type: 'retrying', ...notice })
+              held?.(notice)
+            },
+          }),
       ...(logPort === undefined
         ? {}
         : {
