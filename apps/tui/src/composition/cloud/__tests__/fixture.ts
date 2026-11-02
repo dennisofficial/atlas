@@ -605,12 +605,7 @@ export type FakeBridge = CloudBridge & {
   readonly channel: FakeCloudChannel
   readonly trail: readonly string[]
   /** Wire the local transcript a birth ships up; the mount fixture sets it once the app exists. */
-  sourceStores(args: {
-    log: FakeEventLog
-    threads: FakeThreadStore
-    workspace: string
-    disk?: FakeSessionDisk | undefined
-  }): void
+  sourceStores(args: { log: FakeEventLog; threads: FakeThreadStore; workspace: string }): void
 }
 
 const RUNNING: CloudSandbox = {
@@ -635,7 +630,6 @@ export function fakeBridge(
     /** The local transcript a birth ships up; the fake's stand-in for the sandbox receiving it. */
     sourceLog?: FakeEventLog | undefined
     sourceThreads?: FakeThreadStore | undefined
-    sourceDisk?: FakeSessionDisk | undefined
   } = {},
 ): FakeBridge {
   // The fake serve's session directory: every remote write lands here, the way
@@ -662,7 +656,6 @@ export function fakeBridge(
   let sourceLog = args.sourceLog
   let sourceThreads = args.sourceThreads
   let sourceWorkspace: string | null = null
-  let sourceDisk = args.sourceDisk
 
   const materialize = (threadId: ThreadId): void => {
     const events =
@@ -719,11 +712,10 @@ export function fakeBridge(
       return channel
     },
     trail,
-    sourceStores: ({ log: source, threads: sourceThreadStore, workspace, disk }) => {
+    sourceStores: ({ log: source, threads: sourceThreadStore, workspace }) => {
       sourceLog = source
       sourceThreads = sourceThreadStore
       sourceWorkspace = workspace
-      sourceDisk = disk
     },
     sandboxes: {
       create: async ({ threadId, projectId, onRotationStarted }) => {

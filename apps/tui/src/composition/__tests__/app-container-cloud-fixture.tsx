@@ -70,7 +70,6 @@ export const mount = async (args: {
     log: args.app.log,
     threads: args.app.threads,
     workspace: args.app.workspace.workspace,
-    disk,
   })
   const createBridge: CloudBridgeFactory = () => args.bridge
   const opened = args.opened ?? (await spokenIn(args.app))

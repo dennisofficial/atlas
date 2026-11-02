@@ -223,7 +223,6 @@ async function mountCloudThread(args: { pairs: number }) {
     log: app.log,
     threads: app.threads,
     workspace: app.workspace.workspace,
-    disk,
   })
   const createBridge: CloudBridgeFactory = () => bridge
   await disk.writeSessionMeta({ threadId: THREAD })

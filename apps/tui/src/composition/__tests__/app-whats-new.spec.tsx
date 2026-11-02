@@ -78,7 +78,6 @@ const mount = async (
     log: app.log,
     threads: app.threads,
     workspace: app.workspace.workspace,
-    disk,
   })
   const opened = placement.cloud ? await cloudOpened({ app, bridge }) : await spokenIn(app)
   await disk.writeSessionMeta({ threadId: opened.threadId })
