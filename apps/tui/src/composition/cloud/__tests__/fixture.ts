@@ -467,6 +467,15 @@ export function fakeCloudChannel(
         pendingChanges.delete(listener)
       }
     },
+    pendingEntriesOf: ({ threadId }) => (threadId === channelThreadId ? heldPending : []),
+    onPendingChangedOf: (threadId, listener) => {
+      if (threadId !== channelThreadId) return () => undefined
+      pendingChanges.add(listener)
+      return () => {
+        pendingChanges.delete(listener)
+      }
+    },
+    onScopedSignal: () => () => undefined,
     holdTakeBack(taken) {
       heldTakeBack = taken
     },

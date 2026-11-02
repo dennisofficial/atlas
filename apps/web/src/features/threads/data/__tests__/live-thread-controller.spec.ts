@@ -244,6 +244,48 @@ describe('createLiveThreadController', () => {
     expect(sends[0]).not.toHaveProperty('threadId')
   })
 
+  it("reads a teammate thread's own events when the serve echoes them, tagged at the viewed thread", async () => {
+    const test = rig({ mints: [ticketOf('tkt1', 'thr_root')], seed: [] })
+    test.controller.start()
+    await flush()
+    test.ready()
+    await flush()
+    const before = test.requests().length
+
+    test.receive({
+      kind: EServeFrame.Signal,
+      seq: 1,
+      signal: { type: 'events-appended', threadId: 'thr_1' },
+    })
+    await flush()
+
+    const request = test.requests()[before]
+    expect(request?.op).toBe(EClientRequest.ReadEvents)
+    expect(request?.params).toEqual({ threadId: 'thr_1', fromSeq: 0, own: true })
+
+    test.answer({ index: before, events: [event(1)] })
+    await flush()
+    expect(test.state().events.map((entry) => entry.seq)).toEqual([1])
+  })
+
+  it('ignores an echo tagged at another thread', async () => {
+    const test = rig({ mints: [ticketOf('tkt1', 'thr_root')], seed: [] })
+    test.controller.start()
+    await flush()
+    test.ready()
+    await flush()
+    const before = test.requests().length
+
+    test.receive({
+      kind: EServeFrame.Signal,
+      seq: 1,
+      signal: { type: 'events-appended', threadId: 'thr_other' },
+    })
+    await flush()
+
+    expect(test.requests()).toHaveLength(before)
+  })
+
   it('closes the socket and goes quiet on stop', async () => {
     const test = rig()
     test.controller.start()

@@ -2,11 +2,13 @@ import { saidBody } from '@dltech/atlas-core'
 
 import { ECapability, EClientFrame, toSendId } from './channel-wire'
 import { EConnectionView, ESocketLiveness } from './connection-view'
+import type { ChannelListener } from './delta-channel-types'
 import { createChannelCore } from './remote-channel-core'
 import { createChannelLifecycle } from './remote-channel-lifecycle'
 import { NOTHING_IN_FLIGHT } from './remote-channel-in-flight'
 import { PASSIVE_REQUESTS } from './passive-requests'
 import { RemotePublishRefused, RemoteRequestLost } from './remote-channel-upstream'
+import { isScopedSignal } from './thread-scoped-signals'
 import type {
   RemoteDeltaChannel,
   RemoteDeltaChannelOptions,
@@ -39,12 +41,20 @@ export function createRemoteDeltaChannel(
     threadId: args.threadId,
 
     subscribe({ threadId, listener }) {
-      if (threadId !== args.threadId) return () => undefined
-      for (const signal of inFlight.replay()) listener(signal)
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
+      if (threadId === args.threadId) {
+        for (const signal of inFlight.replay()) listener(signal)
+        const rootListener: ChannelListener = (signal) => {
+          if (isScopedSignal(signal) && signal.threadId !== undefined) return
+          listener(signal)
+        }
+        listeners.add(rootListener)
+        return () => {
+          listeners.delete(rootListener)
+        }
       }
+      return core.scopedSignals.subscribe((scoped) => {
+        if (scoped.threadId === threadId) listener(scoped.signal)
+      })
     },
 
     snapshot: ({ threadId }) =>
@@ -116,8 +126,20 @@ export function createRemoteDeltaChannel(
     onSubscriptions: (listener) => on.subscriptions.add(listener),
     onTerminalOutput: (listener) => on.terminalOutputs.add(listener),
     onTerminalExit: (listener) => on.terminalExits.add(listener),
-    pendingEntries: () => state.heldPending,
+    pendingEntries: (scoped) =>
+      scoped?.threadId === undefined || scoped.threadId === args.threadId
+        ? state.heldPending
+        : (state.heldPendingByThread.get(scoped.threadId) ?? []),
+    pendingEntriesOf: ({ threadId }) =>
+      threadId === args.threadId
+        ? state.heldPending
+        : (state.heldPendingByThread.get(threadId) ?? []),
     onPendingChanged: (listener) => on.pendingChanges.add(listener),
+    onPendingChangedOf: (threadId, listener) =>
+      on.pendingChangesScoped.add((scoped) => {
+        if (scoped.threadId === threadId) listener(scoped.entries)
+      }),
+    onScopedSignal: (listener) => core.scopedSignals.subscribe(listener),
     onThreadRenamed: (listener) => on.threadRenames.add(listener),
     onThreadTitling: (listener) => on.threadTitlings.add(listener),
     onThreadModelChanged: (listener) => on.threadModelChanges.add(listener),

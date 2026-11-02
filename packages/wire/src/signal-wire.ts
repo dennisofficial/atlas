@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { rotationStateWireSchema } from './rotation-wire'
 import { saidUploadWireSchema } from './upload-wire'
+import { threadIdWireSchema } from './request-wire'
 
 export enum EFinishReason {
   Stop = 'stop',
@@ -152,8 +153,10 @@ export const operatorInputRequestWireSchema = z.object({
 
 export type OperatorInputRequestWire = z.infer<typeof operatorInputRequestWireSchema>
 
+const threadScoped = { threadId: threadIdWireSchema.optional() }
+
 export const channelSignalSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('turn-working'), working: z.boolean() }),
+  z.object({ type: z.literal('turn-working'), working: z.boolean(), ...threadScoped }),
   z.object({ type: z.literal('step-started'), stepId: stepIdWireSchema }),
   z.object({ type: z.literal('chunk'), stepId: stepIdWireSchema, chunk: chunkWireSchema }),
   z.object({
@@ -163,7 +166,7 @@ export const channelSignalSchema = z.discriminatedUnion('type', [
     supersededBy: eventRefWireSchema.nullable(),
   }),
   z.object({ type: z.literal('tool-output'), callId: callIdWireSchema, text: z.string() }),
-  z.object({ type: z.literal('events-appended') }),
+  z.object({ type: z.literal('events-appended'), ...threadScoped }),
   z.object({ type: z.literal('context-changed') }),
   z.object({
     type: z.literal('session-files-changed'),
@@ -177,10 +180,15 @@ export const channelSignalSchema = z.discriminatedUnion('type', [
     reason: z.enum(ERetryReason),
   }),
   z.object({ type: z.literal('retry-cleared') }),
-  z.object({ type: z.literal('pending-changed'), entries: z.array(pendingEntryWireSchema) }),
+  z.object({
+    type: z.literal('pending-changed'),
+    entries: z.array(pendingEntryWireSchema),
+    ...threadScoped,
+  }),
   z.object({
     type: z.literal('operator-input'),
     request: operatorInputRequestWireSchema.nullable(),
+    ...threadScoped,
   }),
   z.object({ type: z.literal('rotation-changed'), rotation: rotationStateWireSchema }),
 ])

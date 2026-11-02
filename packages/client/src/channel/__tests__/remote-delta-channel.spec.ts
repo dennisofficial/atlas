@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { EConnectionView } from '../connection-view'
 
 import { toRunId } from '@dltech/atlas-core'
+import type { PendingEntryWire } from '@dltech/atlas-wire/web'
 
 import { EStepEnd } from '../signal'
 import { ETurnStatus, type TurnOutcome } from '../turn-outcome'
@@ -330,16 +331,56 @@ describe('signals arriving from the sandbox', () => {
     expect(channel.snapshot({ threadId: THREAD })).toEqual([])
   })
 
-  it('answers a foreign thread with an inert subscription, since one socket is one thread', () => {
+  it("delivers tagged scoped signals to a family thread's subscriber, untagged ones only to the root", () => {
     const { channel, open, receive } = harness()
-    const { seen, listener } = recorder()
-    channel.subscribe({ threadId: OTHER_THREAD, listener })
+    const root = recorder()
+    const family = recorder()
+    channel.subscribe({ threadId: THREAD, listener: root.listener })
+    channel.subscribe({ threadId: OTHER_THREAD, listener: family.listener })
     open()
 
     receive({ kind: EServeFrame.Signal, seq: 1, signal: started })
+    receive({
+      kind: EServeFrame.Signal,
+      seq: 2,
+      signal: { type: 'events-appended', threadId: OTHER_THREAD },
+    })
+    receive({
+      kind: EServeFrame.Signal,
+      seq: 3,
+      signal: { type: 'turn-working', working: true, threadId: OTHER_THREAD },
+    })
+    receive({ kind: EServeFrame.Signal, seq: 4, signal: { type: 'turn-working', working: true } })
 
-    expect(seen).toEqual([])
-    expect(channel.snapshot({ threadId: OTHER_THREAD })).toEqual([])
+    expect(root.seen).toEqual([started, { type: 'turn-working', working: true }])
+    expect(family.seen).toEqual([
+      { type: 'events-appended', threadId: OTHER_THREAD },
+      { type: 'turn-working', working: true, threadId: OTHER_THREAD },
+    ])
+  })
+
+  it("holds a family thread's pending queue apart from the root's", () => {
+    const { channel, open, receive } = harness()
+    const familyPending: (readonly PendingEntryWire[])[] = []
+    channel.onPendingChangedOf(OTHER_THREAD, (entries) => void familyPending.push(entries))
+    open()
+
+    const rootEntries = [{ id: 'p_root', text: 'root', reserved: false }]
+    const familyEntries = [{ id: 'p_child', text: 'child', reserved: false }]
+    receive({
+      kind: EServeFrame.Signal,
+      seq: 1,
+      signal: { type: 'pending-changed', entries: rootEntries },
+    })
+    receive({
+      kind: EServeFrame.Signal,
+      seq: 2,
+      signal: { type: 'pending-changed', entries: familyEntries, threadId: OTHER_THREAD },
+    })
+
+    expect(channel.pendingEntries()).toEqual(rootEntries)
+    expect(channel.pendingEntriesOf({ threadId: OTHER_THREAD })).toEqual(familyEntries)
+    expect(familyPending).toEqual([familyEntries])
   })
 })
 

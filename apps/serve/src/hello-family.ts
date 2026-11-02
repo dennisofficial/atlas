@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 
 import type { HelloFrame, SessionSocket, SessionHandlersArgs } from './socket-session-types'
 
@@ -25,6 +25,7 @@ export function createHelloAdmission(args: HelloAdmissionArgs) {
 
   const greet = (given: { socket: SessionSocket; hello: HelloFrame }): void => {
     const { socket, hello } = given
+    socket.data.threadId = toThreadId(hello.threadId)
     if (transcript === undefined) {
       greetRest({ socket, hello, head: null })
       return

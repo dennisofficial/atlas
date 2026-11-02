@@ -37,6 +37,7 @@ export function createBootedSessionHandlers(args: {
   const { app, threadId, atlasHome, workspace, buffer, driver, contextReader, log } = args
   return createSessionHandlers({
     activity: app.activity,
+    channel: app.channel,
     threadId,
     admitsThread: admitsFamilyThread({ root: threadId, atlasHome }),
     ...(app.agents === undefined
