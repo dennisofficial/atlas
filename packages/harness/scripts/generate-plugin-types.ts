@@ -15,11 +15,21 @@ const WORKSPACE_ENTRIES = [
     specifier: "'@dltech/atlas-wire'",
     entry: ['packages', 'wire', 'src', 'index'],
   },
+  {
+    specifier: "'@dltech/atlas-wire/web'",
+    entry: ['packages', 'wire', 'src', 'web', 'index'],
+  },
+  {
+    specifier: "'@dltech/atlas-agent'",
+    entry: ['packages', 'agent', 'src', 'index'],
+  },
 ]
 
 const DECLARATION_ENTRIES = [
   ['packages', 'core', 'src', 'index.ts'],
   ['packages', 'wire', 'src', 'index.ts'],
+  ['packages', 'wire', 'src', 'web', 'index.ts'],
+  ['packages', 'agent', 'src', 'index.ts'],
   ['packages', 'harness', 'src', 'plugins', 'plugin.ts'],
 ]
 
@@ -41,10 +51,12 @@ const resolveWorkspaceImports = async (declarationRoot: string): Promise<void> =
     let text = await Bun.file(path).text()
     let changed = false
     for (const { specifier, entry } of WORKSPACE_ENTRIES) {
-      if (!text.includes(specifier)) continue
+      const quoted = [specifier, specifier.replaceAll("'", '"')]
+      if (!quoted.some((form) => text.includes(form))) continue
       const toEntry = relative(dirname(path), join(declarationRoot, ...entry))
       const resolved = toEntry.startsWith('.') ? toEntry : `./${toEntry}`
-      text = text.replaceAll(specifier, `'${resolved}'`)
+      for (const form of quoted)
+        text = text.replaceAll(form, form.replaceAll(/@dltech\/atlas-[\w/]+/g, resolved))
       changed = true
     }
     if (changed) await Bun.write(path, text)

@@ -18,10 +18,10 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
-import { logFieldsOf } from '../logging/log-fields'
 import type { AgentIntake } from '../intake/agent-intake'
 import type { AgentRecordPort, ModelContextPort } from '../record/agent-record.port'
 import type { AgentOutput } from './agent-output'
+import { retryDepsFor } from './retry-deps'
 import type { HookChain } from '../hooks/registry'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import type { ApplyLoopCut } from '../loop-cut'
@@ -158,43 +158,13 @@ export class LoopTurnRunner extends TurnRunner {
   }
 
   private retryFor({ threadId }: { threadId: ThreadId }): RetryDeps | undefined {
-    const output = this.output
-    if (this.logPort === undefined && output === undefined) return this.retry
-    const logPort = this.logPort
-    const held = this.retry?.onWaiting
-    const diagnostics = this.failureDiagnostics
-    return {
-      ...this.retry,
-      ...(output === undefined
-        ? {}
-        : {
-            onWaiting: (notice) => {
-              output.emit({ type: 'retrying', ...notice })
-              held?.(notice)
-            },
-          }),
-      ...(logPort === undefined
-        ? {}
-        : {
-            log: ({ attempt, maxAttempts, reason, willRetry, error }) => {
-              logPort.warn({
-                source: 'loop.retry',
-                message: willRetry
-                  ? `model step failed (attempt ${attempt}/${maxAttempts}, ${reason}) — retrying`
-                  : `model step failed (attempt ${attempt}/${maxAttempts}, ${reason}) — not retrying`,
-                threadId,
-                data: {
-                  attempt,
-                  maxAttempts,
-                  reason,
-                  willRetry,
-                  modelError: diagnostics?.(error) ?? {},
-                },
-                ...logFieldsOf({ error }),
-              })
-            },
-          }),
-    }
+    return retryDepsFor({
+      retry: this.retry,
+      output: this.output,
+      logPort: this.logPort,
+      diagnostics: this.failureDiagnostics,
+      threadId,
+    })
   }
 
   async say({
