@@ -16,6 +16,7 @@ describe('the declared-services wire', () => {
         {
           name: 'web',
           state: 'running',
+          type: 'web',
           serviceId: 'svc-1',
           port: 3000,
           url: 'https://p.example',
@@ -32,6 +33,15 @@ describe('the declared-services wire', () => {
   it('refuses a state outside the declared set', () => {
     const parsed = declaredServicesViewWireSchema.safeParse({
       services: [{ name: 'web', state: 'paused', links: [] }],
+      rejections: [],
+    })
+
+    expect(parsed.success).toBe(false)
+  })
+
+  it('refuses a service type outside web, api and database', () => {
+    const parsed = declaredServicesViewWireSchema.safeParse({
+      services: [{ name: 'web', state: 'running', type: 'mobile', links: [] }],
       rejections: [],
     })
 

@@ -12,6 +12,9 @@ export const declaredServiceStateWire = z.enum([
 ])
 export type DeclaredServiceStateWire = z.infer<typeof declaredServiceStateWire>
 
+export const serviceTypeWire = z.enum(['web', 'api', 'database'])
+export type ServiceTypeWire = z.infer<typeof serviceTypeWire>
+
 export const declaredServiceLinkWireSchema = z.object({
   url: z.string(),
   title: z.string(),
@@ -22,6 +25,7 @@ export type DeclaredServiceLinkWire = z.infer<typeof declaredServiceLinkWireSche
 export const declaredServiceViewWireSchema = z.object({
   name: z.string().min(1),
   state: declaredServiceStateWire,
+  type: serviceTypeWire.optional(),
   serviceId: z.string().min(1).optional(),
   port: z.number().int().nonnegative().optional(),
   url: z.string().optional(),

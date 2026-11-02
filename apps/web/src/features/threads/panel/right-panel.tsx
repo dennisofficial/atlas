@@ -3,7 +3,7 @@
 import { Tabs, TabsContent } from '@dltech/atlas-ui/components/tabs'
 
 import { activeAgentCount } from '../data/agents-model'
-import { livePreviewCount } from '../data/preview-ports'
+import { livePreviewCount, previewIdOf } from '../data/preview-ports'
 import { useAgents } from '../data/use-agents'
 import { usePreviews } from '../data/use-previews'
 import { useSubscriptions } from '../data/use-subscriptions'
@@ -41,9 +41,22 @@ function TabBody(props: {
   agents: ReturnType<typeof useAgents>
   subscriptions: ReturnType<typeof useSubscriptions>
   previews: ReturnType<typeof usePreviews>
+  onTabChange: (tab: ERightTab) => void
 }) {
+  const { previews, onTabChange } = props
+  const handleOpenPreview = (serviceId: string) => {
+    previews.select(previewIdOf(serviceId))
+    onTabChange(ERightTab.Preview)
+  }
   if (props.tab === ERightTab.Details) {
-    return <DetailsTab agents={props.agents} subscriptions={props.subscriptions} />
+    return (
+      <DetailsTab
+        agents={props.agents}
+        subscriptions={props.subscriptions}
+        previewPorts={previews.ports}
+        onOpenPreview={handleOpenPreview}
+      />
+    )
   }
   if (props.tab === ERightTab.Preview) return <PreviewTab data={props.previews} />
   return bodyOf(props.tab)
@@ -51,7 +64,14 @@ function TabBody(props: {
 
 export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProps) {
   const { threadId, channel, working, details, loaded, error } = useThreadPanel()
-  const agents = useAgents({ threadId, channel, working, events: details.events, loaded, error })
+  const agents = useAgents({
+    threadId,
+    channel,
+    working,
+    events: details.events,
+    loaded,
+    error,
+  })
   const running = activeAgentCount(agents.agents)
   const subscriptions = useSubscriptions({ threadId, channel })
   const previews = usePreviews(channel)
@@ -65,7 +85,10 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
       <Tabs value={tab} onValueChange={handleTabChange} className="min-h-0 flex-1">
         <RightTabStrip
           className={tabBarClassName}
-          counts={{ [ERightTab.Details]: running, [ERightTab.Preview]: serving }}
+          counts={{
+            [ERightTab.Details]: running,
+            [ERightTab.Preview]: serving,
+          }}
         />
         {Object.values(ERightTab).map((value) => (
           <TabsContent key={value} value={value} className="min-h-0 flex-1 overflow-auto">
@@ -74,6 +97,7 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
               agents={agents}
               subscriptions={subscriptions}
               previews={previews}
+              onTabChange={onTabChange}
             />
           </TabsContent>
         ))}

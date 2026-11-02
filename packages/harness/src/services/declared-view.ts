@@ -26,6 +26,7 @@ export function buildDeclaredView({
     const latest = snapshots.filter((one) => one.name === declared.name).at(-1)
     const base = {
       name: declared.name,
+      type: declared.type,
       serviceId: latest?.serviceId,
       port: latest?.port ?? declared.port,
       url: latest?.exposure?.url,

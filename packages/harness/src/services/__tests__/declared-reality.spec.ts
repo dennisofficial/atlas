@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { EDeclaredServiceState, EKilledBy, EServiceStatus } from '@dltech/atlas-core'
+import { EDeclaredServiceState, EKilledBy, EServiceStatus, EServiceType } from '@dltech/atlas-core'
 
 import { EEnsureStatus } from '../declared-ensure'
 import { open, THREAD } from './declared-fixture'
@@ -138,6 +138,16 @@ describe('declared view and watch', () => {
       EDeclaredServiceState.Stopped,
     ])
     expect(await registry.declaredNames()).toEqual(['web', 'worker'])
+  })
+
+  it('carries the declared type onto the view and leaves untyped services untyped', async () => {
+    const yaml = 'services:\n  db:\n    command: x\n    type: database\n  plain:\n    command: y\n'
+    const { registry } = open({ yaml })
+    const view = await registry.declared()
+    expect(view.services.map((one) => [one.name, one.type])).toEqual([
+      ['db', EServiceType.Database],
+      ['plain', undefined],
+    ])
   })
 
   it('bumps the change feed when services.yaml changes', async () => {

@@ -4,6 +4,7 @@ import { toThreadId } from '../../events/ids'
 import { serviceDeclarationSchema, servicesFileSchema } from '../declaration'
 import { serviceEnv } from '../env'
 import { deriveServicePort, nextServicePort } from '../port'
+import { EServiceType } from '../service-type'
 
 const THREAD = toThreadId('thread-1')
 
@@ -39,6 +40,21 @@ describe('serviceDeclarationSchema', () => {
     expect(serviceDeclarationSchema.safeParse({ command: 'x', nope: 1 }).success).toBe(false)
     expect(serviceDeclarationSchema.safeParse({}).success).toBe(false)
     expect(serviceDeclarationSchema.safeParse({ command: 'x', health: 'up' }).success).toBe(false)
+  })
+
+  it('accepts each service type and keeps it on the parsed declaration', () => {
+    for (const type of Object.values(EServiceType)) {
+      const parsed = serviceDeclarationSchema.safeParse({ command: 'x', type })
+      expect(parsed.success).toBe(true)
+      expect(parsed.data?.type).toBe(type)
+    }
+  })
+
+  it('rejects an unknown service type and leaves an absent one untyped', () => {
+    expect(serviceDeclarationSchema.safeParse({ command: 'x', type: 'mobile' }).success).toBe(false)
+    const parsed = serviceDeclarationSchema.safeParse({ command: 'x' })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data?.type).toBeUndefined()
   })
 
   it('requires a services map at the file level', () => {

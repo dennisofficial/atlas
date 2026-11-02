@@ -1,5 +1,6 @@
 import {
   EDeclaredServiceState,
+  EServiceType,
   EStopAction,
   type DeclaredServicesView,
   type EKilledBy,
@@ -30,6 +31,9 @@ const ensureStatusOf = (status: string): EEnsureStatus =>
 
 const declaredStateOf = (state: string): EDeclaredServiceState =>
   Object.values(EDeclaredServiceState).find((one) => one === state) ?? EDeclaredServiceState.Stopped
+
+const serviceTypeOf = (type: string | undefined): EServiceType | undefined =>
+  Object.values(EServiceType).find((one) => one === type)
 
 const NO_PENDING_SERVICES: readonly ServiceSnapshot[] = Object.freeze([])
 
@@ -85,6 +89,7 @@ export class RemoteServiceRegistry extends ServiceRegistryPort {
       services: reply.view.services.map((one) => ({
         ...one,
         state: declaredStateOf(one.state),
+        type: serviceTypeOf(one.type),
       })),
       rejections: reply.view.rejections,
     }
