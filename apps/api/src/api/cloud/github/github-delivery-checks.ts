@@ -13,8 +13,10 @@ import { GithubDeliveryFillDeferred, type RestFill } from './github-delivery-fil
 import { normalizedRepo } from './github-pr-identity'
 import { stateFieldsOf } from './github-pr-state-fields'
 import type { GithubPrStateWriter, PrStateWrite } from './github-pr-state-writer'
+import { checkSuiteInputOf } from './github-check-suites'
 import type {
   GithubCheckRunWebhookPayload,
+  GithubCheckSuiteWebhookPayload,
   GithubStatusWebhookPayload,
 } from './github-webhook.types'
 
@@ -31,6 +33,16 @@ export class GithubDeliveryChecks {
       repoFullName: payload.repository.full_name,
       headSha: payload.check_run.head_sha,
       check: checkRunInputOf(payload.check_run),
+    })
+  }
+
+  handleCheckSuite(payload: GithubCheckSuiteWebhookPayload): Promise<void> {
+    const { check_suite: suite } = payload
+    if (suite.id === undefined) return Promise.resolve()
+    return this.ingest({
+      repoFullName: payload.repository.full_name,
+      headSha: suite.head_sha,
+      check: checkSuiteInputOf({ ...suite, id: suite.id, status: suite.status ?? 'completed' }),
     })
   }
 

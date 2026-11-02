@@ -114,7 +114,7 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     }).all()
     expect(ledger).toHaveLength(1)
     expect(ledger[0]).toMatchObject({ verdict: 'green' })
-    expect(ledger[0]?.verdictEventId).toBe('compai/app:42:abc123:verdict:green')
+    expect(ledger[0]?.verdictEventId).toBe('compai/app:42:abc123:verdict:green:none')
     expect(ledger[0]?.settledAt).not.toBeNull()
   })
 

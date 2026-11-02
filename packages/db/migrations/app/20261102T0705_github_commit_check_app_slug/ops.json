@@ -1,0 +1,98 @@
+[
+  {
+    "id": "column.public.GithubCommitCheck.appSlug",
+    "label": "Add column \"appSlug\" to \"GithubCommitCheck\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "appSlug",
+        "table": "GithubCommitCheck"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"appSlug\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "appSlug"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"appSlug\"",
+        "sql": "ALTER TABLE \"public\".\"GithubCommitCheck\" ADD COLUMN \"appSlug\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"appSlug\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "appSlug"
+        ]
+      },
+      {
+        "description": "verify column \"appSlug\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "appSlug",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubCommitCheck.GithubCommitCheck_repoFullName_appSlug_idx_27a9561c",
+    "label": "Create index \"GithubCommitCheck_repoFullName_appSlug_idx_27a9561c\" on \"GithubCommitCheck\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubCommitCheck_repoFullName_appSlug_idx_27a9561c",
+        "table": "GithubCommitCheck"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubCommitCheck_repoFullName_appSlug_idx_27a9561c\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubCommitCheck_repoFullName_appSlug_idx_27a9561c\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubCommitCheck_repoFullName_appSlug_idx_27a9561c\"",
+        "sql": "CREATE INDEX \"GithubCommitCheck_repoFullName_appSlug_idx_27a9561c\" ON \"public\".\"GithubCommitCheck\" (\"repoFullName\", \"appSlug\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubCommitCheck_repoFullName_appSlug_idx_27a9561c\" exists on \"GithubCommitCheck\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubCommitCheck_repoFullName_appSlug_idx_27a9561c\"",
+          "i",
+          "I",
+          "\"public\".\"GithubCommitCheck\"",
+          "btree",
+          "[\"repoFullName\",\"appSlug\"]"
+        ]
+      }
+    ]
+  }
+]

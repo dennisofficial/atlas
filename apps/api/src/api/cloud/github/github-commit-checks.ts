@@ -8,6 +8,12 @@ import {
   type ChecksCount,
 } from '@dltech/atlas-core'
 import { db, type Tx } from '@dltech/atlas-db'
+import {
+  RUN_KEY_PREFIX,
+  SUITE_KEY_PREFIX,
+  countsAsPendingSuite,
+  runnerAppSlugs,
+} from './github-check-suites'
 import { normalizedRepo } from './github-pr-identity'
 
 export const COMMIT_CHECK_RETENTION_MS = 14 * 24 * 60 * 60 * 1_000
@@ -19,6 +25,7 @@ export type CommitCheckInput = {
   outcome: ECheckOutcome
   sourceUpdatedAt: Date
   isRun: boolean
+  appSlug?: string | null
 }
 
 export type CheckRunShape = {
@@ -28,6 +35,7 @@ export type CheckRunShape = {
   conclusion: string | null
   started_at: string | null
   completed_at?: string | null
+  app?: { slug: string } | null
 }
 
 export type CommitStatusShape = {
@@ -51,6 +59,7 @@ export function checkRunInputOf(run: CheckRunShape): CommitCheckInput {
     }),
     sourceUpdatedAt: timeOf(run.completed_at) ?? timeOf(run.started_at) ?? new Date(),
     isRun: true,
+    appSlug: run.app?.slug ?? null,
   }
 }
 
@@ -116,6 +125,7 @@ export async function recordCommitChecks(args: {
         startedAt: check.startedAt,
         outcome: check.outcome,
         sourceUpdatedAt: check.sourceUpdatedAt,
+        appSlug: check.appSlug ?? null,
       }
       await tx.orm.public.GithubCommitCheck.upsert({
         conflictOn: {
@@ -144,13 +154,23 @@ export async function commitChecksTally(args: {
     repoFullName: normalizedRepo(args.repoFullName),
     headSha: args.headSha,
   }).all()
-  const attempts: CheckAttempt[] = rows.map((row) => ({
-    name: row.name,
-    startedAt: row.checkKey.startsWith('status:')
-      ? row.sourceUpdatedAt.toISOString()
-      : row.startedAt,
-    outcome: row.outcome as ECheckOutcome,
-  }))
+  const runners = await runnerAppSlugs({ tx: args.tx, repoFullName: args.repoFullName })
+  const attempts: CheckAttempt[] = rows
+    .filter(
+      (row) => !row.checkKey.startsWith(SUITE_KEY_PREFIX) || countsAsPendingSuite({ row, runners }),
+    )
+    .map((row) => ({
+      name: row.name,
+      startedAt: row.checkKey.startsWith('status:')
+        ? row.sourceUpdatedAt.toISOString()
+        : row.startedAt,
+      outcome: row.outcome as ECheckOutcome,
+    }))
+  const awaitsFirstRun =
+    runners.size > 0 &&
+    rows.length > 0 &&
+    !rows.some((row) => row.checkKey.startsWith(RUN_KEY_PREFIX))
+  if (awaitsFirstRun) attempts.push({ name: null, startedAt: null, outcome: ECheckOutcome.Running })
   return checksTally(latestAttemptOutcomes(attempts))
 }
 

@@ -58,7 +58,7 @@ describe('GithubPollSweeperService post-merge reconciliation', () => {
       headSha: 'abc123',
       settledAt: new Date(),
       verdict: 'green',
-      verdictEventId: 'compai/app:42:abc123:verdict:green',
+      verdictEventId: 'compai/app:42:abc123:verdict:green:none',
     })
 
     await service.handlePoll()
