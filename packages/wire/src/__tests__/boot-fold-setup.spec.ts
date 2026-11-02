@@ -9,10 +9,10 @@ import {
 } from '../boot-progress-wire'
 
 describe('setup boot step', () => {
-  it('orders Setup between Clone and Settings', () => {
+  it('orders Settings then Setup after Clone', () => {
     const clone = BOOT_STEP_ORDER.indexOf(EBootStep.Clone)
-    expect(BOOT_STEP_ORDER[clone + 1]).toBe(EBootStep.Setup)
-    expect(BOOT_STEP_ORDER[clone + 2]).toBe(EBootStep.Settings)
+    expect(BOOT_STEP_ORDER[clone + 1]).toBe(EBootStep.Settings)
+    expect(BOOT_STEP_ORDER[clone + 2]).toBe(EBootStep.Setup)
   })
 
   it('folds Setup as pending and keeps its outcome', () => {

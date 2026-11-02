@@ -178,18 +178,20 @@ describe('startServe boot reporting', () => {
       else process.env.ATLAS_HOME = previous
     }
 
-    expect(events.map((event) => `${event.step}:${event.state}`)).toEqual([
+    const labels = events.map((event) => `${event.step}:${event.state}`)
+    expect(labels.slice(0, 4)).toEqual([
       'clone:running',
       'clone:done',
-      'setup:running',
-      'setup:done',
       'settings:running',
       'settings:done',
-      'context:running',
-      'context:done',
-      'agent:running',
-      'agent:done',
     ])
+    expect(labels.slice(4, 8).sort()).toEqual([
+      'context:done',
+      'context:running',
+      'setup:done',
+      'setup:running',
+    ])
+    expect(labels.slice(8)).toEqual(['agent:running', 'agent:done'])
   })
 })
 

@@ -174,9 +174,9 @@ describe('serve boot prefetch', () => {
       .map((line) => [line.phase, typeof line.ms])
     expect(phases).toEqual([
       ['clone', 'number'],
-      ['setup', 'number'],
       ['signing', 'number'],
       ['settings', 'number'],
+      ['setup', 'number'],
       ['context', 'number'],
     ])
   })
