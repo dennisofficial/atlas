@@ -1,3 +1,5 @@
+import { workloadCommand } from '@dltech/atlas-harness'
+
 export type CommandRun = { ok: boolean; stdout: string; stderr: string }
 
 export type CommandRunner = (args: {
@@ -12,13 +14,16 @@ const messageOf = (error: unknown): string =>
 
 export const runCommand: CommandRunner = async ({ command, cwd, stdin, env }) => {
   try {
-    const spawned = Bun.spawn([...command], {
-      cwd,
-      ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
-      stdout: 'pipe',
-      stderr: 'pipe',
-      stdin: stdin === undefined ? 'ignore' : 'pipe',
-    })
+    const spawned = Bun.spawn(
+      workloadCommand({ cmd: command, cwd, env: { ...process.env, ...env } }),
+      {
+        cwd,
+        ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
+        stdout: 'pipe',
+        stderr: 'pipe',
+        stdin: stdin === undefined ? 'ignore' : 'pipe',
+      },
+    )
     if (stdin !== undefined) {
       const sink = spawned.stdin
       if (sink === undefined) throw new Error('the stdin pipe did not open')

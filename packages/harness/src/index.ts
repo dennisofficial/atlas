@@ -84,6 +84,8 @@ export {
 } from './execution/image/resolve'
 export type { BoundPort } from './execution/docker/ports'
 export { LocalProcessPort } from './execution/local-process'
+export { applyServePriority, type ServePriorityReport } from './execution/serve-priority'
+export { workloadCommand } from './execution/workload-priority'
 export { LocalFileSystemPort } from './execution/local-filesystem'
 export { LoginEnvProcessPort } from './execution/login-env-process'
 export { RoutedProcessPort } from './execution/routed-process'

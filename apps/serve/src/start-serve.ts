@@ -1,11 +1,11 @@
-import { atlasDirectory } from '@dltech/atlas-harness'
+import { applyServePriority, atlasDirectory } from '@dltech/atlas-harness'
 
 import { admitsFamilyThread } from './family-admission'
 import type { ServeArgs, ServeHandle } from './serve-args'
 import { finishServeBoot } from './serve-boot-finish'
 import { listenWhileBooting } from './serve-boot-listener'
 import { serveConfig } from './serve-config'
-import { createServeLog, LoggingNoticePort } from './serve-log'
+import { createServeLog, EServeEvent, LoggingNoticePort } from './serve-log'
 
 export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const env = args.env ?? process.env
@@ -13,6 +13,8 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const startedAt = Date.now()
   const log = createServeLog({ write: args.write })
   const notice = new LoggingNoticePort({ log })
+  const priority = applyServePriority({ env })
+  if (priority.enabled) log({ event: EServeEvent.PriorityApplied, ...priority })
   const atlasHome = atlasDirectory()
   const sandboxSessionId = env.ATLAS_SANDBOX_SESSION_ID ?? ''
   const boot = listenWhileBooting({
