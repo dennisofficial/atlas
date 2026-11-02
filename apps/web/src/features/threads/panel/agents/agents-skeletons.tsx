@@ -12,7 +12,7 @@ const CREW_ROWS = [
 export function CrewLoading() {
   return (
     <div role="status" aria-label="Loading agents">
-      <DetailsSection title="Sub-agents">
+      <DetailsSection title="Sub-agents" count={<Skeleton className="h-3 w-6" />}>
         {CREW_ROWS.map((row, index) => (
           <div key={index} className="flex min-h-7 w-full min-w-0 items-center gap-2 px-1 py-1">
             <span className="flex size-4 shrink-0 items-center justify-center">
