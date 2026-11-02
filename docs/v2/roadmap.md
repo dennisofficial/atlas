@@ -41,7 +41,10 @@ _Updated at the end of every slice. Last update: 2026-11-02._
   in the Comp AI Render workspace, confirmed by the operator); sandboxes stay on Vercel Sandbox and
   only execute, through a small in-sandbox daemon over one persistent WebSocket (measured
   3.6-6.5 ms p50 per call).
-- **Next: slice 3, the worker host and the sandbox daemon (0021).**
+- **Next: slice 3, the worker host and the sandbox daemon (0021).** Spec approved 2026-11-02:
+  [slices/03-worker-host.md](slices/03-worker-host.md). Render Virginia → Vercel `iad1` RTT
+  measured first ([research/d8/rtt-render.md](research/d8/rtt-render.md): 5–20 ms p50 per tool
+  call, Postgres 5.5 ms). The toggle is per session with a `v2` badge.
 - **Slice 3 spec must settle:** oversize single events against the 4 MB body cap (L5), the `engine: v2`
   session flag and who sees it, and that v1's API stays the only writer of users, projects,
   credentials and settings until cutover; the sandbox disk is one session (sandboxes are 1:1 with sessions, no
