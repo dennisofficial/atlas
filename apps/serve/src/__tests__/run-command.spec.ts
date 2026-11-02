@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'bun:test'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { runCommand } from '../run-command'
 
@@ -15,6 +18,20 @@ describe('runCommand timeout', () => {
     expect(run.stdout).toContain('partial')
     expect(run.stderr).toContain('timed out after')
     expect(Date.now() - started).toBeLessThan(10_000)
+  })
+
+  it('kills the processes the command started, not only the shell', async () => {
+    const pidFile = join(mkdtempSync(join(tmpdir(), 'run-command-')), 'child.pid')
+    const run = await runCommand({
+      command: ['sh', '-c', `sleep 30 & echo $! > ${pidFile}; wait`],
+      cwd: process.cwd(),
+      timeoutMs: 300,
+    })
+
+    expect(run.ok).toBe(false)
+    const child = Number(readFileSync(pidFile, 'utf8').trim())
+    await Bun.sleep(100)
+    expect(() => process.kill(child, 0)).toThrow()
   })
 
   it('returns normally within the cap', async () => {
