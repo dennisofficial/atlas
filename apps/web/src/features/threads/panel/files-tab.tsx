@@ -20,7 +20,7 @@ import { useThreadPanel } from './thread-panel-context'
 const ICON = <FolderTreeIcon />
 
 function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
-  const { working, openChanges } = useThreadPanel()
+  const { working, openFile } = useThreadPanel()
   const [selected, setSelected] = useState<string | undefined>(undefined)
   const turnEnds = useTurnEndCount(working)
   const {
@@ -54,7 +54,7 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
 
   const handleSelect = (path: string) => {
     setSelected(path)
-    if (changed.has(path)) openChanges(path)
+    openFile(path)
   }
 
   if (tree.status === EFileTreeStatus.Failed) {

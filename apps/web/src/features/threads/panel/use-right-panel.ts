@@ -8,6 +8,7 @@ export type RightPanelState = {
   changesPath: string | undefined
   agentId: string | undefined
   contextPath: string | undefined
+  filePath: string | undefined
   setTab: (tab: ERightTab) => void
   setSheetOpen: (open: boolean) => void
   openChanges: (path?: string) => void
@@ -17,6 +18,8 @@ export type RightPanelState = {
   openContextFile: (path: string) => void
   toggleContextFile: (path: string) => void
   closeContextFile: () => void
+  openFile: (path: string) => void
+  closeFile: () => void
 }
 
 export function useRightPanel(): RightPanelState {
@@ -27,8 +30,11 @@ export function useRightPanel(): RightPanelState {
 
   const [contextPath, setContextPath] = useState<string | undefined>(undefined)
 
+  const [filePath, setFilePath] = useState<string | undefined>(undefined)
+
   const openChanges = useCallback((path?: string) => {
     setChangesPath(path)
+    setFilePath(undefined)
     setTab(ERightTab.Changes)
     setSheetOpen(true)
   }, [])
@@ -48,15 +54,25 @@ export function useRightPanel(): RightPanelState {
 
   const openContextFile = useCallback((path: string) => {
     setContextPath(path)
+    setFilePath(undefined)
     setSheetOpen(false)
   }, [])
 
   const toggleContextFile = useCallback((path: string) => {
     setContextPath((held) => (held === path ? undefined : path))
+    setFilePath(undefined)
     setSheetOpen(false)
   }, [])
 
   const closeContextFile = useCallback(() => setContextPath(undefined), [])
+
+  const openFile = useCallback((path: string) => {
+    setFilePath(path)
+    setContextPath(undefined)
+    setSheetOpen(false)
+  }, [])
+
+  const closeFile = useCallback(() => setFilePath(undefined), [])
 
   return {
     tab,
@@ -64,6 +80,7 @@ export function useRightPanel(): RightPanelState {
     changesPath,
     agentId,
     contextPath,
+    filePath,
     setTab,
     setSheetOpen,
     openChanges,
@@ -73,5 +90,7 @@ export function useRightPanel(): RightPanelState {
     openContextFile,
     toggleContextFile,
     closeContextFile,
+    openFile,
+    closeFile,
   }
 }
