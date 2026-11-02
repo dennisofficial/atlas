@@ -27,6 +27,7 @@ import type {
   TranscriptModel,
 } from '../store'
 import type { Compacting } from '../ui/components/compacting'
+import type { ModelWaitControlState } from '../ui/model-wait-view'
 import type { Rotating } from '../ui/components/rotating-line'
 
 import type { OperatorInputControl } from './use-operator-input'
@@ -110,6 +111,7 @@ export type Conversation = {
   handleRetry: (() => void) | null
   handleDismissFailure: (() => void) | null
   handleResume: (() => void) | null
+  modelWait: ModelWaitControlState
   handleReportProblem: (reason: string) => void
   handleInterrupt: () => void
   handleInterruptForMove: () => void

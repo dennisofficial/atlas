@@ -1,7 +1,7 @@
-import type { KeyEvent, PasteEvent } from '@opentui/core'
-import { usePaste } from '@opentui/react'
+import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
+import { controlFailureNoteOf, controlOutcomeNoteOf } from '@dltech/atlas-client/transcript'
 import {
   EAuthProvider,
   providerSpec,
@@ -9,8 +9,7 @@ import {
   type Account,
   type AccountId,
 } from '@dltech/atlas-core'
-import type { AccountsService, DeviceTicket, LoginTicket, UrlOpener } from '@dltech/atlas-harness'
-import { EDevicePoll } from '@dltech/atlas-harness'
+import type { AccountsService, LoginTicket, UrlOpener } from '@dltech/atlas-harness'
 
 import {
   acceptsApiKey,
@@ -19,33 +18,29 @@ import {
   acceptsPastedCode,
   askForApiKey,
   askForCode,
-  askForDeviceCode,
-  backspace,
   backToActions,
   backToList,
   EAccountsView,
   EPickIntent,
   EProviderAction,
   failed,
-  isPrompting,
-  moveAction,
-  movePick,
-  moveSelection,
   openAccounts,
-  openActions,
   openLoginPicker,
   pickedAccount,
   providerRows,
   selectedAction,
   selectedRow,
-  typeInto,
   withRows,
   working,
   type AccountsState,
   type ProviderRow,
 } from '../ui/accounts-model'
-import { pastedText } from '../ui/pasted-text'
+import { askForPause, clearedConfirm } from '../ui/accounts-pause-model'
+import type { AccountsAvailability } from './use-accounts-availability'
+import { useAccountsActions } from './use-accounts-actions'
+import { useAccountsKeys } from './use-accounts-keys'
 import { useBrowserLogin } from './use-browser-login'
+import { useDeviceLogin } from './use-accounts-device'
 
 export type AccountsControl = {
   state: AccountsState | null
@@ -56,15 +51,12 @@ export type AccountsControl = {
   handleChooseLogin: (accountIndex: number) => void
   handleKey: (key: KeyEvent) => void
   handleOpenUrl: () => void
+  handleConfirmPause: () => void
+  handleCancelPause: () => void
 }
 
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'the request failed'
-
-const isPrintable = (key: KeyEvent): boolean => {
-  const sequence = key.sequence ?? ''
-  return sequence.length > 0 && !key.ctrl && !key.meta && !/[\u0000-\u001f]/.test(sequence)
-}
 
 const signInUnsupported = (provider: EAuthProvider): string =>
   `${providerSpec(provider).label} takes an api key — choose it from the actions menu.`
@@ -80,13 +72,12 @@ export function useAccounts(args: {
   accounts: AccountsService
   openUrl: UrlOpener
   onAccounts?: (accounts: readonly Account[]) => void
+  availability?: AccountsAvailability
 }): AccountsControl {
-  const { accounts, openUrl, onAccounts } = args
+  const { accounts, openUrl, onAccounts, availability } = args
   const held = useRef<AccountsState | null>(null)
   const [state, setState] = useState<AccountsState | null>(null)
   const ticket = useRef<LoginTicket | null>(null)
-  const device = useRef<{ ticket: DeviceTicket; deadline: number } | null>(null)
-  const deviceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const put = useCallback((next: AccountsState | null) => {
     held.current = next
@@ -103,8 +94,9 @@ export function useAccounts(args: {
       active[spec.provider] = await accounts.activeFor(spec.provider)
     }
 
-    return providerRows({ accounts: stored, active })
-  }, [accounts, onAccounts])
+    const waiting = await availability?.waiting().catch(() => undefined)
+    return providerRows({ accounts: stored, active, waiting })
+  }, [accounts, availability, onAccounts])
 
   const handleOpen = useCallback(
     (notice?: string) => {
@@ -114,12 +106,6 @@ export function useAccounts(args: {
     },
     [put, rows],
   )
-
-  const stopDevice = useCallback(() => {
-    device.current = null
-    if (deviceTimer.current !== null) clearTimeout(deviceTimer.current)
-    deviceTimer.current = null
-  }, [])
 
   const refresh = useCallback(
     (change: (state: AccountsState) => AccountsState = (current) => current) => {
@@ -134,13 +120,14 @@ export function useAccounts(args: {
   )
 
   const browser = useBrowserLogin({ accounts, openUrl, held, put, refresh })
+  const device = useDeviceLogin({ accounts, openUrl, held, put, refresh })
 
   const handleDismiss = useCallback(() => {
     ticket.current = null
-    stopDevice()
+    device.stop()
     browser.cancel()
     put(null)
-  }, [browser, put, stopDevice])
+  }, [browser, device, put])
 
   const handlePick = useCallback(
     (row: ProviderRow) => {
@@ -153,77 +140,6 @@ export function useAccounts(args: {
       put({ ...current, index })
     },
     [put],
-  )
-
-  /**
-   * The device code's clock keeps ticking while the drawer is open, so the poll re-reads the held
-   * state rather than trusting a closure — an escape or a re-render mid-poll must stop it.
-   */
-  const pollDevice = useCallback(() => {
-    const open = device.current
-    const current = held.current
-    if (open === null || current === null || current.view !== EAccountsView.DeviceCode) return
-
-    if (Date.now() > open.deadline) {
-      stopDevice()
-      put(failed({ state: current, reason: 'that code expired — start again from actions.' }))
-      return
-    }
-
-    void accounts
-      .pollDevice(open.ticket)
-      .then((result) => {
-        const now = held.current
-        if (now === null || now.view !== EAccountsView.DeviceCode) return
-
-        if (result.status === EDevicePoll.Pending) {
-          deviceTimer.current = setTimeout(pollDevice, Math.max(open.ticket.intervalMs, 3000))
-          return
-        }
-
-        stopDevice()
-        refresh((next) => ({
-          ...backToList(next),
-          notice: `Signed in as ${result.account.label}.`,
-        }))
-      })
-      .catch((error: unknown) => {
-        stopDevice()
-        const now = held.current
-        if (now !== null) put(failed({ state: now, reason: reasonOf(error) }))
-      })
-  }, [accounts, put, refresh, stopDevice])
-
-  const beginDevice = useCallback(
-    (current: AccountsState, provider: EAuthProvider) => {
-      put(askForDeviceCode({ state: current, prompt: { provider, url: '' } }))
-
-      void accounts
-        .beginDevice(provider)
-        .then((begun) => {
-          const now = held.current
-          if (now === null || now.view !== EAccountsView.DeviceCode) return
-
-          device.current = { ticket: begun, deadline: Date.now() + begun.expiresInMs }
-          put(
-            askForDeviceCode({
-              state: now,
-              prompt: {
-                provider: begun.provider,
-                url: begun.verificationUrl,
-                userCode: begun.userCode,
-              },
-            }),
-          )
-          openUrl(begun.verificationUrl)
-          deviceTimer.current = setTimeout(pollDevice, Math.max(begun.intervalMs, 3000))
-        })
-        .catch((error: unknown) => {
-          const now = held.current
-          if (now !== null) put(failed({ state: now, reason: reasonOf(error) }))
-        })
-    },
-    [accounts, openUrl, pollDevice, put],
   )
 
   const beginLogin = useCallback(
@@ -253,9 +169,9 @@ export function useAccounts(args: {
         return
       }
 
-      beginDevice(current, provider)
+      device.begin({ state: current, provider })
     },
-    [accounts, beginDevice, browser, openUrl, put],
+    [accounts, browser, device, openUrl, put],
   )
 
   const askForKey = useCallback(
@@ -268,29 +184,21 @@ export function useAccounts(args: {
     [put],
   )
 
-  const confirmPick = useCallback(
-    (current: AccountsState) => {
-      const account = pickedAccount(current)
-      if (account === undefined) return
-
-      if (current.pickIntent === EPickIntent.Use) {
-        void accounts.use({ provider: account.provider, accountId: account.id }).then(() =>
-          refresh((next) => ({
-            ...backToList(next),
-            notice: `Active ${providerSpec(account.provider).label} login: ${account.label}.`,
-          })),
-        )
-        return
-      }
-
-      void accounts
-        .remove(account.id)
-        .then(() =>
-          refresh((next) => ({ ...backToList(next), notice: `Removed ${account.label}.` })),
-        )
-    },
-    [accounts, refresh],
-  )
+  const {
+    confirmPick,
+    applyPause,
+    handleConfirmPause,
+    handleConfirmPauseClick,
+    handleCancelPause,
+    submit,
+  } = useAccountsActions({
+    accounts,
+    availability,
+    held,
+    ticket,
+    put,
+    refresh,
+  })
 
   const runAction = useCallback(
     (current: AccountsState, action: EProviderAction | undefined) => {
@@ -308,9 +216,15 @@ export function useAccounts(args: {
       }
       if (action === EProviderAction.RemoveLogin) {
         put(openLoginPicker({ state: current, intent: EPickIntent.Remove }))
+        return
       }
+      if (action === EProviderAction.PauseAccount) {
+        put(askForPause(current))
+        return
+      }
+      if (action === EProviderAction.RemoveManualPause) applyPause({ current, paused: false })
     },
-    [askForKey, beginLogin, put],
+    [applyPause, askForKey, beginLogin, put],
   )
 
   const handleChooseAction = useCallback(
@@ -341,156 +255,20 @@ export function useAccounts(args: {
     openUrl(url)
   }, [openUrl])
 
-  const submit = useCallback(
-    (current: AccountsState) => {
-      const pasted = current.typed.trim()
-      if (pasted.length === 0 || current.busy) return
-
-      const open = ticket.current
-      const provider = current.prompt?.provider
-      if (provider === undefined) return
-
-      const signIn: Promise<Account> =
-        current.view === EAccountsView.ApiKey || open === null
-          ? accounts.addApiKey({ provider, apiKey: pasted })
-          : accounts.complete({ ticket: open, pasted })
-
-      put(working(current))
-
-      void signIn
-        .then((account) => {
-          ticket.current = null
-          refresh((next) => ({ ...backToList(next), notice: `Signed in as ${account.label}.` }))
-        })
-        .catch((error: unknown) => {
-          const next = held.current
-          if (next !== null) put(failed({ state: next, reason: reasonOf(error) }))
-        })
+  const handleKey = useAccountsKeys({
+    held,
+    put,
+    onDismiss: handleDismiss,
+    onCancelPrompt: () => {
+      ticket.current = null
+      device.stop()
+      browser.cancel()
     },
-    [accounts, put, refresh],
-  )
-
-  const handleListKey = useCallback(
-    (key: KeyEvent, current: AccountsState) => {
-      if (key.name === 'escape') {
-        handleDismiss()
-        return
-      }
-
-      if (key.name === 'up' || key.name === 'down') {
-        put(moveSelection({ state: current, delta: key.name === 'up' ? -1 : 1 }))
-        return
-      }
-
-      if (key.name === 'return') put(openActions(current))
-    },
-    [handleDismiss, put],
-  )
-
-  const handleActionsKey = useCallback(
-    (key: KeyEvent, current: AccountsState) => {
-      if (key.name === 'escape') {
-        put(backToList(current))
-        return
-      }
-
-      if (key.name === 'up' || key.name === 'down') {
-        put(moveAction({ state: current, delta: key.name === 'up' ? -1 : 1 }))
-        return
-      }
-
-      if (key.name === 'return') runAction(current, selectedAction(current))
-    },
-    [put, runAction],
-  )
-
-  const handlePickerKey = useCallback(
-    (key: KeyEvent, current: AccountsState) => {
-      if (key.name === 'escape') {
-        put(backToActions(current))
-        return
-      }
-
-      if (key.name === 'up' || key.name === 'down') {
-        put(movePick({ state: current, delta: key.name === 'up' ? -1 : 1 }))
-        return
-      }
-
-      if (key.name === 'return') confirmPick(current)
-    },
-    [confirmPick, put],
-  )
-
-  const handlePromptKey = useCallback(
-    (key: KeyEvent, current: AccountsState) => {
-      if (key.name === 'escape') {
-        ticket.current = null
-        stopDevice()
-        browser.cancel()
-        put(backToList(current))
-        return
-      }
-
-      if (current.view === EAccountsView.DeviceCode || current.view === EAccountsView.BrowserCode) {
-        return
-      }
-
-      if (key.name === 'return') {
-        submit(current)
-        return
-      }
-
-      if (key.name === 'backspace') {
-        put(backspace(current))
-        return
-      }
-
-      if (isPrintable(key)) put(typeInto({ state: current, text: key.sequence ?? '' }))
-    },
-    [browser, put, stopDevice, submit],
-  )
-
-  const handleKey = useCallback(
-    (key: KeyEvent) => {
-      const current = held.current
-      if (current === null) return
-
-      if (current.view === EAccountsView.List) {
-        handleListKey(key, current)
-        return
-      }
-
-      if (current.view === EAccountsView.Actions) {
-        handleActionsKey(key, current)
-        return
-      }
-
-      if (current.view === EAccountsView.SwitchLogin) {
-        handlePickerKey(key, current)
-        return
-      }
-
-      handlePromptKey(key, current)
-    },
-    [handleActionsKey, handleListKey, handlePickerKey, handlePromptKey],
-  )
-
-  usePaste(
-    useCallback(
-      (event: PasteEvent) => {
-        const current = held.current
-        if (current === null || !isPrompting(current)) return
-
-        const pasted = pastedText(event)
-        if (pasted.length === 0) return
-
-        event.preventDefault()
-        event.stopPropagation()
-        put(typeInto({ state: current, text: pasted }))
-      },
-      [put],
-    ),
-  )
+    onRunAction: runAction,
+    onConfirmPick: confirmPick,
+    onConfirmPause: handleConfirmPause,
+    onSubmit: submit,
+  })
 
   return useMemo(
     () => ({
@@ -502,6 +280,8 @@ export function useAccounts(args: {
       handleChooseLogin,
       handleKey,
       handleOpenUrl,
+      handleConfirmPause: handleConfirmPauseClick,
+      handleCancelPause,
     }),
     [
       handleChooseAction,
@@ -510,6 +290,8 @@ export function useAccounts(args: {
       handleKey,
       handleOpen,
       handleOpenUrl,
+      handleConfirmPauseClick,
+      handleCancelPause,
       handlePick,
       state,
     ],

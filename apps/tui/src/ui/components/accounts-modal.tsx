@@ -9,7 +9,10 @@ import {
   type AccountsState,
   type ProviderRow,
 } from '../accounts-model'
+import { useClickRegion } from '../hooks/use-click-region'
 import { usePress } from '../hooks/use-press'
+import { wrapWords } from '../text-flow'
+import type { PauseConfirm } from '../accounts-pause-model'
 import { theme } from '../theme'
 
 const MODAL_Z = 50
@@ -112,3 +115,40 @@ export function LoginPickerModal(props: {
 }
 
 const providerTitle = (row: ProviderRow): string => providerSpec(row.provider).label
+
+const CONFIRM_WIDTH = 52 - 6
+
+function ConfirmButton(props: {
+  label: string
+  primary: boolean
+  onPress: (() => void) | undefined
+}): React.ReactNode {
+  const region = useClickRegion(props.onPress)
+  return (
+    <text bg={region.hovered ? theme.hoverBg : theme.overlayBg} {...region.handlers}>
+      <span fg={region.hovered ? theme.hover : props.primary ? theme.accent : theme.body}>
+        {`${props.primary ? '▸' : ' '} ${props.label}`}
+      </span>
+    </text>
+  )
+}
+
+export function ConfirmPauseModal(props: {
+  confirm: PauseConfirm
+  cells: number
+  onConfirm: (() => void) | undefined
+  onCancel: (() => void) | undefined
+}): React.ReactNode {
+  return (
+    <ModalFrame title={props.confirm.title}>
+      <text fg={theme.body}>
+        {wrapWords({ text: props.confirm.description, width: CONFIRM_WIDTH }).join('\n')}
+      </text>
+      <box height={1} />
+      <box flexDirection="row" gap={2}>
+        <ConfirmButton label={props.confirm.confirmLabel} primary onPress={props.onConfirm} />
+        <ConfirmButton label="Cancel" primary={false} onPress={props.onCancel} />
+      </box>
+    </ModalFrame>
+  )
+}

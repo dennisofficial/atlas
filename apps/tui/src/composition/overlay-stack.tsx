@@ -147,6 +147,8 @@ function DerivedOverlayStack(props: {
           onChooseLogin={accounts.handleChooseLogin}
           onDismiss={accounts.handleDismiss}
           onOpenUrl={accounts.handleOpenUrl}
+          onConfirmPause={accounts.handleConfirmPause}
+          onCancelPause={accounts.handleCancelPause}
         />
       )}
       {projectPrompt.state === null ? null : (

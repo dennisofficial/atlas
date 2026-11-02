@@ -15,6 +15,7 @@ import { applyTranscriptBounds } from '../viewport-rows-store'
 import type { ContainerMove } from '../../composition/container-move'
 import { BootBlockView } from './boot-block'
 import { PendingBlock } from './blocks/pending-block'
+import type { ModelWaitControlState } from '../model-wait-view'
 import { RunAttentionSection } from './blocks/run-attention-section'
 import { openedInjectionsOf, type OpenedInjections } from './blocks/system-context-expansion'
 import { openedSubsetOf, type OpenedSubsets } from './blocks/tool-run-expansion'
@@ -57,6 +58,7 @@ function DerivedTranscript(props: {
   onRetry?: () => void
   onDismissFailure?: () => void
   onResume?: () => void
+  modelWait?: ModelWaitControlState
   opened?: ReadonlySet<string>
   onToggle?: (key: string) => void
   onNearTop?: () => void
@@ -213,6 +215,7 @@ function DerivedTranscript(props: {
           onRetry={props.onRetry}
           onDismiss={props.onDismissFailure}
           onResume={props.onResume}
+          modelWait={props.modelWait}
         />
 
         {model.failure === null && props.rotating !== null && props.rotating !== undefined ? (

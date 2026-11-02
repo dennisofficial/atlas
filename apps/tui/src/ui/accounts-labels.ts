@@ -57,6 +57,8 @@ const ACTION_LABEL: Readonly<Record<EProviderAction, string>> = {
   [EProviderAction.AddApiKey]: 'Add an API key',
   [EProviderAction.SwitchActive]: 'Switch active login',
   [EProviderAction.RemoveLogin]: 'Remove a login',
+  [EProviderAction.PauseAccount]: 'Pause this account',
+  [EProviderAction.RemoveManualPause]: 'Remove manual pause',
 }
 
 export const actionLabel = (action: EProviderAction): string => ACTION_LABEL[action]

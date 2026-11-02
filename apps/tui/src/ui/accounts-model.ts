@@ -1,65 +1,32 @@
 import {
+  accountAccessOf,
+  EAccountAccess,
+  type AccountAccess,
+} from '@dltech/atlas-client/transcript'
+import {
   EAccountStatus,
   EAuthProvider,
-  ELoginFlow,
-  providerSpec,
   type Account,
   type AccountId,
+  type WaitingForModel,
 } from '@dltech/atlas-core'
 
-export enum EAccountsView {
-  List = 'list',
-  Actions = 'actions',
-  SwitchLogin = 'switch-login',
-  PastedCode = 'pasted-code',
-  DeviceCode = 'device-code',
-  BrowserCode = 'browser-code',
-  ApiKey = 'api-key',
-}
+import {
+  acceptsApiKey,
+  acceptsBrowserLogin,
+  acceptsDeviceCode,
+  acceptsPastedCode,
+} from './accounts-flows'
+import {
+  EAccountsView,
+  EPickIntent,
+  EProviderAction,
+  type AccountsPrompt,
+  type AccountsState,
+  type ProviderRow,
+} from './accounts-types'
 
-export enum EPickIntent {
-  Use = 'use',
-  Remove = 'remove',
-}
-
-export enum EProviderAction {
-  SignIn = 'sign-in',
-  AddApiKey = 'add-api-key',
-  SwitchActive = 'switch-active',
-  RemoveLogin = 'remove-login',
-}
-
-/**
- * The accounts drawer is a model-provider list: one row per provider Atlas can answer for, every
- * one optional. Logins live inside the provider — the detail panel shows the active one, the
- * modal manages the rest. A provider with no logins is still a row, since the sign-in flows are
- * reached through it. GitHub is not a model provider and lives in settings › cloud instead.
- */
-export type ProviderRow = {
-  provider: EAuthProvider
-  accounts: readonly Account[]
-  activeId: AccountId | undefined
-}
-
-export type AccountsPrompt = {
-  provider: EAuthProvider
-  url: string
-  userCode?: string | undefined
-}
-
-export type AccountsState = {
-  view: EAccountsView
-  index: number
-  rows: readonly ProviderRow[]
-  action: number
-  pick: number
-  pickIntent: EPickIntent
-  prompt: AccountsPrompt | null
-  typed: string
-  notice: string | null
-  failure: string | null
-  busy: boolean
-}
+export * from './accounts-types'
 
 const PROVIDER_ORDER: readonly EAuthProvider[] = [
   EAuthProvider.Anthropic,
@@ -71,17 +38,23 @@ const PROVIDER_ORDER: readonly EAuthProvider[] = [
 export function providerRows(args: {
   accounts: readonly Account[]
   active: Partial<Record<EAuthProvider, AccountId | undefined>>
+  waiting?: readonly WaitingForModel[] | undefined
 }): readonly ProviderRow[] {
   const byProvider = new Map<EAuthProvider, Account[]>()
   for (const account of args.accounts) {
     byProvider.set(account.provider, [...(byProvider.get(account.provider) ?? []), account])
   }
 
-  return PROVIDER_ORDER.map((provider) => ({
-    provider,
-    accounts: byProvider.get(provider) ?? [],
-    activeId: args.active[provider],
-  }))
+  return PROVIDER_ORDER.map((provider) => {
+    const row: ProviderRow = {
+      provider,
+      accounts: byProvider.get(provider) ?? [],
+      activeId: args.active[provider],
+    }
+    const lead = activeOf(row)
+    if (args.waiting === undefined || lead === undefined) return row
+    return { ...row, access: accountAccessOf({ accountId: lead.id, waiting: args.waiting }) }
+  })
 }
 
 export const activeOf = (row: ProviderRow): Account | undefined =>
@@ -93,17 +66,12 @@ export const othersOf = (row: ProviderRow): readonly Account[] => {
   return row.accounts.filter((account) => account.id !== active?.id)
 }
 
-export const acceptsApiKey = (provider: EAuthProvider): boolean =>
-  providerSpec(provider).logins.includes(ELoginFlow.ApiKey)
-
-export const acceptsBrowserLogin = (provider: EAuthProvider): boolean =>
-  providerSpec(provider).logins.includes(ELoginFlow.BrowserCode)
-
-export const acceptsPastedCode = (provider: EAuthProvider): boolean =>
-  providerSpec(provider).logins.includes(ELoginFlow.PastedCode)
-
-export const acceptsDeviceCode = (provider: EAuthProvider): boolean =>
-  providerSpec(provider).logins.includes(ELoginFlow.DeviceCode)
+export {
+  acceptsApiKey,
+  acceptsBrowserLogin,
+  acceptsDeviceCode,
+  acceptsPastedCode,
+} from './accounts-flows'
 
 export function providerActions(row: ProviderRow): readonly EProviderAction[] {
   const actions: EProviderAction[] = []
@@ -119,6 +87,13 @@ export function providerActions(row: ProviderRow): readonly EProviderAction[] {
   if (acceptsApiKey(row.provider)) actions.push(EProviderAction.AddApiKey)
   if (row.accounts.length > 1) actions.push(EProviderAction.SwitchActive)
   if (row.accounts.length > 0) actions.push(EProviderAction.RemoveLogin)
+  if (row.access?.key != null) {
+    actions.push(
+      row.access.access === EAccountAccess.Paused
+        ? EProviderAction.RemoveManualPause
+        : EProviderAction.PauseAccount,
+    )
+  }
 
   return actions
 }
@@ -141,6 +116,7 @@ export function openAccounts(args: {
     notice: args.notice ?? null,
     failure: null,
     busy: false,
+    confirm: null,
   }
 }
 

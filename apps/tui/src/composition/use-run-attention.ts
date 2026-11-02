@@ -1,5 +1,5 @@
 import { runAttentionOf, type RunAttention } from '@dltech/atlas-client/transcript'
-import { ERunRemedy, type ThreadId } from '@dltech/atlas-core'
+import { ERunRemedy, type ThreadId, type WaitingForModel } from '@dltech/atlas-core'
 import {
   dismissRunFailure,
   type DeltaChannel,
@@ -34,6 +34,10 @@ export function useRunAttention(args: {
   moving: boolean
   channelReady: boolean
   onFailure: (reason: string) => void
+  waiting?: {
+    live: readonly WaitingForModel[] | null
+    accountLabelOf: (accountId: string) => string | undefined
+  }
 }): RunAttentionControl {
   const { app, threadId, view, turnDriver, remote, moving, channelReady, onFailure } = args
   const { refresh } = view
@@ -45,6 +49,8 @@ export function useRunAttention(args: {
     turnInFlight: turnDriver.turnInFlight(),
     channelReady: channelReady && !moving,
     settling: turnDriver.settling,
+    waitingLive: args.waiting?.live ?? null,
+    accountLabelOf: args.waiting?.accountLabelOf,
   })
 
   const enabled = (remedy: ERunRemedy): boolean =>

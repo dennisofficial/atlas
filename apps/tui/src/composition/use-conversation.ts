@@ -16,14 +16,13 @@ import { useSettledCommands } from './use-conversation-commands'
 import { useConversationDirectory, usePendingMove } from './use-conversation-directory'
 import { usePendingRows, useProjectEvents } from './use-conversation-projections'
 import { useOperatorInput } from './use-operator-input'
-import { useResumeOnOpen } from './use-conversation-resume'
 import { usePlacementMoving, useRemotePending, useSendingChannel } from './use-conversation-send'
 import { useMainWake } from './use-main-wake'
 import { useSessionName } from './use-session-name'
 import { titleDigestReader } from './title-digest'
 import { EThreadRows, useThreadView } from './use-thread-view'
 import { useThreadSwap } from './use-thread-swap'
-import { useRunAttention } from './use-run-attention'
+import { useConversationAttention } from './use-conversation-attention'
 import { useAdopt } from './use-adopt'
 import { useDriveRefusal } from './use-drive-refusal'
 import { useThreadSeed } from './use-thread-seed'
@@ -131,7 +130,7 @@ export function useConversation(args: ConversationArgs): Conversation {
   })
 
   const channelReady = args.channelReady !== false
-  const runAttention = useRunAttention({
+  const runAttention = useConversationAttention({
     app,
     threadId,
     view,
@@ -139,14 +138,8 @@ export function useConversation(args: ConversationArgs): Conversation {
     remote: cloudRunner !== null,
     moving,
     channelReady,
-    onFailure: setFailure,
-  })
-  useResumeOnOpen({
-    app,
     opened,
-    turnDriver,
-    moving,
-    resumable: runAttention.handleResume !== null,
+    onFailure: setFailure,
   })
 
   const { working, drive } = turnDriver
@@ -277,6 +270,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     handleRetry: runAttention.handleRetry,
     handleDismissFailure: dismissalFor() ?? runAttention.handleDismiss,
     handleResume: runAttention.handleResume,
+    modelWait: runAttention.modelWait,
     readEvents,
     loadOlderHistory: view.loadOlder,
     hasOlderHistory: logSummary.windowStartSeq > 1,

@@ -7,6 +7,7 @@ import type { Span } from '../ui/components/spans'
 import { ENoticeTone, notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
 import { useAccounts } from './use-accounts'
+import { accountsAvailabilityOf } from './use-accounts-availability'
 import { useOnboarding } from './use-onboarding'
 import type { SettingsControl } from './use-settings'
 
@@ -22,10 +23,12 @@ export function useWorkspaceAccounts(args: {
   const { usage } = app
   const usageVersion = useSyncExternalStore(usage.subscribe, usage.version)
 
+  const availability = useMemo(() => accountsAvailabilityOf(app), [app])
   const accounts = useAccounts({
     accounts: app.accounts,
     openUrl: app.openUrl,
     onAccounts: app.models.observeAccounts,
+    availability,
   })
 
   const accountsOpen = accounts.state !== null

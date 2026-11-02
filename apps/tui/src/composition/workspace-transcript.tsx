@@ -51,6 +51,7 @@ export function WorkspaceTranscript(props: {
     | 'handleRetry'
     | 'handleDismissFailure'
     | 'handleResume'
+    | 'modelWait'
     | 'hasOlderHistory'
     | 'loadOlderHistory'
   >
@@ -173,6 +174,7 @@ export function WorkspaceTranscript(props: {
             ? {}
             : { onDismissFailure: conversation.handleDismissFailure })}
           {...(conversation.handleResume === null ? {} : { onResume: conversation.handleResume })}
+          modelWait={conversation.modelWait}
           opened={props.opened}
           onToggle={props.onToggle}
           {...(conversation.hasOlderHistory

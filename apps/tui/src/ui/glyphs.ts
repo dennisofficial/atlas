@@ -22,6 +22,7 @@ export const glyph = {
   retry: '↻',
   home: '⌂',
   worktree: '⑂',
+  waiting: '◌',
 } as const
 
 export const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const

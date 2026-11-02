@@ -3,8 +3,10 @@ import React from 'react'
 
 import type { TranscriptModel } from '../../../store'
 import type { TurnClock } from '../../turn-clock'
+import type { ModelWaitControlState } from '../../model-wait-view'
 import { ErrorBlock } from './error-block'
 import { agentFailureView, failureView, isAgentFailed, isResumeOnly } from './failure-text'
+import { ModelWaitBlock } from './model-wait-block'
 import { ResumeBlock } from './resume-block'
 
 export function RunAttentionSection(props: {
@@ -16,8 +18,13 @@ export function RunAttentionSection(props: {
   onRetry: (() => void) | undefined
   onDismiss: (() => void) | undefined
   onResume: (() => void) | undefined
+  modelWait?: ModelWaitControlState | undefined
 }): React.ReactNode {
   const { model, turn, onRetry, onDismiss, onResume } = props
+  const waiting = props.attention?.modelWait ?? null
+  if (waiting !== null && props.modelWait !== undefined) {
+    return <ModelWaitBlock view={waiting} width={props.width} control={props.modelWait} />
+  }
   if (model.failure !== null) {
     return (
       <ErrorBlock

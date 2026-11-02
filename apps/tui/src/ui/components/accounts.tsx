@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { EAccountAccess } from '@dltech/atlas-client/transcript'
 import { EAccountStatus, providerSpec, type Account } from '@dltech/atlas-core'
 
 import { accountDetail, signedOutDetail } from '../accounts-labels'
@@ -16,7 +17,7 @@ import { type Hint } from '../hint-layout'
 import { usePress } from '../hooks/use-press'
 import { glyph, theme } from '../theme'
 import { clipSpans } from './sidebar/cells'
-import { ActionsModal, LoginPickerModal } from './accounts-modal'
+import { ActionsModal, ConfirmPauseModal, LoginPickerModal } from './accounts-modal'
 import { AccountsPrompt, Wrapped } from './accounts-prompt'
 import {
   BottomDrawer,
@@ -119,8 +120,15 @@ function DetailPanel(props: {
     >
       <box flexDirection="row" justifyContent="space-between">
         <text fg={theme.bright}>{providerSpec(props.row.provider).label}</text>
-        <text fg={active === undefined ? theme.dim : theme.ok}>
-          {active === undefined ? '○ not signed in' : '● connected'}
+        <text>
+          <span fg={active === undefined ? theme.dim : theme.ok}>
+            {active === undefined ? '○ not signed in' : '● connected'}
+          </span>
+          {props.row.access?.label == null ? null : (
+            <span fg={props.row.access.access === EAccountAccess.Paused ? theme.meta : theme.warn}>
+              {` · ${props.row.access.label}`}
+            </span>
+          )}
         </text>
       </box>
       {active === undefined ? (
@@ -197,6 +205,8 @@ export function Accounts(props: {
   onChooseLogin: (accountIndex: number) => void
   onDismiss: () => void
   onOpenUrl: () => void
+  onConfirmPause?: () => void
+  onCancelPause?: () => void
 }): React.ReactNode {
   const cells = accountsCells({ width: props.width })
   const prompting = isPrompting(props.state)
@@ -256,6 +266,14 @@ export function Accounts(props: {
       )}
       {props.state.view === EAccountsView.Actions && row !== undefined ? (
         <ActionsModal row={row} state={props.state} onChoose={props.onChooseAction} />
+      ) : null}
+      {props.state.view === EAccountsView.ConfirmPause && props.state.confirm !== null ? (
+        <ConfirmPauseModal
+          confirm={props.state.confirm}
+          cells={cells}
+          onConfirm={props.onConfirmPause}
+          onCancel={props.onCancelPause}
+        />
       ) : null}
       {props.state.view === EAccountsView.SwitchLogin && row !== undefined ? (
         <LoginPickerModal row={row} state={props.state} onChoose={props.onChooseLogin} />

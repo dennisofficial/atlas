@@ -125,6 +125,7 @@ const attentionOf = (args: { failure: RunFailure; enabled: boolean }): RunAttent
   })),
   dismissible: true,
   busyReason: args.enabled ? null : BUSY_REASON,
+  modelWait: null,
 })
 
 const AUTH: RunFailure = {
@@ -174,6 +175,7 @@ describe('the failed block from the shared attention', () => {
       remedies: [{ remedy: ERunRemedy.Resume, enabled: true }],
       dismissible: false,
       busyReason: null,
+      modelWait: null,
     }
     const idle = { ...FAILED_WITH_A_REASON, failure: null }
     expect(
@@ -213,6 +215,7 @@ describe('the failed block for attentions without a run failure', () => {
       remedies: [{ remedy: ERunRemedy.Resume, enabled: true }],
       dismissible: true,
       busyReason: null,
+      modelWait: null,
     }
     const frame = await frameOf({
       model: idle,
