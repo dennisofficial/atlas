@@ -269,20 +269,24 @@ but everything the harness does locally slows: streaming, sends, event writes, f
 renewal and stop. In v1 the harness is also the kernel's first OOM victim (it has the largest
 footprint and `oom_score_adj` 500). This is OS-level isolation, not a package boundary.
 
-What a Vercel pod allows (probed 2026-11-02, as root): `oom_score_adj` and negative nice work;
-cgroup v2 delegates `cpu`, `cpuset` and `pids` to child groups but not `memory` or `io`; there is no
-PSI (`/proc/pressure`). So memory cannot be capped per group and must be policed by the harness.
+What a Vercel pod allows (measured 2026-11-02, as root, [pod-saturation](research/pod-saturation.md)):
+`oom_score_adj` and negative nice work. Child cgroups with `cpu` and `pids` work **once the root
+cgroup is emptied** (every process, pid 1 included, moved into a child first), and a `pids.max` on
+the workload group fully contains a fork bomb that otherwise wedges the VM. Whether `memory` can be
+delegated the same way is untested. There is no PSI (`/proc/pressure`). #1657 (OOM ordering and
+nice) is measured to protect the harness from memory exhaustion, not from a fork bomb.
 
 **R1. The harness survives.** The harness runs at a strongly negative `oom_score_adj`; every
 workload starts with a high one, so the kernel kills workloads first. (v1 fix, carried into `pod`.)
 
-**R2. The harness keeps CPU.** Workloads run at lower priority than the harness (nice, or a
-low-`cpu.weight` cgroup), and the workload group has a `pids.max` so a fork bomb cannot take every
-process slot. Workload output is read in bounded chunks so a noisy process cannot monopolise the
+**R2. The harness keeps CPU and process slots.** At boot the pod empties the root cgroup into an
+`atlas-serve` group (high `cpu.weight`) and spawns every workload into `atlas-work` (low
+`cpu.weight`, `pids.max`), so a fork bomb hits its cap instead of the pod's pid table. Stop kills
+every pid in `atlas-work` for the thread, so a workload that calls `setsid` cannot escape it. Workload output is read in bounded chunks so a noisy process cannot monopolise the
 harness's event loop.
 
-**R3. A memory watchdog acts before the kernel does.** Without a per-group memory limit, the
-`pod` host watches available memory. Below a threshold it kills the largest workload process group
+**R3. A memory watchdog acts before the kernel does.** Unless `memory.max` on the workload
+group proves available (then it replaces the watchdog), the `pod` host watches available memory. Below a threshold it kills the largest workload process group
 and appends an event saying which workload was killed and why, so the agent sees it in its context
 and the operator in the transcript.
 
