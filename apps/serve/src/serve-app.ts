@@ -177,7 +177,7 @@ export type ServeApp = {
   ledger?: Pick<TurnLedgerPort, 'forThread' | 'forThreadTree'> | undefined
   settings?: SettingsService | undefined
   ids: Pick<IdPort, 'nextRunId'>
-  files: Pick<FileBrowser, 'list' | 'forget'>
+  files: Pick<FileBrowser, 'list' | 'read' | 'forget'>
   /** The reader a mention op answers from, per thread of the served family; absent in fakes, which refuse the ops. */
   mentionFiles?: ((threadId: ThreadId) => Promise<MentionReader>) | undefined
   workspace: WorkspaceIdentity

@@ -25,11 +25,14 @@ import {
   type ModelPort,
   type ModelStepResult,
 } from '@dltech/atlas-core'
+import { EFileLoad, type ViewedFile } from '@dltech/atlas-harness'
 import type { PauseSignal } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 import type { ThreadSummary } from '@dltech/atlas-harness'
 import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { ServeApp, ServeFamily, ServeRewind, ServeWakeNotices } from '../serve-app'
+
+export const refusedFile: ViewedFile = { type: EFileLoad.Refused, path: '', reason: 'fake' }
 
 export type RunTurn = (args: {
   threadId: ThreadId
@@ -358,6 +361,7 @@ export function fakeServeApp(args: {
 
     files: {
       list: async (directory: string) => args.entries?.[directory] ?? [],
+      read: async () => refusedFile,
       forget: () => {
         forgotten += 1
       },

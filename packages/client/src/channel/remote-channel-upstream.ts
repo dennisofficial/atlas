@@ -45,6 +45,7 @@ export class RemoteRequestLost extends Error {
 const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.CompletePaths,
   EClientRequest.BrowseDirectory,
+  EClientRequest.ReadWorkspaceFile,
   EClientRequest.ListRoster,
   EClientRequest.ListCommands,
   EClientRequest.ReadEvents,

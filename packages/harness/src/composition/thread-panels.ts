@@ -3,7 +3,7 @@ import type { EChangeScope, ReadGitChangesReply } from '@dltech/atlas-wire'
 
 import { GitChangesPort } from '../changes/git-changes.port'
 import { LocalGitChanges } from '../changes/local-git-changes'
-import type { LoadedFile } from '../files/file-browser'
+import type { LoadedFile, ViewedFile } from '../files/file-browser'
 import type { MentionReader } from '../files/mention-reader'
 import { rebaseMentionReader } from '../files/rebase-mention-reader'
 import {
@@ -36,6 +36,10 @@ class ProjectDirectoryFiles implements MentionReader {
 
   async load(path: string): Promise<LoadedFile> {
     return await (await this.reader()).load(path)
+  }
+
+  async read(path: string): Promise<ViewedFile> {
+    return await (await this.reader()).read(path)
   }
 
   forget(): void {

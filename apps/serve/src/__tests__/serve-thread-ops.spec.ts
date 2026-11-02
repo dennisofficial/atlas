@@ -5,11 +5,12 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 
-import { EClientFrame, EClientRequest, EServeFrame } from '@dltech/atlas-harness'
+import { EClientFrame, EClientRequest, EFileLoad, EServeFrame } from '@dltech/atlas-harness'
+import type { ViewedFile } from '@dltech/atlas-harness'
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 
 import { connect, type TestClient } from './client'
-import { fakeServeApp, type FakeServeApp } from './fakes'
+import { fakeServeApp, refusedFile, type FakeServeApp } from './fakes'
 
 const TOKEN = 'session-token'
 const threadId = toThreadId('thread-serve')
@@ -251,6 +252,44 @@ describe('thread titling', () => {
 })
 
 describe('answerRequest', () => {
+  it('answers read-workspace-file with the viewed file', async () => {
+    const { answerRequest } = await import('../requests')
+    const file: ViewedFile = {
+      type: EFileLoad.Text,
+      path: 'a.ts',
+      content: 'x',
+      truncated: false,
+      bytes: 1,
+    }
+
+    const reply = await answerRequest({
+      frame: {
+        kind: EClientFrame.Request,
+        id: 'rw-1',
+        op: EClientRequest.ReadWorkspaceFile,
+        params: { path: 'a.ts' },
+      },
+      files: { list: async () => [], read: async () => file },
+    })
+    expect(reply.ok).toBe(true)
+    expect(reply.data).toEqual({ file })
+  })
+
+  it('refuses read-workspace-file without a path', async () => {
+    const { answerRequest } = await import('../requests')
+    const reply = await answerRequest({
+      frame: {
+        kind: EClientFrame.Request,
+        id: 'rw-2',
+        op: EClientRequest.ReadWorkspaceFile,
+        params: {},
+      },
+      files: { list: async () => [], read: async () => refusedFile },
+    })
+    expect(reply.ok).toBe(false)
+    expect(JSON.stringify(reply.data)).toContain('wants { path }')
+  })
+
   it('answers an op it has no handler for with a protocol refusal', async () => {
     const { answerRequest } = await import('../requests')
 
@@ -261,7 +300,7 @@ describe('answerRequest', () => {
         op: 'an-op-from-a-newer-client' as EClientRequest,
         params: {},
       },
-      files: { list: async () => [] },
+      files: { list: async () => [], read: async () => refusedFile },
     })
 
     expect(reply.ok).toBe(false)

@@ -18,6 +18,7 @@ import { createFrameBuffer } from '../frame-buffer'
 import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { createSessionHandlers, type SessionHandlers, type SessionSocket } from '../socket-session'
 import type { ServeTurnDriver } from '../turn-driver'
+import { refusedFile } from './fakes'
 
 const threadId = toThreadId('thread-settings-frame')
 
@@ -124,7 +125,7 @@ const rig = () => {
     inFlight: () => [],
     liveStepId: () => null,
     driver: untouchedDriver(touched),
-    files: { list: async () => [] },
+    files: { list: async () => [], read: async () => refusedFile },
     refusal: () => null,
     log,
     ...options,

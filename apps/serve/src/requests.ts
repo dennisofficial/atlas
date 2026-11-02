@@ -21,6 +21,8 @@ import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
 import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
 
+import { readWorkspaceFileParamsSchema } from '@dltech/atlas-wire'
+
 import { isPendingEditOp } from './pending-requests'
 import { wireEventOf, wireThreadOf, wireTurnOf } from './session-wires'
 import type { ServeLog } from './serve-log'
@@ -94,12 +96,26 @@ async function browseDirectory(args: {
   })
 }
 
+async function readWorkspaceFile(args: {
+  frame: RequestFrame
+  files: Pick<FileBrowser, 'read'>
+}): Promise<ReplyFrame> {
+  const parsed = readWorkspaceFileParamsSchema.safeParse(args.frame.params)
+  if (!parsed.success) {
+    return refusedRequest({ replyTo: args.frame.id, message: 'read-workspace-file wants { path }' })
+  }
+
+  const file = await args.files.read(parsed.data.path)
+  return answeredRequest({ replyTo: args.frame.id, data: { file } })
+}
+
 export async function answerRequest(args: {
   frame: RequestFrame
-  files: Pick<FileBrowser, 'list'>
+  files: Pick<FileBrowser, 'list' | 'read'>
 }): Promise<ReplyFrame> {
   if (args.frame.op === EClientRequest.CompletePaths) return await completePaths(args)
   if (args.frame.op === EClientRequest.BrowseDirectory) return await browseDirectory(args)
+  if (args.frame.op === EClientRequest.ReadWorkspaceFile) return await readWorkspaceFile(args)
   return refusedRequest({ replyTo: args.frame.id, message: `unknown request op: ${args.frame.op}` })
 }
 

@@ -1,10 +1,11 @@
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { open, readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 
 import { isUnderPath, type DirectoryEntry } from '@dltech/atlas-core'
 
 export const MAX_MENTION_BYTES = 128 * 1024
+export const MAX_VIEW_BYTES = 2 * 1024 * 1024
 export const MAX_LEVEL_ENTRIES = 500
 
 export enum EFileLoad {
@@ -12,6 +13,10 @@ export enum EFileLoad {
   Listing = 'listing',
   Refused = 'refused',
 }
+
+export type ViewedFile =
+  | { type: EFileLoad.Text; path: string; content: string; truncated: boolean; bytes: number }
+  | { type: EFileLoad.Refused; path: string; reason: string }
 
 export type LoadedFile =
   | { type: EFileLoad.Text; path: string; content: string; truncated: boolean }
@@ -166,5 +171,37 @@ export class FileBrowser {
     const kept = truncated ? read.subarray(0, MAX_MENTION_BYTES) : read
 
     return { type: EFileLoad.Text, path, content: kept.toString('utf8'), truncated }
+  }
+
+  async read(path: string): Promise<ViewedFile> {
+    const full = resolveMentionPath({ root: this.root, path })
+    const roots = this.reachableRoots?.()
+    if (roots !== undefined && !reachable({ roots, path: full })) {
+      return {
+        type: EFileLoad.Refused,
+        path,
+        reason: 'it is outside what the sandbox can reach',
+      }
+    }
+
+    const found = await stat(full).catch(missingPathOrThrow)
+    if (found === null) return { type: EFileLoad.Refused, path, reason: 'it does not exist' }
+    if (!found.isFile()) return { type: EFileLoad.Refused, path, reason: 'it is not a file' }
+
+    const handle = await open(full, 'r')
+    const buffer = Buffer.alloc(Math.min(found.size, MAX_VIEW_BYTES))
+    const { bytesRead } = await handle
+      .read(buffer, 0, buffer.length, 0)
+      .finally(() => handle.close())
+    const read = buffer.subarray(0, bytesRead)
+    if (read.includes(0)) return { type: EFileLoad.Refused, path, reason: 'it is binary' }
+
+    return {
+      type: EFileLoad.Text,
+      path,
+      content: read.toString('utf8'),
+      truncated: found.size > MAX_VIEW_BYTES,
+      bytes: found.size,
+    }
   }
 }

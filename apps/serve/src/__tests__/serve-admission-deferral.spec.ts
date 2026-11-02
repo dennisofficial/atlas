@@ -20,6 +20,7 @@ import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { BETWEEN_PHASES_REFUSAL } from '../socket-deferred-frames'
 import { createSessionHandlers, type SessionSocket } from '../socket-session'
 import type { ServeTurnDriver } from '../turn-driver'
+import { refusedFile } from './fakes'
 
 const threadId = toThreadId('admission-deferral')
 
@@ -70,7 +71,7 @@ const rig = () => {
     inFlight: () => [],
     liveStepId: () => null,
     driver,
-    files: { list: async () => [] },
+    files: { list: async () => [], read: async () => refusedFile },
     refusal: () => null,
     admissionClosed: () => current !== null && admissionClosedFor(current.phase),
     checkpoint: () => current,

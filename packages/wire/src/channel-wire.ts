@@ -102,6 +102,7 @@ export enum EClientFrame {
 export enum EClientRequest {
   CompletePaths = 'complete-paths',
   BrowseDirectory = 'browse-directory',
+  ReadWorkspaceFile = 'read-workspace-file',
   ListRoster = 'list-roster',
   ListCommands = 'list-commands',
   ListMcpServers = 'list-mcp-servers',
