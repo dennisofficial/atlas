@@ -109,7 +109,7 @@ export async function runTrackedTurn(
     }
 
     const intake = await appendPending({
-      drain: deps.drainPending,
+      intake: deps.intake,
       log,
       ids,
       threadId,
@@ -174,7 +174,7 @@ export async function runTrackedTurn(
 
     const prepareAttempt = async () => {
       const retryIntake = await appendPending({
-        drain: deps.drainPending,
+        intake: deps.intake,
         log,
         ids,
         threadId,

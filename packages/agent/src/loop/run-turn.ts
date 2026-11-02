@@ -20,6 +20,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { logFieldsOf } from '../logging/log-fields'
+import type { AgentIntake } from '../intake/agent-intake'
 import type { HookChain } from '../hooks/registry'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import type { ApplyLoopCut } from '../loop-cut'
@@ -59,7 +60,7 @@ export type TurnDeps = {
   dispatch?: ToolDispatcher | undefined
   hooks?: HookChain | undefined
   uploads?: SaidUploadsPort | undefined
-  drainPending?: ((args: { threadId: ThreadId }) => Promise<PendingDrain>) | undefined
+  intake?: AgentIntake | undefined
   expandContext?: ExpandContext | undefined
   spend?: TurnLedgerDeps | undefined
   compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
@@ -120,7 +121,7 @@ export class LoopTurnRunner extends TurnRunner {
       onContext: deps.onContext,
       hooks: deps.hooks,
       uploads: deps.uploads,
-      drainPending: deps.drainPending,
+      intake: deps.intake,
       settlePending:
         deps.dispatch === undefined
           ? undefined

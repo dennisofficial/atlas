@@ -1,3 +1,4 @@
+import type { AgentIntake } from '../intake/agent-intake'
 import type { EventDraft, EventLogPort, IdPort, ThreadId } from '@dltech/atlas-core'
 
 export type PendingDrain = {
@@ -12,26 +13,24 @@ export type DrainedPending =
   | { ok: true; drained: boolean; wakesTurn: boolean }
 
 export async function appendPending({
-  drain,
+  intake,
   log,
   ids,
   threadId,
   signal,
 }: {
-  drain:
-    | ((args: { threadId: ThreadId; signal?: AbortSignal | undefined }) => Promise<PendingDrain>)
-    | undefined
+  intake: AgentIntake | undefined
   log: EventLogPort
   ids: IdPort
   threadId: ThreadId
   signal?: AbortSignal | undefined
 }): Promise<DrainedPending> {
-  if (drain === undefined) return { ok: true, drained: false, wakesTurn: false }
+  if (intake === undefined) return { ok: true, drained: false, wakesTurn: false }
 
   let waiting: PendingDrain
   try {
     signal?.throwIfAborted()
-    waiting = await drain({ threadId, ...(signal === undefined ? {} : { signal }) })
+    waiting = await intake.prepare({ threadId, ...(signal === undefined ? {} : { signal }) })
   } catch (cause) {
     return { ok: false, cause }
   }

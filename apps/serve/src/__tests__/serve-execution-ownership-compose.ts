@@ -129,10 +129,12 @@ export async function composeOwnershipApp(args: {
       assembly,
       tools: () => tools.declarations(),
       dispatch: new HookedToolDispatcher({ registry: tools, hooks }),
-      drainPending: async (drained) => {
-        const intake = intakeHolder.current
-        if (intake === undefined) return { drafts: [], wakesTurn: false }
-        return intake.prepare(drained)
+      intake: {
+        prepare: async (drained) => {
+          const intake = intakeHolder.current
+          if (intake === undefined) return { drafts: [], wakesTurn: false }
+          return intake.prepare(drained)
+        },
       },
       spend: { ledger, clock },
       launchDirectory: args.cwd,

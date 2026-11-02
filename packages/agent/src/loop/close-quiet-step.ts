@@ -39,7 +39,7 @@ export async function closeQuietStep({
   }
 
   const speech = await appendPending({
-    drain: deps.drainPending,
+    intake: deps.intake,
     log,
     ids,
     threadId,

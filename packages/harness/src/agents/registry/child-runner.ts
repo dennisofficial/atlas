@@ -38,7 +38,7 @@ import {
 
 export type ChildRunnerDeps = {
   activity: ActivityLifecycle
-  turn: Omit<TurnDeps, 'drainPending'>
+  turn: Omit<TurnDeps, 'intake'>
   tools: ToolRegistry
   hooks: HookChain
   quality?: QualityReviewPort | undefined
@@ -203,23 +203,25 @@ export async function buildChildRunner({
         telemetry: deps.telemetry,
       }),
       assembly: deps.assemblyFor({ agentType, model, projectDirectory }),
-      drainPending: async (args) => {
-        const notices = await deps.drainNotices(args)
-        const batch = combineInput([
-          steeringBatch(),
-          {
-            drafts: notices.drafts,
-            wakesTurn: notices.wakesTurn,
-            acknowledge: () => notices.acknowledge?.(),
-            ...(notices.release === undefined ? {} : { release: () => notices.release?.() }),
-          },
-        ])
-        return {
-          drafts: batch.drafts,
-          wakesTurn: batch.wakesTurn,
-          acknowledge: batch.acknowledge,
-          release: () => batch.release?.(),
-        }
+      intake: {
+        prepare: async (args) => {
+          const notices = await deps.drainNotices(args)
+          const batch = combineInput([
+            steeringBatch(),
+            {
+              drafts: notices.drafts,
+              wakesTurn: notices.wakesTurn,
+              acknowledge: () => notices.acknowledge?.(),
+              ...(notices.release === undefined ? {} : { release: () => notices.release?.() }),
+            },
+          ])
+          return {
+            drafts: batch.drafts,
+            wakesTurn: batch.wakesTurn,
+            acknowledge: batch.acknowledge,
+            release: () => batch.release?.(),
+          }
+        },
       },
     },
   })

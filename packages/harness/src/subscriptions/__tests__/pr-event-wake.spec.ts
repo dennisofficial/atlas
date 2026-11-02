@@ -70,7 +70,7 @@ describe('a turn woken only by a pr-event', () => {
       ids: harness.ids,
       model: harness.model,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),
-      drainPending: async ({ threadId }) => registry.intakeSource.prepare({ threadId }),
+      intake: { prepare: async ({ threadId }) => registry.intakeSource.prepare({ threadId }) },
     })
     const outcome = await runner.runTurn({ threadId: thread.id })
 

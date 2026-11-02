@@ -65,9 +65,11 @@ async function childTurn(args: {
     ids: harness.ids,
     assembly,
     launchDirectory: PROJECT_DIRECTORY,
-    drainPending: async () => {
-      operatorDrains += 1
-      return { drafts: [{ type: 'user-said', text: OPERATOR_TEXT }], wakesTurn: true }
+    intake: {
+      prepare: async () => {
+        operatorDrains += 1
+        return { drafts: [{ type: 'user-said', text: OPERATOR_TEXT }], wakesTurn: true }
+      },
     },
   }
 
