@@ -37,6 +37,22 @@ describe('ensureDeclared', () => {
     await registry.closeAll()
   })
 
+  it('returns a running unchanged service ready without probing its health', async () => {
+    const { registry, processes } = open()
+    await registry.ensureDeclared({ threadId: THREAD })
+    processes.probeExit = 7
+    const spawnedBefore = processes.spawned.length
+
+    const again = await registry.ensureDeclared({ threadId: THREAD })
+
+    expect(again.map((one) => [one.status, one.ready])).toEqual([
+      [EEnsureStatus.Running, true],
+      [EEnsureStatus.Running, true],
+    ])
+    expect(processes.spawned).toHaveLength(spawnedBefore)
+    await registry.closeAll()
+  })
+
   it('dedupes concurrent ensures', async () => {
     const { registry, processes } = open()
 

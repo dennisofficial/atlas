@@ -19,6 +19,9 @@ describe('declarationHash', () => {
     expect(declarationHash({ command: 'a', setup: ['i'] })).not.toBe(
       declarationHash({ command: 'a' }),
     )
+    expect(declarationHash({ command: 'a', needs: ['db'] })).not.toBe(
+      declarationHash({ command: 'a' }),
+    )
   })
 
   it('is 8 hex characters', () => {

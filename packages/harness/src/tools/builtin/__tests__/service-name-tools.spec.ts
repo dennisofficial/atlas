@@ -12,8 +12,8 @@ import { BunServiceRegistry } from '../../../services/service-registry'
 import { SystemClock } from '../../../store'
 import { ServiceListTool } from '../service-list'
 import { ServiceRestartTool } from '../service-restart'
+import { ServiceStartTool } from '../service-start'
 import { ServiceStopTool } from '../service-stop'
-import { ServicesEnsureTool } from '../services-ensure'
 
 const THREAD = toThreadId('thread-ensure-tools')
 const registries: BunServiceRegistry[] = []
@@ -21,7 +21,8 @@ afterEach(async () => {
   await Promise.all(registries.splice(0).map((registry) => registry.closeAll()))
 })
 
-const YAML = 'services:\n  napper:\n    command: sleep 30\n    port: 24777\n'
+const SERVER = "Bun.serve({ port: 24777, fetch: () => new Response('ok') })"
+const YAML = `services:\n  napper:\n    command: ${JSON.stringify(`bun -e "${SERVER}"`)}\n    port: 24777\n`
 
 const open = async () => {
   const root = await mkdtemp(join(tmpdir(), 'atlas-ensure-tools-'))
@@ -32,7 +33,7 @@ const open = async () => {
     processes: new LocalProcessPort(),
     declared: {
       load: async () => parseDeclaredServices({ text: YAML, file: 'x' }),
-      timing: { budgetMs: 300, intervalMs: 20 },
+      timing: { budgetMs: 5000, intervalMs: 20 },
     },
   })
   registries.push(registry)
@@ -48,13 +49,16 @@ const run = (tool: { invoke: (a: never) => Promise<ToolOutcome> }, root: string,
     threadId: THREAD,
   } as never)
 
-describe('services_ensure and name-addressed tools', () => {
-  it('ensures, lists by name, restarts by name and stops by name', async () => {
+describe('name-addressed service tools', () => {
+  it('starts by name, lists by name, restarts by name and stops by name', async () => {
     const { registry, root } = await open()
 
-    const ensured = await run(new ServicesEnsureTool(registry), root, {})
-    expect(ensured.ok).toBe(true)
-    expect(ensured.ok && JSON.stringify(ensured.output)).toContain('napper')
+    const started = await run(new ServiceStartTool(registry), root, {
+      name: 'napper',
+      description: 'start napper',
+    })
+    expect(started.ok).toBe(true)
+    expect(started.ok && JSON.stringify(started.output)).toContain('napper')
 
     const listed = await run(new ServiceListTool(registry), root, {})
     expect(listed.ok && listed.modelText).toContain('[napper]')

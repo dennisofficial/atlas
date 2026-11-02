@@ -91,6 +91,7 @@ export const shellEventSchemas = [
     exitCode: z.number().int().optional(),
     logPath: z.string().min(1).optional(),
     tail: z.string(),
+    restarting: z.literal(true).optional(),
     notice: noticeStampSchema.optional(),
   }),
 ] as const

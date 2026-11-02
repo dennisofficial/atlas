@@ -2,7 +2,7 @@ import {
   EKilledBy,
   EServiceStatus,
   orderDeclaredServices,
-  serviceReferencesOf,
+  serviceDependenciesOf,
   type DeclaredServiceLink,
   type ProcessPort,
   type ThreadId,
@@ -134,16 +134,13 @@ async function ensureOne({
     const stale =
       running.declarationHash !== undefined && running.declarationHash !== hashOfDeclared(declared)
     if (!stale) {
-      const port = running.port ?? declared.port
-      const ready =
-        port === undefined ? { ready: true } : await readinessOf({ declared, port, context })
       const url = running.exposure?.url
       return {
         name: declared.name,
         status: EEnsureStatus.Running,
         url,
         links: linksOf({ declared, publicUrl: url }),
-        ...ready,
+        ready: true,
       }
     }
     await stopAndWait({ services, serviceId: running.serviceId, by: EKilledBy.Model })
@@ -224,12 +221,10 @@ export async function ensureDeclaredServices({
   for (const name of ordering.order) {
     const declared = read.services.find((one) => one.name === name)
     if (declared === undefined) continue
-    const failedDependency = serviceReferencesOf(declared.env)
-      .map((reference) => reference.target)
-      .find((target) => {
-        const status = ensured.get(target)?.status
-        return status !== undefined && BROKEN.has(status)
-      })
+    const failedDependency = serviceDependenciesOf(declared).find((target) => {
+      const status = ensured.get(target)?.status
+      return status !== undefined && BROKEN.has(status)
+    })
     if (failedDependency !== undefined) {
       ensured.set(name, {
         name,

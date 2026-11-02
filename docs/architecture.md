@@ -423,13 +423,13 @@ across a restart. Declared services are the exception: they are re-ensured after
 **Declared services.** A repository lists its services in `.atlas/services.yaml`
 (`loadDeclaredServices`, schema in `core/services/declaration`), and the file is load-bearing: the
 agent, the preview agent and the operator all start, stop and restart services through one harness
-path, and what runs always matches the file. `services_ensure` brings reality to the file — it starts
-missing services in dependency order, runs each service's `setup` once per registry lifetime, waits on
-health (GET path 2xx/3xx, else TCP accept, 60 s budget), restarts any stale service, and returns each
+path, and what runs always matches the file. `service_start({ name })` brings reality to the file — it starts
+the service and its dependencies (`needs` plus `url`/`port` env references) in order, runs each service's `setup` once per registry lifetime, waits on
+health only for fresh starts (GET path 2xx/3xx, else TCP accept, 60 s budget; a running, unchanged service returns ready at once), restarts a stale service, and returns each
 URL, flagged not-ready rather than withheld on timeout. Every service gets `PORT` and
 `ATLAS_THREAD_ID`; a service with a `portal` also gets `PUBLIC_URL` and the Vite allowed-hosts
 variable, and `portals` add extra links. Env values may reference another service
-(`${services.<name>.url|publicUrl|port}`); the reference graph decides start order and a cycle or
+(`${services.<name>.url|publicUrl|port}`); `needs` and the `url`/`port` references decide start order (`publicUrl` does not pull its target in), and a cycle or
 missing target is rejected before anything starts. Ports are the declared one or a stable pick from
 20000-29999 derived from the service name alone, since each cloud thread is its own pod; the
 free-port probe remains only for in-process sessions sharing a host. A service is **stale** when its
@@ -439,7 +439,7 @@ declaration fails the restart without stopping anything. `service_start` of a de
 Public exposure is a service concern, not a bash one: URLs are `https://<port>-<rand>.byatlas.dev`
 through a Cloudflare tunnel that keeps the Host and adds `X-Forwarded-Proto`. Declared services are
 supervised — restart with 1/2/4/8/16 s backoff, crash-looping after more than 5 crashes in 120 s —
-and resumed at serve boot and TUI reopen.
+and a crash that is being restarted raises no notice until the supervisor gives up; services are resumed at serve boot and TUI reopen.
 
 Surfaces render, they do not decide. `ServiceRegistryPort.declared()` returns a
 `DeclaredServicesView` (every declared service with state, port, URLs, links and reason, plus

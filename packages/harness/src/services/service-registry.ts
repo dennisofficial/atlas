@@ -38,7 +38,7 @@ import {
 import { startedDraftOf } from './service-started-draft'
 import { runningSnapshotsFor, unknownService, within } from './service-registry-support'
 import { ServiceRestarter } from './service-restarter'
-import type { Scheduler } from './service-supervisor'
+import { ERestartVerdict, type Scheduler } from './service-supervisor'
 
 export * from './service-registry-port'
 export * from './service-teardown'
@@ -221,7 +221,7 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
         (args.threadId === undefined || entry.threadId === args.threadId) &&
         this.endings.needsRetry(entry),
     )
-    await Promise.all(failed.map((entry) => this.endings.persist(entry)))
+    await Promise.all(failed.map((entry) => this.endings.persist({ entry })))
   }
 
   removeServices({ serviceIds, by }: { serviceIds: readonly string[]; by: EKilledBy }): void {
@@ -256,10 +256,6 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
     return runningSnapshotsFor({ entries: this.tracked.values(), threadId })
   }
 
-  /**
-   * Teardown stops everything but suppresses nothing: every ending is recorded to its thread's log
-   * before this resolves, and a recording that failed gets one more attempt.
-   */
   async closeAll(args?: { killedBy?: EKilledBy }): Promise<void> {
     this.restarter.close()
     this.declaredSupport.close()
@@ -292,9 +288,11 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
     if (entry === undefined) return
 
     const { name } = entry.launch
-    if (name !== undefined && service.snapshot().status === EServiceStatus.Exited) {
-      this.restarter.crashed({ launch: entry.launch, name, logPath: service.logPath })
-    }
-    this.endings.exited(entry)
+    const exited = name !== undefined && service.snapshot().status === EServiceStatus.Exited
+    const verdict = exited
+      ? this.restarter.crashed({ launch: entry.launch, name, logPath: service.logPath })
+      : undefined
+    if (verdict?.verdict === ERestartVerdict.Restart) this.endings.restarting(entry)
+    else this.endings.exited(entry)
   }
 }

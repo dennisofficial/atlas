@@ -55,6 +55,7 @@ export const serviceDeclarationSchema = z.strictObject({
   health: z.string().startsWith('/').optional(),
   env: declaredEnvSchema.optional(),
   setup: z.array(z.string().min(1)).min(1).optional(),
+  needs: z.array(serviceNameSchema).min(1).optional(),
   portal: servicePortalSchema.optional(),
   portals: z.array(serviceLinkSchema).optional(),
   type: z.nativeEnum(EServiceType).optional(),

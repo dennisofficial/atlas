@@ -113,11 +113,10 @@ describe('the built-in agent types', () => {
     expect(preview.prompt).toContain('portal')
     expect(preview.prompt).toContain('CORS')
     expect(preview.prompt).toContain('allowedDevOrigins')
-    expect(preview.prompt).toContain('services_ensure')
     expect(preview.prompt).toContain('.atlas/services.yaml')
     expect(preview.prompt).toContain('Never run project servers with `service_start`')
     expect(preview.prompt).toContain(
-      'start via `service_start({ name })` or `services_ensure`, never as ad-hoc commands',
+      'start via `service_start({ name })`, never as ad-hoc commands',
     )
     expect(preview.prompt).toContain('Declare dev mode only')
     expect(preview.prompt).toContain('honor `$PORT` with the old default')

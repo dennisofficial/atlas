@@ -76,6 +76,7 @@ export function noticeEntriesOf(args: {
   }
 
   if (event.type === 'service-ended') {
+    if (event.restarting === true) return []
     return [
       {
         kind: EEntryKind.ServiceEnded,

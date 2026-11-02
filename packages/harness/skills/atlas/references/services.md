@@ -6,10 +6,11 @@ URL exposure, and the process is neither supervised nor resumed.
 
 ## Declared services
 
-Declare them in `.atlas/services.yaml` at the workspace root, then call `service_start({ name })` for one
-service or `services_ensure` (optionally `{ names: [...] }`) for all or several. It starts what is missing, waits for health, and returns
-`{ name, status, url?, ready, reason? }` per service. It is idempotent; call it freely before you
-need a URL.
+Declare them in `.atlas/services.yaml` at the workspace root, then call `service_start({ name })` for each
+service you need. It starts the service plus whatever it `needs` or references by `url`/`port`, waits for health on
+fresh starts, and returns `{ name, status, url?, ready, reason? }` per service. It is idempotent: a service already
+running with an unchanged declaration returns `ready: true` at once, without a health wait (a hot-reloading
+server may be mid-rebuild). Call it freely before you need a URL.
 
 ```yaml
 services:
@@ -39,6 +40,7 @@ services:
 | `cwd`    | Working directory, relative to the workspace root unless absolute.                       |
 | `port`   | Fixed port. Omitted: a stable port from 20000-29999 derived from the service name alone. |
 | `health` | Path starting with `/`; ready on a 2xx/3xx GET. Omitted: ready when the port accepts TCP. |
+| `needs`  | List of declared service names that must start first, even with no env reference. |
 | `env`    | String map. `PORT`, `PUBLIC_URL`, `ATLAS_THREAD_ID` and the Vite host variable are reserved. |
 | `setup`  | List of shell commands run in `cwd` once per service before its first start.             |
 | `portal` | `true` (or `{ url?, title?, description? }`): publish a public URL for this service.     |
@@ -53,7 +55,7 @@ fix the file rather than working around it.
 
 `setup` commands run in order, in the service's `cwd`, once per service before its first start.
 They do not rerun on a crash restart or a manual restart. A failing command fails that ensure and
-the service does not start; fix the command and ensure again. Put repeatable seeding and migrations
+the service does not start; fix the command and start it again. Put repeatable seeding and migrations
 here.
 
 ### Environment references
@@ -61,30 +63,35 @@ here.
 An `env` value can point at another declared service:
 
 - `${services.<name>.url}`: the internal URL, `http://127.0.0.1:<port>`. Use it for server-to-server calls.
-- `${services.<name>.publicUrl}`: the public portal URL. The target must declare a `portal`.
+- `${services.<name>.publicUrl}`: the public portal URL. The target must declare a `portal`. It does not imply starting the target: if that service is not running the reference stays uninterpolated. Add it to `needs` to start it first.
 - `${services.<name>.port}`: the port number.
 
-Dependencies start first and each service is healthy before its dependents start. A reference to a
-missing service, a `publicUrl` without a portal, or a cycle is rejected before anything starts.
+Dependencies are `needs: [name, ...]` plus env references to `url` or `port`. They start first and each
+service is healthy before its dependents start. `needs` or a reference to an undeclared service, a
+`publicUrl` without a portal, or a cycle is rejected before anything starts.
+
+`health` is only a start-up wait, never a monitor of a running service. Crashes are restarted
+automatically (below) and do not notify you; you hear about it only when Atlas gives up
+(crash-looping).
 
 ### Stale services and restarts
 
 A service is stale when its own declaration (command, cwd, port, health, env, setup, portals) changed
-since its running instance started. Other edits to the file do not touch it. `services_ensure`
-restarts stale services from the current declaration and reports them as `restarted`. Ports come
+since its running instance started. Other edits to the file do not touch it. `service_start({ name })`
+restarts a stale service from the current declaration and reports it as `restarted`. Ports come
 from the service name alone, so a restart keeps the same port and URL.
 
 `service_restart` of a declared service always re-reads `.atlas/services.yaml`. When the declaration
 was removed or is invalid the restart fails and the running instance stays up.
 
 `service_start({ name })` on a declared name with no command runs its declaration (setup, dependencies,
-health, URL), like `services_ensure`; adding `command`, `workdir`, `port` or `exposePort` is refused.
+health, URL); adding `command`, `workdir`, `port` or `exposePort` is refused.
 
 ### Operator controls
 
 The web Details sidebar and the TUI list every declared service with its state (stopped, starting,
 running, stale, failed, crash-looping) and its links. Start, Stop and Restart there call the same
-operations as `services_ensure`, `service_stop` and `service_restart`. Atlas watches the file, so
+operations as `service_start`, `service_stop` and `service_restart`. Atlas watches the file, so
 edits show up in those lists immediately.
 
 Address services by declared name: `service_stop({ id: "web" })`, `service_restart({ id: "web" })`;
@@ -135,7 +142,7 @@ starts with one press of play or one `service_start({ name })`, and previews wor
     The symptom is `Blocked cross-origin request to Next.js dev resource /_next/hmr` in the log.
     Angular and webpack-dev-server have an `allowedHosts` option for the same purpose.
 10. **Secrets stay out of the file**; use the project's env tooling or cloud secrets.
-11. **Verify.** Run `services_ensure`, fetch each portal URL (expect 200 and the app, not a
+11. **Verify.** Run `service_start({ name })` for each service, fetch each portal URL (expect 200 and the app, not a
     blocked-host page), then scan each log after loading the page for host-block errors
     (`Blocked cross-origin request`, `Invalid Host header`, `Blocked request`), not only the status
     code. Then tell the user each service has a play button.
@@ -201,6 +208,6 @@ runtime and listen on `$PORT` bound to `0.0.0.0`; never hardcode a port or hostn
 - **Port collision** (`EADDRINUSE`): drop the fixed `port` so Atlas picks the name-derived one, or stop the
   process holding it (`service_list`, `service_stop`). Never kill by port from bash.
 - **Blocked host / "Invalid Host header"**: see the framework notes; the host must be allowed.
-- **Stale service**: the declaration changed after the service started. Call `services_ensure`; it restarts the service.
-- **Setup failed**: read the command's output in the ensure reply, fix the command, ensure again.
+- **Stale service**: the declaration changed after the service started. Call `service_start({ name })`; it restarts the service.
+- **Setup failed**: read the command's output in the ensure reply, fix the command, start it again.
 - **Reference rejected**: check the target name exists, has a `portal` for `publicUrl`, and no cycle runs through the references.
