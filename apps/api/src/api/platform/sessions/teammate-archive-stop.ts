@@ -3,6 +3,8 @@ import { EAgentStatus, EKilledBy } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { podSessionOf } from './session-of-thread'
 import { hasBootSteps } from '../sandboxes/sandbox-boot-steps'
+import { ESandboxState } from '../sandboxes/sandboxes.types'
+import { parkedOf, sandboxStateOf } from '../sandboxes/sandbox-lifecycle'
 import { VercelSandboxClient } from '../sandboxes/vercel-sandbox.client'
 import { appendStoredWithin, nextRunId } from './append'
 import { ThreadSignalsService } from './thread-signals.service'
@@ -36,30 +38,38 @@ export class TeammateArchiveStopService {
     if (session === null || session.managedBySessionId === null) return
 
     const podSessionId = await podSessionOf({ reader: db, threadId })
-    const sandbox = await db.orm.public.CloudSandbox.where({ sessionId: podSessionId })
-      .select('name')
-      .first()
+    const sandbox = await db.orm.public.CloudSandbox.where({ sessionId: podSessionId }).first()
     if (sandbox === null) return
     if (!(await hasBootSteps({ threadId }))) return
 
+    if (sandboxStateOf(sandbox) === ESandboxState.Running && !parkedOf(sandbox)) {
+      // A live pod is the only writer of its threads' logs; the ending must be written by the pod
+      // (its own stop records it through the registry), never appended here, or the pod's next
+      // write-behind flush at that seq conflicts. A stop the pod could not take still leaves the
+      // session archived; the teammate is not resumed, because a parked pod boots to a roster the
+      // parked-path ending below has already settled.
+      try {
+        await this.vercel.stopTeammate({ threadId, name: sandbox.name, agentId: threadId })
+      } catch (failure) {
+        this.logger.warn(
+          `stopping teammate ${threadId} in pod ${sandbox.name} failed: ${failureText(failure)}`,
+        )
+      }
+      return
+    }
+
+    // Parked, absent or failed: nothing is running, so the pod writes nothing — the ending is
+    // recorded here, into the log the pod mirrors up at boot, so the teammate is never resumed.
     const lead = await db.orm.public.Session.where({ id: podSessionId })
       .select('mainThreadId')
       .first()
     if (lead?.mainThreadId != null)
       await this.recordEnding({ userId, leadThreadId: lead.mainThreadId, threadId })
-
-    try {
-      await this.vercel.stopTeammate({ threadId, name: sandbox.name, agentId: threadId })
-    } catch (failure) {
-      this.logger.warn(
-        `stopping teammate ${threadId} in pod ${sandbox.name} failed: ${failureText(failure)}`,
-      )
-    }
   }
 
   /**
-   * The durable record of the stop: the pod's next boot rebuilds the roster from this log and
-   * reads the teammate as deliberately stopped, so it is never resumed.
+   * The durable record of the stop, written only while the pod is down: the pod's next boot
+   * rebuilds the roster from this log and reads the teammate as deliberately stopped.
    */
   private async recordEnding(args: {
     userId: string

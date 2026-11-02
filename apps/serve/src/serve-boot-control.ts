@@ -10,12 +10,23 @@ import type { ServeApp } from './serve-app'
 export function serveControlOf(
   app: Pick<ServeApp, 'agents' | 'processes'>,
 ): SessionServerControl | undefined {
-  const stopChildren = app.agents?.stopChildren
-  if (stopChildren === undefined) return undefined
+  const steer = app.agents
+  const stopChildrenOf = steer?.stopChildren
+  if (steer === undefined || stopChildrenOf === undefined) return undefined
   return {
     stopChildren: async ({ agentId }) => {
       const target = toThreadId(agentId)
-      const stoppedAgents = await stopChildren({ threadId: target, by: EKilledBy.User })
+
+      // The teammate's own running turn first: the pod writes the ending, mirrored like any other
+      // event, so the roster rebuild on the next boot reads it as deliberately stopped. An
+      // unknown or already-settled agent is left alone rather than refusing the stop of the rest.
+      const agents = await stopChildrenOf({ threadId: target, by: EKilledBy.User })
+      const stoppedSelf = await steer.stop({
+        agentId: target,
+        threadId: target,
+        by: EKilledBy.User,
+      })
+
       const shells = app.processes?.shells
       const killedShells =
         shells?.list === undefined
@@ -30,7 +41,11 @@ export function serveControlOf(
                   ),
               )
             ).length
-      return { agentId, stoppedAgents: stoppedAgents.length, killedShells }
+      return {
+        agentId,
+        stoppedAgents: agents.length + (stoppedSelf.ok ? 1 : 0),
+        killedShells,
+      }
     },
   }
 }

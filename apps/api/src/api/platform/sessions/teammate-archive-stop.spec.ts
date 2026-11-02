@@ -20,9 +20,16 @@ const serviceWith = (
   return new TeammateArchiveStopService(vercel, inertSignals())
 }
 
-const seedManagedTeammate = async (args: { bootSteps?: boolean }) => {
+const seedManagedTeammate = async (args: {
+  bootSteps?: boolean
+  podState?: 'running' | 'parked'
+}) => {
   await seedThreadRow({ id: 'brn_lead', userId: USER_A })
-  await seedSandboxRow({ threadId: 'brn_lead', sessionId: 'ses_brn_lead' })
+  await seedSandboxRow({
+    threadId: 'brn_lead',
+    sessionId: 'ses_brn_lead',
+    state: args.podState ?? 'running',
+  })
   if (args.bootSteps !== false) {
     await db.orm.public.SandboxBootStep.create({
       sessionId: 'ses_brn_lead',
@@ -45,6 +52,9 @@ const seedManagedTeammate = async (args: { bootSteps?: boolean }) => {
   })
 }
 
+const leadEndings = () =>
+  db.orm.public.Event.where({ threadId: 'brn_lead', type: 'agent-ended' }).all()
+
 describe('TeammateArchiveStopService', () => {
   useTestDatabase()
 
@@ -63,11 +73,10 @@ describe('TeammateArchiveStopService', () => {
     await service.stopIfManaged({ userId: USER_A, sessionId: 'ses_brn_main', threadId: 'brn_main' })
 
     expect(stopped).toBe(0)
-    const endings = await db.orm.public.Event.where({ type: 'agent-ended' }).all()
-    expect(endings).toHaveLength(0)
+    expect(await leadEndings()).toHaveLength(0)
   })
 
-  it('stops a managed teammate and records the ending on the lead', async () => {
+  it('stops a managed teammate in a running pod without appending to the pod-owned log', async () => {
     await seedManagedTeammate({})
     const stops: string[] = []
     const service = serviceWith(async ({ agentId }) => {
@@ -77,11 +86,21 @@ describe('TeammateArchiveStopService', () => {
     await service.stopIfManaged({ userId: USER_A, sessionId: 'ses_brn_mate', threadId: 'brn_mate' })
 
     expect(stops).toEqual(['brn_mate'])
-    const ending = await db.orm.public.Event.where({
-      threadId: 'brn_lead',
-      type: 'agent-ended',
-    }).first()
-    expect(ending).not.toBeNull()
+    expect(await leadEndings()).toHaveLength(0)
+  })
+
+  it('records the ending itself only when the pod is parked', async () => {
+    await seedManagedTeammate({ podState: 'parked' })
+    let stopped = 0
+    const service = serviceWith(async () => {
+      stopped += 1
+    })
+
+    await service.stopIfManaged({ userId: USER_A, sessionId: 'ses_brn_mate', threadId: 'brn_mate' })
+
+    expect(stopped).toBe(0)
+    const [ending] = await leadEndings()
+    expect(ending).not.toBeUndefined()
     const body = JSON.parse(ending!.body) as {
       agentId: string
       status: string
@@ -106,18 +125,15 @@ describe('TeammateArchiveStopService', () => {
     await service.stopIfManaged({ userId: USER_A, sessionId: 'ses_brn_mate', threadId: 'brn_mate' })
 
     expect(stopped).toBe(0)
+    expect(await leadEndings()).toHaveLength(0)
   })
 
-  it('records the ending even when the pod stop fails', async () => {
+  it('a failed stop in a running pod leaves the log untouched', async () => {
     await seedManagedTeammate({})
     const service = serviceWith(() => Promise.reject(new Error('pod gone')))
 
     await service.stopIfManaged({ userId: USER_A, sessionId: 'ses_brn_mate', threadId: 'brn_mate' })
 
-    const ending = await db.orm.public.Event.where({
-      threadId: 'brn_lead',
-      type: 'agent-ended',
-    }).first()
-    expect(ending).not.toBeNull()
+    expect(await leadEndings()).toHaveLength(0)
   })
 })
