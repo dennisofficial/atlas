@@ -1,4 +1,4 @@
-import { db, type Row } from '@dltech/atlas-db'
+import { type Row, type Tx } from '@dltech/atlas-db'
 import { unsettledHeadExists } from './github-pr-head-checks'
 import { repoPattern } from './github-pr-identity'
 
@@ -10,10 +10,11 @@ export const POST_MERGE_RECONCILE_WINDOW_MS = 30 * 60 * 1_000
  * the PR from targeting the moment it merges closes the only repair path (#1635).
  */
 export async function affectedPrsBySha(args: {
+  tx: Tx
   repoFullName: string
   sha: string
 }): Promise<Row<'GithubPrState'>[]> {
-  const matched = await db.orm.public.GithubPrState.where((pr) =>
+  const matched = await args.tx.orm.public.GithubPrState.where((pr) =>
     pr.repoFullName.ilike(repoPattern(args.repoFullName)),
   )
     .where({ headSha: args.sha })
@@ -28,6 +29,7 @@ export async function affectedPrsBySha(args: {
     if (row.state !== 'merged' || row.updatedAt.getTime() < windowOpen) continue
     if (
       await unsettledHeadExists({
+        tx: args.tx,
         repoFullName: row.repoFullName,
         prNumber: row.prNumber,
         headSha: row.headSha,

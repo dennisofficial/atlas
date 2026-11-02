@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { prStateRows, seedPrState } from '../../../../test/github-seed'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 import {
-  commitChecksTally,
   pruneCommitChecks,
-  recordCommitChecks,
+  recordCommitChecksLocked,
+  commitChecksTally,
   restCommitChecksOf,
 } from './github-commit-checks'
 import {
@@ -19,6 +19,9 @@ import {
   serviceWith,
 } from './github-delivery.fixture'
 import { HOOK_EVENTS } from './github-hook-events'
+
+const tallyOf = (headSha: string) =>
+  db.transaction((tx) => commitChecksTally({ tx, repoFullName: 'compai/app', headSha }))
 
 const RUNNING = { status: 'in_progress', conclusion: null, completed_at: null }
 const STATUS_PAYLOAD = (state: string, updated: string) => ({
@@ -83,10 +86,7 @@ describe('GithubDeliveryService check rows', () => {
     })
 
     expect(readPullRequest).toHaveBeenCalledTimes(1)
-    const tally = await commitChecksTally({
-      repoFullName: 'compai/app',
-      headSha: 'abc123',
-    })
+    const tally = await tallyOf('abc123')
     expect(tally).toEqual({ running: 0, passed: 5, failed: 0, ignored: 1 })
     expect((await prStateRows())[0]).toMatchObject({
       checksRunning: tally.running,
@@ -106,12 +106,7 @@ describe('GithubDeliveryService check rows', () => {
       payload: checkRunPayload(RUNNING),
     })
 
-    expect(
-      await commitChecksTally({
-        repoFullName: 'compai/app',
-        headSha: 'abc123',
-      }),
-    ).toMatchObject({
+    expect(await tallyOf('abc123')).toMatchObject({
       running: 0,
       failed: 1,
     })
@@ -132,12 +127,7 @@ describe('GithubDeliveryService check rows', () => {
       }),
     })
 
-    expect(
-      await commitChecksTally({
-        repoFullName: 'compai/app',
-        headSha: 'abc123',
-      }),
-    ).toMatchObject({
+    expect(await tallyOf('abc123')).toMatchObject({
       passed: 1,
       failed: 0,
     })
@@ -249,7 +239,7 @@ describe('GithubDeliveryService check rows', () => {
         updated_at: '2026-11-02T04:26:00Z',
       },
     ]
-    await recordCommitChecks({
+    await recordCommitChecksLocked({
       repoFullName: 'compai/app',
       headSha: 'abc123',
       checks: restCommitChecksOf({ checkRuns, statuses }),
@@ -270,18 +260,89 @@ describe('GithubDeliveryService check rows', () => {
       statuses,
     })
 
-    expect(
-      await commitChecksTally({
-        repoFullName: 'compai/app',
-        headSha: 'abc123',
-      }),
-    ).toEqual({
+    expect(await tallyOf('abc123')).toEqual({
       running: rest.checksRunning,
       passed: rest.checksPassed,
       failed: rest.checksFailed,
       ignored: rest.checksIgnored,
     })
     expect(rest.checksPassed + rest.checksIgnored + rest.checksRunning).toBe(4)
+  })
+
+  it('concurrent deliveries for one run id always end completed', async () => {
+    const { service } = await setup()
+    for (let i = 0; i < 8; i++) {
+      const id = 100 + i
+      await Promise.all([
+        service.handle({ event: 'check_run', payload: checkRunPayload({ id, ...RUNNING }) }),
+        service.handle({ event: 'check_run', payload: checkRunPayload({ id }) }),
+      ])
+      const row = await db.orm.public.GithubCommitCheck.where({
+        repoFullName: 'compai/app',
+        headSha: 'abc123',
+        checkKey: `run:${id}`,
+      }).first()
+      expect(row?.outcome).toBe('passed')
+    }
+  })
+
+  it('concurrent deliveries for different runs leave the PR row equal to the full tally', async () => {
+    const { service } = await setup()
+    for (let round = 0; round < 4; round++) {
+      await Promise.all(
+        [1, 2, 3, 4, 5, 6].map((n) =>
+          service.handle({
+            event: 'check_run',
+            payload: checkRunPayload({ id: round * 10 + n, name: `job-${round}-${n}`, ...RUNNING }),
+          }),
+        ),
+      )
+      const tally = await tallyOf('abc123')
+      expect((await prStateRows())[0]).toMatchObject({
+        checksRunning: tally.running,
+        checksPassed: tally.passed,
+        checksFailed: tally.failed,
+        checksIgnored: tally.ignored,
+      })
+      expect(tally.running).toBe((round + 1) * 6)
+    }
+  })
+
+  it('prunes every stale row across shas and keeps fresh ones', async () => {
+    const old = new Date(Date.now() - 30 * 86_400_000)
+    for (const sha of ['s1', 's2', 's3']) {
+      for (const key of ['run:1', 'run:2']) {
+        await db.orm.public.GithubCommitCheck.create({
+          repoFullName: 'compai/app',
+          headSha: sha,
+          checkKey: key,
+          name: key,
+          startedAt: null,
+          outcome: 'passed',
+          sourceUpdatedAt: old,
+        })
+      }
+    }
+    await db.execute(
+      db.raw
+        .sql`UPDATE "GithubCommitCheck" SET "updatedAt" = ${old.toISOString()}::timestamptz WHERE "headSha" IN ('s1', 's2', 's3')`
+        .affectedCount()
+        .build(),
+    )
+    await db.orm.public.GithubCommitCheck.create({
+      repoFullName: 'compai/app',
+      headSha: 'fresh',
+      checkKey: 'run:1',
+      name: 'x',
+      startedAt: null,
+      outcome: 'passed',
+      sourceUpdatedAt: new Date(),
+    })
+
+    await pruneCommitChecks({ now: new Date() })
+
+    const left = await db.orm.public.GithubCommitCheck.all()
+    expect(left.map((row) => row.headSha)).toEqual(['fresh'])
   })
 
   it('prunes rows untouched for more than 14 days', async () => {
