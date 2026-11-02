@@ -1,44 +1,9 @@
 import { ETodoStatus, type ContextNode, type TodoTask } from './details-model'
 
-export const HEAD = {
-  turns: '12 turns',
-  cost: '$4.83',
-  tokens: '↑ 312.4k  ↓ 84.1k  cache 2.31m',
-}
-
-export const POD_REGION = 'iad1'
-
 export const FOOTER_PATHS = [
   '/atlas/workspaces/atlas',
   '/atlas/workspaces/atlas/.atlas/worktrees/dennis/web-details-pane',
 ]
-
-export enum EProcessTone {
-  Running = 'running',
-  Done = 'done',
-  Failed = 'failed',
-}
-
-export interface ProcessRow {
-  id: string
-  name: string
-  readout: string
-  tone: EProcessTone
-}
-
-export const SHELLS: ProcessRow[] = [
-  { id: 'sh-1', name: 'bun test --watch', readout: '14m', tone: EProcessTone.Running },
-  { id: 'sh-2', name: 'tsc --noEmit -w', readout: '9m', tone: EProcessTone.Running },
-]
-
-export const SERVICES: ProcessRow[] = [
-  { id: 'sv-1', name: 'storybook', readout: ':6006', tone: EProcessTone.Running },
-  { id: 'sv-2', name: 'prototype', readout: 'exit 0', tone: EProcessTone.Done },
-  { id: 'sv-3', name: 'webterm', readout: 'killed', tone: EProcessTone.Done },
-  { id: 'sv-4', name: 'api', readout: 'exit 1', tone: EProcessTone.Failed },
-]
-
-export const SERVICES_HIDDEN = { hidden: 2, failed: true }
 
 export const TODOS: TodoTask[] = [
   { id: 't-1', text: 'Map tokens onto variables', status: ETodoStatus.Done },

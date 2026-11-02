@@ -4,6 +4,7 @@ import { EServiceStatus, foldServices, serviceFailed } from '@dltech/atlas-core'
 import { CircleCheckIcon, CircleIcon, CircleXIcon, ScrollTextIcon, SquareIcon } from 'lucide-react'
 
 import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
+import { TableCell, TableRow } from '@dltech/atlas-ui/components/table'
 
 import {
   EProcessKind,
@@ -19,6 +20,7 @@ import type { ProcessesData } from '../../data/use-processes'
 import { ActionButton } from './action-button'
 import { earlierLabelOf, keptServiceOf } from './details-model'
 import { DetailsSection } from './section'
+import { BODY_CELL } from './table-parts'
 
 type Kept = ReturnType<typeof keptServiceOf>
 
@@ -52,14 +54,22 @@ export function AdhocServiceRows(props: { data: ProcessesData; fold: AdhocFold }
         const { snapshot } = kept
         const name = processNameOf(snapshot)
         return (
-          <DetailRow
-            key={snapshot.serviceId}
-            mono
-            icon={<ServiceIcon kept={kept} />}
-            label={name}
-            detail={`ad-hoc · ${serviceReadoutOf({ service: snapshot, now })}`}
-            actions={
-              <>
+          <TableRow key={snapshot.serviceId}>
+            <TableCell className={`${BODY_CELL} w-6`}>
+              <span className="flex size-4 items-center justify-center text-muted-foreground">
+                <ServiceIcon kept={kept} />
+              </span>
+            </TableCell>
+            <TableCell colSpan={3} className={`${BODY_CELL} max-w-0`}>
+              <span className="block truncate font-mono text-sm" title={name}>
+                {name}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {`ad-hoc · ${serviceReadoutOf({ service: snapshot, now })}`}
+              </span>
+            </TableCell>
+            <TableCell className={BODY_CELL}>
+              <span className="flex items-center justify-end gap-0.5">
                 <ActionButton
                   icon={ScrollTextIcon}
                   label={`Open ${name} log`}
@@ -74,15 +84,17 @@ export function AdhocServiceRows(props: { data: ProcessesData; fold: AdhocFold }
                     onAction={() => void data.handleStop(snapshot.serviceId)}
                   />
                 ) : null}
-              </>
-            }
-          />
+              </span>
+            </TableCell>
+          </TableRow>
         )
       })}
       {fold.hidden > 0 ? (
-        <p className="px-1 text-xs text-muted-foreground">
-          {earlierLabelOf({ hidden: fold.hidden, failed: fold.hiddenFailed })}
-        </p>
+        <TableRow>
+          <TableCell colSpan={5} className={`${BODY_CELL} text-xs text-muted-foreground`}>
+            {earlierLabelOf({ hidden: fold.hidden, failed: fold.hiddenFailed })}
+          </TableCell>
+        </TableRow>
       ) : null}
     </>
   )

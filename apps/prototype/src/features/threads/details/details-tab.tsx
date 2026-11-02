@@ -1,22 +1,20 @@
 import type { AgentsPanelAgent } from '@dltech/atlas-ui/ai/agents-panel'
 
 import { AgentDrill } from './agent-drill'
+import { AgentsTable } from './agents-table'
 import { ContextSection } from './context-section'
 import { CrewSection } from './crew-section'
 import { type CrewRow } from './details-model'
 import { DetailsFooter } from './footer'
-import { GithubSection } from './github-section'
+import { GithubTable } from './github-table'
 import { HeadSection } from './head-section'
-import { PodSection } from './pod-section'
-import { ProcessesSection } from './processes-section'
+import { ServicesTable } from './services-table'
 import { SubscriptionsSection } from './subscriptions-section'
 import { TodoSection } from './todo-section'
 
 export interface DetailsTabProps {
-  title: string
   agents: AgentsPanelAgent[]
   teammates: CrewRow[]
-  subagents: CrewRow[]
   detailId?: string
   onDetailChange: (id: string | undefined) => void
   onOpenTeammate: (id: string) => void
@@ -29,13 +27,9 @@ export function DetailsTab(props: DetailsTabProps) {
   const { detailId } = props
   const drilled = detailId !== undefined && props.agents.some((agent) => agent.id === detailId)
 
-  const handleOpenAgent = (id: string) => {
-    if (props.agents.some((agent) => agent.id === id)) props.onDetailChange(id)
-  }
-
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3">
+      <div className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3">
         {drilled ? (
           <AgentDrill
             agents={props.agents}
@@ -45,18 +39,13 @@ export function DetailsTab(props: DetailsTabProps) {
           />
         ) : (
           <>
-            <HeadSection title={props.title} />
-            <PodSection />
-            <GithubSection />
-            <ContextSection current={props.contextPath} onOpen={props.onOpenContextFile} />
-            <ProcessesSection />
+            <HeadSection />
+            <GithubTable />
+            <ServicesTable />
             <TodoSection />
-            <CrewSection
-              teammates={props.teammates}
-              subagents={props.subagents}
-              onOpenTeammate={props.onOpenTeammate}
-              onOpenAgent={handleOpenAgent}
-            />
+            <CrewSection teammates={props.teammates} onOpenTeammate={props.onOpenTeammate} />
+            <AgentsTable />
+            <ContextSection current={props.contextPath} onOpen={props.onOpenContextFile} />
             <SubscriptionsSection />
           </>
         )}
