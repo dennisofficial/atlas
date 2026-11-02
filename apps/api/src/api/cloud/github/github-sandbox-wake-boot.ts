@@ -40,6 +40,8 @@ export type WakeBootArgs = {
   reporter?: BootReporter | undefined
   /** Runs on the mounted sandbox before serve launches. */
   prepare?: ((sandbox: Sandbox) => Promise<void>) | undefined
+  /** Starts a detached clone on a sandbox Vercel created fresh, before serve downloads and launches. */
+  prefetchClone?: ((sandbox: Sandbox) => Promise<void>) | undefined
 }
 
 export type WakeBootResult = { serveUrl: string; created: boolean }
@@ -104,7 +106,10 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
         work: () => this.mount({ args, onCreate: () => (created = true) }),
         outcomeOf: () => (created ? EBootStepOutcome.Created : EBootStepOutcome.Resumed),
       })
-      if (created) await args.onFreshSandbox()
+      if (created) {
+        await this.prefetch({ sandbox, args })
+        await args.onFreshSandbox()
+      }
       const token = created ? args.freshToken : args.resumeToken
       if (token === undefined) throw new ResumeTokenMissingError(args.name)
       const serveUrl = await reporter.track({
@@ -119,6 +124,14 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
     } catch (failure) {
       if (created) await this.rollback(args)
       throw failure
+    }
+  }
+
+  private async prefetch(params: { sandbox: Sandbox; args: WakeBootArgs }): Promise<void> {
+    try {
+      await params.args.prefetchClone?.(params.sandbox)
+    } catch (failure) {
+      this.log(`clone prefetch of ${params.args.name} skipped: ${failureText(failure)}`)
     }
   }
 

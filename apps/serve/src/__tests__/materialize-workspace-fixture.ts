@@ -1,3 +1,4 @@
+import type { PrefetchAdoptionDeps } from '../adopt-prefetched-clone'
 import type { ApplyEnvironmentProfile } from '../environment-profile'
 import { createEnsureWorkspace, type GitRunner } from '../materialize-workspace'
 import type { WorkspaceFiles } from '../workspace-files'
@@ -20,6 +21,7 @@ export const harness = (args: {
   fails?: ((attempt: Attempt) => { stderr: string } | undefined) | undefined
   answers?: ((attempt: Attempt) => string | undefined) | undefined
   profile?: ApplyEnvironmentProfile | undefined
+  prefetch?: PrefetchAdoptionDeps | undefined
   gate?: ((attempt: Attempt) => Promise<void> | undefined) | undefined
 }) => {
   const attempts: Attempt[] = []
@@ -58,7 +60,7 @@ export const harness = (args: {
     attempts,
     written,
     emptied,
-    ensure: createEnsureWorkspace({ git, files, profile: args.profile }),
+    ensure: createEnsureWorkspace({ git, files, profile: args.profile, prefetch: args.prefetch }),
   }
 }
 
