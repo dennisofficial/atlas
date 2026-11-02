@@ -1,3 +1,4 @@
+import { GithubDeliveryFillDeferred } from './github-delivery-fill'
 import { randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -123,16 +124,18 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     const refreshes = http.calls.filter((call) => /\/pulls\/\d+$/.test(call.path))
     const numbers = refreshes.map((call) => call.path.split('/').at(-1))
     expect(new Set(numbers).size).toBe(numbers.length)
-    await api.delivery.handle({
-      event: 'pull_request',
-      payload: {
-        ...PULL_REQUEST_PAYLOAD,
-        pull_request: {
-          ...PULL_REQUEST_PAYLOAD.pull_request,
-          title: 'payload survives budget exhaustion',
+    await expect(
+      api.delivery.handle({
+        event: 'pull_request',
+        payload: {
+          ...PULL_REQUEST_PAYLOAD,
+          pull_request: {
+            ...PULL_REQUEST_PAYLOAD.pull_request,
+            title: 'payload survives budget exhaustion',
+          },
         },
-      },
-    })
+      }),
+    ).rejects.toBeInstanceOf(GithubDeliveryFillDeferred)
     expect(http.calls).toHaveLength(GITHUB_HTTP_BUDGET_PER_MINUTE)
     expect(
       (await db.orm.public.GithubPrState.first({ repoFullName: 'compai/app', prNumber: 42 }))

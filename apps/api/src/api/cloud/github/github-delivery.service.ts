@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { EGithubCallSource } from './github-call-log'
+import { GithubDeliveryFillDeferred, tryRestFill, type RestFill } from './github-delivery-fill'
 import { normalizedRepo, repoPattern } from './github-pr-identity'
 import { GithubObservationStore } from './github-observation.store'
 import { withGithubRequestBudget } from './github-request-budget'
@@ -31,7 +31,7 @@ import {
   subscriptionLiveWhere,
 } from './github-delivery-routing'
 import { type GithubPrStateRecord } from './github-realtime.types'
-import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
+import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import type {
   GithubIssueCommentWebhookPayload,
@@ -68,7 +68,11 @@ export class GithubDeliveryService {
     private readonly observations: GithubObservationStore,
   ) {}
 
-  handle(args: { event: string; payload: unknown }): Promise<{ handled: boolean }> {
+  handle(args: {
+    event: string
+    payload: unknown
+    replay?: boolean
+  }): Promise<{ handled: boolean }> {
     return withGithubRequestBudget({
       store: this.observations,
       run: () => this.handleWithinBudget(args),
@@ -78,6 +82,7 @@ export class GithubDeliveryService {
   private async handleWithinBudget(args: {
     event: string
     payload: unknown
+    replay?: boolean
   }): Promise<{ handled: boolean }> {
     if (!HANDLED_EVENTS.has(args.event)) return { handled: false }
     if (args.event === 'ping') return { handled: true }
@@ -105,7 +110,10 @@ export class GithubDeliveryService {
 
     const target = checkTargetOf({ event: args.event, payload: args.payload })
     if (target !== null)
-      await this.handleCheckTarget({ ...target, repoFullName: normalizedRepo(target.repoFullName) })
+      await this.handleCheckTarget({
+        target: { ...target, repoFullName: normalizedRepo(target.repoFullName) },
+        replay: args.replay === true,
+      })
     return { handled: true }
   }
 
@@ -136,14 +144,18 @@ export class GithubDeliveryService {
     }
 
     const [owner, repo] = repoFullName.split('/') as [string, string]
-    const fill = this.tryRestFill({ token, owner, repo, prNumber })
+    const fill = this.restFill({ token, owner, repo, prNumber })
     await recordPayload
     const rest = await fill
-    if (rest === null) return
-    await this.recordAndPush({ repoFullName, prNumber, fields: rest })
+    if (rest.kind === 'deferred') {
+      throw new GithubDeliveryFillDeferred({ repoFullName, prNumbers: [prNumber] })
+    }
+    if (rest.kind === 'skipped') return
+    await this.recordAndPush({ repoFullName, prNumber, fields: rest.fields })
   }
 
-  private async handleCheckTarget(target: CheckTarget): Promise<void> {
+  private async handleCheckTarget(args: { target: CheckTarget; replay: boolean }): Promise<void> {
+    const { target } = args
     const affected = await this.affectedPrs(target)
     if (affected.length === 0) return
 
@@ -151,20 +163,30 @@ export class GithubDeliveryService {
     if (token === undefined) return
 
     const [owner, repo] = target.repoFullName.split('/') as [string, string]
+    const deferred: number[] = []
     for (const pr of affected) {
-      const fill = this.tryRestFill({ token, owner, repo, prNumber: pr.prNumber })
-      await this.recordAndPush({
-        repoFullName: target.repoFullName,
-        prNumber: pr.prNumber,
-        fields: provisionalFieldsOf({ target, prior: stateFieldsOf(pr) }),
-      })
+      const fill = this.restFill({ token, owner, repo, prNumber: pr.prNumber })
+      if (!args.replay) {
+        await this.recordAndPush({
+          repoFullName: target.repoFullName,
+          prNumber: pr.prNumber,
+          fields: provisionalFieldsOf({ target, prior: stateFieldsOf(pr) }),
+        })
+      }
 
       const rest = await fill
-      if (rest === null) continue
+      if (rest.kind === 'deferred') deferred.push(pr.prNumber)
+      if (rest.kind !== 'filled') continue
       await this.recordAndPush({
         repoFullName: target.repoFullName,
         prNumber: pr.prNumber,
-        fields: rest,
+        fields: rest.fields,
+      })
+    }
+    if (deferred.length > 0) {
+      throw new GithubDeliveryFillDeferred({
+        repoFullName: target.repoFullName,
+        prNumbers: deferred,
       })
     }
   }
@@ -227,33 +249,13 @@ export class GithubDeliveryService {
     return undefined
   }
 
-  private async tryRestFill(args: {
+  private restFill(args: {
     token: string
     owner: string
     repo: string
     prNumber: number
-  }): Promise<GithubPrStateRecord | null> {
-    try {
-      const fields = await this.reads.readPullRequest({
-        source: EGithubCallSource.DeliveryFill,
-        token: args.token,
-        owner: args.owner,
-        repo: args.repo,
-        number: args.prNumber,
-      })
-      return { ...fields, updatedAt: new Date() }
-    } catch (failure) {
-      if (
-        failure instanceof GithubUserReadFailed &&
-        (failure.status === 401 || failure.status === 404)
-      ) {
-        return null
-      }
-      this.logger.warn(
-        `REST fill for ${args.owner}/${args.repo}#${args.prNumber} failed: ${String(failure)}`,
-      )
-      return null
-    }
+  }): Promise<RestFill> {
+    return tryRestFill({ reads: this.reads, logger: this.logger, ...args })
   }
 
   /**
