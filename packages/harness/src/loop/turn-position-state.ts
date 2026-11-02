@@ -1,6 +1,7 @@
-import type { Assembled, CallId, ModelToolCall } from '@dltech/atlas-core'
+import type { Assembled, CallId } from '@dltech/atlas-core'
 
 import type { WatchState } from './loop-watchdog'
+import type { CommittedCall } from './swallowed-outcome'
 
 export type TurnPosition = {
   previous: Assembled | undefined
@@ -12,7 +13,7 @@ export type TurnPosition = {
   silentRetries: number
   loopCuts: number
   watch: WatchState
-  committedCalls: ModelToolCall[]
+  committedCalls: CommittedCall[]
   resetAssembly: () => void
 }
 

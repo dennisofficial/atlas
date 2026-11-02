@@ -1,4 +1,4 @@
-import { noticeIdOf, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { isTurnTaking, noticeIdOf, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../intake/input-batch'
 import { bootId } from './boot'
@@ -65,7 +65,7 @@ export class ServiceNoticeQueue {
       if (kept.length !== this.queued.length) this.settle(kept)
     }
 
-    return { drafts, wakesTurn: captured.length > 0, acknowledge }
+    return { drafts, wakesTurn: captured.some((notice) => isTurnTaking(notice.draft)), acknowledge }
   }
 
   pending({ threadId }: { threadId: ThreadId }): readonly ServiceSnapshot[] {

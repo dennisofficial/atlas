@@ -1,4 +1,4 @@
-import { noticeIdOf, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { isTurnTaking, noticeIdOf, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import type { ShellSnapshot } from './background-shell'
 
@@ -35,7 +35,9 @@ export class ShellAttentionQueue {
     let acknowledged = false
     return {
       drafts: captured.flatMap((notice) => (notice.draft === undefined ? [] : [notice.draft])),
-      wakesTurn: captured.length > 0,
+      wakesTurn: captured.some(
+        (notice) => notice.draft !== undefined && isTurnTaking(notice.draft),
+      ),
       acknowledge: () => {
         if (acknowledged) return
         acknowledged = true

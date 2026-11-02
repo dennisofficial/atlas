@@ -25,7 +25,7 @@ import {
   preparedFailureMessage,
   type StepPrepareDeps,
 } from './step-prepare'
-import { idleOrSwallowed } from './swallowed-outcome'
+import { idleOrSwallowed, unsettledCall } from './swallowed-outcome'
 import { waitingIfBlocked } from './waiting-outcome'
 import { committedSinceLastMessage, messageArrivedSince, settlePendingCall } from './turn-position'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
@@ -144,7 +144,10 @@ export async function runTrackedTurn(
       !awaitsReply(owned) &&
       !messageArrivedSince({ events: owned, seenThrough: position.seenThrough })
     ) {
-      return idleOrSwallowed({ swallowed: position.committedCalls.at(-1), runId })
+      return idleOrSwallowed({
+        swallowed: unsettledCall({ committed: position.committedCalls, owned }),
+        runId,
+      })
     }
 
     const watched = await watchStepLoop({
@@ -264,7 +267,10 @@ export async function runTrackedTurn(
     const drafts = dedupeCallIds({ drafts: draftsFor(stepped.result), taken: callIdsIn(events) })
     if (drafts.length > 0) await log.append({ threadId, runId, drafts })
 
-    position.committedCalls.push(...stepped.result.toolCalls)
+    for (const draft of drafts) {
+      if (draft.type === 'tool-called')
+        position.committedCalls.push({ callId: draft.callId, name: draft.name })
+    }
     if (stepped.result.toolCalls.length > 0) {
       position.silentSteps = 0
       position.silentRetries = 0
