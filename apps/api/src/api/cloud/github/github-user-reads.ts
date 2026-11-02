@@ -9,6 +9,7 @@ import type {
   RestPullRequest,
 } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
+import { recordCommitChecks, restCommitChecksOf } from './github-commit-checks'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 
 const GITHUB_API = 'https://api.github.com'
@@ -67,6 +68,15 @@ export class GithubUserReads {
       source: args.source,
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/commits/${pull.head.sha}/status`,
+    })
+
+    await recordCommitChecks({
+      repoFullName: `${args.owner}/${args.repo}`,
+      headSha: pull.head.sha,
+      checks: restCommitChecksOf({
+        checkRuns: checkRuns.check_runs,
+        statuses: statuses.statuses,
+      }),
     })
 
     return pullRequestCacheFieldsOf({

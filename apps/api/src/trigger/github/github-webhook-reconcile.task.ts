@@ -1,4 +1,5 @@
 import { schedules } from '@trigger.dev/sdk'
+import { pruneCommitChecks } from '../../api/cloud/github/github-commit-checks'
 import { withGithubSweepGraph } from './github-sweep-graph'
 
 export const githubWebhookReconcileTask = schedules.task({
@@ -7,9 +8,11 @@ export const githubWebhookReconcileTask = schedules.task({
   retry: { maxAttempts: 3 },
   run: async () =>
     withGithubSweepGraph({
-      run: (graph) =>
-        graph.webhookInbox.handleReconcile({
+      run: async (graph) => {
+        await graph.webhookInbox.handleReconcile({
           process: (entry) => graph.deliveries.handle({ ...entry, replay: true }),
-        }),
+        })
+        await pruneCommitChecks({ now: new Date() })
+      },
     }),
 })

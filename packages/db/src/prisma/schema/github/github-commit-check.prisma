@@ -1,0 +1,14 @@
+// use prisma-8
+model GithubCommitCheck {
+  repoFullName    String
+  headSha         String
+  checkKey        String
+  name            String?
+  startedAt       String?
+  outcome         String
+  sourceUpdatedAt TimestamptzJsDate(3)
+  updatedAt       TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+
+  @@id([repoFullName, headSha, checkKey])
+  @@index([updatedAt])
+}

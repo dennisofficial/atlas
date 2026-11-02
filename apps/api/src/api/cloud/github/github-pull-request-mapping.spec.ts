@@ -15,7 +15,11 @@ const pull = (over: Partial<RestPullRequest>): RestPullRequest => ({
   merged_at: null,
   mergeable: null,
   mergeable_state: 'unknown',
-  head: { ref: 'dennis/add-the-thing', sha: 'abc123', repo: { full_name: 'compai/app' } },
+  head: {
+    ref: 'dennis/add-the-thing',
+    sha: 'abc123',
+    repo: { full_name: 'compai/app' },
+  },
   ...over,
 })
 
@@ -31,10 +35,12 @@ describe('pullRequestStateOf', () => {
 })
 
 const run = (over: Partial<RestCheckRun>): RestCheckRun => ({
+  id: 1,
   name: 'build',
   status: 'completed',
   conclusion: 'success',
   started_at: '2026-11-02T04:25:00Z',
+  completed_at: null,
   ...over,
 })
 
@@ -72,7 +78,11 @@ describe('pullRequestCacheFieldsOf', () => {
       statuses: [],
     })
 
-    expect(fields).toMatchObject({ checksRunning: 0, checksPassed: 1, checksFailed: 0 })
+    expect(fields).toMatchObject({
+      checksRunning: 0,
+      checksPassed: 1,
+      checksFailed: 0,
+    })
   })
 
   it('reads a head whose checks were all skipped as nothing running, passed or failed', () => {
@@ -82,7 +92,11 @@ describe('pullRequestCacheFieldsOf', () => {
       statuses: [],
     })
 
-    expect(fields).toMatchObject({ checksRunning: 0, checksPassed: 0, checksFailed: 0 })
+    expect(fields).toMatchObject({
+      checksRunning: 0,
+      checksPassed: 0,
+      checksFailed: 0,
+    })
   })
 
   it('keeps only the latest commit status per context', () => {
@@ -90,12 +104,31 @@ describe('pullRequestCacheFieldsOf', () => {
       pull: pull({}),
       checkRuns: [],
       statuses: [
-        { context: 'ci/build', state: 'success', created_at: '2026-11-02T04:25:00Z' },
-        { context: 'ci/build', state: 'pending', created_at: '2026-11-02T04:20:00Z' },
-        { context: 'deploy', state: 'failure', created_at: '2026-11-02T04:25:00Z' },
+        {
+          context: 'ci/build',
+          state: 'success',
+          created_at: '2026-11-02T04:25:00Z',
+          updated_at: '2026-11-02T04:25:00Z',
+        },
+        {
+          context: 'ci/build',
+          state: 'pending',
+          created_at: '2026-11-02T04:20:00Z',
+          updated_at: '2026-11-02T04:20:00Z',
+        },
+        {
+          context: 'deploy',
+          state: 'failure',
+          created_at: '2026-11-02T04:25:00Z',
+          updated_at: '2026-11-02T04:25:00Z',
+        },
       ],
     })
 
-    expect(fields).toMatchObject({ checksRunning: 0, checksPassed: 1, checksFailed: 1 })
+    expect(fields).toMatchObject({
+      checksRunning: 0,
+      checksPassed: 1,
+      checksFailed: 1,
+    })
   })
 })

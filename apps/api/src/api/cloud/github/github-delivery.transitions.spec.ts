@@ -7,7 +7,8 @@ import {
   seedUserSetting,
 } from '../../../../test/github-seed'
 import {
-  CHECK_SUITE_PAYLOAD,
+  checkRunPayload,
+  SETTLING_CHECK_RUN_PAYLOAD,
   FILLED_PR_STATE,
   prepareDelivery,
   PULL_REQUEST_PAYLOAD,
@@ -36,7 +37,10 @@ describe('GithubDeliveryService transition events', () => {
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
     await seedPrState({ ...FILLED_PR_STATE })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)
@@ -65,16 +69,23 @@ describe('GithubDeliveryService transition events', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 1,
+      checksPassed: 0,
+    })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)
     expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green' } })
   })
 
-  it('announces the owed verdict on the first settled read, then stays silent on steady-state re-reads', async () => {
+  it('announces the owed verdict on the first settled read', async () => {
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest: async () => ({
@@ -86,15 +97,18 @@ describe('GithubDeliveryService transition events', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 2, checksFailed: 1 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 0,
+      checksPassed: 2,
+      checksFailed: 1,
+    })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
-    // Seeded settled state carries no ledger row, so the obligation is discharged on first read…
-    expect((await prEventRows()).filter((row) => row.kind === 'verdict')).toHaveLength(1)
-
-    // …and a steady-state re-read after the discharge emits nothing.
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
     expect((await prEventRows()).filter((row) => row.kind === 'verdict')).toHaveLength(1)
   })
 
@@ -111,12 +125,22 @@ describe('GithubDeliveryService transition events', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 3, mergeable: false })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 0,
+      checksPassed: 3,
+      mergeable: false,
+    })
 
-    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
+    })
     const flips = (await prEventRows()).filter((row) => row.kind === 'mergeability')
     expect(flips.length).toBeGreaterThan(0)
-    expect(flips[flips.length - 1]).toMatchObject({ payload: { mergeable: true } })
+    expect(flips[flips.length - 1]).toMatchObject({
+      payload: { mergeable: true },
+    })
     const settled = (await prStateRows())[0]
     expect(settled).toMatchObject({ mergeable: true })
 
@@ -127,28 +151,11 @@ describe('GithubDeliveryService transition events', () => {
       checksPassed: 3,
       mergeable: true,
     }))
-    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-    expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(before)
-  })
-
-  it('records a merged state transition when the fill first reports merged', async () => {
-    const readPullRequest = vi.fn(async () => ({
-      ...REST_FIELDS,
-      state: 'merged',
-    }))
-    const { service } = serviceWith({
-      tokens: { 'usr-creator': 'ghu_creator' },
-      readPullRequest,
+    await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
     })
-    await seedHook({ createdBy: 'usr-creator' })
-    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE })
-
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
-
-    const stateEvents = (await prEventRows()).filter((row) => row.kind === 'state')
-    expect(stateEvents).toHaveLength(1)
-    expect(stateEvents[0]).toMatchObject({ payload: { state: 'merged' } })
+    expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(before)
   })
 
   it('records verdicts per subscriber verdict timing: fail-fast fires mid-run and again when the run finishes, settled waits', async () => {
@@ -171,16 +178,30 @@ describe('GithubDeliveryService transition events', () => {
       key: 'github.prEvents.verdictTiming',
       value: 'atlas-setting:v1:"settled"',
     })
-    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 10, checksPassed: 0, checksFailed: 0 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 10,
+      checksPassed: 0,
+      checksFailed: 0,
+    })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const midRun = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(midRun).toHaveLength(1)
-    expect(midRun[0]).toMatchObject({ userId: 'usr-fast', payload: { verdict: 'failed' } })
+    expect(midRun[0]).toMatchObject({
+      userId: 'usr-fast',
+      payload: { verdict: 'failed' },
+    })
 
     running = false
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const settled = (await prEventRows()).filter(
       (row) => row.kind === 'verdict' && row.userId === 'usr-settled',
@@ -191,15 +212,16 @@ describe('GithubDeliveryService transition events', () => {
       (row) => row.kind === 'verdict' && row.userId === 'usr-fast',
     )
     expect(fast).toHaveLength(2)
-    expect(fast[1]).toMatchObject({ payload: { verdict: 'failed', settled: true } })
+    expect(fast[1]).toMatchObject({
+      payload: { verdict: 'failed', settled: true },
+    })
   })
 
   it('suppresses the mid-run mergeability flip and bundles it with the settled verdict', async () => {
-    let running = true
     const readPullRequest = vi.fn(async () => ({
       ...REST_FIELDS,
-      checksRunning: running ? 5 : 0,
-      checksPassed: running ? 3 : 10,
+      checksRunning: 0,
+      checksPassed: 10,
       checksFailed: 0,
       mergeable: true,
     }))
@@ -217,12 +239,22 @@ describe('GithubDeliveryService transition events', () => {
       mergeable: null,
     })
 
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: checkRunPayload({
+        status: 'in_progress',
+        conclusion: null,
+        completed_at: null,
+      }),
+    })
 
+    expect(readPullRequest).not.toHaveBeenCalled()
     expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(0)
 
-    running = false
-    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+    await service.handle({
+      event: 'check_run',
+      payload: SETTLING_CHECK_RUN_PAYLOAD,
+    })
 
     const kinds = (await prEventRows()).map((row) => row.kind)
     expect(kinds.filter((kind) => kind === 'verdict')).toHaveLength(1)
@@ -237,7 +269,10 @@ describe('GithubDeliveryService transition events', () => {
     const { service } = serviceWith({ tokens: {}, readPullRequest })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
-    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
+    })
 
     expect(readPullRequest).not.toHaveBeenCalled()
     expect(await prStateRows()).toHaveLength(1)

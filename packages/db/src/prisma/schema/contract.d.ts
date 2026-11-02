@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'bfe49ff940f6329635e9a44412cf28f85606a57b78b461784714fd97ae950a68'>;
+  StorageHashBase<'d5e5a2706e61e5fad472ac8388a376b8687daeed64e300ae3ff8330aa637fc5d'>;
 export type ExecutionHash =
-  ExecutionHashBase<'1b00e5bb5f45a4e8252e0d1bc7aaa624f9cd892cca21edb62cdf4503ee6efefb'>;
+  ExecutionHashBase<'f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -448,6 +448,17 @@ export namespace Models {
     userId: FieldOutputTypes['public']['GithubAppNoticeDismissal']['userId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
+  };
+  export type public_GithubCommitCheck = {
+    checkKey: FieldOutputTypes['public']['GithubCommitCheck']['checkKey'];
+    headSha: FieldOutputTypes['public']['GithubCommitCheck']['headSha'];
+    name: FieldOutputTypes['public']['GithubCommitCheck']['name'];
+    outcome: FieldOutputTypes['public']['GithubCommitCheck']['outcome'];
+    repoFullName: FieldOutputTypes['public']['GithubCommitCheck']['repoFullName'];
+    sourceUpdatedAt: FieldOutputTypes['public']['GithubCommitCheck']['sourceUpdatedAt'];
+    startedAt: FieldOutputTypes['public']['GithubCommitCheck']['startedAt'];
+    updatedAt: FieldOutputTypes['public']['GithubCommitCheck']['updatedAt'];
+    readonly [RelationKeys]?: never;
   };
   export type public_GithubConnection = {
     createdAt: FieldOutputTypes['public']['GithubConnection']['createdAt'];
@@ -1071,6 +1082,7 @@ export declare const models: {
     Event: Models.public_Event;
     GithubAppInstallation: Models.public_GithubAppInstallation;
     GithubAppNoticeDismissal: Models.public_GithubAppNoticeDismissal;
+    GithubCommitCheck: Models.public_GithubCommitCheck;
     GithubConnection: Models.public_GithubConnection;
     GithubPrEvent: Models.public_GithubPrEvent;
     GithubPrEventDelivery: Models.public_GithubPrEventDelivery;
@@ -2388,6 +2400,71 @@ type ContractBase = Omit<
                   };
                 },
               ];
+            };
+            readonly GithubCommitCheck: {
+              columns: {
+                readonly checkKey: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly headSha: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly outcome: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly repoFullName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sourceUpdatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly startedAt: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['repoFullName', 'headSha', 'checkKey'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'GithubCommitCheck_updatedAt_idx_8c508b31';
+                  readonly prefix: 'GithubCommitCheck_updatedAt_idx';
+                  readonly columns: readonly ['updatedAt'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [];
             };
             readonly GithubConnection: {
               columns: {
@@ -5815,6 +5892,10 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'GithubAppNoticeDismissal';
     };
+    readonly GithubCommitCheck: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'GithubCommitCheck';
+    };
     readonly GithubConnection: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'GithubConnection';
@@ -7016,6 +7097,65 @@ type ContractBase = Omit<
                 readonly dismissedAt: { readonly column: 'dismissedAt' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
                 readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly GithubCommitCheck: {
+            readonly fields: {
+              readonly checkKey: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly headSha: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly outcome: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly repoFullName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sourceUpdatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly startedAt: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'GithubCommitCheck';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly checkKey: { readonly column: 'checkKey' };
+                readonly headSha: { readonly column: 'headSha' };
+                readonly name: { readonly column: 'name' };
+                readonly outcome: { readonly column: 'outcome' };
+                readonly repoFullName: { readonly column: 'repoFullName' };
+                readonly sourceUpdatedAt: { readonly column: 'sourceUpdatedAt' };
+                readonly startedAt: { readonly column: 'startedAt' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
               };
             };
           };
@@ -10674,6 +10814,15 @@ type ContractBase = Omit<
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'GithubAppInstallation';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'GithubCommitCheck';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };

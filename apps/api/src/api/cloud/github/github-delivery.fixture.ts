@@ -27,7 +27,11 @@ export const PULL_REQUEST_PAYLOAD = {
     state: 'open',
     draft: false,
     merged_at: null,
-    head: { ref: 'dennis/add-the-thing', sha: 'abc123', repo: { full_name: 'compai/app' } },
+    head: {
+      ref: 'dennis/add-the-thing',
+      sha: 'abc123',
+      repo: { full_name: 'compai/app' },
+    },
   },
   repository: { full_name: 'compai/app' },
 }
@@ -84,6 +88,34 @@ export const CHECK_SUITE_PAYLOAD = {
   repository: { full_name: 'compai/app' },
 }
 
+export const checkRunPayload = (
+  over: Partial<{
+    id: number
+    name: string
+    status: string
+    conclusion: string | null
+    started_at: string | null
+    completed_at: string | null
+    head_sha: string
+  }> = {},
+) => ({
+  action: 'completed',
+  check_run: {
+    id: 1,
+    name: 'build',
+    status: 'completed',
+    conclusion: 'success',
+    started_at: '2026-11-02T04:25:00Z',
+    completed_at: '2026-11-02T04:26:00Z',
+    head_sha: 'abc123',
+    check_suite: { head_branch: 'dennis/add-the-thing' },
+    ...over,
+  },
+  repository: { full_name: 'compai/app' },
+})
+
+export const SETTLING_CHECK_RUN_PAYLOAD = checkRunPayload()
+
 export const prepareDelivery = async (): Promise<void> => {
   vi.useRealTimers()
   await ensureUsers(...USERS)
@@ -102,7 +134,9 @@ export function serviceWith(args: {
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const cipher = {} as SecretCipherService
-  const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
+  const wake = {
+    notifyEvent: () => undefined,
+  } as unknown as GithubSandboxWakeService
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   return {

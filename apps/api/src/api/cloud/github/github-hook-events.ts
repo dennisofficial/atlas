@@ -3,6 +3,7 @@ export const HOOK_EVENTS = [
   'check_suite',
   'check_run',
   'push',
+  'status',
   'issue_comment',
   'pull_request_review',
   'pull_request_review_comment',

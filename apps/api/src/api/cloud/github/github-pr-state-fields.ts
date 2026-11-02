@@ -1,12 +1,6 @@
 import type { Row } from '@dltech/atlas-db'
 import type { GithubPrStateFields, GithubPrStateRecord } from './github-realtime.types'
 
-export type CheckTarget = {
-  repoFullName: string
-  branch: string | null
-  sha: string | null
-}
-
 export function stateFieldsOf(row: Row<'GithubPrState'>): GithubPrStateFields & {
   headRepoFullName: string | null
 } {
@@ -42,27 +36,5 @@ export function carryChecks(args: {
     checksFailed: args.prior.checksFailed,
     checksIgnored: args.prior.checksIgnored,
     mergeable: args.prior.mergeable,
-  }
-}
-
-export function provisionalFieldsOf(args: {
-  target: CheckTarget
-  prior: GithubPrStateFields & { headRepoFullName: string | null }
-}): GithubPrStateRecord {
-  const headSha = args.target.sha ?? args.prior.headSha
-  const shaMoved = headSha !== args.prior.headSha
-  return {
-    title: args.prior.title,
-    url: args.prior.url,
-    state: args.prior.state,
-    headBranch: args.target.branch ?? args.prior.headBranch,
-    headSha,
-    headRepoFullName: args.prior.headRepoFullName,
-    checksRunning: shaMoved ? 1 : Math.max(args.prior.checksRunning, 1),
-    checksPassed: shaMoved ? 0 : args.prior.checksPassed,
-    checksFailed: shaMoved ? 0 : args.prior.checksFailed,
-    checksIgnored: shaMoved ? 0 : args.prior.checksIgnored,
-    mergeable: null,
-    updatedAt: new Date(),
   }
 }
