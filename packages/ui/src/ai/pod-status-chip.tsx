@@ -12,21 +12,24 @@ export {
   ramOf,
   ResizeDeclinedError,
   sizeLabel,
-  VCPU_STEPS,
   type PodStatus,
 } from './pod-status'
 
 export interface PodStatusChipProps {
   status: PodStatus
+  sizes: readonly number[]
   defaultOpen?: boolean
   onResize?: (vcpus: number) => Promise<void>
+  planCapHint?: string
   settingsHref?: string
 }
 
 export function PodStatusChip({
   status,
+  sizes,
   defaultOpen = false,
   onResize,
+  planCapHint,
   settingsHref,
 }: PodStatusChipProps) {
   const parked = status.state === EPodState.Parked
@@ -48,7 +51,13 @@ export function PodStatusChip({
       </PopoverTrigger>
       <PopoverContent align="end" initialFocus={false} className="w-80">
         <PopoverTitle className="text-sm font-medium">Pod</PopoverTitle>
-        <PodPopoverBody status={status} onResize={onResize} settingsHref={settingsHref} />
+        <PodPopoverBody
+          status={status}
+          sizes={sizes}
+          onResize={onResize}
+          planCapHint={planCapHint}
+          settingsHref={settingsHref}
+        />
       </PopoverContent>
     </Popover>
   )

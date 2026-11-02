@@ -75,7 +75,7 @@ describe('project resources router', () => {
     }).expect(200)
     expect(dataOf(saved.body)).toEqual({ vcpus: 4, setupScript: 'bun install' })
 
-    for (const vcpus of [3, 10, 0]) {
+    for (const vcpus of [3, 34, 0]) {
       await mutate({ path: 'saveSandbox', input: { projectId, vcpus, setupScript: '' } }).expect(
         400,
       )

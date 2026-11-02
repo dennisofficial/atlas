@@ -6,6 +6,8 @@ import { PauseIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
+import { DEFAULT_SANDBOX_VCPUS } from '@dltech/atlas-wire/web'
+
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { QueryPage } from '../data/personal/query-boundary'
@@ -16,6 +18,7 @@ import type { SandboxRow } from '../fixtures/settings-usage-rows'
 import { SettingFieldsEditor } from '../parts/setting-fields-editor'
 import { SANDBOX_FIELDS } from '../fixtures/settings-fields'
 import { usePersonalSettings } from '../data/personal/use-settings-draft'
+import { SandboxSizeSection } from '../parts/sandbox-size-section'
 import { UsageSandboxEmpty } from '../parts/usage-sandbox-empty'
 import { UsageSandboxTable } from '../parts/usage-sandbox-table'
 import { UserVercelCardSlot } from '../parts/vercel-credential-card-live'
@@ -24,15 +27,32 @@ import { SettingsPage, SettingsSection } from '../settings-layout'
 const TITLE = 'Usage: Sandboxes'
 const DESCRIPTION = 'Cloud sandboxes your threads are running on.'
 
-function SandboxDefaults() {
+function PersonalSandboxSize() {
+  const settings = usePersonalSettings()
+  const { data } = settings.query
+  if (data === undefined) return null
+  const stored = data.get('sandbox.vcpus')
+  return (
+    <SandboxSizeSection
+      key={`size-${String(stored)}`}
+      value={typeof stored === 'number' ? stored : DEFAULT_SANDBOX_VCPUS}
+      onSave={async (vcpus) => {
+        if (vcpus === null) return
+        await settings.save({ 'sandbox.vcpus': vcpus })
+      }}
+    />
+  )
+}
+
+function SandboxImageField() {
   const settings = usePersonalSettings()
   if (settings.query.data === undefined) return null
   return (
     <SettingFieldsEditor
       values={settings.query.data}
       save={settings.save}
-      title="New sandboxes"
-      description="Size and image a new cloud sandbox boots with."
+      title="Sandbox image"
+      description="The image a new cloud sandbox boots with."
       fields={SANDBOX_FIELDS}
     />
   )
@@ -67,6 +87,8 @@ export function UsageSandboxesView({
       >
         <UserVercelCardSlot />
       </SettingsSection>
+      <PersonalSandboxSize />
+      <SandboxImageField />
       <SettingsSection title={`Currently running (${running.length})`}>
         {running.length === 0 ? (
           <UsageSandboxEmpty />
@@ -94,7 +116,6 @@ export function UsageSandboxesView({
       <p className="text-xs text-muted-foreground">
         Sandboxes pause automatically when idle. Size and cost per sandbox are not reported yet.
       </p>
-      <SandboxDefaults />
     </SettingsPage>
   )
 }

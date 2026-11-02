@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  canResize,
-  chipLabel,
-  EPodState,
-  ramOf,
-  sizeLabel,
-  VCPU_STEPS,
-  type PodStatus,
-} from '../pod-status'
+import { canResize, chipLabel, EPodState, ramOf, sizeLabel, type PodStatus } from '../pod-status'
 
 const RUNNING: PodStatus = {
   state: EPodState.Running,
@@ -18,9 +10,8 @@ const RUNNING: PodStatus = {
 }
 
 describe('pod size', () => {
-  it('links RAM at 2 GB per vCPU across the 2/4/8 steps', () => {
-    expect(VCPU_STEPS).toEqual([2, 4, 8])
-    expect(VCPU_STEPS.map(ramOf)).toEqual([4, 8, 16])
+  it('links RAM at 2 GB per vCPU', () => {
+    expect([1, 4, 32].map(ramOf)).toEqual([2, 8, 64])
     expect(sizeLabel(4)).toBe('4 vCPU · 8 GB')
   })
 })

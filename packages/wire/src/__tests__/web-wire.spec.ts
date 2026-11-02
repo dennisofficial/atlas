@@ -17,11 +17,14 @@ describe('web wire schemas', () => {
     expect(ENV_NAME_PATTERN.test('A'.repeat(201))).toBe(false)
   })
 
-  it('project sandbox accepts null or an even 2..8 vcpus', () => {
+  it('project sandbox accepts null or a Vercel pod size of 1 or an even 2..32 vcpus', () => {
     expect(projectSandboxSchema.safeParse({ vcpus: null, setupScript: '' }).success).toBe(true)
-    expect(projectSandboxSchema.safeParse({ vcpus: 6, setupScript: 'bun i' }).success).toBe(true)
-    expect(projectSandboxSchema.safeParse({ vcpus: 5, setupScript: '' }).success).toBe(false)
-    expect(projectSandboxSchema.safeParse({ vcpus: 10, setupScript: '' }).success).toBe(false)
+    for (const vcpus of [1, 2, 16, 32]) {
+      expect(projectSandboxSchema.safeParse({ vcpus, setupScript: '' }).success).toBe(true)
+    }
+    for (const vcpus of [0, 3, 33, 34, 2.5]) {
+      expect(projectSandboxSchema.safeParse({ vcpus, setupScript: '' }).success).toBe(false)
+    }
     expect(
       projectSandboxSchema.safeParse({ vcpus: 2, setupScript: 'x'.repeat(20001) }).success,
     ).toBe(false)

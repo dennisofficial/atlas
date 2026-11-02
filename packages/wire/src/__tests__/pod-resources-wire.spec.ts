@@ -63,12 +63,12 @@ describe('pod resources wire', () => {
     }
   })
 
-  it('resizes only to the vCPU steps the project setting allows', () => {
+  it('resizes only to a Vercel pod size: 1 or an even 2..32 vCPUs', () => {
     const parse = (vcpus: number) =>
       podResizeInputSchema.safeParse({ threadId: 't', vcpus }).success
 
-    expect([2, 4, 6, 8].map(parse)).toEqual([true, true, true, true])
-    expect([0, 1, 3, 10, 2.5].map(parse)).toEqual([false, false, false, false, false])
+    expect([1, 2, 16, 32].map(parse)).toEqual([true, true, true, true])
+    expect([0, 3, 33, 34, 2.5].map(parse)).toEqual([false, false, false, false, false])
     expect(podResizeInputSchema.safeParse({ threadId: '', vcpus: 2 }).success).toBe(false)
     expect(podResizeInputSchema.safeParse({ threadId: 't', vcpus: 2, extra: 1 }).success).toBe(
       false,

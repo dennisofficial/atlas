@@ -43,8 +43,8 @@ function valueRow(state: ContainerResourcesState): Span[] {
     ]
   }
   const at = state.vcpus
-  const floor = SANDBOX_VCPU_STEPS[0] ?? 2
-  const ceiling = SANDBOX_VCPU_STEPS[SANDBOX_VCPU_STEPS.length - 1] ?? 8
+  const floor = SANDBOX_VCPU_STEPS[0] ?? 1
+  const ceiling = SANDBOX_VCPU_STEPS[SANDBOX_VCPU_STEPS.length - 1] ?? 32
   const applying = state.phase === EResourcesPhase.Applying
   return [
     { text: 'CPU  ', fg: theme.meta },

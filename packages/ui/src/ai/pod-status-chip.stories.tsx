@@ -10,6 +10,8 @@ const RUNNING: PodStatus = {
   region: 'iad1',
 }
 
+const SIZES = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32]
+
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 700))
 
 const fail = (): Promise<void> =>
@@ -18,7 +20,14 @@ const fail = (): Promise<void> =>
 const meta = {
   title: 'AI/Pod Status Chip',
   component: PodStatusChip,
-  args: { status: RUNNING, defaultOpen: true, onResize: settle, settingsHref: '#' },
+  args: {
+    status: RUNNING,
+    sizes: SIZES,
+    defaultOpen: true,
+    onResize: settle,
+    planCapHint: 'Hobby up to 4 vCPU · Pro up to 8 · Enterprise up to 32',
+    settingsHref: '#',
+  },
   parameters: { layout: 'centered' },
   decorators: [
     (Story) => (
