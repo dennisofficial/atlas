@@ -40,10 +40,6 @@ export function todoDoneLabelOf({ hidden, expanded }: { hidden: number; expanded
   return expanded ? 'Show fewer' : `${hidden} earlier done`
 }
 
-export function earlierLabelOf({ hidden, failed }: { hidden: number; failed: boolean }): string {
-  return `+${hidden} earlier${failed ? ' · one failed' : ''}`
-}
-
 export interface CrewRow {
   id: string
   title: string

@@ -27,14 +27,15 @@ export const turnCountOf = (events: readonly Event[]): number =>
 
 export const turnsLabelOf = (turns: number): string => `${turns} ${turns === 1 ? 'turn' : 'turns'}`
 
-export function tokenFiguresOf(spend: SpendTally): string | null {
+export type TokenStats = { input: string; output: string; cached: string | null }
+
+export function tokenStatsOf(spend: SpendTally): TokenStats | null {
   if (spend.inputTokens === 0 && spend.outputTokens === 0) return null
-  const figures = [
-    `↑ ${formatTokens(spend.uncachedInputTokens)}`,
-    `↓ ${formatTokens(spend.outputTokens)}`,
-  ]
-  if (spend.cacheReadTokens > 0) figures.push(`cache ${formatTokens(spend.cacheReadTokens)}`)
-  return figures.join('  ')
+  return {
+    input: formatTokens(spend.uncachedInputTokens),
+    output: formatTokens(spend.outputTokens),
+    cached: spend.cacheReadTokens > 0 ? formatTokens(spend.cacheReadTokens) : null,
+  }
 }
 
 export const planCountOf = (tasks: readonly { status: EPlanStatus }[]): string =>

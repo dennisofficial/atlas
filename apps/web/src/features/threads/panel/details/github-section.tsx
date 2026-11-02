@@ -1,28 +1,41 @@
 'use client'
 
 import { GitBranchIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
-import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
+import { Table, TableBody, TableCell, TableRow } from '@dltech/atlas-ui/components/table'
 
 import type { CheckoutView } from '../../data/session-checkouts'
 import { useThreadPanel } from '../thread-panel-context'
 import { PullRequestRowItem } from './pull-request-row'
 import { DetailsSection } from './section'
+import { BODY_CELL } from './table-parts'
 
-function CheckoutBranch({ checkout }: { checkout: CheckoutView }) {
+const COLUMNS = 4
+
+function CheckoutHead({ checkout }: { checkout: CheckoutView }) {
   return (
     <>
       {checkout.label === undefined ? null : (
-        <p className="truncate px-1 pt-1 text-xs text-muted-foreground" title={checkout.label}>
-          {checkout.label}
-        </p>
+        <TableRow>
+          <TableCell colSpan={COLUMNS} className={`${BODY_CELL} pt-2`}>
+            <span className="block truncate text-xs text-muted-foreground" title={checkout.label}>
+              {checkout.label}
+            </span>
+          </TableCell>
+        </TableRow>
       )}
       {checkout.rowKeys.length > 0 ? null : (
-        <DetailRow
-          label={checkout.branch}
-          icon={<GitBranchIcon aria-hidden className="size-3.5" />}
-          mono
-        />
+        <TableRow>
+          <TableCell className={`${BODY_CELL} w-6`}>
+            <span className="flex size-4 items-center justify-center text-muted-foreground">
+              <GitBranchIcon role="img" aria-label="Branch" className="size-3.5" />
+            </span>
+          </TableCell>
+          <TableCell colSpan={COLUMNS - 1} className={`${BODY_CELL} max-w-0`}>
+            <span className="block truncate font-mono text-sm">{checkout.branch}</span>
+          </TableCell>
+        </TableRow>
       )}
     </>
   )
@@ -33,13 +46,14 @@ export function GithubSection() {
   const { pullRequests } = details
   const { checkouts, looseKeys, rows } = pullRequests
   if (checkouts.length === 0 && rows.length === 0) return null
-  const renderRows = (keys: readonly string[]) =>
+  const renderRows = (args: { keys: readonly string[]; branch?: string }) =>
     rows
-      .filter((row) => keys.includes(row.key))
+      .filter((row) => args.keys.includes(row.key))
       .map((row) => (
         <PullRequestRowItem
           key={row.key}
           row={row}
+          checkoutBranch={args.branch}
           bell={pullRequests.bells[row.key]}
           onToggleBell={pullRequests.handleToggle}
         />
@@ -47,13 +61,25 @@ export function GithubSection() {
 
   return (
     <DetailsSection title="GitHub" ref={pullRequests.observationRef}>
-      {checkouts.map((checkout) => (
-        <div key={checkout.key} className="flex flex-col gap-0.5">
-          <CheckoutBranch checkout={checkout} />
-          {renderRows(checkout.rowKeys)}
-        </div>
-      ))}
-      {renderRows(looseKeys)}
+      <Table>
+        <TableBody>
+          {checkouts.map((checkout) => (
+            <CheckoutGroup key={checkout.key} checkout={checkout}>
+              {renderRows({ keys: checkout.rowKeys, branch: checkout.branch })}
+            </CheckoutGroup>
+          ))}
+          {renderRows({ keys: looseKeys })}
+        </TableBody>
+      </Table>
     </DetailsSection>
+  )
+}
+
+function CheckoutGroup(props: { checkout: CheckoutView; children: ReactNode }) {
+  return (
+    <>
+      <CheckoutHead checkout={props.checkout} />
+      {props.children}
+    </>
   )
 }

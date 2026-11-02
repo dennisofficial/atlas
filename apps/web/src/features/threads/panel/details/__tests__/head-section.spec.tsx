@@ -7,7 +7,7 @@ import { EPodState, type PodStatus } from '@dltech/atlas-wire/web'
 
 import { ThreadPanelProvider, type ThreadPanelValue } from '../../thread-panel-context'
 import { EMPTY_DETAILS } from '../details-input'
-import { PodSection } from '../pod-section'
+import { HeadSection } from '../head-section'
 
 let root: Root
 let container: HTMLDivElement
@@ -26,21 +26,23 @@ afterEach(async () => {
 })
 
 async function renderWith(pod: PodStatus | null) {
-  const value: Pick<ThreadPanelValue, 'pod' | 'working' | 'details'> = {
+  const value: Pick<ThreadPanelValue, 'pod' | 'working' | 'details' | 'threadId' | 'channel'> = {
     pod,
     working: false,
+    threadId: 't',
+    channel: null,
     details: EMPTY_DETAILS,
   }
   await act(async () =>
     root.render(
       <ThreadPanelProvider value={value as ThreadPanelValue}>
-        <PodSection />
+        <HeadSection />
       </ThreadPanelProvider>,
     ),
   )
 }
 
-describe('PodSection', () => {
+describe('HeadSection pod', () => {
   it('says no pod yet before any pod exists', async () => {
     await renderWith(null)
     expect(container.textContent).toContain('No pod yet')
@@ -66,7 +68,7 @@ describe('PodSection', () => {
     expect(container.textContent).toContain('atlas-serve 1.94.2')
   })
 
-  it('shows no version line when the pod never reported one', async () => {
+  it('shows no version when the pod never reported one', async () => {
     await renderWith({
       state: EPodState.Parked,
       steps: [],

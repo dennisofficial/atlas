@@ -1,5 +1,6 @@
 'use client'
 
+import { Fragment } from 'react'
 import {
   BracesIcon,
   CircleIcon,
@@ -16,8 +17,15 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
 import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@dltech/atlas-ui/components/table'
 import type { DeclaredServiceStateWire, DeclaredServiceViewWire } from '@dltech/atlas-wire/web'
 
 import {
@@ -36,6 +44,9 @@ import type { ProcessesData } from '../../data/use-processes'
 import { ActionButton } from './action-button'
 import { AdhocServiceRows, type AdhocFold } from './processes-sections'
 import { DetailsSection } from './section'
+import { BODY_CELL, HEAD_CELL, MID_COLUMN, Mono, WIDE_COLUMN } from './table-parts'
+
+export const SERVICE_COLUMNS = 5
 
 function StateIcon({ state }: { state: DeclaredServiceStateWire }) {
   if (state === 'running') {
@@ -110,22 +121,36 @@ function ServiceRow(props: {
     if (target === EOpenTarget.Preview) preview?.onOpen(serviceId)
     else onOpenLog(serviceId)
   }
+  const hasLinks = service.links.length > 0 || service.url !== undefined
   return (
-    <DetailRow
-      mono
-      icon={<StateIcon state={state} />}
-      label={name}
-      meta={<TypeIcon service={service} />}
-      detail={
-        <>
+    <TableRow>
+      <TableCell className={`${BODY_CELL} w-6`}>
+        <span className="flex size-4 items-center justify-center text-muted-foreground">
+          <StateIcon state={state} />
+        </span>
+      </TableCell>
+      <TableCell className={`${BODY_CELL} w-full max-w-0 @[640px]:w-auto @[640px]:max-w-56`}>
+        <span className="block truncate font-mono text-sm" title={name}>
+          {name}
+        </span>
+        <span className="block truncate text-xs text-muted-foreground">
           {serviceStateLabelOf(state)}
           {reason === undefined ? null : ` · ${reason}`}
-          {service.links.length === 0 && service.url === undefined ? null : ' · '}
-          <ServiceLinks service={service} />
-        </>
-      }
-      actions={
-        <>
+        </span>
+      </TableCell>
+      <TableCell className={`${BODY_CELL} ${MID_COLUMN} text-right`}>
+        <Mono>{service.port ?? '—'}</Mono>
+      </TableCell>
+      <TableCell
+        className={`${BODY_CELL} ${WIDE_COLUMN} w-full max-w-0 text-xs text-muted-foreground`}
+      >
+        <span className="flex items-center gap-2 truncate">
+          <TypeIcon service={service} />
+          {hasLinks ? <ServiceLinks service={service} /> : null}
+        </span>
+      </TableCell>
+      <TableCell className={BODY_CELL}>
+        <span className="flex items-center justify-end gap-0.5">
           <ActionButton
             icon={SquareArrowOutUpRightIcon}
             label={`Open ${name}`}
@@ -165,18 +190,22 @@ function ServiceRow(props: {
               onAction={() => void data.handleStop({ name, serviceId })}
             />
           ) : null}
-        </>
-      }
-    />
+        </span>
+      </TableCell>
+    </TableRow>
   )
 }
 
-function WarningRow({ text }: { text: string }) {
+export function WarningRow({ text }: { text: string }) {
   return (
-    <DetailRow
-      icon={<TriangleAlertIcon aria-hidden className="size-3.5 text-warning" />}
-      label={<span className="text-xs whitespace-normal">{text}</span>}
-    />
+    <TableRow>
+      <TableCell colSpan={SERVICE_COLUMNS} className={BODY_CELL}>
+        <span className="flex items-start gap-2 text-xs">
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-3.5 shrink-0 text-warning" />
+          {text}
+        </span>
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -197,30 +226,47 @@ export function ServicesSection(props: {
 
   return (
     <DetailsSection title="Services" count={services.length + adhocShown}>
-      {services.map((service) => (
-        <div key={service.name} className="flex flex-col">
-          <ServiceRow
-            service={service}
-            data={props.data}
-            preview={props.preview}
-            onOpenLog={props.onOpenLog}
-          />
-          {error?.name === service.name ? <WarningRow text={error.reason} /> : null}
-        </div>
-      ))}
-      {rejections.map((rejection) => (
-        <WarningRow
-          key={`${rejection.name ?? 'file'}:${rejection.detail}`}
-          text={
-            rejection.name === undefined
-              ? rejection.detail
-              : `${rejection.name}: ${rejection.detail}`
-          }
-        />
-      ))}
-      {props.adhoc === undefined ? null : (
-        <AdhocServiceRows data={props.adhoc.data} fold={props.adhoc.fold} />
-      )}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className={HEAD_CELL}>
+              <span className="sr-only">Status</span>
+            </TableHead>
+            <TableHead className={HEAD_CELL}>Name</TableHead>
+            <TableHead className={`${HEAD_CELL} ${MID_COLUMN} text-right`}>Port</TableHead>
+            <TableHead className={`${HEAD_CELL} ${WIDE_COLUMN}`}>Links</TableHead>
+            <TableHead className={`${HEAD_CELL} text-right`}>
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {services.map((service) => (
+            <Fragment key={service.name}>
+              <ServiceRow
+                service={service}
+                data={props.data}
+                preview={props.preview}
+                onOpenLog={props.onOpenLog}
+              />
+              {error?.name === service.name ? <WarningRow text={error.reason} /> : null}
+            </Fragment>
+          ))}
+          {rejections.map((rejection) => (
+            <WarningRow
+              key={`${rejection.name ?? 'file'}:${rejection.detail}`}
+              text={
+                rejection.name === undefined
+                  ? rejection.detail
+                  : `${rejection.name}: ${rejection.detail}`
+              }
+            />
+          ))}
+          {props.adhoc === undefined ? null : (
+            <AdhocServiceRows data={props.adhoc.data} fold={props.adhoc.fold} />
+          )}
+        </TableBody>
+      </Table>
     </DetailsSection>
   )
 }
