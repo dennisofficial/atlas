@@ -131,6 +131,7 @@ describe('runtime session activity waiting', () => {
           shells: [
             {
               shellId: 'sh',
+              threadId,
               status: 'running',
             } as never,
           ],

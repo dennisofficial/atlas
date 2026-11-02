@@ -100,7 +100,7 @@ export function bindServeWriteBehind(args: {
       redelivery: args.redelivery,
       log,
       bindActivity: (threadId) =>
-        bindChildActivity({ threadId, channel: app.channel, remote, log }),
+        bindChildActivity({ threadId, channel: app.channel, roster: app.roster, remote, log }),
     })
     children.set(child.threadId, mirror)
     void mirror.flush()

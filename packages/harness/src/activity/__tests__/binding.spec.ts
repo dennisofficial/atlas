@@ -123,14 +123,18 @@ describe('thread activity binding', () => {
     const h = arrange()
     h.binding.tracker.turnStarted()
     h.change({
-      agents: [{ status: EAgentStatus.Running } as RosterWire['agents'][number]],
+      agents: [
+        { spawnedBy: threadId, status: EAgentStatus.Running } as RosterWire['agents'][number],
+      ],
       shells: [],
       services: [],
     })
     h.binding.tracker.turnEnded()
     expect(h.reports.at(-1)).toEqual({ working: true, awaiting: null })
     h.change({
-      agents: [{ status: EAgentStatus.Finished } as RosterWire['agents'][number]],
+      agents: [
+        { spawnedBy: threadId, status: EAgentStatus.Finished } as RosterWire['agents'][number],
+      ],
       shells: [],
       services: [],
     })
@@ -139,11 +143,38 @@ describe('thread activity binding', () => {
 
   it('ignores services, settled shells and non-running agents', () => {
     const h = arrange({
-      agents: [{ status: EAgentStatus.Paused } as RosterWire['agents'][number]],
-      shells: [{ status: EShellStatus.Exited } as RosterWire['shells'][number]],
+      agents: [
+        { spawnedBy: threadId, status: EAgentStatus.Paused } as RosterWire['agents'][number],
+      ],
+      shells: [{ threadId, status: EShellStatus.Exited } as RosterWire['shells'][number]],
       services: [{ status: 'running' } as RosterWire['services'][number]],
     })
     expect(h.reports).toEqual([])
+  })
+
+  it('counts only the agents and shells the thread owns', () => {
+    const teammate = toThreadId('teammate')
+    const h = arrange({
+      agents: [
+        { spawnedBy: teammate, status: EAgentStatus.Running } as RosterWire['agents'][number],
+      ],
+      shells: [
+        { threadId: teammate, status: EShellStatus.Running } as RosterWire['shells'][number],
+      ],
+      services: [],
+    })
+    expect(h.reports).toEqual([])
+    h.change({
+      agents: [
+        { spawnedBy: teammate, status: EAgentStatus.Running } as RosterWire['agents'][number],
+        { spawnedBy: threadId, status: EAgentStatus.Running } as RosterWire['agents'][number],
+      ],
+      shells: [
+        { threadId: teammate, status: EShellStatus.Running } as RosterWire['shells'][number],
+      ],
+      services: [],
+    })
+    expect(h.reports).toEqual([{ working: true, awaiting: null }])
   })
 
   it('leaves root lifecycle to the driver and filters input by thread', () => {
@@ -195,7 +226,7 @@ describe('thread activity binding', () => {
   it('subscribes and reads background before the queued initial approval refresh', async () => {
     const h = arrange({
       agents: [],
-      shells: [{ status: EShellStatus.Running } as RosterWire['shells'][number]],
+      shells: [{ threadId, status: EShellStatus.Running } as RosterWire['shells'][number]],
       services: [],
     })
     expect(h.order).toEqual(['channel', 'roster', 'snapshot'])

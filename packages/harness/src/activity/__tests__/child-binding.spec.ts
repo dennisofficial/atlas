@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { EStepEnd } from '@dltech/atlas-wire'
+import { EAgentStatus, EStepEnd, EShellStatus, type RosterWire } from '@dltech/atlas-wire'
 
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { bindChildThreadActivity, type ActivityReport } from '../index'
@@ -64,6 +64,48 @@ describe('child thread activity', () => {
     h.publisher.turnWorking({ working: true })
     h.publisher.operatorInput({ open: { requestId: 'late', description: 'Code', path: '/code' } })
     expect(h.reports).toHaveLength(2)
+  })
+
+  it('reports working from its own running sub-agent, never the lead’s', () => {
+    const lead = toThreadId('lead')
+    const reports: ActivityReport[] = []
+    const listeners = new Set<() => void>()
+    let current: RosterWire = {
+      agents: [{ spawnedBy: lead, status: EAgentStatus.Running } as RosterWire['agents'][number]],
+      shells: [{ threadId: lead, status: EShellStatus.Running } as RosterWire['shells'][number]],
+      services: [],
+    }
+    const channel = createDeltaChannel()
+    const binding = bindChildThreadActivity({
+      threadId,
+      channel,
+      roster: {
+        snapshot: () => current,
+        subscribe: (listener) => {
+          listeners.add(listener)
+          return () => {
+            listeners.delete(listener)
+          }
+        },
+      },
+      report: (state) => reports.push(state),
+    })
+    expect(reports).toEqual([])
+    current = {
+      agents: [
+        { spawnedBy: lead, status: EAgentStatus.Running } as RosterWire['agents'][number],
+        { spawnedBy: threadId, status: EAgentStatus.Running } as RosterWire['agents'][number],
+      ],
+      shells: [],
+      services: [],
+    }
+    for (const listener of listeners) listener()
+    expect(reports).toEqual([{ working: true, awaiting: null }])
+    binding.detach()
+    current = { agents: [], shells: [], services: [] }
+    for (const listener of listeners) listener()
+    expect(reports).toEqual([{ working: true, awaiting: null }])
+    expect(listeners.size).toBe(0)
   })
 
   it('reports working before completion and assigns the step outcome without emitting', () => {

@@ -149,7 +149,7 @@ export class RuntimeSessionActivity extends SessionActivityPort {
       const previous = state.report
       state.tracker.setApproval(outstandingApproval(events) !== undefined)
       state.tracker.setInput(input !== null)
-      state.tracker.setBackground(backgroundRunning(roster) || state.finalizing > 0)
+      state.tracker.setBackground(backgroundRunning({ threadId, roster }) || state.finalizing > 0)
       state.tracker.setWaiting(currentWaiting(events))
       if (
         previous.working !== state.report.working ||
