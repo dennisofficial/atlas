@@ -75,6 +75,10 @@ _Updated at the end of every slice. Last update: 2026-11-02._
   Measured since: `+memory` also delegates once the root is empty (`memory.max` contains a hog),
   `cgroup.kill` catches setsid escapees, and the split does not survive snapshot/resume, so it must
   be applied on every boot ([pod-saturation](research/pod-saturation.md) scenario 5).
+- **Design added 2026-11-02, read before specifying slices 3, 4, 6 and 7:** architecture §14
+  (archive is read-only and enforced by the CP; archived sandboxes are deleted after 7 days with no
+  unsaved-work guard; auto-archive after 72 h idle, pinned exempt; sandbox idle stop 5–10 min,
+  measured in slice 3). v1 gets the 7-day deletion now as a daily sweep.
 - **Design added 2026-11-02, read before specifying slices 1, 3, 4 and 5:** architecture §12 (a
   long thread, ~20k events, runs smoothly: ranged reads only, materialized current state, artifacts out of line,
   tail-first clients; evidence [log-scale](research/log-scale.md)) and §13 (the lease is liveness;
