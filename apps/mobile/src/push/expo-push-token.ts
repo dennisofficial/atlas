@@ -19,7 +19,7 @@ export const resolveProjectId = (): string | undefined =>
   Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined
 
 export const getExpoPushToken = async (): Promise<TPushTokenResult> => {
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+  if (Platform.OS !== 'ios') {
     return { status: 'skipped', reason: EPushSkipReason.NotNative }
   }
   if (!Device.isDevice) {
@@ -35,6 +35,5 @@ export const getExpoPushToken = async (): Promise<TPushTokenResult> => {
     return { status: 'skipped', reason: EPushSkipReason.PermissionDenied }
   }
   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId })
-  const platform = Platform.OS === 'ios' ? EPushPlatform.Ios : EPushPlatform.Android
-  return { status: 'ok', token, platform }
+  return { status: 'ok', token, platform: EPushPlatform.Ios }
 }
