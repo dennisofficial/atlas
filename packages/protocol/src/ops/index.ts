@@ -2,18 +2,21 @@ import { z } from 'zod'
 
 import { execEventSchemas, execOpSchemas, execResultSchemas } from './exec'
 import { filesEventSchemas, filesOpSchemas, filesResultSchemas } from './files'
+import { mcpEventSchemas, mcpOpSchemas, mcpResultSchemas } from './mcp'
 import { failedCallResultSchema } from './result'
 import { servicesEventSchemas, servicesOpSchemas, servicesResultSchemas } from './services'
 
 export const callOpSchema = z.discriminatedUnion('op', [
   ...execOpSchemas,
   ...filesOpSchemas,
+  ...mcpOpSchemas,
   ...servicesOpSchemas,
 ])
 
 export const okCallResultSchema = z.discriminatedUnion('op', [
   ...execResultSchemas,
   ...filesResultSchemas,
+  ...mcpResultSchemas,
   ...servicesResultSchemas,
 ])
 
@@ -22,6 +25,7 @@ export const callResultSchema = z.union([okCallResultSchema, failedCallResultSch
 export const daemonEventSchema = z.discriminatedUnion('type', [
   ...execEventSchemas,
   ...filesEventSchemas,
+  ...mcpEventSchemas,
   ...servicesEventSchemas,
 ])
 
@@ -35,5 +39,6 @@ export type DaemonEvent = z.infer<typeof daemonEventSchema>
 
 export * from './exec'
 export * from './files'
+export * from './mcp'
 export * from './result'
 export * from './services'

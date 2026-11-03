@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ECallFailure, EServiceRunStatus, type ServiceInfo } from '../../ops'
-import type { DaemonSession } from '../client'
+import { ECallFailure, EServiceRunStatus } from '../../ops'
 import {
   EPOCH,
   connectAt,
@@ -11,78 +10,15 @@ import {
   sleep,
   withDaemon,
   type DaemonConformanceTarget,
-  type DaemonHandle,
 } from './support'
-
-const freePort = async (): Promise<number> => {
-  const listener = Bun.listen({
-    hostname: '127.0.0.1',
-    port: 0,
-    socket: { data: () => {} },
-  })
-  const port = listener.port
-  listener.stop(true)
-  return port
-}
-
-const startOp = (args: {
-  serviceId: string
-  command: string
-  cwd: string
-  port?: number | undefined
-  readyTimeoutMs?: number | undefined
-}) => ({
-  op: 'services.start' as const,
-  serviceId: args.serviceId,
-  command: args.command,
-  cwd: args.cwd,
-  ...(args.port === undefined ? {} : { port: args.port }),
-  ...(args.readyTimeoutMs === undefined ? {} : { readyTimeoutMs: args.readyTimeoutMs }),
-})
-
-const eventFrame = (frame: { kind: string }, type: string, serviceId: string): boolean =>
-  frame.kind === 'event' &&
-  (frame as { kind: string; event?: { type: string; serviceId?: string } }).event?.type === type &&
-  (frame as { kind: string; event?: { serviceId?: string } }).event?.serviceId === serviceId
-
-const untilEvent = (args: {
-  session: DaemonSession
-  type: string
-  serviceId: string
-  timeoutMs?: number | undefined
-}) =>
-  args.session.until((frame) => eventFrame(frame, args.type, args.serviceId), {
-    label: `${args.type} ${args.serviceId}`,
-    ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
-  })
-
-const httpListener = (port: number): string =>
-  `bun -e "Bun.serve({ port: ${port}, fetch: () => new Response('ok') }); console.log('serving')" 2>&1`
-
-const startAndReady = async (args: {
-  handle: DaemonHandle
-  serviceId: string
-  port?: number | undefined
-  timeoutMs?: number | undefined
-}): Promise<{ session: DaemonSession; info: ServiceInfo }> => {
-  const session = await connectAt({ handle: args.handle })
-  const port = args.port ?? (args.handle.realProcesses ? await freePort() : 9999)
-  const result = await runToEnd({
-    session,
-    key: `s-start-${args.serviceId}`,
-    op: startOp({
-      serviceId: args.serviceId,
-      command: args.handle.realProcesses ? httpListener(port) : `echo serving; listen ${port}`,
-      cwd: '/',
-      port,
-    }),
-    timeoutMs: args.timeoutMs ?? 15_000,
-  })
-  const info = okValue({ result, op: 'services.start' })
-  expect(info.status).toBe(EServiceRunStatus.Ready)
-  await untilEvent({ session, type: 'services.ready', serviceId: args.serviceId })
-  return { session, info }
-}
+import {
+  eventFrame,
+  freePort,
+  httpListener,
+  startAndReady,
+  startOp,
+  untilEvent,
+} from './services-support'
 
 export const describeServicesConformance = (target: DaemonConformanceTarget): void => {
   describe(`services conformance (${target.name})`, () => {
@@ -128,12 +64,7 @@ export const describeServicesConformance = (target: DaemonConformanceTarget): vo
         const started = await runToEnd({
           session,
           key: 's-tree-start',
-          op: startOp({
-            serviceId: 'svc-tree',
-            command,
-            cwd: '/',
-            port,
-          }),
+          op: startOp({ serviceId: 'svc-tree', command, cwd: '/', port }),
           timeoutMs: 15_000,
         })
         const info = okValue({ result: started, op: 'services.start' })
@@ -162,11 +93,7 @@ export const describeServicesConformance = (target: DaemonConformanceTarget): vo
           const started = await runToEnd({
             session,
             key: 's-exit-start',
-            op: startOp({
-              serviceId: 'svc-c',
-              command: handle.realProcesses ? 'echo hi; exit 7' : 'echo hi; exit 7',
-              cwd: '/',
-            }),
+            op: startOp({ serviceId: 'svc-c', command: 'echo hi; exit 7', cwd: '/' }),
             timeoutMs: 10_000,
           })
           const info = okValue({ result: started, op: 'services.start' })
@@ -189,7 +116,7 @@ export const describeServicesConformance = (target: DaemonConformanceTarget): vo
             key: 's-timeout-start',
             op: startOp({
               serviceId: 'svc-d',
-              command: handle.realProcesses ? 'sleep 60' : 'sleep 60',
+              command: 'sleep 60',
               cwd: '/',
               port,
               readyTimeoutMs: 400,
@@ -226,12 +153,7 @@ export const describeServicesConformance = (target: DaemonConformanceTarget): vo
           const second = await runToEnd({
             session,
             key: 's-log-2',
-            op: {
-              op: 'services.log',
-              serviceId: 'svc-log',
-              offset: bytes1.length,
-              limit: 1000,
-            },
+            op: { op: 'services.log', serviceId: 'svc-log', offset: bytes1.length, limit: 1000 },
           })
           const page2 = okValue({ result: second, op: 'services.log' })
           expect(page2.totalBytes).toBe(page1.totalBytes)
@@ -332,11 +254,7 @@ export const describeServicesConformance = (target: DaemonConformanceTarget): vo
           const result = await runToEnd({
             session,
             key: 's-noport',
-            op: startOp({
-              serviceId: 'svc-noport',
-              command: handle.realProcesses ? 'sleep 30' : 'sleep 30',
-              cwd: '/',
-            }),
+            op: startOp({ serviceId: 'svc-noport', command: 'sleep 30', cwd: '/' }),
             timeoutMs: 10_000,
           })
           const info = okValue({ result, op: 'services.start' })
