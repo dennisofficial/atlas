@@ -33,7 +33,7 @@ import {
   SidebarProvider,
 } from '@dltech/atlas-ui/components/sidebar'
 
-import { SETTINGS_NAV, filterNav, hrefOfPage } from './settings-nav'
+import { SETTINGS_NAV, filterNav, hrefOfPage, settingsPageOfPath } from './settings-nav'
 
 const HELP_LINKS = [
   { label: 'Docs', icon: BookOpenIcon },
@@ -112,7 +112,7 @@ function SettingsNav() {
                   <SidebarMenuItem key={item.page}>
                     <SidebarMenuButton
                       size="sm"
-                      isActive={pathname === hrefOfPage(item.page)}
+                      isActive={settingsPageOfPath(pathname) === item.page}
                       render={<Link href={hrefOfPage(item.page)} />}
                     >
                       <item.icon />

@@ -8,6 +8,7 @@ import {
   PlugIcon,
   ServerIcon,
   ShieldCheckIcon,
+  SparklesIcon,
   UserIcon,
   VariableIcon,
   WrenchIcon,
@@ -20,6 +21,7 @@ export enum ESettingsPage {
   UsageSandboxes = 'usage-sandboxes',
   Instructions = 'instructions',
   Memory = 'memory',
+  Skills = 'skills',
   ModelsEffort = 'models-effort',
   Providers = 'providers',
   Secrets = 'secrets',
@@ -58,6 +60,7 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
     items: [
       { page: ESettingsPage.Instructions, label: 'Instructions', icon: BookOpenTextIcon },
       { page: ESettingsPage.Memory, label: 'Memory', icon: BrainIcon },
+      { page: ESettingsPage.Skills, label: 'Skills', icon: SparklesIcon },
       { page: ESettingsPage.ModelsEffort, label: 'Models & Effort', icon: GaugeIcon },
       { page: ESettingsPage.Providers, label: 'Providers', icon: BotIcon },
       { page: ESettingsPage.Agent, label: 'Agent', icon: WrenchIcon },
@@ -105,6 +108,9 @@ const SETTINGS_PREFIX = '/settings/'
 export function settingsPageOfPath(pathname: string | null): ESettingsPage | null {
   if (!pathname?.startsWith(SETTINGS_PREFIX)) return null
   const segment = pathname.slice(SETTINGS_PREFIX.length)
+  if (segment === ESettingsPage.Skills || segment.startsWith(`${ESettingsPage.Skills}/`)) {
+    return ESettingsPage.Skills
+  }
   return Object.values(ESettingsPage).find((page) => page === segment) ?? null
 }
 

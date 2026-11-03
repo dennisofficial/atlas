@@ -4,6 +4,12 @@ export interface ProtoSample {
 }
 
 export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
+  '/settings/skills/[skillId]': [
+    { label: 'Global skill', path: '/settings/skills/global:ui-design' },
+    { label: 'Repo skill (read-only)', path: '/settings/skills/repo:tdd' },
+    { label: 'Built-in (read-only)', path: '/settings/skills/builtin:commit' },
+    { label: 'Shadowed (global code-review)', path: '/settings/skills/global:code-review' },
+  ],
   '/threads/[threadId]': [
     { label: 'Session', path: '/threads/thr-ui-rebase' },
     { label: 'Other thread', path: '/threads/thr-snapshots' },
