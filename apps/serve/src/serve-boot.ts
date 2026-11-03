@@ -159,6 +159,7 @@ export async function bootServeFiles(args: {
           ? null
           : cwd,
       homeDir: env.HOME ?? homedir(),
+      atlasHomeDir: atlasHome,
     },
   })
   const settingsStartedAt = Date.now()

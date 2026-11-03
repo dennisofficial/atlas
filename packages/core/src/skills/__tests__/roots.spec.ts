@@ -12,7 +12,7 @@ const plan = () =>
   })
 
 describe('skillRootPlan', () => {
-  it('plans user roots before project roots', () => {
+  it('plans user roots, then project roots, then the cloud project root', () => {
     expect(plan().map((root) => root.directory)).toEqual([
       '/home/dennis/.atlas/skills',
       '/home/dennis/.agents/skills',
@@ -20,6 +20,7 @@ describe('skillRootPlan', () => {
       '/work/atlas/.atlas/skills',
       '/work/atlas/.agents/skills',
       '/work/atlas/.claude/skills',
+      '/home/dennis/.atlas/project-skills',
     ])
   })
 
@@ -28,6 +29,7 @@ describe('skillRootPlan', () => {
       EDefinitionOrigin.User,
       EDefinitionOrigin.User,
       EDefinitionOrigin.User,
+      EDefinitionOrigin.Project,
       EDefinitionOrigin.Project,
       EDefinitionOrigin.Project,
       EDefinitionOrigin.Project,
@@ -42,7 +44,16 @@ describe('skillRootPlan', () => {
       ESkillRootFlavour.Atlas,
       ESkillRootFlavour.Agents,
       ESkillRootFlavour.Claude,
+      ESkillRootFlavour.Atlas,
     ])
+  })
+
+  it('plans the cloud project root after the cwd roots so repo skills win same-origin ties', () => {
+    const roots = plan()
+    const repo = roots.findIndex((root) => root.directory === '/work/atlas/.atlas/skills')
+    const cloud = roots.findIndex((root) => root.directory === '/home/dennis/.atlas/project-skills')
+    expect(repo).toBeGreaterThanOrEqual(0)
+    expect(cloud).toBeGreaterThan(repo)
   })
 
   it('honours an atlas home that is not under the user home', () => {
@@ -71,6 +82,7 @@ describe('skillRootPlan', () => {
       '/work/atlas/.atlas/skills',
       '/work/atlas/.agents/skills',
       '/work/atlas/.claude/skills',
+      '/home/dennis/.atlas/project-skills',
     ])
   })
 })

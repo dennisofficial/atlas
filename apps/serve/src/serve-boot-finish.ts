@@ -76,6 +76,7 @@ export async function finishServeBoot(args: {
   }
 
   refreshCloudState.bindSettings(app.settings)
+  refreshCloudState.bindSkills(app.skillRegistry)
 
   const buffer = createFrameBuffer({ capacity: serveArgs.bufferSize ?? DEFAULT_FRAME_BUFFER })
   const settling = { count: 0 },

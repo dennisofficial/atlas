@@ -222,6 +222,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     },
     titling: app.titling,
     expandContext: skillExpander({ skillRegistry: app.skillRegistry }),
+    skillRegistry: app.skillRegistry,
     commands: {
       skills: async ({ reload }) => {
         const skills = reload ? await app.skillRegistry.reload() : app.skillRegistry.all()

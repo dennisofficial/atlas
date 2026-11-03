@@ -1,4 +1,4 @@
-import { readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
@@ -9,7 +9,13 @@ import { createCloudStateRefresh } from '../cloud-state-refresh'
 import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { cleanupCloudState, tempHome } from './cloud-state-harness'
 import { EAuthProvider } from '@dltech/atlas-core'
-import { apiKeyAccount, SERVE_TOKEN, startFakeCloud, type FakeCloud } from './cloud-state-fixture'
+import {
+  apiKeyAccount,
+  SERVE_TOKEN,
+  startFakeCloud,
+  type FakeCloud,
+  type FakeCloudState,
+} from './cloud-state-fixture'
 
 afterEach(cleanupCloudState)
 
@@ -19,6 +25,15 @@ const configWith = (width: number) => ({
   harnessSecrets: [],
   mcpServers: [],
   provenance: {},
+})
+
+const emptyConfig = () => ({
+  settings: {},
+  secrets: [],
+  harnessSecrets: [],
+  mcpServers: [],
+  provenance: {},
+  fileMounts: [],
 })
 
 const rig = (options: { secrets?: unknown[] } = {}) => {
@@ -166,6 +181,77 @@ describe('per-turn Cloud refresh', () => {
     expect(env.DATABASE_URL).toBeUndefined()
     expect(env.INHERITED).toBe('from-image')
     expect(refresh.exportedEnvNames()).toEqual([])
+    await cloud.stop()
+  })
+
+  it('reloads the bound skill registry when the config changes', async () => {
+    const home = tempHome()
+    const state: FakeCloudState = {
+      lease: { accounts: [], active: [] },
+      settings: [],
+      secrets: [],
+      harnessSecrets: [],
+      config: emptyConfig(),
+    }
+    const cloud = startFakeCloud(state)
+    let reloads = 0
+    const refresh = createCloudStateRefresh({
+      atlasHome: home,
+      controlPlaneUrl: cloud.url,
+      token: SERVE_TOKEN,
+      clientVersion: '0.0.0-test',
+      fetchFn: fetch,
+      log: () => undefined,
+      sleep: async () => undefined,
+    })
+    refresh.bindSkills({
+      all: () => [],
+      byName: () => undefined,
+      reload: async () => {
+        reloads += 1
+        return []
+      },
+    })
+
+    await refresh.boot()
+    state.config = { ...emptyConfig(), settings: { changed: '1' } }
+    await refresh.refresh()
+
+    expect(reloads).toBe(2)
+    await cloud.stop()
+  })
+
+  it('sweeps a bundle-installed skill the cloud no longer carries', async () => {
+    const atlasHome = tempHome()
+    const cloud = startFakeCloud({
+      lease: { accounts: [], active: [] },
+      settings: [],
+      secrets: [],
+      harnessSecrets: [],
+      config: emptyConfig(),
+    })
+    const refresh = createCloudStateRefresh({
+      atlasHome,
+      controlPlaneUrl: cloud.url,
+      token: SERVE_TOKEN,
+      clientVersion: '0.0.0-test',
+      fetchFn: fetch,
+      log: () => undefined,
+      sleep: async () => undefined,
+      fileMountRoots: {
+        repositoryDir: null,
+        homeDir: tempHome(),
+        atlasHomeDir: atlasHome,
+      },
+    })
+    const bundleSkill = join(atlasHome, 'skills', 'bundle-only', 'SKILL.md')
+    mkdirSync(join(atlasHome, 'skills', 'bundle-only'), { recursive: true })
+    writeFileSync(bundleSkill, '# stale bundle skill')
+
+    await refresh.boot()
+
+    expect(existsSync(bundleSkill)).toBe(false)
+    expect(existsSync(join(atlasHome, 'skills'))).toBe(true)
     await cloud.stop()
   })
 })

@@ -19,6 +19,7 @@ import type {
 import type {
   AgentRegistryPort,
   ExpandContext,
+  SkillRegistryPort,
   SubscriptionRegistryPort,
   DeltaChannel,
   OperatorInputPort,
@@ -241,6 +242,8 @@ export type ServeApp = {
   prStates?: ServePrStates | undefined
   subscriptions?: ServeSubscriptions | undefined
   commands?: ServeCommands | undefined
+  /** The live skill registry; absent in fakes, where no skill roots exist to reload. */
+  skillRegistry?: SkillRegistryPort | undefined
   mcp?: ServeMcp | undefined
   expandContext?: ExpandContext | undefined
   /** Absent in a fake without registries: a drain pause halts the parent's turn only. */

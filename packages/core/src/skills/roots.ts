@@ -12,6 +12,10 @@ export type SkillRoot = {
   flavour: ESkillRootFlavour
 }
 
+export const CLOUD_PROJECT_SKILLS_DIRECTORY_NAME = 'project-skills'
+
+export const cloudProjectRootName = (directoryName: string): string => `project-${directoryName}`
+
 const SEPARATOR = '/'
 
 const FLAVOUR_ORDER: readonly ESkillRootFlavour[] = [
@@ -43,6 +47,8 @@ export function skillRootPlan(args: {
       ? args.atlasHome
       : under({ directory: args.home, name: flavour })
 
+  // The cloud project root must iterate after the cwd roots: resolveShadowing keeps the first of
+  // two same-origin definitions, so placing it earlier would let cloud skills shadow repo skills.
   return [
     ...FLAVOUR_ORDER.map((flavour) => ({
       directory: named(userDirectoryOf(flavour)),
@@ -54,5 +60,13 @@ export function skillRootPlan(args: {
       origin: EDefinitionOrigin.Project,
       flavour,
     })),
+    {
+      directory: under({
+        directory: args.atlasHome,
+        name: `project-${args.skillsDirectoryName}`,
+      }),
+      origin: EDefinitionOrigin.Project,
+      flavour: ESkillRootFlavour.Atlas,
+    },
   ]
 }
