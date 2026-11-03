@@ -22,6 +22,7 @@ import {
   SecretCipher,
   type VaultFile,
 } from '@dltech/atlas-harness'
+import type { ScopedMcpServer } from '@dltech/atlas-wire/web'
 
 import { fetchCloudState, type CloudStateFetched } from './cloud-state-fetch'
 import { exportEnvSecrets, mergeCloudMcpServers } from './cloud-config'
@@ -108,6 +109,7 @@ const writeSettings = (args: {
 export type CloudStateSeen = {
   lease?: string | undefined
   config?: string | undefined
+  mcpServers?: readonly ScopedMcpServer[] | undefined
   exported: Set<string>
 }
 
@@ -179,6 +181,7 @@ export const applyCloudState = async (args: {
     if (args.seen !== undefined) {
       args.seen.lease = leaseFingerprint
       args.seen.config = configFingerprint
+      args.seen.mcpServers = config.mcpServers
     }
     args.onConfigWritten?.()
     const mounted =

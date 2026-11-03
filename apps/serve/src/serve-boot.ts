@@ -201,6 +201,7 @@ export async function bootServeFiles(args: {
           projectDirectory: cwd,
           prefetched: prefetchedBundle,
         })
+        refreshCloudState.remergeMcpServers()
         await applyCloudInstructions({ ...context, prefetched: prefetchedInstructions })
       },
     })
