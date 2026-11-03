@@ -40,6 +40,20 @@ describe('contextUsageOf', () => {
     })
   })
 
+  it('measures against the window the call ran in, not the picker', () => {
+    const events = eventsFrom([
+      {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'ok' }],
+        usage: { inputTokens: 40_000, outputTokens: 2_000, contextWindow: 1_000_000 },
+      },
+    ])
+    expect(contextUsageOf({ events, selectedId: 'anthropic/opus', models })).toEqual({
+      used: 42_000,
+      limit: 1_000_000,
+    })
+  })
+
   it('falls back to the event estimate before any step reported', () => {
     expect(contextUsageOf({ events: [], selectedId: 'anthropic/opus', models })).toEqual({
       used: 0,

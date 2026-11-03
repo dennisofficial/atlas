@@ -12,6 +12,7 @@ export const stepUsageSchema = z.object({
   outputTokens: z.number(),
   cacheReadTokens: z.number().optional(),
   cacheWriteTokens: z.number().optional(),
+  contextWindow: z.number().int().positive().optional(),
 })
 
 export const assistantPartSchema = z.discriminatedUnion('type', [
