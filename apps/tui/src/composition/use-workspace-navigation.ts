@@ -132,12 +132,7 @@ export function useWorkspaceNavigation(args: {
         return
       }
 
-      if (verb === ERewindVerb.SummariseUpTo) {
-        conversation.handleCompactAround({ anchor: ECompactionAnchor.Prefix, seq: point.seq - 1 })
-        return
-      }
-
-      conversation.handleCompactAround({ anchor: ECompactionAnchor.Suffix, seq: point.seq })
+      conversation.handleCompactAround({ anchor: ECompactionAnchor.Prefix, seq: point.seq - 1 })
     },
     [conversation, tokens, handleOpenThread, props.app.log, props.app.threads],
   )

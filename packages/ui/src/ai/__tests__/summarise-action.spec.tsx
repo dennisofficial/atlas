@@ -14,39 +14,25 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-const openMenu = async (node: React.ReactNode): Promise<HTMLElement[]> => {
-  const { createRoot } = await import('react-dom/client')
-  const container = document.createElement('div')
-  document.body.append(container)
-  await act(async () => createRoot(container).render(node))
-  await act(async () =>
-    document.body.querySelector<HTMLElement>('button[aria-label="Summarise"]')?.click(),
-  )
-  return [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
-}
-
 describe('UserMessage summarise action', () => {
-  it('offers only the directions it was given and runs the picked one', async () => {
+  it('runs summarise up to here straight from its button', async () => {
+    const { createRoot } = await import('react-dom/client')
     const picked: string[] = []
-    const items = await openMenu(
-      <UserMessage onSummariseUpTo={() => void picked.push('up-to')}>Earlier</UserMessage>,
+    const container = document.createElement('div')
+    document.body.append(container)
+    await act(async () =>
+      createRoot(container).render(
+        <UserMessage onSummariseUpTo={() => void picked.push('up-to')}>Earlier</UserMessage>,
+      ),
     )
 
-    expect(items.map((item) => item.textContent)).toEqual(['Summarise up to here'])
-    await act(async () => items[0]?.click())
+    await act(async () =>
+      document.body
+        .querySelector<HTMLElement>('button[aria-label="Summarise up to here"]')
+        ?.click(),
+    )
+
     expect(picked).toEqual(['up-to'])
-  })
-
-  it('lists up-to before from', async () => {
-    const items = await openMenu(
-      <UserMessage onSummariseUpTo={() => undefined} onSummariseFrom={() => undefined}>
-        Middle
-      </UserMessage>,
-    )
-
-    expect(items.map((item) => item.textContent)).toEqual([
-      'Summarise up to here',
-      'Summarise from here',
-    ])
+    expect(document.body.querySelectorAll('[role="menuitem"]')).toHaveLength(0)
   })
 })

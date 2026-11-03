@@ -1,9 +1,4 @@
-import {
-  ECompactionAnchor,
-  summariseReach,
-  type SummarisePoint,
-  type SummariseReach,
-} from '@dltech/atlas-core'
+import type { SummariseReach } from '@dltech/atlas-core'
 import {
   EClientRequest,
   type EClientRequest as ClientRequestOp,
@@ -29,9 +24,8 @@ export type SummariseDecision =
   | { kind: ESummariseDecision.Ignore }
 
 export function decideSummarise(args: {
-  points: ReadonlyMap<string, SummarisePoint>
+  points: ReadonlyMap<string, SummariseReach>
   eventId: string
-  anchor: ECompactionAnchor
   live: boolean
   working: boolean
   running: boolean
@@ -39,9 +33,8 @@ export function decideSummarise(args: {
   if (args.running) return { kind: ESummariseDecision.Warn, message: SUMMARISE_ALREADY_RUNNING }
   if (args.working) return { kind: ESummariseDecision.Warn, message: SUMMARISE_WAITS_FOR_TURN }
   if (!args.live) return { kind: ESummariseDecision.Warn, message: SUMMARISE_NEEDS_SANDBOX }
-  const point = args.points.get(args.eventId)
-  const pick = point === undefined ? null : summariseReach({ point, anchor: args.anchor })
-  if (pick === null) return { kind: ESummariseDecision.Ignore }
+  const pick = args.points.get(args.eventId)
+  if (pick === undefined) return { kind: ESummariseDecision.Ignore }
   return { kind: ESummariseDecision.Confirm, pick }
 }
 
@@ -51,22 +44,11 @@ const plural = (args: { count: number; noun: string }): string =>
 export type SummariseCopy = { title: string; description: string }
 
 export function summariseCopyOf(pick: SummariseReach): SummariseCopy {
-  const gone =
-    'Their rows leave the transcript and can no longer be rewound to. Files are left as they are.'
-  if (pick.anchor === ECompactionAnchor.Prefix) {
-    return {
-      title: 'Summarise everything before this message?',
-      description: `The ${plural({ count: pick.messages, noun: 'earlier message' })} and every reply become one summary. ${gone}`,
-    }
-  }
   return {
-    title: 'Summarise from this message on?',
-    description: `This message, ${plural({ count: pick.messages - 1, noun: 'later message' })} and every reply become one summary. ${gone}`,
+    title: 'Summarise everything before this message?',
+    description: `The ${plural({ count: pick.messages, noun: 'earlier message' })} and every reply become one summary. Their rows leave the transcript and can no longer be rewound to. Files are left as they are.`,
   }
 }
-
-const anchorToWire = (anchor: ECompactionAnchor): EWireCompactionAnchor =>
-  anchor === ECompactionAnchor.Suffix ? EWireCompactionAnchor.Suffix : EWireCompactionAnchor.Prefix
 
 export async function requestSummarise(args: {
   request: (call: { op: ClientRequestOp; params: unknown }) => Promise<unknown>
@@ -80,8 +62,8 @@ export async function requestSummarise(args: {
       params: {
         threadId: args.threadId,
         operationId: args.operationId,
-        anchor: anchorToWire(args.pick.anchor),
-        seq: args.pick.seq,
+        anchor: EWireCompactionAnchor.Prefix,
+        seq: args.pick.throughSeq,
       },
     }),
   )

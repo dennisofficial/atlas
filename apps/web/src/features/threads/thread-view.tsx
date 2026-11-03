@@ -32,6 +32,7 @@ import { usePodStatus } from './data/use-pod-status'
 import { useSessionFamily } from '@/features/shell/use-session-family'
 import { usePullRequests } from './data/use-pull-requests'
 import { useRewind } from './data/use-rewind'
+import { composerPlaceholderOf } from './data/composer-placeholder'
 import { useSummarise } from './data/use-summarise'
 import { useMarkRead } from './data/use-mark-read'
 import { useThreadMetadata } from './data/use-thread-metadata'
@@ -56,7 +57,6 @@ import { ThreadMissing } from './thread-missing'
 import { ThreadTranscript } from './thread-transcript'
 
 const NOT_FOUND = 404
-const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…'
 
 export function ThreadView({ threadId }: { threadId: string }) {
   const backend = useThreadBackend()
@@ -273,7 +273,11 @@ export function ThreadView({ threadId }: { threadId: string }) {
                   onStop={handleStop}
                   {...images.composerProps}
                   commandSpecs={commands.specs}
-                  placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
+                  placeholder={composerPlaceholderOf({
+                    summarising: summarise.summarising,
+                    starting,
+                    idle: dock.placeholder,
+                  })}
                 />
               }
             >

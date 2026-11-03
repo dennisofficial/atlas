@@ -3,8 +3,6 @@
 import { memo } from 'react'
 import { ZapIcon } from 'lucide-react'
 
-import { ECompactionAnchor } from '@dltech/atlas-core'
-
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/message-images'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
@@ -46,20 +44,13 @@ export type TranscriptActions = {
 
 const AGENT_AUTHOR = 'Atlas'
 
-function summariseHandlersOf(args: { summarise: TranscriptSummarise | null; eventId: string }): {
-  onSummariseUpTo: (() => void) | undefined
-  onSummariseFrom: (() => void) | undefined
-} {
+function summariseHandlerOf(args: {
+  summarise: TranscriptSummarise | null
+  eventId: string
+}): (() => void) | undefined {
   const { summarise, eventId } = args
-  const point = summarise?.points.get(eventId)
-  if (summarise === null || point === undefined) {
-    return { onSummariseUpTo: undefined, onSummariseFrom: undefined }
-  }
-  const handlerFor = (anchor: ECompactionAnchor) => () => summarise.onSummarise({ eventId, anchor })
-  return {
-    onSummariseUpTo: point.upTo === null ? undefined : handlerFor(ECompactionAnchor.Prefix),
-    onSummariseFrom: point.from === null ? undefined : handlerFor(ECompactionAnchor.Suffix),
-  }
+  if (summarise === null || !summarise.points.has(eventId)) return undefined
+  return () => summarise.onSummarise(eventId)
 }
 
 function WorkItemView({
@@ -231,7 +222,10 @@ function TurnViewBody({
                     text: turn.item.text,
                   })
           }
-          {...summariseHandlersOf({ summarise: actions.summarise, eventId: turn.item.id })}
+          onSummariseUpTo={summariseHandlerOf({
+            summarise: actions.summarise,
+            eventId: turn.item.id,
+          })}
         >
           {turn.item.text.trim().length === 0 ? undefined : (
             <TranscriptMarkdown>{turn.item.text}</TranscriptMarkdown>
