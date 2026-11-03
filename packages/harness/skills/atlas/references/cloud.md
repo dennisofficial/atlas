@@ -57,7 +57,9 @@ There are no `/lift`, `/descend`, park, or wake commands.
 
 A cloud-born thread's sandbox pulls everything from Atlas Cloud and nothing from the local machine:
 the Project to clone, accounts (OAuth ones without refresh tokens), secrets, settings, the Cloud
-instructions and MCP rows, and the latest bundle published with `atlas push`. Settings are pulled
+instructions, the Cloud account and project MCP rows, and the latest bundle published with
+`atlas push` (skills and `ATLAS.md` only; it never carries MCP config). A sandbox's MCP servers are
+the Cloud account and project rows plus the repo's own `.atlas/mcp.json` and `.mcp.json`. Settings are pulled
 again before each turn, so a change in Cloud applies on the next turn; a client never pushes
 settings into a sandbox. MCP changes apply on the next sandbox start, since servers connect at
 boot. Provider OAuth and MCP OAuth have the restrictions below. The workspace is cloned fresh in

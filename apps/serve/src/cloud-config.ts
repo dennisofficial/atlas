@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { ATLAS_MCP_FILE_NAME } from '@dltech/atlas-harness'
@@ -22,30 +21,15 @@ export type CloudConfig = {
   fileMounts: readonly ScopedFileMount[]
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-const existingServersAt = (file: string): Record<string, unknown> => {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(readFileSync(file, 'utf8'))
-  } catch {
-    return {}
-  }
-  if (!isRecord(parsed)) return {}
-  const wrapped = parsed.mcpServers
-  return isRecord(wrapped) ? { ...wrapped } : { ...parsed }
-}
-
-export const mergeCloudMcpServers = (args: {
+export const writeCloudMcpServers = (args: {
   atlasHome: string
   servers: readonly ScopedMcpServer[]
 }): void => {
-  if (args.servers.length === 0) return
-  const file = join(args.atlasHome, ATLAS_MCP_FILE_NAME)
-  const servers = existingServersAt(file)
-  for (const server of args.servers) servers[server.name] = server.spec
-  writeAtomically({ path: file, content: `${JSON.stringify({ mcpServers: servers }, null, 2)}\n` })
+  const servers = Object.fromEntries(args.servers.map((server) => [server.name, server.spec]))
+  writeAtomically({
+    path: join(args.atlasHome, ATLAS_MCP_FILE_NAME),
+    content: `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`,
+  })
 }
 
 export const exportEnvSecrets = (args: {

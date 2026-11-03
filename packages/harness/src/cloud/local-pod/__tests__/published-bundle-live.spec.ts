@@ -147,7 +147,7 @@ describeDocker('serve applies the published bundle inside a live pod', () => {
                 version: 1,
                 sha256,
                 sizeBytes: tarball.byteLength,
-                manifest: { skills: ['.agents/live-pushed'], instructions: [], mcp: false },
+                manifest: { skills: ['.agents/live-pushed'], instructions: [] },
                 createdAt: new Date().toISOString(),
                 downloadUrl: `${hostOrigin}${BLOB_PATH}`,
               },

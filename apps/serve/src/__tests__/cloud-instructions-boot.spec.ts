@@ -65,7 +65,7 @@ const cloudFetch = (args: { bundle: Buffer; stored: StoredRow }): typeof fetch =
         version: 1,
         sha256: createHash('sha256').update(args.bundle).digest('hex'),
         sizeBytes: args.bundle.byteLength,
-        manifest: { skills: [], instructions: ['ATLAS.md'], mcp: false },
+        manifest: { skills: [], instructions: ['ATLAS.md'] },
         createdAt: '2026-10-20T00:00:00.000Z',
         downloadUrl: BLOB_URL,
       })

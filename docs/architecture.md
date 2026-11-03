@@ -1506,8 +1506,8 @@ local checkout cannot leak into the cloud. Portable state (`local-state.json`) c
 accounts, secrets, `settings.json`, and `mcp.json`, staged in the sandbox and installed into the
 sandbox's Atlas home before serve composes. The OAuth handoff rides the Cloud API as before.
 Portable state and the context archive are deleted: a pod now pulls its accounts, settings and
-secrets from Atlas Cloud at boot, and its skills, instructions and MCP config from the
-`atlas push` bundle ([pods](pods.md)). There is no transcript at birth — the thread's history
+secrets from Atlas Cloud at boot, its MCP servers from the Cloud account and project MCP
+rows plus the repository, and its skills and instructions from the `atlas push` bundle ([pods](pods.md)). There is no transcript at birth — the thread's history
 starts in the sandbox.
 
 A birth that cannot finish — the credentials missing, the sandbox refusing, the attach failing —

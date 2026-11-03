@@ -50,7 +50,7 @@ const currentOf = (args: { bytes: Buffer; sha256?: string }): PublishedBundleCur
   version: 3,
   sha256: args.sha256 ?? sha256Of(args.bytes),
   sizeBytes: args.bytes.byteLength,
-  manifest: { skills: ['.agents/x'], instructions: ['ATLAS.md'], mcp: true },
+  manifest: { skills: ['.agents/x'], instructions: ['ATLAS.md'] },
   createdAt: '2026-10-20T00:00:00.000Z',
   downloadUrl: BLOB_URL,
 })
@@ -81,7 +81,7 @@ const fullBundle = () =>
   })
 
 describe('applyPublishedBundle', () => {
-  it('writes skills, instructions and mcp config and drops memory', async () => {
+  it('writes skills and instructions and drops mcp config and memory', async () => {
     const bytes = await fullBundle()
     const requests: Request[] = []
     const fetchFn = asFetch((request) => {
@@ -94,10 +94,9 @@ describe('applyPublishedBundle', () => {
     expect(Object.fromEntries(written)).toEqual({
       [join(ATLAS_HOME, '.agents/skills/x/SKILL.md')]: 'skill body',
       [join(ATLAS_HOME, 'ATLAS.md')]: 'global instructions',
-      [join(ATLAS_HOME, 'mcp.json')]: '{"servers":{}}',
     })
     expect(lines.map((line) => line.event)).toEqual([EServeEvent.BundleReady])
-    expect(lines[0]).toMatchObject({ version: 3, written: 3 })
+    expect(lines[0]).toMatchObject({ version: 3, written: 2 })
 
     const api = requests.find((request) => request.url !== BLOB_URL)
     expect(new URL(api?.url ?? '').pathname).toBe('/v1/trpc/publishedBundles.current')
@@ -171,7 +170,7 @@ describe('applyPublishedBundle', () => {
 
     expect(apiCalls).toBe(2)
     expect(sleeps).toEqual([1_000])
-    expect(written.size).toBe(3)
+    expect(written.size).toBe(2)
     expect(lines.map((line) => line.event)).toEqual([EServeEvent.BundleReady])
   })
 
