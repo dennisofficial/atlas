@@ -9,8 +9,8 @@ export enum EDaemonErrorKind {
 }
 
 export const callKeySchema = z.string().min(1)
-export const bootIdSchema = z.string().min(1)
 export const epochSchema = z.number().int().min(0)
+export const bootIdSchema = z.string().min(1)
 
 export const hostHelloFrameSchema = z.object({
   kind: z.literal('hello'),
@@ -19,32 +19,36 @@ export const hostHelloFrameSchema = z.object({
   token: z.string().min(1),
 })
 
+export const helloReplyFrameSchema = z.object({
+  kind: z.literal('hello-reply'),
+  bootId: bootIdSchema,
+  version: z.string().min(1),
+})
+
 export const callOpSchema = z.object({
   tool: z.string().min(1),
   input: z.unknown().optional(),
 })
 
-export const runFrameSchema = z.object({
-  kind: z.literal('run'),
-  key: callKeySchema,
-  bootId: bootIdSchema,
-  op: callOpSchema,
-})
-
-export const collectFrameSchema = z.object({
-  kind: z.literal('collect'),
-  key: callKeySchema,
-  afterOffset: z.number().int().min(0).optional(),
-})
+export const runFrameSchema = z
+  .object({
+    kind: z.literal('run'),
+    key: callKeySchema,
+    epoch: epochSchema,
+    op: callOpSchema,
+  })
+  .strict()
 
 export const ackFrameSchema = z.object({
   kind: z.literal('ack'),
   key: callKeySchema,
+  epoch: epochSchema,
 })
 
 export const cancelFrameSchema = z.object({
   kind: z.literal('cancel'),
   key: callKeySchema,
+  epoch: epochSchema,
 })
 
 export const pingFrameSchema = z.object({ kind: z.literal('ping') })
@@ -52,7 +56,6 @@ export const pingFrameSchema = z.object({ kind: z.literal('ping') })
 export const hostFrameSchema = z.discriminatedUnion('kind', [
   hostHelloFrameSchema,
   runFrameSchema,
-  collectFrameSchema,
   ackFrameSchema,
   cancelFrameSchema,
   pingFrameSchema,
@@ -62,7 +65,13 @@ export const outputChunkFrameSchema = z.object({
   kind: z.literal('output'),
   key: callKeySchema,
   offset: z.number().int().min(0),
-  bytes: z.string(),
+  bytes: z.base64(),
+})
+
+export const runReplyFrameSchema = z.object({
+  kind: z.literal('run-reply'),
+  key: callKeySchema,
+  state: z.enum(['running', 'done']),
 })
 
 export const callResultSchema = z.object({
@@ -93,7 +102,9 @@ export const daemonErrorFrameSchema = z.object({
 export const pongFrameSchema = z.object({ kind: z.literal('pong') })
 
 export const daemonFrameSchema = z.discriminatedUnion('kind', [
+  helloReplyFrameSchema,
   outputChunkFrameSchema,
+  runReplyFrameSchema,
   resultFrameSchema,
   healthFrameSchema,
   daemonErrorFrameSchema,
@@ -101,13 +112,14 @@ export const daemonFrameSchema = z.discriminatedUnion('kind', [
 ])
 
 export type HostHelloFrame = z.infer<typeof hostHelloFrameSchema>
+export type HelloReplyFrame = z.infer<typeof helloReplyFrameSchema>
 export type CallOp = z.infer<typeof callOpSchema>
 export type RunFrame = z.infer<typeof runFrameSchema>
-export type CollectFrame = z.infer<typeof collectFrameSchema>
 export type AckFrame = z.infer<typeof ackFrameSchema>
 export type CancelFrame = z.infer<typeof cancelFrameSchema>
 export type HostFrame = z.infer<typeof hostFrameSchema>
 export type OutputChunkFrame = z.infer<typeof outputChunkFrameSchema>
+export type RunReplyFrame = z.infer<typeof runReplyFrameSchema>
 export type CallResult = z.infer<typeof callResultSchema>
 export type ResultFrame = z.infer<typeof resultFrameSchema>
 export type HealthFrame = z.infer<typeof healthFrameSchema>
