@@ -13,4 +13,5 @@ model GithubCommitCheck {
   @@id([repoFullName, headSha, checkKey])
   @@index([updatedAt])
   @@index([repoFullName, appSlug])
+  @@index([repoFullName, appSlug], where: sql`(("checkKey" LIKE 'run:%') AND ("appSlug" IS NOT NULL))`, name: "GithubCommitCheck_runner_apps")
 }

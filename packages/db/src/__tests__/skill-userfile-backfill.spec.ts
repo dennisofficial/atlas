@@ -3,8 +3,8 @@ import pg from 'pg'
 import { databaseUrl, laneUrl, quoteIdent } from '../testing/lane'
 import { applyMigration, applyMigrations } from '../testing/migrations'
 
-const DDL_MIGRATION = '20261103T1813_skills_storage'
-const DATA_MIGRATION = '20261103T1814_skills_userfile_backfill'
+const DDL_MIGRATION = '20261103T1832_skills_storage'
+const DATA_MIGRATION = '20261103T1832_skills_userfile_backfill'
 const DATABASE = `atlas_test_skills_backfill_${process.pid}`
 
 const admin = () => new pg.Client({ connectionString: laneUrl().toString() })
