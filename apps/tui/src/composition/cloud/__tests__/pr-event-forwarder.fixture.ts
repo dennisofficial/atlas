@@ -85,13 +85,17 @@ export function rig(args: {
     },
   })
 
+  const listings: string[] = []
   const forwarder = createPrEventForwarder({
-    listThreads: async () => args.summaries,
+    listThreads: async ({ project }) => {
+      listings.push(project)
+      return args.summaries
+    },
     project: 'project',
     bridge: bridge as never,
     activeThreadId: () => args.activeThreadId,
     editPolicy: () => args.editPolicy ?? DEFAULT_PR_EDIT_POLICY,
   })
 
-  return { forwarder, sent, attached }
+  return { forwarder, sent, attached, listings }
 }
