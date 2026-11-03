@@ -3,21 +3,24 @@
 import { useSyncExternalStore } from 'react'
 
 import {
-  buildSkillRows,
-  skillIdOf,
-  SKILLS,
-  type ESkillLayer,
+  ESkillFileKind,
+  ESkillOwner,
+  GLOBAL_SKILLS,
+  PROJECT_SKILLS,
   type Skill,
   type SkillFile,
 } from './fixtures/settings-skills'
 
 const EMPTY_SKILL_MD = `---\nname: \ndescription: \n---\n\n`
 
-let skillsState: Skill[] = SKILLS
+let state: Record<ESkillOwner, Skill[]> = {
+  [ESkillOwner.Global]: GLOBAL_SKILLS,
+  [ESkillOwner.Project]: PROJECT_SKILLS,
+}
 const listeners = new Set<() => void>()
 
-function emit(next: Skill[]) {
-  skillsState = next
+function emit(next: Record<ESkillOwner, Skill[]>) {
+  state = next
   for (const listener of listeners) listener()
 }
 
@@ -28,37 +31,39 @@ function subscribe(listener: () => void) {
   }
 }
 
-export function resetSkills(next: Skill[] = SKILLS) {
-  emit(next)
+export function resetSkills() {
+  emit({ [ESkillOwner.Global]: GLOBAL_SKILLS, [ESkillOwner.Project]: PROJECT_SKILLS })
 }
 
-function updateSkill(id: string, update: (skill: Skill) => Skill) {
-  emit(skillsState.map((skill) => (skillIdOf(skill) === id ? update(skill) : skill)))
-}
-
-export function useSkills() {
-  const skills = useSyncExternalStore(
+export function useSkills({ owner }: { owner: ESkillOwner }) {
+  const all = useSyncExternalStore(
     subscribe,
-    () => skillsState,
-    () => SKILLS,
+    () => state,
+    () => state,
   )
-  const rows = buildSkillRows(skills)
+  const skills = all[owner]
 
-  const deleteSkills = (ids: string[]) =>
-    emit(skillsState.filter((skill) => !ids.includes(skillIdOf(skill))))
+  const updateSkill = (name: string, update: (skill: Skill) => Skill) =>
+    emit({
+      ...state,
+      [owner]: state[owner].map((skill) => (skill.name === name ? update(skill) : skill)),
+    })
 
-  const createSkill = ({ name, layer }: { name: string; layer: ESkillLayer }): Skill => ({
+  const deleteSkills = (names: string[]) =>
+    emit({ ...state, [owner]: state[owner].filter((skill) => !names.includes(skill.name)) })
+
+  const createSkill = (name: string): Skill => ({
     name,
     description: '',
-    layer,
+    owner,
     updatedAt: new Date().toISOString(),
-    files: [{ path: 'SKILL.md', content: EMPTY_SKILL_MD }],
+    files: [{ path: 'SKILL.md', kind: ESkillFileKind.Text, content: EMPTY_SKILL_MD }],
   })
 
-  const addSkill = (skill: Skill) => emit([...skillsState, skill])
+  const addSkill = (skill: Skill) => emit({ ...state, [owner]: [...state[owner], skill] })
 
-  const saveFile = ({ id, path, content }: { id: string; path: string; content: string }) =>
-    updateSkill(id, (skill) => ({
+  const saveFile = ({ name, path, content }: { name: string; path: string; content: string }) =>
+    updateSkill(name, (skill) => ({
       ...skill,
       updatedAt: new Date().toISOString(),
       files: skill.files.map(
@@ -66,11 +71,11 @@ export function useSkills() {
       ),
     }))
 
-  const addFile = ({ id, file }: { id: string; file: SkillFile }) =>
-    updateSkill(id, (skill) => ({ ...skill, files: [...skill.files, file] }))
+  const addFile = ({ name, file }: { name: string; file: SkillFile }) =>
+    updateSkill(name, (skill) => ({ ...skill, files: [...skill.files, file] }))
 
-  const renamePath = ({ id, from, to }: { id: string; from: string; to: string }) =>
-    updateSkill(id, (skill) => ({
+  const renamePath = ({ name, from, to }: { name: string; from: string; to: string }) =>
+    updateSkill(name, (skill) => ({
       ...skill,
       files: skill.files.map((file): SkillFile => {
         if (file.path === from) return { ...file, path: to }
@@ -80,15 +85,14 @@ export function useSkills() {
       }),
     }))
 
-  const deletePath = ({ id, path }: { id: string; path: string }) =>
-    updateSkill(id, (skill) => ({
+  const deletePath = ({ name, path }: { name: string; path: string }) =>
+    updateSkill(name, (skill) => ({
       ...skill,
       files: skill.files.filter((file) => file.path !== path && !file.path.startsWith(`${path}/`)),
     }))
 
   return {
     skills,
-    rows,
     deleteSkills,
     createSkill,
     addSkill,
@@ -98,5 +102,3 @@ export function useSkills() {
     deletePath,
   }
 }
-
-export type SkillStore = ReturnType<typeof useSkills>

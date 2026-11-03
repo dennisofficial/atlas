@@ -19,13 +19,6 @@ import {
   InputGroupInput,
 } from '@dltech/atlas-ui/components/input-group'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@dltech/atlas-ui/components/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -33,150 +26,85 @@ import {
   TableHeader,
   TableRow,
 } from '@dltech/atlas-ui/components/table'
-import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
-import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import {
-  ESkillLayer,
-  SKILL_LAYER_LABELS,
-  SKILLS_PROJECT,
-  SKILLS_PROJECTS,
+  SKILL_PRECEDENCE_COPY,
   formatSkillDate,
   formatSkillSize,
-  isEditableLayer,
-  skillIdOf,
-  type SkillRow,
+  type ESkillOwner,
+  type Skill,
 } from './fixtures/settings-skills'
 import { LibraryConfirmDialog } from './parts/library-confirm-dialog'
 import { MemorySelectionBar } from './parts/memory-selection-bar'
 import { NewSkillDialog } from './parts/new-skill-dialog'
-import { SkillLayerBadge } from './parts/skill-layer-badge'
 import { SettingsPage } from './settings-layout'
 import { useSkills } from './use-skills'
 
-const ALL_LAYERS = 'all'
-
-function shadowNote(row: SkillRow): string | null {
-  if (row.shadowedBy) return `Overridden by ${SKILL_LAYER_LABELS[row.shadowedBy]}`
-  if (row.overrides.length > 0) {
-    return `Overrides ${row.overrides.map((layer) => SKILL_LAYER_LABELS[layer]).join(' and ')}`
-  }
-  return null
-}
-
-function matches({ row, query, layer }: { row: SkillRow; query: string; layer: string }) {
+function matches({ skill, query }: { skill: Skill; query: string }) {
   const needle = query.trim().toLowerCase()
-  const textMatch =
+  return (
     needle.length === 0 ||
-    row.skill.name.toLowerCase().includes(needle) ||
-    row.skill.description.toLowerCase().includes(needle)
-  return textMatch && (layer === ALL_LAYERS || row.skill.layer === layer)
+    skill.name.toLowerCase().includes(needle) ||
+    skill.description.toLowerCase().includes(needle)
+  )
 }
 
-function lockedReason(layer: ESkillLayer): string {
-  return layer === ESkillLayer.BuiltIn
-    ? 'Built-in skills ship with Atlas and cannot be deleted.'
-    : 'Repo skills live in the checkout and change through git.'
-}
-
-export function SkillsPage() {
+export function SkillsPage({
+  owner,
+  title,
+  description,
+  detailHref,
+}: {
+  owner: ESkillOwner
+  title: string
+  description: string
+  detailHref: (name: string) => string
+}) {
   const router = useRouter()
-  const { rows, deleteSkills, createSkill, addSkill } = useSkills()
+  const { skills, deleteSkills, createSkill, addSkill } = useSkills({ owner })
   const [query, setQuery] = useState('')
-  const [layer, setLayer] = useState(ALL_LAYERS)
-  const [project, setProject] = useState(SKILLS_PROJECT)
   const [selected, setSelected] = useState<string[]>([])
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null)
 
-  const visible = rows.filter((row) => matches({ row, query, layer }))
-  const selectableIds = visible
-    .filter((row) => isEditableLayer(row.skill.layer))
-    .map((row) => skillIdOf(row.skill))
-  const liveSelected = selected.filter((id) => selectableIds.includes(id))
+  const visible = skills.filter((skill) => matches({ skill, query }))
+  const liveSelected = selected.filter((name) => visible.some((skill) => skill.name === name))
 
-  const handleSelectedChange = ({ id, checked }: { id: string; checked: boolean }) =>
+  const handleSelectedChange = ({ name, checked }: { name: string; checked: boolean }) =>
     setSelected((current) =>
       checked
-        ? [...current.filter((value) => value !== id), id]
-        : current.filter((value) => value !== id),
+        ? [...current.filter((value) => value !== name), name]
+        : current.filter((value) => value !== name),
     )
-  const handleLayerChange = (values: string[]) => setLayer(values[0] ?? ALL_LAYERS)
-  const handleProjectChange = (next: string | null) => {
-    if (next !== null) setProject(next)
-  }
-  const handleCreate = (args: { name: string; layer: ESkillLayer }) => {
-    const skill = createSkill(args)
+  const handleCreate = (name: string) => {
+    const skill = createSkill(name)
     addSkill(skill)
-    router.push(`/settings/skills/${skillIdOf(skill)}`)
+    router.push(detailHref(skill.name))
   }
   const handleConfirmDelete = () => {
     if (!pendingDelete) return
     deleteSkills(pendingDelete)
-    setSelected((current) => current.filter((id) => !pendingDelete.includes(id)))
+    setSelected((current) => current.filter((name) => !pendingDelete.includes(name)))
     setPendingDelete(null)
   }
 
-  const pendingNames = (pendingDelete ?? [])
-    .map((id) => rows.find((row) => skillIdOf(row.skill) === id)?.skill.name)
-    .filter((name): name is string => name !== undefined)
-
   return (
     <SettingsPage
-      title="Skills"
-      description="Every skill the agent can load, across all layers. The closer layer wins: repo > project > global > built-in."
+      title={title}
+      description={`${description} ${SKILL_PRECEDENCE_COPY}`}
       actions={<NewSkillDialog onCreate={handleCreate} />}
     >
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <InputGroup className="w-56">
-            <InputGroupAddon>
-              <SearchIcon />
-            </InputGroupAddon>
-            <InputGroupInput
-              aria-label="Search skills"
-              placeholder="Search skills…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </InputGroup>
-          <ToggleGroup
-            variant="outline"
-            size="sm"
-            spacing={0}
-            value={[layer]}
-            onValueChange={handleLayerChange}
-            aria-label="Skill layer"
-          >
-            <ToggleGroupItem value={ALL_LAYERS}>All</ToggleGroupItem>
-            {Object.values(ESkillLayer).map((value) => (
-              <ToggleGroupItem key={value} value={value}>
-                {SKILL_LAYER_LABELS[value]}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <div className="ml-auto w-52 max-w-full">
-            <Select
-              items={SKILLS_PROJECTS.map((value) => ({ value, label: value }))}
-              value={project}
-              onValueChange={handleProjectChange}
-            >
-              <SelectTrigger aria-label="Project" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false}>
-                {SKILLS_PROJECTS.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Project layer shows skills stored for {project}.
-        </p>
+        <InputGroup className="w-56">
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            aria-label="Search skills"
+            placeholder="Search skills…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </InputGroup>
         {liveSelected.length > 0 ? (
           <MemorySelectionBar
             count={liveSelected.length}
@@ -190,10 +118,13 @@ export function SkillsPage() {
               <EmptyMedia variant="icon">
                 <FolderTreeIcon />
               </EmptyMedia>
-              <EmptyTitle>No skills match.</EmptyTitle>
+              <EmptyTitle>
+                {skills.length === 0 ? 'No skills here yet' : 'No skills match.'}
+              </EmptyTitle>
               <EmptyDescription>
-                Try a different search or clear the layer filter. Repo and built-in skills are
-                read-only.
+                {skills.length === 0
+                  ? 'Create one with the New skill button — it starts as an empty SKILL.md.'
+                  : 'Try a different search.'}
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -205,74 +136,47 @@ export function SkillsPage() {
                   <span className="sr-only">Select</span>
                 </TableHead>
                 <TableHead>Skill</TableHead>
-                <TableHead className="w-24">Layer</TableHead>
                 <TableHead className="w-16">Files</TableHead>
                 <TableHead className="w-20">Size</TableHead>
                 <TableHead className="w-24">Updated</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visible.map((row) => {
-                const id = skillIdOf(row.skill)
-                const note = shadowNote(row)
-                const editable = isEditableLayer(row.skill.layer)
-                return (
-                  <TableRow key={id} className={cn(row.shadowedBy !== null && 'opacity-60')}>
-                    <TableCell>
-                      {editable ? (
-                        <Checkbox
-                          aria-label={`Select ${row.skill.name}`}
-                          checked={liveSelected.includes(id)}
-                          onCheckedChange={(checked) =>
-                            handleSelectedChange({ id, checked: checked === true })
-                          }
-                        />
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <span className="flex size-4 cursor-not-allowed items-center justify-center">
-                                <span className="size-1.5 rounded-full border border-muted-foreground/60" />
-                              </span>
-                            }
-                          />
-                          <TooltipContent>{lockedReason(row.skill.layer)}</TooltipContent>
-                        </Tooltip>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <Link
-                          href={`/settings/skills/${id}`}
-                          className="w-fit max-w-full truncate font-mono text-xs font-medium hover:underline"
-                        >
-                          {row.skill.name}
-                        </Link>
-                        <span className="truncate text-xs text-muted-foreground">
-                          {row.skill.description || 'No description yet.'}
-                        </span>
-                        {note ? (
-                          <span className="truncate text-xs text-muted-foreground/80 italic">
-                            {note}
-                          </span>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <SkillLayerBadge layer={row.skill.layer} />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
-                      {row.skill.files.length}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
-                      {formatSkillSize(row.skill.files)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatSkillDate(row.skill.updatedAt)}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+              {visible.map((skill) => (
+                <TableRow key={skill.name}>
+                  <TableCell>
+                    <Checkbox
+                      aria-label={`Select ${skill.name}`}
+                      checked={liveSelected.includes(skill.name)}
+                      onCheckedChange={(checked) =>
+                        handleSelectedChange({ name: skill.name, checked: checked === true })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <Link
+                        href={detailHref(skill.name)}
+                        className="w-fit max-w-full truncate font-mono text-xs font-medium hover:underline"
+                      >
+                        {skill.name}
+                      </Link>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {skill.description || 'No description yet.'}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
+                    {skill.files.length}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
+                    {formatSkillSize(skill.files)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatSkillDate(skill.updatedAt)}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}
@@ -284,8 +188,8 @@ export function SkillsPage() {
         }}
         title={`Delete ${pendingDelete?.length ?? 0} ${(pendingDelete?.length ?? 0) === 1 ? 'skill' : 'skills'}?`}
         description={
-          pendingNames.length > 0
-            ? `${pendingNames.join(', ')}. The agent stops loading ${pendingNames.length === 1 ? 'this skill' : 'these skills'} in new threads. This cannot be undone.`
+          pendingDelete !== null && pendingDelete.length > 0
+            ? `${pendingDelete.join(', ')}. The agent stops loading ${pendingDelete.length === 1 ? 'this skill' : 'these skills'} in new threads. This cannot be undone.`
             : ''
         }
         confirmLabel="Delete"

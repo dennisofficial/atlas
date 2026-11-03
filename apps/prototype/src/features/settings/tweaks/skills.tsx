@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 
 import { type Control, usePrototype } from '../../../proto/use-prototype'
-import { SKILLS } from '../fixtures/settings-skills'
+import { ESkillOwner } from '../fixtures/settings-skills'
 import { SkillsPage } from '../skills-page'
 import { resetSkills } from '../use-skills'
 
@@ -13,6 +13,13 @@ const CONTROLS = {
 
 export function SkillsTweaked() {
   usePrototype(CONTROLS)
-  useEffect(() => resetSkills(SKILLS), [])
-  return <SkillsPage />
+  useEffect(() => resetSkills(), [])
+  return (
+    <SkillsPage
+      owner={ESkillOwner.Global}
+      title="Skills"
+      description="Your personal skills, loaded in every thread on every project."
+      detailHref={(name) => `/settings/skills/${name}`}
+    />
+  )
 }

@@ -5,6 +5,7 @@ import {
   ChevronRightIcon,
   FileIcon,
   FilePlusIcon,
+  FileUpIcon,
   FolderIcon,
   FolderPlusIcon,
   MoreHorizontalIcon,
@@ -27,7 +28,10 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import type { SkillTreeNode } from './skill-tree'
 
-export type TreeAction = { kind: 'new-file' | 'new-folder' | 'rename' | 'delete'; path: string }
+export type TreeAction = {
+  kind: 'new-file' | 'upload' | 'new-folder' | 'rename' | 'delete'
+  path: string
+}
 
 function TreeRowActions({
   node,
@@ -56,6 +60,9 @@ function TreeRowActions({
             <DropdownMenuItem onClick={() => onAction({ kind: 'new-file', path: node.path })}>
               New file
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAction({ kind: 'upload', path: node.path })}>
+              Upload
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAction({ kind: 'new-folder', path: node.path })}>
               New folder
             </DropdownMenuItem>
@@ -80,14 +87,12 @@ function TreeNode({
   node,
   depth,
   selected,
-  editable,
   onSelect,
   onAction,
 }: {
   node: SkillTreeNode
   depth: number
   selected: string
-  editable: boolean
   onSelect: (path: string) => void
   onAction: (action: TreeAction) => void
 }) {
@@ -116,7 +121,7 @@ function TreeNode({
             <FolderIcon className="size-3.5 shrink-0" />
             <span className="truncate">{node.name}</span>
           </CollapsibleTrigger>
-          {editable ? <TreeRowActions node={node} onAction={onAction} /> : null}
+          <TreeRowActions node={node} onAction={onAction} />
         </div>
         <CollapsibleContent>
           {node.children.map((child) => (
@@ -125,7 +130,6 @@ function TreeNode({
               node={child}
               depth={depth + 1}
               selected={selected}
-              editable={editable}
               onSelect={onSelect}
               onAction={onAction}
             />
@@ -153,7 +157,7 @@ function TreeNode({
         <FileIcon className="size-3.5 shrink-0" />
         <span className="truncate">{node.name}</span>
       </button>
-      {editable ? <TreeRowActions node={node} onAction={onAction} /> : null}
+      <TreeRowActions node={node} onAction={onAction} />
     </div>
   )
 }
@@ -161,45 +165,40 @@ function TreeNode({
 export function SkillFileTree({
   nodes,
   selected,
-  editable,
   onSelect,
   onAction,
 }: {
   nodes: SkillTreeNode[]
   selected: string
-  editable: boolean
   onSelect: (path: string) => void
   onAction: (action: TreeAction) => void
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      {editable ? (
-        <div className="mb-1 flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => onAction({ kind: 'new-file', path: '' })}
-          >
-            <FilePlusIcon data-icon="inline-start" />
-            File
-          </Button>
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => onAction({ kind: 'new-folder', path: '' })}
-          >
-            <FolderPlusIcon data-icon="inline-start" />
-            Folder
-          </Button>
-        </div>
-      ) : null}
+      <div className="mb-1 flex items-center gap-1">
+        <Button variant="ghost" size="xs" onClick={() => onAction({ kind: 'new-file', path: '' })}>
+          <FilePlusIcon data-icon="inline-start" />
+          New file
+        </Button>
+        <Button variant="ghost" size="xs" onClick={() => onAction({ kind: 'upload', path: '' })}>
+          <FileUpIcon data-icon="inline-start" />
+          Upload
+        </Button>
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={() => onAction({ kind: 'new-folder', path: '' })}
+        >
+          <FolderPlusIcon data-icon="inline-start" />
+          Folder
+        </Button>
+      </div>
       {nodes.map((node) => (
         <TreeNode
           key={node.path}
           node={node}
           depth={0}
           selected={selected}
-          editable={editable}
           onSelect={onSelect}
           onAction={onAction}
         />

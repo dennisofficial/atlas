@@ -4,19 +4,22 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
+import { EMarkdownEditorVariant, MarkdownEditor } from '@dltech/atlas-ui/ai/markdown-editor'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Kbd } from '@dltech/atlas-ui/components/kbd'
 
 import {
-  SKILL_LAYER_LABELS,
-  isEditableLayer,
-  skillIdOf,
+  ESkillFileKind,
+  SKILL_OWNER_LABELS,
+  SKILL_PRECEDENCE_COPY,
+  fileKindOf,
+  type ESkillOwner,
   type Skill,
 } from './fixtures/settings-skills'
 import { LibraryConfirmDialog } from './parts/library-confirm-dialog'
+import { SkillBinaryCard } from './parts/skill-binary-card'
 import { SkillConflict } from './parts/skill-conflict'
 import { SkillDetailHeader } from './parts/skill-detail-header'
-import { SkillEditor } from './parts/skill-editor'
 import { SkillFilePromptDialog, type SkillFilePrompt } from './parts/skill-file-dialogs'
 import { SkillFileTree, type TreeAction } from './parts/skill-file-tree'
 import { buildSkillTree } from './parts/skill-tree'
@@ -30,38 +33,49 @@ function theirsVersion(content: string): string {
 }
 
 export function SkillDetailPage({
-  skillId,
+  owner,
+  skillName,
+  listHref,
   forceConflict = false,
 }: {
-  skillId: string
+  owner: ESkillOwner
+  skillName: string
+  listHref: string
   forceConflict?: boolean
 }) {
-  const { skills } = useSkills()
-  const skill = skills.find((candidate) => skillIdOf(candidate) === skillId)
+  const { skills } = useSkills({ owner })
+  const skill = skills.find((candidate) => candidate.name === skillName)
 
   if (!skill) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
         <h1 className="text-lg font-semibold">Skill not found</h1>
         <p className="text-sm text-muted-foreground">It may have been deleted in this session.</p>
-        <Button
-          variant="outline"
-          size="sm"
-          nativeButton={false}
-          render={<Link href="/settings/skills" />}
-        >
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={listHref} />}>
           Back to skills
         </Button>
       </div>
     )
   }
 
-  return <SkillDetail skill={skill} forceConflict={forceConflict} />
+  return (
+    <SkillDetail owner={owner} skill={skill} listHref={listHref} forceConflict={forceConflict} />
+  )
 }
 
-function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: boolean }) {
+function SkillDetail({
+  owner,
+  skill,
+  listHref,
+  forceConflict,
+}: {
+  owner: ESkillOwner
+  skill: Skill
+  listHref: string
+  forceConflict: boolean
+}) {
   const router = useRouter()
-  const { rows, saveFile, addFile, renamePath, deletePath, deleteSkills } = useSkills()
+  const { saveFile, addFile, renamePath, deletePath, deleteSkills } = useSkills({ owner })
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [draft, setDraft] = useState<string | null>(null)
   const [guardOpen, setGuardOpen] = useState<string | null>(null)
@@ -70,15 +84,14 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
   const [deleteSkillOpen, setDeleteSkillOpen] = useState(false)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
 
-  const editable = isEditableLayer(skill.layer)
   const currentPath = selectedPath ?? skill.files[0]?.path ?? 'SKILL.md'
   const file = skill.files.find((candidate) => candidate.path === currentPath) ?? skill.files[0]
   const savedContent = file?.content ?? ''
+  const isText = file?.kind === ESkillFileKind.Text
   const draftValue = draft ?? savedContent
-  const dirty = draft !== null && draft !== savedContent
+  const dirty = isText === true && draft !== null && draft !== savedContent
   const tree = buildSkillTree(skill.files.map((candidate) => candidate.path))
-  const activeConflict: ConflictState | null = conflict
-  const id = skillIdOf(skill)
+  const name = skill.name
 
   const openFile = (path: string) => {
     setSelectedPath(path)
@@ -86,7 +99,7 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
     setConflict(null)
   }
   const handleSelect = (path: string) => {
-    if (dirty && editable) {
+    if (dirty) {
       setGuardOpen(path)
       return
     }
@@ -97,7 +110,7 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
       setConflict({ mine: draftValue, theirs: theirsVersion(savedContent) })
       return
     }
-    saveFile({ id, path: currentPath, content: draftValue })
+    saveFile({ name, path: currentPath, content: draftValue })
     setDraft(null)
     setConflict(null)
   }
@@ -118,12 +131,12 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
     setConflict(null)
   }
   const handleKeepMine = () => {
-    saveFile({ id, path: currentPath, content: activeConflict?.mine ?? draftValue })
+    saveFile({ name, path: currentPath, content: conflict?.mine ?? draftValue })
     setDraft(null)
     setConflict(null)
   }
   const handleTakeTheirs = () => {
-    setDraft(activeConflict?.theirs ?? null)
+    setDraft(conflict?.theirs ?? null)
     setConflict(null)
   }
   const handleAction = (action: TreeAction) => {
@@ -144,24 +157,25 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
   }: {
     prompt: SkillFilePrompt
     target: string
+    file?: File
   }) => {
     if (done.kind === 'rename') {
-      renamePath({ id, from: done.path, to: target })
+      renamePath({ name, from: done.path, to: target })
       if (currentPath === done.path || currentPath.startsWith(`${done.path}/`)) {
         setSelectedPath(target + currentPath.slice(done.path.length))
       }
       return
     }
-    if (done.kind === 'new-file') {
-      addFile({ id, file: { path: target, content: '' } })
+    if (done.kind === 'new-file' || done.kind === 'upload') {
+      addFile({ name, file: { path: target, kind: fileKindOf(target), content: '' } })
       openFile(target)
       return
     }
-    addFile({ id, file: { path: `${target}/.gitkeep`, content: '' } })
+    addFile({ name, file: { path: `${target}/.gitkeep`, kind: ESkillFileKind.Text, content: '' } })
   }
   const handleConfirmDeletePath = () => {
     if (!pendingDelete) return
-    deletePath({ id, path: pendingDelete })
+    deletePath({ name, path: pendingDelete })
     if (currentPath === pendingDelete || currentPath.startsWith(`${pendingDelete}/`)) {
       const remaining = skill.files.filter(
         (candidate) =>
@@ -173,25 +187,24 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
     setPendingDelete(null)
   }
   const handleConfirmDeleteSkill = () => {
-    deleteSkills([id])
-    router.push('/settings/skills')
+    deleteSkills([name])
+    router.push(listHref)
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
       <SkillDetailHeader
         skill={skill}
-        rows={rows}
-        editable={editable}
+        listHref={listHref}
         onDeleteSkill={() => setDeleteSkillOpen(true)}
       />
+      <p className="-mt-2 text-sm text-muted-foreground">{SKILL_PRECEDENCE_COPY}</p>
 
       <div className="grid min-h-0 flex-1 grid-cols-[260px_minmax(0,1fr)] gap-4">
         <aside className="min-h-0 overflow-y-auto rounded-lg border bg-card p-2">
           <SkillFileTree
             nodes={tree}
             selected={currentPath}
-            editable={editable}
             onSelect={handleSelect}
             onAction={handleAction}
           />
@@ -200,7 +213,7 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
         <section className="flex min-h-0 flex-col gap-2">
           <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
             <span className="truncate font-mono text-xs text-muted-foreground">{currentPath}</span>
-            {editable ? (
+            {isText ? (
               <div className="flex items-center gap-2">
                 {dirty ? (
                   <span className="text-xs text-muted-foreground">Unsaved changes</span>
@@ -217,20 +230,34 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
               </div>
             ) : null}
           </div>
-          {activeConflict ? (
+          {conflict ? (
             <SkillConflict
-              mine={activeConflict.mine}
-              theirs={activeConflict.theirs}
+              mine={conflict.mine}
+              theirs={conflict.theirs}
               onKeepMine={handleKeepMine}
               onTakeTheirs={handleTakeTheirs}
             />
-          ) : (
-            <SkillEditor
-              value={draftValue}
-              readOnly={!editable}
-              onChange={(value) => setDraft(value)}
+          ) : isText ? (
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
+              <MarkdownEditor
+                variant={EMarkdownEditorVariant.Document}
+                ariaLabel={currentPath}
+                value={draftValue}
+                onChange={(value) => setDraft(value)}
+              />
+            </div>
+          ) : file ? (
+            <SkillBinaryCard
+              file={file}
+              onReplace={() =>
+                setPrompt({
+                  kind: 'upload',
+                  basePath: file.path.split('/').slice(0, -1).join('/'),
+                })
+              }
+              onDelete={() => setPendingDelete(file.path)}
             />
-          )}
+          ) : null}
         </section>
       </div>
 
@@ -243,7 +270,7 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
           setGuardOpen(null)
         }}
         onSaveAndSwitch={(target) => {
-          saveFile({ id, path: currentPath, content: draftValue })
+          saveFile({ name, path: currentPath, content: draftValue })
           if (target) openFile(target)
           setGuardOpen(null)
         }}
@@ -271,7 +298,7 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
         open={deleteSkillOpen}
         onOpenChange={setDeleteSkillOpen}
         title={`Delete ${skill.name}?`}
-        description={`Removes the ${SKILL_LAYER_LABELS[skill.layer]} copy of this skill and every file in it. This cannot be undone.`}
+        description={`Removes this ${SKILL_OWNER_LABELS[owner].toLowerCase()} skill and every file in it. This cannot be undone.`}
         confirmLabel="Delete skill"
         onConfirm={handleConfirmDeleteSkill}
       />

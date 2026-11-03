@@ -15,7 +15,7 @@ import { Input } from '@dltech/atlas-ui/components/input'
 import { Label } from '@dltech/atlas-ui/components/label'
 
 export type SkillFilePrompt =
-  | { kind: 'new-file' | 'new-folder'; basePath: string }
+  | { kind: 'new-file' | 'new-folder' | 'upload'; basePath: string }
   | { kind: 'rename'; path: string; folder: boolean }
 
 function defaultValue(prompt: SkillFilePrompt): string {
@@ -26,6 +26,8 @@ function titleOf(prompt: SkillFilePrompt): string {
   switch (prompt.kind) {
     case 'new-file':
       return 'New file'
+    case 'upload':
+      return 'Upload file'
     case 'new-folder':
       return 'New folder'
     case 'rename':
@@ -50,32 +52,43 @@ export function SkillFilePromptDialog({
 }: {
   prompt: SkillFilePrompt | null
   takenPaths: string[]
-  onSubmit: (args: { prompt: SkillFilePrompt; target: string }) => void
+  onSubmit: (args: { prompt: SkillFilePrompt; target: string; file?: File }) => void
   onClose: () => void
 }) {
   const [value, setValue] = useState('')
+  const [pickedFile, setPickedFile] = useState<File | null>(null)
   const folder =
     prompt !== null && (prompt.kind === 'new-folder' || (prompt.kind === 'rename' && prompt.folder))
+  const uploading = prompt?.kind === 'upload'
   const label = folder ? 'Folder name' : 'File name'
-  const target = prompt ? resolveTarget({ prompt, value }) : ''
+  const target =
+    prompt && pickedFile
+      ? resolveTarget({ prompt, value: pickedFile.name })
+      : prompt
+        ? resolveTarget({ prompt, value })
+        : ''
   const invalid =
     prompt === null ||
-    value.trim() === '' ||
-    target === '' ||
-    target.includes('//') ||
-    (prompt.kind !== 'rename' &&
-      takenPaths.some((path) => path === target || path.startsWith(`${target}/`))) ||
-    (prompt.kind === 'rename' && target === prompt.path)
+    (uploading
+      ? pickedFile === null || takenPaths.some((path) => path === target)
+      : value.trim() === '' ||
+        target === '' ||
+        target.includes('//') ||
+        (prompt.kind !== 'rename' &&
+          takenPaths.some((path) => path === target || path.startsWith(`${target}/`))) ||
+        (prompt.kind === 'rename' && target === prompt.path))
 
   const handleSubmit = () => {
     if (invalid || prompt === null) return
-    onSubmit({ prompt, target })
+    onSubmit({ prompt, target, file: pickedFile ?? undefined })
     setValue('')
+    setPickedFile(null)
     onClose()
   }
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setValue('')
+      setPickedFile(null)
       onClose()
     }
   }
@@ -92,17 +105,25 @@ export function SkillFilePromptDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="skill-file-name">{label}</Label>
-          <Input
-            id="skill-file-name"
-            placeholder={folder ? 'references' : 'notes.md'}
-            value={value || (prompt ? defaultValue(prompt) : '')}
-            onChange={(event) => setValue(event.target.value)}
-          />
+          <Label htmlFor="skill-file-name">{uploading ? 'File' : label}</Label>
+          {uploading ? (
+            <Input
+              id="skill-file-name"
+              type="file"
+              onChange={(event) => setPickedFile(event.target.files?.[0] ?? null)}
+            />
+          ) : (
+            <Input
+              id="skill-file-name"
+              placeholder={folder ? 'references' : 'notes.md'}
+              value={value || (prompt ? defaultValue(prompt) : '')}
+              onChange={(event) => setValue(event.target.value)}
+            />
+          )}
         </div>
         <DialogFooter>
           <Button size="sm" disabled={invalid} onClick={handleSubmit}>
-            {prompt?.kind === 'rename' ? 'Rename' : 'Create'}
+            {prompt?.kind === 'rename' ? 'Rename' : uploading ? 'Upload' : 'Create'}
           </Button>
         </DialogFooter>
       </DialogContent>
