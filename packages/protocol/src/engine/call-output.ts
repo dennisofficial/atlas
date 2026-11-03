@@ -15,7 +15,7 @@ export class CallOutput {
   private tail: Promise<void> = Promise.resolve()
   private readonly sinks = new Map<object, CallSink>()
   private readonly owed = new Map<object, number>()
-  private readonly unreadable = new Map<object, CallSink>()
+  private readonly unreadable = new Map<object, { sink: CallSink; owed: number }>()
   private readonly cursors = new WeakMap<object, number>()
   private readonly detached = new WeakSet<object>()
 
@@ -72,8 +72,12 @@ export class CallOutput {
         stored = await this.args.store.readOutput({ key: this.args.key, offset: from })
       } catch (error) {
         this.args.onFault({ error })
-        if (this.ended === null) this.unreadable.set(args.owner, args.sink)
-        else args.sink.result({ result: this.lostResult() })
+        if (this.ended !== null) {
+          args.sink.result({ result: this.lostResult() })
+          return
+        }
+        const owed = (this.unreadable.get(args.owner)?.owed ?? 0) + 1
+        this.unreadable.set(args.owner, { sink: args.sink, owed })
         return
       }
       this.deliver({ owner: args.owner, sink: args.sink, offset: from, bytes: stored })
@@ -105,7 +109,9 @@ export class CallOutput {
         const owed = this.owed.get(owner) ?? 0
         for (let sent = 0; sent < owed; sent++) sink.result({ result: args.result })
       }
-      for (const sink of this.unreadable.values()) sink.result({ result: this.lostResult() })
+      for (const { sink, owed } of this.unreadable.values()) {
+        for (let sent = 0; sent < owed; sent++) sink.result({ result: this.lostResult() })
+      }
       this.sinks.clear()
       this.owed.clear()
       this.unreadable.clear()

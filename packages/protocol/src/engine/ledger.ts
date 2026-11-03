@@ -12,24 +12,12 @@ import { CallOutput, type CallSink } from './call-output'
 import { ECallJournalState, type CallStore } from './call-store'
 import type { RegisteredOp } from './group'
 import { KeyLock } from './key-lock'
+import { type LedgerOutcome, refused, staleEpoch, unknownKey } from './outcomes'
 import { failedResult, invokeOp } from './results'
 
-export type LedgerOutcome =
-  | { ok: true }
-  | { ok: false; errorKind: EDaemonErrorKind; message: string }
+export type { LedgerOutcome } from './outcomes'
 
 type LiveCall = { op: CallOp; epoch: number; output: CallOutput; abort: AbortController }
-
-const refused = (args: { errorKind: EDaemonErrorKind; message: string }): LedgerOutcome => ({
-  ok: false,
-  ...args,
-})
-
-const staleEpoch = (epoch: number): LedgerOutcome =>
-  refused({ errorKind: EDaemonErrorKind.StaleEpoch, message: `epoch ${epoch} is stale` })
-
-const unknownKey = (key: string): LedgerOutcome =>
-  refused({ errorKind: EDaemonErrorKind.UnknownKey, message: `unknown key ${key}` })
 
 export type CallLedgerArgs = {
   store: CallStore
@@ -44,6 +32,7 @@ export class CallLedger {
   private runs = 0
   private readonly lock = new KeyLock()
   private readonly calls = new Map<string, LiveCall>()
+  private readonly cancelRequested = new Set<string>()
 
   constructor(private readonly args: CallLedgerArgs) {
     this.protocol = initialCalls({ bootId: args.bootId })
@@ -127,6 +116,7 @@ export class CallLedger {
         const call = this.calls.get(args.key)
         this.protocol = stepped.state
         this.calls.delete(args.key)
+        this.cancelRequested.delete(args.key)
         await call?.output.drain()
         try {
           await this.args.store.remove({ key: args.key })
@@ -146,7 +136,9 @@ export class CallLedger {
     if (stepped.effects.errors.includes(ECallError.StaleEpoch)) return staleEpoch(args.epoch)
     const call = this.calls.get(args.key)
     if (call === undefined) return unknownKey(args.key)
-    if (stepped.effects.cancelled.includes(args.key)) call.abort.abort()
+    if (!stepped.effects.cancelled.includes(args.key)) return { ok: true }
+    this.cancelRequested.add(args.key)
+    call.abort.abort()
     return { ok: true }
   }
 
@@ -171,7 +163,7 @@ export class CallLedger {
     const call: LiveCall = {
       op: args.op,
       epoch: args.epoch,
-      abort: new AbortController(),
+      abort: this.controllerFor(args.key),
       output: new CallOutput({
         key: args.key,
         op: args.op.op,
@@ -216,6 +208,12 @@ export class CallLedger {
     this.runs += 1
     void this.execute({ key: args.key, call, handler: args.handler })
     return { ok: true }
+  }
+
+  private controllerFor(key: string): AbortController {
+    const controller = new AbortController()
+    if (this.cancelRequested.has(key)) controller.abort()
+    return controller
   }
 
   private async abandon(args: { key: string }): Promise<void> {
@@ -288,6 +286,7 @@ export class CallLedger {
       state: this.protocol,
       input: { type: 'exit', key: args.key, result: JSON.stringify(args.result) },
     }).state
+    this.cancelRequested.delete(args.key)
     args.call.output.end({ result: args.result })
   }
 }

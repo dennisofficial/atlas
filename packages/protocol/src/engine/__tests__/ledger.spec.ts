@@ -68,6 +68,11 @@ const recorder = () => {
       output: ({ bytes }: { bytes: Uint8Array }) => void output.push(Buffer.from(bytes).toString()),
       result: ({ result }: { result: CallResult }) => void results.push(result),
     },
+    resultsAt: async (count: number): Promise<CallResult[]> => {
+      for (let attempt = 0; attempt < 400 && results.length < count; attempt++) await sleep(5)
+      if (results.length < count) throw new Error(`${results.length} of ${count} results`)
+      return results
+    },
     firstResult: async (): Promise<CallResult> => {
       for (let attempt = 0; attempt < 400 && results.length === 0; attempt++) await sleep(5)
       const [result] = results
@@ -162,6 +167,27 @@ describe('CallLedger under a slow or failing store', () => {
     expect(ledger.runCount()).toBe(0)
   })
 
+  it('carries a new holder cancel to its own run queued behind a superseded one', async () => {
+    const store = new ControlledStore()
+    const journaled = gate()
+    store.beforeWrite = async (journal) => {
+      if (journal.state === ECallJournalState.Running) await journaled.opened
+    }
+    const { ledger, started } = ledgerOn(store)
+    ledger.hello({ epoch: 5 })
+    const stale = runOn({ ledger, epoch: 5, rec: recorder() })
+    await sleep(10)
+    ledger.hello({ epoch: 6 })
+    const holder = recorder()
+    const fresh = runOn({ ledger, epoch: 6, rec: holder })
+    expect(ledger.cancel({ key: 'k', epoch: 6 })).toEqual({ ok: true })
+    journaled.open()
+    expect((await stale).ok).toBe(false)
+    expect(await fresh).toEqual({ ok: true })
+    expect(failureCode(await holder.firstResult())).toBe(ECallFailure.Cancelled)
+    expect(started).toEqual([])
+  })
+
   it('fails the call with output-lost when an output append fails', async () => {
     const store = new ControlledStore()
     store.beforeAppend = async () => {
@@ -208,6 +234,24 @@ describe('CallLedger under a slow or failing store', () => {
     await sleep(10)
     hold.open()
     expect(failureCode(await replay.firstResult())).toBe(ECallFailure.OutputLost)
+  })
+
+  it('owes one output-lost result per failed replay from the same owner', async () => {
+    const store = new ControlledStore()
+    const hold = gate()
+    const { ledger } = ledgerOn(store, { hold: hold.opened })
+    ledger.hello({ epoch: 1 })
+    await runOn({ ledger, epoch: 1, rec: recorder() })
+    store.beforeRead = async () => {
+      throw errno('EIO')
+    }
+    const replay = recorder()
+    await runOn({ ledger, epoch: 1, rec: replay })
+    await runOn({ ledger, epoch: 1, rec: replay })
+    await sleep(10)
+    hold.open()
+    const results = await replay.resultsAt(2)
+    expect(results.map(failureCode)).toEqual([ECallFailure.OutputLost, ECallFailure.OutputLost])
   })
 
   it('lets an accepted replay read its output before an ack removes it', async () => {
