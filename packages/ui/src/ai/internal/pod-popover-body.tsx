@@ -1,30 +1,35 @@
 import { useState } from 'react'
 
 import { Button } from '#components/button'
-import { ToggleGroup, ToggleGroupItem } from '#components/toggle-group'
 import { InlineSpinner } from './status-dot'
 import { ChipIcon } from './pod-chip-icon'
 import {
   canResize,
-  DEFAULT_VCPUS,
   EPodState,
   ramOf,
   ResizeDeclinedError,
   sizeLabel,
   STATE_LABEL,
-  VCPU_STEPS,
   type PodStatus,
 } from '../pod-status'
+import { VcpuSizeSelect } from '../vcpu-size-select'
 
 interface SizeNoteProps {
   status: PodStatus
   pending?: number
   canChange: boolean
   failed: boolean
+  failureDetail?: string
 }
 
-function SizeNote({ status, pending, canChange, failed }: SizeNoteProps) {
-  if (failed) return <p className="text-xs text-destructive">Could not resize the pod.</p>
+function SizeNote({ status, pending, canChange, failed, failureDetail }: SizeNoteProps) {
+  if (failed) {
+    return (
+      <p className="text-xs text-destructive">
+        Could not resize the pod.{failureDetail === undefined ? '' : ` ${failureDetail}`}
+      </p>
+    )
+  }
   if (pending !== undefined) {
     const lead = status.state === EPodState.Parked ? 'Starts with' : 'Restarting with'
     return (
@@ -64,21 +69,31 @@ function PodDetails({ status }: { status: PodStatus }) {
 
 export interface PodPopoverBodyProps {
   status: PodStatus
+  sizes: readonly number[]
   onResize?: (vcpus: number) => Promise<void>
+  planCapHint?: string
   settingsHref?: string
 }
 
-export function PodPopoverBody({ status, onResize, settingsHref }: PodPopoverBodyProps) {
-  const target = status.pendingVcpus ?? status.vcpus ?? DEFAULT_VCPUS
+export function PodPopoverBody({
+  status,
+  sizes,
+  onResize,
+  planCapHint,
+  settingsHref,
+}: PodPopoverBodyProps) {
+  const target = status.pendingVcpus ?? status.vcpus ?? sizes[0] ?? 1
   const [selected, setSelected] = useState(target)
   const [syncedTarget, setSyncedTarget] = useState(target)
   const [requested, setRequested] = useState<number>()
   const [applying, setApplying] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [failureDetail, setFailureDetail] = useState<string>()
   if (syncedTarget !== target) {
     setSyncedTarget(target)
     setSelected(target)
     setRequested(undefined)
+    setFailureDetail(undefined)
   }
   const pending = status.pendingVcpus ?? requested
   const canChange = canResize(status.state)
@@ -86,20 +101,25 @@ export function PodPopoverBody({ status, onResize, settingsHref }: PodPopoverBod
   const locked = !canChange || restarting || applying || !onResize
   const unchanged = selected === status.vcpus || selected === pending
 
-  const handleSizeChange = (values: string[]) => {
-    const next = Number(values[0])
-    if (VCPU_STEPS.includes(next)) setSelected(next)
+  const handleSizeChange = (value: string) => {
+    const next = Number(value)
+    if (sizes.includes(next)) setSelected(next)
   }
 
   const handleApply = async () => {
     if (!onResize) return
     setApplying(true)
     setFailed(false)
+    setFailureDetail(undefined)
     try {
       await onResize(selected)
       setRequested(selected)
     } catch (failure) {
-      setFailed(!(failure instanceof ResizeDeclinedError))
+      const declined = failure instanceof ResizeDeclinedError
+      setFailed(!declined)
+      if (!declined && failure instanceof Error && failure.message !== '') {
+        setFailureDetail(failure.message)
+      }
     } finally {
       setApplying(false)
     }
@@ -117,29 +137,29 @@ export function PodPopoverBody({ status, onResize, settingsHref }: PodPopoverBod
             RAM {ramOf(selected)} GB
           </span>
         </div>
-        <ToggleGroup
-          variant="outline"
-          size="sm"
-          spacing={0}
-          value={[String(selected)]}
+        <VcpuSizeSelect
+          sizes={sizes}
+          value={String(selected)}
           onValueChange={handleSizeChange}
           disabled={locked}
           aria-label="vCPUs"
-          className="w-full"
-        >
-          {VCPU_STEPS.map((vcpus) => (
-            <ToggleGroupItem key={vcpus} value={String(vcpus)} className="flex-1 tabular-nums">
-              {vcpus} vCPU
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        />
         <p className="text-xs text-muted-foreground">2 GB per vCPU — RAM moves with the CPU.</p>
+        {planCapHint === undefined ? null : (
+          <p className="text-xs text-muted-foreground">{planCapHint}</p>
+        )}
         <div className="flex items-center gap-2">
           <Button size="sm" disabled={locked || unchanged} onClick={handleApply}>
             {applying ? <InlineSpinner /> : null}
             {applying ? 'Applying…' : 'Apply'}
           </Button>
-          <SizeNote status={status} pending={pending} canChange={canChange} failed={failed} />
+          <SizeNote
+            status={status}
+            pending={pending}
+            canChange={canChange}
+            failed={failed}
+            failureDetail={failureDetail}
+          />
         </div>
       </div>
       {settingsHref ? (

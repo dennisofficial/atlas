@@ -177,9 +177,9 @@ describe('ThreadPodRouter', () => {
       expect((await post()).status).toBe(401)
     })
 
-    it('answers 400 for a size outside the vCPU steps', async () => {
+    it('answers 400 for a size outside the Vercel pod sizes', async () => {
       expect((await post('session-a', { threadId: 'thr-1', vcpus: 3 })).status).toBe(400)
-      expect((await post('session-a', { threadId: 'thr-1', vcpus: 16 })).status).toBe(400)
+      expect((await post('session-a', { threadId: 'thr-1', vcpus: 34 })).status).toBe(400)
     })
 
     it("answers 404 for someone else's thread", async () => {

@@ -79,12 +79,23 @@ export const QUIET_HOUR_PATTERN = /^([01]\d|2[0-3]):00$/
 
 export const effortSchema = z.enum(EEffortLevel)
 
+// https://vercel.com/docs/sandbox/pricing — 1 or an even 2..32 vCPUs, 2 GB RAM each
+export const SANDBOX_VCPU_SIZES = [
+  1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32,
+] as const
+
+export const DEFAULT_SANDBOX_VCPUS = 2
+
+export const SANDBOX_MEMORY_GB_PER_VCPU = 2
+
+export const SANDBOX_VCPU_PLAN_CAP_NOTE = 'Hobby up to 4 vCPU · Pro up to 8 · Enterprise up to 32'
+
 export const sandboxVcpusSchema = z
   .number()
   .int()
-  .min(2)
-  .max(8)
-  .refine((value) => value % 2 === 0, { message: 'must be an even number' })
+  .refine((value) => (SANDBOX_VCPU_SIZES as readonly number[]).includes(value), {
+    message: 'must be 1 or an even number from 2 to 32',
+  })
 
 function isModelRef(value: string): boolean {
   const separator = value.indexOf('/')

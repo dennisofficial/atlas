@@ -13,7 +13,11 @@ import {
   AlertDialogTitle,
 } from '@dltech/atlas-ui/components/alert-dialog'
 import { PodStatusChip, ResizeDeclinedError } from '@dltech/atlas-ui/ai/pod-status-chip'
-import type { PodStatus } from '@dltech/atlas-wire/web'
+import {
+  SANDBOX_VCPU_PLAN_CAP_NOTE,
+  SANDBOX_VCPU_SIZES,
+  type PodStatus,
+} from '@dltech/atlas-wire/web'
 
 import { chipStatusOf } from './data/pod-chip-model'
 
@@ -88,7 +92,13 @@ export function ThreadPodChip({ pod, working, onResize, settingsHref }: ThreadPo
 
   return (
     <>
-      <PodStatusChip status={status} onResize={handleResize} settingsHref={settingsHref} />
+      <PodStatusChip
+        status={status}
+        sizes={SANDBOX_VCPU_SIZES}
+        onResize={handleResize}
+        planCapHint={SANDBOX_VCPU_PLAN_CAP_NOTE}
+        settingsHref={settingsHref}
+      />
       <RestartConfirmDialog confirmation={confirmation} />
     </>
   )

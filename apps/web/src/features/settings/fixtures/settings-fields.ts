@@ -92,18 +92,6 @@ export const CONTEXT_FIELDS: SettingField[] = [
 
 export const SANDBOX_FIELDS: SettingField[] = [
   {
-    kind: ESettingFieldKind.Range,
-    key: 'sandbox.vcpus',
-    title: 'Sandbox size',
-    description:
-      'vCPUs a new cloud sandbox boots with, and 2 GB of RAM per vCPU. Applies at creation. Above 8 needs a Vercel Enterprise plan.',
-    fallback: 2,
-    min: 2,
-    max: 8,
-    step: 2,
-    unit: ' vcpu',
-  },
-  {
     kind: ESettingFieldKind.Text,
     key: 'sandbox.image',
     title: 'Sandbox image',

@@ -1,13 +1,14 @@
 import { EResizeApplies } from '@dltech/atlas-harness'
+import { DEFAULT_SANDBOX_VCPUS, SANDBOX_VCPU_SIZES } from '@dltech/atlas-wire/web'
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useState } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { messageOf } from './error-text'
 
-export const SANDBOX_VCPU_STEPS = [2, 4, 8] as const
+export const SANDBOX_VCPU_STEPS = SANDBOX_VCPU_SIZES
 
-export const DEFAULT_SANDBOX_VCPUS = 2
+export { DEFAULT_SANDBOX_VCPUS }
 
 export const memoryGbOf = (vcpus: number): number => vcpus * 2
 

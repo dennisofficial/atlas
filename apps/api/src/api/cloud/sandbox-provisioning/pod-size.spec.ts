@@ -7,13 +7,21 @@ import { seedThread } from './sandbox-provisioning.fixture'
 
 const scope = { sessionId: 'ses_thr-1', userId: 'usr-1' }
 
-const setPersonal = (value: string) =>
-  db.orm.public.UserSetting.create({
+const setPersonal = async (value: string) => {
+  const existing = await db.orm.public.UserSetting.where({ userId: 'usr-1', key: 'sandbox.vcpus' })
+    .select('id')
+    .first()
+  if (existing !== null) {
+    await db.orm.public.UserSetting.where({ id: existing.id }).update({ value })
+    return
+  }
+  await db.orm.public.UserSetting.create({
     id: 'set-1',
     userId: 'usr-1',
     key: 'sandbox.vcpus',
     value,
   })
+}
 
 describe('podVcpusOf', () => {
   useTestDatabase()
@@ -36,15 +44,32 @@ describe('podVcpusOf', () => {
     expect(await podVcpusOf(scope)).toBe(4)
   })
 
+  it("falls through the project's account default to the personal default", async () => {
+    await seedThread()
+    await setPersonal(encodeSettingValue(6))
+    await db.orm.public.Project.where({ id: 'prj-1' }).update({ sandboxVcpus: null })
+    expect(await podVcpusOf(scope)).toBe(6)
+  })
+
   it('falls back to the personal default for a session without a project', async () => {
     await seedThread({ projectId: null })
     await setPersonal(encodeSettingValue(6))
     expect(await podVcpusOf(scope)).toBe(6)
   })
 
-  it('ignores a stored value outside the vCPU steps', async () => {
+  it('honours the edge sizes 1 and 32 from either layer', async () => {
+    await seedThread()
+    await setPersonal(encodeSettingValue(1))
+    expect(await podVcpusOf(scope)).toBe(1)
+    await db.orm.public.Project.where({ id: 'prj-1' }).update({ sandboxVcpus: 32 })
+    expect(await podVcpusOf(scope)).toBe(32)
+  })
+
+  it('ignores a stored value outside the Vercel pod sizes', async () => {
     await seedThread()
     await setPersonal(encodeSettingValue(3))
+    expect(await podVcpusOf(scope)).toBeUndefined()
+    await setPersonal(encodeSettingValue(34))
     expect(await podVcpusOf(scope)).toBeUndefined()
   })
 })

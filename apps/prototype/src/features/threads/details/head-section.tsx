@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { EPodState, PodStatusChip } from '@dltech/atlas-ui/ai/pod-status-chip'
 
-import { simulateResize } from '../pod-status'
+import { POD_SIZES, simulateResize } from '../pod-status'
 import { DENSE_HEAD, DENSE_POD } from './dense-fixtures'
 
 const POD = {
@@ -42,7 +42,7 @@ export function HeadSection() {
     <header className="flex flex-col gap-2 px-1">
       <div className="flex items-start justify-between gap-3">
         <h2 className="line-clamp-2 min-w-0 pt-0.5 text-sm font-medium">{DENSE_HEAD.title}</h2>
-        <PodStatusChip status={POD} onResize={simulateResize} settingsHref="#" />
+        <PodStatusChip status={POD} sizes={POD_SIZES} onResize={simulateResize} settingsHref="#" />
       </div>
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-4 text-muted-foreground">
         <Stat value={DENSE_HEAD.turns} unit="turns" />
