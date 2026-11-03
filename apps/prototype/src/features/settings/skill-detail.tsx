@@ -41,7 +41,7 @@ export function SkillDetailPage({
 
   if (!skill) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-10 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
         <h1 className="text-lg font-semibold">Skill not found</h1>
         <p className="text-sm text-muted-foreground">It may have been deleted in this session.</p>
         <Button
@@ -178,7 +178,7 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
       <SkillDetailHeader
         skill={skill}
         rows={rows}
@@ -186,7 +186,7 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
         onDeleteSkill={() => setDeleteSkillOpen(true)}
       />
 
-      <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] gap-4">
+      <div className="grid min-h-0 flex-1 grid-cols-[260px_minmax(0,1fr)] gap-4">
         <aside className="min-h-0 overflow-y-auto rounded-lg border bg-card p-2">
           <SkillFileTree
             nodes={tree}
