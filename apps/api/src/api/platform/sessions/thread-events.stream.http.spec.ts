@@ -1,5 +1,5 @@
 import { EThreadStreamFrame, type ThreadStreamFrame } from '@dltech/atlas-wire'
-import { NotFoundException } from '@nestjs/common'
+import { NotFoundException, UnauthorizedException } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { createTRPCClient, httpSubscriptionLink } from '@trpc/client'
 import { EventSource } from 'eventsource'
@@ -110,7 +110,7 @@ describe('threadEvents.stream over a real http server', () => {
           provide: SandboxesService,
           useValue: {
             async verifyTokenPrincipal({ token }: { token: string }) {
-              if (token !== SANDBOX_TOKEN) throw new Error('bad token')
+              if (token !== SANDBOX_TOKEN) throw new UnauthorizedException('bad token')
               return {
                 kind: ETokenPrincipalKind.Sandbox,
                 id: 'sbx_1',

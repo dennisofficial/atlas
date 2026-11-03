@@ -68,7 +68,10 @@ export class SessionOrSandboxMiddleware implements TRPCMiddleware {
     if (ctx.bearerToken !== undefined) {
       const row = await this.sandboxes
         .verifyTokenPrincipal({ token: ctx.bearerToken })
-        .catch(() => null)
+        .catch((error: unknown) => {
+          if (error instanceof UnauthorizedException) return null
+          throw error
+        })
       if (row !== null) {
         if (row.kind === ETokenPrincipalKind.Pod) {
           if (!reachesThreadless({ principal: row, procedureMeta })) {
