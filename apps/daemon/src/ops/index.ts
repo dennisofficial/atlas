@@ -6,6 +6,7 @@ import { filesGroup } from './files'
 import { mcpGroup } from './mcp'
 import { servicesGroup } from './services'
 import { terminalGroup } from './terminal'
+import { shellsGroup } from './shells'
 
 export const daemonGroups = (deps: DaemonOpsDeps): readonly DaemonGroupFactory[] => [
   execGroup(deps),
@@ -13,6 +14,7 @@ export const daemonGroups = (deps: DaemonOpsDeps): readonly DaemonGroupFactory[]
   mcpGroup(deps),
   servicesGroup(deps),
   terminalGroup(deps),
+  shellsGroup(deps),
 ]
 
 export type { DaemonOpsDeps } from './deps'

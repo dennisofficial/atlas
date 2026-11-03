@@ -5,6 +5,7 @@ import { fakeFilesGroup } from './files'
 import { fakeMcpGroup } from './mcp'
 import { fakeServicesGroup } from './services'
 import { fakeTerminalGroup } from './terminal'
+import { fakeShellsGroup } from './shells'
 
 export const fakeDaemonGroups = (args: { fs: MemoryFileSystem }): readonly DaemonGroupFactory[] => [
   fakeExecGroup(args),
@@ -12,4 +13,5 @@ export const fakeDaemonGroups = (args: { fs: MemoryFileSystem }): readonly Daemo
   fakeMcpGroup(),
   fakeServicesGroup(args),
   fakeTerminalGroup(),
+  fakeShellsGroup(),
 ]

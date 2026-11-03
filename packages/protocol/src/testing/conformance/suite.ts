@@ -4,6 +4,7 @@ import { describeFencingConformance } from './fencing'
 import { describeFilesConformance } from './files'
 import { describeMcpConformance } from './mcp'
 import { describeServicesConformance } from './services'
+import { describeShellsConformance } from './shells'
 import type { DaemonConformanceTarget } from './support'
 import { describeTerminalConformance } from './terminal'
 
@@ -17,4 +18,5 @@ export const describeDaemonConformance = (target: DaemonConformanceTarget): void
   describeMcpConformance(target)
   describeServicesConformance(target)
   describeTerminalConformance(target)
+  describeShellsConformance(target)
 }
