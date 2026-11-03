@@ -75,7 +75,13 @@ function agentOf(meta: ThreadMeta): { agent?: SupervisedAgent } {
 
 function modelOf(meta: ThreadMeta): { model?: ThreadModel } {
   if (meta.modelRef === null || meta.modelEffort === null) return {}
-  return { model: { ref: meta.modelRef, effort: meta.modelEffort } }
+  return {
+    model: {
+      ref: meta.modelRef,
+      effort: meta.modelEffort,
+      ...(meta.modelFast === true ? { fast: true } : {}),
+    },
+  }
 }
 
 function locationOf(stored: string | null): { executionLocation?: EExecutionLocation } {

@@ -22,6 +22,7 @@ import type { WakeSignal } from '../wake/wake-signals'
 import { NO_RAW_TAPE, type RawTape } from './raw-tape'
 import { createPartAccumulator } from './accumulator'
 import { toCoreChunk } from './chunk-conversion'
+import { reportsFastSpeed } from './fast-speed'
 import { ModelStreamError, StreamStallError } from './errors'
 import { toInstructions } from './instructions'
 import { providerIdentityOf } from './provider-identity'
@@ -142,6 +143,7 @@ export async function runModelStream(args: {
   })
 
   const accumulator = createPartAccumulator()
+  let ranFast = false
 
   try {
     for await (const part of stream.stream) {
@@ -153,6 +155,8 @@ export async function runModelStream(args: {
       if (part.type === 'abort' && !args.signal.aborted) {
         throw new StreamStallError('the model stream went silent past its timeout')
       }
+
+      if (part.type === 'finish-step' && reportsFastSpeed(part.providerMetadata)) ranFast = true
 
       const chunk = toCoreChunk(part)
       if (chunk === null) continue
@@ -169,7 +173,8 @@ export async function runModelStream(args: {
     if (!args.signal.aborted) throw error
   }
 
-  return accumulator.finish()
+  const result = accumulator.finish()
+  return ranFast ? { ...result, ranFast: true } : result
 }
 
 export type ModelCardSource = ModelCard | (() => ModelCard | undefined)

@@ -32,7 +32,7 @@ export type LiveSend = (args: {
   uploads?: SaidUpload[]
 }) => boolean
 
-export type ThreadModelChoice = { ref: string; effort: string }
+export type ThreadModelChoice = { ref: string; effort: string; fast?: boolean }
 
 export type LiveChooseModel = (model: ThreadModelChoice) => Promise<boolean>
 

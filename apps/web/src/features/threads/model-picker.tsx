@@ -27,7 +27,9 @@ export function ModelPickerControls({
   const { models, reconnectProviders } = picker.options
   const handleManage = () => router.push(PROVIDERS_HREF)
   const handleValueChange = (id: string) =>
-    onSelectionChange(selectionAfterPick({ models, id, effort: selection.effort }))
+    onSelectionChange(
+      selectionAfterPick({ models, id, effort: selection.effort, fast: selection.fast }),
+    )
   return (
     <ModelSelector
       models={models}
@@ -38,6 +40,8 @@ export function ModelPickerControls({
       onValueChange={handleValueChange}
       effort={selection.effort}
       onEffortChange={(effort) => onSelectionChange({ ...selection, effort })}
+      fast={selection.fast}
+      onFastChange={(fast) => onSelectionChange({ ...selection, fast })}
       pinned={picker.pinned}
       onPinnedChange={picker.onPinnedChange}
       reconnectProviders={reconnectProviders}

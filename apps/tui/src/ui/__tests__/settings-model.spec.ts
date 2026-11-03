@@ -91,13 +91,14 @@ describe('settingsModel', () => {
 
     expect(models?.page.id).toBe(ESettingPage.Models)
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
-      ['Model', 2],
+      ['Model', 3],
       ['Background processes', 3],
       ['Decisions', 2],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
       ESettingId.ModelId,
       ESettingId.ModelEffort,
+      ESettingId.ModelFast,
       ESettingId.QuickModel,
       ESettingId.CompactionModel,
       ESettingId.SubagentModel,
@@ -118,7 +119,7 @@ describe('settingsModel', () => {
     const models = model.pages.find((page) => page.page.id === ESettingPage.Models)
 
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
-      ['Model', 3],
+      ['Model', 4],
       ['Background processes', 3],
       ['Decisions', 2],
       ['Built-in sub-agents', 2],
@@ -126,6 +127,7 @@ describe('settingsModel', () => {
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
       ESettingId.ModelId,
       ESettingId.ModelEffort,
+      ESettingId.ModelFast,
       agentTypeSettingId('teammate'),
       ESettingId.QuickModel,
       ESettingId.CompactionModel,
@@ -135,7 +137,7 @@ describe('settingsModel', () => {
       agentTypeSettingId('builder'),
       agentTypeSettingId('explore'),
     ])
-    expect(currentRow({ state: { pageIndex: 1, rowIndex: 2 }, model })?.definition.id).toBe(
+    expect(currentRow({ state: { pageIndex: 1, rowIndex: 3 }, model })?.definition.id).toBe(
       agentTypeSettingId('teammate'),
     )
   })

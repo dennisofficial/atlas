@@ -5375,6 +5375,13 @@
                   "kind": "scalar"
                 }
               },
+              "modelFast": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "modelRef": {
                 "nullable": true,
                 "type": {
@@ -5644,6 +5651,9 @@
                 },
                 "modelEffort": {
                   "column": "modelEffort"
+                },
+                "modelFast": {
+                  "column": "modelFast"
                 },
                 "modelRef": {
                   "column": "modelRef"
@@ -12238,6 +12248,11 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "modelFast": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "nullable": true
+                },
                 "modelRef": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -13441,7 +13456,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "0f01c00d02783fa0b4af02e4ac7200a9fd602d97f2b8975e3092818324485a21"
+    "storageHash": "7a7a0970243dce02319d461c9fa8529535ad94488bba092dd38e313a6b109939"
   },
   "execution": {
     "executionHash": "f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f",

@@ -40,9 +40,9 @@ export type LiveThreadControllerArgs = {
   mint: () => Promise<PodConnectResult>
   readSeed: () => Promise<WireEvent[]>
   onChange: (state: LiveThreadState) => void
-  onModelChanged?: (model: { ref: string; effort: string }) => void
+  onModelChanged?: (model: { ref: string; effort: string; fast?: boolean }) => void
   catchUpOnConnect?: boolean
-  readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
+  readStoredModel?: () => Promise<{ ref: string; effort: string; fast?: boolean } | undefined>
   onStepOpened?: () => void
   onReset?: () => void
   onInterruptLost?: () => void

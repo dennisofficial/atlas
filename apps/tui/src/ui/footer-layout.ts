@@ -45,8 +45,10 @@ export type FooterLayout = {
   instrumentCells: number
 }
 
-export function effortSegment(effort: FooterEffort): string {
-  return EFFORT_ABBREVIATION[effort]
+export function effortSegment(effort: FooterEffort, fast?: boolean): string {
+  return fast === true
+    ? `${EFFORT_ABBREVIATION[effort]} ${glyph.fast}`
+    : EFFORT_ABBREVIATION[effort]
 }
 
 export function readouts(context: FooterContext): readonly FooterReadout[] {
@@ -212,12 +214,13 @@ export function footerLayout(args: {
   width: number
   model: string
   effort?: FooterEffort | null
+  fast?: boolean | undefined
   items?: readonly FooterItem[]
   context?: FooterContext | null
 }): FooterLayout {
   const inner = Math.max(0, args.width - FOOTER_GUTTER * 2)
   const effort =
-    args.effort === undefined || args.effort === null ? null : effortSegment(args.effort)
+    args.effort === undefined || args.effort === null ? null : effortSegment(args.effort, args.fast)
 
   const ladder = dropLadder({
     facts: { model: args.model, effort },

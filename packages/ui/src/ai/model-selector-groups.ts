@@ -67,6 +67,7 @@ export interface ModelOption {
   monogram?: string
   efforts?: EEffort[]
   images?: boolean
+  fast?: boolean
   contextTokens?: number
   disabled?: boolean
   disabledNote?: string

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'0f01c00d02783fa0b4af02e4ac7200a9fd602d97f2b8975e3092818324485a21'>;
+  StorageHashBase<'7a7a0970243dce02319d461c9fa8529535ad94488bba092dd38e313a6b109939'>;
 export type ExecutionHash =
   ExecutionHashBase<'f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f'>;
 export type ProfileHash =
@@ -808,6 +808,7 @@ export namespace Models {
     lastAssistantSeq: FieldOutputTypes['public']['Thread']['lastAssistantSeq'];
     lastOutcome: FieldOutputTypes['public']['Thread']['lastOutcome'];
     modelEffort: FieldOutputTypes['public']['Thread']['modelEffort'];
+    modelFast: FieldOutputTypes['public']['Thread']['modelFast'];
     modelRef: FieldOutputTypes['public']['Thread']['modelRef'];
     parentThreadId: FieldOutputTypes['public']['Thread']['parentThreadId'];
     rev: FieldOutputTypes['public']['Thread']['rev'];
@@ -4896,6 +4897,12 @@ type ContractBase = Omit<
                 readonly modelEffort: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly modelFast: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
                   readonly nullable: true;
                   readonly many: false;
                 };
@@ -9278,6 +9285,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly modelFast: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
               readonly modelRef: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -9453,6 +9464,7 @@ type ContractBase = Omit<
                 readonly lastAssistantSeq: { readonly column: 'lastAssistantSeq' };
                 readonly lastOutcome: { readonly column: 'lastOutcome' };
                 readonly modelEffort: { readonly column: 'modelEffort' };
+                readonly modelFast: { readonly column: 'modelFast' };
                 readonly modelRef: { readonly column: 'modelRef' };
                 readonly parentThreadId: { readonly column: 'parentThreadId' };
                 readonly rev: { readonly column: 'rev' };

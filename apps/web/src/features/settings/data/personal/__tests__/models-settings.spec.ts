@@ -36,6 +36,14 @@ describe('modelsDraftFrom', () => {
     expect(draft.builtIns[EBuiltInAgentType.Builder].model).toBe('openai/gpt-5-mini')
     expect(draft.builtIns[EBuiltInAgentType.Reviewer].model).toBe('anthropic/claude-sonnet-5')
   })
+
+  it('reads the main role fast toggle, defaulting off', () => {
+    expect(modelsDraftFrom(new Map()).roles[EAgentRole.Main].fast).toBe(false)
+    expect(modelsDraftFrom(new Map([['model.fast', true]])).roles[EAgentRole.Main].fast).toBe(true)
+    expect(modelsDraftFrom(new Map([['model.fast', true]])).roles[EAgentRole.Quick].fast).toBe(
+      undefined,
+    )
+  })
 })
 
 describe('modelsChanges', () => {
@@ -91,5 +99,15 @@ describe('modelsChanges', () => {
       roles: { ...saved.roles, [EAgentRole.Main]: { model: 'auto', effort: EEffort.High } },
     }
     expect(modelsChanges({ saved, draft })['web.models.preset']).toBe('custom')
+  })
+
+  it('writes model.fast as a boolean without touching the preset marker', () => {
+    const draft = {
+      ...saved,
+      roles: { ...saved.roles, [EAgentRole.Main]: { ...saved.roles[EAgentRole.Main], fast: true } },
+    }
+    const changes = modelsChanges({ saved, draft })
+    expect(changes['model.fast']).toBe(true)
+    expect(changes['web.models.preset']).toBe('balanced')
   })
 })

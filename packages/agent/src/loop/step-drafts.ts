@@ -12,7 +12,12 @@ const calledDraft = ({ call, ordinal }: { call: ModelToolCall; ordinal: number }
 
 export function draftsFor(result: ModelStepResult): EventDraft[] {
   const drafts: EventDraft[] = []
-  if (result.parts.length > 0) drafts.push({ type: 'assistant-said', parts: result.parts })
+  if (result.parts.length > 0)
+    drafts.push({
+      type: 'assistant-said',
+      parts: result.parts,
+      ...(result.ranFast === true ? { fast: true } : {}),
+    })
 
   result.toolCalls.forEach((call, ordinal) => {
     drafts.push(calledDraft({ call, ordinal }))

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EImageTier } from '@dltech/atlas-core'
-import { cardsForProvider, withoutDatedDuplicates } from '@dltech/atlas-models'
+import { cardsForProvider, offersFastMode, withoutDatedDuplicates } from '@dltech/atlas-models'
+import { EModelProviderStatus, type ModelsResponse } from '@dltech/atlas-wire/web'
 
-import { modelOptionsOf } from '../model-options'
+import { modelOptionsFromResponse, modelOptionsOf } from '../model-options'
 
 const account = (provider: string, status = 'active') => ({ provider, kind: 'oauth', status })
 
@@ -122,5 +123,53 @@ describe('modelOptionsOf', () => {
     const id = `anthropic/${card?.ref.modelId}`
     const { models } = modelOptionsOf({ accounts: [account('anthropic')], currentId: id })
     expect(models.filter((model) => model.id === id)).toHaveLength(1)
+  })
+
+  it('marks options fast from the card fast flag', () => {
+    const { models } = modelOptionsOf({ accounts: [account('anthropic')] })
+    const cards = cardsForProvider('anthropic')
+    const fastCard = cards.find((card) => card.fast === true)
+    const plainCard = cards.find((card) => card.fast !== true)
+    expect(fastCard !== undefined && offersFastMode(fastCard.ref)).toBe(true)
+    expect(models.find((model) => model.id === `anthropic/${fastCard?.ref.modelId}`)?.fast).toBe(
+      true,
+    )
+    expect(models.find((model) => model.id === `anthropic/${plainCard?.ref.modelId}`)?.fast).toBe(
+      false,
+    )
+  })
+})
+
+describe('modelOptionsFromResponse', () => {
+  const liveResponse: ModelsResponse = {
+    providers: [
+      {
+        id: 'anthropic',
+        label: 'Claude Plan',
+        status: EModelProviderStatus.Connected,
+        live: true,
+        models: [
+          {
+            id: 'anthropic/claude-opus-5',
+            label: 'Claude Opus 5',
+            contextWindow: 1_000_000,
+            efforts: [],
+            fast: true,
+          },
+          {
+            id: 'anthropic/claude-sonnet-5',
+            label: 'Claude Sonnet 5',
+            contextWindow: 200_000,
+            efforts: [],
+          },
+        ],
+      },
+    ],
+  }
+
+  it('marks options fast from the live entry flag', () => {
+    const { models } = modelOptionsFromResponse({ response: liveResponse })
+    expect(models.find((model) => model.id === 'anthropic/claude-opus-5')?.fast).toBe(true)
+    expect(models.find((model) => model.id === 'anthropic/claude-sonnet-5')?.fast).toBe(false)
   })
 })

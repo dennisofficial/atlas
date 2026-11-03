@@ -33,7 +33,8 @@ const start = async (
       | {
           catalogue: never
           effort: () => string
-          select: (next: { ref: string; effort: string }) => void
+          fast: () => boolean
+          select: (next: { ref: string; effort: string; fast?: boolean | undefined }) => void
         }
       | undefined
   } = {},
@@ -93,11 +94,12 @@ describe('a transcript write targeting a child or foreign thread', () => {
   })
 
   it('refuses a model pick that targets a child thread, neither recording it nor re-pinning the loop', async () => {
-    const selected: { ref: string; effort: string }[] = []
+    const selected: { ref: string; effort: string; fast?: boolean | undefined }[] = []
     const { app, client } = await start({
       modelBridge: {
         catalogue: undefined as never,
         effort: () => 'medium',
+        fast: () => false,
         select: (next) => selected.push(next),
       },
     })
@@ -125,7 +127,7 @@ describe('a set-thread-model op against a supervised agent', () => {
   it('refuses to re-model a supervised served thread even with an operator override', async () => {
     const { answerSetThreadModel } = await import('../requests')
     const chosen: { threadId: string; model: { ref: string; effort: string } }[] = []
-    const selected: { ref: string; effort: string }[] = []
+    const selected: { ref: string; effort: string; fast?: boolean | undefined }[] = []
 
     const reply = await answerSetThreadModel({
       frame: {

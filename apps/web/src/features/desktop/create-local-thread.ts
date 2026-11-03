@@ -11,17 +11,19 @@ export async function createLocalThread(args: {
   projectId: string
   model?: string | undefined
   effort?: string | undefined
+  fast?: boolean | undefined
   text: string
   sendId: string
   images?: SaidImageWire[] | undefined
   uploads?: SaidUpload[] | undefined
 }): Promise<string> {
-  const { threadId, projectId, model, effort, text, sendId, images, uploads } = args
+  const { threadId, projectId, model, effort, fast, text, sendId, images, uploads } = args
   await createLocalPod({
     threadId,
     projectId,
     ...(model === undefined ? {} : { model }),
     ...(effort === undefined ? {} : { effort }),
+    ...(fast === undefined ? {} : { fast }),
   })
   holdFirstMessage({
     threadId,

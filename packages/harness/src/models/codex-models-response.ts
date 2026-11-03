@@ -11,6 +11,8 @@ import { z } from 'zod'
 // openai/codex codex-rs/protocol/src/openai_models.rs `ModelInfo` / `ModelsResponse`. Fields are
 // snake_case on the wire. Everything but the slug is tolerated absent so one server-side addition
 // or omission cannot empty the picker.
+const ServiceTierSchema = z.object({ id: z.string() })
+
 const ReasoningLevelSchema = z.object({
   effort: z.string(),
   description: z.string().optional(),
@@ -28,6 +30,8 @@ export const ModelInfoSchema = z.object({
   minimal_client_version: z.unknown().optional(),
   context_window: z.number().nullish(),
   max_context_window: z.number().nullish(),
+  service_tiers: z.array(ServiceTierSchema).default([]),
+  additional_speed_tiers: z.array(z.string()).default([]),
 })
 
 export const ModelsResponseSchema = z.object({
@@ -38,6 +42,15 @@ export type ModelInfo = z.infer<typeof ModelInfoSchema>
 export type ModelsResponse = z.infer<typeof ModelsResponseSchema>
 
 export const LISTED_VISIBILITY = 'list'
+
+// codex-rs `ModelPreset::supports_fast_mode`: a `priority` service tier, or the deprecated `fast`
+// speed tier. The wire value is `priority`; the backend answers `fast` with a 400.
+export const CODEX_FAST_SERVICE_TIER = 'priority'
+const DEPRECATED_FAST_SPEED_TIER = 'fast'
+
+const offersFastTier = (model: ModelInfo): boolean =>
+  model.service_tiers.some((tier) => tier.id === CODEX_FAST_SERVICE_TIER) ||
+  model.additional_speed_tiers.includes(DEPRECATED_FAST_SPEED_TIER)
 
 // codex-rs `ReasoningEffort` spells "no reasoning" as `none`; Atlas's ladder calls the rung `off`.
 const RUNG_BY_WIRE: Readonly<Record<string, EEffort>> = {
@@ -76,6 +89,7 @@ function toCard(args: { model: ModelInfo; providerId: string }): ModelCard {
     contextWindow: toContextWindow(args.model),
     imageTier: EImageTier.Standard,
     ...(effort === undefined ? {} : { effort }),
+    ...(offersFastTier(args.model) ? { fast: true } : {}),
   }
 }
 

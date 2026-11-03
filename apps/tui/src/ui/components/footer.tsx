@@ -55,6 +55,7 @@ function DerivedFooter(props: {
   width: number
   model: string
   effort?: FooterEffort | null
+  fast?: boolean | undefined
   items?: readonly FooterItem[]
   context?: FooterContext | null
   strip?: FooterStripState | null
@@ -68,6 +69,7 @@ function DerivedFooter(props: {
       width: props.width,
       model: props.model,
       ...(props.effort === undefined ? {} : { effort: props.effort }),
+      ...(props.fast === undefined ? {} : { fast: props.fast }),
       ...(props.items === undefined ? {} : { items: props.items }),
       ...(props.context === undefined ? {} : { context: props.context }),
     })

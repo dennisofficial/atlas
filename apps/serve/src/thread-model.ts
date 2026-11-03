@@ -30,11 +30,13 @@ async function belongsToServedSession(args: {
   return false
 }
 
+type PickedModel = { ref: string; effort: string; fast?: boolean | undefined }
+
 async function persistRootModel(args: {
-  persist: ((model: { ref: string; effort: string }) => Promise<void>) | undefined
+  persist: ((model: PickedModel) => Promise<void>) | undefined
   log: ServeLog | undefined
   threadId: ThreadId
-  model: { ref: string; effort: string }
+  model: PickedModel
 }): Promise<void> {
   try {
     await args.persist?.(args.model)
@@ -51,15 +53,16 @@ export async function answerSetThreadModel(args: {
   frame: RequestFrame
   transcript: TranscriptReaders
   threadId: ThreadId
-  select?: ((model: { ref: string; effort: string }) => void) | undefined
-  persist?: ((model: { ref: string; effort: string }) => Promise<void>) | undefined
+  select?: ((model: PickedModel) => void) | undefined
+  persist?: ((model: PickedModel) => Promise<void>) | undefined
   log?: ServeLog | undefined
 }): Promise<ReplyFrame> {
   const parsed = setThreadModelParamsSchema.safeParse(args.frame.params)
   if (!parsed.success) {
     return refusedRequest({
       replyTo: args.frame.id,
-      message: 'set-thread-model wants { threadId, model: { ref, effort }, retarget?: boolean }',
+      message:
+        'set-thread-model wants { threadId, model: { ref, effort, fast? }, retarget?: boolean }',
     })
   }
   const { model, retarget } = parsed.data

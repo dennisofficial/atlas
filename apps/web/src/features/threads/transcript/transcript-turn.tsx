@@ -1,6 +1,7 @@
 'use client'
 
 import { memo } from 'react'
+import { ZapIcon } from 'lucide-react'
 
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/message-images'
@@ -82,7 +83,17 @@ function AgentTurnView({
   const answer = final?.kind === ESegmentKind.Message && final.final ? final : null
   const body = answer === null ? turn.segments : turn.segments.slice(0, -1)
   return (
-    <div className="flex flex-col gap-4">
+    <div className="relative flex flex-col gap-4">
+      {turn.fast === true ? (
+        <span
+          role="img"
+          title="Ran in fast mode"
+          className="absolute -top-1 right-0 text-muted-foreground"
+          aria-label="Ran in fast mode"
+        >
+          <ZapIcon className="size-3.5 fill-current" />
+        </span>
+      ) : null}
       {body.map((segment) => (
         <SegmentView
           key={segment.id}

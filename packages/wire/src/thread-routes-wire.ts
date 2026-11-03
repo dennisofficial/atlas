@@ -36,6 +36,7 @@ export const createThreadInputSchema = z.object({
   projectId: z.string().min(1).optional(),
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
+  fast: z.boolean().optional(),
   firstMessage: threadMessageRequestSchema.optional(),
   agent: supervisedAgentSchema.optional(),
 })
@@ -99,6 +100,7 @@ export type MarkThreadReadInput = z.infer<typeof markThreadReadInputSchema>
 export const chooseThreadModelInputSchema = threadIdInputSchema.extend({
   ref: z.string().min(1),
   effort: z.string().min(1),
+  fast: z.boolean().optional(),
 })
 export type ChooseThreadModelInput = z.infer<typeof chooseThreadModelInputSchema>
 

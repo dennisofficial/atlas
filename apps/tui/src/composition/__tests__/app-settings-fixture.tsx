@@ -64,7 +64,7 @@ export const valueOf = (app: FakeApp, id: ESettingId): unknown =>
 
 export const SIDEBAR_WIDTH_ROW = 7
 
-export const DECISIONS_URL_ROW = 6
+export const DECISIONS_URL_ROW = 7
 
 export const CUSTOM_DECISIONS_SETTINGS: SettingsDocument = {
   values: { [ESettingId.DecisionsProvider]: 'custom' },

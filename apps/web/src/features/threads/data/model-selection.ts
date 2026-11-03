@@ -1,18 +1,26 @@
 import { defaultModelId } from '@dltech/atlas-harness/models'
 import { EEffort, EFFORT_LADDER, type ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
-export type ModelSelection = { id: string; effort: EEffort }
+export type ModelSelection = { id: string; effort: EEffort; fast: boolean }
 
 export const DEFAULT_EFFORT = EEffort.Medium
 
-export const UNSET_SELECTION: ModelSelection = { id: '', effort: DEFAULT_EFFORT }
+export const UNSET_SELECTION: ModelSelection = { id: '', effort: DEFAULT_EFFORT, fast: false }
 
 export const effortOfName = (name: string | undefined): EEffort =>
   EFFORT_LADDER.find((effort) => effort === name) ?? DEFAULT_EFFORT
 
-export function createFieldsOf(selection: ModelSelection): { model?: string; effort?: string } {
+export function createFieldsOf(selection: ModelSelection): {
+  model?: string
+  effort?: string
+  fast?: boolean
+} {
   if (selection.id === UNSET_SELECTION.id) return {}
-  return { model: selection.id, effort: selection.effort }
+  return {
+    model: selection.id,
+    effort: selection.effort,
+    ...(selection.fast ? { fast: true } : {}),
+  }
 }
 
 function clampedEffort({
@@ -32,15 +40,21 @@ export function selectionAfterPick(args: {
   models: readonly ModelOption[]
   id: string
   effort: EEffort
+  fast?: boolean
 }): ModelSelection {
   const picked = args.models.find((model) => model.id === args.id)
-  return { id: args.id, effort: clampedEffort({ offered: picked?.efforts, effort: args.effort }) }
+  return {
+    id: args.id,
+    effort: clampedEffort({ offered: picked?.efforts, effort: args.effort }),
+    fast: (args.fast ?? false) && picked?.fast === true,
+  }
 }
 
 export function defaultSelectionOf(args: {
   models: readonly ModelOption[]
   personalId: string
   personalEffort: string
+  personalFast?: boolean
 }): ModelSelection {
   const id = defaultModelId({
     offered: args.models.map((model) => ({ id: model.id, reachable: model.disabled !== true })),
@@ -51,12 +65,13 @@ export function defaultSelectionOf(args: {
     models: args.models,
     id,
     effort: effortOfName(args.personalEffort),
+    fast: args.personalFast ?? false,
   })
 }
 
 export function existingSelectionOf(
-  model: { ref: string; effort: string } | undefined,
+  model: { ref: string; effort: string; fast?: boolean | undefined } | undefined,
 ): ModelSelection {
   if (model === undefined) return UNSET_SELECTION
-  return { id: model.ref, effort: effortOfName(model.effort) }
+  return { id: model.ref, effort: effortOfName(model.effort), fast: model.fast === true }
 }

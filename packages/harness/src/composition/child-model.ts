@@ -54,6 +54,7 @@ export function childModelSelection(
     return {
       ref: pinned ?? inherited?.ref ?? refKey(parent.ref),
       effort: inherited?.effort ?? parent.effort,
+      ...((inherited?.fast ?? parent.fast) === true ? { fast: true } : {}),
     }
   }
 }
@@ -88,6 +89,7 @@ const portFor = (
   args: ChildModelDeps,
   ref: ModelRef,
   effort: (typeof EFFORT_LADDER)[number],
+  fast: boolean,
 ): ModelPort => {
   const card = args.models.cardFor(ref)
   const adapter = args.models.adapterFor(ref.providerId)
@@ -95,7 +97,7 @@ const portFor = (
 
   return faultInjected(
     new AiSdkModelPort({
-      model: adapter.model({ card, effort: () => effort }),
+      model: adapter.model({ card, effort: () => effort, fast: () => fast }),
       card,
       hooks: args.hooks(),
       ...(args.wake === undefined ? {} : { wake: args.wake }),
@@ -115,7 +117,7 @@ const parentModelFor = (
   return () => {
     const choice = args.model.choice()
     if (refKey(choice.ref) === refKey(childRef)) return undefined
-    return portFor(args, choice.ref, choice.effort)
+    return portFor(args, choice.ref, choice.effort, choice.fast === true)
   }
 }
 
@@ -129,7 +131,7 @@ export function childModelSource(
     if (ref === undefined || effort === undefined)
       throw new Error(`invalid saved model selection for child ${threadId}`)
 
-    const port = portFor(args, ref, effort)
+    const port = portFor(args, ref, effort, saved.fast === true)
     return childFallbackModel({
       primary: port,
       parentFor: parentModelFor(args, ref),

@@ -120,6 +120,7 @@ export type EventBody =
       interrupted?: boolean | undefined
       placeholder?: EAssistantPlaceholder | undefined
       aborted?: 'handoff' | undefined
+      fast?: true | undefined
     }
   | { type: 'tool-called'; callId: CallId; name: string; input?: unknown; ordinal: number }
   | { type: 'tool-dispatched'; callId: CallId; name: string; bootId?: string | undefined }

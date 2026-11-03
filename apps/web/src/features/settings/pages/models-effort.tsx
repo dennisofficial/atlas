@@ -12,13 +12,13 @@ import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-sett
 import {
   BUILT_IN_AGENT_META,
   BUILT_IN_AGENT_ORDER,
+  EAgentRole,
   EPreset,
   PRESETS,
   PRESET_LABELS,
   ROLE_META,
   ROLE_ORDER,
   TEAMMATE_META,
-  type EAgentRole,
   type EBuiltInAgentType,
   type ModelsDraft,
   type RoleSetting,
@@ -92,6 +92,7 @@ function ModelsEditor({
           setting={value.roles[role]}
           picker={picker}
           onChange={(setting) => handleRoleChange({ role, setting })}
+          {...(role === EAgentRole.Main ? { fast: value.roles[role].fast ?? false } : {})}
         />
       ))}
       <RoleCard

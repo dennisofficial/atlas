@@ -27,11 +27,13 @@ export type SwitcherRow =
 export type SwitcherState = {
   index: number
   effort: EEffort
+  fast: boolean
 }
 
 export type SwitcherChoice = {
   ref: ModelRef | null
   effort: EEffort
+  fast: boolean
 }
 
 export enum EModelScope {
@@ -172,11 +174,13 @@ const settled = (args: {
   rows: readonly SwitcherRow[]
   index: number
   effort: EEffort
+  fast: boolean
 }): SwitcherState => {
   const card = cardAt({ rows: args.rows, index: args.index })
   return {
     index: args.index,
     effort: clampEffort({ map: card?.effort, effort: args.effort }) ?? args.effort,
+    fast: args.fast && card?.fast === true,
   }
 }
 
@@ -185,6 +189,7 @@ export function anchorOn(args: {
   rows: readonly SwitcherRow[]
   active: ModelRef | undefined
   effort: EEffort
+  fast: boolean
 }): SwitcherState {
   const wanted = args.active === undefined ? undefined : refKey(args.active)
   const found =
@@ -193,16 +198,18 @@ export function anchorOn(args: {
       : args.rows.findIndex(
           (row) => row.kind === ESwitcherRow.Model && refKey(row.card.ref) === wanted,
         )
-  if (found >= 0) return settled({ rows: args.rows, index: found, effort: args.effort })
+  if (found >= 0)
+    return settled({ rows: args.rows, index: found, effort: args.effort, fast: args.fast })
 
   const [first] = selectableIndexes(args.rows)
-  return settled({ rows: args.rows, index: first ?? 0, effort: args.effort })
+  return settled({ rows: args.rows, index: first ?? 0, effort: args.effort, fast: args.fast })
 }
 
 export function openSwitcher(args: {
   providers: readonly SwitcherProvider[]
   active: ModelRef
   effort: EEffort
+  fast?: boolean | undefined
   availability?: SwitcherAvailability | undefined
   favourites?: readonly string[] | undefined
 }): SwitcherState {
@@ -212,7 +219,7 @@ export function openSwitcher(args: {
     ...(args.favourites === undefined ? {} : { favourites: args.favourites }),
   })
 
-  return anchorOn({ rows, active: args.active, effort: args.effort })
+  return anchorOn({ rows, active: args.active, effort: args.effort, fast: args.fast ?? false })
 }
 
 /** A row named outright — by a click, not by a step — which only lands if it can be switched to. */
@@ -224,7 +231,12 @@ export function selectAt(args: {
   const row = args.rows[args.index]
   if (row?.kind !== ESwitcherRow.Model || !row.available) return args.state
 
-  return settled({ rows: args.rows, index: args.index, effort: args.state.effort })
+  return settled({
+    rows: args.rows,
+    index: args.index,
+    effort: args.state.effort,
+    fast: args.state.fast,
+  })
 }
 
 export function moveSelection(args: {
@@ -248,7 +260,7 @@ export function moveSelection(args: {
     index = next
   }
 
-  return settled({ rows: args.rows, index, effort: args.state.effort })
+  return settled({ rows: args.rows, index, effort: args.state.effort, fast: args.state.fast })
 }
 
 export function adjustEffort(args: {
@@ -261,12 +273,22 @@ export function adjustEffort(args: {
   return { ...args.state, effort: stepped ?? args.state.effort }
 }
 
+export function toggleFast(args: {
+  state: SwitcherState
+  rows: readonly SwitcherRow[]
+}): SwitcherState {
+  const card = selectedCard({ state: args.state, rows: args.rows })
+  if (card?.fast !== true) return args.state
+
+  return { ...args.state, fast: !args.state.fast }
+}
+
 export function resolve(args: {
   state: SwitcherState
   rows: readonly SwitcherRow[]
 }): SwitcherChoice {
   const card = selectedCard({ state: args.state, rows: args.rows })
-  return { ref: card?.ref ?? null, effort: args.state.effort }
+  return { ref: card?.ref ?? null, effort: args.state.effort, fast: args.state.fast }
 }
 
 export function priceLabel(card: ModelCard): string | null {

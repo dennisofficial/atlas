@@ -43,6 +43,12 @@ export const HARNESS_SETTING_ENTRIES = [
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
+    key: 'model.fast',
+    schema: z.boolean(),
+    fallback: false,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
     key: 'agents.subagentModel',
     schema: modelRefSettingSchema,
     fallback: '',

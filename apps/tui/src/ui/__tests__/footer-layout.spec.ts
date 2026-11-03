@@ -62,6 +62,15 @@ describe('footerLayout at ease', () => {
     })
   })
 
+  it('rides the fast bolt on the effort segment, so the two drop together', () => {
+    const laid = footerLayout({ width: 200, model: MODEL, effort: EEffort.Medium, fast: true })
+    expect(laid.instruments.effort).toBe('med ↯')
+    expect(
+      footerLayout({ width: 200, model: MODEL, effort: EEffort.Medium, fast: false }).instruments
+        .effort,
+    ).toBe('med')
+  })
+
   it('names the effort without spelling out the word', () => {
     expect(footerLayout({ width: 200, model: MODEL, effort: EEffort.Low }).instruments.effort).toBe(
       'low',
@@ -144,6 +153,32 @@ describe('footerLayout under pressure', () => {
     ]
     expect(order).toEqual([...order].sort((left, right) => right - left))
     expect(new Set(order).size).toBe(order.length)
+  })
+
+  it('drops the bolt with the effort it rides on', () => {
+    const fastAt = (width: number): FooterLayout =>
+      footerLayout({
+        width,
+        model: MODEL,
+        effort: EEffort.Medium,
+        fast: true,
+        context: { percent: 62, tokensUsed: 124_000, meters: METERS },
+      })
+    for (const width of WIDTHS) {
+      const effort = fastAt(width).instruments.effort
+      if (effort !== null) expect(effort).toBe('med ↯')
+    }
+
+    let firstWithoutEffort = -1
+    for (let width = 0; width <= 200; width += 1) {
+      if (fastAt(width).instruments.effort !== null) {
+        firstWithoutEffort = width - 1
+        break
+      }
+    }
+    expect(firstWithoutEffort).toBeGreaterThan(0)
+    expect(fastAt(firstWithoutEffort).instruments.effort).toBeNull()
+    expect(fastAt(firstWithoutEffort).instruments.model).toBe(MODEL)
   })
 
   it('keeps the percentage read-out through every drop', () => {

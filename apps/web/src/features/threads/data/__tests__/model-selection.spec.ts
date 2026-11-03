@@ -27,9 +27,17 @@ describe('createFieldsOf', () => {
   })
 
   it('sends both for a picked model', () => {
-    expect(createFieldsOf({ id: 'anthropic/x', effort: EEffort.High })).toEqual({
+    expect(createFieldsOf({ id: 'anthropic/x', effort: EEffort.High, fast: false })).toEqual({
       model: 'anthropic/x',
       effort: 'high',
+    })
+  })
+
+  it('sends fast only when it is on', () => {
+    expect(createFieldsOf({ id: 'anthropic/x', effort: EEffort.High, fast: true })).toEqual({
+      model: 'anthropic/x',
+      effort: 'high',
+      fast: true,
     })
   })
 })
@@ -38,7 +46,26 @@ describe('defaultSelectionOf', () => {
   it('uses the personal model and effort when the ref is offered', () => {
     expect(
       defaultSelectionOf({ models, personalId: withLadder?.id ?? '', personalEffort: 'low' }),
-    ).toEqual({ id: withLadder?.id ?? '', effort: EEffort.Low })
+    ).toEqual({ id: withLadder?.id ?? '', effort: EEffort.Low, fast: false })
+  })
+
+  it('seeds fast from the personal setting only when the model offers it', () => {
+    const fastModel = { id: 'anthropic/fast', label: 'Fast', fast: true }
+    const plainModel = { id: 'anthropic/plain', label: 'Plain' }
+    const withFast = defaultSelectionOf({
+      models: [plainModel, fastModel],
+      personalId: fastModel.id,
+      personalEffort: 'low',
+      personalFast: true,
+    })
+    const withoutSupport = defaultSelectionOf({
+      models: [plainModel, fastModel],
+      personalId: plainModel.id,
+      personalEffort: 'low',
+      personalFast: true,
+    })
+    expect(withFast.fast).toBe(true)
+    expect(withoutSupport.fast).toBe(false)
   })
 
   it('falls back to the shipped default when the personal ref is not offered or empty', () => {
@@ -89,7 +116,25 @@ describe('selectionAfterPick', () => {
     expect(selectionAfterPick({ models, id: withLadder?.id ?? '', effort: first })).toEqual({
       id: withLadder?.id ?? '',
       effort: first,
+      fast: false,
     })
+  })
+
+  it('clamps fast to a picked model that offers it', () => {
+    const fastModel = { id: 'anthropic/fast', label: 'Fast', fast: true }
+    const plainModel = { id: 'anthropic/plain', label: 'Plain' }
+    const offered = [plainModel, fastModel]
+    expect(
+      selectionAfterPick({ models: offered, id: fastModel.id, effort: EEffort.Low, fast: true })
+        .fast,
+    ).toBe(true)
+    expect(
+      selectionAfterPick({ models: offered, id: plainModel.id, effort: EEffort.Low, fast: true })
+        .fast,
+    ).toBe(false)
+    expect(
+      selectionAfterPick({ models: offered, id: fastModel.id, effort: EEffort.Low }).fast,
+    ).toBe(false)
   })
 
   it('moves to the nearest offered effort above, else the highest', () => {
@@ -113,6 +158,12 @@ describe('existingSelectionOf', () => {
     expect(existingSelectionOf({ ref: 'a/b', effort: 'high' })).toEqual({
       id: 'a/b',
       effort: EEffort.High,
+      fast: false,
+    })
+    expect(existingSelectionOf({ ref: 'a/b', effort: 'high', fast: true })).toEqual({
+      id: 'a/b',
+      effort: EEffort.High,
+      fast: true,
     })
     expect(existingSelectionOf(undefined)).toEqual(UNSET_SELECTION)
     expect(existingSelectionOf({ ref: 'a/b', effort: 'weird' }).effort).toBe(EEffort.Medium)

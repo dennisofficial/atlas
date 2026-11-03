@@ -39,6 +39,10 @@ const SCALE_MODELS: ModelOption[] = SCALE_ROUTES.flatMap((route) =>
 
 const RECONNECT_PROVIDERS = ['OpenRouter']
 
+const FAST_MODELS: ModelOption[] = MODELS.map((model) =>
+  model.id === 'claude-opus' ? { ...model, fast: true } : model,
+)
+
 const PLAN_LABELS: Record<string, string> = { Anthropic: 'Claude Plan', OpenAI: 'Codex Plan' }
 
 const NO_KEY = { disabled: true, disabledNote: 'no key' }
@@ -153,6 +157,32 @@ export const ModelOnly: Story = {
 
 export const ModelAndEffort: Story = {
   render: () => <SelectorDemo withEffort />,
+}
+
+function FastDemo() {
+  const [model, setModel] = useState('claude-opus')
+  const [effort, setEffort] = useState(EEffort.Medium)
+  const [fast, setFast] = useState(false)
+
+  return (
+    <InputGroup className="w-96">
+      <InputGroupAddon align="block-end">
+        <ModelSelector
+          models={FAST_MODELS}
+          value={model}
+          onValueChange={setModel}
+          effort={effort}
+          onEffortChange={setEffort}
+          fast={fast}
+          onFastChange={setFast}
+        />
+      </InputGroupAddon>
+    </InputGroup>
+  )
+}
+
+export const FastMode: Story = {
+  render: () => <FastDemo />,
 }
 
 export const FullCatalogue: Story = {

@@ -179,6 +179,7 @@ export type ServiceLogReply = z.infer<typeof serviceLogReplySchema>
 export const threadModelWireSchema = z.object({
   ref: z.string(),
   effort: z.string(),
+  fast: z.boolean().optional(),
 })
 
 export const setThreadModelParamsSchema = z.object({

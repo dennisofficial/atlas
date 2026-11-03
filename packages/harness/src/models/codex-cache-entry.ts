@@ -8,6 +8,7 @@ const CachedCardSchema = z.object({
   contextWindow: z.number(),
   imageTier: z.enum(EImageTier),
   effort: z.partialRecord(z.enum(EEffort), z.union([z.string(), z.number()])).optional(),
+  fast: z.literal(true).optional(),
 })
 
 const CacheEntrySchema = z.object({
@@ -23,9 +24,10 @@ const toCacheEntry = (raw: z.infer<typeof CacheEntrySchema>): CacheEntry => ({
   identity: raw.identity,
   fetchedAt: raw.fetchedAt,
   ...(raw.etag === undefined ? {} : { etag: raw.etag }),
-  cards: raw.cards.map(({ effort, ...card }) => ({
+  cards: raw.cards.map(({ effort, fast, ...card }) => ({
     ...card,
     ...(effort === undefined ? {} : { effort }),
+    ...(fast === undefined ? {} : { fast }),
   })),
 })
 
