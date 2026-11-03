@@ -21,6 +21,7 @@ export function modelOfTable(table: string): string {
 
 const OVERRIDES: Record<string, Record<string, unknown>> = {
   Project: { ownerUserId: 'User' },
+  Skill: { userId: 'User' },
 }
 
 function literalFor({
