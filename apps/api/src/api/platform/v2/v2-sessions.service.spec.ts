@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { NotFoundException } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
@@ -12,24 +12,16 @@ import {
 } from '@dltech/atlas-core'
 import { v2InboxMessageSchema } from '@dltech/atlas-protocol'
 import { V2SessionsService } from './v2-sessions.service'
+import { V2ProjectAccess } from './v2-project-access'
 import { V2WakePublisher } from './v2-wake.publisher'
 
-vi.mock('@dltech/atlas-db', () => ({
-  db: {
-    orm: {
-      public: {
-        Project: {
-          select: () => ({
-            first: async ({ id }: { id: string }) =>
-              id === 'proj-a' ? { id, ownerUserId: 'user-a' } : null,
-          }),
-        },
-      },
-    },
-  },
-}))
-
 const NOW = '2026-11-03T12:00:00.000Z'
+
+class FakeProjectAccess extends V2ProjectAccess {
+  async ownerOf(args: { projectId: string }): Promise<string | undefined> {
+    return args.projectId === 'proj-a' ? 'user-a' : undefined
+  }
+}
 
 class RecordingWakePublisher extends V2WakePublisher {
   readonly published: string[] = []
@@ -51,7 +43,7 @@ describe('V2SessionsService', () => {
       store: new InMemoryControlStore({ clock: () => NOW }),
     })
     const publisher = args.publisher ?? new RecordingWakePublisher()
-    const service = new V2SessionsService(plane, publisher)
+    const service = new V2SessionsService(plane, publisher, new FakeProjectAccess())
     const published = publisher instanceof RecordingWakePublisher ? publisher.published : []
     return { plane, published, service }
   }

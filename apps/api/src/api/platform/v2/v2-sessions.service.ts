@@ -14,7 +14,7 @@ import type {
   V2SessionListOutput,
   V2SessionStatusOutput,
 } from '@dltech/atlas-protocol'
-import { db } from '@dltech/atlas-db'
+import { V2ProjectAccess } from './v2-project-access'
 import { V2WakePublisher } from './v2-wake.publisher'
 
 export type LeaseView = { epoch: number; holderId: string | null; live: boolean }
@@ -36,16 +36,13 @@ export class V2SessionsService {
   constructor(
     private readonly plane: ControlPlane,
     private readonly wakes: V2WakePublisher,
+    private readonly projects: V2ProjectAccess,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
-    const project = await db.orm.public.Project.select('id', 'ownerUserId').first({
-      id: args.projectId,
-    })
-    if (project === null || project.ownerUserId !== args.userId) {
-      throw new NotFoundException('project not found')
-    }
-    return project.id
+    const owner = await this.projects.ownerOf({ projectId: args.projectId })
+    if (owner !== args.userId) throw new NotFoundException('project not found')
+    return args.projectId
   }
 
   async create(args: { userId: string; projectId: string; title?: string | undefined }) {

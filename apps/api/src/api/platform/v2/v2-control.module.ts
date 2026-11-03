@@ -4,6 +4,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { RedisModule } from '../../../_lib/redis/redis.module'
 import { RedisService } from '../../../_lib/redis/redis.service'
+import { DbV2ProjectAccess, V2ProjectAccess } from './v2-project-access'
 import { V2SessionsRouter } from './v2-sessions.router'
 import { V2SessionsService } from './v2-sessions.service'
 import { V2UserMiddleware } from './v2-user.middleware'
@@ -26,6 +27,7 @@ export const v2WakePublisherProvider: Provider = {
   providers: [
     controlPlaneProvider,
     v2WakePublisherProvider,
+    { provide: V2ProjectAccess, useClass: DbV2ProjectAccess },
     V2SessionsService,
     V2SessionsRouter,
     V2UserMiddleware,
