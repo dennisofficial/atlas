@@ -96,16 +96,12 @@
       "model": "LocalPodLease",
       "namespace": "public"
     },
-    "McpOauthGrant": {
-      "model": "McpOauthGrant",
-      "namespace": "public"
-    },
     "McpOauthPending": {
       "model": "McpOauthPending",
       "namespace": "public"
     },
-    "McpServerConfig": {
-      "model": "UserMcpServer",
+    "McpServer": {
+      "model": "McpServer",
       "namespace": "public"
     },
     "Memory": {
@@ -134,10 +130,6 @@
     },
     "ProjectFileMount": {
       "model": "ProjectFileMount",
-      "namespace": "public"
-    },
-    "ProjectMcpServer": {
-      "model": "ProjectMcpServer",
       "namespace": "public"
     },
     "ProjectSecret": {
@@ -232,6 +224,21 @@
   "domain": {
     "namespaces": {
       "public": {
+        "enum": {
+          "McpServerSource": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "cloud",
+                "value": "cloud"
+              },
+              {
+                "name": "repo",
+                "value": "repo"
+              }
+            ]
+          }
+        },
         "models": {
           "Account": {
             "fields": {
@@ -3151,143 +3158,6 @@
               "table": "LocalPodLease"
             }
           },
-          "McpOauthGrant": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "generation": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/int4@1",
-                  "kind": "scalar"
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "refreshAttempt": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "refreshStartedAt": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "sealed": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "serverUrl": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "status": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "userId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "user": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "userId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "generation": {
-                  "column": "generation"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "refreshAttempt": {
-                  "column": "refreshAttempt"
-                },
-                "refreshStartedAt": {
-                  "column": "refreshStartedAt"
-                },
-                "sealed": {
-                  "column": "sealed"
-                },
-                "serverUrl": {
-                  "column": "serverUrl"
-                },
-                "status": {
-                  "column": "status"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                },
-                "userId": {
-                  "column": "userId"
-                }
-              },
-              "namespaceId": "public",
-              "table": "McpOauthGrant"
-            }
-          },
           "McpOauthPending": {
             "fields": {
               "createdAt": {
@@ -3312,6 +3182,13 @@
               },
               "id": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mcpServerId": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -3347,6 +3224,22 @@
               }
             },
             "relations": {
+              "mcpServer": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "mcpServerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "McpServer",
+                  "namespace": "public"
+                }
+              },
               "user": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -3375,6 +3268,9 @@
                 "id": {
                   "column": "id"
                 },
+                "mcpServerId": {
+                  "column": "mcpServerId"
+                },
                 "returnTo": {
                   "column": "returnTo"
                 },
@@ -3390,6 +3286,256 @@
               },
               "namespaceId": "public",
               "table": "McpOauthPending"
+            }
+          },
+          "McpServer": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "lastSeenAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "oauthGeneration": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "oauthRefreshAttempt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "oauthRefreshStartedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "oauthSealed": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "oauthServerUrl": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "oauthStatus": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "oauthUpdatedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "projectId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "repoUrl": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sealedSpec": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "source": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "McpServerSource",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "pendingSignIns": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "mcpServerId"
+                  ]
+                },
+                "to": {
+                  "model": "McpOauthPending",
+                  "namespace": "public"
+                }
+              },
+              "project": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Project",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "lastSeenAt": {
+                  "column": "lastSeenAt"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "oauthGeneration": {
+                  "column": "oauthGeneration"
+                },
+                "oauthRefreshAttempt": {
+                  "column": "oauthRefreshAttempt"
+                },
+                "oauthRefreshStartedAt": {
+                  "column": "oauthRefreshStartedAt"
+                },
+                "oauthSealed": {
+                  "column": "oauthSealed"
+                },
+                "oauthServerUrl": {
+                  "column": "oauthServerUrl"
+                },
+                "oauthStatus": {
+                  "column": "oauthStatus"
+                },
+                "oauthUpdatedAt": {
+                  "column": "oauthUpdatedAt"
+                },
+                "projectId": {
+                  "column": "projectId"
+                },
+                "repoUrl": {
+                  "column": "repoUrl"
+                },
+                "sealedSpec": {
+                  "column": "sealedSpec"
+                },
+                "source": {
+                  "column": "source"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "McpServer"
             }
           },
           "Memory": {
@@ -4138,7 +4284,7 @@
                   ]
                 },
                 "to": {
-                  "model": "ProjectMcpServer",
+                  "model": "McpServer",
                   "namespace": "public"
                 }
               },
@@ -4367,100 +4513,6 @@
               },
               "namespaceId": "public",
               "table": "ProjectFileMount"
-            }
-          },
-          "ProjectMcpServer": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "name": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "projectId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "sealedSpec": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              }
-            },
-            "relations": {
-              "project": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "projectId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Project",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "name": {
-                  "column": "name"
-                },
-                "projectId": {
-                  "column": "projectId"
-                },
-                "sealedSpec": {
-                  "column": "sealedSpec"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                }
-              },
-              "namespaceId": "public",
-              "table": "ProjectMcpServer"
             }
           },
           "ProjectSecret": {
@@ -6537,21 +6589,6 @@
                   "namespace": "public"
                 }
               },
-              "mcpOauthGrants": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "userId"
-                  ]
-                },
-                "to": {
-                  "model": "McpOauthGrant",
-                  "namespace": "public"
-                }
-              },
               "mcpOauthPendings": {
                 "cardinality": "1:N",
                 "on": {
@@ -6578,7 +6615,7 @@
                   ]
                 },
                 "to": {
-                  "model": "UserMcpServer",
+                  "model": "McpServer",
                   "namespace": "public"
                 }
               },
@@ -7037,100 +7074,6 @@
               },
               "namespaceId": "public",
               "table": "UserHarnessSecret"
-            }
-          },
-          "UserMcpServer": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "name": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "sealedSpec": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "userId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "user": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "userId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "name": {
-                  "column": "name"
-                },
-                "sealedSpec": {
-                  "column": "sealedSpec"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                },
-                "userId": {
-                  "column": "userId"
-                }
-              },
-              "namespaceId": "public",
-              "table": "McpServerConfig"
             }
           },
           "UserSecret": {
@@ -10598,122 +10541,6 @@
                 }
               ]
             },
-            "McpOauthGrant": {
-              "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "generation": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
-                  "default": {
-                    "kind": "literal",
-                    "value": 0
-                  },
-                  "nullable": false
-                },
-                "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "refreshAttempt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "refreshStartedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": true,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "sealed": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "serverUrl": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "status": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "default": {
-                    "kind": "literal",
-                    "value": "active"
-                  },
-                  "nullable": false
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "userId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                }
-              },
-              "foreignKeys": [
-                {
-                  "index": {
-                    "unique": [
-                      "userId",
-                      "serverUrl"
-                    ]
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "userId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "McpOauthGrant"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "User"
-                  }
-                }
-              ],
-              "indexes": [],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": [
-                {
-                  "columns": [
-                    "userId",
-                    "serverUrl"
-                  ],
-                  "name": "McpOauthGrant_userId_serverUrl_key"
-                }
-              ]
-            },
             "McpOauthPending": {
               "columns": {
                 "createdAt": {
@@ -10740,6 +10567,11 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "mcpServerId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "returnTo": {
                   "codecId": "pg/text@1",
@@ -10783,9 +10615,37 @@
                     "namespaceId": "public",
                     "tableName": "User"
                   }
+                },
+                {
+                  "index": {
+                    "name": "McpOauthPending_mcpServerId_idx"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "mcpServerId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "McpOauthPending"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "McpServer"
+                  }
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "mcpServerId"
+                  ],
+                  "name": "McpOauthPending_mcpServerId_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "userId"
@@ -10801,7 +10661,29 @@
               },
               "uniques": []
             },
-            "McpServerConfig": {
+            "McpServer": {
+              "checks": [
+                {
+                  "expression": "((\"source\" = 'cloud') = (\"sealedSpec\" IS NOT NULL)) AND ((\"source\" = 'repo') = (\"repoUrl\" IS NOT NULL AND \"lastSeenAt\" IS NOT NULL))",
+                  "name": "McpServer_fields_by_source_c3bc79c0",
+                  "prefix": "McpServer_fields_by_source"
+                },
+                {
+                  "expression": "((\"oauthSealed\" IS NULL) = (\"oauthStatus\" IS NULL)) AND ((\"oauthSealed\" IS NULL) = (\"oauthServerUrl\" IS NULL))",
+                  "name": "McpServer_oauth_whole_f7c534ab",
+                  "prefix": "McpServer_oauth_whole"
+                },
+                {
+                  "expression": "(\"userId\" IS NULL) <> (\"projectId\" IS NULL)",
+                  "name": "McpServer_one_scope_67d0cc6e",
+                  "prefix": "McpServer_one_scope"
+                },
+                {
+                  "expression": "\"source\" IN ('cloud', 'repo')",
+                  "name": "McpServer_source_check_771442e3",
+                  "prefix": "McpServer_source_check"
+                }
+              ],
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
@@ -10820,15 +10702,89 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "lastSeenAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "name": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "oauthGeneration": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
+                "oauthRefreshAttempt": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "oauthRefreshStartedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "oauthSealed": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "oauthServerUrl": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "oauthStatus": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "oauthUpdatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "projectId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "repoUrl": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "sealedSpec": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
+                  "nullable": true
+                },
+                "source": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "McpServerSource",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
                 },
                 "updatedAt": {
                   "codecId": "pg/timestamptz-date@1",
@@ -10841,7 +10797,7 @@
                 "userId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
+                  "nullable": true
                 }
               },
               "foreignKeys": [
@@ -10849,6 +10805,7 @@
                   "index": {
                     "unique": [
                       "userId",
+                      "source",
                       "name"
                     ]
                   },
@@ -10859,7 +10816,7 @@
                       "userId"
                     ],
                     "namespaceId": "public",
-                    "tableName": "McpServerConfig"
+                    "tableName": "McpServer"
                   },
                   "target": {
                     "columns": [
@@ -10868,9 +10825,43 @@
                     "namespaceId": "public",
                     "tableName": "User"
                   }
+                },
+                {
+                  "index": {
+                    "unique": [
+                      "projectId",
+                      "source",
+                      "name"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "projectId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "McpServer"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Project"
+                  }
                 }
               ],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "source",
+                    "lastSeenAt"
+                  ],
+                  "name": "McpServer_source_lastSeenAt_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -10879,10 +10870,19 @@
               "uniques": [
                 {
                   "columns": [
-                    "userId",
+                    "projectId",
+                    "source",
                     "name"
                   ],
-                  "name": "McpServerConfig_userId_name_key"
+                  "name": "McpServer_projectId_source_name_key"
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "source",
+                    "name"
+                  ],
+                  "name": "McpServer_userId_source_name_key"
                 }
               ]
             },
@@ -11659,91 +11659,6 @@
                     "path"
                   ],
                   "name": "ProjectFileMount_projectId_path_key"
-                }
-              ]
-            },
-            "ProjectMcpServer": {
-              "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "name": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "projectId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "sealedSpec": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "foreignKeys": [
-                {
-                  "index": {
-                    "unique": [
-                      "projectId",
-                      "name"
-                    ]
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "projectId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "ProjectMcpServer"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Project"
-                  }
-                }
-              ],
-              "indexes": [],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": [
-                {
-                  "columns": [
-                    "projectId",
-                    "name"
-                  ],
-                  "name": "ProjectMcpServer_projectId_name_key"
                 }
               ]
             },
@@ -13708,6 +13623,15 @@
               },
               "uniques": []
             }
+          },
+          "valueSet": {
+            "McpServerSource": {
+              "kind": "valueSet",
+              "values": [
+                "cloud",
+                "repo"
+              ]
+            }
           }
         },
         "id": "public",
@@ -14112,10 +14036,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "fcf5f2f472f53ca8bda3c73a89a716d254bccc9559abec5d6e0f6adb298b836e"
+    "storageHash": "00dc597d9dc49e825768c55eb9883c982ce9f1ec5656a8f7390db932eb65cf77"
   },
   "execution": {
-    "executionHash": "3b5f0a7ec0457f5edf680634022c237da03bca270a301a1d8c978e4ec96d5016",
+    "executionHash": "395a1481e98e83f5120bc102ff6082480d9a2959eb5c52518bace5284bc0e7ef",
     "mutations": {
       "defaults": [
         {
@@ -14352,22 +14276,7 @@
             "kind": "generator"
           },
           "ref": {
-            "entry": "McpOauthGrant",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "McpServerConfig",
+            "entry": "McpServer",
             "field": "updatedAt",
             "namespace": "public"
           }
@@ -14487,21 +14396,6 @@
           },
           "ref": {
             "entry": "ProjectFileMount",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "ProjectMcpServer",
             "field": "updatedAt",
             "namespace": "public"
           }

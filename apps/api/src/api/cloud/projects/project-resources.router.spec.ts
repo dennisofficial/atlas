@@ -171,9 +171,7 @@ describe('project resources router', () => {
     await mutate({ path: 'removeMcpServer', token, input: { projectId, name: 'x' } }).expect(404)
     await query({ path: 'getSandbox', input: { projectId: 'missing' } }).expect(404)
     expect(await db.orm.public.ProjectSecret.where((row) => row.id.neq('')).all()).toHaveLength(0)
-    expect(await db.orm.public.ProjectMcpServer.where((row) => row.id.neq('')).all()).toHaveLength(
-      0,
-    )
+    expect(await db.orm.public.McpServer.where({ source: 'cloud' }).all()).toHaveLength(0)
   })
 
   it('rejects an unknown property with 400', async () => {

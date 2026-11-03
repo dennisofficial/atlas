@@ -1,41 +1,77 @@
 import { randomUUID } from 'node:crypto'
-import { db } from '@dltech/atlas-db'
+import { db, isUniqueViolation } from '@dltech/atlas-db'
 import { Injectable } from '@nestjs/common'
+import { EMcpServerSource } from '@dltech/atlas-wire'
 import { EGrantRowStatus, McpOauthStore } from './mcp-oauth.types'
-import type { AttemptFence, GrantRow, PendingRow } from './mcp-oauth.types'
+import type { AttemptFence, PendingRow, ServerGrantRow } from './mcp-oauth.types'
+
+const REPO_SEEN_BUMP_MS = 3_600_000
 
 const CLEARED_ATTEMPT = {
-  refreshAttempt: null,
-  refreshStartedAt: null,
+  oauthRefreshAttempt: null,
+  oauthRefreshStartedAt: null,
 } as const
 
 const fenceWhere = (fence: AttemptFence) => ({
   id: fence.id,
-  generation: fence.generation,
-  refreshAttempt: fence.attemptId,
+  oauthGeneration: fence.generation,
+  oauthRefreshAttempt: fence.attemptId,
 })
 
-const GRANT_COLUMNS = [
+const SERVER_COLUMNS = [
   'id',
   'userId',
-  'serverUrl',
-  'status',
-  'sealed',
-  'generation',
-  'refreshAttempt',
-  'refreshStartedAt',
-  'updatedAt',
+  'projectId',
+  'name',
+  'source',
+  'sealedSpec',
+  'repoUrl',
+  'lastSeenAt',
+  'oauthServerUrl',
+  'oauthSealed',
+  'oauthStatus',
+  'oauthGeneration',
+  'oauthRefreshAttempt',
+  'oauthRefreshStartedAt',
+  'oauthUpdatedAt',
 ] as const
 
-const toGrantRow = <R extends { status: string }>(row: R): R & { status: EGrantRowStatus } => ({
+const toServerGrantRow = <
+  R extends { source: string; oauthStatus: string | null } & Omit<
+    ServerGrantRow,
+    'source' | 'oauthStatus'
+  >,
+>(
+  row: R,
+): ServerGrantRow => ({
   ...row,
-  status: row.status === EGrantRowStatus.Active ? EGrantRowStatus.Active : EGrantRowStatus.Expired,
+  source: row.source === 'repo' ? EMcpServerSource.Repo : EMcpServerSource.Cloud,
+  oauthStatus:
+    row.oauthStatus === EGrantRowStatus.Active
+      ? EGrantRowStatus.Active
+      : row.oauthStatus === EGrantRowStatus.Expired
+        ? EGrantRowStatus.Expired
+        : null,
 })
+
+const scopeOf = (args: {
+  userId?: string | undefined
+  projectId?: string | undefined
+}): { userId: string } | { projectId: string } =>
+  args.projectId === undefined ? { userId: args.userId ?? '' } : { projectId: args.projectId }
 
 @Injectable()
 export class PrismaMcpOauthStore implements McpOauthStore {
   async insertPending(row: PendingRow): Promise<void> {
-    await db.orm.public.McpOauthPending.create(row)
+    await db.orm.public.McpOauthPending.create({
+      id: row.id,
+      userId: row.userId,
+      serverUrl: row.serverUrl,
+      sealed: row.sealed,
+      returnTo: row.returnTo,
+      expiresAt: row.expiresAt,
+      ...(row.mcpServerId === null ? {} : { mcpServerId: row.mcpServerId }),
+    })
   }
 
   async takePending(args: { id: string }): Promise<PendingRow | null> {
@@ -46,6 +82,7 @@ export class PrismaMcpOauthStore implements McpOauthStore {
       'sealed',
       'returnTo',
       'expiresAt',
+      'mcpServerId',
     ).first({ id: args.id })
     if (row === null) return null
     const count = await db.orm.public.McpOauthPending.where({
@@ -54,33 +91,93 @@ export class PrismaMcpOauthStore implements McpOauthStore {
     return count === 1 ? row : null
   }
 
-  async findGrant(args: { userId: string; serverUrl: string }): Promise<GrantRow | null> {
-    const row = await db.orm.public.McpOauthGrant.select(...GRANT_COLUMNS).first({
-      userId: args.userId,
-      serverUrl: args.serverUrl,
-    })
-    return row === null ? null : toGrantRow(row)
+  async findServer(args: { id: string }): Promise<ServerGrantRow | null> {
+    const row = await db.orm.public.McpServer.select(...SERVER_COLUMNS).first({ id: args.id })
+    return row === null ? null : toServerGrantRow(row)
   }
 
-  async findGrants(args: { userId: string; serverUrls: string[] }): Promise<GrantRow[]> {
-    const rows = await db.orm.public.McpOauthGrant.where({ userId: args.userId })
-      .select(...GRANT_COLUMNS)
+  async listServers(args: {
+    userId?: string | undefined
+    projectId?: string | undefined
+  }): Promise<ServerGrantRow[]> {
+    const rows = await db.orm.public.McpServer.select(...SERVER_COLUMNS)
+      .where(scopeOf(args))
+      .orderBy((row) => row.source.asc())
+      .orderBy((row) => row.name.asc())
       .all()
-    const wanted = new Set(args.serverUrls)
-    return rows.filter((row) => wanted.has(row.serverUrl)).map(toGrantRow)
+    return rows.map((row) => toServerGrantRow(row))
   }
 
-  async upsertGrant(args: { userId: string; serverUrl: string; sealed: string }): Promise<void> {
-    const statement = db.raw.sql`INSERT INTO "McpOauthGrant"
-        ("id", "userId", "serverUrl", "status", "sealed", "generation", "updatedAt")
-      VALUES (${randomUUID()}, ${args.userId}, ${args.serverUrl}, ${EGrantRowStatus.Active}, ${args.sealed}, 0, now())
-      ON CONFLICT ("userId", "serverUrl") DO UPDATE
-      SET "sealed" = EXCLUDED."sealed",
-          "status" = ${EGrantRowStatus.Active},
-          "generation" = "McpOauthGrant"."generation" + 1,
-          "refreshAttempt" = NULL,
-          "refreshStartedAt" = NULL,
-          "updatedAt" = now()`
+  async findByName(args: {
+    userId?: string | undefined
+    projectId?: string | undefined
+    source: EMcpServerSource
+    name: string
+  }): Promise<ServerGrantRow | null> {
+    const row = await db.orm.public.McpServer.select(...SERVER_COLUMNS).first({
+      ...scopeOf(args),
+      source: args.source,
+      name: args.name,
+    })
+    return row === null ? null : toServerGrantRow(row)
+  }
+
+  async touchRepoServer(args: {
+    userId?: string | undefined
+    projectId?: string | undefined
+    name: string
+    url: string
+    now: Date
+  }): Promise<ServerGrantRow> {
+    const key = { ...scopeOf(args), source: EMcpServerSource.Repo, name: args.name }
+    let existing = await db.orm.public.McpServer.first(key)
+    if (existing === null) {
+      try {
+        const row = await db.orm.public.McpServer.create({
+          id: `rmcp_${randomUUID()}`,
+          ...key,
+          repoUrl: args.url,
+          lastSeenAt: args.now,
+        })
+        const selected = await this.findServer({ id: row.id })
+        if (selected === null) throw new Error('repo server vanished after create')
+        return selected
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error
+        existing = await db.orm.public.McpServer.first(key)
+        if (existing === null) throw error
+      }
+    }
+    const seenStale =
+      existing.lastSeenAt !== null &&
+      existing.lastSeenAt.getTime() < args.now.getTime() - REPO_SEEN_BUMP_MS
+    const update = {
+      ...(existing.repoUrl === args.url ? {} : { repoUrl: args.url }),
+      ...(seenStale ? { lastSeenAt: args.now } : {}),
+    }
+    if (Object.keys(update).length > 0) {
+      await db.orm.public.McpServer.where({ id: existing.id }).updateAndCount(update)
+    }
+    const selected = await this.findServer({ id: existing.id })
+    if (selected === null) throw new Error('repo server vanished after touch')
+    return selected
+  }
+
+  async projectOwner(args: { projectId: string }): Promise<string | null> {
+    const row = await db.orm.public.Project.select('ownerUserId').first({ id: args.projectId })
+    return row?.ownerUserId ?? null
+  }
+
+  async writeGrant(args: { id: string; serverUrl: string; sealed: string }): Promise<void> {
+    const statement = db.raw.sql`UPDATE "McpServer"
+      SET "oauthServerUrl" = ${args.serverUrl},
+          "oauthSealed" = ${args.sealed},
+          "oauthStatus" = ${EGrantRowStatus.Active},
+          "oauthGeneration" = "oauthGeneration" + 1,
+          "oauthRefreshAttempt" = NULL,
+          "oauthRefreshStartedAt" = NULL,
+          "oauthUpdatedAt" = now()
+      WHERE "id" = ${args.id}`
       .affectedCount()
       .build()
     await db.execute(statement)
@@ -93,12 +190,12 @@ export class PrismaMcpOauthStore implements McpOauthStore {
     startedAt: Date
     staleBefore: Date
   }): Promise<boolean> {
-    const statement = db.raw.sql`UPDATE "McpOauthGrant"
-      SET "refreshAttempt" = ${args.attemptId}, "refreshStartedAt" = ${args.startedAt.toISOString()}::timestamptz
+    const statement = db.raw.sql`UPDATE "McpServer"
+      SET "oauthRefreshAttempt" = ${args.attemptId}, "oauthRefreshStartedAt" = ${args.startedAt.toISOString()}::timestamptz
       WHERE "id" = ${args.id}
-        AND "generation" = ${args.generation}
-        AND "status" = ${EGrantRowStatus.Active}
-        AND ("refreshAttempt" IS NULL OR "refreshStartedAt" < ${args.staleBefore.toISOString()}::timestamptz)`
+        AND "oauthGeneration" = ${args.generation}
+        AND "oauthStatus" = ${EGrantRowStatus.Active}
+        AND ("oauthRefreshAttempt" IS NULL OR "oauthRefreshStartedAt" < ${args.staleBefore.toISOString()}::timestamptz)`
       .affectedCount()
       .build()
     const { affectedRows } = await db.execute(statement)
@@ -106,15 +203,15 @@ export class PrismaMcpOauthStore implements McpOauthStore {
   }
 
   async complete(args: AttemptFence & { sealed: string }): Promise<boolean> {
-    const statement = db.raw.sql`UPDATE "McpOauthGrant"
-      SET "sealed" = ${args.sealed},
-          "generation" = "generation" + 1,
-          "refreshAttempt" = NULL,
-          "refreshStartedAt" = NULL,
-          "updatedAt" = now()
+    const statement = db.raw.sql`UPDATE "McpServer"
+      SET "oauthSealed" = ${args.sealed},
+          "oauthGeneration" = "oauthGeneration" + 1,
+          "oauthRefreshAttempt" = NULL,
+          "oauthRefreshStartedAt" = NULL,
+          "oauthUpdatedAt" = now()
       WHERE "id" = ${args.id}
-        AND "generation" = ${args.generation}
-        AND "refreshAttempt" = ${args.attemptId}`
+        AND "oauthGeneration" = ${args.generation}
+        AND "oauthRefreshAttempt" = ${args.attemptId}`
       .affectedCount()
       .build()
     const { affectedRows } = await db.execute(statement)
@@ -122,21 +219,35 @@ export class PrismaMcpOauthStore implements McpOauthStore {
   }
 
   async release(args: AttemptFence): Promise<boolean> {
-    const count = await db.orm.public.McpOauthGrant.where(fenceWhere(args)).updateAndCount(
+    const count = await db.orm.public.McpServer.where(fenceWhere(args)).updateAndCount(
       CLEARED_ATTEMPT,
     )
     return count === 1
   }
 
   async reject(args: AttemptFence): Promise<boolean> {
-    const count = await db.orm.public.McpOauthGrant.where(fenceWhere(args)).updateAndCount({
-      status: EGrantRowStatus.Expired,
+    const count = await db.orm.public.McpServer.where(fenceWhere(args)).updateAndCount({
+      oauthStatus: EGrantRowStatus.Expired,
       ...CLEARED_ATTEMPT,
     })
     return count === 1
   }
 
-  async deleteGrant(args: { userId: string; serverUrl: string }): Promise<void> {
-    await db.orm.public.McpOauthGrant.where(args).deleteAndCount()
+  async clearGrant(args: { id: string }): Promise<void> {
+    await db.orm.public.McpServer.where({ id: args.id }).updateAndCount({
+      oauthServerUrl: null,
+      oauthSealed: null,
+      oauthStatus: null,
+      oauthRefreshAttempt: null,
+      oauthRefreshStartedAt: null,
+      oauthUpdatedAt: null,
+    })
+  }
+
+  async deleteRepoServer(args: { id: string }): Promise<void> {
+    await db.orm.public.McpServer.where({
+      id: args.id,
+      source: EMcpServerSource.Repo,
+    }).deleteAndCount()
   }
 }

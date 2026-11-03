@@ -67,7 +67,7 @@ export function McpServerList({
             <>
               <McpOauthControl
                 serverId={server.id}
-                signInUrl={server.enabled ? server.signInUrl : undefined}
+                server={server.enabled ? auth.cloudServer(server.id) : undefined}
                 auth={auth}
               />
               <Switch
@@ -85,7 +85,7 @@ export function McpServerList({
                   <EllipsisIcon />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
-                  <McpSignOutItem signInUrl={server.signInUrl} auth={auth} />
+                  <McpSignOutItem server={auth.cloudServer(server.id)} auth={auth} />
                   <DropdownMenuItem variant="destructive" onClick={() => onRemove(server.id)}>
                     Remove
                   </DropdownMenuItem>

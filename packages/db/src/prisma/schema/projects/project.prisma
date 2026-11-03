@@ -13,7 +13,7 @@ model Project {
   createdById     String?
   createdAt       TimestamptzJsDate(3) @default(now())
   updatedAt       TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
-  mcpServers      ProjectMcpServer[]
+  mcpServers      McpServer[]
   secrets         ProjectSecret[]
   fileMounts      ProjectFileMount[]
   settings        ProjectSetting[]

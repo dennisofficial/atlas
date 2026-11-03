@@ -22,6 +22,11 @@ export function modelOfTable(table: string): string {
 const OVERRIDES: Record<string, Record<string, unknown>> = {
   Project: { ownerUserId: 'User' },
   Skill: { userId: 'User' },
+  McpServer: { userId: 'User' },
+}
+
+const LITERALS: Record<string, Record<string, unknown>> = {
+  McpServer: { source: 'repo', repoUrl: 'https://mcp.example.com/mcp' },
 }
 
 function literalFor({
@@ -101,5 +106,6 @@ export function rowFor({
   for (const [column, parentTable] of Object.entries(OVERRIDES[table] ?? {})) {
     row[column] = typeof parentTable === 'string' ? keys.get(parentTable)?.id : parentTable
   }
+  Object.assign(row, LITERALS[table] ?? {})
   return row
 }

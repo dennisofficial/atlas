@@ -1,67 +1,95 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMcpOauthGrantStatus } from '@dltech/atlas-wire/web'
+import { EMcpOauthGrantStatus, EMcpServerSource, type McpOauthServer } from '@dltech/atlas-wire/web'
 
 import { ELinkReturnKind } from '../../personal/link-return'
 import {
   EMcpAuthState,
   authStateOf,
+  cloudServerOf,
+  lastUsedOf,
   mcpOauthReturnOf,
-  signInUrlOf,
-  statusUrlsOf,
+  repoServersOf,
 } from '../mcp-oauth'
 
 const URL_A = 'https://mcp.example.com/mcp'
 
-describe('signInUrlOf', () => {
-  it('offers sign-in for a plain http server', () => {
-    expect(signInUrlOf({ url: URL_A, headers: undefined })).toBe(URL_A)
+const serverOf = (
+  overrides: Partial<McpOauthServer> & Pick<McpOauthServer, 'name' | 'source'>,
+): McpOauthServer => ({
+  id: `srv_${overrides.name}`,
+  url: URL_A,
+  status: EMcpOauthGrantStatus.None,
+  ...overrides,
+})
+
+const CLOUD_A = serverOf({
+  name: 'posthog',
+  source: EMcpServerSource.Cloud,
+  status: EMcpOauthGrantStatus.Connected,
+})
+const REPO_A = serverOf({
+  name: 'linear',
+  source: EMcpServerSource.Repo,
+  url: URL_A,
+})
+
+describe('cloudServerOf', () => {
+  it('finds the cloud server by name', () => {
+    expect(cloudServerOf([REPO_A, CLOUD_A], 'posthog')).toBe(CLOUD_A)
   })
 
-  it('offers none when an Authorization header is configured, any casing', () => {
-    expect(signInUrlOf({ url: URL_A, headers: { authorization: 'Bearer x' } })).toBeUndefined()
-    expect(signInUrlOf({ url: URL_A, headers: { Authorization: 'Bearer x' } })).toBeUndefined()
+  it('never matches a repo server of the same name', () => {
+    expect(
+      cloudServerOf([serverOf({ name: 'posthog', source: EMcpServerSource.Repo })], 'posthog'),
+    ).toBeUndefined()
   })
 
-  it('keeps sign-in when only unrelated headers are set', () => {
-    expect(signInUrlOf({ url: URL_A, headers: { 'X-Team': 'a' } })).toBe(URL_A)
+  it('returns undefined when the name is absent', () => {
+    expect(cloudServerOf([REPO_A, CLOUD_A], 'missing')).toBeUndefined()
+    expect(cloudServerOf([], 'posthog')).toBeUndefined()
   })
 })
 
-describe('statusUrlsOf', () => {
-  it('queries only enabled, sign-in-capable servers, deduplicated', () => {
-    expect(
-      statusUrlsOf([
-        { id: 'a', enabled: true, signInUrl: URL_A },
-        { id: 'b', enabled: true, signInUrl: URL_A },
-        { id: 'c', enabled: false, signInUrl: 'https://off.example.com' },
-        { id: 'd', enabled: true },
-        { id: 'e', enabled: true, signInUrl: 'not a url' },
-      ]),
-    ).toEqual([URL_A])
+describe('repoServersOf', () => {
+  it('keeps only repo servers', () => {
+    expect(repoServersOf([CLOUD_A, REPO_A])).toEqual([REPO_A])
+    expect(repoServersOf([])).toEqual([])
+    expect(repoServersOf([CLOUD_A])).toEqual([])
   })
 })
 
 describe('authStateOf', () => {
-  const grant = (status: EMcpOauthGrantStatus) => [{ serverUrl: URL_A, status }]
-
   it('maps grant statuses to row states', () => {
-    expect(authStateOf({ signInUrl: URL_A, grants: grant(EMcpOauthGrantStatus.Connected) })).toBe(
-      EMcpAuthState.SignedIn,
-    )
-    expect(authStateOf({ signInUrl: URL_A, grants: grant(EMcpOauthGrantStatus.Expired) })).toBe(
-      EMcpAuthState.SignInAgain,
-    )
-    expect(authStateOf({ signInUrl: URL_A, grants: grant(EMcpOauthGrantStatus.None) })).toBe(
-      EMcpAuthState.SignIn,
-    )
+    expect(authStateOf(CLOUD_A)).toBe(EMcpAuthState.SignedIn)
+    expect(
+      authStateOf(
+        serverOf({
+          name: 'expired',
+          source: EMcpServerSource.Cloud,
+          status: EMcpOauthGrantStatus.Expired,
+        }),
+      ),
+    ).toBe(EMcpAuthState.SignInAgain)
+    expect(authStateOf(REPO_A)).toBe(EMcpAuthState.SignIn)
   })
 
-  it('shows nothing before status arrives or without a sign-in url', () => {
-    expect(authStateOf({ signInUrl: URL_A, grants: [] })).toBeUndefined()
-    expect(
-      authStateOf({ signInUrl: undefined, grants: grant(EMcpOauthGrantStatus.Connected) }),
-    ).toBeUndefined()
+  it('defaults to SignIn when the server row is missing', () => {
+    expect(authStateOf(undefined)).toBe(EMcpAuthState.SignIn)
+  })
+})
+
+describe('lastUsedOf', () => {
+  const now = Date.parse('2026-11-03T12:00:00Z')
+
+  it('formats lastSeenAt relative to now', () => {
+    expect(lastUsedOf({ lastSeenAt: '2026-11-03T11:30:00Z', now })).toBe('30m ago')
+    expect(lastUsedOf({ lastSeenAt: '2026-10-20T12:00:00Z', now })).toBe('2w ago')
+  })
+
+  it('is undefined without a lastSeenAt, and — for garbage', () => {
+    expect(lastUsedOf({ lastSeenAt: undefined, now })).toBeUndefined()
+    expect(lastUsedOf({ lastSeenAt: 'not a date', now })).toBe('—')
   })
 })
 

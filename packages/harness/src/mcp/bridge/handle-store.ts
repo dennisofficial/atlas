@@ -1,6 +1,7 @@
 import { DynamicToolSource, type ToolDeclaration, type ToolDefinition } from '@dltech/atlas-core'
 
 import type { LoadedMcpSpec } from '../config'
+import type { McpTokenTarget } from './token-source'
 import { EMcpServerStatus, type McpHandle, type McpServerStatus } from '../registry/handle-status'
 import {
   HttpTransport,
@@ -20,6 +21,12 @@ import { ServerAuth } from './server-auth'
 import type { McpTokenSource } from './token-source'
 
 export const CONNECT_TIMEOUT_MS = 30_000
+
+const tokenTargetOf = (args: { spec: LoadedMcpSpec; url: string }): McpTokenTarget => ({
+  name: args.spec.name,
+  url: args.url,
+  origin: args.spec.origin,
+})
 
 export type McpTransportFactory = (spec: LoadedMcpSpec) => ServerTransport
 
@@ -112,7 +119,9 @@ export class HandleStore extends DynamicToolSource {
       waiting.map(async ({ handle }) => {
         const transport = handle.spec.transport
         if (transport?.kind !== 'http' || hasAuthorizationHeader(transport.headers)) return
-        const token = await source.currentToken({ serverUrl: transport.url })
+        const token = await source.currentToken({
+          server: tokenTargetOf({ spec: handle.spec, url: transport.url }),
+        })
         if (token === undefined) return
         await this.reconnect({ serverId: handle.spec.name })
       }),
@@ -259,7 +268,10 @@ export class HandleStore extends DynamicToolSource {
     ) {
       return { transport: this.factory(spec), auth: undefined }
     }
-    const auth = new ServerAuth({ serverUrl: http.url, source: this.tokenSource })
+    const auth = new ServerAuth({
+      server: tokenTargetOf({ spec, url: http.url }),
+      source: this.tokenSource,
+    })
     return { transport: new HttpTransport(http, auth), auth }
   }
 

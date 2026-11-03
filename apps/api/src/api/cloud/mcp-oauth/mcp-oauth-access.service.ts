@@ -1,5 +1,10 @@
 import { OAuthError, refreshAuthorization, type OAuthTokens } from '@dltech/atlas-harness/mcp-oauth'
-import { EMcpOauthAccessOutcome, type McpOauthAccessResult } from '@dltech/atlas-wire'
+import { db } from '@dltech/atlas-db'
+import {
+  EMcpServerSource,
+  EMcpOauthAccessOutcome,
+  type McpOauthAccessResult,
+} from '@dltech/atlas-wire'
 import { Injectable } from '@nestjs/common'
 import { TRPCError } from '@trpc/server'
 import { randomBytes } from 'node:crypto'
@@ -14,7 +19,7 @@ import {
   McpOauthStore,
 } from './mcp-oauth.types'
 import { sealedGrantSchema } from './mcp-oauth.types'
-import type { GrantRow, SealedGrant } from './mcp-oauth.types'
+import type { SealedGrant, ServerGrantRow } from './mcp-oauth.types'
 
 const FRESH_MARGIN_MS = 60_000
 const WAIT_BUDGET_MS = 10_000
@@ -39,38 +44,107 @@ export class McpOauthAccessService {
 
   async accessToken(args: {
     userId: string
-    serverUrl: string
+    threadId?: string | undefined
+    name: string
+    source: EMcpServerSource
+    url: string
     rejectedAccessToken?: string | undefined
   }): Promise<McpOauthAccessResult> {
-    const serverUrl = normalizeServerUrl(args.serverUrl)
+    const url = normalizeServerUrl(args.url)
+    const row = await this.resolveRow({ ...args, url })
+    if (
+      row === null ||
+      row.oauthStatus !== EGrantRowStatus.Active ||
+      row.oauthServerUrl !== url ||
+      row.oauthSealed === null
+    ) {
+      return needsAuth
+    }
     for (let pass = 0; pass < MAX_PASSES; pass += 1) {
-      const row = await this.store.findGrant({
-        userId: args.userId,
-        serverUrl,
-      })
-      if (row === null || row.status !== EGrantRowStatus.Active) return needsAuth
+      const current = await this.store.findServer({ id: row.id })
+      if (
+        current === null ||
+        current.oauthStatus !== EGrantRowStatus.Active ||
+        current.oauthServerUrl !== url ||
+        current.oauthSealed === null
+      ) {
+        return needsAuth
+      }
       const grant = unsealJson({
         cipher: this.cipher,
-        sealed: row.sealed,
+        sealed: current.oauthSealed,
         schema: sealedGrantSchema,
       })
       const rejected = args.rejectedAccessToken === grant.tokens.accessToken
       if (!rejected && this.isFresh(grant.tokens)) return this.granted(grant.tokens)
 
       const attemptRunning =
-        row.refreshAttempt !== null &&
-        this.clock.now() - (row.refreshStartedAt?.getTime() ?? 0) < STALE_ATTEMPT_MS
+        current.oauthRefreshAttempt !== null &&
+        this.clock.now() - (current.oauthRefreshStartedAt?.getTime() ?? 0) < STALE_ATTEMPT_MS
       if (attemptRunning) {
-        await this.awaitAttempt(row)
+        await this.awaitAttempt(current)
         continue
       }
-      const outcome = await this.refreshOnce({ row, grant })
+      const outcome = await this.refreshOnce({ row: current, grant })
       if (outcome !== undefined) return outcome
     }
     throw new TRPCError({
       code: 'INTERNAL_SERVER_ERROR',
       message: 'the grant is busy; retry shortly',
     })
+  }
+
+  private async resolveRow(args: {
+    userId: string
+    threadId?: string | undefined
+    name: string
+    source: EMcpServerSource
+    url: string
+  }): Promise<ServerGrantRow | null> {
+    const projectId = await this.ownedProjectId({
+      userId: args.userId,
+      threadId: args.threadId,
+    })
+    if (args.source === EMcpServerSource.Cloud) {
+      const scoped =
+        projectId === null
+          ? null
+          : await this.store.findByName({
+              projectId,
+              source: EMcpServerSource.Cloud,
+              name: args.name,
+            })
+      return (
+        scoped ??
+        (await this.store.findByName({
+          userId: args.userId,
+          source: EMcpServerSource.Cloud,
+          name: args.name,
+        }))
+      )
+    }
+    return this.store.touchRepoServer({
+      ...(projectId === null ? { userId: args.userId } : { projectId }),
+      name: args.name,
+      url: args.url,
+      now: new Date(this.clock.now()),
+    })
+  }
+
+  private async ownedProjectId(args: {
+    userId: string
+    threadId?: string | undefined
+  }): Promise<string | null> {
+    if (args.threadId === undefined) return null
+    const thread = await db.orm.public.Thread.select('sessionId').first({ id: args.threadId })
+    if (thread === null) return null
+    const session = await db.orm.public.Session.select('projectId').first({
+      id: thread.sessionId,
+    })
+    const projectId = session?.projectId ?? null
+    if (projectId === null) return null
+    const owner = await this.store.projectOwner({ projectId })
+    return owner === args.userId ? projectId : null
   }
 
   private isFresh(tokens: OAuthTokens): boolean {
@@ -86,28 +160,25 @@ export class McpOauthAccessService {
     }
   }
 
-  private async awaitAttempt(row: GrantRow): Promise<void> {
+  private async awaitAttempt(row: ServerGrantRow): Promise<void> {
     const deadline = this.clock.now() + WAIT_BUDGET_MS
     while (this.clock.now() < deadline) {
       await this.clock.sleep(WAIT_POLL_MS)
-      const current = await this.store.findGrant({
-        userId: row.userId,
-        serverUrl: row.serverUrl,
-      })
-      if (current === null || current.generation !== row.generation) return
-      if (current.refreshAttempt !== row.refreshAttempt) return
+      const current = await this.store.findServer({ id: row.id })
+      if (current === null || current.oauthGeneration !== row.oauthGeneration) return
+      if (current.oauthRefreshAttempt !== row.oauthRefreshAttempt) return
     }
   }
 
   private async refreshOnce(args: {
-    row: GrantRow
+    row: ServerGrantRow
     grant: SealedGrant
   }): Promise<McpOauthAccessResult | undefined> {
     const attemptId = randomBytes(16).toString('hex')
     const nowMs = this.clock.now()
     const claimed = await this.store.claim({
       id: args.row.id,
-      generation: args.row.generation,
+      generation: args.row.oauthGeneration,
       attemptId,
       startedAt: new Date(nowMs),
       staleBefore: new Date(nowMs - STALE_ATTEMPT_MS),
@@ -116,7 +187,7 @@ export class McpOauthAccessService {
     const fence = {
       id: args.row.id,
       attemptId,
-      generation: args.row.generation,
+      generation: args.row.oauthGeneration,
     }
     const { grant } = args
 

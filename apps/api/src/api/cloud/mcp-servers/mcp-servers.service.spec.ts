@@ -27,7 +27,7 @@ function httpTransport(extra?: Partial<McpTransportDraft>): McpTransportDraft {
 
 describe('McpServersService', () => {
   const database = useTestDatabase()
-  const servers = () => db.orm.public.UserMcpServer.where((row) => row.id.neq('')).all()
+  const servers = () => db.orm.public.McpServer.where({ source: 'cloud' }).all()
   let service: McpServersService
 
   beforeEach(async () => {

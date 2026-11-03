@@ -16,8 +16,7 @@ model User {
   githubConnection         GithubConnection?
   localPodLeases           LocalPodLease[]
   previewTunnels           PreviewTunnel[]
-  mcpServers               UserMcpServer[]
-  mcpOauthGrants           McpOauthGrant[]
+  mcpServers               McpServer[]
   mcpOauthPendings         McpOauthPending[]
   memories                 Memory[]
   oauthConnections         OauthConnection[]

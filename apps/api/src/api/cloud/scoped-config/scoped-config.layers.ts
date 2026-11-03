@@ -15,7 +15,7 @@ import { openMcpServer } from '../mcp-servers/mcp-sealed'
 import { openSecretValue } from '../secrets/sealed-secret'
 
 type SealedSecretRow = { name: string; sealedValue: string }
-type SealedMcpRow = { sealedSpec: string; updatedAt: Date }
+type SealedMcpRow = { sealedSpec: string | null; updatedAt: Date }
 type SealedFileMountRow = { path: string; sealedContents: string; mode: number }
 type SettingRow = { key: string; value: string }
 type SkillRow = { id: string; name: string }
@@ -65,6 +65,7 @@ const mcpServersOf = (args: {
   rows: readonly SealedMcpRow[]
 }): ScopedMcpServer[] =>
   args.rows.flatMap((row) => {
+    if (row.sealedSpec === null) return []
     const opened = openMcpServer({
       cipher: args.cipher,
       sealedSpec: row.sealedSpec,
@@ -115,7 +116,7 @@ export const loadUserLayer = async (args: {
     db.orm.public.UserSetting.where(where).all(),
     db.orm.public.UserSecret.where(where).all(),
     db.orm.public.UserHarnessSecret.where(where).all(),
-    db.orm.public.UserMcpServer.where(where).all(),
+    db.orm.public.McpServer.where({ ...where, source: 'cloud' }).all(),
     db.orm.public.Skill.where(where).all(),
   ])
   const skillFiles = await skillFilesOf(skills)
@@ -142,7 +143,7 @@ export const loadProjectLayer = async (args: {
   const [settings, secrets, mcpServers, fileMounts, skills] = await Promise.all([
     db.orm.public.ProjectSetting.where(where).all(),
     db.orm.public.ProjectSecret.where(where).all(),
-    db.orm.public.ProjectMcpServer.where(where).all(),
+    db.orm.public.McpServer.where({ ...where, source: 'cloud' }).all(),
     db.orm.public.ProjectFileMount.where(where)
       .orderBy((row) => row.path.asc())
       .all(),

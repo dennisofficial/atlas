@@ -3,11 +3,21 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:
 import { act, type ReactNode } from 'react'
 import type { Root } from 'react-dom/client'
 
+import { EMcpOauthGrantStatus, EMcpServerSource, type McpOauthServer } from '@dltech/atlas-wire/web'
+
 import { EMcpAuthState } from '../../data/shared/mcp-oauth'
 import type { McpOauth } from '../../data/shared/use-mcp-oauth'
 import { McpOauthControl } from '../mcp-oauth-control'
 
 const URL_A = 'https://mcp.example.com/mcp'
+
+const SERVER: McpOauthServer = {
+  id: 'srv_1',
+  name: 'posthog',
+  source: EMcpServerSource.Cloud,
+  url: URL_A,
+  status: EMcpOauthGrantStatus.None,
+}
 
 let root: Root | null = null
 let container: HTMLDivElement | null = null
@@ -39,40 +49,29 @@ async function render(node: ReactNode): Promise<HTMLDivElement> {
   return container
 }
 
-const authOf = (state: EMcpAuthState | undefined, signIn = mock(() => {})): McpOauth => ({
+const authOf = (state: EMcpAuthState, signIn = mock(() => {})): McpOauth => ({
+  cloudServer: () => SERVER,
+  repoServers: [],
   stateOf: () => state,
   isBusy: () => false,
   signIn,
   signOut: () => {},
+  forget: async () => true,
+  now: Date.parse('2026-11-03T12:00:00Z'),
   reload: () => {},
 })
 
 describe('McpOauthControl', () => {
-  it('renders nothing before status is known', async () => {
+  it('renders nothing without a server row', async () => {
     const view = await render(
-      <McpOauthControl serverId="posthog" signInUrl={URL_A} auth={authOf(undefined)} />,
-    )
-    expect(view.textContent).toBe('')
-  })
-
-  it('renders nothing for servers without a sign-in url', async () => {
-    const view = await render(
-      <McpOauthControl
-        serverId="posthog"
-        signInUrl={undefined}
-        auth={authOf(EMcpAuthState.SignIn)}
-      />,
+      <McpOauthControl serverId="posthog" server={undefined} auth={authOf(EMcpAuthState.SignIn)} />,
     )
     expect(view.textContent).toBe('')
   })
 
   it('shows Signed in without a button', async () => {
     const view = await render(
-      <McpOauthControl
-        serverId="posthog"
-        signInUrl={URL_A}
-        auth={authOf(EMcpAuthState.SignedIn)}
-      />,
+      <McpOauthControl serverId="posthog" server={SERVER} auth={authOf(EMcpAuthState.SignedIn)} />,
     )
     expect(view.textContent).toContain('Signed in')
     expect(view.querySelector('button')).toBeNull()
@@ -83,7 +82,7 @@ describe('McpOauthControl', () => {
     const view = await render(
       <McpOauthControl
         serverId="posthog"
-        signInUrl={URL_A}
+        server={SERVER}
         auth={authOf(EMcpAuthState.SignIn, signIn)}
       />,
     )
@@ -92,14 +91,14 @@ describe('McpOauthControl', () => {
     await act(async () => {
       button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     })
-    expect(signIn).toHaveBeenCalledWith(URL_A)
+    expect(signIn).toHaveBeenCalledWith('srv_1')
   })
 
   it('labels an expired grant Sign in again', async () => {
     const view = await render(
       <McpOauthControl
         serverId="posthog"
-        signInUrl={URL_A}
+        server={SERVER}
         auth={authOf(EMcpAuthState.SignInAgain)}
       />,
     )

@@ -8,7 +8,6 @@ export type McpServer = {
   transport: EMcpTransport
   target: string
   enabled: boolean
-  signInUrl?: string
 }
 
 export const PERSONAL_MCP_SERVERS: McpServer[] = [
