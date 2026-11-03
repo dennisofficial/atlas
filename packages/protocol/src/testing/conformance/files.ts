@@ -147,6 +147,12 @@ export const describeFilesConformance = (target: DaemonConformanceTarget): void 
             op: { op: 'grep', pattern: 'needle', path: dir, caseInsensitive: true, maxResults: 2 },
           })
           expect(okValue({ result: capped, op: 'grep' }).length).toBe(2)
+
+          const single = await run({
+            session,
+            op: { op: 'grep', pattern: 'again', path: `${dir}/one.ts` },
+          })
+          expect(okValue({ result: single, op: 'grep' }).map((match) => match.line)).toEqual([3])
           await run({ session, op: { op: 'remove', path: dir } })
         },
       }))

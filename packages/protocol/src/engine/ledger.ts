@@ -7,21 +7,12 @@ import {
 } from '@dltech/atlas-core'
 
 import { EDaemonErrorKind, ERunState } from '../frames'
-import {
-  ECallFailure,
-  ECallStatus,
-  callFailureOf,
-  okCallResultSchema,
-  type CallFailure,
-  type CallOp,
-  type CallResult,
-  type DaemonEvent,
-  type OpName,
-} from '../ops'
+import { ECallFailure, type CallOp, type CallResult, type DaemonEvent, type OpName } from '../ops'
 import { CallOutput, type CallSink } from './call-output'
 import { ECallJournalState, type CallStore } from './call-store'
 import type { RegisteredOp } from './group'
 import { KeyLock } from './key-lock'
+import { failedResult, invokeOp } from './results'
 
 export type LedgerOutcome =
   | { ok: true }
@@ -39,12 +30,6 @@ const staleEpoch = (epoch: number): LedgerOutcome =>
 
 const unknownKey = (key: string): LedgerOutcome =>
   refused({ errorKind: EDaemonErrorKind.UnknownKey, message: `unknown key ${key}` })
-
-const failedResult = (args: { op: CallOp; error: CallFailure }): CallResult => ({
-  status: ECallStatus.Failed,
-  op: args.op.op,
-  error: args.error,
-})
 
 export type CallLedgerArgs = {
   store: CallStore
@@ -106,7 +91,13 @@ export class CallLedger {
         }
         this.protocol = stepped.state
         if (spawns && handler !== undefined) {
-          await this.spawn({ key: args.key, epoch: args.epoch, op: args.op, handler })
+          const started = await this.spawn({
+            key: args.key,
+            epoch: args.epoch,
+            op: args.op,
+            handler,
+          })
+          if (!started.ok) return started
         }
         const call = this.calls.get(args.key)
         if (call === undefined) return unknownKey(args.key)
@@ -133,8 +124,10 @@ export class CallLedger {
             message: `${args.key} is still running`,
           })
         }
+        const call = this.calls.get(args.key)
         this.protocol = stepped.state
         this.calls.delete(args.key)
+        await call?.output.drain()
         try {
           await this.args.store.remove({ key: args.key })
         } catch (error) {
@@ -145,21 +138,16 @@ export class CallLedger {
     })
   }
 
-  cancel(args: { key: string; epoch: number }): Promise<LedgerOutcome> {
-    return this.lock.run({
-      key: args.key,
-      task: async () => {
-        const stepped = stepCalls({
-          state: this.protocol,
-          input: { type: 'cancel', key: args.key, epoch: args.epoch },
-        })
-        if (stepped.effects.errors.includes(ECallError.StaleEpoch)) return staleEpoch(args.epoch)
-        const call = this.calls.get(args.key)
-        if (call === undefined) return unknownKey(args.key)
-        if (stepped.effects.cancelled.includes(args.key)) call.abort.abort()
-        return { ok: true }
-      },
+  cancel(args: { key: string; epoch: number }): LedgerOutcome {
+    const stepped = stepCalls({
+      state: this.protocol,
+      input: { type: 'cancel', key: args.key, epoch: args.epoch },
     })
+    if (stepped.effects.errors.includes(ECallError.StaleEpoch)) return staleEpoch(args.epoch)
+    const call = this.calls.get(args.key)
+    if (call === undefined) return unknownKey(args.key)
+    if (stepped.effects.cancelled.includes(args.key)) call.abort.abort()
+    return { ok: true }
   }
 
   detachOwner(args: { owner: object }): void {
@@ -179,13 +167,14 @@ export class CallLedger {
     epoch: number
     op: CallOp
     handler: RegisteredOp
-  }): Promise<void> {
+  }): Promise<LedgerOutcome> {
     const call: LiveCall = {
       op: args.op,
       epoch: args.epoch,
       abort: new AbortController(),
       output: new CallOutput({
         key: args.key,
+        op: args.op.op,
         store: this.args.store,
         onFault: ({ error }) => this.args.onFault({ key: args.key, error }),
       }),
@@ -203,15 +192,47 @@ export class CallLedger {
       })
     } catch (error) {
       this.args.onFault({ key: args.key, error })
-      const failure = {
-        code: ECallFailure.Internal,
-        message: 'the call journal could not be written',
-      }
-      this.settle({ key: args.key, call, result: failedResult({ op: args.op, error: failure }) })
-      return
+      const message = 'the call journal could not be written'
+      this.settle({
+        key: args.key,
+        call,
+        result: this.failure({ call, code: ECallFailure.PersistFailed, message }),
+      })
+      return { ok: true }
+    }
+    if (this.protocol.epoch > args.epoch) {
+      await this.abandon({ key: args.key })
+      return staleEpoch(args.epoch)
+    }
+    if (call.abort.signal.aborted) {
+      const message = `${args.key} was cancelled before it started`
+      void this.finish({
+        key: args.key,
+        call,
+        result: this.failure({ call, code: ECallFailure.Cancelled, message }),
+      })
+      return { ok: true }
     }
     this.runs += 1
     void this.execute({ key: args.key, call, handler: args.handler })
+    return { ok: true }
+  }
+
+  private async abandon(args: { key: string }): Promise<void> {
+    this.protocol = stepCalls({
+      state: this.protocol,
+      input: { type: 'abandon', key: args.key },
+    }).state
+    this.calls.delete(args.key)
+    try {
+      await this.args.store.remove({ key: args.key })
+    } catch (error) {
+      this.args.onFault({ key: args.key, error })
+    }
+  }
+
+  private failure(args: { call: LiveCall; code: ECallFailure; message: string }): CallResult {
+    return failedResult({ op: args.call.op.op, code: args.code, message: args.message })
   }
 
   private async execute(args: {
@@ -219,54 +240,47 @@ export class CallLedger {
     call: LiveCall
     handler: RegisteredOp
   }): Promise<void> {
-    const result = await this.invoke(args)
-    args.call.output.close()
-    await args.call.output.drain()
-    await this.lock.run({
-      key: args.key,
-      task: async () => {
-        try {
-          await this.args.store.writeState({
-            key: args.key,
-            journal: {
-              state: ECallJournalState.Done,
-              epoch: args.call.epoch,
-              op: args.call.op,
-              outputBytes: args.call.output.bytes(),
-              result,
-            },
-          })
-        } catch (error) {
-          this.args.onFault({ key: args.key, error })
-        }
-        this.settle({ key: args.key, call: args.call, result })
+    const { call } = args
+    const result = await invokeOp({
+      handler: args.handler,
+      op: call.op,
+      ctx: {
+        key: args.key,
+        signal: call.abort.signal,
+        output: (bytes) => call.output.write(bytes),
+        publish: (event) => this.args.publish(event),
       },
     })
+    await this.lock.run({ key: args.key, task: () => this.finish({ key: args.key, call, result }) })
   }
 
-  private async invoke(args: {
-    key: string
-    call: LiveCall
-    handler: RegisteredOp
-  }): Promise<CallResult> {
+  private async finish(args: { key: string; call: LiveCall; result: CallResult }): Promise<void> {
     const { call } = args
+    call.output.close()
+    await call.output.drain()
+    const result = call.output.lost() ? call.output.lostResult() : args.result
     try {
-      const value = await args.handler.run({
-        op: call.op,
-        ctx: {
-          key: args.key,
-          signal: call.abort.signal,
-          output: (bytes) => call.output.write(bytes),
-          publish: (event) => this.args.publish(event),
+      await this.args.store.writeState({
+        key: args.key,
+        journal: {
+          state: ECallJournalState.Done,
+          epoch: call.epoch,
+          op: call.op,
+          outputBytes: call.output.bytes(),
+          result,
         },
       })
-      const parsed = okCallResultSchema.safeParse({ status: ECallStatus.Ok, op: call.op.op, value })
-      if (parsed.success) return parsed.data
-      const message = `${call.op.op} returned an invalid value: ${parsed.error.message}`
-      return failedResult({ op: call.op, error: { code: ECallFailure.Internal, message } })
     } catch (error) {
-      return failedResult({ op: call.op, error: callFailureOf(error) })
+      this.args.onFault({ key: args.key, error })
+      const message = `the result of ${args.key} could not be persisted`
+      this.settle({
+        key: args.key,
+        call,
+        result: this.failure({ call, code: ECallFailure.PersistFailed, message }),
+      })
+      return
     }
+    this.settle({ key: args.key, call, result })
   }
 
   private settle(args: { key: string; call: LiveCall; result: CallResult }): void {

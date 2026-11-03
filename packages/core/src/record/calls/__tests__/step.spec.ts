@@ -37,3 +37,24 @@ describe('stepCalls cancel', () => {
     expect(unknown.effects).toMatchObject({ cancelled: [], errors: [] })
   })
 })
+
+describe('stepCalls abandon', () => {
+  const running = stepCalls({
+    state: at(3),
+    input: { type: 'run', key: 'k', dispatched: true, epoch: 3 },
+  }).state
+
+  it('forgets a running call that never started, so a later run spawns it', () => {
+    const { state, effects } = stepCalls({ state: running, input: { type: 'abandon', key: 'k' } })
+    expect(effects.deleted).toEqual(['k'])
+    const again = stepCalls({ state, input: { type: 'run', key: 'k', dispatched: true, epoch: 3 } })
+    expect(again.effects.spawned).toEqual(['k'])
+  })
+
+  it('leaves a done call alone', () => {
+    const done = stepCalls({ state: running, input: { type: 'exit', key: 'k', result: 'r' } }).state
+    expect(
+      stepCalls({ state: done, input: { type: 'abandon', key: 'k' } }).effects.deleted,
+    ).toEqual([])
+  })
+})

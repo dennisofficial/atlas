@@ -1,5 +1,6 @@
-import type { CallResult } from '../ops'
+import { ECallFailure, type CallResult, type OpName } from '../ops'
 import type { CallStore } from './call-store'
+import { failedResult } from './results'
 
 export type CallSink = {
   output(args: { offset: number; bytes: Uint8Array }): void
@@ -9,16 +10,19 @@ export type CallSink = {
 export class CallOutput {
   private assigned = 0
   private closed = false
+  private lostBytes = false
   private ended: CallResult | null = null
   private tail: Promise<void> = Promise.resolve()
   private readonly sinks = new Map<object, CallSink>()
   private readonly owed = new Map<object, number>()
+  private readonly unreadable = new Map<object, CallSink>()
   private readonly cursors = new WeakMap<object, number>()
   private readonly detached = new WeakSet<object>()
 
   constructor(
     private readonly args: {
       key: string
+      op: OpName
       store: CallStore
       onFault(args: { error: unknown }): void
     },
@@ -28,13 +32,32 @@ export class CallOutput {
     return this.assigned
   }
 
+  lost(): boolean {
+    return this.lostBytes
+  }
+
+  lostResult(): CallResult {
+    return failedResult({
+      op: this.args.op,
+      code: ECallFailure.OutputLost,
+      message: `the output of ${this.args.key} could not be stored or read back`,
+    })
+  }
+
   write(bytes: Uint8Array): void {
     if (this.closed || bytes.length === 0) return
     const offset = this.assigned
     const copy = new Uint8Array(bytes)
     this.assigned += copy.length
     this.enqueue(async () => {
-      await this.args.store.appendOutput({ key: this.args.key, bytes: copy })
+      if (this.lostBytes) return
+      try {
+        await this.args.store.appendOutput({ key: this.args.key, bytes: copy })
+      } catch (error) {
+        this.lostBytes = true
+        this.args.onFault({ error })
+        return
+      }
       for (const [owner, sink] of this.sinks) this.deliver({ owner, sink, offset, bytes: copy })
     })
   }
@@ -44,14 +67,22 @@ export class CallOutput {
       if (this.detached.has(args.owner)) return
       const from = Math.max(this.cursors.get(args.owner) ?? 0, args.fromOffset)
       this.cursors.set(args.owner, from)
-      const stored = await this.args.store.readOutput({ key: this.args.key, offset: from })
-      this.deliver({ owner: args.owner, sink: args.sink, offset: from, bytes: stored })
-      if (this.ended === null) {
-        this.sinks.set(args.owner, args.sink)
-        this.owed.set(args.owner, (this.owed.get(args.owner) ?? 0) + 1)
+      let stored: Uint8Array
+      try {
+        stored = await this.args.store.readOutput({ key: this.args.key, offset: from })
+      } catch (error) {
+        this.args.onFault({ error })
+        if (this.ended === null) this.unreadable.set(args.owner, args.sink)
+        else args.sink.result({ result: this.lostResult() })
         return
       }
-      args.sink.result({ result: this.ended })
+      this.deliver({ owner: args.owner, sink: args.sink, offset: from, bytes: stored })
+      if (this.ended !== null) {
+        args.sink.result({ result: this.ended })
+        return
+      }
+      this.sinks.set(args.owner, args.sink)
+      this.owed.set(args.owner, (this.owed.get(args.owner) ?? 0) + 1)
     })
   }
 
@@ -59,6 +90,7 @@ export class CallOutput {
     this.detached.add(args.owner)
     this.sinks.delete(args.owner)
     this.owed.delete(args.owner)
+    this.unreadable.delete(args.owner)
   }
 
   close(): void {
@@ -73,8 +105,10 @@ export class CallOutput {
         const owed = this.owed.get(owner) ?? 0
         for (let sent = 0; sent < owed; sent++) sink.result({ result: args.result })
       }
+      for (const sink of this.unreadable.values()) sink.result({ result: this.lostResult() })
       this.sinks.clear()
       this.owed.clear()
+      this.unreadable.clear()
     })
   }
 

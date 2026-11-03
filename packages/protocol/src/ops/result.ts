@@ -15,6 +15,8 @@ export enum ECallFailure {
   InvalidInput = 'invalid-input',
   SpawnFailed = 'spawn-failed',
   OutputLost = 'output-lost',
+  Cancelled = 'cancelled',
+  PersistFailed = 'persist-failed',
   Internal = 'internal',
 }
 

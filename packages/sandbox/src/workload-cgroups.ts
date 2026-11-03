@@ -103,7 +103,7 @@ export const prepareWorkloadCgroups = (args: {
     step('enable-root-controllers', () =>
       write({ path: join(root, 'cgroup.subtree_control'), value: '+cpu +pids +memory' }),
     )
-    const pidsMax = pidsMaxFor(args.env)
+    const pidsMax = sandboxWorkloadsEnabled(args.env) ? pidsMaxFor(args.env) : WORK_PIDS_MAX
     step('limit-work', () => {
       write({ path: join(workGroup, 'pids.max'), value: pidsMax })
       write({ path: join(workGroup, 'memory.max'), value: memoryMaxBytes })

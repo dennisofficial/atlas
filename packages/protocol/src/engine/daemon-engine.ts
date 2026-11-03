@@ -240,7 +240,8 @@ export class DaemonEngine {
   }): Promise<LedgerOutcome> {
     const { peer, frame } = args
     if (frame.kind === 'ack') return this.ledger.ack({ key: frame.key, epoch: frame.epoch })
-    if (frame.kind === 'cancel') return this.ledger.cancel({ key: frame.key, epoch: frame.epoch })
+    if (frame.kind === 'cancel')
+      return Promise.resolve(this.ledger.cancel({ key: frame.key, epoch: frame.epoch }))
     return this.ledger.run({
       key: frame.key,
       epoch: frame.epoch,

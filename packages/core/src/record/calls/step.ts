@@ -51,6 +51,15 @@ export function stepCalls(args: {
     return { state: { ...state, epoch: input.epoch }, effects: NO_EFFECTS }
   }
 
+  if (input.type === 'abandon') {
+    if (stateOf({ state, key: input.key }) !== ECallState.Running) {
+      return { state, effects: NO_EFFECTS }
+    }
+    const calls = { ...state.calls }
+    delete calls[input.key]
+    return { state: { ...state, calls }, effects: { ...NO_EFFECTS, deleted: [input.key] } }
+  }
+
   if (input.type === 'cancel') {
     if (input.epoch < state.epoch) return failed({ state, error: ECallError.StaleEpoch })
     if (stateOf({ state, key: input.key }) !== ECallState.Running) {

@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 import { DAEMON_OOM_SCORE_ADJ, applyDaemonProtection } from '../daemon-protection'
 import { SANDBOX_WORKLOADS_ENV } from '../markers'
-import { WORK_PIDS_MAX, pidsMaxFor } from '../workload-cgroups'
+import { WORK_PIDS_MAX, pidsMaxFor, prepareWorkloadCgroups } from '../workload-cgroups'
 import { WORKLOAD_OOM_SCORE_ADJ, workloadPolicy } from '../workload-priority'
 
 const SANDBOX_ENV = { [SANDBOX_WORKLOADS_ENV]: '1' }
@@ -67,6 +67,16 @@ describe('applyDaemonProtection', () => {
     })
     expect(report.enabled && report.oomScoreAdj).toEqual({ applied: false, error: 'EACCES' })
     expect(report.enabled && report.cgroups.enabled && !report.cgroups.ok).toBe(true)
+  })
+
+  it('ignores the pids override on the v1 pod path', () => {
+    const report = prepareWorkloadCgroups({
+      env: { ATLAS_API_PROVISIONED: '1', ATLAS_WORKLOAD_PIDS_MAX: '64' },
+      platform: 'linux',
+      root,
+      meminfo: MEMINFO,
+    })
+    expect(report.enabled && report.ok && report.limits.pidsMax).toBe(WORK_PIDS_MAX)
   })
 
   it('does nothing off linux', () => {

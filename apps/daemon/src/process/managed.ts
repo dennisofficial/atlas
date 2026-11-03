@@ -67,14 +67,20 @@ export class ManagedProcess {
   private readonly pumps: Promise<void>
   private killing = false
 
-  private constructor(
-    private readonly child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>,
-    private readonly env: Record<string, string | undefined>,
-    output: { onStdout: OutputHandler; onStderr: OutputHandler },
-  ) {
+  private readonly child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>
+  private readonly env: Record<string, string | undefined>
+
+  private constructor(args: {
+    child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>
+    env: Record<string, string | undefined>
+    onStdout: OutputHandler
+    onStderr: OutputHandler
+  }) {
+    this.child = args.child
+    this.env = args.env
     this.pumps = Promise.all([
-      pump({ stream: child.stdout, onOutput: output.onStdout, readers: this.readers }),
-      pump({ stream: child.stderr, onOutput: output.onStderr, readers: this.readers }),
+      pump({ stream: args.child.stdout, onOutput: args.onStdout, readers: this.readers }),
+      pump({ stream: args.child.stderr, onOutput: args.onStderr, readers: this.readers }),
     ]).then(() => undefined)
   }
 
@@ -95,7 +101,12 @@ export class ManagedProcess {
         stderr: 'pipe',
         detached: true,
       })
-      return new ManagedProcess(child, args.env, args)
+      return new ManagedProcess({
+        child,
+        env: args.env,
+        onStdout: args.onStdout,
+        onStderr: args.onStderr,
+      })
     } catch (error) {
       throw new CallFailureError({ code: ECallFailure.SpawnFailed, message: messageOf(error) })
     }

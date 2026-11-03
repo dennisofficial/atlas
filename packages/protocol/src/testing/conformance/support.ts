@@ -198,13 +198,12 @@ export const failureOf = (result: CallResult): ECallFailure => {
   return result.error.code
 }
 
-export const shell = (
-  script: string,
-  extra?: Partial<Extract<CallOp, { op: 'exec' }>>,
-): CallOp => ({
+type ExecOp = Extract<CallOp, { op: 'exec' }>
+
+export const shell = (script: string, options?: { extra?: Partial<ExecOp> }): CallOp => ({
   op: 'exec',
   argv: ['/bin/sh', '-c', script],
-  ...extra,
+  ...options?.extra,
 })
 
 export { ERunState }

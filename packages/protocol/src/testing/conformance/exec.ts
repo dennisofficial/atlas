@@ -63,7 +63,7 @@ export const describeExecConformance = (target: DaemonConformanceTarget): void =
           const badCwd = await runToEnd({
             session,
             key: 'e-cwd',
-            op: shell('true', { cwd: '/nonexistent-dir' }),
+            op: shell('true', { extra: { cwd: '/nonexistent-dir' } }),
           })
           expect(failureOf(badCwd)).toBe(ECallFailure.SpawnFailed)
         },
@@ -90,7 +90,7 @@ export const describeExecConformance = (target: DaemonConformanceTarget): void =
           const result = await runToEnd({
             session,
             key: 'e-timeout',
-            op: shell('sleep 30', { timeoutMs: 200 }),
+            op: shell('sleep 30', { extra: { timeoutMs: 200 } }),
             timeoutMs: 5000,
           })
           expect(okValue({ result, op: 'exec' }).outcome).toBe(EExecOutcome.TimedOut)

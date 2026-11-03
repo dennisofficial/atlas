@@ -37,6 +37,7 @@ export type CallStepInput =
   | { type: 'exit'; key: string; result: string }
   | { type: 'ack'; key: string; resultRecorded: boolean; epoch: number }
   | { type: 'cancel'; key: string; epoch: number }
+  | { type: 'abandon'; key: string }
   | { type: 'daemonReboot'; bootId: string }
 
 export type CallEffects = {

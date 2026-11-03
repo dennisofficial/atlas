@@ -33,10 +33,6 @@ export const daemonHomeFromEnv = (env: Record<string, string | undefined>): stri
   return join(home, '.atlas-daemon')
 }
 
-/**
- * Call keys reach this store only after the frame schema has restricted them to
- * `[A-Za-z0-9_.:-]` and refused all-dot keys, so a key is always one directory name.
- */
 export class DiskCallStore implements CallStore {
   constructor(private readonly home: string) {}
 

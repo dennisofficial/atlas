@@ -15,12 +15,16 @@ const decodeStrict = (bytes: Uint8Array): string | null => {
 
 const grepMemory = (args: { op: GrepOp; fs: MemoryFileSystem }): GrepMatch[] => {
   const { op, fs } = args
-  fs.stat({ path: op.path })
+  const target = fs.stat({ path: op.path })
   const pattern = new RegExp(op.pattern, op.caseInsensitive === true ? 'i' : '')
   const within = op.glob === undefined ? '**/*' : `**/${op.glob}`
+  const files = target.isFile
+    ? [op.path]
+    : fs
+        .glob({ pattern: within, cwd: op.path, dot: true })
+        .map((file) => (op.path === '/' ? `/${file}` : `${op.path}/${file}`))
   const matches: GrepMatch[] = []
-  for (const file of fs.glob({ pattern: within, cwd: op.path, dot: true })) {
-    const path = op.path === '/' ? `/${file}` : `${op.path}/${file}`
+  for (const path of files) {
     if (!fs.stat({ path }).isFile) continue
     decodeLenient(fs.readBytes({ path }))
       .split('\n')
