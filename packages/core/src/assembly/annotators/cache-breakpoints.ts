@@ -11,8 +11,9 @@ export enum ECacheTtl {
   OneHour = '1h',
 }
 
-// Anthropic rejects a request carrying a fifth `cache_control`, and each breakpoint looks back at
-// most 20 content blocks for an entry a previous request wrote.
+// Anthropic rejects a request carrying a fifth `cache_control`, each breakpoint looks back at
+// most 20 content blocks for an entry a previous request wrote, and an entry may not carry a
+// shorter TTL than the one behind it — the system block's 1h caps the conversation at 1h too.
 // https://docs.claude.com/en/docs/build-with-claude/prompt-caching
 export const CACHE_BREAKPOINT_BUDGET = 4
 export const CACHE_LOOKBACK_BLOCKS = 20
@@ -150,7 +151,7 @@ function markMessage(args: {
 export function cacheBreakpoints(options: CacheBreakpointOptions = {}): Annotator {
   const providerId = options.providerId ?? ANTHROPIC_PROVIDER_ID
   const systemTtl = options.systemTtl ?? ECacheTtl.OneHour
-  const messageTtl = options.messageTtl ?? ECacheTtl.FiveMinutes
+  const messageTtl = options.messageTtl ?? ECacheTtl.OneHour
 
   return defineAnnotator({
     name: 'cacheBreakpoints',
