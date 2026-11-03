@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 
-export const SEMVER_TAG = /^\d+\.\d+\.\d+$/
+export const LATEST_TAG = 'latest'
 
-const WINDOW_DAYS = 7
 const IMAGE_PAGE_LIMIT = 100
 const SANDBOX_PAGE_LIMIT = 50
 const MAX_PAGES = 50
@@ -23,12 +22,7 @@ export interface PrunePlan {
   delete: PruneImage[]
 }
 
-export function planPrune(args: {
-  images: PruneImage[]
-  sandboxes: SandboxRef[]
-  now: number
-  windowMs: number
-}): PrunePlan {
+export function planPrune(args: { images: PruneImage[]; sandboxes: SandboxRef[] }): PrunePlan {
   const inUseDigests = new Set(
     args.sandboxes
       .map((sandbox) => sandbox.image?.split('@').at(-1))
@@ -37,10 +31,9 @@ export function planPrune(args: {
   const keep: PruneImage[] = []
   const remove: PruneImage[] = []
   for (const image of args.images) {
-    const releaseTagged = image.tags.some((tag) => SEMVER_TAG.test(tag))
-    const inWindow = args.now - image.createdAt <= args.windowMs
+    const isLatest = image.tags.includes(LATEST_TAG)
     const inUse = inUseDigests.has(image.manifestDigest)
-    if (inUse || (releaseTagged && inWindow)) {
+    if (isLatest || inUse) {
       keep.push(image)
     } else {
       remove.push(image)
@@ -121,7 +114,7 @@ async function listAllSandboxes(args: {
   const seenNames = new Set<string>()
   let cursor: string | undefined
   for (let pageNumber = 0; pageNumber < MAX_PAGES; pageNumber++) {
-    const query = `teamId=${args.teamId}&projectId=${args.projectId}&project=${args.project}&limit=${SANDBOX_PAGE_LIMIT}${cursor ? `&next=${encodeURIComponent(cursor)}` : ''}`
+    const query = `teamId=${args.teamId}&projectId=${args.projectId}&project=${args.project}&limit=${SANDBOX_PAGE_LIMIT}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
     const page = (await fetchJson({
       api: args.api,
       token: args.token,
@@ -136,8 +129,8 @@ async function listAllSandboxes(args: {
       fresh++
       sandboxes.push(sandbox)
     }
-    // v2/sandboxes replays page one forever once the cursor walks off the end, so a page that
-    // contributes nothing new is the real end of the list — pagination.next lies there.
+    // v2/sandboxes takes the cursor as `cursor=` and silently replays page one for any other
+    // parameter name, so a page that contributes nothing new still ends the walk.
     if (!page.pagination.next || fresh === 0) return sandboxes
     cursor = page.pagination.next
     console.log(`  …${sandboxes.length} sandboxes so far`)
@@ -184,15 +177,10 @@ async function main(): Promise<number> {
   const scope = { api, token, teamId, projectId, repository, project: 'atlas-web' }
 
   const [images, sandboxes] = await Promise.all([listAllImages(scope), listAllSandboxes(scope)])
-  const plan = planPrune({
-    images,
-    sandboxes,
-    now: Date.now(),
-    windowMs: WINDOW_DAYS * 24 * 60 * 60 * 1000,
-  })
+  const plan = planPrune({ images, sandboxes })
 
   console.log(
-    `${images.length} images, ${sandboxes.length} live sandboxes; keeping ${plan.keep.length}, pruning ${plan.delete.length}${dryRun ? ' (dry run)' : ''}`,
+    `${images.length} images, ${sandboxes.length} sandboxes; keeping ${plan.keep.length}, pruning ${plan.delete.length}${dryRun ? ' (dry run)' : ''}`,
   )
   for (const image of plan.delete) {
     const label = image.tags.length > 0 ? image.tags.join(', ') : '<untagged>'
