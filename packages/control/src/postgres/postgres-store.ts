@@ -27,7 +27,11 @@ class PostgresTx implements ControlTx {
 
   async now(): Promise<string> {
     const [row] = await this.tx.query(
-      this.tx.raw.sql`SELECT now() AS "at"`.returnsRow({ at: 'pg/timestamptz-date@1' }).build(),
+      this.tx.raw.sql`SELECT clock_timestamp() AS "at"`
+        .returnsRow({
+          at: this.tx.sql.v2.V2Lease.columns.renewedAt,
+        })
+        .build(),
     )
     if (row === undefined) throw new Error('database returned no clock reading')
     return row.at.toISOString()
@@ -205,6 +209,11 @@ class PostgresTx implements ControlTx {
 
   async readLease(sessionId: string): Promise<Lease | undefined> {
     const row = await this.tx.orm.v2.V2Lease.first({ sessionId })
+    return row === null ? undefined : { ...row, renewedAt: iso(row.renewedAt) }
+  }
+
+  async lockLease(sessionId: string): Promise<Lease | undefined> {
+    const row = await this.tx.orm.v2.V2Lease.where({ sessionId }).forNoKeyUpdate().first()
     return row === null ? undefined : { ...row, renewedAt: iso(row.renewedAt) }
   }
 

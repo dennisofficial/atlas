@@ -57,10 +57,13 @@ const leaseLiveAt = (params: { lease: Lease | undefined; now: string }): boolean
   Date.parse(params.now) < Date.parse(params.lease.renewedAt) + params.lease.ttlMs
 
 class MemoryTx implements ControlTx {
-  constructor(
-    private readonly state: State,
-    private readonly clock: () => string,
-  ) {}
+  private readonly state: State
+  private readonly clock: () => string
+
+  constructor(params: { state: State; clock: () => string }) {
+    this.state = params.state
+    this.clock = params.clock
+  }
 
   async now(): Promise<string> {
     return this.clock()
@@ -199,6 +202,10 @@ class MemoryTx implements ControlTx {
     return lease === undefined ? undefined : { ...lease }
   }
 
+  async lockLease(sessionId: string): Promise<Lease | undefined> {
+    return this.readLease(sessionId)
+  }
+
   async writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean> {
     const current = this.state.leases.get(params.lease.sessionId)
     if (!this.state.sessions.has(params.lease.sessionId)) return false
@@ -270,7 +277,7 @@ export class InMemoryControlStore extends ControlStorePort {
   transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
     const run = async (): Promise<T> => {
       const working = cloneState(this.state)
-      const result = await work(new MemoryTx(working, this.clock))
+      const result = await work(new MemoryTx({ state: working, clock: this.clock }))
       this.state = working
       return result
     }

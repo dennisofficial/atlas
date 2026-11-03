@@ -33,6 +33,7 @@ import {
 } from './stored-event'
 
 export const MAX_READ_LIMIT = 1000
+export const MAX_SESSION_LIST_LIMIT = 100
 
 export type ControlPlaneParams = { store: ControlStorePort; clock?: (() => string) | undefined }
 
@@ -52,7 +53,7 @@ export class ControlPlane {
   constructor(params: ControlPlaneParams) {
     this.store = params.store
     this.clock = params.clock
-    this.leases = new LeaseOps(params.store, (tx) => this.nowIn(tx))
+    this.leases = new LeaseOps({ store: params.store, nowIn: (tx) => this.nowIn(tx) })
   }
 
   private async nowIn(tx: ControlTx): Promise<string> {
@@ -88,7 +89,10 @@ export class ControlPlane {
     limit: number
   }): Promise<V2SessionRow[]> {
     return this.store.transact((tx) =>
-      tx.listSessions({ ...params, limit: clampLimit(params.limit) }),
+      tx.listSessions({
+        ...params,
+        limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
+      }),
     )
   }
 

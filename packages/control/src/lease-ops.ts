@@ -13,10 +13,16 @@ export const initialLease = (params: { sessionId: string; now: string }): Lease 
 })
 
 export class LeaseOps {
-  constructor(
-    private readonly store: ControlStorePort,
-    private readonly nowIn: (tx: ControlTx) => Promise<string>,
-  ) {}
+  private readonly store: ControlStorePort
+  private readonly nowIn: (tx: ControlTx) => Promise<string>
+
+  constructor(params: {
+    store: ControlStorePort
+    nowIn: (tx: ControlTx) => Promise<string>
+  }) {
+    this.store = params.store
+    this.nowIn = params.nowIn
+  }
 
   async leaseOf(params: { tx: ControlTx; sessionId: string; now: string }): Promise<Lease> {
     return (await params.tx.readLease(params.sessionId)) ?? initialLease(params)
@@ -70,8 +76,9 @@ export class LeaseOps {
     decide: (lease: Lease, now: string) => LeaseResult
   }): Promise<LeaseResult> {
     return this.store.transact(async (tx) => {
+      const current = await tx.lockLease(params.sessionId)
       const now = await this.nowIn(tx)
-      const lease = await this.leaseOf({ tx, sessionId: params.sessionId, now })
+      const lease = current ?? initialLease({ sessionId: params.sessionId, now })
       const result = params.decide(lease, now)
       if (!result.ok) return result
       const written = await tx.writeLease({ lease: result.lease, expectedEpoch: lease.epoch })
