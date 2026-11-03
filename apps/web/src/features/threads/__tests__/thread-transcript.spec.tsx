@@ -2,7 +2,6 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
-import { ECompactionAnchor } from '@dltech/atlas-core'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
@@ -52,29 +51,22 @@ describe('ThreadTranscript failure card', () => {
 })
 
 describe('ThreadTranscript summarise', () => {
-  const summariseButton = () => document.body.querySelector('button[aria-label="Summarise"]')
+  const summariseButton = () =>
+    document.body.querySelector('button[aria-label="Summarise up to here"]')
 
-  it('offers the point directions and reports the picked anchor', async () => {
-    const picked: { eventId: string; anchor: ECompactionAnchor }[] = []
+  it('reports the picked message from its summarise button', async () => {
+    const picked: string[] = []
     await mountWith({
       rewind: null,
       summarise: {
-        points: new Map([
-          [
-            'evt_2',
-            { upTo: { anchor: ECompactionAnchor.Prefix, seq: 1, messages: 1 }, from: null },
-          ],
-        ]),
-        onSummarise: (pick) => picked.push(pick),
+        points: new Map([['evt_2', { throughSeq: 1, messages: 1 }]]),
+        onSummarise: (eventId) => picked.push(eventId),
       },
     })
 
     await act(async () => (summariseButton() as HTMLElement | null)?.click())
-    const items = [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
-    expect(items.map((item) => item.textContent)).toEqual(['Summarise up to here'])
-    await act(async () => items[0]?.click())
 
-    expect(picked).toEqual([{ eventId: 'evt_2', anchor: ECompactionAnchor.Prefix }])
+    expect(picked).toEqual(['evt_2'])
   })
 
   it('renders no summarise action on a message that is not a point', async () => {

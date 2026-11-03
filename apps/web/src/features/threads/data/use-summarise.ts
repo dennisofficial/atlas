@@ -3,13 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import {
-  summarisePoints,
-  type ECompactionAnchor,
-  type Event,
-  type SummarisePoint,
-  type SummariseReach,
-} from '@dltech/atlas-core'
+import { summarisePoints, type Event, type SummariseReach } from '@dltech/atlas-core'
 import { EConnectionView, type RemoteDeltaChannel } from '@dltech/atlas-client/channel'
 
 import {
@@ -22,8 +16,8 @@ import {
 import { messageOf } from './use-send'
 
 export type TranscriptSummarise = {
-  points: ReadonlyMap<string, SummarisePoint>
-  onSummarise: (picked: { eventId: string; anchor: ECompactionAnchor }) => void
+  points: ReadonlyMap<string, SummariseReach>
+  onSummarise: (eventId: string) => void
 }
 
 type SummariseSituation = {
@@ -40,21 +34,23 @@ const connectedOf = (channel: RemoteDeltaChannel | null): RemoteDeltaChannel | n
 export function useSummarise(situation: SummariseSituation): {
   transcript: TranscriptSummarise
   dialog: { pick: SummariseReach | null; onCancel: () => void; onConfirm: () => void }
+  summarising: boolean
 } {
   const latest = useRef(situation)
   useEffect(() => {
     latest.current = situation
   })
   const running = useRef(false)
+  const [summarising, setSummarising] = useState(false)
   const [pick, setPick] = useState<SummariseReach | null>(null)
   const points = useMemo(() => summarisePoints(situation.events), [situation.events])
 
   const onSummarise = useCallback(
-    (picked: { eventId: string; anchor: ECompactionAnchor }) => {
+    (eventId: string) => {
       const { live, working } = latest.current
       const decision = decideSummarise({
         points,
-        ...picked,
+        eventId,
         live,
         working,
         running: running.current,
@@ -77,6 +73,7 @@ export function useSummarise(situation: SummariseSituation): {
       return
     }
     running.current = true
+    setSummarising(true)
     const summarised = requestSummarise({
       request: (call) => channel.request(call),
       threadId: latest.current.threadId,
@@ -84,6 +81,7 @@ export function useSummarise(situation: SummariseSituation): {
       pick,
     }).finally(() => {
       running.current = false
+      setSummarising(false)
     })
     toast.promise(summarised, {
       loading: SUMMARISING,
@@ -92,5 +90,9 @@ export function useSummarise(situation: SummariseSituation): {
     })
   }
 
-  return { transcript, dialog: { pick, onCancel: handleCancel, onConfirm: handleConfirm } }
+  return {
+    transcript,
+    dialog: { pick, onCancel: handleCancel, onConfirm: handleConfirm },
+    summarising,
+  }
 }

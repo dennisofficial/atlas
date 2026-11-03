@@ -189,24 +189,14 @@ describe('which verbs a point can offer', () => {
   it('will not summarise up to the oldest point, where there is nothing before it', () => {
     expect(verbsFor({ state: stateOf({ index: 0 }) })).toEqual([
       ERewindVerb.ToHere,
-      ERewindVerb.SummariseFrom,
       ERewindVerb.Fork,
     ])
   })
 
-  it('will not summarise from the most recent point, where it would summarise one message', () => {
-    expect(verbsFor({ state: stateOf({ index: 2 }) })).toEqual([
-      ERewindVerb.ToHere,
-      ERewindVerb.SummariseUpTo,
-      ERewindVerb.Fork,
-    ])
-  })
-
-  it('offers all four in the middle', () => {
+  it('offers all three past the oldest point', () => {
     expect(verbsFor({ state: stateOf({ index: 1 }) })).toEqual([
       ERewindVerb.ToHere,
       ERewindVerb.SummariseUpTo,
-      ERewindVerb.SummariseFrom,
       ERewindVerb.Fork,
     ])
   })
@@ -276,9 +266,8 @@ describe('how many messages a verb would take', () => {
     expect(affected({ index: 2, verb: ERewindVerb.ToHere })).toBe(0)
   })
 
-  it('counts the messages either side of the point for the two summaries', () => {
+  it('counts the messages before the point for a summary', () => {
     expect(affected({ index: 2, verb: ERewindVerb.SummariseUpTo })).toBe(2)
-    expect(affected({ index: 1, verb: ERewindVerb.SummariseFrom })).toBe(2)
   })
 
   it('does not count a compaction watermark as a message', () => {
@@ -323,9 +312,9 @@ describe('what a verb says it will do', () => {
     expect(verbConsequence({ state, verb: ERewindVerb.ToHere })).toContain(
       'returns to the composer',
     )
-    for (const verb of [ERewindVerb.SummariseUpTo, ERewindVerb.SummariseFrom]) {
-      expect(verbConsequence({ state, verb })).toContain('one summary · deletes rows')
-    }
+    expect(verbConsequence({ state, verb: ERewindVerb.SummariseUpTo })).toContain(
+      'one summary · deletes rows',
+    )
   })
 
   it('leads a rewind onto a compaction with the compaction it undoes', () => {

@@ -137,10 +137,9 @@ export function UserMessage({
   onEdit,
   onRewind,
   onSummariseUpTo,
-  onSummariseFrom,
 }: UserMessageProps) {
   const userCopyText = copyText?.trim() ? copyText : undefined
-  const summarise = { onSummariseUpTo, onSummariseFrom }
+  const summarise = { onSummariseUpTo }
   const hasActions = Boolean(onEdit || userCopyText || onRewind || hasSummariseAction(summarise))
 
   return (

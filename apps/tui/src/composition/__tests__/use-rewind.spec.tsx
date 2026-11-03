@@ -314,7 +314,7 @@ describe('the rewind control', () => {
 
       const choice: RewindChoice = {
         point: { kind: ERewindPointKind.Said, seq: 1, text: 'first', images: [] },
-        verb: ERewindVerb.SummariseFrom,
+        verb: ERewindVerb.SummariseUpTo,
       }
       controlOf(probe).handlePick(choice)
       await flush()

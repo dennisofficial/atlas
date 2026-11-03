@@ -106,6 +106,7 @@ const setup = async () => {
               working={working}
               onRetryBoot={() => undefined}
               rewind={null}
+              summarise={null}
             />
           </ThreadPanelProvider>
         </TestQueryProvider>,

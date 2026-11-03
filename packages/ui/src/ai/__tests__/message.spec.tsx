@@ -70,7 +70,7 @@ describe('UserMessage', () => {
 
   it('has no summarise button without a summarise handler', async () => {
     const container = await render(<UserMessage copyText="hi">hi</UserMessage>)
-    expect(container.querySelector('button[aria-label="Summarise"]')).toBeNull()
+    expect(container.querySelector('button[aria-label="Summarise up to here"]')).toBeNull()
   })
 
   it('shows pasted images, with no empty bubble when there is no text', async () => {
