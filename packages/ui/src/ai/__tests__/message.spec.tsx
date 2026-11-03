@@ -68,6 +68,11 @@ describe('UserMessage', () => {
     expect(rewound).toBe(1)
   })
 
+  it('has no summarise button without a summarise handler', async () => {
+    const container = await render(<UserMessage copyText="hi">hi</UserMessage>)
+    expect(container.querySelector('button[aria-label="Summarise"]')).toBeNull()
+  })
+
   it('shows pasted images, with no empty bubble when there is no text', async () => {
     const { createRoot } = await import('react-dom/client')
     const container = document.createElement('div')

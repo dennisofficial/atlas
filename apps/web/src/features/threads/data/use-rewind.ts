@@ -1,9 +1,11 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+
+import type { Event } from '@dltech/atlas-core'
 import { toast } from 'sonner'
 
-import { ERewindRoute } from './rewind'
+import { ERewindRoute, userRewindPoints } from './rewind'
 import {
   applyRewindPick,
   decideRewind,
@@ -18,17 +20,24 @@ import { messageOf } from './use-send'
 
 type RewindSource = Pick<ThreadSource, 'applyRewind' | 'readRoster' | 'refreshEvents'>
 
+export type RewindTranscript = {
+  points: ReadonlySet<string>
+  onRewind: (picked: { eventId: string; text: string }) => void
+}
+
+export type RewindDialogProps = {
+  pick: RewindPick | null
+  applying: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}
+
 export function useRewind(args: {
+  events: readonly Event[]
   situation: () => RewindSituation
   source: RewindSource
   onRestore: (text: string) => void
-}): {
-  pick: RewindPick | null
-  applying: boolean
-  handlePick: (picked: { eventId: string; text: string }) => Promise<void>
-  handleCancel: () => void
-  handleConfirm: () => Promise<void>
-} {
+}): { transcript: RewindTranscript; dialog: RewindDialogProps } {
   const { source, onRestore } = args
   const backend = useThreadBackend()
   const applyOffline = async (offline: {
@@ -103,5 +112,9 @@ export function useRewind(args: {
     await apply(pick)
   }
 
-  return { pick, applying, handlePick, handleCancel, handleConfirm }
+  const points = useMemo(() => new Set(userRewindPoints(args.events).keys()), [args.events])
+  return {
+    transcript: { points, onRewind: (picked) => void handlePick(picked) },
+    dialog: { pick, applying, onCancel: handleCancel, onConfirm: () => void handleConfirm() },
+  }
 }

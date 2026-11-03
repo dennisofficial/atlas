@@ -22,9 +22,13 @@ import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
 import { RunFailureCard, type RunFailureCardProps } from './transcript/run-failure-card'
-import { TurnView, type TranscriptRewind } from './transcript/transcript-turn'
+import {
+  TurnView,
+  type TranscriptRewind,
+  type TranscriptSummarise,
+} from './transcript/transcript-turn'
 
-export type { TranscriptRewind }
+export type { TranscriptRewind, TranscriptSummarise }
 
 const BOOT_TICK_MS = 100
 
@@ -74,6 +78,7 @@ export function ThreadTranscript({
   working,
   onRetryBoot,
   rewind,
+  summarise,
 }: {
   items: readonly TranscriptRow[]
   failureCard: RunFailureCardProps | null
@@ -82,6 +87,7 @@ export function ThreadTranscript({
   working: boolean
   onRetryBoot: () => void
   rewind: TranscriptRewind | null
+  summarise: TranscriptSummarise | null
 }) {
   const { user } = useSessionUser()
   const now = useNow(working || anySpawnRunning(items))
@@ -92,8 +98,8 @@ export function ThreadTranscript({
   const boot = useMemo(() => bootTimelineOf({ turns, pod, now: 0 }), [turns, pod])
   const userName = user?.name
   const actions = useMemo(
-    () => ({ rewind, openChanges, openAgent }),
-    [rewind, openChanges, openAgent],
+    () => ({ rewind, summarise, openChanges, openAgent }),
+    [rewind, summarise, openChanges, openAgent],
   )
   const bootAfter = (index: number): ReactNode[] =>
     boot

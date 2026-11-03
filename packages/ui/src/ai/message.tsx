@@ -18,6 +18,11 @@ import { Marker, MarkerContent, MarkerIcon } from '#components/marker'
 import { Message, MessageContent, MessageFooter } from '#components/message'
 import { Tooltip, TooltipContent, TooltipTrigger } from '#components/tooltip'
 
+import {
+  hasSummariseAction,
+  SummariseAction,
+  type SummariseActions,
+} from './internal/summarise-action'
 import { MessageImages, type MessageImage } from './message-images'
 
 export type { MessageImage } from './message-images'
@@ -32,7 +37,7 @@ export interface MessageAttachment {
   label: string
 }
 
-export interface UserMessageProps {
+export interface UserMessageProps extends SummariseActions {
   children?: ReactNode
   author?: string
   timestamp?: string
@@ -131,9 +136,12 @@ export function UserMessage({
   copyText,
   onEdit,
   onRewind,
+  onSummariseUpTo,
+  onSummariseFrom,
 }: UserMessageProps) {
   const userCopyText = copyText?.trim() ? copyText : undefined
-  const hasActions = Boolean(onEdit || userCopyText || onRewind)
+  const summarise = { onSummariseUpTo, onSummariseFrom }
+  const hasActions = Boolean(onEdit || userCopyText || onRewind || hasSummariseAction(summarise))
 
   return (
     <Message align="end">
@@ -174,6 +182,7 @@ export function UserMessage({
                       <HistoryIcon />
                     </ActionButton>
                   ) : null}
+                  <SummariseAction {...summarise} />
                 </ActionGroup>
               ) : null}
             </FooterRow>

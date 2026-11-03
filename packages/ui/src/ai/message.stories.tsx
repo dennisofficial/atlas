@@ -70,6 +70,8 @@ export const UserWithRewind: Story = {
       copyText="Try the migration again without the backfill."
       onEdit={() => {}}
       onRewind={() => {}}
+      onSummariseUpTo={() => {}}
+      onSummariseFrom={() => {}}
     >
       Try the migration again without the backfill.
     </UserMessage>

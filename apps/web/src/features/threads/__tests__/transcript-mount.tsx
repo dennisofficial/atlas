@@ -5,7 +5,11 @@ import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-
 import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
 import { EMPTY_DETAILS } from '../panel/details/details-input'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
-import { ThreadTranscript, type TranscriptRewind } from '../thread-transcript'
+import {
+  ThreadTranscript,
+  type TranscriptRewind,
+  type TranscriptSummarise,
+} from '../thread-transcript'
 import type { RunFailureCardProps } from '../transcript/run-failure-card'
 
 const panel: ThreadPanelValue = {
@@ -43,6 +47,7 @@ export const mount = async (rewind: TranscriptRewind | null, rows: TranscriptRow
 
 export const mountWith = async (args: {
   rewind: TranscriptRewind | null
+  summarise?: TranscriptSummarise | null
   client?: QueryClient
   rows?: TranscriptRow[]
   failureCard?: RunFailureCardProps | null
@@ -64,6 +69,7 @@ export const mountWith = async (args: {
             working={false}
             onRetryBoot={() => undefined}
             rewind={args.rewind}
+            summarise={args.summarise ?? null}
           />
         </ThreadPanelProvider>
       </TestQueryProvider>,
