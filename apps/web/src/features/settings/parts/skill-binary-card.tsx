@@ -9,12 +9,14 @@ import { formatBytes } from './skill-format'
 export function SkillBinaryCard({
   path,
   sizeBytes,
+  readOnly = false,
   onDownload,
   onReplace,
   onDelete,
 }: {
   path: string
   sizeBytes: number
+  readOnly?: boolean
   onDownload: () => void
   onReplace: () => void
   onDelete: () => void
@@ -36,13 +38,17 @@ export function SkillBinaryCard({
             <DownloadIcon data-icon="inline-start" />
             Download
           </Button>
-          <Button variant="outline" size="sm" onClick={onReplace}>
-            Replace
-          </Button>
-          <Button variant="outline" size="sm" onClick={onDelete}>
-            <Trash2Icon data-icon="inline-start" />
-            Delete
-          </Button>
+          {readOnly ? null : (
+            <>
+              <Button variant="outline" size="sm" onClick={onReplace}>
+                Replace
+              </Button>
+              <Button variant="outline" size="sm" onClick={onDelete}>
+                <Trash2Icon data-icon="inline-start" />
+                Delete
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

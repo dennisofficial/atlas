@@ -10,6 +10,7 @@ import {
   digestOfText,
 } from '../src/skills/embedded-bundle'
 import { isSkillEntryFilename } from '../src/skills/skill'
+import { skillCatalogueModule, type SkillCatalogueSource } from './skill-catalogue-source'
 import { skillSpecsModule } from './skill-specs-source'
 
 const harnessRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -21,9 +22,10 @@ type Layout = {
   manifestFile: string
   chunkDirectory: string
   specsFile: string
+  catalogueFile: string
 }
 
-type SourceFile = { path: string; digest: string }
+type SourceFile = { path: string; digest: string; sizeBytes: number }
 
 type SkillSource = {
   entryPath: string
@@ -40,6 +42,7 @@ const defaultLayout = (): Layout => ({
   manifestFile: join(harnessRoot, 'src', 'skills', 'manifest.generated.ts'),
   chunkDirectory: join(harnessRoot, 'src', 'skills', 'bundle-files.generated'),
   specsFile: join(harnessRoot, 'src', 'skill-specs', 'builtin.generated.ts'),
+  catalogueFile: join(harnessRoot, 'src', 'skill-catalogue', 'catalogue.generated.ts'),
 })
 
 const byCodePoint = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
@@ -76,7 +79,8 @@ async function resourcesUnder(args: {
 
 async function digestedFile(args: { root: string; path: string }): Promise<SourceFile> {
   assertSafeRelativePath(args.path)
-  return { path: args.path, digest: digestOfBytes(await readFile(join(args.root, args.path))) }
+  const bytes = await readFile(join(args.root, args.path))
+  return { path: args.path, digest: digestOfBytes(bytes), sizeBytes: bytes.byteLength }
 }
 
 async function folderSkill(args: {
@@ -296,6 +300,20 @@ export async function generateSkills(args: Partial<Layout> = {}): Promise<Genera
     path: layout.specsFile,
     text: skillSpecsModule(
       skills.map((skill) => ({ entryPath: skill.entryPath, text: skill.text })),
+    ),
+  })
+  await mkdir(dirname(layout.catalogueFile), { recursive: true })
+  await writeIfChanged({
+    path: layout.catalogueFile,
+    text: skillCatalogueModule(
+      skills.map(
+        (skill): SkillCatalogueSource => ({
+          entryPath: skill.entryPath,
+          text: skill.text,
+          entryDigest: skill.entryDigest,
+          resources: skill.resources,
+        }),
+      ),
     ),
   })
   await removeStaleChunks({

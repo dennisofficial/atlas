@@ -87,12 +87,14 @@ function TreeNode({
   node,
   depth,
   selected,
+  readOnly,
   onSelect,
   onAction,
 }: {
   node: SkillTreeNode
   depth: number
   selected: string
+  readOnly: boolean
   onSelect: (path: string) => void
   onAction: (action: TreeAction) => void
 }) {
@@ -121,7 +123,7 @@ function TreeNode({
             <FolderIcon className="size-3.5 shrink-0" />
             <span className="truncate">{node.name}</span>
           </CollapsibleTrigger>
-          <TreeRowActions node={node} onAction={onAction} />
+          {readOnly ? null : <TreeRowActions node={node} onAction={onAction} />}
         </div>
         <CollapsibleContent>
           {node.children.map((child) => (
@@ -130,6 +132,7 @@ function TreeNode({
               node={child}
               depth={depth + 1}
               selected={selected}
+              readOnly={readOnly}
               onSelect={onSelect}
               onAction={onAction}
             />
@@ -157,7 +160,7 @@ function TreeNode({
         <FileIcon className="size-3.5 shrink-0" />
         <span className="truncate">{node.name}</span>
       </button>
-      <TreeRowActions node={node} onAction={onAction} />
+      {readOnly ? null : <TreeRowActions node={node} onAction={onAction} />}
     </div>
   )
 }
@@ -165,39 +168,48 @@ function TreeNode({
 export function SkillFileTree({
   nodes,
   selected,
+  readOnly = false,
   onSelect,
   onAction,
 }: {
   nodes: SkillTreeNode[]
   selected: string
+  readOnly?: boolean
   onSelect: (path: string) => void
   onAction: (action: TreeAction) => void
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <div className="mb-1 flex items-center gap-1">
-        <Button variant="ghost" size="xs" onClick={() => onAction({ kind: 'new-file', path: '' })}>
-          <FilePlusIcon data-icon="inline-start" />
-          New file
-        </Button>
-        <Button variant="ghost" size="xs" onClick={() => onAction({ kind: 'upload', path: '' })}>
-          <FileUpIcon data-icon="inline-start" />
-          Upload
-        </Button>
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => onAction({ kind: 'new-folder', path: '' })}
-        >
-          <FolderPlusIcon data-icon="inline-start" />
-          Folder
-        </Button>
-      </div>
+      {readOnly ? null : (
+        <div className="mb-1 flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => onAction({ kind: 'new-file', path: '' })}
+          >
+            <FilePlusIcon data-icon="inline-start" />
+            New file
+          </Button>
+          <Button variant="ghost" size="xs" onClick={() => onAction({ kind: 'upload', path: '' })}>
+            <FileUpIcon data-icon="inline-start" />
+            Upload
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => onAction({ kind: 'new-folder', path: '' })}
+          >
+            <FolderPlusIcon data-icon="inline-start" />
+            Folder
+          </Button>
+        </div>
+      )}
       {nodes.map((node) => (
         <TreeNode
           key={node.path}
           node={node}
           depth={0}
+          readOnly={readOnly}
           selected={selected}
           onSelect={onSelect}
           onAction={onAction}
