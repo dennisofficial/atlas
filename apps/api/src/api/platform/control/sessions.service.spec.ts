@@ -5,25 +5,25 @@ import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import {
   chainEvents,
   ERunFailureKind,
-  EV2SessionState,
+  ESessionStatus,
   toRunId,
   toThreadId,
   type V2Body,
 } from '@dltech/atlas-core'
-import { v2InboxMessageSchema } from '@dltech/atlas-protocol'
-import { V2SessionsService } from './v2-sessions.service'
-import { V2ProjectAccess } from './v2-project-access'
-import { V2WakePublisher } from './v2-wake.publisher'
+import { inboxMessageSchema } from '@dltech/atlas-protocol'
+import { SessionsService } from './sessions.service'
+import { ProjectAccess } from './project-access'
+import { WakePublisher } from './wake.publisher'
 
 const NOW = '2026-11-03T12:00:00.000Z'
 
-class FakeProjectAccess extends V2ProjectAccess {
+class FakeProjectAccess extends ProjectAccess {
   async ownerOf(args: { projectId: string }): Promise<string | undefined> {
     return args.projectId === 'proj-a' ? 'user-a' : undefined
   }
 }
 
-class RecordingWakePublisher extends V2WakePublisher {
+class RecordingWakePublisher extends WakePublisher {
   readonly published: string[] = []
 
   async publish(args: { sessionId: string }): Promise<void> {
@@ -31,19 +31,19 @@ class RecordingWakePublisher extends V2WakePublisher {
   }
 }
 
-class FailingWakePublisher extends V2WakePublisher {
+class FailingWakePublisher extends WakePublisher {
   async publish(): Promise<void> {
     throw new Error('redis down')
   }
 }
 
-describe('V2SessionsService', () => {
-  const setup = (args: { publisher?: V2WakePublisher } = {}) => {
+describe('SessionsService', () => {
+  const setup = (args: { publisher?: WakePublisher } = {}) => {
     const plane = new ControlPlane({
       store: new InMemoryControlStore({ clock: () => NOW }),
     })
     const publisher = args.publisher ?? new RecordingWakePublisher()
-    const service = new V2SessionsService(plane, publisher, new FakeProjectAccess())
+    const service = new SessionsService(plane, publisher, new FakeProjectAccess())
     const published = publisher instanceof RecordingWakePublisher ? publisher.published : []
     return { plane, published, service }
   }
@@ -119,7 +119,7 @@ describe('V2SessionsService', () => {
     await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'hi' })
 
     const sent = await service.status({ userId: 'user-a', sessionId: created.sessionId })
-    expect(sent.state).toBe(EV2SessionState.Sent)
+    expect(sent.state).toBe(ESessionStatus.Sent)
     expect(sent.lease.live).toBe(false)
 
     const granted = await plane.grant({
@@ -129,7 +129,7 @@ describe('V2SessionsService', () => {
     })
     const bodies: V2Body[] = [
       { type: 'input-consumed', inboxId: 1 },
-      { type: 'user-said', text: 'hi', requestId: 'v2-inbox:1' },
+      { type: 'user-said', text: 'hi', requestId: 'inbox:1' },
     ]
     const appended = await plane.append({
       threadId: created.mainThreadId,
@@ -145,7 +145,7 @@ describe('V2SessionsService', () => {
     expect(appended.ok).toBe(true)
 
     const thinking = await service.status({ userId: 'user-a', sessionId: created.sessionId })
-    expect(thinking.state).toBe(EV2SessionState.Thinking)
+    expect(thinking.state).toBe(ESessionStatus.Thinking)
     expect(thinking.lease).toEqual({ epoch: granted.epoch, holderId: 'host-1', live: true })
 
     const events = await service.events({ userId: 'user-a', sessionId: created.sessionId })
@@ -178,7 +178,7 @@ describe('V2SessionsService', () => {
     })
     expect(appended.ok).toBe(true)
     const status = await service.status({ userId: 'user-a', sessionId: created.sessionId })
-    expect(status.state).toBe(EV2SessionState.Failed)
+    expect(status.state).toBe(ESessionStatus.Failed)
   })
 
   it('stamps inbox messages with the same schema the host parses', async () => {
@@ -186,7 +186,7 @@ describe('V2SessionsService', () => {
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'run the tests' })
     const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })
-    expect(v2InboxMessageSchema.parse(JSON.parse(inbox[0]?.payload ?? ''))).toEqual({
+    expect(inboxMessageSchema.parse(JSON.parse(inbox[0]?.payload ?? ''))).toEqual({
       text: 'run the tests',
     })
   })

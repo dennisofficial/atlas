@@ -1,68 +1,66 @@
-import { EV2SessionState } from '@dltech/atlas-core'
+import { ESessionStatus } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-export const v2SessionCreateInputSchema = z.strictObject({
+export const sessionCreateInputSchema = z.strictObject({
   projectId: z.string().min(1),
   title: z.string().optional(),
 })
 
-export const v2SessionListInputSchema = z.strictObject({
+export const sessionListInputSchema = z.strictObject({
   projectId: z.string().min(1).optional(),
   limit: z.number().int().min(1).max(100).optional(),
 })
 
-export const v2SessionPostInputSchema = z.strictObject({
+export const sessionPostInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   text: z.string().min(1),
 })
 
-export const v2SessionEventsInputSchema = z.strictObject({
+export const sessionEventsInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   afterSeq: z.number().int().min(0).optional(),
   limit: z.number().int().min(1).max(1000).optional(),
 })
 
-export const v2SessionStatusInputSchema = z.strictObject({
+export const sessionStatusInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
 
-export const v2AgentHostConfigInputSchema = z.strictObject({
+export const agentHostConfigInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
 
-export const v2AgentHostModelAccessTokenInputSchema = z.strictObject({
+export const agentHostModelAccessTokenInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   connectionId: z.string().min(1),
   rejectedAccessToken: z.string().optional(),
 })
 
-export const v2AgentHostGithubTokenInputSchema = z.strictObject({
+export const agentHostGithubTokenInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
 
-export type V2SessionCreateInput = z.infer<typeof v2SessionCreateInputSchema>
-export type V2SessionListInput = z.infer<typeof v2SessionListInputSchema>
-export type V2SessionPostInput = z.infer<typeof v2SessionPostInputSchema>
-export type V2SessionEventsInput = z.infer<typeof v2SessionEventsInputSchema>
-export type V2SessionStatusInput = z.infer<typeof v2SessionStatusInputSchema>
-export type V2AgentHostConfigInput = z.infer<typeof v2AgentHostConfigInputSchema>
-export type V2AgentHostModelAccessTokenInput = z.infer<
-  typeof v2AgentHostModelAccessTokenInputSchema
->
-export type V2AgentHostGithubTokenInput = z.infer<typeof v2AgentHostGithubTokenInputSchema>
+export type SessionCreateInput = z.infer<typeof sessionCreateInputSchema>
+export type SessionListInput = z.infer<typeof sessionListInputSchema>
+export type SessionPostInput = z.infer<typeof sessionPostInputSchema>
+export type SessionEventsInput = z.infer<typeof sessionEventsInputSchema>
+export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
+export type AgentHostConfigInput = z.infer<typeof agentHostConfigInputSchema>
+export type AgentHostModelAccessTokenInput = z.infer<typeof agentHostModelAccessTokenInputSchema>
+export type AgentHostGithubTokenInput = z.infer<typeof agentHostGithubTokenInputSchema>
 
-export const v2InboxMessageSchema = z.strictObject({ text: z.string().min(1) })
+export const inboxMessageSchema = z.strictObject({ text: z.string().min(1) })
 
-export type V2InboxMessage = z.infer<typeof v2InboxMessageSchema>
+export type InboxMessage = z.infer<typeof inboxMessageSchema>
 
-export const V2_INBOX_KIND_MESSAGE = 'message'
+export const INBOX_KIND_MESSAGE = 'message'
 
-export const v2SessionCreateOutputSchema = z.strictObject({
+export const sessionCreateOutputSchema = z.strictObject({
   sessionId: z.string().min(1),
   mainThreadId: z.string().min(1),
 })
 
-export const v2SessionSummarySchema = z.strictObject({
+export const sessionSummarySchema = z.strictObject({
   sessionId: z.string().min(1),
   projectId: z.string().min(1),
   title: z.string().nullable(),
@@ -70,28 +68,28 @@ export const v2SessionSummarySchema = z.strictObject({
   createdAt: z.string().min(1),
 })
 
-export const v2SessionListOutputSchema = z.strictObject({
-  sessions: z.array(v2SessionSummarySchema),
+export const sessionListOutputSchema = z.strictObject({
+  sessions: z.array(sessionSummarySchema),
 })
 
-export const v2SessionPostOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
+export const sessionPostOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
 
-export const v2SessionEventsOutputSchema = z.strictObject({
+export const sessionEventsOutputSchema = z.strictObject({
   events: z.array(z.record(z.string(), z.unknown())),
   next: z.number().int().min(1).optional(),
 })
 
-export const v2SessionLeaseSchema = z.strictObject({
+export const sessionLeaseSchema = z.strictObject({
   epoch: z.number().int().min(0),
   holderId: z.string().nullable(),
   live: z.boolean(),
 })
 
-export const v2SessionStatusOutputSchema = z.strictObject({
-  state: z.enum(EV2SessionState),
+export const sessionStatusOutputSchema = z.strictObject({
+  state: z.enum(ESessionStatus),
   reason: z.string().optional(),
   since: z.string().optional(),
-  lease: v2SessionLeaseSchema,
+  lease: sessionLeaseSchema,
 })
 
 const v2ScopedSecretSchema = z.object({
@@ -119,7 +117,7 @@ const v2ProjectConfigSchema = z.object({
   provenance: z.record(z.string(), z.string()),
 })
 
-export const v2AgentHostConfigOutputSchema = z.strictObject({
+export const agentHostConfigOutputSchema = z.strictObject({
   userId: z.string().min(1),
   projectId: z.string().min(1),
   vercel: z.union([
@@ -136,7 +134,7 @@ export const v2AgentHostConfigOutputSchema = z.strictObject({
   expiresAt: z.string().min(1),
 })
 
-export const v2AgentHostModelAccessTokenOutputSchema = z.strictObject({
+export const agentHostModelAccessTokenOutputSchema = z.strictObject({
   accessToken: z.string().min(1),
   expiresAt: z.string().min(1),
   refreshAfter: z.string().min(1),
@@ -145,19 +143,17 @@ export const v2AgentHostModelAccessTokenOutputSchema = z.strictObject({
   providerAccountId: z.string().optional(),
 })
 
-export const v2AgentHostGithubTokenOutputSchema = z.strictObject({
+export const agentHostGithubTokenOutputSchema = z.strictObject({
   token: z.string().min(1).nullable(),
 })
 
-export type V2SessionCreateOutput = z.infer<typeof v2SessionCreateOutputSchema>
-export type V2SessionSummary = z.infer<typeof v2SessionSummarySchema>
-export type V2SessionListOutput = z.infer<typeof v2SessionListOutputSchema>
-export type V2SessionPostOutput = z.infer<typeof v2SessionPostOutputSchema>
-export type V2SessionEventsOutput = z.infer<typeof v2SessionEventsOutputSchema>
-export type V2SessionLeaseView = z.infer<typeof v2SessionLeaseSchema>
-export type V2SessionStatusOutput = z.infer<typeof v2SessionStatusOutputSchema>
-export type V2AgentHostConfigOutput = z.infer<typeof v2AgentHostConfigOutputSchema>
-export type V2AgentHostModelAccessTokenOutput = z.infer<
-  typeof v2AgentHostModelAccessTokenOutputSchema
->
-export type V2AgentHostGithubTokenOutput = z.infer<typeof v2AgentHostGithubTokenOutputSchema>
+export type SessionCreateOutput = z.infer<typeof sessionCreateOutputSchema>
+export type SessionSummary = z.infer<typeof sessionSummarySchema>
+export type SessionListOutput = z.infer<typeof sessionListOutputSchema>
+export type SessionPostOutput = z.infer<typeof sessionPostOutputSchema>
+export type SessionEventsOutput = z.infer<typeof sessionEventsOutputSchema>
+export type SessionLeaseView = z.infer<typeof sessionLeaseSchema>
+export type SessionStatusOutput = z.infer<typeof sessionStatusOutputSchema>
+export type AgentHostConfigOutput = z.infer<typeof agentHostConfigOutputSchema>
+export type AgentHostModelAccessTokenOutput = z.infer<typeof agentHostModelAccessTokenOutputSchema>
+export type AgentHostGithubTokenOutput = z.infer<typeof agentHostGithubTokenOutputSchema>

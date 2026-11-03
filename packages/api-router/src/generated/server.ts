@@ -13,10 +13,24 @@ import { z } from "zod";
 
 const t = initTRPC.create();
 const publicProcedure = t.procedure;
+import { agentHostConfigInputSchema, agentHostConfigOutputSchema, agentHostModelAccessTokenInputSchema, agentHostModelAccessTokenOutputSchema, agentHostGithubTokenInputSchema, agentHostGithubTokenOutputSchema, sessionCreateInputSchema, sessionCreateOutputSchema, sessionListInputSchema, sessionListOutputSchema, sessionPostInputSchema, sessionPostOutputSchema, sessionEventsInputSchema, sessionEventsOutputSchema, sessionStatusInputSchema, sessionStatusOutputSchema } from "@dltech/atlas-protocol";
 import { composerDraftPutInputSchema, composerDraftSchema, composerDraftGetInputSchema, composerDraftGetReplySchema, composerDraftClearInputSchema, composerUploadPresignInputSchema, composerUploadPresignReplySchema, composerUploadDiscardInputSchema, composerUploadDownloadInputSchema, composerUploadDownloadReplySchema, githubPrStreamOutputSchema, githubWakeStreamOutputSchema, githubPrAckEventsInputSchema, githubPrAckEventsOutputSchema, githubPrStatesInputSchema, githubPrStatesOutputSchema, githubRepoListSchema, githubBranchesInputSchema, githubBranchListSchema, githubSubscribeInputSchema, githubSubscriptionSchema, githubSubscriptionIdInputSchema, githubDismissAppInstallNoticeInputSchema, githubHeartbeatSchema, githubDeviceCodesSchema, githubPollConnectInputSchema, githubPollResultSchema, githubConnectionStateSchema, githubTokenSchema, harnessSecretListSchema, harnessSecretNamesSchema, harnessSecretSetSchema, harnessSecretNameSchema, mcpOauthServersInputSchema, mcpOauthServersResultSchema, mcpOauthBeginInputSchema, mcpOauthBeginResultSchema, mcpOauthServerRefSchema, mcpOauthAccessInputSchema, mcpOauthAccessResultSchema, personalMcpServerListSchema, personalMcpUpsertSchema, personalMcpNameSchema, memoryListSchema, memoryProjectQuerySchema, memoryKeySchema, memoryEntrySchema, memoryPutSchema, memorySummarySchema, memoryEditSchema, projectIdInputSchema, settingListSchema, projectSettingsPatchSchema, projectSandboxSchema, projectSandboxSaveSchema, projectSecretListSchema, projectSecretKeySchema, projectSecretValueSchema, projectSecretSetSchema, projectFileMountListSchema, projectFileMountKeySchema, projectFileMountContentsSchema, projectFileMountSetSchema, projectRepoTreeSchema, resourceMcpServerListSchema, projectMcpServerPutSchema, projectMcpServerKeySchema, projectWorkspaceSchema, projectListSchema, projectSaveSchema, projectSchema, projectUpdateSchema, publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, threadIdInputSchema, sandboxProvisionReplySchema, sandboxRolloverRequestSchema, sandboxRolloverReplySchema, threadMessageSendInputSchema, threadMessageReplySchema, threadMessageTakeBackInputSchema, podStatusSchema, podConnectReplySchema, podResizeInputSchema, podResizeReplySchema, sandboxConfigInputSchema, resolvedSandboxConfigSchema, personalSecretSummaryListSchema, personalSecretNameSchema, personalSecretValueSchema, personalSecretNamesSchema, personalSecretSetSchema, settingsPatchSchema, personalSettingSetSchema, personalSettingKeySchema, skillCatalogueRequestSchema, skillCatalogueReplySchema, skillListRequestSchema, skillListReplySchema, skillListFilesRequestSchema, skillListFilesReplySchema, skillGetRequestSchema, skillFileContentSchema, skillPutRequestSchema, skillRevisionReplySchema, skillRemoveRequestSchema, skillRemovedReplySchema, skillRemoveSkillRequestSchema, skillRemoveSkillReplySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, vercelConnectStartSchema, vercelProjectsListSchema, vercelTokenDiscoverInputSchema, vercelTokenDiscoverSchema, vercelChooseProjectSchema, accountLeaseSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, setStatusInputSchema, inspectAvailabilityInputSchema, availabilitySnapshotSchema, admitAvailabilityInputSchema, admissionDecisionSchema, completeAvailabilityInputSchema, promoteProbeInputSchema, controlAvailabilityInputSchema, authorizeDesktopInputSchema, authorizeDesktopReplySchema, exchangeDesktopCodeInputSchema, exchangeDesktopCodeReplySchema, modelsResponseSchema, uploadConnectionInputSchema, oauthAccessTokenSchema, connectionRefSchema, oauthConnectionMetadataSchema, reauthorizeConnectionInputSchema, oauthAccessTokenRequestSchema, assignConnectionSandboxSchema, registerPodLeaseInputSchema, releasePodLeaseInputSchema, providerSignInBeginInputSchema, providerSignInBeginSchema, providerSignInCompleteInputSchema, providerSignInPollInputSchema, providerSignInPollSchema, sandboxThreadInputSchema, readRuntimeCheckpointReplySchema, runtimeCheckpointSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, sandboxSelfRenewDeadlineRequestSchema, sandboxDeadlineObservationSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema, contextFilePutSchema, contextFileDeleteSchema, contextFilesDeleteMissingSchema, podChildRegisterSchema, sandboxActivityPostSchema, eventsWatchInputSchema, eventsWatchOutputSchema, sandboxListEntrySchema, claimSandboxInputSchema, sandboxAttachmentSchema, contextFilesListInputSchema, contextFilesListReplySchema, contextFileReadInputSchema, contextFileReadReplySchema, appendEventsInputSchema, wireEventSchema, replaceEventsInputSchema, readEventsInputSchema, threadEventsSnapshotInputSchema, threadEventsSnapshotOutputSchema, threadEventsLiveInputSchema, threadEventsLiveOutputSchema, importEventsInputSchema, threadHeadReplySchema, threadStreamInputSchema, threadStreamOutputSchema, recordTurnInputSchema, turnTreeSchema, wireTurnSchema, createThreadInputSchema, createThreadOutputSchema, openThreadInputSchema, openThreadReplySchema, recentThreadInputSchema, wireThreadSchema, listThreadsInputSchema, renameThreadInputSchema, archiveThreadInputSchema, markThreadReadInputSchema, threadLiveOutputSchema, chooseThreadModelInputSchema, adoptThreadInputSchema, rewindThreadInputSchema, compactThreadInputSchema, replacedReplySchema, summariseThreadInputSchema, forkThreadInputSchema } from "@dltech/atlas-wire";
-import { v2AgentHostConfigInputSchema, v2AgentHostConfigOutputSchema, v2AgentHostModelAccessTokenInputSchema, v2AgentHostModelAccessTokenOutputSchema, v2AgentHostGithubTokenInputSchema, v2AgentHostGithubTokenOutputSchema, v2SessionCreateInputSchema, v2SessionCreateOutputSchema, v2SessionListInputSchema, v2SessionListOutputSchema, v2SessionPostInputSchema, v2SessionPostOutputSchema, v2SessionEventsInputSchema, v2SessionEventsOutputSchema, v2SessionStatusInputSchema, v2SessionStatusOutputSchema } from "@dltech/atlas-protocol";
 
 const appRouter = t.router({
+  agentHost: t.router({
+    config: publicProcedure
+      .input(agentHostConfigInputSchema)
+      .output(agentHostConfigOutputSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    modelAccessToken: publicProcedure
+      .input(agentHostModelAccessTokenInputSchema)
+      .output(agentHostModelAccessTokenOutputSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    githubToken: publicProcedure
+      .input(agentHostGithubTokenInputSchema)
+      .output(agentHostGithubTokenOutputSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
   composerDrafts: t.router({
     put: publicProcedure
       .input(composerDraftPutInputSchema)
@@ -468,20 +482,6 @@ const appRouter = t.router({
       .output(userVercelCredentialSchema)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
-  v2AgentHost: t.router({
-    config: publicProcedure
-      .input(v2AgentHostConfigInputSchema)
-      .output(v2AgentHostConfigOutputSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    modelAccessToken: publicProcedure
-      .input(v2AgentHostModelAccessTokenInputSchema)
-      .output(v2AgentHostModelAccessTokenOutputSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    githubToken: publicProcedure
-      .input(v2AgentHostGithubTokenInputSchema)
-      .output(v2AgentHostGithubTokenOutputSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
   accountLease: t.router({
     get: publicProcedure
       .output(accountLeaseSchema)
@@ -519,6 +519,28 @@ const appRouter = t.router({
       .input(accountIdInputSchema)
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  sessions: t.router({
+    create: publicProcedure
+      .input(sessionCreateInputSchema)
+      .output(sessionCreateOutputSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    list: publicProcedure
+      .input(sessionListInputSchema)
+      .output(sessionListOutputSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    post: publicProcedure
+      .input(sessionPostInputSchema)
+      .output(sessionPostOutputSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    events: publicProcedure
+      .input(sessionEventsInputSchema)
+      .output(sessionEventsOutputSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    status: publicProcedure
+      .input(sessionStatusInputSchema)
+      .output(sessionStatusOutputSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   credentialAvailability: t.router({
     inspect: publicProcedure
@@ -802,28 +824,6 @@ const appRouter = t.router({
       .input(forkThreadInputSchema)
       .output(wireThreadSchema)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  v2Sessions: t.router({
-    create: publicProcedure
-      .input(v2SessionCreateInputSchema)
-      .output(v2SessionCreateOutputSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    list: publicProcedure
-      .input(v2SessionListInputSchema)
-      .output(v2SessionListOutputSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    post: publicProcedure
-      .input(v2SessionPostInputSchema)
-      .output(v2SessionPostOutputSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    events: publicProcedure
-      .input(v2SessionEventsInputSchema)
-      .output(v2SessionEventsOutputSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    status: publicProcedure
-      .input(v2SessionStatusInputSchema)
-      .output(v2SessionStatusOutputSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     })
 });
 

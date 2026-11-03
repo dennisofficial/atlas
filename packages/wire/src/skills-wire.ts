@@ -19,6 +19,15 @@ export const skillUsageSchema = z.object({
 })
 export type SkillUsage = z.infer<typeof skillUsageSchema>
 
+export enum ESkillOrigin {
+  Personal = 'personal',
+  Project = 'project',
+  BuiltIn = 'built-in',
+}
+
+export const skillOriginSchema = z.enum(ESkillOrigin)
+export type SkillOrigin = z.infer<typeof skillOriginSchema>
+
 export const skillSummarySchema = z.object({
   name: z.string().min(1),
   description: z.string(),
@@ -26,6 +35,8 @@ export const skillSummarySchema = z.object({
   sizeBytes: z.number().int().min(0),
   updatedAt: z.string(),
   usage: skillUsageSchema,
+  origin: skillOriginSchema,
+  overridesBuiltIn: z.boolean(),
 })
 export type SkillSummary = z.infer<typeof skillSummarySchema>
 

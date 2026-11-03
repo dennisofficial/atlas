@@ -139,16 +139,19 @@ describe('SkillsRouter', () => {
     }).expect(200)
 
     const listed = await list('session-a', { scope: 'personal' }).expect(200)
-    expect(dataOf(listed.body)).toMatchObject({
-      skills: [
-        {
-          name: 'review',
-          description: 'review code',
-          fileCount: 2,
-          usage: { usedCount30d: 0, lastUsedAt: null },
-        },
-      ],
-    })
+    const rows = (dataOf(listed.body) as { skills: { name: string }[] }).skills.filter(
+      (skill) => skill.name === 'review',
+    )
+    expect(rows).toMatchObject([
+      {
+        name: 'review',
+        description: 'review code',
+        fileCount: 2,
+        usage: { usedCount30d: 0, lastUsedAt: null },
+        origin: 'personal',
+        overridesBuiltIn: false,
+      },
+    ])
 
     const files = await trpcQuery({
       app,
@@ -228,7 +231,10 @@ describe('SkillsRouter', () => {
     }).expect(200)
 
     const listed = await list('session-a', { scope: 'personal' }).expect(200)
-    expect(dataOf(listed.body)).toMatchObject({ skills: [{ name: 'review', description: '' }] })
+    const rows = (dataOf(listed.body) as { skills: { name: string }[] }).skills.filter(
+      (skill) => skill.name === 'review',
+    )
+    expect(rows).toMatchObject([{ name: 'review', description: '' }])
   })
 
   it('round-trips a binary (non-utf8) file', async () => {
@@ -287,7 +293,8 @@ describe('SkillsRouter', () => {
     expect(dataOf(removed.body)).toEqual({ removed: 2 })
 
     const listed = await list('session-a', { scope: 'personal' }).expect(200)
-    expect(dataOf(listed.body)).toEqual({ skills: [] })
+    const skills = (dataOf(listed.body) as { skills: { name: string }[] }).skills
+    expect(skills.some((skill) => skill.name === 'review')).toBe(false)
   })
 
   it('scopes project skills to the project and 404s for a project the user does not own', async () => {
@@ -316,7 +323,10 @@ describe('SkillsRouter', () => {
     }).expect(404)
 
     const personal = await list('session-b', { scope: 'personal' }).expect(200)
-    expect(dataOf(personal.body)).toEqual({ skills: [] })
+    const rows = (dataOf(personal.body) as { skills: { origin: string }[] }).skills.filter(
+      (skill) => skill.origin === 'personal',
+    )
+    expect(rows).toEqual([])
   })
 
   it('rejects scope=project without a projectId', async () => {
@@ -382,5 +392,173 @@ describe('SkillsRouter', () => {
     const project = await list('session-a', { scope: 'project', projectId: 'proj-a' }).expect(200)
     const deploy = (dataOf(project.body) as { skills: { usage: unknown }[] }).skills[0]
     expect(deploy?.usage).toMatchObject({ usedCount30d: 1 })
+  })
+
+  it('derives and persists an empty description from SKILL.md on list', async () => {
+    const text = skillMd({ name: 'review', description: 'backfilled from frontmatter' })
+    const entry = fileOf(text)
+    const skill = await db.orm.public.Skill.create({ userId: USER_A, name: 'review' })
+    await db.orm.public.SkillFile.create({
+      skillId: skill.id,
+      path: 'SKILL.md',
+      revision: 1,
+      contentHash: entry.contentHash,
+      content: new TextEncoder().encode(text),
+      isText: true,
+      size: Buffer.byteLength(text),
+    })
+    expect(skill.description).toBe('')
+
+    const listed = await list('session-a', { scope: 'personal' }).expect(200)
+    const row = (
+      dataOf(listed.body) as { skills: { name: string; description: string }[] }
+    ).skills.find((candidate) => candidate.name === 'review')
+    expect(row?.description).toBe('backfilled from frontmatter')
+
+    const persisted = await db.orm.public.Skill.first({ id: skill.id })
+    expect(persisted?.description).toBe('backfilled from frontmatter')
+  })
+
+  it('does not touch a description that is already set on list', async () => {
+    const text = skillMd({ name: 'review', description: 'new frontmatter' })
+    const entry = fileOf(text)
+    const skill = await db.orm.public.Skill.create({
+      userId: USER_A,
+      name: 'review',
+      description: 'hand-written description',
+    })
+    await db.orm.public.SkillFile.create({
+      skillId: skill.id,
+      path: 'SKILL.md',
+      revision: 1,
+      contentHash: entry.contentHash,
+      content: new TextEncoder().encode(text),
+      isText: true,
+      size: Buffer.byteLength(text),
+    })
+
+    const listed = await list('session-a', { scope: 'personal' }).expect(200)
+    const row = (
+      dataOf(listed.body) as { skills: { name: string; description: string }[] }
+    ).skills.find((candidate) => candidate.name === 'review')
+    expect(row?.description).toBe('hand-written description')
+
+    const persisted = await db.orm.public.Skill.first({ id: skill.id })
+    expect(persisted?.description).toBe('hand-written description')
+  })
+
+  it('lists built-in skills on the personal scope with the built-in origin', async () => {
+    const listed = await list('session-a', { scope: 'personal' }).expect(200)
+    const skills = (
+      dataOf(listed.body) as {
+        skills: { name: string; origin: string; overridesBuiltIn: boolean }[]
+      }
+    ).skills
+    const builtIn = skills.filter((skill) => skill.origin === 'built-in')
+    for (const name of ['atlas', 'commit', 'resolving-merge-conflicts', 'ui-design', 'video']) {
+      expect(builtIn.some((skill) => skill.name === name)).toBe(true)
+    }
+    expect(builtIn.every((skill) => skill.overridesBuiltIn === false)).toBe(true)
+  })
+
+  it('does not list built-in skills on the project scope', async () => {
+    await createProject({ ownerUserId: USER_A, id: 'proj-a' })
+    const listed = await list('session-a', { scope: 'project', projectId: 'proj-a' }).expect(200)
+    const skills = (dataOf(listed.body) as { skills: { origin: string }[] }).skills
+    expect(skills.some((skill) => skill.origin === 'built-in')).toBe(false)
+  })
+
+  it('serves a built-in file read-only on the personal scope', async () => {
+    const files = await trpcQuery({
+      app,
+      path: 'skills.listFiles',
+      token: 'session-a',
+      input: { scope: 'personal', skill: 'commit' },
+    }).expect(200)
+    expect(dataOf(files.body)).toMatchObject({ files: [{ path: 'SKILL.md', isText: true }] })
+
+    const got = await trpcQuery({
+      app,
+      path: 'skills.get',
+      token: 'session-a',
+      input: { scope: 'personal', skill: 'commit', path: 'SKILL.md' },
+    }).expect(200)
+    const content = Buffer.from(
+      (dataOf(got.body) as { content: string }).content,
+      'base64',
+    ).toString('utf8')
+    expect(content).toContain('name: commit')
+  })
+
+  it('rejects writes to a built-in skill name with no personal row', async () => {
+    const written = await put('session-a', {
+      scope: 'personal',
+      skill: 'commit',
+      path: 'SKILL.md',
+      ...fileOf('override attempt'),
+    })
+    expect(written.status).toBe(400)
+
+    const removed = await trpcMutation({
+      app,
+      path: 'skills.removeSkill',
+      token: 'session-a',
+      input: { scope: 'personal', skill: 'commit' },
+    })
+    expect(removed.status).toBe(404)
+  })
+
+  it('lets an existing personal skill shadow a built-in as a normal editable row', async () => {
+    const skill = await db.orm.public.Skill.create({ userId: USER_A, name: 'commit' })
+    const entry = fileOf(skillMd({ name: 'commit', description: 'my own commit skill' }))
+    await db.orm.public.SkillFile.create({
+      skillId: skill.id,
+      path: 'SKILL.md',
+      revision: 1,
+      contentHash: entry.contentHash,
+      content: new TextEncoder().encode(
+        skillMd({ name: 'commit', description: 'my own commit skill' }),
+      ),
+      isText: true,
+      size: Buffer.byteLength(skillMd({ name: 'commit', description: 'my own commit skill' })),
+    })
+
+    const listed = await list('session-a', { scope: 'personal' }).expect(200)
+    const rows = (
+      dataOf(listed.body) as {
+        skills: { name: string; origin: string; overridesBuiltIn: boolean; description: string }[]
+      }
+    ).skills.filter((row) => row.name === 'commit')
+    expect(rows).toMatchObject([
+      {
+        name: 'commit',
+        origin: 'personal',
+        overridesBuiltIn: true,
+        description: 'my own commit skill',
+      },
+    ])
+
+    const edited = await put('session-a', {
+      scope: 'personal',
+      skill: 'commit',
+      path: 'SKILL.md',
+      baseRevision: 1,
+      ...fileOf(skillMd({ name: 'commit', description: 'edited override' })),
+    }).expect(200)
+    expect(dataOf(edited.body)).toEqual({ revision: 2 })
+
+    const removed = await trpcMutation({
+      app,
+      path: 'skills.removeSkill',
+      token: 'session-a',
+      input: { scope: 'personal', skill: 'commit' },
+    }).expect(200)
+    expect(dataOf(removed.body)).toEqual({ removed: 1 })
+
+    const after = await list('session-a', { scope: 'personal' }).expect(200)
+    const restored = (
+      dataOf(after.body) as { skills: { name: string; origin: string }[] }
+    ).skills.filter((row) => row.name === 'commit')
+    expect(restored).toMatchObject([{ name: 'commit', origin: 'built-in' }])
   })
 })

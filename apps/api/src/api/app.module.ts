@@ -48,8 +48,8 @@ import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.mo
 import { SkillsModule } from './cloud/skills/skills.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
 import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
-import { V2AgentHostModule } from './cloud/v2-agent-host/v2-agent-host.module'
-import { V2ControlModule } from './platform/v2/v2-control.module'
+import { AgentHostModule } from './cloud/agent-host/agent-host.module'
+import { ControlPlaneModule } from './platform/control/control-plane.module'
 
 @Module({
   imports: [
@@ -103,8 +103,8 @@ import { V2ControlModule } from './platform/v2/v2-control.module'
     ScopedConfigModule,
     SandboxCredentialsModule,
     SandboxProvisioningModule,
-    V2ControlModule,
-    V2AgentHostModule,
+    ControlPlaneModule,
+    AgentHostModule,
   ],
   controllers: [HealthController],
   providers: [

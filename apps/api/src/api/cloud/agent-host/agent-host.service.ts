@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
-import type { V2SessionRow } from '@dltech/atlas-control'
+import type { ControlSessionRow } from '@dltech/atlas-control'
 import type {
-  V2AgentHostConfigOutput,
-  V2AgentHostGithubTokenOutput,
-  V2AgentHostModelAccessTokenOutput,
+  AgentHostConfigOutput,
+  AgentHostGithubTokenOutput,
+  AgentHostModelAccessTokenOutput,
 } from '@dltech/atlas-protocol'
 import { GithubService } from '../github/github.service'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
@@ -15,7 +15,7 @@ import { OauthConnectionsService } from '../../platform/oauth-connections/oauth-
 const CONFIG_TTL_MS = 300_000
 
 @Injectable()
-export class V2AgentHostService {
+export class AgentHostService {
   constructor(
     private readonly plane: ControlPlane,
     private readonly scopedConfig: ScopedConfigService,
@@ -23,7 +23,7 @@ export class V2AgentHostService {
     private readonly github: GithubService,
   ) {}
 
-  async config(args: { sessionId: string }): Promise<V2AgentHostConfigOutput> {
+  async config(args: { sessionId: string }): Promise<AgentHostConfigOutput> {
     const session = await this.requireSession(args)
     const config = await this.scopedConfig.resolveForPod({
       userId: session.userId,
@@ -35,7 +35,7 @@ export class V2AgentHostService {
       userId: session.userId,
       projectId: session.projectId,
       vercel,
-      config: config as unknown as V2AgentHostConfigOutput['config'],
+      config: config as unknown as AgentHostConfigOutput['config'],
       revision: createHash('sha256').update(JSON.stringify(config)).digest('hex'),
       expiresAt: new Date(issuedAt + CONFIG_TTL_MS).toISOString(),
     }
@@ -45,7 +45,7 @@ export class V2AgentHostService {
     sessionId: string
     connectionId: string
     rejectedAccessToken?: string | undefined
-  }): Promise<V2AgentHostModelAccessTokenOutput> {
+  }): Promise<AgentHostModelAccessTokenOutput> {
     const session = await this.requireSession(args)
     const token = await this.oauthConnections.issueAccessToken({
       userId: session.userId,
@@ -66,19 +66,19 @@ export class V2AgentHostService {
     }
   }
 
-  async githubToken(args: { sessionId: string }): Promise<V2AgentHostGithubTokenOutput> {
+  async githubToken(args: { sessionId: string }): Promise<AgentHostGithubTokenOutput> {
     const session = await this.requireSession(args)
     const token = await this.github.findToken({ userId: session.userId })
     return { token: token ?? null }
   }
 
-  private async requireSession(args: { sessionId: string }): Promise<V2SessionRow> {
+  private async requireSession(args: { sessionId: string }): Promise<ControlSessionRow> {
     const session = await this.plane.readSession({ sessionId: args.sessionId })
     if (session === undefined) throw new NotFoundException('session not found')
     return session
   }
 
-  private async vercelOf(args: { userId: string }): Promise<V2AgentHostConfigOutput['vercel']> {
+  private async vercelOf(args: { userId: string }): Promise<AgentHostConfigOutput['vercel']> {
     try {
       const credentials = await this.scopedConfig.vercelCredentials({
         thread: { userId: args.userId },

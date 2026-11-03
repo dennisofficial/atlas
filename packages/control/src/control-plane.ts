@@ -20,7 +20,7 @@ import {
   type ControlTx,
   type StoredEvent,
   type ThreadRow,
-  type V2SessionRow,
+  type ControlSessionRow,
 } from './port'
 import { consumeInbox } from './consume-inbox'
 import { AppendAbort, type AppendOutcome, type ControlRefusal } from './refusal'
@@ -79,7 +79,7 @@ export class ControlPlane {
     })
   }
 
-  async readSession(params: { sessionId: string }): Promise<V2SessionRow | undefined> {
+  async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     return this.store.transact((tx) => tx.readSession(params))
   }
 
@@ -87,7 +87,7 @@ export class ControlPlane {
     userId: string
     projectId?: string | undefined
     limit: number
-  }): Promise<V2SessionRow[]> {
+  }): Promise<ControlSessionRow[]> {
     return this.store.transact((tx) =>
       tx.listSessions({
         ...params,

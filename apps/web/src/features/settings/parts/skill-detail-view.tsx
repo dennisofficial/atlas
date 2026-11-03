@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useEffectEvent, useState } from 'react'
 import { toast } from 'sonner'
 import type { SkillFileMeta } from '@dltech/atlas-wire/web'
+import { isBuiltInSkillName } from '@dltech/atlas-harness/skill-catalogue'
 
 import { EMarkdownEditorVariant, MarkdownEditor } from '@dltech/atlas-ui/ai/markdown-editor'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -88,6 +89,8 @@ function SkillDetail({
   const isText = file?.isText === true
   const tree = buildSkillTree(metas.map((candidate) => candidate.path))
   const name = target.skill
+  const readOnly = isBuiltInSkillName(name) && metas.every((meta) => meta.revision === 0)
+  // Built-in rows are served with revision 0; an overriding personal/project skill has revisions >= 1.
 
   const loadFile = async (path: string): Promise<LoadedFile | null> => {
     const meta = metas.find((candidate) => candidate.path === path)
@@ -288,15 +291,23 @@ function SkillDetail({
         name={name}
         updatedAt={file?.updatedAt ?? null}
         listHref={listHref}
+        readOnly={readOnly}
         onDeleteSkill={() => setDeleteSkillOpen(true)}
       />
       <p className="-mt-2 text-sm text-muted-foreground">{SKILL_PRECEDENCE_COPY}</p>
+      {readOnly ? (
+        <p className="-mt-2 text-sm text-muted-foreground">
+          Built-in skills ship with Atlas and are read-only. Create a personal or project skill with
+          the same name to override it.
+        </p>
+      ) : null}
 
       <div className="grid min-h-0 flex-1 grid-cols-[260px_minmax(0,1fr)] gap-4">
         <aside className="min-h-0 overflow-y-auto rounded-lg border bg-card p-2">
           <SkillFileTree
             nodes={tree}
             selected={currentPath}
+            readOnly={readOnly}
             onSelect={handleSelect}
             onAction={handleAction}
           />
@@ -305,7 +316,7 @@ function SkillDetail({
         <section className="flex min-h-0 flex-col gap-2">
           <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
             <span className="truncate font-mono text-xs text-muted-foreground">{currentPath}</span>
-            {isText ? (
+            {isText && !readOnly ? (
               <div className="flex items-center gap-2">
                 {dirty ? (
                   <span className="text-xs text-muted-foreground">Unsaved changes</span>
@@ -335,6 +346,7 @@ function SkillDetail({
                 variant={EMarkdownEditorVariant.Document}
                 ariaLabel={currentPath}
                 value={draftValue}
+                readOnly={readOnly}
                 onChange={(value) => setDraft(value)}
               />
             </div>
@@ -342,6 +354,7 @@ function SkillDetail({
             <SkillBinaryCard
               path={file.path}
               sizeBytes={file.sizeBytes}
+              readOnly={readOnly}
               onDownload={handleDownload}
               onReplace={() =>
                 setPrompt({

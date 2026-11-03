@@ -1,7 +1,7 @@
 import { EWaitEpisodeKind } from '../model-recovery/waiting'
 import type { V2Event } from './event'
 
-export enum EV2SessionState {
+export enum ESessionStatus {
   Sent = 'sent',
   Thinking = 'thinking',
   RunningTool = 'running-tool',
@@ -12,8 +12,8 @@ export enum EV2SessionState {
   Failed = 'failed',
 }
 
-export type V2SessionStatus = {
-  state: EV2SessionState
+export type SessionStatus = {
+  state: ESessionStatus
   reason?: string | undefined
   since?: string | undefined
 }
@@ -58,17 +58,17 @@ export function sessionStatusOf(params: {
   live: boolean
   unconsumedInbox: boolean
   now: string
-}): V2SessionStatus {
+}): SessionStatus {
   const { events, live } = params
   const nowMs = Date.parse(params.now)
 
   if (params.unconsumedInbox) {
-    return { state: EV2SessionState.Sent }
+    return { state: ESessionStatus.Sent }
   }
 
   const failed = unfinishedRunFailed(events)
   if (failed !== undefined) {
-    return { state: EV2SessionState.Failed, reason: failed.failure.message, since: failed.at }
+    return { state: ESessionStatus.Failed, reason: failed.failure.message, since: failed.at }
   }
 
   const last = lastEventOf(events)
@@ -81,7 +81,7 @@ export function sessionStatusOf(params: {
       if (event.type !== 'model-waiting') continue
       if (event.waiting.episode.kind === EWaitEpisodeKind.Credential) {
         return {
-          state: EV2SessionState.WaitingForCredentials,
+          state: ESessionStatus.WaitingForCredentials,
           reason: event.waiting.reason ?? undefined,
           since: event.at,
         }
@@ -93,24 +93,24 @@ export function sessionStatusOf(params: {
       const notBefore = retryDeadlineOf({ event: events[index] as V2Event, nowMs })
       if (notBefore === undefined) continue
       return {
-        state: EV2SessionState.WaitingToRetry,
+        state: ESessionStatus.WaitingToRetry,
         reason: `retrying at ${notBefore}`,
         since: (events[index] as V2Event).at,
       }
     }
 
     if (last.type === 'tool-dispatched') {
-      return { state: EV2SessionState.RunningTool, reason: last.name, since: last.at }
+      return { state: ESessionStatus.RunningTool, reason: last.name, since: last.at }
     }
     if (last.type === 'tool-called' || last.type === 'tool-denied') {
-      return { state: EV2SessionState.Thinking, since: last.at }
+      return { state: ESessionStatus.Thinking, since: last.at }
     }
 
     if (!live) {
-      return { state: EV2SessionState.Resuming, since: last.at }
+      return { state: ESessionStatus.Resuming, since: last.at }
     }
-    return { state: EV2SessionState.Thinking, since: last.at }
+    return { state: ESessionStatus.Thinking, since: last.at }
   }
 
-  return { state: EV2SessionState.Idle, since: last?.at }
+  return { state: ESessionStatus.Idle, since: last?.at }
 }

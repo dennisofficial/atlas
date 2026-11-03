@@ -20,13 +20,13 @@ const env = process.env
 let secret: string
 let sandboxName: string
 try {
-  secret = required({ env, name: 'V2_DAEMON_SECRET' })
+  secret = required({ env, name: 'DAEMON_SECRET' })
   sandboxName = required({ env, name: 'ATLAS_SANDBOX_NAME' })
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))
   process.exit(78)
 }
-delete env.V2_DAEMON_SECRET
+delete env.DAEMON_SECRET
 
 const home = daemonHomeFromEnv(env)
 const protection = protectDaemon(env)
