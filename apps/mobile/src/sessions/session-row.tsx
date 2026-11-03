@@ -1,11 +1,11 @@
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
+import { EFontFamily, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import { radius, space } from '@dltech/atlas-ui/tokens'
+import { Pressable, StyleSheet, View } from 'react-native'
 
 import { relativeTime } from '../lib/relative-time'
-import { useTheme } from '../theme/use-theme'
 import type { ISessionEntry } from './session-groups'
-import { StatusGlyph } from './status-glyph'
-
-const MONO = Platform.select({ ios: 'Menlo', default: 'monospace' })
+import { StatusIcon } from './status-icon'
+import { WorkSummary } from './work-summary'
 
 export const SessionRow = ({
   entry,
@@ -21,19 +21,20 @@ export const SessionRow = ({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed ? { backgroundColor: theme.accent } : null]}
+      style={({ pressed }) => [
+        styles.row,
+        pressed ? { backgroundColor: theme.sidebarAccent } : null,
+      ]}
     >
-      <View style={styles.titleLine}>
-        <StatusGlyph status={entry.status} />
-        <Text numberOfLines={1} style={[styles.title, { color: theme.foreground }]}>
+      <View style={styles.primary}>
+        <StatusIcon status={entry.status} unread={entry.unread} />
+        <Text size={ETextRole.Sm} numberOfLines={1} style={styles.title}>
           {entry.title}
         </Text>
       </View>
-      <View style={styles.metaLine}>
-        <Text numberOfLines={1} style={[styles.detail, { color: theme.mutedForeground }]}>
-          {entry.detail ?? ''}
-        </Text>
-        <Text style={[styles.time, { color: theme.mutedForeground }]}>
+      <View style={styles.secondary}>
+        <WorkSummary work={entry.work} />
+        <Text size={ETextRole.Xs} family={EFontFamily.Mono} tone={ETextTone.Muted}>
           {relativeTime({ at: entry.updatedAt, now })}
         </Text>
       </View>
@@ -43,35 +44,22 @@ export const SessionRow = ({
 
 const styles = StyleSheet.create({
   row: {
-    borderRadius: 12,
-    gap: 4,
-    marginHorizontal: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: radius(0.8),
+    paddingHorizontal: space(2),
+    paddingVertical: space(1.5),
   },
-  titleLine: {
+  primary: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
+    gap: space(2),
   },
   title: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
   },
-  metaLine: {
+  secondary: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
-    paddingLeft: 30,
-  },
-  detail: {
-    flex: 1,
-    fontFamily: MONO,
-    fontSize: 13,
-  },
-  time: {
-    fontFamily: MONO,
-    fontSize: 13,
+    gap: space(1.5),
+    marginTop: space(1),
   },
 })

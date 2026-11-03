@@ -5,7 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { apiOrigin } from '../../config'
 import { ECallbackResult, parseAuthCallback } from '../../auth/pending-auth'
 import { pendingAuthStorage } from '../../auth/token-store.web'
-import { useTheme } from '../../theme/use-theme'
+import { useTheme } from '@dltech/atlas-ui-native'
 import { createApiClient } from '@dltech/atlas-api-router'
 
 enum ECallbackStatus {

@@ -1,8 +1,10 @@
-import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router'
+import { useIsDark, useTheme } from '@dltech/atlas-ui-native'
+import { useFonts } from 'expo-font'
+import { router, Stack, ThemeProvider } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
-import { StyleSheet, useColorScheme } from 'react-native'
+import { StyleSheet } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 import { AnalyticsProvider } from '../analytics/analytics-provider'
@@ -13,11 +15,13 @@ import {
   subscribeToNotificationResponses,
 } from '../push/notification-handler'
 import { SplashOverlay } from '../splash/splash-overlay'
+import { fontAssets } from '../theme/fonts'
+import { navigationThemeOf } from '../theme/navigation-theme'
 
 installNotificationHandler()
 void SplashScreen.preventAutoHideAsync()
 
-const RootStack = () => {
+const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
   const { state } = useAuth()
   const signedIn = state === EAuthState.SignedIn
   return (
@@ -31,13 +35,15 @@ const RootStack = () => {
         </Stack.Protected>
         <Stack.Screen name="auth/callback" options={{ presentation: 'modal' }} />
       </Stack>
-      <SplashOverlay ready={state !== EAuthState.Loading} />
+      <SplashOverlay ready={fontsReady && state !== EAuthState.Loading} />
     </>
   )
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme()
+  const theme = useTheme()
+  const dark = useIsDark()
+  const [fontsLoaded, fontError] = useFonts(fontAssets)
   useEffect(() => {
     const subscription = subscribeToNotificationResponses({
       onThreadId: (id) => router.push({ pathname: '/thread/[id]', params: { id } }),
@@ -47,10 +53,10 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <AnalyticsProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ThemeProvider value={navigationThemeOf({ theme, dark })}>
           <AuthProvider>
-            <RootStack />
-            <StatusBar style="auto" />
+            <RootStack fontsReady={fontsLoaded || fontError !== null} />
+            <StatusBar style={dark ? 'light' : 'dark'} />
           </AuthProvider>
         </ThemeProvider>
       </AnalyticsProvider>

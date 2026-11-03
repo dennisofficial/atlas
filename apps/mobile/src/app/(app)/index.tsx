@@ -1,56 +1,47 @@
+import { ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import { space } from '@dltech/atlas-ui/tokens'
 import { router } from 'expo-router'
 import { useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  RefreshControl,
-  SectionList,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
 
 import { SearchField } from '../../sessions/search-field'
 import { SectionHeader } from '../../sessions/section-header'
 import { SessionRow } from '../../sessions/session-row'
-import { ESectionKind, sectionsOf } from '../../sessions/session-sections'
+import { sectionsOf } from '../../sessions/session-sections'
 import { ELoadState, useSessions } from '../../sessions/use-sessions'
-import { useTheme } from '../../theme/use-theme'
 
-const EmptyState = ({ searching }: { searching: boolean }) => {
-  const theme = useTheme()
-  return (
-    <View style={styles.empty}>
-      <Text style={[styles.emptyTitle, { color: theme.foreground }]}>
-        {searching ? 'No matching sessions' : 'No sessions yet'}
-      </Text>
-      <Text style={[styles.emptyBody, { color: theme.mutedForeground }]}>
-        {searching ? 'Try another title or project.' : 'Tap + to start a session.'}
-      </Text>
-    </View>
-  )
-}
+const EmptyState = ({ searching }: { searching: boolean }) => (
+  <View style={styles.empty}>
+    <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
+      {searching ? 'No matching sessions.' : 'No sessions yet. Tap + to start one.'}
+    </Text>
+  </View>
+)
 
 export default function SessionsScreen() {
   const theme = useTheme()
   const { partition, loadState, refreshing, refresh, now } = useSessions()
   const [query, setQuery] = useState('')
-  const [expanded, setExpanded] = useState<ReadonlySet<ESectionKind>>(new Set())
+  const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set())
   const sections = useMemo(
-    () => sectionsOf({ partition, query, expanded }),
-    [partition, query, expanded],
+    () => sectionsOf({ partition, query, toggled }),
+    [partition, query, toggled],
   )
 
-  const handleToggle = (kind: ESectionKind) =>
-    setExpanded((current) => {
+  const handleToggle = (key: string) =>
+    setToggled((current) => {
       const next = new Set(current)
-      if (next.has(kind)) next.delete(kind)
-      else next.add(kind)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
       return next
     })
 
+  const handleNewSession = (projectId: string) =>
+    router.push({ pathname: '/new', params: { project: projectId } })
+
   if (loadState === ELoadState.Loading) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.background }]}>
+      <View style={[styles.center, { backgroundColor: theme.sidebar }]}>
         <ActivityIndicator color={theme.primary} />
       </View>
     )
@@ -58,9 +49,11 @@ export default function SessionsScreen() {
 
   if (loadState === ELoadState.Failed) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <Text style={{ color: theme.destructive }}>Sessions could not be loaded.</Text>
-        <Text style={{ color: theme.mutedForeground }} onPress={() => void refresh()}>
+      <View style={[styles.center, { backgroundColor: theme.sidebar }]}>
+        <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+          Sessions could not be loaded.
+        </Text>
+        <Text size={ETextRole.Sm} tone={ETextTone.Muted} onPress={() => void refresh()}>
           Tap to try again.
         </Text>
       </View>
@@ -71,9 +64,8 @@ export default function SessionsScreen() {
 
   return (
     <SectionList
-      style={{ backgroundColor: theme.background }}
+      style={{ backgroundColor: theme.sidebar }}
       contentContainerStyle={styles.list}
-      contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag"
       sections={sections}
       keyExtractor={(entry) => entry.id}
@@ -90,7 +82,7 @@ export default function SessionsScreen() {
         />
       }
       renderSectionHeader={({ section }) => (
-        <SectionHeader section={section} onToggle={handleToggle} />
+        <SectionHeader section={section} onToggle={handleToggle} onNewSession={handleNewSession} />
       )}
       renderItem={({ item }) => (
         <SessionRow
@@ -107,24 +99,17 @@ const styles = StyleSheet.create({
   center: {
     alignItems: 'center',
     flex: 1,
-    gap: 8,
+    gap: space(2),
     justifyContent: 'center',
-    padding: 24,
+    padding: space(6),
   },
   list: {
-    paddingBottom: 32,
+    gap: space(0.5),
+    padding: space(2),
+    paddingBottom: space(8),
   },
   empty: {
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingTop: 48,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  emptyBody: {
-    textAlign: 'center',
+    paddingTop: space(12),
   },
 })

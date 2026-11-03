@@ -1,7 +1,7 @@
-import { StyleSheet, TextInput, View } from 'react-native'
-
-import { Icon } from '../components/icon'
-import { useTheme } from '../theme/use-theme'
+import { Icon, Input, useTheme } from '@dltech/atlas-ui-native'
+import { radius, space } from '@dltech/atlas-ui/tokens'
+import { Search } from 'lucide-react-native'
+import { StyleSheet, View } from 'react-native'
 
 export const SearchField = ({
   value,
@@ -12,19 +12,19 @@ export const SearchField = ({
 }) => {
   const theme = useTheme()
   return (
-    <View style={[styles.field, { borderColor: theme.border, backgroundColor: theme.card }]}>
-      <Icon ios="magnifyingglass" web="search" color={theme.mutedForeground} size={17} />
-      <TextInput
+    <View style={[styles.field, { borderColor: theme.sidebarBorder }]}>
+      <Icon icon={Search} color={theme.mutedForeground} size={14} />
+      <Input
+        bare
         accessibilityLabel="Search sessions"
         autoCapitalize="none"
         autoCorrect={false}
         clearButtonMode="while-editing"
         placeholder="Search"
-        placeholderTextColor={theme.mutedForeground}
         returnKeyType="search"
         value={value}
         onChangeText={onChangeText}
-        style={[styles.input, { color: theme.foreground }]}
+        style={styles.input}
       />
     </View>
   )
@@ -33,17 +33,17 @@ export const SearchField = ({
 const styles = StyleSheet.create({
   field: {
     alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius(0.8),
+    borderWidth: 1,
     flexDirection: 'row',
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingHorizontal: 12,
+    gap: space(2),
+    height: 36,
+    paddingHorizontal: space(2),
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    paddingVertical: 10,
+    fontSize: 14,
+    lineHeight: 20,
+    paddingVertical: 0,
   },
 })

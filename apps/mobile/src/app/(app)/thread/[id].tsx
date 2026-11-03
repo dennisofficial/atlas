@@ -1,12 +1,13 @@
+import { EFontWeight, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import { space } from '@dltech/atlas-ui/tokens'
 import type { WireThread } from '@dltech/atlas-wire/web'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../../auth/auth-provider'
-import { sessionStatusOf } from '../../../sessions/session-status'
-import { StatusGlyph } from '../../../sessions/status-glyph'
-import { useTheme } from '../../../theme/use-theme'
+import { isUnread, sessionStatusOf } from '../../../sessions/session-status'
+import { StatusIcon } from '../../../sessions/status-icon'
 
 export default function ThreadScreen() {
   const theme = useTheme()
@@ -30,17 +31,25 @@ export default function ThreadScreen() {
       <Stack.Screen options={{ title: thread === null ? '' : title }} />
       {thread === null && !failed ? <ActivityIndicator color={theme.primary} /> : null}
       {failed ? (
-        <Text style={{ color: theme.destructive }}>This session could not be loaded.</Text>
+        <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+          This session could not be loaded.
+        </Text>
       ) : null}
       {thread !== null ? (
         <View style={styles.body}>
           <View style={styles.status}>
-            <StatusGlyph status={sessionStatusOf(thread)} />
-            <Text numberOfLines={2} style={[styles.title, { color: theme.foreground }]}>
+            <StatusIcon status={sessionStatusOf(thread)} unread={isUnread(thread)} />
+            <Text
+              size={ETextRole.Lg}
+              weight={EFontWeight.Medium}
+              tight
+              numberOfLines={2}
+              style={styles.title}
+            >
               {title}
             </Text>
           </View>
-          <Text style={[styles.note, { color: theme.mutedForeground }]}>
+          <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
             The transcript view is coming next. Open this session in Atlas on the web or Mac to
             follow it for now.
           </Text>
@@ -55,24 +64,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: space(6),
   },
   body: {
-    gap: 12,
+    gap: space(3),
     maxWidth: 420,
   },
   status: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
+    gap: space(2),
   },
   title: {
     flexShrink: 1,
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  note: {
-    fontSize: 15,
-    lineHeight: 21,
   },
 })

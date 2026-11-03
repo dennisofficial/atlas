@@ -1,28 +1,31 @@
-import { randomUUID } from 'expo-crypto'
-import { router } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
+  Button,
+  EButtonSize,
+  EFontWeight,
+  ETextRole,
+  ETextTone,
+  Input,
   Text,
-  TextInput,
-  View,
-} from 'react-native'
+  useTheme,
+  withAlpha,
+} from '@dltech/atlas-ui-native'
+import { radius, space } from '@dltech/atlas-ui/tokens'
+import { randomUUID } from 'expo-crypto'
+import { router, useLocalSearchParams } from 'expo-router'
+import { ArrowUp } from 'lucide-react-native'
+import { useEffect, useRef, useState } from 'react'
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
-import { Icon } from '../../components/icon'
 import { createSession } from '../../composer/create-session'
 import { type IProjectOption, ProjectChips } from '../../composer/project-chips'
-import { useTheme } from '../../theme/use-theme'
 
 export default function NewSessionScreen() {
   const theme = useTheme()
   const { api } = useAuth()
+  const { project } = useLocalSearchParams<{ project?: string }>()
   const [projects, setProjects] = useState<IProjectOption[]>([])
-  const [projectId, setProjectId] = useState<string | null>(null)
+  const [projectId, setProjectId] = useState<string | null>(project ?? null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +35,11 @@ export default function NewSessionScreen() {
     if (api === undefined) return
     void api.projects.list.query().then((list) => {
       setProjects(list.map(({ id, name }) => ({ id, name })))
-      setProjectId((current) => current ?? list[0]?.id ?? null)
+      setProjectId((current) =>
+        current !== null && list.some((entry) => entry.id === current)
+          ? current
+          : (list[0]?.id ?? null),
+      )
     })
   }, [api])
 
@@ -59,48 +66,48 @@ export default function NewSessionScreen() {
       style={[styles.screen, { backgroundColor: theme.background }]}
     >
       <View style={styles.center}>
-        <Text style={[styles.heading, { color: theme.foreground }]}>
+        <Text size={ETextRole.Xl} weight={EFontWeight.Medium} tight style={styles.heading}>
           What should Atlas work on?
         </Text>
-      </View>
-      <View style={[styles.composer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <TextInput
-          accessibilityLabel="Describe a task"
-          autoFocus
-          multiline
-          placeholder="Describe a task for Atlas…"
-          placeholderTextColor={theme.mutedForeground}
-          value={draft}
-          onChangeText={setDraft}
-          style={[styles.input, { color: theme.foreground }]}
-        />
-        <View style={styles.footer}>
-          <View style={styles.chips}>
-            <ProjectChips projects={projects} selectedId={projectId} onSelect={setProjectId} />
+        <View
+          style={[
+            styles.composer,
+            {
+              backgroundColor: theme.card,
+              borderColor: withAlpha({ color: theme.foreground, alpha: 0.1 }),
+            },
+          ]}
+        >
+          <Input
+            bare
+            accessibilityLabel="Describe a task"
+            autoFocus
+            multiline
+            placeholder="Describe a task for Atlas…"
+            value={draft}
+            onChangeText={setDraft}
+            style={styles.input}
+          />
+          <View style={styles.footer}>
+            <View style={styles.chips}>
+              <ProjectChips projects={projects} selectedId={projectId} onSelect={setProjectId} />
+            </View>
+            <Button
+              label="Start session"
+              icon={ArrowUp}
+              size={EButtonSize.IconSm}
+              disabled={!canSend}
+              loading={sending}
+              onPress={() => void handleSend()}
+            />
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Start session"
-            disabled={!canSend}
-            onPress={() => void handleSend()}
-            style={[styles.send, { backgroundColor: canSend ? theme.primary : theme.muted }]}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color={theme.primaryForeground} />
-            ) : (
-              <Icon
-                ios="arrow.up"
-                web="arrow_upward"
-                color={canSend ? theme.primaryForeground : theme.mutedForeground}
-                size={18}
-              />
-            )}
-          </Pressable>
         </View>
+        {error !== null ? (
+          <Text size={ETextRole.Sm} tone={ETextTone.Destructive} style={styles.heading}>
+            {error}
+          </Text>
+        ) : null}
       </View>
-      {error !== null ? (
-        <Text style={[styles.error, { color: theme.destructive }]}>{error}</Text>
-      ) : null}
     </KeyboardAvoidingView>
   )
 }
@@ -108,46 +115,33 @@ export default function NewSessionScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: space(4),
   },
   center: {
     flex: 1,
+    gap: space(5),
     justifyContent: 'center',
   },
   heading: {
-    fontSize: 22,
-    fontWeight: '600',
     textAlign: 'center',
   },
   composer: {
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 10,
-    padding: 12,
+    borderRadius: radius(1.4),
+    borderWidth: 1,
+    gap: space(2),
+    padding: space(2.5),
   },
   input: {
-    fontSize: 16,
     maxHeight: 200,
-    minHeight: 72,
-    textAlignVertical: 'top',
+    minHeight: 56,
+    paddingHorizontal: space(0.5),
   },
   footer: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
+    gap: space(2),
   },
   chips: {
     flex: 1,
-  },
-  send: {
-    alignItems: 'center',
-    borderRadius: 18,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  error: {
-    marginTop: 8,
-    textAlign: 'center',
   },
 })

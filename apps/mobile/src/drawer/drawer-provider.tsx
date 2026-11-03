@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { scheduleOnRN } from 'react-native-worklets'
 
-import { useTheme } from '../theme/use-theme'
+import { useTheme } from '@dltech/atlas-ui-native'
 
 const SPRING = { damping: 26, stiffness: 260, mass: 0.9, overshootClamping: true }
 const FLING_VELOCITY = 0.6
@@ -102,7 +102,11 @@ export const DrawerProvider = ({
             accessibilityViewIsModal={isOpen}
             style={[
               styles.panel,
-              { width: drawerWidth, backgroundColor: theme.sidebar, borderColor: theme.border },
+              {
+                width: drawerWidth,
+                backgroundColor: theme.sidebar,
+                borderColor: theme.sidebarBorder,
+              },
               panelStyle,
             ]}
           >

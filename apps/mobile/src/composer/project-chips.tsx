@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
-
-import { useTheme } from '../theme/use-theme'
+import { EFontFamily, ETextRole, ETextTone, Icon, Text, useTheme } from '@dltech/atlas-ui-native'
+import { radius, space } from '@dltech/atlas-ui/tokens'
+import { FolderGit2 } from 'lucide-react-native'
+import { Pressable, ScrollView, StyleSheet } from 'react-native'
 
 export interface IProjectOption {
   id: string
@@ -26,21 +27,21 @@ export const ProjectChips = ({
     >
       {projects.map((project) => {
         const selected = project.id === selectedId
+        const color = selected ? theme.foreground : theme.mutedForeground
         return (
           <Pressable
             key={project.id}
             accessibilityRole="button"
             accessibilityState={{ selected }}
             onPress={() => onSelect(project.id)}
-            style={[
-              styles.chip,
-              {
-                borderColor: selected ? theme.primary : theme.border,
-                backgroundColor: selected ? theme.accent : 'transparent',
-              },
-            ]}
+            style={[styles.chip, selected ? { backgroundColor: theme.muted } : null]}
           >
-            <Text style={{ color: selected ? theme.foreground : theme.mutedForeground }}>
+            <Icon icon={FolderGit2} color={color} size={14} />
+            <Text
+              size={ETextRole.Sm}
+              family={EFontFamily.Sans}
+              tone={selected ? ETextTone.Foreground : ETextTone.Muted}
+            >
               {project.name}
             </Text>
           </Pressable>
@@ -52,13 +53,14 @@ export const ProjectChips = ({
 
 const styles = StyleSheet.create({
   row: {
-    gap: 8,
-    paddingHorizontal: 2,
+    gap: space(1),
   },
   chip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    alignItems: 'center',
+    borderRadius: radius(1),
+    flexDirection: 'row',
+    gap: space(1.5),
+    height: 28,
+    paddingHorizontal: space(2),
   },
 })

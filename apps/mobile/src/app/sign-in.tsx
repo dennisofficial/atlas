@@ -1,93 +1,100 @@
+import {
+  AtlasMark,
+  Button,
+  Card,
+  EButtonSize,
+  EFontFamily,
+  EFontWeight,
+  ETextRole,
+  ETextTone,
+  Text,
+  useIsDark,
+  useTheme,
+} from '@dltech/atlas-ui-native'
+import { radius, space } from '@dltech/atlas-ui/tokens'
 import * as AppleAuthentication from 'expo-apple-authentication'
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../auth/auth-provider'
 import { EAuthState } from '../auth/auth-reducer'
-import { GlassSurface } from '../components/glass-surface'
-import { useTheme } from '../theme/use-theme'
 
 export default function SignInScreen() {
   const theme = useTheme()
+  const dark = useIsDark()
   const { state, error, signIn, signInWithApple, appleSignInAvailable } = useAuth()
   const busy = state === EAuthState.SigningIn || state === EAuthState.Loading
   const showApple = Platform.OS === 'ios' && appleSignInAvailable
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <GlassSurface style={styles.card}>
-        <Text style={[styles.wordmark, { color: theme.foreground }]}>Atlas</Text>
-        <Text style={[styles.subtitle, { color: theme.mutedForeground }]}>
-          Your sessions, everywhere
-        </Text>
-        <Pressable
-          accessibilityRole="button"
+      <Card style={styles.card}>
+        <View style={styles.brand}>
+          <AtlasMark size={40} color={theme.primary} />
+          <Text
+            size={ETextRole.Display}
+            family={EFontFamily.Display}
+            weight={EFontWeight.Semibold}
+            tight
+          >
+            Atlas
+          </Text>
+          <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
+            Your sessions, everywhere
+          </Text>
+        </View>
+        <Button
+          label={busy ? 'Signing in…' : 'Continue with Atlas'}
+          size={EButtonSize.Lg}
+          stretch
           disabled={busy}
           onPress={() => void signIn()}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            { backgroundColor: theme.primary, opacity: busy || pressed ? 0.7 : 1 },
-          ]}
-        >
-          <Text style={[styles.primaryLabel, { color: theme.primaryForeground }]}>
-            {busy ? 'Signing in…' : 'Continue with Atlas'}
-          </Text>
-        </Pressable>
+        />
         {showApple ? (
           <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={12}
+            buttonStyle={
+              dark
+                ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+            }
+            cornerRadius={radius(1)}
             style={styles.appleButton}
             onPress={() => void signInWithApple()}
           />
         ) : null}
         {state === EAuthState.Failed && error !== undefined ? (
-          <Text style={[styles.error, { color: theme.destructive }]}>{error}</Text>
+          <Text size={ETextRole.Sm} tone={ETextTone.Destructive} style={styles.error}>
+            {error}
+          </Text>
         ) : null}
-      </GlassSurface>
+      </Card>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
     alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: space(6),
   },
   card: {
-    alignItems: 'center',
-    gap: 16,
-    maxWidth: 420,
+    gap: space(3),
+    maxWidth: 380,
+    padding: space(6),
     width: '100%',
   },
-  wordmark: {
-    fontSize: 40,
-    fontWeight: '700',
-    letterSpacing: -1,
-  },
-  subtitle: {
-    fontSize: 15,
-    marginBottom: 8,
-  },
-  primaryButton: {
+  brand: {
     alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    width: '100%',
-  },
-  primaryLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    gap: space(2),
+    paddingBottom: space(3),
   },
   appleButton: {
-    height: 50,
+    height: 36,
     width: '100%',
   },
   error: {
-    fontSize: 14,
     textAlign: 'center',
   },
 })

@@ -1,4 +1,19 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+  Button,
+  CardList,
+  CardRow,
+  EButtonSize,
+  EButtonVariant,
+  EFontFamily,
+  EFontWeight,
+  ETextRole,
+  ETextTone,
+  Text,
+  useTheme,
+} from '@dltech/atlas-ui-native'
+import { space } from '@dltech/atlas-ui/tokens'
+import type { ReactNode } from 'react'
+import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import {
@@ -7,52 +22,41 @@ import {
   useTestNotification,
   useUpdateInfo,
 } from '../../settings/use-settings'
-import { useTheme } from '../../theme/use-theme'
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => {
-  const theme = useTheme()
-  return (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.mutedForeground }]}>{title}</Text>
-      <View
-        style={[styles.sectionBody, { backgroundColor: theme.card, borderColor: theme.border }]}
-      >
-        {children}
-      </View>
-    </View>
-  )
-}
-
-const Row = ({ label, value }: { label: string; value: string }) => {
-  const theme = useTheme()
-  return (
-    <View style={styles.row}>
-      <Text style={{ color: theme.foreground }}>{label}</Text>
-      <Text style={{ color: theme.mutedForeground }}>{value}</Text>
-    </View>
-  )
-}
-
-const ActionButton = ({
-  label,
-  color,
-  disabled,
-  onPress,
-}: {
-  label: string
-  color: string
-  disabled?: boolean
-  onPress: () => void
-}) => (
-  <Pressable
-    accessibilityRole="button"
-    disabled={disabled ?? false}
-    onPress={onPress}
-    style={({ pressed }) => [styles.button, { opacity: disabled === true || pressed ? 0.5 : 1 }]}
-  >
-    <Text style={{ color }}>{label}</Text>
-  </Pressable>
+const Section = ({ title, children }: { title: string; children: ReactNode }) => (
+  <View style={styles.section}>
+    <Text size={ETextRole.Sm} weight={EFontWeight.Medium} style={styles.sectionTitle}>
+      {title}
+    </Text>
+    <CardList>{children}</CardList>
+  </View>
 )
+
+const Row = ({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) => (
+  <CardRow>
+    <Text size={ETextRole.Sm}>{label}</Text>
+    <Text
+      size={ETextRole.Sm}
+      tone={ETextTone.Muted}
+      family={mono ? EFontFamily.Mono : EFontFamily.Sans}
+      numberOfLines={1}
+      style={styles.value}
+    >
+      {value}
+    </Text>
+  </CardRow>
+)
+
+const confirmSignOut = (signOut: () => void) => {
+  if (Platform.OS !== 'web') {
+    Alert.alert('Sign out', 'Sign out of Atlas on this device?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
+    ])
+    return
+  }
+  if (window.confirm('Sign out of Atlas on this device?')) signOut()
+}
 
 export default function SettingsScreen() {
   const theme = useTheme()
@@ -60,16 +64,7 @@ export default function SettingsScreen() {
   const permissionStatus = usePermissionStatus()
   const testNotification = useTestNotification()
   const update = useUpdateInfo()
-
-  const handleSendTest = () => void testNotification.sendTest()
-
-  const handleCheckUpdates = () => void update.check()
-
-  const handleSignOut = () => {
-    const confirmed =
-      typeof window === 'undefined' ? true : window.confirm('Sign out of Atlas on this device?')
-    if (confirmed) void signOut()
-  }
+  const testFailed = testNotification.state.result === ETestResult.Failed
 
   return (
     <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.scroll}>
@@ -79,72 +74,66 @@ export default function SettingsScreen() {
       </Section>
       <Section title="Notifications">
         <Row label="Permission" value={permissionStatus} />
-        <ActionButton
-          label="Send test notification"
-          color={theme.primary}
-          disabled={testNotification.state.result === ETestResult.Sending}
-          onPress={handleSendTest}
-        />
-        {testNotification.state.detail.length > 0 ? (
+        <CardRow>
           <Text
-            style={{
-              color:
-                testNotification.state.result === ETestResult.Failed
-                  ? theme.destructive
-                  : theme.mutedForeground,
-            }}
+            size={ETextRole.Sm}
+            tone={testFailed ? ETextTone.Destructive : ETextTone.Muted}
+            style={styles.value}
           >
-            {testNotification.state.detail}
+            {testNotification.state.detail.length > 0
+              ? testNotification.state.detail
+              : 'Send yourself a test push.'}
           </Text>
-        ) : null}
+          <Button
+            label="Send test notification"
+            variant={EButtonVariant.Outline}
+            size={EButtonSize.Sm}
+            loading={testNotification.state.result === ETestResult.Sending}
+            onPress={() => void testNotification.sendTest()}
+          />
+        </CardRow>
       </Section>
       <Section title="Updates">
-        <Row label="Channel" value={update.channel || 'unavailable'} />
-        <Row label="Update" value={update.updateId} />
-        <Row label="Runtime version" value={update.runtimeVersion || 'unavailable'} />
-        <ActionButton
-          label="Check for updates"
-          color={theme.primary}
-          disabled={!update.enabled || update.checking}
-          onPress={handleCheckUpdates}
-        />
-        {update.status.length > 0 ? (
-          <Text style={{ color: theme.mutedForeground }}>{update.status}</Text>
-        ) : null}
+        <Row label="Channel" value={update.channel || 'unavailable'} mono />
+        <Row label="Update" value={update.updateId} mono />
+        <Row label="Runtime version" value={update.runtimeVersion || 'unavailable'} mono />
+        <CardRow>
+          <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.value}>
+            {update.status}
+          </Text>
+          <Button
+            label="Check for updates"
+            variant={EButtonVariant.Outline}
+            size={EButtonSize.Sm}
+            disabled={!update.enabled}
+            loading={update.checking}
+            onPress={() => void update.check()}
+          />
+        </CardRow>
       </Section>
-      <Section title="Session">
-        <ActionButton label="Sign out" color={theme.destructive} onPress={handleSignOut} />
-      </Section>
+      <Button
+        label="Sign out"
+        variant={EButtonVariant.Destructive}
+        onPress={() => confirmSignOut(() => void signOut())}
+      />
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
   scroll: {
-    gap: 4,
-    padding: 20,
+    gap: space(6),
+    padding: space(4),
+    paddingBottom: space(10),
   },
   section: {
-    marginBottom: 20,
+    gap: space(2),
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    textTransform: 'uppercase',
+    paddingHorizontal: space(1),
   },
-  sectionBody: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 12,
-    padding: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  button: {
-    paddingVertical: 4,
+  value: {
+    flexShrink: 1,
+    textAlign: 'right',
   },
 })

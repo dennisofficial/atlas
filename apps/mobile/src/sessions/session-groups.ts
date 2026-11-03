@@ -1,8 +1,24 @@
 import type { WireThread } from '@dltech/atlas-wire/web'
 
-import { ESessionStatus, sessionStatusOf } from './session-status'
+import { type ESessionStatus, isUnread, sessionStatusOf } from './session-status'
 
 export const INACTIVE_AFTER_MS = 72 * 60 * 60 * 1000
+
+export enum EPullRequestState {
+  Open = 'open',
+  Draft = 'draft',
+  Merged = 'merged',
+  Closed = 'closed',
+}
+
+export enum EWorkKind {
+  PullRequest = 'pull-request',
+  Branch = 'branch',
+}
+
+export type SessionWork =
+  | { kind: EWorkKind.PullRequest; number: number; state: EPullRequestState }
+  | { kind: EWorkKind.Branch; branch: string | null }
 
 export interface IProjectSummary {
   id: string
@@ -12,10 +28,12 @@ export interface IProjectSummary {
 export interface ISessionEntry {
   id: string
   title: string
+  projectId: string
   projectName: string
   updatedAt: string
   status: ESessionStatus
-  detail: string | null
+  unread: boolean
+  work: SessionWork
 }
 
 export interface IProjectGroup {
@@ -49,13 +67,29 @@ const bucketOf = ({ thread, now }: { thread: WireThread; now: number }): EBucket
   return now - timeOf(thread.updatedAt) > INACTIVE_AFTER_MS ? EBucket.Inactive : EBucket.Active
 }
 
-const detailOf = (thread: WireThread): string | null => {
-  const pullRequest = thread.pullRequests?.[0]
-  if (pullRequest !== undefined) {
-    const state = pullRequest.state === undefined ? '' : ` ${pullRequest.state.toLowerCase()}`
-    return `#${pullRequest.number}${state}`
+const pullRequestStateOf = (state: string | undefined): EPullRequestState => {
+  const value = (state ?? '').toLowerCase()
+  if (value.includes('merged')) return EPullRequestState.Merged
+  if (value.includes('closed')) return EPullRequestState.Closed
+  if (value.includes('draft')) return EPullRequestState.Draft
+  return EPullRequestState.Open
+}
+
+const workOf = (thread: WireThread): SessionWork => {
+  const latest = (thread.pullRequests ?? []).reduce<
+    NonNullable<WireThread['pullRequests']>[number] | undefined
+  >((best, entry) => (best === undefined || entry.number > best.number ? entry : best), undefined)
+  if (latest !== undefined) {
+    return {
+      kind: EWorkKind.PullRequest,
+      number: latest.number,
+      state: pullRequestStateOf(latest.state),
+    }
   }
-  return thread.worktree?.branch ?? thread.checkout?.branch ?? null
+  return {
+    kind: EWorkKind.Branch,
+    branch: thread.worktree?.branch ?? thread.checkout?.branch ?? null,
+  }
 }
 
 const isMainSession = (thread: WireThread): boolean =>
@@ -63,17 +97,19 @@ const isMainSession = (thread: WireThread): boolean =>
 
 export const toSessionEntry = ({
   thread,
-  projectName,
+  project,
 }: {
   thread: WireThread
-  projectName: string
+  project: IProjectSummary
 }): ISessionEntry => ({
   id: thread.id,
   title: thread.title === undefined || thread.title.length === 0 ? 'Untitled' : thread.title,
-  projectName,
+  projectId: project.id,
+  projectName: project.name,
   updatedAt: thread.updatedAt,
   status: sessionStatusOf(thread),
-  detail: detailOf(thread),
+  unread: isUnread(thread),
+  work: workOf(thread),
 })
 
 const byRecency = (left: ISessionEntry, right: ISessionEntry): number =>
@@ -90,20 +126,18 @@ export const partitionSessions = ({
   threads: readonly WireThread[]
   now: number
 }): ISessionPartition => {
-  const nameOf = new Map(projects.map((project) => [project.id, project.name]))
+  const projectOf = new Map(projects.map((project) => [project.id, project]))
   const active = new Map<string, ISessionEntry[]>(projects.map((project) => [project.id, []]))
   const inactive: ISessionEntry[] = []
   const archived: ISessionEntry[] = []
   for (const thread of threads.filter(isMainSession)) {
-    const projectId = thread.projectId ?? null
-    if (projectId === null) continue
-    const projectName = nameOf.get(projectId)
-    if (projectName === undefined) continue
-    const entry = toSessionEntry({ thread, projectName })
+    const project = projectOf.get(thread.projectId ?? '')
+    if (project === undefined) continue
+    const entry = toSessionEntry({ thread, project })
     const bucket = bucketOf({ thread, now })
     if (bucket === EBucket.Archived) archived.push(entry)
     else if (bucket === EBucket.Inactive) inactive.push(entry)
-    else active.get(projectId)?.push(entry)
+    else active.get(project.id)?.push(entry)
   }
   const groups = projects.map((project) => ({
     key: project.id,

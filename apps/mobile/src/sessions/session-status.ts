@@ -19,3 +19,10 @@ export const sessionStatusOf = (thread: WireThread): ESessionStatus => {
   if (status.podState === 'parked') return ESessionStatus.Parked
   return ESessionStatus.Idle
 }
+
+export const isUnread = (thread: WireThread): boolean => {
+  const status = thread.status
+  if (status === undefined || status.lastAssistantSeq <= 0) return false
+  if (status.working && status.awaiting === null) return false
+  return status.lastAssistantSeq > (status.readSeq ?? -1)
+}

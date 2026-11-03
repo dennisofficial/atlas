@@ -5,23 +5,13 @@ import { relativeTime } from '../relative-time'
 const now = Date.parse('2026-11-03T12:00:00Z')
 
 describe('relativeTime', () => {
-  it('says just now for the current minute', () => {
-    expect(relativeTime({ at: '2026-11-03T12:00:00Z', now })).toBe('just now')
+  it('matches the web shell format', () => {
     expect(relativeTime({ at: '2026-11-03T11:59:30Z', now })).toBe('just now')
-  })
-
-  it('says minutes under an hour', () => {
-    expect(relativeTime({ at: '2026-11-03T11:45:00Z', now })).toBe('15 min ago')
-  })
-
-  it('says hours under a day', () => {
-    expect(relativeTime({ at: '2026-11-03T11:00:00Z', now })).toBe('1 hour ago')
-    expect(relativeTime({ at: '2026-11-03T09:00:00Z', now })).toBe('3 hours ago')
-  })
-
-  it('says days past a day', () => {
-    expect(relativeTime({ at: '2026-11-02T12:00:00Z', now })).toBe('1 day ago')
-    expect(relativeTime({ at: '2026-10-30T12:00:00Z', now })).toBe('4 days ago')
+    expect(relativeTime({ at: '2026-11-03T11:20:00Z', now })).toBe('40m ago')
+    expect(relativeTime({ at: '2026-11-03T09:00:00Z', now })).toBe('3h ago')
+    expect(relativeTime({ at: '2026-10-30T12:00:00Z', now })).toBe('4d ago')
+    expect(relativeTime({ at: '2026-10-13T12:00:00Z', now })).toBe('3w ago')
+    expect(relativeTime({ at: '2026-06-03T12:00:00Z', now })).toBe('5mo ago')
   })
 
   it('treats invalid or future timestamps as just now', () => {
