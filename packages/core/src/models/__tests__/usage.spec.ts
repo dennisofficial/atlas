@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { EventDraft } from '../../events/body'
+import { ECompactionAnchor, type EventDraft } from '../../events/body'
 import type { Event } from '../../events/envelope'
 import { toThreadId, toCallId, toEventId, toRunId } from '../../events/ids'
 import { stampDrafts } from '../../events/stamp'
-import { contextTokens, estimateEventTokens } from '../usage'
+import { contextTokens, contextTokensOf, estimateEventTokens, lastStepUsage } from '../usage'
 
 const eventsFrom = (drafts: readonly EventDraft[]): Event[] =>
   stampDrafts({
@@ -102,5 +102,50 @@ describe('what the next request will carry', () => {
 
   it('refuses a negative count', () => {
     expect(contextTokens({ reported: { inputTokens: -5, outputTokens: 10 }, events })).toBe(10)
+  })
+})
+
+describe('reading the last step usage back from the transcript', () => {
+  const said = (usage?: { inputTokens: number; outputTokens: number }): EventDraft => ({
+    type: 'assistant-said',
+    parts: [{ type: 'text', text: 'ok' }],
+    ...(usage === undefined ? {} : { usage }),
+  })
+
+  it('has nothing before any step reported', () => {
+    expect(lastStepUsage(eventsFrom([{ type: 'user-said', text: 'hi' }, said()]))).toBeNull()
+  })
+
+  it('takes the latest step, so the meter rises call by call', () => {
+    const events = eventsFrom([
+      said({ inputTokens: 10_000, outputTokens: 500 }),
+      {
+        type: 'tool-called',
+        callId: toCallId('c1'),
+        name: 'bash',
+        input: {},
+        ordinal: 0,
+        usage: { inputTokens: 12_000, outputTokens: 300 },
+      },
+      { type: 'user-said', text: 'next' },
+    ])
+    expect(lastStepUsage(events)).toEqual({ inputTokens: 12_000, outputTokens: 300 })
+    expect(contextTokensOf(events)).toBe(12_300)
+  })
+
+  it('forgets a reading a later compaction made stale', () => {
+    const events = eventsFrom([
+      said({ inputTokens: 90_000, outputTokens: 500 }),
+      {
+        type: 'history-compacted',
+        anchor: ECompactionAnchor.Prefix,
+        fromSeq: 1,
+        throughSeq: 1,
+        summary: 'x'.repeat(400),
+        replaced: 1,
+      },
+    ])
+    expect(lastStepUsage(events)).toBeNull()
+    expect(contextTokensOf(events)).toBe(estimateEventTokens(events))
   })
 })

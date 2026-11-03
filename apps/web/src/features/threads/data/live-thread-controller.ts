@@ -89,7 +89,6 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       live: false,
       working: false,
       pending: [],
-      reported: null,
       channel: null,
       titling: false,
       ...RELEASED_FIELDS,
@@ -128,9 +127,6 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     })
 
   const handleSignal = (signal: ChannelSignal) => {
-    if (signal.type === 'chunk' && signal.chunk.type === 'finish' && signal.chunk.usage) {
-      update({ reported: signal.chunk.usage })
-    }
     if (signal.type === 'events-appended') eventReader.read()
     if (signal.type === 'turn-working') update({ working: signal.working })
     if (isStepSignal(signal) && signalTransport.absorb(signal).opened) args.onStepOpened?.()

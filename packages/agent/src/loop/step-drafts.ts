@@ -10,6 +10,19 @@ const calledDraft = ({ call, ordinal }: { call: ModelToolCall; ordinal: number }
   ordinal,
 })
 
+const withStepUsage = ({
+  drafts,
+  result,
+}: {
+  drafts: EventDraft[]
+  result: ModelStepResult
+}): EventDraft[] => {
+  const [first, ...rest] = drafts
+  if (result.usage === undefined || first === undefined) return drafts
+  if (first.type !== 'assistant-said' && first.type !== 'tool-called') return drafts
+  return [{ ...first, usage: result.usage }, ...rest]
+}
+
 export function draftsFor(result: ModelStepResult): EventDraft[] {
   const drafts: EventDraft[] = []
   if (result.parts.length > 0) drafts.push({ type: 'assistant-said', parts: result.parts })
@@ -18,7 +31,7 @@ export function draftsFor(result: ModelStepResult): EventDraft[] {
     drafts.push(calledDraft({ call, ordinal }))
   })
 
-  return drafts
+  return withStepUsage({ drafts, result })
 }
 
 export function interruptedDrafts(result: ModelStepResult): EventDraft[] {
@@ -37,5 +50,5 @@ export function interruptedDrafts(result: ModelStepResult): EventDraft[] {
     })
   })
 
-  return drafts
+  return withStepUsage({ drafts, result })
 }

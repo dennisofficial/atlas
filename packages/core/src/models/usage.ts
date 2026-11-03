@@ -84,6 +84,25 @@ export function contextTokens(args: {
   return Math.max(0, reported.inputTokens) + Math.max(0, reported.outputTokens)
 }
 
+/**
+ * The usage the last model call reported, read back from the step it wrote, so every reader of the
+ * transcript sees the same number a live stream did. A compaction after it shrank the window, so
+ * that reading no longer describes it.
+ */
+export function lastStepUsage(events: readonly Event[]): ModelUsage | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    if (event === undefined) continue
+    if (event.type === 'history-compacted') return null
+    if (event.type !== 'assistant-said' && event.type !== 'tool-called') continue
+    if (event.usage !== undefined) return event.usage
+  }
+  return null
+}
+
+export const contextTokensOf = (events: readonly Event[]): number =>
+  contextTokens({ reported: lastStepUsage(events), events })
+
 export type BilledUsage = {
   inputTokens: number
   outputTokens: number

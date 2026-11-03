@@ -4,6 +4,7 @@ import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EServiceStatus } from '../services/status'
 import type { EModelWaitCause, WaitEpisodeRef, WaitingForModel } from '../model-recovery/waiting'
 import type { EKilledBy } from '../shells/status'
+import type { ModelUsage } from '../stream/chunk'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
 import type { NoticeStamp } from './notice-stage'
@@ -120,8 +121,16 @@ export type EventBody =
       interrupted?: boolean | undefined
       placeholder?: EAssistantPlaceholder | undefined
       aborted?: 'handoff' | undefined
+      usage?: ModelUsage | undefined
     }
-  | { type: 'tool-called'; callId: CallId; name: string; input?: unknown; ordinal: number }
+  | {
+      type: 'tool-called'
+      callId: CallId
+      name: string
+      input?: unknown
+      ordinal: number
+      usage?: ModelUsage | undefined
+    }
   | { type: 'tool-dispatched'; callId: CallId; name: string; bootId?: string | undefined }
   | {
       type: 'tool-result'
