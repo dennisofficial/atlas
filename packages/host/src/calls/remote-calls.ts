@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import type { LogPort } from '@dltech/atlas-core'
+import type { LogPort } from '@dltech/atlas-observability'
 import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
 import { RemoteCallsState } from './remote-calls-state'

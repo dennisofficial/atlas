@@ -1,4 +1,4 @@
-import type { LogPort } from '@dltech/atlas-core'
+import type { LogPort } from '@dltech/atlas-observability'
 import { ECallFailure } from '@dltech/atlas-protocol'
 import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
