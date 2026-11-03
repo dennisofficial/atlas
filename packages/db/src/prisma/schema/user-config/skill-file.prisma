@@ -1,0 +1,17 @@
+// use prisma-8
+model SkillFile {
+  id          String               @id @onCreate(cuid(2))
+  skillId     String
+  path        String
+  revision    Int
+  contentHash String
+  content     Bytes
+  isText      Boolean
+  size        Int
+  createdAt   TimestamptzJsDate(3) @default(now())
+  updatedAt   TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  skill       Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "SkillFile_skillId_path_key")
+
+  @@unique([skillId, path], map: "SkillFile_skillId_path_key")
+  @@index([skillId, revision], map: "SkillFile_skillId_revision_idx")
+}

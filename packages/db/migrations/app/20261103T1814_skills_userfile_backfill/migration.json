@@ -1,0 +1,9 @@
+{
+  "from": "016fa1c833e109cf4144ef62082fdab50548ec380c0f5927f2acbb0d84c74729",
+  "to": "016fa1c833e109cf4144ef62082fdab50548ec380c0f5927f2acbb0d84c74729",
+  "providedInvariants": [
+    "skills-userfile-backfill-v1"
+  ],
+  "createdAt": "2026-11-03T18:14:14.901Z",
+  "migrationHash": "c21c3820386c8b45c6bbeec9cbfa8cc2f4bc0127cf3166e58876f095c2d736b4"
+}
