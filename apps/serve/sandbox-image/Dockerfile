@@ -101,6 +101,14 @@ RUN arch="$(dpkg --print-architecture)" \
   && rm /tmp/doctl.tar.gz \
   && doctl version
 
+ARG PSCALE_VERSION=0.348.0
+RUN arch="$(dpkg --print-architecture)" \
+  && curl -fsSL "https://github.com/planetscale/cli/releases/download/v${PSCALE_VERSION}/pscale_${PSCALE_VERSION}_linux_${arch}.tar.gz" \
+      -o /tmp/pscale.tar.gz \
+  && tar -xzf /tmp/pscale.tar.gz -C /usr/local/bin pscale \
+  && rm /tmp/pscale.tar.gz \
+  && pscale version
+
 ARG PULUMI_VERSION=3.268.0
 # The pulumi tarball holds several language-host binaries; only `pulumi` goes on PATH, the rest
 # are looked up next to it, so the whole set lands in /usr/local/bin.
