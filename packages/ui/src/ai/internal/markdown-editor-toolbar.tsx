@@ -4,6 +4,7 @@ import {
   CodeToggle,
   CreateLink,
   DiffSourceToggleWrapper,
+  InsertFrontmatter,
   ListsToggle,
   Separator,
   UndoRedo,
@@ -23,6 +24,8 @@ export function MarkdownEditorToolbar() {
       <Separator />
       <ListsToggle options={['bullet', 'number']} />
       <CreateLink />
+      <Separator />
+      <InsertFrontmatter />
     </DiffSourceToggleWrapper>
   )
 }
