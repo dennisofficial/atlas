@@ -7,6 +7,8 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { assertMcpServerName, openMcpServer, sealMcpSpec } from '../mcp-servers/mcp-sealed'
 import type { McpServerDto, McpSpecDraft } from '../mcp-servers/mcp-servers.types'
 import { assertEnvName, openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
+import { assertWithinPlanCap, PLAN_CAP_STALE_MS } from '../user-vercel/plan-cap'
+import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
 import { PROJECT_NOT_FOUND, ProjectsService } from './projects.service'
 
 type Scope = { userId: string; projectId: string }
@@ -16,6 +18,7 @@ export class ProjectResourcesService {
   constructor(
     private readonly projects: ProjectsService,
     private readonly cipher: SecretCipherService,
+    private readonly plans: VercelPlanService,
   ) {}
 
   async readSandbox(args: Scope): Promise<ProjectSandbox> {
@@ -29,6 +32,13 @@ export class ProjectResourcesService {
       throw new BadRequestException(verdict.error.issues[0]?.message ?? 'invalid sandbox')
     }
     await this.projects.editable(args)
+    assertWithinPlanCap({
+      vcpus: args.sandbox.vcpus,
+      snapshot: await this.plans.storedPlan({
+        userId: args.userId,
+        staleAfterMs: PLAN_CAP_STALE_MS,
+      }),
+    })
     const row = await db.orm.public.Project.where({ id: args.projectId }).update({
       sandboxVcpus: args.sandbox.vcpus,
       setupScript: args.sandbox.setupScript,

@@ -78,8 +78,11 @@ describe('ship options', () => {
 describe('sandbox sizes', () => {
   it('maps vcpus to size ids and back', () => {
     expect(sizeIdOf(null)).toBe(DEFAULT_SIZE_ID)
+    expect(vcpusOfSizeId(sizeIdOf(1))).toBe(1)
     expect(vcpusOfSizeId(sizeIdOf(4))).toBe(4)
+    expect(vcpusOfSizeId(sizeIdOf(32))).toBe(32)
     expect(vcpusOfSizeId(DEFAULT_SIZE_ID)).toBeNull()
+    expect(vcpusOfSizeId('9-vcpu')).toBeNull()
   })
 })
 

@@ -1,6 +1,7 @@
 import {
   ESettingPage,
   type SecretPrompt as SecretPromptState,
+  type SettingsResolution,
   type TextPrompt as TextPromptState,
 } from '@dltech/atlas-core'
 import type { ScrollBoxRenderable } from '@opentui/core'
@@ -113,6 +114,7 @@ export function Settings(props: {
   sidebarWidth: number
   model: SettingsModel
   state: SettingsState
+  resolution: SettingsResolution
   cwd: string
   origin: string
   appearance: Appearance
@@ -264,7 +266,12 @@ export function Settings(props: {
           ) : props.textPrompt !== null ? (
             <TextSettingPrompt prompt={props.textPrompt} cells={cells} />
           ) : (
-            <SettingsBand width={columnWidth} setting={selected} appearance={props.appearance} />
+            <SettingsBand
+              width={columnWidth}
+              setting={selected}
+              appearance={props.appearance}
+              resolution={props.resolution}
+            />
           )}
           <FooterLine
             cells={cells}
@@ -275,7 +282,12 @@ export function Settings(props: {
           />
         </box>
         {detail ? (
-          <SettingsDetail width={props.sidebarWidth} setting={selected} cwd={props.cwd} />
+          <SettingsDetail
+            width={props.sidebarWidth}
+            setting={selected}
+            cwd={props.cwd}
+            resolution={props.resolution}
+          />
         ) : null}
       </box>
     </box>

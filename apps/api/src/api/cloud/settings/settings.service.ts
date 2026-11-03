@@ -1,8 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { validateCloudSetting } from '@dltech/atlas-wire/web'
+import { decodeSettingValue, validateCloudSetting } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
+import { assertWithinPlanCap, PLAN_CAP_STALE_MS } from '../user-vercel/plan-cap'
+import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
 import type { SettingDto } from './settings.types'
+
+const SANDBOX_VCPUS_KEY = 'sandbox.vcpus'
 
 const MAX_KEY_LENGTH = 200
 const MAX_PATCH_KEYS = 100
@@ -43,6 +47,8 @@ function assertPatchShape(values: Record<string, string | null>): [string, strin
 
 @Injectable()
 export class SettingsService {
+  constructor(private readonly plans: VercelPlanService) {}
+
   async list(args: { userId: string }): Promise<SettingDto[]> {
     const rows = await db.orm.public.UserSetting.where({ userId: args.userId })
       .orderBy((row) => row.key.asc())
@@ -68,6 +74,7 @@ export class SettingsService {
   async patch(args: { userId: string; values: Record<string, string | null> }): Promise<void> {
     const entries = assertPatchShape(args.values)
     const { userId } = args
+    await this.assertSandboxCap({ userId, entries })
     await db.transaction(async (tx) => {
       for (const [key, value] of entries) {
         if (value === null) {
@@ -86,6 +93,24 @@ export class SettingsService {
   async remove(args: { userId: string; key: string }): Promise<void> {
     assertValidKey(args.key)
     await db.orm.public.UserSetting.where({ userId: args.userId, key: args.key }).deleteAndCount()
+  }
+
+  private async assertSandboxCap(args: {
+    userId: string
+    entries: [string, string | null][]
+  }): Promise<void> {
+    const entry = args.entries.find(([key]) => key === SANDBOX_VCPUS_KEY)
+    if (entry === undefined || entry[1] === null) return
+    const decoded = decodeSettingValue(entry[1])
+    if (typeof decoded !== 'number') return
+    const vcpus = decoded
+    assertWithinPlanCap({
+      vcpus,
+      snapshot: await this.plans.storedPlan({
+        userId: args.userId,
+        staleAfterMs: PLAN_CAP_STALE_MS,
+      }),
+    })
   }
 }
 

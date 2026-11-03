@@ -2,30 +2,58 @@
 
 import { Slider } from '@dltech/atlas-ui/components/slider'
 
-import type { EEffortLevel } from '@dltech/atlas-wire/web'
+import { EEffortLevel } from '@dltech/atlas-wire/web'
 
 import { EFFORT_STEPS } from '../fixtures/settings-agent'
 
 const THUMB_INSET_PX = 6
 
+const LADDER_ORDER = EFFORT_STEPS.map((step) => step.effort)
+
+type EffortStep = (typeof EFFORT_STEPS)[number]
+
+function clampToSupported({
+  value,
+  steps,
+}: {
+  value: EEffortLevel
+  steps: readonly EffortStep[]
+}): EEffortLevel {
+  const supported = new Set<EEffortLevel>(steps.map((step) => step.effort))
+  if (supported.has(value)) return value
+  const asked = LADDER_ORDER.indexOf(value)
+  const above = steps.find((step) => LADDER_ORDER.indexOf(step.effort) > asked)
+  if (above !== undefined) return above.effort
+  return steps[steps.length - 1]?.effort ?? value
+}
+
 export function EffortSlider({
   value,
   onChange,
   label,
+  supportedEfforts,
 }: {
   value: EEffortLevel
   onChange: (next: EEffortLevel) => void
   label: string
+  supportedEfforts?: readonly EEffortLevel[]
 }) {
+  const steps =
+    supportedEfforts === undefined || supportedEfforts.length === 0
+      ? EFFORT_STEPS
+      : EFFORT_STEPS.filter((step) => supportedEfforts.includes(step.effort))
+  if (steps.length === 0) return null
+
+  const shown = clampToSupported({ value, steps })
   const index = Math.max(
     0,
-    EFFORT_STEPS.findIndex((step) => step.effort === value),
+    steps.findIndex((step) => step.effort === shown),
   )
-  const lastIndex = EFFORT_STEPS.length - 1
+  const lastIndex = steps.length - 1
 
   const handleValueChange = (next: number | readonly number[]) => {
     const nextIndex = typeof next === 'number' ? next : (next[0] ?? 0)
-    const step = EFFORT_STEPS[nextIndex]
+    const step = steps[nextIndex]
     if (step) onChange(step.effort)
   }
 
@@ -40,11 +68,11 @@ export function EffortSlider({
         onValueChange={handleValueChange}
       />
       <div className="relative h-4">
-        {EFFORT_STEPS.map((step, stepIndex) => (
+        {steps.map((step, stepIndex) => (
           <span
             key={step.effort}
             className={
-              step.effort === value
+              step.effort === shown
                 ? 'absolute -translate-x-1/2 text-xs font-medium text-foreground'
                 : 'absolute -translate-x-1/2 text-xs text-muted-foreground'
             }

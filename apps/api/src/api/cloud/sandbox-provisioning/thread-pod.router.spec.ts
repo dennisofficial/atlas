@@ -23,6 +23,8 @@ import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { PodLaunchService } from './pod-launch.service'
 import { ThreadPodRouter } from './thread-pod.router'
+import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
+import { unknownPlanService } from '../user-vercel/vercel-testkit'
 import { ThreadPodService } from './thread-pod.service'
 import {
   RecordingBackground,
@@ -54,6 +56,7 @@ describe('ThreadPodRouter', () => {
       { provide: SandboxesService, useValue: {} },
       { provide: PodLaunchService, useValue: {} },
       { provide: ThreadSignalsService, useValue: inertSignals() },
+      { provide: VercelPlanService, useValue: unknownPlanService() },
       { provide: BackgroundWork, useValue: new RecordingBackground() },
     ])
   })
@@ -177,9 +180,9 @@ describe('ThreadPodRouter', () => {
       expect((await post()).status).toBe(401)
     })
 
-    it('answers 400 for a size outside the vCPU steps', async () => {
+    it('answers 400 for a size outside the Vercel pod sizes', async () => {
       expect((await post('session-a', { threadId: 'thr-1', vcpus: 3 })).status).toBe(400)
-      expect((await post('session-a', { threadId: 'thr-1', vcpus: 16 })).status).toBe(400)
+      expect((await post('session-a', { threadId: 'thr-1', vcpus: 34 })).status).toBe(400)
     })
 
     it("answers 404 for someone else's thread", async () => {

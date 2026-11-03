@@ -44,6 +44,7 @@ export type ChoiceDefinition = SettingFacts & {
   kind: ESettingKind.Choice
   fallback: string
   options: readonly SettingOption[]
+  optionsFor?: (args: { resolution: SettingsResolution }) => readonly SettingOption[]
 }
 
 export type RangeDefinition = SettingFacts & {
@@ -101,11 +102,20 @@ export function definitionsOfPage(args: {
   return args.definitions.filter((definition) => definition.page === args.page)
 }
 
+export function choiceOptionsOf(args: {
+  definition: ChoiceDefinition
+  resolution?: SettingsResolution | undefined
+}): readonly SettingOption[] {
+  if (args.resolution === undefined) return args.definition.options
+  return args.definition.optionsFor?.({ resolution: args.resolution }) ?? args.definition.options
+}
+
 export function optionOf(args: {
   definition: ChoiceDefinition
   value: string
+  resolution?: SettingsResolution | undefined
 }): SettingOption | undefined {
-  return args.definition.options.find((option) => option.value === args.value)
+  return choiceOptionsOf(args).find((option) => option.value === args.value)
 }
 
 export function isSettingVisible(args: {

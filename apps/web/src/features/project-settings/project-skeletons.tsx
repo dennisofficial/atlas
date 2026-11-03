@@ -96,17 +96,7 @@ export function SandboxPageSkeleton() {
       >
         <SettingsCard footer={<SaveFooter />}>
           <CardRow>
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
-              {[0, 1, 2, 3, 4].map((key) => (
-                <div key={key} className="flex items-start gap-2 rounded-lg border p-2.5">
-                  <div className="flex flex-1 flex-col gap-0.5">
-                    <Line width="w-16" />
-                    <Skeleton className="my-0.5 h-4 w-full" />
-                  </div>
-                  <Skeleton className="size-4 rounded-full" />
-                </div>
-              ))}
-            </div>
+            <Skeleton className="h-7 w-full sm:w-96" />
           </CardRow>
         </SettingsCard>
       </SettingsSection>

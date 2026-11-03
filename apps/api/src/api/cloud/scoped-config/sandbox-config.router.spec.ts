@@ -7,6 +7,7 @@ import { buildSessionTrpcApp, dataOf, testCipher, trpcQuery } from '../session-t
 import { seedProject, seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { SandboxConfigRouter } from './sandbox-config.router'
 import { KEY, PROJECT, seedAllScopes, setting, THREAD } from './scoped-config.fixture'
+import { unknownTokenRefresher } from '../user-vercel/vercel-testkit'
 import { ScopedConfigService } from './scoped-config.service'
 
 const SANDBOX_TOKEN = 'sbx-token'
@@ -29,7 +30,10 @@ describe('sandboxConfig router', () => {
     app = await buildSessionTrpcApp({
       providers: [
         SandboxConfigRouter,
-        { provide: ScopedConfigService, useValue: new ScopedConfigService(testCipher()) },
+        {
+          provide: ScopedConfigService,
+          useValue: new ScopedConfigService(testCipher(), unknownTokenRefresher()),
+        },
       ],
       sandboxTokens: { [SANDBOX_TOKEN]: { id: 'sbx-1', threadId: THREAD, userId: 'user-a' } },
       podTokens: { [POD_TOKEN]: { threadId: THREAD, userId: 'user-a' } },

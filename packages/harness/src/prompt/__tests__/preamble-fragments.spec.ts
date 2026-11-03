@@ -52,6 +52,16 @@ const REMOVED_PARTS = [
   'environment.relative-paths',
 ]
 
+const LEAN_REMOVED_PARTS = [
+  'environment.session-paths',
+  'shells.background',
+  'tools.operator-input',
+  'tools.operator-sees-images',
+  'web.untrusted-content',
+  'web.research',
+  'scope.concern-then-build',
+]
+
 describe('the builtin prompt', () => {
   it('opens with identity and carries no generic request-handling guidance', () => {
     const parts = compiled().parts
@@ -86,11 +96,28 @@ describe('the builtin prompt', () => {
     expect(parts.some((part) => part.id === 'environment.execution-location')).toBe(true)
   })
 
-  it('steers waiting behavior affirmatively rather than naming forbidden mechanics', () => {
-    const text = compiled().parts.find((part) => part.id === 'shells.background')?.text ?? ''
-    expect(text).not.toContain('poll')
-    expect(text).not.toContain('sleep')
-    expect(text).not.toContain('runInBackground')
+  it('names the work loop after the investigation rule', () => {
+    const ids = compiled().parts.map((part) => part.id)
+    expect(ids.indexOf('scope.work-loop')).toBe(ids.indexOf('scope.investigate-then-explain') + 1)
+    expect(compiled().parts.find((part) => part.id === 'scope.work-loop')?.text).toContain(
+      'Run the full suite once, at the end.',
+    )
+  })
+
+  it('folds the raise-a-concern rule into the answer-honestly fragment', () => {
+    const ids = compiled().parts.map((part) => part.id)
+    expect(ids).not.toContain('scope.concern-then-build')
+    expect(ids.indexOf('scope.answer-honestly')).toBe(
+      ids.indexOf('scope.investigate-then-explain') - 1,
+    )
+    const text = compiled().parts.find((part) => part.id === 'scope.answer-honestly')?.text ?? ''
+    expect(text).toContain('the developer repeats the request')
+    expect(text).toContain('Skip praise and filler.')
+  })
+
+  it('leaves out the fragments whose rules live in tool contracts', () => {
+    const ids = compiled().parts.map((part) => part.id)
+    for (const id of LEAN_REMOVED_PARTS) expect(ids).not.toContain(id)
   })
 
   it('makes no snapshot or file-restoring rewind promise in tool guidance', () => {

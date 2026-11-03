@@ -19,7 +19,6 @@ const GROUPED_FRAGMENT_IDS: Record<Exclude<EPromptGroup, EPromptGroup.Memory>, s
   [EPromptGroup.Delegation]: 'agents.delegation',
   [EPromptGroup.ContextFolder]: 'environment.context-folder',
   [EPromptGroup.Grilling]: 'plan.grilling-ceremony',
-  [EPromptGroup.OperatorInput]: 'tools.operator-input',
 }
 
 const partIdsFor = (groups: readonly EPromptGroup[]): string[] => {

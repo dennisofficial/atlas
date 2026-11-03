@@ -98,23 +98,27 @@ describe('useContainerResources', () => {
 
     probe.control?.handleKey(key('left'))
     await flush()
+    expect(probe.control?.state?.vcpus).toBe(1)
+    probe.control?.handleKey(key('left'))
+    await flush()
+    expect(probe.control?.state?.vcpus).toBe(1)
+    probe.control?.handleKey(key('right'))
+    await flush()
     expect(probe.control?.state?.vcpus).toBe(2)
-    probe.control?.handleKey(key('right'))
-    await flush()
-    probe.control?.handleKey(key('right'))
-    await flush()
-    probe.control?.handleKey(key('right'))
+    for (let count = 0; count < SANDBOX_VCPU_STEPS.length; count += 1) {
+      probe.control?.handleKey(key('right'))
+    }
     await flush()
     expect(probe.control?.state?.vcpus).toBe(SANDBOX_VCPU_STEPS[SANDBOX_VCPU_STEPS.length - 1])
     probe.control?.handleKey(key('down'))
     await flush()
-    expect(probe.control?.state?.vcpus).toBe(4)
+    expect(probe.control?.state?.vcpus).toBe(30)
     probe.control?.handleKey(key('left'))
     await flush()
-    expect(probe.control?.state?.vcpus).toBe(2)
+    expect(probe.control?.state?.vcpus).toBe(28)
     probe.control?.handleKey(key('up'))
     await flush()
-    expect(probe.control?.state?.vcpus).toBe(4)
+    expect(probe.control?.state?.vcpus).toBe(30)
   })
 
   it('applies through the bridge on Enter and closes', async () => {
@@ -176,7 +180,8 @@ describe('useContainerResources', () => {
   })
 
   it('derives RAM at 2 GB per vCPU', () => {
+    expect(memoryGbOf(1)).toBe(2)
     expect(memoryGbOf(2)).toBe(4)
-    expect(memoryGbOf(8)).toBe(16)
+    expect(memoryGbOf(32)).toBe(64)
   })
 })

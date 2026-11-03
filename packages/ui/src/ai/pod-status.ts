@@ -6,9 +6,6 @@ export enum EPodState {
   Stopped = 'stopped',
 }
 
-export const VCPU_STEPS = [2, 4, 8]
-export const DEFAULT_VCPUS = 2
-
 export class ResizeDeclinedError extends Error {
   constructor() {
     super('the resize was declined')

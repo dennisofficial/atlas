@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
 
@@ -33,11 +34,14 @@ async function renderWith(pod: PodStatus | null) {
     channel: null,
     details: EMPTY_DETAILS,
   }
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   await act(async () =>
     root.render(
-      <ThreadPanelProvider value={value as ThreadPanelValue}>
-        <HeadSection />
-      </ThreadPanelProvider>,
+      <QueryClientProvider client={queryClient}>
+        <ThreadPanelProvider value={value as ThreadPanelValue}>
+          <HeadSection />
+        </ThreadPanelProvider>
+      </QueryClientProvider>,
     ),
   )
 }

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'712e9415480d7312b1c0679aa42628889abb92f08bf073f4db41d727bba8e240'>;
+  StorageHashBase<'0f01c00d02783fa0b4af02e4ac7200a9fd602d97f2b8975e3092818324485a21'>;
 export type ExecutionHash =
   ExecutionHashBase<'f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f'>;
 export type ProfileHash =
@@ -996,12 +996,19 @@ export namespace Models {
     readonly [RelationKeys]?: 'user';
   };
   export type public_UserVercelCredential = {
+    accessTokenExpiresAt: FieldOutputTypes['public']['UserVercelCredential']['accessTokenExpiresAt'];
     createdAt: FieldOutputTypes['public']['UserVercelCredential']['createdAt'];
+    kind: FieldOutputTypes['public']['UserVercelCredential']['kind'];
+    oauthNeedsReconnect: FieldOutputTypes['public']['UserVercelCredential']['oauthNeedsReconnect'];
+    plan: FieldOutputTypes['public']['UserVercelCredential']['plan'];
+    planCheckedAt: FieldOutputTypes['public']['UserVercelCredential']['planCheckedAt'];
+    sealedRefreshToken: FieldOutputTypes['public']['UserVercelCredential']['sealedRefreshToken'];
     sealedToken: FieldOutputTypes['public']['UserVercelCredential']['sealedToken'];
     teamId: FieldOutputTypes['public']['UserVercelCredential']['teamId'];
     updatedAt: FieldOutputTypes['public']['UserVercelCredential']['updatedAt'];
     userId: FieldOutputTypes['public']['UserVercelCredential']['userId'];
     vercelProjectId: FieldOutputTypes['public']['UserVercelCredential']['vercelProjectId'];
+    vercelUserId: FieldOutputTypes['public']['UserVercelCredential']['vercelUserId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
@@ -5432,12 +5439,58 @@ type ContractBase = Omit<
             };
             readonly UserVercelCredential: {
               columns: {
+                readonly accessTokenExpiresAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly kind: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'token'>;
+                  };
+                  readonly many: false;
+                };
+                readonly oauthNeedsReconnect: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                  readonly many: false;
+                };
+                readonly plan: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly planCheckedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly sealedRefreshToken: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly sealedToken: {
@@ -5468,7 +5521,13 @@ type ContractBase = Omit<
                 readonly vercelProjectId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly vercelUserId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
               };
@@ -10295,6 +10354,14 @@ type ContractBase = Omit<
           };
           readonly UserVercelCredential: {
             readonly fields: {
+              readonly accessTokenExpiresAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -10302,6 +10369,30 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
+              };
+              readonly kind: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly oauthNeedsReconnect: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly plan: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly planCheckedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly sealedRefreshToken: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly sealedToken: {
                 readonly nullable: false;
@@ -10324,7 +10415,11 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly vercelProjectId: {
-                readonly nullable: false;
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly vercelUserId: {
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
             };
@@ -10343,12 +10438,19 @@ type ContractBase = Omit<
               readonly table: 'UserVercelCredential';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly accessTokenExpiresAt: { readonly column: 'accessTokenExpiresAt' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly kind: { readonly column: 'kind' };
+                readonly oauthNeedsReconnect: { readonly column: 'oauthNeedsReconnect' };
+                readonly plan: { readonly column: 'plan' };
+                readonly planCheckedAt: { readonly column: 'planCheckedAt' };
+                readonly sealedRefreshToken: { readonly column: 'sealedRefreshToken' };
                 readonly sealedToken: { readonly column: 'sealedToken' };
                 readonly teamId: { readonly column: 'teamId' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
                 readonly vercelProjectId: { readonly column: 'vercelProjectId' };
+                readonly vercelUserId: { readonly column: 'vercelUserId' };
               };
             };
           };

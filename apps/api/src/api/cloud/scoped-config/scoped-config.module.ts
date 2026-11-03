@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
+import { UserVercelModule } from '../user-vercel/user-vercel.module'
 import { SandboxConfigRouter } from './sandbox-config.router'
 import { ScopedConfigService } from './scoped-config.service'
 
 @Module({
-  imports: [SessionsModule],
+  imports: [SessionsModule, UserVercelModule],
   providers: [ScopedConfigService, SandboxConfigRouter],
   exports: [ScopedConfigService],
 })

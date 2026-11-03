@@ -85,13 +85,13 @@ describe('cacheBreakpoints', () => {
     expect(markedBlockPositions(marked)).toEqual([3])
   })
 
-  it('gives the conversation the shorter ttl, which must follow the longer-lived system entry', () => {
+  it('gives the conversation the same hour-long ttl as the system entry behind it', () => {
     const marked = apply({ assembled: { system: [{ text: 'preamble' }], messages: spoken(1) } })
 
     const tail = marked.messages[0]?.message.content[0]
     expect(cacheControlOf(tail?.providerOptions)).toEqual({
       type: 'ephemeral',
-      ttl: ECacheTtl.FiveMinutes,
+      ttl: ECacheTtl.OneHour,
     })
   })
 
@@ -186,7 +186,7 @@ describe('cacheBreakpoints', () => {
     expect(marked.messages[0]?.message.content[0]?.providerOptions).toEqual({
       anthropic: {
         signature: 'abc',
-        cacheControl: { type: 'ephemeral', ttl: ECacheTtl.FiveMinutes },
+        cacheControl: { type: 'ephemeral', ttl: ECacheTtl.OneHour },
       },
       openai: { id: '1' },
     })

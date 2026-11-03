@@ -53,17 +53,3 @@ export class ExecutionLocationFragment extends VolatilePromptFragment {
     return placementLines(ctx.placement).join(' ')
   }
 }
-
-export class SessionPathsFragment extends PromptFragment {
-  readonly id = 'environment.session-paths'
-
-  text(): string {
-    return [
-      'Every command sees three session directories: ATLAS_SESSION_DIR, shared by this conversation and its sub-agents and teammates;',
-      'ATLAS_CONTEXT_DIR inside it, for the plans, decisions, coordination notes, and artifacts every thread reads;',
-      'and ATLAS_THREAD_DIR, private to your own thread.',
-      'Put temporary probes, seed scripts, and one-off downloads in $ATLAS_SESSION_DIR/scratch and private scratch in ATLAS_THREAD_DIR.',
-      'Use these variables in bash commands or file-tool paths; Atlas resolves them for the calling thread.',
-    ].join(' ')
-  }
-}

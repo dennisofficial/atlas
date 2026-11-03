@@ -15,7 +15,7 @@ type CredentialRow = {
   userId: string
   sealedToken: string
   teamId: string
-  vercelProjectId: string
+  vercelProjectId: string | null
 }
 
 export async function sweepAllSandboxSnapshots(args: {
@@ -41,6 +41,7 @@ export async function sweepAllSandboxSnapshots(args: {
   for (const row of rows) {
     try {
       const token = openSecretValue({ cipher: args.cipher, sealed: row.sealedToken })
+      if (row.vercelProjectId === null) throw new Error('credential holds no project')
       const result = await sweepSandboxSnapshots({
         store: storeFor({ token, teamId: row.teamId, projectId: row.vercelProjectId }),
         now: args.now,

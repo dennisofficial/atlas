@@ -61,9 +61,12 @@ describe('the context folder contract', () => {
     expect(prompt.parts.some((part) => part.id === 'environment.context-folder')).toBe(false)
   })
 
-  it('keeps the calibration valve so trivial work writes nothing', () => {
+  it('gates the ceremony on split or long-lived work', () => {
     const part = compiled().parts.find((one) => one.id === 'environment.context-folder')
-    expect(part?.text).toContain('one-line fix writes nothing')
+    expect(part?.text).toContain(
+      'when work is split across agents or will outlive your context window',
+    )
+    expect(part?.text).not.toContain('one-line fix writes nothing')
   })
 })
 

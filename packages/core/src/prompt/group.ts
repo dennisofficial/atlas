@@ -4,7 +4,6 @@ export enum EPromptGroup {
   ContextFolder = 'context-folder',
   Grilling = 'grilling',
   Memory = 'memory',
-  OperatorInput = 'operator-input',
 }
 
 export const ALL_PROMPT_GROUPS: readonly EPromptGroup[] = Object.values(EPromptGroup)

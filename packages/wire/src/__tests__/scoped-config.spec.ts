@@ -152,8 +152,14 @@ describe('vercel credential', () => {
     expect(
       userVercelCredentialSchema.safeParse({
         configured: false,
+        kind: 'token',
         teamId: null,
         vercelProjectId: null,
+        plan: 'unknown',
+        planCheckedAt: null,
+        needsReconnect: false,
+        vercelUserId: null,
+        oauthConfigured: false,
         updatedAt: null,
       }).success,
     ).toBe(true)

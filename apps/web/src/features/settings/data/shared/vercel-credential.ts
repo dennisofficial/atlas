@@ -1,17 +1,24 @@
 import {
-  vercelCredentialSchema,
+  EVercelCredentialKind,
+  EVercelPlan,
+  userVercelCredentialSchema,
+  type UserVercelCredential as VercelCredentialWire,
   type VercelCredentialUpsert,
-  type VercelCredentialView as VercelCredentialWire,
 } from '@dltech/atlas-wire/web'
 
 import { relativeTimeOf } from './relative-time'
 
-export { vercelCredentialSchema, type VercelCredentialWire }
+export { userVercelCredentialSchema, type VercelCredentialWire }
 
 export type VercelCredentialView = {
   configured: boolean
+  kind: EVercelCredentialKind
   teamId: string
   vercelProjectId: string
+  plan: EVercelPlan
+  planCheckedAt: string | null
+  needsReconnect: boolean
+  oauthConfigured: boolean
   updatedAt: string | null
 }
 
@@ -27,16 +34,26 @@ export const TOKEN_REQUIRED = 'A Vercel token is required the first time'
 
 export const viewOfCredential = (wire: VercelCredentialWire): VercelCredentialView => ({
   configured: wire.configured,
+  kind: wire.kind,
   teamId: wire.teamId ?? '',
   vercelProjectId: wire.vercelProjectId ?? '',
+  plan: wire.plan,
+  planCheckedAt: wire.planCheckedAt,
+  needsReconnect: wire.needsReconnect,
+  oauthConfigured: wire.oauthConfigured,
   updatedAt: wire.updatedAt,
 })
 
 export function statusLineOf({ view, now }: { view: VercelCredentialView; now: number }): string {
   if (!view.configured) return NOT_CONFIGURED_STATUS
+  if (view.needsReconnect) return 'Connection expired — reconnect Vercel'
+  const via =
+    view.kind === EVercelCredentialKind.Oauth
+      ? 'Connected via Vercel'
+      : 'Connected via access token'
   if (view.vercelProjectId === '') return NEEDS_PROJECT_ID_STATUS
-  if (view.updatedAt === null) return 'Configured'
-  return `Configured · updated ${relativeTimeOf({ iso: view.updatedAt, now })}`
+  if (view.updatedAt === null) return via
+  return `${via} · updated ${relativeTimeOf({ iso: view.updatedAt, now })}`
 }
 
 export function requestBodyOf(draft: VercelDraft): VercelUpsertBody {

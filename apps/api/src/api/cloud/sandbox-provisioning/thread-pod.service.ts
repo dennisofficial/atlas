@@ -25,6 +25,8 @@ import { dispatchFailure, PodLaunchService } from './pod-launch.service'
 import { standingStateOf } from '../../platform/sandboxes/pod-state'
 import { SANDBOX_BUSY_MESSAGE } from './sandbox-provisioning-rows'
 import { PodResourcesCache } from './pod-resources-cache'
+import { assertWithinPlanCap, PLAN_CAP_STALE_MS } from '../user-vercel/plan-cap'
+import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
 
 const TICKET_TTL_SECONDS = 60
 
@@ -41,6 +43,7 @@ export class ThreadPodService {
     private readonly vercel: VercelSandboxClient,
     private readonly pod: PodLaunchService,
     private readonly signals: ThreadSignalsService,
+    private readonly plans: VercelPlanService,
     @Inject(BackgroundWork) background: BackgroundWork,
   ) {
     this.liveResources = new PodResourcesCache(background, ({ key, failure }) =>
@@ -61,6 +64,10 @@ export class ThreadPodService {
   async resize(args: { userId: string; threadId: string; vcpus: number }): Promise<PodResizeReply> {
     const { userId, threadId, vcpus } = args
     const thread = await ownedThread({ reader: db, userId, threadId })
+    assertWithinPlanCap({
+      vcpus,
+      snapshot: await this.plans.storedPlan({ userId, staleAfterMs: PLAN_CAP_STALE_MS }),
+    })
     const sessionId = await podSessionOf({ reader: db, threadId })
     const row = await db.orm.public.CloudSandbox.first({ sessionId })
     if (row === null) throw new NotFoundException('this thread has no pod to resize')
@@ -69,12 +76,23 @@ export class ThreadPodService {
     if (standing === ESandboxProvisionState.Booting) {
       throw new ConflictException(SANDBOX_BUSY_MESSAGE)
     }
-    if (standing === ESandboxProvisionState.Running) {
-      await this.restart({ thread, row, vcpus })
-    } else {
-      await this.saveSize({ threadId, name: row.name, vcpus })
+    try {
+      if (standing === ESandboxProvisionState.Running) {
+        await this.restart({ thread, row, vcpus })
+      } else {
+        await this.saveSize({ threadId, name: row.name, vcpus })
+      }
+    } catch (failure) {
+      this.rekickPlan({ userId })
+      throw failure
     }
     return { vcpus, appliesAt: EPodResizeApplies.Live }
+  }
+
+  private rekickPlan(args: { userId: string }): void {
+    void this.plans.refreshPlan(args).catch((failure: unknown) => {
+      this.logger.warn(`plan re-read after a resize failure failed: ${String(failure)}`)
+    })
   }
 
   async destroy(args: { userId: string; threadId: string }): Promise<void> {
