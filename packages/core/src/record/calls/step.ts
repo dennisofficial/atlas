@@ -9,90 +9,80 @@ import {
   type SteppedCalls,
 } from './call-states'
 
+export type StepVariant = {
+  spawnWithoutJournal?: boolean
+}
+
 const NO_EFFECTS: CallEffects = { spawned: [], journaled: [], deleted: [], errors: [] }
 
-const stateOf = (state: SteppedCalls, key: string): ECallState =>
-  state.calls[key] ?? ECallState.Unknown
+const stateOf = (args: { state: SteppedCalls; key: string }): ECallState =>
+  args.state.calls[args.key] ?? ECallState.Unknown
 
-const withState = (state: SteppedCalls, key: string, call: ECallState): SteppedCalls => ({
-  ...state,
-  calls: { ...state.calls, [key]: call },
+const withState = (args: { state: SteppedCalls; key: string; call: ECallState }): SteppedCalls => ({
+  ...args.state,
+  calls: { ...args.state.calls, [args.key]: args.call },
 })
 
-const failed = (state: SteppedCalls, error: ECallError): SteppedCall => ({
-  state,
-  effects: { ...NO_EFFECTS, errors: [error] },
+const failed = (args: { state: SteppedCalls; error: ECallError }): SteppedCall => ({
+  state: args.state,
+  effects: { ...NO_EFFECTS, errors: [args.error] },
 })
 
-export function stepCalls(args: { state: SteppedCalls; input: CallStepInput }): SteppedCall {
-  const { state, input } = args
+export function stepCalls(args: {
+  state: SteppedCalls
+  input: CallStepInput
+  variant?: StepVariant | undefined
+}): SteppedCall {
+  const { state, input, variant } = args
 
   if (input.type === 'daemonReboot') {
     return { state: initialCalls({ bootId: input.bootId }), effects: NO_EFFECTS }
   }
 
-  if (input.type === 'journal') {
-    if (stateOf(state, input.key) !== ECallState.Unknown) return { state, effects: NO_EFFECTS }
-    const journaled = new Set(state.journaled)
-    journaled.add(input.key)
-    return {
-      state: { ...withState(state, input.key, ECallState.Running), journaled },
-      effects: { ...NO_EFFECTS, journaled: [input.key] },
-    }
-  }
-
-  if (input.type === 'spawn') {
-    if (stateOf(state, input.key) !== ECallState.Running || !state.journaled.has(input.key)) {
-      return failed(state, ECallError.SpawnWithoutJournal)
-    }
-    const journaled = new Set(state.journaled)
-    journaled.delete(input.key)
-    return {
-      state: { ...state, journaled },
-      effects: { ...NO_EFFECTS, spawned: [input.key] },
-    }
+  if (input.type === 'hello') {
+    if (input.epoch <= state.epoch) return { state, effects: NO_EFFECTS }
+    return { state: { ...state, epoch: input.epoch }, effects: NO_EFFECTS }
   }
 
   if (input.type === 'run') {
-    if (input.bootId !== state.bootId) return failed(state, ECallError.BootChanged)
-    if (input.epoch < state.epoch) return failed(state, ECallError.StaleEpoch)
-    const nextState = { ...state, epoch: input.epoch }
-    const known = stateOf(nextState, input.key)
-    if (known !== ECallState.Unknown) return { state: nextState, effects: NO_EFFECTS }
-    if (!input.dispatched) return failed(nextState, ECallError.RunWithoutRecord)
-    const journaled = new Set(nextState.journaled)
-    journaled.add(input.key)
-    const running = withState(nextState, input.key, ECallState.Running)
-    journaled.delete(input.key)
+    if (input.epoch < state.epoch) return failed({ state, error: ECallError.StaleEpoch })
+    const known = stateOf({ state, key: input.key })
+    if (known !== ECallState.Unknown) return { state, effects: NO_EFFECTS }
+    if (!input.dispatched) return failed({ state, error: ECallError.RunWithoutRecord })
+    const skipsJournal = variant?.spawnWithoutJournal === true
     return {
-      state: { ...running, journaled },
-      effects: { ...NO_EFFECTS, journaled: [input.key], spawned: [input.key] },
+      state: withState({ state, key: input.key, call: ECallState.Running }),
+      effects: {
+        ...NO_EFFECTS,
+        journaled: skipsJournal ? [] : [input.key],
+        spawned: [input.key],
+      },
     }
   }
 
   if (input.type === 'exit') {
-    if (stateOf(state, input.key) !== ECallState.Running) return { state, effects: NO_EFFECTS }
+    if (stateOf({ state, key: input.key }) !== ECallState.Running) {
+      return { state, effects: NO_EFFECTS }
+    }
     return {
-      state: withState(state, input.key, ECallState.Done),
+      state: withState({ state, key: input.key, call: ECallState.Done }),
       effects: NO_EFFECTS,
     }
   }
 
-  if (input.epoch < state.epoch) return failed(state, ECallError.StaleEpoch)
-  if (stateOf(state, input.key) !== ECallState.Done) return { state, effects: NO_EFFECTS }
-  if (!input.resultRecorded) return failed(state, ECallError.AckWithoutResult)
+  if (input.epoch < state.epoch) return failed({ state, error: ECallError.StaleEpoch })
+  if (stateOf({ state, key: input.key }) !== ECallState.Done) return { state, effects: NO_EFFECTS }
+  if (!input.resultRecorded) return failed({ state, error: ECallError.AckWithoutResult })
   const calls = { ...state.calls }
   delete calls[input.key]
-  const journaled = new Set(state.journaled)
-  journaled.delete(input.key)
   return {
-    state: { ...state, epoch: input.epoch, calls, journaled },
+    state: { ...state, calls },
     effects: { ...NO_EFFECTS, deleted: [input.key] },
   }
 }
 
-export function answerCalls(state: SteppedCalls, key: string): EDaemonAnswer {
-  const known = stateOf(state, key)
+export function answerCalls(args: { state: SteppedCalls; key: string }): EDaemonAnswer {
+  const known = stateOf(args)
   if (known === ECallState.Done) return EDaemonAnswer.Done
   if (known === ECallState.Running) return EDaemonAnswer.Running
   return EDaemonAnswer.NeverSeen
