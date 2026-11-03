@@ -4,7 +4,6 @@ import type {
   EventLogPort,
   ExecutionLocationSinkPort,
   IdPort,
-  TelemetryPort,
   ThreadId,
 } from '@dltech/atlas-core'
 
@@ -14,6 +13,7 @@ import type { ModelWaitState } from '../../model-recovery/wait-state'
 import type { ThreadModel } from '../../store/thread-store'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
+import type { TelemetryPort } from '@dltech/atlas-observability'
 
 export type IntakeChanged = Pick<MessageIntake, 'changed' | 'prepare'>
 

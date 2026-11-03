@@ -1,7 +1,5 @@
 import { basename } from 'node:path'
 
-import type { LogPort } from '@dltech/atlas-core'
-
 import {
   EForge,
   EPullRequestLookup,
@@ -11,6 +9,7 @@ import {
 } from './pure'
 import { parseGhPullRequest } from './parse-gh-pull-request'
 import { ESpawnFailure, spawnCommand, type CommandRun, type CommandRunner } from './run-command'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export enum EGhPollRole {
   FailoverFallback = 'failover-fallback',

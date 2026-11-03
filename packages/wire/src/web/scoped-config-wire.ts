@@ -103,6 +103,26 @@ export const vercelChooseProjectSchema = z.strictObject({
 })
 export type VercelChooseProject = z.infer<typeof vercelChooseProjectSchema>
 
+export const vercelTokenDiscoverInputSchema = z.strictObject({
+  token: z.string().trim().min(1).max(500).optional(),
+  teamId: z.string().trim().min(1).max(500).optional(),
+})
+export type VercelTokenDiscoverInput = z.infer<typeof vercelTokenDiscoverInputSchema>
+
+export const vercelTeamChoiceSchema = z.strictObject({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string().nullable(),
+  plan: vercelPlanSchema,
+})
+export type VercelTeamChoice = z.infer<typeof vercelTeamChoiceSchema>
+
+export const vercelTokenDiscoverSchema = z.strictObject({
+  teams: z.array(vercelTeamChoiceSchema),
+  projects: z.array(vercelProjectChoiceSchema),
+})
+export type VercelTokenDiscover = z.infer<typeof vercelTokenDiscoverSchema>
+
 export { EVercelPlan }
 
 export const MAX_VERCEL_FIELD_LENGTH = 500

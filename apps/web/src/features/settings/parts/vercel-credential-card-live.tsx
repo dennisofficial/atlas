@@ -19,6 +19,7 @@ import {
   validateVercelDraft,
   type VercelDraft,
 } from '../data/shared/vercel-credential'
+import type { VercelDiscovery, VercelDiscoverFn } from '../data/shared/vercel-discovery'
 import type { VercelCredentialResource } from '../data/shared/vercel-credential-resource'
 import {
   EMPTY_VERCEL_VIEW,
@@ -103,6 +104,13 @@ function LiveVercelCard({
     setRefreshingPlan(false)
   }
 
+  const discover: VercelDiscoverFn = async (input) => {
+    const result = (await cloudCall(
+      api.userVercel.discover.mutate({ token: input.token, teamId: input.teamId }),
+    )) as VercelDiscovery
+    return result
+  }
+
   return (
     <VercelCredentialCard
       key={`${view.configured}|${view.teamId}|${view.vercelProjectId}|${view.updatedAt}|${view.kind}`}
@@ -110,6 +118,7 @@ function LiveVercelCard({
       view={view}
       statusLine={statusLineOf({ view, now: fetchedAt })}
       saving={saving}
+      discover={discover}
       actions={{
         onConnect: () => void handleConnect(),
         onRefreshPlan: () => void handleRefreshPlan(),

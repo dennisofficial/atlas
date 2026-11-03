@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ELogSeverity, LogPort, toThreadId, type LogEntry } from '@dltech/atlas-core'
+import { toThreadId } from '@dltech/atlas-core'
 
 import { createRetryingFetch } from '../api-trpc-client'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 class CapturingLog extends LogPort {
   readonly entries: LogEntry[] = []

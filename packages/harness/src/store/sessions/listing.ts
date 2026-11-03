@@ -9,7 +9,6 @@ import {
   type ERunner,
   toThreadId,
   type LinkedPullRequest,
-  type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -22,6 +21,7 @@ import { placesForSegments } from './session-place-reader'
 import type { ThreadCheckout, ThreadWorktree } from './thread-places'
 import { warnDirectoryUnreadable } from './listing-cleanup'
 import { selectedRoots } from './listing-selected'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export { dropRewoundChildren } from './listing-cleanup'
 

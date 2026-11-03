@@ -1,4 +1,4 @@
-import { LogPort, type NoticePort } from '@dltech/atlas-core'
+import { type NoticePort } from '@dltech/atlas-core'
 
 import type { UserLayerSyncClient } from './client'
 import type { TreeSyncContext } from './context'
@@ -9,6 +9,7 @@ import { pullTree } from './pull'
 import { pushTree } from './push'
 import { UserLayerState } from './state'
 import { watchUserLayer, type UserLayerWatchHandle, type WatchDirectory } from './watcher'
+import { LogPort } from '@dltech/atlas-observability'
 
 // macOS fs.watch drops events for a few milliseconds after the watch is created.
 export const ATTACH_RECHECK_DELAY_MS = 50

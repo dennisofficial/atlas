@@ -3,6 +3,10 @@ import { z } from 'zod'
 import { projectIdInputSchema } from '../project-wire'
 
 export const HOME_MOUNT_PREFIX = '~/'
+// Atlas-home mounts are API-written only: in a sandbox ATLAS_HOME (= SANDBOX_HOME_PATH) is not
+// the process HOME, so `~/` mounts resolve to a different directory. `@/` resolves against the
+// atlas home instead, which is where pod-owned managed files (cloud skills) must land.
+export const ATLAS_HOME_MOUNT_PREFIX = '@/'
 export const MAX_FILE_MOUNT_BYTES = 64 * 1024
 export const MAX_FILE_MOUNT_PATH_LENGTH = 500
 export const DEFAULT_FILE_MOUNT_MODE = 0o600
@@ -19,10 +23,16 @@ export enum ERepoTreeEntryKind {
 }
 
 export const fileMountTargetOf = (path: string): EFileMountTarget =>
-  path.startsWith(HOME_MOUNT_PREFIX) ? EFileMountTarget.Home : EFileMountTarget.Repository
+  path.startsWith(HOME_MOUNT_PREFIX) || path.startsWith(ATLAS_HOME_MOUNT_PREFIX)
+    ? EFileMountTarget.Home
+    : EFileMountTarget.Repository
 
-export const fileMountRelativePathOf = (path: string): string =>
-  fileMountTargetOf(path) === EFileMountTarget.Home ? path.slice(HOME_MOUNT_PREFIX.length) : path
+export const fileMountRelativePathOf = (path: string): string => {
+  if (path.startsWith(ATLAS_HOME_MOUNT_PREFIX)) return path.slice(ATLAS_HOME_MOUNT_PREFIX.length)
+  return fileMountTargetOf(path) === EFileMountTarget.Home
+    ? path.slice(HOME_MOUNT_PREFIX.length)
+    : path
+}
 
 export const fileMountPathProblem = (path: string): string | null => {
   const relative = fileMountRelativePathOf(path)
@@ -60,6 +70,7 @@ export const scopedFileMountSchema = z.object({
   path: z.string().min(1),
   contents: z.string(),
   mode: fileMountModeSchema,
+  encoding: z.enum(['utf8', 'base64']).optional(),
 })
 export type ScopedFileMount = z.infer<typeof scopedFileMountSchema>
 

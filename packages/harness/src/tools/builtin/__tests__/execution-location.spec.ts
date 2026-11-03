@@ -3,13 +3,10 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import {
   EExecutionLocation,
   EKilledBy,
-  ELogSeverity,
   EServiceStatus,
   EShellStatus,
   EStopAction,
-  LogPort,
   toThreadId,
-  type LogEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -32,6 +29,7 @@ import {
   type StoreFixture,
 } from '../../../store/__tests__/harness'
 import type { JsonlThreadStore } from '../../../store/sessions/thread-store'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 class FakeAgents extends UnstaffedAgents {
   readonly relocations: RelocateChildrenArgs[] = []

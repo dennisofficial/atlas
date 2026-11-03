@@ -1,4 +1,4 @@
-import type { LogPort } from '@dltech/atlas-core'
+import type { LogPort } from '@dltech/atlas-observability'
 
 const LOG_SOURCE = 'user-layer-sync'
 

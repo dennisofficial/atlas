@@ -132,6 +132,7 @@
         "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-harness": "workspace:*",
+        "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@trpc/client": "^11.19.0",
         "zod": "^4.4.3",
@@ -164,6 +165,24 @@
         "vite": "7.3.6",
       },
     },
+    "apps/trigger": {
+      "name": "@dltech/atlas-trigger",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-control": "workspace:*",
+        "@dltech/atlas-db": "workspace:*",
+        "@dltech/atlas-jobs": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
+        "@dotenvx/dotenvx": "^1.71.0",
+        "@trigger.dev/sdk": "4.7.4",
+        "ioredis": "^6.0.0",
+      },
+      "devDependencies": {
+        "@trigger.dev/build": "4.7.4",
+        "@types/bun": "latest",
+        "trigger.dev": "4.7.4",
+      },
+    },
     "apps/tui": {
       "name": "@dltech/atlas",
       "version": "0.1.0",
@@ -176,6 +195,7 @@
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-harness": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
+        "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@mariozechner/clipboard": "^0.3.9",
         "@opentui/core": "0.5.12",
@@ -253,6 +273,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "zod": "^4.4.3",
       },
@@ -362,6 +383,7 @@
         "@dltech/atlas-client": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
+        "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-sandbox": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@trpc/client": "^11.19.0",
@@ -371,7 +393,6 @@
         "ai": "^7.0.152",
         "eventsource": "^3.0.7",
         "htmlparser2": "^12.0.0",
-        "posthog-node": "^5.54.1",
         "reflect-metadata": "^0.2.2",
         "tsyringe": "4.10.0",
         "turndown": "^7.2.4",
@@ -400,12 +421,33 @@
         "@vscode/ripgrep": "^1.18.0",
       },
     },
+    "packages/jobs": {
+      "name": "@dltech/atlas-jobs",
+      "version": "0.1.0",
+      "dependencies": {
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/models": {
       "name": "@dltech/atlas-models",
       "version": "0.1.0",
       "dependencies": {
         "@dltech/atlas-core": "workspace:*",
         "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/observability": {
+      "name": "@dltech/atlas-observability",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
+        "posthog-node": "^5.54.1",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -834,9 +876,13 @@
 
     "@dltech/atlas-host": ["@dltech/atlas-host@workspace:packages/host"],
 
+    "@dltech/atlas-jobs": ["@dltech/atlas-jobs@workspace:packages/jobs"],
+
     "@dltech/atlas-mac": ["@dltech/atlas-mac@workspace:apps/mac"],
 
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
+
+    "@dltech/atlas-observability": ["@dltech/atlas-observability@workspace:packages/observability"],
 
     "@dltech/atlas-protocol": ["@dltech/atlas-protocol@workspace:packages/protocol"],
 
@@ -847,6 +893,8 @@
     "@dltech/atlas-serve": ["@dltech/atlas-serve@workspace:apps/serve"],
 
     "@dltech/atlas-storybook": ["@dltech/atlas-storybook@workspace:apps/storybook"],
+
+    "@dltech/atlas-trigger": ["@dltech/atlas-trigger@workspace:apps/trigger"],
 
     "@dltech/atlas-ui": ["@dltech/atlas-ui@workspace:packages/ui"],
 

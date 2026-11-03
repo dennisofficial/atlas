@@ -4,9 +4,7 @@ import {
   EventLogPort,
   ExecutionLocationSinkPort,
   IdPort,
-  LogPort,
   NoopExecutionLocationSink,
-  TelemetryPort,
 } from '@dltech/atlas-core'
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
@@ -32,6 +30,7 @@ import {
   type InjectionToken,
 } from './injection'
 import { DeltaChannelToken, WorkspaceRoot } from './tokens'
+import { LogPort, TelemetryPort } from '@dltech/atlas-observability'
 
 export const ChildRunnerDepsToken: InjectionToken<ChildRunnerDepsSource> =
   Symbol('atlas.ChildRunnerDeps')

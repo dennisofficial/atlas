@@ -1,8 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-
-import type { LogPort } from '@dltech/atlas-core'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export type SleepPreventionDeps = {
   platform?: NodeJS.Platform

@@ -10,12 +10,11 @@ import {
   type Event,
   type EventDraft,
   type EventEnvelope,
-  type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import { EUnreadableReason, type UnreadableRow } from '../decode-events'
-import { logFieldsOf } from '../logs'
+import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'
 
 export const EVENT_LINE_VERSION = 1
 

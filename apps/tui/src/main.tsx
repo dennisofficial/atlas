@@ -1,4 +1,4 @@
-import { logFieldsOf, runSupervisorCli } from '@dltech/atlas-harness'
+import { runSupervisorCli } from '@dltech/atlas-harness'
 
 import { bootAtlas } from './composition/boot'
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from './composition/boot-failure'
@@ -6,6 +6,7 @@ import { durableOpLog } from './composition/durable-op-log'
 import { launchCommand } from './composition/launch-command'
 import { promoteStagedUpdate } from './composition/promote-staged'
 import { versionLabel } from './build/info'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
 export const APP_PACKAGE_NAME = '@dltech/atlas'
 

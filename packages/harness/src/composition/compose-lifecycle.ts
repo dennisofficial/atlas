@@ -1,8 +1,6 @@
 import {
   ENoticeTone,
-  LogPort,
   NOTICE_WARN_MS,
-  TelemetryPort,
   type NoticePort,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
@@ -21,6 +19,7 @@ import { probeWorkspace } from '../workspace/probe'
 import type { HarnessLaunch } from './config'
 import type { HarnessCloseRequest } from './harness-app'
 import { claimLaunchWorktree } from './worktree-claims'
+import { LogPort, TelemetryPort } from '@dltech/atlas-observability'
 
 export type LaunchWorkspace = { anchor: string; workspace: WorkspaceIdentity }
 

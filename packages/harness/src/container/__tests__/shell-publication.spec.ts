@@ -3,15 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import {
-  ClockPort,
-  EventLogPort,
-  IdPort,
-  LogPort,
-  ProcessPort,
-  toThreadId,
-  type LogEntry,
-} from '@dltech/atlas-core'
+import { ClockPort, EventLogPort, IdPort, ProcessPort, toThreadId } from '@dltech/atlas-core'
 
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { recorder } from '../../channel/__tests__/signals'
@@ -35,6 +27,7 @@ import {
   SessionRegistryToken,
   WorkspaceRoot,
 } from '../tokens'
+import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 const THREAD = toThreadId('thread-with-shell')
 const OTHER = toThreadId('thread-elsewhere')

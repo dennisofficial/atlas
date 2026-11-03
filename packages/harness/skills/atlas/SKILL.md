@@ -49,7 +49,7 @@ Read the page for the task; do not load them all.
 | `references/config.md` | Settings, instruction files, skills, agent types, MCP, verifying a change |
 | `references/services.md` | Writing a good `services.yaml`, `services.yaml` fields, `needs`, `setup`, portals, env references, stale services, `service_start`, URLs, framework host allow-listing, crash loops |
 | `references/cloud.md` | Placement, Vercel sandbox setup, `/container`, sign-in and backup, parking, cloud logs |
-| `references/cloud-config.md` | `cloud_config` tool: project and personal settings, secrets, MCP servers, file mounts |
+| `references/cloud-config.md` | `cloud_config` tool: project and personal settings, secrets, MCP servers, file mounts, skills |
 | `references/container.md` | Docker image resolution, `container.json` fields, setup recipe |
 | `references/plugins.md` | Writing and installing plugins |
 | `references/worktrees.md` | `enter_worktree`, `exit_worktree`, `worktree_list`, `.atlas/worktree.yaml` |

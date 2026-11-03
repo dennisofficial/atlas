@@ -12,9 +12,7 @@ import {
   DecisionPort,
   EventLogPort,
   IdPort,
-  LogPort,
   QualityReviewPort,
-  TelemetryPort,
   rangeValueOf,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -60,6 +58,7 @@ import { LocalRewindMachinery } from '../store/local-rewind-machinery'
 import { createUsageTracker } from './usage-tracker'
 import { turnBackgroundState } from './turn-background-state'
 import { loopNotices } from './loop-notices'
+import { LogPort, TelemetryPort } from '@dltech/atlas-observability'
 
 export type TurnWiring = {
   turn: TurnDeps

@@ -1,5 +1,3 @@
-import type { LogPort } from '@dltech/atlas-core'
-
 import {
   EFailoverDecision,
   EFailoverState,
@@ -10,6 +8,7 @@ import {
   type PullRequestReading,
   type RepositoryCheckout,
 } from './pure'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export { EFailoverState, PROBE_INTERVAL_MS } from './pure'
 

@@ -4,12 +4,22 @@ import { useTestDatabase } from '../testing'
 const NOW = new Date('2026-11-02T00:00:00.000Z')
 const NUL_ESCAPE = String.raw`{"text":"a\u0000b","lone":"\ud800","pair":"\ud83d\ude00"}`
 
+const sessionRow = () => ({
+  id: 'ses_1',
+  userId: 'user_1',
+  projectId: 'project_1',
+  title: null,
+  mainThreadId: 'thr_1',
+  nextInboxId: 1,
+  createdAt: NOW,
+})
+
 describe('v2 namespace client', () => {
   const testDb = useTestDatabase()
 
   async function seedThread() {
     const { db } = testDb()
-    await db.orm.v2.V2Session.create({ id: 'ses_1', nextInboxId: 1, createdAt: NOW })
+    await db.orm.v2.V2Session.create(sessionRow())
     await db.orm.v2.V2Thread.create({
       id: 'thr_1',
       sessionId: 'ses_1',
@@ -22,12 +32,8 @@ describe('v2 namespace client', () => {
 
   it('creates and reads a session through db.orm.v2', async () => {
     const { db } = testDb()
-    await db.orm.v2.V2Session.create({ id: 'ses_1', nextInboxId: 1, createdAt: NOW })
-    expect(await db.orm.v2.V2Session.first({ id: 'ses_1' })).toEqual({
-      id: 'ses_1',
-      nextInboxId: 1,
-      createdAt: NOW,
-    })
+    await db.orm.v2.V2Session.create(sessionRow())
+    expect(await db.orm.v2.V2Session.first({ id: 'ses_1' })).toEqual(sessionRow())
   })
 
   it('round-trips canonical text containing \\u0000 and lone surrogate escapes byte-identical', async () => {
@@ -71,6 +77,7 @@ describe('v2 namespace client', () => {
       holderId: null,
       renewedAt: NOW,
       ttlMs: 1000,
+      wantsHolder: false,
     })
     await db.orm.v2.V2Event.create({
       threadId: 'thr_1',

@@ -1,4 +1,4 @@
-import type { SettingsService } from '@dltech/atlas-harness'
+import type { SettingsService, SkillRegistryPort } from '@dltech/atlas-harness'
 
 import { applyCloudState, type CloudStateSeen } from './cloud-state'
 import type { CloudStateFetched } from './cloud-state-fetch'
@@ -10,6 +10,7 @@ export type CloudStateRefresh = {
   boot: (prefetched?: Promise<CloudStateFetched>) => Promise<FileMountReport | null>
   refresh: () => Promise<void>
   bindSettings: (settings: SettingsService | undefined) => void
+  bindSkills: (skills: SkillRegistryPort | undefined) => void
   exportedEnvNames: () => readonly string[]
 }
 
@@ -21,8 +22,18 @@ export const createCloudStateRefresh = (
 ): CloudStateRefresh => {
   const { fileMountRoots, ...rest } = args
   const seen: CloudStateSeen = { exported: new Set() }
-  const bound: { settings: SettingsService | undefined } = { settings: undefined }
-  const shared = { ...rest, seen, onConfigWritten: () => bound.settings?.reload() }
+  const bound: { settings: SettingsService | undefined; skills: SkillRegistryPort | undefined } = {
+    settings: undefined,
+    skills: undefined,
+  }
+  const shared = {
+    ...rest,
+    seen,
+    onConfigWritten: () => {
+      bound.settings?.reload()
+      void bound.skills?.reload()
+    },
+  }
   return {
     boot: (prefetched) => applyCloudState({ ...shared, fileMountRoots, prefetched }),
     refresh: async () => {
@@ -30,6 +41,9 @@ export const createCloudStateRefresh = (
     },
     bindSettings: (settings) => {
       bound.settings = settings
+    },
+    bindSkills: (skills) => {
+      bound.skills = skills
     },
     exportedEnvNames: () => [...seen.exported].sort(),
   }

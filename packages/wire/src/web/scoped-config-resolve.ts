@@ -70,8 +70,10 @@ export const resolveScopedConfig = (layers: ScopedConfigLayers): ResolvedSandbox
   const harnessSecrets = [...layers.user.harnessSecrets].sort((left, right) =>
     left.name.localeCompare(right.name),
   )
-  const fileMounts = [...(layers.project?.fileMounts ?? [])].sort((left, right) =>
-    left.path.localeCompare(right.path),
+  // User mounts come first: skill mounts are API-owned per scope and never share paths, so the
+  // ordering is about a stable layout, not override.
+  const fileMounts = [...layers.user.fileMounts, ...(layers.project?.fileMounts ?? [])].sort(
+    (left, right) => left.path.localeCompare(right.path),
   )
   return {
     settings,

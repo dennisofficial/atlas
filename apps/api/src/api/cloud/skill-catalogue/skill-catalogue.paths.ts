@@ -3,7 +3,6 @@ import { EDefinitionOrigin, skillRootPlan } from '@dltech/atlas-core'
 const SKILL_ENTRY = 'skill.md'
 const SKILLS_DIRECTORY_NAME = 'skills'
 const REPO_ROOT = '/'
-const MARKDOWN = '.md'
 
 export const repoSkillRoots: readonly string[] = skillRootPlan({
   atlasHome: REPO_ROOT,
@@ -23,15 +22,4 @@ export const folderSkillOf = (args: { path: string; root: string }): SkillFile |
   if (folder === undefined || file === undefined || rest.length > 0) return undefined
   if (file.toLowerCase() !== SKILL_ENTRY) return undefined
   return { path: args.path, fallbackName: folder }
-}
-
-export const userSkillOf = (path: string): SkillFile | undefined => {
-  const [first, second, ...rest] = path.split('/')
-  if (first === undefined || rest.length > 0) return undefined
-  if (second === undefined) {
-    return first.toLowerCase().endsWith(MARKDOWN)
-      ? { path, fallbackName: first.slice(0, -MARKDOWN.length) }
-      : undefined
-  }
-  return second.toLowerCase() === SKILL_ENTRY ? { path, fallbackName: first } : undefined
 }

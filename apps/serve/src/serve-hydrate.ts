@@ -33,10 +33,21 @@ const coreEventOf = (wire: WireEvent): Event | null => {
   return readableEventFromWire(wire)
 }
 
+const remoteHeadOf = async (args: {
+  past: readonly WireEvent[]
+  localHead: number
+  threadId: ThreadId
+  sessions: Pick<SessionsClient, 'threadHead'>
+}): Promise<number> => {
+  if (args.past.length > 0) return Math.max(...args.past.map((row) => row.seq))
+  if (args.localHead === 0) return 0
+  return await args.sessions.threadHead({ threadId: args.threadId })
+}
+
 export async function hydrateServeHistory(args: {
   atlasHome: string
   threadId: ThreadId
-  sessions: Pick<SessionsClient, 'readEvents'>
+  sessions: Pick<SessionsClient, 'readEvents' | 'threadHead'>
   log: ServeLog
   writer?: MirrorWriter | undefined
 }): Promise<HydrateResult> {
@@ -45,9 +56,9 @@ export async function hydrateServeHistory(args: {
   const sessionDir = await registry.sessionDirFor({ threadId })
   const localHead = (await registry.readThreadLog({ sessionDir, threadId })).head
 
-  const wire = await args.sessions.readEvents({ threadId, own: true })
+  const wire = await args.sessions.readEvents({ threadId, own: true, fromSeq: localHead + 1 })
   const past = wire.filter((row) => row.seq > localHead).sort((a, b) => a.seq - b.seq)
-  const remoteHead = wire.reduce((highest, row) => Math.max(highest, row.seq), 0)
+  const remoteHead = await remoteHeadOf({ past, localHead, threadId, sessions: args.sessions })
 
   const events: Event[] = []
   let skipped = 0

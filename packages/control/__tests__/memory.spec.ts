@@ -1,12 +1,18 @@
 import { InMemoryControlStore } from '../src/testing/memory'
-import { describeControlPlaneConformance } from '../src/testing/conformance'
+import {
+  describeControlPlaneConformance,
+  describeControlPlaneSessions,
+} from '../src/testing/conformance'
 
 let store = new InMemoryControlStore()
 
-describeControlPlaneConformance({
+const conformanceParams = {
   name: 'in-memory',
   makeStore: () => store,
   reset: async () => {
     store = new InMemoryControlStore()
   },
-})
+}
+
+describeControlPlaneConformance(conformanceParams)
+describeControlPlaneSessions(conformanceParams)

@@ -117,6 +117,11 @@ const WRITTEN_STATES: ReadonlySet<EFileMountState> = new Set([
   EFileMountState.WrittenNotExcluded,
 ])
 
+const MANAGED_SKILL_PREFIXES = {
+  globalPrefix: 'skills',
+  projectPrefix: 'project-skills',
+} as const
+
 export const applyCloudState = async (args: {
   atlasHome: string
   controlPlaneUrl: string
@@ -177,12 +182,13 @@ export const applyCloudState = async (args: {
     }
     args.onConfigWritten?.()
     const mounted =
-      args.fileMountRoots === undefined || config.fileMounts.length === 0
+      args.fileMountRoots === undefined
         ? null
         : await mountProjectFiles({
             mounts: config.fileMounts,
             ...args.fileMountRoots,
             git: args.mountGit,
+            managedPrefixes: MANAGED_SKILL_PREFIXES,
           })
     const filesMounted = (mounted?.outcomes ?? []).filter((outcome) =>
       WRITTEN_STATES.has(outcome.state),

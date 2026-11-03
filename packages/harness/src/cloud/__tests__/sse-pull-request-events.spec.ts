@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import type { LogPort } from '@dltech/atlas-core'
 
 import { EForge, type RepositoryCheckout } from '../../plugins/github/pure'
 import type { PrEventFrame } from '../pr-event-frame'
 import { SsePullRequestPort } from '../sse-pull-requests'
 import { eventChunk, openStreamResponse, STREAM_PROCEDURE, trpcOk } from './trpc-fakes'
+import type { LogPort } from '@dltech/atlas-observability'
 
 const CHECKOUT: RepositoryCheckout = {
   directory: '/repo',

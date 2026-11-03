@@ -4,15 +4,18 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 import {
+  ATLAS_HOME_MOUNT_PREFIX,
   EFileMountTarget,
   fileMountPathProblem,
   fileMountRelativePathOf,
@@ -35,7 +38,16 @@ export type FileMountOutcome = { path: string; state: EFileMountState; reason?: 
 
 export type FileMountReport = { outcomes: FileMountOutcome[] }
 
-export type FileMountRoots = { repositoryDir: string | null; homeDir: string }
+export type FileMountRoots = {
+  repositoryDir: string | null
+  homeDir: string
+  atlasHomeDir?: string | undefined
+}
+
+export type ManagedSkillPrefixes = {
+  globalPrefix: string
+  projectPrefix: string
+}
 
 export type FileMountGit = (args: {
   cwd: string
@@ -75,7 +87,14 @@ const confinedTarget = (args: { root: string; relativePath: string }): string =>
   return target
 }
 
-const writeMounted = (args: { target: string; contents: string; mode: number }): void => {
+const mountedContents = (mount: ScopedFileMount): string | Uint8Array<ArrayBuffer> =>
+  mount.encoding === 'base64' ? Buffer.from(mount.contents, 'base64') : mount.contents
+
+const writeMounted = (args: {
+  target: string
+  contents: string | Uint8Array<ArrayBuffer>
+  mode: number
+}): void => {
   mkdirSync(dirname(args.target), { recursive: true })
   const staging = join(dirname(args.target), `.${randomBytes(8).toString('hex')}.tmp`)
   try {
@@ -85,6 +104,43 @@ const writeMounted = (args: { target: string; contents: string; mode: number }):
   } catch (failure) {
     rmSync(staging, { force: true })
     throw failure
+  }
+}
+
+const sweepManagedPrefix = (args: {
+  root: string
+  prefix: string
+  keptRelativePaths: ReadonlySet<string>
+}): void => {
+  const directory = resolve(args.root, args.prefix)
+  if (!isInside({ root: args.root, target: directory })) return
+  const walk = (current: string): void => {
+    if (!existsSync(current)) return
+    for (const name of readdirSync(current)) {
+      const path = join(current, name)
+      const stat = statSync(path)
+      if (stat.isDirectory()) {
+        walk(path)
+        if (readdirSync(path).length === 0) rmSync(path, { recursive: true })
+        continue
+      }
+      const relativePath = relative(args.root, path)
+      if (!args.keptRelativePaths.has(relativePath)) rmSync(path, { force: true })
+    }
+  }
+  walk(directory)
+}
+
+const sweepManagedDirectories = (args: {
+  mounts: readonly ScopedFileMount[]
+  prefixes: ManagedSkillPrefixes
+  atlasHomeDir: string | undefined
+}): void => {
+  if (args.atlasHomeDir === undefined) return
+  const atlasMounts = args.mounts.filter((mount) => mount.path.startsWith(ATLAS_HOME_MOUNT_PREFIX))
+  const kept = new Set(atlasMounts.map((mount) => fileMountRelativePathOf(mount.path)))
+  for (const prefix of [args.prefixes.globalPrefix, args.prefixes.projectPrefix]) {
+    sweepManagedPrefix({ root: args.atlasHomeDir, prefix, keptRelativePaths: kept })
   }
 }
 
@@ -129,13 +185,22 @@ const mountOne = async (args: {
   roots: FileMountRoots
   git: FileMountGit
 }): Promise<FileMountOutcome> => {
-  const { path, contents, mode } = args.mount
+  const { path, mode } = args.mount
   const problem = fileMountPathProblem(path)
   if (problem !== null) return { path, state: EFileMountState.Failed, reason: problem }
   const relativePath = fileMountRelativePathOf(path)
   const isHome = fileMountTargetOf(path) === EFileMountTarget.Home
-  const root = isHome ? args.roots.homeDir : args.roots.repositoryDir
+  const isAtlasHome = path.startsWith(ATLAS_HOME_MOUNT_PREFIX)
+  if (isAtlasHome && args.roots.atlasHomeDir === undefined) {
+    return { path, state: EFileMountState.Failed, reason: 'no atlas home is mounted' }
+  }
+  const root = isAtlasHome
+    ? (args.roots.atlasHomeDir ?? args.roots.homeDir)
+    : isHome
+      ? args.roots.homeDir
+      : args.roots.repositoryDir
   if (root === null) return { path, state: EFileMountState.SkippedNoRepository }
+  const contents = mountedContents(args.mount)
   try {
     if (!isHome && !(await isWorkTree({ cwd: root, git: args.git }))) {
       return { path, state: EFileMountState.SkippedNoRepository }
@@ -170,11 +235,24 @@ export const mountProjectFiles = async (args: {
   mounts: readonly ScopedFileMount[]
   repositoryDir: string | null
   homeDir: string
+  atlasHomeDir?: string | undefined
+  managedPrefixes?: ManagedSkillPrefixes | undefined
   git?: FileMountGit | undefined
 }): Promise<FileMountReport> => {
   const git = args.git ?? bunGit
-  const roots = { repositoryDir: args.repositoryDir, homeDir: args.homeDir }
+  const roots = {
+    repositoryDir: args.repositoryDir,
+    homeDir: args.homeDir,
+    atlasHomeDir: args.atlasHomeDir,
+  }
   const outcomes: FileMountOutcome[] = []
   for (const mount of args.mounts) outcomes.push(await mountOne({ mount, roots, git }))
+  if (args.managedPrefixes !== undefined) {
+    sweepManagedDirectories({
+      mounts: args.mounts,
+      prefixes: args.managedPrefixes,
+      atlasHomeDir: args.atlasHomeDir,
+    })
+  }
   return { outcomes }
 }

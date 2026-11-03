@@ -6,7 +6,6 @@ import {
   FileCapabilitiesPort,
   FileSystemPort,
   IdPort,
-  LogPort,
   ProcessPort,
   ToolDefinition,
   type ThreadId,
@@ -78,6 +77,7 @@ import { WebSearchTool } from './builtin/web-search'
 import { WriteTool } from './builtin/write'
 import { WorktreeListTool } from './builtin/worktree-list'
 import { InMemoryToolRegistry, ToolRegistry } from './registry'
+import { LogPort } from '@dltech/atlas-observability'
 
 const relocationLog = (resolver: DependencyContainer): EventLogPort => {
   const log = resolver.resolve(registeredPortToken(EventLogPort))

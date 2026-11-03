@@ -3,9 +3,8 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'bun:test'
 
-import { logFieldsOf } from '@dltech/atlas-harness'
-
 import { durableOpLog } from '../durable-op-log'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
 describe('durableOpLog', () => {
   it('writes the boot failure to the home-level logs.jsonl with its stack', async () => {

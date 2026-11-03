@@ -4,7 +4,6 @@ import {
   type EventDraft,
   type EventLogPort,
   type IdPort,
-  type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -34,6 +33,7 @@ import { ShellEvents } from './registry-events'
 import { ShellLifecycle } from './registry-lifecycle'
 import { closeAllShells, detachAllShells, removeShells } from './registry-teardown'
 import { EShellStatus } from './background-shell'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export {
   ACTIVITY_NOTIFY_MS,
