@@ -158,12 +158,12 @@ sequenceDiagram
     W1->>PG: renew lease (TTL 30 s)
   end
   W1->>W1: model step (stream from provider)
-  W1-->>R: live tokens (v2:live)
+  W1-->>R: live tokens (atlas:session-live)
   W1->>PG: append [input-consumed 7, assistant-said, tool-called, tool-dispatched]
   Note over W1,PG: tool-dispatched must commit before the tool starts
   W1->>D: run(key = runId:callId, bootId)
   D->>D: write "running" to disk, then spawn bash in its own box
-  D-->>W1: output chunks (forwarded to v2:live)
+  D-->>W1: output chunks (forwarded to atlas:session-live)
   D->>D: write "done" + result to disk
   D-->>W1: result
   W1->>PG: append tool-result
@@ -314,7 +314,7 @@ one-minute reconcile task (safety net).
   retry after an unknown outcome is safe. Past TTL − 5 s without success the host self-fences
   (point 5). Any other refusal is a bug and fails the turn loudly.
 - **Live output** (token deltas, tool output as it streams) is not an event. The agent host
-  publishes it on Redis `v2:live:<sessionId>`. Slice 5 serves it to clients over SSE; slice 3
+  publishes it on Redis `atlas:session-live:<sessionId>`. Slice 5 serves it to clients over SSE; slice 3
   publishes it and tests that it arrives.
 
 **Alternative:** materialized per-step checkpoints on `V2Thread` (§12 L3) so a claim never reads
