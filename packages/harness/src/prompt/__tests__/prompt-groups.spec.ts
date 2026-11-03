@@ -14,10 +14,7 @@ import { registerBuiltinPromptFragments } from '../register-prompt-fragments'
 import { PromptRegistry } from '../registry'
 import { FakeSkillRegistry } from './fake-skills'
 
-const GROUPED_FRAGMENT_IDS: Record<
-  Exclude<EPromptGroup, EPromptGroup.Memory | EPromptGroup.OperatorInput>,
-  string
-> = {
+const GROUPED_FRAGMENT_IDS: Record<Exclude<EPromptGroup, EPromptGroup.Memory>, string> = {
   [EPromptGroup.Identity]: 'identity.atlas',
   [EPromptGroup.Delegation]: 'agents.delegation',
   [EPromptGroup.ContextFolder]: 'environment.context-folder',
