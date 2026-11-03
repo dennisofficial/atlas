@@ -54,11 +54,13 @@ describe('agentTypeRootPlan', () => {
       '/w/.atlas/agents',
       '/w/.agents/agents',
       '/w/.claude/agents',
+      '/h/.atlas/project-agents',
     ])
     expect(plan.map((root) => root.origin)).toEqual([
       EDefinitionOrigin.User,
       EDefinitionOrigin.User,
       EDefinitionOrigin.User,
+      EDefinitionOrigin.Project,
       EDefinitionOrigin.Project,
       EDefinitionOrigin.Project,
       EDefinitionOrigin.Project,
