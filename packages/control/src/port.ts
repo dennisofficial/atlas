@@ -1,5 +1,14 @@
 import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
 
+export type V2SessionRow = {
+  sessionId: string
+  userId: string
+  projectId: string
+  title: string | null
+  mainThreadId: string
+  createdAt: string
+}
+
 export type ThreadRow = {
   threadId: string
   sessionId: string
@@ -37,7 +46,22 @@ export class SeqConflictError extends Error {
 }
 
 export interface ControlTx {
-  createSession(params: { sessionId: string; at: string }): Promise<void>
+  now(): Promise<string>
+  createSession(params: {
+    sessionId: string
+    userId: string
+    projectId: string
+    title?: string | undefined
+    mainThreadId: string
+    at: string
+  }): Promise<void>
+  readSession(params: { sessionId: string }): Promise<V2SessionRow | undefined>
+  listSessions(params: {
+    userId: string
+    projectId?: string | undefined
+    limit: number
+  }): Promise<V2SessionRow[]>
+  sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]>
   createThread(params: {
     threadId: string
     sessionId: string

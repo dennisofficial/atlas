@@ -4,8 +4,9 @@ namespace v2 {
     sessionId String                @id
     epoch     Int
     holderId  String?
-    renewedAt TimestamptzJsDate(3)
-    ttlMs     Int
+    renewedAt   TimestamptzJsDate(3)
+    ttlMs       Int
+    wantsHolder Boolean               @default(false)
     session   V2Session             @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   }
 }

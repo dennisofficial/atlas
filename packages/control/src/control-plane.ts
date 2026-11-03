@@ -1,9 +1,5 @@
 import {
   acceptAppend,
-  grant,
-  isLive,
-  renew,
-  revoke,
   stepVisibility,
   takeBack,
   visibleSegments,
@@ -15,7 +11,8 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 
-import { LeaseConflictError, UnknownThreadError } from './errors'
+import { UnknownThreadError } from './errors'
+import { LeaseOps } from './lease-ops'
 import { parseAppendEvents } from './parse-append'
 import {
   ControlStorePort,
@@ -23,6 +20,7 @@ import {
   type ControlTx,
   type StoredEvent,
   type ThreadRow,
+  type V2SessionRow,
 } from './port'
 import { consumeInbox } from './consume-inbox'
 import { AppendAbort, type AppendOutcome, type ControlRefusal } from './refusal'
@@ -36,7 +34,7 @@ import {
 
 export const MAX_READ_LIMIT = 1000
 
-export type ControlPlaneParams = { store: ControlStorePort; clock: () => string }
+export type ControlPlaneParams = { store: ControlStorePort; clock?: (() => string) | undefined }
 
 export type ReadEventsPage = { events: V2Event[]; next?: number }
 
@@ -46,32 +44,67 @@ const clampLimit = (limit: number): number => Math.max(1, Math.min(limit, MAX_RE
 
 const headOf = (row: ThreadRow): LogHead => ({ seq: row.headSeq, hash: row.headHash })
 
-const initialLease = (params: { sessionId: string; now: string }): Lease => ({
-  sessionId: params.sessionId,
-  epoch: 0,
-  holderId: null,
-  renewedAt: params.now,
-  ttlMs: 0,
-})
-
 export class ControlPlane {
   private readonly store: ControlStorePort
-  private readonly clock: () => string
+  private readonly clock: (() => string) | undefined
+  private readonly leases: LeaseOps
 
   constructor(params: ControlPlaneParams) {
     this.store = params.store
     this.clock = params.clock
+    this.leases = new LeaseOps(params.store, (tx) => this.nowIn(tx))
   }
 
-  async createSession(params: { sessionId: string }): Promise<void> {
-    await this.store.transact((tx) =>
-      tx.createSession({ sessionId: params.sessionId, at: this.clock() }),
+  private async nowIn(tx: ControlTx): Promise<string> {
+    return this.clock?.() ?? (await tx.now())
+  }
+
+  async createSession(params: {
+    sessionId: string
+    userId: string
+    projectId: string
+    title?: string | undefined
+    mainThreadId: string
+  }): Promise<void> {
+    await this.store.transact(async (tx) => {
+      const at = await this.nowIn(tx)
+      await tx.createSession({ ...params, at })
+      await tx.createThread({
+        threadId: params.mainThreadId,
+        sessionId: params.sessionId,
+        visibility: EMPTY_VISIBILITY_TEXT,
+        at,
+      })
+    })
+  }
+
+  async readSession(params: { sessionId: string }): Promise<V2SessionRow | undefined> {
+    return this.store.transact((tx) => tx.readSession(params))
+  }
+
+  async listSessions(params: {
+    userId: string
+    projectId?: string | undefined
+    limit: number
+  }): Promise<V2SessionRow[]> {
+    return this.store.transact((tx) =>
+      tx.listSessions({ ...params, limit: clampLimit(params.limit) }),
+    )
+  }
+
+  async sessionsNeedingHolder(params: { limit: number }): Promise<string[]> {
+    return this.store.transact(async (tx) =>
+      tx.sessionsNeedingHolder({ now: await this.nowIn(tx), limit: clampLimit(params.limit) }),
     )
   }
 
   async createThread(params: { threadId: string; sessionId: string }): Promise<void> {
-    await this.store.transact((tx) =>
-      tx.createThread({ ...params, visibility: EMPTY_VISIBILITY_TEXT, at: this.clock() }),
+    await this.store.transact(async (tx) =>
+      tx.createThread({
+        ...params,
+        visibility: EMPTY_VISIBILITY_TEXT,
+        at: await this.nowIn(tx),
+      }),
     )
   }
 
@@ -144,7 +177,7 @@ export class ControlPlane {
         inboxId,
         kind: params.kind,
         payload: params.payload,
-        postedAt: this.clock(),
+        postedAt: await this.nowIn(tx),
         consumedSeq: null,
       })
       return { inboxId }
@@ -173,15 +206,7 @@ export class ControlPlane {
   }
 
   async grant(params: { sessionId: string; holderId: string; ttlMs: number }): Promise<Lease> {
-    const result = await this.mutateLease({
-      sessionId: params.sessionId,
-      decide: (lease, now) => ({
-        ok: true,
-        lease: grant({ lease, holderId: params.holderId, ttlMs: params.ttlMs, now }),
-      }),
-    })
-    if (!result.ok) throw new LeaseConflictError(params.sessionId)
-    return result.lease
+    return this.leases.grant(params)
   }
 
   async renew(params: {
@@ -189,44 +214,15 @@ export class ControlPlane {
     holderId: string
     epoch: number
   }): Promise<LeaseResult> {
-    return this.mutateLease({
-      sessionId: params.sessionId,
-      decide: (lease, now) => renew({ lease, holderId: params.holderId, epoch: params.epoch, now }),
-    })
+    return this.leases.renew(params)
   }
 
-  async revoke(params: { sessionId: string }): Promise<Lease> {
-    const result = await this.mutateLease({
-      sessionId: params.sessionId,
-      decide: (lease, now) => ({ ok: true, lease: revoke({ lease, now }) }),
-    })
-    if (!result.ok) throw new LeaseConflictError(params.sessionId)
-    return result.lease
+  async revoke(params: { sessionId: string; wantsHolder: boolean }): Promise<Lease> {
+    return this.leases.revoke(params)
   }
 
   async currentLease(params: { sessionId: string }): Promise<{ lease: Lease; live: boolean }> {
-    const now = this.clock()
-    const lease = await this.store.transact((tx) => this.leaseOf({ tx, ...params, now }))
-    return { lease, live: isLive({ lease, now }) }
-  }
-
-  private async leaseOf(params: { tx: ControlTx; sessionId: string; now: string }): Promise<Lease> {
-    return (await params.tx.readLease(params.sessionId)) ?? initialLease(params)
-  }
-
-  private async mutateLease(params: {
-    sessionId: string
-    decide: (lease: Lease, now: string) => LeaseResult
-  }): Promise<LeaseResult> {
-    const now = this.clock()
-    return this.store.transact(async (tx) => {
-      const lease = await this.leaseOf({ tx, sessionId: params.sessionId, now })
-      const result = params.decide(lease, now)
-      if (!result.ok) return result
-      const written = await tx.writeLease({ lease: result.lease, expectedEpoch: lease.epoch })
-      if (!written) throw new LeaseConflictError(params.sessionId)
-      return result
-    })
+    return this.leases.currentLease(params)
   }
 
   private async requireThread(params: { tx: ControlTx; threadId: string }): Promise<ThreadRow> {
@@ -250,8 +246,8 @@ export class ControlPlane {
       refusal,
       head,
     })
-    const now = this.clock()
-    const lease = await this.leaseOf({ tx, sessionId: row.sessionId, now })
+    const now = await this.nowIn(tx)
+    const lease = await this.leases.leaseOf({ tx, sessionId: row.sessionId, now })
     const parsed = parseAppendEvents({
       threadId: params.threadId,
       nextSeq: head.seq + 1,

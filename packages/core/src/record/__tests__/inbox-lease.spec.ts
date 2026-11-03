@@ -51,26 +51,36 @@ describe('inbox moves', () => {
 })
 
 describe('lease moves', () => {
-  it('grant bumps the epoch and installs the holder', () => {
+  it('grant bumps the epoch, installs the holder and clears wantsHolder', () => {
     fc.assert(
       fc.property(
         fc.nat(1000),
         fc.string({ minLength: 1 }),
         fc.integer({ min: 1, max: 1e6 }),
-        (epoch, holderId, ttlMs) => {
-          const next = grant({ lease: lease({ epoch }), holderId, ttlMs, now: NOW })
-          expect(next).toMatchObject({ epoch: epoch + 1, holderId, ttlMs, renewedAt: NOW })
+        fc.boolean(),
+        (epoch, holderId, ttlMs, wantsHolder) => {
+          const next = grant({ lease: lease({ epoch, wantsHolder }), holderId, ttlMs, now: NOW })
+          expect(next).toMatchObject({
+            epoch: epoch + 1,
+            holderId,
+            ttlMs,
+            renewedAt: NOW,
+            wantsHolder: false,
+          })
           expect(isLive({ lease: next, now: NOW })).toBe(true)
         },
       ),
     )
   })
 
-  it('revoke bumps the epoch and clears the holder, never live', () => {
-    const next = revoke({ lease: lease(), now: NOW })
-    expect(next.epoch).toBe(4)
-    expect(next.holderId).toBeNull()
-    expect(isLive({ lease: next, now: NOW })).toBe(false)
+  it('revoke bumps the epoch, clears the holder and records wantsHolder, never live', () => {
+    const drained = revoke({ lease: lease(), wantsHolder: true, now: NOW })
+    expect(drained.epoch).toBe(4)
+    expect(drained.holderId).toBeNull()
+    expect(drained.wantsHolder).toBe(true)
+    expect(isLive({ lease: drained, now: NOW })).toBe(false)
+    const released = revoke({ lease: lease({ wantsHolder: true }), wantsHolder: false, now: NOW })
+    expect(released.wantsHolder).toBe(false)
   })
 
   it('isLive flips exactly at renewedAt + ttlMs', () => {

@@ -8,6 +8,7 @@ import {
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
+  type V2SessionRow,
 } from '../port'
 
 const iso = (value: Date): string => value.toISOString()
@@ -24,12 +25,87 @@ const toInbox = (row: {
 class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
 
-  async createSession(params: { sessionId: string; at: string }): Promise<void> {
+  async now(): Promise<string> {
+    const [row] = await this.tx.query(
+      this.tx.raw.sql`SELECT now() AS "at"`.returnsRow({ at: 'pg/timestamptz-date@1' }).build(),
+    )
+    if (row === undefined) throw new Error('database returned no clock reading')
+    return row.at.toISOString()
+  }
+
+  async createSession(params: {
+    sessionId: string
+    userId: string
+    projectId: string
+    title?: string | undefined
+    mainThreadId: string
+    at: string
+  }): Promise<void> {
     await this.tx.orm.v2.V2Session.create({
       id: params.sessionId,
+      userId: params.userId,
+      projectId: params.projectId,
+      title: params.title ?? null,
+      mainThreadId: params.mainThreadId,
       nextInboxId: 1,
       createdAt: new Date(params.at),
     })
+  }
+
+  async readSession(params: { sessionId: string }): Promise<V2SessionRow | undefined> {
+    const row = await this.tx.orm.v2.V2Session.first({ id: params.sessionId })
+    return row === null ? undefined : this.toSessionRow(row)
+  }
+
+  async listSessions(params: {
+    userId: string
+    projectId?: string | undefined
+    limit: number
+  }): Promise<V2SessionRow[]> {
+    const where =
+      params.projectId === undefined
+        ? { userId: params.userId }
+        : { userId: params.userId, projectId: params.projectId }
+    const rows = await this.tx.orm.v2.V2Session.where(where)
+      .orderBy((s) => s.createdAt.desc())
+      .limit(params.limit)
+      .all()
+    return rows.map((row) => this.toSessionRow(row))
+  }
+
+  private toSessionRow(row: {
+    id: string
+    userId: string
+    projectId: string
+    title: string | null
+    mainThreadId: string
+    createdAt: Date
+  }): V2SessionRow {
+    return {
+      sessionId: row.id,
+      userId: row.userId,
+      projectId: row.projectId,
+      title: row.title,
+      mainThreadId: row.mainThreadId,
+      createdAt: iso(row.createdAt),
+    }
+  }
+
+  async sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]> {
+    const rows = await this.tx.query(
+      this.tx.raw.sql`SELECT s."id" FROM "v2"."V2Session" s
+        LEFT JOIN "v2"."V2Lease" l ON l."sessionId" = s."id"
+        WHERE (l."sessionId" IS NULL OR l."holderId" IS NULL
+            OR l."renewedAt" + make_interval(secs => l."ttlMs" / 1000.0) <= ${params.now}::timestamptz)
+          AND (l."holderId" IS NOT NULL OR l."wantsHolder"
+            OR EXISTS (SELECT 1 FROM "v2"."V2InboxEntry" i
+              WHERE i."sessionId" = s."id" AND i."consumedSeq" IS NULL))
+        ORDER BY s."createdAt" ASC, s."id" ASC
+        LIMIT ${params.limit}`
+        .returnsRow({ id: 'pg/text@1' })
+        .build(),
+    )
+    return rows.map((row) => row.id)
   }
 
   async createThread(params: {
@@ -140,6 +216,7 @@ class PostgresTx implements ControlTx {
       holderId: lease.holderId,
       renewedAt: new Date(lease.renewedAt),
       ttlMs: lease.ttlMs,
+      wantsHolder: lease.wantsHolder,
     }
     if (existing === null) {
       if (params.expectedEpoch !== 0) return false

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'083160e4eedef6a7f27b947e55e638fbfdf83d71400630227fde2da17b5597ce'>;
+  StorageHashBase<'96a58c74578fef8a57dbe2a85eb50c8851a3f9bc932a4544d63fbae1ac520785'>;
 export type ExecutionHash =
   ExecutionHashBase<'f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f'>;
 export type ProfileHash =
@@ -1052,13 +1052,18 @@ export namespace Models {
     renewedAt: FieldOutputTypes['v2']['V2Lease']['renewedAt'];
     sessionId: FieldOutputTypes['v2']['V2Lease']['sessionId'];
     ttlMs: FieldOutputTypes['v2']['V2Lease']['ttlMs'];
+    wantsHolder: FieldOutputTypes['v2']['V2Lease']['wantsHolder'];
     session: v2_V2Session;
     readonly [RelationKeys]?: 'session';
   };
   export type v2_V2Session = {
     createdAt: FieldOutputTypes['v2']['V2Session']['createdAt'];
     id: FieldOutputTypes['v2']['V2Session']['id'];
+    mainThreadId: FieldOutputTypes['v2']['V2Session']['mainThreadId'];
     nextInboxId: FieldOutputTypes['v2']['V2Session']['nextInboxId'];
+    projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
+    title: FieldOutputTypes['v2']['V2Session']['title'];
+    userId: FieldOutputTypes['v2']['V2Session']['userId'];
     inbox: v2_V2InboxEntry[];
     lease: v2_V2Lease | null;
     threads: v2_V2Thread[];
@@ -5769,7 +5774,14 @@ type ContractBase = Omit<
                 readonly name: 'V2InboxEntry_pkey';
               };
               uniques: readonly [];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'V2InboxEntry_consumedSeq_sessionId_idx_58d8d6fc';
+                  readonly prefix: 'V2InboxEntry_consumedSeq_sessionId_idx';
+                  readonly columns: readonly ['consumedSeq', 'sessionId'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -5818,6 +5830,16 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly wantsHolder: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                  readonly many: false;
+                };
               };
               primaryKey: { readonly columns: readonly ['sessionId'] };
               uniques: readonly [];
@@ -5852,16 +5874,47 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly mainThreadId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
                 readonly nextInboxId: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly projectId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly title: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'V2Session_userId_createdAt_idx_f726f04a';
+                  readonly prefix: 'V2Session_userId_createdAt_idx';
+                  readonly columns: readonly ['userId', 'createdAt'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [];
             };
             readonly V2Thread: {
@@ -10696,6 +10749,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly wantsHolder: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
             };
             readonly relations: {
               readonly session: {
@@ -10720,6 +10777,7 @@ type ContractBase = Omit<
                 readonly renewedAt: { readonly column: 'renewedAt' };
                 readonly sessionId: { readonly column: 'sessionId' };
                 readonly ttlMs: { readonly column: 'ttlMs' };
+                readonly wantsHolder: { readonly column: 'wantsHolder' };
               };
             };
           };
@@ -10737,9 +10795,25 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly mainThreadId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly nextInboxId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly projectId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly title: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
             };
             readonly relations: {
@@ -10778,7 +10852,11 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly id: { readonly column: 'id' };
+                readonly mainThreadId: { readonly column: 'mainThreadId' };
                 readonly nextInboxId: { readonly column: 'nextInboxId' };
+                readonly projectId: { readonly column: 'projectId' };
+                readonly title: { readonly column: 'title' };
+                readonly userId: { readonly column: 'userId' };
               };
             };
           };

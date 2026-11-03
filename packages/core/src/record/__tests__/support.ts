@@ -14,6 +14,7 @@ export const lease = (overrides: Partial<Lease> = {}): Lease => ({
   holderId: 'pod-a',
   renewedAt: NOW,
   ttlMs: 30_000,
+  wantsHolder: false,
   ...overrides,
 })
 

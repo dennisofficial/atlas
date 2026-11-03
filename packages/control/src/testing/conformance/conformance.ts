@@ -8,11 +8,15 @@ import {
   HOLDER,
   makeHarness,
   mint,
+  PROJECT,
   readAll,
   said,
   seedGranted,
   SESSION,
+  T0,
   THREAD,
+  USER,
+  createSessionParams,
   type Harness,
 } from './support'
 
@@ -82,8 +86,9 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
     })
 
     it('refuses an append on a session with no lease row', async () => {
-      await harness.plane.createSession({ sessionId: 'bare' })
-      await harness.plane.createThread({ threadId: 'bare-thread', sessionId: 'bare' })
+      await harness.plane.createSession(
+        createSessionParams({ sessionId: 'bare', mainThreadId: 'bare-thread' }),
+      )
       const outcome = await harness.plane.append({ threadId: 'bare-thread', epoch: 0, events: [] })
       expect(outcome).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch', current: 0 } })
     })
@@ -106,8 +111,8 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       )
       harness.setNow('2026-11-02T12:01:20.000Z')
       expect((await harness.plane.currentLease({ sessionId: SESSION })).live).toBe(true)
-      const revoked = await harness.plane.revoke({ sessionId: SESSION })
-      expect(revoked).toMatchObject({ epoch: epoch + 1, holderId: null })
+      const revoked = await harness.plane.revoke({ sessionId: SESSION, wantsHolder: false })
+      expect(revoked).toMatchObject({ epoch: epoch + 1, holderId: null, wantsHolder: false })
     })
 
     it('refuses a tampered or skipped event with hash-mismatch', async () => {
@@ -203,7 +208,9 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
     it('concurrent first grants on one session fail only with LeaseConflictError', async () => {
       for (let round = 0; round < 5; round += 1) {
         const sessionId = `race-${round}`
-        await harness.plane.createSession({ sessionId })
+        await harness.plane.createSession(
+          createSessionParams({ sessionId, mainThreadId: `race-thread-${round}` }),
+        )
         const settled = await Promise.allSettled(
           Array.from({ length: 8 }, (_, i) =>
             harness.plane.grant({ sessionId, holderId: `pod-${i}`, ttlMs: 60_000 }),

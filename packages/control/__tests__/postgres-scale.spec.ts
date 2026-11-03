@@ -27,8 +27,12 @@ describe.skipIf(!enabled)('postgres scale (ATLAS_SCALE_TESTS=1)', () => {
       store: new PostgresControlStore(db),
       clock: () => new Date().toISOString(),
     })
-    await plane.createSession({ sessionId: SESSION })
-    await plane.createThread({ threadId: THREAD, sessionId: SESSION })
+    await plane.createSession({
+      sessionId: SESSION,
+      userId: 'user-1',
+      projectId: 'project-1',
+      mainThreadId: THREAD,
+    })
     const { epoch } = await plane.grant({ sessionId: SESSION, holderId: 'pod', ttlMs: 3_600_000 })
 
     const timedAppend = async (): Promise<number> => {
