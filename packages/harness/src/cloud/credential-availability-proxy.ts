@@ -13,6 +13,7 @@ import {
 
 import { cloudClientFor } from './cloud-client'
 import type { CloudSession } from './cloud-session'
+import { CloudError, isCloudUnavailable } from './cloud-transport'
 import { RemoteCredentialAvailability } from './remote-credential-availability'
 
 export class RemoteSettlementUnreachableError extends Error {
@@ -21,6 +22,9 @@ export class RemoteSettlementUnreachableError extends Error {
     this.name = 'RemoteSettlementUnreachableError'
   }
 }
+
+const isUnreachable = (error: unknown): boolean =>
+  isCloudUnavailable(error) || (error instanceof CloudError && error.status === 429)
 
 export class CredentialAvailabilityProxy extends CredentialAvailabilityPort {
   private readonly local: CredentialAvailabilityPort
@@ -46,8 +50,17 @@ export class CredentialAvailabilityProxy extends CredentialAvailabilityPort {
     return this.current().inspect(args)
   }
 
-  admit(args: { key: AvailabilityKey; revision: CredentialRevision }): Promise<AdmissionDecision> {
-    return this.current().admit(args)
+  async admit(args: {
+    key: AvailabilityKey
+    revision: CredentialRevision
+  }): Promise<AdmissionDecision> {
+    const authority = this.current()
+    try {
+      return await authority.admit(args)
+    } catch (error) {
+      if (authority === this.local || !isUnreachable(error)) throw error
+      return this.local.admit(args)
+    }
   }
 
   async promoteProbe(args: {
