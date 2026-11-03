@@ -17,8 +17,10 @@ import {
 import { SplashOverlay } from '../splash/splash-overlay'
 import { fontAssets } from '../theme/fonts'
 import { navigationThemeOf } from '../theme/navigation-theme'
+import { installWebReset } from '../theme/web-reset'
 
 installNotificationHandler()
+installWebReset()
 void SplashScreen.preventAutoHideAsync()
 
 const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {

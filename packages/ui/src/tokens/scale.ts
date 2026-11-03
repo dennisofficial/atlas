@@ -10,6 +10,7 @@ export enum ETextRole {
   Base = 'base',
   Lg = 'lg',
   Xl = 'xl',
+  Xxl = '2xl',
   Display = 'display',
 }
 
@@ -19,6 +20,7 @@ export const typeScale = {
   [ETextRole.Base]: { fontSize: 16, lineHeight: 24 },
   [ETextRole.Lg]: { fontSize: 18, lineHeight: 28 },
   [ETextRole.Xl]: { fontSize: 20, lineHeight: 28 },
+  [ETextRole.Xxl]: { fontSize: 24, lineHeight: 32 },
   [ETextRole.Display]: { fontSize: 28, lineHeight: 34 },
 } as const satisfies Record<ETextRole, { fontSize: number; lineHeight: number }>
 

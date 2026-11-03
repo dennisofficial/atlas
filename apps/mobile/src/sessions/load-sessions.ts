@@ -14,7 +14,7 @@ export const loadSessions = async ({
     projects.map((project) => api.threads.list.query({ projectId: project.id, limit: 50 })),
   )
   return partitionSessions({
-    projects: projects.map(({ id, name }) => ({ id, name })),
+    projects: projects.map(({ id, name, createdAt }) => ({ id, name, createdAt })),
     threads: lists.flat(),
     now,
   })

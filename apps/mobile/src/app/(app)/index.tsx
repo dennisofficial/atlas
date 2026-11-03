@@ -6,8 +6,8 @@ import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from
 
 import { SearchField } from '../../sessions/search-field'
 import { SectionHeader } from '../../sessions/section-header'
-import { SessionRow } from '../../sessions/session-row'
-import { sectionsOf } from '../../sessions/session-sections'
+import { BucketProjectLabel, SessionRow } from '../../sessions/session-row'
+import { EItemKind, sectionsOf } from '../../sessions/session-sections'
 import { ELoadState, useSessions } from '../../sessions/use-sessions'
 
 const EmptyState = ({ searching }: { searching: boolean }) => (
@@ -68,7 +68,7 @@ export default function SessionsScreen() {
       contentContainerStyle={styles.list}
       keyboardDismissMode="on-drag"
       sections={sections}
-      keyExtractor={(entry) => entry.id}
+      keyExtractor={(item) => item.key}
       stickySectionHeadersEnabled={false}
       ListHeaderComponent={<SearchField value={query} onChangeText={setQuery} />}
       ListFooterComponent={
@@ -84,13 +84,17 @@ export default function SessionsScreen() {
       renderSectionHeader={({ section }) => (
         <SectionHeader section={section} onToggle={handleToggle} onNewSession={handleNewSession} />
       )}
-      renderItem={({ item }) => (
-        <SessionRow
-          entry={item}
-          now={now}
-          onPress={() => router.push({ pathname: '/thread/[id]', params: { id: item.id } })}
-        />
-      )}
+      renderItem={({ item }) =>
+        item.kind === EItemKind.ProjectLabel ? (
+          <BucketProjectLabel name={item.name} />
+        ) : (
+          <SessionRow
+            entry={item.entry}
+            now={now}
+            onPress={() => router.push({ pathname: '/thread/[id]', params: { id: item.entry.id } })}
+          />
+        )
+      }
     />
   )
 }
@@ -106,6 +110,7 @@ const styles = StyleSheet.create({
   list: {
     gap: space(0.5),
     padding: space(2),
+    paddingTop: space(3),
     paddingBottom: space(8),
   },
   empty: {

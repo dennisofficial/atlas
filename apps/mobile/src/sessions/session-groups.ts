@@ -3,6 +3,8 @@ import type { WireThread } from '@dltech/atlas-wire/web'
 import { type ESessionStatus, isUnread, sessionStatusOf } from './session-status'
 
 export const INACTIVE_AFTER_MS = 72 * 60 * 60 * 1000
+export const NO_PROJECT_KEY = '__no-project__'
+export const NO_PROJECT_NAME = 'No project'
 
 export enum EPullRequestState {
   Open = 'open',
@@ -23,14 +25,16 @@ export type SessionWork =
 export interface IProjectSummary {
   id: string
   name: string
+  createdAt: string
 }
 
 export interface ISessionEntry {
   id: string
   title: string
-  projectId: string
   projectName: string
+  createdAt: string
   updatedAt: string
+  pinned: boolean
   status: ESessionStatus
   unread: boolean
   work: SessionWork
@@ -39,13 +43,14 @@ export interface ISessionEntry {
 export interface IProjectGroup {
   key: string
   name: string
+  projectId: string | null
   sessions: ISessionEntry[]
 }
 
 export interface ISessionPartition {
   groups: IProjectGroup[]
-  inactive: ISessionEntry[]
-  archived: ISessionEntry[]
+  inactive: IProjectGroup[]
+  archived: IProjectGroup[]
 }
 
 enum EBucket {
@@ -64,7 +69,9 @@ const timeOf = (stamp: string): number => {
 const bucketOf = ({ thread, now }: { thread: WireThread; now: number }): EBucket => {
   if (isSet(thread.archivedAt)) return EBucket.Archived
   if (isSet(thread.pinnedAt)) return EBucket.Active
-  return now - timeOf(thread.updatedAt) > INACTIVE_AFTER_MS ? EBucket.Inactive : EBucket.Active
+  const updatedAt = Date.parse(thread.updatedAt)
+  if (Number.isNaN(updatedAt)) return EBucket.Active
+  return now - updatedAt > INACTIVE_AFTER_MS ? EBucket.Inactive : EBucket.Active
 }
 
 const pullRequestStateOf = (state: string | undefined): EPullRequestState => {
@@ -75,10 +82,13 @@ const pullRequestStateOf = (state: string | undefined): EPullRequestState => {
   return EPullRequestState.Open
 }
 
+type PullRequest = NonNullable<WireThread['pullRequests']>[number]
+
 const workOf = (thread: WireThread): SessionWork => {
-  const latest = (thread.pullRequests ?? []).reduce<
-    NonNullable<WireThread['pullRequests']>[number] | undefined
-  >((best, entry) => (best === undefined || entry.number > best.number ? entry : best), undefined)
+  const latest = (thread.pullRequests ?? []).reduce<PullRequest | undefined>(
+    (best, entry) => (best === undefined || entry.number > best.number ? entry : best),
+    undefined,
+  )
   if (latest !== undefined) {
     return {
       kind: EWorkKind.PullRequest,
@@ -97,25 +107,27 @@ const isMainSession = (thread: WireThread): boolean =>
 
 export const toSessionEntry = ({
   thread,
-  project,
+  projectName,
 }: {
   thread: WireThread
-  project: IProjectSummary
+  projectName: string
 }): ISessionEntry => ({
   id: thread.id,
   title: thread.title === undefined || thread.title.length === 0 ? 'Untitled' : thread.title,
-  projectId: project.id,
-  projectName: project.name,
+  projectName,
+  createdAt: thread.createdAt,
   updatedAt: thread.updatedAt,
+  pinned: isSet(thread.pinnedAt),
   status: sessionStatusOf(thread),
   unread: isUnread(thread),
   work: workOf(thread),
 })
 
-const byRecency = (left: ISessionEntry, right: ISessionEntry): number =>
-  timeOf(right.updatedAt) - timeOf(left.updatedAt)
-
-const latestOf = (group: IProjectGroup): number => timeOf(group.sessions[0]?.updatedAt ?? '')
+export const sortSessions = (sessions: readonly ISessionEntry[]): ISessionEntry[] =>
+  [...sessions].sort((left, right) => {
+    const pinned = Number(right.pinned) - Number(left.pinned)
+    return pinned !== 0 ? pinned : timeOf(left.createdAt) - timeOf(right.createdAt)
+  })
 
 export const partitionSessions = ({
   projects,
@@ -126,29 +138,41 @@ export const partitionSessions = ({
   threads: readonly WireThread[]
   now: number
 }): ISessionPartition => {
-  const projectOf = new Map(projects.map((project) => [project.id, project]))
-  const active = new Map<string, ISessionEntry[]>(projects.map((project) => [project.id, []]))
-  const inactive: ISessionEntry[] = []
-  const archived: ISessionEntry[] = []
-  for (const thread of threads.filter(isMainSession)) {
-    const project = projectOf.get(thread.projectId ?? '')
-    if (project === undefined) continue
-    const entry = toSessionEntry({ thread, project })
-    const bucket = bucketOf({ thread, now })
-    if (bucket === EBucket.Archived) archived.push(entry)
-    else if (bucket === EBucket.Inactive) inactive.push(entry)
-    else active.get(project.id)?.push(entry)
+  const ordered = [...projects].sort(
+    (left, right) => timeOf(left.createdAt) - timeOf(right.createdAt),
+  )
+  const nameOf = new Map(ordered.map((project) => [project.id, project.name]))
+  const buckets: Record<EBucket, Map<string, ISessionEntry[]>> = {
+    [EBucket.Active]: new Map(),
+    [EBucket.Inactive]: new Map(),
+    [EBucket.Archived]: new Map(),
   }
-  const groups = projects.map((project) => ({
-    key: project.id,
-    name: project.name,
-    sessions: (active.get(project.id) ?? []).sort(byRecency),
-  }))
-  const withSessions = groups.filter((group) => group.sessions.length > 0)
-  const empty = groups.filter((group) => group.sessions.length === 0)
+  for (const thread of threads.filter(isMainSession)) {
+    const projectId = thread.projectId ?? null
+    const projectName = projectId === null ? NO_PROJECT_NAME : nameOf.get(projectId)
+    if (projectName === undefined) continue
+    const key = projectId ?? NO_PROJECT_KEY
+    const bucket = buckets[bucketOf({ thread, now })]
+    bucket.set(key, [...(bucket.get(key) ?? []), toSessionEntry({ thread, projectName })])
+  }
+  const groupsOf = (bucket: EBucket): IProjectGroup[] => [
+    ...ordered.map((project) => ({
+      key: project.id,
+      name: project.name,
+      projectId: project.id,
+      sessions: sortSessions(buckets[bucket].get(project.id) ?? []),
+    })),
+    {
+      key: NO_PROJECT_KEY,
+      name: NO_PROJECT_NAME,
+      projectId: null,
+      sessions: sortSessions(buckets[bucket].get(NO_PROJECT_KEY) ?? []),
+    },
+  ]
+  const nonEmpty = (group: IProjectGroup) => group.sessions.length > 0
   return {
-    groups: [...withSessions.sort((left, right) => latestOf(right) - latestOf(left)), ...empty],
-    inactive: inactive.sort(byRecency),
-    archived: archived.sort(byRecency),
+    groups: groupsOf(EBucket.Active).filter((group) => group.projectId !== null || nonEmpty(group)),
+    inactive: groupsOf(EBucket.Inactive).filter(nonEmpty),
+    archived: groupsOf(EBucket.Archived).filter(nonEmpty),
   }
 }

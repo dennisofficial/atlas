@@ -20,7 +20,7 @@ export default (): ExpoConfig => ({
     usesAppleSignIn: true,
   },
   web: {
-    output: 'server',
+    output: 'single',
     favicon: './assets/images/favicon.png',
   },
   plugins: [

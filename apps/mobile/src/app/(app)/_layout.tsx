@@ -74,7 +74,8 @@ const AppStack = () => {
                 <Button
                   label="New session"
                   icon={Plus}
-                  size={EButtonSize.IconSm}
+                  variant={EButtonVariant.Ghost}
+                  size={EButtonSize.IconLg}
                   onPress={() => router.push('/new')}
                 />
               }

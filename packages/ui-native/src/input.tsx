@@ -8,25 +8,28 @@ import { useIsDark, useTheme } from './use-theme'
 
 export interface IInputProps extends TextInputProps {
   bare?: boolean
+  large?: boolean
 }
 
 export type InputRef = ComponentRef<typeof TextInput>
 
 export const Input = forwardRef<InputRef, IInputProps>(
-  ({ bare = false, multiline, style, onFocus, onBlur, ...props }, ref) => {
+  ({ bare = false, large = false, multiline, style, onFocus, onBlur, ...props }, ref) => {
     const theme = useTheme()
     const dark = useIsDark()
     const [focused, setFocused] = useState(false)
     const frame = bare
-      ? { outlineWidth: 0 }
+      ? { outlineWidth: 0, outlineColor: 'transparent' }
       : {
           borderWidth: 1,
           borderRadius: radius(1),
           borderColor: focused ? theme.ring : theme.input,
           backgroundColor: dark ? withAlpha({ color: theme.input, alpha: 0.3 }) : 'transparent',
           paddingHorizontal: space(2.5),
-          paddingVertical: multiline === true ? space(2) : space(1),
-          minHeight: multiline === true ? 64 : 32,
+          paddingVertical: multiline === true ? space(2) : 0,
+          ...(multiline === true ? { minHeight: 64 } : { height: large ? 36 : 32 }),
+          outlineWidth: 0,
+          outlineColor: 'transparent',
         }
     return (
       <TextInput

@@ -1,5 +1,6 @@
-import { EFontFamily, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import { EFontFamily, ETextRole, ETextTone, Icon, Text, useTheme } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
+import { Pin } from 'lucide-react-native'
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import { relativeTime } from '../lib/relative-time'
@@ -31,6 +32,7 @@ export const SessionRow = ({
         <Text size={ETextRole.Sm} numberOfLines={1} style={styles.title}>
           {entry.title}
         </Text>
+        {entry.pinned ? <Icon icon={Pin} color={theme.mutedForeground} size={12} /> : null}
       </View>
       <View style={styles.secondary}>
         <WorkSummary work={entry.work} />
@@ -41,6 +43,12 @@ export const SessionRow = ({
     </Pressable>
   )
 }
+
+export const BucketProjectLabel = ({ name }: { name: string }) => (
+  <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1} style={styles.projectLabel}>
+    {name}
+  </Text>
+)
 
 const styles = StyleSheet.create({
   row: {
@@ -61,5 +69,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space(1.5),
     marginTop: space(1),
+  },
+  projectLabel: {
+    paddingHorizontal: space(2),
+    paddingTop: space(1),
   },
 })

@@ -6,6 +6,7 @@ import {
   EPullRequestState,
   EWorkKind,
   INACTIVE_AFTER_MS,
+  NO_PROJECT_NAME,
   partitionSessions,
 } from '../session-groups'
 import { ESessionStatus, isUnread, sessionStatusOf } from '../session-status'
@@ -24,44 +25,59 @@ const threadOf = (overrides: Partial<WireThread> & { id: string }): WireThread =
 })
 
 const projects = [
-  { id: 'atlas', name: 'atlas' },
-  { id: 'neo', name: 'comp-neo' },
-  { id: 'rcp', name: 'RCP' },
+  { id: 'neo', name: 'comp-neo', createdAt: hoursAgo(500) },
+  { id: 'atlas', name: 'atlas', createdAt: hoursAgo(900) },
+  { id: 'rcp', name: 'RCP', createdAt: hoursAgo(100) },
 ]
 
 describe('partitionSessions', () => {
-  it('groups active sessions by project, most recently active project first', () => {
+  it('orders projects by creation and sessions pinned-first then oldest-created first', () => {
     const partition = partitionSessions({
       projects,
       now: NOW,
       threads: [
-        threadOf({ id: 'a1', title: 'Older', updatedAt: hoursAgo(5) }),
-        threadOf({ id: 'a2', title: 'Newer', updatedAt: hoursAgo(2) }),
-        threadOf({ id: 'n1', projectId: 'neo', updatedAt: hoursAgo(1) }),
+        threadOf({ id: 'late', createdAt: hoursAgo(5) }),
+        threadOf({ id: 'early', createdAt: hoursAgo(50) }),
+        threadOf({ id: 'pinned', createdAt: hoursAgo(2), pinnedAt: hoursAgo(1) }),
+        threadOf({ id: 'neo', projectId: 'neo' }),
       ],
     })
-    expect(partition.groups.map((group) => group.name)).toEqual(['comp-neo', 'atlas', 'RCP'])
-    expect(partition.groups[1]?.sessions.map((session) => session.title)).toEqual([
-      'Newer',
-      'Older',
+    expect(partition.groups.map((group) => group.name)).toEqual(['atlas', 'comp-neo', 'RCP'])
+    expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual([
+      'pinned',
+      'early',
+      'late',
     ])
     expect(partition.groups[2]?.sessions).toEqual([])
   })
 
-  it('moves stale sessions to inactive unless pinned, and archived ones to archived', () => {
+  it('shows a No project group only when it has sessions', () => {
+    const empty = partitionSessions({ projects, now: NOW, threads: [] })
+    expect(empty.groups.some((group) => group.projectId === null)).toBe(false)
+    const loose = partitionSessions({
+      projects,
+      now: NOW,
+      threads: [threadOf({ id: 'loose', projectId: null })],
+    })
+    expect(loose.groups.at(-1)).toMatchObject({ name: NO_PROJECT_NAME, projectId: null })
+  })
+
+  it('splits stale and archived sessions into per-project buckets', () => {
     const stale = (INACTIVE_AFTER_MS + 3_600_000) / 3_600_000
     const partition = partitionSessions({
       projects,
       now: NOW,
       threads: [
         threadOf({ id: 'stale', updatedAt: hoursAgo(stale) }),
-        threadOf({ id: 'pinned', updatedAt: hoursAgo(stale), pinnedAt: hoursAgo(200) }),
-        threadOf({ id: 'gone', archivedAt: hoursAgo(1) }),
+        threadOf({ id: 'kept', updatedAt: hoursAgo(stale), pinnedAt: hoursAgo(200) }),
+        threadOf({ id: 'gone', projectId: 'neo', archivedAt: hoursAgo(1) }),
       ],
     })
-    expect(partition.inactive.map((session) => session.id)).toEqual(['stale'])
-    expect(partition.archived.map((session) => session.id)).toEqual(['gone'])
-    expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['pinned'])
+    expect(
+      partition.inactive.map((group) => [group.name, group.sessions.map((s) => s.id)]),
+    ).toEqual([['atlas', ['stale']]])
+    expect(partition.archived.map((group) => group.name)).toEqual(['comp-neo'])
+    expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['kept'])
   })
 
   it('drops sub-agent threads and threads of unknown projects', () => {
@@ -104,7 +120,7 @@ describe('partitionSessions', () => {
   })
 })
 
-describe('sessionStatusOf', () => {
+describe('session status', () => {
   const status = (
     overrides: Partial<NonNullable<WireThread['status']>>,
   ): NonNullable<WireThread['status']> => ({
@@ -116,42 +132,29 @@ describe('sessionStatusOf', () => {
     readSeq: null,
     ...overrides,
   })
+  const of = (value: NonNullable<WireThread['status']>) => threadOf({ id: 't', status: value })
 
   it('ranks awaiting over working over pod state', () => {
-    const of = (value: NonNullable<WireThread['status']>) =>
-      sessionStatusOf(threadOf({ id: 't', status: value }))
-    expect(of(status({ awaiting: 'input', working: true }))).toBe(ESessionStatus.Awaiting)
-    expect(of(status({ working: true, podState: 'booting' }))).toBe(ESessionStatus.Running)
-    expect(of(status({ podState: 'booting' }))).toBe(ESessionStatus.Starting)
-    expect(of(status({ lastOutcome: 'failed' }))).toBe(ESessionStatus.Failed)
-    expect(of(status({ podState: 'parked' }))).toBe(ESessionStatus.Parked)
-    expect(of(status({}))).toBe(ESessionStatus.Idle)
+    expect(sessionStatusOf(of(status({ awaiting: 'input', working: true })))).toBe(
+      ESessionStatus.Awaiting,
+    )
+    expect(sessionStatusOf(of(status({ working: true, podState: 'booting' })))).toBe(
+      ESessionStatus.Running,
+    )
+    expect(sessionStatusOf(of(status({ podState: 'booting' })))).toBe(ESessionStatus.Starting)
+    expect(sessionStatusOf(of(status({ lastOutcome: 'failed' })))).toBe(ESessionStatus.Failed)
+    expect(sessionStatusOf(of(status({ podState: 'parked' })))).toBe(ESessionStatus.Parked)
+    expect(sessionStatusOf(of(status({})))).toBe(ESessionStatus.Idle)
     expect(sessionStatusOf(threadOf({ id: 'none' }))).toBe(ESessionStatus.Idle)
   })
-})
-
-describe('isUnread', () => {
-  const at = (overrides: Partial<NonNullable<WireThread['status']>>) =>
-    isUnread(
-      threadOf({
-        id: 't',
-        status: {
-          working: false,
-          awaiting: null,
-          lastOutcome: 'completed',
-          podState: 'running',
-          lastAssistantSeq: 5,
-          readSeq: 3,
-          ...overrides,
-        },
-      }),
-    )
 
   it('is unread when the assistant spoke after the last read, unless still working', () => {
-    expect(at({})).toBe(true)
-    expect(at({ readSeq: 5 })).toBe(false)
-    expect(at({ working: true })).toBe(false)
-    expect(at({ working: true, awaiting: 'input' })).toBe(true)
-    expect(at({ lastAssistantSeq: 0, readSeq: null })).toBe(false)
+    const unread = (overrides: Partial<NonNullable<WireThread['status']>>) =>
+      isUnread(of(status({ lastAssistantSeq: 5, readSeq: 3, ...overrides })))
+    expect(unread({})).toBe(true)
+    expect(unread({ readSeq: 5 })).toBe(false)
+    expect(unread({ working: true })).toBe(false)
+    expect(unread({ working: true, awaiting: 'input' })).toBe(true)
+    expect(unread({ lastAssistantSeq: 0, readSeq: null })).toBe(false)
   })
 })

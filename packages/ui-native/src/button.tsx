@@ -1,5 +1,6 @@
 import { EFontWeight, ETextRole } from '@dltech/atlas-ui/tokens'
 import type { LucideIcon } from 'lucide-react-native'
+import type { ReactNode } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet } from 'react-native'
 
 import {
@@ -19,6 +20,7 @@ export interface IButtonProps {
   variant?: EButtonVariant
   size?: EButtonSize
   icon?: LucideIcon
+  leading?: ReactNode
   disabled?: boolean
   loading?: boolean
   stretch?: boolean
@@ -30,6 +32,7 @@ export const Button = ({
   variant = EButtonVariant.Default,
   size = EButtonSize.Default,
   icon,
+  leading,
   disabled = false,
   loading = false,
   stretch = false,
@@ -64,6 +67,7 @@ export const Button = ({
         if (loading) return <ActivityIndicator size="small" color={foreground} />
         return (
           <>
+            {leading}
             {icon !== undefined ? (
               <Icon icon={icon} color={foreground} size={size === EButtonSize.IconSm ? 14 : 16} />
             ) : null}

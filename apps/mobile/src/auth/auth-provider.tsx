@@ -14,7 +14,7 @@ import {
   type IAuthSnapshot,
   type IAuthUser,
 } from './auth-reducer'
-import { fetchSession, revokeSession } from './session'
+import { fetchSession, revokeSession, signInWithPassword } from './session'
 import { EHandoffResult, runHandoffSignIn } from './sign-in-flow'
 import { createTokenStore } from './token-store'
 
@@ -22,6 +22,7 @@ export interface IAuthContextValue extends IAuthSnapshot {
   api: ApiClient | undefined
   signIn: () => Promise<void>
   signInWithApple: () => Promise<void>
+  signInWithEmail: (credentials: { email: string; password: string }) => Promise<void>
   appleSignInAvailable: boolean
   signOut: () => Promise<void>
 }
@@ -156,6 +157,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: EAuthEvent.SignInSucceeded, token: session.token, user: session.user })
   }
 
+  const handleEmailSignIn = async ({ email, password }: { email: string; password: string }) => {
+    if (snapshot.state !== EAuthState.SignedOut && snapshot.state !== EAuthState.Failed) return
+    dispatch({ type: EAuthEvent.BeginSignIn })
+    const outcome = await signInWithPassword({ apiOrigin, email, password })
+    if (!outcome.ok) {
+      dispatch({ type: EAuthEvent.SignInFailed, error: outcome.error })
+      return
+    }
+    const session = await completeSignIn({ token: outcome.token, store })
+    if (session === undefined) {
+      dispatch({ type: EAuthEvent.SignInFailed, error: 'The session could not be verified' })
+      return
+    }
+    dispatch({ type: EAuthEvent.SignInSucceeded, token: session.token, user: session.user })
+  }
+
   const signOut = async () => {
     const bearer = snapshot.token
     const pushToken = pushTokenRef.current
@@ -177,6 +194,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     api,
     signIn,
     signInWithApple: handleAppleSignIn,
+    signInWithEmail: handleEmailSignIn,
     appleSignInAvailable,
     signOut,
   }

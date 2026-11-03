@@ -1,4 +1,5 @@
 export { AtlasMark } from './atlas-mark'
+export { Alert, EAlertTone } from './alert'
 export { Avatar, EAvatarSize } from './avatar'
 export { Button, EButtonSize, EButtonVariant, type IButtonProps } from './button'
 export { Card, CardList, CardRow } from './card'
