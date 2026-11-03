@@ -22,7 +22,7 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 ## Current state
 
-_Updated at the end of every slice. Last update: 2026-11-02._
+_Updated at the end of every slice. Last update: 2026-11-03._
 - **Done:** slice 0 (design). Decision 0018 accepted, 0019 (package map) proposed; D6 storage verified (Prisma 8
   `namespace v2`); research censuses refreshed to `a0bf4110`.
 - **Done:** slice 1, record core ([spec](slices/01-record-core.md)). Pure rules in
@@ -49,6 +49,9 @@ _Updated at the end of every slice. Last update: 2026-11-02._
   [slices/03-agent-host.md](slices/03-agent-host.md). Render Virginia → Vercel `iad1` RTT
   measured first ([research/d8/rtt-render.md](research/d8/rtt-render.md): 5–20 ms p50 per tool
   call, Postgres 5.5 ms). The toggle is per session with a `v2` badge.
+  **In progress (2026-11-03):** PR 1 merged (#1735: call protocol, crash simulation, `OnceLedger`,
+  `packages/protocol`). PR 2a is draft #1736 with review fixes outstanding. Continue from
+  [handoffs/slice-3-pr2.md](handoffs/slice-3-pr2.md).
 - **Slice 3 spec must settle:** oversize single events against the 4 MB body cap (L5), the `engine: v2`
   session flag and who sees it, and that v1's API stays the only writer of users, projects,
   credentials and settings until cutover; the sandbox disk is one session (sandboxes are 1:1 with sessions, no
