@@ -23,6 +23,8 @@ import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { PodLaunchService } from './pod-launch.service'
 import { ThreadPodRouter } from './thread-pod.router'
+import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
+import { unknownPlanService } from '../user-vercel/vercel-testkit'
 import { ThreadPodService } from './thread-pod.service'
 import {
   RecordingBackground,
@@ -54,6 +56,7 @@ describe('ThreadPodRouter', () => {
       { provide: SandboxesService, useValue: {} },
       { provide: PodLaunchService, useValue: {} },
       { provide: ThreadSignalsService, useValue: inertSignals() },
+      { provide: VercelPlanService, useValue: unknownPlanService() },
       { provide: BackgroundWork, useValue: new RecordingBackground() },
     ])
   })

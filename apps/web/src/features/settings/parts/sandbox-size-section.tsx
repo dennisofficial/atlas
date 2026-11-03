@@ -17,10 +17,14 @@ const SECTION_DESCRIPTION =
 export function SandboxSizeSection({
   value,
   withAccountDefault,
+  sizes = SANDBOX_VCPU_SIZES,
+  capNote = SANDBOX_VCPU_PLAN_CAP_NOTE,
   onSave,
 }: {
   value: number | null
   withAccountDefault?: boolean
+  sizes?: readonly number[]
+  capNote?: string
   onSave: (vcpus: number | null) => Promise<unknown>
 }) {
   const saved = value === null && withAccountDefault ? 'default' : String(value)
@@ -36,10 +40,7 @@ export function SandboxSizeSection({
     }
   }
   return (
-    <SettingsSection
-      title={SANDBOX_SIZE_TITLE}
-      description={`${SECTION_DESCRIPTION} ${SANDBOX_VCPU_PLAN_CAP_NOTE}.`}
-    >
+    <SettingsSection title={SANDBOX_SIZE_TITLE} description={`${SECTION_DESCRIPTION} ${capNote}.`}>
       <SettingsCard
         footer={
           <>
@@ -52,7 +53,7 @@ export function SandboxSizeSection({
       >
         <div className="px-4 py-3 sm:w-96">
           <VcpuSizeSelect
-            sizes={SANDBOX_VCPU_SIZES}
+            sizes={sizes}
             value={selected}
             onValueChange={setSelected}
             options={

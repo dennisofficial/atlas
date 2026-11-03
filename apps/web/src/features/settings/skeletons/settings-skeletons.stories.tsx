@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+import { EVercelCredentialKind, EVercelPlan } from '@dltech/atlas-wire/web'
+
 import { EDeviceKind } from '../fixtures/settings-security'
 import { AccountProfileCard } from '../parts/account-profile-card'
 import { AccountSignInMethodsCard } from '../parts/account-sign-in-methods-card'
@@ -132,8 +134,13 @@ export const VercelCredential = {
         <VercelCredentialCard
           view={{
             configured: true,
+            kind: EVercelCredentialKind.Token,
             teamId: 'team_abc',
             vercelProjectId: 'prj_abc',
+            plan: EVercelPlan.Unknown,
+            planCheckedAt: null,
+            needsReconnect: false,
+            oauthConfigured: false,
             updatedAt: null,
           }}
           statusLine="Configured"

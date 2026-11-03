@@ -4,7 +4,7 @@ import type { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { sandboxWakeBootProvider } from '../../api/cloud/github/github-sandbox-wake-boot'
 import type { PodProvisionDeps } from '../../api/cloud/sandbox-provisioning/pod-provision-run'
-import { ScopedConfigService } from '../../api/cloud/scoped-config/scoped-config.service'
+import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { workerEnvService } from '../github/github-sweep-graph'
 import { buildWorkerThreadSignals, type WorkerThreadSignals } from '../thread-signals-graph'
 
@@ -19,7 +19,7 @@ export function buildPodProvisionGraph(args: { env: EnvService }): PodProvisionG
   const logger = new Logger('PodProvision')
   const deps: PodProvisionDeps = {
     cipher,
-    scoped: new ScopedConfigService(cipher),
+    scoped: buildScopedConfig({ cipher, env }),
     boot: sandboxWakeBootProvider.useFactory(),
     sdk: liveSdk,
     signals,

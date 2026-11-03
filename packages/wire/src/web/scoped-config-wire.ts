@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { scopedFileMountSchema } from './file-mounts-wire'
 import { mcpUpsertSchema } from './mcp-wire'
+import { EVercelPlan, vercelPlanSchema } from './setting-enums'
 
 export enum EConfigScope {
   Default = 'default',
@@ -56,8 +57,53 @@ export const vercelCredentialSchema = z.object({
 })
 export type VercelCredentialView = z.infer<typeof vercelCredentialSchema>
 
-export const userVercelCredentialSchema = vercelCredentialSchema
-export type UserVercelCredential = VercelCredentialView
+export enum EVercelCredentialKind {
+  Token = 'token',
+  Oauth = 'oauth',
+}
+
+export enum EVercelConnectStartOutcome {
+  Redirect = 'redirect',
+  NotConfigured = 'not-configured',
+}
+
+export const VERCEL_CONNECT_RESULT_PARAM = 'vercel'
+export const VERCEL_CONNECT_REASON_PARAM = 'reason'
+export const VERCEL_CONNECT_SETTINGS_PATH = '/settings/usage-sandboxes'
+
+export const userVercelCredentialSchema = vercelCredentialSchema.extend({
+  kind: z.enum(EVercelCredentialKind),
+  plan: vercelPlanSchema,
+  planCheckedAt: z.string().nullable(),
+  needsReconnect: z.boolean(),
+  vercelUserId: z.string().nullable(),
+  oauthConfigured: z.boolean(),
+})
+export type UserVercelCredential = z.infer<typeof userVercelCredentialSchema>
+
+export const vercelConnectStartSchema = z.discriminatedUnion('outcome', [
+  z.strictObject({ outcome: z.literal(EVercelConnectStartOutcome.Redirect), url: z.url() }),
+  z.strictObject({ outcome: z.literal(EVercelConnectStartOutcome.NotConfigured) }),
+])
+export type VercelConnectStart = z.infer<typeof vercelConnectStartSchema>
+
+export const vercelProjectChoiceSchema = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+})
+export type VercelProjectChoice = z.infer<typeof vercelProjectChoiceSchema>
+
+export const vercelProjectsListSchema = z.strictObject({
+  projects: z.array(vercelProjectChoiceSchema),
+})
+export type VercelProjectsList = z.infer<typeof vercelProjectsListSchema>
+
+export const vercelChooseProjectSchema = z.strictObject({
+  vercelProjectId: z.string().trim().min(1).max(500),
+})
+export type VercelChooseProject = z.infer<typeof vercelChooseProjectSchema>
+
+export { EVercelPlan }
 
 export const MAX_VERCEL_FIELD_LENGTH = 500
 

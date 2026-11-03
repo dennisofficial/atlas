@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { userVercelCredentialSchema } from '@dltech/atlas-wire/web'
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { openSecretValue } from '../secrets/sealed-secret'
 import {
@@ -15,6 +15,22 @@ import {
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { UserVercelRouter } from './user-vercel.router'
 import { UserVercelService } from './user-vercel.service'
+import { VercelPlanService } from './vercel-credential-plan'
+import { VercelFetcher, VercelOauthConfig } from './vercel-oauth.types'
+import { VercelTokenRefresher } from './vercel-token-refresher'
+
+const stubPlanFetch = (): VercelFetcher => {
+  const stub = new VercelFetcher()
+  stub.fetch = vi.fn(async (input: string) => {
+    if (input.startsWith('https://api.vercel.com/v2/teams/')) {
+      return new Response(JSON.stringify({ id: 'team_1', billing: { plan: 'enterprise' } }), {
+        status: 200,
+      })
+    }
+    return new Response(JSON.stringify({ error: { message: 'not found' } }), { status: 404 })
+  })
+  return stub
+}
 
 const credentialOf = (userId: string) => db.orm.public.UserVercelCredential.first({ userId })
 const FULL = { token: 'vtok_secret', teamId: 'team_1', vercelProjectId: 'prj_1' }
@@ -30,7 +46,19 @@ describe('UserVercelRouter', () => {
 
   beforeEach(async () => {
     await seedSessionUsers()
-    app = await buildSessionTrpcApp({ providers: [UserVercelRouter, UserVercelService] })
+    const config = new VercelOauthConfig()
+    config.redirectUri = 'https://api.test/v1/vercel/oauth/callback'
+    config.webOrigin = 'https://web.test'
+    app = await buildSessionTrpcApp({
+      providers: [
+        UserVercelRouter,
+        UserVercelService,
+        VercelPlanService,
+        VercelTokenRefresher,
+        { provide: VercelFetcher, useValue: stubPlanFetch() },
+        { provide: VercelOauthConfig, useValue: config },
+      ],
+    })
   })
 
   afterEach(() => app.close())
@@ -46,8 +74,14 @@ describe('UserVercelRouter', () => {
     expect(empty.headers['cache-control']).toBe('no-store')
     expect(dataOf(empty.body)).toEqual({
       configured: false,
+      kind: 'token',
       teamId: null,
       vercelProjectId: null,
+      plan: 'unknown',
+      planCheckedAt: null,
+      needsReconnect: false,
+      vercelUserId: null,
+      oauthConfigured: true,
       updatedAt: null,
     })
 

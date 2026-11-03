@@ -3,6 +3,7 @@ import { encodeSettingValue } from '@dltech/atlas-wire/web'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { unknownPlanService } from '../user-vercel/vercel-testkit'
 import { SettingsService } from './settings.service'
 
 const USER_A = 'user-a'
@@ -15,7 +16,7 @@ describe('SettingsService', () => {
 
   beforeEach(async () => {
     for (const id of [USER_A, USER_B]) await seedUser({ db: database().db, id })
-    service = new SettingsService()
+    service = new SettingsService(unknownPlanService())
   })
 
   it('set stores the value in plain text and list returns it', async () => {

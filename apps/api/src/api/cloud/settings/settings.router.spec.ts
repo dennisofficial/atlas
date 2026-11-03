@@ -1,11 +1,13 @@
 import { encodeSettingValue } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import type { INestApplication } from '@nestjs/common'
+import type { INestApplication, Provider } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { createPersonalApp, trpcMutate, trpcQuery } from '../personal-resources.router.fixture'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { SettingsRouter } from './settings.router'
+import { unknownPlanService } from '../user-vercel/vercel-testkit'
+import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
 import { SettingsService } from './settings.service'
 
 describe('SettingsRouter', () => {
@@ -16,9 +18,15 @@ describe('SettingsRouter', () => {
     trpcMutate({ app, procedure, token, input })
   const list = (token?: string) => trpcQuery({ app, procedure: 'settings.list', token })
 
+  const providers: Provider[] = [
+    SettingsRouter,
+    SettingsService,
+    { provide: VercelPlanService, useValue: unknownPlanService() },
+  ]
+
   beforeEach(async () => {
     await seedSessionUsers()
-    app = await createPersonalApp([SettingsRouter, SettingsService])
+    app = await createPersonalApp(providers)
   })
 
   afterEach(() => app.close())
@@ -133,6 +141,12 @@ describe('SettingsRouter', () => {
   })
 
   describe('pod reach', () => {
+    const _providers: Provider[] = [
+      SettingsRouter,
+      SettingsService,
+      { provide: VercelPlanService, useValue: unknownPlanService() },
+    ]
+
     beforeEach(async () => {
       const stamp = new Date('2026-10-03T00:00:00.000Z')
       for (const [userId, value] of [

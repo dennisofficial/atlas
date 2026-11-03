@@ -1,7 +1,7 @@
 import type { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { ThreadSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/thread-sandbox-credentials.service'
-import { ScopedConfigService } from '../../api/cloud/scoped-config/scoped-config.service'
+import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { CloudflareTunnelClient } from '../../api/platform/sandboxes/cloudflare-tunnel.client'
 import { PreviewTunnelService } from '../../api/platform/sandboxes/preview-tunnel.service'
 import { SandboxesService } from '../../api/platform/sandboxes/sandboxes.service'
@@ -14,7 +14,7 @@ export function buildThreadArchiveCleanupDeps(args: { env: EnvService }): Thread
   const { env } = args
   const cipher = new SecretCipherService(env)
   const vercel = new VercelSandboxClient(
-    new ThreadSandboxCredentialsService(new ScopedConfigService(cipher), env),
+    new ThreadSandboxCredentialsService(buildScopedConfig({ cipher, env }), env),
   )
   const { signals } = buildWorkerThreadSignals({ env })
   const sandboxes = new SandboxesService(vercel, cipher, signals)
