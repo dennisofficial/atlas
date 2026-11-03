@@ -18,7 +18,6 @@ export default (): ExpoConfig => ({
     config: { usesNonExemptEncryption: false },
     supportsTablet: true,
     usesAppleSignIn: true,
-    icon: './assets/expo.icon',
   },
   web: {
     output: 'server',
@@ -33,9 +32,9 @@ export default (): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#1e1a17',
+        backgroundColor: '#fbf7f2',
         image: './assets/images/splash-icon.png',
-        imageWidth: 76,
+        imageWidth: 120,
       },
     ],
   ],
