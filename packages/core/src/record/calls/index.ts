@@ -8,8 +8,13 @@ export {
   type SteppedCall,
   type SteppedCalls,
 } from './call-states'
-export { answerCalls, stepCalls } from './step'
-export { recoverCall, type CallRecordFacts, type RecoverAction } from './recover'
+export { answerCalls, stepCalls, type StepVariant } from './step'
+export {
+  recoverCall,
+  type CallRecordFacts,
+  type RecoverAction,
+  type RecoverVariant,
+} from './recover'
 export {
   checkCallHistory,
   ECallInvariant,

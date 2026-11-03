@@ -1,35 +1,33 @@
 import { checkCallHistory, type CallHistory } from '../index'
 import {
   applyStep,
-  callState,
-  FORBIDDEN_ERRORS,
+  answerOf,
+  historyOf,
   newSimulation,
   PERFECT_FLAGS,
   runSchedule,
   settle,
-  staleAtWrite,
   type EFlags,
   type Sim,
   type Step,
 } from './sim-model'
 
-export { newSimulation, runSchedule, PERFECT_FLAGS, type EFlags, type Sim, type Step }
-
-export function historyOf(sim: Sim): CallHistory {
-  return {
-    errors: sim.errors as CallHistory['errors'],
-    spawns: sim.spawns as CallHistory['spawns'],
-    readOnly: Object.fromEntries(sim.calls.map((one) => [one.key, one.readOnly])),
-    writes: sim.writes.filter((write) => write.committed),
-    keys: sim.calls.map((one) => one.key),
-    staleAtWrite: (write) => staleAtWrite(sim, write),
-  }
+export {
+  newSimulation,
+  runSchedule,
+  historyOf,
+  applyStep,
+  answerOf,
+  PERFECT_FLAGS,
+  type EFlags,
+  type Sim,
+  type Step,
 }
 
 export function stateHash(sim: Sim, budgets: { crashes: number; reboots: number }): string {
   const committed = sim.writes
     .filter((write) => write.committed)
-    .map((write) => `${write.type}:${write.callId}`)
+    .map((write) => `${write.type}:${write.callId}@${write.epoch}`)
   return JSON.stringify({
     spawns: Object.fromEntries(
       Object.entries(sim.spawns).map(([key, boots]) => [key, new Set(boots).size]),
@@ -38,20 +36,13 @@ export function stateHash(sim: Sim, budgets: { crashes: number; reboots: number 
     committed,
     refused: sim.writes.filter((write) => !write.committed).length,
     leaseEpoch: sim.leaseEpoch,
-    leaseHistory: sim.leaseHistory,
     holder: sim.holder,
     hostEpochs: sim.hostEpochs,
     dispatched: sim.recordDispatched,
     boots: sim.recordBootId,
     results: sim.recordResult,
     collected: sim.collected,
-    journaled: Object.fromEntries(
-      sim.calls.map((one) => [
-        one.key,
-        (sim.errors[one.key] ?? []).includes('spawn-without-journal'),
-      ]),
-    ),
-    daemon: sim.daemon,
+    daemon: { boot: sim.daemon.boot, inner: sim.daemon.inner.calls, epoch: sim.daemon.inner.epoch },
     budgets,
   })
 }
@@ -61,37 +52,51 @@ export function cloneSim(sim: Sim): Sim {
 }
 
 export function checkState(sim: Sim): string[] {
-  const failures: string[] = checkCallHistory(historyOf(sim), { final: false })
-  const forbidden = Object.values(sim.errors).some((kinds) =>
-    kinds.some((kind) => (FORBIDDEN_ERRORS as readonly string[]).includes(kind)),
-  )
-  if (forbidden) failures.push('protocol-rule-violated')
-  const settled = cloneSim(sim)
-  settle(settled)
-  failures.push(...checkCallHistory(historyOf(settled), { final: true }))
-  return [...new Set(failures)]
+  return checkCallHistory({ history: historyOf(sim), options: { final: false } })
+}
+
+export function checkTerminal(sim: Sim): string[] {
+  settle(sim)
+  return checkCallHistory({ history: historyOf(sim), options: { final: true } })
 }
 
 export function actionsFor(sim: Sim): Step[] {
   const actions: Step[] = []
   const holder = sim.holder
+  const zombie = 1 - holder
+  const zombieHeld = sim.everHeld[zombie]
   for (const call of sim.calls) {
     const key = call.key
     if (!sim.recordDispatched[key]) {
-      actions.push({ kind: 'dispatch', host: holder, key })
-      continue
-    }
-    if (!sim.recordResult[key]) {
-      actions.push({ kind: 'exit', key })
-      actions.push({ kind: 'collect', host: holder, key })
-      actions.push({ kind: 'recordResult', host: holder, key })
-      actions.push({ kind: 'recover', host: holder, key })
-      if (sim.flags.ackBeforeCommit && callState(sim, key) === 'done') {
-        actions.push({ kind: 'ack', host: holder, key })
+      actions.push({ kind: 'recordDispatch', host: holder, key })
+      actions.push({ kind: 'run', host: holder, key })
+      if (zombieHeld) {
+        actions.push({ kind: 'recordDispatch', host: zombie, key })
+        actions.push({ kind: 'run', host: zombie, key })
       }
       continue
     }
-    if (callState(sim, key) === 'done') actions.push({ kind: 'ack', host: holder, key })
+    if (!sim.recordResult[key]) {
+      actions.push({ kind: 'run', host: holder, key })
+      actions.push({ kind: 'exit', key })
+      actions.push({ kind: 'attach', host: holder, key })
+      actions.push({ kind: 'recordResult', host: holder, key })
+      actions.push({ kind: 'recover', host: holder, key })
+      if (zombieHeld) {
+        actions.push({ kind: 'run', host: zombie, key })
+        actions.push({ kind: 'recordResult', host: zombie, key })
+      }
+      if (sim.flags.ackBeforeCommit && answerOf(sim, key) === 'done') {
+        actions.push({ kind: 'ack', host: holder, key })
+        if (zombieHeld) actions.push({ kind: 'ack', host: zombie, key })
+      }
+      continue
+    }
+    actions.push({ kind: 'recover', host: holder, key })
+    if (answerOf(sim, key) === 'done') {
+      actions.push({ kind: 'ack', host: holder, key })
+      if (zombieHeld) actions.push({ kind: 'ack', host: zombie, key })
+    }
   }
   return actions
 }
@@ -102,51 +107,75 @@ export function explore(args: {
   flags: EFlags
   maxCrashes: number
   maxReboots: number
+  stopOnFailure?: boolean | undefined
 }): { paths: number; states: number; failures: string[] } {
   const failures: string[] = []
   const seen = new Set<string>()
-  const refs = new Map<string, Step[]>()
   let paths = 0
-  let frontier: { sim: Sim; path: Step[]; budgets: { crashes: number; reboots: number } }[] = [
+
+  const stack: {
+    sim: Sim
+    path: Step[]
+    budgets: { crashes: number; reboots: number }
+    nextActions: Step[] | null
+  }[] = [
     {
       sim: newSimulation(args),
       path: [],
       budgets: { crashes: args.maxCrashes, reboots: args.maxReboots },
+      nextActions: null,
     },
   ]
 
-  while (frontier.length > 0) {
-    const nextFrontier: typeof frontier = []
-    for (const node of frontier) {
+  while (stack.length > 0) {
+    const node = stack[stack.length - 1]!
+
+    if (node.nextActions === null) {
       const hash = stateHash(node.sim, node.budgets)
-      if (seen.has(hash)) continue
+      if (seen.has(hash)) {
+        stack.pop()
+        continue
+      }
       seen.add(hash)
-      refs.set(hash, node.path)
 
       const found = checkState(node.sim)
       if (found.length > 0 && failures.length < 10) {
-        failures.push(`${JSON.stringify(refs.get(hash))} -> ${found.join(',')}`)
+        failures.push(`${JSON.stringify(node.path)} -> ${found.join(',')}`)
+        if (args.stopOnFailure) return { paths, states: seen.size, failures }
       }
 
-      const next: Step[] = [...actionsFor(node.sim)]
-      if (node.budgets.crashes > 0) next.push({ kind: 'crash' })
-      if (node.budgets.reboots > 0) next.push({ kind: 'daemonReboot' })
-
-      for (const step of next) {
-        const child = cloneSim(node.sim)
-        applyStep(child, step)
-        paths += 1
-        nextFrontier.push({
-          sim: child,
-          path: [...node.path, step],
-          budgets: {
-            crashes: step.kind === 'crash' ? node.budgets.crashes - 1 : node.budgets.crashes,
-            reboots: step.kind === 'daemonReboot' ? node.budgets.reboots - 1 : node.budgets.reboots,
-          },
-        })
+      const settled = cloneSim(node.sim)
+      settle(settled)
+      const terminal = checkCallHistory({ history: historyOf(settled), options: { final: true } })
+      if (terminal.length > 0 && failures.length < 10) {
+        failures.push(`${JSON.stringify(node.path)} -> ${terminal.join(',')}`)
+        if (args.stopOnFailure) return { paths, states: seen.size, failures }
       }
+
+      const actions = actionsFor(node.sim)
+      if (node.budgets.crashes > 0) actions.push({ kind: 'crash' })
+      if (node.budgets.reboots > 0) actions.push({ kind: 'daemonReboot' })
+      node.nextActions = actions
     }
-    frontier = nextFrontier
+
+    const step = node.nextActions.shift()
+    if (step === undefined) {
+      stack.pop()
+      continue
+    }
+
+    const child = cloneSim(node.sim)
+    applyStep(child, step)
+    paths += 1
+    stack.push({
+      sim: child,
+      path: [...node.path, step],
+      budgets: {
+        crashes: step.kind === 'crash' ? node.budgets.crashes - 1 : node.budgets.crashes,
+        reboots: step.kind === 'daemonReboot' ? node.budgets.reboots - 1 : node.budgets.reboots,
+      },
+      nextActions: null,
+    })
   }
 
   return { paths, states: seen.size, failures }
