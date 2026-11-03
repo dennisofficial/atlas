@@ -14,7 +14,7 @@ const encode = (text: string) => Buffer.from(text).toString('base64')
 function putArgs(args: { text: string; baseRevision: number; path?: string; userId?: string }) {
   return {
     userId: args.userId ?? USER_A,
-    tree: 'skills',
+    tree: 'instructions',
     path: args.path ?? 'review/SKILL.md',
     content: encode(args.text),
     contentHash: hashOf(args.text),
@@ -97,7 +97,7 @@ describe('UserFilesService', () => {
       await service.put(putArgs({ text: 'one', baseRevision: 0 }))
       await service.remove({
         userId: USER_A,
-        tree: 'skills',
+        tree: 'instructions',
         path: 'review/SKILL.md',
         baseRevision: 1,
       })
@@ -119,7 +119,7 @@ describe('UserFilesService', () => {
   })
 
   describe('remove', () => {
-    const target = { userId: USER_A, tree: 'skills', path: 'review/SKILL.md' }
+    const target = { userId: USER_A, tree: 'instructions', path: 'review/SKILL.md' }
 
     it('tombstones the row, clearing content and bumping the revision', async () => {
       await service.put(putArgs({ text: 'one', baseRevision: 0 }))
@@ -148,26 +148,26 @@ describe('UserFilesService', () => {
       await service.put(putArgs({ text: 'a', baseRevision: 0, path: 'a.md' }))
       await service.put(putArgs({ text: 'b', baseRevision: 0, path: 'b.md' }))
       await service.put(putArgs({ text: 'b2', baseRevision: 1, path: 'b.md' }))
-      await service.remove({ userId: USER_A, tree: 'skills', path: 'b.md', baseRevision: 2 })
+      await service.remove({ userId: USER_A, tree: 'instructions', path: 'b.md', baseRevision: 2 })
 
-      const listed = await service.list({ userId: USER_A, tree: 'skills', sinceRevision: 1 })
+      const listed = await service.list({ userId: USER_A, tree: 'instructions', sinceRevision: 1 })
 
       expect(listed.map((file) => [file.path, file.revision])).toEqual([['b.md', 3]])
       expect(listed[0]?.tombstonedAt).not.toBeNull()
       expect(listed[0]).not.toHaveProperty('content')
-      expect(await service.list({ userId: USER_A, tree: 'skills' })).toHaveLength(2)
+      expect(await service.list({ userId: USER_A, tree: 'instructions' })).toHaveLength(2)
     })
 
     it('scopes every query to the requesting user', async () => {
       await service.put(putArgs({ text: 'mine', baseRevision: 0, userId: USER_A }))
 
-      expect(await service.list({ userId: USER_B, tree: 'skills' })).toEqual([])
+      expect(await service.list({ userId: USER_B, tree: 'instructions' })).toEqual([])
       expect(
-        await service.getMany({ userId: USER_B, tree: 'skills', paths: ['review/SKILL.md'] }),
+        await service.getMany({ userId: USER_B, tree: 'instructions', paths: ['review/SKILL.md'] }),
       ).toEqual([])
-      expect(await service.list({ userId: USER_A, tree: 'skills' })).toHaveLength(1)
+      expect(await service.list({ userId: USER_A, tree: 'instructions' })).toHaveLength(1)
       expect(
-        await service.getMany({ userId: USER_A, tree: 'skills', paths: ['review/SKILL.md'] }),
+        await service.getMany({ userId: USER_A, tree: 'instructions', paths: ['review/SKILL.md'] }),
       ).toHaveLength(1)
     })
   })
@@ -176,11 +176,11 @@ describe('UserFilesService', () => {
     it('returns base64 content, null for tombstones', async () => {
       await service.put(putArgs({ text: 'a', baseRevision: 0, path: 'a.md' }))
       await service.put(putArgs({ text: 'b', baseRevision: 0, path: 'b.md' }))
-      await service.remove({ userId: USER_A, tree: 'skills', path: 'b.md', baseRevision: 1 })
+      await service.remove({ userId: USER_A, tree: 'instructions', path: 'b.md', baseRevision: 1 })
 
       const files = await service.getMany({
         userId: USER_A,
-        tree: 'skills',
+        tree: 'instructions',
         paths: ['a.md', 'b.md'],
       })
 
@@ -209,7 +209,7 @@ describe('UserFilesService', () => {
         service.put(putArgs({ text: 'x', baseRevision: 0, path })),
       ).rejects.toBeInstanceOf(BadRequestException)
       await expect(
-        service.remove({ userId: USER_A, tree: 'skills', path, baseRevision: 1 }),
+        service.remove({ userId: USER_A, tree: 'instructions', path, baseRevision: 1 }),
       ).rejects.toBeInstanceOf(BadRequestException)
       expect(await rowsOf()).toHaveLength(0)
     })
