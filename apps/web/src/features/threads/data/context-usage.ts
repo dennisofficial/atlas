@@ -1,4 +1,4 @@
-import { contextTokensOf, type Event } from '@dltech/atlas-core'
+import { contextTokens, lastStepUsage, type Event } from '@dltech/atlas-core'
 import type { ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
 export type ContextUsage = { used: number; limit: number }
@@ -8,7 +8,10 @@ export function contextUsageOf(args: {
   selectedId: string
   models: readonly ModelOption[]
 }): ContextUsage | null {
-  const limit = args.models.find((model) => model.id === args.selectedId)?.contextTokens
+  const reading = lastStepUsage(args.events)
+  const limit =
+    reading?.contextWindow ??
+    args.models.find((model) => model.id === args.selectedId)?.contextTokens
   if (limit === undefined || limit <= 0) return null
-  return { used: contextTokensOf(args.events), limit }
+  return { used: contextTokens({ reported: reading, events: args.events }), limit }
 }

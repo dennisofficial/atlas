@@ -15,6 +15,9 @@ import type { PrEventBody } from './pr-body'
 import type { BackgroundShellEventBody } from './shell-body'
 import type { SubscriptionEventBody } from './subscription-body'
 
+/** What the provider reported for the model call that wrote this event, and the window it ran in. */
+export type StepReading = ModelUsage & { contextWindow?: number | undefined }
+
 export enum ECompactionAnchor {
   Prefix = 'prefix',
   Suffix = 'suffix',
@@ -121,7 +124,7 @@ export type EventBody =
       interrupted?: boolean | undefined
       placeholder?: EAssistantPlaceholder | undefined
       aborted?: 'handoff' | undefined
-      usage?: ModelUsage | undefined
+      usage?: StepReading | undefined
     }
   | {
       type: 'tool-called'
@@ -129,7 +132,7 @@ export type EventBody =
       name: string
       input?: unknown
       ordinal: number
-      usage?: ModelUsage | undefined
+      usage?: StepReading | undefined
     }
   | { type: 'tool-dispatched'; callId: CallId; name: string; bootId?: string | undefined }
   | {
