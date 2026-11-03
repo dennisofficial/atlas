@@ -100,7 +100,7 @@ flowchart LR
   end
   subgraph Data["Data (us-east-1)"]
     PG[("Postgres<br/>public = v1<br/>v2 = record, inbox, leases")]
-    R[("Redis<br/>v2:wake, v2:live")]
+    R[("Redis<br/>atlas:session-wake, atlas:session-live")]
   end
   subgraph Render["Render, Virginia"]
     W1["Agent host 1<br/>runs agent loops"]
@@ -141,7 +141,7 @@ sequenceDiagram
 
   C->>API: v2.sessions.post(message)
   API->>PG: insert inbox entry (inboxId 7)
-  API->>R: publish v2:wake(session)
+  API->>R: publish atlas:session-wake(session)
   R-->>W1: wake
   R-->>W2: wake
   par both try to claim
@@ -158,12 +158,12 @@ sequenceDiagram
     W1->>PG: renew lease (TTL 30 s)
   end
   W1->>W1: model step (stream from provider)
-  W1-->>R: live tokens (v2:live)
+  W1-->>R: live tokens (atlas:session-live)
   W1->>PG: append [input-consumed 7, assistant-said, tool-called, tool-dispatched]
   Note over W1,PG: tool-dispatched must commit before the tool starts
   W1->>D: run(key = runId:callId, bootId)
   D->>D: write "running" to disk, then spawn bash in its own box
-  D-->>W1: output chunks (forwarded to v2:live)
+  D-->>W1: output chunks (forwarded to atlas:session-live)
   D->>D: write "done" + result to disk
   D-->>W1: result
   W1->>PG: append tool-result
@@ -188,7 +188,7 @@ sequenceDiagram
   Render->>W1: SIGTERM (deploy)
   W1->>W1: stop claiming, pause loops at the next step boundary
   W1->>PG: revoke lease (epoch 5 to 6, no holder)
-  W1->>R: publish v2:wake(session)
+  W1->>R: publish atlas:session-wake(session)
   W1--xW1: exit
   Note over W1,PG: Any late write from W1 is refused as stale-epoch
   R-->>W2: wake
@@ -248,7 +248,7 @@ The agent host is part of the control plane (0021), so it uses the `ControlPlane
 
 **v1's API stays the only writer of users, projects, credentials and settings.** The agent host never
 writes a `public` table. It asks the API for what it needs over an internal route authenticated by
-a shared agent-host token (`V2_AGENT_HOST_TOKEN`, set on Render and Vercel): model credentials (the API
+a shared agent-host token (`AGENT_HOST_TOKEN`, set on Render and Vercel): model credentials (the API
 refreshes OAuth tokens, because a refresh is a write), Vercel sandbox credentials, the GitHub
 token for the clone, and a settings snapshot with its revision. The agent host caches each until it
 expires.
@@ -261,14 +261,14 @@ OAuth refresh would gain a second home, which is the kind of fork v2 exists to r
 There is no separate scheduler. Claiming is part of the agent host; the periodic safety net is a
 trigger.dev task, because the agent host runs no timers of its own beyond its sessions' loops
 ([0022](../../decisions/0022-v2-background-jobs-in-apps-trigger.md)):
-- **Wake.** When the API posts to a v2 session's inbox, it publishes `v2:wake` with the session
+- **Wake.** When the API posts to a v2 session's inbox, it publishes `atlas:session-wake` with the session
   id on Redis. Every agent host below its capacity tries to `grant` the lease. The CAS on the epoch
   lets exactly one win; the others drop it.
 - **Reconcile (in `apps/trigger`, not the agent host).** Redis pub/sub is fire-and-forget and a
   crashed holder tells nobody, so a trigger.dev scheduled task, `v2-reconcile-holders`, runs every
   minute (trigger.dev's finest schedule). It finds sessions with unconsumed inbox entries or an
   unfinished turn and no live lease (one new store query, `sessionsNeedingHolder({ limit })`,
-  backed by an index) and republishes `v2:wake` for each. It claims nothing itself; the agent
+  backed by an index) and republishes `atlas:session-wake` for each. It claims nothing itself; the agent
   hosts claim as for any wake. Its contract lives in `packages/jobs`, its logic (the query) in
   `packages/control`, so neither app imports the other. This makes slice 3 the first user of
   `apps/trigger`, so slice 3 scaffolds it (own `trigger.config.ts`, own tier file with only
@@ -314,7 +314,7 @@ one-minute reconcile task (safety net).
   retry after an unknown outcome is safe. Past TTL − 5 s without success the host self-fences
   (point 5). Any other refusal is a bug and fails the turn loudly.
 - **Live output** (token deltas, tool output as it streams) is not an event. The agent host
-  publishes it on Redis `v2:live:<sessionId>`. Slice 5 serves it to clients over SSE; slice 3
+  publishes it on Redis `atlas:session-live:<sessionId>`. Slice 5 serves it to clients over SSE; slice 3
   publishes it and tests that it arrives.
 
 **Alternative:** materialized per-step checkpoints on `V2Thread` (§12 L3) so a claim never reads
@@ -464,7 +464,7 @@ connection loses nothing: calls are keyed, so after reconnecting the agent host 
 
 **Fencing at the daemon too.** The connection opens with `{ sessionId, epoch }` and a bearer token.
 The daemon accepts the highest epoch it has seen and closes any older connection. A zombie agent host
-that lost its lease cannot start tools. The token is `HMAC(V2_DAEMON_SECRET, sandboxName)`, so any
+that lost its lease cannot start tools. The token is `HMAC(DAEMON_SECRET, sandboxName)`, so any
 agent host can work it out and nothing is stored.
 
 **Operations** (schemas in `protocol`):
@@ -576,11 +576,10 @@ The PR delivery buffer uses the same port when the subscriptions plugin moves (s
 
 ### 9. The v2 API namespace and the toggle
 
-**The API gains `v2.*` tRPC procedures.** For slice 3, only what scripts and tests need:
-`v2.sessions.create`, `v2.sessions.list`, `v2.sessions.post` (an inbox entry, then a Redis wake), `v2.sessions.events`
-(a ranged read) and `v2.sessions.status` (the lease and its liveness). The agent host's internal route
-is `v2.agentHost.config` (point 2). All of them are restricted to an allowlist (`V2_USER_IDS`), so
-nobody else can open a v2 session.
+**The API gains `sessions.*` and `agentHost.*` tRPC procedures.** For slice 3, only what scripts and tests need:
+`sessions.create`, `sessions.list`, `sessions.post` (an inbox entry, then a Redis wake), `sessions.events`
+(a ranged read) and `sessions.status` (the lease and its liveness). The agent host's internal route
+is `agentHost.config` (point 2). Open to every signed-in user; each procedure checks the caller owns the session (decided 2026-11-03).
 
 **The toggle is per session, with a badge** (decided 2026-11-02). The engine is chosen when a
 session is created (v1 by default) and never changes. One sidebar lists both kinds, and v2
@@ -654,7 +653,7 @@ The threshold is a setting; the agent host logs every spill so slice 8 can see h
 | Plan      | Standard (2 GB). Not lowered until v2 is in daily use and memory per session is known                         |
 | Shutdown  | `maxShutdownDelaySeconds: 300`                                                                                |
 | Deploys   | Auto-deploy from `main`, filtered to `apps/agent-host`, `apps/daemon` and the packages the agent host imports |
-| Env       | `DATABASE_URL`, `REDIS_URL`, `V2_AGENT_HOST_TOKEN`, `V2_DAEMON_SECRET`, `ATLAS_API_ORIGIN`                    |
+| Env       | `DATABASE_URL`, `REDIS_URL`, `AGENT_HOST_TOKEN`, `DAEMON_SECRET`, `ATLAS_API_ORIGIN`                          |
 
 It is created through the Render API once `apps/agent-host` exists on a branch. Render's GitHub app
 can see `dennisofficial/atlas` (granted by the operator 2026-11-02, this repository only).

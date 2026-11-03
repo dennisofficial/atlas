@@ -4,9 +4,9 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
-import { V2AgentHostMiddleware } from './v2-agent-host.middleware'
-import { V2AgentHostRouter } from './v2-agent-host.router'
-import { V2AgentHostService } from './v2-agent-host.service'
+import { AgentHostMiddleware } from './agent-host.middleware'
+import { AgentHostRouter } from './agent-host.router'
+import { AgentHostService } from './agent-host.service'
 
 export const agentHost = {
   config: vi.fn(),
@@ -14,15 +14,15 @@ export const agentHost = {
   githubToken: vi.fn(),
 }
 
-export const createV2AgentHostApp = (args?: {
+export const createAgentHostApp = (args?: {
   token?: string | undefined
 }): Promise<NestExpressApplication> =>
   createMiddlewareApp({
     rateLimit: UNTHROTTLED_RATE_LIMIT,
-    envValues: { V2_AGENT_HOST_TOKEN: args?.token },
+    envValues: { AGENT_HOST_TOKEN: args?.token },
     providers: [
-      V2AgentHostRouter,
-      V2AgentHostMiddleware,
-      { provide: V2AgentHostService, useValue: agentHost },
+      AgentHostRouter,
+      AgentHostMiddleware,
+      { provide: AgentHostService, useValue: agentHost },
     ],
   })

@@ -21,8 +21,8 @@ import type { ISandboxEnv } from './sections/sandbox'
 import { sandboxEnvSchema } from './sections/sandbox'
 import type { ITriggerEnv } from './sections/trigger'
 import { triggerEnvSchema } from './sections/trigger'
-import type { IV2Env } from './sections/v2'
-import { v2EnvSchema } from './sections/v2'
+import type { IAgentHostEnv } from './sections/agent-host'
+import { agentHostEnvSchema } from './sections/agent-host'
 import type { IVercelOauthEnv } from './sections/vercel-oauth'
 import { vercelOauthEnvSchema } from './sections/vercel-oauth'
 
@@ -38,7 +38,7 @@ export interface IEnvConfig
     IRedisEnv,
     ISandboxEnv,
     ITriggerEnv,
-    IV2Env,
+    IAgentHostEnv,
     IVercelOauthEnv {}
 
 export const envConfigValidation = Joi.object({
@@ -53,6 +53,6 @@ export const envConfigValidation = Joi.object({
   ...redisEnvSchema,
   ...sandboxEnvSchema,
   ...triggerEnvSchema,
-  ...v2EnvSchema,
+  ...agentHostEnvSchema,
   ...vercelOauthEnvSchema,
 })

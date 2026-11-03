@@ -246,7 +246,7 @@ export const describeTerminalConformance = (target: DaemonConformanceTarget): vo
         },
       }))
 
-    it('hides V2_DAEMON_SECRET from the terminal environment (real only)', async () => {
+    it('hides DAEMON_SECRET from the terminal environment (real only)', async () => {
       const handle = await target.start()
       try {
         if (!handle.realProcesses) return
@@ -255,7 +255,7 @@ export const describeTerminalConformance = (target: DaemonConformanceTarget): vo
         await write({
           session,
           terminalId: 't-env',
-          data: 'if [ -n "$V2_DAEMON_SECRET" ]; then echo SECRET_LEAKED; else echo SECRET_ABSENT; fi\n',
+          data: 'if [ -n "$DAEMON_SECRET" ]; then echo SECRET_LEAKED; else echo SECRET_ABSENT; fi\n',
         })
         await untilOutput({ session, terminalId: 't-env', needle: 'SECRET_ABSENT' })
       } finally {

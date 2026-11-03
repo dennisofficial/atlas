@@ -1,0 +1,73 @@
+import type { NestExpressApplication } from '@nestjs/platform-express'
+import request from 'supertest'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { as } from '../../../_module/trpc/trpc-middleware.fixture'
+import { createSessionsApp, sessions } from './sessions.router.fixture'
+
+describe('SessionsRouter', () => {
+  let app: NestExpressApplication
+
+  const create = (token: string | undefined, body: object) => {
+    const sent = request(app.getHttpServer()).post('/v1/trpc/sessions.create')
+    return (token === undefined ? sent : sent.set(as(token))).send(body)
+  }
+  const list = (token: string | undefined, input: object = {}) =>
+    request(app.getHttpServer())
+      .get('/v1/trpc/sessions.list')
+      .set(token === undefined ? {} : as(token))
+      .query({ input: JSON.stringify(input) })
+
+  beforeEach(async () => {
+    for (const fn of Object.values(sessions)) fn.mockReset()
+    app = await createSessionsApp()
+  })
+
+  afterEach(() => app.close())
+
+  it('rejects an unauthenticated caller with 401', async () => {
+    expect((await create(undefined, { projectId: 'proj-a' })).status).toBe(401)
+    expect((await list(undefined)).status).toBe(401)
+    expect(sessions.create).not.toHaveBeenCalled()
+    expect(sessions.list).not.toHaveBeenCalled()
+  })
+
+  it('creates a session for a signed-in user', async () => {
+    sessions.create.mockResolvedValue({ sessionId: 's1', mainThreadId: 't1' })
+
+    const response = await create('session-a', { projectId: 'proj-a', title: 'hi' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.result.data).toEqual({ sessionId: 's1', mainThreadId: 't1' })
+    expect(sessions.create).toHaveBeenCalledWith({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      title: 'hi',
+    })
+  })
+
+  it('lists for a signed-in user', async () => {
+    sessions.list.mockResolvedValue({ sessions: [] })
+
+    const response = await list('session-a', { limit: 5 })
+
+    expect(response.status).toBe(200)
+    expect(sessions.list).toHaveBeenCalledWith({ userId: 'user-a', limit: 5 })
+  })
+
+  it('opens create and list to any signed-in user', async () => {
+    sessions.create.mockResolvedValue({ sessionId: 's2', mainThreadId: 't2' })
+    sessions.list.mockResolvedValue({ sessions: [] })
+
+    expect((await create('session-b', { projectId: 'proj-b' })).status).toBe(200)
+    expect((await list('session-b')).status).toBe(200)
+    expect(sessions.create).toHaveBeenCalledWith({ userId: 'user-b', projectId: 'proj-b' })
+    expect(sessions.list).toHaveBeenCalledWith({ userId: 'user-b' })
+  })
+
+  it('validates the input', async () => {
+    expect((await create('session-a', {})).status).toBe(400)
+    expect((await create('session-a', { projectId: '' })).status).toBe(400)
+    expect((await create('session-a', { projectId: 'p', extra: 1 })).status).toBe(400)
+    expect(sessions.create).not.toHaveBeenCalled()
+  })
+})

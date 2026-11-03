@@ -18,11 +18,11 @@ import {
   resultFrameSchema,
   runFrameSchema,
   runReplyFrameSchema,
-  v2SessionCreateInputSchema,
-  v2SessionEventsInputSchema,
-  v2SessionListInputSchema,
-  v2SessionPostInputSchema,
-  v2SessionStatusInputSchema,
+  sessionCreateInputSchema,
+  sessionEventsInputSchema,
+  sessionListInputSchema,
+  sessionPostInputSchema,
+  sessionStatusInputSchema,
   type DaemonFrame,
   type HealthFrame,
   type ResultFrame,
@@ -189,28 +189,28 @@ describe('daemon to agent-host frames', () => {
   })
 })
 
-describe('v2 API inputs', () => {
+describe('session API inputs', () => {
   it('round-trips create, list, post, events and status inputs', () => {
     const create = { projectId: 'proj-1', title: 'a v2 session' }
-    expect(roundTrips(v2SessionCreateInputSchema, create)).toEqual(create)
+    expect(roundTrips(sessionCreateInputSchema, create)).toEqual(create)
 
     const list = { projectId: 'proj-1', limit: 50 }
-    expect(roundTrips(v2SessionListInputSchema, list)).toEqual(list)
-    expect(roundTrips(v2SessionListInputSchema, {})).toEqual({})
+    expect(roundTrips(sessionListInputSchema, list)).toEqual(list)
+    expect(roundTrips(sessionListInputSchema, {})).toEqual({})
 
     const post = { sessionId: 's-1', text: 'hello the agent host' }
-    expect(roundTrips(v2SessionPostInputSchema, post)).toEqual(post)
+    expect(roundTrips(sessionPostInputSchema, post)).toEqual(post)
 
     const events = { sessionId: 's-1', afterSeq: 41, limit: 1000 }
-    expect(roundTrips(v2SessionEventsInputSchema, events)).toEqual(events)
+    expect(roundTrips(sessionEventsInputSchema, events)).toEqual(events)
 
     const status = { sessionId: 's-1' }
-    expect(roundTrips(v2SessionStatusInputSchema, status)).toEqual(status)
+    expect(roundTrips(sessionStatusInputSchema, status)).toEqual(status)
   })
 
   it('rejects an empty text and an out-of-range events limit', () => {
-    expect(v2SessionPostInputSchema.safeParse({ sessionId: 's-1', text: '' }).success).toBe(false)
-    expect(v2SessionEventsInputSchema.safeParse({ sessionId: 's-1', limit: 1001 }).success).toBe(
+    expect(sessionPostInputSchema.safeParse({ sessionId: 's-1', text: '' }).success).toBe(false)
+    expect(sessionEventsInputSchema.safeParse({ sessionId: 's-1', limit: 1001 }).success).toBe(
       false,
     )
   })
