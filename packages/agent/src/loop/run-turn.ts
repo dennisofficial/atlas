@@ -170,7 +170,6 @@ export class LoopTurnRunner extends TurnRunner {
       logPort: this.logPort,
       diagnostics: this.failureDiagnostics,
       threadId,
-      onceLedger: this.onceLedger,
     })
   }
 

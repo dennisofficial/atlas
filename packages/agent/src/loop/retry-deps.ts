@@ -3,7 +3,6 @@ import type { LogPort, ThreadId } from '@dltech/atlas-core'
 import { logFieldsOf } from '../logging/log-fields'
 import type { FailureDiagnostics } from '../model/run-failure'
 import type { AgentOutput } from './agent-output'
-import type { OnceLedger } from './once-ledger.port'
 import type { RetryDeps } from './retrying-step'
 
 export function retryDepsFor(args: {
@@ -12,15 +11,12 @@ export function retryDepsFor(args: {
   logPort: LogPort | undefined
   diagnostics: FailureDiagnostics | undefined
   threadId: ThreadId
-  onceLedger: OnceLedger | undefined
 }): RetryDeps | undefined {
-  const { output, logPort, diagnostics, threadId, onceLedger } = args
-  const base: RetryDeps | undefined =
-    onceLedger === undefined ? args.retry : { ...(args.retry ?? {}), onceLedger }
-  if (logPort === undefined && output === undefined) return base
+  const { output, logPort, diagnostics, threadId } = args
+  if (logPort === undefined && output === undefined) return args.retry
   const held = args.retry?.onWaiting
   return {
-    ...base,
+    ...args.retry,
     ...(output === undefined
       ? {}
       : {
