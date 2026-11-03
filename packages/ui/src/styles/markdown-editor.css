@@ -234,3 +234,11 @@
   font-family: var(--atlas-md-mono);
   font-size: 0.875em;
 }
+
+.atlas-markdown-editor [class*="_dialogOverlay_"] {
+  z-index: 20;
+}
+
+.atlas-markdown-editor [class*="_largeDialogContent_"] {
+  z-index: 21;
+}
