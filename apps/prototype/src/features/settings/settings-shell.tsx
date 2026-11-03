@@ -33,7 +33,7 @@ import {
   SidebarProvider,
 } from '@dltech/atlas-ui/components/sidebar'
 
-import { SETTINGS_NAV, filterNav, hrefOfPage } from './settings-nav'
+import { SETTINGS_NAV, filterNav, hrefOfPage, settingsPageOfPath } from './settings-nav'
 
 const HELP_LINKS = [
   { label: 'Docs', icon: BookOpenIcon },
@@ -112,7 +112,7 @@ function SettingsNav() {
                   <SidebarMenuItem key={item.page}>
                     <SidebarMenuButton
                       size="sm"
-                      isActive={pathname === hrefOfPage(item.page)}
+                      isActive={settingsPageOfPath(pathname) === item.page}
                       render={<Link href={hrefOfPage(item.page)} />}
                     >
                       <item.icon />
@@ -136,13 +136,25 @@ function SettingsNav() {
 }
 
 export function SettingsShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname()
+  const fullBleed = /^\/settings\/skills\/[^/]+$/.test(pathname ?? '')
   return (
     <SidebarProvider className="h-svh min-h-0 flex-col">
       <SettingsTopBar />
       <div className="flex min-h-0 flex-1">
         <SettingsNav />
-        <main className="min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-8 py-10">{children}</div>
+        <main
+          className={
+            fullBleed
+              ? 'flex min-w-0 flex-1 flex-col overflow-hidden'
+              : 'min-w-0 flex-1 overflow-y-auto'
+          }
+        >
+          {fullBleed ? (
+            children
+          ) : (
+            <div className="mx-auto w-full max-w-3xl px-8 py-10">{children}</div>
+          )}
         </main>
       </div>
     </SidebarProvider>

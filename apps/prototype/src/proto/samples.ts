@@ -4,6 +4,18 @@ export interface ProtoSample {
 }
 
 export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
+  '/settings/skills/[skillId]': [
+    { label: 'ui-design', path: '/settings/skills/ui-design' },
+    { label: 'Binary file', path: '/settings/skills/ads' },
+    { label: 'code-review', path: '/settings/skills/code-review' },
+  ],
+  '/projects/[projectId]/settings/skills': [
+    { label: 'atlas', path: '/projects/atlas/settings/skills' },
+  ],
+  '/projects/[projectId]/settings/skills/[skillId]': [
+    { label: 'atlas skill', path: '/projects/atlas/settings/skills/atlas' },
+    { label: 'Binary file', path: '/projects/atlas/settings/skills/release-checklist' },
+  ],
   '/threads/[threadId]': [
     { label: 'Session', path: '/threads/thr-ui-rebase' },
     { label: 'Other thread', path: '/threads/thr-snapshots' },

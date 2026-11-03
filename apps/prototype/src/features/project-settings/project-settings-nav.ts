@@ -4,6 +4,7 @@ import {
   GitPullRequestIcon,
   LayoutDashboardIcon,
   PlugIcon,
+  SparklesIcon,
   VariableIcon,
   type LucideIcon,
 } from 'lucide-react'
@@ -14,6 +15,7 @@ export enum EProjectSettingsSection {
   Secrets = 'secrets',
   Files = 'files',
   Mcp = 'mcp',
+  Skills = 'skills',
   PullRequests = 'pull-requests',
 }
 
@@ -37,6 +39,7 @@ export const PROJECT_NAV: readonly ProjectNavItem[] = [
   },
   { section: EProjectSettingsSection.Files, label: 'Files', icon: FileKeyIcon },
   { section: EProjectSettingsSection.Mcp, label: 'MCP', icon: PlugIcon },
+  { section: EProjectSettingsSection.Skills, label: 'Skills', icon: SparklesIcon },
   {
     section: EProjectSettingsSection.PullRequests,
     label: 'Pull requests',
@@ -45,8 +48,10 @@ export const PROJECT_NAV: readonly ProjectNavItem[] = [
 ]
 
 export function projectSectionOfPath(pathname: string): EProjectSettingsSection | null {
-  const [, projects, , settings, section] = pathname.split('/')
+  const segments = pathname.split('/')
+  const [, projects, , settings, section] = segments
   if (projects !== 'projects' || settings !== 'settings') return null
+  if (section === EProjectSettingsSection.Skills) return EProjectSettingsSection.Skills
   return Object.values(EProjectSettingsSection).find((value) => value === section) ?? null
 }
 
