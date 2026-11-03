@@ -5,6 +5,7 @@ import {
   ESettingId,
   ESettingsLayer,
   EWebSearchBackend,
+  resolveSettings,
   type ResolvedSetting,
 } from '@dltech/atlas-core'
 
@@ -18,7 +19,12 @@ const backendSetting = (value: string): ResolvedSetting => {
 
 const frameOf = async (value: string): Promise<string> => {
   const { renderOnce, captureCharFrame } = await testRender(
-    <SettingsDetail width={44} setting={backendSetting(value)} cwd="/work" />,
+    <SettingsDetail
+      width={44}
+      setting={backendSetting(value)}
+      cwd="/work"
+      resolution={resolveSettings({ definitions: ATLAS_SETTINGS, layers: [] })}
+    />,
     { width: 44, height: 40 },
   )
   await renderOnce()

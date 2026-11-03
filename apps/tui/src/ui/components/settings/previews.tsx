@@ -1,9 +1,11 @@
 import {
+  choiceOptionsOf,
   ESettingId,
   ESettingKind,
   parseUnifiedDiff,
   type DiffFile,
   type ResolvedSetting,
+  type SettingsResolution,
 } from '@dltech/atlas-core'
 import React from 'react'
 
@@ -22,6 +24,7 @@ export type SettingPreview = {
     width: number
     appearance: Appearance
     setting: ResolvedSetting
+    resolution: SettingsResolution
   }) => React.ReactNode
 }
 
@@ -29,15 +32,25 @@ export const CHOSEN = '●'
 
 export const UNCHOSEN = '○'
 
-const namesOf = (setting: ResolvedSetting): readonly string[] =>
-  setting.definition.kind === ESettingKind.Choice
-    ? setting.definition.options.map((option) => option.value)
+const namesOf = (args: {
+  setting: ResolvedSetting
+  resolution: SettingsResolution
+}): readonly string[] =>
+  args.setting.definition.kind === ESettingKind.Choice
+    ? choiceOptionsOf({
+        definition: args.setting.definition,
+        resolution: args.resolution,
+      }).map((option) => option.value)
     : []
 
-function Swatches(props: { chosen: string; setting: ResolvedSetting }): React.ReactNode {
+function Swatches(props: {
+  chosen: string
+  setting: ResolvedSetting
+  resolution: SettingsResolution
+}): React.ReactNode {
   return (
     <box flexDirection="row" flexShrink={0} gap={2}>
-      {namesOf(props.setting).map((name) => (
+      {namesOf({ setting: props.setting, resolution: props.resolution }).map((name) => (
         <text key={name} fg={name === props.chosen ? accentHex(name) : theme.dim}>
           {`${name === props.chosen ? CHOSEN : UNCHOSEN} ${name}`}
         </text>
@@ -92,7 +105,9 @@ function LogoScene(props: { appearance: Appearance; width: number }): React.Reac
 
 const PREVIEWS: Readonly<Record<string, SettingPreview>> = {
   [ESettingId.Accent]: {
-    render: ({ appearance, setting }) => <Swatches chosen={appearance.accent} setting={setting} />,
+    render: ({ appearance, setting, resolution }) => (
+      <Swatches chosen={appearance.accent} setting={setting} resolution={resolution} />
+    ),
   },
   [ESettingId.ComposerEdge]: {
     render: ({ width }) => <ComposerScene width={width} />,

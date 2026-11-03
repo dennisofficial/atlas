@@ -98,7 +98,7 @@ export const DEFAULT_CONTAINER_IDLE_MINUTES = 30
 
 export const DEFAULT_EFFORT = EEffort.Medium
 
-const EFFORT_OPTIONS: readonly SettingOption[] = EFFORT_LADDER.map((effort) => ({
+export const EFFORT_OPTIONS: readonly SettingOption[] = EFFORT_LADDER.map((effort) => ({
   value: effort,
   label: effort,
 }))

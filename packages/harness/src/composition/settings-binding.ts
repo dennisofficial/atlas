@@ -1,7 +1,12 @@
 import { homedir } from 'node:os'
 import { relative } from 'node:path'
 
-import { ATLAS_SETTINGS, collapseHome, type SettingsStorePort } from '@dltech/atlas-core'
+import {
+  ATLAS_SETTINGS,
+  collapseHome,
+  ESettingId,
+  type SettingsStorePort,
+} from '@dltech/atlas-core'
 
 import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../cloud/settings-definitions'
 import type { DependencyContainer } from '../container/injection'
@@ -44,8 +49,13 @@ export function loadSettings(args: {
     label: `${PROJECT_PREFIX}/${relative(args.cwd, projectFile)}`,
   })
 
+  // model.effort is left out of the base list: bindSessionAgentTypes registers a catalogue-aware
+  // version whose options follow the resolved default model. register() skips duplicate ids, so the
+  // static definition staying here would silently win and the row would never narrow.
   const definitions = [
-    ...ATLAS_SETTINGS.filter((definition) => !isCloudSettingId(definition.id)),
+    ...ATLAS_SETTINGS.filter(
+      (definition) => !isCloudSettingId(definition.id) && definition.id !== ESettingId.ModelEffort,
+    ),
     ...CLOUD_SETTING_DEFINITIONS,
   ]
 

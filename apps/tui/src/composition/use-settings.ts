@@ -4,6 +4,7 @@ import {
   formatFavourites,
   type EUsageWindow,
   type SecretPrompt,
+  type SettingsResolution,
   type TextPrompt,
 } from '@dltech/atlas-core'
 import type { SettingsWrite } from '@dltech/atlas-harness'
@@ -37,6 +38,7 @@ export type SettingsControl = {
   view: SettingsModel
   appearance: Appearance
   state: SettingsState | null
+  resolution: SettingsResolution
   prompt: SecretPrompt | null
   textPrompt: TextPrompt | null
   secretOf: (id: string) => Span | undefined
@@ -212,6 +214,7 @@ export function useSettings(args: {
     app,
     view,
     state,
+    resolution: held.resolution,
     select: setState,
     settle,
     secret,
@@ -233,6 +236,7 @@ export function useSettings(args: {
       view,
       appearance,
       state,
+      resolution: held.resolution,
       prompt: secret.prompt,
       textPrompt: text.prompt,
       secretOf: secret.displayOf,
@@ -282,6 +286,7 @@ export function useSettings(args: {
       handleSelect,
       handleSignOut,
       handleUpload,
+      held.resolution,
       origin,
       preferences,
       problem,

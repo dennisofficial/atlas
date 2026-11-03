@@ -23,7 +23,7 @@ const THREAD = toThreadId('opened-thread')
 
 const WIDE = { width: 150, height: 40 }
 
-const appWith = (args?: { effort?: string; quickModel?: string }): FakeApp =>
+const appWith = (args?: { effort?: string; model?: string; quickModel?: string }): FakeApp =>
   fakeApp({
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
     ...(args === undefined
@@ -32,6 +32,7 @@ const appWith = (args?: { effort?: string; quickModel?: string }): FakeApp =>
           settings: {
             values: {
               ...(args.effort === undefined ? {} : { [ESettingId.ModelEffort]: args.effort }),
+              ...(args.model === undefined ? {} : { [ESettingId.ModelId]: args.model }),
               ...(args.quickModel === undefined
                 ? {}
                 : { [ESettingId.QuickModel]: args.quickModel }),
@@ -268,6 +269,78 @@ describe('the model-kind settings rows', () => {
       await landed(setup)
 
       expect(setup.captureCharFrame()).toContain('sonnext')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+})
+
+describe('the default effort row', () => {
+  it('cycles the whole ladder while the default model is automatic', async () => {
+    const app = appWith()
+    const setup = await opened(app)
+
+    try {
+      await openModelsWith(setup)
+      await downTo({ setup, needle: 'Default effort' })
+
+      await arrow(setup, 'right')
+      await arrow(setup, 'right')
+
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('xhigh')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('offers only the four rungs kimi-k3-fast takes', async () => {
+    const app = appWith({ model: 'inference/kimi-k3-fast' })
+    const setup = await opened(app)
+
+    try {
+      await openModelsWith(setup)
+      await downTo({ setup, needle: 'Default effort' })
+
+      expect(rowShowing(setup, 'Default effort')).toContain('medium')
+
+      await arrow(setup, 'right')
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('low')
+
+      await arrow(setup, 'right')
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('high')
+
+      await arrow(setup, 'right')
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('max')
+
+      await arrow(setup, 'right')
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('max')
+
+      await arrow(setup, 'left')
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('high')
+
+      await arrow(setup, 'left')
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('low')
+
+      await arrow(setup, 'left')
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('off')
+
+      await arrow(setup, 'left')
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('off')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('self-corrects a stored rung the model cannot take on the first keypress', async () => {
+    const app = appWith({ model: 'inference/kimi-k3-fast', effort: 'medium' })
+    const setup = await opened(app)
+
+    try {
+      await openModelsWith(setup)
+      await downTo({ setup, needle: 'Default effort' })
+
+      await arrow(setup, 'right')
+      expect(writtenFor(app, ESettingId.ModelEffort)).toBe('low')
     } finally {
       await teardown(setup)
     }

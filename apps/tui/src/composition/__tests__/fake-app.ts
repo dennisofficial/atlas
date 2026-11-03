@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import {
   AccountUsagePort,
   ATLAS_SETTINGS,
+  EFFORT_OPTIONS,
   EEffort,
   EExecutionLocation,
   EImageTier,
@@ -15,13 +16,17 @@ import {
   defaultPipeline,
   EMPTY_PROMPT,
   EFinishReason,
+  supportedEfforts,
+  textValueOf,
   type AccountUsage,
   type Chunk,
   type ChunkFilter,
   EAuthKind,
   ESettingId,
+  ESettingKind,
   toAccountId,
   type AccountDraft,
+  type ChoiceDefinition,
   type Credential,
   type CredentialPort,
   type EffortMap,
@@ -187,7 +192,24 @@ const CODEX_CARDS: readonly ModelCard[] = [
   }),
 ]
 
-const FAKE_CATALOG = catalogOf([...CLAUDE_CARDS, ...CODEX_CARDS])
+const KIMI_RUNGS: EffortMap = {
+  [EEffort.Off]: 0,
+  [EEffort.Low]: 'low',
+  [EEffort.High]: 'high',
+  [EEffort.Max]: 'max',
+}
+
+const INFERENCE_CARDS: readonly ModelCard[] = [
+  fakeCard({
+    providerId: 'inference',
+    modelId: 'kimi-k3-fast',
+    label: 'kimi-k3-fast',
+    price: 1,
+    effort: KIMI_RUNGS,
+  }),
+]
+
+const FAKE_CATALOG = catalogOf([...CLAUDE_CARDS, ...CODEX_CARDS, ...INFERENCE_CARDS])
 
 /** Anthropic is keyed and OpenAI is not, so the `⚠ no key` row still has something to say. */
 export function fakeCatalogue(): ModelCatalogue {
@@ -195,6 +217,7 @@ export function fakeCatalogue(): ModelCatalogue {
     providers: [
       { id: 'anthropic', label: 'Claude Plan', cards: CLAUDE_CARDS },
       { id: 'openai', label: 'Codex Plan', cards: CODEX_CARDS },
+      { id: 'inference', label: 'Inference', cards: INFERENCE_CARDS },
     ],
     catalog: FAKE_CATALOG,
     cardFor: (ref) => findCard({ catalog: FAKE_CATALOG, ref }),
@@ -204,6 +227,32 @@ export function fakeCatalogue(): ModelCatalogue {
     observeAccounts: () => {},
     subscribe: () => () => {},
     version: () => 0,
+  }
+}
+
+/**
+ * The test double of the catalogue-aware model.effort registration the real composition performs:
+ * the rungs the resolved default model takes, the full ladder when it is unset, unknown, or
+ * carries no effort map.
+ */
+const fakeEffortSetting = (args: { models: ModelCatalogue }): ChoiceDefinition => {
+  const held = ATLAS_SETTINGS.find((definition) => definition.id === ESettingId.ModelEffort)
+  if (held?.kind !== ESettingKind.Choice) {
+    throw new Error('the registry no longer holds a model.effort choice to build from')
+  }
+
+  return {
+    ...held,
+    optionsFor: ({ resolution }) => {
+      const reference = textValueOf({ resolution, id: ESettingId.ModelId })
+      const ref = parseRef(reference)
+      if (ref === undefined) return EFFORT_OPTIONS
+
+      const rungs = supportedEfforts(args.models.cardFor(ref)?.effort)
+      return rungs.length === 0
+        ? EFFORT_OPTIONS
+        : rungs.map((rung) => ({ value: rung, label: rung }))
+    },
   }
 }
 
@@ -1119,8 +1168,12 @@ export function fakeApp(args: {
     pods: args.pods === true,
     settings: createSettingsService({
       definitions: [
-        ...ATLAS_SETTINGS.filter((definition) => !isCloudSettingId(definition.id)),
+        ...ATLAS_SETTINGS.filter(
+          (definition) =>
+            !isCloudSettingId(definition.id) && definition.id !== ESettingId.ModelEffort,
+        ),
         ...CLOUD_SETTING_DEFINITIONS,
+        fakeEffortSetting({ models: args.models ?? fakeCatalogue() }),
       ],
       user: (() => {
         const store = new MemorySettingsStore({

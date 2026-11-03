@@ -1,9 +1,11 @@
 import {
+  choiceOptionsOf,
   type ModelDefinition,
   type SecretDefinition,
   type SettingDefinition,
   type TextDefinition,
 } from './definition'
+import type { SettingsResolution } from './resolve'
 import { ESettingKind, type SettingValue } from './value'
 
 const wrapped = (args: { index: number; length: number }): number => {
@@ -33,6 +35,7 @@ const optionIndex = (args: {
 export function activateSetting(args: {
   definition: SettingDefinition
   current: SettingValue
+  resolution?: SettingsResolution | undefined
 }): SettingValue {
   const { definition, current } = args
 
@@ -45,11 +48,12 @@ export function activateSetting(args: {
   }
 
   if (definition.kind === ESettingKind.Choice) {
+    const options = choiceOptionsOf({ definition, resolution: args.resolution })
     const next = wrapped({
-      index: optionIndex({ options: definition.options, value: current }) + 1,
-      length: definition.options.length,
+      index: optionIndex({ options, value: current }) + 1,
+      length: options.length,
     })
-    return definition.options[next]?.value ?? definition.fallback
+    return options[next]?.value ?? definition.fallback
   }
 
   const held = typeof current === 'number' ? current : definition.fallback
@@ -61,6 +65,7 @@ export function adjustSetting(args: {
   definition: SettingDefinition
   current: SettingValue
   delta: number
+  resolution?: SettingsResolution | undefined
 }): SettingValue {
   const { definition, current } = args
   const delta = Math.trunc(args.delta)
@@ -75,12 +80,13 @@ export function adjustSetting(args: {
   }
 
   if (definition.kind === ESettingKind.Choice) {
+    const options = choiceOptionsOf({ definition, resolution: args.resolution })
     const target = clamped({
-      value: optionIndex({ options: definition.options, value: current }) + delta,
+      value: optionIndex({ options, value: current }) + delta,
       minimum: 0,
-      maximum: definition.options.length - 1,
+      maximum: options.length - 1,
     })
-    return definition.options[target]?.value ?? definition.fallback
+    return options[target]?.value ?? definition.fallback
   }
 
   const held = typeof current === 'number' ? current : definition.fallback

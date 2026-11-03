@@ -74,6 +74,7 @@ export const page = (args: {
         ...(args.writeOriginOf === undefined ? {} : { writeOriginOf: args.writeOriginOf }),
       })}
       state={args.state ?? { pageIndex: 0, rowIndex: 0 }}
+      resolution={resolution}
       cwd="/Users/dennis/Developer/atlas"
       origin={ORIGIN}
       appearance={SHIPPED_APPEARANCE}

@@ -3,6 +3,7 @@ import {
   adjustSetting,
   ESettingKind,
   ESettingPage,
+  type SettingsResolution,
   type SettingValue,
 } from '@dltech/atlas-core'
 import type { SettingsWrite } from '@dltech/atlas-harness'
@@ -30,6 +31,7 @@ export function useSettingsKeys(args: {
   app: AtlasApp
   view: SettingsModel
   state: SettingsState | null
+  resolution: SettingsResolution
   select: (target: SettingsState) => void
   settle: (result: SettingsWrite) => void
   secret: SecretPromptControl
@@ -45,6 +47,7 @@ export function useSettingsKeys(args: {
     app,
     view,
     state,
+    resolution,
     select,
     settle,
     secret,
@@ -124,9 +127,11 @@ export function useSettingsKeys(args: {
         return
       }
 
-      write(target, (held) => activateSetting({ definition: held.definition, current: held.value }))
+      write(target, (held) =>
+        activateSetting({ definition: held.definition, current: held.value, resolution }),
+      )
     },
-    [cloudPage, cloudRow, onChooseModel, secret, select, signedIn, text, view, write],
+    [cloudPage, cloudRow, onChooseModel, resolution, secret, select, signedIn, text, view, write],
   )
 
   const handleKey = useCallback(
@@ -198,6 +203,7 @@ export function useSettingsKeys(args: {
             definition: row.definition,
             current: row.value,
             delta: key.name === 'left' ? -1 : 1,
+            resolution,
           }),
         )
       }
@@ -210,6 +216,7 @@ export function useSettingsKeys(args: {
       handleClearValue,
       login,
       onDismiss,
+      resolution,
       secret,
       select,
       signedIn,
