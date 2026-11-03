@@ -7836,6 +7836,13 @@
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
+              },
+              "wantsHolder": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
               }
             },
             "relations": {
@@ -7872,6 +7879,9 @@
                 },
                 "ttlMs": {
                   "column": "ttlMs"
+                },
+                "wantsHolder": {
+                  "column": "wantsHolder"
                 }
               },
               "namespaceId": "v2",
@@ -7897,10 +7907,38 @@
                   "kind": "scalar"
                 }
               },
+              "mainThreadId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "nextInboxId": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "projectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               }
@@ -7961,8 +7999,20 @@
                 "id": {
                   "column": "id"
                 },
+                "mainThreadId": {
+                  "column": "mainThreadId"
+                },
                 "nextInboxId": {
                   "column": "nextInboxId"
+                },
+                "projectId": {
+                  "column": "projectId"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "userId": {
+                  "column": "userId"
                 }
               },
               "namespaceId": "v2",
@@ -13830,7 +13880,17 @@
                   }
                 }
               ],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "consumedSeq",
+                    "sessionId"
+                  ],
+                  "name": "V2InboxEntry_consumedSeq_sessionId_idx_58d8d6fc",
+                  "prefix": "V2InboxEntry_consumedSeq_sessionId_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "sessionId",
@@ -13868,6 +13928,15 @@
                 "ttlMs": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "wantsHolder": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
                   "nullable": false
                 }
               },
@@ -13917,14 +13986,44 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "mainThreadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
                 "nextInboxId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": false
+                },
+                "projectId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
                 }
               },
               "foreignKeys": [],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "userId",
+                    "createdAt"
+                  ],
+                  "name": "V2Session_userId_createdAt_idx_f726f04a",
+                  "prefix": "V2Session_userId_createdAt_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -14013,7 +14112,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "aa1b7cae47cb713403ff8470e581f04f4da268821b153afa71bfdf55edf5768d"
+    "storageHash": "fcf5f2f472f53ca8bda3c73a89a716d254bccc9559abec5d6e0f6adb298b836e"
   },
   "execution": {
     "executionHash": "3b5f0a7ec0457f5edf680634022c237da03bca270a301a1d8c978e4ec96d5016",

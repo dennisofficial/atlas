@@ -13,6 +13,8 @@ import type { ControlStorePort } from '../../port'
 export const SESSION = 'session-1'
 export const THREAD = 'thread-1'
 export const HOLDER = 'pod-a'
+export const USER = 'user-1'
+export const PROJECT = 'project-1'
 export const T0 = '2026-11-02T12:00:00.000Z'
 
 export type Harness = { plane: ControlPlane; setNow: (iso: string) => void }
@@ -24,11 +26,31 @@ export function makeHarness(store: ControlStorePort): Harness {
 }
 
 export async function seedGranted(harness: Harness): Promise<number> {
-  await harness.plane.createSession({ sessionId: SESSION })
-  await harness.plane.createThread({ threadId: THREAD, sessionId: SESSION })
+  await harness.plane.createSession({
+    sessionId: SESSION,
+    userId: USER,
+    projectId: PROJECT,
+    mainThreadId: THREAD,
+  })
   const lease = await harness.plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
   return lease.epoch
 }
+
+export const createSessionParams = (params: {
+  sessionId: string
+  mainThreadId: string
+  title?: string
+}): {
+  sessionId: string
+  userId: string
+  projectId: string
+  title?: string
+  mainThreadId: string
+} => ({
+  ...params,
+  userId: USER,
+  projectId: PROJECT,
+})
 
 export const said = (text: string): V2Body => ({ type: 'user-said', text })
 

@@ -7,9 +7,10 @@ import {
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
+  type V2SessionRow,
 } from '../../port'
 
-type SessionRow = { nextInboxId: number }
+type SessionRow = V2SessionRow & { nextInboxId: number }
 
 type State = {
   sessions: Map<string, SessionRow>
@@ -50,12 +51,82 @@ const bisectAfter = (params: { rows: readonly StoredEvent[]; afterSeq: number })
   return low
 }
 
-class MemoryTx implements ControlTx {
-  constructor(private readonly state: State) {}
+const leaseLiveAt = (params: { lease: Lease | undefined; now: string }): boolean =>
+  params.lease !== undefined &&
+  params.lease.holderId !== null &&
+  Date.parse(params.now) < Date.parse(params.lease.renewedAt) + params.lease.ttlMs
 
-  async createSession(params: { sessionId: string }): Promise<void> {
+class MemoryTx implements ControlTx {
+  private readonly state: State
+  private readonly clock: () => string
+
+  constructor(params: { state: State; clock: () => string }) {
+    this.state = params.state
+    this.clock = params.clock
+  }
+
+  async now(): Promise<string> {
+    return this.clock()
+  }
+
+  async createSession(params: {
+    sessionId: string
+    userId: string
+    projectId: string
+    title?: string | undefined
+    mainThreadId: string
+    at: string
+  }): Promise<void> {
     if (this.state.sessions.has(params.sessionId)) throw new Error('session exists')
-    this.state.sessions.set(params.sessionId, { nextInboxId: 1 })
+    this.state.sessions.set(params.sessionId, {
+      sessionId: params.sessionId,
+      userId: params.userId,
+      projectId: params.projectId,
+      title: params.title ?? null,
+      mainThreadId: params.mainThreadId,
+      createdAt: params.at,
+      nextInboxId: 1,
+    })
+  }
+
+  async readSession(params: { sessionId: string }): Promise<V2SessionRow | undefined> {
+    const row = this.state.sessions.get(params.sessionId)
+    if (row === undefined) return undefined
+    const { nextInboxId: _nextInboxId, ...session } = row
+    return { ...session }
+  }
+
+  async listSessions(params: {
+    userId: string
+    projectId?: string | undefined
+    limit: number
+  }): Promise<V2SessionRow[]> {
+    return [...this.state.sessions.values()]
+      .filter((row) => row.userId === params.userId)
+      .filter((row) => params.projectId === undefined || row.projectId === params.projectId)
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      .slice(0, params.limit)
+      .map(({ nextInboxId: _nextInboxId, ...session }) => ({ ...session }))
+  }
+
+  async sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]> {
+    return [...this.state.sessions.values()]
+      .filter((row) => {
+        const lease = this.state.leases.get(row.sessionId)
+        if (leaseLiveAt({ lease, now: params.now })) return false
+        if (lease !== undefined && lease.holderId !== null) return true
+        if (lease?.wantsHolder === true) return true
+        return (this.state.inbox.get(row.sessionId) ?? []).some(
+          (entry) => entry.consumedSeq === null,
+        )
+      })
+      .sort(
+        (a, b) =>
+          Date.parse(a.createdAt) - Date.parse(b.createdAt) ||
+          a.sessionId.localeCompare(b.sessionId),
+      )
+      .slice(0, params.limit)
+      .map((row) => row.sessionId)
   }
 
   async createThread(params: {
@@ -131,6 +202,10 @@ class MemoryTx implements ControlTx {
     return lease === undefined ? undefined : { ...lease }
   }
 
+  async lockLease(sessionId: string): Promise<Lease | undefined> {
+    return this.readLease(sessionId)
+  }
+
   async writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean> {
     const current = this.state.leases.get(params.lease.sessionId)
     if (!this.state.sessions.has(params.lease.sessionId)) return false
@@ -190,13 +265,19 @@ class MemoryTx implements ControlTx {
 }
 
 export class InMemoryControlStore extends ControlStorePort {
+  private readonly clock: () => string
   private state: State = emptyState()
   private tail: Promise<unknown> = Promise.resolve()
+
+  constructor(params: { clock?: (() => string) | undefined } = {}) {
+    super()
+    this.clock = params.clock ?? (() => new Date().toISOString())
+  }
 
   transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
     const run = async (): Promise<T> => {
       const working = cloneState(this.state)
-      const result = await work(new MemoryTx(working))
+      const result = await work(new MemoryTx({ state: working, clock: this.clock }))
       this.state = working
       return result
     }

@@ -30,7 +30,13 @@ const raceOn = (params: { tx: ControlTx; beforeMarkFails: () => Promise<void> })
 async function refusalOf(params: { race: (tx: ControlTx) => Promise<void> }) {
   const store = new InMemoryControlStore()
   return store.transact(async (tx) => {
-    await tx.createSession({ sessionId: SESSION, at: entry.postedAt })
+    await tx.createSession({
+      sessionId: SESSION,
+      userId: 'user-1',
+      projectId: 'project-1',
+      mainThreadId: 'thread-1',
+      at: entry.postedAt,
+    })
     await tx.insertInboxEntry(entry)
     const racing = raceOn({ tx, beforeMarkFails: () => params.race(tx) })
     try {
