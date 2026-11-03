@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { useState } from 'react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -10,19 +10,21 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@dltech/atlas-ui/components/collapsible'
-import { Input } from '@dltech/atlas-ui/components/input'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import { EVercelCredentialKind, EVercelPlan } from '@dltech/atlas-wire/web'
 
 import { AVAILABLE_SOON } from '@/lib/cloud-capabilities'
 
 import {
-  canSaveVercelDraft,
+  PLAN_BADGE_LABEL,
   type VercelCredentialView,
   type VercelDraft,
 } from '../data/shared/vercel-credential'
+import type { VercelDiscoverFn } from '../data/shared/vercel-discovery'
 import { SettingsCard, SettingsRow } from '../settings-layout'
 import { LibraryConfirmDialog } from './library-confirm-dialog'
+import { ManualIdFields } from './vercel-manual-id-fields'
+import { TokenPickerRows } from './vercel-token-picker-fields'
 
 export type VercelCardCopy = {
   description: string
@@ -47,12 +49,7 @@ export const EMPTY_VERCEL_VIEW: VercelCredentialView = {
   updatedAt: null,
 }
 
-export const PLAN_BADGE_LABEL: Record<EVercelPlan, string> = {
-  [EVercelPlan.Hobby]: 'Hobby',
-  [EVercelPlan.Pro]: 'Pro',
-  [EVercelPlan.Enterprise]: 'Enterprise',
-  [EVercelPlan.Unknown]: 'Plan unknown',
-}
+export { PLAN_BADGE_LABEL }
 
 function StatusLine({ tone, text }: { tone: 'ok' | 'warn' | 'off'; text: string }) {
   return (
@@ -78,116 +75,6 @@ export type VercelCardActions = {
   refreshingPlan?: boolean
 }
 
-function TokenFields({
-  view,
-  disabled,
-  saving,
-  onSave,
-}: {
-  view: VercelCredentialView
-  disabled: boolean
-  saving: boolean
-  onSave?: (draft: VercelDraft) => void
-}) {
-  const teamId = useId()
-  const projectId = useId()
-  const tokenId = useId()
-  const tokenRef = useRef<HTMLInputElement>(null)
-  const [draft, setDraft] = useState<VercelDraft>({
-    teamId: view.teamId,
-    vercelProjectId: view.vercelProjectId,
-    token: '',
-  })
-  const [replacing, setReplacing] = useState(false)
-  const tokenLocked = view.configured && view.kind === EVercelCredentialKind.Token && !replacing
-  const savable = canSaveVercelDraft({ view, draft })
-
-  useEffect(() => {
-    if (replacing) tokenRef.current?.focus()
-  }, [replacing])
-
-  const handleReplace = () => {
-    setDraft({ ...draft, token: '' })
-    setReplacing(true)
-  }
-  const handleKeep = () => {
-    setDraft({ ...draft, token: '' })
-    setReplacing(false)
-  }
-
-  return (
-    <>
-      <SettingsRow
-        title={<label htmlFor={teamId}>Team ID</label>}
-        description="The Vercel team or account the sandboxes belong to."
-        control={
-          <Input
-            id={teamId}
-            className="w-72 max-w-full font-mono text-xs md:text-xs"
-            placeholder="team_…"
-            autoComplete="off"
-            spellCheck={false}
-            disabled={disabled}
-            value={draft.teamId}
-            onChange={(event) => setDraft({ ...draft, teamId: event.target.value })}
-          />
-        }
-      />
-      <SettingsRow
-        title={<label htmlFor={projectId}>Project ID</label>}
-        description="The Vercel project the sandboxes are created in."
-        control={
-          <Input
-            id={projectId}
-            className="w-72 max-w-full font-mono text-xs md:text-xs"
-            placeholder="prj_…"
-            autoComplete="off"
-            spellCheck={false}
-            disabled={disabled}
-            value={draft.vercelProjectId}
-            onChange={(event) => setDraft({ ...draft, vercelProjectId: event.target.value })}
-          />
-        }
-      />
-      <SettingsRow
-        title={<label htmlFor={tokenId}>Token</label>}
-        description={
-          view.configured && view.kind === EVercelCredentialKind.Token
-            ? 'Write-only. Leave it blank to keep the saved token.'
-            : 'Required. Write-only, and never shown again once saved.'
-        }
-        control={
-          <>
-            <Input
-              id={tokenId}
-              ref={tokenRef}
-              type="password"
-              className="w-72 max-w-full"
-              autoComplete="new-password"
-              placeholder={tokenLocked ? 'Token saved and hidden' : 'Paste a Vercel access token'}
-              disabled={disabled || tokenLocked}
-              value={draft.token}
-              onChange={(event) => setDraft({ ...draft, token: event.target.value })}
-            />
-            {view.configured && view.kind === EVercelCredentialKind.Token && !disabled ? (
-              <Button variant="outline" size="sm" onClick={replacing ? handleKeep : handleReplace}>
-                {replacing ? 'Keep saved token' : 'Replace token'}
-              </Button>
-            ) : null}
-            <Button
-              size="sm"
-              disabled={disabled || !savable || saving}
-              onClick={() => onSave?.(draft)}
-            >
-              {saving ? 'Saving…' : 'Save token'}
-            </Button>
-          </>
-        }
-      />
-    </>
-  )
-}
-
 export function VercelCredentialCard({
   copy = PERSONAL_VERCEL_COPY,
   view = EMPTY_VERCEL_VIEW,
@@ -196,6 +83,7 @@ export function VercelCredentialCard({
   soon = false,
   saving = false,
   actions = {},
+  discover,
   onSave,
   onRemove,
 }: {
@@ -206,6 +94,7 @@ export function VercelCredentialCard({
   soon?: boolean
   saving?: boolean
   actions?: VercelCardActions
+  discover?: VercelDiscoverFn
   onSave?: (draft: VercelDraft) => void
   onRemove?: () => void
 }) {
@@ -295,19 +184,28 @@ export function VercelCredentialCard({
           />
         ) : null}
         {!oauth && !disabled ? (
-          <Collapsible>
-            <SettingsRow
-              title={
-                <CollapsibleTrigger className="text-sm font-medium underline-offset-4 hover:underline">
-                  Use an access token instead
-                </CollapsibleTrigger>
-              }
-              description="A pasted token works the same; it just never tells Atlas your plan caps on its own."
+          <>
+            <TokenPickerRows
+              view={view}
+              disabled={disabled}
+              saving={saving}
+              discover={discover}
+              onSave={onSave}
             />
-            <CollapsibleContent>
-              <TokenFields view={view} disabled={disabled} saving={saving} onSave={onSave} />
-            </CollapsibleContent>
-          </Collapsible>
+            <Collapsible>
+              <SettingsRow
+                title={
+                  <CollapsibleTrigger className="text-sm font-medium underline-offset-4 hover:underline">
+                    Enter IDs manually
+                  </CollapsibleTrigger>
+                }
+                description="Type the team and project IDs by hand instead of picking them from the token."
+              />
+              <CollapsibleContent keepMounted={false}>
+                <ManualIdFields view={view} disabled={disabled} saving={saving} onSave={onSave} />
+              </CollapsibleContent>
+            </Collapsible>
+          </>
         ) : null}
       </SettingsCard>
       <LibraryConfirmDialog
