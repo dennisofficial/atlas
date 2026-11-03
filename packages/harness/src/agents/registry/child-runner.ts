@@ -199,6 +199,7 @@ export async function buildChildRunner({
           registry,
           hooks: deps.hooks,
           logPort: turn.logPort,
+          trace: turn.trace,
           quality: new QualityStage({ quality: deps.quality, logPort: turn.logPort }),
         }),
         telemetry: deps.telemetry,

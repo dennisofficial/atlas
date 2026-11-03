@@ -43,9 +43,8 @@ import { registryFor } from '../store/sessions/registry'
 import { SessionAuthorityPort } from '../store/sessions/meta'
 import { JsonlSessionAuthority } from '../store/sessions/session-authority'
 import { JsonlThreadStore } from '../store/sessions/thread-store'
-import { NullTelemetry } from '@dltech/atlas-observability'
 import { ObservingToolDispatcher } from '../tools/observing-dispatcher'
-import { PosthogTelemetry, telemetryDistinctId } from '@dltech/atlas-observability/node'
+import { posthogObservability, telemetryDistinctId } from '@dltech/atlas-observability/node'
 import { HookedToolDispatcher, ToolDispatcher } from '../tools/dispatch'
 import { QualityStage } from '../tools/quality-dispatch'
 import { registerBuiltinTools } from '../tools/register-tools'
@@ -64,6 +63,7 @@ import {
 import {
   HookChainToken,
   LanguageModelToken,
+  ObservabilityToken,
   ModelCardSourceToken,
   SessionRegistryToken,
   AtlasHomeToken,
@@ -71,7 +71,13 @@ import {
   WakeSignalToken,
   WorkspaceRoot,
 } from './tokens'
-import { LogPort, TelemetryPort, telemetryEnabled } from '@dltech/atlas-observability'
+import {
+  LogPort,
+  nullObservability,
+  TelemetryPort,
+  telemetryEnabled,
+  TracePort,
+} from '@dltech/atlas-observability'
 
 export { ChildRunnerDepsToken } from './register-agents'
 
@@ -112,18 +118,21 @@ export function createHarnessContainer(): DependencyContainer {
         }),
     ),
   })
+  harness.register(ObservabilityToken, {
+    useFactory: instanceCachingFactory((resolver) =>
+      telemetryEnabled(process.env)
+        ? posthogObservability({
+            distinctId: telemetryDistinctId({ atlasHome: home, env: process.env }),
+            version: clientVersionOf(resolver),
+          })
+        : nullObservability(),
+    ),
+  })
   harness.register(registeredPortToken(TelemetryPort), {
-    useFactory: instanceCachingFactory((resolver) => {
-      if (!telemetryEnabled(process.env)) return new NullTelemetry()
-      try {
-        return new PosthogTelemetry({
-          distinctId: telemetryDistinctId({ atlasHome: home, env: process.env }),
-          version: clientVersionOf(resolver),
-        })
-      } catch {
-        return new NullTelemetry()
-      }
-    }),
+    useFactory: (resolver) => resolver.resolve(ObservabilityToken).telemetry,
+  })
+  harness.register(registeredPortToken(TracePort), {
+    useFactory: (resolver) => resolver.resolve(ObservabilityToken).trace,
   })
   harness.register(registeredPortToken(EventLogPort), {
     useFactory: (resolver) =>
@@ -214,6 +223,7 @@ export function createHarnessContainer(): DependencyContainer {
           registry: resolver.resolve(registeredPortToken(ToolRegistry)),
           hooks: resolver.resolve(HookChainToken),
           logPort: resolver.resolve(registeredPortToken(LogPort)),
+          trace: resolver.resolve(registeredPortToken(TracePort)),
           quality: new QualityStage({
             logPort: resolver.resolve(registeredPortToken(LogPort)),
             quality: resolver.isRegistered(registeredPortToken(QualityReviewPort), true)

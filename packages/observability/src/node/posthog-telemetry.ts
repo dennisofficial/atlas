@@ -1,13 +1,10 @@
-import { PostHog } from 'posthog-node'
+import type { PostHog } from 'posthog-node'
 
 import {
   TelemetryPort,
   type TelemetryAgentRun,
   type TelemetryTurn,
 } from '../telemetry/telemetry.port'
-
-const POSTHOG_KEY = 'phc_q27hvgM8kSbwyjca72m3v7QexFE25FfFG8n529zM2WqL'
-const POSTHOG_HOST = 'https://us.i.posthog.com'
 
 type Base = { atlas_version: string }
 
@@ -21,9 +18,9 @@ export class PosthogTelemetry extends TelemetryPort {
   private readonly distinctId: string
   private readonly base: Base
 
-  constructor(args: { distinctId: string; version: string }) {
+  constructor(args: { client: PostHog; distinctId: string; version: string }) {
     super()
-    this.client = new PostHog(POSTHOG_KEY, { host: POSTHOG_HOST })
+    this.client = args.client
     this.distinctId = args.distinctId
     this.base = { atlas_version: args.version }
   }
