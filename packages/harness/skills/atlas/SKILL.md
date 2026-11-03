@@ -1,6 +1,6 @@
 ---
 name: atlas
-description: Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions and cloud logs.
+description: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions and cloud logs."
 ---
 
 # Atlas

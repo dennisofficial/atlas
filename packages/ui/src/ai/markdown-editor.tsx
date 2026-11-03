@@ -7,6 +7,7 @@ import '../styles/markdown-editor.css'
 import { useEffect, useMemo, useRef } from 'react'
 import {
   diffSourcePlugin,
+  frontmatterPlugin,
   linkDialogPlugin,
   markdownShortcutPlugin,
   MDXEditor,
@@ -19,6 +20,7 @@ import { cn } from '#lib/utils'
 import { EditorFieldContext, markdownEditorBridge } from './internal/markdown-editor-bridge'
 import { createTranslation, MARKDOWN_EXPORT_OPTIONS } from './internal/markdown-editor-config'
 import { createDocumentPlugins } from './internal/markdown-editor-document'
+import { quoteAmbiguousFrontmatter } from './internal/markdown-editor-frontmatter'
 import { ATLAS_CODEMIRROR_EXTENSIONS } from './internal/markdown-editor-highlight'
 import { iconComponentFor } from './internal/markdown-editor-icons'
 import { EMarkdownEditorVariant } from './internal/markdown-editor-variant'
@@ -82,6 +84,7 @@ export function MarkdownEditor({
   const plugins = useMemo(
     () => [
       ...createDocumentPlugins(),
+      frontmatterPlugin(),
       linkDialogPlugin(),
       markdownShortcutPlugin(),
       diffSourcePlugin({
@@ -100,7 +103,7 @@ export function MarkdownEditor({
   useEffect(() => {
     if (value === emittedRef.current) return
     emittedRef.current = value
-    editorRef.current?.setMarkdown(value)
+    editorRef.current?.setMarkdown(quoteAmbiguousFrontmatter(value))
   }, [value])
 
   const handleChange = (markdown: string, isInitialNormalize: boolean) => {
@@ -124,7 +127,7 @@ export function MarkdownEditor({
         <MDXEditor
           key={readOnly ? 'read-only' : 'editable'}
           ref={editorRef}
-          markdown={value}
+          markdown={quoteAmbiguousFrontmatter(value)}
           onChange={handleChange}
           readOnly={readOnly}
           placeholder={placeholder}

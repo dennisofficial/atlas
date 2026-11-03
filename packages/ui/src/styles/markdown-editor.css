@@ -153,7 +153,7 @@
 [data-variant="document"] .mdxeditor-toolbar {
   top: 0;
   z-index: 10;
-  padding: 0.5rem 0;
+  padding: 0.5rem var(--markdown-document-inline-padding, 0);
   border-radius: 0;
   border-bottom: 1px solid var(--border);
   background-color: var(--background);
@@ -166,8 +166,8 @@
 
 .atlas-markdown-content.atlas-markdown-document {
   box-sizing: border-box;
-  min-height: 60vh;
-  padding: 1.5rem 0 4rem;
+  min-height: var(--markdown-document-min-height, 60vh);
+  padding: 1.5rem var(--markdown-document-inline-padding, 0) 4rem;
   font-size: 1rem;
   line-height: 1.7;
 }
@@ -190,12 +190,12 @@
 }
 
 [data-variant="document"] .mdxeditor-source-editor .cm-editor {
-  min-height: 60vh;
+  min-height: var(--markdown-document-min-height, 60vh);
   font-size: 0.8125rem;
 }
 
 [data-variant="document"] .mdxeditor-source-editor .cm-editor .cm-content {
-  padding: 1.5rem 0 4rem;
+  padding: 1.5rem var(--markdown-document-inline-padding, 0) 4rem;
 }
 
 .atlas-markdown-document ul,
@@ -233,4 +233,8 @@
 .atlas-markdown-document code {
   font-family: var(--atlas-md-mono);
   font-size: 0.875em;
+}
+
+.mdxeditor-popup-container.atlas-markdown-editor {
+  z-index: 50;
 }
