@@ -114,7 +114,7 @@ describe('the breakpoints the default annotators place', () => {
 
     expect(last[last.length - 1]?.cache_control).toEqual({
       type: 'ephemeral',
-      ttl: ECacheTtl.FiveMinutes,
+      ttl: ECacheTtl.OneHour,
     })
   })
 
