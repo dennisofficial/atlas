@@ -3,8 +3,13 @@ import { db } from '@dltech/atlas-db'
 import { EVercelPlan } from '@dltech/atlas-wire/web'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { openSecretValue } from '../secrets/sealed-secret'
-import { listVercelProjects, readVercelPlan, VercelApiError } from './vercel-plan-reader'
-import type { VercelProjectListing } from './vercel-plan-reader'
+import {
+  listVercelProjects,
+  listVercelTeams,
+  readVercelPlan,
+  VercelApiError,
+} from './vercel-plan-reader'
+import type { VercelProjectListing, VercelTeamListing } from './vercel-plan-reader'
 import { VercelFetcher } from './vercel-oauth.types'
 import { VercelTokenRefresher } from './vercel-token-refresher'
 
@@ -79,6 +84,26 @@ export class VercelPlanService {
     return listVercelProjects({ fetch: this.fetcher.fetch, token: args.token, teamId: args.teamId })
   }
 
+  async teamsForToken(args: { token: string }): Promise<VercelTeamListing[]> {
+    return listVercelTeams({ fetch: this.fetcher.fetch, token: args.token })
+  }
+
+  async discoverForUser(args: {
+    userId: string
+    token?: string | undefined
+    teamId?: string | undefined
+  }): Promise<{ teams: VercelTeamListing[]; projects: VercelProjectListing[] }> {
+    const token = args.token ?? (await this.storedTokenOf({ userId: args.userId }))
+    const teams = await this.teamsForToken({ token }).catch((failure) =>
+      this.rethrowAsBadRequest({ failure }),
+    )
+    if (args.teamId === undefined) return { teams, projects: [] }
+    const projects = await this.projectsForToken({ token, teamId: args.teamId }).catch((failure) =>
+      this.rethrowAsBadRequest({ failure }),
+    )
+    return { teams, projects }
+  }
+
   async projectsForUser(args: { userId: string }): Promise<VercelProjectListing[]> {
     const row = await db.orm.public.UserVercelCredential.first({ userId: args.userId })
     if (row === null) return []
@@ -104,6 +129,20 @@ export class VercelPlanService {
       return openSecretValue({ cipher: this.cipher, sealed: row.sealedToken })
     }
     return this.refresher.accessToken({ userId: row.userId })
+  }
+
+  private rethrowAsBadRequest(args: { failure: unknown }): never {
+    const { failure } = args
+    if (failure instanceof VercelApiError) {
+      throw new BadRequestException(`Vercel rejected the token: ${failure.message}`)
+    }
+    throw failure
+  }
+
+  private async storedTokenOf(args: { userId: string }): Promise<string> {
+    const row = await db.orm.public.UserVercelCredential.first({ userId: args.userId })
+    if (row === null) throw new BadRequestException('paste a token or save one first')
+    return this.accessTokenOf({ row })
   }
 
   private planOf(args: { plan: string | null; planCheckedAt: Date | null }): PlanSnapshot | null {
