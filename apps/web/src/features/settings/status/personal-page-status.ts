@@ -20,6 +20,10 @@ export const PERSONAL_PAGE_STATUS = {
     status: EPageStatus.Live,
     detail: 'Saved to your account and delivered to every sandbox when it starts.',
   },
+  [ESettingsPage.Skills]: {
+    status: EPageStatus.Live,
+    detail: 'Saved to your account and written into every sandbox when it starts.',
+  },
   [ESettingsPage.Memory]: { status: EPageStatus.Live },
   [ESettingsPage.ModelsEffort]: {
     status: EPageStatus.Live,

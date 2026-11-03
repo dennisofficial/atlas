@@ -13,7 +13,9 @@ import { SettingsTopBar } from './settings-top-bar'
 import { ESettingsPage, settingsPageOfPath } from './settings-nav'
 
 export function SettingsShell({ children }: { children: ReactNode }) {
-  const page = settingsPageOfPath(usePathname()) ?? ESettingsPage.Account
+  const pathname = usePathname()
+  const page = settingsPageOfPath(pathname) ?? ESettingsPage.Account
+  const fullBleed = /^\/settings\/skills\/[^/]+$/.test(pathname)
   return (
     <SidebarProvider className="h-svh min-h-0 flex-col">
       <SettingsTopBar />
@@ -22,12 +24,22 @@ export function SettingsShell({ children }: { children: ReactNode }) {
         <Sidebar collapsible="none" className="hidden w-60 md:flex">
           <SettingsNavBody page={page} />
         </Sidebar>
-        <main className="min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
-            <PageStatusScope pageKey={page} {...SETTINGS_PAGE_STATUS[page]}>
-              {children}
-            </PageStatusScope>
-          </div>
+        <main
+          className={
+            fullBleed
+              ? 'flex min-w-0 flex-1 flex-col overflow-hidden'
+              : 'min-w-0 flex-1 overflow-y-auto'
+          }
+        >
+          {fullBleed ? (
+            children
+          ) : (
+            <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
+              <PageStatusScope pageKey={page} {...SETTINGS_PAGE_STATUS[page]}>
+                {children}
+              </PageStatusScope>
+            </div>
+          )}
         </main>
       </div>
     </SidebarProvider>

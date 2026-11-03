@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { ArrowLeftIcon } from 'lucide-react'
 
@@ -26,6 +27,7 @@ export function ProjectSettingsShell({
   children: ReactNode
 }) {
   const backHref = useReturnPath()
+  const fullBleed = /\/settings\/skills\/[^/]+$/.test(usePathname())
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
       <header
@@ -52,7 +54,13 @@ export function ProjectSettingsShell({
           )}
         </h1>
       </header>
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 md:flex-row md:gap-10 md:px-6 md:py-8">
+      <div
+        className={
+          fullBleed
+            ? 'flex w-full flex-1 flex-col gap-6 px-4 py-6 md:flex-row md:gap-6 md:px-6 md:py-6'
+            : 'mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 md:flex-row md:gap-10 md:px-6 md:py-8'
+        }
+      >
         <nav aria-label="Project settings" className="shrink-0 md:w-44">
           <ul className="flex gap-0.5 overflow-x-auto pb-1 md:sticky md:top-20 md:flex-col">
             {PROJECT_NAV.map((item) => {
@@ -78,8 +86,12 @@ export function ProjectSettingsShell({
             })}
           </ul>
         </nav>
-        <main className="flex min-w-0 flex-1 flex-col gap-10 pb-16">
-          {bare ? (
+        <main
+          className={
+            fullBleed ? 'flex min-w-0 flex-1 flex-col' : 'flex min-w-0 flex-1 flex-col gap-10 pb-16'
+          }
+        >
+          {bare || fullBleed ? (
             children
           ) : (
             <PageStatusScope pageKey={`project:${active}`} {...PROJECT_SECTION_STATUS[active]}>
