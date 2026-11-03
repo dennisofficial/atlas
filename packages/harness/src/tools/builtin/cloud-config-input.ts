@@ -11,6 +11,7 @@ export enum ECloudConfigKind {
   Secret = 'secret',
   Mcp = 'mcp',
   File = 'file',
+  Skill = 'skill',
 }
 
 export enum ECloudConfigAction {
