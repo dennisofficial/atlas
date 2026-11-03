@@ -21,9 +21,7 @@ const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Even
 }
 
 describe('SessionHolder stop', () => {
-  // FIXME: hangs with the fake clock since the turn-time inbox poll was added; the stop path
-  // (pollStops -> onStop -> turnAbort) needs a real-timer variant or a deterministic poll hook.
-  it.skip('a stop inbox entry mid-exec aborts the turn and the result says cancelled', async () => {
+  it('a stop inbox entry mid-exec aborts the turn, cancels the daemon call and consumes the entry', async () => {
     const rig = await makeRig({
       holderId: 'holder-a',
       script: [
@@ -47,9 +45,11 @@ describe('SessionHolder stop', () => {
       check: async () => (await rig.events()).some((event) => event.type === 'tool-dispatched'),
     })
     expect(dispatched).toBe(true)
+    const runsBeforeStop = rig.runCount()
 
     await rig.postStop()
-    await rig.bus.wake(SESSION)
+    rig.clock.advance(2_000)
+    await rig.flush()
 
     const settled = await flushUntil({
       check: async () => (await rig.events()).some((event) => event.type === 'tool-result'),
@@ -58,11 +58,26 @@ describe('SessionHolder stop', () => {
       advanceMs: 2_000,
     })
     expect(settled).toBe(true)
-    const result = (await fullLog(rig)).find((event) => event.type === 'tool-result')
+    const consumed = await flushUntil({
+      check: async () =>
+        (await rig.events()).filter((event) => event.type === 'input-consumed').length >= 2,
+      attempts: 200,
+      clock: rig.clock,
+      advanceMs: 2_000,
+    })
+    expect(consumed).toBe(true)
+
+    const log = await fullLog(rig)
+    const result = log.find((event) => event.type === 'tool-result')
     expect(result).toBeDefined()
     if (result?.type === 'tool-result') {
-      expect(result.interrupted === true || result.error !== undefined).toBe(true)
+      expect(result.error?.message ?? '').toContain('cancelled')
     }
+    expect(log.filter((event) => event.type === 'input-consumed').length).toBe(2)
+    expect(await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })).toEqual([])
+    expect(rig.runCount()).toBe(runsBeforeStop)
+    const afterResult = log.filter((event) => event.seq > (result?.seq ?? 0))
+    expect(afterResult.some((event) => event.type === 'assistant-said')).toBe(false)
   }, 15_000)
 })
 

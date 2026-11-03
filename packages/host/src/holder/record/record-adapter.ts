@@ -2,8 +2,6 @@ import {
   chainEvents,
   chainHash,
   type Event,
-  type EventDraft,
-  type RecordBody,
   type RunId,
   type ThreadId,
   type V2Body,
@@ -18,6 +16,11 @@ import type { RemoteCalls } from '../../calls/remote-calls'
 import type { HostTimers } from '../ports'
 import { toLoopEvent } from './event-strip'
 import { RecordCache } from './record-cache'
+import { abortedOnHandoff, inboxIdOf, toRecordBody, type AppendBody } from './append-drafts'
+import { RecordCorruptionError } from './append-drafts'
+
+export { RecordCorruptionError }
+export type { AppendBody }
 
 export class LeaseLostError extends Error {
   constructor(
@@ -27,37 +30,6 @@ export class LeaseLostError extends Error {
     super(message)
     this.name = 'LeaseLostError'
   }
-}
-
-export class RecordCorruptionError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'RecordCorruptionError'
-  }
-}
-
-const INBOX_PREFIX = 'inbox:'
-
-export type AppendBody = EventDraft | RecordBody
-
-const toRecordBody = (draft: AppendBody): V2Body => {
-  if (draft.type === 'history-compacted') {
-    throw new RecordCorruptionError('history-compacted is not a v2 record body')
-  }
-  return draft
-}
-
-const inboxIdOf = (draft: AppendBody): number | undefined => {
-  if (draft.type !== 'user-said' || draft.requestId === undefined) return undefined
-  if (!draft.requestId.startsWith(INBOX_PREFIX)) return undefined
-  const id = Number(draft.requestId.slice(INBOX_PREFIX.length))
-  return Number.isInteger(id) && id >= 1 ? id : undefined
-}
-
-const abortedOnHandoff = (draft: AppendBody, draining: boolean): AppendBody => {
-  if (!draining) return draft
-  if (draft.type !== 'assistant-said' || draft.interrupted !== true) return draft
-  return { ...draft, aborted: 'handoff' }
 }
 
 const messageOf = (error: unknown): string =>
@@ -91,6 +63,10 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   static async open(args: SessionRecordArgs): Promise<SessionRecord> {
     const cache = await RecordCache.load({ plane: args.plane, threadId: args.threadId })
     return new SessionRecord(args, cache)
+  }
+
+  get threadId(): ThreadId {
+    return this.args.threadId
   }
 
   markDraining(): void {

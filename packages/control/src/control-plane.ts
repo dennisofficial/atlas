@@ -2,14 +2,12 @@ import {
   acceptAppend,
   stepVisibility,
   takeBack,
-  visibleSegments,
   type ClaimResult,
   type InboxEntry,
   type InboxRefusal,
   type Lease,
   type LeaseResult,
   type LogHead,
-  type V2Event,
 } from '@dltech/atlas-core'
 
 import { UnknownThreadError } from './errors'
@@ -24,6 +22,7 @@ import {
   type ControlSessionRow,
 } from './port'
 import { consumeInbox } from './consume-inbox'
+import { readEventsIn, type ReadEventsPage } from './read-events'
 import { AppendAbort, type AppendOutcome, type ControlRefusal } from './refusal'
 import {
   decodeStoredEvent,
@@ -38,7 +37,7 @@ export const MAX_SESSION_LIST_LIMIT = 100
 
 export type ControlPlaneParams = { store: ControlStorePort; clock?: (() => string) | undefined }
 
-export type ReadEventsPage = { events: V2Event[]; next?: number }
+export type { ReadEventsPage } from './read-events'
 
 export type TakeBackResult = { ok: true } | { ok: false; refusal: InboxRefusal }
 
@@ -143,30 +142,7 @@ export class ControlPlane {
     const limit = clampLimit(params.limit)
     return this.store.transact(async (tx) => {
       const row = await this.requireThread({ tx, threadId: params.threadId })
-      const fromSeq = params.afterSeq + 1
-      const segments = params.visible
-        ? visibleSegments({
-            state: decodeVisibility(row.visibility),
-            fromSeq,
-            throughSeq: row.headSeq,
-          })
-        : [{ fromSeq, throughSeq: row.headSeq }]
-      const rows: StoredEvent[] = []
-      for (const segment of segments) {
-        if (rows.length >= limit) break
-        const batch = await tx.readEvents({
-          threadId: params.threadId,
-          afterSeq: segment.fromSeq - 1,
-          throughSeq: segment.throughSeq,
-          limit: limit - rows.length,
-          onlyTypes: 'onlyTypes' in segment ? segment.onlyTypes : undefined,
-        })
-        rows.push(...batch)
-      }
-      const events = rows.map(decodeStoredEvent)
-      const last = events[events.length - 1]
-      const more = last !== undefined && events.length === limit && last.seq < row.headSeq
-      return more ? { events, next: last.seq } : { events }
+      return readEventsIn({ tx, row, afterSeq: params.afterSeq, limit, visible: params.visible })
     })
   }
 

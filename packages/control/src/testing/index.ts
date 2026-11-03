@@ -1,3 +1,7 @@
 export { InMemoryControlStore } from './memory'
-export { describeControlPlaneConformance } from './conformance'
+export {
+  describeControlPlaneClaims,
+  describeControlPlaneConformance,
+  describeControlPlaneSessions,
+} from './conformance'
 export type { ConformanceParams } from './conformance'
