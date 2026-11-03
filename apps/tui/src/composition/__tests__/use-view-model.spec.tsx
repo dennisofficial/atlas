@@ -83,9 +83,10 @@ function seedRow(app: FakeApp, model?: { ref: string; effort: string }): void {
 const choiceOn = (
   card: ModelCard,
   effort: EEffort,
-): { ref: ModelCard['ref']; effort: EEffort } => ({
+): { ref: ModelCard['ref']; effort: EEffort; fast: boolean } => ({
   ref: card.ref,
   effort,
+  fast: false,
 })
 
 const cardOf = (app: FakeApp, key: string): ModelCard => {

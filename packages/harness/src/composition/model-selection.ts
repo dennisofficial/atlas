@@ -3,15 +3,17 @@ import { createSwitchableModel, type Switchable } from '../model/switchable-mode
 
 import { isRefReachable, unanswerableRef, type ModelCatalogue } from './model-catalogue'
 
-export type ModelSelection = { ref: ModelRef; effort: EEffort }
+export type ModelSelection = { ref: ModelRef; effort: EEffort; fast?: boolean | undefined }
 
 /** What the app is allowed to know: which pair is answering, and how to change it. */
 export type ModelChoice = {
   choice: () => ModelSelection
   select: (next: ModelSelection) => void
+  /** Fires when a provider refused fast mode and the selection fell back to standard speed. */
+  onFastRefused: (listener: (selection: ModelSelection) => void) => () => void
 }
 
-export type SelectableModel = Switchable<ModelSelection>
+export type SelectableModel = Switchable<ModelSelection> & Pick<ModelChoice, 'onFastRefused'>
 
 const unbuildable = (ref: ModelRef): Error => unanswerableRef(refKey(ref))
 
@@ -20,6 +22,14 @@ export function selectableModel(args: {
   catalogue: ModelCatalogue
 }): SelectableModel {
   let held = args.initial
+  const refusedListeners = new Set<(selection: ModelSelection) => void>()
+
+  const handleFastRefused = () => {
+    if (held.fast !== true) return
+    held = { ...held, fast: false }
+    switchable.select(held)
+    for (const listener of [...refusedListeners]) listener(held)
+  }
 
   const switchable = createSwitchableModel<ModelSelection>({
     initial: args.initial,
@@ -29,7 +39,12 @@ export function selectableModel(args: {
       const adapter = args.catalogue.adapterFor(choice.ref.providerId)
       if (card === undefined || adapter === undefined) throw unbuildable(choice.ref)
 
-      return adapter.model({ card, effort: () => held.effort })
+      return adapter.model({
+        card,
+        effort: () => held.effort,
+        fast: () => held.fast === true,
+        onFastRefused: handleFastRefused,
+      })
     },
   })
 
@@ -41,6 +56,12 @@ export function selectableModel(args: {
       held = next
       switchable.select(next)
     },
+    onFastRefused: (listener) => {
+      refusedListeners.add(listener)
+      return () => {
+        refusedListeners.delete(listener)
+      }
+    },
   }
 }
 
@@ -51,5 +72,6 @@ export function heldChoice(initial: ModelSelection): ModelChoice {
     select: (next) => {
       held = next
     },
+    onFastRefused: () => () => undefined,
   }
 }

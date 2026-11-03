@@ -58,6 +58,7 @@ export function isSameTurn(args: { previous: Turn; next: Turn }): boolean {
       return (
         next.kind === ETurnKind.Agent &&
         previous.running === next.running &&
+        previous.fast === next.fast &&
         previous.segments.length === next.segments.length &&
         previous.segments.every((segment, index) => {
           const other = next.segments[index]

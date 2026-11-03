@@ -27,7 +27,7 @@ export function useThreadModel(args: { threadId: string; stored: ThreadModelChoi
     try {
       await changeThreadModel({
         threadId: args.threadId,
-        model: { ref: args2.next.id, effort: args2.next.effort },
+        model: { ref: args2.next.id, effort: args2.next.effort, fast: args2.next.fast },
         chooseLive: args2.chooseLive,
         patch: backend.patchModel,
       })

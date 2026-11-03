@@ -235,7 +235,12 @@ export class JsonlThreadStore implements ThreadStorePort {
           (meta.modelRef !== model.ref || meta.modelEffort !== model.effort)
         )
           throw new Error(`child ${threadId} keeps the model and effort it was spawned with`)
-        return { ...meta, modelRef: model.ref, modelEffort: model.effort }
+        return {
+          ...meta,
+          modelRef: model.ref,
+          modelEffort: model.effort,
+          modelFast: model.fast === true,
+        }
       },
     })
     for (const listener of [...this.modelChosenListeners]) listener({ threadId, model })

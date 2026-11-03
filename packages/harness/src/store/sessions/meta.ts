@@ -81,6 +81,7 @@ export const threadMetaSchema = z.object({
   repo: z.string().nullable(),
   modelRef: z.string().nullable(),
   modelEffort: z.string().nullable(),
+  modelFast: z.boolean().nullish(),
   executionLocation: z.string().nullable(),
   archivedAt: z.iso.datetime().nullish(),
   runner: z.string().nullish(),

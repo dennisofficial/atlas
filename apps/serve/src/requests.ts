@@ -197,8 +197,12 @@ export async function answerTranscriptWrite(args: {
   frame: RequestFrame
   transcript: TranscriptReaders
   threadId: ThreadId
-  select?: ((model: { ref: string; effort: string }) => void) | undefined
-  persist?: ((model: { ref: string; effort: string }) => Promise<void>) | undefined
+  select?:
+    | ((model: { ref: string; effort: string; fast?: boolean | undefined }) => void)
+    | undefined
+  persist?:
+    | ((model: { ref: string; effort: string; fast?: boolean | undefined }) => Promise<void>)
+    | undefined
   log?: ServeLog | undefined
 }): Promise<ReplyFrame> {
   if (args.frame.op === EClientRequest.RenameThread) return await answerRenameThread(args)

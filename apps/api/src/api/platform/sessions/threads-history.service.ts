@@ -169,6 +169,7 @@ export class ThreadsHistoryService {
           forkMode: args.draft.mode,
           modelRef: source.modelRef,
           modelEffort: source.modelEffort,
+          modelFast: source.modelFast,
         },
       })
 

@@ -1,5 +1,5 @@
 import type { KeyboardEvent, MouseEvent } from 'react'
-import { ChevronDownIcon, PinIcon, TriangleAlertIcon } from 'lucide-react'
+import { ChevronDownIcon, PinIcon, TriangleAlertIcon, ZapIcon } from 'lucide-react'
 import { cn } from 'cn'
 
 import { BrandMark } from '#components/brand-mark'
@@ -241,11 +241,11 @@ export function EffortMenu({
 }: {
   efforts: readonly EEffort[]
   value: EEffort
-  onChange: (effort: EEffort) => void
+  onChange?: (effort: EEffort) => void
 }) {
   const handleValueChange = (next: string) => {
     const match = EFFORT_LADDER.find((effort) => effort === next)
-    if (match) onChange(match)
+    if (match) onChange?.(match)
   }
   return (
     <DropdownMenu>
@@ -271,5 +271,27 @@ export function EffortMenu({
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+export function FastToggle({
+  pressed,
+  onToggle,
+}: {
+  pressed: boolean
+  onToggle: (fast: boolean) => void
+}) {
+  const handleClick = () => onToggle(!pressed)
+  return (
+    <InputGroupButton
+      size="sm"
+      data-slot="model-fast"
+      aria-pressed={pressed}
+      title="Same model, faster output, higher price"
+      onClick={handleClick}
+    >
+      <ZapIcon className={cn(pressed && 'fill-current')} />
+      Fast
+    </InputGroupButton>
   )
 }

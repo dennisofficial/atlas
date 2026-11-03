@@ -17,7 +17,7 @@ const definitions = [
   ...ATLAS_SETTINGS,
   ...agentTypeModelDefinitions({ types: builtIn(['builder', 'explore', 'teammate']) }),
 ]
-const state = { pageIndex: 1, rowIndex: 2 }
+const state = { pageIndex: 1, rowIndex: 3 }
 
 describe('teammate model settings', () => {
   it('renders teammates in the first section, following the main agent', async () => {

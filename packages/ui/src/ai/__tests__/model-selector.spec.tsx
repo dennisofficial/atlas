@@ -360,4 +360,37 @@ describe('ModelSelector', () => {
 
     expect(html).toContain('No model')
   })
+
+  it('shows the fast toggle only for an option that offers fast mode', () => {
+    const models: ModelOption[] = [
+      { id: 'a', label: 'Opus', fast: true },
+      { id: 'b', label: 'Sonnet' },
+    ]
+    const noop = () => undefined
+    const fast = renderToStaticMarkup(
+      <ModelSelector models={models} value="a" fast={false} onFastChange={noop} />,
+    )
+    const plain = renderToStaticMarkup(
+      <ModelSelector models={models} value="b" fast={false} onFastChange={noop} />,
+    )
+    const unhandled = renderToStaticMarkup(<ModelSelector models={models} value="a" />)
+
+    expect(fast).toContain('data-slot="model-fast"')
+    expect(fast).toContain('aria-pressed="false"')
+    expect(plain).not.toContain('model-fast')
+    expect(unhandled).not.toContain('model-fast')
+  })
+
+  it('marks the fast toggle pressed while fast is on', () => {
+    const html = renderToStaticMarkup(
+      <ModelSelector
+        models={[{ id: 'a', label: 'Opus', fast: true }]}
+        value="a"
+        fast
+        onFastChange={() => undefined}
+      />,
+    )
+
+    expect(html).toContain('aria-pressed="true"')
+  })
 })

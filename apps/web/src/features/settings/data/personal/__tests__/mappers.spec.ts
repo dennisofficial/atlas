@@ -196,7 +196,11 @@ describe('models settings', () => {
         ['model.id', 'openai/gpt-5'],
       ]),
     )
-    expect(config[EAgentRole.Main]).toEqual({ model: 'openai/gpt-5', effort: EEffort.XHigh })
+    expect(config[EAgentRole.Main]).toEqual({
+      model: 'openai/gpt-5',
+      effort: EEffort.XHigh,
+      fast: false,
+    })
   })
 
   it('maps quick, compaction and subagent roles onto their harness keys', () => {

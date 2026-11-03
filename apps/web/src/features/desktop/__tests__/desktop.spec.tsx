@@ -254,6 +254,7 @@ describe('data-source routing', () => {
 
   it('wakes a stopped pod before connecting', async () => {
     const ticket = {
+      threadId: 'brn_1',
       url: 'ws://127.0.0.1:1',
       token: 't',
       expiresAt: '2026-10-29T10:01:00.000Z',

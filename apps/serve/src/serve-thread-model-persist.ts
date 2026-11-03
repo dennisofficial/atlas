@@ -2,7 +2,11 @@ import { ENoticeTone, type NoticePort, type ThreadId } from '@dltech/atlas-core'
 import { SessionsClient } from '@dltech/atlas-harness'
 import { mirrorsThreadState } from '@dltech/atlas-wire'
 
-export type ThreadModelPersister = (model: { ref: string; effort: string }) => Promise<void>
+export type ThreadModelPersister = (model: {
+  ref: string
+  effort: string
+  fast?: boolean | undefined
+}) => Promise<void>
 
 export function threadModelPersisterOf(args: {
   env: Record<string, string | undefined>

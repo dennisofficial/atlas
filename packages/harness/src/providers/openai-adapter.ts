@@ -1,16 +1,12 @@
 import type { LanguageModelV4, SharedV4ProviderOptions } from '@ai-sdk/provider'
 
-import {
-  type AccountId,
-  type CredentialPort,
-  type EEffort,
-  type ModelCard,
-} from '@dltech/atlas-core'
+import { type CredentialPort, type EEffort, type ModelCard } from '@dltech/atlas-core'
 
 import type { OpenAIProviderSettings } from '@ai-sdk/openai'
 
 import { CODEX_PLAN_LABEL, OPENAI_PROVIDER_ID } from '../models/provider-ids'
-import { ProviderAdapter } from './adapter'
+import { ProviderAdapter, type ModelBuildArgs } from './adapter'
+import { OPENAI_FAST_OPTIONS, runsFast, withFastOptions } from './fast-options'
 import { openaiEffortOptions } from './openai-effort'
 import { createOpenAiModel, mergedProviderOptions } from './openai-oauth'
 import type { ProviderAdmission } from './provider-admission'
@@ -47,11 +43,7 @@ export class OpenAiAdapter extends ProviderAdapter {
     return openaiEffortOptions(args)
   }
 
-  model(args: {
-    card: ModelCard
-    effort: () => EEffort
-    accountId?: AccountId | undefined
-  }): LanguageModelV4 {
+  model(args: ModelBuildArgs): LanguageModelV4 {
     const authorized = createOpenAiModel({
       credentials: this.credentials,
       providerId: OPENAI_PROVIDER_ID,
@@ -63,7 +55,11 @@ export class OpenAiAdapter extends ProviderAdapter {
 
     const withProviderOptions = (options: Parameters<LanguageModelV4['doStream']>[0]) => {
       const providerOptions = mergedProviderOptions({
-        defaults: this.effortOptions({ card: args.card, effort: args.effort() }),
+        defaults: withFastOptions({
+          options: this.effortOptions({ card: args.card, effort: args.effort() }),
+          fast: OPENAI_FAST_OPTIONS,
+          enabled: runsFast({ card: args.card, fast: args.fast }),
+        }),
         call: options.providerOptions,
       })
       if (providerOptions === undefined) return options

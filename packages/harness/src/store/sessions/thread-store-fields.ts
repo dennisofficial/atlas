@@ -27,6 +27,7 @@ export function blankMeta({
   if (fields.model !== undefined) {
     meta.modelRef = fields.model.ref
     meta.modelEffort = fields.model.effort
+    meta.modelFast = fields.model.fast === true
   }
   if (fields.agent !== undefined) {
     meta.spawnerThreadId = fields.agent.spawnedBy

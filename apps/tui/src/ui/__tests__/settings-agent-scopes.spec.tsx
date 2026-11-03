@@ -247,7 +247,7 @@ describe('the models page agent rows on screen', () => {
   })
 
   it('leaves default rows and the teammate row as they were', async () => {
-    const rows = await shown(modelsState(2))
+    const rows = await shown(modelsState(3))
 
     expect(rowWith(rows, 'Teammates')).toContain('follow main agent')
     expect(rows.join('\n')).toContain(`edits write to ${USER_FILE}`)

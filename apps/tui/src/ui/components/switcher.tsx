@@ -24,6 +24,7 @@ import { useSelectionInView } from './switcher/follow'
 import {
   AppliesLine,
   EffortLine,
+  FastLine,
   FilterLine,
   ModelLine,
   NothingMatchedLine,
@@ -43,18 +44,25 @@ const WALKING_AWAY: readonly Hint[] = [
 
 const PINNING: Hint = { key: '*', label: 'pin' }
 
+const FAST_TOGGLE: Hint = { key: 'tab', label: 'fast' }
+
 const FILTERING: Hint = { key: 'type', label: 'filter' }
 
-function footerHints(args: { cells: number; currentLabel: string }): readonly Hint[] {
+function footerHints(args: {
+  cells: number
+  currentLabel: string
+  withFast: boolean
+}): readonly Hint[] {
   const keep = { key: 'esc', label: `keep ${args.currentLabel}` }
+  const extras = args.withFast ? [PINNING, FAST_TOGGLE] : [PINNING]
 
-  const offered = [...WALKING_AWAY, PINNING, FILTERING, keep]
+  const offered = [...WALKING_AWAY, ...extras, FILTERING, keep]
   if (hintWidth(offered) <= args.cells) return offered
 
-  const shorter = [...WALKING_AWAY, PINNING, keep]
+  const shorter = [...WALKING_AWAY, ...extras, keep]
   if (hintWidth(shorter) <= args.cells) return shorter
 
-  const named = [...WALKING_AWAY, PINNING, { key: 'esc', label: 'keep' }]
+  const named = [...WALKING_AWAY, ...extras, { key: 'esc', label: 'keep' }]
   if (hintWidth(named) <= args.cells) return named
 
   const bare = [...WALKING_AWAY, { key: 'esc', label: 'keep' }]
@@ -64,10 +72,15 @@ function footerHints(args: { cells: number; currentLabel: string }): readonly Hi
 function FooterLine(props: {
   cells: number
   currentLabel: string
+  withFast: boolean
   press: PressHandlers
 }): React.ReactNode {
   const spans = hintSpans({
-    hints: footerHints({ cells: props.cells, currentLabel: props.currentLabel }),
+    hints: footerHints({
+      cells: props.cells,
+      currentLabel: props.currentLabel,
+      withFast: props.withFast,
+    }),
     keyColour: theme.meta,
   })
 
@@ -106,10 +119,12 @@ export function Switcher(props: {
   const press = usePress()
   const { hovered, handlersFor } = useHover()
   const activeKey = refKey(props.active)
-  const rungs = supportedEfforts(selectedCard({ state: props.state, rows: props.rows })?.effort)
+  const highlighted = selectedCard({ state: props.state, rows: props.rows })
+  const rungs = supportedEfforts(highlighted?.effort)
   const attach = useSelectionInView({ rows: props.rows, index: props.state.index })
   const setting = props.target.scope === EModelScope.Setting ? props.target : null
   const effortApplies = setting === null || setting.withEffort
+  const fastApplies = effortApplies && highlighted?.fast === true
 
   return (
     <SideDrawer
@@ -120,6 +135,7 @@ export function Switcher(props: {
         <FooterLine
           cells={cells}
           currentLabel={activeLabel({ rows: props.rows, active: props.active })}
+          withFast={fastApplies}
           press={press(props.onDismiss)}
         />
       }
@@ -165,6 +181,12 @@ export function Switcher(props: {
         <box flexDirection="column" flexShrink={0}>
           <DrawerHeading label="Effort" />
           <EffortLine cells={cells} effort={props.state.effort} rungs={rungs} />
+        </box>
+      )}
+      {!fastApplies ? null : (
+        <box flexDirection="column" flexShrink={0}>
+          <DrawerHeading label="Fast" />
+          <FastLine cells={cells} fast={props.state.fast} />
         </box>
       )}
       <box flexDirection="column" flexShrink={0}>

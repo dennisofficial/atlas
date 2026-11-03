@@ -18,6 +18,7 @@ export type ModelCard = {
   maxOutputTokens?: number
   cost?: ModelCost
   effort?: EffortMap
+  fast?: true
 }
 
 export const OPENAI_COMPLETIONS_API = 'openai-completions'

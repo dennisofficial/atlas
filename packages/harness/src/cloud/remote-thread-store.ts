@@ -132,7 +132,11 @@ export class RemoteThreadStore extends ThreadStorePort {
   }
 
   async chooseModel(args: Parameters<ThreadStorePort['chooseModel']>[0]): Promise<void> {
-    const model = { ref: args.model.ref, effort: args.model.effort }
+    const model = {
+      ref: args.model.ref,
+      effort: args.model.effort,
+      ...(args.model.fast === undefined ? {} : { fast: args.model.fast }),
+    }
     await this.channel.request({
       op: EClientRequest.SetThreadModel,
       params:

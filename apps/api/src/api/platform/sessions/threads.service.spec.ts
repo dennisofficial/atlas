@@ -314,6 +314,30 @@ describe('ThreadsService', () => {
     })
   })
 
+  it('chooseModel round-trips fast through the dto and falls back to false', async () => {
+    const created = await service.create({ userId: USER_A, draft: {} })
+
+    await service.chooseModel({
+      userId: USER_A,
+      threadId: created.id,
+      draft: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: true },
+    })
+
+    const fastOn = await service.find({ userId: USER_A, threadId: created.id })
+    expect(fastOn).toMatchObject({
+      model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: true },
+    })
+
+    await service.chooseModel({
+      userId: USER_A,
+      threadId: created.id,
+      draft: { ref: 'anthropic/claude-opus-5-5', effort: 'high' },
+    })
+
+    const fastOff = await service.find({ userId: USER_A, threadId: created.id })
+    expect(fastOff.model).toEqual({ ref: 'anthropic/claude-opus-5-5', effort: 'high' })
+  })
+
   it('spawned lists child threads of an owned thread only', async () => {
     const parent = await service.create({ userId: USER_A, draft: {} })
     await service.open({

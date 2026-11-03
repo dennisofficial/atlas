@@ -137,8 +137,9 @@ export type ServeRewind = {
  */
 export type ServeModelBridge = {
   effort: () => string
+  fast: () => boolean
   identity?: (() => { providerId: string; modelId: string }) | undefined
-  select: (next: { ref: string; effort: string }) => void
+  select: (next: { ref: string; effort: string; fast?: boolean | undefined }) => void
 }
 
 export type ServeAgentSteer = Pick<AgentRegistryPort, 'say' | 'resume' | 'stop' | 'wake'> &
@@ -272,7 +273,7 @@ export type ServeComposeArgs = {
   token: string
   clientVersion: string
   env: Record<string, string | undefined>
-  model: { ref: string; effort?: string | undefined } | undefined
+  model: { ref: string; effort?: string | undefined; fast?: boolean | undefined } | undefined
   notice: NoticePort
   /**
    * The repo's normalized origin identity (`github.com/org/repo`) from the workspace spec, from

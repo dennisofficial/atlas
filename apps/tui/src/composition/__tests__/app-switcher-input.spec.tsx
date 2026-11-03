@@ -1,17 +1,30 @@
-import { refKey, toThreadId } from '@dltech/atlas-core'
+import { EEffort, refKey, toThreadId, type EffortMap } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
-import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import {
+  FAKE_CARDS,
+  fakeApp,
+  fakeCardForTests,
+  fakeCatalogueWith,
+  scriptedModelPort,
+  type FakeApp,
+} from './fake-app'
 
 await grammarsReady()
 
 const THREAD = toThreadId('opened-thread')
 
 const WIDE = { width: 150, height: 40 }
+
+const LADDER: EffortMap = {
+  [EEffort.Low]: 'low',
+  [EEffort.Medium]: 'medium',
+  [EEffort.High]: 'high',
+}
 
 const appWith = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }) })
@@ -152,6 +165,71 @@ describe('the switcher search as a real input', () => {
       expect(frame).toContain('▸ opus')
       expect(frame).toContain('opus-5')
       expect(frame).not.toContain('sonnet-5')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('toggles fast on tab for a card that offers it, and the pick carries it', async () => {
+    const cards = [
+      fakeCardForTests({
+        providerId: 'anthropic',
+        modelId: 'claude-opus-5',
+        label: 'opus-5',
+        price: 25,
+        effort: LADDER,
+        fast: true,
+      }),
+      ...FAKE_CARDS.filter((card) => card.ref.modelId !== 'claude-opus-5'),
+    ]
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
+      models: fakeCatalogueWith({ cards }),
+    })
+    const setup = await opened(app)
+
+    try {
+      await openSwitcherWith(setup)
+      await typed(setup, 'opus')
+
+      const off = setup.captureCharFrame()
+      expect(off).toContain('FAST')
+      expect(off).toContain('▸off')
+      expect(off).not.toContain('▸↯ fast')
+
+      setup.mockInput.pressTab()
+      await landed(setup)
+
+      const on = setup.captureCharFrame()
+      expect(on).toContain('▸↯ fast')
+
+      await enter(setup)
+
+      expect(refKey(app.model.choice().ref)).toBe('anthropic/claude-opus-5')
+      expect(app.model.choice().fast).toBe(true)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('swallows tab on a card that does not offer fast', async () => {
+    const app = appWith()
+    const setup = await opened(app)
+
+    try {
+      await openSwitcherWith(setup)
+
+      const frame = setup.captureCharFrame()
+      expect(frame).not.toContain('FAST')
+      expect(frame).not.toContain('tab fast')
+
+      setup.mockInput.pressTab()
+      await landed(setup)
+
+      expect(setup.captureCharFrame()).toContain('▸ ')
+      await enter(setup)
+
+      expect(app.model.choice().fast).not.toBe(true)
     } finally {
       await teardown(setup)
     }

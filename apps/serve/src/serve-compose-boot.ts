@@ -16,7 +16,7 @@ type Booted = Awaited<ReturnType<typeof bootServeFiles>>
 const storedThreadModel = (args: {
   atlasHome: string
   threadId: ThreadId
-}): { ref: string; effort?: string | undefined } | undefined => {
+}): { ref: string; effort?: string | undefined; fast?: boolean | undefined } | undefined => {
   const meta = readMetaSync({
     file: threadMetaFile({
       sessionDir: sessionDirectory({ home: args.atlasHome, sessionId: args.threadId }),
@@ -25,12 +25,16 @@ const storedThreadModel = (args: {
     schema: threadMetaSchema,
   })
   if (meta === undefined || meta.modelRef === null) return undefined
-  return { ref: meta.modelRef, effort: meta.modelEffort ?? undefined }
+  return {
+    ref: meta.modelRef,
+    effort: meta.modelEffort ?? undefined,
+    ...(meta.modelFast === true ? { fast: true } : {}),
+  }
 }
 
 export async function composeBootApp(args: {
   compose?: ServeCompose | undefined
-  model?: { ref: string; effort?: string | undefined } | undefined
+  model?: { ref: string; effort?: string | undefined; fast?: boolean | undefined } | undefined
   apiModel?: Promise<BootModel | undefined> | undefined
   spec: Booted['spec']
   identity: Booted['identity']
@@ -51,7 +55,11 @@ export async function composeBootApp(args: {
     storedThreadModel(args) ??
     (spec?.model === undefined || spec.model === null
       ? undefined
-      : { ref: spec.model, ...(spec.effort == null ? {} : { effort: spec.effort }) })
+      : {
+          ref: spec.model,
+          ...(spec.effort == null ? {} : { effort: spec.effort }),
+          ...(spec.fast == null ? {} : { fast: spec.fast }),
+        })
 
   return (args.compose ?? composeServeApp)({
     threadId: args.threadId,

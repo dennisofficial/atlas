@@ -26,7 +26,13 @@ export function toThreadDto({
       : { agent: { spawnedBy: row.spawnerThreadId, type: row.agentType } }),
     ...(row.modelRef === null || row.modelEffort === null
       ? {}
-      : { model: { ref: row.modelRef, effort: row.modelEffort } }),
+      : {
+          model: {
+            ref: row.modelRef,
+            effort: row.modelEffort,
+            ...(row.modelFast === true ? { fast: true } : {}),
+          },
+        }),
     ...(session.executionLocation === null ? {} : { executionLocation: session.executionLocation }),
     projectId: session.projectId,
     pinnedAt: session.pinnedAt === null ? null : session.pinnedAt.toISOString(),

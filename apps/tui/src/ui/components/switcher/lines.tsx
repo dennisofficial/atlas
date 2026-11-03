@@ -133,6 +133,28 @@ export function ModelLine(props: {
   )
 }
 
+const FAST_AFFORDANCE = '⇥'
+
+export function FastLine(props: { cells: number; fast: boolean }): React.ReactNode {
+  const options: Span[] = [
+    ...(props.fast
+      ? [{ text: 'off', fg: theme.hint }]
+      : [{ text: `${glyph.marker}off`, fg: theme.court.external }]),
+    { text: EFFORT_GAP },
+    ...(props.fast
+      ? [{ text: `${glyph.marker}${glyph.fast} fast`, fg: theme.court.external }]
+      : [{ text: `${glyph.fast} fast`, fg: theme.hint }]),
+  ]
+  const gap = Math.max(GAP_CELLS, props.cells - spanCells(options) - cellsOf(FAST_AFFORDANCE))
+
+  return (
+    <TextLine
+      spans={[...options, { text: ' '.repeat(gap) }, { text: FAST_AFFORDANCE, fg: theme.hint }]}
+      cells={props.cells}
+    />
+  )
+}
+
 export function EffortLine(props: {
   cells: number
   effort: EEffort

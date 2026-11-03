@@ -129,7 +129,12 @@ export class SessionsClient {
     await cloudCall(this.client.threads.rename.mutate(args))
   }
 
-  async chooseThreadModel(args: { threadId: string; ref: string; effort: string }): Promise<void> {
+  async chooseThreadModel(args: {
+    threadId: string
+    ref: string
+    effort: string
+    fast?: boolean | undefined
+  }): Promise<void> {
     await cloudCall(this.client.threads.chooseModel.mutate(args))
   }
 

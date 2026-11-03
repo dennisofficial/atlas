@@ -42,7 +42,7 @@ export const EFFORT_STEPS: {
 
 export const AUTO_MODEL = 'auto'
 
-export type RoleSetting = { model: string; effort?: EEffortLevel }
+export type RoleSetting = { model: string; effort?: EEffortLevel; fast?: boolean }
 export type ModelsConfig = Record<EAgentRole, RoleSetting>
 
 export type ModelsDraft = {

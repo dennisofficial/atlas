@@ -66,6 +66,7 @@ export enum ESettingId {
   WebSearchKey = 'web.searchKey',
   ModelId = 'model.id',
   ModelEffort = 'model.effort',
+  ModelFast = 'model.fast',
   QuickModel = 'model.quickModel',
   CompactionModel = 'model.compactionModel',
   ModelFavourites = 'model.favourites',
@@ -607,6 +608,17 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     kind: ESettingKind.Choice,
     fallback: DEFAULT_EFFORT,
     options: EFFORT_OPTIONS,
+  },
+  {
+    id: ESettingId.ModelFast,
+    page: ESettingPage.Models,
+    group: 'Model',
+    label: 'Fast mode',
+    description:
+      'Start new conversations in fast mode on models that offer it: Claude Opus 5.5 and Opus 5, and the Codex models whose plan lists a fast tier. The same model answers faster at a higher price — a Claude plan pays for it from usage credits at twice the API rate, a ChatGPT plan spends its included usage 2.5 times as fast. Each conversation can still switch it on or off beside its effort.',
+    environmentVariable: 'ATLAS_FAST',
+    kind: ESettingKind.Toggle,
+    fallback: false,
   },
   {
     id: ESettingId.QuickModel,

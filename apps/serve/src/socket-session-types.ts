@@ -105,7 +105,9 @@ export type SessionHandlersArgs = {
   /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */
   transcript?: TranscriptReaders | undefined
   /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
-  selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
+  selectModel?:
+    | ((model: { ref: string; effort: string; fast?: boolean | undefined }) => void)
+    | undefined
   persistModel?: ThreadModelPersister | undefined
   tools?: SessionTools | undefined
   /** The sandbox's own shell and service registries; absent in fakes, which refuse the process ops. */

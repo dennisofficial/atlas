@@ -48,7 +48,9 @@ export const routeTranscriptWrite = (args: {
   transcript: TranscriptReaders | undefined
   threadId: ThreadId
   log: ServeLog
-  selectModel: ((model: { ref: string; effort: string }) => void) | undefined
+  selectModel:
+    | ((model: { ref: string; effort: string; fast?: boolean | undefined }) => void)
+    | undefined
   persistModel: ThreadModelPersister | undefined
   reply: (reply: ReplyFrame) => void
 }): boolean => {

@@ -68,6 +68,7 @@ export type AgentTurn = {
   segments: Segment[]
   spawns: SpawnItem[]
   running: boolean
+  fast?: true
 }
 
 export type NoticeTurn = {
@@ -208,6 +209,9 @@ function withRunningTail(args: {
   return [...segments, { ...placeholder, running: true }]
 }
 
+const isFastItem = (item: TranscriptRow): boolean =>
+  item.kind === ETranscriptKind.Agent && item.fast === true
+
 function agentTurnOf(args: { run: Run[]; after: TurnStart | null; running: boolean }): AgentTurn {
   const { run } = args
   const spawns = run.filter((item): item is SpawnItem => item.kind === ETranscriptKind.Spawn)
@@ -223,6 +227,7 @@ function agentTurnOf(args: { run: Run[]; after: TurnStart | null; running: boole
     segments: args.running ? withRunningTail({ turnId: id, segments, startedAt }) : segments,
     spawns,
     running: args.running,
+    ...(rest.some(isFastItem) ? { fast: true as const } : {}),
   }
 }
 

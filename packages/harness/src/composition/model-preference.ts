@@ -7,6 +7,7 @@ import {
   parseRef,
   refKey,
   textValueOf,
+  toggleValueOf,
   type EEffort,
   type ModelRef,
   type SettingsResolution,
@@ -14,7 +15,7 @@ import {
 import type { SettingsService, SettingsWrite } from '../settings/service'
 import type { ThreadModel } from '../store/thread-store'
 
-import { DEFAULT_MODEL_REF } from './config'
+import { DEFAULT_MODEL_REF, type LaunchModel } from './config'
 import { isRefReachable, type ModelCatalogue } from './model-catalogue'
 import type { ModelSelection } from './model-selection'
 
@@ -36,13 +37,16 @@ const usableEffort = (held: string | undefined): EEffort | undefined =>
 const settled = (args: {
   ref: ModelRef
   effort: EEffort
+  fast: boolean
   catalogue: ModelCatalogue
-}): ModelSelection => ({
-  ref: args.ref,
-  effort:
-    clampEffort({ map: args.catalogue.cardFor(args.ref)?.effort, effort: args.effort }) ??
-    args.effort,
-})
+}): ModelSelection => {
+  const card = args.catalogue.cardFor(args.ref)
+  return {
+    ref: args.ref,
+    effort: clampEffort({ map: card?.effort, effort: args.effort }) ?? args.effort,
+    fast: args.fast && card?.fast === true,
+  }
+}
 
 /**
  * Nobody's choice can hardcode a provider: a user with only OpenRouter set up cannot run the
@@ -74,6 +78,7 @@ export function defaultSelection(args: {
   return settled({
     ref: usableRef({ reference, catalogue: args.catalogue }) ?? fallbackRef(args),
     effort: usableEffort(effort) ?? DEFAULT_EFFORT,
+    fast: toggleValueOf({ resolution: args.settled, id: ESettingId.ModelFast }),
     catalogue: args.catalogue,
   })
 }
@@ -83,7 +88,7 @@ export function defaultSelection(args: {
  * the settings hold and whatever the thread it lands on was last switched to.
  */
 export function launchSelection(args: {
-  requested: { model: { ref: string; effort?: string | undefined } | undefined }
+  requested: { model: LaunchModel | undefined }
   settled: SettingsResolution
   catalogue: ModelCatalogue
 }): ModelSelection {
@@ -92,12 +97,13 @@ export function launchSelection(args: {
   if (asked === undefined) return fallback
 
   const effort = usableEffort(args.requested.model?.effort) ?? fallback.effort
-  return settled({ ref: asked, effort, catalogue: args.catalogue })
+  const fast = args.requested.model?.fast ?? fallback.fast === true
+  return settled({ ref: asked, effort, fast, catalogue: args.catalogue })
 }
 
 /** Whether a launch is pinned to one model, in which case the thread it opens does not get a say. */
 export const modelPinned = (args: {
-  requested: { model: { ref: string; effort?: string | undefined } | undefined }
+  requested: { model: LaunchModel | undefined }
   catalogue: ModelCatalogue
 }): boolean =>
   usableRef({ reference: args.requested.model?.ref, catalogue: args.catalogue }) !== undefined
@@ -117,6 +123,7 @@ export function threadSelection(args: {
   return settled({
     ref,
     effort: usableEffort(args.stored?.effort) ?? args.fallback.effort,
+    fast: args.stored?.fast ?? false,
     catalogue: args.catalogue,
   })
 }
@@ -124,6 +131,7 @@ export function threadSelection(args: {
 export const storedModel = (selection: ModelSelection): ThreadModel => ({
   ref: refKey(selection.ref),
   effort: selection.effort,
+  ...(selection.fast === true ? { fast: true } : {}),
 })
 
 export function settingModelRef(args: {

@@ -124,6 +124,7 @@ export type EventBody =
       interrupted?: boolean | undefined
       placeholder?: EAssistantPlaceholder | undefined
       aborted?: 'handoff' | undefined
+      fast?: true | undefined
       usage?: StepReading | undefined
     }
   | {

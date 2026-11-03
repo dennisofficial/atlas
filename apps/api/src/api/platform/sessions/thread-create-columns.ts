@@ -17,6 +17,7 @@ export const createColumnsOf = (args: {
     updatedAt: at,
     ...(draft.model === undefined ? {} : { modelRef: draft.model }),
     ...(draft.effort === undefined ? {} : { modelEffort: draft.effort }),
+    ...(draft.fast === undefined ? {} : { modelFast: draft.fast }),
   }
   const session: SessionDraft = {
     id: nextSessionId(),

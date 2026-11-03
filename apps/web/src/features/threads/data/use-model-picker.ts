@@ -18,6 +18,7 @@ export type ModelPicker = {
   options: ModelOptions
   personalId: string
   personalEffort: string
+  personalFast: boolean
   pinned: string[]
   onPinnedChange: (ids: string[]) => void
 }
@@ -56,6 +57,7 @@ export function useModelPicker(args: { currentId?: string | undefined } = {}): M
     options,
     personalId: read({ key: 'model.id', schema: z.string() }),
     personalEffort: read({ key: 'model.effort', schema: z.string() }),
+    personalFast: read({ key: 'model.fast', schema: z.boolean() }),
     pinned,
     onPinnedChange: handlePinnedChange,
   }

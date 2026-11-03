@@ -7,14 +7,24 @@ import { toThreadId } from '@dltech/atlas-core'
 
 import { EClientFrame, EClientRequest, EFileLoad, EServeFrame } from '@dltech/atlas-harness'
 import type { ViewedFile } from '@dltech/atlas-harness'
+import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 
 import { connect, type TestClient } from './client'
 import { fakeServeApp, refusedFile, type FakeServeApp } from './fakes'
+import { trpcOk, trpcUrl } from './trpc-fake'
 
 const TOKEN = 'session-token'
 const threadId = toThreadId('thread-serve')
 const CONTROL_PLANE = 'https://api.example.com'
+
+const waitFor = async (condition: () => boolean): Promise<void> => {
+  const deadline = Date.now() + 5000
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error('timed out waiting')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+}
 
 const homes: string[] = []
 const running: ServeHandle[] = []
@@ -30,11 +40,14 @@ afterEach(async () => {
 
 const start = async (
   args: {
+    env?: Record<string, string | undefined> | undefined
+    fetchFn?: typeof fetch | undefined
     modelBridge?:
       | {
           catalogue: never
           effort: () => string
-          select: (next: { ref: string; effort: string }) => void
+          fast: () => boolean
+          select: (next: { ref: string; effort: string; fast?: boolean | undefined }) => void
         }
       | undefined
   } = {},
@@ -49,14 +62,16 @@ const start = async (
     port: 0,
     token: TOKEN,
     controlPlaneUrl: CONTROL_PLANE,
-    env: {},
+    env: args.env ?? {},
     cwd: '/workspace',
     compose: async () => ({
       ...app,
       ...(args.modelBridge === undefined ? {} : { modelBridge: args.modelBridge }),
     }),
     ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
-    fetchFn: (async () => new Response(null, { status: 204 })) as unknown as typeof fetch,
+    fetchFn:
+      args.fetchFn ??
+      ((async () => new Response(null, { status: 204 })) as unknown as typeof fetch),
   })
   running.push(handle)
 
@@ -111,11 +126,12 @@ describe('the rename-thread op', () => {
 
 describe('the set-thread-model op', () => {
   it('records the pick, re-pins the running loop, and broadcasts it', async () => {
-    const selected: { ref: string; effort: string }[] = []
+    const selected: { ref: string; effort: string; fast?: boolean | undefined }[] = []
     const { app, client } = await start({
       modelBridge: {
         catalogue: undefined as never,
         effort: () => 'medium',
+        fast: () => false,
         select: (next) => selected.push(next),
       },
     })
@@ -181,6 +197,52 @@ describe('the set-thread-model op', () => {
     )
     expect(reply).toMatchObject({ ok: false })
     expect(app.chosenModels).toEqual([])
+  })
+
+  it('carries fast:true through the pick, the live re-pin, the persist call and the broadcast', async () => {
+    const selected: { ref: string; effort: string; fast?: boolean | undefined }[] = []
+    const posted: unknown[] = []
+    const { app, client } = await start({
+      env: { [API_PROVISIONED_ENV]: '1' },
+      fetchFn: (async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input)
+        if (url.includes('threads.chooseModel'))
+          posted.push({ url, body: JSON.parse(String(init?.body)) })
+        return trpcOk(url.includes('threadEvents') ? [] : undefined)
+      }) as unknown as typeof fetch,
+      modelBridge: {
+        catalogue: undefined as never,
+        effort: () => 'medium',
+        fast: () => false,
+        select: (next) => selected.push(next),
+      },
+    })
+
+    client.send({
+      kind: EClientFrame.Request,
+      id: 'mod-fast',
+      op: EClientRequest.SetThreadModel,
+      params: { threadId, model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: true } },
+    })
+
+    const reply = await client.waitFor(
+      (frame) => frame.kind === EServeFrame.Reply && frame.replyTo === 'mod-fast',
+    )
+    const picked = { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: true }
+    expect(reply).toMatchObject({ ok: true, data: { threadId, model: picked } })
+    expect(selected).toEqual([picked])
+    expect(app.chosenModels).toEqual([{ threadId, model: picked }])
+
+    const pushed = await client.waitFor((frame) => frame.kind === EServeFrame.ThreadModelChanged)
+    expect(pushed).toEqual({ kind: EServeFrame.ThreadModelChanged, threadId, model: picked })
+
+    await waitFor(() => posted.length > 0)
+    expect(posted).toEqual([
+      {
+        url: trpcUrl({ controlPlaneUrl: CONTROL_PLANE, procedure: 'threads.chooseModel' }),
+        body: { threadId, ...picked },
+      },
+    ])
   })
 })
 

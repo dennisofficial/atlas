@@ -26,6 +26,7 @@ describe('the models settings page', () => {
     expect(modelsRows().map((row) => row.id)).toEqual([
       ESettingId.ModelId,
       ESettingId.ModelEffort,
+      ESettingId.ModelFast,
       ESettingId.QuickModel,
       ESettingId.CompactionModel,
       ESettingId.SubagentModel,
@@ -43,7 +44,12 @@ describe('the models settings page', () => {
     expect(
       modelsRows()
         .filter((row) => row.group !== 'Decisions')
-        .every((row) => row.kind === ESettingKind.Model || row.id === ESettingId.ModelEffort),
+        .every(
+          (row) =>
+            row.kind === ESettingKind.Model ||
+            row.id === ESettingId.ModelEffort ||
+            row.id === ESettingId.ModelFast,
+        ),
     ).toBe(true)
   })
 

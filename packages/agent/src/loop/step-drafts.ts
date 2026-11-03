@@ -46,7 +46,12 @@ const withStepUsage = ({
 export function draftsFor(step: StepDraftsArgs): EventDraft[] {
   const { result } = step
   const drafts: EventDraft[] = []
-  if (result.parts.length > 0) drafts.push({ type: 'assistant-said', parts: result.parts })
+  if (result.parts.length > 0)
+    drafts.push({
+      type: 'assistant-said',
+      parts: result.parts,
+      ...(result.ranFast === true ? { fast: true } : {}),
+    })
 
   result.toolCalls.forEach((call, ordinal) => {
     drafts.push(calledDraft({ call, ordinal }))

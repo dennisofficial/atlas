@@ -3,6 +3,7 @@ import type { WireThread } from '@dltech/atlas-wire'
 export type ThreadModelDto = {
   ref: string
   effort: string
+  fast?: boolean | undefined
 }
 
 export type ThreadParentDto = {
@@ -31,6 +32,7 @@ export type ThreadDraft = {
   repo?: string | null | undefined
   model?: string | undefined
   effort?: string | undefined
+  fast?: boolean | undefined
   agent?: SupervisedAgentDto | undefined
 }
 

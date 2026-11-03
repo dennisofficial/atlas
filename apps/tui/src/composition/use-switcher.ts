@@ -12,6 +12,7 @@ import {
   openSwitcher,
   resolve,
   selectAt,
+  toggleFast,
   selectedCard,
   switcherRows,
   THREAD_TARGET,
@@ -52,6 +53,7 @@ const PIN_KEY = '*'
 export type SwitcherViewed = {
   ref: ModelRef
   effort: EEffort
+  fast?: boolean | undefined
   onPick: (choice: SwitcherChoice) => void
 }
 
@@ -61,7 +63,8 @@ export function useSwitcher(args: {
   accountsVersion: number
   active: ModelRef
   effort: EEffort
-  fallback: { ref: ModelRef; effort: EEffort }
+  fast?: boolean | undefined
+  fallback: { ref: ModelRef; effort: EEffort; fast?: boolean | undefined }
   settingRef: (id: string) => ModelRef | undefined
   favourites: readonly string[]
   onPick: (args: { choice: SwitcherChoice; target: SwitcherTarget }) => void
@@ -80,6 +83,7 @@ export function useSwitcher(args: {
     accountsVersion,
     active,
     effort,
+    fast,
     fallback,
     settingRef,
     favourites,
@@ -117,8 +121,12 @@ export function useSwitcher(args: {
     (target: SwitcherTarget = THREAD_TARGET) => {
       const anchor =
         target.scope === EModelScope.Setting
-          ? { ref: settingRef(target.id) ?? fallback.ref, effort: fallback.effort }
-          : { ref: viewed?.ref ?? active, effort: viewed?.effort ?? effort }
+          ? { ref: settingRef(target.id) ?? fallback.ref, effort: fallback.effort, fast: false }
+          : {
+              ref: viewed?.ref ?? active,
+              effort: viewed?.effort ?? effort,
+              fast: viewed?.fast ?? fast ?? false,
+            }
 
       put({
         query: '',
@@ -127,12 +135,24 @@ export function useSwitcher(args: {
           providers: catalogue.providers,
           active: anchor.ref,
           effort: anchor.effort,
+          fast: anchor.fast,
           availability: catalogue.reachable,
           favourites,
         }),
       })
     },
-    [active, accountsVersion, catalogue, effort, fallback, favourites, put, settingRef, viewed],
+    [
+      active,
+      accountsVersion,
+      catalogue,
+      effort,
+      fallback,
+      fast,
+      favourites,
+      put,
+      settingRef,
+      viewed,
+    ],
   )
 
   const handleDismiss = useCallback(() => put(null), [put])
@@ -167,6 +187,7 @@ export function useSwitcher(args: {
           rows: rowsFor(typed),
           active: following,
           effort: current.state.effort,
+          fast: current.state.fast,
         }),
       })
     },
@@ -204,6 +225,7 @@ export function useSwitcher(args: {
           rows: rowsWith({ query: current.query, favourites: pinned }),
           active: wanted,
           effort: current.state.effort,
+          fast: current.state.fast,
         }),
       })
     },
@@ -241,6 +263,13 @@ export function useSwitcher(args: {
         key.preventDefault()
         const delta = key.name === 'left' ? -1 : 1
         put({ ...current, state: adjustEffort({ state: current.state, delta, rows: laid }) })
+        return
+      }
+
+      if (key.name === 'tab') {
+        if (current.target.scope === EModelScope.Setting && !current.target.withEffort) return
+        key.preventDefault()
+        put({ ...current, state: toggleFast({ state: current.state, rows: laid }) })
         return
       }
 

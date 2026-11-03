@@ -13,12 +13,12 @@ import {
   type ModelsDraft,
   type RoleSetting,
 } from '../../fixtures/settings-agent'
-import { diffChanges, settingString } from './settings-values'
+import { diffChanges, settingBool, settingString } from './settings-values'
 
-type RoleKeys = { model: string; effort?: string }
+type RoleKeys = { model: string; effort?: string; fast?: string }
 
 export const ROLE_KEYS: Record<EAgentRole, RoleKeys> = {
-  [EAgentRole.Main]: { model: 'model.id', effort: 'model.effort' },
+  [EAgentRole.Main]: { model: 'model.id', effort: 'model.effort', fast: 'model.fast' },
   [EAgentRole.Subagents]: { model: 'agents.subagentModel' },
   [EAgentRole.Quick]: { model: 'model.quickModel' },
   [EAgentRole.Compaction]: { model: 'model.compactionModel' },
@@ -56,6 +56,9 @@ const roleFromKeys = (args: { values: SettingValues; keys: RoleKeys }): RoleSett
   return {
     model,
     effort: effortFromStored(settingString({ values: args.values, key: args.keys.effort })),
+    ...(args.keys.fast === undefined
+      ? {}
+      : { fast: settingBool({ values: args.values, key: args.keys.fast }) }),
   }
 }
 
@@ -90,23 +93,42 @@ export function modelsDraftFrom(values: SettingValues): ModelsDraft {
   }
 }
 
-export function activePresetOf(roles: ModelsConfig): EPreset | null {
-  const serialized = JSON.stringify(roles)
-  return PRESET_ORDER.find((preset) => JSON.stringify(PRESETS[preset]) === serialized) ?? null
+const withoutFast = (
+  roles: ModelsConfig,
+): Record<EAgentRole, { model: string; effort?: EEffortLevel }> => {
+  const stripped = {} as Record<EAgentRole, { model: string; effort?: EEffortLevel }>
+  for (const role of ROLES) {
+    const setting = roles[role]
+    stripped[role] =
+      setting.effort === undefined
+        ? { model: setting.model }
+        : { model: setting.model, effort: setting.effort }
+  }
+  return stripped
 }
 
-const flattenRoles = (roles: ModelsConfig): Record<string, string> => {
-  const flat: Record<string, string> = {}
+export function activePresetOf(roles: ModelsConfig): EPreset | null {
+  const serialized = JSON.stringify(withoutFast(roles))
+  return (
+    PRESET_ORDER.find((preset) => JSON.stringify(withoutFast(PRESETS[preset])) === serialized) ??
+    null
+  )
+}
+
+const flattenRoles = (roles: ModelsConfig): Record<string, string | boolean> => {
+  const flat: Record<string, string | boolean> = {}
   for (const role of ROLES) {
     const keys = ROLE_KEYS[role]
     flat[keys.model] = modelToStored(roles[role].model)
     const effort = roles[role].effort
     if (keys.effort !== undefined && effort !== undefined) flat[keys.effort] = effort
+    const fast = roles[role].fast
+    if (keys.fast !== undefined && fast !== undefined) flat[keys.fast] = fast
   }
   return flat
 }
 
-const flatten = (config: ModelsDraft): Record<string, string> => {
+const flatten = (config: ModelsDraft): Record<string, string | boolean> => {
   const flat = flattenRoles(config.roles)
   flat[TEAMMATE_MODEL_KEY] = modelToStored(config.teammate.model)
   for (const type of BUILT_IN_AGENT_ORDER) {

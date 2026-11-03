@@ -15,6 +15,7 @@ let calls: string[]
 let state: string
 
 const ticket = {
+  threadId: 'brn_1',
   url: 'ws://127.0.0.1:1/',
   token: 't',
   expiresAt: '2026-10-29T10:00:00.000Z',

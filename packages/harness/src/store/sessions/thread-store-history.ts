@@ -149,6 +149,7 @@ export async function forkThread({
         workspace: source.workspace,
         modelRef: source.modelRef,
         modelEffort: source.modelEffort,
+        modelFast: source.modelFast ?? null,
         executionLocation: source.executionLocation,
         runner: source.runner,
         projectId: source.projectId,
