@@ -103,6 +103,10 @@ export class ChildSteps {
     child.deliveredAt = undefined
     child.waitingOn = undefined
     child.waitingFor = undefined
+    child.failureCause = undefined
+    child.failureKind = undefined
+    child.lastText = ''
+    child.lastFullText = ''
     child.steppingSince = this.clock.now()
     this.roster.changed()
 

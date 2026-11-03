@@ -4,21 +4,30 @@ import {
   vercelChooseProjectSchema,
   vercelConnectStartSchema,
   vercelProjectsListSchema,
+  vercelTokenDiscoverInputSchema,
+  vercelTokenDiscoverSchema,
   type UserVercelCredential,
   type UserVercelCredentialUpsert,
   type VercelChooseProject,
   type VercelConnectStart,
   type VercelProjectsList,
+  type VercelTokenDiscover,
+  type VercelTokenDiscoverInput,
 } from '@dltech/atlas-wire'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
+import { meta } from '../../../_module/trpc/procedure-meta'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
+import { VercelPlanService } from './vercel-credential-plan'
 import { UserVercelService } from './user-vercel.service'
 
 @Router({ alias: 'userVercel' })
 @UseMiddlewares(SessionMiddleware)
 export class UserVercelRouter {
-  constructor(private readonly vercel: UserVercelService) {}
+  constructor(
+    private readonly vercel: UserVercelService,
+    private readonly plans: VercelPlanService,
+  ) {}
 
   @Query({ output: userVercelCredentialSchema })
   get(@Ctx() ctx: SessionTrpcCtx): Promise<UserVercelCredential> {
@@ -51,6 +60,26 @@ export class UserVercelRouter {
   @Query({ output: vercelProjectsListSchema })
   async projects(@Ctx() ctx: SessionTrpcCtx): Promise<VercelProjectsList> {
     return { projects: await this.vercel.projects({ userId: ctx.auth.userId }) }
+  }
+
+  @Mutation({
+    input: vercelTokenDiscoverInputSchema,
+    output: vercelTokenDiscoverSchema,
+    meta: meta({ throttle: { limit: 20, ttlMs: 60_000 } }),
+  })
+  async discover(
+    @Input() input: VercelTokenDiscoverInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<VercelTokenDiscover> {
+    const result = await this.plans.discoverForUser({
+      userId: ctx.auth.userId,
+      token: input.token,
+      teamId: input.teamId,
+    })
+    return {
+      teams: result.teams.map((team) => ({ ...team, name: null })),
+      projects: result.projects,
+    }
   }
 
   @Mutation({ input: vercelChooseProjectSchema, output: userVercelCredentialSchema })

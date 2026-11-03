@@ -22,12 +22,29 @@ const configured = {
 }
 
 describe('VercelCredentialCard', () => {
-  it('keeps the token form behind a collapsible and shows the connection status', () => {
+  it('shows the token field with a Create-a-token link and idle pickers', () => {
     const html = renderToStaticMarkup(<VercelCredentialCard view={configured} />)
     expect(html).toContain('Connected via access token')
-    expect(html).toContain('Use an access token instead')
+    expect(html).toContain('Token saved and hidden')
+    expect(html).toContain('Create a token')
+    expect(html).toContain('https://vercel.com/account/tokens')
+    expect(html).toContain('target="_blank"')
+    expect(html).toContain('Paste a token to load your teams')
+    expect(html).toContain('Pick a team first')
     expect(html).not.toContain('value="team_abc"')
-    expect(html).not.toContain('Token saved and hidden')
+  })
+
+  it('keeps the manual ID inputs behind a collapsible', () => {
+    const html = renderToStaticMarkup(<VercelCredentialCard view={configured} />)
+    expect(html).toContain('Enter IDs manually')
+    expect(html).not.toContain('placeholder="team_…"')
+    expect(html).not.toContain('placeholder="prj_…"')
+  })
+
+  it('shows the create-a-token link on the empty card', () => {
+    const html = renderToStaticMarkup(<VercelCredentialCard />)
+    expect(html).toContain('Create a token')
+    expect(html).toContain('Not configured')
   })
 
   it('offers Connect Vercel when oauth is configured and nothing is connected', () => {
