@@ -15,6 +15,7 @@ export default (): ExpoConfig => ({
   ios: {
     bundleIdentifier: 'io.byatlas.atlas',
     appleTeamId: '9H7HK25CVR',
+    config: { usesNonExemptEncryption: false },
     supportsTablet: true,
     usesAppleSignIn: true,
     icon: './assets/expo.icon',
