@@ -18,6 +18,7 @@ import {
   saidFileSchema,
   saidImageSchema,
   saidUploadSchema,
+  stepUsageSchema,
   toolResultPartSchema,
 } from './part-schema'
 import { agentEventSchemas } from './agent-schema'
@@ -72,6 +73,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     interrupted: z.boolean().optional(),
     placeholder: z.enum(EAssistantPlaceholder).optional(),
     aborted: z.literal('handoff').optional(),
+    usage: stepUsageSchema.optional(),
   }),
   // Zod 4 requires a z.unknown() key to be present, where Zod 3 inferred it optional. A tool call or
   // result whose input or output is undefined loses the key to JSON.stringify, so both must say .optional()
@@ -82,6 +84,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     name: z.string(),
     input: z.unknown().optional(),
     ordinal: z.number().int().nonnegative(),
+    usage: stepUsageSchema.optional(),
   }),
   z.object({
     type: z.literal('tool-dispatched'),

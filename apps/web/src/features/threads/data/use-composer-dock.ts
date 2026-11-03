@@ -17,7 +17,7 @@ import { messageOf } from './use-send'
 export function useComposerDock(args: {
   threadId: string
   visible: WireEvent[]
-  source: Pick<ThreadSource, 'pending' | 'reported' | 'working' | 'channel' | 'takeBackPending'>
+  source: Pick<ThreadSource, 'pending' | 'working' | 'channel' | 'takeBackPending'>
   picker: ModelPicker
   selection: ModelSelection
   onRestore: (restored: TakenBack) => void
@@ -29,12 +29,11 @@ export function useComposerDock(args: {
   const usage = useMemo(
     () =>
       contextUsageOf({
-        reported: source.reported,
         events,
         selectedId: selection.id,
         models: picker.options.models,
       }),
-    [source.reported, events, selection.id, picker.options.models],
+    [events, selection.id, picker.options.models],
   )
 
   const handleSaveQueued = async ({ id, text }: QueuedMessageSave) => {
