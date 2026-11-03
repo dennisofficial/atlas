@@ -25,7 +25,7 @@ const terminalEnv = (
     TERM: 'xterm-256color',
     COLORTERM: 'truecolor',
   }
-  delete env.V2_DAEMON_SECRET
+  delete env.DAEMON_TOKEN
   return env
 }
 

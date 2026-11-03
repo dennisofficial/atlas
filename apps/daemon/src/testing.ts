@@ -72,7 +72,7 @@ export const daemonTestEnv = (
   options?: { realCgroups?: boolean | undefined },
 ): Record<string, string | undefined> => ({
   ...process.env,
-  V2_DAEMON_SECRET: SECRET,
+  DAEMON_TOKEN: daemonToken({ secret: SECRET, sandboxName: SANDBOX }),
   ATLAS_SANDBOX_NAME: SANDBOX,
   ATLAS_DAEMON_HOME: join(home, 'daemon'),
   ...(options?.realCgroups === true ? {} : { ATLAS_DAEMON_CGROUP_ROOT: fakeCgroupRoot(home) }),
@@ -131,6 +131,8 @@ export const realDaemonTarget = (args: {
     }
     return {
       token: daemonToken({ secret: SECRET, sandboxName: SANDBOX }),
+      foreignToken: ({ sandboxName, secret } = {}) =>
+        daemonToken({ secret: secret ?? SECRET, sandboxName: sandboxName ?? SANDBOX }),
       bootId: () => running.bootId,
       connect: async () => {
         const session = await connectWebSocket(running.port)

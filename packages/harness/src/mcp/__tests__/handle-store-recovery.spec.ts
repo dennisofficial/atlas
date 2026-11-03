@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EDefinitionOrigin, toThreadId } from '@dltech/atlas-core'
-import { EMcpOauthAccessOutcome } from '@dltech/atlas-wire/web'
+import {
+  EMcpOauthAccessOutcome,
+  EMcpServerSource,
+  type McpOauthAccessInput,
+} from '@dltech/atlas-wire/web'
 
 import { HandleStore } from '../bridge/handle-store'
 import { CloudMcpTokenSource } from '../cloud/cloud-mcp-token-source'
@@ -51,7 +55,7 @@ describe('HandleStore tool-call 401', () => {
   it('reconnects with a fresh token and reports the rejected one to the API', async () => {
     let valid = 'old'
     const rig = serverAccepting(() => valid)
-    const apiCalls: { serverUrl: string; rejectedAccessToken?: string | undefined }[] = []
+    const apiCalls: McpOauthAccessInput[] = []
     const answers = [granted('old'), granted('new')]
     const store = new HandleStore({
       specs: [httpSpec('ph', rig.url)],
@@ -71,7 +75,12 @@ describe('HandleStore tool-call 401', () => {
       await tool?.invoke(invocation())
       await new Promise((resolve) => setTimeout(resolve, 100))
 
-      expect(apiCalls.at(-1)).toEqual({ serverUrl: rig.url, rejectedAccessToken: 'old' })
+      expect(apiCalls.at(-1)).toEqual({
+        name: 'ph',
+        source: EMcpServerSource.Repo,
+        url: rig.url,
+        rejectedAccessToken: 'old',
+      })
       expect(store.statusOf({ serverId: 'ph' })?.state.status).toBe(EMcpServerStatus.Connected)
       expect(rig.seen.at(-1)).toBe('Bearer new')
     } finally {
@@ -111,8 +120,8 @@ describe('HandleStore authorization headers', () => {
     const store = new HandleStore({
       specs: [httpSpec('own', rig.url, { Authorization: 'Bearer static' })],
       tokenSource: {
-        currentToken: async ({ serverUrl }) => {
-          asked.push(serverUrl)
+        currentToken: async ({ server }) => {
+          asked.push(server.url)
           return 'other'
         },
         reject: () => undefined,

@@ -7,10 +7,10 @@ import {
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
-  type V2SessionRow,
+  type ControlSessionRow,
 } from '../../port'
 
-type SessionRow = V2SessionRow & { nextInboxId: number }
+type SessionRow = ControlSessionRow & { nextInboxId: number }
 
 type State = {
   sessions: Map<string, SessionRow>
@@ -89,7 +89,7 @@ class MemoryTx implements ControlTx {
     })
   }
 
-  async readSession(params: { sessionId: string }): Promise<V2SessionRow | undefined> {
+  async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     const row = this.state.sessions.get(params.sessionId)
     if (row === undefined) return undefined
     const { nextInboxId: _nextInboxId, ...session } = row
@@ -100,7 +100,7 @@ class MemoryTx implements ControlTx {
     userId: string
     projectId?: string | undefined
     limit: number
-  }): Promise<V2SessionRow[]> {
+  }): Promise<ControlSessionRow[]> {
     return [...this.state.sessions.values()]
       .filter((row) => row.userId === params.userId)
       .filter((row) => params.projectId === undefined || row.projectId === params.projectId)

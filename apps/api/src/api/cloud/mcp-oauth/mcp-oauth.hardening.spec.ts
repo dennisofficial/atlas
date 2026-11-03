@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 import { EMcpOauthBeginOutcome, mcpOauthBeginInputSchema } from '@dltech/atlas-wire'
 import { AUTH, SERVER, json } from './mcp-oauth.fakes'
-import { build, stateOf } from './mcp-oauth.testkit'
+import { addCloudServer, build, stateOf } from './mcp-oauth.testkit'
 
 const beginWith = async (returnTo?: string) => {
   const env = build()
+  const server = await addCloudServer(env)
   const result = await env.oauth.begin({
     userId: 'user-a',
-    serverUrl: SERVER,
+    serverId: server.id,
     ...(returnTo === undefined ? {} : { returnTo }),
   })
   if (result.outcome !== EMcpOauthBeginOutcome.Redirect) throw new Error('expected redirect')
@@ -18,12 +19,12 @@ const beginWith = async (returnTo?: string) => {
 describe('returnTo open redirect', () => {
   it('rejects backslash and control characters in the wire schema', () => {
     for (const returnTo of ['/\\evil.com', '/\\/evil.com', '/\t/evil.com', '//evil.com', '/a\nb']) {
-      expect(mcpOauthBeginInputSchema.safeParse({ serverUrl: SERVER, returnTo }).success).toBe(
+      expect(mcpOauthBeginInputSchema.safeParse({ serverId: 'srv-1', returnTo }).success).toBe(
         false,
       )
     }
     expect(
-      mcpOauthBeginInputSchema.safeParse({ serverUrl: SERVER, returnTo: '/settings?x=1' }).success,
+      mcpOauthBeginInputSchema.safeParse({ serverId: 'srv-1', returnTo: '/settings?x=1' }).success,
     ).toBe(true)
   })
 
@@ -40,6 +41,9 @@ describe('returnTo open redirect', () => {
 })
 
 describe('callback session binding', () => {
+  const grantCount = (env: ReturnType<typeof build>) =>
+    [...env.store.servers.values()].filter((row) => row.oauthSealed !== null).length
+
   it('fails and consumes the pending on a session mismatch', async () => {
     const { env, state } = await beginWith()
     const location = new URL(
@@ -47,7 +51,7 @@ describe('callback session binding', () => {
     )
     expect(location.searchParams.get('mcpReason')).toBe('session_mismatch')
     expect(env.store.pendings.size).toBe(0)
-    expect(env.store.grants.size).toBe(0)
+    expect(grantCount(env)).toBe(0)
     expect(env.fetcher.callsTo(`${AUTH}/token`)).toHaveLength(0)
   })
 
@@ -55,7 +59,7 @@ describe('callback session binding', () => {
     const { env, state } = await beginWith()
     const location = new URL(await env.oauth.complete({ state, code: 'c' }))
     expect(location.searchParams.get('mcpReason')).toBe('session_mismatch')
-    expect(env.store.grants.size).toBe(0)
+    expect(grantCount(env)).toBe(0)
   })
 
   it('connects when the session matches', async () => {
@@ -92,7 +96,8 @@ describe('begin robustness and client reuse', () => {
     env.fetcher.on(SERVER, () => {
       throw new Error('ECONNRESET')
     })
-    const result = await env.oauth.begin({ userId: 'user-a', serverUrl: SERVER })
+    const server = await addCloudServer(env)
+    const result = await env.oauth.begin({ userId: 'user-a', serverId: server.id })
     expect(result.outcome).toBe(EMcpOauthBeginOutcome.Unsupported)
   })
 
@@ -101,7 +106,8 @@ describe('begin robustness and client reuse', () => {
       ...(await import('./mcp-oauth.fakes')).TEST_CONFIG,
       resolveHost: async () => ['10.0.0.9'],
     })
-    const result = await env.oauth.begin({ userId: 'user-a', serverUrl: SERVER })
+    const server = await addCloudServer(env)
+    const result = await env.oauth.begin({ userId: 'user-a', serverId: server.id })
     expect(result.outcome).toBe(EMcpOauthBeginOutcome.Unsupported)
     expect(env.fetcher.calls).toHaveLength(0)
   })
@@ -110,19 +116,20 @@ describe('begin robustness and client reuse', () => {
     const env = build()
     const prm = 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp'
     env.fetcher.on(prm, () => json({ authorization_servers: [AUTH], resource: `${SERVER}/` }))
-    const ok = await env.oauth.begin({ userId: 'user-a', serverUrl: SERVER })
+    const server = await addCloudServer(env)
+    const ok = await env.oauth.begin({ userId: 'user-a', serverId: server.id })
     expect(ok.outcome).toBe(EMcpOauthBeginOutcome.Redirect)
     env.fetcher.on(prm, () =>
       json({ authorization_servers: [AUTH], resource: 'https://evil.example.com/mcp' }),
     )
-    const bad = await env.oauth.begin({ userId: 'user-a', serverUrl: SERVER })
+    const bad = await env.oauth.begin({ userId: 'user-a', serverId: server.id })
     expect(bad.outcome).toBe(EMcpOauthBeginOutcome.Unsupported)
   })
 
   it('does not reuse a client registered against another token endpoint', async () => {
     const env = build()
     const { seedGrant } = await import('./mcp-oauth.testkit')
-    await seedGrant(env)
+    const server = await seedGrant(env)
     env.fetcher.on(`${AUTH}/.well-known/oauth-authorization-server`, () =>
       json({
         authorization_endpoint: `${AUTH}/authorize`,
@@ -130,16 +137,17 @@ describe('begin robustness and client reuse', () => {
         registration_endpoint: `${AUTH}/register`,
       }),
     )
-    await env.oauth.begin({ userId: 'user-a', serverUrl: SERVER })
+    await env.oauth.begin({ userId: 'user-a', serverId: server.id })
     expect(env.fetcher.callsTo(`${AUTH}/register`)).toHaveLength(1)
   })
 
   it('does not reuse an expired client secret', async () => {
     const env = build()
-    const { NORMALIZED, START } = await import('./mcp-oauth.testkit')
+    const { NORMALIZED, START, addCloudServer: add } = await import('./mcp-oauth.testkit')
     const { sealJson } = await import('./mcp-oauth-seal')
-    await env.store.upsertGrant({
-      userId: 'user-a',
+    const server = await add(env)
+    await env.store.writeGrant({
+      id: server.id,
       serverUrl: NORMALIZED,
       sealed: sealJson({
         cipher: env.cipher,
@@ -155,7 +163,7 @@ describe('begin robustness and client reuse', () => {
         },
       }),
     })
-    await env.oauth.begin({ userId: 'user-a', serverUrl: SERVER })
+    await env.oauth.begin({ userId: 'user-a', serverId: server.id })
     expect(env.fetcher.callsTo(`${AUTH}/register`)).toHaveLength(1)
   })
 })

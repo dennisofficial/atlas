@@ -50,8 +50,7 @@ export const createInMemoryDaemon = async (
     const engine = new DaemonEngine({
       bootId,
       version: options.version,
-      secret: options.secret,
-      sandboxName: options.sandboxName,
+      token: daemonToken({ secret: options.secret, sandboxName: options.sandboxName }),
       store,
       groups: groupsOf({ fs }),
       health: () => ({ protection: UNSUPPORTED_PROTECTION }),

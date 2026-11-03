@@ -68,6 +68,7 @@ expect 'gcloud present' 'Google Cloud SDK' run 'CLOUDSDK_PYTHON=/usr/bin/python3
 expect 'gsutil present' 'gsutil version' run 'CLOUDSDK_PYTHON=/usr/bin/python3 gsutil version'
 expect 'bq present' 'BigQuery CLI' run 'CLOUDSDK_PYTHON=/usr/bin/python3 bq version'
 expect 'doctl present' 'doctl version' run 'doctl version'
+expect 'pscale present' 'pscale version' run 'pscale version'
 expect 'pulumi present' 'v3.' run 'pulumi version'
 expect 'stripe present' 'stripe version' run 'stripe --version'
 expect 'terraform present' 'Terraform v' run 'terraform version'

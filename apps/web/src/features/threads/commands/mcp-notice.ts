@@ -5,7 +5,7 @@ import {
 } from '@dltech/atlas-wire/web'
 
 export const NO_MCP_SERVERS_NOTICE = 'No MCP servers are configured'
-export const MCP_SETTINGS_HINT = 'Sign in at Settings → Integrations'
+export const MCP_SETTINGS_HINT = "Sign in at Settings → Integrations, or the project's MCP settings"
 
 const rowOf = (server: McpServerStatusWire): string => {
   const tools = `${server.toolCount} tool${server.toolCount === 1 ? '' : 's'}`

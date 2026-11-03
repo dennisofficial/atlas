@@ -5,6 +5,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { assertMcpServerName, openMcpServer, sealMcpSpec } from '../mcp-servers/mcp-sealed'
+import { putCloudServer } from '../mcp-servers/mcp-servers-put'
 import type { McpServerDto, McpSpecDraft } from '../mcp-servers/mcp-servers.types'
 import { assertEnvName, openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
 import { assertWithinPlanCap, PLAN_CAP_STALE_MS } from '../user-vercel/plan-cap'
@@ -97,34 +98,40 @@ export class ProjectResourcesService {
 
   async listMcpServers(args: Scope): Promise<McpServerDto[]> {
     await this.projects.read(args)
-    const rows = await db.orm.public.ProjectMcpServer.where({ projectId: args.projectId })
+    const rows = await db.orm.public.McpServer.where({
+      projectId: args.projectId,
+      source: 'cloud',
+    })
       .orderBy((row) => row.name.asc())
       .all()
-    return rows.map((row) =>
-      openMcpServer({ cipher: this.cipher, sealedSpec: row.sealedSpec, updatedAt: row.updatedAt }),
-    )
+    return rows.map((row) => {
+      if (row.sealedSpec === null) throw new Error('a cloud server row holds a sealed spec')
+      return openMcpServer({
+        cipher: this.cipher,
+        sealedSpec: row.sealedSpec,
+        updatedAt: row.updatedAt,
+      })
+    })
   }
 
   async putMcpServer(args: Scope & { name: string; spec: McpSpecDraft }): Promise<void> {
     await this.projects.read(args)
     const sealedSpec = sealMcpSpec({ cipher: this.cipher, name: args.name, spec: args.spec })
-    await db.orm.public.ProjectMcpServer.upsert({
-      conflictOn: { projectId: args.projectId, name: args.name },
-      create: {
-        id: `pmcp_${randomUUID()}`,
-        projectId: args.projectId,
-        name: args.name,
-        sealedSpec,
-      },
-      update: { sealedSpec },
+    await putCloudServer({
+      cipher: this.cipher,
+      scope: { projectId: args.projectId },
+      idPrefix: 'pmcp_',
+      name: args.name,
+      sealedSpec,
     })
   }
 
   async removeMcpServer(args: Scope & { name: string }): Promise<void> {
     assertMcpServerName(args.name)
     await this.projects.read(args)
-    await db.orm.public.ProjectMcpServer.where({
+    await db.orm.public.McpServer.where({
       projectId: args.projectId,
+      source: 'cloud',
       name: args.name,
     }).deleteAndCount()
   }

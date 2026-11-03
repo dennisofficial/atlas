@@ -3,7 +3,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
-import { EMcpOauthAccessOutcome, EMcpOauthBeginOutcome } from '@dltech/atlas-wire'
+import { EMcpOauthAccessOutcome, EMcpOauthBeginOutcome, EMcpServerSource } from '@dltech/atlas-wire'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
@@ -17,7 +17,11 @@ import {
 } from '../src/api/cloud/mcp-oauth/mcp-oauth.fakes'
 import { McpOauthAccessService } from '../src/api/cloud/mcp-oauth/mcp-oauth-access.service'
 import { sealJson } from '../src/api/cloud/mcp-oauth/mcp-oauth-seal'
-import { McpOauthClock, type McpOauthFetcher } from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
+import {
+  EGrantRowStatus,
+  McpOauthClock,
+  type McpOauthFetcher,
+} from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
 import type { SealedGrant } from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
 import { PrismaMcpOauthStore } from '../src/api/cloud/mcp-oauth/prisma-mcp-oauth.store'
 
@@ -32,6 +36,17 @@ class RealClock extends McpOauthClock {
     return new Promise<void>((resolve) => setTimeout(resolve, ms))
   }
 }
+
+const grantPayload = (tokenEndpoint: string, redirectUri: string): SealedGrant => ({
+  clientInfo: { clientId: 'c' },
+  tokens: {
+    accessToken: 'stale',
+    refreshToken: 'refresh-0',
+    expiresAt: new Date(Date.now() - 1000).toISOString(),
+  },
+  tokenEndpoint,
+  redirectUri,
+})
 
 describe('mcp oauth grants over real PostgreSQL', () => {
   const runId = randomUUID()
@@ -59,6 +74,28 @@ describe('mcp oauth grants over real PostgreSQL', () => {
           config,
         ),
     )
+
+  const seedGrantedServer = async (args: {
+    id: string
+    userId: string
+    name: string
+    serverUrl: string
+  }) => {
+    await db.orm.public.McpServer.create({
+      id: args.id,
+      userId: args.userId,
+      source: 'cloud',
+      name: args.name,
+      sealedSpec: cipher.encrypt(
+        JSON.stringify({ name: args.name, transport: { kind: 'http', url: args.serverUrl } }),
+      ),
+    })
+    await new PrismaMcpOauthStore().writeGrant({
+      id: args.id,
+      serverUrl: new URL(args.serverUrl).toString(),
+      sealed: sealJson({ cipher, value: grantPayload(tokenEndpoint, config.redirectUri) }),
+    })
+  }
 
   beforeAll(async () => {
     issuer = createServer((req, res) => {
@@ -88,29 +125,21 @@ describe('mcp oauth grants over real PostgreSQL', () => {
   beforeEach(async () => {
     exchanges = 0
     for (const id of [ownerId, foreignId]) await seedUser({ db: database().db, id })
-    const grant: SealedGrant = {
-      clientInfo: { clientId: 'c' },
-      tokens: {
-        accessToken: 'stale',
-        refreshToken: 'refresh-0',
-        expiresAt: new Date(Date.now() - 1000).toISOString(),
-      },
-      tokenEndpoint,
-      redirectUri: config.redirectUri,
-    }
-    await new PrismaMcpOauthStore().upsertGrant({
+    await seedGrantedServer({
+      id: `srv-${runId}`,
       userId: ownerId,
-      serverUrl: new URL(SERVER_URL).toString(),
-      sealed: sealJson({ cipher, value: grant }),
+      name: 'posthog',
+      serverUrl: SERVER_URL,
     })
   })
 
   it('refreshes once under concurrency across instances and isolates owners', async () => {
     const [a, b] = instances({ fetch: (input, init) => fetch(input, init) })
+    const accessArgs = { name: 'posthog', source: EMcpServerSource.Cloud, url: SERVER_URL }
     const results = await Promise.all([
-      a!.accessToken({ userId: ownerId, serverUrl: SERVER_URL }),
-      b!.accessToken({ userId: ownerId, serverUrl: SERVER_URL }),
-      a!.accessToken({ userId: ownerId, serverUrl: SERVER_URL }),
+      a!.accessToken({ userId: ownerId, ...accessArgs }),
+      b!.accessToken({ userId: ownerId, ...accessArgs }),
+      a!.accessToken({ userId: ownerId, ...accessArgs }),
     ])
     expect(exchanges).toBe(1)
     for (const result of results) {
@@ -119,11 +148,11 @@ describe('mcp oauth grants over real PostgreSQL', () => {
         accessToken: 'fresh-1',
       })
     }
-    const row = await db.orm.public.McpOauthGrant.first({ userId: ownerId })
-    expect(row?.generation).toBe(1)
-    expect(row?.refreshAttempt).toBeNull()
+    const row = await db.orm.public.McpServer.first({ id: `srv-${runId}` })
+    expect(row?.oauthGeneration).toBe(2)
+    expect(row?.oauthRefreshAttempt).toBeNull()
 
-    const foreign = await a!.accessToken({ userId: foreignId, serverUrl: SERVER_URL })
+    const foreign = await a!.accessToken({ userId: foreignId, ...accessArgs })
     expect(foreign.outcome).toBe(EMcpOauthAccessOutcome.NeedsAuth)
   })
 
@@ -133,25 +162,36 @@ describe('mcp oauth grants over real PostgreSQL', () => {
     fetcher.on(`${AUTH}/token`, () =>
       json({ access_token: 'a', refresh_token: 'r', expires_in: 3600 }),
     )
-    const service = new McpOauthService(
-      new PrismaMcpOauthStore(),
-      cipher,
-      new RealClock(),
-      fetcher,
-      {
-        redirectUri: 'https://web.test/v1/mcp/oauth/callback',
-        webOrigin: 'https://web.test',
-        allowLocalTargets: false,
-        resolveHost: async () => ['93.184.216.34'],
-      },
-    )
-    const first = await service.begin({ userId: ownerId, serverUrl: FAKE_SERVER })
+    const store = new PrismaMcpOauthStore()
+    const service = new McpOauthService(store, cipher, new RealClock(), fetcher, {
+      redirectUri: 'https://web.test/v1/mcp/oauth/callback',
+      webOrigin: 'https://web.test',
+      allowLocalTargets: false,
+      resolveHost: async () => ['93.184.216.34'],
+    })
+    const serverId = `srv-begin-${runId}`
+    await db.orm.public.McpServer.create({
+      id: serverId,
+      userId: ownerId,
+      source: 'cloud',
+      name: 'begin-server',
+      sealedSpec: cipher.encrypt(
+        JSON.stringify({
+          name: 'begin-server',
+          transport: { kind: 'http', url: FAKE_SERVER },
+        }),
+      ),
+    })
+    const begin = () => service.begin({ userId: ownerId, serverId })
+    const first = await begin()
     expect(first.outcome).toBe(EMcpOauthBeginOutcome.Redirect)
     const state = new URL(
       first.outcome === EMcpOauthBeginOutcome.Redirect ? first.authorizationUrl : '',
     ).searchParams.get('state')
     await service.complete({ state: state ?? '', code: 'c', sessionUserId: ownerId })
-    const second = await service.begin({ userId: ownerId, serverUrl: FAKE_SERVER })
+    const row = await store.findServer({ id: serverId })
+    expect(row?.oauthStatus).toBe(EGrantRowStatus.Active)
+    const second = await begin()
     expect(second.outcome).toBe(EMcpOauthBeginOutcome.Redirect)
     expect(fetcher.callsTo(`${AUTH}/register`)).toHaveLength(1)
   })

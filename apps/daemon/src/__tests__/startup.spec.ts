@@ -21,7 +21,7 @@ const startWithout = async (name: string): Promise<{ code: number | null; stderr
 }
 
 describe('daemon startup', () => {
-  for (const name of ['V2_DAEMON_SECRET', 'ATLAS_SANDBOX_NAME']) {
+  for (const name of ['DAEMON_TOKEN', 'ATLAS_SANDBOX_NAME']) {
     it(`refuses to start without ${name}`, async () => {
       const { code, stderr } = await startWithout(name)
       expect(code).toBe(78)

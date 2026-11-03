@@ -1,5 +1,6 @@
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { EMcpServerSource } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
@@ -28,9 +29,43 @@ import { McpOauthRouter } from './mcp-oauth.router'
 import { McpOauthService } from './mcp-oauth.service'
 import { McpOauthClock, McpOauthConfig, McpOauthFetcher, McpOauthStore } from './mcp-oauth.types'
 import { sealJson } from './mcp-oauth-seal'
+import { EGrantRowStatus } from './mcp-oauth.types'
+import type { ServerGrantRow } from './mcp-oauth.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const NORMALIZED = new URL(SERVER).toString()
+
+const grantedServer = (cipher: SecretCipherService): ServerGrantRow => ({
+  id: 'server-a',
+  userId: 'user-a',
+  projectId: null,
+  name: 'posthog',
+  source: EMcpServerSource.Cloud,
+  sealedSpec: cipher.encrypt(
+    JSON.stringify({ name: 'posthog', transport: { kind: 'http', url: SERVER } }),
+  ),
+  repoUrl: null,
+  lastSeenAt: null,
+  oauthServerUrl: NORMALIZED,
+  oauthSealed: sealJson({
+    cipher,
+    value: {
+      clientInfo: { clientId: 'c' },
+      tokens: {
+        accessToken: 'tok-a',
+        refreshToken: 'r',
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+      tokenEndpoint: 'https://auth.example.com/token',
+      redirectUri: TEST_CONFIG.redirectUri,
+    },
+  }),
+  oauthStatus: EGrantRowStatus.Active,
+  oauthGeneration: 1,
+  oauthRefreshAttempt: null,
+  oauthRefreshStartedAt: null,
+  oauthUpdatedAt: new Date(),
+})
 
 describe('McpOauthRouter authorization', () => {
   let app: NestExpressApplication
@@ -41,23 +76,8 @@ describe('McpOauthRouter authorization', () => {
     store = new FakeMcpStore()
     const fetcher = new FakeMcpFetcher()
     installIssuer(fetcher)
-    await store.upsertGrant({
-      userId: 'user-a',
-      serverUrl: NORMALIZED,
-      sealed: sealJson({
-        cipher,
-        value: {
-          clientInfo: { clientId: 'c' },
-          tokens: {
-            accessToken: 'tok-a',
-            refreshToken: 'r',
-            expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-          },
-          tokenEndpoint: 'https://auth.example.com/token',
-          redirectUri: TEST_CONFIG.redirectUri,
-        },
-      }),
-    })
+    const server = grantedServer(cipher)
+    store.servers.set(server.id, server)
     app = await createOauthApp([
       McpOauthRouter,
       McpOauthService,
@@ -79,38 +99,52 @@ describe('McpOauthRouter authorization', () => {
 
   afterEach(() => app.close())
 
-  const body = { serverUrl: SERVER }
+  const accessBody = { name: 'posthog', source: 'cloud', url: SERVER }
 
-  it('keeps begin, status and disconnect session-only', async () => {
-    expect((await mutate({ app, procedure: 'mcpOauth.begin', body })).status).toBe(401)
+  it('keeps begin, servers and disconnect session-only', async () => {
     expect(
-      (await mutate({ app, procedure: 'mcpOauth.begin', token: 'sandbox-token-1', body })).status,
+      (await mutate({ app, procedure: 'mcpOauth.begin', body: { serverId: 'server-a' } })).status,
     ).toBe(401)
     expect(
       (
-        await query({
+        await mutate({
           app,
-          procedure: 'mcpOauth.status',
+          procedure: 'mcpOauth.begin',
           token: 'sandbox-token-1',
-          input: { serverUrls: [SERVER] },
+          body: { serverId: 'server-a' },
         })
       ).status,
     ).toBe(401)
     expect(
-      (await mutate({ app, procedure: 'mcpOauth.disconnect', token: 'sandbox-token-1', body }))
+      (await query({ app, procedure: 'mcpOauth.servers', token: 'sandbox-token-1', input: {} }))
         .status,
+    ).toBe(401)
+    expect(
+      (
+        await mutate({
+          app,
+          procedure: 'mcpOauth.disconnect',
+          token: 'sandbox-token-1',
+          body: { serverId: 'server-a' },
+        })
+      ).status,
     ).toBe(401)
   })
 
-  it('reports status for the session user', async () => {
+  it('reports servers for the session user', async () => {
     const res = await query({
       app,
-      procedure: 'mcpOauth.status',
+      procedure: 'mcpOauth.servers',
       token: 'session-a',
-      input: { serverUrls: [SERVER] },
+      input: {},
     })
     expect(res.status).toBe(200)
-    expect(res.body.result.data.grants[0].status).toBe('connected')
+    expect(res.body.result.data.servers).toHaveLength(1)
+    expect(res.body.result.data.servers[0]).toMatchObject({
+      id: 'server-a',
+      name: 'posthog',
+      status: 'connected',
+    })
   })
 
   it('lets a sandbox mint a token scoped to its owner', async () => {
@@ -118,14 +152,19 @@ describe('McpOauthRouter authorization', () => {
       app,
       procedure: 'mcpOauth.accessToken',
       token: 'sandbox-token-1',
-      body,
+      body: accessBody,
     })
     expect(res.status).toBe(200)
     expect(res.body.result.data).toMatchObject({ outcome: 'granted', accessToken: 'tok-a' })
   })
 
   it('answers needs-auth to a different user', async () => {
-    const res = await mutate({ app, procedure: 'mcpOauth.accessToken', token: 'session-b', body })
+    const res = await mutate({
+      app,
+      procedure: 'mcpOauth.accessToken',
+      token: 'session-b',
+      body: accessBody,
+    })
     expect(res.body.result.data).toEqual({ outcome: 'needs-auth' })
   })
 })

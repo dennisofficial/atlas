@@ -1,17 +1,26 @@
-import { EMcpOauthAccessOutcome, mcpOauthAccessResultSchema } from '@dltech/atlas-wire/web'
+import { EDefinitionOrigin } from '@dltech/atlas-core'
+import {
+  EMcpOauthAccessOutcome,
+  EMcpServerSource,
+  mcpOauthAccessResultSchema,
+  type McpOauthAccessInput,
+} from '@dltech/atlas-wire/web'
 
-import type { McpTokenSource } from '../bridge/token-source'
+import type { McpTokenSource, McpTokenTarget } from '../bridge/token-source'
 
 const EXPIRY_SKEW_MS = 60_000
 const MAX_UNDATED_TTL_MS = 5 * 60_000
 const FAILURE_TTL_MS = 60_000
 
-export type McpOauthAccessCall = (args: {
-  serverUrl: string
-  rejectedAccessToken?: string | undefined
-}) => Promise<unknown>
+export type McpOauthAccessCall = (args: McpOauthAccessInput) => Promise<unknown>
 
-type Cached = { accessToken: string; expiresAtMs: number }
+type Cached = { accessToken: string; expiresAtMs: number; url: string }
+
+const sourceOfOrigin = (origin: EDefinitionOrigin): EMcpServerSource | undefined => {
+  if (origin === EDefinitionOrigin.Project) return EMcpServerSource.Repo
+  if (origin === EDefinitionOrigin.User) return EMcpServerSource.Cloud
+  return undefined
+}
 
 export class CloudMcpTokenSource implements McpTokenSource {
   private readonly cache = new Map<string, Cached>()
@@ -20,51 +29,64 @@ export class CloudMcpTokenSource implements McpTokenSource {
 
   constructor(private readonly args: { access: McpOauthAccessCall; nowMs?: () => number }) {}
 
-  async currentToken(args: { serverUrl: string }): Promise<string | undefined> {
+  async currentToken(args: { server: McpTokenTarget }): Promise<string | undefined> {
+    const source = sourceOfOrigin(args.server.origin)
+    if (source === undefined) return undefined
+    const key = `${source}:${args.server.name}`
     const now = this.now()
-    if ((this.failedUntil.get(args.serverUrl) ?? 0) > now) return undefined
-    const cached = this.cache.get(args.serverUrl)
-    if (cached !== undefined && cached.expiresAtMs - EXPIRY_SKEW_MS > now) {
+    if ((this.failedUntil.get(key) ?? 0) > now) return undefined
+    const cached = this.cache.get(key)
+    if (
+      cached !== undefined &&
+      cached.url === args.server.url &&
+      cached.expiresAtMs - EXPIRY_SKEW_MS > now
+    ) {
       return cached.accessToken
     }
 
-    const rejectedAccessToken = this.rejected.get(args.serverUrl)
+    const rejectedAccessToken = this.rejected.get(key)
     try {
       const raw = await this.args.access({
-        serverUrl: args.serverUrl,
+        name: args.server.name,
+        source,
+        url: args.server.url,
         ...(rejectedAccessToken === undefined ? {} : { rejectedAccessToken }),
       })
       const parsed = mcpOauthAccessResultSchema.safeParse(raw)
       if (!parsed.success || parsed.data.outcome === EMcpOauthAccessOutcome.NeedsAuth) {
-        return this.fail(args.serverUrl)
+        return this.fail(key)
       }
       const dated =
         parsed.data.expiresAt === undefined ? Number.NaN : Date.parse(parsed.data.expiresAt)
-      this.rejected.delete(args.serverUrl)
-      this.cache.set(args.serverUrl, {
+      this.rejected.delete(key)
+      this.cache.set(key, {
         accessToken: parsed.data.accessToken,
         expiresAtMs: Number.isNaN(dated) ? this.now() + MAX_UNDATED_TTL_MS : dated,
+        url: args.server.url,
       })
       return parsed.data.accessToken
     } catch {
-      return this.fail(args.serverUrl)
+      return this.fail(key)
     }
   }
 
-  reject(args: { serverUrl: string; token: string }): void {
-    const cached = this.cache.get(args.serverUrl)
+  reject(args: { server: McpTokenTarget; token: string }): void {
+    const source = sourceOfOrigin(args.server.origin)
+    if (source === undefined) return
+    const key = `${source}:${args.server.name}`
+    const cached = this.cache.get(key)
     if (cached !== undefined && cached.accessToken !== args.token) return
-    this.cache.delete(args.serverUrl)
-    this.rejected.set(args.serverUrl, args.token)
+    this.cache.delete(key)
+    this.rejected.set(key, args.token)
   }
 
   clearFailures(): void {
     this.failedUntil.clear()
   }
 
-  private fail(serverUrl: string): undefined {
-    this.cache.delete(serverUrl)
-    this.failedUntil.set(serverUrl, this.now() + FAILURE_TTL_MS)
+  private fail(key: string): undefined {
+    this.cache.delete(key)
+    this.failedUntil.set(key, this.now() + FAILURE_TTL_MS)
     return undefined
   }
 

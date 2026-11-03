@@ -5,7 +5,6 @@ import {
   type McpUpsertWire,
 } from '@dltech/atlas-wire/web'
 
-import { signInUrlOf } from './mcp-oauth'
 import { joinCommandLine, parseKeyValueLines, splitCommandLine } from '../command-line'
 
 export type McpRow = {
@@ -13,7 +12,6 @@ export type McpRow = {
   kind: EMcpTransportKind
   target: string
   enabled: boolean
-  signInUrl?: string
 }
 
 export type McpRowDraft = {
@@ -29,13 +27,10 @@ export const transportKindOf = (value: string): EMcpTransportKind =>
 export function targetOf(transport: McpTransportWire | undefined): string {
   if (transport === undefined) return ''
   if (transport.kind === EMcpTransportKind.Http) return transport.url
-  return joinCommandLine({ command: transport.command, args: transport.args ?? [] })
-}
-
-export function signInFieldOf(transport: McpTransportWire | undefined): { signInUrl?: string } {
-  if (transport?.kind !== EMcpTransportKind.Http) return {}
-  const url = signInUrlOf({ url: transport.url, headers: transport.headers })
-  return url === undefined ? {} : { signInUrl: url }
+  return joinCommandLine({
+    command: transport.command,
+    args: transport.args ?? [],
+  })
 }
 
 export function rowOfServer(server: McpServerWire): McpRow {
@@ -44,7 +39,6 @@ export function rowOfServer(server: McpServerWire): McpRow {
     kind: server.transport?.kind ?? EMcpTransportKind.Stdio,
     target: targetOf(server.transport),
     enabled: server.disabled !== true,
-    ...signInFieldOf(server.transport),
   }
 }
 

@@ -1,6 +1,6 @@
 import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
 
-export type V2SessionRow = {
+export type ControlSessionRow = {
   sessionId: string
   userId: string
   projectId: string
@@ -55,12 +55,12 @@ export interface ControlTx {
     mainThreadId: string
     at: string
   }): Promise<void>
-  readSession(params: { sessionId: string }): Promise<V2SessionRow | undefined>
+  readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
   listSessions(params: {
     userId: string
     projectId?: string | undefined
     limit: number
-  }): Promise<V2SessionRow[]>
+  }): Promise<ControlSessionRow[]>
   sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]>
   createThread(params: {
     threadId: string

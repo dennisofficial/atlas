@@ -8,7 +8,7 @@ import {
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
-  type V2SessionRow,
+  type ControlSessionRow,
 } from '../port'
 
 const iso = (value: Date): string => value.toISOString()
@@ -56,7 +56,7 @@ class PostgresTx implements ControlTx {
     })
   }
 
-  async readSession(params: { sessionId: string }): Promise<V2SessionRow | undefined> {
+  async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     const row = await this.tx.orm.v2.V2Session.first({ id: params.sessionId })
     return row === null ? undefined : this.toSessionRow(row)
   }
@@ -65,7 +65,7 @@ class PostgresTx implements ControlTx {
     userId: string
     projectId?: string | undefined
     limit: number
-  }): Promise<V2SessionRow[]> {
+  }): Promise<ControlSessionRow[]> {
     const where =
       params.projectId === undefined
         ? { userId: params.userId }
@@ -84,7 +84,7 @@ class PostgresTx implements ControlTx {
     title: string | null
     mainThreadId: string
     createdAt: Date
-  }): V2SessionRow {
+  }): ControlSessionRow {
     return {
       sessionId: row.id,
       userId: row.userId,

@@ -168,11 +168,7 @@ export class DaemonEngine {
 
   private hello(args: { peer: Peer; frame: Extract<HostFrame, { kind: 'hello' }> }): void {
     const { peer, frame } = args
-    const tokenOk = daemonTokenMatches({
-      secret: this.args.secret,
-      sandboxName: this.args.sandboxName,
-      token: frame.token,
-    })
+    const tokenOk = daemonTokenMatches({ want: this.args.token, token: frame.token })
     if (!tokenOk) {
       this.reject({
         peer,

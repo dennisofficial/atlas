@@ -1,0 +1,27 @@
+{
+  "name": "@dltech/atlas-agent-host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --timeout 30000"
+  },
+  "dependencies": {
+    "@dltech/atlas-api-router": "workspace:*",
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-host": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
+    "@dltech/atlas-wire": "workspace:*",
+    "@vercel/sandbox": "^3.3.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@dltech/atlas-daemon": "workspace:*",
+    "@types/bun": "latest"
+  }
+}

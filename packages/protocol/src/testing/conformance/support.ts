@@ -13,6 +13,7 @@ import type { DaemonSession } from '../client'
 
 export type DaemonHandle = {
   token: string
+  foreignToken(args?: { sandboxName?: string; secret?: string }): string
   bootId(): string
   connect(): Promise<DaemonSession>
   restart(): Promise<void>

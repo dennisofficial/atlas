@@ -21,6 +21,11 @@ export enum EMcpOauthCallbackResult {
   Failed = 'failed',
 }
 
+export enum EMcpServerSource {
+  Cloud = 'cloud',
+  Repo = 'repo',
+}
+
 export const MCP_OAUTH_CALLBACK_PATH = '/v1/mcp/oauth/callback'
 export const MCP_OAUTH_RESULT_PARAM = 'mcpOauth'
 export const MCP_OAUTH_SERVER_PARAM = 'mcpServer'
@@ -32,8 +37,10 @@ const returnToSchema = z
   .regex(/^\/(?![/\\])[^\\\u0000-\u001f\u007f]*$/, 'returnTo must be a same-origin path')
   .max(512)
 
-export const mcpOauthBeginInputSchema = z.strictObject({
-  serverUrl: serverUrlSchema,
+export const mcpOauthServerRefSchema = z.strictObject({ serverId: z.string().min(1) })
+export type McpOauthServerRef = z.infer<typeof mcpOauthServerRefSchema>
+
+export const mcpOauthBeginInputSchema = mcpOauthServerRefSchema.extend({
   returnTo: returnToSchema.optional(),
 })
 export type McpOauthBeginInput = z.infer<typeof mcpOauthBeginInputSchema>
@@ -50,28 +57,31 @@ export const mcpOauthBeginResultSchema = z.discriminatedUnion('outcome', [
 ])
 export type McpOauthBeginResult = z.infer<typeof mcpOauthBeginResultSchema>
 
-export const mcpOauthStatusInputSchema = z.strictObject({
-  serverUrls: z.array(serverUrlSchema).max(100),
+export const mcpOauthServersInputSchema = z.strictObject({
+  projectId: z.string().min(1).optional(),
 })
-export type McpOauthStatusInput = z.infer<typeof mcpOauthStatusInputSchema>
+export type McpOauthServersInput = z.infer<typeof mcpOauthServersInputSchema>
 
-export const mcpOauthGrantSchema = z.strictObject({
-  serverUrl: z.string(),
+export const mcpOauthServerSchema = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  source: z.enum(EMcpServerSource),
+  url: z.string(),
   status: z.enum(EMcpOauthGrantStatus),
-  updatedAt: z.string().optional(),
+  signedInAt: z.string().optional(),
+  lastSeenAt: z.string().optional(),
 })
-export type McpOauthGrant = z.infer<typeof mcpOauthGrantSchema>
+export type McpOauthServer = z.infer<typeof mcpOauthServerSchema>
 
-export const mcpOauthStatusResultSchema = z.strictObject({
-  grants: z.array(mcpOauthGrantSchema),
+export const mcpOauthServersResultSchema = z.strictObject({
+  servers: z.array(mcpOauthServerSchema),
 })
-export type McpOauthStatusResult = z.infer<typeof mcpOauthStatusResultSchema>
-
-export const mcpOauthServerRefSchema = z.strictObject({ serverUrl: serverUrlSchema })
-export type McpOauthServerRef = z.infer<typeof mcpOauthServerRefSchema>
+export type McpOauthServersResult = z.infer<typeof mcpOauthServersResultSchema>
 
 export const mcpOauthAccessInputSchema = z.strictObject({
-  serverUrl: serverUrlSchema,
+  name: z.string().min(1),
+  source: z.enum(EMcpServerSource),
+  url: serverUrlSchema,
   rejectedAccessToken: z.string().min(1).optional(),
 })
 export type McpOauthAccessInput = z.infer<typeof mcpOauthAccessInputSchema>
