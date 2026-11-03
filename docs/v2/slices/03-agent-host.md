@@ -1,6 +1,6 @@
 # Slice 3 spec: agent host and sandbox daemon
 
-Status: **approved 2026-11-02** (operator: "tests and spikes will prove it"); hardened after a
+Status: **approved 2026-11-02** and simplified the same day after a design review (per-event appends, `run` replaces collect, no Redis stop, one-row blobs; DB-clock leases, boot-only pruning, zombie `ack` refused) (operator: "tests and spikes will prove it"); hardened after a
 codebase-design pass (deep modules, one `OnceLedger`, the fake daemon held to the real one).
 Sibling to [roadmap.md](../roadmap.md) slice 3.
 Applies [0021](../../decisions/0021-v2-loop-runs-on-the-agent-host.md) (D8),
@@ -100,7 +100,7 @@ flowchart LR
   end
   subgraph Data["Data (us-east-1)"]
     PG[("Postgres<br/>public = v1<br/>v2 = record, inbox, leases")]
-    R[("Redis<br/>v2:wake, v2:stop, v2:live")]
+    R[("Redis<br/>v2:wake, v2:live")]
   end
   subgraph Render["Render, Virginia"]
     W1["Agent host 1<br/>runs agent loops"]
@@ -115,8 +115,8 @@ flowchart LR
   C -- "tRPC: post message, read events" --> API
   API -- "SSE: live output (slice 5)" --> C
   API -- "inbox post, ranged reads" --> PG
-  API -- "publish wake / stop" --> R
-  R -- "wake / stop" --> W1 & W2
+  API -- "publish wake" --> R
+  R -- "wake" --> W1 & W2
   W1 & W2 -- "publish live output" --> R
   W1 & W2 -- "lease, append, read inbox" --> PG
   W1 & W2 -- "credentials, settings (internal route)" --> API
@@ -169,7 +169,7 @@ sequenceDiagram
   W1->>PG: append tool-result
   W1->>D: ack(key), daemon deletes it
   W1->>PG: append next step ... turn end
-  Note over W1,PG: Appends batch every 250 ms, flushed at once before a tool and at turn end
+  Note over W1,PG: Each event is appended as it happens; tool-dispatched commits before run
 ```
 
 **An agent host restarts mid-tool.** The tool keeps running; the new holder collects it.
@@ -195,7 +195,7 @@ sequenceDiagram
   W2->>PG: grant lease (epoch 6 to 7), read log
   W2->>D: connect(session, epoch 7)
   D--xW1: close the epoch-5 connection if still open
-  W2->>D: collect(K)
+  W2->>D: run(K) again (idempotent)
   alt still running
     D-->>W2: running, attach to output
     D-->>W2: result when bash ends
@@ -215,14 +215,14 @@ sequenceDiagram
 
 ### 1. The packages and services (the `pod` rename)
 
-| Where                           | What                                                                                                                                                                                                                                  |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/protocol`             | New. Zod schemas only: agent host ⇄ daemon frames and the v2 API inputs. `wire` is not touched; it becomes `protocol` at cutover (0019)                                                                                               |
-| `packages/host`                 | New, replaces 0019's `pod`. The agent host library: claiming and renewing leases, the per-thread record cache and batched appends, inbox wake, running `agent`, the daemon client and the daemon-backed tool ports, the clean handoff |
-| `apps/agent-host`               | New. The Render service: plain Bun, composes `host` with the model adapters and builtin tools from `harness`. No Nest, no tRPC                                                                                                        |
-| `apps/daemon`                   | New. The in-sandbox daemon. Built into one JavaScript file that the agent host ships inside its own image and uploads to the sandbox                                                                                                  |
-| `apps/trigger`, `packages/jobs` | New (0022). trigger.dev app with one task, `v2-reconcile-holders` (point 3); its contract in `packages/jobs` (zod only)                                                                                                               |
-| `apps/api`                      | Gains a `v2` tRPC namespace (point 9). No v1 route changes                                                                                                                                                                            |
+| Where                           | What                                                                                                                                                                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/protocol`             | New. Zod schemas only: agent host ⇄ daemon frames and the v2 API inputs. `wire` is not touched; it becomes `protocol` at cutover (0019)                                                                                                 |
+| `packages/host`                 | New, replaces 0019's `pod`. The agent host library: claiming and renewing leases, the per-thread record cache and per-event appends, inbox wake, running `agent`, the daemon client and the daemon-backed tool ports, the clean handoff |
+| `apps/agent-host`               | New. The Render service: plain Bun, composes `host` with the model adapters and builtin tools from `harness`. No Nest, no tRPC                                                                                                          |
+| `apps/daemon`                   | New. The in-sandbox daemon. Built into one JavaScript file that the agent host ships inside its own image and uploads to the sandbox                                                                                                    |
+| `apps/trigger`, `packages/jobs` | New (0022). trigger.dev app with one task, `v2-reconcile-holders` (point 3); its contract in `packages/jobs` (zod only)                                                                                                                 |
+| `apps/api`                      | Gains a `v2` tRPC namespace (point 9). No v1 route changes                                                                                                                                                                              |
 
 Plain terms: the "pod" package splits in two because the two halves now run on different machines.
 `host` is everything the agent host does; the daemon is everything the sandbox does.
@@ -275,7 +275,9 @@ trigger.dev task, because the agent host runs no timers of its own beyond its se
   `DATABASE_URL` and `REDIS_URL`, own trigger.dev project) with this one task.
 - **What stays in the agent host** is what belongs to a session's loop: lease renewal, the
   sandbox keep-alive, the idle rule's per-session deadline, and the stop poll during a turn.
-- **Holding.** The holder renews every 5 s with a 30 s TTL. The lease now lives on the agent host, so
+- **Holding.** The holder renews every 5 s with a 30 s TTL. Lease times (`renewedAt`, expiry) use
+  the database's clock (`now()` in the transaction), never a machine's own, so clock skew between
+  hosts cannot shorten or stretch a lease. The lease now lives on the agent host, so
   a saturated sandbox cannot make it lapse (R4 becomes easy). A clean restart hands its sessions
   over immediately (point 5). A crash is noticed by the next reconcile run after the TTL, so its
   sessions resume within about 90 s (30 s TTL + up to 60 s), unless a new message wakes them
@@ -302,12 +304,15 @@ one-minute reconcile task (safety net).
   memory. The loop's `ownEvents` and `ModelContextPort` read that cache, and appends extend it.
   At the design size (~20k events, tens of MB) this is a one-off read of about 20 pages per claim.
   The exit criterion measures claim time at 20k events.
-- **Appends are batched:** a batch goes out at 250 ms or 50 events, whichever comes first. It
-  goes out **at once** before a tool runs (`tool-dispatched` must be durable before invocation,
-  as today) and at every turn end. Exit check: the time from an event's `at` to its commit stays
-  under 1 s at p99.
-- A refused append (`stale-epoch`, `lease-expired`) means the lease is gone: the loop stops and
-  the host drops the session. Any other refusal is a bug and fails the turn loudly.
+- **Each event is appended as it happens**, in its own transaction (Postgres is 5.5 ms away and a
+  turn produces tens of events, so batching would buy nothing and would add an unflushed tail to
+  lose on a crash). `tool-dispatched` commits before the tool runs, as today. Exit check: the time
+  from an event's `at` to its commit stays under 1 s at p99.
+- **Refused versus unreachable.** A _refusal_ (`stale-epoch`, `lease-expired`) means the lease is
+  gone: the loop stops and the host drops the session at once. _Unreachable_ (a network error or
+  timeout) is retried with backoff; an append is idempotent by `(threadId, seq)` and hash, so a
+  retry after an unknown outcome is safe. Past TTL − 5 s without success the host self-fences
+  (point 5). Any other refusal is a bug and fails the turn loudly.
 - **Live output** (token deltas, tool output as it streams) is not an event. The agent host
   publishes it on Redis `v2:live:<sessionId>`. Slice 5 serves it to clients over SSE; slice 3
   publishes it and tests that it arrives.
@@ -355,28 +360,33 @@ renamed at cutover, when no v1 client is left to read it.
 
 On claim, if the thread's last turn did not end (a consumed input without a turn end, or calls
 dispatched without a result), the agent host calls the loop's existing `resume`. Dispatch recovery
-gains one step: before it treats a call as crashed, it asks the daemon to **collect** it by its key
+gains one step: before it treats a call as crashed, it sends the call's `run` again by its key
 (`runId:callId`).
 
 **The call protocol.** Four rules, each enforced in one place:
 1. **No run without a record.** The agent host sends `run` only after `tool-dispatched` has committed
    at its epoch (today's fail-closed dispatch). An agent host whose lease lapsed cannot commit, so it
    cannot start a tool.
-2. **The daemon writes before it spawns.** On `run(key, bootId)` the daemon writes `running` for
+2. **The daemon writes before it spawns.** On `run(key)` the daemon writes `running` for
    the key to disk and fsyncs, then spawns. On exit it writes `done` with the result, then
    replies. A `run` for a key it already has never spawns again: it attaches (running) or returns
-   the result (done). A `run` carrying a different `bootId` than the daemon's own is refused as
-   `boot-changed`, so a call aimed at a sandbox that has since restarted is never silently run.
+   the result (done). `run` is the only way to ask about a call: sent again, it attaches or returns, so there is no
+   separate collect.
 3. **Record before ack.** The agent host sends `ack(key)` only after the `tool-result` has committed.
-   The daemon deletes the key on `ack`. Until then the result waits on disk.
+   The daemon deletes the key on `ack`. Until then the result waits on disk. Unacknowledged results
+   are pruned only when the daemon boots (a new `bootId`, so recovery treats a pruned key as a
+   sandbox restart, never as "never arrived").
 4. **The daemon follows the highest epoch.** A connection at a higher epoch closes the older one;
-   `run` from an older epoch is refused. Rule 2 makes even a late duplicate harmless.
+   `run`, `ack` and `cancel` from an older epoch are refused (a late `ack` from a zombie must not
+   delete a result the new holder has not recorded yet). Rule 2 makes even a late duplicate harmless.
 
-`tool-dispatched` gains the daemon's `bootId` (an optional field v1 never writes; the only change
+`tool-dispatched` gains the daemon's `bootId`, which the host learns from the daemon's hello reply
+(it is not sent per call). A sandbox tool's `tool-dispatched` is therefore committed only after the
+daemon has answered, so every dispatched call names the boot it went to (an optional field v1 never writes; the only change
 to an existing event body).
 
-**What the new holder does for each unfinished call.** It first reads the record, then asks the
-daemon:
+**What the new holder does for each unfinished call.** It first reads the record, then sends `run` again and reads the
+daemon's answer:
 
 | Record has                   | Daemon says                    | New holder                                                                  |
 | ---------------------------- | ------------------------------ | --------------------------------------------------------------------------- |
@@ -404,11 +414,11 @@ in the slice. It lives in three modules; each hides a lot behind a few methods, 
 them knows how calls are stored, reattached or recovered. The smaller files inside each module are
 internal and never imported from outside it.
 
-| Module (interface)                                                                                                                            | Hides                                                                                                                 | Tested through                                            |
-| --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| **Call protocol** (`core/src/record/calls`): `step(state, input) -> { state, effects }` and `recover(recordFacts, daemonAnswer) -> action`    | The call states, the four rules, the recovery table. Pure                                                             | The simulation (below) and its invariant checks           |
-| **Call ledger** (daemon, `apps/daemon/src/calls`): `run(key, bootId, op)`, `collect(key)`, `ack(key)`, `cancel(key)`, each returning a stream | The journal on disk with fsync, output offsets, spawning into a cgroup box, pruning unacknowledged results after 24 h | The daemon conformance suite over the WebSocket           |
-| **Remote calls** (host, `packages/host/src/calls`): `invoke(key, op, signal) -> result` and `recoverOpen(calls)`                              | The WebSocket link (epoch hello, ping, reconnect, reattach at offset), `ack` after commit, the recovery steps         | The host exit seam, with the fake daemon and the real one |
+| Module (interface)                                                                                                                         | Hides                                                                                                         | Tested through                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **Call protocol** (`core/src/record/calls`): `step(state, input) -> { state, effects }` and `recover(recordFacts, daemonAnswer) -> action` | The call states, the four rules, the recovery table. Pure                                                     | The simulation (below) and its invariant checks           |
+| **Call ledger** (daemon, `apps/daemon/src/calls`): `run(key, op)` (idempotent: spawn, attach or return), `ack(key)`, `cancel(key)`         | The journal on disk with fsync, output offsets, spawning into a cgroup box, pruning at boot                   | The daemon conformance suite over the WebSocket           |
+| **Remote calls** (host, `packages/host/src/calls`): `invoke(key, op, signal) -> result` and `recoverOpen(calls)`                           | The WebSocket link (epoch hello, ping, reconnect, reattach at offset), `ack` after commit, the recovery steps | The host exit seam, with the fake daemon and the real one |
 
 The call ledger and remote calls both drive the pure call protocol, so the rules live in one place
 and the simulation checks the same code the processes run. The `agent` loop sees none of this: the
@@ -422,7 +432,7 @@ control store).
 
 **The agent host's other deep module: the session holder.** `packages/host` exposes one more
 interface, `SessionHolder { start(), drain(deadline) }`, which hides claiming (on wake),
-renewal, self-fencing, the record cache and batched appends, sandbox lifecycle and the idle rule.
+renewal, self-fencing, the record cache and per-event appends, sandbox lifecycle and the idle rule.
 `apps/agent-host` is its only production caller: it builds the adapters, calls `start()`, and calls
 `drain()` on SIGTERM. Time, Redis and the control store are injected, so every lease case runs on a
 fake clock in milliseconds.
@@ -461,7 +471,7 @@ agent host can work it out and nothing is stored.
 
 | Group    | Operations                                                                                                      | Backs                                       |
 | -------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| Calls    | `run(key, op)`, `collect(key)`, `ack(key)`, `cancel(key)`; output streams as chunks                             | Every tool call                             |
+| Calls    | `run(key, op)` (idempotent), `ack(key)`, `cancel(key)`; output streams as base64 chunks with a byte offset      | Every tool call                             |
 | Exec     | `exec` (argv, cwd, env, timeout, streamed output)                                                               | `ProcessPort`, `bash`                       |
 | Files    | stat, readFile/readBytes/readTextForEdit, writeFile, remove, mkdir, rename, readDirectory, glob, grep (ripgrep) | `FileSystemPort`, read/write/edit/grep/glob |
 | Shells   | launch, read, write input, kill, list, endings                                                                  | `ShellLauncherPort` / `ShellRegistryPort`   |
@@ -472,8 +482,7 @@ agent host can work it out and nothing is stored.
 | Health   | ping, `bootId`, daemon version, cgroup memory and OOM events                                                    | Liveness, the watchdog (point 10)           |
 
 **Results survive.** The daemon writes each call's state and result to disk under its key, so a
-finished result survives an agent host death and a reconnect. It deletes it on `ack`; results unacknowledged for 24 hours are pruned when
-the daemon boots and after each `ack`, not on a timer. A second `run` with a known key never runs it again; it returns or attaches.
+finished result survives an agent host death and a reconnect. It deletes it on `ack`; unacknowledged results are pruned only at daemon boot (rule 3). A second `run` with a known key never runs it again; it returns or attaches.
 
 **What the agent host wires in slice 3:** bash, read, write, edit, multi_edit, grep and glob, which
 together are about 90% of production tool calls ([prod-tool-calls](../research/d8/prod-tool-calls.md)).
@@ -503,7 +512,8 @@ need no daemon. Dispatch recovery's v1 rule covers them.
     one. An agent host that dies mid-wake leaves nothing half-done that matters; the next holder calls
     the same wake again and gets the same sandbox. The model step was in flight, so it is re-asked
     (point 5). No tool can have started, because no tool runs before `ready` (point 6, rule 1
-    still holds: `tool-dispatched` commits first, then the call waits for `ready`, then `run`).
+    still holds: a sandbox tool call waits for `ready` and the daemon's hello, then `tool-dispatched`
+    commits with its `bootId`, then `run`). The model step itself never waits.
   - **A wake that fails** retries with backoff (the existing `wire` retries); the waiting tool
     call stays pending, and status shows the reason. After the retries are spent the call ends
     with a typed `sandbox-unavailable` result, so the model sees why, never a hang.
@@ -520,16 +530,16 @@ need no daemon. Dispatch recovery's v1 rule covers them.
 
 **Bad networks are the normal case, not an error path.**
 
-| Link                    | What goes wrong                       | What happens                                                                                                                                                                                                |
-| ----------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Agent host ⇄ daemon     | Drop, proxy restart, half-open socket | Ping every 10 s, dead after 3 missed. Reconnect with backoff and jitter (250 ms to 10 s, forever while holding). Calls keep running; on reconnect the agent host collects every open key                    |
-| Agent host ⇄ daemon     | Output lost during the gap            | Output chunks carry a byte offset; the daemon keeps each running call's output on disk; reattach resumes from the last offset the agent host saw, so nothing is missing or doubled                          |
-| Agent host ⇄ daemon     | Slow (high latency, low bandwidth)    | No call has a network timeout shorter than its own tool timeout; slowness delays, never fails. Large reads stream in chunks                                                                                 |
-| Agent host ⇄ Postgres   | Blip, failover, slow query            | Appends and renewals retry with backoff inside the lease TTL. An append is idempotent by `(threadId, seq)` and hash, so a retry after an unknown outcome is safe. Past TTL − 5 s the agent host self-fences |
-| Agent host ⇄ Redis      | Down or a message lost                | Wake: the 1-minute reconcile task. Stop: the holder also polls its inbox every 2 s while a turn runs. Live output: lost deltas only; clients recover from the record                                        |
-| Agent host ⇄ API config | API slow or down                      | Cached credentials and settings are used until they expire; a model call that needs a fresh token waits and shows "waiting for credentials"                                                                 |
-| Agent host ⇄ model      | Provider errors, stalls               | The existing retry machinery, with each retry deadline recorded through `OnceLedger` (point 8)                                                                                                              |
-| Daemon restarted        | Sandbox OOM, resume, upload           | New `bootId`; point 6's last row                                                                                                                                                                            |
+| Link                    | What goes wrong                       | What happens                                                                                                                                                                                                                                                      |
+| ----------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent host ⇄ daemon     | Drop, proxy restart, half-open socket | Ping every 10 s, dead after 3 missed. Reconnect with backoff and jitter (250 ms to 10 s, forever while holding). Calls keep running; on reconnect the agent host collects every open key                                                                          |
+| Agent host ⇄ daemon     | Output lost during the gap            | Output chunks carry a byte offset; the daemon keeps each running call's output on disk; the same holder resumes from the last offset it saw; a new holder after a crash re-reads the output from offset 0 off the daemon's disk, so nothing is missing or doubled |
+| Agent host ⇄ daemon     | Slow (high latency, low bandwidth)    | No call has a network timeout shorter than its own tool timeout; slowness delays, never fails. Large reads stream in chunks                                                                                                                                       |
+| Agent host ⇄ Postgres   | Blip, failover, slow query            | Appends and renewals retry with backoff inside the lease TTL. An append is idempotent by `(threadId, seq)` and hash, so a retry after an unknown outcome is safe. Past TTL − 5 s the agent host self-fences                                                       |
+| Agent host ⇄ Redis      | Down or a message lost                | Wake: the 1-minute reconcile task. Stop is not on Redis: the holder polls its inbox every 2 s while a turn runs. Live output: lost deltas only; clients recover from the record                                                                                   |
+| Agent host ⇄ API config | API slow or down                      | Cached credentials and settings are used until they expire; a model call that needs a fresh token waits and shows "waiting for credentials"                                                                                                                       |
+| Agent host ⇄ model      | Provider errors, stalls               | The existing retry machinery, with each retry deadline recorded through `OnceLedger` (point 8)                                                                                                                                                                    |
+| Daemon restarted        | Sandbox OOM, resume, upload           | New `bootId`; point 6's last row                                                                                                                                                                                                                                  |
 
 **The sandbox disk is one session.** The workspace clone and the session's files sit at the home
 root, with no `sessions/<id>/` level; each thread gets `threads/<threadId>/`. The sandbox is named
@@ -601,7 +611,7 @@ it:
 - **The watchdog** reads each box's `memory.events` and reports an OOM kill on the call's output
   stream. The agent sees "killed: out of memory" in the tool result, and the operator sees it in
   the transcript. The daemon kills nothing itself; the kernel does, inside `atlas-work`.
-- **Stop.** The API writes the stop to the inbox and publishes it on Redis. The holder aborts the
+- **Stop.** The API writes the stop to the inbox; the holder, polling every 2 s during a turn, aborts the
   turn and sends `cancel` to the daemon, which kills the box.
 
 ### 11. Branch and PR tracking from git refs
@@ -624,12 +634,12 @@ what one client read through the API can carry, and a fat event slows every page
 
 No event is ever refused for its size, because a refused append would wedge the turn. Instead:
 - **Any field over 256 KB** (a tool output, an image, raw provider data) is moved into
-  `v2.V2Blob { hash @id, bytes, size }` in the **same append transaction**, stored in 1 MB chunks.
+  `v2.V2Blob { hash @id, bytes, size }` in the **same append transaction**, one row per payload.
   The event keeps a reference (`{ blob: hash, size, preview }`). No Vercel Blob, no second store,
   no second failure mode: the event and its payload commit or roll back together.
 - The agent host resolves references when it builds the model's context, so the model sees exactly
   what it saw before. Clients get the preview in the page and fetch the full payload on demand
-  (`v2.blobs.read`, chunked so each response stays under the cap).
+  (`v2.blobs.read`, byte-range reads so each response stays under the cap).
 - Ranged reads are bounded by bytes as well as count (`maxBytes`, default 2 MB, §12 L1).
 
 The threshold is a setting; the agent host logs every spill so slice 8 can see how often it happens.
@@ -725,29 +735,29 @@ throttle bandwidth, drop the connection, black-hole it (half-open: no FIN, no da
 connections for a while. Each row runs the scripted session and must end with the three
 invariants holding, the turn completed, and the user-visible states in the expected order.
 
-| #   | Fault                                                                       | Expected                                                                  |
-| --- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| F1  | 300 ms latency ± 200 ms jitter on agent host ⇄ daemon for the whole session | Completes; no call fails; slower only                                     |
-| F2  | 64 KB/s bandwidth while a tool streams 5 MB of output                       | Completes; output complete and in order                                   |
-| F3  | Daemon link dropped mid-bash, back in 3 s                                   | Reattach at the offset; output not doubled or missing                     |
-| F4  | Daemon link black-holed (half-open) for 40 s mid-bash                       | Detected in ≤ 30 s; reconnect; result collected                           |
-| F5  | Link flaps every 2 s for a minute                                           | Completes; one spawn per key                                              |
-| F6  | Postgres unreachable for 10 s mid-turn                                      | Appends retry; no lease loss; completes                                   |
-| F7  | Postgres unreachable for 45 s                                               | Agent host self-fences at 25 s; another agent host resumes; no double run |
-| F8  | Append commits but the reply is lost                                        | Retry recognised as already committed; no fork                            |
-| F9  | Redis down for the whole session                                            | Wake by reconcile (≤ 60 s), stop by inbox poll (≤ 2 s); completes         |
-| F10 | SIGKILL the holder mid model stream *                                       | Resumed ≤ ~90 s; step re-asked; "Resuming" shown                          |
-| F11 | SIGKILL the holder mid bash *                                               | Bash survives; collected; run count 1                                     |
-| F12 | SIGTERM during a 5-minute bash *                                            | Handoff ~1 s; bash collected by the new holder                            |
-| F13 | SIGKILL the holder between `tool-dispatched` and `run`                      | New holder runs it once (same `bootId`)                                   |
-| F14 | SIGKILL the holder after bash ends, before the result is appended           | Result collected from the daemon's disk                                   |
-| F15 | SIGKILL the holder after the result is appended, before `ack`               | Only `ack`; nothing reruns                                                |
-| F16 | Old holder partitioned (not killed) while the new holder takes over         | Old one self-fences; its writes and `run`s refused                        |
-| F17 | Kill the daemon mid bash                                                    | New `bootId`; bash reported interrupted; read-only calls rerun            |
-| F18 | Stop the sandbox mid turn (Vercel side) *                                   | Agent host resumes the sandbox, sees a new `bootId`, continues            |
-| F19 | Both agent hosts restarted at once (a deploy of both) *                     | Sessions resume when the first comes back; nothing lost                   |
-| F20 | Stop pressed during F3's outage                                             | Stop lands when the link returns, or via inbox ≤ 2 s; bash killed         |
-| F21 | Holder killed while waking a parked sandbox, model already streaming *      | New holder reuses the same sandbox; step re-asked; no tool ran            |
+| #   | Fault                                                                       | Expected                                                                    |
+| --- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| F1  | 300 ms latency ± 200 ms jitter on agent host ⇄ daemon for the whole session | Completes; no call fails; slower only                                       |
+| F2  | 64 KB/s bandwidth while a tool streams 5 MB of output                       | Completes; output complete and in order                                     |
+| F3  | Daemon link dropped mid-bash, back in 3 s                                   | Reattach at the offset; output not doubled or missing                       |
+| F4  | Daemon link black-holed (half-open) for 40 s mid-bash                       | Detected in ≤ 30 s; reconnect; result collected                             |
+| F5  | Link flaps every 2 s for a minute                                           | Completes; one spawn per key                                                |
+| F6  | Postgres unreachable for 10 s mid-turn                                      | Appends retry; no lease loss; completes                                     |
+| F7  | Postgres unreachable for 45 s                                               | Agent host self-fences at 25 s; another agent host resumes; no double run   |
+| F8  | Append commits but the reply is lost                                        | Retry recognised as already committed; no fork                              |
+| F9  | Redis down for the whole session                                            | Wake by reconcile (≤ 60 s); stop by inbox poll (≤ 2 s) as always; completes |
+| F10 | SIGKILL the holder mid model stream *                                       | Resumed ≤ ~90 s; step re-asked; "Resuming" shown                            |
+| F11 | SIGKILL the holder mid bash *                                               | Bash survives; collected; run count 1                                       |
+| F12 | SIGTERM during a 5-minute bash *                                            | Handoff ~1 s; bash collected by the new holder                              |
+| F13 | SIGKILL the holder between `tool-dispatched` and `run`                      | New holder runs it once (same `bootId`)                                     |
+| F14 | SIGKILL the holder after bash ends, before the result is appended           | Result collected from the daemon's disk                                     |
+| F15 | SIGKILL the holder after the result is appended, before `ack`               | Only `ack`; nothing reruns                                                  |
+| F16 | Old holder partitioned (not killed) while the new holder takes over         | Old one self-fences; its writes and `run`s refused                          |
+| F17 | Kill the daemon mid bash                                                    | New `bootId`; bash reported interrupted; read-only calls rerun              |
+| F18 | Stop the sandbox mid turn (Vercel side) *                                   | Agent host resumes the sandbox, sees a new `bootId`, continues              |
+| F19 | Both agent hosts restarted at once (a deploy of both) *                     | Sessions resume when the first comes back; nothing lost                     |
+| F20 | Stop pressed during F3's outage                                             | Stop lands when the link returns, or via inbox ≤ 2 s; bash killed           |
+| F21 | Holder killed while waking a parked sandbox, model already streaming *      | New holder reuses the same sandbox; step re-asked; no tool ran              |
 
 ## Delivery
 
