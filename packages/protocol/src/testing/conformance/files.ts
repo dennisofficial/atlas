@@ -84,6 +84,37 @@ export const describeFilesConformance = (target: DaemonConformanceTarget): void 
         },
       }))
 
+    it('reads a symlink leaf, and null for a plain path', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          const dir = workdir()
+          await run({ session, op: { op: 'mkdir', path: dir } })
+          const file = `${dir}/real.txt`
+          await run({ session, op: { op: 'writeFile', path: file, content: 'link me' } })
+          expect(
+            okValue({
+              result: await run({ session, op: { op: 'readLink', path: file } }),
+              op: 'readLink',
+            }),
+          ).toBeNull()
+          if (handle.realProcesses) {
+            await run({ session, op: shell(`ln -s real.txt ${dir}/link.txt`) })
+            expect(
+              okValue({
+                result: await run({ session, op: { op: 'readLink', path: `${dir}/link.txt` } }),
+                op: 'readLink',
+              }),
+            ).toBe('real.txt')
+          }
+          expect(
+            failureOf(await run({ session, op: { op: 'readLink', path: `${dir}/nope` } })),
+          ).toBe(ECallFailure.NotFound)
+          await run({ session, op: { op: 'remove', path: dir } })
+        },
+      }))
+
     it('round-trips binary bytes through readBytes', () =>
       withDaemon({
         target,

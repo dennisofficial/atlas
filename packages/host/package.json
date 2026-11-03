@@ -1,0 +1,25 @@
+{
+  "name": "@dltech/atlas-host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dltech/atlas-agent": "workspace:*",
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@dltech/atlas-daemon": "workspace:*",
+    "@types/bun": "latest",
+    "@vscode/ripgrep": "^1.18.0"
+  }
+}
