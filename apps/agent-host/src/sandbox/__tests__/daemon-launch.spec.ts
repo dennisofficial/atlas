@@ -50,8 +50,10 @@ const fakeSandbox = (state: {
         return { exitCode: 0, stdout: async () => (state.alive ? 'alive' : '') }
       }
       if (script.startsWith('curl')) {
-        const daemon = state.listens && (state.answersAsDaemon ?? true)
-        return { exitCode: daemon ? 0 : 1 }
+        const body = (state.answersAsDaemon ?? true) ? 'atlas-daemon' : 'vite dev server'
+        const port = state.listens ? `printf '%s\\n' '${body}'` : 'false'
+        const probe = Bun.spawnSync(['sh', '-c', script.replace(/^curl -s \S+/, port)])
+        return { exitCode: probe.exitCode }
       }
       return { exitCode: 0, stdout: async () => '' }
     },
