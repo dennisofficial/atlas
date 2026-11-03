@@ -2,7 +2,7 @@ import pg from 'pg'
 
 export type Pool = pg.Pool
 
-const DEFAULT_POOL_MAX = 3
+const DEFAULT_POOL_MAX = 10
 const IDLE_TIMEOUT_MS = 5_000
 
 export function poolMaxOf(raw: string | undefined): number {
