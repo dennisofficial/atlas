@@ -1,6 +1,7 @@
 import { sharedPool } from '@dltech/atlas-db'
 import { createEmailSender } from '../../../_lib/email/email-sender'
 import { createAuthEmailHooks } from './auth-email-hooks'
+import { sessionStorageFromEnv } from './auth-session-storage'
 import { betterAuth } from 'better-auth'
 import { bearer, deviceAuthorization } from 'better-auth/plugins'
 
@@ -48,9 +49,15 @@ export const auth = betterAuth({
   database: sharedPool(),
   advanced: { database: { validateSchema: false } },
   user: { modelName: 'User' },
-  session: { modelName: 'AuthSession', cookieCache: { enabled: true, maxAge: 300 } },
+  secondaryStorage: sessionStorageFromEnv(process.env.REDIS_URL),
+  session: {
+    modelName: 'AuthSession',
+    cookieCache: { enabled: true, maxAge: 300 },
+    storeSessionInDatabase: true,
+  },
   account: { modelName: 'Account' },
-  verification: { modelName: 'Verification' },
+  verification: { modelName: 'Verification', storeInDatabase: true },
+  rateLimit: { storage: 'memory' },
   emailAndPassword: {
     enabled: true,
     revokeSessionsOnPasswordReset: true,
