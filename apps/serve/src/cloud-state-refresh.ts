@@ -1,5 +1,6 @@
 import type { SettingsService, SkillRegistryPort } from '@dltech/atlas-harness'
 
+import { mergeCloudMcpServers } from './cloud-config'
 import { applyCloudState, type CloudStateSeen } from './cloud-state'
 import type { CloudStateFetched } from './cloud-state-fetch'
 import type { FileMountReport, FileMountRoots } from './file-mounts'
@@ -9,6 +10,7 @@ const REFRESH_BUDGET_MS = 5_000
 export type CloudStateRefresh = {
   boot: (prefetched?: Promise<CloudStateFetched>) => Promise<FileMountReport | null>
   refresh: () => Promise<void>
+  remergeMcpServers: () => void
   bindSettings: (settings: SettingsService | undefined) => void
   bindSkills: (skills: SkillRegistryPort | undefined) => void
   exportedEnvNames: () => readonly string[]
@@ -39,6 +41,8 @@ export const createCloudStateRefresh = (
     refresh: async () => {
       await applyCloudState({ ...shared, maxAttempts: 1, retryBudgetMs: REFRESH_BUDGET_MS })
     },
+    remergeMcpServers: () =>
+      mergeCloudMcpServers({ atlasHome: rest.atlasHome, servers: seen.mcpServers ?? [] }),
     bindSettings: (settings) => {
       bound.settings = settings
     },
