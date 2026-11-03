@@ -3,6 +3,7 @@ import {
   stepVisibility,
   takeBack,
   visibleSegments,
+  type ClaimResult,
   type InboxEntry,
   type InboxRefusal,
   type Lease,
@@ -219,6 +220,14 @@ export class ControlPlane {
     epoch: number
   }): Promise<LeaseResult> {
     return this.leases.renew(params)
+  }
+
+  async claim(params: {
+    sessionId: string
+    holderId: string
+    ttlMs: number
+  }): Promise<ClaimResult> {
+    return this.leases.claimLease(params)
   }
 
   async revoke(params: { sessionId: string; wantsHolder: boolean }): Promise<Lease> {
