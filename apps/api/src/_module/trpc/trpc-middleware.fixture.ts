@@ -14,10 +14,15 @@ export const DEFAULT_RATE_LIMIT = 3
 
 export const UNTHROTTLED_RATE_LIMIT = 100_000
 
-export const fakeEnvModule = (rateLimit: number) => {
+export const fakeEnvModule = (rateLimit: number, envValues?: Record<string, unknown>) => {
+  const get = (key: string) => {
+    if (envValues !== undefined && key in envValues) return envValues[key]
+    return key === 'RATE_LIMIT_PER_MINUTE' ? rateLimit : undefined
+  }
+
   @Global()
   @Module({
-    providers: [{ provide: EnvService, useValue: { get: () => rateLimit } }],
+    providers: [{ provide: EnvService, useValue: { get } }],
     exports: [EnvService],
   })
   class FakeEnvModule {}
@@ -31,13 +36,15 @@ export const as = (token: string): { authorization: string } => ({
 export async function createMiddlewareApp({
   providers,
   rateLimit = DEFAULT_RATE_LIMIT,
+  envValues,
 }: {
   providers: Provider[]
   rateLimit?: number
+  envValues?: Record<string, unknown>
 }): Promise<NestExpressApplication> {
   const module = await Test.createTestingModule({
     imports: [
-      fakeEnvModule(rateLimit),
+      fakeEnvModule(rateLimit, envValues),
       ThrottlerModule.forRoot([{ ttl: 60_000, limit: rateLimit }]),
       ApiTrpcModule,
       TRPCModule.forRoot({

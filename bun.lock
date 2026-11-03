@@ -18,9 +18,11 @@
       "version": "0.1.0",
       "dependencies": {
         "@ai-sdk/anthropic": "^4.0.87",
+        "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
         "@dltech/atlas-harness": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@dotenvx/dotenvx": "^1.71.0",
         "@nestjs/common": "^12.2.0",
@@ -267,6 +269,7 @@
       "name": "@dltech/atlas-api-router",
       "version": "0.1.0",
       "dependencies": {
+        "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@trpc/client": "^11.19.0",
         "@trpc/server": "^11.19.0",

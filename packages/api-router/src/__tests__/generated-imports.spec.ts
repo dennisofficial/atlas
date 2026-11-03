@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 
 const GENERATED = join(import.meta.dirname, '..', 'generated', 'server.ts')
-const ALLOWED = new Set(['@trpc/server', 'zod', '@dltech/atlas-wire'])
+const ALLOWED = new Set(['@trpc/server', 'zod', '@dltech/atlas-wire', '@dltech/atlas-protocol'])
 const SPECIFIER = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g
 
 describe('generated AppRouter', () => {
-  it('imports only @trpc/server, zod and @dltech/atlas-wire', () => {
+  it('imports only @trpc/server, zod, @dltech/atlas-wire and @dltech/atlas-protocol', () => {
     const specifiers = [...readFileSync(GENERATED, 'utf8').matchAll(SPECIFIER)].map(
       (match) => match[1] ?? '',
     )
