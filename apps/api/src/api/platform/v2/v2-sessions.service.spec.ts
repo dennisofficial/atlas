@@ -170,8 +170,8 @@ describe('V2SessionsService', () => {
       ttlMs: 30_000,
     })
     const bodies: V2Body[] = [
-      { type: 'run-failed', failure: { kind: ERunFailureKind.Network, message: 'early failure' } },
       ...Array.from({ length: 1000 }, (): V2Body => ({ type: 'user-said', text: 'filler' })),
+      { type: 'run-failed', failure: { kind: ERunFailureKind.Network, message: 'latest failure' } },
     ]
     const appended = await plane.append({
       threadId: created.mainThreadId,
@@ -186,7 +186,7 @@ describe('V2SessionsService', () => {
     })
     expect(appended.ok).toBe(true)
     const status = await service.status({ userId: 'user-a', sessionId: created.sessionId })
-    expect(status.state).not.toBe(EV2SessionState.Failed)
+    expect(status.state).toBe(EV2SessionState.Failed)
   })
 
   it('stamps inbox messages with the same schema the host parses', async () => {
