@@ -67,16 +67,19 @@ export class ManagedProcess {
   private readonly pumps: Promise<void>
   private killing = false
 
-  private readonly child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>
+  private readonly child: Bun.Subprocess<'ignore' | 'pipe', 'pipe', 'pipe'>
   private readonly env: Record<string, string | undefined>
+  private readonly input: Bun.FileSink | null
 
   private constructor(args: {
-    child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>
+    child: Bun.Subprocess<'ignore' | 'pipe', 'pipe', 'pipe'>
+    input: Bun.FileSink | null
     env: Record<string, string | undefined>
     onStdout: OutputHandler
     onStderr: OutputHandler
   }) {
     this.child = args.child
+    this.input = args.input
     this.env = args.env
     this.pumps = Promise.all([
       pump({ stream: args.child.stdout, onOutput: args.onStdout, readers: this.readers }),
@@ -90,19 +93,22 @@ export class ManagedProcess {
     env: Record<string, string | undefined>
     onStdout: OutputHandler
     onStderr: OutputHandler
+    input?: boolean | undefined
   }): ManagedProcess {
     try {
-      const child = Bun.spawn({
+      const options = {
         cmd: workloadCommand({ cmd: args.cmd, cwd: args.cwd, env: args.env }),
         ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
         env: args.env,
-        stdin: 'ignore',
         stdout: 'pipe',
         stderr: 'pipe',
         detached: true,
-      })
+      } as const
+      const piped = args.input === true ? Bun.spawn({ ...options, stdin: 'pipe' }) : null
+      const child = piped ?? Bun.spawn({ ...options, stdin: 'ignore' })
       return new ManagedProcess({
         child,
+        input: piped?.stdin ?? null,
         env: args.env,
         onStdout: args.onStdout,
         onStderr: args.onStderr,
@@ -114,6 +120,30 @@ export class ManagedProcess {
 
   get pid(): number {
     return this.child.pid
+  }
+
+  acceptsInput(): boolean {
+    return this.input !== null
+  }
+
+  writeInput(bytes: Uint8Array): boolean {
+    if (this.input === null) return false
+    try {
+      this.input.write(bytes)
+      void this.input.flush()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  closeInput(): void {
+    if (this.input === null) return
+    try {
+      void this.input.end()
+    } catch {
+      return
+    }
   }
 
   kill(): void {
