@@ -31,8 +31,8 @@ import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
 import { useSessionFamily } from '@/features/shell/use-session-family'
 import { usePullRequests } from './data/use-pull-requests'
-import { userRewindPoints } from './data/rewind'
 import { useRewind } from './data/use-rewind'
+import { useSummarise } from './data/use-summarise'
 import { useMarkRead } from './data/use-mark-read'
 import { useThreadMetadata } from './data/use-thread-metadata'
 import { useThreadSignals } from './data/use-thread-signals'
@@ -128,8 +128,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
     pending: source.pending,
     onSettle: (settled) => setDraft((current) => clearedDraftOf({ current, handoff: settled })),
   })
-  const rewindPoints = useMemo(() => new Set(userRewindPoints(parsed).keys()), [parsed])
   const rewind = useRewind({
+    events: parsed,
     situation: () => ({
       threadId,
       events: parsed,
@@ -140,6 +140,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     source,
     onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
   })
+  const summarise = useSummarise({ threadId, events: parsed, channel, live: source.live, working })
   const eligibleNow = isPodLiveEligible(pod)
   if (eligibleNow !== liveEligible) setLiveEligible(eligibleNow)
   const boot = useMemo(() => bootViewOf({ pod, now: 0 }), [pod])
@@ -251,12 +252,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
                     submitting: operator.submitting,
                     onSubmit: (value) => void operator.handleSubmit(value),
                   }}
-                  rewind={{
-                    pick: rewind.pick,
-                    applying: rewind.applying,
-                    onCancel: rewind.handleCancel,
-                    onConfirm: () => void rewind.handleConfirm(),
-                  }}
+                  rewind={rewind.dialog}
+                  summarise={summarise.dialog}
                   dock={dock}
                   strip={attention.strip}
                   usage={dock.usage}
@@ -287,10 +284,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
                 pod={pod}
                 working={working}
                 onRetryBoot={() => void handleRetryBoot()}
-                rewind={{
-                  points: rewindPoints,
-                  onRewind: (picked) => void rewind.handlePick(picked),
-                }}
+                rewind={rewind.transcript}
+                summarise={summarise.transcript}
               />
             </ThreadMainSlot>
           </ThreadLayout>

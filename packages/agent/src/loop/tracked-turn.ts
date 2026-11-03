@@ -258,7 +258,7 @@ export async function runTrackedTurn(
 
     if (abortSignal.aborted) {
       const abandoned = dedupeCallIds({
-        drafts: interruptedDrafts(stepped.result),
+        drafts: interruptedDrafts({ result: stepped.result, model: deps.model }),
         taken: callIdsIn(events),
       })
       if (abandoned.length > 0) await record.append({ threadId, runId, drafts: abandoned })
@@ -271,7 +271,8 @@ export async function runTrackedTurn(
       return interrupted()
     }
 
-    const drafts = dedupeCallIds({ drafts: draftsFor(stepped.result), taken: callIdsIn(events) })
+    const step = { result: stepped.result, model: deps.model }
+    const drafts = dedupeCallIds({ drafts: draftsFor(step), taken: callIdsIn(events) })
     if (drafts.length > 0) await record.append({ threadId, runId, drafts })
 
     for (const draft of drafts) {

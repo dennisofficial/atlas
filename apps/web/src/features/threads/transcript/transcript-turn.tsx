@@ -3,6 +3,8 @@
 import { memo } from 'react'
 import { ZapIcon } from 'lucide-react'
 
+import { ECompactionAnchor } from '@dltech/atlas-core'
+
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/message-images'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
@@ -13,6 +15,7 @@ import { clockTimeOf, spanMsOf } from '../data/clock-time'
 import { messageImagesOf } from '../data/message-images'
 import { isSameItem } from '../data/same-item'
 import { isSameTurn } from '../data/same-turn'
+import type { TranscriptSummarise } from '../data/use-summarise'
 import { ETranscriptKind } from '../data/transcript'
 import {
   ESegmentKind,
@@ -32,13 +35,32 @@ export type TranscriptRewind = {
   onRewind: (picked: { eventId: string; text: string }) => void
 }
 
+export type { TranscriptSummarise }
+
 export type TranscriptActions = {
   rewind: TranscriptRewind | null
+  summarise: TranscriptSummarise | null
   openChanges: ((path: string) => void) | null
   openAgent: ((id: string) => void) | null
 }
 
 const AGENT_AUTHOR = 'Atlas'
+
+function summariseHandlersOf(args: { summarise: TranscriptSummarise | null; eventId: string }): {
+  onSummariseUpTo: (() => void) | undefined
+  onSummariseFrom: (() => void) | undefined
+} {
+  const { summarise, eventId } = args
+  const point = summarise?.points.get(eventId)
+  if (summarise === null || point === undefined) {
+    return { onSummariseUpTo: undefined, onSummariseFrom: undefined }
+  }
+  const handlerFor = (anchor: ECompactionAnchor) => () => summarise.onSummarise({ eventId, anchor })
+  return {
+    onSummariseUpTo: point.upTo === null ? undefined : handlerFor(ECompactionAnchor.Prefix),
+    onSummariseFrom: point.from === null ? undefined : handlerFor(ECompactionAnchor.Suffix),
+  }
+}
 
 function WorkItemView({
   item,
@@ -209,6 +231,7 @@ function TurnViewBody({
                     text: turn.item.text,
                   })
           }
+          {...summariseHandlersOf({ summarise: actions.summarise, eventId: turn.item.id })}
         >
           {turn.item.text.trim().length === 0 ? undefined : (
             <TranscriptMarkdown>{turn.item.text}</TranscriptMarkdown>

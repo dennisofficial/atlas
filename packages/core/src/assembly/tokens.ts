@@ -8,7 +8,9 @@ const CHARS_PER_TOKEN = 4
 
 const UNMEASURABLE_IMAGE_TOKENS = 1600
 
-const textTokens = (text: string): number => Math.ceil(text.length / CHARS_PER_TOKEN)
+export const estimateTextTokens = (text: string): number => Math.ceil(text.length / CHARS_PER_TOKEN)
+
+const textTokens = estimateTextTokens
 
 /**
  * Decoding megabytes of base64 to re-read a header costs more than the count is worth, and every

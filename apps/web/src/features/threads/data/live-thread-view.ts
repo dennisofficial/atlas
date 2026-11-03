@@ -1,6 +1,6 @@
 import type { RemoteDeltaChannel, TerminalFrameChannel } from '@dltech/atlas-client/channel'
 import type { InFlightStep } from '@dltech/atlas-client/transcript'
-import type { CallId, ModelUsage, SaidUpload } from '@dltech/atlas-core'
+import type { CallId, SaidUpload } from '@dltech/atlas-core'
 import type {
   OperatorInputRequestWire,
   PendingEntryWire,
@@ -18,7 +18,6 @@ export type LiveThreadState = {
   working: boolean
   live: boolean
   pending: readonly PendingEntryWire[]
-  reported: ModelUsage | null
   channel: ServeChannel | null
   operatorInput: OperatorInputRequestWire | null
   titling: boolean
@@ -75,7 +74,6 @@ export const IDLE_LIVE_THREAD: LiveThreadState = {
   working: false,
   live: false,
   pending: [],
-  reported: null,
   channel: null,
   operatorInput: null,
   titling: false,

@@ -7,6 +7,14 @@ const providerOptionsSchema = z.custom<ProviderOptions>(
   (value) => typeof value === 'object' && value !== null && !Array.isArray(value),
 )
 
+export const stepUsageSchema = z.object({
+  inputTokens: z.number(),
+  outputTokens: z.number(),
+  cacheReadTokens: z.number().optional(),
+  cacheWriteTokens: z.number().optional(),
+  contextWindow: z.number().int().positive().optional(),
+})
+
 export const assistantPartSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('text'),

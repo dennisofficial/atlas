@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { stampDrafts, toEventId, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
 import type { ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
 import { contextUsageOf } from '../context-usage'
@@ -10,31 +11,59 @@ const models: ModelOption[] = [
   { id: 'local/zero', label: 'Zero', contextTokens: 0 },
 ]
 
-describe('contextUsageOf', () => {
-  it('uses the reported usage against the selected model window', () => {
-    expect(
-      contextUsageOf({
-        reported: { inputTokens: 40_000, outputTokens: 2_000 },
-        events: [],
-        selectedId: 'anthropic/opus',
-        models,
-      }),
-    ).toEqual({ used: 42_000, limit: 200_000 })
+const eventsFrom = (drafts: readonly EventDraft[]) =>
+  stampDrafts({
+    drafts,
+    envelopes: drafts.map((_, index) => ({
+      id: toEventId(`evt-${index + 1}`),
+      seq: index + 1,
+      threadId: toThreadId('thread-1'),
+      runId: toRunId('run-1'),
+      depth: 0,
+      at: new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
+    })),
   })
 
-  it('falls back to the event estimate when nothing is reported', () => {
-    const usage = contextUsageOf({
-      reported: null,
-      events: [],
-      selectedId: 'anthropic/opus',
-      models,
+describe('contextUsageOf', () => {
+  it('reads the last step usage from the transcript against the selected window', () => {
+    const events = eventsFrom([
+      { type: 'user-said', text: 'hi' },
+      {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'ok' }],
+        usage: { inputTokens: 40_000, outputTokens: 2_000 },
+      },
+    ])
+    expect(contextUsageOf({ events, selectedId: 'anthropic/opus', models })).toEqual({
+      used: 42_000,
+      limit: 200_000,
     })
-    expect(usage).toEqual({ used: 0, limit: 200_000 })
+  })
+
+  it('measures against the window the call ran in, not the picker', () => {
+    const events = eventsFrom([
+      {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'ok' }],
+        usage: { inputTokens: 40_000, outputTokens: 2_000, contextWindow: 1_000_000 },
+      },
+    ])
+    expect(contextUsageOf({ events, selectedId: 'anthropic/opus', models })).toEqual({
+      used: 42_000,
+      limit: 1_000_000,
+    })
+  })
+
+  it('falls back to the event estimate before any step reported', () => {
+    expect(contextUsageOf({ events: [], selectedId: 'anthropic/opus', models })).toEqual({
+      used: 0,
+      limit: 200_000,
+    })
   })
 
   it('hides the meter for unknown, missing, or zero windows', () => {
     for (const selectedId of ['local/mystery', 'local/zero', 'nope']) {
-      expect(contextUsageOf({ reported: null, events: [], selectedId, models })).toBeNull()
+      expect(contextUsageOf({ events: [], selectedId, models })).toBeNull()
     }
   })
 })

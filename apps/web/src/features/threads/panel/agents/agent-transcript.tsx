@@ -108,7 +108,7 @@ export function AgentTranscript(props: { agentId: string; fallback: AgentsPanelA
   const roster = useRoster(channel)
   const models = useMemo(() => (roster === null ? NO_MODELS : rosterModelsOf(roster)), [roster])
   const actions = useMemo<TranscriptActions>(
-    () => ({ rewind: null, openChanges: null, openAgent }),
+    () => ({ rewind: null, summarise: null, openChanges: null, openAgent }),
     [openAgent],
   )
 

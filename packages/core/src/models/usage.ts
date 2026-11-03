@@ -1,4 +1,5 @@
 import { estimateMessageTokens } from '../assembly/tokens'
+import type { EventBody, StepReading } from '../events/body'
 import type { Event } from '../events/envelope'
 import type { Message } from '../message/message'
 import type { ToolCallPart, ToolResultOutput, ToolResultPart } from '../message/parts'
@@ -18,7 +19,7 @@ const resultPart = (args: { name: string; output: ToolResultOutput }): ToolResul
   output: args.output,
 })
 
-function messageOfEvent(event: Event): Message | undefined {
+function messageOfEvent(event: EventBody): Message | undefined {
   if (event.type === 'user-said') {
     return { role: 'user', content: [{ type: 'text', text: event.text }] }
   }
@@ -64,10 +65,12 @@ function messageOfEvent(event: Event): Message | undefined {
  * system preamble, which the harness assembles and the reader cannot see.
  */
 export function estimateEventTokens(events: readonly Event[]): number {
-  return events.reduce((total, event) => {
-    const message = messageOfEvent(event)
-    return message === undefined ? total : total + estimateMessageTokens(message)
-  }, 0)
+  return events.reduce((total, event) => total + estimateBodyTokens(event), 0)
+}
+
+export function estimateBodyTokens(body: EventBody): number {
+  const message = messageOfEvent(body)
+  return message === undefined ? 0 : estimateMessageTokens(message)
 }
 
 /**
@@ -83,6 +86,25 @@ export function contextTokens(args: {
   if (reported === null) return estimateEventTokens(args.events)
   return Math.max(0, reported.inputTokens) + Math.max(0, reported.outputTokens)
 }
+
+/**
+ * The usage the last model call reported, read back from the step it wrote, so every reader of the
+ * transcript sees the same number a live stream did. A compaction after it shrank the window, so
+ * that reading no longer describes it.
+ */
+export function lastStepUsage(events: readonly Event[]): StepReading | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    if (event === undefined) continue
+    if (event.type === 'history-compacted') return null
+    if (event.type !== 'assistant-said' && event.type !== 'tool-called') continue
+    if (event.usage !== undefined) return event.usage
+  }
+  return null
+}
+
+export const contextTokensOf = (events: readonly Event[]): number =>
+  contextTokens({ reported: lastStepUsage(events), events })
 
 export type BilledUsage = {
   inputTokens: number

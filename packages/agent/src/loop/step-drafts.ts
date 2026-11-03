@@ -1,4 +1,11 @@
-import type { EventDraft, ModelStepResult, ModelToolCall } from '@dltech/atlas-core'
+import {
+  contextWindowOf,
+  type EventDraft,
+  type ModelStepResult,
+  type ModelToolCall,
+  type ModelTraits,
+  type StepReading,
+} from '@dltech/atlas-core'
 
 const INTERRUPTED_BEFORE_RUNNING = 'the developer interrupted the turn before this tool ran'
 
@@ -10,7 +17,34 @@ const calledDraft = ({ call, ordinal }: { call: ModelToolCall; ordinal: number }
   ordinal,
 })
 
-export function draftsFor(result: ModelStepResult): EventDraft[] {
+export type StepDraftsArgs = {
+  result: ModelStepResult
+  model?: { traits?: () => ModelTraits } | undefined
+}
+
+const readingOf = ({ result, model }: StepDraftsArgs): StepReading | undefined => {
+  if (result.usage === undefined) return undefined
+  const contextWindow = model === undefined ? 0 : contextWindowOf(model)
+  if (contextWindow <= 0) return result.usage
+  return { ...result.usage, contextWindow }
+}
+
+const withStepUsage = ({
+  drafts,
+  step,
+}: {
+  drafts: EventDraft[]
+  step: StepDraftsArgs
+}): EventDraft[] => {
+  const [first, ...rest] = drafts
+  const usage = readingOf(step)
+  if (usage === undefined || first === undefined) return drafts
+  if (first.type !== 'assistant-said' && first.type !== 'tool-called') return drafts
+  return [{ ...first, usage }, ...rest]
+}
+
+export function draftsFor(step: StepDraftsArgs): EventDraft[] {
+  const { result } = step
   const drafts: EventDraft[] = []
   if (result.parts.length > 0)
     drafts.push({
@@ -23,10 +57,11 @@ export function draftsFor(result: ModelStepResult): EventDraft[] {
     drafts.push(calledDraft({ call, ordinal }))
   })
 
-  return drafts
+  return withStepUsage({ drafts, step })
 }
 
-export function interruptedDrafts(result: ModelStepResult): EventDraft[] {
+export function interruptedDrafts(step: StepDraftsArgs): EventDraft[] {
+  const { result } = step
   const drafts: EventDraft[] = []
   if (result.parts.length > 0)
     drafts.push({ type: 'assistant-said', parts: result.parts, interrupted: true })
@@ -42,5 +77,5 @@ export function interruptedDrafts(result: ModelStepResult): EventDraft[] {
     })
   })
 
-  return drafts
+  return withStepUsage({ drafts, step })
 }

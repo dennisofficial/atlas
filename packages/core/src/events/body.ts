@@ -4,6 +4,7 @@ import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EServiceStatus } from '../services/status'
 import type { EModelWaitCause, WaitEpisodeRef, WaitingForModel } from '../model-recovery/waiting'
 import type { EKilledBy } from '../shells/status'
+import type { ModelUsage } from '../stream/chunk'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
 import type { NoticeStamp } from './notice-stage'
@@ -13,6 +14,9 @@ import type { PolicyEventBody } from './policy-body'
 import type { PrEventBody } from './pr-body'
 import type { BackgroundShellEventBody } from './shell-body'
 import type { SubscriptionEventBody } from './subscription-body'
+
+/** What the provider reported for the model call that wrote this event, and the window it ran in. */
+export type StepReading = ModelUsage & { contextWindow?: number | undefined }
 
 export enum ECompactionAnchor {
   Prefix = 'prefix',
@@ -121,8 +125,16 @@ export type EventBody =
       placeholder?: EAssistantPlaceholder | undefined
       aborted?: 'handoff' | undefined
       fast?: true | undefined
+      usage?: StepReading | undefined
     }
-  | { type: 'tool-called'; callId: CallId; name: string; input?: unknown; ordinal: number }
+  | {
+      type: 'tool-called'
+      callId: CallId
+      name: string
+      input?: unknown
+      ordinal: number
+      usage?: StepReading | undefined
+    }
   | { type: 'tool-dispatched'; callId: CallId; name: string; bootId?: string | undefined }
   | {
       type: 'tool-result'
