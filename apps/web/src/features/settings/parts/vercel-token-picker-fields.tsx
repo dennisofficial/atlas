@@ -52,7 +52,12 @@ export function teamControlOf({
   return {
     disabled,
     content: (
-      <Select value={draft.teamId} onValueChange={handleChange} disabled={disabled}>
+      <Select
+        items={teams.map((team) => ({ value: team.id, label: teamLabelOf(team) }))}
+        value={draft.teamId}
+        onValueChange={handleChange}
+        disabled={disabled}
+      >
         <SelectTrigger size="sm" className="w-72 max-w-full" aria-label="Vercel team">
           <SelectValue placeholder="Pick a team" />
         </SelectTrigger>
@@ -100,7 +105,12 @@ export function projectControlOf({
   return {
     disabled,
     content: (
-      <Select value={draft.vercelProjectId} onValueChange={handleChange} disabled={disabled}>
+      <Select
+        items={projects.map((project) => ({ value: project.id, label: project.name }))}
+        value={draft.vercelProjectId}
+        onValueChange={handleChange}
+        disabled={disabled}
+      >
         <SelectTrigger size="sm" className="w-72 max-w-full" aria-label="Vercel project">
           <SelectValue placeholder="Pick a project" />
         </SelectTrigger>
