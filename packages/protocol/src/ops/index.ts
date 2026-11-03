@@ -5,12 +5,18 @@ import { filesEventSchemas, filesOpSchemas, filesResultSchemas } from './files'
 import { gitEventSchemas, gitOpSchemas, gitResultSchemas } from './git'
 import { mcpEventSchemas, mcpOpSchemas, mcpResultSchemas } from './mcp'
 import { failedCallResultSchema } from './result'
+import { servicesEventSchemas, servicesOpSchemas, servicesResultSchemas } from './services'
+import { terminalEventSchemas, terminalOpSchemas, terminalResultSchemas } from './terminal'
+import { shellsEventSchemas, shellsOpSchemas, shellsResultSchemas } from './shells'
 
 export const callOpSchema = z.discriminatedUnion('op', [
   ...execOpSchemas,
   ...filesOpSchemas,
   ...gitOpSchemas,
   ...mcpOpSchemas,
+  ...servicesOpSchemas,
+  ...terminalOpSchemas,
+  ...shellsOpSchemas,
 ])
 
 export const okCallResultSchema = z.discriminatedUnion('op', [
@@ -18,6 +24,9 @@ export const okCallResultSchema = z.discriminatedUnion('op', [
   ...filesResultSchemas,
   ...gitResultSchemas,
   ...mcpResultSchemas,
+  ...servicesResultSchemas,
+  ...terminalResultSchemas,
+  ...shellsResultSchemas,
 ])
 
 export const callResultSchema = z.union([okCallResultSchema, failedCallResultSchema])
@@ -27,6 +36,9 @@ export const daemonEventSchema = z.discriminatedUnion('type', [
   ...filesEventSchemas,
   ...gitEventSchemas,
   ...mcpEventSchemas,
+  ...servicesEventSchemas,
+  ...terminalEventSchemas,
+  ...shellsEventSchemas,
 ])
 
 export type CallOp = z.infer<typeof callOpSchema>
@@ -42,3 +54,6 @@ export * from './files'
 export * from './git'
 export * from './mcp'
 export * from './result'
+export * from './services'
+export * from './terminal'
+export * from './shells'
