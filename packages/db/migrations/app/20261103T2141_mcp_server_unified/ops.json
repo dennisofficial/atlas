@@ -1,0 +1,555 @@
+[
+  {
+    "id": "table.McpServer",
+    "label": "Create table \"McpServer\"",
+    "summary": "Creates table \"McpServer\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"McpServer\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"McpServer\"",
+        "sql": "CREATE TABLE \"public\".\"McpServer\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"lastSeenAt\" timestamptz(3),\n  \"name\" text NOT NULL,\n  \"oauthGeneration\" int4 DEFAULT 0 NOT NULL,\n  \"oauthRefreshAttempt\" text,\n  \"oauthRefreshStartedAt\" timestamptz(3),\n  \"oauthSealed\" text,\n  \"oauthServerUrl\" text,\n  \"oauthStatus\" text,\n  \"oauthUpdatedAt\" timestamptz(3),\n  \"projectId\" text,\n  \"repoUrl\" text,\n  \"sealedSpec\" text,\n  \"source\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"McpServer_fields_by_source_c3bc79c0\" CHECK (((\"source\" = 'cloud') = (\"sealedSpec\" IS NOT NULL)) AND ((\"source\" = 'repo') = (\"repoUrl\" IS NOT NULL AND \"lastSeenAt\" IS NOT NULL))),\n  CONSTRAINT \"McpServer_oauth_whole_f7c534ab\" CHECK (((\"oauthSealed\" IS NULL) = (\"oauthStatus\" IS NULL)) AND ((\"oauthSealed\" IS NULL) = (\"oauthServerUrl\" IS NULL))),\n  CONSTRAINT \"McpServer_one_scope_67d0cc6e\" CHECK ((\"userId\" IS NULL) <> (\"projectId\" IS NULL)),\n  CONSTRAINT \"McpServer_source_check_771442e3\" CHECK (\"source\" IN ('cloud', 'repo'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"McpServer\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"McpServer\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data.mcp-server-unified-copy",
+    "label": "Copy McpServerConfig and ProjectMcpServer rows into McpServer as cloud servers",
+    "operationClass": "data",
+    "target": {
+      "id": "table.McpServer",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "McpServer"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Copy user-scoped cloud MCP servers",
+        "sql": "INSERT INTO \"public\".\"McpServer\"\n  (\"id\", \"name\", \"source\", \"sealedSpec\", \"userId\", \"createdAt\", \"updatedAt\")\nSELECT \"id\", \"name\", 'cloud', \"sealedSpec\", \"userId\", \"createdAt\", \"updatedAt\"\nFROM \"public\".\"McpServerConfig\""
+      },
+      {
+        "description": "Copy project-scoped cloud MCP servers",
+        "sql": "INSERT INTO \"public\".\"McpServer\"\n  (\"id\", \"name\", \"source\", \"sealedSpec\", \"projectId\", \"createdAt\", \"updatedAt\")\nSELECT \"id\", \"name\", 'cloud', \"sealedSpec\", \"projectId\", \"createdAt\", \"updatedAt\"\nFROM \"public\".\"ProjectMcpServer\""
+      },
+      {
+        "description": "Drop in-flight MCP sign-ins, which have no server to land on",
+        "sql": "DELETE FROM \"public\".\"McpOauthPending\"\nWHERE \"serverUrl\" <> 'https://vercel.com/oauth/authorize'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "dropTable.McpOauthGrant",
+    "label": "Drop table \"McpOauthGrant\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "McpOauthGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"McpOauthGrant\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"McpOauthGrant\"",
+        "sql": "DROP TABLE \"public\".\"McpOauthGrant\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"McpOauthGrant\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthGrant\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropTable.McpServerConfig",
+    "label": "Drop table \"McpServerConfig\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "McpServerConfig"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"McpServerConfig\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpServerConfig\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"McpServerConfig\"",
+        "sql": "DROP TABLE \"public\".\"McpServerConfig\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"McpServerConfig\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpServerConfig\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropTable.ProjectMcpServer",
+    "label": "Drop table \"ProjectMcpServer\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ProjectMcpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ProjectMcpServer\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectMcpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"ProjectMcpServer\"",
+        "sql": "DROP TABLE \"public\".\"ProjectMcpServer\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ProjectMcpServer\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectMcpServer\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.McpOauthPending.mcpServerId",
+    "label": "Add column \"mcpServerId\" to \"McpOauthPending\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mcpServerId",
+        "table": "McpOauthPending"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mcpServerId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpOauthPending",
+          "mcpServerId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mcpServerId\"",
+        "sql": "ALTER TABLE \"public\".\"McpOauthPending\" ADD COLUMN \"mcpServerId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mcpServerId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpOauthPending",
+          "mcpServerId"
+        ]
+      },
+      {
+        "description": "verify column \"mcpServerId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "McpOauthPending",
+          "mcpServerId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.McpServer.McpServer_projectId_source_name_key",
+    "label": "Add unique constraint on \"McpServer\" (projectId, source, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "McpServer_projectId_source_name_key",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"McpServer_projectId_source_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServer_projectId_source_name_key",
+          "public",
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"McpServer_projectId_source_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\" ADD CONSTRAINT \"McpServer_projectId_source_name_key\" UNIQUE (\"projectId\", \"source\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"McpServer_projectId_source_name_key\" exists on (projectId, source, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "McpServer_projectId_source_name_key",
+          "public",
+          "\"public\".\"McpServer\"",
+          "u",
+          "[\"projectId\",\"source\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.McpServer.McpServer_userId_source_name_key",
+    "label": "Add unique constraint on \"McpServer\" (userId, source, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "McpServer_userId_source_name_key",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"McpServer_userId_source_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServer_userId_source_name_key",
+          "public",
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"McpServer_userId_source_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\" ADD CONSTRAINT \"McpServer_userId_source_name_key\" UNIQUE (\"userId\", \"source\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"McpServer_userId_source_name_key\" exists on (userId, source, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "McpServer_userId_source_name_key",
+          "public",
+          "\"public\".\"McpServer\"",
+          "u",
+          "[\"userId\",\"source\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.McpOauthPending.McpOauthPending_mcpServerId_idx",
+    "label": "Create index \"McpOauthPending_mcpServerId_idx\" on \"McpOauthPending\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "McpOauthPending_mcpServerId_idx",
+        "table": "McpOauthPending"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"McpOauthPending_mcpServerId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthPending_mcpServerId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"McpOauthPending_mcpServerId_idx\"",
+        "sql": "CREATE INDEX \"McpOauthPending_mcpServerId_idx\" ON \"public\".\"McpOauthPending\" (\"mcpServerId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"McpOauthPending_mcpServerId_idx\" exists on \"McpOauthPending\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"McpOauthPending_mcpServerId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"McpOauthPending\"",
+          "btree",
+          "[\"mcpServerId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.McpServer.McpServer_source_lastSeenAt_idx",
+    "label": "Create index \"McpServer_source_lastSeenAt_idx\" on \"McpServer\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "McpServer_source_lastSeenAt_idx",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"McpServer_source_lastSeenAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpServer_source_lastSeenAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"McpServer_source_lastSeenAt_idx\"",
+        "sql": "CREATE INDEX \"McpServer_source_lastSeenAt_idx\" ON \"public\".\"McpServer\" (\"source\", \"lastSeenAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"McpServer_source_lastSeenAt_idx\" exists on \"McpServer\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"McpServer_source_lastSeenAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"McpServer\"",
+          "btree",
+          "[\"source\",\"lastSeenAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.McpServer.McpServer_userId_fkey",
+    "label": "Add foreign key \"McpServer_userId_fkey\" on \"McpServer\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "McpServer_userId_fkey",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"McpServer_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServer_userId_fkey",
+          "public",
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"McpServer_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\"\nADD CONSTRAINT \"McpServer_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"McpServer_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "McpServer_userId_fkey",
+          "public",
+          "\"public\".\"McpServer\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.McpServer.McpServer_projectId_fkey",
+    "label": "Add foreign key \"McpServer_projectId_fkey\" on \"McpServer\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "McpServer_projectId_fkey",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"McpServer_projectId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServer_projectId_fkey",
+          "public",
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"McpServer_projectId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\"\nADD CONSTRAINT \"McpServer_projectId_fkey\"\nFOREIGN KEY (\"projectId\")\nREFERENCES \"public\".\"Project\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"McpServer_projectId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "McpServer_projectId_fkey",
+          "public",
+          "\"public\".\"McpServer\"",
+          "f",
+          "[\"projectId\"]",
+          "\"public\".\"Project\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.McpOauthPending.McpOauthPending_mcpServerId_fkey",
+    "label": "Add foreign key \"McpOauthPending_mcpServerId_fkey\" on \"McpOauthPending\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "McpOauthPending_mcpServerId_fkey",
+        "table": "McpOauthPending"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"McpOauthPending_mcpServerId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpOauthPending_mcpServerId_fkey",
+          "public",
+          "\"public\".\"McpOauthPending\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"McpOauthPending_mcpServerId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"McpOauthPending\"\nADD CONSTRAINT \"McpOauthPending_mcpServerId_fkey\"\nFOREIGN KEY (\"mcpServerId\")\nREFERENCES \"public\".\"McpServer\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"McpOauthPending_mcpServerId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "McpOauthPending_mcpServerId_fkey",
+          "public",
+          "\"public\".\"McpOauthPending\"",
+          "f",
+          "[\"mcpServerId\"]",
+          "\"public\".\"McpServer\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

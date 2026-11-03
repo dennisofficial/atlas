@@ -3,53 +3,59 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-import { EMcpOauthBeginOutcome, type McpOauthGrant } from '@dltech/atlas-wire/web'
+import { EMcpOauthBeginOutcome, type McpOauthServer } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { authStateOf, statusUrlsOf, EMcpAuthState, type McpOauthSubject } from './mcp-oauth'
+import { authStateOf, cloudServerOf, repoServersOf, EMcpAuthState } from './mcp-oauth'
 import { runAction } from './run-action'
 
 export type McpOauth = {
-  stateOf: (signInUrl: string | undefined) => EMcpAuthState | undefined
-  isBusy: (signInUrl: string) => boolean
-  signIn: (signInUrl: string) => void
-  signOut: (signInUrl: string) => void
+  cloudServer: (name: string) => McpOauthServer | undefined
+  repoServers: McpOauthServer[]
+  stateOf: (server: McpOauthServer | undefined) => EMcpAuthState
+  isBusy: (serverId: string) => boolean
+  signIn: (serverId: string) => void
+  signOut: (serverId: string) => void
+  forget: (serverId: string) => Promise<boolean>
+  now: number
   reload: () => void
 }
 
-const NO_GRANTS: McpOauthGrant[] = []
+type LoadedServers = { servers: McpOauthServer[]; now: number }
 
-async function loadGrants(serverUrls: string[]): Promise<McpOauthGrant[]> {
-  if (serverUrls.length === 0) return NO_GRANTS
-  const result = await cloudCall(api.mcpOauth.status.query({ serverUrls }))
-  return result.grants
+const EMPTY: LoadedServers = { servers: [], now: 0 }
+
+async function loadServers(projectId: string | undefined): Promise<LoadedServers> {
+  const result = await cloudCall(
+    api.mcpOauth.servers.query(projectId === undefined ? {} : { projectId }),
+  )
+  return { servers: result.servers, now: Date.now() }
 }
 
-export function useMcpOauth(servers: readonly McpOauthSubject[]): McpOauth {
-  const urls = statusUrlsOf(servers)
+export function useMcpOauth({ projectId }: { projectId?: string } = {}): McpOauth {
   const query = useCloudQuery({
-    key: `mcp-oauth:${urls.join('|')}`,
-    load: () => loadGrants(urls),
+    key: `mcp-oauth:${projectId ?? 'personal'}`,
+    load: () => loadServers(projectId),
   })
   const { reload } = query
-  const [busyUrl, setBusyUrl] = useState<string | null>(null)
-  const grants = query.state === EQueryState.Ready ? query.data : NO_GRANTS
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const { servers, now } = query.state === EQueryState.Ready ? query.data : EMPTY
   const failed = query.state === EQueryState.Failed
 
   useEffect(() => {
     if (failed) toast.error("Couldn't check MCP sign-in status")
-  }, [failed, urls.join('|')])
+  }, [failed])
 
-  const signIn = useCallback((signInUrl: string) => {
-    setBusyUrl(signInUrl)
+  const signIn = useCallback((serverId: string) => {
+    setBusyId(serverId)
     let redirecting = false
     void runAction({
       work: async () => {
         const result = await cloudCall(
           api.mcpOauth.begin.mutate({
-            serverUrl: signInUrl,
+            serverId,
             returnTo: window.location.pathname,
           }),
         )
@@ -61,15 +67,15 @@ export function useMcpOauth(servers: readonly McpOauthSubject[]): McpOauth {
         toast.info(`Sign-in isn't available for this server: ${result.reason}`)
       },
     }).finally(() => {
-      if (!redirecting) setBusyUrl(null)
+      if (!redirecting) setBusyId(null)
     })
   }, [])
 
   const signOut = useCallback(
-    (signInUrl: string) =>
+    (serverId: string) =>
       void runAction({
         work: async () => {
-          await cloudCall(api.mcpOauth.disconnect.mutate({ serverUrl: signInUrl }))
+          await cloudCall(api.mcpOauth.disconnect.mutate({ serverId }))
           reload()
         },
         success: 'Signed out',
@@ -77,14 +83,26 @@ export function useMcpOauth(servers: readonly McpOauthSubject[]): McpOauth {
     [reload],
   )
 
+  const forget = useCallback(
+    (serverId: string) =>
+      runAction({
+        work: async () => {
+          await cloudCall(api.mcpOauth.forget.mutate({ serverId }))
+          reload()
+        },
+      }),
+    [reload],
+  )
+
   return {
-    stateOf: (signInUrl) =>
-      failed && signInUrl !== undefined && urls.includes(signInUrl)
-        ? EMcpAuthState.SignIn
-        : authStateOf({ signInUrl, grants }),
-    isBusy: (signInUrl) => busyUrl === signInUrl,
+    cloudServer: (name) => cloudServerOf(servers, name),
+    repoServers: repoServersOf(servers),
+    stateOf: (server) => (failed ? EMcpAuthState.SignIn : authStateOf(server)),
+    isBusy: (serverId) => busyId === serverId,
     signIn,
     signOut,
+    forget,
+    now,
     reload,
   }
 }

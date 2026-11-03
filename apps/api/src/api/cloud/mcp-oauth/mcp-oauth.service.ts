@@ -3,36 +3,28 @@ import {
   exchangeAuthorizationCode,
   generatePkce,
   OAuthError,
-  registerClient,
-  type ClientInformation,
 } from '@dltech/atlas-harness/mcp-oauth'
 import {
   EMcpOauthBeginOutcome,
-  EMcpOauthCallbackResult,
-  EMcpOauthGrantStatus,
-  MCP_OAUTH_REASON_PARAM,
-  MCP_OAUTH_RESULT_PARAM,
-  MCP_OAUTH_SERVER_PARAM,
+  EMcpServerSource,
   type McpOauthBeginResult,
-  type McpOauthGrant,
+  type McpOauthServer,
 } from '@dltech/atlas-wire'
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { discoverOauthEndpoints } from './mcp-oauth-discovery'
-import { normalizeServerUrl, sealJson, unsealJson } from './mcp-oauth-seal'
+import { oauthClientFor } from './mcp-oauth-client-reuse'
+import { callbackRedirectOf, DEFAULT_RETURN_TO } from './mcp-oauth-redirect'
+import { sealJson, unsealJson } from './mcp-oauth-seal'
+import { serverUrlOf, toWireMcpOauthServer } from './mcp-oauth-server-view'
 import { assertPublicHost, guardedFetch, SsrfRejectedError } from './mcp-oauth-ssrf'
-import {
-  EGrantRowStatus,
-  McpOauthClock,
-  McpOauthConfig,
-  McpOauthFetcher,
-  McpOauthStore,
-} from './mcp-oauth.types'
-import { sealedGrantSchema, sealedPendingSchema } from './mcp-oauth.types'
-import type { SealedGrant, SealedPending } from './mcp-oauth.types'
+import { McpOauthClock, McpOauthConfig, McpOauthFetcher, McpOauthStore } from './mcp-oauth.types'
+import { sealedPendingSchema } from './mcp-oauth.types'
+import type { SealedGrant, SealedPending, ServerGrantRow } from './mcp-oauth.types'
 
 const PENDING_TTL_MS = 10 * 60_000
-const DEFAULT_RETURN_TO = '/settings/integrations'
+const PROJECT_NOT_FOUND_MESSAGE = 'project not found'
+const SERVER_NOT_FOUND = 'mcp server not found'
 
 @Injectable()
 export class McpOauthService {
@@ -44,12 +36,38 @@ export class McpOauthService {
     private readonly config: McpOauthConfig,
   ) {}
 
+  async servers(args: {
+    userId: string
+    projectId?: string | undefined
+  }): Promise<McpOauthServer[]> {
+    const scope =
+      args.projectId === undefined
+        ? { userId: args.userId }
+        : {
+            projectId: await this.ownedProject({
+              userId: args.userId,
+              projectId: args.projectId,
+            }),
+          }
+    const rows = await this.store.listServers(scope)
+    return rows.map((row) => toWireMcpOauthServer({ cipher: this.cipher, row }))
+  }
+
   async begin(args: {
     userId: string
-    serverUrl: string
-    returnTo?: string
+    serverId: string
+    returnTo?: string | undefined
   }): Promise<McpOauthBeginResult> {
-    const serverUrl = normalizeServerUrl(args.serverUrl)
+    const row = await this.ownedServer({
+      userId: args.userId,
+      serverId: args.serverId,
+    })
+    const serverUrl = this.serverUrlOf(row)
+    if (serverUrl === undefined) {
+      return this.unsupported(
+        'only an http server without its own Authorization header can sign in',
+      )
+    }
     const fetch = this.guarded()
     try {
       await assertPublicHost({
@@ -63,9 +81,11 @@ export class McpOauthService {
         allowLocalTargets: this.config.allowLocalTargets,
       })
       if (!found.supported) return this.unsupported(found.reason)
-      const clientInfo = await this.clientFor({
-        userId: args.userId,
-        serverUrl,
+      const clientInfo = await oauthClientFor({
+        row,
+        cipher: this.cipher,
+        nowMs: this.clock.now(),
+        redirectUri: this.config.redirectUri,
         tokenEndpoint: found.tokenEndpoint,
         ...(found.registrationEndpoint === undefined
           ? {}
@@ -92,6 +112,7 @@ export class McpOauthService {
         sealed: sealJson({ cipher: this.cipher, value: pending }),
         returnTo: args.returnTo ?? DEFAULT_RETURN_TO,
         expiresAt: new Date(this.clock.now() + PENDING_TTL_MS),
+        mcpServerId: row.id,
       })
       return {
         outcome: EMcpOauthBeginOutcome.Redirect,
@@ -125,15 +146,23 @@ export class McpOauthService {
         ? null
         : await this.store.takePending({ id: args.state })
     if (pending === null) {
-      return this.redirect({ returnTo: DEFAULT_RETURN_TO, reason: 'unknown_state' })
+      return this.redirect({
+        returnTo: DEFAULT_RETURN_TO,
+        reason: 'unknown_state',
+      })
     }
     const { returnTo, serverUrl } = pending
     const failed = (reason: string) => this.redirect({ returnTo, serverUrl, reason })
+    if (pending.mcpServerId === null) return failed('unknown_state')
     if (args.malformed === true) return failed('invalid_request')
     if (args.sessionUserId !== pending.userId) return failed('session_mismatch')
     if (pending.expiresAt.getTime() < this.clock.now()) return failed('expired')
     if (args.error !== undefined) return failed(args.errorDescription ?? args.error)
     if (args.code === undefined || args.code === '') return failed('missing_code')
+
+    const row = await this.store.findServer({ id: pending.mcpServerId })
+    if (row === null) return failed('server_changed')
+    if (this.serverUrlOf(row) !== pending.serverUrl) return failed('server_changed')
 
     try {
       const sealed = unsealJson({
@@ -144,7 +173,11 @@ export class McpOauthService {
       const tokens = await exchangeAuthorizationCode({
         tokenEndpoint: sealed.tokenEndpoint,
         code: args.code,
-        pkce: { verifier: sealed.codeVerifier, challenge: '', state: pending.id },
+        pkce: {
+          verifier: sealed.codeVerifier,
+          challenge: '',
+          state: pending.id,
+        },
         redirectUri: sealed.redirectUri,
         clientId: sealed.clientInfo.clientId,
         ...(sealed.clientInfo.clientSecret === undefined
@@ -165,8 +198,8 @@ export class McpOauthService {
         ...(sealed.authMethods === undefined ? {} : { authMethods: sealed.authMethods }),
         ...(sealed.resource === undefined ? {} : { resource: sealed.resource }),
       }
-      await this.store.upsertGrant({
-        userId: pending.userId,
+      await this.store.writeGrant({
+        id: row.id,
         serverUrl,
         sealed: sealJson({ cipher: this.cipher, value: grant }),
       })
@@ -176,35 +209,40 @@ export class McpOauthService {
     }
   }
 
-  async status(args: { userId: string; serverUrls: string[] }): Promise<McpOauthGrant[]> {
-    const normalized = args.serverUrls.map((url) => ({
-      url,
-      key: normalizeServerUrl(url),
-    }))
-    const rows = await this.store.findGrants({
-      userId: args.userId,
-      serverUrls: normalized.map((entry) => entry.key),
-    })
-    const byUrl = new Map(rows.map((row) => [row.serverUrl, row]))
-    return normalized.map(({ url, key }) => {
-      const row = byUrl.get(key)
-      if (row === undefined) return { serverUrl: url, status: EMcpOauthGrantStatus.None }
-      return {
-        serverUrl: url,
-        status:
-          row.status === EGrantRowStatus.Active
-            ? EMcpOauthGrantStatus.Connected
-            : EMcpOauthGrantStatus.Expired,
-        updatedAt: row.updatedAt.toISOString(),
-      }
-    })
+  async disconnect(args: { userId: string; serverId: string }): Promise<void> {
+    const row = await this.ownedServer(args)
+    await this.store.clearGrant({ id: row.id })
   }
 
-  async disconnect(args: { userId: string; serverUrl: string }): Promise<void> {
-    await this.store.deleteGrant({
-      userId: args.userId,
-      serverUrl: normalizeServerUrl(args.serverUrl),
-    })
+  async forget(args: { userId: string; serverId: string }): Promise<void> {
+    const row = await this.ownedServer(args)
+    if (row.source !== EMcpServerSource.Repo) {
+      throw new BadRequestException('remove cloud servers from the MCP list')
+    }
+    await this.store.deleteRepoServer({ id: row.id })
+  }
+
+  private async ownedServer(args: { userId: string; serverId: string }): Promise<ServerGrantRow> {
+    const row = await this.store.findServer({ id: args.serverId })
+    if (row === null) throw new NotFoundException(SERVER_NOT_FOUND)
+    if (row.userId === args.userId) return row
+    if (
+      row.projectId !== null &&
+      (await this.store.projectOwner({ projectId: row.projectId })) === args.userId
+    ) {
+      return row
+    }
+    throw new NotFoundException(SERVER_NOT_FOUND)
+  }
+
+  private async ownedProject(args: { userId: string; projectId: string }): Promise<string> {
+    const owner = await this.store.projectOwner({ projectId: args.projectId })
+    if (owner !== args.userId) throw new NotFoundException(PROJECT_NOT_FOUND_MESSAGE)
+    return args.projectId
+  }
+
+  private serverUrlOf(row: ServerGrantRow): string | undefined {
+    return serverUrlOf({ cipher: this.cipher, row })
   }
 
   private guarded() {
@@ -219,63 +257,11 @@ export class McpOauthService {
     return { outcome: EMcpOauthBeginOutcome.Unsupported, reason }
   }
 
-  private async clientFor(args: {
-    userId: string
-    serverUrl: string
-    tokenEndpoint: string
-    registrationEndpoint?: string
-    scope?: string
-    fetch: Parameters<typeof registerClient>[0]['fetch']
-  }): Promise<ClientInformation | undefined> {
-    const existing = await this.store.findGrant({
-      userId: args.userId,
-      serverUrl: args.serverUrl,
-    })
-    const reusable =
-      existing === null ? undefined : this.reusableClient(existing, args.tokenEndpoint)
-    if (reusable !== undefined) return reusable
-    if (args.registrationEndpoint === undefined) return undefined
-    return registerClient({
-      registrationEndpoint: args.registrationEndpoint,
-      metadata: {
-        redirectUris: [this.config.redirectUri],
-        ...(args.scope === undefined ? {} : { scope: args.scope }),
-      },
-      fetch: args.fetch,
-    })
-  }
-
-  private reusableClient(row: { sealed: string }, tokenEndpoint: string) {
-    let grant: SealedGrant
-    try {
-      grant = unsealJson({ cipher: this.cipher, sealed: row.sealed, schema: sealedGrantSchema })
-    } catch {
-      return undefined
-    }
-    const secretExpiresAt = grant.clientInfo.clientSecretExpiresAt
-    const secretExpired =
-      secretExpiresAt !== undefined &&
-      secretExpiresAt > 0 &&
-      secretExpiresAt * 1000 <= this.clock.now()
-    const matches =
-      grant.redirectUri === this.config.redirectUri && grant.tokenEndpoint === tokenEndpoint
-    return matches && !secretExpired ? grant.clientInfo : undefined
-  }
-
-  private redirect(args: { returnTo: string; serverUrl?: string; reason?: string }): string {
-    const webOrigin = new URL(this.config.webOrigin).origin
-    let url = new URL(args.returnTo, webOrigin)
-    if (url.origin !== webOrigin) url = new URL(DEFAULT_RETURN_TO, webOrigin)
-    url.searchParams.set(
-      MCP_OAUTH_RESULT_PARAM,
-      args.reason === undefined
-        ? EMcpOauthCallbackResult.Connected
-        : EMcpOauthCallbackResult.Failed,
-    )
-    if (args.serverUrl !== undefined) url.searchParams.set(MCP_OAUTH_SERVER_PARAM, args.serverUrl)
-    if (args.reason !== undefined) {
-      url.searchParams.set(MCP_OAUTH_REASON_PARAM, args.reason.slice(0, 200))
-    }
-    return url.toString()
+  private redirect(args: {
+    returnTo: string
+    serverUrl?: string | undefined
+    reason?: string | undefined
+  }): string {
+    return callbackRedirectOf({ webOrigin: this.config.webOrigin, ...args })
   }
 }

@@ -9,7 +9,7 @@ import { McpServersService } from './mcp-servers.service'
 
 describe('McpServersRouter', () => {
   useTestDatabase()
-  const servers = () => db.orm.public.UserMcpServer.where((row) => row.id.neq('')).all()
+  const servers = () => db.orm.public.McpServer.where({ source: 'cloud' }).all()
   let app: INestApplication
   const put = (input: object, token = 'session-a') =>
     trpcMutate({ app, procedure: 'mcpServers.put', token, input })

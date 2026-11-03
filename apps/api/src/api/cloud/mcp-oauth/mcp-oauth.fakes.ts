@@ -1,3 +1,4 @@
+import { EMcpServerSource } from '@dltech/atlas-wire'
 import {
   EGrantRowStatus,
   McpOauthClock,
@@ -5,11 +6,17 @@ import {
   McpOauthFetcher,
   McpOauthStore,
 } from './mcp-oauth.types'
-import type { AttemptFence, GrantRow, PendingRow } from './mcp-oauth.types'
+import type { AttemptFence, PendingRow, ServerGrantRow } from './mcp-oauth.types'
+
+const REPO_SEEN_BUMP_MS = 3_600_000
+
+const grantKey = (row: Pick<ServerGrantRow, 'userId' | 'projectId'>): string =>
+  row.userId ?? row.projectId ?? ''
 
 export class FakeMcpStore implements McpOauthStore {
   readonly pendings = new Map<string, PendingRow>()
-  readonly grants = new Map<string, GrantRow>()
+  readonly servers = new Map<string, ServerGrantRow>()
+  readonly projectOwners = new Map<string, string>()
   private nextId = 1
 
   async insertPending(row: PendingRow) {
@@ -22,40 +29,102 @@ export class FakeMcpStore implements McpOauthStore {
     return row
   }
 
-  async findGrant(args: { userId: string; serverUrl: string }) {
-    const row = this.grants.get(`${args.userId}|${args.serverUrl}`)
+  async findServer(args: { id: string }) {
+    const row = this.servers.get(args.id)
     return row === undefined ? null : { ...row }
   }
 
-  async findGrants(args: { userId: string; serverUrls: string[] }) {
-    return [...this.grants.values()].filter(
-      (row) => row.userId === args.userId && args.serverUrls.includes(row.serverUrl),
-    )
+  async listServers(args: { userId?: string | undefined; projectId?: string | undefined }) {
+    const scopeKey = args.projectId ?? args.userId ?? ''
+    return [...this.servers.values()]
+      .filter((row) => grantKey(row) === scopeKey)
+      .sort(
+        (left, right) =>
+          left.source.localeCompare(right.source) || left.name.localeCompare(right.name),
+      )
+      .map((row) => ({ ...row }))
   }
 
-  async upsertGrant(args: { userId: string; serverUrl: string; sealed: string }) {
-    const key = `${args.userId}|${args.serverUrl}`
-    const existing = this.grants.get(key)
-    this.grants.set(key, {
-      id: existing?.id ?? `grant-${this.nextId++}`,
+  async findByName(args: {
+    userId?: string | undefined
+    projectId?: string | undefined
+    source: EMcpServerSource
+    name: string
+  }) {
+    const scopeKey = args.projectId ?? args.userId ?? ''
+    const row = [...this.servers.values()].find(
+      (entry) =>
+        grantKey(entry) === scopeKey && entry.source === args.source && entry.name === args.name,
+    )
+    return row === undefined ? null : { ...row }
+  }
+
+  async touchRepoServer(args: {
+    userId?: string | undefined
+    projectId?: string | undefined
+    name: string
+    url: string
+    now: Date
+  }) {
+    const existing = await this.findByName({
       userId: args.userId,
-      serverUrl: args.serverUrl,
-      status: EGrantRowStatus.Active,
-      sealed: args.sealed,
-      generation: existing === undefined ? 0 : existing.generation + 1,
-      refreshAttempt: null,
-      refreshStartedAt: null,
-      updatedAt: new Date(0),
+      projectId: args.projectId,
+      source: EMcpServerSource.Repo,
+      name: args.name,
+    })
+    if (existing === null) {
+      const row: ServerGrantRow = {
+        id: `server-${this.nextId++}`,
+        userId: args.userId ?? null,
+        projectId: args.projectId ?? null,
+        name: args.name,
+        source: EMcpServerSource.Repo,
+        sealedSpec: null,
+        repoUrl: args.url,
+        lastSeenAt: args.now,
+        oauthServerUrl: null,
+        oauthSealed: null,
+        oauthStatus: null,
+        oauthGeneration: 0,
+        oauthRefreshAttempt: null,
+        oauthRefreshStartedAt: null,
+        oauthUpdatedAt: null,
+      }
+      this.servers.set(row.id, row)
+      return { ...row }
+    }
+    const row = this.servers.get(existing.id)
+    if (row === undefined) throw new Error('repo server vanished')
+    if (row.repoUrl !== args.url) row.repoUrl = args.url
+    if (
+      row.lastSeenAt !== null &&
+      row.lastSeenAt.getTime() < args.now.getTime() - REPO_SEEN_BUMP_MS
+    )
+      row.lastSeenAt = args.now
+    return { ...row }
+  }
+
+  async projectOwner(args: { projectId: string }) {
+    return this.projectOwners.get(args.projectId) ?? null
+  }
+
+  async writeGrant(args: { id: string; serverUrl: string; sealed: string }) {
+    const row = this.servers.get(args.id)
+    if (row === undefined) return
+    Object.assign(row, {
+      oauthServerUrl: args.serverUrl,
+      oauthSealed: args.sealed,
+      oauthStatus: EGrantRowStatus.Active,
+      oauthGeneration: row.oauthGeneration + 1,
+      oauthRefreshAttempt: null,
+      oauthRefreshStartedAt: null,
+      oauthUpdatedAt: new Date(0),
     })
   }
 
-  private byId(id: string): GrantRow | undefined {
-    return [...this.grants.values()].find((row) => row.id === id)
-  }
-
-  private fenced(fence: AttemptFence): GrantRow | undefined {
-    const row = this.byId(fence.id)
-    return row?.generation === fence.generation && row.refreshAttempt === fence.attemptId
+  private fenced(fence: AttemptFence): ServerGrantRow | undefined {
+    const row = this.servers.get(fence.id)
+    return row?.oauthGeneration === fence.generation && row.oauthRefreshAttempt === fence.attemptId
       ? row
       : undefined
   }
@@ -67,13 +136,13 @@ export class FakeMcpStore implements McpOauthStore {
     startedAt: Date
     staleBefore: Date
   }) {
-    const row = this.byId(args.id)
-    if (row === undefined || row.generation !== args.generation) return false
-    if (row.status !== EGrantRowStatus.Active) return false
-    const stale = row.refreshStartedAt !== null && row.refreshStartedAt < args.staleBefore
-    if (row.refreshAttempt !== null && !stale) return false
-    row.refreshAttempt = args.attemptId
-    row.refreshStartedAt = args.startedAt
+    const row = this.servers.get(args.id)
+    if (row === undefined || row.oauthGeneration !== args.generation) return false
+    if (row.oauthStatus !== EGrantRowStatus.Active) return false
+    const stale = row.oauthRefreshStartedAt !== null && row.oauthRefreshStartedAt < args.staleBefore
+    if (row.oauthRefreshAttempt !== null && !stale) return false
+    row.oauthRefreshAttempt = args.attemptId
+    row.oauthRefreshStartedAt = args.startedAt
     return true
   }
 
@@ -81,10 +150,11 @@ export class FakeMcpStore implements McpOauthStore {
     const row = this.fenced(args)
     if (row === undefined) return false
     Object.assign(row, {
-      sealed: args.sealed,
-      generation: row.generation + 1,
-      refreshAttempt: null,
-      refreshStartedAt: null,
+      oauthSealed: args.sealed,
+      oauthGeneration: row.oauthGeneration + 1,
+      oauthRefreshAttempt: null,
+      oauthRefreshStartedAt: null,
+      oauthUpdatedAt: new Date(0),
     })
     return true
   }
@@ -92,7 +162,7 @@ export class FakeMcpStore implements McpOauthStore {
   async release(args: AttemptFence) {
     const row = this.fenced(args)
     if (row === undefined) return false
-    Object.assign(row, { refreshAttempt: null, refreshStartedAt: null })
+    Object.assign(row, { oauthRefreshAttempt: null, oauthRefreshStartedAt: null })
     return true
   }
 
@@ -100,15 +170,29 @@ export class FakeMcpStore implements McpOauthStore {
     const row = this.fenced(args)
     if (row === undefined) return false
     Object.assign(row, {
-      status: EGrantRowStatus.Expired,
-      refreshAttempt: null,
-      refreshStartedAt: null,
+      oauthStatus: EGrantRowStatus.Expired,
+      oauthRefreshAttempt: null,
+      oauthRefreshStartedAt: null,
     })
     return true
   }
 
-  async deleteGrant(args: { userId: string; serverUrl: string }) {
-    this.grants.delete(`${args.userId}|${args.serverUrl}`)
+  async clearGrant(args: { id: string }) {
+    const row = this.servers.get(args.id)
+    if (row === undefined) return
+    Object.assign(row, {
+      oauthServerUrl: null,
+      oauthSealed: null,
+      oauthStatus: null,
+      oauthRefreshAttempt: null,
+      oauthRefreshStartedAt: null,
+      oauthUpdatedAt: null,
+    })
+  }
+
+  async deleteRepoServer(args: { id: string }) {
+    const row = this.servers.get(args.id)
+    if (row?.source === EMcpServerSource.Repo) this.servers.delete(args.id)
   }
 }
 

@@ -1,7 +1,8 @@
-import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { openMcpServer, sealMcpSpec } from './mcp-sealed'
+import { putCloudServer } from './mcp-servers-put'
 import type { McpServerDto, McpSpec, McpSpecDraft, McpTransport } from './mcp-servers.types'
 import { EMcpTransportKind } from './mcp-servers.types'
 
@@ -84,41 +85,38 @@ export class McpServersService {
   constructor(private readonly cipher: SecretCipherService) {}
 
   async list(args: { userId: string }): Promise<McpServerDto[]> {
-    const rows = await db.orm.public.UserMcpServer.where({ userId: args.userId })
+    const rows = await db.orm.public.McpServer.where({ userId: args.userId, source: 'cloud' })
       .orderBy((row) => row.name.asc())
       .all()
     return rows.map((row) => this.toServerDto(row))
   }
 
   async put(args: { userId: string; name: string; spec: McpSpecDraft }): Promise<void> {
-    const spec = toMcpSpec({ ...args.spec, name: args.name })
-    const sealedSpec = this.cipher.encrypt(JSON.stringify(spec))
-    await db.orm.public.UserMcpServer.upsert({
-      conflictOn: { userId: args.userId, name: args.name },
-      create: {
-        id: `mcp_${randomUUID()}`,
-        name: args.name,
-        sealedSpec,
-        userId: args.userId,
-      },
-      update: { sealedSpec },
+    const sealedSpec = sealMcpSpec({ cipher: this.cipher, name: args.name, spec: args.spec })
+    await putCloudServer({
+      cipher: this.cipher,
+      scope: { userId: args.userId },
+      idPrefix: 'mcp_',
+      name: args.name,
+      sealedSpec,
     })
   }
 
   async remove(args: { userId: string; name: string }): Promise<void> {
     assertValidName(args.name)
-    await db.orm.public.UserMcpServer.where({
+    await db.orm.public.McpServer.where({
       userId: args.userId,
+      source: 'cloud',
       name: args.name,
     }).deleteAndCount()
   }
 
-  private toServerDto(row: Row<'UserMcpServer'>): McpServerDto {
-    const spec = toMcpSpec(
-      JSON.parse(this.cipher.decrypt(row.sealedSpec)) as McpSpecDraft & {
-        name: string
-      },
-    )
-    return { ...spec, updatedAt: row.updatedAt.toISOString() }
+  private toServerDto(row: Row<'McpServer'>): McpServerDto {
+    if (row.sealedSpec === null) throw new Error('a cloud server row holds a sealed spec')
+    return openMcpServer({
+      cipher: this.cipher,
+      sealedSpec: row.sealedSpec,
+      updatedAt: row.updatedAt,
+    })
   }
 }

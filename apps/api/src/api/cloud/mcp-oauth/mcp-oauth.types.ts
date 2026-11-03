@@ -1,3 +1,4 @@
+import { EMcpServerSource } from '@dltech/atlas-wire'
 import { z } from 'zod'
 import type { HostResolver } from './mcp-oauth-ssrf'
 
@@ -40,16 +41,22 @@ export const sealedPendingSchema = z.strictObject({
 })
 export type SealedPending = z.infer<typeof sealedPendingSchema>
 
-export interface GrantRow {
+export interface ServerGrantRow {
   id: string
-  userId: string
-  serverUrl: string
-  status: EGrantRowStatus
-  sealed: string
-  generation: number
-  refreshAttempt: string | null
-  refreshStartedAt: Date | null
-  updatedAt: Date
+  userId: string | null
+  projectId: string | null
+  name: string
+  source: EMcpServerSource
+  sealedSpec: string | null
+  repoUrl: string | null
+  lastSeenAt: Date | null
+  oauthServerUrl: string | null
+  oauthSealed: string | null
+  oauthStatus: EGrantRowStatus | null
+  oauthGeneration: number
+  oauthRefreshAttempt: string | null
+  oauthRefreshStartedAt: Date | null
+  oauthUpdatedAt: Date | null
 }
 
 export interface PendingRow {
@@ -59,6 +66,7 @@ export interface PendingRow {
   sealed: string
   returnTo: string
   expiresAt: Date
+  mcpServerId: string | null
 }
 
 export interface AttemptFence {
@@ -70,9 +78,26 @@ export interface AttemptFence {
 export abstract class McpOauthStore {
   abstract insertPending(row: PendingRow): Promise<void>
   abstract takePending(args: { id: string }): Promise<PendingRow | null>
-  abstract findGrant(args: { userId: string; serverUrl: string }): Promise<GrantRow | null>
-  abstract findGrants(args: { userId: string; serverUrls: string[] }): Promise<GrantRow[]>
-  abstract upsertGrant(args: { userId: string; serverUrl: string; sealed: string }): Promise<void>
+  abstract findServer(args: { id: string }): Promise<ServerGrantRow | null>
+  abstract listServers(args: {
+    userId?: string | undefined
+    projectId?: string | undefined
+  }): Promise<ServerGrantRow[]>
+  abstract findByName(args: {
+    userId?: string | undefined
+    projectId?: string | undefined
+    source: EMcpServerSource
+    name: string
+  }): Promise<ServerGrantRow | null>
+  abstract touchRepoServer(args: {
+    userId?: string | undefined
+    projectId?: string | undefined
+    name: string
+    url: string
+    now: Date
+  }): Promise<ServerGrantRow>
+  abstract projectOwner(args: { projectId: string }): Promise<string | null>
+  abstract writeGrant(args: { id: string; serverUrl: string; sealed: string }): Promise<void>
   abstract claim(args: {
     id: string
     generation: number
@@ -83,7 +108,8 @@ export abstract class McpOauthStore {
   abstract complete(args: AttemptFence & { sealed: string }): Promise<boolean>
   abstract release(args: AttemptFence): Promise<boolean>
   abstract reject(args: AttemptFence): Promise<boolean>
-  abstract deleteGrant(args: { userId: string; serverUrl: string }): Promise<void>
+  abstract clearGrant(args: { id: string }): Promise<void>
+  abstract deleteRepoServer(args: { id: string }): Promise<void>
 }
 
 export abstract class McpOauthClock {

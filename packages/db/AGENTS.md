@@ -25,8 +25,10 @@ Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync` and delete
 - An `upsert` target (`conflictOn`) must be the primary key or a `@@unique`. A unique _index_
   (`@@index(..., unique: true)`) does not qualify.
 - Project ownership: `ownerUserId` is required; `createdById` records who made it.
-- The user-scope config models are `UserSecret`, `UserMcpServer` and `UserSetting`; `@@map` keeps
-  their original table names.
+- The user-scope config models are `UserSecret` and `UserSetting`; `@@map` keeps their original
+  table names. `McpServer` holds both user- and project-scoped MCP servers (`userId` XOR
+  `projectId`), cloud-registered (`source = 'cloud'`, sealed spec) and repo-defined
+  (`source = 'repo'`, created by the pod), with each server's OAuth grant in its own row.
 
 ## Migrations
 

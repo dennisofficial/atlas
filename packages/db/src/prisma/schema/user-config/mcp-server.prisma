@@ -1,0 +1,36 @@
+// use prisma-8
+enum McpServerSource {
+  @@type("pg/text@1")
+  cloud = "cloud"
+  repo  = "repo"
+}
+
+model McpServer {
+  id                    String                @id
+  name                  String
+  source                McpServerSource
+  sealedSpec            String?
+  repoUrl               String?
+  lastSeenAt            TimestamptzJsDate(3)?
+  oauthServerUrl        String?
+  oauthSealed           String?
+  oauthStatus           String?
+  oauthGeneration       Int                   @default(0)
+  oauthRefreshAttempt   String?
+  oauthRefreshStartedAt TimestamptzJsDate(3)?
+  oauthUpdatedAt        TimestamptzJsDate(3)?
+  createdAt             TimestamptzJsDate(3)  @default(now())
+  updatedAt             TimestamptzJsDate(3)  @onCreate(now()) @onUpdate(now())
+  userId                String?
+  projectId             String?
+  user                  User?                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "McpServer_userId_source_name_key")
+  project               Project?              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "McpServer_projectId_source_name_key")
+  pendingSignIns        McpOauthPending[]
+
+  @@unique([userId, source, name], map: "McpServer_userId_source_name_key")
+  @@unique([projectId, source, name], map: "McpServer_projectId_source_name_key")
+  @@index([source, lastSeenAt], map: "McpServer_source_lastSeenAt_idx")
+  @@check(expression: sql`("userId" IS NULL) <> ("projectId" IS NULL)`, name: "McpServer_one_scope")
+  @@check(expression: sql`(("source" = 'cloud') = ("sealedSpec" IS NOT NULL)) AND (("source" = 'repo') = ("repoUrl" IS NOT NULL AND "lastSeenAt" IS NOT NULL))`, name: "McpServer_fields_by_source")
+  @@check(expression: sql`(("oauthSealed" IS NULL) = ("oauthStatus" IS NULL)) AND (("oauthSealed" IS NULL) = ("oauthServerUrl" IS NULL))`, name: "McpServer_oauth_whole")
+}

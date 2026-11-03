@@ -1,13 +1,15 @@
 import {
   EMcpOauthCallbackResult,
   EMcpOauthGrantStatus,
+  EMcpServerSource,
   MCP_OAUTH_REASON_PARAM,
   MCP_OAUTH_RESULT_PARAM,
   MCP_OAUTH_SERVER_PARAM,
-  type McpOauthGrant,
+  type McpOauthServer,
 } from '@dltech/atlas-wire/web'
 
 import { ELinkReturnKind, type LinkReturn } from '../personal/link-return'
+import { relativeTimeOf } from './relative-time'
 
 export enum EMcpAuthState {
   SignedIn = 'signed-in',
@@ -15,48 +17,27 @@ export enum EMcpAuthState {
   SignInAgain = 'sign-in-again',
 }
 
-export type McpOauthSubject = {
-  id: string
-  enabled: boolean
-  signInUrl?: string
-}
+export const cloudServerOf = (
+  servers: readonly McpOauthServer[],
+  name: string,
+): McpOauthServer | undefined =>
+  servers.find((server) => server.source === EMcpServerSource.Cloud && server.name === name)
 
-const AUTHORIZATION_HEADER = 'authorization'
+export const repoServersOf = <T extends McpOauthServer>(servers: readonly T[]): T[] =>
+  servers.filter((server) => server.source === EMcpServerSource.Repo)
 
-export const signInUrlOf = (args: {
-  url: string
-  headers: Record<string, string> | undefined
-}): string | undefined => {
-  const hasAuthorization = Object.keys(args.headers ?? {}).some(
-    (name) => name.toLowerCase() === AUTHORIZATION_HEADER,
-  )
-  return hasAuthorization ? undefined : args.url
-}
+export const lastUsedOf = (args: {
+  lastSeenAt: string | undefined
+  now: number
+}): string | undefined =>
+  args.lastSeenAt === undefined
+    ? undefined
+    : relativeTimeOf({ iso: args.lastSeenAt, now: args.now })
 
-const isHttpUrl = (value: string): boolean => {
-  if (!URL.canParse(value)) return false
-  const { protocol } = new URL(value)
-  return protocol === 'https:' || protocol === 'http:'
-}
-
-export const statusUrlsOf = (servers: readonly McpOauthSubject[]): string[] => {
-  const urls = servers.flatMap((server) =>
-    server.enabled && server.signInUrl !== undefined && isHttpUrl(server.signInUrl)
-      ? [server.signInUrl]
-      : [],
-  )
-  return [...new Set(urls)].sort()
-}
-
-export const authStateOf = (args: {
-  signInUrl: string | undefined
-  grants: readonly McpOauthGrant[]
-}): EMcpAuthState | undefined => {
-  if (args.signInUrl === undefined) return undefined
-  const grant = args.grants.find((entry) => entry.serverUrl === args.signInUrl)
-  if (grant === undefined) return undefined
-  if (grant.status === EMcpOauthGrantStatus.Connected) return EMcpAuthState.SignedIn
-  if (grant.status === EMcpOauthGrantStatus.Expired) return EMcpAuthState.SignInAgain
+export const authStateOf = (server: McpOauthServer | undefined): EMcpAuthState => {
+  if (server === undefined) return EMcpAuthState.SignIn
+  if (server.status === EMcpOauthGrantStatus.Connected) return EMcpAuthState.SignedIn
+  if (server.status === EMcpOauthGrantStatus.Expired) return EMcpAuthState.SignInAgain
   return EMcpAuthState.SignIn
 }
 

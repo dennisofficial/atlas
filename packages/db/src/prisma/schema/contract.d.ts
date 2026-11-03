@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'fcf5f2f472f53ca8bda3c73a89a716d254bccc9559abec5d6e0f6adb298b836e'>;
+  StorageHashBase<'00dc597d9dc49e825768c55eb9883c982ce9f1ec5656a8f7390db932eb65cf77'>;
 export type ExecutionHash =
-  ExecutionHashBase<'3b5f0a7ec0457f5edf680634022c237da03bca270a301a1d8c978e4ec96d5016'>;
+  ExecutionHashBase<'395a1481e98e83f5120bc102ff6082480d9a2959eb5c52518bace5284bc0e7ef'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -238,7 +238,15 @@ type DefaultLiteralValue<CodecId extends string, Encoded> = CodecId extends keyo
   : Encoded;
 type ParameterizedOutputTypeFunctions = PgParameterizedOutputTypes;
 
-type FieldTypeOverrides = {};
+type FieldTypeOverrides = {
+  readonly public: {
+    readonly models: {
+      readonly McpServer: {
+        readonly source: { readonly output: 'cloud' | 'repo'; readonly input: 'cloud' | 'repo' };
+      };
+    };
+  };
+};
 export type FieldOutputTypes = FieldTypesFromDomain<
   ContractBase['domain']['namespaces'],
   CodecTypes,
@@ -253,7 +261,13 @@ export type FieldInputTypes = FieldTypesFromDomain<
   FieldTypeOverrides,
   'input'
 >;
-type ColumnTypeOverrides = {};
+type ColumnTypeOverrides = {
+  readonly public: {
+    readonly McpServer: {
+      readonly source: { readonly output: 'cloud' | 'repo'; readonly input: 'cloud' | 'repo' };
+    };
+  };
+};
 export type StorageColumnTypes = ColumnTypesFromStorage<
   ContractBase['storage'],
   CodecTypes,
@@ -571,30 +585,41 @@ export namespace Models {
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
-  export type public_McpOauthGrant = {
-    createdAt: FieldOutputTypes['public']['McpOauthGrant']['createdAt'];
-    generation: FieldOutputTypes['public']['McpOauthGrant']['generation'];
-    id: FieldOutputTypes['public']['McpOauthGrant']['id'];
-    refreshAttempt: FieldOutputTypes['public']['McpOauthGrant']['refreshAttempt'];
-    refreshStartedAt: FieldOutputTypes['public']['McpOauthGrant']['refreshStartedAt'];
-    sealed: FieldOutputTypes['public']['McpOauthGrant']['sealed'];
-    serverUrl: FieldOutputTypes['public']['McpOauthGrant']['serverUrl'];
-    status: FieldOutputTypes['public']['McpOauthGrant']['status'];
-    updatedAt: FieldOutputTypes['public']['McpOauthGrant']['updatedAt'];
-    userId: FieldOutputTypes['public']['McpOauthGrant']['userId'];
-    user: public_User;
-    readonly [RelationKeys]?: 'user';
-  };
   export type public_McpOauthPending = {
     createdAt: FieldOutputTypes['public']['McpOauthPending']['createdAt'];
     expiresAt: FieldOutputTypes['public']['McpOauthPending']['expiresAt'];
     id: FieldOutputTypes['public']['McpOauthPending']['id'];
+    mcpServerId: FieldOutputTypes['public']['McpOauthPending']['mcpServerId'];
     returnTo: FieldOutputTypes['public']['McpOauthPending']['returnTo'];
     sealed: FieldOutputTypes['public']['McpOauthPending']['sealed'];
     serverUrl: FieldOutputTypes['public']['McpOauthPending']['serverUrl'];
     userId: FieldOutputTypes['public']['McpOauthPending']['userId'];
+    mcpServer: public_McpServer | null;
     user: public_User;
-    readonly [RelationKeys]?: 'user';
+    readonly [RelationKeys]?: 'mcpServer' | 'user';
+  };
+  export type public_McpServer = {
+    createdAt: FieldOutputTypes['public']['McpServer']['createdAt'];
+    id: FieldOutputTypes['public']['McpServer']['id'];
+    lastSeenAt: FieldOutputTypes['public']['McpServer']['lastSeenAt'];
+    name: FieldOutputTypes['public']['McpServer']['name'];
+    oauthGeneration: FieldOutputTypes['public']['McpServer']['oauthGeneration'];
+    oauthRefreshAttempt: FieldOutputTypes['public']['McpServer']['oauthRefreshAttempt'];
+    oauthRefreshStartedAt: FieldOutputTypes['public']['McpServer']['oauthRefreshStartedAt'];
+    oauthSealed: FieldOutputTypes['public']['McpServer']['oauthSealed'];
+    oauthServerUrl: FieldOutputTypes['public']['McpServer']['oauthServerUrl'];
+    oauthStatus: FieldOutputTypes['public']['McpServer']['oauthStatus'];
+    oauthUpdatedAt: FieldOutputTypes['public']['McpServer']['oauthUpdatedAt'];
+    projectId: FieldOutputTypes['public']['McpServer']['projectId'];
+    repoUrl: FieldOutputTypes['public']['McpServer']['repoUrl'];
+    sealedSpec: FieldOutputTypes['public']['McpServer']['sealedSpec'];
+    source: FieldOutputTypes['public']['McpServer']['source'];
+    updatedAt: FieldOutputTypes['public']['McpServer']['updatedAt'];
+    userId: FieldOutputTypes['public']['McpServer']['userId'];
+    pendingSignIns: public_McpOauthPending[];
+    project: public_Project | null;
+    user: public_User | null;
+    readonly [RelationKeys]?: 'pendingSignIns' | 'project' | 'user';
   };
   export type public_Memory = {
     body: FieldOutputTypes['public']['Memory']['body'];
@@ -674,7 +699,7 @@ export namespace Models {
     updatedAt: FieldOutputTypes['public']['Project']['updatedAt'];
     createdBy: public_User | null;
     fileMounts: public_ProjectFileMount[];
-    mcpServers: public_ProjectMcpServer[];
+    mcpServers: public_McpServer[];
     owner: public_User;
     secrets: public_ProjectSecret[];
     sessions: public_Session[];
@@ -698,16 +723,6 @@ export namespace Models {
     projectId: FieldOutputTypes['public']['ProjectFileMount']['projectId'];
     sealedContents: FieldOutputTypes['public']['ProjectFileMount']['sealedContents'];
     updatedAt: FieldOutputTypes['public']['ProjectFileMount']['updatedAt'];
-    project: public_Project;
-    readonly [RelationKeys]?: 'project';
-  };
-  export type public_ProjectMcpServer = {
-    createdAt: FieldOutputTypes['public']['ProjectMcpServer']['createdAt'];
-    id: FieldOutputTypes['public']['ProjectMcpServer']['id'];
-    name: FieldOutputTypes['public']['ProjectMcpServer']['name'];
-    projectId: FieldOutputTypes['public']['ProjectMcpServer']['projectId'];
-    sealedSpec: FieldOutputTypes['public']['ProjectMcpServer']['sealedSpec'];
-    updatedAt: FieldOutputTypes['public']['ProjectMcpServer']['updatedAt'];
     project: public_Project;
     readonly [RelationKeys]?: 'project';
   };
@@ -927,9 +942,8 @@ export namespace Models {
     githubSubscriptions: public_GithubSubscription[];
     harnessSecrets: public_UserHarnessSecret[];
     localPodLeases: public_LocalPodLease[];
-    mcpOauthGrants: public_McpOauthGrant[];
     mcpOauthPendings: public_McpOauthPending[];
-    mcpServers: public_UserMcpServer[];
+    mcpServers: public_McpServer[];
     memories: public_Memory[];
     oauthConnections: public_OauthConnection[];
     ownedProjects: public_Project[];
@@ -960,7 +974,6 @@ export namespace Models {
       | 'githubSubscriptions'
       | 'harnessSecrets'
       | 'localPodLeases'
-      | 'mcpOauthGrants'
       | 'mcpOauthPendings'
       | 'mcpServers'
       | 'memories'
@@ -998,16 +1011,6 @@ export namespace Models {
     sealedValue: FieldOutputTypes['public']['UserHarnessSecret']['sealedValue'];
     updatedAt: FieldOutputTypes['public']['UserHarnessSecret']['updatedAt'];
     userId: FieldOutputTypes['public']['UserHarnessSecret']['userId'];
-    user: public_User;
-    readonly [RelationKeys]?: 'user';
-  };
-  export type public_UserMcpServer = {
-    createdAt: FieldOutputTypes['public']['UserMcpServer']['createdAt'];
-    id: FieldOutputTypes['public']['UserMcpServer']['id'];
-    name: FieldOutputTypes['public']['UserMcpServer']['name'];
-    sealedSpec: FieldOutputTypes['public']['UserMcpServer']['sealedSpec'];
-    updatedAt: FieldOutputTypes['public']['UserMcpServer']['updatedAt'];
-    userId: FieldOutputTypes['public']['UserMcpServer']['userId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
@@ -1141,8 +1144,8 @@ export declare const models: {
     GithubSubscription: Models.public_GithubSubscription;
     GithubWebhookInbox: Models.public_GithubWebhookInbox;
     LocalPodLease: Models.public_LocalPodLease;
-    McpOauthGrant: Models.public_McpOauthGrant;
     McpOauthPending: Models.public_McpOauthPending;
+    McpServer: Models.public_McpServer;
     Memory: Models.public_Memory;
     OauthConnection: Models.public_OauthConnection;
     OauthConnectionSandbox: Models.public_OauthConnectionSandbox;
@@ -1150,7 +1153,6 @@ export declare const models: {
     PreviewTunnel: Models.public_PreviewTunnel;
     Project: Models.public_Project;
     ProjectFileMount: Models.public_ProjectFileMount;
-    ProjectMcpServer: Models.public_ProjectMcpServer;
     ProjectSecret: Models.public_ProjectSecret;
     ProjectSetting: Models.public_ProjectSetting;
     PublishedBundle: Models.public_PublishedBundle;
@@ -1165,7 +1167,6 @@ export declare const models: {
     User: Models.public_User;
     UserFile: Models.public_UserFile;
     UserHarnessSecret: Models.public_UserHarnessSecret;
-    UserMcpServer: Models.public_UserMcpServer;
     UserSecret: Models.public_UserSecret;
     UserSetting: Models.public_UserSetting;
     UserVercelCredential: Models.public_UserVercelCredential;
@@ -3296,104 +3297,6 @@ type ContractBase = Omit<
                 },
               ];
             };
-            readonly McpOauthGrant: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly generation: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
-                  };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly refreshAttempt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly refreshStartedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly sealed: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly serverUrl: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly status: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/text@1', 'active'>;
-                  };
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['userId', 'serverUrl'];
-                  readonly name: 'McpOauthGrant_userId_serverUrl_key';
-                },
-              ];
-              indexes: readonly [];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'McpOauthGrant';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
             readonly McpOauthPending: {
               columns: {
                 readonly createdAt: {
@@ -3415,6 +3318,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly mcpServerId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly returnTo: {
@@ -3446,6 +3355,11 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
+                  readonly name: 'McpOauthPending_mcpServerId_idx';
+                  readonly columns: readonly ['mcpServerId'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'McpOauthPending_userId_idx';
                   readonly columns: readonly ['userId'];
                   readonly unique: false;
@@ -3464,9 +3378,21 @@ type ContractBase = Omit<
                     readonly columns: readonly ['id'];
                   };
                 },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'McpOauthPending';
+                    readonly columns: readonly ['mcpServerId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'McpServer';
+                    readonly columns: readonly ['id'];
+                  };
+                },
               ];
             };
-            readonly McpServerConfig: {
+            readonly McpServer: {
               columns: {
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
@@ -3482,13 +3408,86 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly lastSeenAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly name: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly oauthGeneration: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly oauthRefreshAttempt: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly oauthRefreshStartedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly oauthSealed: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly oauthServerUrl: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly oauthStatus: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly oauthUpdatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly projectId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly repoUrl: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly sealedSpec: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly source: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
@@ -3504,28 +3503,50 @@ type ContractBase = Omit<
                 readonly userId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
+                  readonly nullable: true;
                   readonly many: false;
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [
                 {
-                  readonly columns: readonly ['userId', 'name'];
-                  readonly name: 'McpServerConfig_userId_name_key';
+                  readonly columns: readonly ['projectId', 'source', 'name'];
+                  readonly name: 'McpServer_projectId_source_name_key';
+                },
+                {
+                  readonly columns: readonly ['userId', 'source', 'name'];
+                  readonly name: 'McpServer_userId_source_name_key';
                 },
               ];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'McpServer_source_lastSeenAt_idx';
+                  readonly columns: readonly ['source', 'lastSeenAt'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
                 {
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'McpServerConfig';
+                    readonly tableName: 'McpServer';
                     readonly columns: readonly ['userId'];
                   };
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'McpServer';
+                    readonly columns: readonly ['projectId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Project';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -4166,71 +4187,6 @@ type ContractBase = Omit<
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'ProjectFileMount';
-                    readonly columns: readonly ['projectId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Project';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly ProjectMcpServer: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly name: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly projectId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly sealedSpec: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['projectId', 'name'];
-                  readonly name: 'ProjectMcpServer_projectId_name_key';
-                },
-              ];
-              indexes: readonly [];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'ProjectMcpServer';
                     readonly columns: readonly ['projectId'];
                   };
                   readonly target: {
@@ -5854,6 +5810,12 @@ type ContractBase = Omit<
               foreignKeys: readonly [];
             };
           };
+          readonly valueSet: {
+            readonly McpServerSource: {
+              readonly kind: 'valueSet';
+              readonly values: readonly ['cloud', 'repo'];
+            };
+          };
         };
       };
       readonly v2: {
@@ -6301,18 +6263,11 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'LocalPodLease';
     };
-    readonly McpOauthGrant: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'McpOauthGrant';
-    };
     readonly McpOauthPending: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'McpOauthPending';
     };
-    readonly McpServerConfig: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'UserMcpServer';
-    };
+    readonly McpServer: { readonly namespace: 'public' & NamespaceId; readonly model: 'McpServer' };
     readonly Memory: { readonly namespace: 'public' & NamespaceId; readonly model: 'Memory' };
     readonly OauthConnection: {
       readonly namespace: 'public' & NamespaceId;
@@ -6334,10 +6289,6 @@ type ContractBase = Omit<
     readonly ProjectFileMount: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'ProjectFileMount';
-    };
-    readonly ProjectMcpServer: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'ProjectMcpServer';
     };
     readonly ProjectSecret: {
       readonly namespace: 'public' & NamespaceId;
@@ -8180,89 +8131,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly McpOauthGrant: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly generation: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly refreshAttempt: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly refreshStartedAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly sealed: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly serverUrl: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly status: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'McpOauthGrant';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly generation: { readonly column: 'generation' };
-                readonly id: { readonly column: 'id' };
-                readonly refreshAttempt: { readonly column: 'refreshAttempt' };
-                readonly refreshStartedAt: { readonly column: 'refreshStartedAt' };
-                readonly sealed: { readonly column: 'sealed' };
-                readonly serverUrl: { readonly column: 'serverUrl' };
-                readonly status: { readonly column: 'status' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
           readonly McpOauthPending: {
             readonly fields: {
               readonly createdAt: {
@@ -8285,6 +8153,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly mcpServerId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly returnTo: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -8303,6 +8175,18 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly mcpServer: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'McpServer';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['mcpServerId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
@@ -8320,9 +8204,159 @@ type ContractBase = Omit<
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
+                readonly mcpServerId: { readonly column: 'mcpServerId' };
                 readonly returnTo: { readonly column: 'returnTo' };
                 readonly sealed: { readonly column: 'sealed' };
                 readonly serverUrl: { readonly column: 'serverUrl' };
+                readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly McpServer: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly lastSeenAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly oauthGeneration: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly oauthRefreshAttempt: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly oauthRefreshStartedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly oauthSealed: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly oauthServerUrl: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly oauthStatus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly oauthUpdatedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly projectId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly repoUrl: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sealedSpec: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly source: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly pendingSignIns: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'McpOauthPending';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['mcpServerId'];
+                };
+              };
+              readonly project: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Project';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['projectId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'McpServer';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly lastSeenAt: { readonly column: 'lastSeenAt' };
+                readonly name: { readonly column: 'name' };
+                readonly oauthGeneration: { readonly column: 'oauthGeneration' };
+                readonly oauthRefreshAttempt: { readonly column: 'oauthRefreshAttempt' };
+                readonly oauthRefreshStartedAt: { readonly column: 'oauthRefreshStartedAt' };
+                readonly oauthSealed: { readonly column: 'oauthSealed' };
+                readonly oauthServerUrl: { readonly column: 'oauthServerUrl' };
+                readonly oauthStatus: { readonly column: 'oauthStatus' };
+                readonly oauthUpdatedAt: { readonly column: 'oauthUpdatedAt' };
+                readonly projectId: { readonly column: 'projectId' };
+                readonly repoUrl: { readonly column: 'repoUrl' };
+                readonly sealedSpec: { readonly column: 'sealedSpec' };
+                readonly source: { readonly column: 'source' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
               };
             };
@@ -8790,7 +8824,7 @@ type ContractBase = Omit<
               readonly mcpServers: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'ProjectMcpServer';
+                  readonly model: 'McpServer';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -8935,68 +8969,6 @@ type ContractBase = Omit<
                 readonly path: { readonly column: 'path' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly sealedContents: { readonly column: 'sealedContents' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-              };
-            };
-          };
-          readonly ProjectMcpServer: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly projectId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sealedSpec: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-            };
-            readonly relations: {
-              readonly project: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Project';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['projectId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'ProjectMcpServer';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly name: { readonly column: 'name' };
-                readonly projectId: { readonly column: 'projectId' };
-                readonly sealedSpec: { readonly column: 'sealedSpec' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
               };
             };
@@ -10324,17 +10296,6 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
-              readonly mcpOauthGrants: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'McpOauthGrant';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
               readonly mcpOauthPendings: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -10349,7 +10310,7 @@ type ContractBase = Omit<
               readonly mcpServers: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'UserMcpServer';
+                  readonly model: 'McpServer';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -10659,65 +10620,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly UserMcpServer: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sealedSpec: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'McpServerConfig';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly name: { readonly column: 'name' };
-                readonly sealedSpec: { readonly column: 'sealedSpec' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
           readonly UserSecret: {
             readonly fields: {
               readonly createdAt: {
@@ -10991,6 +10893,21 @@ type ContractBase = Omit<
               };
             };
           };
+        };
+        readonly enum: {
+          readonly McpServerSource: {
+            readonly codecId: 'pg/text@1';
+            readonly members: readonly [
+              { readonly name: 'cloud'; readonly value: 'cloud' },
+              { readonly name: 'repo'; readonly value: 'repo' },
+            ];
+          };
+        };
+        readonly enumMemberTypes?: {
+          readonly McpServerSource: readonly [
+            { readonly name: 'cloud'; readonly value: 'cloud' },
+            { readonly name: 'repo'; readonly value: 'repo' },
+          ];
         };
       };
       readonly v2: {
@@ -11511,16 +11428,7 @@ type ContractBase = Omit<
           readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
-            readonly entry: 'McpOauthGrant';
-            readonly field: 'updatedAt';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'McpServerConfig';
+            readonly entry: 'McpServer';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };
@@ -11598,15 +11506,6 @@ type ContractBase = Omit<
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'ProjectFileMount';
-            readonly field: 'updatedAt';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'ProjectMcpServer';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };
