@@ -108,7 +108,7 @@ export function SkillsPage() {
   const handleCreate = (args: { name: string; layer: ESkillLayer }) => {
     const skill = createSkill(args)
     addSkill(skill)
-    router.push(`/settings/skills/${encodeURIComponent(skillIdOf(skill))}`)
+    router.push(`/settings/skills/${skillIdOf(skill)}`)
   }
   const handleConfirmDelete = () => {
     if (!pendingDelete) return
@@ -198,7 +198,7 @@ export function SkillsPage() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <Table variant="framed" className="min-w-xl">
+          <Table variant="framed" className="table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">
@@ -243,7 +243,7 @@ export function SkillsPage() {
                     <TableCell>
                       <div className="flex min-w-0 flex-col gap-0.5">
                         <Link
-                          href={`/settings/skills/${encodeURIComponent(id)}`}
+                          href={`/settings/skills/${id}`}
                           className="w-fit max-w-full truncate font-mono text-xs font-medium hover:underline"
                         >
                           {row.skill.name}

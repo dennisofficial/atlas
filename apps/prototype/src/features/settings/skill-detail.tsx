@@ -77,9 +77,7 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
   const draftValue = draft ?? savedContent
   const dirty = draft !== null && draft !== savedContent
   const tree = buildSkillTree(skill.files.map((candidate) => candidate.path))
-  const activeConflict: ConflictState | null =
-    conflict ??
-    (forceConflict && dirty ? { mine: draftValue, theirs: theirsVersion(savedContent) } : null)
+  const activeConflict: ConflictState | null = conflict
   const id = skillIdOf(skill)
 
   const openFile = (path: string) => {
@@ -95,7 +93,7 @@ function SkillDetail({ skill, forceConflict }: { skill: Skill; forceConflict: bo
     openFile(path)
   }
   const handleSave = () => {
-    if (forceConflict && activeConflict === null) {
+    if (forceConflict && conflict === null) {
       setConflict({ mine: draftValue, theirs: theirsVersion(savedContent) })
       return
     }

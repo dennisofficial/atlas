@@ -8,7 +8,8 @@ export default async function SkillDetailRoute({
 }: {
   params: Promise<{ skillId: string }>
 }) {
-  const { skillId } = await params
+  const { skillId: rawSkillId } = await params
+  const skillId = decodeURIComponent(rawSkillId)
   const parsed = parseSkillId(skillId)
   if (!parsed) notFound()
   return <SkillDetailTweaked skillId={skillId} />
