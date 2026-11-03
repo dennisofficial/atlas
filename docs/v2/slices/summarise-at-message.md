@@ -1,6 +1,6 @@
 # Design: summarise at a message
 
-Status: **design, 2026-11-03, needs operator approval.** A design section, not a roadmap slice: it
+Status: **design, 2026-11-03, decisions settled by the operator the same day.** A design section, not a roadmap slice: it
 is built as one native command in slice 6 (`commands/`), on top of slice 3 (holder, inbox) and
 slice 5 (client SDK). Anchors are `path:line` at `ac1dfb7e6`; re-check before relying on one.
 
@@ -53,10 +53,13 @@ replaced by one summary. This is the TUI rewind picker's `summarise up to here` 
    the floor as a parameter, with a v2 floor function over `history-summarised` events and the
    visible events (`visibleEvents`, `visibility.ts:94`). v1 passes `compactedThrough(events)` and
    does not change.
-2. **A refusal outcome.** Today the only outcome record is `input-consumed{inboxId}`
-   (`event.ts:31`). Add `input-refused{ inboxId, reason }` so a refused inbox command has an
-   answer in the log. It is generic: rename and model change need the same thing. **Decision for
-   the operator** (alternative: an optional `refusal` on `input-consumed`).
+2. **A refusal outcome (decided 2026-11-03).** Today the only outcome record is
+   `input-consumed{inboxId}` (`event.ts:31`). Add `RecordBody` member
+   `input-refused{ inboxId, reason }`, appended after `input-consumed` for the same entry when the
+   holder gives up: a guard fails at consumption time, the summariser fails or returns nothing,
+   or the operator cancels. It is generic, so rename and model change use it too. A `refusal` field
+   on `input-consumed` was rejected: `input-consumed` is appended before the work starts, and the
+   log cannot edit it to record a failure found later.
 
 ### Flow
 
@@ -94,14 +97,14 @@ sequenceDiagram
   v2 agents belong to the crew plugin (slice 7). Until then the guard **refuses** a range holding a
   running agent ("stop the agent first"); slice 7 decides whether summarise stops them instead.
 
-### Rewind across a summary changes meaning
+### Rewind undoes a summary (decided 2026-11-03)
 
 In v1 summarising deletes rows, so a rewind can never reach back past the summary (the TUI copy
 says "deletes rows"). In v2 a `history-rewound{toSeq}` with `toSeq` before the summary drops the
-summary's span (`visibility.ts:23`), so the summarised rows come back. Summarise becomes
-undoable by rewinding to before it. **Decision for the operator:** accept this (recommended: it
-follows from P5 and loses nothing), or have the v2 rewind guard keep v1's floor. The confirm copy
-("can no longer be rewound to") changes with the decision.
+summary's span (`visibility.ts:23`), so the summarised rows come back. **Decided by the operator:**
+this is the v2 behaviour. A rewind to before a summary undoes it, and the v2 rewind guard does not
+keep v1's floor. The v2 confirm copy drops "can no longer be rewound to" and says a rewind to
+before the summary brings the messages back. v1 keeps its copy, because v1 really deletes the rows.
 
 ### Command package (0019)
 
