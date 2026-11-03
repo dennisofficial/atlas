@@ -1,7 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import type { AuthorizeDesktopInput, ExchangeDesktopCodeInput } from '@dltech/atlas-wire'
+import { needsTrustedOrigin } from '@dltech/atlas-wire'
 import { z } from 'zod'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { auth } from '../auth/auth.server'
 
 export const CODE_TTL_MS = 60_000
@@ -19,9 +21,25 @@ const identifierOf = (code: string): string => `desktop-auth:${sha256(code).toSt
 // https://datatracker.ietf.org/doc/html/rfc7636#section-4.6
 export const challengeOf = (verifier: string): string => sha256(verifier).toString('base64url')
 
+export const trustedOriginsOf = (env: EnvService): Set<string> => {
+  const listed = (env.get('TRUSTED_ORIGINS') ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0)
+  return new Set([...listed, env.get('WEB_ORIGIN')])
+}
+
 @Injectable()
 export class DesktopAuthService {
+  constructor(private readonly env: EnvService) {}
+
   async authorize(args: { userId: string; input: AuthorizeDesktopInput }): Promise<string> {
+    if (needsTrustedOrigin(args.input.redirectUri)) {
+      const origin = new URL(args.input.redirectUri).origin
+      if (!trustedOriginsOf(this.env).has(origin)) {
+        throw new BadRequestException('redirect origin is not trusted')
+      }
+    }
     const code = randomBytes(32).toString('base64url')
     const { internalAdapter } = await auth.$context
     await internalAdapter.createVerificationValue({

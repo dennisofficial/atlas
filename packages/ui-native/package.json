@@ -1,0 +1,31 @@
+{
+  "name": "@dltech/atlas-ui-native",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dltech/atlas-ui": "workspace:*"
+  },
+  "peerDependencies": {
+    "lucide-react-native": "*",
+    "react": "*",
+    "react-native": "*",
+    "react-native-svg": "*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "~19.3.0",
+    "lucide-react-native": "^1.67.0",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-svg": "15.16.0",
+    "typescript": "6.0.3"
+  }
+}

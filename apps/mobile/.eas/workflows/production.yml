@@ -1,0 +1,66 @@
+name: Production
+
+defaults:
+  tools:
+    bun: '1.4.2'
+
+on:
+  push:
+    branches: ['main']
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/ui/src/tokens/**'
+      - 'packages/wire/**'
+      - 'packages/api-router/**'
+      - 'bun.lock'
+
+jobs:
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    environment: production
+
+  ios_get_build:
+    name: Find a build with this fingerprint
+    needs: [fingerprint]
+    type: get-build
+    environment: production
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      profile: production
+      platform: ios
+      channel: production
+      distribution: store
+
+  ios_build:
+    name: Native build
+    needs: [ios_get_build]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    type: build
+    environment: production
+    params:
+      platform: ios
+      profile: production
+
+  ios_testflight:
+    name: TestFlight (external beta)
+    needs: [ios_build]
+    type: testflight
+    environment: production
+    params:
+      build_id: ${{ needs.ios_build.outputs.build_id }}
+      profile: production
+      external_groups: ['Beta']
+
+  ios_update:
+    name: OTA update
+    needs: [ios_get_build]
+    if: ${{ needs.ios_get_build.outputs.build_id }}
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - run: npx eas-cli@latest update --channel production --platform ios --environment production --auto --non-interactive
+      - uses: eas/posthog_upload_sourcemaps
+        with:
+          directory: dist
