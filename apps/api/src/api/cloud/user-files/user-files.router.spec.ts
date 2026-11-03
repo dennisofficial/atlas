@@ -2,7 +2,13 @@ import { createHash } from 'node:crypto'
 import type { INestApplication } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
-import { buildSessionTrpcApp, dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
+import {
+  buildSessionTrpcApp,
+  dataOf,
+  errorMessageOf,
+  trpcMutation,
+  trpcQuery,
+} from '../session-trpc-test-app'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { UserFilesRouter } from './user-files.router'
 import { UserFilesService } from './user-files.service'
@@ -41,24 +47,24 @@ describe('UserFilesRouter', () => {
 
   it('puts, lists, gets and removes a nested path for the session user', async () => {
     const written = await put('session-a', {
-      tree: 'skills',
+      tree: 'instructions',
       path: 'review/SKILL.md',
       ...fileOf('one'),
     }).expect(200)
     expect(dataOf(written.body)).toEqual({ revision: 1 })
 
-    const listed = await list('session-a', { tree: 'skills' }).expect(200)
+    const listed = await list('session-a', { tree: 'instructions' }).expect(200)
     expect(dataOf(listed.body)).toMatchObject({
       files: [{ path: 'review/SKILL.md', revision: 1, tombstonedAt: null }],
     })
-    const newer = await list('session-a', { tree: 'skills', sinceRevision: 1 }).expect(200)
+    const newer = await list('session-a', { tree: 'instructions', sinceRevision: 1 }).expect(200)
     expect(dataOf(newer.body)).toEqual({ files: [] })
 
     const got = await trpcMutation({
       app,
       path: 'userFiles.get',
       token: 'session-a',
-      input: { tree: 'skills', paths: ['review/SKILL.md'] },
+      input: { tree: 'instructions', paths: ['review/SKILL.md'] },
     }).expect(200)
     expect(dataOf(got.body)).toMatchObject({ files: [{ content: fileOf('one').content }] })
 
@@ -66,24 +72,58 @@ describe('UserFilesRouter', () => {
       app,
       path: 'userFiles.remove',
       token: 'session-a',
-      input: { tree: 'skills', path: 'review/SKILL.md', baseRevision: 1 },
+      input: { tree: 'instructions', path: 'review/SKILL.md', baseRevision: 1 },
     }).expect(200)
     expect(dataOf(removed.body)).toEqual({ revision: 2 })
   })
 
   it('scopes every call to the authenticated user, never a client-supplied one', async () => {
     await put('session-a', {
-      tree: 'skills',
+      tree: 'instructions',
       path: 'a.md',
       userId: 'user-b',
       ...fileOf('a'),
     }).expect(200)
 
-    expect(dataOf((await list('session-b', { tree: 'skills' }).expect(200)).body)).toEqual({
+    expect(dataOf((await list('session-b', { tree: 'instructions' }).expect(200)).body)).toEqual({
       files: [],
     })
-    expect(dataOf((await list('session-a', { tree: 'skills' }).expect(200)).body)).toMatchObject({
+    expect(
+      dataOf((await list('session-a', { tree: 'instructions' }).expect(200)).body),
+    ).toMatchObject({
       files: [{ path: 'a.md' }],
+    })
+  })
+
+  describe('the skills tree cutoff', () => {
+    it('list and get return empty for tree=skills, so a pull applies and deletes nothing', async () => {
+      const listed = await list('session-a', { tree: 'skills' }).expect(200)
+      expect(dataOf(listed.body)).toEqual({ files: [] })
+
+      const got = await trpcMutation({
+        app,
+        path: 'userFiles.get',
+        token: 'session-a',
+        input: { tree: 'skills', paths: ['review/SKILL.md'] },
+      }).expect(200)
+      expect(dataOf(got.body)).toEqual({ files: [] })
+    })
+
+    it('put and remove reject tree=skills with 400, not 409, so the sync client never retries', async () => {
+      const written = await put('session-a', {
+        tree: 'skills',
+        path: 'review/SKILL.md',
+        ...fileOf('one'),
+      })
+      expect(written.status).toBe(400)
+      expect(errorMessageOf(written.body)).toBe('skills moved to the skills API')
+
+      await trpcMutation({
+        app,
+        path: 'userFiles.remove',
+        token: 'session-a',
+        input: { tree: 'skills', path: 'review/SKILL.md', baseRevision: 1 },
+      }).expect(400)
     })
   })
 
@@ -97,10 +137,10 @@ describe('UserFilesRouter', () => {
   })
 
   it('answers 409 when the base revision is stale', async () => {
-    await put('session-a', { tree: 'skills', path: 'c.md', ...fileOf('c') }).expect(200)
+    await put('session-a', { tree: 'instructions', path: 'c.md', ...fileOf('c') }).expect(200)
 
     await put('session-a', {
-      tree: 'skills',
+      tree: 'instructions',
       path: 'c.md',
       baseRevision: 0,
       ...fileOf('d'),
@@ -109,19 +149,19 @@ describe('UserFilesRouter', () => {
 
   it('validates the input', async () => {
     await list('session-a', { tree: 'nope' }).expect(400)
-    await list('session-a', { tree: 'skills', sinceRevision: -1 }).expect(400)
+    await list('session-a', { tree: 'instructions', sinceRevision: -1 }).expect(400)
     await trpcMutation({
       app,
       path: 'userFiles.get',
       token: 'session-a',
-      input: { tree: 'skills', paths: [] },
+      input: { tree: 'instructions', paths: [] },
     }).expect(400)
-    await put('session-a', { tree: 'skills', path: '../x', ...fileOf('x') }).expect(400)
+    await put('session-a', { tree: 'instructions', path: '../x', ...fileOf('x') }).expect(400)
     await trpcMutation({
       app,
       path: 'userFiles.remove',
       token: 'session-a',
-      input: { tree: 'skills', path: 'x' },
+      input: { tree: 'instructions', path: 'x' },
     }).expect(400)
   })
 })

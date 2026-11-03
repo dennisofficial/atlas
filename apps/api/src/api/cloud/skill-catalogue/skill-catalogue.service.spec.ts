@@ -1,10 +1,9 @@
-import { createHash } from 'node:crypto'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { ERepoTreeEntryKind, ESkillCatalogueOrigin } from '@dltech/atlas-wire'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
+import { db } from '@dltech/atlas-db'
 import type { GithubRepoReads } from '../github/github-repo-reads'
 import type { ProjectsService } from '../projects/projects.service'
-import { UserFilesService } from '../user-files/user-files.service'
 import { SkillCatalogueService } from './skill-catalogue.service'
 
 const USER = 'user-a'
@@ -13,28 +12,28 @@ const skillText = (args: { name: string; description: string; extra?: string }) 
 
 describe('SkillCatalogueService', () => {
   const database = useTestDatabase()
-  let files: UserFilesService
   let blobs: Record<string, string>
   let treeSha: string
   let workspace: { repo: string | null; baseBranch: string | null; githubToken: string | null }
   let reads: { listTreeSnapshot: ReturnType<typeof vi.fn>; readBlob: ReturnType<typeof vi.fn> }
   let service: SkillCatalogueService
 
-  const put = async (args: { path: string; text: string }) => {
+  const put = async (args: { name: string; text: string }) => {
+    const skill = await db.orm.public.Skill.create({ userId: USER, name: args.name })
     const bytes = new TextEncoder().encode(args.text)
-    await files.put({
-      userId: USER,
-      tree: 'skills',
-      path: args.path,
-      content: Buffer.from(bytes).toString('base64'),
-      contentHash: createHash('sha256').update(bytes).digest('hex'),
-      baseRevision: 0,
+    await db.orm.public.SkillFile.create({
+      skillId: skill.id,
+      path: 'SKILL.md',
+      revision: 1,
+      contentHash: '',
+      content: bytes,
+      isText: true,
+      size: bytes.byteLength,
     })
   }
 
   beforeEach(async () => {
     await seedUser({ db: database().db, id: USER })
-    files = new UserFilesService()
     blobs = {
       s1: skillText({ name: 'deploy', description: 'repo deploy' }),
       s2: skillText({ name: 'commit', description: 'repo commit' }),
@@ -55,7 +54,6 @@ describe('SkillCatalogueService', () => {
     }
     const projects = { workspace: vi.fn(async () => workspace) }
     service = new SkillCatalogueService(
-      files,
       projects as unknown as ProjectsService,
       reads as unknown as GithubRepoReads,
     )
@@ -68,23 +66,21 @@ describe('SkillCatalogueService', () => {
     })
   })
 
-  it('lists user skills, skipping tombstoned, invalid and non-invocable ones', async () => {
-    await put({ path: 'mine/SKILL.md', text: skillText({ name: 'mine', description: 'm' }) })
-    await put({ path: 'gone/SKILL.md', text: skillText({ name: 'gone', description: 'g' }) })
-    await put({ path: 'empty/SKILL.md', text: '' })
+  it('lists user skills from the Skill tables, skipping invalid and non-invocable ones', async () => {
+    await put({ name: 'mine', text: skillText({ name: 'mine', description: 'm' }) })
+    await put({ name: 'empty', text: '' })
     await put({
-      path: 'hidden/SKILL.md',
+      name: 'hidden',
       text: skillText({ name: 'hidden', description: 'h', extra: 'user-invocable: false\n' }),
     })
-    await files.remove({ userId: USER, tree: 'skills', path: 'gone/SKILL.md', baseRevision: 1 })
 
     const names = (await service.list({ userId: USER })).map((skill) => skill.name)
     expect(names).toContain('mine')
-    for (const absent of ['gone', 'empty', 'hidden']) expect(names).not.toContain(absent)
+    for (const absent of ['empty', 'hidden']) expect(names).not.toContain(absent)
   })
 
   it('lets a user skill override a built-in and a project skill override both', async () => {
-    await put({ path: 'commit/SKILL.md', text: skillText({ name: 'commit', description: 'user' }) })
+    await put({ name: 'commit', text: skillText({ name: 'commit', description: 'user' }) })
     const withUser = await service.list({ userId: USER })
     expect(withUser.filter((skill) => skill.name === 'commit')).toEqual([
       { name: 'commit', summary: 'user', origin: ESkillCatalogueOrigin.User },

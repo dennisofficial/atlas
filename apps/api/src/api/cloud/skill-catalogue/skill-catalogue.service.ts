@@ -1,16 +1,16 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
+import { db } from '@dltech/atlas-db'
 import { BUILT_IN_SKILL_SPECS, parseSkillSpec } from '@dltech/atlas-harness/skill-specs'
 import { ERepoTreeEntryKind, type SkillCatalogueEntry } from '@dltech/atlas-wire'
 import { Injectable } from '@nestjs/common'
 import { EGithubCallSource } from '../github/github-call-log'
 import { GithubRepoReads } from '../github/github-repo-reads'
 import { ProjectsService } from '../projects/projects.service'
-import { UserFilesService } from '../user-files/user-files.service'
 import { RepoSkillCache } from './repo-skill-cache'
 import { mergeSkills, originated, type OriginatedSkill } from './skill-catalogue.merge'
-import { folderSkillOf, repoSkillRoots, userSkillOf } from './skill-catalogue.paths'
+import { folderSkillOf, repoSkillRoots } from './skill-catalogue.paths'
 
-const SKILLS_TREE = 'skills'
+const SKILL_ENTRY = 'SKILL.md'
 
 const entryOf = (args: { text: string; fallbackName: string }): SkillCatalogueEntry | undefined => {
   const parsed = parseSkillSpec(args)
@@ -24,7 +24,6 @@ export class SkillCatalogueService {
   private readonly repoCache = new RepoSkillCache()
 
   constructor(
-    private readonly files: UserFilesService,
     private readonly projects: ProjectsService,
     private readonly reads: GithubRepoReads,
   ) {}
@@ -53,22 +52,19 @@ export class SkillCatalogueService {
   }
 
   private async userSkills(userId: string): Promise<OriginatedSkill[]> {
-    const listed = await this.files.list({ userId, tree: SKILLS_TREE })
-    const found = listed.flatMap((file) => {
-      const skill = file.tombstonedAt === null ? userSkillOf(file.path) : undefined
-      return skill === undefined ? [] : [skill]
-    })
-    if (found.length === 0) return []
-    const contents = await this.files.getMany({
-      userId,
-      tree: SKILLS_TREE,
-      paths: found.map((skill) => skill.path),
-    })
-    const names = new Map(found.map((skill) => [skill.path, skill.fallbackName]))
-    return contents.flatMap((file) => {
-      if (file.content === null || file.tombstonedAt !== null) return []
-      const text = Buffer.from(file.content, 'base64').toString('utf8')
-      const entry = entryOf({ text, fallbackName: names.get(file.path) ?? '' })
+    const skills = await db.orm.public.Skill.where({ userId })
+      .orderBy((skill) => skill.name.asc())
+      .all()
+    if (skills.length === 0) return []
+    const entries = await db.orm.public.SkillFile.where((file) =>
+      file.skillId.in(skills.map((skill) => skill.id)),
+    )
+      .where((file) => file.path.ilike(SKILL_ENTRY))
+      .all()
+    const nameOf = new Map(skills.map((skill) => [skill.id, skill.name]))
+    return entries.flatMap((file) => {
+      const text = Buffer.from(file.content).toString('utf8')
+      const entry = entryOf({ text, fallbackName: nameOf.get(file.skillId) ?? '' })
       return entry === undefined
         ? []
         : [originated({ origin: EDefinitionOrigin.User, spec: entry })]

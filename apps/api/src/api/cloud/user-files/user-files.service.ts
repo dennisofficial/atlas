@@ -35,6 +35,12 @@ function assertValidTree(tree: string): UserFileTree {
   return known
 }
 
+function assertWritableTree(tree: UserFileTree): void {
+  if (tree === 'skills') {
+    throw new BadRequestException('skills moved to the skills API')
+  }
+}
+
 function assertValidPath(path: string): void {
   if (path.length === 0 || path.length > MAX_PATH_LENGTH) {
     throw new BadRequestException(
@@ -91,6 +97,7 @@ export class UserFilesService {
     sinceRevision?: number | undefined
   }): Promise<UserFileDto[]> {
     const tree = assertValidTree(args.tree)
+    if (tree === 'skills') return []
     const since = args.sinceRevision
     const files = db.orm.public.UserFile.select(
       'path',
@@ -116,6 +123,7 @@ export class UserFilesService {
     paths: string[]
   }): Promise<UserFileWithContentDto[]> {
     const tree = assertValidTree(args.tree)
+    if (tree === 'skills') return []
     for (const path of args.paths) assertValidPath(path)
     const rows = await db.orm.public.UserFile.where({ userId: args.userId, tree })
       .where((file) => file.path.in(args.paths))
@@ -133,6 +141,7 @@ export class UserFilesService {
     baseRevision: number
   }): Promise<{ revision: number }> {
     const tree = assertValidTree(args.tree)
+    assertWritableTree(tree)
     assertValidPath(args.path)
     const content = decodeContent({ content: args.content, contentHash: args.contentHash })
     const contentHash = args.contentHash.toLowerCase()
@@ -161,6 +170,7 @@ export class UserFilesService {
     baseRevision: number
   }): Promise<{ revision: number }> {
     const tree = assertValidTree(args.tree)
+    assertWritableTree(tree)
     assertValidPath(args.path)
     const key = { userId: args.userId, tree, path: args.path }
 
