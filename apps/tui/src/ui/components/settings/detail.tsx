@@ -1,6 +1,12 @@
 import { homedir } from 'node:os'
 
-import { EDefinitionOrigin, ESettingKind, optionOf, type ResolvedSetting } from '@dltech/atlas-core'
+import {
+  EDefinitionOrigin,
+  ESettingKind,
+  optionOf,
+  type ResolvedSetting,
+  type SettingsResolution,
+} from '@dltech/atlas-core'
 import React from 'react'
 
 import { collapseHome, tailOfPath } from '../../paths'
@@ -48,11 +54,14 @@ function destinationLines(setting: SettingsRow): string[] | undefined {
   return savesToProject(setting) ? [PROJECT_SETTINGS_UNAVAILABLE] : undefined
 }
 
-function noteOf(setting: ResolvedSetting): { label: string; note: string } | undefined {
-  const { definition, value } = setting
+function noteOf(args: {
+  setting: ResolvedSetting
+  resolution: SettingsResolution
+}): { label: string; note: string } | undefined {
+  const { definition, value } = args.setting
   if (definition.kind !== ESettingKind.Choice || typeof value !== 'string') return undefined
 
-  const chosen = optionOf({ definition, value })
+  const chosen = optionOf({ definition, value, resolution: args.resolution })
   if (chosen?.note === undefined) return undefined
   return { label: chosen.label, note: chosen.note }
 }
@@ -67,10 +76,14 @@ export function SettingsDetail(props: {
   width: number
   setting: SettingsRow | undefined
   cwd: string
+  resolution: SettingsResolution
 }): React.ReactNode {
   const cells = detailCells(props.width)
   const where = collapseHome({ cwd: props.cwd, home: homedir() })
-  const note = props.setting === undefined ? undefined : noteOf(props.setting)
+  const note =
+    props.setting === undefined
+      ? undefined
+      : noteOf({ setting: props.setting, resolution: props.resolution })
   const source = props.setting === undefined ? undefined : sourceOf(props.setting)
   const warning = props.setting === undefined ? undefined : overriddenWarning(props.setting)
   const destination = props.setting === undefined ? undefined : destinationLines(props.setting)

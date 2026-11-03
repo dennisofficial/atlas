@@ -259,6 +259,7 @@ function DerivedOverlayStack(props: {
           sidebarWidth={sidebarWidth}
           model={settings.view}
           state={settings.state}
+          resolution={settings.resolution}
           cwd={props.cwd}
           origin={settings.origin}
           appearance={settings.appearance}

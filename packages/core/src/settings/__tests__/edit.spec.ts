@@ -1,7 +1,55 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ESettingPage, type ChoiceDefinition, type SettingDefinition } from '../definition'
 import { activateSetting, adjustSetting } from '../edit'
+import { ESettingsLayer } from '../layers'
+import { resolveSettings } from '../resolve'
+import { ESettingKind } from '../value'
 import { choice, range, toggle } from './fixture'
+
+const narrowed: ChoiceDefinition = {
+  id: 'demo.narrowed',
+  page: ESettingPage.Models,
+  group: 'Demo',
+  label: 'Demo narrowed',
+  description: 'A choice whose options depend on the resolution.',
+  kind: ESettingKind.Choice,
+  fallback: 'medium',
+  options: [
+    { value: 'off', label: 'off' },
+    { value: 'low', label: 'low' },
+    { value: 'medium', label: 'medium' },
+    { value: 'high', label: 'high' },
+    { value: 'max', label: 'max' },
+  ],
+  optionsFor: ({ resolution }) => {
+    const held = resolution.settings.get('demo.narrowable')
+    if (held?.value !== true) return narrowed.options
+    return narrowed.options.filter((option) => option.value === 'off' || option.value === 'low')
+  },
+}
+
+const narrowable: SettingDefinition = {
+  id: 'demo.narrowable',
+  page: ESettingPage.Models,
+  group: 'Demo',
+  label: 'Demo narrowable',
+  description: 'The toggle the narrowed row reads.',
+  kind: ESettingKind.Toggle,
+  fallback: false,
+}
+
+const narrowedResolution = (narrow: boolean) =>
+  resolveSettings({
+    definitions: [narrowed, narrowable],
+    layers: [
+      {
+        layer: ESettingsLayer.User,
+        origin: 'spec',
+        values: { 'demo.narrowable': narrow },
+      },
+    ],
+  })
 
 describe('activateSetting', () => {
   it('flips a toggle', () => {
@@ -23,6 +71,30 @@ describe('activateSetting', () => {
     expect(activateSetting({ definition: range, current: 'forty' })).toBe(45)
     expect(activateSetting({ definition: choice, current: 12 })).toBe('never')
   })
+
+  it('cycles only the options the resolution narrows the choice to', () => {
+    const resolution = narrowedResolution(true)
+    expect(activateSetting({ definition: narrowed, current: 'off', resolution })).toBe('low')
+    expect(activateSetting({ definition: narrowed, current: 'low', resolution })).toBe('off')
+  })
+
+  it('cycles the full options when the resolution leaves the choice wide', () => {
+    const resolution = narrowedResolution(false)
+    expect(activateSetting({ definition: narrowed, current: 'low', resolution })).toBe('medium')
+    expect(activateSetting({ definition: narrowed, current: 'max', resolution })).toBe('off')
+  })
+
+  it('moves a held value outside the narrowed options onto an offered one', () => {
+    const resolution = narrowedResolution(true)
+    expect(activateSetting({ definition: narrowed, current: 'max', resolution })).toBe('low')
+    expect(adjustSetting({ definition: narrowed, current: 'max', delta: -1, resolution })).toBe(
+      'off',
+    )
+  })
+
+  it('keeps the static options when no resolution is given', () => {
+    expect(activateSetting({ definition: narrowed, current: 'low' })).toBe('medium')
+  })
 })
 
 describe('adjustSetting', () => {
@@ -42,5 +114,21 @@ describe('adjustSetting', () => {
     expect(adjustSetting({ definition: toggle, current: true, delta: -1 })).toBe(false)
     expect(adjustSetting({ definition: toggle, current: false, delta: 1 })).toBe(true)
     expect(adjustSetting({ definition: toggle, current: false, delta: 0 })).toBe(false)
+  })
+
+  it('stops at the ends of the narrowed options', () => {
+    const resolution = narrowedResolution(true)
+    expect(adjustSetting({ definition: narrowed, current: 'off', delta: -1, resolution })).toBe(
+      'off',
+    )
+    expect(adjustSetting({ definition: narrowed, current: 'off', delta: 1, resolution })).toBe(
+      'low',
+    )
+    expect(adjustSetting({ definition: narrowed, current: 'max', delta: 1, resolution })).toBe(
+      'low',
+    )
+    expect(adjustSetting({ definition: narrowed, current: 'low', delta: 1, resolution })).toBe(
+      'low',
+    )
   })
 })

@@ -1,4 +1,4 @@
-import type { ResolvedSetting } from '@dltech/atlas-core'
+import type { ResolvedSetting, SettingsResolution } from '@dltech/atlas-core'
 import React from 'react'
 
 import type { Appearance } from '../../appearance'
@@ -17,6 +17,7 @@ export function SettingsBand(props: {
   width: number
   setting: ResolvedSetting | undefined
   appearance: Appearance
+  resolution: SettingsResolution
 }): React.ReactNode {
   const setting = props.setting
   if (setting === undefined) return null
@@ -40,6 +41,7 @@ export function SettingsBand(props: {
         width: Math.max(0, props.width - BAND_CHROME),
         appearance: props.appearance,
         setting,
+        resolution: props.resolution,
       })}
     </box>
   )
