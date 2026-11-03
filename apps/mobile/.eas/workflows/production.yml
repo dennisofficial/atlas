@@ -42,14 +42,15 @@ jobs:
       platform: ios
       profile: production
 
-  ios_submit:
-    name: Submit to TestFlight
+  ios_testflight:
+    name: TestFlight (external beta)
     needs: [ios_build]
-    type: submit
+    type: testflight
     environment: production
     params:
       build_id: ${{ needs.ios_build.outputs.build_id }}
       profile: production
+      external_groups: ['Beta']
 
   ios_update:
     name: OTA update
