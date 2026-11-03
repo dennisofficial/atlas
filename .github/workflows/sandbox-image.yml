@@ -100,3 +100,17 @@ jobs:
           tags: ${{ env.VCR_IMAGE }}:latest
           outputs: type=image,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+
+      - uses: oven-sh/setup-bun@v2.2.0
+        if: vars.VERCEL_VCR_ENABLED == 'true'
+
+      # After the push, never before: the fresh image now holds `latest`, and every image a
+      # sandbox (running or stopped) still references is spared so resumes keep working.
+      - name: prune VCR images to latest plus in-use
+        if: vars.VERCEL_VCR_ENABLED == 'true'
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: team_GR4aCzLIY5D3YYWgITz3Tere
+          VERCEL_PROJECT_ID: prj_sYzDU4qVdx0jaSuYprH3QaZb1vIF
+        run: bun apps/serve/scripts/prune-vcr-images.ts
