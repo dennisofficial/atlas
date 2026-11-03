@@ -17,6 +17,7 @@ import { useSkillFiles, type SkillScopeTarget as Target } from '../data/shared/u
 import { LibraryConfirmDialog } from './library-confirm-dialog'
 import { SkillBinaryCard } from './skill-binary-card'
 import { SkillConflict } from './skill-conflict'
+import { defaultSkillPath } from './skill-default-path'
 import { SkillDetailHeader } from './skill-detail-header'
 import { SkillFilePromptDialog, type SkillFilePrompt } from './skill-file-dialogs'
 import { SkillFileTree, type TreeAction } from './skill-file-tree'
@@ -82,7 +83,7 @@ function SkillDetail({
   const [deleteSkillOpen, setDeleteSkillOpen] = useState(false)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
 
-  const currentPath = selectedPath ?? metas[0]?.path ?? 'SKILL.md'
+  const currentPath = selectedPath ?? defaultSkillPath({ metas }) ?? 'SKILL.md'
   const file = metas.find((candidate) => candidate.path === currentPath) ?? metas[0]
   const isText = file?.isText === true
   const tree = buildSkillTree(metas.map((candidate) => candidate.path))

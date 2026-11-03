@@ -3,15 +3,18 @@
 // fires when the export differs from the input, so the result is read from the markdown$ cell.
 // https://github.com/mdx-editor/editor
 import * as mdxeditor from '@mdxeditor/editor'
-import type { RealmPlugin, ToMarkdownOptions } from '@mdxeditor/editor'
+import { frontmatterPlugin, type RealmPlugin, type ToMarkdownOptions } from '@mdxeditor/editor'
 
 import { MARKDOWN_EXPORT_OPTIONS } from './markdown-editor-config'
 import { createDocumentPlugins } from './markdown-editor-document'
+import { quoteAmbiguousFrontmatter } from './markdown-editor-frontmatter'
+import { markdownLiteralHtml } from './markdown-editor-literal-html'
 
 type CorePluginParams = {
   initialMarkdown: string
   trim: boolean
   toMarkdownOptions: ToMarkdownOptions
+  suppressHtmlProcessing: boolean
   onChange: (markdown: string) => void
   onError: (payload: { error: string; source: string }) => void
 }
@@ -32,15 +35,18 @@ export async function roundTripMarkdown(markdown: string): Promise<RoundTrip> {
   const corePlugin = resolveCorePlugin()
   const plugins = [
     corePlugin({
-      initialMarkdown: markdown,
+      initialMarkdown: quoteAmbiguousFrontmatter(markdown),
       trim: true,
       toMarkdownOptions: MARKDOWN_EXPORT_OPTIONS,
+      suppressHtmlProcessing: true,
       onChange: () => {},
       onError: (payload) => {
         error = payload.error
       },
     }),
     ...createDocumentPlugins(),
+    frontmatterPlugin(),
+    markdownLiteralHtml(),
   ]
   const realm = new mdxeditor.Realm()
   for (const plugin of plugins) plugin.init?.(realm)

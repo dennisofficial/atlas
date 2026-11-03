@@ -29,18 +29,24 @@ import {
 } from '@dltech/atlas-ui/components/table'
 
 import { QueryPage } from '../data/personal/query-boundary'
-import { relativeTimeOf } from '../data/shared/relative-time'
 import { runAction } from '../data/shared/run-action'
 import { useSkills, type SkillScopeTarget } from '../data/shared/use-skills'
 import { LibraryConfirmDialog } from './library-confirm-dialog'
 import { MemorySelectionBar } from './memory-selection-bar'
 import { NewSkillDialog } from './new-skill-dialog'
 import { SKILL_PRECEDENCE_COPY, formatBytes, formatSkillDate } from './skill-format'
-import { ESkillSort, orderSkills } from './skill-list-order'
+import {
+  cycleSkillSort,
+  ESkillSortKey,
+  ESortDirection,
+  orderSkills,
+  type SkillSort,
+} from './skill-list-order'
+import { SortableHead, UsageCell } from './skills-table-cells'
 import { SettingsPage } from '../settings-layout'
 import { SkillsTableSkeleton } from '../skeletons/skill-skeletons'
 
-export { ESkillSort, orderSkills }
+export { ESkillSortKey, ESortDirection, orderSkills }
 
 function matches({ skill, query }: { skill: SkillSummary; query: string }) {
   const needle = query.trim().toLowerCase()
@@ -48,22 +54,6 @@ function matches({ skill, query }: { skill: SkillSummary; query: string }) {
     needle.length === 0 ||
     skill.name.toLowerCase().includes(needle) ||
     skill.description.toLowerCase().includes(needle)
-  )
-}
-
-function UsageCell({ skill, now }: { skill: SkillSummary; now: number }) {
-  if (skill.usage.usedCount30d === 0) {
-    return <span className="text-xs text-muted-foreground">Never used</span>
-  }
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="font-mono text-xs tabular-nums">Used {skill.usage.usedCount30d}× · 30d</span>
-      {skill.usage.lastUsedAt === null ? null : (
-        <span className="text-xs text-muted-foreground">
-          last used {relativeTimeOf({ iso: skill.usage.lastUsedAt, now })}
-        </span>
-      )}
-    </div>
   )
 }
 
@@ -101,7 +91,7 @@ export function SkillsListPage({
   )
 }
 
-function SkillsTable({
+export function SkillsTable({
   skills,
   now,
   title,
@@ -120,7 +110,7 @@ function SkillsTable({
 }) {
   const router = useRouter()
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState<ESkillSort>(ESkillSort.Name)
+  const [sort, setSort] = useState<SkillSort>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -137,8 +127,7 @@ function SkillsTable({
         ? [...current.filter((value) => value !== name), name]
         : current.filter((value) => value !== name),
     )
-  const handleToggleUsageSort = () =>
-    setSort((current) => (current === ESkillSort.Usage ? ESkillSort.Name : ESkillSort.Usage))
+  const handleSort = (key: ESkillSortKey) => setSort((current) => cycleSkillSort({ current, key }))
   const handleCreate = async (name: string): Promise<boolean> => {
     setBusy(true)
     const created = await runAction({ work: () => createSkill(name) })
@@ -207,17 +196,19 @@ function SkillsTable({
                 <TableHead className="w-10">
                   <span className="sr-only">Select</span>
                 </TableHead>
-                <TableHead>Skill</TableHead>
-                <TableHead className="w-28">
-                  <button
-                    type="button"
-                    onClick={handleToggleUsageSort}
-                    aria-pressed={sort === ESkillSort.Usage}
-                    className="outline-none hover:text-foreground"
-                  >
-                    Usage{sort === ESkillSort.Usage ? ' ↑' : ''}
-                  </button>
-                </TableHead>
+                <SortableHead
+                  label="Skill"
+                  sortKey={ESkillSortKey.Name}
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                <SortableHead
+                  label="Usage"
+                  sortKey={ESkillSortKey.Usage}
+                  sort={sort}
+                  onSort={handleSort}
+                  className="w-28"
+                />
                 <TableHead className="w-16">Files</TableHead>
                 <TableHead className="w-20">Size</TableHead>
                 <TableHead className="w-24">Updated</TableHead>
@@ -225,8 +216,12 @@ function SkillsTable({
             </TableHeader>
             <TableBody>
               {visible.map((skill) => (
-                <TableRow key={skill.name}>
-                  <TableCell>
+                <TableRow
+                  key={skill.name}
+                  className="cursor-pointer"
+                  onClick={() => router.push(detailHref(skill.name))}
+                >
+                  <TableCell onClick={(event) => event.stopPropagation()}>
                     <Checkbox
                       aria-label={`Select ${skill.name}`}
                       checked={liveSelected.includes(skill.name)}
@@ -239,6 +234,7 @@ function SkillsTable({
                     <div className="flex min-w-0 flex-col gap-0.5">
                       <Link
                         href={detailHref(skill.name)}
+                        onClick={(event) => event.stopPropagation()}
                         className="w-fit max-w-full truncate font-mono text-xs font-medium hover:underline"
                       >
                         {skill.name}
