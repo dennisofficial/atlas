@@ -61,9 +61,9 @@ const ROWS: readonly PlanRow[] = [
     selected: true,
   }),
   row({
-    id: 'mcp',
-    kind: EPublishKind.Mcp,
-    label: 'mcp.json',
+    id: 'skill:.claude/delta',
+    kind: EPublishKind.Skill,
+    label: '.claude/delta',
     bytes: 400,
     status: EPublishStatus.Unchanged,
     selected: false,
@@ -99,7 +99,7 @@ describe('push picker', () => {
       expect(frame).toContain('.agents/beta')
       expect(frame).toContain('ATLAS.md')
       expect(frame).not.toContain('.claude/gamma')
-      expect(frame).not.toContain('mcp.json')
+      expect(frame).not.toContain('.claude/delta')
       expect(frame).toContain('2 unchanged carried over')
       expect(frame).toContain('3 selected')
     } finally {
@@ -126,7 +126,7 @@ describe('push picker', () => {
       await landed(setup)
       const frame = setup.captureCharFrame()
       expect(frame).toContain('.claude/gamma')
-      expect(frame).toContain('mcp.json')
+      expect(frame).toContain('.claude/delta')
       expect(frame).toContain('showing all 5 items')
     } finally {
       await teardown(setup)

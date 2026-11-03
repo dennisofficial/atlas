@@ -4,6 +4,10 @@ import { okResultSchema } from './result'
 
 export const statOpSchema = z.object({ op: z.literal('stat'), path: z.string().min(1) }).strict()
 
+export const readLinkOpSchema = z
+  .object({ op: z.literal('readLink'), path: z.string().min(1) })
+  .strict()
+
 export const readFileOpSchema = z
   .object({ op: z.literal('readFile'), path: z.string().min(1) })
   .strict()
@@ -91,6 +95,7 @@ export const grepMatchSchema = z.object({
 
 export const filesOpSchemas = [
   statOpSchema,
+  readLinkOpSchema,
   readFileOpSchema,
   readBytesOpSchema,
   readTextForEditOpSchema,
@@ -105,6 +110,7 @@ export const filesOpSchemas = [
 
 export const filesResultSchemas = [
   okResultSchema({ op: 'stat', value: statResultSchema }),
+  okResultSchema({ op: 'readLink', value: z.string().nullable() }),
   okResultSchema({ op: 'readFile', value: z.string() }),
   okResultSchema({ op: 'readBytes', value: z.base64() }),
   okResultSchema({ op: 'readTextForEdit', value: readTextForEditResultSchema }),
@@ -120,6 +126,7 @@ export const filesResultSchemas = [
 export const filesEventSchemas = [] as const
 
 export type StatOp = z.infer<typeof statOpSchema>
+export type ReadLinkOp = z.infer<typeof readLinkOpSchema>
 export type ReadFileOp = z.infer<typeof readFileOpSchema>
 export type ReadBytesOp = z.infer<typeof readBytesOpSchema>
 export type ReadTextForEditOp = z.infer<typeof readTextForEditOpSchema>

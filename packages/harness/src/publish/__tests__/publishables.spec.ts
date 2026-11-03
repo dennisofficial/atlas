@@ -41,16 +41,18 @@ describe('scanPublishables', () => {
     expect(alpha?.bytes).toBe('alpha'.length + 'notes'.length)
   })
 
-  it('offers only ATLAS.md and mcp.json beside skills, never memory', async () => {
+  it('offers only ATLAS.md beside skills, never mcp.json or memory', async () => {
     fixture = await makeFixture(LAYOUT)
     const items = await scanPublishables(fixture)
 
     const instructions = items.find((item) => item.kind === EPublishKind.Instructions)
     expect(instructions?.id).toBe('instructions:ATLAS.md')
     expect(instructions?.files[0]?.archiveKey).toBe('user-layer/instructions/.atlas/ATLAS.md')
-    const mcp = items.find((item) => item.kind === EPublishKind.Mcp)
-    expect(mcp?.id).toBe('mcp')
-    expect(mcp?.files[0]?.archiveKey).toBe('.atlas/mcp.json')
+    expect(
+      items
+        .flatMap((item) => item.files.map((file) => file.archiveKey))
+        .some((key) => key.endsWith('mcp.json')),
+    ).toBe(false)
     expect(
       items
         .flatMap((item) => item.files.map((file) => file.archiveKey))
@@ -58,7 +60,7 @@ describe('scanPublishables', () => {
     ).toBe(false)
   })
 
-  it('omits instructions and mcp when the files are absent', async () => {
+  it('omits instructions when the file is absent', async () => {
     fixture = await makeFixture({ 'home/.agents/skills/only/SKILL.md': 'x' })
     const items = await scanPublishables(fixture)
     expect(items.map((item) => item.kind)).toEqual([EPublishKind.Skill])

@@ -18,11 +18,11 @@ const REWRITTEN_FIXTURES: Record<string, string> = {
 }
 
 describe('untouched fixtures', () => {
-  it('reports the global instructions as unparseable because of <placeholder> text', async () => {
+  it('keeps the global instructions parseable despite <placeholder> text', async () => {
     const result = await roundTripMarkdown(GLOBAL_INSTRUCTIONS)
 
-    expect(result.error).toContain('<description>')
-    expect(result.markdown).toBe(GLOBAL_INSTRUCTIONS.trim())
+    expect(result.error).toBeNull()
+    expect(result.markdown).toContain('\\<type>(\\<scope>): \\<description>')
   })
 
   for (const memory of MEMORIES) {
@@ -100,7 +100,7 @@ describe('constructs the editor rewrites', () => {
     'literal asterisks are escaped': ['2 * 3 * 4', '2 \\* 3 \\* 4'],
     'a leading underscore is escaped': ['snake_case and _lead', 'snake_case and \\_lead'],
     'an opening bracket is escaped': ['a [not a link] b', 'a \\[not a link] b'],
-    'html comments are dropped': ['<!-- note -->\n\ntext', 'text'],
+    'html comments are kept literal': ['<!-- note -->\n\ntext', '\\<!-- note -->\n\ntext'],
     'table separators are shortened': [
       '| a | b |\n|---|---|\n| 1 | 2 |',
       '| a | b |\n| - | - |\n| 1 | 2 |',
@@ -110,9 +110,12 @@ describe('constructs the editor rewrites', () => {
       '| a  |  b |\n| :- | -: |\n| 1  |  2 |',
     ],
     'a numbered sentence start becomes a list': ['2024. a year', '1. a year'],
-    'frontmatter dashes become a rule and heading': [
-      '---\na: 1\n---\n\ntext',
-      '---\n\n## a: 1\n\ntext',
+    'frontmatter is preserved': ['---\na: 1\n---\n\ntext', '---\na: 1\n---\n\ntext'],
+    'a leading angle bracket is escaped': ['use <slug> here', 'use \\<slug> here'],
+    'an inline html tag is kept literal': ['a<br>b', 'a\\<br>b'],
+    'an autolink becomes a link': [
+      '<https://example.com>',
+      '[https://example.com](https://example.com)',
     ],
   }
 
@@ -126,11 +129,32 @@ describe('constructs the editor rewrites', () => {
   }
 })
 
+describe('skill files parse and save without edits', () => {
+  const skillFiles: Record<string, [input: string, output: string]> = {
+    'percent threshold': ['keep it under <5% of tokens', 'keep it under \\<5% of tokens'],
+    'placeholder in emphasis': ['use *<model-id>* here', 'use *\\<model-id>* here'],
+    'template braces': ['use {name} and {{handlebars}} here', 'use {name} and {{handlebars}} here'],
+    'frontmatter with ambiguous value': [
+      '---\nname: x\ndescription: a: b # c\n---\n\nuse <tag> and {x}\n',
+      '---\nname: x\ndescription: "a: b # c"\n---\n\nuse \\<tag> and {x}',
+    ],
+  }
+
+  for (const [name, [input, output]] of Object.entries(skillFiles)) {
+    it(`${name} parses and is stable on a second open`, async () => {
+      const first = await roundTripMarkdown(input)
+      expect(first.error).toBeNull()
+      expect(first.markdown).toBe(output)
+
+      const second = await roundTripMarkdown(first.markdown)
+      expect(second.error).toBeNull()
+      expect(second.markdown).toBe(first.markdown)
+    })
+  }
+})
+
 describe('constructs the editor cannot parse', () => {
   const unparseable: Record<string, string> = {
-    'angle-bracket placeholder': 'use <slug> here',
-    'inline html tag': 'a<br>b',
-    'autolink in angle brackets': '<https://example.com>',
     'reference-style link': '[a][1]\n\n[1]: https://x.com',
     image: '![alt](https://x/y.png)',
   }

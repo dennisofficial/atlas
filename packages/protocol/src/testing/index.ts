@@ -4,6 +4,7 @@ export {
   inMemoryDaemonToken,
   type InMemoryDaemon,
   type InMemoryDaemonOptions,
+  type InMemoryDaemonSocket,
 } from './fake-daemon'
 export { fakeDaemonGroups } from './fake'
 export { MemoryFileSystem } from './memory-files'

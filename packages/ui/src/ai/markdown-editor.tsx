@@ -21,6 +21,7 @@ import { EditorFieldContext, markdownEditorBridge } from './internal/markdown-ed
 import { createTranslation, MARKDOWN_EXPORT_OPTIONS } from './internal/markdown-editor-config'
 import { createDocumentPlugins } from './internal/markdown-editor-document'
 import { quoteAmbiguousFrontmatter } from './internal/markdown-editor-frontmatter'
+import { markdownLiteralHtml } from './internal/markdown-editor-literal-html'
 import { ATLAS_CODEMIRROR_EXTENSIONS } from './internal/markdown-editor-highlight'
 import { iconComponentFor } from './internal/markdown-editor-icons'
 import { EMarkdownEditorVariant } from './internal/markdown-editor-variant'
@@ -93,6 +94,7 @@ export function MarkdownEditor({
       }),
       ...(readOnly ? [] : [toolbarPlugin({ toolbarContents: () => <MarkdownEditorToolbar /> })]),
       markdownEditorBridge({ viewModeRef }),
+      markdownLiteralHtml(),
     ],
     [readOnly, defaultSourceMode],
   )
@@ -132,6 +134,7 @@ export function MarkdownEditor({
           readOnly={readOnly}
           placeholder={placeholder}
           plugins={plugins}
+          suppressHtmlProcessing
           toMarkdownOptions={MARKDOWN_EXPORT_OPTIONS}
           iconComponentFor={iconComponentFor}
           translation={translation}

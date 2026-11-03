@@ -19,7 +19,7 @@ const POD_TOKENS = {
   'pod-token-c': { threadId: 'thread-pod-c', userId: 'user-c' },
 }
 const SHA = 'a'.repeat(64)
-const MANIFEST = { skills: ['.agents/x'], instructions: ['ATLAS.md'], mcp: true }
+const MANIFEST = { skills: ['.agents/x'], instructions: ['ATLAS.md'] }
 
 const summaryOf = (body: unknown): { version?: unknown } => {
   const data = dataOf(body)

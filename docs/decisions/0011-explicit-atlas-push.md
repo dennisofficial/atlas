@@ -11,10 +11,10 @@ Locally that is tens of megabytes across thousands of files, most of which a pod
 ## Decision
 
 The user publishes explicitly. `atlas push` (`apps/tui/src/composition/push.ts`,
-`apps/tui/src/composition/push-run.ts`) scans skills, the global `ATLAS.md` and `mcp.json`
+`apps/tui/src/composition/push-run.ts`) scans skills and the global `ATLAS.md`
 (`packages/harness/src/publish/publishables.ts`), shows a picker of new and changed items, packs the selection, uploads it to private Vercel Blob
 through a presigned URL, and commits a new `PublishedBundle` version. Every pod boot downloads the
-current version, checks its SHA-256, and installs only skill, instruction and MCP entries
+current version, checks its SHA-256, and installs only skill and instruction entries. MCP servers are not bundled: they live in the Cloud account and project MCP rows and the repository's own MCP files, so there is no hidden third source
 (`apps/serve/src/published-bundle.ts`).
 
 ## Why

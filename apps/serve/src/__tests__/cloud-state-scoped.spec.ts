@@ -85,7 +85,7 @@ describe('applyCloudState against the scoped config endpoint', () => {
     expect(preset.DATABASE_URL).toBe('from-image')
   })
 
-  it('merges cloud servers into an existing mcp.json, cloud winning by name', async () => {
+  it('replaces a stale mcp.json with exactly the cloud servers', async () => {
     const home = tempHome()
     writeFileSync(
       join(home, 'mcp.json'),
@@ -98,8 +98,18 @@ describe('applyCloudState against the scoped config endpoint', () => {
     )
     await apply({ home, cloud: cloudWith({ config: resolved }) })
     const written = JSON.parse(readFileSync(join(home, 'mcp.json'), 'utf8'))
+    expect(Object.keys(written.mcpServers)).toEqual(['docs'])
     expect(written.mcpServers.docs.transport.url).toBe('https://docs.example.com/mcp')
-    expect(written.mcpServers.local.transport.command).toBe('keep-me')
+  })
+
+  it('empties a stale mcp.json when Cloud holds no servers', async () => {
+    const home = tempHome()
+    writeFileSync(
+      join(home, 'mcp.json'),
+      JSON.stringify({ mcpServers: { paper: { transport: { kind: 'stdio', command: 'gone' } } } }),
+    )
+    await apply({ home, cloud: cloudWith({ config: { ...resolved, mcpServers: [] } }) })
+    expect(JSON.parse(readFileSync(join(home, 'mcp.json'), 'utf8'))).toEqual({ mcpServers: {} })
   })
 
   it('omits the projectId query when there is no project', async () => {
