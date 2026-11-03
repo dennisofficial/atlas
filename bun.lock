@@ -165,6 +165,24 @@
         "vite": "7.3.6",
       },
     },
+    "apps/trigger": {
+      "name": "@dltech/atlas-trigger",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-control": "workspace:*",
+        "@dltech/atlas-db": "workspace:*",
+        "@dltech/atlas-jobs": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
+        "@dotenvx/dotenvx": "^1.71.0",
+        "@trigger.dev/sdk": "4.7.4",
+        "ioredis": "^6.0.0",
+      },
+      "devDependencies": {
+        "@trigger.dev/build": "4.7.4",
+        "@types/bun": "latest",
+        "trigger.dev": "4.7.4",
+      },
+    },
     "apps/tui": {
       "name": "@dltech/atlas",
       "version": "0.1.0",
@@ -386,6 +404,16 @@
         "@types/bun": "latest",
         "@types/turndown": "^5.0.6",
         "dts-bundle-generator": "^9.5.1",
+      },
+    },
+    "packages/jobs": {
+      "name": "@dltech/atlas-jobs",
+      "version": "0.1.0",
+      "dependencies": {
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
       },
     },
     "packages/models": {
@@ -831,6 +859,8 @@
 
     "@dltech/atlas-harness": ["@dltech/atlas-harness@workspace:packages/harness"],
 
+    "@dltech/atlas-jobs": ["@dltech/atlas-jobs@workspace:packages/jobs"],
+
     "@dltech/atlas-mac": ["@dltech/atlas-mac@workspace:apps/mac"],
 
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
@@ -846,6 +876,8 @@
     "@dltech/atlas-serve": ["@dltech/atlas-serve@workspace:apps/serve"],
 
     "@dltech/atlas-storybook": ["@dltech/atlas-storybook@workspace:apps/storybook"],
+
+    "@dltech/atlas-trigger": ["@dltech/atlas-trigger@workspace:apps/trigger"],
 
     "@dltech/atlas-ui": ["@dltech/atlas-ui@workspace:packages/ui"],
 
