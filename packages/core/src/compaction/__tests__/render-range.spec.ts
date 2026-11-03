@@ -2,7 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { EAgentRestart } from '../../agents/restart'
 import { EAgentStatus } from '../../agents/status'
-import { EMessageOrigin } from '../../events/body'
+import { EReportKind } from '../../agents/report'
+import { EMessageOrigin, EPrEventKind, EPrVerdict } from '../../events/body'
 import { toThreadId } from '../../events/ids'
 import { EExecutionLocation } from '../../execution/location'
 import { transcriptOfRange } from '../render-range'
@@ -160,6 +161,70 @@ describe('transcriptOfRange', () => {
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
       'Sub-agent (explore, find the callers) was restarted (via resume)',
+    )
+  })
+
+  it('renders a pull-request event, which used to fall through to nothing', () => {
+    const events = eventsFrom([
+      {
+        type: 'pr-event',
+        repo: 'dltech/atlas',
+        prNumber: 42,
+        kind: EPrEventKind.Verdict,
+        url: 'https://github.com/dltech/atlas/pull/42',
+        verdict: EPrVerdict.Green,
+        headSha: 'abcdef1234567',
+        settled: true,
+      },
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
+      'PR #42 in dltech/atlas: CI finished, all checks passed on abcdef1.',
+    )
+  })
+
+  it('renders a teammate report, which used to fall through to nothing', () => {
+    const events = eventsFrom([
+      {
+        type: 'agent-reported',
+        agentId: toThreadId('thread-child'),
+        agentType: 'builder',
+        intent: 'wire the disposition table',
+        prose: 'halfway through the rewiring',
+        kind: EReportKind.Progress,
+      },
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
+      'Agent thread-child (builder "wire the disposition table") reported progress: halfway through the rewiring',
+    )
+  })
+
+  it('renders a nudge and the background-shell prompts', () => {
+    const events = eventsFrom([
+      { type: 'nudge', text: 'wrap up soon', lifetimeSteps: 2 },
+      {
+        type: 'background-shell-matched',
+        shellId: 'shell-1',
+        command: 'bun test',
+        pattern: 'fail',
+        lines: '2 fail',
+        matchCount: 2,
+      },
+      {
+        type: 'background-shell-awaiting-input',
+        shellId: 'shell-2',
+        command: 'bun add',
+        output: 'which package?',
+        droppedCharacters: 0,
+        remainingCharacters: 14,
+      },
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 3 })).toBe(
+      'Harness nudge: wrap up soon\n' +
+        'Background shell "bun test" matched fail: 2 fail\n' +
+        'Background shell "bun add" is waiting for input: which package?',
     )
   })
 

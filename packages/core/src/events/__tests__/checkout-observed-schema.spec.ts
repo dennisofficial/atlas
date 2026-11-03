@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { type EventDraft, survivesSummary } from '../body'
+import { type EventDraft } from '../body'
+import { keptThroughCompaction } from '../../compaction/disposition'
 import { ERewindDisposition, rewindDisposition } from '../rewind-disposition'
 import { eventBodySchema } from '../schema'
 
@@ -31,7 +32,7 @@ describe('checkout-observed', () => {
   })
 
   it('survives compaction and rewind, since git state outlives the conversation', () => {
-    expect(survivesSummary('checkout-observed')).toBe(true)
+    expect(keptThroughCompaction('checkout-observed')).toBe(true)
     expect(rewindDisposition('checkout-observed')).toBe(ERewindDisposition.Keep)
   })
 })

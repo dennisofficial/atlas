@@ -1,5 +1,6 @@
-import { ECompactionAnchor, survivesSummary } from '../events/body'
+import { ECompactionAnchor } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
+import { keptThroughCompaction } from './disposition'
 import { eventsOfType } from '../events/projections'
 
 export type CompactionWatermark = EventOfType<'history-compacted'>
@@ -28,7 +29,7 @@ const rowsSurviveBelow = ({
       event.seq >= watermark.fromSeq &&
       event.seq <= watermark.throughSeq &&
       event.seq !== watermark.seq &&
-      !survivesSummary(event.type),
+      !keptThroughCompaction(event.type),
   )
 
 const prefixWatermarks = (events: readonly Event[]): readonly CompactionWatermark[] =>

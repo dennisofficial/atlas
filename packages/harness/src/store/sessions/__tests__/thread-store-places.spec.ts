@@ -242,7 +242,7 @@ describe('the pull requests a listed thread is linked to', () => {
     expect((await threads.list({ project: '/here' }))[0]?.pullRequests).toBeUndefined()
   })
 
-  it('stops standing in a worktree once a summarise cut its entry', async () => {
+  it('still stands in a worktree after a summarise, which keeps the entry', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
     const thread = await threads.create({ workspace: '/here' })
@@ -262,6 +262,6 @@ describe('the pull requests a listed thread is linked to', () => {
       summary: 'short version',
     })
 
-    expect((await threads.list({ project: '/here' }))[0]?.worktree).toBeUndefined()
+    expect((await threads.list({ project: '/here' }))[0]?.worktree?.branch).toBe('dennis/fix-a1b2')
   })
 })
