@@ -10,6 +10,14 @@ export enum EAgentRole {
   Compaction = 'compaction',
 }
 
+export enum EBuiltInAgentType {
+  Builder = 'builder',
+  Explore = 'explore',
+  GeneralPurpose = 'general-purpose',
+  Preview = 'preview',
+  Reviewer = 'reviewer',
+}
+
 export { EEffortLevel as EEffort }
 
 export enum EPreset {
@@ -37,16 +45,13 @@ export const AUTO_MODEL = 'auto'
 export type RoleSetting = { model: string; effort?: EEffortLevel }
 export type ModelsConfig = Record<EAgentRole, RoleSetting>
 
-export const ROLE_META: Record<
-  EAgentRole,
-  {
-    title: string
-    description: string
-    autoLabel: string
-    modelHint: string
-    hasEffort: boolean
-  }
-> = {
+export type ModelsDraft = {
+  roles: ModelsConfig
+  teammate: RoleSetting
+  builtIns: Record<EBuiltInAgentType, RoleSetting>
+}
+
+export const ROLE_META: Record<EAgentRole, RoleMeta> = {
   [EAgentRole.Main]: {
     title: 'Main agent',
     description: 'Plans the work, edits code, and talks to you in the thread.',
@@ -83,6 +88,66 @@ export const ROLE_ORDER: EAgentRole[] = [
   EAgentRole.Subagents,
   EAgentRole.Quick,
   EAgentRole.Compaction,
+]
+
+export type RoleMeta = {
+  title: string
+  description: string
+  autoLabel: string
+  modelHint: string
+  hasEffort: boolean
+}
+
+export const TEAMMATE_META: RoleMeta = {
+  title: 'Teammates',
+  description: 'Full Atlas sessions running beside the main agent as peers.',
+  autoLabel: 'Follow main agent',
+  modelHint: 'New teammates run on this model. Left on follow, they use the main agent’s model.',
+  hasEffort: false,
+}
+
+const followSubagents: Pick<RoleMeta, 'autoLabel' | 'modelHint' | 'hasEffort'> = {
+  autoLabel: 'Follow sub-agents',
+  modelHint: 'Left on follow, these agents use the Subagents model.',
+  hasEffort: false,
+}
+
+export const BUILT_IN_AGENT_META: Record<EBuiltInAgentType, RoleMeta> = {
+  [EBuiltInAgentType.Builder]: {
+    ...followSubagents,
+    title: 'builder agents',
+    description:
+      'Sub-agents that make a change: a described feature, a located bug, a mechanical edit.',
+  },
+  [EBuiltInAgentType.Explore]: {
+    ...followSubagents,
+    title: 'explore agents',
+    description: 'Search-focused sub-agents that find things in the codebase and report back.',
+  },
+  [EBuiltInAgentType.GeneralPurpose]: {
+    ...followSubagents,
+    title: 'general-purpose agents',
+    description: 'Open-ended sub-agents for research and multi-step tasks.',
+  },
+  [EBuiltInAgentType.Preview]: {
+    ...followSubagents,
+    title: 'preview agents',
+    description:
+      'Sub-agents that stand up and verify preview servers so the work opens in a browser.',
+  },
+  [EBuiltInAgentType.Reviewer]: {
+    ...followSubagents,
+    title: 'reviewer agents',
+    description: 'Sub-agents that review code they did not write and report findings.',
+  },
+}
+
+export const BUILT_IN_AGENT_ORDER: EBuiltInAgentType[] = [
+  EBuiltInAgentType.Builder,
+  EBuiltInAgentType.Explore,
+  EBuiltInAgentType.GeneralPurpose,
+  EBuiltInAgentType.Preview,
+  EBuiltInAgentType.Reviewer,
 ]
 
 export const PRESET_LABELS: Record<EPreset, string> = {

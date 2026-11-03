@@ -18,7 +18,12 @@ import {
 import { splitCommandLine } from '../../command-line'
 import { toMcpServer, transportOf } from '../mcp-api'
 import { buildGroups, memoryKeyInput } from '../memory-api'
-import { activePresetOf, modelsChanges, modelsConfigFrom } from '../models-settings'
+import {
+  activePresetOf,
+  modelsChanges,
+  modelsConfigFrom,
+  modelsDraftFrom,
+} from '../models-settings'
 import { relativeTime } from '../relative-time'
 import { splitSandboxes, ESandboxState } from '../sandboxes-api'
 import { toEnvSecretRow } from '../secrets-api'
@@ -204,23 +209,34 @@ describe('models settings', () => {
     expect(config[EAgentRole.Quick]).toEqual({ model: 'openai/gpt-5-mini' })
     expect(config[EAgentRole.Compaction]).toEqual({ model: 'anthropic/claude-opus-5' })
     expect(config[EAgentRole.Subagents]).toEqual({ model: 'auto' })
+    const saved = modelsDraftFrom(new Map())
     const changes = modelsChanges({
-      saved: config,
-      draft: { ...config, [EAgentRole.Main]: { model: 'auto', effort: EEffort.Minimal } },
+      saved,
+      draft: {
+        ...saved,
+        roles: { ...saved.roles, [EAgentRole.Main]: { model: 'auto', effort: EEffort.Minimal } },
+      },
     })
     expect(changes['model.effort']).toBe('minimal')
   })
 
   it('writes only changed keys, with auto as empty and a preset marker', () => {
-    const saved = PRESETS[EPreset.Balanced]
-    const changes = modelsChanges({ saved, draft: PRESETS[EPreset.Thorough] })
+    const saved = modelsDraftFrom(new Map())
+    const toThorough = { ...saved, roles: PRESETS[EPreset.Thorough] }
+    const changes = modelsChanges({ saved, draft: toThorough })
     expect(changes['model.id']).toBe('anthropic/claude-opus-5')
     expect(changes['model.effort']).toBe(EEffortLevel.Max)
     expect(changes['web.models.preset']).toBe('thorough')
     expect(modelsChanges({ saved, draft: saved })).toEqual({})
     const custom = modelsChanges({
       saved,
-      draft: { ...saved, [EAgentRole.Main]: { model: 'x/y', effort: EEffort.High } },
+      draft: {
+        ...saved,
+        roles: {
+          ...saved.roles,
+          [EAgentRole.Main]: { model: 'x/y', effort: EEffort.High },
+        },
+      },
     })
     expect(custom['web.models.preset']).toBe('custom')
   })

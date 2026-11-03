@@ -4,10 +4,13 @@ import type { SettingChanges, SettingValues } from '@/lib/cloud-settings'
 
 import {
   AUTO_MODEL,
+  BUILT_IN_AGENT_ORDER,
   EAgentRole,
+  EBuiltInAgentType,
   EPreset,
   PRESETS,
   type ModelsConfig,
+  type ModelsDraft,
   type RoleSetting,
 } from '../../fixtures/settings-agent'
 import { diffChanges, settingString } from './settings-values'
@@ -19,6 +22,16 @@ export const ROLE_KEYS: Record<EAgentRole, RoleKeys> = {
   [EAgentRole.Subagents]: { model: 'agents.subagentModel' },
   [EAgentRole.Quick]: { model: 'model.quickModel' },
   [EAgentRole.Compaction]: { model: 'model.compactionModel' },
+}
+
+export const TEAMMATE_MODEL_KEY = 'agents.type.teammate'
+
+export const BUILT_IN_MODEL_KEYS: Record<EBuiltInAgentType, string> = {
+  [EBuiltInAgentType.Builder]: 'agents.type.builder',
+  [EBuiltInAgentType.Explore]: 'agents.type.explore',
+  [EBuiltInAgentType.GeneralPurpose]: 'agents.type.general-purpose',
+  [EBuiltInAgentType.Preview]: 'agents.type.preview',
+  [EBuiltInAgentType.Reviewer]: 'agents.type.reviewer',
 }
 
 export const PRESET_KEY = 'web.models.preset'
@@ -37,15 +50,22 @@ export const modelFromStored = (stored: string): string => (stored === '' ? AUTO
 
 export const modelToStored = (model: string): string => (model === AUTO_MODEL ? '' : model)
 
-export function modelsConfigFrom(values: SettingValues): ModelsConfig {
-  const role = (keys: RoleKeys): RoleSetting => {
-    const model = modelFromStored(settingString({ values, key: keys.model }))
-    if (keys.effort === undefined) return { model }
-    return {
-      model,
-      effort: effortFromStored(settingString({ values, key: keys.effort })),
-    }
+const roleFromKeys = (args: { values: SettingValues; keys: RoleKeys }): RoleSetting => {
+  const model = modelFromStored(settingString({ values: args.values, key: args.keys.model }))
+  if (args.keys.effort === undefined) return { model }
+  return {
+    model,
+    effort: effortFromStored(settingString({ values: args.values, key: args.keys.effort })),
   }
+}
+
+const agentTypeModelFrom = (args: { values: SettingValues; key: string }): RoleSetting => {
+  const stored = args.values.get(args.key)
+  return { model: modelFromStored(typeof stored === 'string' ? stored : '') }
+}
+
+export function modelsConfigFrom(values: SettingValues): ModelsConfig {
+  const role = (keys: RoleKeys) => roleFromKeys({ values, keys })
   return {
     [EAgentRole.Main]: role(ROLE_KEYS[EAgentRole.Main]),
     [EAgentRole.Subagents]: role(ROLE_KEYS[EAgentRole.Subagents]),
@@ -54,29 +74,58 @@ export function modelsConfigFrom(values: SettingValues): ModelsConfig {
   }
 }
 
-export function activePresetOf(config: ModelsConfig): EPreset | null {
-  const serialized = JSON.stringify(config)
+export function modelsDraftFrom(values: SettingValues): ModelsDraft {
+  const builtIn = (type: EBuiltInAgentType): RoleSetting =>
+    agentTypeModelFrom({ values, key: BUILT_IN_MODEL_KEYS[type] })
+  return {
+    roles: modelsConfigFrom(values),
+    teammate: agentTypeModelFrom({ values, key: TEAMMATE_MODEL_KEY }),
+    builtIns: {
+      [EBuiltInAgentType.Builder]: builtIn(EBuiltInAgentType.Builder),
+      [EBuiltInAgentType.Explore]: builtIn(EBuiltInAgentType.Explore),
+      [EBuiltInAgentType.GeneralPurpose]: builtIn(EBuiltInAgentType.GeneralPurpose),
+      [EBuiltInAgentType.Preview]: builtIn(EBuiltInAgentType.Preview),
+      [EBuiltInAgentType.Reviewer]: builtIn(EBuiltInAgentType.Reviewer),
+    },
+  }
+}
+
+export function activePresetOf(roles: ModelsConfig): EPreset | null {
+  const serialized = JSON.stringify(roles)
   return PRESET_ORDER.find((preset) => JSON.stringify(PRESETS[preset]) === serialized) ?? null
 }
 
-const flatten = (config: ModelsConfig): Record<string, string> => {
+const flattenRoles = (roles: ModelsConfig): Record<string, string> => {
   const flat: Record<string, string> = {}
   for (const role of ROLES) {
     const keys = ROLE_KEYS[role]
-    flat[keys.model] = modelToStored(config[role].model)
-    const effort = config[role].effort
+    flat[keys.model] = modelToStored(roles[role].model)
+    const effort = roles[role].effort
     if (keys.effort !== undefined && effort !== undefined) flat[keys.effort] = effort
   }
   return flat
 }
 
-export function modelsChanges(args: { saved: ModelsConfig; draft: ModelsConfig }): SettingChanges {
+const flatten = (config: ModelsDraft): Record<string, string> => {
+  const flat = flattenRoles(config.roles)
+  flat[TEAMMATE_MODEL_KEY] = modelToStored(config.teammate.model)
+  for (const type of BUILT_IN_AGENT_ORDER) {
+    flat[BUILT_IN_MODEL_KEYS[type]] = modelToStored(config.builtIns[type].model)
+  }
+  return flat
+}
+
+export function modelsChanges(args: { saved: ModelsDraft; draft: ModelsDraft }): SettingChanges {
   const changes = diffChanges({
     saved: flatten(args.saved),
     draft: flatten(args.draft),
   })
-  if (Object.keys(changes).length === 0) return changes
-  const preset = activePresetOf(args.draft)
+  const roleChanges = diffChanges({
+    saved: flattenRoles(args.saved.roles),
+    draft: flattenRoles(args.draft.roles),
+  })
+  if (Object.keys(roleChanges).length === 0) return changes
+  const preset = activePresetOf(args.draft.roles)
   changes[PRESET_KEY] = preset === null ? EModelPreset.Custom : EModelPreset[presetName(preset)]
   return changes
 }

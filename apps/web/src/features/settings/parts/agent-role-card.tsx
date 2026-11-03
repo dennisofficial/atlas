@@ -9,29 +9,23 @@ import type { ModelPicker } from '@/features/threads/data/use-model-picker'
 import type { EEffortLevel } from '@dltech/atlas-wire/web'
 
 import { roleModelOptions } from '../data/personal/role-model-options'
-import {
-  EFFORT_STEPS,
-  ROLE_META,
-  type EAgentRole,
-  type RoleSetting,
-} from '../fixtures/settings-agent'
+import { EFFORT_STEPS, type RoleMeta, type RoleSetting } from '../fixtures/settings-agent'
 import { SettingsCard, SettingsRow, SettingsSection } from '../settings-layout'
 import { PROVIDERS_HREF } from '../settings-nav'
 import { EffortSlider } from './agent-effort-slider'
 
 export function RoleCard({
-  role,
+  meta,
   setting,
   picker,
   onChange,
 }: {
-  role: EAgentRole
+  meta: RoleMeta
   setting: RoleSetting
   picker: ModelPicker
   onChange: (next: RoleSetting) => void
 }) {
   const router = useRouter()
-  const meta = ROLE_META[role]
   const models = roleModelOptions({
     offered: picker.options.models,
     autoLabel: meta.autoLabel,
