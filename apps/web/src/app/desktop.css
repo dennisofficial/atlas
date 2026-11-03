@@ -60,25 +60,6 @@ html[data-desktop] :is(input, textarea, pre, code, [contenteditable], [data-slot
   user-select: text;
 }
 
-html[data-desktop]
-  :is(
-    button,
-    summary,
-    select,
-    label[for],
-    [role="button"],
-    [role="tab"],
-    [role="switch"],
-    [role="checkbox"],
-    [role="radio"],
-    [role="menuitem"],
-    a[data-slot="button"],
-    header a,
-    [data-slot="sidebar-inner"] a
-  ):not(:disabled, [aria-disabled="true"], [data-disabled]) {
-  cursor: default;
-}
-
 html[data-vibrancy],
 html[data-vibrancy] body:has([data-slot="sidebar-wrapper"]),
 html[data-vibrancy] [data-slot="sidebar-wrapper"],
