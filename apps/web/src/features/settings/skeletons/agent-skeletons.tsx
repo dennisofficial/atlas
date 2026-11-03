@@ -4,7 +4,15 @@ import { RadioGroup } from '@dltech/atlas-ui/components/radio-group'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { CONTEXT_FIELDS, EXPERIMENTAL_FIELDS, QUALITY_FIELDS } from '../fixtures/settings-fields'
-import { EFFORT_STEPS, ROLE_ORDER, ROLE_META } from '../fixtures/settings-agent'
+import {
+  BUILT_IN_AGENT_META,
+  BUILT_IN_AGENT_ORDER,
+  EFFORT_STEPS,
+  ROLE_META,
+  ROLE_ORDER,
+  TEAMMATE_META,
+  type RoleMeta,
+} from '../fixtures/settings-agent'
 import { SettingsCard, SettingsSection } from '../settings-layout'
 import { SettingFieldRowsSkeleton } from './field-rows'
 import { NotifyMatrixSkeleton } from './table-skeletons'
@@ -118,6 +126,32 @@ export function AppearanceSkeleton() {
   )
 }
 
+function ModelCardSkeleton({ meta }: { meta: RoleMeta }) {
+  return (
+    <SettingsSection title={meta.title} description={meta.description}>
+      <SettingsCard>
+        <SettingsRowSkeleton control={ERowControl.Select} lines={2} />
+        {meta.hasEffort ? (
+          <SettingsRowSkeleton
+            control={ERowControl.None}
+            custom={<Skeleton className="h-4 w-12" />}
+            extra={
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-full" />
+                <div className="flex h-4 items-center justify-between">
+                  {EFFORT_STEPS.map((step) => (
+                    <Skeleton key={step.effort} className="h-3 w-8" />
+                  ))}
+                </div>
+              </div>
+            }
+          />
+        ) : null}
+      </SettingsCard>
+    </SettingsSection>
+  )
+}
+
 export function ModelsSkeleton() {
   return (
     <>
@@ -128,31 +162,11 @@ export function ModelsSkeleton() {
         <Skeleton className="h-7 w-56 rounded-lg" />
       </SettingsSection>
       {ROLE_ORDER.map((role) => (
-        <SettingsSection
-          key={role}
-          title={ROLE_META[role].title}
-          description={ROLE_META[role].description}
-        >
-          <SettingsCard>
-            <SettingsRowSkeleton control={ERowControl.Select} lines={2} />
-            {ROLE_META[role].hasEffort ? (
-              <SettingsRowSkeleton
-                control={ERowControl.None}
-                custom={<Skeleton className="h-4 w-12" />}
-                extra={
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-3 w-full" />
-                    <div className="flex h-4 items-center justify-between">
-                      {EFFORT_STEPS.map((step) => (
-                        <Skeleton key={step.effort} className="h-3 w-8" />
-                      ))}
-                    </div>
-                  </div>
-                }
-              />
-            ) : null}
-          </SettingsCard>
-        </SettingsSection>
+        <ModelCardSkeleton key={role} meta={ROLE_META[role]} />
+      ))}
+      <ModelCardSkeleton meta={TEAMMATE_META} />
+      {BUILT_IN_AGENT_ORDER.map((type) => (
+        <ModelCardSkeleton key={type} meta={BUILT_IN_AGENT_META[type]} />
       ))}
       <ConfigFooterSkeleton />
     </>

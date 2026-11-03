@@ -22,9 +22,8 @@ export const PERSONAL_PAGE_STATUS = {
   },
   [ESettingsPage.Memory]: { status: EPageStatus.Live },
   [ESettingsPage.ModelsEffort]: {
-    status: EPageStatus.Partial,
-    detail:
-      'Default, subagent, quick-call and compaction models and the default effort are delivered to every sandbox when it starts. The preset marks which bundle you chose.',
+    status: EPageStatus.Live,
+    detail: 'Saved to your account and delivered to every sandbox when it starts.',
   },
   [ESettingsPage.Providers]: { status: EPageStatus.Live },
   [ESettingsPage.Secrets]: {

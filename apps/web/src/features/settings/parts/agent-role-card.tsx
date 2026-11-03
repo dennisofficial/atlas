@@ -12,8 +12,7 @@ import { roleModelOptions } from '../data/personal/role-model-options'
 import {
   AUTO_MODEL,
   EFFORT_STEPS,
-  ROLE_META,
-  type EAgentRole,
+  type RoleMeta,
   type RoleSetting,
 } from '../fixtures/settings-agent'
 import { SettingsCard, SettingsRow, SettingsSection } from '../settings-layout'
@@ -43,18 +42,17 @@ const clampedEffort = ({
 }
 
 export function RoleCard({
-  role,
+  meta,
   setting,
   picker,
   onChange,
 }: {
-  role: EAgentRole
+  meta: RoleMeta
   setting: RoleSetting
   picker: ModelPicker
   onChange: (next: RoleSetting) => void
 }) {
   const router = useRouter()
-  const meta = ROLE_META[role]
   const models = roleModelOptions({
     offered: picker.options.models,
     autoLabel: meta.autoLabel,

@@ -8,13 +8,15 @@ import { EEffortLevel } from '@dltech/atlas-wire/web'
 
 import type { ModelPicker } from '@/features/threads/data/use-model-picker'
 
-import { EAgentRole, type RoleSetting } from '../../fixtures/settings-agent'
+import { EAgentRole, ROLE_META, type RoleSetting } from '../../fixtures/settings-agent'
 
 mock.module('next/navigation', () => ({
   useRouter: () => ({ push: () => {} }),
 }))
 
 const { RoleCard } = await import('../agent-role-card')
+
+const MAIN_META = ROLE_META[EAgentRole.Main]
 
 const MODELS = [
   { id: 'mock/full', label: 'Full Ladder', provider: 'Mock', efforts: Object.values(EEffort) },
@@ -94,7 +96,7 @@ describe('RoleCard effort row', () => {
   it('shows the full ladder for the auto/follow model', async () => {
     const element = await render(
       <RoleCard
-        role={EAgentRole.Main}
+        meta={MAIN_META}
         setting={setting({ model: 'auto', effort: EEffortLevel.Medium })}
         picker={picker}
         onChange={() => {}}
@@ -109,7 +111,7 @@ describe('RoleCard effort row', () => {
   it('offers only the rungs a concrete model supports', async () => {
     const element = await render(
       <RoleCard
-        role={EAgentRole.Main}
+        meta={MAIN_META}
         setting={setting({ model: 'mock/narrow', effort: EEffortLevel.Low })}
         picker={picker}
         onChange={() => {}}
@@ -124,7 +126,7 @@ describe('RoleCard effort row', () => {
   it('hides the effort row for a model with no effort map', async () => {
     const element = await render(
       <RoleCard
-        role={EAgentRole.Main}
+        meta={MAIN_META}
         setting={setting({ model: 'mock/none', effort: EEffortLevel.Medium })}
         picker={picker}
         onChange={() => {}}
@@ -139,7 +141,7 @@ describe('RoleCard effort row', () => {
     const changes: RoleSetting[] = []
     const element = await render(
       <RoleCard
-        role={EAgentRole.Main}
+        meta={MAIN_META}
         setting={setting({ model: 'mock/full', effort: EEffortLevel.Medium })}
         picker={picker}
         onChange={(next) => changes.push(next)}
@@ -155,7 +157,7 @@ describe('RoleCard effort row', () => {
     const changes: RoleSetting[] = []
     const element = await render(
       <RoleCard
-        role={EAgentRole.Main}
+        meta={MAIN_META}
         setting={setting({ model: 'mock/narrow', effort: EEffortLevel.High })}
         picker={picker}
         onChange={(next) => changes.push(next)}
@@ -171,7 +173,7 @@ describe('RoleCard effort row', () => {
     const changes: RoleSetting[] = []
     const element = await render(
       <RoleCard
-        role={EAgentRole.Main}
+        meta={MAIN_META}
         setting={setting({ model: 'mock/full', effort: EEffortLevel.Medium })}
         picker={picker}
         onChange={(next) => changes.push(next)}
