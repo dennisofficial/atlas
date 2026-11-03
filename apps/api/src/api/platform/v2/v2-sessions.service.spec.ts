@@ -2,7 +2,14 @@ import { describe, expect, it, vi } from 'bun:test'
 import { NotFoundException } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
-import { chainEvents, EV2SessionState, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  ERunFailureKind,
+  EV2SessionState,
+  toRunId,
+  toThreadId,
+  type V2Body,
+} from '@dltech/atlas-core'
 import { v2InboxMessageSchema } from '@dltech/atlas-protocol'
 import { V2SessionsService } from './v2-sessions.service'
 import { V2WakePublisher } from './v2-wake.publisher'
@@ -152,6 +159,34 @@ describe('V2SessionsService', () => {
     const events = await service.events({ userId: 'user-a', sessionId: created.sessionId })
     expect(events.events).toHaveLength(2)
     expect(events.events[1]).toMatchObject({ type: 'user-said', text: 'hi' })
+  })
+
+  it('derives status from the tail of a log longer than one page', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const granted = await plane.grant({
+      sessionId: created.sessionId,
+      holderId: 'host-1',
+      ttlMs: 30_000,
+    })
+    const bodies: V2Body[] = [
+      { type: 'run-failed', failure: { kind: ERunFailureKind.Network, message: 'early failure' } },
+      ...Array.from({ length: 1000 }, (): V2Body => ({ type: 'user-said', text: 'filler' })),
+    ]
+    const appended = await plane.append({
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-1'),
+        epoch: granted.epoch,
+        at: NOW,
+        bodies,
+      }),
+    })
+    expect(appended.ok).toBe(true)
+    const status = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(status.state).not.toBe(EV2SessionState.Failed)
   })
 
   it('stamps inbox messages with the same schema the host parses', async () => {

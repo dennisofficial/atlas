@@ -112,10 +112,11 @@ export class V2SessionsService {
 
   async status(args: { userId: string; sessionId: string }): Promise<V2SessionStatusOutput> {
     const session = await this.requireOwnedSession(args)
+    const head = await this.plane.head({ threadId: session.mainThreadId })
     const [page, inbox, { lease, live }] = await Promise.all([
       this.plane.readEvents({
         threadId: session.mainThreadId,
-        afterSeq: 0,
+        afterSeq: Math.max(0, head.seq - STATUS_EVENT_LIMIT),
         limit: STATUS_EVENT_LIMIT,
         visible: true,
       }),
