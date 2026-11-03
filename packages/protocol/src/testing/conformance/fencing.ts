@@ -33,6 +33,30 @@ export const describeFencingConformance = (target: DaemonConformanceTarget): voi
         },
       }))
 
+    it('refuses a token minted for a different sandbox name', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await handle.connect()
+          const foreign = handle.foreignToken({ sandboxName: 'atlas-v2-other-sandbox' })
+          session.send({ kind: 'hello', sessionId: 's', epoch: 1, token: foreign })
+          expect(await errorOf({ session })).toBe(EDaemonErrorKind.Unauthenticated)
+          expect(await closedWithin({ session, ms: 2000 })).not.toBeNull()
+        },
+      }))
+
+    it('refuses a token minted with a different secret for the same sandbox name', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await handle.connect()
+          const foreign = handle.foreignToken({ secret: 'another-secret' })
+          session.send({ kind: 'hello', sessionId: 's', epoch: 1, token: foreign })
+          expect(await errorOf({ session })).toBe(EDaemonErrorKind.Unauthenticated)
+          expect(await closedWithin({ session, ms: 2000 })).not.toBeNull()
+        },
+      }))
+
     it('refuses run before hello and runs nothing', () =>
       withDaemon({
         target,

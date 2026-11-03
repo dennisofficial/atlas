@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { AccountsModule } from '../../platform/accounts/accounts.module'
 import { OauthConnectionsModule } from '../../platform/oauth-connections/oauth-connections.module'
 import { ControlPlaneModule } from '../../platform/control/control-plane.module'
 import { GithubModule } from '../github/github.module'
@@ -8,7 +9,13 @@ import { AgentHostRouter } from './agent-host.router'
 import { AgentHostService } from './agent-host.service'
 
 @Module({
-  imports: [ControlPlaneModule, ScopedConfigModule, OauthConnectionsModule, GithubModule],
+  imports: [
+    ControlPlaneModule,
+    ScopedConfigModule,
+    OauthConnectionsModule,
+    GithubModule,
+    AccountsModule,
+  ],
   providers: [AgentHostService, AgentHostRouter, AgentHostMiddleware],
 })
 export class AgentHostModule {}

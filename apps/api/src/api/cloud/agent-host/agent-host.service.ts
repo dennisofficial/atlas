@@ -10,7 +10,9 @@ import type {
 import { GithubService } from '../github/github.service'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import { ScopedConfigService } from '../scoped-config/scoped-config.service'
+import { AccountsService } from '../../platform/accounts/accounts.service'
 import { OauthConnectionsService } from '../../platform/oauth-connections/oauth-connections.service'
+import { modelConfigOf } from './agent-host-model-config'
 
 const CONFIG_TTL_MS = 300_000
 
@@ -21,6 +23,7 @@ export class AgentHostService {
     private readonly scopedConfig: ScopedConfigService,
     private readonly oauthConnections: OauthConnectionsService,
     private readonly github: GithubService,
+    private readonly accounts: AccountsService,
   ) {}
 
   async config(args: { sessionId: string }): Promise<AgentHostConfigOutput> {
@@ -30,13 +33,19 @@ export class AgentHostService {
       projectId: session.projectId,
     })
     const vercel = await this.vercelOf({ userId: session.userId })
+    const lease = await this.accounts.lease({ userId: session.userId })
+    const model = modelConfigOf({ lease, settings: config.settings })
     const issuedAt = Date.now()
     return {
       userId: session.userId,
       projectId: session.projectId,
+      model,
       vercel,
       config: config as unknown as AgentHostConfigOutput['config'],
-      revision: createHash('sha256').update(JSON.stringify(config)).digest('hex'),
+      revision: createHash('sha256')
+        .update(JSON.stringify(config))
+        .update(JSON.stringify(model))
+        .digest('hex'),
       expiresAt: new Date(issuedAt + CONFIG_TTL_MS).toISOString(),
     }
   }

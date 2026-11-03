@@ -42,6 +42,7 @@ describe('AgentHostRouter', () => {
       const body = {
         userId: 'user-a',
         projectId: 'proj-a',
+        model: { configured: false, gap: 'no anthropic account' },
         vercel: { configured: false, gap: 'user-credential' },
         config: {
           settings: {},

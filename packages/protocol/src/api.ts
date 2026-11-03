@@ -117,9 +117,25 @@ const v2ProjectConfigSchema = z.object({
   provenance: z.record(z.string(), z.string()),
 })
 
+export const agentHostModelCredentialSchema = z.union([
+  z.strictObject({ kind: z.literal('oauth'), connectionId: z.string().min(1) }),
+  z.strictObject({ kind: z.literal('api-key'), apiKey: z.string().min(1) }),
+])
+
+export const agentHostModelConfigSchema = z.union([
+  z.strictObject({
+    configured: z.literal(true),
+    modelId: z.string().min(1),
+    accountId: z.string().min(1),
+    credential: agentHostModelCredentialSchema,
+  }),
+  z.strictObject({ configured: z.literal(false), gap: z.string().min(1) }),
+])
+
 export const agentHostConfigOutputSchema = z.strictObject({
   userId: z.string().min(1),
   projectId: z.string().min(1),
+  model: agentHostModelConfigSchema,
   vercel: z.union([
     z.strictObject({
       configured: z.literal(true),

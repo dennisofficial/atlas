@@ -1,24 +1,19 @@
 import {
-  accountSchema,
   chooseAccount,
   CredentialPort,
   EAccountChoice,
   EAuthKind,
   EAuthProvider,
   toAccountId,
-  type Account,
   type Credential,
   type CredentialRequest,
 } from '@dltech/atlas-harness/titling'
 import { revisionOf, storedAccountSchema, type CredentialRevision } from '@dltech/atlas-core'
 import type { AccountLease } from '@dltech/atlas-wire'
 import type { OauthConnectionsService } from '../../platform/oauth-connections/oauth-connections.service'
+import { accountsOf } from '../agent-host/agent-host-model-config'
 
-export const accountsOf = (lease: AccountLease): Account[] =>
-  lease.accounts.flatMap((stored) => {
-    const parsed = accountSchema.safeParse(stored)
-    return parsed.success ? [parsed.data] : []
-  })
+export { accountsOf }
 
 const revisionFor = (stored: AccountLease['accounts'][number]): CredentialRevision | undefined => {
   const parsed = storedAccountSchema.safeParse({

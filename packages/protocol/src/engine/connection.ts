@@ -22,8 +22,7 @@ export type EngineLink = {
 export type DaemonEngineArgs = {
   bootId: string
   version: string
-  secret: string
-  sandboxName: string
+  token: string
   store: CallStore
   groups: readonly DaemonGroupFactory[]
   health(): Omit<HealthFrame, 'kind' | 'bootId' | 'version'>
