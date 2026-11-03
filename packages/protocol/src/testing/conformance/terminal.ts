@@ -11,6 +11,7 @@ import {
   resultOf,
   runToEnd,
   sendRun,
+  sleep,
   withDaemon,
   type DaemonConformanceTarget,
 } from './support'
@@ -133,6 +134,33 @@ export const describeTerminalConformance = (target: DaemonConformanceTarget): vo
         })
         await write({ session, terminalId: 't-size', data: 'stty size\n' })
         await untilOutput({ session, terminalId: 't-size', needle: '43 132' })
+      } finally {
+        await handle.stop()
+      }
+    })
+
+    it('kills a SIGHUP-immune descendant of the shell on close (real only)', async () => {
+      const handle = await target.start()
+      try {
+        if (!handle.realProcesses) return
+        const session = await connectAt({ handle })
+        await open({ session, terminalId: 't-tree' })
+        // `exec` makes the subshell the PTY child itself, so the nohup'd sleep shares its
+        // process group; only a group signal (or the cgroup box) can reach it.
+        await write({
+          session,
+          terminalId: 't-tree',
+          data: "exec sh -c 'nohup sleep 300 >/dev/null 2>&1 & echo BG=$!; sleep 300'\n",
+        })
+        await session.until(() => /BG=\d+/.test(outputEvents({ session, terminalId: 't-tree' })), {
+          label: 'BG= pid',
+        })
+        const match = /BG=(\d+)/.exec(outputEvents({ session, terminalId: 't-tree' }))
+        const pid = Number(match?.[1])
+        expect(handle.processAlive(pid)).toBe(true)
+        await close({ session, terminalId: 't-tree' })
+        await sleep(3000)
+        expect(handle.processAlive(pid)).toBe(false)
       } finally {
         await handle.stop()
       }

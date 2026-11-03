@@ -88,6 +88,10 @@ export const spawnPty = (args: {
       }
     }
   }
+  void child.exited.then(() => {
+    killGroup('SIGKILL')
+    killWorkloadBox({ pid: child.pid, env })
+  })
   let killing = false
   return {
     pid: child.pid,
@@ -112,8 +116,4 @@ export const spawnPty = (args: {
       }, KILL_GRACE_MS).unref()
     },
   }
-}
-
-export const reapPtyBox = (args: { deps: DaemonOpsDeps; pid: number }): void => {
-  killWorkloadBox({ pid: args.pid, env: terminalEnv(args.deps.env) })
 }

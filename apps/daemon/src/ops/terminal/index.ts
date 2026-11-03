@@ -2,7 +2,7 @@ import { CallFailureError, ECallFailure, type TerminalExit } from '@dltech/atlas
 import { type DaemonGroupFactory, defineOp } from '@dltech/atlas-protocol/engine'
 
 import type { DaemonOpsDeps } from '../deps'
-import { MAX_OPEN_TERMINALS, reapPtyBox, spawnPty } from './pty'
+import { MAX_OPEN_TERMINALS, spawnPty } from './pty'
 import { TerminalRegistry, createScrollback } from './registry'
 
 const EOF_GRACE_MS = 100
@@ -47,7 +47,6 @@ export const terminalGroup =
               const exit: TerminalExit = spawned.exitState()
               scrollback.finish(exit)
               registry.markExited(op.terminalId)
-              reapPtyBox({ deps, pid: spawned.pid })
               ctx.publish({ type: 'terminal.exit', terminalId: op.terminalId, ...exit })
             })
             return { terminalId: op.terminalId, pid: spawned.pid }
