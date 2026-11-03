@@ -1,4 +1,14 @@
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import {
+  lstat,
+  mkdir,
+  readFile,
+  readdir,
+  readlink,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises'
 
 import { type DaemonGroupFactory, defineOp } from '@dltech/atlas-protocol/engine'
 
@@ -43,6 +53,13 @@ export const filesGroup =
             isFile: info.isFile(),
             isDirectory: info.isDirectory(),
           }
+        },
+      }),
+      defineOp({
+        op: 'readLink',
+        run: async ({ op }) => {
+          const info = await lstat(op.path)
+          return info.isSymbolicLink() ? await readlink(op.path) : null
         },
       }),
       defineOp({ op: 'readFile', run: async ({ op }) => await readFile(op.path, 'utf8') }),

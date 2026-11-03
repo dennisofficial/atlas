@@ -44,6 +44,13 @@ export const fakeFilesGroup =
       ops: [
         defineOp({ op: 'stat', run: async ({ op }) => fs.stat({ path: op.path }) }),
         defineOp({
+          op: 'readLink',
+          run: async ({ op }) => {
+            fs.stat({ path: op.path })
+            return null
+          },
+        }),
+        defineOp({
           op: 'readFile',
           run: async ({ op }) => decodeLenient(fs.readBytes({ path: op.path })),
         }),

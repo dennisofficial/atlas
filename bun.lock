@@ -409,6 +409,22 @@
         "dts-bundle-generator": "^9.5.1",
       },
     },
+    "packages/host": {
+      "name": "@dltech/atlas-host",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-agent": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-observability": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@dltech/atlas-daemon": "workspace:*",
+        "@types/bun": "latest",
+        "@vscode/ripgrep": "^1.18.0",
+      },
+    },
     "packages/jobs": {
       "name": "@dltech/atlas-jobs",
       "version": "0.1.0",
@@ -861,6 +877,8 @@
     "@dltech/atlas-evals": ["@dltech/atlas-evals@workspace:evals"],
 
     "@dltech/atlas-harness": ["@dltech/atlas-harness@workspace:packages/harness"],
+
+    "@dltech/atlas-host": ["@dltech/atlas-host@workspace:packages/host"],
 
     "@dltech/atlas-jobs": ["@dltech/atlas-jobs@workspace:packages/jobs"],
 

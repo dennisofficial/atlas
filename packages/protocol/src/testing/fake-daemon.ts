@@ -22,8 +22,17 @@ export type InMemoryDaemon = {
   bootId(): string
   runCount(): number
   connect(): DaemonSession
+  connectRaw(handlers: {
+    onText(text: string): void
+    onClose(code: number, reason: string): void
+  }): InMemoryDaemonSocket
   restart(): Promise<void>
   stop(): Promise<void>
+}
+
+export type InMemoryDaemonSocket = {
+  send(text: string): void
+  close(code?: number, reason?: string): void
 }
 
 export const inMemoryDaemonToken = daemonToken
@@ -93,10 +102,41 @@ export const createInMemoryDaemon = async (
     })
   }
 
+  const connectRaw = (handlers: {
+    onText(text: string): void
+    onClose(code: number, reason: string): void
+  }): InMemoryDaemonSocket => {
+    let open = true
+    const shut = (args: { code: number; reason: string }): void => {
+      if (!open) return
+      open = false
+      closers.delete(drop)
+      queueMicrotask(() => {
+        link.closed()
+        handlers.onClose(args.code, args.reason)
+      })
+    }
+    const drop = (): void => shut({ code: 1006, reason: 'daemon stopped' })
+    closers.add(drop)
+    const link = engine.connect({
+      send: (text) => {
+        if (open) queueMicrotask(() => handlers.onText(text))
+      },
+      close: ({ code, reason }) => shut({ code, reason }),
+    })
+    return {
+      send: (text) => {
+        if (open) queueMicrotask(() => link.receive(text))
+      },
+      close: (code = 1000, reason = '') => shut({ code, reason }),
+    }
+  }
+
   return {
     bootId: () => boot,
     runCount: () => engine.runCount(),
     connect,
+    connectRaw,
     restart: async () => {
       await dropAll()
       boot = randomUUID()
