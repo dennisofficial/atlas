@@ -29,6 +29,7 @@ export default (): ExpoConfig => ({
     'expo-notifications',
     'expo-apple-authentication',
     'expo-web-browser',
+    'posthog-react-native/expo',
     [
       'expo-splash-screen',
       {

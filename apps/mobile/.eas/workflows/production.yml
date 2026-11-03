@@ -56,8 +56,11 @@ jobs:
     name: OTA update
     needs: [ios_get_build]
     if: ${{ needs.ios_get_build.outputs.build_id }}
-    type: update
     environment: production
-    params:
-      platform: ios
-      channel: production
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - run: npx eas-cli@latest update --channel production --platform ios --environment production --auto --non-interactive
+      - uses: eas/posthog_upload_sourcemaps
+        with:
+          directory: dist

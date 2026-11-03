@@ -1,7 +1,7 @@
 const path = require('node:path')
-const { getDefaultConfig } = require('expo/metro-config')
+const { getPostHogExpoConfig } = require('posthog-react-native/metro')
 
-const config = getDefaultConfig(__dirname)
+const config = getPostHogExpoConfig(__dirname)
 
 const duplicated = [
   'expo-constants',

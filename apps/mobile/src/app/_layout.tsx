@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
 import { useColorScheme } from 'react-native'
 
+import { AnalyticsProvider } from '../analytics/analytics-provider'
 import { AuthProvider, useAuth } from '../auth/auth-provider'
 import { EAuthState } from '../auth/auth-reducer'
 import {
@@ -37,11 +38,13 @@ export default function RootLayout() {
     return () => subscription.remove()
   }, [])
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <RootStack />
-        <StatusBar style="auto" />
-      </AuthProvider>
-    </ThemeProvider>
+    <AnalyticsProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <AuthProvider>
+          <RootStack />
+          <StatusBar style="auto" />
+        </AuthProvider>
+      </ThemeProvider>
+    </AnalyticsProvider>
   )
 }
