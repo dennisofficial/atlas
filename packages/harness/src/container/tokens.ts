@@ -21,6 +21,8 @@ import type { HookChain, HookChainSource } from '../hooks/registry'
 import type { ModelCardSource } from '../model/ai-sdk-model-port'
 import type { SelectableModel } from '../composition/model-selection'
 import type { SleepPrevention } from '../power/sleep-prevention'
+import type { Observability } from '@dltech/atlas-observability'
+
 import type { InjectionToken } from './injection'
 
 export const SessionRegistryToken: InjectionToken<SessionRegistry> = Symbol('atlas.SessionRegistry')
@@ -101,3 +103,5 @@ export const SkillSuggestionEnabledToken: InjectionToken<() => boolean> = Symbol
 export const GrillingCeremonyEnabledToken: InjectionToken<() => boolean> = Symbol(
   'atlas.GrillingCeremonyEnabled',
 )
+
+export const ObservabilityToken: InjectionToken<Observability> = Symbol('atlas.Observability')

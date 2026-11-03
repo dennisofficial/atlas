@@ -15,10 +15,13 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
+
 import type { HookChain } from '../hooks/registry'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import { TurnFault } from '../model/turn-fault'
 import { faultReport, overflowReport } from './turn-faults'
+import type { TrackedTurnDeps } from './tracked-turn-deps'
 
 export type PreparedFailure =
   | { kind: 'overflow'; tokens: number; window: number }
@@ -62,6 +65,7 @@ export type StepPrepareDeps = {
   uploads: SaidUploadsPort | undefined
   onContext: ((args: { tokens: number; window: number }) => void) | undefined
   compact: (args: { threadId: ThreadId; tokens: number; window: number }) => Promise<boolean>
+  trace?: TracePort | undefined
 }
 
 export function oncePerTurnCompact({
@@ -86,6 +90,27 @@ export function oncePerTurnCompact({
   }
 }
 
+export const stepPrepareDepsOf = ({
+  deps,
+  position,
+}: {
+  deps: TrackedTurnDeps
+  position: { compacted: boolean }
+}): StepPrepareDeps => ({
+  model: deps.model,
+  assembly: deps.assembly,
+  countTokens: deps.countTokens,
+  hooks: deps.hooks,
+  uploads: deps.uploads,
+  onContext: deps.onContext,
+  trace: deps.trace,
+  compact: oncePerTurnCompact({
+    compact: deps.compact,
+    atPercent: deps.autoCompactAtPercent,
+    position,
+  }),
+})
+
 function uploadsOf({ events, threadId }: { events: readonly Event[]; threadId: ThreadId }): {
   all: SaidUpload[]
   current: Set<string>
@@ -102,16 +127,26 @@ function uploadsOf({ events, threadId }: { events: readonly Event[]; threadId: T
   return { all, current }
 }
 
-export async function prepareStepAssembly(
+type StepPrepareArgs = {
+  threadId: ThreadId
+  events: readonly Event[]
+  step: number
+  previous: Assembled | undefined
+  signal?: AbortSignal | undefined
+}
+
+export function prepareStepAssembly(
   deps: StepPrepareDeps,
-  args: {
-    threadId: ThreadId
-    events: readonly Event[]
-    step: number
-    previous: Assembled | undefined
-    signal?: AbortSignal | undefined
-  },
+  args: StepPrepareArgs,
 ): Promise<PreparedStep> {
+  return spanWith(deps.trace, {
+    name: ESpan.ContextPrepare,
+    fields: { threadId: args.threadId, step: args.step },
+    run: () => assembleStep(deps, args),
+  })
+}
+
+async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promise<PreparedStep> {
   const uploads = uploadsOf({ events: args.events, threadId: args.threadId })
   const placements =
     deps.uploads === undefined || uploads.all.length === 0

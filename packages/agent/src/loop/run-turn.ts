@@ -4,34 +4,24 @@ import {
   imageTierOf,
   saidBody,
   type Assembled,
-  type AssemblyPipeline,
   type ThreadId,
-  type ChunkFilter,
   type EventDraft,
   type SaidFile,
   type SaidImage,
   type SaidUpload,
   type IdPort,
-  type LoopCut,
   type ModelPort,
-  type ToolDeclaration,
 } from '@dltech/atlas-core'
 
-import type { AgentIntake } from '../intake/agent-intake'
-import type { AgentRecordPort, ModelContextPort } from '../record/agent-record.port'
+import type { AgentRecordPort } from '../record/agent-record.port'
 import type { OnceLedger } from './once-ledger.port'
 import type { AgentOutput } from './agent-output'
 import { retryDepsFor } from './retry-deps'
-import type { HookChain } from '../hooks/registry'
-import type { SaidUploadsPort } from '../uploads/said-uploads.port'
-import type { ApplyLoopCut } from '../loop-cut'
-import type { ToolDispatcher } from '../tools/dispatch'
-import type { LoopWatch } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
 import type { PendingDrain } from './pending-intake'
 import type { ExpandContext } from '../intake/pending-said'
 import type { RetryDeps } from './retrying-step'
-import type { ModelWaitObserver, SleepPrevention } from './loop-ports'
+import type { SleepPrevention } from './loop-ports'
 import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps } from '../ledger/record-turn-spend'
 import {
   runFailureWith,
@@ -40,47 +30,16 @@ import {
 } from '../model/run-failure'
 import { recordEscapedFailure, recordRunFailure } from './recorded-failures'
 import { appendResumeDrafts } from './resume-turn'
-import { createSettlePending, type OnToolOutputNotice } from './settle-pending'
+import { createSettlePending } from './settle-pending'
 import { runTrackedTurn, type TrackedTurnDeps } from './tracked-turn'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
-import type { LogPort } from '@dltech/atlas-observability'
+import type { TurnDeps } from './turn-deps'
+import type { LogPort, TracePort } from '@dltech/atlas-observability'
+import { traceTurn, tracedTurnDeps } from '../trace/traced-turn-deps'
 
 export type { PendingDrain }
-
-export type TurnDeps = {
-  record: AgentRecordPort
-  modelContext: ModelContextPort
-  logPort?: LogPort | undefined
-  model: ModelPort
-  ids: IdPort
-  assembly: AssemblyPipeline
-  tools?: (() => readonly ToolDeclaration[]) | undefined
-  countTokens?: ((assembled: Assembled) => number) | undefined
-  onChunk?: ChunkFilter | undefined
-  output?: AgentOutput | undefined
-  dispatch?: ToolDispatcher | undefined
-  hooks?: HookChain | undefined
-  uploads?: SaidUploadsPort | undefined
-  intake?: AgentIntake | undefined
-  expandContext?: ExpandContext | undefined
-  spend?: TurnLedgerDeps | undefined
-  compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
-  applyLoopCut?: ApplyLoopCut | undefined
-  onLoopCut?: ((cut: LoopCut) => void) | undefined
-  watchLoop?: LoopWatch | undefined
-  onLoopWatch?: (() => void) | undefined
-  onLoopWatchCut?: ((args: { steps: number }) => void) | undefined
-  onLoopStop?: (() => void) | undefined
-  autoCompactAtPercent?: (() => number) | undefined
-  launchDirectory: string
-  retry?: RetryDeps | undefined
-  sleepPrevention?: SleepPrevention | undefined
-  waitState?: ModelWaitObserver | undefined
-  normalizeFailure: NormalizeFailure
-  failureDiagnostics?: FailureDiagnostics | undefined
-  onceLedger?: OnceLedger | undefined
-}
+export type { TurnDeps } from './turn-deps'
 
 export class LoopTurnRunner extends TurnRunner {
   private readonly record: AgentRecordPort
@@ -96,9 +55,12 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly normalizeFailure: NormalizeFailure
   private readonly failureDiagnostics: FailureDiagnostics | undefined
   private readonly expandContext: ExpandContext | undefined
+  private readonly trace: TracePort | undefined
 
-  constructor(deps: TurnDeps) {
+  constructor(untraced: TurnDeps) {
     super()
+    const deps = tracedTurnDeps(untraced)
+    this.trace = deps.trace
     this.record = deps.record
     this.model = deps.model
     this.ids = deps.ids
@@ -160,6 +122,7 @@ export class LoopTurnRunner extends TurnRunner {
       retry: deps.retry,
       waitState: deps.waitState,
       normalizeFailure: deps.normalizeFailure,
+      trace: deps.trace,
     }
   }
 
@@ -231,6 +194,28 @@ export class LoopTurnRunner extends TurnRunner {
   }
 
   async runTurn({
+    threadId,
+    signal,
+    pause,
+  }: {
+    threadId: ThreadId
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
+    return traceTurn({
+      trace: this.trace,
+      model: this.model,
+      threadId,
+      run: () =>
+        this.runTracedTurn({
+          threadId,
+          ...(signal === undefined ? {} : { signal }),
+          ...(pause === undefined ? {} : { pause }),
+        }),
+    })
+  }
+
+  private async runTracedTurn({
     threadId,
     signal,
     pause,

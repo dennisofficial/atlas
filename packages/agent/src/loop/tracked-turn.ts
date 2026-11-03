@@ -11,6 +11,8 @@ import {
   type RunId,
 } from '@dltech/atlas-core'
 
+import { ESpan, spanWith } from '@dltech/atlas-observability'
+
 import { guardRepeatLoop } from './loop-guard'
 import { watchStepLoop } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
@@ -19,12 +21,7 @@ import { takeModelStepWithRetry } from './retrying-step'
 import type { TurnSpendTally } from '../ledger/record-turn-spend'
 import { appendShellCompletionNudge } from './shell-completion'
 import { draftsFor, interruptedDrafts } from './step-drafts'
-import {
-  oncePerTurnCompact,
-  prepareStepAssembly,
-  preparedFailureMessage,
-  type StepPrepareDeps,
-} from './step-prepare'
+import { prepareStepAssembly, stepPrepareDepsOf, preparedFailureMessage } from './step-prepare'
 import { idleOrSwallowed, unsettledCall } from './swallowed-outcome'
 import { waitingIfBlocked } from './waiting-outcome'
 import { committedSinceLastMessage, messageArrivedSince, settlePendingCall } from './turn-position'
@@ -54,19 +51,7 @@ export async function runTrackedTurn(
   const { record, ids } = deps
   const abortSignal = signal ?? new AbortController().signal
   const position = openPosition()
-  const preparedAssembly: StepPrepareDeps = {
-    model: deps.model,
-    assembly: deps.assembly,
-    countTokens: deps.countTokens,
-    hooks: deps.hooks,
-    uploads: deps.uploads,
-    onContext: deps.onContext,
-    compact: oncePerTurnCompact({
-      compact: deps.compact,
-      atPercent: deps.autoCompactAtPercent,
-      position,
-    }),
-  }
+  const preparedAssembly = stepPrepareDepsOf({ deps, position })
 
   const interrupted = async (): Promise<TurnOutcome> => ({
     status: ETurnStatus.Interrupted,
@@ -81,7 +66,10 @@ export async function runTrackedTurn(
     launchDirectory: deps.launchDirectory,
   })
 
-  const opening = (await deps.hooks?.beforeTurn({ threadId, projectDirectory })) ?? []
+  const opening = await spanWith(deps.trace, {
+    name: ESpan.TurnHooks,
+    run: async () => (await deps.hooks?.beforeTurn({ threadId, projectDirectory })) ?? [],
+  })
   if (opening.length > 0) await record.append({ threadId, runId, drafts: opening })
 
   for (;;) {
