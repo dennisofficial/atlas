@@ -26,7 +26,6 @@ export const manifestOf = (items: readonly Publishable[]): PublishedBundleManife
   return {
     skills: labelsOf(EPublishKind.Skill),
     instructions: labelsOf(EPublishKind.Instructions),
-    mcp: items.some((item) => item.kind === EPublishKind.Mcp),
   }
 }
 

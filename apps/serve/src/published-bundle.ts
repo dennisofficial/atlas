@@ -18,7 +18,6 @@ const LEASE_REGISTRATION_DELAY_MS = 1_000
 const REQUEST_TIMEOUT_MS = 10_000
 const BOOT_BUDGET_MS = 60_000
 const KEPT_KEY_PREFIXES = ['user-layer/skills/', 'user-layer/instructions/'] as const
-const KEPT_EXACT_KEY = '.atlas/mcp.json'
 
 type Sleep = (ms: number) => Promise<void>
 
@@ -40,7 +39,7 @@ const remainingMs = (deadline: number): number => {
 const defaultSleep: Sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const isKeptKey = (key: string): boolean =>
-  key === KEPT_EXACT_KEY || KEPT_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
+  KEPT_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
 
 const isUnauthorized = (error: unknown): boolean => httpStatusOf(error) === 401
 

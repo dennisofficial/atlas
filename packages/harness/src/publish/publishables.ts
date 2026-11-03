@@ -2,13 +2,11 @@ import { createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { ATLAS_MCP_FILE_NAME } from '../settings/paths'
 import { skillsTree } from '../user-layer-sync/tree-skills'
 
 export enum EPublishKind {
   Skill = 'skill',
   Instructions = 'instructions',
-  Mcp = 'mcp',
 }
 
 export type PublishFile = { archiveKey: string; path: string }
@@ -29,7 +27,6 @@ type FileDigest = { size: number; digest: string }
 const SKILL_ARCHIVE_PREFIX = 'user-layer/skills/'
 const INSTRUCTIONS_NAME = 'ATLAS.md'
 const INSTRUCTIONS_ARCHIVE_KEY = 'user-layer/instructions/.atlas/ATLAS.md'
-const MCP_ARCHIVE_KEY = '.atlas/mcp.json'
 const SKILL_KEY_SEGMENTS = 3
 const READ_CONCURRENCY = 32
 
@@ -139,13 +136,6 @@ export async function scanPublishables(args: {
       id: `instructions:${INSTRUCTIONS_NAME}`,
       kind: EPublishKind.Instructions,
       label: INSTRUCTIONS_NAME,
-    })),
-    ...(await singleFileDraft({
-      path: join(args.atlasHome, ATLAS_MCP_FILE_NAME),
-      archiveKey: MCP_ARCHIVE_KEY,
-      id: 'mcp',
-      kind: EPublishKind.Mcp,
-      label: ATLAS_MCP_FILE_NAME,
     })),
   ]
   const digests = await digestAll([

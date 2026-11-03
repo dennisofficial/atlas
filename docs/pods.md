@@ -170,10 +170,11 @@ and the `atlas push` bundle ([0011](decisions/0011-explicit-atlas-push.md)).
    so `settings.json` is the Cloud scoped result.
 7. **`atlas push` bundle.** `publishedBundles.current` returns the latest version the
    user published and a presigned download URL. Serve checks the size and SHA-256, then installs
-   only skill, `ATLAS.md` and `mcp.json` entries (`apps/serve/src/published-bundle.ts`). The
-   Cloud `userFiles` `ATLAS.md` and the Cloud MCP rows also reach the pod
-   (`apps/serve/src/cloud-instructions.ts`), so the bundle is not the only source of the user
-   layer. No bundle is a no-op. This runs on every boot, so
+   only skill and `ATLAS.md` entries (`apps/serve/src/published-bundle.ts`). The bundle never
+   carries MCP config: a pod's MCP servers come only from the Cloud account and project MCP
+   rows (step 6) and the repository's own `.atlas/mcp.json` / `.mcp.json`. The Cloud `userFiles`
+   `ATLAS.md` also reaches the pod (`apps/serve/src/cloud-instructions.ts`), so the bundle is not
+   the only source of the user layer. No bundle is a no-op. This runs on every boot, so
    a wake picks up a newer version ([0011](decisions/0011-explicit-atlas-push.md)).
 8. **Thread meta.** A fresh pod writes its thread meta with the `projectId`, and a local pod stamps
    `runner: local` (`apps/serve/src/serve-boot.ts`).

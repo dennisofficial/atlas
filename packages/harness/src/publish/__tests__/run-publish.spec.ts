@@ -31,7 +31,7 @@ const summary = {
   version: 3,
   sha256: 'a'.repeat(64),
   sizeBytes: 10,
-  manifest: { skills: [], instructions: [], mcp: false },
+  manifest: { skills: [], instructions: [] },
   createdAt: 'now',
 }
 
@@ -109,7 +109,7 @@ describe('publishBundle', () => {
       sha256: createHash('sha256')
         .update(bytes ?? new Uint8Array())
         .digest('hex'),
-      manifest: { skills: ['.agents/alpha'], instructions: ['ATLAS.md'], mcp: true },
+      manifest: { skills: ['.agents/alpha'], instructions: ['ATLAS.md'] },
     })
     expect(commit?.authorization).toBe('Bearer sess')
   })

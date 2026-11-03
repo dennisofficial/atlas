@@ -8,7 +8,6 @@ const itemKeySchema = z.string().min(1).max(512)
 export const publishedBundleManifestSchema = z.object({
   skills: z.array(itemKeySchema).max(10_000),
   instructions: z.array(itemKeySchema).max(100),
-  mcp: z.boolean(),
 })
 export type PublishedBundleManifest = z.infer<typeof publishedBundleManifestSchema>
 

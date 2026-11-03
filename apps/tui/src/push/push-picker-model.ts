@@ -27,7 +27,6 @@ export type PickerState = {
 const SECTIONS: readonly { kind: EPublishKind; title: string }[] = [
   { kind: EPublishKind.Skill, title: 'Skills' },
   { kind: EPublishKind.Instructions, title: 'Instructions' },
-  { kind: EPublishKind.Mcp, title: 'MCP config' },
 ]
 
 export function listOf({
