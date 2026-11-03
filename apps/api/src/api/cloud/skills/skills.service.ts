@@ -8,15 +8,19 @@ import {
 } from '@nestjs/common'
 import { db, isUniqueViolation, violatedConstraint, type Row } from '@dltech/atlas-db'
 import { parseSkillSpec } from '@dltech/atlas-harness/skill-specs'
+import { builtInSkills } from '@dltech/atlas-harness/skill-catalogue'
 import {
+  ESkillOrigin,
   ESkillScope,
   SKILL_TEXT_EXTENSIONS,
   type SkillFileContent,
   type SkillFileMeta,
   type SkillSummary,
+  type SkillUsage,
 } from '@dltech/atlas-wire'
 import { ProjectsService } from '../projects/projects.service'
 import { SkillUsageService } from './skill-usage.service'
+import { builtInSkill, isBuiltIn, readBuiltInFile } from './builtin-skill-source'
 
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 const MAX_PATH_LENGTH = 500
@@ -117,6 +121,27 @@ export class SkillsService {
     return args.projectId
   }
 
+  private assertNotBuiltIn(skill: string): void {
+    if (isBuiltIn(skill)) {
+      throw new BadRequestException(
+        `'${skill}' is a built-in skill; it cannot be edited or deleted`,
+      )
+    }
+  }
+
+  private async fillDescription(skill: Row<'Skill'>): Promise<string> {
+    if (skill.description !== '') return skill.description
+    const entry = await db.orm.public.SkillFile.first({ skillId: skill.id, path: SKILL_ENTRY })
+    if (entry === null) return skill.description
+    const derived = descriptionOf({
+      text: Buffer.from(entry.content).toString('utf8'),
+      skill: skill.name,
+    })
+    if (derived === '') return skill.description
+    await db.orm.public.Skill.where({ id: skill.id }).update({ description: derived })
+    return derived
+  }
+
   async list(args: Scope & { userId: string }): Promise<SkillSummary[]> {
     const filter =
       args.scope === ESkillScope.Personal
@@ -137,20 +162,54 @@ export class SkillsService {
         skillNames: names,
       }),
     ])
-    return skills.map((skill) => {
+    const descriptions = await Promise.all(skills.map((skill) => this.fillDescription(skill)))
+    const descriptionById = new Map(skills.map((skill, index) => [skill.id, descriptions[index]]))
+    const origin =
+      args.scope === ESkillScope.Personal ? ESkillOrigin.Personal : ESkillOrigin.Project
+    const rows: SkillSummary[] = skills.map((skill) => {
       const own = files.filter((file) => file.skillId === skill.id)
       return {
         name: skill.name,
-        description: skill.description,
+        description: descriptionById.get(skill.id) ?? skill.description,
         fileCount: own.length,
         sizeBytes: own.reduce((total, file) => total + file.size, 0),
         updatedAt: skill.updatedAt.toISOString(),
         usage: usage.get(skill.name) ?? { usedCount30d: 0, lastUsedAt: null },
+        origin,
+        overridesBuiltIn: isBuiltIn(skill.name),
       }
     })
+    if (args.scope !== ESkillScope.Personal) return rows
+    const ownedNames = new Set(names)
+    const builtInRows = builtInSkills()
+      .filter((skill) => !ownedNames.has(skill.name))
+      .map((skill) => this.builtInSummary({ skill, usage }))
+    return [...rows, ...builtInRows]
+  }
+
+  private builtInSummary(args: {
+    skill: ReturnType<typeof builtInSkills>[number]
+    usage: Map<string, SkillUsage>
+  }): SkillSummary {
+    const { skill } = args
+    return {
+      name: skill.name,
+      description: skill.description,
+      fileCount: skill.files.length + 1,
+      sizeBytes:
+        skill.entry.sizeBytes + skill.files.reduce((total, file) => total + file.sizeBytes, 0),
+      updatedAt: skill.updatedAt,
+      usage: args.usage.get(skill.name) ?? { usedCount30d: 0, lastUsedAt: null },
+      origin: ESkillOrigin.BuiltIn,
+      overridesBuiltIn: false,
+    }
   }
 
   async listFiles(args: Scope & { userId: string; skill: string }): Promise<SkillFileMeta[]> {
+    if (args.scope === ESkillScope.Personal) {
+      const builtInOnly = await this.resolveToBuiltInOnly(args)
+      if (builtInOnly !== undefined) return builtInOnly
+    }
     const skill = await this.resolveSkill(args)
     const files = await db.orm.public.SkillFile.where({ skillId: skill.id })
       .orderBy((file) => file.path.asc())
@@ -158,14 +217,87 @@ export class SkillsService {
     return files.map((file) => toMetaDto(file))
   }
 
+  private async resolveToBuiltInOnly(
+    args: Scope & { userId: string; skill: string },
+  ): Promise<SkillFileMeta[] | undefined> {
+    const row = await db.orm.public.Skill.first({
+      userId: args.userId,
+      name: args.skill.toLowerCase(),
+    })
+    if (row !== null) return undefined
+    const skill = builtInSkill(args.skill)
+    if (skill === undefined) return undefined
+    return [
+      {
+        path: skill.entry.path,
+        revision: 0,
+        contentHash: skill.entry.digest,
+        sizeBytes: skill.entry.sizeBytes,
+        isText: true,
+        updatedAt: skill.updatedAt,
+      },
+      ...skill.files.map((file) => ({
+        path: file.path,
+        revision: 0,
+        contentHash: file.digest,
+        sizeBytes: file.sizeBytes,
+        isText: file.isText,
+        updatedAt: skill.updatedAt,
+      })),
+    ]
+  }
+
   async get(
     args: Scope & { userId: string; skill: string; path: string },
   ): Promise<SkillFileContent> {
     assertValidPath(args.path)
+    if (args.scope === ESkillScope.Personal) {
+      const own = await db.orm.public.Skill.first({
+        userId: args.userId,
+        name: args.skill.toLowerCase(),
+      })
+      if (own === null) {
+        const builtIn = await this.getBuiltIn(args)
+        if (builtIn !== undefined) return builtIn
+      }
+    }
     const skill = await this.resolveSkill(args)
     const row = await db.orm.public.SkillFile.first({ skillId: skill.id, path: args.path })
     if (row === null) throw new NotFoundException('no such file')
     return { ...toMetaDto(row), content: Buffer.from(row.content).toString('base64') }
+  }
+
+  private async getBuiltIn(args: {
+    userId: string
+    skill: string
+    path: string
+  }): Promise<SkillFileContent | undefined> {
+    const skill = builtInSkill(args.skill)
+    if (skill === undefined) return undefined
+    const meta =
+      args.path === skill.entry.path
+        ? {
+            path: skill.entry.path,
+            revision: 0,
+            contentHash: skill.entry.digest,
+            sizeBytes: skill.entry.sizeBytes,
+            isText: true,
+            updatedAt: skill.updatedAt,
+          }
+        : skill.files
+            .filter((file) => file.path === args.path)
+            .map((file) => ({
+              path: file.path,
+              revision: 0,
+              contentHash: file.digest,
+              sizeBytes: file.sizeBytes,
+              isText: file.isText,
+              updatedAt: skill.updatedAt,
+            }))[0]
+    if (meta === undefined) return undefined
+    const bytes = await readBuiltInFile({ name: args.skill, path: args.path })
+    if (bytes === undefined) return undefined
+    return { ...meta, content: Buffer.from(bytes).toString('base64') }
   }
 
   async put(
@@ -243,6 +375,7 @@ export class SkillsService {
         : ({ projectId: await this.projectIdOf(args) } as const)
     const existing = await db.orm.public.Skill.first({ ...owner, name: args.skill })
     if (existing !== null) return existing
+    this.assertNotBuiltIn(args.skill)
     return this.createSkill({ ...owner, name: args.skill })
   }
 

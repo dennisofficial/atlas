@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ArrowLeftIcon, Trash2Icon } from 'lucide-react'
 
+import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 
 import { formatSkillDate } from './skill-format'
@@ -11,11 +12,13 @@ export function SkillDetailHeader({
   name,
   updatedAt,
   listHref,
+  readOnly = false,
   onDeleteSkill,
 }: {
   name: string
   updatedAt: string | null
   listHref: string
+  readOnly?: boolean
   onDeleteSkill: () => void
 }) {
   return (
@@ -33,6 +36,7 @@ export function SkillDetailHeader({
         </Button>
         <div className="flex items-center gap-2">
           <h1 className="font-mono text-base font-semibold">{name}</h1>
+          {readOnly ? <Badge variant="secondary">Built-in</Badge> : null}
           {updatedAt === null ? null : (
             <span className="text-xs text-muted-foreground">
               Updated {formatSkillDate(updatedAt)}
@@ -40,10 +44,12 @@ export function SkillDetailHeader({
           )}
         </div>
       </div>
-      <Button variant="outline" size="sm" onClick={onDeleteSkill}>
-        <Trash2Icon data-icon="inline-start" />
-        Delete skill
-      </Button>
+      {readOnly ? null : (
+        <Button variant="outline" size="sm" onClick={onDeleteSkill}>
+          <Trash2Icon data-icon="inline-start" />
+          Delete skill
+        </Button>
+      )}
     </header>
   )
 }

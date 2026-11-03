@@ -12,7 +12,11 @@ mock.module('next/navigation', () => ({
 
 const { SkillsTable } = await import('../skills-list-view')
 
-function summary(name: string, usedCount30d: number): SkillSummary {
+function summary(
+  name: string,
+  usedCount30d: number,
+  extra: Partial<SkillSummary> = {},
+): SkillSummary {
   return {
     name,
     description: '',
@@ -20,10 +24,16 @@ function summary(name: string, usedCount30d: number): SkillSummary {
     sizeBytes: 10,
     updatedAt: '2026-11-01T00:00:00Z',
     usage: { usedCount30d, lastUsedAt: null },
+    origin: 'personal',
+    overridesBuiltIn: false,
+    ...extra,
   }
 }
 
 const SKILLS = [summary('tdd', 5), summary('stale', 0), summary('memory', 12)]
+
+const BUILT_IN = summary('commit', 3, { origin: 'built-in', description: 'ships with Atlas' })
+const OVERRIDING = summary('atlas', 1, { overridesBuiltIn: true })
 
 const DETAIL_HREF = (name: string) => `/settings/skills/${name}`
 
@@ -48,10 +58,10 @@ afterEach(async () => {
   pushed.length = 0
 })
 
-async function renderTable(): Promise<HTMLDivElement> {
+async function renderTable(skills: SkillSummary[] = SKILLS): Promise<HTMLDivElement> {
   const node: ReactNode = (
     <SkillsTable
-      skills={SKILLS}
+      skills={skills}
       now={Date.now()}
       title="Skills"
       description="desc"
@@ -145,5 +155,45 @@ describe('SkillsTable sort headers', () => {
       (row) => row.querySelector('a')?.textContent,
     )
     expect(names).toEqual(['memory', 'tdd', 'stale'])
+  })
+})
+
+describe('SkillsTable built-in rows', () => {
+  it('shows a Built-in badge and no checkbox for a built-in skill', async () => {
+    const element = await renderTable([BUILT_IN])
+    const row = rowNamed(element, 'commit')
+    expect(row.textContent).toContain('Built-in')
+    expect(row.querySelector('[role="checkbox"], input[type="checkbox"]')).toBeNull()
+  })
+
+  it('keeps the checkbox for a personal skill', async () => {
+    const element = await renderTable([summary('tdd', 5)])
+    const row = rowNamed(element, 'tdd')
+    expect(row.querySelector('[role="checkbox"], input[type="checkbox"]')).not.toBeNull()
+    expect(row.textContent).not.toContain('Built-in')
+  })
+
+  it('labels a personal skill that shadows a built-in as overriding it', async () => {
+    const element = await renderTable([OVERRIDING])
+    const row = rowNamed(element, 'atlas')
+    expect(row.textContent).toContain('Overrides built-in')
+  })
+
+  it('keeps search matching across personal and built-in rows', async () => {
+    const element = await renderTable([summary('tdd', 5), BUILT_IN])
+    const input = element.querySelector('input')
+    if (input === null) throw new Error('no search input')
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      )?.set
+      setter?.call(input, 'commit')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    const names = [...element.querySelectorAll('tbody tr')].map(
+      (row) => row.querySelector('a')?.textContent,
+    )
+    expect(names).toEqual(['commit'])
   })
 })

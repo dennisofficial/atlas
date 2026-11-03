@@ -4,9 +4,16 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { FolderTreeIcon, SearchIcon } from 'lucide-react'
-import type { SkillSummary } from '@dltech/atlas-wire/web'
+import { ESkillOrigin, type SkillSummary } from '@dltech/atlas-wire/web'
 
+import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Checkbox } from '@dltech/atlas-ui/components/checkbox'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@dltech/atlas-ui/components/tooltip'
 import {
   Empty,
   EmptyDescription,
@@ -222,23 +229,44 @@ export function SkillsTable({
                   onClick={() => router.push(detailHref(skill.name))}
                 >
                   <TableCell onClick={(event) => event.stopPropagation()}>
-                    <Checkbox
-                      aria-label={`Select ${skill.name}`}
-                      checked={liveSelected.includes(skill.name)}
-                      onCheckedChange={(checked) =>
-                        handleSelectedChange({ name: skill.name, checked: checked === true })
-                      }
-                    />
+                    {skill.origin === ESkillOrigin.BuiltIn ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={<span className="flex size-4 items-center justify-center" />}
+                          >
+                            <span className="size-4 rounded-sm border border-dashed border-muted-foreground/40" />
+                          </TooltipTrigger>
+                          <TooltipContent>Built-in skills ship with Atlas</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <Checkbox
+                        aria-label={`Select ${skill.name}`}
+                        checked={liveSelected.includes(skill.name)}
+                        onCheckedChange={(checked) =>
+                          handleSelectedChange({ name: skill.name, checked: checked === true })
+                        }
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex min-w-0 flex-col gap-0.5">
-                      <Link
-                        href={detailHref(skill.name)}
-                        onClick={(event) => event.stopPropagation()}
-                        className="w-fit max-w-full truncate font-mono text-xs font-medium hover:underline"
-                      >
-                        {skill.name}
-                      </Link>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Link
+                          href={detailHref(skill.name)}
+                          onClick={(event) => event.stopPropagation()}
+                          className="w-fit max-w-full truncate font-mono text-xs font-medium hover:underline"
+                        >
+                          {skill.name}
+                        </Link>
+                        {skill.origin === ESkillOrigin.BuiltIn ? (
+                          <Badge variant="secondary">Built-in</Badge>
+                        ) : null}
+                        {skill.overridesBuiltIn ? (
+                          <Badge variant="outline">Overrides built-in</Badge>
+                        ) : null}
+                      </div>
                       <span className="truncate text-xs text-muted-foreground">
                         {skill.description || 'No description yet.'}
                       </span>

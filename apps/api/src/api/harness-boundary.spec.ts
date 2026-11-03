@@ -7,6 +7,7 @@ const HARNESS_SUBPATH = '@dltech/atlas-harness/models'
 const TITLING_SUBPATH = '@dltech/atlas-harness/titling'
 const SKILL_SPECS_SUBPATH = '@dltech/atlas-harness/skill-specs'
 const MCP_OAUTH_SUBPATH = '@dltech/atlas-harness/mcp-oauth'
+const SKILL_CATALOGUE_SUBPATH = '@dltech/atlas-harness/skill-catalogue'
 const PROVIDER_OAUTH_SUBPATH = '@dltech/atlas-harness/provider-oauth'
 const ALLOWED_SUBPATHS = [
   HARNESS_SUBPATH,
@@ -14,6 +15,7 @@ const ALLOWED_SUBPATHS = [
   SKILL_SPECS_SUBPATH,
   PROVIDER_OAUTH_SUBPATH,
   MCP_OAUTH_SUBPATH,
+  SKILL_CATALOGUE_SUBPATH,
 ]
 const SPECIFIER_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g
 
