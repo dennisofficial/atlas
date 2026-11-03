@@ -6,9 +6,8 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
-import { V2SessionsRouter } from './v2-sessions.router'
-import { V2SessionsService } from './v2-sessions.service'
-import { V2UserMiddleware } from './v2-user.middleware'
+import { SessionsRouter } from './sessions.router'
+import { SessionsService } from './sessions.service'
 
 export const sessions = {
   create: vi.fn(),
@@ -18,17 +17,13 @@ export const sessions = {
   status: vi.fn(),
 }
 
-export const createV2SessionsApp = (args?: {
-  allowlist?: string | undefined
-}): Promise<NestExpressApplication> =>
+export const createSessionsApp = (): Promise<NestExpressApplication> =>
   createMiddlewareApp({
     rateLimit: UNTHROTTLED_RATE_LIMIT,
-    envValues: { V2_USER_IDS: args?.allowlist },
     providers: [
-      V2SessionsRouter,
+      SessionsRouter,
       SessionMiddleware,
-      V2UserMiddleware,
-      { provide: V2SessionsService, useValue: sessions },
+      { provide: SessionsService, useValue: sessions },
       {
         provide: SESSION_VERIFIER,
         useValue: {

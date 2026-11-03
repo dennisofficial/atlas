@@ -1,27 +1,27 @@
 import { randomUUID } from 'node:crypto'
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
-import type { V2SessionRow } from '@dltech/atlas-control'
+import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
   sessionStatusOf,
   type InboxEntry,
   type V2Event,
-  type V2SessionStatus,
+  type SessionStatus,
 } from '@dltech/atlas-core'
-import { V2_INBOX_KIND_MESSAGE, v2InboxMessageSchema } from '@dltech/atlas-protocol'
+import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import type {
-  V2SessionEventsOutput,
-  V2SessionListOutput,
-  V2SessionStatusOutput,
+  SessionEventsOutput,
+  SessionListOutput,
+  SessionStatusOutput,
 } from '@dltech/atlas-protocol'
-import { V2ProjectAccess } from './v2-project-access'
-import { V2WakePublisher } from './v2-wake.publisher'
+import { ProjectAccess } from './project-access'
+import { WakePublisher } from './wake.publisher'
 
 export type LeaseView = { epoch: number; holderId: string | null; live: boolean }
 
 const STATUS_EVENT_LIMIT = 1000
 
-const toSummary = (row: V2SessionRow) => ({
+const toSummary = (row: ControlSessionRow) => ({
   sessionId: row.sessionId,
   projectId: row.projectId,
   title: row.title,
@@ -30,13 +30,13 @@ const toSummary = (row: V2SessionRow) => ({
 })
 
 @Injectable()
-export class V2SessionsService {
-  private readonly logger = new Logger(V2SessionsService.name)
+export class SessionsService {
+  private readonly logger = new Logger(SessionsService.name)
 
   constructor(
     private readonly plane: ControlPlane,
-    private readonly wakes: V2WakePublisher,
-    private readonly projects: V2ProjectAccess,
+    private readonly wakes: WakePublisher,
+    private readonly projects: ProjectAccess,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -63,7 +63,7 @@ export class V2SessionsService {
     userId: string
     projectId?: string | undefined
     limit?: number | undefined
-  }): Promise<V2SessionListOutput> {
+  }): Promise<SessionListOutput> {
     const sessions = await this.plane.listSessions({
       userId: args.userId,
       projectId: args.projectId,
@@ -74,16 +74,16 @@ export class V2SessionsService {
 
   async post(args: { userId: string; sessionId: string; text: string }) {
     await this.requireOwnedSession(args)
-    const payload = JSON.stringify(v2InboxMessageSchema.parse({ text: args.text }))
+    const payload = JSON.stringify(inboxMessageSchema.parse({ text: args.text }))
     const { inboxId } = await this.plane.post({
       sessionId: args.sessionId,
-      kind: V2_INBOX_KIND_MESSAGE,
+      kind: INBOX_KIND_MESSAGE,
       payload,
     })
     try {
       await this.wakes.publish({ sessionId: args.sessionId })
     } catch (failure) {
-      this.logger.warn(`publishing the v2 wake for ${args.sessionId} failed: ${String(failure)}`)
+      this.logger.warn(`publishing the wake for ${args.sessionId} failed: ${String(failure)}`)
     }
     return { inboxId }
   }
@@ -93,7 +93,7 @@ export class V2SessionsService {
     sessionId: string
     afterSeq?: number | undefined
     limit?: number | undefined
-  }): Promise<V2SessionEventsOutput> {
+  }): Promise<SessionEventsOutput> {
     const session = await this.requireOwnedSession(args)
     const page = await this.plane.readEvents({
       threadId: session.mainThreadId,
@@ -107,7 +107,7 @@ export class V2SessionsService {
     }
   }
 
-  async status(args: { userId: string; sessionId: string }): Promise<V2SessionStatusOutput> {
+  async status(args: { userId: string; sessionId: string }): Promise<SessionStatusOutput> {
     const session = await this.requireOwnedSession(args)
     const head = await this.plane.head({ threadId: session.mainThreadId })
     const [page, inbox, { lease, live }] = await Promise.all([
@@ -121,7 +121,7 @@ export class V2SessionsService {
       this.plane.currentLease({ sessionId: args.sessionId }),
     ])
     const unconsumed = inbox.some((entry: InboxEntry) => entry.consumedSeq === null)
-    const current: V2SessionStatus = sessionStatusOf({
+    const current: SessionStatus = sessionStatusOf({
       events: page.events,
       live,
       unconsumedInbox: unconsumed,
@@ -138,7 +138,7 @@ export class V2SessionsService {
   private async requireOwnedSession(args: {
     userId: string
     sessionId: string
-  }): Promise<V2SessionRow> {
+  }): Promise<ControlSessionRow> {
     const session = await this.plane.readSession({ sessionId: args.sessionId })
     if (session === undefined || session.userId !== args.userId) {
       throw new NotFoundException('session not found')

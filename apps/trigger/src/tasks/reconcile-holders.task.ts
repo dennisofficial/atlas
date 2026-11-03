@@ -1,8 +1,8 @@
 import { schedules } from '@trigger.dev/sdk'
 import {
-  V2_RECONCILE_HOLDERS_CRON,
-  V2_RECONCILE_HOLDERS_TASK_ID,
-  V2_RECONCILE_LIMIT,
+  RECONCILE_HOLDERS_CRON,
+  RECONCILE_HOLDERS_TASK_ID,
+  RECONCILE_LIMIT,
 } from '@dltech/atlas-jobs'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
@@ -39,9 +39,9 @@ const sharedRedis = (): Redis => {
   return redis
 }
 
-export const v2ReconcileHoldersTask = schedules.task({
-  id: V2_RECONCILE_HOLDERS_TASK_ID,
-  cron: V2_RECONCILE_HOLDERS_CRON,
+export const reconcileHoldersTask = schedules.task({
+  id: RECONCILE_HOLDERS_TASK_ID,
+  cron: RECONCILE_HOLDERS_CRON,
   maxDuration: 60,
   run: async () => {
     const client = sharedRedis()
@@ -50,7 +50,7 @@ export const v2ReconcileHoldersTask = schedules.task({
       publish: async ({ channel, message }) => {
         await client.publish(channel, JSON.stringify(message))
       },
-      limit: V2_RECONCILE_LIMIT,
+      limit: RECONCILE_LIMIT,
     })
   },
 })

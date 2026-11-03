@@ -248,7 +248,7 @@ The agent host is part of the control plane (0021), so it uses the `ControlPlane
 
 **v1's API stays the only writer of users, projects, credentials and settings.** The agent host never
 writes a `public` table. It asks the API for what it needs over an internal route authenticated by
-a shared agent-host token (`V2_AGENT_HOST_TOKEN`, set on Render and Vercel): model credentials (the API
+a shared agent-host token (`AGENT_HOST_TOKEN`, set on Render and Vercel): model credentials (the API
 refreshes OAuth tokens, because a refresh is a write), Vercel sandbox credentials, the GitHub
 token for the clone, and a settings snapshot with its revision. The agent host caches each until it
 expires.
@@ -464,7 +464,7 @@ connection loses nothing: calls are keyed, so after reconnecting the agent host 
 
 **Fencing at the daemon too.** The connection opens with `{ sessionId, epoch }` and a bearer token.
 The daemon accepts the highest epoch it has seen and closes any older connection. A zombie agent host
-that lost its lease cannot start tools. The token is `HMAC(V2_DAEMON_SECRET, sandboxName)`, so any
+that lost its lease cannot start tools. The token is `HMAC(DAEMON_SECRET, sandboxName)`, so any
 agent host can work it out and nothing is stored.
 
 **Operations** (schemas in `protocol`):
@@ -576,11 +576,10 @@ The PR delivery buffer uses the same port when the subscriptions plugin moves (s
 
 ### 9. The v2 API namespace and the toggle
 
-**The API gains `v2.*` tRPC procedures.** For slice 3, only what scripts and tests need:
-`v2.sessions.create`, `v2.sessions.list`, `v2.sessions.post` (an inbox entry, then a Redis wake), `v2.sessions.events`
-(a ranged read) and `v2.sessions.status` (the lease and its liveness). The agent host's internal route
-is `v2.agentHost.config` (point 2). All of them are restricted to an allowlist (`V2_USER_IDS`), so
-nobody else can open a v2 session.
+**The API gains `sessions.*` and `agentHost.*` tRPC procedures.** For slice 3, only what scripts and tests need:
+`sessions.create`, `sessions.list`, `sessions.post` (an inbox entry, then a Redis wake), `sessions.events`
+(a ranged read) and `sessions.status` (the lease and its liveness). The agent host's internal route
+is `agentHost.config` (point 2). Open to every signed-in user; each procedure checks the caller owns the session (decided 2026-11-03).
 
 **The toggle is per session, with a badge** (decided 2026-11-02). The engine is chosen when a
 session is created (v1 by default) and never changes. One sidebar lists both kinds, and v2
@@ -654,7 +653,7 @@ The threshold is a setting; the agent host logs every spill so slice 8 can see h
 | Plan      | Standard (2 GB). Not lowered until v2 is in daily use and memory per session is known                         |
 | Shutdown  | `maxShutdownDelaySeconds: 300`                                                                                |
 | Deploys   | Auto-deploy from `main`, filtered to `apps/agent-host`, `apps/daemon` and the packages the agent host imports |
-| Env       | `DATABASE_URL`, `REDIS_URL`, `V2_AGENT_HOST_TOKEN`, `V2_DAEMON_SECRET`, `ATLAS_API_ORIGIN`                    |
+| Env       | `DATABASE_URL`, `REDIS_URL`, `AGENT_HOST_TOKEN`, `DAEMON_SECRET`, `ATLAS_API_ORIGIN`                          |
 
 It is created through the Render API once `apps/agent-host` exists on a branch. Render's GitHub app
 can see `dennisofficial/atlas` (granted by the operator 2026-11-02, this repository only).

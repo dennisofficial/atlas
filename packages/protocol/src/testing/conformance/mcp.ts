@@ -180,7 +180,7 @@ export const describeMcpConformance = (target: DaemonConformanceTarget): void =>
           serverId: 'srv-env',
           env: { SPEC_MARKER: 'from-spec' },
           script:
-            'console.log(JSON.stringify({ secret: process.env.V2_DAEMON_SECRET ?? "absent", randomParent: process.env.RANDOM_PARENT_VAR ?? "absent", marker: process.env.SPEC_MARKER ?? "absent" })); for await (const _ of Bun.stdin.stream()) {}',
+            'console.log(JSON.stringify({ secret: process.env.DAEMON_SECRET ?? "absent", randomParent: process.env.RANDOM_PARENT_VAR ?? "absent", marker: process.env.SPEC_MARKER ?? "absent" })); for await (const _ of Bun.stdin.stream()) {}',
         })
         const event = await messageEventOf({ session, serverId: 'srv-env' })
         const parsed = JSON.parse(event.line) as {

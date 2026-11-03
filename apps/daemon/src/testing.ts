@@ -72,7 +72,7 @@ export const daemonTestEnv = (
   options?: { realCgroups?: boolean | undefined },
 ): Record<string, string | undefined> => ({
   ...process.env,
-  V2_DAEMON_SECRET: SECRET,
+  DAEMON_SECRET: SECRET,
   ATLAS_SANDBOX_NAME: SANDBOX,
   ATLAS_DAEMON_HOME: join(home, 'daemon'),
   ...(options?.realCgroups === true ? {} : { ATLAS_DAEMON_CGROUP_ROOT: fakeCgroupRoot(home) }),

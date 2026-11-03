@@ -11,11 +11,11 @@ const tokenMatches = (args: { presented: string; expected: string }): boolean =>
 }
 
 @Injectable()
-export class V2AgentHostMiddleware implements TRPCMiddleware {
+export class AgentHostMiddleware implements TRPCMiddleware {
   constructor(private readonly env: EnvService) {}
 
   async use({ ctx, next }: MiddlewareOptions): MiddlewareResponse {
-    const expected = this.env.get('V2_AGENT_HOST_TOKEN')
+    const expected = this.env.get('AGENT_HOST_TOKEN')
     if (expected === undefined || !isApiTrpcCtx(ctx)) {
       throw new UnauthorizedException('agent-host authentication is not configured')
     }

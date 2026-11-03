@@ -2,6 +2,6 @@ export { ControlPlane, MAX_READ_LIMIT, MAX_SESSION_LIST_LIMIT } from './control-
 export type { ControlPlaneParams, ReadEventsPage, TakeBackResult } from './control-plane'
 export { LeaseConflictError, UnknownThreadError } from './errors'
 export { ControlStorePort, SeqConflictError } from './port'
-export type { ControlTx, ReadEventsParams, StoredEvent, ThreadRow, V2SessionRow } from './port'
+export type { ControlTx, ReadEventsParams, StoredEvent, ThreadRow, ControlSessionRow } from './port'
 export { RecordCorruptError } from './refusal'
 export type { AppendOutcome, ControlRefusal } from './refusal'

@@ -1,7 +1,7 @@
 export {
-  V2_RECONCILE_HOLDERS_CRON,
-  V2_RECONCILE_HOLDERS_TASK_ID,
-  V2_RECONCILE_LIMIT,
-  v2ReconcileHoldersPayloadSchema,
-} from './v2-reconcile-holders'
-export type { V2ReconcileHoldersPayload } from './v2-reconcile-holders'
+  RECONCILE_HOLDERS_CRON,
+  RECONCILE_HOLDERS_TASK_ID,
+  RECONCILE_LIMIT,
+  reconcileHoldersPayloadSchema,
+} from './reconcile-holders'
+export type { ReconcileHoldersPayload } from './reconcile-holders'

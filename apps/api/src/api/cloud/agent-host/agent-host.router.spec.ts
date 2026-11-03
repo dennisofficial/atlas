@@ -2,16 +2,16 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { as } from '../../../_module/trpc/trpc-middleware.fixture'
-import { agentHost, createV2AgentHostApp } from './v2-agent-host.router.fixture'
+import { agentHost, createAgentHostApp } from './agent-host.router.fixture'
 
 const TOKEN = 'a'.repeat(32)
 
-describe('V2AgentHostRouter', () => {
+describe('AgentHostRouter', () => {
   let app: NestExpressApplication
 
   const config = (token: string | undefined, input: object = { sessionId: 's1' }) => {
     const sent = request(app.getHttpServer())
-      .get('/v1/trpc/v2AgentHost.config')
+      .get('/v1/trpc/agentHost.config')
       .query({ input: JSON.stringify(input) })
     return token === undefined ? sent : sent.set(as(token))
   }
@@ -24,7 +24,7 @@ describe('V2AgentHostRouter', () => {
 
   describe('with a configured token', () => {
     beforeEach(async () => {
-      app = await createV2AgentHostApp({ token: TOKEN })
+      app = await createAgentHostApp({ token: TOKEN })
     })
 
     it('refuses a request without a token', async () => {
@@ -73,7 +73,7 @@ describe('V2AgentHostRouter', () => {
       })
 
       const response = await request(app.getHttpServer())
-        .get('/v1/trpc/v2AgentHost.modelAccessToken')
+        .get('/v1/trpc/agentHost.modelAccessToken')
         .set(as(TOKEN))
         .query({ input: JSON.stringify({ sessionId: 's1', connectionId: 'conn-1' }) })
 
@@ -89,7 +89,7 @@ describe('V2AgentHostRouter', () => {
       agentHost.githubToken.mockResolvedValue({ token: 'ghp_x' })
 
       const response = await request(app.getHttpServer())
-        .get('/v1/trpc/v2AgentHost.githubToken')
+        .get('/v1/trpc/agentHost.githubToken')
         .set(as(TOKEN))
         .query({ input: JSON.stringify({ sessionId: 's1' }) })
 
@@ -106,7 +106,7 @@ describe('V2AgentHostRouter', () => {
 
   describe('with the token unset', () => {
     beforeEach(async () => {
-      app = await createV2AgentHostApp()
+      app = await createAgentHostApp()
     })
 
     it('refuses everything, even with a plausible token', async () => {

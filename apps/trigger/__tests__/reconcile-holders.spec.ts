@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from 'bun:test'
 
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
-import { V2_WAKE_CHANNEL } from '@dltech/atlas-protocol'
+import { WAKE_CHANNEL } from '@dltech/atlas-protocol'
 
 import { reconcileHolders, type ReconcilePublish } from '../src/reconcile/reconcile-holders'
 
@@ -40,7 +40,7 @@ describe('reconcileHolders', () => {
 
     expect(result).toEqual({ woken: 1, failed: 0 })
     expect(publish).toHaveBeenCalledWith({
-      channel: V2_WAKE_CHANNEL,
+      channel: WAKE_CHANNEL,
       message: { sessionId: SESSION },
     })
   })
@@ -68,7 +68,7 @@ describe('reconcileHolders', () => {
 
     expect(result).toEqual({ woken: 1, failed: 0 })
     expect(publish).toHaveBeenCalledWith({
-      channel: V2_WAKE_CHANNEL,
+      channel: WAKE_CHANNEL,
       message: { sessionId: SESSION },
     })
   })

@@ -6,7 +6,7 @@ import { ERunFailureKind } from '../../events/run-failure'
 import { EModelWaitCause, EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EProviderFailureKind } from '../../models/provider-failure'
 import type { Hash, V2Event } from '../event'
-import { EV2SessionState, sessionStatusOf } from '../session-status'
+import { ESessionStatus, sessionStatusOf } from '../session-status'
 
 const NOW = '2026-11-03T12:00:00.000Z'
 const HASH = 'a'.repeat(64) as Hash
@@ -118,29 +118,29 @@ const status = (args: {
 describe('sessionStatusOf', () => {
   it('reports sent while an inbox entry is unconsumed, even mid-turn', () => {
     expect(status({ events: [userSaid()], unconsumedInbox: true })).toEqual({
-      state: EV2SessionState.Sent,
+      state: ESessionStatus.Sent,
     })
   })
 
   it('reports idle when there are no events yet', () => {
-    expect(status({})).toEqual({ state: EV2SessionState.Idle, since: undefined })
+    expect(status({})).toEqual({ state: ESessionStatus.Idle, since: undefined })
   })
 
   it('reports idle after a finished turn', () => {
     const result = status({ events: [userSaid(), assistantSaid()], live: true })
-    expect(result).toEqual({ state: EV2SessionState.Idle, since: NOW })
+    expect(result).toEqual({ state: ESessionStatus.Idle, since: NOW })
   })
 
   it('reports thinking while a turn is open under a live lease', () => {
     expect(status({ events: [userSaid()], live: true })).toEqual({
-      state: EV2SessionState.Thinking,
+      state: ESessionStatus.Thinking,
       since: NOW,
     })
   })
 
   it('reports resuming on an unfinished turn with no live lease', () => {
     expect(status({ events: [userSaid()], live: false })).toEqual({
-      state: EV2SessionState.Resuming,
+      state: ESessionStatus.Resuming,
       since: NOW,
     })
   })
@@ -150,7 +150,7 @@ describe('sessionStatusOf', () => {
       events: [userSaid(), toolDispatched({ name: 'bash' })],
       live: true,
     })
-    expect(result).toEqual({ state: EV2SessionState.RunningTool, reason: 'bash', since: NOW })
+    expect(result).toEqual({ state: ESessionStatus.RunningTool, reason: 'bash', since: NOW })
   })
 
   it('returns to thinking once the tool result lands', () => {
@@ -158,7 +158,7 @@ describe('sessionStatusOf', () => {
       events: [toolDispatched(), toolResult()],
       live: true,
     })
-    expect(result.state).toBe(EV2SessionState.Thinking)
+    expect(result.state).toBe(ESessionStatus.Thinking)
   })
 
   it('reports waiting-to-retry on a retry fact with a future deadline', () => {
@@ -166,7 +166,7 @@ describe('sessionStatusOf', () => {
       events: [userSaid(), retry({ notBefore: '2026-11-03T12:00:12.000Z' })],
       live: true,
     })
-    expect(result.state).toBe(EV2SessionState.WaitingToRetry)
+    expect(result.state).toBe(ESessionStatus.WaitingToRetry)
     expect(result.reason).toContain('12:00:12')
     expect(result.since).toBe(NOW)
   })
@@ -176,7 +176,7 @@ describe('sessionStatusOf', () => {
       events: [retry({ notBefore: '2026-11-03T11:00:00.000Z' })],
       live: true,
     })
-    expect(result.state).toBe(EV2SessionState.Thinking)
+    expect(result.state).toBe(ESessionStatus.Thinking)
   })
 
   it('reports waiting-for-credentials on an open credential wait', () => {
@@ -184,7 +184,7 @@ describe('sessionStatusOf', () => {
       events: [userSaid(), modelWaiting({ reason: 'auth' })],
       live: true,
     })
-    expect(result.state).toBe(EV2SessionState.WaitingForCredentials)
+    expect(result.state).toBe(ESessionStatus.WaitingForCredentials)
     expect(result.reason).toBe('auth')
   })
 
@@ -192,7 +192,7 @@ describe('sessionStatusOf', () => {
     const waiting = modelWaiting()
     const cleared = waitCleared(waiting as Extract<V2Event, { type: 'model-waiting' }>)
     const result = status({ events: [waiting, cleared, assistantSaid()], live: true })
-    expect(result.state).toBe(EV2SessionState.Idle)
+    expect(result.state).toBe(ESessionStatus.Idle)
   })
 
   it('reports failed on an unfinished run-failed', () => {
@@ -201,7 +201,7 @@ describe('sessionStatusOf', () => {
       live: false,
     })
     expect(result).toEqual({
-      state: EV2SessionState.Failed,
+      state: ESessionStatus.Failed,
       reason: 'connection reset',
       since: NOW,
     })
@@ -212,28 +212,28 @@ describe('sessionStatusOf', () => {
       events: [runFailed(), userSaid()],
       live: true,
     })
-    expect(result.state).toBe(EV2SessionState.Thinking)
+    expect(result.state).toBe(ESessionStatus.Thinking)
   })
 
   it('treats a dismissed failure as failed only when the turn never restarted', () => {
     const failed = runFailed({ message: 'boom' })
     const dismissed = status({ events: [failed, dismissFailure(failed)], live: false })
-    expect(dismissed.state).toBe(EV2SessionState.Failed)
+    expect(dismissed.state).toBe(ESessionStatus.Failed)
 
     const restarted = status({
       events: [failed, dismissFailure(failed), userSaid()],
       live: true,
     })
-    expect(restarted.state).toBe(EV2SessionState.Thinking)
+    expect(restarted.state).toBe(ESessionStatus.Thinking)
   })
 
   it('reports resuming after a handoff-aborted assistant message with no live lease', () => {
     const result = status({ events: [assistantSaid({ aborted: 'handoff' })], live: false })
-    expect(result.state).toBe(EV2SessionState.Resuming)
+    expect(result.state).toBe(ESessionStatus.Resuming)
   })
 
   it('reports thinking after a handoff-aborted assistant message under a live lease', () => {
     const result = status({ events: [assistantSaid({ aborted: 'handoff' })], live: true })
-    expect(result.state).toBe(EV2SessionState.Thinking)
+    expect(result.state).toBe(ESessionStatus.Thinking)
   })
 })
