@@ -42,7 +42,7 @@ export default (): ExpoConfig => ({
   experiments: {
     typedRoutes: true,
   },
-  runtimeVersion: { policy: 'appVersion' },
+  runtimeVersion: { policy: 'fingerprint' },
   updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
   extra: {
     eas: { projectId: EAS_PROJECT_ID },

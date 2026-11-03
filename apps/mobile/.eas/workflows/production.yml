@@ -1,0 +1,62 @@
+name: Production
+
+defaults:
+  tools:
+    bun: '1.4.2'
+
+on:
+  push:
+    branches: ['main']
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/ui/src/tokens/**'
+      - 'packages/wire/**'
+      - 'packages/api-router/**'
+      - 'bun.lock'
+
+jobs:
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    environment: production
+
+  ios_get_build:
+    name: Find a build with this fingerprint
+    needs: [fingerprint]
+    type: get-build
+    environment: production
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      profile: production
+      platform: ios
+      channel: production
+      distribution: store
+
+  ios_build:
+    name: Native build
+    needs: [ios_get_build]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    type: build
+    environment: production
+    params:
+      platform: ios
+      profile: production
+
+  ios_submit:
+    name: Submit to TestFlight
+    needs: [ios_build]
+    type: submit
+    environment: production
+    params:
+      build_id: ${{ needs.ios_build.outputs.build_id }}
+      profile: production
+
+  ios_update:
+    name: OTA update
+    needs: [ios_get_build]
+    if: ${{ needs.ios_get_build.outputs.build_id }}
+    type: update
+    environment: production
+    params:
+      platform: ios
+      channel: production
