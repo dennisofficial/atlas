@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { callOpSchema } from './ops'
+
 export enum EDaemonErrorKind {
   BootChanged = 'boot-changed',
   StaleEpoch = 'stale-epoch',
@@ -23,11 +25,6 @@ export const helloReplyFrameSchema = z.object({
   kind: z.literal('hello-reply'),
   bootId: bootIdSchema,
   version: z.string().min(1),
-})
-
-export const callOpSchema = z.object({
-  tool: z.string().min(1),
-  input: z.unknown().optional(),
 })
 
 export const runFrameSchema = z
@@ -90,6 +87,7 @@ export const healthFrameSchema = z.object({
   kind: z.literal('health'),
   bootId: bootIdSchema,
   version: z.string().min(1),
+  memory: z.object({ current: z.number().int().min(0), max: z.number().int().min(0) }).optional(),
 })
 
 export const daemonErrorFrameSchema = z.object({
@@ -101,6 +99,13 @@ export const daemonErrorFrameSchema = z.object({
 
 export const pongFrameSchema = z.object({ kind: z.literal('pong') })
 
+export const daemonEventFrameSchema = z.object({
+  kind: z.literal('event'),
+  group: z.string().min(1),
+  event: z.string().min(1),
+  data: z.unknown().optional(),
+})
+
 export const daemonFrameSchema = z.discriminatedUnion('kind', [
   helloReplyFrameSchema,
   outputChunkFrameSchema,
@@ -109,11 +114,12 @@ export const daemonFrameSchema = z.discriminatedUnion('kind', [
   healthFrameSchema,
   daemonErrorFrameSchema,
   pongFrameSchema,
+  daemonEventFrameSchema,
 ])
 
 export type HostHelloFrame = z.infer<typeof hostHelloFrameSchema>
 export type HelloReplyFrame = z.infer<typeof helloReplyFrameSchema>
-export type CallOp = z.infer<typeof callOpSchema>
+export type { CallOp } from './ops'
 export type RunFrame = z.infer<typeof runFrameSchema>
 export type AckFrame = z.infer<typeof ackFrameSchema>
 export type CancelFrame = z.infer<typeof cancelFrameSchema>
@@ -124,4 +130,5 @@ export type CallResult = z.infer<typeof callResultSchema>
 export type ResultFrame = z.infer<typeof resultFrameSchema>
 export type HealthFrame = z.infer<typeof healthFrameSchema>
 export type DaemonErrorFrame = z.infer<typeof daemonErrorFrameSchema>
+export type DaemonEventFrame = z.infer<typeof daemonEventFrameSchema>
 export type DaemonFrame = z.infer<typeof daemonFrameSchema>

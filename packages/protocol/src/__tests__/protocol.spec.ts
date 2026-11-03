@@ -33,7 +33,7 @@ describe('agent-host to daemon frames', () => {
       kind: 'run',
       key: 'run-1:call-1',
       epoch: 5,
-      op: { tool: 'bash', input: { command: 'ls' } },
+      op: { op: 'exec', argv: ['ls'] },
     } as const
     expect(roundTrips(hostFrameSchema, run)).toEqual(run)
     expect(roundTrips(runFrameSchema, run)).toEqual(run)
@@ -57,7 +57,7 @@ describe('agent-host to daemon frames', () => {
         key: 'k',
         epoch: 1,
         bootId: 'boot-7',
-        op: { tool: 'bash' },
+        op: { op: 'stat', path: '/work' },
       }).success,
     ).toBe(false)
     expect(hostFrameSchema.safeParse({ kind: 'collect', key: 'k' }).success).toBe(false)
