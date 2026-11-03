@@ -26,6 +26,7 @@ const SESSION: VerifiedSession = {
 
 const SANDBOX_TOKEN = 'sandbox-token'
 const POD_TOKEN = 'pod-token'
+const UNREACHABLE_DB_TOKEN = 'unreachable-db-token'
 
 const verify = vi.fn(
   async (request: { headers: { cookie?: string | undefined } }): Promise<VerifiedSession | null> =>
@@ -46,6 +47,7 @@ const sandboxes = {
     if (token === POD_TOKEN) {
       return { kind: ETokenPrincipalKind.Pod, threadId: 'thr-1', userId: 'usr-1' }
     }
+    if (token === UNREACHABLE_DB_TOKEN) throw new Error('timeout exceeded when trying to connect')
     throw new UnauthorizedException()
   },
   assertThreadInFamily,
@@ -164,6 +166,12 @@ describe('SessionOrSandboxMiddleware', () => {
 
   it('answers 401 for an unknown bearer without a session', async () => {
     expect((await post({ procedure: 'threadless', headers: as('nope') })).status).toBe(401)
+  })
+
+  it('answers 500, not 401, when the token lookup itself fails', async () => {
+    const reply = await post({ procedure: 'sandboxOpen', headers: as(UNREACHABLE_DB_TOKEN) })
+
+    expect(reply.status).toBe(500)
   })
 
   it('answers 403 for a pod token on a sandboxReachable-only threadless route', async () => {
