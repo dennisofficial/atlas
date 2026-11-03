@@ -125,7 +125,10 @@ describe('defaultPipeline', () => {
       'requestCacheKey:inference',
     ])
     expect(assembled.system.at(-1)?.providerOptions).toBeDefined()
-    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
+    const durable = assembled.messages.filter((entry) => entry.volatile !== true)
+    expect(durable.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
+    expect(assembled.messages.at(-1)?.volatile).toBe(true)
+    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeUndefined()
   })
 
   it('marks nothing on the system side when the registry emitted no block', () => {
@@ -138,7 +141,10 @@ describe('defaultPipeline', () => {
     const { assembled } = assemble({ ...pipeline, ctx: anthropic(events) })
 
     expect(assembled.system).toEqual([])
-    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
+    const durable = assembled.messages.filter((entry) => entry.volatile !== true)
+    expect(durable.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
+    expect(assembled.messages.at(-1)?.volatile).toBe(true)
+    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeUndefined()
   })
 })
 
