@@ -67,6 +67,19 @@
         "typescript": "6.0.3",
       },
     },
+    "apps/daemon": {
+      "name": "@dltech/atlas-daemon",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
+        "@dltech/atlas-sandbox": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "apps/mac": {
       "name": "@dltech/atlas-mac",
       "version": "0.1.0",
@@ -348,6 +361,7 @@
         "@dltech/atlas-client": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
+        "@dltech/atlas-sandbox": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@trpc/client": "^11.19.0",
         "@typesafe-ai/sdk": "^0.6.0",
@@ -385,7 +399,18 @@
       "name": "@dltech/atlas-protocol",
       "version": "0.1.0",
       "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
         "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/sandbox": {
+      "name": "@dltech/atlas-sandbox",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-wire": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -783,6 +808,8 @@
 
     "@dltech/atlas-core": ["@dltech/atlas-core@workspace:packages/core"],
 
+    "@dltech/atlas-daemon": ["@dltech/atlas-daemon@workspace:apps/daemon"],
+
     "@dltech/atlas-db": ["@dltech/atlas-db@workspace:packages/db"],
 
     "@dltech/atlas-evals": ["@dltech/atlas-evals@workspace:evals"],
@@ -796,6 +823,8 @@
     "@dltech/atlas-protocol": ["@dltech/atlas-protocol@workspace:packages/protocol"],
 
     "@dltech/atlas-prototype": ["@dltech/atlas-prototype@workspace:apps/prototype"],
+
+    "@dltech/atlas-sandbox": ["@dltech/atlas-sandbox@workspace:packages/sandbox"],
 
     "@dltech/atlas-serve": ["@dltech/atlas-serve@workspace:apps/serve"],
 

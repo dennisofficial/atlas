@@ -31,6 +31,7 @@
     "@dltech/atlas-client": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
+    "@dltech/atlas-sandbox": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "@trpc/client": "^11.19.0",
     "@typesafe-ai/sdk": "^0.6.0",
