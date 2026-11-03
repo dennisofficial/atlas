@@ -32,7 +32,8 @@ export class CallLedger {
   private runs = 0
   private readonly lock = new KeyLock()
   private readonly calls = new Map<string, LiveCall>()
-  private readonly cancelRequested = new Set<string>()
+  private arrivals = 0
+  private readonly cancelledThrough = new Map<string, number>()
 
   constructor(private readonly args: CallLedgerArgs) {
     this.protocol = initialCalls({ bootId: args.bootId })
@@ -62,6 +63,8 @@ export class CallLedger {
     fromOffset: number
     onReply(state: ERunState): void
   }): Promise<LedgerOutcome> {
+    this.arrivals += 1
+    const arrival = this.arrivals
     return this.lock.run({
       key: args.key,
       task: async () => {
@@ -85,6 +88,7 @@ export class CallLedger {
             epoch: args.epoch,
             op: args.op,
             handler,
+            arrival,
           })
           if (!started.ok) return started
         }
@@ -116,7 +120,7 @@ export class CallLedger {
         const call = this.calls.get(args.key)
         this.protocol = stepped.state
         this.calls.delete(args.key)
-        this.cancelRequested.delete(args.key)
+        this.cancelledThrough.delete(args.key)
         await call?.output.drain()
         try {
           await this.args.store.remove({ key: args.key })
@@ -137,7 +141,7 @@ export class CallLedger {
     const call = this.calls.get(args.key)
     if (call === undefined) return unknownKey(args.key)
     if (!stepped.effects.cancelled.includes(args.key)) return { ok: true }
-    this.cancelRequested.add(args.key)
+    this.cancelledThrough.set(args.key, this.arrivals)
     call.abort.abort()
     return { ok: true }
   }
@@ -159,11 +163,12 @@ export class CallLedger {
     epoch: number
     op: CallOp
     handler: RegisteredOp
+    arrival: number
   }): Promise<LedgerOutcome> {
     const call: LiveCall = {
       op: args.op,
       epoch: args.epoch,
-      abort: this.controllerFor(args.key),
+      abort: this.controllerFor({ key: args.key, arrival: args.arrival }),
       output: new CallOutput({
         key: args.key,
         op: args.op.op,
@@ -210,9 +215,9 @@ export class CallLedger {
     return { ok: true }
   }
 
-  private controllerFor(key: string): AbortController {
+  private controllerFor(args: { key: string; arrival: number }): AbortController {
     const controller = new AbortController()
-    if (this.cancelRequested.has(key)) controller.abort()
+    if (args.arrival <= (this.cancelledThrough.get(args.key) ?? 0)) controller.abort()
     return controller
   }
 
@@ -286,7 +291,7 @@ export class CallLedger {
       state: this.protocol,
       input: { type: 'exit', key: args.key, result: JSON.stringify(args.result) },
     }).state
-    this.cancelRequested.delete(args.key)
+    this.cancelledThrough.delete(args.key)
     args.call.output.end({ result: args.result })
   }
 }

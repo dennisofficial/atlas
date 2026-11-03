@@ -188,6 +188,26 @@ describe('CallLedger under a slow or failing store', () => {
     expect(started).toEqual([])
   })
 
+  it('does not carry a cancel onto a run that arrives after it', async () => {
+    const store = new ControlledStore()
+    const journaled = gate()
+    store.beforeWrite = async (journal) => {
+      if (journal.state === ECallJournalState.Running && journal.epoch === 5) await journaled.opened
+    }
+    const { ledger, started } = ledgerOn(store)
+    ledger.hello({ epoch: 5 })
+    const stale = runOn({ ledger, epoch: 5, rec: recorder() })
+    await sleep(10)
+    ledger.hello({ epoch: 6 })
+    expect(ledger.cancel({ key: 'k', epoch: 6 })).toEqual({ ok: true })
+    journaled.open()
+    expect((await stale).ok).toBe(false)
+    const later = recorder()
+    expect(await runOn({ ledger, epoch: 6, rec: later })).toEqual({ ok: true })
+    expect((await later.firstResult()).status).toBe(ECallStatus.Ok)
+    expect(started).toEqual(['k'])
+  })
+
   it('fails the call with output-lost when an output append fails', async () => {
     const store = new ControlledStore()
     store.beforeAppend = async () => {
