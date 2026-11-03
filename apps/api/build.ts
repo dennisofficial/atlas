@@ -1,8 +1,11 @@
 /// <reference types="bun" />
 import { existsSync, readdirSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { migrationGraphHashes } from '@dltech/atlas-db/migrations'
+import { SKILL_TEXT_EXTENSIONS } from '@dltech/atlas-wire'
+import { BUILT_IN_SKILLS_DIRECTORY } from './src/api/cloud/skills/builtin-skills-directory'
 import { lockedRuntimePackages } from './build-runtime-packages'
 
 const TIER_FILE = '.env.api.production.enc'
@@ -49,6 +52,23 @@ async function writeJson({
   value: FunctionManifest | FunctionConfig | OutputConfig
 }): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`)
+}
+
+const isBuiltInSkillText = (path: string): boolean =>
+  (SKILL_TEXT_EXTENSIONS as readonly string[]).includes(
+    path.slice(path.lastIndexOf('.') + 1).toLowerCase(),
+  )
+
+async function copyBuiltInSkillText({ functionDir }: { functionDir: string }): Promise<void> {
+  const source = join(import.meta.dirname, '..', '..', 'packages', 'harness', 'skills')
+  const target = join(functionDir, BUILT_IN_SKILLS_DIRECTORY)
+  const files = readdirSync(source, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && isBuiltInSkillText(entry.name))
+    .map((entry) => join(entry.parentPath, entry.name).slice(source.length + 1))
+  for (const file of files) {
+    await mkdir(dirname(join(target, file)), { recursive: true })
+    await cp(join(source, file), join(target, file))
+  }
 }
 
 export async function buildVercelOutput({ outDir }: { outDir: string }): Promise<void> {
@@ -107,6 +127,7 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
     )
   }
   await cp(tierSource, join(functionDir, TIER_FILE))
+  await copyBuiltInSkillText({ functionDir })
 
   await writeJson({
     path: join(functionDir, '.vc-config.json'),
