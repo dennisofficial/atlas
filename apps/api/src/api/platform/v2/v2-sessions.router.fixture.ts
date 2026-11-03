@@ -23,7 +23,7 @@ export const createV2SessionsApp = (args?: {
 }): Promise<NestExpressApplication> =>
   createMiddlewareApp({
     rateLimit: UNTHROTTLED_RATE_LIMIT,
-    envValues: args?.allowlist === undefined ? {} : { V2_USER_IDS: args.allowlist },
+    envValues: { V2_USER_IDS: args?.allowlist },
     providers: [
       V2SessionsRouter,
       SessionMiddleware,

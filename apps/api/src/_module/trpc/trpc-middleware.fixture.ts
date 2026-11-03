@@ -17,7 +17,7 @@ export const UNTHROTTLED_RATE_LIMIT = 100_000
 export const fakeEnvModule = (rateLimit: number, envValues?: Record<string, unknown>) => {
   const get = (key: string) => {
     if (envValues !== undefined && key in envValues) return envValues[key]
-    return key === 'RATE_LIMIT_PER_MINUTE' ? rateLimit : undefined
+    return rateLimit
   }
 
   @Global()

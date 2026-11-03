@@ -19,7 +19,7 @@ export const createV2AgentHostApp = (args?: {
 }): Promise<NestExpressApplication> =>
   createMiddlewareApp({
     rateLimit: UNTHROTTLED_RATE_LIMIT,
-    envValues: args?.token === undefined ? {} : { V2_AGENT_HOST_TOKEN: args.token },
+    envValues: { V2_AGENT_HOST_TOKEN: args?.token },
     providers: [
       V2AgentHostRouter,
       V2AgentHostMiddleware,
