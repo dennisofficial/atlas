@@ -77,13 +77,13 @@ export const servicesGroup =
       records.set(op.serviceId, record)
       const port = op.port
       if (port === undefined) {
-        if (!isRunning(record)) return { ...record.info }
         try {
           await Promise.race([record.child.exit(), sleepMs(SHORT_EXIT_GRACE_MS)])
         } catch {
           // the exit promise settles the record; a race loss just means still running
         }
-        return { ...record.info }
+        const settled = records.get(op.serviceId)
+        return { ...(settled !== undefined ? settled.info : record.info) }
       }
       if (port !== undefined) {
         const timeoutMs = op.readyTimeoutMs ?? READY_TIMEOUT_DEFAULT_MS
