@@ -1,16 +1,22 @@
 import { z } from 'zod'
 
-import { callOpSchema } from './ops'
+import { callOpSchema, callResultSchema, daemonEventSchema } from './ops'
+import { daemonMemorySchema, protectionReportSchema } from './health'
 
 export enum EDaemonErrorKind {
   BootChanged = 'boot-changed',
   StaleEpoch = 'stale-epoch',
   UnknownKey = 'unknown-key',
-  Cancelled = 'cancelled',
+  NotDone = 'not-done',
+  Unauthenticated = 'unauthenticated',
+  InvalidFrame = 'invalid-frame',
   Internal = 'internal',
 }
 
-export const callKeySchema = z.string().min(1)
+export const callKeySchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_.:-]+$/)
+  .refine((key) => key.replace(/\./g, '') !== '', 'a key cannot be only dots')
 export const epochSchema = z.number().int().min(0)
 export const bootIdSchema = z.string().min(1)
 
@@ -33,6 +39,7 @@ export const runFrameSchema = z
     key: callKeySchema,
     epoch: epochSchema,
     op: callOpSchema,
+    fromOffset: z.number().int().min(0).optional(),
   })
   .strict()
 
@@ -65,16 +72,15 @@ export const outputChunkFrameSchema = z.object({
   bytes: z.base64(),
 })
 
+export enum ERunState {
+  Running = 'running',
+  Done = 'done',
+}
+
 export const runReplyFrameSchema = z.object({
   kind: z.literal('run-reply'),
   key: callKeySchema,
-  state: z.enum(['running', 'done']),
-})
-
-export const callResultSchema = z.object({
-  exitCode: z.number().int().nullable(),
-  output: z.string().optional(),
-  error: z.string().optional(),
+  state: z.enum(ERunState),
 })
 
 export const resultFrameSchema = z.object({
@@ -87,7 +93,8 @@ export const healthFrameSchema = z.object({
   kind: z.literal('health'),
   bootId: bootIdSchema,
   version: z.string().min(1),
-  memory: z.object({ current: z.number().int().min(0), max: z.number().int().min(0) }).optional(),
+  protection: protectionReportSchema,
+  memory: daemonMemorySchema.optional(),
 })
 
 export const daemonErrorFrameSchema = z.object({
@@ -97,13 +104,13 @@ export const daemonErrorFrameSchema = z.object({
   message: z.string(),
 })
 
-export const pongFrameSchema = z.object({ kind: z.literal('pong') })
+export const ackedFrameSchema = z.object({ kind: z.literal('acked'), key: callKeySchema })
+
+export const pongFrameSchema = z.object({ kind: z.literal('pong'), runs: z.number().int().min(0) })
 
 export const daemonEventFrameSchema = z.object({
   kind: z.literal('event'),
-  group: z.string().min(1),
-  event: z.string().min(1),
-  data: z.unknown().optional(),
+  event: daemonEventSchema,
 })
 
 export const daemonFrameSchema = z.discriminatedUnion('kind', [
@@ -114,21 +121,22 @@ export const daemonFrameSchema = z.discriminatedUnion('kind', [
   healthFrameSchema,
   daemonErrorFrameSchema,
   pongFrameSchema,
+  ackedFrameSchema,
   daemonEventFrameSchema,
 ])
 
 export type HostHelloFrame = z.infer<typeof hostHelloFrameSchema>
 export type HelloReplyFrame = z.infer<typeof helloReplyFrameSchema>
-export type { CallOp } from './ops'
 export type RunFrame = z.infer<typeof runFrameSchema>
 export type AckFrame = z.infer<typeof ackFrameSchema>
 export type CancelFrame = z.infer<typeof cancelFrameSchema>
 export type HostFrame = z.infer<typeof hostFrameSchema>
 export type OutputChunkFrame = z.infer<typeof outputChunkFrameSchema>
 export type RunReplyFrame = z.infer<typeof runReplyFrameSchema>
-export type CallResult = z.infer<typeof callResultSchema>
 export type ResultFrame = z.infer<typeof resultFrameSchema>
 export type HealthFrame = z.infer<typeof healthFrameSchema>
 export type DaemonErrorFrame = z.infer<typeof daemonErrorFrameSchema>
+export type AckedFrame = z.infer<typeof ackedFrameSchema>
+export type PongFrame = z.infer<typeof pongFrameSchema>
 export type DaemonEventFrame = z.infer<typeof daemonEventFrameSchema>
 export type DaemonFrame = z.infer<typeof daemonFrameSchema>

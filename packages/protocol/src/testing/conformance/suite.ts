@@ -1,24 +1,14 @@
-import type { DaemonSession } from '../client'
 import { describeCallsConformance } from './calls'
+import { describeExecConformance } from './exec'
+import { describeFencingConformance } from './fencing'
 import { describeFilesConformance } from './files'
+import type { DaemonConformanceTarget } from './support'
 
-export type DaemonSpawnedHandle = {
-  pid(): number
-  spawnCount(): Promise<number>
-  bootId(): Promise<string>
-  token: string
-  writableCgroups(): Promise<boolean>
-  kill(): Promise<void>
-}
-
-export type DaemonConformanceTarget = {
-  name: string
-  setup(): Promise<DaemonSpawnedHandle>
-  connect(handle: DaemonSpawnedHandle): Promise<DaemonSession>
-  teardown(handle: DaemonSpawnedHandle): Promise<void>
-}
+export type { DaemonConformanceTarget, DaemonHandle } from './support'
 
 export const describeDaemonConformance = (target: DaemonConformanceTarget): void => {
+  describeFencingConformance(target)
   describeCallsConformance(target)
+  describeExecConformance(target)
   describeFilesConformance(target)
 }

@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { okResultSchema } from './result'
+
 export const statOpSchema = z.object({ op: z.literal('stat'), path: z.string().min(1) }).strict()
 
 export const readFileOpSchema = z
@@ -86,6 +88,36 @@ export const grepMatchSchema = z.object({
   column: z.number().int().min(1).optional(),
   text: z.string(),
 })
+
+export const filesOpSchemas = [
+  statOpSchema,
+  readFileOpSchema,
+  readBytesOpSchema,
+  readTextForEditOpSchema,
+  writeFileOpSchema,
+  removeOpSchema,
+  mkdirOpSchema,
+  renameOpSchema,
+  readDirectoryOpSchema,
+  globOpSchema,
+  grepOpSchema,
+] as const
+
+export const filesResultSchemas = [
+  okResultSchema({ op: 'stat', value: statResultSchema }),
+  okResultSchema({ op: 'readFile', value: z.string() }),
+  okResultSchema({ op: 'readBytes', value: z.base64() }),
+  okResultSchema({ op: 'readTextForEdit', value: readTextForEditResultSchema }),
+  okResultSchema({ op: 'writeFile', value: z.null() }),
+  okResultSchema({ op: 'remove', value: z.null() }),
+  okResultSchema({ op: 'mkdir', value: z.null() }),
+  okResultSchema({ op: 'rename', value: z.null() }),
+  okResultSchema({ op: 'readDirectory', value: z.array(directoryEntrySchema) }),
+  okResultSchema({ op: 'glob', value: z.array(z.string()) }),
+  okResultSchema({ op: 'grep', value: z.array(grepMatchSchema) }),
+] as const
+
+export const filesEventSchemas = [] as const
 
 export type StatOp = z.infer<typeof statOpSchema>
 export type ReadFileOp = z.infer<typeof readFileOpSchema>

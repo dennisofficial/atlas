@@ -78,6 +78,7 @@
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "@vscode/ripgrep": "^1.18.0",
       },
     },
     "apps/mac": {

@@ -8,9 +8,8 @@ export const daemonTokenMatches = (args: {
   sandboxName: string
   token: string
 }): boolean => {
-  const expected = daemonToken({ secret: args.secret, sandboxName: args.sandboxName })
   const given = Buffer.from(args.token, 'utf8')
-  const want = Buffer.from(expected, 'utf8')
+  const want = Buffer.from(daemonToken(args), 'utf8')
   if (given.length !== want.length) return false
   return timingSafeEqual(given, want)
 }

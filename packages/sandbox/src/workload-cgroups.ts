@@ -1,7 +1,9 @@
 import { mkdirSync, readFileSync, readdirSync, rmdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { mirrorsThreadState, sandboxWorkloadsEnabled } from '@dltech/atlas-wire'
+import { mirrorsThreadState } from '@dltech/atlas-wire'
+
+import { sandboxWorkloadsEnabled } from './markers'
 
 export const CGROUP_ROOT = '/sys/fs/cgroup'
 export const WORKLOAD_CGROUP_ENV = 'ATLAS_WORKLOAD_CGROUP'

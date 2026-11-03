@@ -13,7 +13,13 @@ export type StepVariant = {
   spawnWithoutJournal?: boolean
 }
 
-const NO_EFFECTS: CallEffects = { spawned: [], journaled: [], deleted: [], errors: [] }
+const NO_EFFECTS: CallEffects = {
+  spawned: [],
+  journaled: [],
+  deleted: [],
+  cancelled: [],
+  errors: [],
+}
 
 const stateOf = (args: { state: SteppedCalls; key: string }): ECallState =>
   args.state.calls[args.key] ?? ECallState.Unknown
@@ -40,8 +46,17 @@ export function stepCalls(args: {
   }
 
   if (input.type === 'hello') {
-    if (input.epoch <= state.epoch) return { state, effects: NO_EFFECTS }
+    if (input.epoch < state.epoch) return failed({ state, error: ECallError.StaleEpoch })
+    if (input.epoch === state.epoch) return { state, effects: NO_EFFECTS }
     return { state: { ...state, epoch: input.epoch }, effects: NO_EFFECTS }
+  }
+
+  if (input.type === 'cancel') {
+    if (input.epoch < state.epoch) return failed({ state, error: ECallError.StaleEpoch })
+    if (stateOf({ state, key: input.key }) !== ECallState.Running) {
+      return { state, effects: NO_EFFECTS }
+    }
+    return { state, effects: { ...NO_EFFECTS, cancelled: [input.key] } }
   }
 
   if (input.type === 'run') {

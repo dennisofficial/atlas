@@ -1,10 +1,12 @@
-import { execOps } from './exec'
-import { filesOps } from './files'
-import type { OpRegistry } from './registry'
+import type { DaemonGroupFactory } from '@dltech/atlas-protocol/engine'
 
-export const daemonOps: OpRegistry = {
-  ...execOps,
-  ...filesOps,
-}
+import type { DaemonOpsDeps } from './deps'
+import { execGroup } from './exec'
+import { filesGroup } from './files'
 
-export type { OpHandler, OpRegistry } from './registry'
+export const daemonGroups = (deps: DaemonOpsDeps): readonly DaemonGroupFactory[] => [
+  execGroup(deps),
+  filesGroup(deps),
+]
+
+export type { DaemonOpsDeps } from './deps'

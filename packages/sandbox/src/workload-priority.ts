@@ -1,4 +1,6 @@
-import { mirrorsThreadState, sandboxWorkloadsEnabled } from '@dltech/atlas-wire'
+import { mirrorsThreadState } from '@dltech/atlas-wire'
+
+import { sandboxWorkloadsEnabled } from './markers'
 
 import { WORKLOAD_CGROUP_ENV } from './workload-cgroups'
 

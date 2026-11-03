@@ -36,12 +36,14 @@ export type CallStepInput =
   | { type: 'run'; key: string; dispatched: boolean; epoch: number }
   | { type: 'exit'; key: string; result: string }
   | { type: 'ack'; key: string; resultRecorded: boolean; epoch: number }
+  | { type: 'cancel'; key: string; epoch: number }
   | { type: 'daemonReboot'; bootId: string }
 
 export type CallEffects = {
   spawned: readonly string[]
   journaled: readonly string[]
   deleted: readonly string[]
+  cancelled: readonly string[]
   errors: readonly ECallError[]
 }
 

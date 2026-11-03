@@ -1,296 +1,187 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EDaemonErrorKind, type OutputChunkFrame } from '../../frames'
-import type { CallOp } from '../../ops'
-import type { DaemonSession } from '../client'
-import type { DaemonConformanceTarget, DaemonSpawnedHandle } from './suite'
-
-const EPOCH = 7
-
-export const execEcho = (text: string): CallOp => ({
-  op: 'exec',
-  argv: ['/bin/sh', '-c', `echo ${text}`],
-})
-
-export const execSleep = (ms: number): CallOp => ({
-  op: 'exec',
-  argv: ['/bin/sh', '-c', `sleep ${ms / 1000}`],
-})
-
-export const decodeChunks = (
-  session: DaemonSession,
-  key: string,
-): { bytes: Uint8Array; offsets: number[] } => {
-  const all = session
-    .frames()
-    .filter((frame): frame is OutputChunkFrame => frame.kind === 'output' && frame.key === key)
-  const byOffset = new Map<number, OutputChunkFrame>()
-  for (const chunk of all) {
-    if (!byOffset.has(chunk.offset)) byOffset.set(chunk.offset, chunk)
-  }
-  const chunks = [...byOffset.values()].sort((a, b) => a.offset - b.offset)
-  const offsets = chunks.map((chunk) => chunk.offset)
-  const total = chunks.reduce((sum, chunk) => sum + atob(chunk.bytes).length, 0)
-  const bytes = new Uint8Array(total)
-  let at = 0
-  for (const chunk of chunks) {
-    const raw = atob(chunk.bytes)
-    for (let index = 0; index < raw.length; index++) bytes[at++] = raw.charCodeAt(index)
-  }
-  return { bytes, offsets }
-}
-
-export const expectContiguous = (chunks: { bytes: Uint8Array; offsets: number[] }): void => {
-  let cursor = 0
-  chunks.offsets.forEach((offset, index) => {
-    expect(offset).toBe(cursor)
-    cursor = offset + chunkLengthAt(chunks, index)
-  })
-}
-
-const chunkLengthAt = (chunks: { bytes: Uint8Array; offsets: number[] }, index: number): number => {
-  const offsets = chunks.offsets
-  const current = offsets[index]
-  const next = offsets[index + 1]
-  if (current === undefined) return 0
-  if (next !== undefined) return next - current
-  return chunks.bytes.length - current
-}
-
-export const tokenFor = (handle: DaemonSpawnedHandle): string => handle.token
-
-export const helloAt = async (
-  session: DaemonSession,
-  args: { epoch: number; sessionId: string; token: string },
-): Promise<{ bootId: string; version: string }> => {
-  session.send({ kind: 'hello', sessionId: args.sessionId, epoch: args.epoch, token: args.token })
-  const reply = await session.until((frame) => frame.kind === 'hello-reply')
-  if (reply.kind !== 'hello-reply') throw new Error('no hello-reply')
-  return { bootId: reply.bootId, version: reply.version }
-}
-
-const resultOf = async (
-  session: DaemonSession,
-  key: string,
-): Promise<{
-  exitCode: number | null
-  output?: string | undefined
-  error?: string | undefined
-}> => {
-  const frame = await session.until((frame) => frame.kind === 'result' && frame.key === key)
-  if (frame.kind !== 'result') throw new Error('no result')
-  return frame.result
-}
+import { EDaemonErrorKind } from '../../frames'
+import { EExecOutcome } from '../../ops'
+import {
+  ERunState,
+  ackOf,
+  connectAt,
+  errorOf,
+  okValue,
+  replyOf,
+  resultOf,
+  runToEnd,
+  runsOf,
+  sendRun,
+  shell,
+  sleep,
+  streamOf,
+  withDaemon,
+  type DaemonConformanceTarget,
+} from './support'
 
 export const describeCallsConformance = (target: DaemonConformanceTarget): void => {
   describe(`calls conformance (${target.name})`, () => {
-    it('refuses a bad token', async () => {
-      const handle = await target.setup()
-      try {
-        const session = await target.connect(handle)
-        session.send({ kind: 'hello', sessionId: 's', epoch: 1, token: 'wrong-token' })
-        const closed = await Promise.race([
-          session.closed,
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
-        ])
-        expect(closed).not.toBeNull()
-      } finally {
-        await target.teardown(handle)
-      }
-    })
+    it('spawns once for two runs of one key sent back to back', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          sendRun({ session, key: 'k-dup', op: shell('sleep 0.2; echo once') })
+          sendRun({ session, key: 'k-dup', op: shell('sleep 0.2; echo once') })
+          await replyOf({ session, key: 'k-dup' })
+          await replyOf({ session, key: 'k-dup' })
+          await resultOf({ session, key: 'k-dup' })
+          await resultOf({ session, key: 'k-dup' })
+          expect(await runsOf(session)).toBe(1)
+          expect(streamOf({ session, key: 'k-dup' })).toBe('once\n')
+        },
+      }))
 
-    it('hands out the bootId and version on hello and answers ping', async () => {
-      const handle = await target.setup()
-      try {
-        const session = await target.connect(handle)
-        const hello = await helloAt(session, {
-          epoch: EPOCH,
-          sessionId: 's',
-          token: tokenFor(handle),
-        })
-        expect(hello.bootId).toBe(await handle.bootId())
-        expect(hello.version.length).toBeGreaterThan(0)
-        session.send({ kind: 'ping' })
-        const pong = await session.until((frame) => frame.kind === 'pong')
-        expect(pong.kind).toBe('pong')
-      } finally {
-        await target.teardown(handle)
-      }
-    })
+    it('answers done with the stored output and result for a finished key', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          const first = await runToEnd({ session, key: 'k-done', op: shell('echo stored') })
+          expect(okValue({ result: first, op: 'exec' }).outcome).toBe(EExecOutcome.Exited)
+          const again = await connectAt({ handle })
+          sendRun({ session: again, key: 'k-done', op: shell('echo stored') })
+          expect(await replyOf({ session: again, key: 'k-done' })).toBe(ERunState.Done)
+          expect(await resultOf({ session: again, key: 'k-done' })).toEqual(first)
+          expect(streamOf({ session: again, key: 'k-done' })).toBe('stored\n')
+          expect(await runsOf(again)).toBe(1)
+        },
+      }))
 
-    it('closes the older connection on epoch takeover', async () => {
-      const handle = await target.setup()
-      try {
-        const older = await target.connect(handle)
-        await helloAt(older, { epoch: 5, sessionId: 's', token: tokenFor(handle) })
-        const newer = await target.connect(handle)
-        await helloAt(newer, { epoch: 6, sessionId: 's', token: tokenFor(handle) })
-        const closed = await Promise.race([
-          older.closed,
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
-        ])
-        expect(closed).not.toBeNull()
+    it('refuses to ack a running call, which still finishes and is not respawned', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          sendRun({ session, key: 'k-early', op: shell('sleep 0.3; echo late') })
+          await replyOf({ session, key: 'k-early' })
+          expect(await ackOf({ session, key: 'k-early' })).toBe(EDaemonErrorKind.NotDone)
+          await resultOf({ session, key: 'k-early' })
+          sendRun({ session, key: 'k-early', op: shell('sleep 0.3; echo late') })
+          expect(await replyOf({ session, key: 'k-early' })).toBe(ERunState.Done)
+          expect(await runsOf(session)).toBe(1)
+          expect(await ackOf({ session, key: 'k-early' })).toBe('acked')
+          expect(await ackOf({ session, key: 'k-early' })).toBe(EDaemonErrorKind.UnknownKey)
+        },
+      }))
 
-        older.send({ kind: 'run', key: 'k-stale', epoch: 5, op: execEcho('stale') })
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        expect(await handle.spawnCount()).toBe(0)
-        newer.close()
-      } finally {
-        await target.teardown(handle)
-      }
-    })
+    it('sends the result only after every output chunk, in offset order across both streams', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          const script = 'echo a; sleep 0.05; echo b >&2; sleep 0.05; echo c; echo d >&2'
+          await runToEnd({ session, key: 'k-mixed', op: shell(script) })
+          expect(streamOf({ session, key: 'k-mixed' })).toBe('a\nb\nc\nd\n')
+          const frames = session
+            .frames()
+            .filter((frame) => 'key' in frame && frame.key === 'k-mixed')
+          expect(frames.map((frame) => frame.kind).filter((kind) => kind !== 'output')).toEqual([
+            'run-reply',
+            'result',
+          ])
+          expect(frames.at(-1)?.kind).toBe('result')
+          await sleep(100)
+          expect(session.frames().filter((frame) => frame.kind === 'result').length).toBe(1)
 
-    it('spawns once for two runs of the same key', async () => {
-      const handle = await target.setup()
-      try {
-        const session = await target.connect(handle)
-        await helloAt(session, { epoch: EPOCH, sessionId: 's', token: tokenFor(handle) })
-        const op = execEcho('idempotent')
-        session.send({ kind: 'run', key: 'k-1', epoch: EPOCH, op })
-        await session.until((frame) => frame.kind === 'run-reply' && frame.key === 'k-1')
-        const before = await handle.spawnCount()
-        session.send({ kind: 'run', key: 'k-1', epoch: EPOCH, op })
-        await resultOf(session, 'k-1')
-        session.send({ kind: 'run', key: 'k-1', epoch: EPOCH, op })
-        const reply = await session.until(
-          (frame) => frame.kind === 'run-reply' && frame.key === 'k-1' && frame.state === 'done',
-        )
-        expect(reply.kind).toBe('run-reply')
-        expect(await handle.spawnCount()).toBe(before)
-        expect(before).toBe(1)
-      } finally {
-        await target.teardown(handle)
-      }
-    })
+          const replay = await connectAt({ handle })
+          await runToEnd({ session: replay, key: 'k-mixed', op: shell(script) })
+          expect(streamOf({ session: replay, key: 'k-mixed' })).toBe('a\nb\nc\nd\n')
+        },
+      }))
 
-    it('attaches while running and delivers the live result', async () => {
-      const handle = await target.setup()
-      try {
-        const session = await target.connect(handle)
-        await helloAt(session, { epoch: EPOCH, sessionId: 's', token: tokenFor(handle) })
-        session.send({ kind: 'run', key: 'k-run', epoch: EPOCH, op: execSleep(150) })
-        const reply = await session.until(
-          (frame) => frame.kind === 'run-reply' && frame.key === 'k-run',
-        )
-        expect(reply.kind === 'run-reply' && reply.state).toBe('running')
-        session.send({ kind: 'run', key: 'k-run', epoch: EPOCH, op: execSleep(150) })
-        const again = await session.until(
-          (frame) =>
-            frame.kind === 'run-reply' && frame.key === 'k-run' && frame.state === 'running',
-        )
-        expect(again.kind).toBe('run-reply')
-        const result = await resultOf(session, 'k-run')
-        expect(result.exitCode).toBe(0)
-        expect(await handle.spawnCount()).toBe(1)
-      } finally {
-        await target.teardown(handle)
-      }
-    })
+    it('streams nothing twice when one socket runs a live key again', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          const op = shell('echo one; sleep 0.2; echo two; sleep 0.2; echo three')
+          sendRun({ session, key: 'k-again', op })
+          await session.until((frame) => frame.kind === 'output' && frame.key === 'k-again')
+          sendRun({ session, key: 'k-again', op })
+          await resultOf({ session, key: 'k-again' })
+          await resultOf({ session, key: 'k-again' })
+          expect(streamOf({ session, key: 'k-again' })).toBe('one\ntwo\nthree\n')
+        },
+      }))
 
-    it('reattaches at an offset with no gap or duplicate', async () => {
-      const handle = await target.setup()
-      try {
-        const session = await target.connect(handle)
-        await helloAt(session, { epoch: EPOCH, sessionId: 's', token: tokenFor(handle) })
-        session.send({ kind: 'run', key: 'k-gap', epoch: EPOCH, op: execEcho('offset-proof') })
-        await resultOf(session, 'k-gap')
+    it('reattaches after a dropped link from the offset it asks for', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const op = shell('echo first; sleep 0.4; echo second')
+          const before = await connectAt({ handle })
+          sendRun({ session: before, key: 'k-gap', op })
+          await before.until((frame) => frame.kind === 'output' && frame.key === 'k-gap')
+          const seen = streamOf({ session: before, key: 'k-gap' })
+          before.close()
+          await before.closed
 
-        const first = decodeChunks(session, 'k-gap')
-        expect(first.bytes.length).toBeGreaterThan(0)
+          const after = await connectAt({ handle })
+          const fromOffset = Buffer.byteLength(seen)
+          sendRun({ session: after, key: 'k-gap', op, fromOffset })
+          await replyOf({ session: after, key: 'k-gap' })
+          await resultOf({ session: after, key: 'k-gap' })
+          expect(seen + streamOf({ session: after, key: 'k-gap', from: fromOffset })).toBe(
+            'first\nsecond\n',
+          )
+          expect(await runsOf(after)).toBe(1)
+        },
+      }))
 
-        session.send({ kind: 'run', key: 'k-gap', epoch: EPOCH, op: execEcho('offset-proof') })
-        await session.until(
-          (frame) => frame.kind === 'run-reply' && frame.key === 'k-gap' && frame.state === 'done',
-        )
-        const second = decodeChunks(session, 'k-gap')
-        const joined = new Uint8Array(first.bytes.length + second.bytes.length)
-        joined.set(first.bytes, 0)
-        joined.set(second.bytes, first.bytes.length)
-        expect(second.bytes.length).toBe(first.bytes.length)
-        expect(new TextDecoder().decode(second.bytes)).toBe(new TextDecoder().decode(first.bytes))
-        expect(second.offsets[0]).toBe(0)
-      } finally {
-        await target.teardown(handle)
-      }
-    })
+    it('finishes a call with nobody connected and hands the result to the next connection', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const first = await connectAt({ handle })
+          sendRun({ session: first, key: 'k-alone', op: shell('sleep 0.1; echo alone') })
+          await replyOf({ session: first, key: 'k-alone' })
+          first.close()
+          await sleep(300)
+          const next = await connectAt({ handle })
+          sendRun({ session: next, key: 'k-alone', op: shell('sleep 0.1; echo alone') })
+          expect(await replyOf({ session: next, key: 'k-alone' })).toBe(ERunState.Done)
+          await resultOf({ session: next, key: 'k-alone' })
+          expect(streamOf({ session: next, key: 'k-alone' })).toBe('alone\n')
+        },
+      }))
 
-    it('refuses ack of an unknown key', async () => {
-      const handle = await target.setup()
-      try {
-        const session = await target.connect(handle)
-        await helloAt(session, { epoch: EPOCH, sessionId: 's', token: tokenFor(handle) })
-        session.send({ kind: 'ack', key: 'k-zombie', epoch: EPOCH })
-        const error = await session.until(
-          (frame) => frame.kind === 'error' && frame.key === 'k-zombie',
-        )
-        expect(error.kind === 'error' && error.errorKind).toBe(EDaemonErrorKind.UnknownKey)
-      } finally {
-        await target.teardown(handle)
-      }
-    })
+    it('refuses an unknown key on ack and cancel', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          expect(await ackOf({ session, key: 'k-ghost' })).toBe(EDaemonErrorKind.UnknownKey)
+          session.send({ kind: 'cancel', key: 'k-ghost', epoch: 7 })
+          expect(await errorOf({ session, key: 'k-ghost' })).toBe(EDaemonErrorKind.UnknownKey)
+        },
+      }))
 
-    it('deletes a call on ack so a later run reports unknown-key', async () => {
-      const handle = await target.setup()
-      try {
-        const session = await target.connect(handle)
-        await helloAt(session, { epoch: EPOCH, sessionId: 's', token: tokenFor(handle) })
-        session.send({ kind: 'run', key: 'k-ack', epoch: EPOCH, op: execEcho('gone') })
-        await resultOf(session, 'k-ack')
-        session.send({ kind: 'ack', key: 'k-ack', epoch: EPOCH })
-        await new Promise((resolve) => setTimeout(resolve, 150))
-        session.send({ kind: 'ack', key: 'k-ack', epoch: EPOCH })
-        const error = await session.until(
-          (frame) => frame.kind === 'error' && frame.key === 'k-ack',
-        )
-        expect(error.kind === 'error' && error.errorKind).toBe(EDaemonErrorKind.UnknownKey)
-      } finally {
-        await target.teardown(handle)
-      }
-    })
-
-    it('kills a running call on cancel, including a setsid grandchild when boxed', async () => {
-      const handle = await target.setup()
-      try {
-        const session = await target.connect(handle)
-        await helloAt(session, { epoch: EPOCH, sessionId: 's', token: tokenFor(handle) })
-        const boxed = await handle.writableCgroups()
-        const op: CallOp = boxed
-          ? { op: 'exec', argv: ['/bin/sh', '-c', 'setsid sleep 30 & sleep 30'] }
-          : execSleep(30_000)
-        session.send({ kind: 'run', key: 'k-cancel', epoch: EPOCH, op })
-        await session.until((frame) => frame.kind === 'run-reply' && frame.key === 'k-cancel')
-        session.send({ kind: 'cancel', key: 'k-cancel', epoch: EPOCH })
-        const result = await resultOf(session, 'k-cancel')
-        expect(result.error ?? `exit ${result.exitCode}`).not.toBe('exit 0')
-      } finally {
-        await target.teardown(handle)
-      }
-    })
-
-    it('prunes unacked results at boot under a new bootId', async () => {
-      const first = await target.setup()
-      const firstBoot = await first.bootId()
-      try {
-        const session = await target.connect(first)
-        await helloAt(session, { epoch: EPOCH, sessionId: 's', token: tokenFor(first) })
-        session.send({ kind: 'run', key: 'k-pruned', epoch: EPOCH, op: execEcho('lost') })
-        await resultOf(session, 'k-pruned')
-      } finally {
-        await first.kill()
-      }
-      const second = await target.setup()
-      try {
-        expect(await second.bootId()).not.toBe(firstBoot)
-        const session = await target.connect(second)
-        await helloAt(session, { epoch: EPOCH, sessionId: 's', token: tokenFor(second) })
-        session.send({ kind: 'ack', key: 'k-pruned', epoch: EPOCH })
-        const error = await session.until(
-          (frame) => frame.kind === 'error' && frame.key === 'k-pruned',
-        )
-        expect(error.kind === 'error' && error.errorKind).toBe(EDaemonErrorKind.UnknownKey)
-      } finally {
-        await target.teardown(second)
-      }
-    })
+    it('prunes every call when the daemon restarts on the same disk under a new bootId', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          await runToEnd({ session, key: 'k-pruned', op: shell('echo lost') })
+          sendRun({ session, key: 'k-pruned-live', op: shell('sleep 5') })
+          await replyOf({ session, key: 'k-pruned-live' })
+          const before = handle.bootId()
+          await handle.restart()
+          expect(handle.bootId()).not.toBe(before)
+          const after = await connectAt({ handle })
+          expect(await ackOf({ session: after, key: 'k-pruned' })).toBe(EDaemonErrorKind.UnknownKey)
+          expect(await runsOf(after)).toBe(0)
+          sendRun({ session: after, key: 'k-pruned-live', op: shell('echo fresh') })
+          expect(await replyOf({ session: after, key: 'k-pruned-live' })).toBe(ERunState.Running)
+          await resultOf({ session: after, key: 'k-pruned-live' })
+          expect(streamOf({ session: after, key: 'k-pruned-live' })).toBe('fresh\n')
+        },
+      }))
   })
 }

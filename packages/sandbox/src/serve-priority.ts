@@ -1,11 +1,7 @@
 import { readdirSync, writeFileSync } from 'node:fs'
 import { setPriority } from 'node:os'
 
-import {
-  DAEMON_OOM_SCORE_ADJ,
-  mirrorsThreadState,
-  sandboxWorkloadsEnabled,
-} from '@dltech/atlas-wire'
+import { mirrorsThreadState } from '@dltech/atlas-wire'
 
 export const SERVE_OOM_SCORE_ADJ = -900
 export const SERVE_NICE = -5
@@ -45,14 +41,6 @@ const setNiceOnEveryThread = (value: number): void => {
   for (const thread of threads) setPriority(thread, value)
 }
 
-const daemonOomScoreAdj = (env: Record<string, string | undefined>): number => {
-  const value = env[DAEMON_OOM_SCORE_ADJ]
-  if (value === undefined || value === '') return SERVE_OOM_SCORE_ADJ
-  const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed < -1000 || parsed > 1000) return SERVE_OOM_SCORE_ADJ
-  return parsed
-}
-
 const realDeps: ServePriorityDeps = {
   writeOomScoreAdj: (value) => writeFileSync(SELF_OOM_SCORE_ADJ, String(value)),
   setNice: setNiceOnEveryThread,
@@ -68,21 +56,9 @@ export const applyServePriority = (args: {
   deps?: ServePriorityDeps | undefined
 }): ServePriorityReport => {
   const platform = args.platform ?? process.platform
-  const oomScoreAdj = daemonOomScoreAdj(args.env)
-  const daemonMarked = sandboxWorkloadsEnabled(args.env)
-  if (platform !== 'linux' || !(mirrorsThreadState(args.env) || daemonMarked)) {
-    return { enabled: false }
-  }
-  if (daemonMarked && args.env[DAEMON_OOM_SCORE_ADJ] === undefined) return { enabled: false }
+  if (platform !== 'linux' || !mirrorsThreadState(args.env)) return { enabled: false }
 
   const deps = args.deps ?? realDeps
-  if (daemonMarked) {
-    return {
-      enabled: true,
-      oomScoreAdj: attempt(() => deps.writeOomScoreAdj(oomScoreAdj)),
-      nice: { applied: false, error: 'nice skipped below zero' },
-    }
-  }
   return {
     enabled: true,
     oomScoreAdj: attempt(() => deps.writeOomScoreAdj(SERVE_OOM_SCORE_ADJ)),

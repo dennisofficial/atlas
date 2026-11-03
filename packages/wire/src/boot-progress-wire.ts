@@ -64,12 +64,6 @@ export const isLocalPod = (env: Record<string, string | undefined>): boolean =>
 export const mirrorsThreadState = (env: Record<string, string | undefined>): boolean =>
   writesBehind(env) && !isLocalPod(env)
 
-export const SANDBOX_WORKLOADS_ENV = 'ATLAS_SANDBOX_WORKLOADS'
-export const DAEMON_OOM_SCORE_ADJ = 'ATLAS_DAEMON_OOM_SCORE_ADJ'
-
-export const sandboxWorkloadsEnabled = (env: Record<string, string | undefined>): boolean =>
-  env[SANDBOX_WORKLOADS_ENV] === '1'
-
 export const MAX_BOOT_STEP_TEXT = 2000
 export const MAX_CLONE_REPOS = 20
 

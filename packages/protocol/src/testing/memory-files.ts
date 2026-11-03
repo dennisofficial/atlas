@@ -2,6 +2,9 @@ export type MemoryEntry =
   | { type: 'file'; bytes: Uint8Array; mode: number; mtimeMs: number }
   | { type: 'dir'; mode: number; mtimeMs: number }
 
+const fsError = (args: { code: string; path: string }): Error =>
+  Object.assign(new Error(`${args.code}: ${args.path}`), { code: args.code })
+
 export class MemoryFileSystem {
   private readonly entries = new Map<string, MemoryEntry>()
 
@@ -17,7 +20,7 @@ export class MemoryFileSystem {
     isDirectory: boolean
   } {
     const entry = this.entries.get(args.path)
-    if (entry === undefined) throw new Error(`ENOENT: ${args.path}`)
+    if (entry === undefined) throw fsError({ code: 'ENOENT', path: args.path })
     return {
       size: entry.type === 'file' ? entry.bytes.length : 0,
       mode: entry.mode,
@@ -29,7 +32,8 @@ export class MemoryFileSystem {
 
   readBytes(args: { path: string }): Uint8Array {
     const entry = this.entries.get(args.path)
-    if (entry === undefined || entry.type !== 'file') throw new Error(`ENOENT: ${args.path}`)
+    if (entry === undefined) throw fsError({ code: 'ENOENT', path: args.path })
+    if (entry.type !== 'file') throw fsError({ code: 'EISDIR', path: args.path })
     return entry.bytes
   }
 
@@ -56,12 +60,19 @@ export class MemoryFileSystem {
 
   rename(args: { from: string; to: string }): void {
     const entry = this.entries.get(args.from)
-    if (entry === undefined) throw new Error(`ENOENT: ${args.from}`)
+    if (entry === undefined) throw fsError({ code: 'ENOENT', path: args.from })
     this.entries.delete(args.from)
     this.entries.set(args.to, entry)
   }
 
+  exists(args: { path: string }): boolean {
+    return this.entries.has(args.path)
+  }
+
   readDirectory(args: { path: string }): { name: string; isFile: boolean; isDirectory: boolean }[] {
+    const dir = this.entries.get(args.path)
+    if (dir === undefined) throw fsError({ code: 'ENOENT', path: args.path })
+    if (dir.type !== 'dir') throw fsError({ code: 'ENOTDIR', path: args.path })
     const prefix = args.path === '/' ? '/' : `${args.path}/`
     const found = new Map<string, { isFile: boolean; isDirectory: boolean }>()
     for (const [path, entry] of this.entries) {

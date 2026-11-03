@@ -1,52 +1,28 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { CallFailureError, ECallFailure } from '@dltech/atlas-protocol'
 import { WORKLOAD_CGROUP_ENV, killWorkloadBox, workloadCommand } from '@dltech/atlas-sandbox'
 
-export type ManagedLog = {
-  append(args: { bytes: Uint8Array }): Promise<void>
-  readFrom(args: { offset: number }): Promise<Uint8Array>
-  size(): Promise<number>
+const KILL_GRACE_MS = 2000
+const PIPE_DRAIN_MS = 1000
+
+export type ManagedExit = {
+  exitCode: number | null
+  signal: string | null
+  oom: boolean
 }
 
-export type ManagedInput = {
-  write(data: string | Uint8Array): number | Promise<number>
-  end(): number | Promise<number>
-}
+type OutputHandler = (bytes: Uint8Array) => void
 
-export type SpawnedChild = {
-  pid: number
-  stdin: ManagedInput | null
-  stdout: ReadableStream<Uint8Array>
-  stderr: ReadableStream<Uint8Array>
-  exited: Promise<number>
-  kill(): void
-}
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
-export type SpawnImpl = (args: {
-  cmd: readonly string[]
-  cwd: string | undefined
-  env: Record<string, string | undefined> | undefined
-}) => SpawnedChild
-
-export const boxedSpawnImpl: SpawnImpl = (args) => {
-  const child = Bun.spawn(workloadCommand({ cmd: args.cmd, cwd: args.cwd, env: args.env }), {
-    ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
-    ...(args.env === undefined ? {} : { env: args.env }),
-    stdin: 'pipe',
-    stdout: 'pipe',
-    stderr: 'pipe',
-  })
-  return {
-    pid: child.pid,
-    stdin: child.stdin,
-    stdout: child.stdout,
-    stderr: child.stderr,
-    exited: child.exited,
-    kill: () => {
-      killWorkloadBox({ pid: child.pid })
-      child.kill()
-    },
+const signalGroup = (args: { pid: number; signal: NodeJS.Signals }): void => {
+  try {
+    process.kill(-args.pid, args.signal)
+  } catch {
+    return
   }
 }
 
@@ -59,96 +35,100 @@ export const boxOomKilled = (args: {
   try {
     const events = readFileSync(join(workGroup, `w-${args.pid}`, 'memory.events'), 'utf8')
     const match = /^oom_kill\s+(\d+)$/m.exec(events)
-    return match !== null && match[1] !== undefined && Number(match[1]) > 0
+    return match?.[1] !== undefined && Number(match[1]) > 0
   } catch {
     return false
   }
 }
 
-export type ManagedExit = {
-  exitCode: number | null
-  oom: boolean
+const pump = async (args: {
+  stream: ReadableStream<Uint8Array>
+  onOutput: OutputHandler
+  readers: Set<() => void>
+}): Promise<void> => {
+  const reader = args.stream.getReader()
+  const cancel = (): void => void reader.cancel()
+  args.readers.add(cancel)
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) return
+      if (value.length > 0) args.onOutput(value)
+    }
+  } catch {
+    return
+  } finally {
+    args.readers.delete(cancel)
+  }
 }
 
 export class ManagedProcess {
-  private readonly pumps: Promise<void>[] = []
+  private readonly readers = new Set<() => void>()
+  private readonly pumps: Promise<void>
+  private killing = false
 
   private constructor(
-    private readonly spawned: SpawnedChild,
+    private readonly child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>,
     private readonly env: Record<string, string | undefined>,
-    readonly bytesWritten: { count: number },
-  ) {}
-
-  get exited(): Promise<number> {
-    return this.spawned.exited
+    output: { onStdout: OutputHandler; onStderr: OutputHandler },
+  ) {
+    this.pumps = Promise.all([
+      pump({ stream: child.stdout, onOutput: output.onStdout, readers: this.readers }),
+      pump({ stream: child.stderr, onOutput: output.onStderr, readers: this.readers }),
+    ]).then(() => undefined)
   }
 
   static spawn(args: {
     cmd: readonly string[]
     cwd?: string | undefined
-    env?: Record<string, string | undefined> | undefined
-    log: ManagedLog
-    onChunk?: ((args: { bytes: Uint8Array; offset: number }) => void) | undefined
-    spawn?: SpawnImpl | undefined
+    env: Record<string, string | undefined>
+    onStdout: OutputHandler
+    onStderr: OutputHandler
   }): ManagedProcess {
-    const spawned = (args.spawn ?? boxedSpawnImpl)({
-      cmd: args.cmd,
-      cwd: args.cwd,
-      env: args.env,
-    })
-    const bytesWritten = { count: 0 }
-    const process = new ManagedProcess(spawned, args.env ?? {}, bytesWritten)
-    process.pumps.push(
-      process.pump({ stream: spawned.stdout, log: args.log, onChunk: args.onChunk }),
-    )
-    process.pumps.push(
-      process.pump({ stream: spawned.stderr, log: args.log, onChunk: args.onChunk }),
-    )
-    return process
-  }
-
-  private async pump(args: {
-    stream: ReadableStream<Uint8Array>
-    log: ManagedLog
-    onChunk: ((args: { bytes: Uint8Array; offset: number }) => void) | undefined
-  }): Promise<void> {
-    const reader = args.stream.getReader()
     try {
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) return
-        if (value === undefined || value.length === 0) continue
-        const offset = this.bytesWritten.count
-        this.bytesWritten.count += value.length
-        await args.log.append({ bytes: value })
-        args.onChunk?.({ bytes: value, offset })
-      }
-    } catch {
-      return
-    } finally {
-      reader.releaseLock()
+      const child = Bun.spawn({
+        cmd: workloadCommand({ cmd: args.cmd, cwd: args.cwd, env: args.env }),
+        ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
+        env: args.env,
+        stdin: 'ignore',
+        stdout: 'pipe',
+        stderr: 'pipe',
+        detached: true,
+      })
+      return new ManagedProcess(child, args.env, args)
+    } catch (error) {
+      throw new CallFailureError({ code: ECallFailure.SpawnFailed, message: messageOf(error) })
     }
   }
 
-  writeInput(args: { bytes: Uint8Array }): void {
-    this.spawned.stdin?.write(args.bytes)
-  }
-
-  closeInput(): void {
-    void this.spawned.stdin?.end()
+  get pid(): number {
+    return this.child.pid
   }
 
   kill(): void {
-    this.spawned.kill()
-  }
-
-  oomKilled(): boolean {
-    return boxOomKilled({ pid: this.spawned.pid, env: this.env })
+    if (this.killing) return
+    this.killing = true
+    signalGroup({ pid: this.child.pid, signal: 'SIGTERM' })
+    setTimeout(() => this.killGroupNow(), KILL_GRACE_MS).unref()
   }
 
   async exit(): Promise<ManagedExit> {
-    const exitCode = await this.spawned.exited
-    await Promise.all(this.pumps)
-    return { exitCode, oom: this.oomKilled() }
+    await this.child.exited
+    this.killGroupNow()
+    const drained = await Promise.race([
+      this.pumps.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), PIPE_DRAIN_MS)),
+    ])
+    if (!drained) for (const cancel of this.readers) cancel()
+    return {
+      exitCode: this.child.exitCode,
+      signal: this.child.signalCode === null ? null : String(this.child.signalCode),
+      oom: boxOomKilled({ pid: this.child.pid, env: this.env }),
+    }
+  }
+
+  private killGroupNow(): void {
+    signalGroup({ pid: this.child.pid, signal: 'SIGKILL' })
+    killWorkloadBox({ pid: this.child.pid, env: this.env })
   }
 }
