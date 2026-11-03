@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'7a7a0970243dce02319d461c9fa8529535ad94488bba092dd38e313a6b109939'>;
+  StorageHashBase<'083160e4eedef6a7f27b947e55e638fbfdf83d71400630227fde2da17b5597ce'>;
 export type ExecutionHash =
   ExecutionHashBase<'f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f'>;
 export type ProfileHash =
@@ -2479,6 +2479,13 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'GithubCommitCheck_runner_apps_f6758591';
+                  readonly prefix: 'GithubCommitCheck_runner_apps';
+                  readonly columns: readonly ['repoFullName', 'appSlug'];
+                  readonly where: '(("checkKey" LIKE \'run:%\') AND ("appSlug" IS NOT NULL))';
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'GithubCommitCheck_updatedAt_idx_8c508b31';
                   readonly prefix: 'GithubCommitCheck_updatedAt_idx';
                   readonly columns: readonly ['updatedAt'];
@@ -2891,7 +2898,14 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['repoFullName', 'prNumber'] };
               uniques: readonly [];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'GithubPrState_headSha_idx_5568eb6c';
+                  readonly prefix: 'GithubPrState_headSha_idx';
+                  readonly columns: readonly ['headSha'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [];
             };
             readonly GithubRepoHook: {

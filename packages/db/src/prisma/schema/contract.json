@@ -9331,6 +9331,16 @@
                 },
                 {
                   "columns": [
+                    "repoFullName",
+                    "appSlug"
+                  ],
+                  "name": "GithubCommitCheck_runner_apps_f6758591",
+                  "prefix": "GithubCommitCheck_runner_apps",
+                  "unique": false,
+                  "where": "((\"checkKey\" LIKE 'run:%') AND (\"appSlug\" IS NOT NULL))"
+                },
+                {
+                  "columns": [
                     "updatedAt"
                   ],
                   "name": "GithubCommitCheck_updatedAt_idx_8c508b31",
@@ -9805,7 +9815,16 @@
                 }
               },
               "foreignKeys": [],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "headSha"
+                  ],
+                  "name": "GithubPrState_headSha_idx_5568eb6c",
+                  "prefix": "GithubPrState_headSha_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "repoFullName",
@@ -13456,7 +13475,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "7a7a0970243dce02319d461c9fa8529535ad94488bba092dd38e313a6b109939"
+    "storageHash": "083160e4eedef6a7f27b947e55e638fbfdf83d71400630227fde2da17b5597ce"
   },
   "execution": {
     "executionHash": "f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f",
