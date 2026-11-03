@@ -359,6 +359,10 @@ describe('SkillsRouter', () => {
           at: old,
         },
         { type: 'tool-called', body: JSON.stringify({ name: 'bash', input: {} }) },
+        {
+          type: 'tool-called',
+          body: '{"name":"skill","input":{"name":"review"},"output":"nul \\u0000 byte"}',
+        },
       ],
     })
     await seedEvents({

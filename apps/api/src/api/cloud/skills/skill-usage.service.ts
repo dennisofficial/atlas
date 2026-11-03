@@ -12,8 +12,10 @@ const usageStatement = (args: { userId: string; projectId?: string }) => {
       UNION ALL
       SELECT e.body::jsonb -> 'input' ->> 'name', e.at FROM "Event" e
         WHERE e."userId" = ${args.userId} AND e.type = 'tool-called'
-          AND e.body::jsonb ->> 'name' = 'skill'
           AND e.at > now() - interval '30 days'
+          AND position('"name":"skill"' in e.body) > 0
+          AND pg_input_is_valid(e.body, 'jsonb')
+          AND e.body::jsonb ->> 'name' = 'skill'
     ) u GROUP BY u.key`
   }
   return db.raw
@@ -26,8 +28,10 @@ const usageStatement = (args: { userId: string; projectId?: string }) => {
     SELECT e.body::jsonb -> 'input' ->> 'name', e.at FROM "Event" e
       JOIN "Thread" t ON t.id = e."threadId" JOIN "Session" s ON s.id = t."sessionId"
       WHERE e."userId" = ${args.userId} AND e.type = 'tool-called'
-        AND e.body::jsonb ->> 'name' = 'skill'
         AND e.at > now() - interval '30 days' AND s."projectId" = ${args.projectId}
+        AND position('"name":"skill"' in e.body) > 0
+        AND pg_input_is_valid(e.body, 'jsonb')
+        AND e.body::jsonb ->> 'name' = 'skill'
   ) u GROUP BY u.key`
 }
 
