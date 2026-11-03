@@ -238,7 +238,7 @@ function SkillDetail({
               onTakeTheirs={handleTakeTheirs}
             />
           ) : isText ? (
-            <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-md border [--markdown-document-inline-padding:1.25rem]">
               <MarkdownEditor
                 variant={EMarkdownEditorVariant.Document}
                 ariaLabel={currentPath}
