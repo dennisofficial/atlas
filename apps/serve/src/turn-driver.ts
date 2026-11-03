@@ -55,11 +55,7 @@ export function createTurnDriver(
 
   const finishOutcome = async (outcome: TurnOutcome): Promise<void> => {
     if (!relocationConfirmed) lastOutcome = outcome
-    if (
-      outcome.status !== ETurnStatus.RelocationPaused ||
-      !relocationFrozen ||
-      relocationConfirmed
-    ) {
+    if (outcome.status !== ETurnStatus.HandoffPaused || !relocationFrozen || relocationConfirmed) {
       args.onOutcome(outcome)
     }
     outcomePending = false
@@ -216,7 +212,7 @@ export function createTurnDriver(
           lastOutcome !== null &&
           lastOutcome.status !== ETurnStatus.Completed &&
           lastOutcome.status !== ETurnStatus.Idle &&
-          lastOutcome.status !== ETurnStatus.RelocationPaused
+          lastOutcome.status !== ETurnStatus.HandoffPaused
         ) {
           throw new Error(
             lastOutcome.status === ETurnStatus.Failed
@@ -227,10 +223,10 @@ export function createTurnDriver(
         await app.family?.pauseChildren({ threadId: served })
         relocationConfirmed = true
         await finishOutcome(
-          lastOutcome?.status === ETurnStatus.RelocationPaused
+          lastOutcome?.status === ETurnStatus.HandoffPaused
             ? lastOutcome
             : {
-                status: ETurnStatus.RelocationPaused,
+                status: ETurnStatus.HandoffPaused,
                 runId: app.ids.nextRunId(),
               },
         )
@@ -275,7 +271,7 @@ export function createTurnDriver(
         failure: () => turnFailure,
       }),
     relocationResumable: () =>
-      relocationCommitIntent || lastOutcome?.status === ETurnStatus.RelocationPaused,
+      relocationCommitIntent || lastOutcome?.status === ETurnStatus.HandoffPaused,
     resume() {
       if (!relocationFrozen || committing !== null || relocationResuming !== null) return
       const generation = ++relocationGeneration
@@ -293,7 +289,7 @@ export function createTurnDriver(
           intake?.changed()
           return
         }
-        resumeRelocation = lastOutcome?.status === ETurnStatus.RelocationPaused
+        resumeRelocation = lastOutcome?.status === ETurnStatus.HandoffPaused
         relocationCommitIntent = false
         run()
       }

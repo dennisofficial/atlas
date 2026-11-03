@@ -29,6 +29,7 @@ export type RecordBody =
       summary: string
     }
   | { type: 'input-consumed'; inboxId: number }
+  | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
 
 export type V2Body = Exclude<EventBody, { type: 'history-compacted' }> | RecordBody
 
@@ -71,9 +72,20 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     summary: z.string(),
   }),
   z.object({ type: z.literal('input-consumed'), inboxId: z.number().int().min(1) }),
+  z.object({
+    type: z.literal('fact-recorded'),
+    key: z.string().min(1),
+    kind: z.string().min(1),
+    value: z.unknown().optional(),
+  }),
 ])
 
-const RECORD_TYPES: readonly string[] = ['history-rewound', 'history-summarised', 'input-consumed']
+const RECORD_TYPES: readonly string[] = [
+  'history-rewound',
+  'history-summarised',
+  'input-consumed',
+  'fact-recorded',
+]
 
 const typeOf = (raw: unknown): unknown =>
   typeof raw === 'object' && raw !== null && 'type' in raw ? raw.type : undefined

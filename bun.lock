@@ -381,6 +381,16 @@
         "@types/bun": "latest",
       },
     },
+    "packages/protocol": {
+      "name": "@dltech/atlas-protocol",
+      "version": "0.1.0",
+      "dependencies": {
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/ui": {
       "name": "@dltech/atlas-ui",
       "version": "0.1.0",
@@ -782,6 +792,8 @@
     "@dltech/atlas-mac": ["@dltech/atlas-mac@workspace:apps/mac"],
 
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
+
+    "@dltech/atlas-protocol": ["@dltech/atlas-protocol@workspace:packages/protocol"],
 
     "@dltech/atlas-prototype": ["@dltech/atlas-prototype@workspace:apps/prototype"],
 

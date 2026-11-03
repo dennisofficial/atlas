@@ -87,7 +87,7 @@ describe('a real remote channel over a real serve socket', () => {
         new Promise((resolve) => {
           const check = () => {
             if (pause?.paused !== true) return void setTimeout(check, 1)
-            resolve({ status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') })
+            resolve({ status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') })
           }
           check()
         }),

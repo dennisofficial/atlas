@@ -57,7 +57,7 @@ class PauseRecordingRunner extends TurnRunner {
   readonly resumedWith: (PauseSignal | undefined)[] = []
 
   say(): Promise<TurnOutcome> {
-    return Promise.resolve({ status: ETurnStatus.RelocationPaused, runId: RUN })
+    return Promise.resolve({ status: ETurnStatus.HandoffPaused, runId: RUN })
   }
 
   runTurn(): Promise<TurnOutcome> {
@@ -85,7 +85,7 @@ describe('TldrTurnRunner resume', () => {
 
     const outcome = await runner.resume({ threadId: THREAD, pause })
 
-    expect(outcome.status).toBe(ETurnStatus.RelocationPaused)
+    expect(outcome.status).toBe(ETurnStatus.HandoffPaused)
     expect(inner.resumedWith[0]).toBe(pause)
   })
 })

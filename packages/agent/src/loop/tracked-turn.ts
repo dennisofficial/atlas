@@ -85,7 +85,7 @@ export async function runTrackedTurn(
   if (opening.length > 0) await record.append({ threadId, runId, drafts: opening })
 
   for (;;) {
-    if (pause?.paused === true) return { status: ETurnStatus.RelocationPaused, runId }
+    if (pause?.paused === true) return { status: ETurnStatus.HandoffPaused, runId }
 
     const beforeDrain = await record.composedEvents({ threadId })
     const ownedBeforeDrain = rowsOwnedBy({ events: beforeDrain, threadId })

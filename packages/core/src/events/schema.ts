@@ -71,6 +71,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     parts: z.array(assistantPartSchema),
     interrupted: z.boolean().optional(),
     placeholder: z.enum(EAssistantPlaceholder).optional(),
+    aborted: z.literal('handoff').optional(),
   }),
   // Zod 4 requires a z.unknown() key to be present, where Zod 3 inferred it optional. A tool call or
   // result whose input or output is undefined loses the key to JSON.stringify, so both must say .optional()
@@ -86,6 +87,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     type: z.literal('tool-dispatched'),
     callId: callIdSchema,
     name: z.string(),
+    bootId: z.string().min(1).optional(),
   }),
   z.object({
     type: z.literal('tool-result'),

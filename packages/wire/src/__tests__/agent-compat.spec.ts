@@ -62,7 +62,7 @@ const legacyTurnOutcomeSchema = z.discriminatedUnion('status', [
     committed: z.boolean(),
   }),
   z.object({
-    status: z.literal(ETurnStatus.RelocationPaused),
+    status: z.literal(ETurnStatus.HandoffPaused),
     runId: z.string(),
   }),
   z.object({

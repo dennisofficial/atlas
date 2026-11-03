@@ -38,7 +38,7 @@ describe('pausing a turn for relocation', () => {
 
     const outcome = await harness.runner.say({ threadId, text: 'what changed?', pause })
 
-    expect(outcome.status).toBe(ETurnStatus.RelocationPaused)
+    expect(outcome.status).toBe(ETurnStatus.HandoffPaused)
   })
 
   it('writes nothing but what was already durable — no interrupted drafts, no assistant turn', async () => {
@@ -82,7 +82,7 @@ describe('pausing a turn for relocation', () => {
 
     const outcome = await harness.runner.runTurn({ threadId, pause })
 
-    expect(outcome.status).toBe(ETurnStatus.RelocationPaused)
+    expect(outcome.status).toBe(ETurnStatus.HandoffPaused)
     expect(await eventTypes(harness, threadId)).toEqual(['user-said', 'assistant-said'])
   })
 

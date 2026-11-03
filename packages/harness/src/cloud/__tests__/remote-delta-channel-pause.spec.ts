@@ -38,9 +38,9 @@ describe('pausing the sandbox turn over the session socket', () => {
 
     attached.receive({
       kind: EServeFrame.TurnEnded,
-      outcome: { status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') },
+      outcome: { status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') },
     })
-    await expect(turn).resolves.toMatchObject({ status: ETurnStatus.RelocationPaused })
+    await expect(turn).resolves.toMatchObject({ status: ETurnStatus.HandoffPaused })
   })
 
   it('sends the pause frame even when the signal was paused before the turn fired', async () => {
@@ -55,9 +55,9 @@ describe('pausing the sandbox turn over the session socket', () => {
 
     attached.receive({
       kind: EServeFrame.TurnEnded,
-      outcome: { status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') },
+      outcome: { status: ETurnStatus.HandoffPaused, runId: toRunId('run-1') },
     })
-    await expect(turn).resolves.toMatchObject({ status: ETurnStatus.RelocationPaused })
+    await expect(turn).resolves.toMatchObject({ status: ETurnStatus.HandoffPaused })
   })
 
   it('pauses nothing once the turn settled, however late the signal fires', async () => {

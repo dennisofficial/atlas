@@ -167,7 +167,7 @@ describe('the pause frames', () => {
     const frame: ServeFrame = {
       kind: EServeFrame.TurnEnded,
       outcome: {
-        status: ETurnStatus.RelocationPaused,
+        status: ETurnStatus.HandoffPaused,
         runId: 'run-1' as never,
       },
     }

@@ -19,7 +19,7 @@ const interrupted = (): TurnOutcome => ({
 })
 
 const relocationPaused = (): TurnOutcome => ({
-  status: ETurnStatus.RelocationPaused,
+  status: ETurnStatus.HandoffPaused,
   runId: 'run-paused' as never,
 })
 
