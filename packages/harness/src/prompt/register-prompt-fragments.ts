@@ -11,11 +11,7 @@ import {
 import { DelegationFragment } from './fragments/agents'
 import { EnvelopeContractFragment } from './fragments/envelope-contract'
 import { ContextFolderFragment } from './fragments/context-folder'
-import {
-  ExecutionLocationFragment,
-  SessionPathsFragment,
-  TodayFragment,
-} from './fragments/environment'
+import { ExecutionLocationFragment, TodayFragment } from './fragments/environment'
 import { GrillingCeremonyFragment } from './fragments/grilling'
 import { AtlasIdentityFragment } from './fragments/identity'
 import { AnswerInTextFragment } from './fragments/models'
@@ -24,21 +20,14 @@ import { TaskListFragment } from './fragments/plan'
 import { DestructiveActionsFragment, GitEtiquetteFragment } from './fragments/safety'
 import {
   AnswerHonestlyFragment,
-  ConcernThenBuildFragment,
   EndTurnMessageFragment,
   InvestigateThenExplainFragment,
+  WorkLoopFragment,
 } from './fragments/scope'
-import { BackgroundShellsFragment } from './fragments/shells'
 import { DeclaredServicesFragment } from './fragments/services'
 import { SkillListingFragment } from './fragments/skills'
 import { ServiceRegistryPort } from '../services/service-registry-port'
-import {
-  OperatorInputFragment,
-  OperatorSeesImagesFragment,
-  ParallelToolCallsFragment,
-  PreferDedicatedToolsFragment,
-} from './fragments/tools'
-import { UntrustedWebContentFragment, WebResearchFragment } from './fragments/web'
+import { ParallelToolCallsFragment, PreferDedicatedToolsFragment } from './fragments/tools'
 import { InMemoryPromptRegistry, PromptRegistry } from './registry'
 
 export function registerBuiltinPromptFragments({
@@ -49,29 +38,23 @@ export function registerBuiltinPromptFragments({
   const fragments = [
     AtlasIdentityFragment,
     EnvelopeContractFragment,
-    ConcernThenBuildFragment,
     AnswerHonestlyFragment,
     InvestigateThenExplainFragment,
+    WorkLoopFragment,
     EndTurnMessageFragment,
     TaskListFragment,
     TodayFragment,
     ExecutionLocationFragment,
-    SessionPathsFragment,
     DeclaredServicesFragment,
     ContextFolderFragment,
     PreferDedicatedToolsFragment,
     ParallelToolCallsFragment,
-    OperatorSeesImagesFragment,
-    OperatorInputFragment,
-    BackgroundShellsFragment,
     DelegationFragment,
     DestructiveActionsFragment,
     GitEtiquetteFragment,
     OutputShapeFragment,
     CiteFileAndLineFragment,
     SkillListingFragment,
-    WebResearchFragment,
-    UntrustedWebContentFragment,
     AnswerInTextFragment,
   ]
 

@@ -9,28 +9,16 @@ export class DelegationFragment extends PromptFragment {
 
   text(): string {
     return [
-      'Delegate by default: exploratory work, independent slices, and whole workstreams go to other',
-      'agents without asking first. Your own context window is the scarce resource — work you keep',
-      'costs it twice, once to do and once to hold.',
-      '',
-      'Keep a task yourself only when it is smaller than the brief that would describe it — a couple',
-      'of tool calls with no plan needed. Anything you would write a plan file, a checklist, or',
-      'ordered slices for is already past that line: the slices that do not depend on this',
-      'conversation go to agents now, not after you have built them yourself.',
-      '',
-      'Bounded tasks go to sub-agents: a search across files, an audit, a review, a slice of a change',
-      'touching named files. Spawn several in one call when the questions are genuinely separate, keep',
-      'builder slices disjoint, and verify the assembled whole yourself.',
-      '',
-      'A whole workstream — a full feature, a long-running effort, a remaining slice stack — goes to a',
-      'teammate: a peer session with its own repository worktree, sub-agents, and execution location',
-      'that the operator owns and talks to directly. Message it like any agent you started, and do not',
-      'relay what it hears back and forth — the operator reaches it without you. Work that should run',
-      'beside you belongs to a teammate; work that should run under you belongs to a sub-agent.',
-      '',
-      'Whatever an agent needs — paths, constraints, what a good answer looks like — goes in its brief.',
-      'Do not delegate work you could finish faster than describing it, and do not repeat a search you',
-      'have handed over.',
+      'Parallelise work that splits into independent pieces: spawn sub-agents for bounded slices (a search,',
+      'an audit, a review, a change to named files) in one call, and a teammate for a whole workstream that',
+      'should run beside you. Do the work yourself when it is one coherent change one agent can finish in a',
+      'sitting — a brief, a cold start and a wait cost more than they save.',
+      'Cut slices along seams, not layers: each slice delivers something that runs and is tested on its own,',
+      'including the wiring at its edges. Name in each brief who owns the integration — you, or a final',
+      'slice — and what the slice may do when it needs something outside its files: make the minimal change',
+      'itself, or report blocked at once. Never leave an agent waiting on another.',
+      'Put paths, constraints and the expected answer in the brief, do not repeat a search you handed over,',
+      'and verify the assembled whole yourself.',
     ].join('\n')
   }
 }
