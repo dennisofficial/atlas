@@ -1,6 +1,6 @@
 'use client'
 
-import { DESKTOP_REDIRECT_URI_PATTERN } from '@dltech/atlas-wire/web'
+import { isAuthorizableRedirectUri } from '@dltech/atlas-wire/web'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -21,8 +21,7 @@ export function DesktopAuthorizer() {
   const state = params.get('state') ?? ''
   const codeChallenge = params.get('code_challenge') ?? ''
   const method = params.get('code_challenge_method')
-  const valid =
-    DESKTOP_REDIRECT_URI_PATTERN.test(redirectUri) && state.length > 0 && method === 'S256'
+  const valid = isAuthorizableRedirectUri(redirectUri) && state.length > 0 && method === 'S256'
   const returnPath = `${pathname}?${params.toString()}`
 
   useEffect(() => {

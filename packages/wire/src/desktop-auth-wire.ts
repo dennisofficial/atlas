@@ -4,13 +4,24 @@ import { z } from 'zod'
 export const DESKTOP_REDIRECT_URI_PATTERN =
   /^http:\/\/127\.0\.0\.1:\d{1,5}\/desktop\/auth\/callback$/
 
+export const APP_REDIRECT_URI = 'atlas://auth/callback'
+
+export const WEB_APP_REDIRECT_URI_PATTERN = /^https?:\/\/[^/?#]+\/auth\/callback$/
+
+export const isAuthorizableRedirectUri = (uri: string): boolean =>
+  DESKTOP_REDIRECT_URI_PATTERN.test(uri) ||
+  uri === APP_REDIRECT_URI ||
+  WEB_APP_REDIRECT_URI_PATTERN.test(uri)
+
+export const needsTrustedOrigin = (uri: string): boolean => WEB_APP_REDIRECT_URI_PATTERN.test(uri)
+
 // https://datatracker.ietf.org/doc/html/rfc7636#section-4.1
 export const CODE_VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/
 
 // https://datatracker.ietf.org/doc/html/rfc7636#section-4.2 (S256 of a 32-byte hash, unpadded base64url)
 export const CODE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43}$/
 
-const redirectUriSchema = z.string().regex(DESKTOP_REDIRECT_URI_PATTERN)
+const redirectUriSchema = z.string().max(512).refine(isAuthorizableRedirectUri)
 
 export const authorizeDesktopInputSchema = z.strictObject({
   redirectUri: redirectUriSchema,

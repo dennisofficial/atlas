@@ -11,6 +11,8 @@ import type { IDatabaseEnv } from './sections/database'
 import { databaseEnvSchema } from './sections/database'
 import type { IEmailEnv } from './sections/email'
 import { emailEnvSchema } from './sections/email'
+import type { IExpoEnv } from './sections/expo'
+import { expoEnvSchema } from './sections/expo'
 import type { IGithubEnv } from './sections/github'
 import { githubEnvSchema } from './sections/github'
 import type { IRedisEnv } from './sections/redis'
@@ -32,6 +34,7 @@ export interface IEnvConfig
     IDatabaseEnv,
     ICryptoEnv,
     IEmailEnv,
+    IExpoEnv,
     IGithubEnv,
     IRedisEnv,
     ISandboxEnv,
@@ -46,6 +49,7 @@ export const envConfigValidation = Joi.object({
   ...databaseEnvSchema,
   ...cryptoEnvSchema,
   ...emailEnvSchema,
+  ...expoEnvSchema,
   ...githubEnvSchema,
   ...redisEnvSchema,
   ...sandboxEnvSchema,

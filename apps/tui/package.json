@@ -38,7 +38,7 @@
     "@opentui/core": "0.5.12",
     "@opentui/react": "0.5.12",
     "marked": "^18.0.7",
-    "react": "19.2.7",
+    "react": "19.3.0",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "4.10.0"
   },

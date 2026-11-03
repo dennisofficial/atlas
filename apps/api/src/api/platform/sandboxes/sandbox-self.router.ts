@@ -49,6 +49,7 @@ import {
 import { z } from 'zod'
 import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
 import { meta } from '../../../_module/trpc/procedure-meta'
+import { NotificationsService } from '../notifications/notifications.service'
 import { podSessionOf } from '../sessions/session-of-thread'
 import { lockThread } from '../sessions/thread-head'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
@@ -85,6 +86,9 @@ export class SandboxSelfRouter {
     private readonly vercel: VercelSandboxClient,
     private readonly previews: PreviewTunnelService,
     private readonly signals: ThreadSignalsService,
+    @Optional()
+    @Inject(NotificationsService)
+    private readonly notifications?: NotificationsService,
     @Optional()
     @Inject(PrSubscriptionLinks)
     private readonly prLinks?: PrSubscriptionLinks,
@@ -231,7 +235,16 @@ export class SandboxSelfRouter {
       threadId: requested,
     })
     const applied = await applyThreadActivity({ threadId, activity })
-    if (applied !== null) this.signals.threadChanged({ threadId })
+    if (applied === null) return
+    this.signals.threadChanged({ threadId })
+    if (applied.ended === null) return
+    await this.notifications
+      ?.notifyTurnEnded({
+        threadId,
+        outcome: applied.ended.outcome,
+        activityAt: applied.ended.activityAt,
+      })
+      .catch(() => undefined)
   }
 
   @Subscription({ input: eventsWatchInputSchema, output: eventsWatchOutputSchema })
