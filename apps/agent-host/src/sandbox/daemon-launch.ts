@@ -1,7 +1,8 @@
+import { createHash } from 'node:crypto'
 import { dirname } from 'node:path'
 
 import type { Sandbox } from '@vercel/sandbox'
-import { SANDBOX_HOME_PATH, sandboxSh } from '@dltech/atlas-wire'
+import { SANDBOX_HOME_PATH, SANDBOX_SERVE_PORT, sandboxSh } from '@dltech/atlas-wire'
 
 const DAEMON_HOME = `${SANDBOX_HOME_PATH}/.atlas/daemon`
 const DAEMON_BUNDLE_PATH = `${DAEMON_HOME}/daemon.js`
@@ -11,13 +12,14 @@ const DAEMON_LOCK_PATH = `${DAEMON_HOME}/daemon.lock`
 const DAEMON_LOG_PATH = `${DAEMON_HOME}/daemon.log`
 
 const BUN_PATH = '/opt/mise/shims/bun'
-const DAEMON_PORT = '3000'
+const DAEMON_PORT = String(SANDBOX_SERVE_PORT)
 const QUICK_COMMAND_TIMEOUT_MS = 15_000
 const DEFAULT_LISTEN_BUDGET_MS = 30_000
 const LISTEN_POLL_MS = 500
 
-const LISTEN_PROBE = `curl -s -o /dev/null localhost:${DAEMON_PORT} || exit 1`
+const LISTEN_PROBE = `curl -s localhost:${DAEMON_PORT} | grep -qx atlas-daemon`
 const ALIVE_PROBE = `[ -f ${DAEMON_PID_PATH} ] && kill -0 "$(cat ${DAEMON_PID_PATH})" 2>/dev/null`
+const KILL_SCRIPT = `kill "$(cat ${DAEMON_PID_PATH})" 2>/dev/null; for i in $(seq 1 20); do kill -0 "$(cat ${DAEMON_PID_PATH})" 2>/dev/null || break; sleep 0.25; done; kill -9 "$(cat ${DAEMON_PID_PATH})" 2>/dev/null || true`
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -67,11 +69,11 @@ const waitForListen = async (args: { sandbox: Sandbox; budgetMs: number }): Prom
   }
   const tail = await logTail(args.sandbox)
   throw new Error(
-    `sandbox daemon did not listen on port ${DAEMON_PORT} within ${Math.floor(args.budgetMs / 1000)}s; its log is at ${DAEMON_LOG_PATH} in the sandbox, tail:\n${tail}`,
+    `sandbox daemon did not answer atlas-daemon on port ${DAEMON_PORT} within ${Math.floor(args.budgetMs / 1000)}s; its log is at ${DAEMON_LOG_PATH} in the sandbox, tail:\n${tail}`,
   )
 }
 
-export type DaemonBundle = { path: string; version: string }
+export type DaemonBundle = { path: string }
 
 export const launchDaemon = async (args: {
   sandbox: Sandbox
@@ -82,27 +84,24 @@ export const launchDaemon = async (args: {
   listenBudgetMs?: number | undefined
 }): Promise<void> => {
   const { sandbox, bundle, token } = args
-  const [version, alive] = await Promise.all([readVersion(sandbox), isAlive(sandbox)])
-  if (alive && version === bundle.version) {
-    args.log?.(
-      `sandbox ${sandbox.name} has a live daemon at version ${bundle.version} — keeping it`,
-    )
+  const content = await Bun.file(bundle.path).text()
+  const version = createHash('sha256').update(content).digest('hex')
+  const [stored, alive] = await Promise.all([readVersion(sandbox), isAlive(sandbox)])
+  if (alive && stored === version) {
+    args.log?.(`sandbox ${sandbox.name} has a live daemon at version ${version} — keeping it`)
+    await waitForListen({ sandbox, budgetMs: args.listenBudgetMs ?? DEFAULT_LISTEN_BUDGET_MS })
     return
   }
   if (alive) {
     args.log?.(
-      `sandbox ${sandbox.name} runs daemon "${version ?? 'none'}", needs "${bundle.version}" — restarting it`,
+      `sandbox ${sandbox.name} runs daemon "${stored ?? 'none'}", needs "${version}" — restarting it`,
     )
-    await sh({
-      sandbox,
-      script: `kill "$(cat ${DAEMON_PID_PATH})" 2>/dev/null; sleep 1; kill -9 "$(cat ${DAEMON_PID_PATH})" 2>/dev/null || true`,
-    })
+    await sh({ sandbox, script: KILL_SCRIPT })
   }
 
-  const content = await Bun.file(bundle.path).text()
   await sandbox.writeFiles([
     { path: DAEMON_BUNDLE_PATH, content },
-    { path: DAEMON_VERSION_PATH, content: bundle.version },
+    { path: DAEMON_VERSION_PATH, content: version },
   ])
 
   args.log?.(`sandbox ${sandbox.name} has no matching daemon — booting it under the flock`)
@@ -110,7 +109,7 @@ export const launchDaemon = async (args: {
     cmd: 'sh',
     args: [
       '-c',
-      `mkdir -p ${dirname(DAEMON_LOG_PATH)} && : >> ${DAEMON_LOG_PATH} && exec flock -n ${DAEMON_LOCK_PATH} sh -c 'echo $$ > ${DAEMON_PID_PATH}; exec ${BUN_PATH} ${DAEMON_BUNDLE_PATH}' >> ${DAEMON_LOG_PATH} 2>&1`,
+      `mkdir -p ${dirname(DAEMON_LOG_PATH)} && : >> ${DAEMON_LOG_PATH} && exec flock -w 5 ${DAEMON_LOCK_PATH} sh -c 'echo $$ > ${DAEMON_PID_PATH}; exec ${BUN_PATH} ${DAEMON_BUNDLE_PATH}' >> ${DAEMON_LOG_PATH} 2>&1`,
     ],
     detached: true,
     env: {

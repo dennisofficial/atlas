@@ -12,11 +12,11 @@ import { VercelSandboxProvider } from '../vercel-sandbox-provider'
 
 const CREDENTIALS = { token: 'vercel-tok', teamId: 'team-1', projectId: 'proj-1' }
 
-const bundle = (): { bundle: { path: string; version: string }; cleanup: () => void } => {
+const bundle = (): { bundle: { path: string }; cleanup: () => void } => {
   const dir = mkdtempSync(join(tmpdir(), 'atlas-daemon-bundle-'))
   const path = join(dir, 'daemon.js')
   writeFileSync(path, '// daemon bundle\n')
-  return { bundle: { path, version: 'v-1' }, cleanup: () => rmSync(dir, { recursive: true }) }
+  return { bundle: { path }, cleanup: () => rmSync(dir, { recursive: true }) }
 }
 
 const fakeSdk = () => {

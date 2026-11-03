@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EDaemonErrorKind } from '../../frames'
-import { inMemoryDaemonToken } from '../fake-daemon'
 import {
   ERunState,
   ackOf,
@@ -39,11 +38,20 @@ export const describeFencingConformance = (target: DaemonConformanceTarget): voi
         target,
         body: async (handle) => {
           const session = await handle.connect()
-          const foreignToken = inMemoryDaemonToken({
-            secret: 'conformance-secret',
-            sandboxName: 'atlas-v2-other-sandbox',
-          })
-          session.send({ kind: 'hello', sessionId: 's', epoch: 1, token: foreignToken })
+          const foreign = handle.foreignToken({ sandboxName: 'atlas-v2-other-sandbox' })
+          session.send({ kind: 'hello', sessionId: 's', epoch: 1, token: foreign })
+          expect(await errorOf({ session })).toBe(EDaemonErrorKind.Unauthenticated)
+          expect(await closedWithin({ session, ms: 2000 })).not.toBeNull()
+        },
+      }))
+
+    it('refuses a token minted with a different secret for the same sandbox name', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await handle.connect()
+          const foreign = handle.foreignToken({ secret: 'another-secret' })
+          session.send({ kind: 'hello', sessionId: 's', epoch: 1, token: foreign })
           expect(await errorOf({ session })).toBe(EDaemonErrorKind.Unauthenticated)
           expect(await closedWithin({ session, ms: 2000 })).not.toBeNull()
         },

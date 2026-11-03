@@ -18,6 +18,11 @@ describeDaemonConformance({
     })
     return {
       token: inMemoryDaemonToken({ secret: SECRET, sandboxName: SANDBOX }),
+      foreignToken: ({ sandboxName, secret } = {}) =>
+        inMemoryDaemonToken({
+          secret: secret ?? SECRET,
+          sandboxName: sandboxName ?? SANDBOX,
+        }),
       bootId: () => daemon.bootId(),
       connect: async () => daemon.connect(),
       restart: () => daemon.restart(),

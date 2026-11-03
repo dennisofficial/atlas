@@ -131,6 +131,8 @@ export const realDaemonTarget = (args: {
     }
     return {
       token: daemonToken({ secret: SECRET, sandboxName: SANDBOX }),
+      foreignToken: ({ sandboxName, secret } = {}) =>
+        daemonToken({ secret: secret ?? SECRET, sandboxName: sandboxName ?? SANDBOX }),
       bootId: () => running.bootId,
       connect: async () => {
         const session = await connectWebSocket(running.port)

@@ -102,8 +102,15 @@ describe('modelIdOf', () => {
     expect(modelIdOf({ 'model.id': 'anthropic/claude-opus-4-1' })).toBe('claude-opus-4-1')
   })
 
+  it('decodes an encoded setting value before parsing the ref', () => {
+    expect(modelIdOf({ 'model.id': 'atlas-setting:v1:"anthropic/claude-opus-4-1"' })).toBe(
+      'claude-opus-4-1',
+    )
+  })
+
   it('falls back to the shipped default for a non-anthropic or missing setting', () => {
     expect(modelIdOf({ 'model.id': 'openai/gpt-5' })).toBe('claude-haiku-4-5')
+    expect(modelIdOf({ 'model.id': 'atlas-setting:v1:"openai/gpt-5"' })).toBe('claude-haiku-4-5')
     expect(modelIdOf({})).toBe('claude-haiku-4-5')
   })
 })

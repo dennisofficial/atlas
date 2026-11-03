@@ -15,7 +15,7 @@ export type AgentHostApi = {
   githubToken(args: { sessionId: string }): Promise<AgentHostGithubTokenOutput>
 }
 
-type Cached = { value: AgentHostConfigOutput; expiresAtMs: number }
+type Cached = { value: AgentHostConfigOutput; expiresAtMs: number; refreshAfterMs: number }
 
 export const createAgentHostApi = (args: {
   apiOrigin: string
@@ -30,18 +30,37 @@ export const createAgentHostApi = (args: {
   })
   const now = args.now ?? Date.now
   const cache = new Map<string, Cached>()
+  const inflight = new Map<string, Promise<AgentHostConfigOutput>>()
 
   const config = async ({ sessionId }: { sessionId: string }): Promise<AgentHostConfigOutput> => {
     const cached = cache.get(sessionId)
-    if (cached !== undefined && now() < cached.expiresAtMs) return cached.value
-    try {
-      const fresh = await client.agentHost.config.query({ sessionId })
-      cache.set(sessionId, { value: fresh, expiresAtMs: Date.parse(fresh.expiresAt) })
-      return fresh
-    } catch (error) {
-      if (cached !== undefined) return cached.value
-      throw error
-    }
+    if (cached !== undefined && now() < cached.refreshAfterMs) return cached.value
+    const pending = inflight.get(sessionId)
+    if (pending !== undefined) return pending
+    const request = refresh({ sessionId, cached })
+      .catch((error: unknown) => {
+        if (cached !== undefined && now() < cached.expiresAtMs) return cached.value
+        throw error
+      })
+      .finally(() => {
+        inflight.delete(sessionId)
+      })
+    inflight.set(sessionId, request)
+    return request
+  }
+
+  const refresh = async (args: {
+    sessionId: string
+    cached: Cached | undefined
+  }): Promise<AgentHostConfigOutput> => {
+    const fresh = await client.agentHost.config.query({ sessionId: args.sessionId })
+    const expiresAtMs = Date.parse(fresh.expiresAt)
+    cache.set(args.sessionId, {
+      value: fresh,
+      expiresAtMs,
+      refreshAfterMs: now() + (expiresAtMs - now()) / 2,
+    })
+    return fresh
   }
 
   return {

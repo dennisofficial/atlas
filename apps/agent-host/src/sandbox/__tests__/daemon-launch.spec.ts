@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,7 +18,12 @@ type RecordedCommand = {
 
 type RecordedWrite = { path: string; content: string }
 
-const fakeSandbox = (state: { version?: string; alive: boolean; listens: boolean }) => {
+const fakeSandbox = (state: {
+  version?: string
+  alive: boolean
+  listens: boolean
+  answersAsDaemon?: boolean
+}) => {
   const commands: RecordedCommand[] = []
   const writes: RecordedWrite[] = []
   const sandbox = {
@@ -44,7 +50,8 @@ const fakeSandbox = (state: { version?: string; alive: boolean; listens: boolean
         return { exitCode: 0, stdout: async () => (state.alive ? 'alive' : '') }
       }
       if (script.startsWith('curl')) {
-        return { exitCode: state.listens ? 0 : 1 }
+        const daemon = state.listens && (state.answersAsDaemon ?? true)
+        return { exitCode: daemon ? 0 : 1 }
       }
       return { exitCode: 0, stdout: async () => '' }
     },
@@ -52,22 +59,27 @@ const fakeSandbox = (state: { version?: string; alive: boolean; listens: boolean
   return { sandbox: sandbox as unknown as Sandbox, commands, writes }
 }
 
-const bundle = (): { bundle: { path: string; version: string }; cleanup: () => void } => {
+const bundle = (content = '// daemon bundle\n') => {
   const dir = mkdtempSync(join(tmpdir(), 'atlas-daemon-bundle-'))
   const path = join(dir, 'daemon.js')
-  writeFileSync(path, '// daemon bundle\n')
-  return { bundle: { path, version: 'v-1' }, cleanup: () => rmSync(dir, { recursive: true }) }
+  writeFileSync(path, content)
+  return {
+    bundle: { path },
+    version: createHash('sha256').update(content).digest('hex'),
+    cleanup: () => rmSync(dir, { recursive: true }),
+  }
 }
 
 describe('launchDaemon', () => {
   it('starts the daemon detached with the token only in that runCommand env', async () => {
-    const { bundle: b, cleanup } = bundle()
+    const { bundle: b, version, cleanup } = bundle()
     try {
       const { sandbox, commands, writes } = fakeSandbox({ alive: false, listens: true })
       await launchDaemon({ sandbox, bundle: b, token: 'tok-1', sandboxName: 'atlas-v2-s1' })
 
       const detached = commands.filter((command) => command.detached === true)
       expect(detached.length).toBe(1)
+      expect(detached[0]?.args[1]).toContain('flock -w 5')
       expect(detached[0]?.env).toEqual({
         DAEMON_TOKEN: 'tok-1',
         ATLAS_SANDBOX_NAME: 'atlas-v2-s1',
@@ -81,29 +93,26 @@ describe('launchDaemon', () => {
       const paths = writes.map((write) => write.path)
       expect(paths).toContain(daemonPaths.bundle)
       expect(paths).toContain(daemonPaths.version)
-      expect(writes.find((write) => write.path === daemonPaths.version)?.content).toBe('v-1')
+      expect(writes.find((write) => write.path === daemonPaths.version)?.content).toBe(version)
     } finally {
       cleanup()
     }
   })
 
-  it('keeps an alive daemon at the same version without re-uploading', async () => {
-    const { bundle: b, cleanup } = bundle()
+  it('keeps an alive daemon at the same version without re-uploading and still waits for listen', async () => {
+    const { bundle: b, version, cleanup } = bundle()
     try {
-      const { sandbox, commands, writes } = fakeSandbox({
-        version: 'v-1',
-        alive: true,
-        listens: true,
-      })
+      const { sandbox, commands, writes } = fakeSandbox({ version, alive: true, listens: true })
       await launchDaemon({ sandbox, bundle: b, token: 'tok-1', sandboxName: 'atlas-v2-s1' })
       expect(writes).toEqual([])
       expect(commands.filter((command) => command.detached === true)).toEqual([])
+      expect(commands.some((command) => (command.args[1] ?? '').startsWith('curl'))).toBe(true)
     } finally {
       cleanup()
     }
   })
 
-  it('re-uploads and restarts on a version mismatch', async () => {
+  it('re-uploads and restarts when the stored version differs from the bundle hash', async () => {
     const { bundle: b, cleanup } = bundle()
     try {
       const { sandbox, commands, writes } = fakeSandbox({
@@ -115,10 +124,58 @@ describe('launchDaemon', () => {
       expect(writes.map((write) => write.path)).toContain(daemonPaths.bundle)
       const detached = commands.filter((command) => command.detached === true)
       expect(detached.length).toBe(1)
-      const killed = commands.some(
+      const killed = commands.find(
         (command) => command.detached !== true && (command.args[1] ?? '').includes('kill'),
       )
-      expect(killed).toBe(true)
+      expect(killed).toBeDefined()
+      expect(killed?.args[1]).toContain('kill -0')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('re-uploads when the bundle content changed while an old daemon is alive', async () => {
+    const { bundle: b, version, cleanup } = bundle('// daemon bundle v2\n')
+    try {
+      const { sandbox, commands, writes } = fakeSandbox({
+        version,
+        alive: true,
+        listens: true,
+      })
+      await launchDaemon({ sandbox, bundle: b, token: 'tok-1', sandboxName: 'atlas-v2-s1' })
+      expect(writes).toEqual([])
+      const changed = await Bun.file(b.path).text()
+      writeFileSync(b.path, `${changed}more\n`)
+      const {
+        sandbox: second,
+        commands: secondCommands,
+        writes: secondWrites,
+      } = fakeSandbox({
+        version,
+        alive: true,
+        listens: true,
+      })
+      await launchDaemon({ sandbox: second, bundle: b, token: 'tok-1', sandboxName: 'atlas-v2-s1' })
+      expect(secondWrites.map((write) => write.path)).toContain(daemonPaths.bundle)
+      expect(secondCommands.filter((command) => command.detached === true).length).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails the launch when the port answers with something other than the daemon', async () => {
+    const { bundle: b, cleanup } = bundle()
+    try {
+      const { sandbox } = fakeSandbox({ alive: false, listens: true, answersAsDaemon: false })
+      await expect(
+        launchDaemon({
+          sandbox,
+          bundle: b,
+          token: 'tok-1',
+          sandboxName: 'atlas-v2-s1',
+          listenBudgetMs: 1200,
+        }),
+      ).rejects.toThrow('did not answer atlas-daemon')
     } finally {
       cleanup()
     }
@@ -136,7 +193,7 @@ describe('launchDaemon', () => {
           sandboxName: 'atlas-v2-s1',
           listenBudgetMs: 1200,
         }),
-      ).rejects.toThrow('did not listen')
+      ).rejects.toThrow('did not answer atlas-daemon')
     } finally {
       cleanup()
     }

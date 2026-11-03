@@ -42,7 +42,10 @@ export class AgentHostService {
       model,
       vercel,
       config: config as unknown as AgentHostConfigOutput['config'],
-      revision: createHash('sha256').update(JSON.stringify(config)).digest('hex'),
+      revision: createHash('sha256')
+        .update(JSON.stringify(config))
+        .update(JSON.stringify(model))
+        .digest('hex'),
       expiresAt: new Date(issuedAt + CONFIG_TTL_MS).toISOString(),
     }
   }

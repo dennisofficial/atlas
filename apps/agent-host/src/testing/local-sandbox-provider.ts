@@ -28,7 +28,12 @@ export class LocalSandboxProvider extends SandboxProvider {
     if (existing !== undefined)
       return this.endpointOf({ sessionId: args.sessionId, port: existing.port })
     const home = mkdtempSync(join(tmpdir(), 'atlas-agent-host-local-'))
-    const env = daemonTestEnv(home)
+    const sandboxName = sandboxNameOf(args.sessionId)
+    const env = {
+      ...daemonTestEnv(home),
+      DAEMON_TOKEN: daemonToken({ secret: this.args.daemonSecret, sandboxName }),
+      ATLAS_SANDBOX_NAME: sandboxName,
+    }
     const spawned = await spawnDaemon({ entry: daemonEntry, env })
     this.running.set(args.sessionId, { child: spawned.child, home, port: spawned.port })
     return this.endpointOf({ sessionId: args.sessionId, port: spawned.port })

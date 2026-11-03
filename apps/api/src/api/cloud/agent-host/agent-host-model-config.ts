@@ -7,8 +7,10 @@ import {
   toAccountId,
   type Account,
 } from '@dltech/atlas-harness/titling'
+import { parseRef } from '@dltech/atlas-core'
 import { SHIPPED_DEFAULT_REF } from '@dltech/atlas-harness/models'
 import type { AccountLease, StoredAccountDto } from '@dltech/atlas-wire'
+import { decodeSettingValue } from '@dltech/atlas-wire/web'
 
 export type ModelCredential =
   | { kind: 'oauth'; connectionId: string }
@@ -55,8 +57,10 @@ const credentialOf = (secret: StoredAccountDto['secret']): ModelCredential | { g
 
 export const modelIdOf = (settings: Record<string, string>): string => {
   const stored = settings['model.id']
-  if (stored !== undefined && stored.startsWith('anthropic/')) {
-    return stored.slice('anthropic/'.length)
+  const decoded = stored === undefined ? undefined : decodeSettingValue(stored)
+  if (typeof decoded === 'string') {
+    const ref = parseRef(decoded)
+    if (ref !== undefined && ref.providerId === 'anthropic') return ref.modelId
   }
   return SHIPPED_DEFAULT_REF.modelId
 }

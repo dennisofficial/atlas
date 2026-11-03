@@ -50,7 +50,7 @@ const trpcFetch = (
 }
 
 describe('createAgentHostApi', () => {
-  it('caches config per session until expiresAt', async () => {
+  it('caches config per session and refreshes at half the remaining TTL from issue', async () => {
     const { fetchFn, calls } = trpcFetch(() => ({
       ok: true,
       body: configBody('2026-11-03T12:05:00.000Z'),
@@ -70,12 +70,12 @@ describe('createAgentHostApi', () => {
       true,
     )
 
-    now = Date.parse('2026-11-03T12:06:00.000Z')
+    now = Date.parse('2026-11-03T12:02:30.000Z')
     await api.config({ sessionId: 's1' })
     expect(calls.length).toBe(3)
   })
 
-  it('keeps serving the cached config when the refresh fails after expiry', async () => {
+  it('serves the cached value when a refresh fails before expiry', async () => {
     let fail = false
     const { fetchFn } = trpcFetch(() =>
       fail ? { ok: false, body: {} } : { ok: true, body: configBody('2026-11-03T12:05:00.000Z') },
@@ -88,10 +88,47 @@ describe('createAgentHostApi', () => {
       now: () => now,
     })
     const first = await api.config({ sessionId: 's1' })
-    now = Date.parse('2026-11-03T12:06:00.000Z')
+    now = Date.parse('2026-11-03T12:03:00.000Z')
     fail = true
     const second = await api.config({ sessionId: 's1' })
     expect(second).toEqual(first)
+  })
+
+  it('throws when a refresh fails after the cached value expired', async () => {
+    let fail = false
+    const { fetchFn } = trpcFetch(() =>
+      fail ? { ok: false, body: {} } : { ok: true, body: configBody('2026-11-03T12:05:00.000Z') },
+    )
+    let now = Date.parse('2026-11-03T12:00:00.000Z')
+    const api = createAgentHostApi({
+      apiOrigin: 'https://api.test',
+      agentHostToken: 't'.repeat(32),
+      fetchFn,
+      now: () => now,
+    })
+    await api.config({ sessionId: 's1' })
+    now = Date.parse('2026-11-03T12:06:00.000Z')
+    fail = true
+    await expect(api.config({ sessionId: 's1' })).rejects.toThrow()
+  })
+
+  it('shares one in-flight refresh between concurrent callers of one session', async () => {
+    const { fetchFn, calls } = trpcFetch(() => ({
+      ok: true,
+      body: configBody('2026-11-03T12:05:00.000Z'),
+    }))
+    const api = createAgentHostApi({
+      apiOrigin: 'https://api.test',
+      agentHostToken: 't'.repeat(32),
+      fetchFn,
+      now: () => Date.parse('2026-11-03T12:00:00.000Z'),
+    })
+    const [a, b] = await Promise.all([
+      api.config({ sessionId: 's1' }),
+      api.config({ sessionId: 's1' }),
+    ])
+    expect(a).toEqual(b)
+    expect(calls.length).toBe(1)
   })
 
   it('propagates the failure with no cached value', async () => {
