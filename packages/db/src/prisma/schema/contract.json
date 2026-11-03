@@ -3194,6 +3194,13 @@
                   "kind": "scalar"
                 }
               },
+              "returnSurface": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "returnTo": {
                 "nullable": false,
                 "type": {
@@ -3270,6 +3277,9 @@
                 },
                 "mcpServerId": {
                   "column": "mcpServerId"
+                },
+                "returnSurface": {
+                  "column": "returnSurface"
                 },
                 "returnTo": {
                   "column": "returnTo"
@@ -10573,6 +10583,15 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "returnSurface": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "web"
+                  },
+                  "nullable": false
+                },
                 "returnTo": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -14036,7 +14055,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "00dc597d9dc49e825768c55eb9883c982ce9f1ec5656a8f7390db932eb65cf77"
+    "storageHash": "346b2d0f20945a4896b92f3a9b64554fb077b7bf6b120f16c69d89cc5d3a3249"
   },
   "execution": {
     "executionHash": "395a1481e98e83f5120bc102ff6082480d9a2959eb5c52518bace5284bc0e7ef",

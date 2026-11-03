@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'00dc597d9dc49e825768c55eb9883c982ce9f1ec5656a8f7390db932eb65cf77'>;
+  StorageHashBase<'346b2d0f20945a4896b92f3a9b64554fb077b7bf6b120f16c69d89cc5d3a3249'>;
 export type ExecutionHash =
   ExecutionHashBase<'395a1481e98e83f5120bc102ff6082480d9a2959eb5c52518bace5284bc0e7ef'>;
 export type ProfileHash =
@@ -590,6 +590,7 @@ export namespace Models {
     expiresAt: FieldOutputTypes['public']['McpOauthPending']['expiresAt'];
     id: FieldOutputTypes['public']['McpOauthPending']['id'];
     mcpServerId: FieldOutputTypes['public']['McpOauthPending']['mcpServerId'];
+    returnSurface: FieldOutputTypes['public']['McpOauthPending']['returnSurface'];
     returnTo: FieldOutputTypes['public']['McpOauthPending']['returnTo'];
     sealed: FieldOutputTypes['public']['McpOauthPending']['sealed'];
     serverUrl: FieldOutputTypes['public']['McpOauthPending']['serverUrl'];
@@ -3324,6 +3325,16 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly returnSurface: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'web'>;
+                  };
                   readonly many: false;
                 };
                 readonly returnTo: {
@@ -8157,6 +8168,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly returnSurface: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly returnTo: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -8205,6 +8220,7 @@ type ContractBase = Omit<
                 readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
                 readonly mcpServerId: { readonly column: 'mcpServerId' };
+                readonly returnSurface: { readonly column: 'returnSurface' };
                 readonly returnTo: { readonly column: 'returnTo' };
                 readonly sealed: { readonly column: 'sealed' };
                 readonly serverUrl: { readonly column: 'serverUrl' };

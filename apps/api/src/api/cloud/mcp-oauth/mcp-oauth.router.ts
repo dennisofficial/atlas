@@ -61,6 +61,7 @@ export class McpOauthRouter {
       userId: ctx.auth.userId,
       serverId: input.serverId,
       ...(input.returnTo === undefined ? {} : { returnTo: input.returnTo }),
+      ...(input.surface === undefined ? {} : { surface: input.surface }),
     })
   }
 

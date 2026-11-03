@@ -25,6 +25,12 @@ function cookieValue({
   return undefined
 }
 
+export function sessionLandingOf(next: string | null): string {
+  if (next === null || !next.startsWith('/') || next.startsWith('//') || next.includes('\\'))
+    return '/'
+  return next
+}
+
 export function startSession({ url, secret }: { url: URL; secret: string }): Response {
   const provided = url.searchParams.get('secret')
   if (provided === null || !safeEqual({ a: provided, b: secret })) {
@@ -33,7 +39,7 @@ export function startSession({ url, secret }: { url: URL; secret: string }): Res
   return new Response(null, {
     status: 302,
     headers: {
-      Location: '/',
+      Location: sessionLandingOf(url.searchParams.get('next')),
       'Set-Cookie': `${SESSION_COOKIE}=${secret}; Path=/; HttpOnly; SameSite=Strict`,
     },
   })

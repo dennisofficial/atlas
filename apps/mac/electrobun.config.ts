@@ -8,6 +8,7 @@ export default {
     name: 'Atlas',
     identifier: 'io.byatlas.mac',
     version,
+    urlSchemes: ['atlas'],
   },
   build: {
     mainProcess: 'bun',

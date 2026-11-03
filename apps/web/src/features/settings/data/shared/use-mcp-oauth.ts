@@ -8,7 +8,13 @@ import { EMcpOauthBeginOutcome, type McpOauthServer } from '@dltech/atlas-wire/w
 import { api, cloudCall } from '@/lib/api-client'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { authStateOf, cloudServerOf, repoServersOf, EMcpAuthState } from './mcp-oauth'
+import {
+  authStateOf,
+  cloudServerOf,
+  repoServersOf,
+  returnSurfaceOf,
+  EMcpAuthState,
+} from './mcp-oauth'
 import { runAction } from './run-action'
 
 export type McpOauth = {
@@ -57,6 +63,7 @@ export function useMcpOauth({ projectId }: { projectId?: string } = {}): McpOaut
           api.mcpOauth.begin.mutate({
             serverId,
             returnTo: window.location.pathname,
+            surface: returnSurfaceOf(window),
           }),
         )
         if (result.outcome === EMcpOauthBeginOutcome.Redirect) {

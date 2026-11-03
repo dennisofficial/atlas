@@ -6,6 +6,7 @@ import {
 } from '@dltech/atlas-harness/mcp-oauth'
 import {
   EMcpOauthBeginOutcome,
+  EMcpOauthReturnSurface,
   EMcpServerSource,
   type McpOauthBeginResult,
   type McpOauthServer,
@@ -57,6 +58,7 @@ export class McpOauthService {
     userId: string
     serverId: string
     returnTo?: string | undefined
+    surface?: EMcpOauthReturnSurface | undefined
   }): Promise<McpOauthBeginResult> {
     const row = await this.ownedServer({
       userId: args.userId,
@@ -111,6 +113,7 @@ export class McpOauthService {
         serverUrl,
         sealed: sealJson({ cipher: this.cipher, value: pending }),
         returnTo: args.returnTo ?? DEFAULT_RETURN_TO,
+        returnSurface: args.surface ?? EMcpOauthReturnSurface.Web,
         expiresAt: new Date(this.clock.now() + PENDING_TTL_MS),
         mcpServerId: row.id,
       })
@@ -152,7 +155,8 @@ export class McpOauthService {
       })
     }
     const { returnTo, serverUrl } = pending
-    const failed = (reason: string) => this.redirect({ returnTo, serverUrl, reason })
+    const surface = pending.returnSurface
+    const failed = (reason: string) => this.redirect({ returnTo, surface, serverUrl, reason })
     if (pending.mcpServerId === null) return failed('unknown_state')
     if (args.malformed === true) return failed('invalid_request')
     if (args.sessionUserId !== pending.userId) return failed('session_mismatch')
@@ -203,7 +207,7 @@ export class McpOauthService {
         serverUrl,
         sealed: sealJson({ cipher: this.cipher, value: grant }),
       })
-      return this.redirect({ returnTo, serverUrl })
+      return this.redirect({ returnTo, surface, serverUrl })
     } catch {
       return failed('exchange_failed')
     }
@@ -259,6 +263,7 @@ export class McpOauthService {
 
   private redirect(args: {
     returnTo: string
+    surface?: EMcpOauthReturnSurface | undefined
     serverUrl?: string | undefined
     reason?: string | undefined
   }): string {
