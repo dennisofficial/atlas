@@ -8,8 +8,11 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { Label } from '@dltech/atlas-ui/components/label'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
+import { sandboxSizesOfPlan, vercelPlanCapNote } from '@dltech/atlas-wire/web'
+
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { SandboxSizeSection } from '@/features/settings/parts/sandbox-size-section'
+import { useVercelPlan } from '@/features/settings/data/user/use-vercel-plan'
 import { SandboxPageSkeleton } from './project-skeletons'
 import { runAction } from '@/features/settings/data/shared/run-action'
 
@@ -94,6 +97,7 @@ function SetupScript({
 export function SandboxPage() {
   const { projectId } = useProjectContext()
   const { query, save } = useSandbox(projectId)
+  const plan = useVercelPlan()
   return (
     <QueryGate query={query} label="sandbox settings" skeleton={<SandboxPageSkeleton />}>
       {(sandbox) => {
@@ -108,6 +112,8 @@ export function SandboxPage() {
               key={`size-${sandbox.vcpus}`}
               value={sandbox.vcpus}
               withAccountDefault
+              sizes={sandboxSizesOfPlan(plan)}
+              capNote={vercelPlanCapNote(plan)}
               onSave={(vcpus) => handleSave({ vcpus })}
             />
             <SetupScript

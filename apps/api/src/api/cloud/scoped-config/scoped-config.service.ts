@@ -9,6 +9,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { openSecretValue } from '../secrets/sealed-secret'
+import { VercelTokenRefresher } from '../user-vercel/vercel-token-refresher'
 import { VercelNotConfiguredError } from './scoped-config.errors'
 import { loadProjectLayer, loadUserLayer } from './scoped-config.layers'
 
@@ -18,7 +19,10 @@ export type ThreadOwner = { userId: string }
 
 @Injectable()
 export class ScopedConfigService {
-  constructor(private readonly cipher: SecretCipherService) {}
+  constructor(
+    private readonly cipher: SecretCipherService,
+    private readonly vercelTokens: VercelTokenRefresher,
+  ) {}
 
   async resolveForPod(args: ScopedConfigTarget): Promise<ResolvedSandboxConfig> {
     return podFacingConfig(await this.resolveWithProvisioning(args))
@@ -40,11 +44,14 @@ export class ScopedConfigService {
   async vercelCredentials(args: { thread: ThreadOwner }): Promise<VercelProvisioningCredentials> {
     const row = await db.orm.public.UserVercelCredential.first({ userId: args.thread.userId })
     if (row === null) throw new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
-    return {
-      token: openSecretValue({ cipher: this.cipher, sealed: row.sealedToken }),
-      teamId: row.teamId,
-      projectId: row.vercelProjectId,
+    if (row.vercelProjectId === null) {
+      throw new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
     }
+    const token =
+      row.kind === 'oauth'
+        ? await this.vercelTokens.accessToken({ userId: args.thread.userId })
+        : openSecretValue({ cipher: this.cipher, sealed: row.sealedToken })
+    return { token, teamId: row.teamId, projectId: row.vercelProjectId }
   }
 
   async accessibleProject(args: { userId: string; projectId: string }): Promise<string> {

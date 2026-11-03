@@ -90,6 +90,34 @@ export const SANDBOX_MEMORY_GB_PER_VCPU = 2
 
 export const SANDBOX_VCPU_PLAN_CAP_NOTE = 'Hobby up to 4 vCPU · Pro up to 8 · Enterprise up to 32'
 
+export enum EVercelPlan {
+  Hobby = 'hobby',
+  Pro = 'pro',
+  Enterprise = 'enterprise',
+  Unknown = 'unknown',
+}
+
+export const vercelPlanSchema = z.enum(EVercelPlan)
+
+// https://vercel.com/docs/sandbox/pricing — Hobby 4, Pro 8, Enterprise 32 vCPUs
+export const VERCEL_PLAN_MAX_VCPUS: Record<EVercelPlan, number> = {
+  [EVercelPlan.Hobby]: 4,
+  [EVercelPlan.Pro]: 8,
+  [EVercelPlan.Enterprise]: 32,
+  [EVercelPlan.Unknown]: 32,
+}
+
+export const sandboxSizesOfPlan = (plan: EVercelPlan): readonly number[] => {
+  const cap = VERCEL_PLAN_MAX_VCPUS[plan]
+  return SANDBOX_VCPU_SIZES.filter((size) => size <= cap)
+}
+
+export const vercelPlanCapNote = (plan: EVercelPlan): string => {
+  if (plan === EVercelPlan.Unknown) return SANDBOX_VCPU_PLAN_CAP_NOTE
+  const cap = VERCEL_PLAN_MAX_VCPUS[plan]
+  return `${plan.charAt(0).toUpperCase()}${plan.slice(1)} plan: up to ${cap} vCPU`
+}
+
 export const sandboxVcpusSchema = z
   .number()
   .int()

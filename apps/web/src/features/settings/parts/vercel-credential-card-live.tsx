@@ -3,7 +3,10 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+import { EVercelConnectStartOutcome } from '@dltech/atlas-wire/web'
+
 import { CLOUD_CAPABILITIES } from '@/lib/cloud-capabilities'
+import { api, cloudCall } from '@/lib/api-client'
 import { EQueryState } from '@/lib/use-cloud-query'
 
 import { VercelCardSkeleton } from '../skeletons/table-skeletons'
@@ -18,6 +21,7 @@ import {
 } from '../data/shared/vercel-credential'
 import type { VercelCredentialResource } from '../data/shared/vercel-credential-resource'
 import {
+  EMPTY_VERCEL_VIEW,
   PERSONAL_VERCEL_COPY,
   VercelCredentialCard,
   type VercelCardCopy,
@@ -32,6 +36,8 @@ function LiveVercelCard({
 }) {
   const { query, save, remove } = resource
   const [saving, setSaving] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [refreshingPlan, setRefreshingPlan] = useState(false)
 
   if (query.state === EQueryState.Loading) {
     return (
@@ -66,17 +72,50 @@ function LiveVercelCard({
   }
   const handleRemove = async () => {
     setSaving(true)
-    await runAction({ work: remove, success: 'Vercel credential removed' })
+    await runAction({ work: remove, success: 'Vercel disconnected' })
     setSaving(false)
+  }
+  const handleConnect = async () => {
+    setConnecting(true)
+    let redirecting = false
+    await runAction({
+      work: async () => {
+        const result = await cloudCall(api.userVercel.connectStart.mutate())
+        if (result.outcome === EVercelConnectStartOutcome.Redirect) {
+          redirecting = true
+          window.location.assign(result.url)
+          return
+        }
+        toast.info('Connecting with Vercel is not configured on this deployment yet')
+      },
+    })
+    if (!redirecting) setConnecting(false)
+  }
+  const handleRefreshPlan = async () => {
+    setRefreshingPlan(true)
+    await runAction({
+      work: async () => {
+        await cloudCall(api.userVercel.refreshPlan.mutate())
+        query.reload()
+      },
+      success: 'Vercel plan refreshed',
+    })
+    setRefreshingPlan(false)
   }
 
   return (
     <VercelCredentialCard
-      key={`${view.configured}|${view.teamId}|${view.vercelProjectId}|${view.updatedAt}`}
+      key={`${view.configured}|${view.teamId}|${view.vercelProjectId}|${view.updatedAt}|${view.kind}`}
       copy={copy}
       view={view}
       statusLine={statusLineOf({ view, now: fetchedAt })}
       saving={saving}
+      actions={{
+        onConnect: () => void handleConnect(),
+        onRefreshPlan: () => void handleRefreshPlan(),
+        connecting,
+        refreshingPlan,
+      }}
       onSave={(draft) => void handleSave(draft)}
       onRemove={() => void handleRemove()}
     />
@@ -89,7 +128,9 @@ function UserLiveCard() {
 
 export function UserVercelCardSlot() {
   if (!CLOUD_CAPABILITIES.userVercelCredential) {
-    return <VercelCredentialCard copy={PERSONAL_VERCEL_COPY} disabled soon />
+    return (
+      <VercelCredentialCard copy={PERSONAL_VERCEL_COPY} view={EMPTY_VERCEL_VIEW} disabled soon />
+    )
   }
   return <UserLiveCard />
 }

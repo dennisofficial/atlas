@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
 
 import { chipStatusOf, podStateLabelOf } from '../../data/pod-chip-model'
 import { useThreadSpend } from '../../data/use-thread-spend'
-import { ThreadPodChip } from '../../thread-pod-chip'
+import { LiveThreadPodChip } from '../../thread-pod-chip'
 import { useThreadPanel } from '../thread-panel-context'
 import { tokenStatsOf, turnCountOf, type TokenStats } from './details-model'
 
@@ -60,7 +60,7 @@ export function HeadSection() {
           <h2 className="line-clamp-2 min-w-0 pt-0.5 text-sm font-medium">{details.title}</h2>
         )}
         {chipShown ? (
-          <ThreadPodChip
+          <LiveThreadPodChip
             pod={pod}
             working={working}
             onResize={details.onResize}

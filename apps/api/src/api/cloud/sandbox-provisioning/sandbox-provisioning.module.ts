@@ -4,6 +4,7 @@ import { SandboxTokenMiddleware } from '../../platform/sandboxes/sandbox-token.m
 import { SandboxesModule } from '../../platform/sandboxes/sandboxes.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { ScopedConfigModule } from '../scoped-config/scoped-config.module'
+import { UserVercelModule } from '../user-vercel/user-vercel.module'
 import { SandboxRolloverRouter } from './sandbox-rollover.router'
 import { SandboxProvisioningRouter } from './sandbox-provisioning.router'
 import { SandboxProvisioningService } from './sandbox-provisioning.service'
@@ -14,7 +15,13 @@ import { ThreadPodRouter } from './thread-pod.router'
 import { ThreadPodService } from './thread-pod.service'
 
 @Module({
-  imports: [ScopedConfigModule, SandboxesModule, SessionsModule, ThreadLauncherModule],
+  imports: [
+    ScopedConfigModule,
+    SandboxesModule,
+    SessionsModule,
+    ThreadLauncherModule,
+    UserVercelModule,
+  ],
   providers: [
     SandboxProvisioningService,
     ThreadMessagesService,

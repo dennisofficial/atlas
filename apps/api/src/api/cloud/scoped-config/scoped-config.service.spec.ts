@@ -4,6 +4,7 @@ import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { NotFoundException } from '@nestjs/common'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { testCipher } from '../session-trpc-test-app'
+import { unknownTokenRefresher } from '../user-vercel/vercel-testkit'
 import { seedProject, seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { VercelNotConfiguredError } from './scoped-config.errors'
 import { PROJECT, seedAllScopes, setting } from './scoped-config.fixture'
@@ -12,7 +13,7 @@ import { ScopedConfigService } from './scoped-config.service'
 describe('ScopedConfigService', () => {
   useTestDatabase()
   const cipher = testCipher()
-  const scoped = new ScopedConfigService(cipher)
+  const scoped = new ScopedConfigService(cipher, unknownTokenRefresher())
 
   beforeEach(async () => {
     await seedSessionUsers()

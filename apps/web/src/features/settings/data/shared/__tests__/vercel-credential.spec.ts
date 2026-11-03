@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EVercelCredentialKind, EVercelPlan } from '@dltech/atlas-wire/web'
+
 import {
   canSaveVercelDraft,
   isVercelDraftDirty,
@@ -9,7 +11,7 @@ import {
   TEAM_ID_REQUIRED,
   TOKEN_REQUIRED,
   validateVercelDraft,
-  vercelCredentialSchema,
+  userVercelCredentialSchema,
   viewOfCredential,
   type VercelCredentialView,
   type VercelDraft,
@@ -19,14 +21,24 @@ const NOW = Date.parse('2026-10-21T12:00:00.000Z')
 
 const configured: VercelCredentialView = {
   configured: true,
+  kind: EVercelCredentialKind.Token,
   teamId: 'team_abc',
   vercelProjectId: 'prj_abc',
+  plan: EVercelPlan.Unknown,
+  planCheckedAt: null,
+  needsReconnect: false,
+  oauthConfigured: false,
   updatedAt: '2026-10-21T09:00:00.000Z',
 }
 const unconfigured: VercelCredentialView = {
   configured: false,
+  kind: EVercelCredentialKind.Token,
   teamId: '',
   vercelProjectId: '',
+  plan: EVercelPlan.Unknown,
+  planCheckedAt: null,
+  needsReconnect: false,
+  oauthConfigured: false,
   updatedAt: null,
 }
 const withoutProject: VercelCredentialView = { ...configured, vercelProjectId: '' }
@@ -59,37 +71,55 @@ describe('requestBodyOf', () => {
 
 describe('viewOfCredential', () => {
   it('maps a configured response', () => {
-    const wire = vercelCredentialSchema.parse({
+    const wire = userVercelCredentialSchema.parse({
       configured: true,
+      kind: 'token',
       teamId: 'team_abc',
       vercelProjectId: 'prj_abc',
+      plan: 'unknown',
+      planCheckedAt: null,
+      needsReconnect: false,
+      vercelUserId: null,
+      oauthConfigured: false,
       updatedAt: '2026-10-21T09:00:00.000Z',
     })
     expect(viewOfCredential(wire)).toEqual(configured)
   })
 
   it('maps an unconfigured response with null fields', () => {
-    const wire = vercelCredentialSchema.parse({
+    const wire = userVercelCredentialSchema.parse({
       configured: false,
+      kind: 'token',
       teamId: null,
       vercelProjectId: null,
+      plan: 'unknown',
+      planCheckedAt: null,
+      needsReconnect: false,
+      vercelUserId: null,
+      oauthConfigured: false,
       updatedAt: null,
     })
     expect(viewOfCredential(wire)).toEqual(unconfigured)
   })
 
   it('maps a configured credential that predates the project ID', () => {
-    const wire = vercelCredentialSchema.parse({
+    const wire = userVercelCredentialSchema.parse({
       configured: true,
+      kind: 'token',
       teamId: 'team_abc',
       vercelProjectId: null,
+      plan: 'unknown',
+      planCheckedAt: null,
+      needsReconnect: false,
+      vercelUserId: null,
+      oauthConfigured: false,
       updatedAt: '2026-10-21T09:00:00.000Z',
     })
     expect(viewOfCredential(wire)).toEqual(withoutProject)
   })
 
   it('rejects a response that does not match the contract', () => {
-    expect(vercelCredentialSchema.safeParse({ configured: 'yes' }).success).toBe(false)
+    expect(userVercelCredentialSchema.safeParse({ configured: 'yes' }).success).toBe(false)
   })
 })
 
@@ -99,11 +129,15 @@ describe('statusLineOf', () => {
   })
 
   it('says configured with a relative update time', () => {
-    expect(statusLineOf({ view: configured, now: NOW })).toBe('Configured · updated 3h ago')
+    expect(statusLineOf({ view: configured, now: NOW })).toBe(
+      'Connected via access token · updated 3h ago',
+    )
   })
 
   it('drops the time when the server sent none', () => {
-    expect(statusLineOf({ view: { ...configured, updatedAt: null }, now: NOW })).toBe('Configured')
+    expect(statusLineOf({ view: { ...configured, updatedAt: null }, now: NOW })).toBe(
+      'Connected via access token',
+    )
   })
 
   it('flags a configured credential that has no project ID yet', () => {

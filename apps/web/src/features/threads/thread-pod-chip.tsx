@@ -14,10 +14,13 @@ import {
 } from '@dltech/atlas-ui/components/alert-dialog'
 import { PodStatusChip, ResizeDeclinedError } from '@dltech/atlas-ui/ai/pod-status-chip'
 import {
-  SANDBOX_VCPU_PLAN_CAP_NOTE,
-  SANDBOX_VCPU_SIZES,
+  EVercelPlan,
+  sandboxSizesOfPlan,
+  vercelPlanCapNote,
   type PodStatus,
 } from '@dltech/atlas-wire/web'
+
+import { useVercelPlan } from '@/features/settings/data/user/use-vercel-plan'
 
 import { chipStatusOf } from './data/pod-chip-model'
 
@@ -83,10 +86,12 @@ export type ThreadPodChipProps = {
   working: boolean
   onResize: (vcpus: number) => Promise<void>
   settingsHref?: string | undefined
+  plan?: EVercelPlan | undefined
 }
 
-export function ThreadPodChip({ pod, working, onResize, settingsHref }: ThreadPodChipProps) {
+export function ThreadPodChip({ pod, working, onResize, settingsHref, plan }: ThreadPodChipProps) {
   const { confirmation, handleResize } = useResizeConfirmation({ working, onResize })
+  const effective = plan ?? EVercelPlan.Unknown
   const status = chipStatusOf(pod)
   if (status === null) return null
 
@@ -94,12 +99,16 @@ export function ThreadPodChip({ pod, working, onResize, settingsHref }: ThreadPo
     <>
       <PodStatusChip
         status={status}
-        sizes={SANDBOX_VCPU_SIZES}
+        sizes={sandboxSizesOfPlan(effective)}
         onResize={handleResize}
-        planCapHint={SANDBOX_VCPU_PLAN_CAP_NOTE}
+        planCapHint={vercelPlanCapNote(effective)}
         settingsHref={settingsHref}
       />
       <RestartConfirmDialog confirmation={confirmation} />
     </>
   )
+}
+
+export function LiveThreadPodChip(props: Omit<ThreadPodChipProps, 'plan'>) {
+  return <ThreadPodChip {...props} plan={useVercelPlan()} />
 }

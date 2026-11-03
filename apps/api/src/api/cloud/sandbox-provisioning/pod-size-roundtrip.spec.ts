@@ -1,13 +1,21 @@
 import { encodeSettingValue } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
 import { seedSession, useTestDatabase } from '@dltech/atlas-db/testing'
-import type { INestApplication } from '@nestjs/common'
+import type { INestApplication, Provider } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { createPersonalApp, trpcMutate } from '../personal-resources.router.fixture'
 import { SettingsRouter } from '../settings/settings.router'
 import { SettingsService } from '../settings/settings.service'
+import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
+import { unknownPlanService } from '../user-vercel/vercel-testkit'
 import { podVcpusOf } from './pod-size'
+
+const PROVIDERS: Provider[] = [
+  SettingsRouter,
+  SettingsService,
+  { provide: VercelPlanService, useValue: unknownPlanService() },
+]
 
 describe('podVcpusOf reads what the web personal settings save', () => {
   useTestDatabase()
@@ -15,7 +23,7 @@ describe('podVcpusOf reads what the web personal settings save', () => {
 
   beforeEach(async () => {
     await seedSessionUsers()
-    app = await createPersonalApp([SettingsRouter, SettingsService])
+    app = await createPersonalApp(PROVIDERS)
   })
 
   afterEach(() => app.close())

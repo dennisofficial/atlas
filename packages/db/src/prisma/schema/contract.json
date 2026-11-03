@@ -7021,6 +7021,16 @@
           },
           "UserVercelCredential": {
             "fields": {
+              "accessTokenExpiresAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -7029,6 +7039,44 @@
                   "typeParams": {
                     "precision": 3
                   }
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "oauthNeedsReconnect": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "plan": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "planCheckedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "sealedRefreshToken": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
                 }
               },
               "sealedToken": {
@@ -7063,7 +7111,14 @@
                 }
               },
               "vercelProjectId": {
-                "nullable": false,
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "vercelUserId": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -7090,8 +7145,26 @@
             },
             "storage": {
               "fields": {
+                "accessTokenExpiresAt": {
+                  "column": "accessTokenExpiresAt"
+                },
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "oauthNeedsReconnect": {
+                  "column": "oauthNeedsReconnect"
+                },
+                "plan": {
+                  "column": "plan"
+                },
+                "planCheckedAt": {
+                  "column": "planCheckedAt"
+                },
+                "sealedRefreshToken": {
+                  "column": "sealedRefreshToken"
                 },
                 "sealedToken": {
                   "column": "sealedToken"
@@ -7107,6 +7180,9 @@
                 },
                 "vercelProjectId": {
                   "column": "vercelProjectId"
+                },
+                "vercelUserId": {
+                  "column": "vercelUserId"
                 }
               },
               "namespaceId": "public",
@@ -12825,6 +12901,14 @@
             },
             "UserVercelCredential": {
               "columns": {
+                "accessTokenExpiresAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -12836,6 +12920,42 @@
                   "typeParams": {
                     "precision": 3
                   }
+                },
+                "kind": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "token"
+                  },
+                  "nullable": false
+                },
+                "oauthNeedsReconnect": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                },
+                "plan": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "planCheckedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "sealedRefreshToken": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "sealedToken": {
                   "codecId": "pg/text@1",
@@ -12863,7 +12983,12 @@
                 "vercelProjectId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
+                  "nullable": true
+                },
+                "vercelUserId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 }
               },
               "foreignKeys": [
@@ -13316,7 +13441,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "712e9415480d7312b1c0679aa42628889abb92f08bf073f4db41d727bba8e240"
+    "storageHash": "0f01c00d02783fa0b4af02e4ac7200a9fd602d97f2b8975e3092818324485a21"
   },
   "execution": {
     "executionHash": "f05b1d5cada8504c891828d0ad8e67b35b3c14b68afe6fcea3e57dc2132b142f",

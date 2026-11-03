@@ -6,7 +6,11 @@ import { PauseIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
-import { DEFAULT_SANDBOX_VCPUS } from '@dltech/atlas-wire/web'
+import {
+  DEFAULT_SANDBOX_VCPUS,
+  sandboxSizesOfPlan,
+  vercelPlanCapNote,
+} from '@dltech/atlas-wire/web'
 
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
@@ -18,16 +22,19 @@ import type { SandboxRow } from '../fixtures/settings-usage-rows'
 import { SettingFieldsEditor } from '../parts/setting-fields-editor'
 import { SANDBOX_FIELDS } from '../fixtures/settings-fields'
 import { usePersonalSettings } from '../data/personal/use-settings-draft'
+import { useVercelPlan } from '../data/user/use-vercel-plan'
 import { SandboxSizeSection } from '../parts/sandbox-size-section'
 import { UsageSandboxEmpty } from '../parts/usage-sandbox-empty'
 import { UsageSandboxTable } from '../parts/usage-sandbox-table'
 import { UserVercelCardSlot } from '../parts/vercel-credential-card-live'
+import { VercelConnectReturn } from '../parts/vercel-connect-return'
 import { SettingsPage, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Usage: Sandboxes'
 const DESCRIPTION = 'Cloud sandboxes your threads are running on.'
 
 function PersonalSandboxSize() {
+  const plan = useVercelPlan()
   const settings = usePersonalSettings()
   const { data } = settings.query
   if (data === undefined) return null
@@ -36,6 +43,8 @@ function PersonalSandboxSize() {
     <SandboxSizeSection
       key={`size-${String(stored)}`}
       value={typeof stored === 'number' ? stored : DEFAULT_SANDBOX_VCPUS}
+      sizes={sandboxSizesOfPlan(plan)}
+      capNote={vercelPlanCapNote(plan)}
       onSave={async (vcpus) => {
         if (vcpus === null) return
         await settings.save({ 'sandbox.vcpus': vcpus })
@@ -85,6 +94,7 @@ export function UsageSandboxesView({
         title="Sandbox credential"
         description="Lets Atlas Cloud create sandboxes for your projects and threads."
       >
+        <VercelConnectReturn />
         <UserVercelCardSlot />
       </SettingsSection>
       <PersonalSandboxSize />

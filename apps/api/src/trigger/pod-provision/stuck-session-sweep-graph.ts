@@ -4,7 +4,7 @@ import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { TriggerJobDispatcher } from '../../_lib/trigger/trigger-job-dispatcher'
 import { PodLaunchService } from '../../api/cloud/sandbox-provisioning/pod-launch.service'
 import type { StuckRecoveryDeps } from '../../api/cloud/sandbox-provisioning/stuck-session-recovery'
-import { ScopedConfigService } from '../../api/cloud/scoped-config/scoped-config.service'
+import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { workerEnvService } from '../github/github-sweep-graph'
 import { buildWorkerThreadSignals, type WorkerThreadSignals } from '../thread-signals-graph'
 
@@ -21,7 +21,7 @@ export function buildStuckSessionSweepGraph(args: { env: EnvService }): StuckSes
   const dispatcher = new TriggerJobDispatcher({ secretKey: env.get('TRIGGER_SECRET_KEY') })
   return {
     deps: {
-      pod: new PodLaunchService(new ScopedConfigService(cipher), cipher, dispatcher, signals),
+      pod: new PodLaunchService(buildScopedConfig({ cipher, env }), cipher, dispatcher, signals),
       cipher,
       fetch,
       log: (line) => logger.warn(line),

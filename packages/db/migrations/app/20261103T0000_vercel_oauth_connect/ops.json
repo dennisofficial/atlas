@@ -1,0 +1,429 @@
+[
+  {
+    "id": "column.public.UserVercelCredential.accessTokenExpiresAt",
+    "label": "Add column \"accessTokenExpiresAt\" to \"UserVercelCredential\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "accessTokenExpiresAt",
+        "table": "UserVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"accessTokenExpiresAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "accessTokenExpiresAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"accessTokenExpiresAt\"",
+        "sql": "ALTER TABLE \"public\".\"UserVercelCredential\" ADD COLUMN \"accessTokenExpiresAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"accessTokenExpiresAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "accessTokenExpiresAt"
+        ]
+      },
+      {
+        "description": "verify column \"accessTokenExpiresAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "accessTokenExpiresAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.UserVercelCredential.kind",
+    "label": "Add column \"kind\" to \"UserVercelCredential\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "kind",
+        "table": "UserVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"kind\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "kind"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"kind\"",
+        "sql": "ALTER TABLE \"public\".\"UserVercelCredential\" ADD COLUMN \"kind\" text DEFAULT 'token' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"kind\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "kind"
+        ]
+      },
+      {
+        "description": "verify column \"kind\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "kind",
+          "text"
+        ]
+      },
+      {
+        "description": "verify column \"kind\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "kind",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.UserVercelCredential.oauthNeedsReconnect",
+    "label": "Add column \"oauthNeedsReconnect\" to \"UserVercelCredential\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "oauthNeedsReconnect",
+        "table": "UserVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"oauthNeedsReconnect\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "oauthNeedsReconnect"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"oauthNeedsReconnect\"",
+        "sql": "ALTER TABLE \"public\".\"UserVercelCredential\" ADD COLUMN \"oauthNeedsReconnect\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"oauthNeedsReconnect\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "oauthNeedsReconnect"
+        ]
+      },
+      {
+        "description": "verify column \"oauthNeedsReconnect\" has type \"boolean\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "oauthNeedsReconnect",
+          "boolean"
+        ]
+      },
+      {
+        "description": "verify column \"oauthNeedsReconnect\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "oauthNeedsReconnect",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.UserVercelCredential.plan",
+    "label": "Add column \"plan\" to \"UserVercelCredential\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "plan",
+        "table": "UserVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"plan\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "plan"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"plan\"",
+        "sql": "ALTER TABLE \"public\".\"UserVercelCredential\" ADD COLUMN \"plan\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"plan\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "plan"
+        ]
+      },
+      {
+        "description": "verify column \"plan\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "plan",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.UserVercelCredential.planCheckedAt",
+    "label": "Add column \"planCheckedAt\" to \"UserVercelCredential\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "planCheckedAt",
+        "table": "UserVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"planCheckedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "planCheckedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"planCheckedAt\"",
+        "sql": "ALTER TABLE \"public\".\"UserVercelCredential\" ADD COLUMN \"planCheckedAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"planCheckedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "planCheckedAt"
+        ]
+      },
+      {
+        "description": "verify column \"planCheckedAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "planCheckedAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.UserVercelCredential.sealedRefreshToken",
+    "label": "Add column \"sealedRefreshToken\" to \"UserVercelCredential\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sealedRefreshToken",
+        "table": "UserVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sealedRefreshToken\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "sealedRefreshToken"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"sealedRefreshToken\"",
+        "sql": "ALTER TABLE \"public\".\"UserVercelCredential\" ADD COLUMN \"sealedRefreshToken\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sealedRefreshToken\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "sealedRefreshToken"
+        ]
+      },
+      {
+        "description": "verify column \"sealedRefreshToken\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "sealedRefreshToken",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.UserVercelCredential.vercelUserId",
+    "label": "Add column \"vercelUserId\" to \"UserVercelCredential\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "vercelUserId",
+        "table": "UserVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"vercelUserId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "vercelUserId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"vercelUserId\"",
+        "sql": "ALTER TABLE \"public\".\"UserVercelCredential\" ADD COLUMN \"vercelUserId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"vercelUserId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "vercelUserId"
+        ]
+      },
+      {
+        "description": "verify column \"vercelUserId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "vercelUserId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.dropNotNull.UserVercelCredential.vercelProjectId",
+    "label": "Drop NOT NULL on \"UserVercelCredential\".\"vercelProjectId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "vercelProjectId",
+        "table": "UserVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"vercelProjectId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "vercelProjectId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"vercelProjectId\"",
+        "sql": "ALTER TABLE \"public\".\"UserVercelCredential\" ALTER COLUMN \"vercelProjectId\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"vercelProjectId\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "UserVercelCredential",
+          "vercelProjectId",
+          "YES"
+        ]
+      }
+    ]
+  }
+]
