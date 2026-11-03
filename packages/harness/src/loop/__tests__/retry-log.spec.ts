@@ -2,19 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import { APICallError } from '@ai-sdk/provider'
 
-import {
-  defaultPipeline,
-  ELogSeverity,
-  EMPTY_PROMPT,
-  LogPort,
-  type LogEntry,
-  type ModelPort,
-  type RetryPolicy,
-} from '@dltech/atlas-core'
+import { defaultPipeline, EMPTY_PROMPT, type ModelPort, type RetryPolicy } from '@dltech/atlas-core'
 
 import { LoopTurnRunner } from '..'
 import { ModelStreamError } from '../../model/errors'
 import { openSteerable } from './steerable-turn'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 class CapturingLog extends LogPort {
   readonly entries: LogEntry[] = []

@@ -7,7 +7,6 @@ import {
   TAKES_NO_PATHS,
   type EventLogPort,
   type IdPort,
-  type LogPort,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
@@ -20,6 +19,7 @@ import type { ServiceRegistryPort } from '../../services/service-registry'
 import type { ShellRegistryPort } from '../../shells/shell-registry'
 import type { RelocatedSession } from '../../store/relocate-session'
 import type { ThreadStorePort } from '../../store/thread-store'
+import type { LogPort } from '@dltech/atlas-observability'
 
 const inputSchema = z.strictObject({
   location: z.enum([EExecutionLocation.Host, EExecutionLocation.Docker]),

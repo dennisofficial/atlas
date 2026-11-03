@@ -1,7 +1,7 @@
-import type { LogPort } from '@dltech/atlas-core'
 import { SessionsClient, uploadLocalMirrors } from '@dltech/atlas-harness'
 
 import { clientVersionHeader } from '../../build/info'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export type MirrorUploadApp = {
   pods: boolean

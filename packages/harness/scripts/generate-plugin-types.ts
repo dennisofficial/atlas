@@ -23,6 +23,10 @@ const WORKSPACE_ENTRIES = [
     specifier: "'@dltech/atlas-agent'",
     entry: ['packages', 'agent', 'src', 'index'],
   },
+  {
+    specifier: "'@dltech/atlas-observability'",
+    entry: ['packages', 'observability', 'src', 'index'],
+  },
 ]
 
 const DECLARATION_ENTRIES = [
@@ -30,6 +34,7 @@ const DECLARATION_ENTRIES = [
   ['packages', 'wire', 'src', 'index.ts'],
   ['packages', 'wire', 'src', 'web', 'index.ts'],
   ['packages', 'agent', 'src', 'index.ts'],
+  ['packages', 'observability', 'src', 'index.ts'],
   ['packages', 'harness', 'src', 'plugins', 'plugin.ts'],
 ]
 

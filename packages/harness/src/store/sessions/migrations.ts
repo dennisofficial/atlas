@@ -1,11 +1,9 @@
 import { readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import type { LogPort } from '@dltech/atlas-core'
-
-import { logFieldsOf } from '../logs'
 import { SESSION_FORMAT_VERSION } from './meta'
 import { sessionMetaFile, threadsDirectory } from './paths'
+import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'
 
 export type SessionMigrationContext = {
   sessionDir: string

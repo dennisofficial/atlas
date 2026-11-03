@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-import { ATLAS_TELEMETRY_IDENTITY_ENV } from '@dltech/atlas-core'
+import { ATLAS_TELEMETRY_IDENTITY_ENV } from '../telemetry/telemetry-policy'
 
 export const TELEMETRY_FILE_NAME = 'telemetry.json'
 

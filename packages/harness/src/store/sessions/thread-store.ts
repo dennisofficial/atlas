@@ -8,7 +8,6 @@ import {
   type Event,
   type EventLogPort,
   type IdPort,
-  type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -45,6 +44,7 @@ import {
   updateThreadMeta,
   writePlacementMeta,
 } from './thread-store-mutations'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export class ThreadNeedsOpeningDrafts extends Error {
   constructor() {

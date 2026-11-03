@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { TelemetryPort, type EventDraft, type RunId, type ThreadId } from '@dltech/atlas-core'
+import { type EventDraft, type RunId, type ThreadId } from '@dltech/atlas-core'
 
-import { ToolDispatcher } from '../../tools/dispatch'
+import { ToolDispatcher } from '../dispatch'
 import { ObservingToolDispatcher } from '../observing-dispatcher'
+import { TelemetryPort } from '@dltech/atlas-observability'
 
 class RecordingTelemetry extends TelemetryPort {
   denials: { tool: string; reasonClass: string }[] = []

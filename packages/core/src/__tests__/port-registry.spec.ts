@@ -58,9 +58,7 @@ describe('port registry', () => {
     const names: readonly RegisteredPortName[] = [
       'ClockPort',
       'IdPort',
-      'TelemetryPort',
       'EventLogPort',
-      'LogPort',
       'ModelPort',
       'CredentialPort',
       'CredentialAvailabilityPort',

@@ -4,7 +4,6 @@ import {
   type ClockPort,
   type EventDraft,
   type ProviderIdentity,
-  type TelemetryPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -30,6 +29,7 @@ import { steeringOf } from './child-steering'
 import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import { steppedStatus } from './stepped-status'
 import type { AgentRoster } from './roster'
+import type { TelemetryPort } from '@dltech/atlas-observability'
 
 export type ChildStep = (args: {
   runner: TurnRunner

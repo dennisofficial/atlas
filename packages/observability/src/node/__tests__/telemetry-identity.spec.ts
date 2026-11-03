@@ -3,9 +3,13 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { ATLAS_TELEMETRY_IDENTITY_ENV } from '@dltech/atlas-core'
+import { ATLAS_TELEMETRY_IDENTITY_ENV } from '../../telemetry/telemetry-policy'
 
-import { persistedTelemetryDistinctId, TELEMETRY_FILE_NAME, telemetryDistinctId } from '../identity'
+import {
+  persistedTelemetryDistinctId,
+  TELEMETRY_FILE_NAME,
+  telemetryDistinctId,
+} from '../telemetry-identity'
 
 const OPERATOR_ID = '0fe781a8-3c2c-4f97-8d36-7f1b6f2a0a11'
 

@@ -1,12 +1,11 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import type { Event, LogPort, ThreadId } from '@dltech/atlas-core'
+import type { Event, ThreadId } from '@dltech/atlas-core'
 
 import type { ContextIdentity } from '../append-plan'
 import { contextIdentityOf } from '../append-plan'
 import type { UnreadableRow } from '../decode-events'
-import { logFieldsOf } from '../logs'
 import { parseEventLines } from './lines'
 import {
   THREAD_META_FILE_SUFFIX,
@@ -17,6 +16,7 @@ import {
   threadsDirectory,
 } from './paths'
 import { readMetaSync, threadMetaSchema } from './meta'
+import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'
 
 export type ThreadLog = {
   events: Event[]

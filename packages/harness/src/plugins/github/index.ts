@@ -1,4 +1,4 @@
-import { EHookPhase, EStage, LogPort, type HookOrder, type PrEditPolicy } from '@dltech/atlas-core'
+import { EHookPhase, EStage, type HookOrder, type PrEditPolicy } from '@dltech/atlas-core'
 import type { CloudSession, CloudSessionStore } from '../../cloud/cloud-session'
 import { portToken, registeredPortToken, type DependencyContainer } from '../../container/injection'
 import {
@@ -29,6 +29,7 @@ import type { PullRequestTarget } from './subscription-target'
 
 import { createCheckoutTracking } from './tracking'
 import { GithubUiBridgePort } from './ui-bridge'
+import { LogPort } from '@dltech/atlas-observability'
 
 const OBSERVE: HookOrder = { stage: EStage.Observe, nudge: 0 }
 

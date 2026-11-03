@@ -5,11 +5,8 @@ import {
   EventLogPort,
   FileCapabilitiesPort,
   IdPort,
-  LogPort,
   ModelPort,
   QualityReviewPort,
-  TelemetryPort,
-  telemetryEnabled,
   ThreadReadCursorPort,
 } from '@dltech/atlas-core'
 
@@ -46,10 +43,9 @@ import { registryFor } from '../store/sessions/registry'
 import { SessionAuthorityPort } from '../store/sessions/meta'
 import { JsonlSessionAuthority } from '../store/sessions/session-authority'
 import { JsonlThreadStore } from '../store/sessions/thread-store'
-import { NullTelemetry } from '../telemetry/null-telemetry'
-import { ObservingToolDispatcher } from '../telemetry/observing-dispatcher'
-import { PosthogTelemetry } from '../telemetry/posthog-telemetry'
-import { telemetryDistinctId } from '../telemetry/identity'
+import { NullTelemetry } from '@dltech/atlas-observability'
+import { ObservingToolDispatcher } from '../tools/observing-dispatcher'
+import { PosthogTelemetry, telemetryDistinctId } from '@dltech/atlas-observability/node'
 import { HookedToolDispatcher, ToolDispatcher } from '../tools/dispatch'
 import { QualityStage } from '../tools/quality-dispatch'
 import { registerBuiltinTools } from '../tools/register-tools'
@@ -75,6 +71,7 @@ import {
   WakeSignalToken,
   WorkspaceRoot,
 } from './tokens'
+import { LogPort, TelemetryPort, telemetryEnabled } from '@dltech/atlas-observability'
 
 export { ChildRunnerDepsToken } from './register-agents'
 

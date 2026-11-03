@@ -3,15 +3,15 @@ import { readFileSync } from 'node:fs'
 
 import { z } from 'zod'
 
-import type { LogPort, ThreadId } from '@dltech/atlas-core'
+import type { ThreadId } from '@dltech/atlas-core'
 import { runtimeCheckpointSchema, transcriptCheckpointSchema } from '@dltech/atlas-wire'
 
 import { withMirrorLock } from '../../cloud/mirror-lock'
-import { logFieldsOf } from '../logs'
 import { THREAD_META_FILE_SUFFIX } from './paths'
 import { EThreadTitleSource } from './local-title-state'
 import { writeMetaFile } from './meta-file'
 import { canMigrateToCurrent, migrateSessionDirectory } from './migrations'
+import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'
 
 export const SESSION_FORMAT_VERSION = 1
 

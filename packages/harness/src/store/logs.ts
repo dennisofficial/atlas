@@ -1,18 +1,13 @@
 import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
-import {
-  ELogSeverity,
-  LogPort,
-  type ClockPort,
-  type LogEntry,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { type ClockPort, type ThreadId } from '@dltech/atlas-core'
 
 import { sessionDirectory, sessionLogsFile } from './sessions/paths'
 import { ATLAS_LOGS_FILE_NAME } from './paths'
 import { join } from 'node:path'
 import type { SessionRegistry } from './sessions/registry'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 const LOG_LINE_VERSION = 1
 
@@ -108,4 +103,4 @@ export class JsonlLog extends LogPort {
   }
 }
 
-export { logFieldsOf } from '@dltech/atlas-agent'
+export { logFieldsOf } from '@dltech/atlas-observability'

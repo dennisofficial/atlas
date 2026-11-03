@@ -1,15 +1,7 @@
-import {
-  TelemetryPort,
-  type ActiveWorktree,
-  type Event,
-  type EventDraft,
-  type OnToolOutput,
-} from '@dltech/atlas-core'
+import type { ActiveWorktree, Event, EventDraft, OnToolOutput } from '@dltech/atlas-core'
+import { featureForTool, reasonClassOf, type TelemetryPort } from '@dltech/atlas-observability'
 
-import { ToolDispatcher, type DispatchableCall } from '../tools/dispatch'
-
-import { featureForTool } from './feature-tools'
-import { reasonClassOf } from './reason-class'
+import { ToolDispatcher, type DispatchableCall } from './dispatch'
 
 /**
  * Wraps whichever dispatcher the container built, so main-loop and sub-agent dispatches report

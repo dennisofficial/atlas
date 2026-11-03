@@ -31,7 +31,6 @@ import { resumeHint, type ActiveConversation } from '@dltech/atlas-harness'
 import {
   createUrlOpener,
   loadSettings,
-  logFieldsOf,
   createFileOpener,
   EEditor,
   atlasDirectory,
@@ -41,6 +40,7 @@ import { IDLE_TITLE_GLYPH } from '../ui/glyphs'
 import { terminalTitleSequence } from './terminal-title'
 import { readTerminalSize, settleTerminalSize } from './terminal-size'
 import { kittyImageTransportOf } from './terminal-image-transport'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
 const TARGET_FPS = 120
 

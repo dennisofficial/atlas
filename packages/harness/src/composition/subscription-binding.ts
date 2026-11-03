@@ -1,4 +1,4 @@
-import { EventLogPort, IdPort, LogPort, OnThreadOpenHook, type ThreadId } from '@dltech/atlas-core'
+import { EventLogPort, IdPort, OnThreadOpenHook, type ThreadId } from '@dltech/atlas-core'
 
 import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { PrSubscriptionClient } from '../cloud/pr-subscription-client'
@@ -17,6 +17,7 @@ import { timerSchedule } from '../subscriptions/schedule'
 import { SubscriptionThreadOpenHook } from '../subscriptions/thread-open-hook'
 import { createThreadKinds, teammatesOf } from '../subscriptions/thread-owner'
 import { ThreadStorePort } from '../store/thread-store'
+import { LogPort } from '@dltech/atlas-observability'
 
 export async function bindSubscriptions(args: {
   container: DependencyContainer

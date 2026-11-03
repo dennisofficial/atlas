@@ -5,7 +5,6 @@ import {
   EventLogPort,
   ESettingId,
   IdPort,
-  LogPort,
   ModelPort,
   NoticePort,
   textValueOf,
@@ -78,6 +77,7 @@ import { bindUserLayerSync } from './user-layer-sync-binding'
 import { wireTurn } from './turn-wiring'
 import { threadOpenedHandler } from './worktree-claims'
 import { bindSubscriptions } from './subscription-binding'
+import { LogPort } from '@dltech/atlas-observability'
 
 const SERVE_COMMAND = 'serve'
 

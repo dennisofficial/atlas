@@ -30,3 +30,4 @@ says what it supersedes. Tactical choices and decisions that were later reversed
 | [0020](0020-v2-sub-agent-worktrees-and-peer-sessions.md) | v2 sub-agents work in a worktree pinned at spawn and never subscribe; peer sessions replace nested teammates           |
 | [0021](0021-v2-loop-runs-on-the-agent-host.md)           | v2 runs the agent loop on the agent host; sandboxes stay on Vercel Sandbox and only execute                            |
 | [0022](0022-v2-background-jobs-in-apps-trigger.md)       | v2 background jobs and schedules run on trigger.dev in their own `apps/trigger`; v1's stay in the API until v1 retires |
+| [0023](0023-observability-package.md)                    | Telemetry, operational logs and tracing live in `packages/observability`                                               |

@@ -7,7 +7,6 @@ import { describe, expect, it } from 'bun:test'
 import {
   ENoticeTone,
   EExecutionLocation,
-  TelemetryPort,
   toThreadId,
   type NoticePost,
   type WorkspaceIdentity,
@@ -25,6 +24,7 @@ import { createSettingsService } from '../../settings/service'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { ATLAS_SETTINGS } from '@dltech/atlas-core'
 import { recordingNotices } from './fakes'
+import { TelemetryPort } from '@dltech/atlas-observability'
 
 const WORKSPACE: WorkspaceIdentity = { workspace: '/work', repo: '/repo' }
 

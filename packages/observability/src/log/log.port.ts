@@ -1,4 +1,4 @@
-import type { ThreadId } from '../events/ids'
+import type { ThreadId } from '@dltech/atlas-core'
 
 export enum ELogSeverity {
   Info = 'info',

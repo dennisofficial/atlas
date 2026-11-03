@@ -1,13 +1,13 @@
 import { readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import type { LogPort, ThreadId } from '@dltech/atlas-core'
+import type { ThreadId } from '@dltech/atlas-core'
 
-import { logFieldsOf } from '../logs'
 import { readThreadMetas, tryReadThreadMeta } from './listing'
 import { newThreadMeta, writeMeta, type ThreadMeta } from './meta'
 import { eventLogFile, sessionsDirectory, threadMetaFile } from './paths'
 import type { SessionRegistry } from './registry'
+import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'
 
 export async function touchThreadMeta({
   registry,

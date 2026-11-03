@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-observability": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "zod": "^4.4.3"
   },

@@ -12,7 +12,6 @@ import {
   type SaidImage,
   type SaidUpload,
   type IdPort,
-  type LogPort,
   type LoopCut,
   type ModelPort,
   type ToolDeclaration,
@@ -45,6 +44,7 @@ import { createSettlePending, type OnToolOutputNotice } from './settle-pending'
 import { runTrackedTurn, type TrackedTurnDeps } from './tracked-turn'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export type { PendingDrain }
 

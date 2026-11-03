@@ -9,7 +9,6 @@ import {
   FileSystemPort,
   IdPort,
   ProcessPort,
-  TelemetryPort,
   toThreadId,
 } from '@dltech/atlas-core'
 
@@ -19,7 +18,7 @@ import { SessionEnvironmentProcessPort } from '../../execution/session-environme
 import { sessionDirectory, threadDataDirectory } from '../../store/sessions/paths'
 import { FileSecretsStore } from '../../secrets/file-secrets-store'
 import { CloudManagedCredentialPort } from '../../credentials/cloud-managed-credential-port'
-import { NullTelemetry } from '../../telemetry/null-telemetry'
+import { NullTelemetry } from '@dltech/atlas-observability'
 import { ThreadStorePort, RandomIds, SystemClock } from '../../store'
 import { JsonlEventLog } from '../../store/sessions/event-log'
 import { JsonlThreadStore } from '../../store/sessions/thread-store'
@@ -27,6 +26,7 @@ import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { createHarnessContainer } from '../create-harness-container'
 import { registeredPortToken, type DependencyContainer } from '../injection'
 import { LocalAccountStoreToken, SecretsStoreToken, WorkspaceRoot } from '../tokens'
+import { TelemetryPort } from '@dltech/atlas-observability'
 
 let temporary: TempHome
 let previousHome: string | undefined

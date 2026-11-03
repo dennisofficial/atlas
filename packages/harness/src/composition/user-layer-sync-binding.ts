@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 
-import { LogPort, NoticePort } from '@dltech/atlas-core'
+import { NoticePort } from '@dltech/atlas-core'
 
 import { resolveUserLayerRoots } from '../cloud/context-archive-user-layer'
 import { cloudUserFilesClientFor } from '../cloud/user-files-client'
@@ -10,6 +10,7 @@ import { CloudSessionStoreToken, ServeSessionToken } from '../container/tokens'
 import { atlasDirectory } from '../store/paths'
 import { createUserLayerSync } from '../user-layer-sync/factory'
 import { NullUserLayerSync, UserLayerSyncPort } from '../user-layer-sync/port'
+import { LogPort } from '@dltech/atlas-observability'
 
 export async function bindUserLayerSync(args: {
   container: DependencyContainer

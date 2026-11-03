@@ -10,12 +10,10 @@ import type { FileCapabilitiesPort } from './file-capabilities.port'
 import type { FileSystemPort } from './filesystem.port'
 import type { IdPort } from './id.port'
 import type { JudgePort } from './judge.port'
-import type { LogPort } from './log.port'
 import type { ModelPort } from './model.port'
 import type { NoticePort } from './notice.port'
 import type { ProcessPort } from './process.port'
 import type { QualityReviewPort } from './quality-review.port'
-import type { TelemetryPort } from './telemetry.port'
 import type { ThreadReadCursorPort } from './thread-read-cursor.port'
 import type { WorkspaceFactsPort } from './workspace-facts.port'
 import type { WorkspaceIdentityPort } from './workspace-identity.port'
@@ -44,9 +42,7 @@ export type PortRegistryEntry<T = unknown> = {
 export interface PortRegistryEntries {
   readonly ClockPort: PortRegistryEntry<ClockPort> & { readonly transport: 'none' }
   readonly IdPort: PortRegistryEntry<IdPort> & { readonly transport: 'none' }
-  readonly TelemetryPort: PortRegistryEntry<TelemetryPort> & { readonly transport: 'none' }
   readonly EventLogPort: PortRegistryEntry<EventLogPort> & { readonly transport: 'detached' }
-  readonly LogPort: PortRegistryEntry<LogPort> & { readonly transport: 'none' }
   readonly ModelPort: PortRegistryEntry<ModelPort> & { readonly transport: 'none' }
   readonly CredentialPort: PortRegistryEntry<CredentialPort> & { readonly transport: 'none' }
   readonly CredentialAvailabilityPort: PortRegistryEntry<CredentialAvailabilityPort> & {
