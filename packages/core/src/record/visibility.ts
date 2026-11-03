@@ -1,4 +1,4 @@
-import { SURVIVES_SUMMARY } from '../events/body'
+import { KEPT_THROUGH_COMPACTION } from '../compaction/disposition'
 import type { V2Event, V2EventType } from './event'
 
 export type HiddenSpan = {
@@ -14,9 +14,7 @@ export type VisibleSegment = { fromSeq: number; throughSeq: number; onlyTypes?: 
 
 export const EMPTY_VISIBILITY: VisibilityState = { spans: [] }
 
-const SURVIVOR_TYPES: readonly V2EventType[] = SURVIVES_SUMMARY.flatMap((type) =>
-  type === 'history-compacted' ? [] : [type],
-)
+const SURVIVOR_TYPES: readonly V2EventType[] = KEPT_THROUGH_COMPACTION
 
 export function stepVisibility(state: VisibilityState, event: V2Event): VisibilityState {
   if (event.type === 'history-rewound') {

@@ -1,7 +1,7 @@
 import {
   ECompactionAnchor,
   EForkMode,
-  SURVIVES_SUMMARY,
+  keptThroughCompaction,
   stampEvent,
   type EventType,
   type ThreadId,
@@ -75,7 +75,7 @@ export async function markThreadHistory({
           (event) =>
             event.seq >= fromSeq &&
             event.seq <= throughSeq &&
-            !SURVIVES_SUMMARY.includes(event.type) &&
+            !keptThroughCompaction(event.type) &&
             !(event.type === 'tool-result' && (event.qualityReviews ?? []).length > 0),
         )
         .map((event) => event.seq)

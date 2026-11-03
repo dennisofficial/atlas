@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
-import { ECompactionAnchor, SURVIVES_SUMMARY } from '../../events/body'
+import { ECompactionAnchor } from '../../events/body'
+import { KEPT_THROUGH_COMPACTION } from '../../compaction/disposition'
 import { chainHash } from '../chain'
 import { chainEvents } from '../chain-events'
 import type { V2Body, V2Event } from '../event'
@@ -75,7 +76,8 @@ const buildLog = (ops: Op[]): V2Event[] => {
 
 const logArb = fc.array(opArb, { minLength: 1, maxLength: 60 }).map(buildLog)
 
-const survivor = (type: string): boolean => (SURVIVES_SUMMARY as readonly string[]).includes(type)
+const survivor = (type: string): boolean =>
+  (KEPT_THROUGH_COMPACTION as readonly string[]).includes(type)
 
 const referenceVisible = (log: readonly V2Event[]): V2Event[] => {
   const snapshots = new Map<number, V2Event[]>([[0, []]])

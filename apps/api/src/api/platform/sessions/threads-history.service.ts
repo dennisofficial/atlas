@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { KEPT_THROUGH_COMPACTION } from '@dltech/atlas-core'
 import { db, or, type Tx } from '@dltech/atlas-db'
 import type {
   CompactThreadInput,
@@ -16,16 +17,6 @@ import { advanceHead, bumpMainSession, lockThread } from './thread-head'
 import { ThreadSignalsService } from './thread-signals.service'
 import { SUBSCRIPTION_EVENT_TYPES } from './thread-subscriptions'
 import type { ThreadDto } from './sessions.types'
-
-const SURVIVES_SUMMARY = [
-  'context-loaded',
-  'permission-granted',
-  'permission-revoked',
-  'pull-request-linked',
-  'subscription-created',
-  'subscription-changed',
-  'subscription-ended',
-]
 
 async function dropRewoundChildren(args: {
   tx: Tx
@@ -218,7 +209,7 @@ export class ThreadsHistoryService {
       })
         .where((event) => event.seq.gte(args.draft.fromSeq))
         .where((event) => event.seq.lte(args.draft.throughSeq))
-        .where((event) => event.type.notIn(SURVIVES_SUMMARY))
+        .where((event) => event.type.notIn([...KEPT_THROUGH_COMPACTION]))
       const vacated = (
         await covered
           .select('seq')

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ECompactionAnchor } from '../../../events/body'
+import { ERiskDimension } from '../../../policy/classifier/dimension'
+import { EGrantScope } from '../../../policy/classifier/grant'
+import { ESubscriptionActor } from '../../../subscriptions/subscription'
 import {
   compactedRange,
   eventsFrom,
@@ -112,5 +115,62 @@ describe('compactedHistory', () => {
       expect.stringContaining('everything before'),
       operatorSaidAs('what survived'),
     ])
+  })
+
+  it('keeps an operator subscription inside the compacted range in view', () => {
+    const events = eventsFrom([
+      {
+        type: 'subscription-created',
+        subscriptionId: 'sub-1',
+        provider: 'github.pull-request',
+        target: '#42',
+        label: 'the PR',
+        createdBy: ESubscriptionActor.Operator,
+      },
+      said('watch that PR'),
+      compactedRange({ fromSeq: 1, throughSeq: 2, summary: 'the operator set a watch' }),
+      said('and?'),
+    ])
+
+    const prompt = promptOf(events)
+
+    expect(prompt.some((entry) => entry.text.includes('subscribed this thread to the PR'))).toBe(
+      true,
+    )
+    expect(prompt.some((entry) => entry.text.includes('the operator set a watch'))).toBe(true)
+  })
+
+  it('spares a granted permission from the cut a renderable neighbour takes', () => {
+    const events = eventsFrom([
+      {
+        type: 'permission-granted',
+        grantId: 'grant-1',
+        dimensions: [ERiskDimension.Contention],
+        scope: EGrantScope.Thread,
+        subject: 'worktree:eng-412-sidebar',
+        reason: 'the operator approved it in the drawer',
+      },
+      replied('asking about the worktree'),
+      compactedRange({ fromSeq: 1, throughSeq: 2, summary: 'the grant conversation' }),
+      said('carry on'),
+    ])
+
+    const texts = promptOf(events).map((entry) => entry.text)
+
+    expect(texts.some((text) => text.includes('asking about the worktree'))).toBe(false)
+    expect(texts.some((text) => text.includes('the grant conversation'))).toBe(true)
+  })
+
+  it('hides a said turn inside the compacted range from the model', () => {
+    const events = eventsFrom([
+      said('secret from the past'),
+      compactedRange({ fromSeq: 1, throughSeq: 1, summary: 'old business' }),
+      said('now'),
+    ])
+
+    const texts = promptOf(events).map((entry) => entry.text)
+
+    expect(texts.some((text) => text.includes('secret from the past'))).toBe(false)
+    expect(texts.some((text) => text.includes('old business'))).toBe(true)
   })
 })
