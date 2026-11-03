@@ -15,6 +15,7 @@ import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
 import { fileMountNoticeOf } from './file-mount-notice'
 import { envSecretsNoticeOf } from './env-secrets-notice'
 import { createServeRotationRecovery } from './serve-rotation-recovery'
+import { serveClientVersionOf } from './serve-version'
 
 export async function bootServeApp(args: {
   serveArgs: ServeArgs
@@ -30,7 +31,7 @@ export async function bootServeApp(args: {
 }) {
   const { serveArgs, env, threadId, token, controlPlaneUrl, cwd, log, notice, atlasHome } = args
   const fetchFn = serveArgs.fetchFn ?? fetch
-  const clientVersion = serveArgs.clientVersion ?? 'dev'
+  const clientVersion = serveClientVersionOf({ requested: serveArgs.clientVersion })
   const remote = { controlPlaneUrl, token, clientVersion, fetchFn }
   const reporter = bootReporterFor({ env, threadId, log, ...remote })
   try {
