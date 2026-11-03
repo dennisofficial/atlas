@@ -1,46 +1,52 @@
-import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native'
+import { router } from 'expo-router'
+import { useMemo, useState } from 'react'
+import {
+  ActivityIndicator,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
 
-import { useAuth } from '../../auth/auth-provider'
-import { relativeTime } from '../../lib/relative-time'
-import { listSessions, type ISessionEntry } from '../../sessions/sessions-list'
+import { SearchField } from '../../sessions/search-field'
+import { SectionHeader } from '../../sessions/section-header'
+import { SessionRow } from '../../sessions/session-row'
+import { ESectionKind, sectionsOf } from '../../sessions/session-sections'
+import { ELoadState, useSessions } from '../../sessions/use-sessions'
 import { useTheme } from '../../theme/use-theme'
 
-enum ELoadState {
-  Loading = 'loading',
-  Ready = 'ready',
-  Failed = 'failed',
+const EmptyState = ({ searching }: { searching: boolean }) => {
+  const theme = useTheme()
+  return (
+    <View style={styles.empty}>
+      <Text style={[styles.emptyTitle, { color: theme.foreground }]}>
+        {searching ? 'No matching sessions' : 'No sessions yet'}
+      </Text>
+      <Text style={[styles.emptyBody, { color: theme.mutedForeground }]}>
+        {searching ? 'Try another title or project.' : 'Tap + to start a session.'}
+      </Text>
+    </View>
+  )
 }
 
 export default function SessionsScreen() {
   const theme = useTheme()
-  const { api } = useAuth()
-  const [entries, setEntries] = useState<ISessionEntry[]>([])
-  const [loadState, setLoadState] = useState(ELoadState.Loading)
-  const [refreshing, setRefreshing] = useState(false)
-  const [now, setNow] = useState(() => Date.now())
+  const { partition, loadState, refreshing, refresh, now } = useSessions()
+  const [query, setQuery] = useState('')
+  const [expanded, setExpanded] = useState<ReadonlySet<ESectionKind>>(new Set())
+  const sections = useMemo(
+    () => sectionsOf({ partition, query, expanded }),
+    [partition, query, expanded],
+  )
 
-  const load = useCallback(async () => {
-    if (api === undefined) return
-    try {
-      const result = await listSessions({ api })
-      setEntries(result)
-      setLoadState(ELoadState.Ready)
-      setNow(Date.now())
-    } catch {
-      setLoadState(ELoadState.Failed)
-    }
-  }, [api])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  const handleRefresh = async () => {
-    setRefreshing(true)
-    await load()
-    setRefreshing(false)
-  }
+  const handleToggle = (kind: ESectionKind) =>
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(kind)) next.delete(kind)
+      else next.add(kind)
+      return next
+    })
 
   if (loadState === ELoadState.Loading) {
     return (
@@ -54,41 +60,44 @@ export default function SessionsScreen() {
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <Text style={{ color: theme.destructive }}>Sessions could not be loaded.</Text>
-        <Text style={{ color: theme.mutedForeground }}>Pull down to try again.</Text>
+        <Text style={{ color: theme.mutedForeground }} onPress={() => void refresh()}>
+          Tap to try again.
+        </Text>
       </View>
     )
   }
 
+  const hasSessions = sections.some((section) => section.count > 0)
+
   return (
-    <FlatList
+    <SectionList
       style={{ backgroundColor: theme.background }}
-      contentContainerStyle={entries.length === 0 ? styles.center : styles.list}
-      data={entries}
+      contentContainerStyle={styles.list}
+      contentInsetAdjustmentBehavior="automatic"
+      keyboardDismissMode="on-drag"
+      sections={sections}
       keyExtractor={(entry) => entry.id}
+      stickySectionHeadersEnabled={false}
+      ListHeaderComponent={<SearchField value={query} onChangeText={setQuery} />}
+      ListFooterComponent={
+        hasSessions ? undefined : <EmptyState searching={query.trim().length > 0} />
+      }
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() => void handleRefresh()}
+          onRefresh={() => void refresh()}
           tintColor={theme.primary}
         />
       }
-      ListEmptyComponent={
-        <View style={styles.empty}>
-          <Text style={[styles.emptyTitle, { color: theme.foreground }]}>No sessions yet</Text>
-          <Text style={{ color: theme.mutedForeground }}>
-            Start a session in Atlas and it will show up here.
-          </Text>
-        </View>
-      }
+      renderSectionHeader={({ section }) => (
+        <SectionHeader section={section} onToggle={handleToggle} />
+      )}
       renderItem={({ item }) => (
-        <View style={[styles.row, { borderBottomColor: theme.border }]}>
-          <Text numberOfLines={1} style={[styles.rowTitle, { color: theme.foreground }]}>
-            {item.title}
-          </Text>
-          <Text style={[styles.rowTime, { color: theme.mutedForeground }]}>
-            {relativeTime({ at: item.updatedAt, now })}
-          </Text>
-        </View>
+        <SessionRow
+          entry={item}
+          now={now}
+          onPress={() => router.push({ pathname: '/thread/[id]', params: { id: item.id } })}
+        />
       )}
     />
   )
@@ -103,27 +112,19 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   list: {
-    paddingVertical: 8,
+    paddingBottom: 32,
   },
   empty: {
     alignItems: 'center',
     gap: 8,
+    paddingHorizontal: 24,
+    paddingTop: 48,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
   },
-  row: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 4,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  rowTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  rowTime: {
-    fontSize: 13,
+  emptyBody: {
+    textAlign: 'center',
   },
 })
