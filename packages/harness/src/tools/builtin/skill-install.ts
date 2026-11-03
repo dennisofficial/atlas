@@ -25,7 +25,7 @@ const inputSchema = z.strictObject({
 const description = [
   `Install a skill by writing its ${SKILL_ENTRY_FILENAME} under a skills root — the shape for "install the X skill", where the model drops the body itself.`,
   'layer: user installs it for every project under the atlas home (~/.atlas/skills by default), project installs it under <project>/.atlas/skills.',
-  `name is the folder the skill lives in and body is the whole ${SKILL_ENTRY_FILENAME} text, frontmatter and all.`,
+  `name is the folder the skill lives in and body is the whole ${SKILL_ENTRY_FILENAME} text, frontmatter and all; write the frontmatter as strict YAML, double-quoting any value that contains ": ".`,
   'Overwriting a same-named skill is allowed; the ordinary shadowing between layers decides which copy wins.',
 ].join(' ')
 

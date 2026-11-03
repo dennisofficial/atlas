@@ -64,7 +64,9 @@ Write `<skill-root>/<name>/SKILL.md` or a flat `<skill-root>/<name>.md`. Prefer 
 installation. Project definitions override user definitions, which override built-ins by name;
 within a layer Atlas roots precede `.agents`, then `.claude`. `/skills` reloads and reports changes.
 
-Put `name` and `description` in YAML frontmatter, followed by the Markdown procedure.
+Put `name` and `description` in YAML frontmatter, followed by the Markdown procedure. Write the
+frontmatter as strict YAML: double-quote any value containing `: ` or ` #`, or Atlas Cloud's skill
+editor has to rewrite it on load.
 
 Use lowercase names with digits and hyphens, matching the folder, at most 64 characters. Descriptions
 have a 1,024-character limit and teach the model when to load the body. `user-invocable` defaults true;
