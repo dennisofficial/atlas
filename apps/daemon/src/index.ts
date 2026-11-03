@@ -28,6 +28,7 @@ try {
 }
 delete env.V2_DAEMON_SECRET
 
+const home = daemonHomeFromEnv(env)
 const protection = protectDaemon(env)
 const bootId = randomUUID()
 const engine = new DaemonEngine({
@@ -35,8 +36,8 @@ const engine = new DaemonEngine({
   version: DAEMON_VERSION,
   secret,
   sandboxName,
-  store: new DiskCallStore(daemonHomeFromEnv(env)),
-  groups: daemonGroups({ env }),
+  store: new DiskCallStore(home),
+  groups: daemonGroups({ env, home }),
   health: () => {
     const memory = workMemory(env)
     return { protection, ...(memory === undefined ? {} : { memory }) }
