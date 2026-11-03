@@ -3,15 +3,16 @@ import { describe, expect, it } from 'bun:test'
 import {
   EDaemonErrorKind,
   ackFrameSchema,
-  collectFrameSchema,
   daemonErrorFrameSchema,
   daemonFrameSchema,
   healthFrameSchema,
+  helloReplyFrameSchema,
   hostFrameSchema,
   hostHelloFrameSchema,
   outputChunkFrameSchema,
   resultFrameSchema,
   runFrameSchema,
+  runReplyFrameSchema,
   v2SessionCreateInputSchema,
   v2SessionEventsInputSchema,
   v2SessionListInputSchema,
@@ -23,7 +24,7 @@ const roundTrips = <T>(schema: { parse: (value: unknown) => T }, value: unknown)
   schema.parse(JSON.parse(JSON.stringify(value)))
 
 describe('agent-host to daemon frames', () => {
-  it('round-trips hello, run, collect, ack, cancel and ping', () => {
+  it('round-trips hello, run, ack, cancel and ping', () => {
     const hello = { kind: 'hello', sessionId: 's-1', epoch: 5, token: 'tok' } as const
     expect(roundTrips(hostFrameSchema, hello)).toEqual(hello)
     expect(roundTrips(hostHelloFrameSchema, hello)).toEqual(hello)
@@ -31,43 +32,54 @@ describe('agent-host to daemon frames', () => {
     const run = {
       kind: 'run',
       key: 'run-1:call-1',
-      bootId: 'boot-7',
+      epoch: 5,
       op: { tool: 'bash', input: { command: 'ls' } },
     } as const
     expect(roundTrips(hostFrameSchema, run)).toEqual(run)
     expect(roundTrips(runFrameSchema, run)).toEqual(run)
 
-    const collect = { kind: 'collect', key: 'run-1:call-1', afterOffset: 128 } as const
-    expect(roundTrips(hostFrameSchema, collect)).toEqual(collect)
-    expect(roundTrips(collectFrameSchema, collect)).toEqual(collect)
-
-    const ack = { kind: 'ack', key: 'run-1:call-1' } as const
+    const ack = { kind: 'ack', key: 'run-1:call-1', epoch: 5 } as const
     expect(roundTrips(hostFrameSchema, ack)).toEqual(ack)
     expect(roundTrips(ackFrameSchema, ack)).toEqual(ack)
 
-    expect(roundTrips(hostFrameSchema, { kind: 'cancel', key: 'run-1:call-1' })).toEqual({
-      kind: 'cancel',
-      key: 'run-1:call-1',
-    })
+    const cancel = { kind: 'cancel', key: 'run-1:call-1', epoch: 5 } as const
+    expect(roundTrips(hostFrameSchema, cancel)).toEqual(cancel)
     expect(roundTrips(hostFrameSchema, { kind: 'ping' })).toEqual({ kind: 'ping' })
   })
 
-  it('rejects a hello without a token and a run without a bootId', () => {
+  it('rejects a hello without a token, a run carrying a bootId, and a collect frame', () => {
     expect(
       hostHelloFrameSchema.safeParse({ kind: 'hello', sessionId: 's-1', epoch: 5 }).success,
     ).toBe(false)
-    expect(hostFrameSchema.safeParse({ kind: 'run', key: 'k', op: { tool: 'bash' } }).success).toBe(
-      false,
-    )
+    expect(
+      runFrameSchema.safeParse({
+        kind: 'run',
+        key: 'k',
+        epoch: 1,
+        bootId: 'boot-7',
+        op: { tool: 'bash' },
+      }).success,
+    ).toBe(false)
+    expect(hostFrameSchema.safeParse({ kind: 'collect', key: 'k' }).success).toBe(false)
     expect(hostFrameSchema.safeParse({ kind: 'nope' }).success).toBe(false)
   })
 })
 
 describe('daemon to agent-host frames', () => {
-  it('round-trips output, result, health, error and pong', () => {
+  it('round-trips the hello reply with the bootId', () => {
+    const reply = { kind: 'hello-reply', bootId: 'boot-7', version: '0.1.0' } as const
+    expect(roundTrips(daemonFrameSchema, reply)).toEqual(reply)
+    expect(roundTrips(helloReplyFrameSchema, reply)).toEqual(reply)
+  })
+
+  it('round-trips output, run-reply, result, health, error and pong', () => {
     const output = { kind: 'output', key: 'run-1:call-1', offset: 0, bytes: 'aGVsbG8=' } as const
     expect(roundTrips(daemonFrameSchema, output)).toEqual(output)
     expect(roundTrips(outputChunkFrameSchema, output)).toEqual(output)
+
+    const running = { kind: 'run-reply', key: 'run-1:call-1', state: 'running' } as const
+    expect(roundTrips(daemonFrameSchema, running)).toEqual(running)
+    expect(roundTrips(runReplyFrameSchema, running)).toEqual(running)
 
     const result = {
       kind: 'result',
@@ -100,7 +112,7 @@ describe('daemon to agent-host frames', () => {
     expect(roundTrips(daemonFrameSchema, { kind: 'pong' })).toEqual({ kind: 'pong' })
   })
 
-  it('rejects an unknown error kind and an output chunk with a negative offset', () => {
+  it('rejects an unknown error kind, a negative offset and non-base64 bytes', () => {
     expect(
       daemonErrorFrameSchema.safeParse({
         kind: 'error',
@@ -110,6 +122,14 @@ describe('daemon to agent-host frames', () => {
     ).toBe(false)
     expect(
       outputChunkFrameSchema.safeParse({ kind: 'output', key: 'k', offset: -1, bytes: '' }).success,
+    ).toBe(false)
+    expect(
+      outputChunkFrameSchema.safeParse({
+        kind: 'output',
+        key: 'k',
+        offset: 0,
+        bytes: 'not base64!',
+      }).success,
     ).toBe(false)
   })
 })
