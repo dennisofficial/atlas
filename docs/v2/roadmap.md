@@ -65,6 +65,10 @@ _Updated at the end of every slice. Last update: 2026-11-03._
   cold and warm cache (clients open from the CP tail plus a cache keyed by (epoch, seq), then follow
   the stream; the agent host is never on the open path). **Slice 9:** local sandboxes clone, never bind-mount
   the operator's checkout.
+- **Design added 2026-11-03, read before specifying slices 3 and 6:**
+  [slices/summarise-at-message.md](slices/summarise-at-message.md) (summarise up to / from a
+  message as an inbox command; two decisions open: the `input-refused` record and whether rewind
+  may undo a summary).
 - **Scale target:** ~20k events per thread, from production data (architecture §12). Earlier 1M
   figures were a hypothetical stress size; whole-log work is removed only where that is trivial.
 - **Open:** D2 (local control plane), needed only at slice 9. 0020 (sub-agent worktrees, peer
