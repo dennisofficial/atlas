@@ -100,7 +100,7 @@ flowchart LR
   end
   subgraph Data["Data (us-east-1)"]
     PG[("Postgres<br/>public = v1<br/>v2 = record, inbox, leases")]
-    R[("Redis<br/>v2:wake, v2:live")]
+    R[("Redis<br/>atlas:session-wake, atlas:session-live")]
   end
   subgraph Render["Render, Virginia"]
     W1["Agent host 1<br/>runs agent loops"]
@@ -141,7 +141,7 @@ sequenceDiagram
 
   C->>API: v2.sessions.post(message)
   API->>PG: insert inbox entry (inboxId 7)
-  API->>R: publish v2:wake(session)
+  API->>R: publish atlas:session-wake(session)
   R-->>W1: wake
   R-->>W2: wake
   par both try to claim
@@ -188,7 +188,7 @@ sequenceDiagram
   Render->>W1: SIGTERM (deploy)
   W1->>W1: stop claiming, pause loops at the next step boundary
   W1->>PG: revoke lease (epoch 5 to 6, no holder)
-  W1->>R: publish v2:wake(session)
+  W1->>R: publish atlas:session-wake(session)
   W1--xW1: exit
   Note over W1,PG: Any late write from W1 is refused as stale-epoch
   R-->>W2: wake
@@ -261,14 +261,14 @@ OAuth refresh would gain a second home, which is the kind of fork v2 exists to r
 There is no separate scheduler. Claiming is part of the agent host; the periodic safety net is a
 trigger.dev task, because the agent host runs no timers of its own beyond its sessions' loops
 ([0022](../../decisions/0022-v2-background-jobs-in-apps-trigger.md)):
-- **Wake.** When the API posts to a v2 session's inbox, it publishes `v2:wake` with the session
+- **Wake.** When the API posts to a v2 session's inbox, it publishes `atlas:session-wake` with the session
   id on Redis. Every agent host below its capacity tries to `grant` the lease. The CAS on the epoch
   lets exactly one win; the others drop it.
 - **Reconcile (in `apps/trigger`, not the agent host).** Redis pub/sub is fire-and-forget and a
   crashed holder tells nobody, so a trigger.dev scheduled task, `v2-reconcile-holders`, runs every
   minute (trigger.dev's finest schedule). It finds sessions with unconsumed inbox entries or an
   unfinished turn and no live lease (one new store query, `sessionsNeedingHolder({ limit })`,
-  backed by an index) and republishes `v2:wake` for each. It claims nothing itself; the agent
+  backed by an index) and republishes `atlas:session-wake` for each. It claims nothing itself; the agent
   hosts claim as for any wake. Its contract lives in `packages/jobs`, its logic (the query) in
   `packages/control`, so neither app imports the other. This makes slice 3 the first user of
   `apps/trigger`, so slice 3 scaffolds it (own `trigger.config.ts`, own tier file with only
