@@ -16,4 +16,5 @@ model GithubPrState {
   updatedAt        TimestamptzJsDate(3)
 
   @@id([repoFullName, prNumber])
+  @@index([headSha])
 }

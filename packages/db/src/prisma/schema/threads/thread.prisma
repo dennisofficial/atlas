@@ -13,6 +13,7 @@ model Thread {
   agentType         String?
   modelRef          String?
   modelEffort       String?
+  modelFast         Boolean?
   userId            String
   sessionId         String
   working           Boolean              @default(false)

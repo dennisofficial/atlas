@@ -29,7 +29,7 @@ export async function openChildModelServe() {
     agent: { spawnedBy: teammate.id, type: 'explore' },
     model: ORIGINAL,
   })
-  const selected: { ref: string; effort: string }[] = []
+  const selected: { ref: string; effort: string; fast?: boolean | undefined }[] = []
   const app = fakeServeApp({ threadId: root.id, root: '/workspace' })
   const serve = await startServe({
     threadId: root.id,
@@ -43,7 +43,11 @@ export async function openChildModelServe() {
       threads: harness.threads,
       log: harness.log,
       ledger: harness.ledger,
-      modelBridge: { effort: () => 'medium', select: (next) => void selected.push(next) },
+      modelBridge: {
+        effort: () => 'medium',
+        fast: () => false,
+        select: (next) => void selected.push(next),
+      },
     }),
     ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
     fetchFn: (async () => new Response(null, { status: 204 })) as unknown as typeof fetch,

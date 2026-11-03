@@ -1,4 +1,4 @@
 {
-  "hash": "f7cf7c56bb555f5aa57091945412cf5f344de9baeab363e63a715cc76fd704d8",
-  "invariants": []
+  "hash": "ad89d2c8b47ec53dff58f59ad2bc517d30985a1064d662a54fc3eb62b040d95f",
+  "invariants": ["skills-userfile-backfill-v1"]
 }

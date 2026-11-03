@@ -57,6 +57,58 @@ const client = {
     put: { mutate: record('mcpServersPut', undefined) },
     remove: { mutate: record('mcpServersRemove', undefined) },
   },
+  skills: {
+    list: {
+      query: record('skillsList', {
+        skills: [
+          {
+            name: 'review',
+            description: 'Code review checklist',
+            fileCount: 2,
+            sizeBytes: 512,
+            updatedAt: 't',
+            usage: { usedCount30d: 3, lastUsedAt: 't' },
+          },
+        ],
+      }),
+    },
+    listFiles: {
+      query: record('skillsListFiles', {
+        files: [
+          {
+            path: 'SKILL.md',
+            revision: 1,
+            contentHash: 'h',
+            sizeBytes: 300,
+            isText: true,
+            updatedAt: 't',
+          },
+          {
+            path: 'icon.png',
+            revision: 1,
+            contentHash: 'h',
+            sizeBytes: 212,
+            isText: false,
+            updatedAt: 't',
+          },
+        ],
+      }),
+    },
+    get: {
+      query: record('skillsGet', {
+        path: 'SKILL.md',
+        revision: 1,
+        contentHash: 'h',
+        sizeBytes: 5,
+        isText: true,
+        updatedAt: 't',
+        content: Buffer.from('hello', 'utf8').toString('base64'),
+      }),
+    },
+    put: { mutate: record('skillsPut', { revision: 1 }) },
+    remove: { mutate: record('skillsRemove', { removed: true }) },
+    removeSkill: { mutate: record('skillsRemoveSkill', { removed: 2 }) },
+  },
 } as unknown as ApiClient
 
 const invoke = (args: { access: CloudConfigAccess | null; input: unknown }): Promise<ToolOutcome> =>
@@ -210,5 +262,144 @@ describe('CloudConfigTool', () => {
       input: { scope: 'project', kind: 'secret', action: 'list' },
     })
     expect(outcome.ok).toBe(false)
+  })
+
+  it("lists skills in both scopes and one skill's files", async () => {
+    calls.length = 0
+    const personal = await invoke({
+      access: sandbox,
+      input: { scope: 'personal', kind: 'skill', action: 'list' },
+    })
+    expect(personal.ok && personal.modelText).toBe(
+      'skills:\nreview — Code review checklist (2 files, 512 B)',
+    )
+    const project = await invoke({
+      access: sandbox,
+      input: { scope: 'project', kind: 'skill', action: 'list' },
+    })
+    expect(project.ok).toBe(true)
+    const files = await invoke({
+      access: sandbox,
+      input: { scope: 'project', kind: 'skill', action: 'list', path: 'review' },
+    })
+    expect(files.ok && files.modelText).toBe(
+      'files of skill review:\nSKILL.md (300 B)\nicon.png (212 B)',
+    )
+    expect(calls).toEqual([
+      'skillsList {"scope":"personal"}',
+      'skillsList {"scope":"project","projectId":"p1"}',
+      'skillsListFiles {"scope":"project","projectId":"p1","skill":"review"}',
+    ])
+  })
+
+  it('reads a text skill file as utf8 and refuses a binary one', async () => {
+    const read = await invoke({
+      access: sandbox,
+      input: { scope: 'personal', kind: 'skill', action: 'read', path: 'review/SKILL.md' },
+    })
+    expect(read.ok && read.modelText).toBe('hello')
+
+    const binary = await invoke({
+      access: {
+        ...sandbox,
+        client: {
+          ...client,
+          skills: {
+            ...client.skills,
+            get: {
+              query: record('skillsGetBinary', {
+                path: 'icon.png',
+                revision: 1,
+                contentHash: 'h',
+                sizeBytes: 4,
+                isText: false,
+                updatedAt: 't',
+                content: 'AAE=',
+              }),
+            },
+          },
+        } as unknown as ApiClient,
+      },
+      input: { scope: 'personal', kind: 'skill', action: 'read', path: 'review/icon.png' },
+    })
+    expect(binary.ok === false && binary.reason).toBe(
+      'binary skill file; replace it from the web settings page',
+    )
+
+    const noFile = await invoke({
+      access: sandbox,
+      input: { scope: 'personal', kind: 'skill', action: 'read', path: 'review' },
+    })
+    expect(noFile.ok === false && noFile.reason).toContain('path is <skill>/<file>')
+  })
+
+  it('sets a skill file with base64 content and its sha256', async () => {
+    calls.length = 0
+    const set = await invoke({
+      access: sandbox,
+      input: {
+        scope: 'project',
+        kind: 'skill',
+        action: 'set',
+        path: 'review/SKILL.md',
+        contents: 'hello',
+      },
+    })
+    expect(set.ok).toBe(true)
+    const expectedHash = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+    expect(calls).toEqual([
+      `skillsPut {"scope":"project","projectId":"p1","skill":"review","path":"SKILL.md","content":"aGVsbG8=","contentHash":"${expectedHash}"}`,
+    ])
+  })
+
+  it('removes a whole skill with a one-segment path and a file with two', async () => {
+    calls.length = 0
+    const skill = await invoke({
+      access: sandbox,
+      input: { scope: 'personal', kind: 'skill', action: 'remove', path: 'review' },
+    })
+    expect(skill.ok && skill.modelText).toBe('Removed skill review (2 files).')
+    const file = await invoke({
+      access: sandbox,
+      input: { scope: 'personal', kind: 'skill', action: 'remove', path: 'review/icon.png' },
+    })
+    expect(file.ok && file.modelText).toBe('Removed file review/icon.png.')
+    expect(calls).toEqual([
+      'skillsRemoveSkill {"scope":"personal","skill":"review"}',
+      'skillsRemove {"scope":"personal","skill":"review","path":"icon.png","baseRevision":0}',
+    ])
+  })
+
+  it('surfaces a 409 conflict message from the skills api', async () => {
+    const failing = {
+      ...client,
+      skills: {
+        ...client.skills,
+        put: {
+          mutate: async () => {
+            throw new Error('the file changed since baseRevision')
+          },
+        },
+      },
+    } as unknown as ApiClient
+    const outcome = await invoke({
+      access: { ...sandbox, client: failing },
+      input: {
+        scope: 'personal',
+        kind: 'skill',
+        action: 'set',
+        path: 'review/SKILL.md',
+        contents: 'x',
+      },
+    })
+    expect(outcome.ok === false && outcome.reason).toContain('changed since baseRevision')
+  })
+
+  it('fails project-scope skills without a projectId', async () => {
+    const outcome = await invoke({
+      access: { ...sandbox, projectId: null },
+      input: { scope: 'project', kind: 'skill', action: 'list' },
+    })
+    expect(outcome.ok === false && outcome.reason).toContain('pass projectId')
   })
 })

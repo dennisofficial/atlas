@@ -3,18 +3,18 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
-  ATLAS_TELEMETRY_IDENTITY_ENV,
   EClassifierMode,
   EDecisionsProvider,
   ESettingId,
   EWebSearchBackend,
 } from '@dltech/atlas-core'
-import { TELEMETRY_FILE_NAME } from '@dltech/atlas-harness'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { telemetryEnvironmentOf } from '../app'
 import { livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, scriptedModelPort } from './fake-app'
+import { ATLAS_TELEMETRY_IDENTITY_ENV } from '@dltech/atlas-observability'
+import { TELEMETRY_FILE_NAME } from '@dltech/atlas-observability/node'
 
 let home: string
 let previousHome: string | undefined

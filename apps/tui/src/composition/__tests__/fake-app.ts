@@ -138,6 +138,7 @@ const fakeCard = (args: {
   label: string
   price: number
   effort?: EffortMap | undefined
+  fast?: boolean | undefined
 }): ModelCard => ({
   ref: { providerId: args.providerId, modelId: args.modelId },
   label: args.label,
@@ -146,6 +147,7 @@ const fakeCard = (args: {
   imageTier: EImageTier.HighResolution,
   cost: { inputPerMillion: 1, outputPerMillion: args.price },
   ...(args.effort === undefined ? {} : { effort: args.effort }),
+  ...(args.fast === true ? { fast: true as const } : {}),
 })
 
 const LADDER: EffortMap = {
@@ -209,7 +211,13 @@ const INFERENCE_CARDS: readonly ModelCard[] = [
   }),
 ]
 
-const FAKE_CATALOG = catalogOf([...CLAUDE_CARDS, ...CODEX_CARDS, ...INFERENCE_CARDS])
+export const FAKE_CARDS: readonly ModelCard[] = [
+  ...CLAUDE_CARDS,
+  ...CODEX_CARDS,
+  ...INFERENCE_CARDS,
+]
+
+const FAKE_CATALOG = catalogOf(FAKE_CARDS)
 
 /** Anthropic is keyed and OpenAI is not, so the `⚠ no key` row still has something to say. */
 export function fakeCatalogue(): ModelCatalogue {
@@ -401,6 +409,29 @@ export const FAKE_CLOUD_SESSION: CloudSession = {
   url: 'https://cloud.test',
   token: 'test',
   email: 'test@atlas.dev',
+}
+
+export const fakeCardForTests = (args: {
+  providerId: string
+  modelId: string
+  label: string
+  price: number
+  effort?: EffortMap | undefined
+  fast?: boolean | undefined
+}): ModelCard => fakeCard(args)
+
+export function fakeCatalogueWith(args: { cards: readonly ModelCard[] }): ModelCatalogue {
+  const catalog = catalogOf(args.cards)
+  const providers = fakeCatalogue().providers.map((provider) => ({
+    ...provider,
+    cards: args.cards.filter((card) => card.ref.providerId === provider.id),
+  }))
+  return {
+    ...fakeCatalogue(),
+    providers,
+    catalog,
+    cardFor: (ref) => findCard({ catalog, ref }),
+  }
 }
 
 export const fakeCloud = (args?: {

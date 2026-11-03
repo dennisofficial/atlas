@@ -2,21 +2,19 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EAgentStart,
-  ELogSeverity,
   EventLogPort,
   EShellStatus,
-  LogPort,
   toEventId,
   toRunId,
   toThreadId,
   type Event,
   type EventDraft,
-  type LogEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
 import { MessageIntake, RandomIds } from '@dltech/atlas-harness'
 
 import { teardownSession, type TeardownSource } from '../session-teardown'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 const THREAD = toThreadId('thread-under-test')
 

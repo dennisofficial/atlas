@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto'
+
 import type { ToolOutcome } from '@dltech/atlas-core'
-import { EMcpTransportKind, type McpTransportWire } from '@dltech/atlas-wire'
+import { EMcpTransportKind, ESkillScope, type McpTransportWire } from '@dltech/atlas-wire'
 import { decodeSettingValue } from '@dltech/atlas-wire/web'
 import type { ApiClient } from '@dltech/atlas-api-router'
 
@@ -217,9 +219,70 @@ const files = async ({ client, input, target }: Scoped): Promise<ToolOutcome> =>
   return done({ text: `Set file mount ${path}. It is written on the next sandbox start.` })
 }
 
+const skills = async ({ client, input, target }: Scoped): Promise<ToolOutcome> => {
+  const scope = target.personal
+    ? ({ scope: ESkillScope.Personal } as const)
+    : ({ scope: ESkillScope.Project, projectId: target.projectId } as const)
+  const path = input.path
+  if (input.action === ECloudConfigAction.List) {
+    if (path === undefined) {
+      const body = await cloudCall(client.skills.list.query(scope))
+      return listing({
+        title: 'skills',
+        lines: body.skills.map(
+          (row) => `${row.name} — ${row.description} (${row.fileCount} files, ${row.sizeBytes} B)`,
+        ),
+      })
+    }
+    const body = await cloudCall(client.skills.listFiles.query({ ...scope, skill: path }))
+    return listing({
+      title: `files of skill ${path}`,
+      lines: body.files.map((row) => `${row.path} (${row.sizeBytes} B)`),
+    })
+  }
+  if (path === undefined) return fail('path is required for this action')
+  const skill = path.split('/')[0] ?? ''
+  const file = path.includes('/') ? path.slice(path.indexOf('/') + 1) : undefined
+  if (input.action === ECloudConfigAction.Read) {
+    if (file === undefined || file.length === 0) {
+      return fail('read needs a file: path is <skill>/<file>')
+    }
+    const body = await cloudCall(client.skills.get.query({ ...scope, skill, path: file }))
+    if (!body.isText) {
+      return fail(`binary skill file; replace it from the web settings page`)
+    }
+    return done({ text: Buffer.from(body.content, 'base64').toString('utf8'), output: { path } })
+  }
+  if (input.action === ECloudConfigAction.Remove) {
+    if (file === undefined || file.length === 0) {
+      const body = await cloudCall(client.skills.removeSkill.mutate({ ...scope, skill }))
+      return done({ text: `Removed skill ${skill} (${body.removed} files).` })
+    }
+    await cloudCall(client.skills.remove.mutate({ ...scope, skill, path: file, baseRevision: 0 }))
+    return done({ text: `Removed file ${path}.` })
+  }
+  if (file === undefined || file.length === 0) {
+    return fail('set needs a file: path is <skill>/<file>')
+  }
+  const contents = need({ value: input.contents, field: 'contents' })
+  if (isFailure(contents)) return contents
+  const bytes = Buffer.from(contents, 'utf8')
+  await cloudCall(
+    client.skills.put.mutate({
+      ...scope,
+      skill,
+      path: file,
+      content: bytes.toString('base64'),
+      contentHash: createHash('sha256').update(bytes).digest('hex'),
+    }),
+  )
+  return done({ text: `Set skill file ${path}.` })
+}
+
 export const runCloudConfig = (args: Scoped): Promise<ToolOutcome> => {
   if (args.input.kind === ECloudConfigKind.Setting) return settings(args)
   if (args.input.kind === ECloudConfigKind.Secret) return secrets(args)
   if (args.input.kind === ECloudConfigKind.Mcp) return mcp(args)
+  if (args.input.kind === ECloudConfigKind.Skill) return skills(args)
   return files(args)
 }

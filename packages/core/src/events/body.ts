@@ -124,6 +124,7 @@ export type EventBody =
       interrupted?: boolean | undefined
       placeholder?: EAssistantPlaceholder | undefined
       aborted?: 'handoff' | undefined
+      fast?: true | undefined
       usage?: StepReading | undefined
     }
   | {
@@ -281,20 +282,3 @@ export type EventBody =
 export type EventDraft = EventBody
 
 export type EventType = EventBody['type']
-
-export const SURVIVES_SUMMARY: readonly EventType[] = [
-  'context-loaded',
-  'code-quality-reviewed',
-  'permission-granted',
-  'permission-revoked',
-  'pull-request-linked',
-  'location-changed',
-  'checkout-observed',
-  'subscription-created',
-  'subscription-changed',
-  'subscription-ended',
-  'model-waiting',
-  'model-wait-cleared',
-]
-
-export const survivesSummary = (type: EventType): boolean => SURVIVES_SUMMARY.includes(type)

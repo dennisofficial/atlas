@@ -22,6 +22,7 @@ import {
   SecretCipher,
   type VaultFile,
 } from '@dltech/atlas-harness'
+import type { ScopedMcpServer } from '@dltech/atlas-wire/web'
 
 import { fetchCloudState, type CloudStateFetched } from './cloud-state-fetch'
 import { exportEnvSecrets, mergeCloudMcpServers } from './cloud-config'
@@ -108,6 +109,7 @@ const writeSettings = (args: {
 export type CloudStateSeen = {
   lease?: string | undefined
   config?: string | undefined
+  mcpServers?: readonly ScopedMcpServer[] | undefined
   exported: Set<string>
 }
 
@@ -116,6 +118,11 @@ const WRITTEN_STATES: ReadonlySet<EFileMountState> = new Set([
   EFileMountState.WrittenLocallyExcluded,
   EFileMountState.WrittenNotExcluded,
 ])
+
+const MANAGED_SKILL_PREFIXES = {
+  globalPrefix: 'skills',
+  projectPrefix: 'project-skills',
+} as const
 
 export const applyCloudState = async (args: {
   atlasHome: string
@@ -174,15 +181,17 @@ export const applyCloudState = async (args: {
     if (args.seen !== undefined) {
       args.seen.lease = leaseFingerprint
       args.seen.config = configFingerprint
+      args.seen.mcpServers = config.mcpServers
     }
     args.onConfigWritten?.()
     const mounted =
-      args.fileMountRoots === undefined || config.fileMounts.length === 0
+      args.fileMountRoots === undefined
         ? null
         : await mountProjectFiles({
             mounts: config.fileMounts,
             ...args.fileMountRoots,
             git: args.mountGit,
+            managedPrefixes: MANAGED_SKILL_PREFIXES,
           })
     const filesMounted = (mounted?.outcomes ?? []).filter((outcome) =>
       WRITTEN_STATES.has(outcome.state),

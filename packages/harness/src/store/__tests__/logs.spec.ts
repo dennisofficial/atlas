@@ -8,8 +8,9 @@ import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import { newThreadMeta, writeMeta } from '../sessions/meta'
 import { sessionDirectory, sessionLogsFile, threadMetaFile } from '../sessions/paths'
 import { SessionRegistry } from '../sessions/registry'
-import { JsonlLog, logFieldsOf } from '../logs'
+import { JsonlLog } from '../logs'
 import { SteppingClock } from './harness'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
 const AT = '2026-09-23T10:00:00.000Z'
 

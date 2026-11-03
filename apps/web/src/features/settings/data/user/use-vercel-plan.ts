@@ -2,15 +2,12 @@
 
 import { EVercelPlan } from '@dltech/atlas-wire/web'
 
-import { useCloudQuery, EQueryState } from '@/lib/use-cloud-query'
+import { EQueryState } from '@/lib/use-cloud-query'
 
-import { getUserVercelCredential } from './vercel-credential-api'
+import { useUserVercelCredential } from './vercel-credential-resource'
 
 export function useVercelPlan(): EVercelPlan {
-  const query = useCloudQuery({
-    key: 'user-vercel-credential',
-    load: getUserVercelCredential,
-  })
+  const { query } = useUserVercelCredential()
   if (query.state !== EQueryState.Ready) return EVercelPlan.Unknown
-  return query.data.plan
+  return query.data.view.plan
 }

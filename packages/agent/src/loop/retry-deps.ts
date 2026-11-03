@@ -1,9 +1,10 @@
-import type { LogPort, ThreadId } from '@dltech/atlas-core'
+import type { ThreadId } from '@dltech/atlas-core'
 
-import { logFieldsOf } from '../logging/log-fields'
+import { logFieldsOf } from '@dltech/atlas-observability'
 import type { FailureDiagnostics } from '../model/run-failure'
 import type { AgentOutput } from './agent-output'
 import type { RetryDeps } from './retrying-step'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export function retryDepsFor(args: {
   retry: RetryDeps | undefined

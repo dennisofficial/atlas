@@ -30,7 +30,12 @@ export async function recheckPodModel(
     })
     const podModel = readThreadReplySchema.parse(reply).thread?.model
     if (args.stale() || args.choices() !== choicesBefore || podModel === undefined) return
-    if (podModel.ref === stored.ref && podModel.effort === stored.effort) return
+    if (
+      podModel.ref === stored.ref &&
+      podModel.effort === stored.effort &&
+      podModel.fast === stored.fast
+    )
+      return
     await live.request({
       op: EClientRequest.SetThreadModel,
       params: { threadId: args.threadId, model: stored },

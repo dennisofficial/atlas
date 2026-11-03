@@ -1,4 +1,3 @@
-import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import {
@@ -14,6 +13,7 @@ import {
   wasFound as found,
   wasUnavailable as unavailable,
 } from '../testing'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 class ScriptedPort extends PullRequestPort {
   readonly pushes = false

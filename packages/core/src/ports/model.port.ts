@@ -15,6 +15,7 @@ export type ModelStepResult = {
   toolCalls: readonly ModelToolCall[]
   finishReason: EFinishReason
   usage?: ModelUsage
+  ranFast?: true
 }
 
 export type ModelTraits = {

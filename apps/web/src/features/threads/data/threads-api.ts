@@ -53,8 +53,16 @@ export const fetchSnapshot = (args: { threadId: string; fromSeq?: number | undef
 
 export const patchThreadModel = (args: {
   threadId: string
-  model: { ref: string; effort: string }
-}) => cloudCall(api.threads.chooseModel.mutate({ threadId: args.threadId, ...args.model }))
+  model: { ref: string; effort: string; fast?: boolean }
+}) =>
+  cloudCall(
+    api.threads.chooseModel.mutate({
+      threadId: args.threadId,
+      ref: args.model.ref,
+      effort: args.model.effort,
+      ...(args.model.fast === undefined ? {} : { fast: args.model.fast }),
+    }),
+  )
 
 export const rewindThread = (args: { threadId: string; toSeq: number; cutAgents: string[] }) =>
   cloudCall(api.threads.rewind.mutate(args))

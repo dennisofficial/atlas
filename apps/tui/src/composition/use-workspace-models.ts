@@ -116,6 +116,7 @@ export function useWorkspaceModels(args: {
     accountsVersion,
     active: selection.ref,
     effort: selection.effort,
+    fast: selection.fast,
     fallback: threadModel.fallback,
     settingRef: heldSettingRef,
     favourites: settings.modelFavourites,
@@ -190,6 +191,7 @@ export function useViewedAgent(args: {
       : {
           ref: viewedSelection.ref,
           effort: viewedSelection.effort,
+          fast: viewedSelection.fast,
           onPick: (choice) => viewModel.handlePicked({ choice }),
         }
 

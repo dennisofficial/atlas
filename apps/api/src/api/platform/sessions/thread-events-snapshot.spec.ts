@@ -9,7 +9,7 @@ import {
   USER_A,
   USER_B,
 } from '../../../../test/session-seed'
-import { readThreadEventsSnapshot } from './thread-events-snapshot'
+import { readOneSnapshot, readThreadEventsSnapshot } from './thread-events-snapshot'
 import { lockThread } from './thread-head'
 
 describe('coherent own-row event snapshot', () => {
@@ -61,25 +61,46 @@ describe('coherent own-row event snapshot', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
   })
 
-  it('cannot read an epoch and rows from different sides of a locked rewrite', async () => {
-    const locked = Promise.withResolvers<void>()
+  it('reads one side of an uncommitted rewrite without waiting for its lock', async () => {
+    const rewritten = Promise.withResolvers<void>()
     const release = Promise.withResolvers<void>()
     const writer = db.transaction(async (tx) => {
       await lockThread({ tx, threadId: 'thr_1' })
       await tx.orm.public.Thread.where({ id: 'thr_1' }).update({ historyRev: 3 })
-      locked.resolve()
-      await release.promise
       await tx.orm.public.Event.where({ threadId: 'thr_1' })
         .where((event) => event.seq.lt(3))
         .deleteAll()
+      rewritten.resolve()
+      await release.promise
     })
-    await locked.promise
-    const reading = readThreadEventsSnapshot({ userId: USER_A, threadId: 'thr_1' })
+    await rewritten.promise
+    const during = await readThreadEventsSnapshot({ userId: USER_A, threadId: 'thr_1' })
     release.resolve()
     await writer
-    const snapshot = await reading
-    expect(snapshot.historyRev).toBe(3)
-    expect(snapshot.head).toBe(3)
-    expect(snapshot.events.map((event) => event.seq)).toEqual([3])
+    expect(during.historyRev).toBe(2)
+    expect(during.events.map((event) => event.seq)).toEqual([1, 2, 3])
+    const after = await readThreadEventsSnapshot({ userId: USER_A, threadId: 'thr_1' })
+    expect(after.historyRev).toBe(3)
+    expect(after.head).toBe(3)
+    expect(after.events.map((event) => event.seq)).toEqual([3])
+  })
+
+  it('keeps the epoch and rows on one side when a rewrite commits mid-read', async () => {
+    const snapshot = await db.transaction(async (tx) => {
+      await readOneSnapshot(tx)
+      const before = await tx.orm.public.Thread.where({ id: 'thr_1' })
+        .select('historyRev')
+        .firstOrThrow()
+      await db.transaction(async (writer) => {
+        await lockThread({ tx: writer, threadId: 'thr_1' })
+        await writer.orm.public.Thread.where({ id: 'thr_1' }).update({ historyRev: 3 })
+        await writer.orm.public.Event.where({ threadId: 'thr_1' })
+          .where((event) => event.seq.lt(3))
+          .deleteAll()
+      })
+      const rows = await tx.orm.public.Event.where({ threadId: 'thr_1' }).all()
+      return { historyRev: before.historyRev, seqs: rows.map((row) => row.seq).sort() }
+    })
+    expect(snapshot).toEqual({ historyRev: 2, seqs: [1, 2, 3, 4] })
   })
 })

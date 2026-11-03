@@ -54,12 +54,20 @@ const userSaid = (seq: number, text: string): WireEvent =>
 const bootStep = (seq: number): WireEvent =>
   wireRow({ seq, type: BOOT_STEP_EVENT_TYPE, body: { step: 'provision', state: 'running' } })
 
-const hydrate = (args: { home: string; rows: WireEvent[] }) =>
+const sessionsOver = (rows: WireEvent[], asked: (number | undefined)[] = []) => ({
+  readEvents: async ({ fromSeq }: { fromSeq?: number | undefined }) => {
+    asked.push(fromSeq)
+    return rows.filter((row) => row.seq >= (fromSeq ?? 0))
+  },
+  threadHead: async () => rows.reduce((highest, row) => Math.max(highest, row.seq), 0),
+})
+
+const hydrate = (args: { home: string; rows: WireEvent[]; asked?: (number | undefined)[] }) =>
   hydrateServeHistory({
     atlasHome: args.home,
     threadId,
     log: () => undefined,
-    sessions: { readEvents: async () => args.rows },
+    sessions: sessionsOver(args.rows, args.asked),
   })
 
 describe('hydrateServeHistory', () => {
@@ -129,6 +137,31 @@ describe('hydrateServeHistory', () => {
     expect(events.map((event) => event.seq)).toEqual([1, 2, 3])
   })
 
+  it('asks the control plane only for rows past the local head', async () => {
+    const home = newHome()
+    const asked: (number | undefined)[] = []
+    await hydrate({ home, rows: [userSaid(1, 'one'), userSaid(2, 'two')], asked })
+    registryFor({ home }).invalidateSession({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+    })
+
+    await hydrate({ home, rows: [userSaid(1, 'one'), userSaid(2, 'two')], asked })
+
+    expect(asked).toEqual([1, 3])
+  })
+
+  it('reports the durable head when nothing past the local head is new', async () => {
+    const home = newHome()
+    await hydrate({ home, rows: [userSaid(1, 'one'), userSaid(2, 'two')] })
+    registryFor({ home }).invalidateSession({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+    })
+
+    const result = await hydrate({ home, rows: [userSaid(1, 'one'), userSaid(2, 'two')] })
+
+    expect(result).toEqual({ imported: 0, skipped: 0, head: 2, remoteHead: 2 })
+  })
+
   it('imports nothing and leaves no log when Postgres holds nothing', async () => {
     const home = newHome()
 
@@ -150,9 +183,7 @@ describe('hydrateServeHistory', () => {
         atlasHome: home,
         threadId,
         log: (line) => lines.push(line.event),
-        sessions: {
-          readEvents: async () => [userSaid(1, 'first'), rejected, userSaid(3, 'after')],
-        },
+        sessions: sessionsOver([userSaid(1, 'first'), rejected, userSaid(3, 'after')]),
       }),
     ).rejects.toThrow('unreadable turn-taking event')
 
@@ -212,7 +243,7 @@ describe('hydrateWhenRegistered', () => {
         url: trpcQueryUrl({
           controlPlaneUrl: 'https://api.example.com',
           procedure: 'threadEvents.read',
-          input: { threadId, own: true },
+          input: { threadId, fromSeq: 1, own: true },
         }),
         authorization: 'Bearer serve-token',
       },

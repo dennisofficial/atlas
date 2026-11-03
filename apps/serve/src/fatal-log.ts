@@ -1,13 +1,8 @@
-import { toThreadId, type LogPort } from '@dltech/atlas-core'
-import {
-  JsonlLog,
-  SystemClock,
-  atlasDirectory,
-  logFieldsOf,
-  registryFor,
-} from '@dltech/atlas-harness'
+import { toThreadId } from '@dltech/atlas-core'
+import { JsonlLog, SystemClock, atlasDirectory, registryFor } from '@dltech/atlas-harness'
 
 import { EServeEnv } from './serve-config'
+import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'
 
 /**
  * A serve that fails before its session exists has no container to resolve a LogPort out of, so

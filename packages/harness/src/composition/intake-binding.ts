@@ -4,7 +4,6 @@ import {
   EServiceStatus,
   type EventLogPort,
   type IdPort,
-  type LogPort,
 } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
@@ -14,6 +13,7 @@ import type { PendingQueues } from '../pending'
 import type { ServiceRegistryPort } from '../services/service-registry'
 import type { ShellRegistryPort } from '../shells/shell-registry'
 import { teardownSession, type TeardownSource } from './session-teardown'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export function bindIntake<Command>(args: {
   pending: PendingQueues<Command>

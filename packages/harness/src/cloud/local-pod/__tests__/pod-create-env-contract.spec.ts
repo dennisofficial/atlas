@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ATLAS_TELEMETRY_IDENTITY_ENV } from '@dltech/atlas-core'
-
 import {
   EServeEnv,
   FORBIDDEN_POD_ENV_KEYS,
@@ -10,6 +8,7 @@ import {
 } from '@dltech/atlas-wire'
 
 import { DEFAULT_POD_IMAGE, podCreateBody, type PodCreateArgs } from '../pod-create'
+import { ATLAS_TELEMETRY_IDENTITY_ENV } from '@dltech/atlas-observability'
 
 const TELEMETRY_ID = '3f2b8c1e-6a4d-4e0f-9b7a-2c5d8e1f0a3b'
 

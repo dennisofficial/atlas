@@ -4,6 +4,7 @@ export type Lease = {
   holderId: string | null
   renewedAt: string
   ttlMs: number
+  wantsHolder: boolean
 }
 
 export type LeaseRefusal = { kind: 'stale-epoch'; current: number } | { kind: 'lease-expired' }
@@ -25,13 +26,15 @@ export const grant = (params: {
   holderId: params.holderId,
   renewedAt: params.now,
   ttlMs: params.ttlMs,
+  wantsHolder: false,
 })
 
-export const revoke = (params: { lease: Lease; now: string }): Lease => ({
+export const revoke = (params: { lease: Lease; wantsHolder: boolean; now: string }): Lease => ({
   ...params.lease,
   epoch: params.lease.epoch + 1,
   holderId: null,
   renewedAt: params.now,
+  wantsHolder: params.wantsHolder,
 })
 
 export function renew(params: {

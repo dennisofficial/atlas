@@ -17,7 +17,6 @@ export const NO_UNDO = 'no undo'
 export enum ERewindVerb {
   ToHere = 'to-here',
   SummariseUpTo = 'summarise-up-to',
-  SummariseFrom = 'summarise-from',
   Fork = 'fork',
 }
 
@@ -89,9 +88,6 @@ const saidAfter = (args: { points: readonly RewindPoint[]; index: number }): num
 const saidBefore = (args: { points: readonly RewindPoint[]; index: number }): number =>
   saidIn({ points: args.points, from: 0, to: args.index })
 
-const saidFrom = (args: { points: readonly RewindPoint[]; index: number }): number =>
-  saidIn({ points: args.points, from: args.index, to: args.points.length })
-
 const saidThrough = (args: { points: readonly RewindPoint[]; index: number }): number =>
   saidIn({ points: args.points, from: 0, to: args.index + 1 })
 
@@ -104,7 +100,6 @@ export function verbsFor(args: { state: RewindState }): readonly ERewindVerb[] {
   return [
     ERewindVerb.ToHere,
     ...(saidBefore({ points, index }) > 0 ? [ERewindVerb.SummariseUpTo] : []),
-    ...(saidFrom({ points, index }) > 1 ? [ERewindVerb.SummariseFrom] : []),
     ERewindVerb.Fork,
   ]
 }
@@ -156,7 +151,6 @@ export function messagesAffected(args: { state: RewindState; verb: ERewindVerb }
   const { points, index } = args.state
 
   if (args.verb === ERewindVerb.SummariseUpTo) return saidBefore({ points, index })
-  if (args.verb === ERewindVerb.SummariseFrom) return saidFrom({ points, index })
 
   return saidAfter({ points, index })
 }
@@ -190,7 +184,6 @@ export function pointConsequence(args: { state: RewindState; index: number }): s
 export const VERB_LABEL: Readonly<Record<ERewindVerb, string>> = {
   [ERewindVerb.ToHere]: 'rewind to here',
   [ERewindVerb.SummariseUpTo]: 'summarise up to here',
-  [ERewindVerb.SummariseFrom]: 'summarise from here',
   [ERewindVerb.Fork]: 'fork from here',
 }
 
@@ -202,7 +195,6 @@ export function verbTally(args: { state: RewindState; verb: ERewindVerb }): stri
 
   const count = messagesAffected(args)
   if (args.verb === ERewindVerb.SummariseUpTo) return `${count} before`
-  if (args.verb === ERewindVerb.SummariseFrom) return `${count} from here`
 
   return `${count} lost`
 }
@@ -230,9 +222,6 @@ export function verbConsequence(args: { state: RewindState; verb: ERewindVerb })
 
   if (args.verb === ERewindVerb.SummariseUpTo)
     return `${plural({ count, noun: 'earlier message' })} and their replies become one summary · deletes rows`
-
-  if (args.verb === ERewindVerb.SummariseFrom)
-    return `${plural({ count, noun: 'message' })} from here and their replies become one summary · deletes rows`
 
   return rewindConsequence({ state: args.state, count })
 }

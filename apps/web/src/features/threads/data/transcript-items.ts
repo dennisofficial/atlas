@@ -51,6 +51,7 @@ export type TranscriptItem = Timed &
         id: string
         text: string
         streaming: boolean
+        fast?: true
       }
     | {
         kind: ETranscriptKind.Thought
@@ -84,7 +85,10 @@ function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
   }
 }
 
-function textItemOf(entry: TranscriptEntry): TranscriptItem | null {
+function textItemOf(
+  entry: TranscriptEntry,
+  fastEvents: ReadonlySet<string>,
+): TranscriptItem | null {
   switch (entry.kind) {
     case EEntryKind.OperatorSaid:
       return userItemOf(entry)
@@ -96,6 +100,7 @@ function textItemOf(entry: TranscriptEntry): TranscriptItem | null {
             id: entry.key,
             text: entry.text,
             streaming: entry.streaming,
+            ...(fastEvents.has(eventIdOf(entry.key)) ? { fast: true as const } : {}),
           }
     case EEntryKind.ModelThought:
       return entry.text.trim().length === 0
@@ -164,13 +169,22 @@ export type DurableTranscript = {
   stamps: ReadonlyMap<string, string>
   spawns: SpawnItem[]
   reports: ReportItem[]
+  fast: ReadonlySet<string>
 }
+
+const fastEventsOf = (events: readonly Event[]): ReadonlySet<string> =>
+  new Set(
+    events.flatMap((event) =>
+      event.type === 'assistant-said' && event.fast === true ? [event.id as string] : [],
+    ),
+  )
 
 export const durableTranscriptOf = (args: { events: readonly Event[] }): DurableTranscript => ({
   entries: durableEntries({ events: args.events }),
   stamps: new Map(args.events.map((event) => [event.id as string, event.at])),
   spawns: spawnItemsOf(args.events),
   reports: [...reportItemsOf(args.events).values()],
+  fast: fastEventsOf(args.events),
 })
 
 function prRunAt(args: { entries: readonly TranscriptEntry[]; index: number }): PrEventEntry[] {
@@ -201,7 +215,7 @@ export function transcriptViewOf(args: {
     thinking: EThinkingVisibility.Stream,
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
   })
-  const { stamps } = args.durable
+  const { stamps, fast: fastEvents } = args.durable
   const pool = new Map(args.durable.spawns.map((spawn) => [spawn.agentId, spawn]))
   const rows: TranscriptRow[] = []
   let index = 0
@@ -213,7 +227,7 @@ export function transcriptViewOf(args: {
     const found =
       entry.kind === EEntryKind.ToolsRan
         ? rowsOfTools({ key: entry.key, calls: entry.run.calls, pool })
-        : [run.length > 0 ? prNoticeItemOf(run) : textItemOf(entry)].flatMap((item) =>
+        : [run.length > 0 ? prNoticeItemOf(run) : textItemOf(entry, fastEvents)].flatMap((item) =>
             item === null ? [] : [item],
           )
     for (const row of found) rows.push(stamped({ row, at: atOf({ row, stamps }) }))

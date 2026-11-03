@@ -17,7 +17,7 @@ import type { ThreadCheckout, ThreadWorktree } from './sessions/thread-places'
 
 export type SupervisedAgent = { spawnedBy: ThreadId; type: string }
 
-export type ThreadModel = { ref: string; effort: string }
+export type ThreadModel = { ref: string; effort: string; fast?: boolean | undefined }
 
 export type ThreadSubscriptionSummary = { provider: string; target: unknown; status: string }
 

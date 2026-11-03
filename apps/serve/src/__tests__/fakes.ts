@@ -47,10 +47,16 @@ export type FakeServeApp = ServeApp & {
   closed: () => boolean
   adoptions: () => readonly ThreadId[]
   renames: readonly { threadId: ThreadId; title: string }[]
-  chosenModels: readonly { threadId: ThreadId; model: { ref: string; effort: string } }[]
+  chosenModels: readonly {
+    threadId: ThreadId
+    model: { ref: string; effort: string; fast?: boolean | undefined }
+  }[]
   fireRename: (args: { threadId: ThreadId; title: string }) => void
   fireTitling: (args: { threadId: ThreadId; titling: boolean }) => void
-  fireModelChosen: (args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void
+  fireModelChosen: (args: {
+    threadId: ThreadId
+    model: { ref: string; effort: string; fast?: boolean | undefined }
+  }) => void
 }
 
 const fakeLedger = (): Pick<TurnLedgerPort, 'forThread' | 'forThreadTree'> => ({
@@ -62,10 +68,16 @@ const fakeThreadWrites = (args: {
   threadId: ThreadId
   appended: EventDraft[]
   renames: { threadId: ThreadId; title: string }[]
-  chosenModels: { threadId: ThreadId; model: { ref: string; effort: string } }[]
+  chosenModels: {
+    threadId: ThreadId
+    model: { ref: string; effort: string; fast?: boolean | undefined }
+  }[]
   renameListeners: Set<(args: { threadId: ThreadId; title: string }) => void>
   modelChosenListeners: Set<
-    (args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void
+    (args: {
+      threadId: ThreadId
+      model: { ref: string; effort: string; fast?: boolean | undefined }
+    }) => void
   >
 }): ServeApp['threads'] => ({
   find: async (): Promise<ThreadSummary | undefined> => summaryOf(args.threadId),
@@ -82,7 +94,7 @@ const fakeThreadWrites = (args: {
   },
   chooseModel: async (given: {
     threadId: ThreadId
-    model: { ref: string; effort: string }
+    model: { ref: string; effort: string; fast?: boolean | undefined }
   }): Promise<void> => {
     args.chosenModels.push(given)
     for (const listener of [...args.modelChosenListeners]) listener(given)
@@ -309,10 +321,16 @@ export function fakeServeApp(args: {
   let closed = false
   const adoptions: ThreadId[] = []
   const renames: { threadId: ThreadId; title: string }[] = []
-  const chosenModels: { threadId: ThreadId; model: { ref: string; effort: string } }[] = []
+  const chosenModels: {
+    threadId: ThreadId
+    model: { ref: string; effort: string; fast?: boolean | undefined }
+  }[] = []
   const renameListeners = new Set<(args: { threadId: ThreadId; title: string }) => void>()
   const modelChosenListeners = new Set<
-    (args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void
+    (args: {
+      threadId: ThreadId
+      model: { ref: string; effort: string; fast?: boolean | undefined }
+    }) => void
   >()
   const titlingListeners = new Set<(titling: boolean) => void>()
   let titlingNow = false

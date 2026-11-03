@@ -121,7 +121,7 @@ describe('serve boot hydration and resume', () => {
       trpcQueryUrl({
         controlPlaneUrl,
         procedure: 'threadEvents.read',
-        input: { threadId, own: true },
+        input: { threadId, fromSeq: 1, own: true },
       }),
     ])
   })

@@ -19,6 +19,7 @@ import type {
 import type {
   AgentRegistryPort,
   ExpandContext,
+  SkillRegistryPort,
   SubscriptionRegistryPort,
   DeltaChannel,
   OperatorInputPort,
@@ -137,8 +138,9 @@ export type ServeRewind = {
  */
 export type ServeModelBridge = {
   effort: () => string
+  fast: () => boolean
   identity?: (() => { providerId: string; modelId: string }) | undefined
-  select: (next: { ref: string; effort: string }) => void
+  select: (next: { ref: string; effort: string; fast?: boolean | undefined }) => void
 }
 
 export type ServeAgentSteer = Pick<AgentRegistryPort, 'say' | 'resume' | 'stop' | 'wake'> &
@@ -240,6 +242,8 @@ export type ServeApp = {
   prStates?: ServePrStates | undefined
   subscriptions?: ServeSubscriptions | undefined
   commands?: ServeCommands | undefined
+  /** The live skill registry; absent in fakes, where no skill roots exist to reload. */
+  skillRegistry?: SkillRegistryPort | undefined
   mcp?: ServeMcp | undefined
   expandContext?: ExpandContext | undefined
   /** Absent in a fake without registries: a drain pause halts the parent's turn only. */
@@ -272,7 +276,7 @@ export type ServeComposeArgs = {
   token: string
   clientVersion: string
   env: Record<string, string | undefined>
-  model: { ref: string; effort?: string | undefined } | undefined
+  model: { ref: string; effort?: string | undefined; fast?: boolean | undefined } | undefined
   notice: NoticePort
   /**
    * The repo's normalized origin identity (`github.com/org/repo`) from the workspace spec, from

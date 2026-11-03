@@ -8,6 +8,8 @@ import {
   type ModelCost,
 } from '@dltech/atlas-core'
 
+import { offersFastMode } from './fast-models'
+
 export { OPENAI_COMPLETIONS_API }
 
 export const INFERENCE_CATALOGUE_PROVIDER_ID = 'inference'
@@ -108,5 +110,6 @@ export function toModelCard(row: GeneratedCard): ModelCard | undefined {
     ...(row.maxOutputTokens === undefined ? {} : { maxOutputTokens: row.maxOutputTokens }),
     ...(cost === undefined ? {} : { cost }),
     ...(effort === undefined ? {} : { effort }),
+    ...(offersFastMode(row.ref) ? { fast: true } : {}),
   }
 }

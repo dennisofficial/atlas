@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  ECallFailure,
+  ECallStatus,
   EDaemonErrorKind,
+  EExecOutcome,
+  EProtection,
+  ERunState,
   ackFrameSchema,
   daemonErrorFrameSchema,
   daemonFrameSchema,
@@ -18,6 +23,10 @@ import {
   v2SessionListInputSchema,
   v2SessionPostInputSchema,
   v2SessionStatusInputSchema,
+  type DaemonFrame,
+  type HealthFrame,
+  type ResultFrame,
+  type RunReplyFrame,
 } from '../index'
 
 const roundTrips = <T>(schema: { parse: (value: unknown) => T }, value: unknown): T =>
@@ -33,7 +42,7 @@ describe('agent-host to daemon frames', () => {
       kind: 'run',
       key: 'run-1:call-1',
       epoch: 5,
-      op: { tool: 'bash', input: { command: 'ls' } },
+      op: { op: 'exec', argv: ['ls'] },
     } as const
     expect(roundTrips(hostFrameSchema, run)).toEqual(run)
     expect(roundTrips(runFrameSchema, run)).toEqual(run)
@@ -57,7 +66,7 @@ describe('agent-host to daemon frames', () => {
         key: 'k',
         epoch: 1,
         bootId: 'boot-7',
-        op: { tool: 'bash' },
+        op: { op: 'stat', path: '/work' },
       }).success,
     ).toBe(false)
     expect(hostFrameSchema.safeParse({ kind: 'collect', key: 'k' }).success).toBe(false)
@@ -77,27 +86,61 @@ describe('daemon to agent-host frames', () => {
     expect(roundTrips(daemonFrameSchema, output)).toEqual(output)
     expect(roundTrips(outputChunkFrameSchema, output)).toEqual(output)
 
-    const running = { kind: 'run-reply', key: 'run-1:call-1', state: 'running' } as const
+    const running: RunReplyFrame = {
+      kind: 'run-reply',
+      key: 'run-1:call-1',
+      state: ERunState.Running,
+    }
     expect(roundTrips(daemonFrameSchema, running)).toEqual(running)
     expect(roundTrips(runReplyFrameSchema, running)).toEqual(running)
 
-    const result = {
+    const result: ResultFrame = {
       kind: 'result',
       key: 'run-1:call-1',
-      result: { exitCode: 0, output: 'done' },
-    } as const
+      result: {
+        status: ECallStatus.Ok,
+        op: 'exec',
+        value: { exitCode: 0, signal: null, outcome: EExecOutcome.Exited, outputBytes: 4 },
+      },
+    }
     expect(roundTrips(daemonFrameSchema, result)).toEqual(result)
     expect(roundTrips(resultFrameSchema, result)).toEqual(result)
 
-    const health = { kind: 'health', bootId: 'boot-7', version: '0.1.0' } as const
+    const failed: ResultFrame = {
+      kind: 'result',
+      key: 'run-1:call-2',
+      result: {
+        status: ECallStatus.Failed,
+        op: 'readFile',
+        error: { code: ECallFailure.NotFound, message: 'ENOENT' },
+      },
+    }
+    expect(roundTrips(resultFrameSchema, failed)).toEqual(failed)
+    expect(
+      resultFrameSchema.safeParse({
+        kind: 'result',
+        key: 'k',
+        result: { status: ECallStatus.Ok, op: 'readFile', value: 42 },
+      }).success,
+    ).toBe(false)
+
+    const health: HealthFrame = {
+      kind: 'health',
+      bootId: 'boot-7',
+      version: '0.1.0',
+      protection: {
+        cgroups: { status: EProtection.Applied },
+        oomScoreAdj: { status: EProtection.Failed, error: 'EACCES' },
+      },
+    }
     expect(roundTrips(daemonFrameSchema, health)).toEqual(health)
     expect(roundTrips(healthFrameSchema, health)).toEqual(health)
 
     const bootChanged = {
       kind: 'error',
       key: 'run-1:call-1',
-      errorKind: EDaemonErrorKind.BootChanged,
-      message: 'the sandbox restarted',
+      errorKind: EDaemonErrorKind.NotDone,
+      message: 'still running',
     } as const
     expect(roundTrips(daemonFrameSchema, bootChanged)).toEqual(bootChanged)
     expect(roundTrips(daemonErrorFrameSchema, bootChanged)).toEqual(bootChanged)
@@ -109,7 +152,19 @@ describe('daemon to agent-host frames', () => {
     } as const
     expect(roundTrips(daemonFrameSchema, staleEpoch)).toEqual(staleEpoch)
 
-    expect(roundTrips(daemonFrameSchema, { kind: 'pong' })).toEqual({ kind: 'pong' })
+    expect(roundTrips(daemonFrameSchema, { kind: 'pong', runs: 2 })).toEqual({
+      kind: 'pong',
+      runs: 2,
+    })
+    expect(roundTrips(daemonFrameSchema, { kind: 'acked', key: 'k' })).toEqual({
+      kind: 'acked',
+      key: 'k',
+    })
+    const oom: DaemonFrame = { kind: 'event', event: { type: 'exec.oom-kill', key: 'k' } }
+    expect(roundTrips(daemonFrameSchema, oom)).toEqual(oom)
+    expect(daemonFrameSchema.safeParse({ kind: 'event', event: { type: 'nope' } }).success).toBe(
+      false,
+    )
   })
 
   it('rejects an unknown error kind, a negative offset and non-base64 bytes', () => {

@@ -28,6 +28,27 @@ describe('parked-cloud pr-event forwarding', () => {
     expect(sent[0]?.text).toContain('hello')
   })
 
+  it('lists the threads once for a burst of events', async () => {
+    const { forwarder, sent, listings } = rig({
+      summaries: [
+        summary({
+          id: CLOUD_THREAD,
+          location: EExecutionLocation.Cloud,
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 42 }],
+        }),
+      ],
+      sandboxState: ECloudSandboxState.Parked,
+      activeThreadId: LOCAL_THREAD,
+    })
+
+    await Promise.all(
+      Array.from({ length: 20 }, (_, index) => forwarder.onPrEvent(frame({ id: `evt_${index}` }))),
+    )
+
+    expect(listings).toEqual(['project'])
+    expect(sent).toHaveLength(20)
+  })
+
   it('never forwards to a running sandbox — its own session consumes the frame natively', async () => {
     const { forwarder, sent } = rig({
       summaries: [

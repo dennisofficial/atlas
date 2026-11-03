@@ -14,10 +14,9 @@ import {
   type OnToolOutput,
   type WorkspacePort,
   type HookOutcome,
-  type LogPort,
 } from '@dltech/atlas-core'
 
-import { logFieldsOf } from '../logging/log-fields'
+import { logFieldsOf } from '@dltech/atlas-observability'
 import { withinBudget, type OnHookMishap } from '../hooks/budget'
 import type { HookChain } from '../hooks/registry'
 import type { OnceLedger } from '../loop/once-ledger.port'
@@ -31,6 +30,13 @@ import {
 import { NO_QUALITY_STAGE, type QualityStagePort } from './quality-stage'
 import type { ToolRegistry } from './registry'
 import { resultDraft } from './tool-result-draft'
+import {
+  ESpan,
+  ESpanOutcome,
+  spanWith,
+  type LogPort,
+  type TracePort,
+} from '@dltech/atlas-observability'
 
 export type DispatchableCall = {
   callId: CallId
@@ -61,6 +67,12 @@ const messageOf = (error: unknown): string =>
 
 const NO_OUTCOME: HookOutcome = {}
 
+const outcomeOf = (drafts: readonly EventDraft[]): ESpanOutcome => {
+  if (drafts.some((draft) => draft.type === 'tool-denied')) return ESpanOutcome.Denied
+  const failed = drafts.some((draft) => draft.type === 'tool-result' && draft.error !== undefined)
+  return failed ? ESpanOutcome.Error : ESpanOutcome.Ok
+}
+
 export class HookedToolDispatcher extends ToolDispatcher {
   private readonly registry: ToolRegistry
   private readonly hooks: HookChain
@@ -68,6 +80,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
   private readonly onMishap: OnHookMishap | undefined
   private readonly logPort: LogPort | undefined
   private readonly quality: QualityStagePort
+  private readonly trace: TracePort | undefined
 
   constructor(args: {
     registry: ToolRegistry
@@ -76,6 +89,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
     onMishap?: OnHookMishap | undefined
     logPort?: LogPort | undefined
     quality?: QualityStagePort | undefined
+    trace?: TracePort | undefined
   }) {
     super()
     this.registry = args.registry
@@ -84,9 +98,23 @@ export class HookedToolDispatcher extends ToolDispatcher {
     this.onMishap = args.onMishap ?? args.hooks.bounds.onMishap
     this.logPort = args.logPort
     this.quality = args.quality ?? NO_QUALITY_STAGE
+    this.trace = args.trace
   }
 
-  async dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
+  dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
+    const { call } = args
+    return spanWith(this.trace, {
+      name: ESpan.Tool,
+      fields: { threadId: call.threadId, runId: call.runId, callId: call.callId, tool: call.name },
+      run: async (span) => {
+        const drafts = await this.dispatchTraced(args)
+        span.set({ outcome: outcomeOf(drafts) })
+        return drafts
+      },
+    })
+  }
+
+  private async dispatchTraced(args: DispatchArgs): Promise<readonly EventDraft[]> {
     const {
       call,
       signal,
@@ -116,15 +144,19 @@ export class HookedToolDispatcher extends ToolDispatcher {
 
     const { outcome, drafts } = resolveBeforeTool({
       call: candidate,
-      outcomes: await consultBeforeToolHooks({
-        hooks: this.hooks,
-        onMishap: this.onMishap,
-        call: candidate,
-        projectDirectory,
-        events,
-        signal,
-        onceLedger: args.onceLedger,
-        runId: call.runId,
+      outcomes: await spanWith(this.trace, {
+        name: ESpan.ToolHooks,
+        run: () =>
+          consultBeforeToolHooks({
+            hooks: this.hooks,
+            onMishap: this.onMishap,
+            call: candidate,
+            projectDirectory,
+            events,
+            signal,
+            onceLedger: args.onceLedger,
+            runId: call.runId,
+          }),
       }),
     })
 
@@ -148,26 +180,38 @@ export class HookedToolDispatcher extends ToolDispatcher {
         markerFailureDraft({ callId: call.callId, name: call.name, failure: markerFailure }),
       ]
     }
-    const result = await this.invokeTool({
-      definition,
-      call: allowed,
-      signal,
-      idempotencyKey,
-      projectDirectory,
-      homeDirectory,
-      activeWorktree,
-      threadId: call.threadId,
-      onOutput,
-      captureFileChanges: this.quality.captureEnabled({ threadId: call.threadId }),
+    const result = await spanWith(this.trace, {
+      name: ESpan.ToolInvoke,
+      run: () =>
+        this.invokeTool({
+          definition,
+          call: allowed,
+          signal,
+          idempotencyKey,
+          projectDirectory,
+          homeDirectory,
+          activeWorktree,
+          threadId: call.threadId,
+          onOutput,
+          captureFileChanges: this.quality.captureEnabled({ threadId: call.threadId }),
+        }),
     })
 
-    const qualityOutcome = await this.quality.review({
-      call: allowed,
-      runId: call.runId,
-      result,
-      events,
-      projectDirectory,
-      signal,
+    const qualityOutcome = await spanWith(this.trace, {
+      name: ESpan.ToolQuality,
+      run: () =>
+        this.quality.review({
+          call: allowed,
+          runId: call.runId,
+          result,
+          events,
+          projectDirectory,
+          signal,
+        }),
+    })
+    const afterTool = await spanWith(this.trace, {
+      name: ESpan.ToolAfterHooks,
+      run: () => this.observeAfterTool({ call: allowed, result, projectDirectory, signal }),
     })
 
     return [
@@ -178,7 +222,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
         interrupted: signal.aborted,
         qualityReviews: qualityOutcome.reviews,
       }),
-      ...(await this.observeAfterTool({ call: allowed, result, projectDirectory, signal })),
+      ...afterTool,
       ...(qualityOutcome.nudge === undefined ? [] : [qualityOutcome.nudge]),
     ]
   }

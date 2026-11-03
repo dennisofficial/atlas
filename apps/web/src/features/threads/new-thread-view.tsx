@@ -46,6 +46,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       models: picker.options.models,
       personalId: picker.personalId,
       personalEffort: picker.personalEffort,
+      personalFast: picker.personalFast,
     })
   const images = useComposerAttachments()
   const drafts = useComposerDraft({

@@ -1,6 +1,7 @@
-import type { ClockPort, ModelUsage, RunId, TelemetryPort, ThreadId } from '@dltech/atlas-core'
+import type { ClockPort, ModelUsage, RunId, ThreadId } from '@dltech/atlas-core'
 
 import type { TurnLedgerPort } from './turn-ledger.port'
+import type { TelemetryPort } from '@dltech/atlas-observability'
 
 export type TurnLedgerDeps = {
   ledger?: TurnLedgerPort | undefined

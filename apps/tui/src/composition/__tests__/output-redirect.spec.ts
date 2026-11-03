@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ELogSeverity, type LogEntry } from '@dltech/atlas-core'
-
 import { JsonlLog, registryFor, SystemClock } from '@dltech/atlas-harness'
 import { installOutputRedirect } from '../output-redirect'
+import { ELogSeverity, type LogEntry } from '@dltech/atlas-observability'
 
 function recordingLog(): { log: JsonlLog; entries: LogEntry[] } {
   const entries: LogEntry[] = []

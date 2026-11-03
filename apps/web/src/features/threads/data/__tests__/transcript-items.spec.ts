@@ -284,6 +284,26 @@ describe('transcriptViewOf', () => {
       at: '2026-10-22T10:00:02.000Z',
     })
   })
+
+  it('marks an agent item fast when its assistant-said event was fast', () => {
+    const view = viewOf({
+      events: [
+        said(1, 'hi'),
+        wire(2, {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'done' }],
+          fast: true,
+        }),
+        wire(3, {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'standard' }],
+        }),
+      ],
+    })
+    expect(view.items[1]).toMatchObject({ kind: ETranscriptKind.Agent, fast: true })
+    expect(view.items[2]).toMatchObject({ kind: ETranscriptKind.Agent })
+    expect(view.items[2]?.kind === ETranscriptKind.Agent ? view.items[2].fast : 'x').toBeUndefined()
+  })
 })
 
 describe('tool titles', () => {

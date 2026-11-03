@@ -7,7 +7,6 @@ import {
   executionLocationOf,
   runnerOf,
   toThreadId,
-  type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 import { MAX_POD_EVENTS_PER_FLUSH, type PodEvent, type PodEventsReply } from '@dltech/atlas-wire'
@@ -17,6 +16,7 @@ import { sessionsDirectory, threadMetaFile } from '../store/sessions/paths'
 import { registryFor } from '../store/sessions/registry'
 import { CloudError } from './cloud-transport'
 import { podEventOf } from './pod-event'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export const UPLOAD_STAMP_NAME = '.postgres-upload.json'
 

@@ -3,6 +3,7 @@ export const glyph = {
   block: '⏺',
   result: '⎿',
   thinking: '✻',
+  fast: '↯',
   swap: '⤿',
   selected: '❯',
   marker: '▸',

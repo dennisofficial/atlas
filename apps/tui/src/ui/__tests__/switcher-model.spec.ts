@@ -23,6 +23,7 @@ import {
   selectedCard,
   shownCount,
   switcherRows,
+  toggleFast,
   type SwitcherProvider,
   type SwitcherRow,
   type SwitcherState,
@@ -39,6 +40,7 @@ const card = (args: {
   modelId: string
   effort?: EffortMap | undefined
   cost?: ModelCost | undefined
+  fast?: boolean | undefined
 }): ModelCard => ({
   ref: { providerId: args.providerId, modelId: args.modelId },
   label: args.modelId,
@@ -47,6 +49,7 @@ const card = (args: {
   imageTier: EImageTier.HighResolution,
   ...(args.effort === undefined ? {} : { effort: args.effort }),
   ...(args.cost === undefined ? {} : { cost: args.cost }),
+  ...(args.fast === true ? { fast: true as const } : {}),
 })
 
 const PROVIDERS: readonly SwitcherProvider[] = [
@@ -54,7 +57,7 @@ const PROVIDERS: readonly SwitcherProvider[] = [
     id: 'anthropic',
     label: 'Claude Plan',
     cards: [
-      card({ providerId: 'anthropic', modelId: 'a', effort: LADDER }),
+      card({ providerId: 'anthropic', modelId: 'a', effort: LADDER, fast: true }),
       card({ providerId: 'anthropic', modelId: 'b', effort: LADDER }),
       card({
         providerId: 'anthropic',
@@ -78,7 +81,11 @@ const ALL_KEYED = new Set(['anthropic', 'openai'])
 const rowsOf = (availability?: ReadonlySet<string>): readonly SwitcherRow[] =>
   switcherRows({ providers: PROVIDERS, ...(availability === undefined ? {} : { availability }) })
 
-const at = (index: number, effort: EEffort = EEffort.Medium): SwitcherState => ({ index, effort })
+const at = (index: number, effort: EEffort = EEffort.Medium, fast = false): SwitcherState => ({
+  index,
+  effort,
+  fast,
+})
 
 describe('laying the catalogue out as rows', () => {
   it('heads each provider before the models it serves', () => {
@@ -140,8 +147,9 @@ describe('anchoring after the rows change', () => {
       rows,
       active: { providerId: 'openai', modelId: 'd' },
       effort: EEffort.High,
+      fast: false,
     })
-    expect(state).toEqual({ index: 1, effort: EEffort.High })
+    expect(state).toEqual({ index: 1, effort: EEffort.High, fast: false })
   })
 
   it('falls to the first pickable row when the held model was filtered away', () => {
@@ -150,15 +158,39 @@ describe('anchoring after the rows change', () => {
       rows,
       active: { providerId: 'anthropic', modelId: 'a' },
       effort: EEffort.High,
+      fast: false,
     })
     expect(state.index).toBe(1)
   })
 
   it('holds at the first row when the filter matched nothing', () => {
-    expect(anchorOn({ rows: [], active: undefined, effort: EEffort.Low })).toEqual({
+    expect(anchorOn({ rows: [], active: undefined, effort: EEffort.Low, fast: false })).toEqual({
       index: 0,
       effort: EEffort.Low,
+      fast: false,
     })
+  })
+
+  it('clears a held fast the landing model does not offer', () => {
+    const rows = rowsOf(ALL_KEYED)
+    const state = anchorOn({
+      rows,
+      active: { providerId: 'openai', modelId: 'd' },
+      effort: EEffort.Medium,
+      fast: true,
+    })
+    expect(state.fast).toBe(false)
+  })
+
+  it('keeps a held fast when the landing model offers it', () => {
+    const rows = rowsOf(ALL_KEYED)
+    const state = anchorOn({
+      rows,
+      active: { providerId: 'anthropic', modelId: 'a' },
+      effort: EEffort.Medium,
+      fast: true,
+    })
+    expect(state.fast).toBe(true)
   })
 })
 
@@ -190,7 +222,29 @@ describe('opening the switcher', () => {
       effort: EEffort.High,
       availability: ALL_KEYED,
     })
-    expect(state).toEqual({ index: 3, effort: EEffort.Low })
+    expect(state).toEqual({ index: 3, effort: EEffort.Low, fast: false })
+  })
+
+  it('anchors the fast toggle on the model the session runs fast', () => {
+    const state = openSwitcher({
+      providers: PROVIDERS,
+      active: { providerId: 'anthropic', modelId: 'a' },
+      effort: EEffort.Medium,
+      fast: true,
+      availability: ALL_KEYED,
+    })
+    expect(state.fast).toBe(true)
+  })
+
+  it('never opens fast on a model that does not offer it', () => {
+    const state = openSwitcher({
+      providers: PROVIDERS,
+      active: { providerId: 'anthropic', modelId: 'b' },
+      effort: EEffort.Medium,
+      fast: true,
+      availability: ALL_KEYED,
+    })
+    expect(state.fast).toBe(false)
   })
 })
 
@@ -239,7 +293,7 @@ describe('moving the selection', () => {
     })
     expect(state.index).toBe(0)
     expect(moveSelection({ state, delta: 1, rows: [] }).index).toBe(0)
-    expect(resolve({ state, rows: [] })).toEqual({ ref: null, effort: EEffort.Low })
+    expect(resolve({ state, rows: [] })).toEqual({ ref: null, effort: EEffort.Low, fast: false })
   })
 })
 
@@ -271,12 +325,48 @@ describe('adjusting the effort', () => {
   })
 })
 
+describe('toggling fast mode', () => {
+  it('flips the toggle on a model whose card offers it', () => {
+    const rows = rowsOf(ALL_KEYED)
+    expect(toggleFast({ state: at(1), rows }).fast).toBe(true)
+    expect(toggleFast({ state: at(1, EEffort.Medium, true), rows }).fast).toBe(false)
+  })
+
+  it('is a no-op on a model that does not offer it', () => {
+    const rows = rowsOf(ALL_KEYED)
+    const held = at(2)
+    expect(toggleFast({ state: held, rows })).toBe(held)
+  })
+
+  it('is a no-op while a heading is under the highlight', () => {
+    const rows = rowsOf(ALL_KEYED)
+    const held = at(0)
+    expect(toggleFast({ state: held, rows })).toBe(held)
+  })
+
+  it('does not survive a move to a model without it', () => {
+    const rows = rowsOf(ALL_KEYED)
+    const moved = moveSelection({ state: at(1, EEffort.Medium, true), delta: 1, rows })
+    expect(moved.fast).toBe(false)
+  })
+})
+
 describe('resolving what to apply', () => {
   it('names the highlighted model and the pending rung', () => {
     const rows = rowsOf(ALL_KEYED)
     expect(resolve({ state: at(5, EEffort.High), rows })).toEqual({
       ref: { providerId: 'openai', modelId: 'd' },
       effort: EEffort.High,
+      fast: false,
+    })
+  })
+
+  it('carries the fast toggle into the pick', () => {
+    const rows = rowsOf(ALL_KEYED)
+    expect(resolve({ state: at(1, EEffort.Medium, true), rows })).toEqual({
+      ref: { providerId: 'anthropic', modelId: 'a' },
+      effort: EEffort.Medium,
+      fast: true,
     })
   })
 
@@ -405,20 +495,24 @@ describe('the models pinned to the top', () => {
 describe('naming a row outright', () => {
   it('takes the highlight to the row that was named', () => {
     const rows = rowsOf(ALL_KEYED)
-    const moved = selectAt({ state: { index: 1, effort: EEffort.Medium }, index: 2, rows })
+    const moved = selectAt({
+      state: { index: 1, effort: EEffort.Medium, fast: false },
+      index: 2,
+      rows,
+    })
     expect(moved.index).toBe(2)
   })
 
   it('stays put when the row named is a heading', () => {
     const rows = rowsOf(ALL_KEYED)
-    const held = { index: 1, effort: EEffort.Medium }
+    const held = { index: 1, effort: EEffort.Medium, fast: false }
     expect(selectAt({ state: held, index: 0, rows })).toBe(held)
   })
 
   it('stays put when the row named has no key behind it', () => {
     const rows = rowsOf(new Set(['anthropic']))
     const openai = rows.findIndex((row) => row.kind === ESwitcherRow.Model && !row.available)
-    const held = { index: 1, effort: EEffort.Medium }
+    const held = { index: 1, effort: EEffort.Medium, fast: false }
     expect(selectAt({ state: held, index: openai, rows })).toBe(held)
   })
 
@@ -427,7 +521,11 @@ describe('naming a row outright', () => {
     const minimal = rows.findIndex(
       (row) => row.kind === ESwitcherRow.Model && row.card.label === 'c',
     )
-    const landed = selectAt({ state: { index: 1, effort: EEffort.High }, index: minimal, rows })
+    const landed = selectAt({
+      state: { index: 1, effort: EEffort.High, fast: false },
+      index: minimal,
+      rows,
+    })
     expect(landed.effort).not.toBe(EEffort.High)
   })
 })

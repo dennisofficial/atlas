@@ -15,6 +15,19 @@ import {
   threadSelection,
 } from '@dltech/atlas-harness'
 
+/**
+ * The provider refused a fast request and the harness already fell the selection back to standard
+ * speed — Claude Code does the same. The notice says so in the words the setting's description uses.
+ */
+const FAST_REFUSED_NOTICE_KEY = 'model-fast-refused'
+
+const fastRefusedNotice = (): { key: string; tone: ENoticeTone; ttlMs: number; text: string } => ({
+  key: FAST_REFUSED_NOTICE_KEY,
+  tone: ENoticeTone.Warn,
+  ttlMs: NOTICE_WARN_MS,
+  text: 'Fast mode is off for this conversation — the provider refused it. Continuing at standard speed.',
+})
+
 export type ThreadModelControl = {
   selection: ModelSelection
   fallback: ModelSelection
@@ -103,6 +116,15 @@ export function useThreadModel(args: {
   }, [app, threads, threadId])
 
   useEffect(() => {
+    return app.model.onFastRefused((refused) => {
+      setSelection(refused)
+      notify(fastRefusedNotice())
+      if (!started || app.modelPinned) return
+      void threads.chooseModel({ threadId, model: storedModel(refused) }).catch(() => undefined)
+    })
+  }, [app, threads, started, threadId])
+
+  useEffect(() => {
     const opening = !wasStarted.current && started
     wasStarted.current = started
     if (!opening) return
@@ -122,7 +144,7 @@ export function useThreadModel(args: {
     ({ choice, target }: { choice: SwitcherChoice; target: SwitcherTarget }) => {
       if (choice.ref === null) return
 
-      const next: ModelSelection = { ref: choice.ref, effort: choice.effort }
+      const next: ModelSelection = { ref: choice.ref, effort: choice.effort, fast: choice.fast }
 
       if (target.scope === EModelScope.Setting) {
         const written = rememberSettingModel({ settings: app.settings, target, selection: next })

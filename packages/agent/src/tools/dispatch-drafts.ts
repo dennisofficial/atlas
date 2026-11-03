@@ -1,8 +1,9 @@
-import type { CallId, EventDraft, LogPort } from '@dltech/atlas-core'
+import type { CallId, EventDraft } from '@dltech/atlas-core'
 
-import { logFieldsOf } from '../logging/log-fields'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
 import type { DispatchableCall } from './dispatch'
+import type { LogPort } from '@dltech/atlas-observability'
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)

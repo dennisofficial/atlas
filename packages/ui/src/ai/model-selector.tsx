@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '#components/popover'
 
 import {
   EffortMenu,
+  FastToggle,
   FilterChips,
   ModelRow,
   NoProvidersState,
@@ -66,6 +67,8 @@ export interface ModelSelectorProps {
   onValueChange?: (id: string) => void
   effort?: EEffort
   onEffortChange?: (effort: EEffort) => void
+  fast?: boolean
+  onFastChange?: (fast: boolean) => void
   showRate?: boolean
   pinned?: string[]
   onPinnedChange?: (ids: string[]) => void
@@ -88,6 +91,8 @@ export function ModelSelector({
   onValueChange,
   effort,
   onEffortChange,
+  fast = false,
+  onFastChange,
   showRate = true,
   pinned = [],
   onPinnedChange,
@@ -138,7 +143,6 @@ export function ModelSelector({
   const groups = groupsFor({ nextQuery: query, nextFilters: filters })
   const filterOptions = availableFilters(models)
   const pinnedIds = new Set(groups.pinned.map((model) => model.id))
-  const canPin = onPinnedChange !== undefined
   const hasNoProviders = groups.state === EModelSelectorState.NoProviders
   const routedProviders = new Set(models.flatMap((model) => (model.route ? [model.provider] : [])))
   const effortOptions = current?.efforts ?? DEFAULT_EFFORTS
@@ -161,7 +165,6 @@ export function ModelSelector({
     setFilters(next)
     setHighlighted(firstItemValue(groupsFor({ nextQuery: query, nextFilters: next })) ?? '')
   }
-  const handleShowAll = (provider: string) => setExpanded([...expanded, provider])
   const handleModelSelect = (id: string) => {
     onValueChange?.(id)
     handleOpenChange(false)
@@ -175,7 +178,6 @@ export function ModelSelector({
     handleOpenChange(false)
   }
   const handleTogglePin = (id: string) => onPinnedChange?.(togglePinned({ pinned, id }))
-  const handleEffortChange = (next: EEffort) => onEffortChange?.(next)
 
   const renderRow = (model: ModelOption, showRoute: boolean) => (
     <ModelRow
@@ -183,7 +185,7 @@ export function ModelSelector({
       model={model}
       checked={model.id === current?.id}
       pinned={pinnedIds.has(model.id)}
-      canPin={canPin}
+      canPin={onPinnedChange !== undefined}
       showRate={showRate}
       showRoute={showRoute}
       onSelect={handleModelSelect}
@@ -257,7 +259,7 @@ export function ModelSelector({
                           <ShowAllRow
                             provider={group.provider}
                             total={group.total}
-                            onShowAll={handleShowAll}
+                            onShowAll={(provider) => setExpanded([...expanded, provider])}
                           />
                         ) : null}
                       </>
@@ -287,8 +289,11 @@ export function ModelSelector({
       {effort && current && effortOptions.length > 0 ? (
         <>
           <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border" />
-          <EffortMenu efforts={effortOptions} value={effort} onChange={handleEffortChange} />
+          <EffortMenu efforts={effortOptions} value={effort} onChange={onEffortChange} />
         </>
+      ) : null}
+      {current?.fast === true && onFastChange !== undefined ? (
+        <FastToggle pressed={fast} onToggle={onFastChange} />
       ) : null}
     </>
   )

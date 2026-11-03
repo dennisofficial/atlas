@@ -12,6 +12,7 @@ export const localPodSchema = z.object({
   projectId: z.string().min(1),
   model: z.string().optional(),
   effort: z.string().optional(),
+  fast: z.boolean().optional(),
   title: z.string().optional(),
   archivedAt: z.iso.datetime().nullish(),
   createdAt: z.iso.datetime(),
@@ -24,6 +25,7 @@ export const createPodInputSchema = z.object({
   projectId: z.string().min(1),
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
+  fast: z.boolean().optional(),
 })
 export type CreatePodInput = z.infer<typeof createPodInputSchema>
 

@@ -7,10 +7,10 @@ import {
   type ModelUsage,
   type ProviderIdentity,
   type RunId,
-  type TelemetryPort,
 } from '@dltech/atlas-core'
 
 import type { TurnLedgerDeps, TurnSpendTally } from './turn-spend'
+import type { TelemetryPort } from '@dltech/atlas-observability'
 
 export type { TurnLedgerDeps, TurnSpendTally }
 

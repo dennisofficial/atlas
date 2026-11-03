@@ -274,4 +274,134 @@ describe('mountProjectFiles', () => {
     expect(exclude.split('\n').filter((line) => line.includes('d.env'))).toHaveLength(1)
     expect(execFileSync('git', ['status', '--porcelain'], { cwd: dir }).toString()).toBe('')
   })
+
+  it('decodes a base64 mount to bytes', async () => {
+    const home = tempDir()
+    const bytes = Buffer.from([0, 255, 7, 66])
+    const report = await mountProjectFiles({
+      mounts: [
+        {
+          path: '~/logo/mark.png',
+          contents: bytes.toString('base64'),
+          mode: 0o600,
+          encoding: 'base64',
+        },
+      ],
+      repositoryDir: null,
+      homeDir: home,
+    })
+    expect(report.outcomes).toEqual([{ path: '~/logo/mark.png', state: EFileMountState.Written }])
+    expect(readFileSync(join(home, 'logo/mark.png'))).toEqual(bytes)
+  })
+
+  it('writes an atlas-home mount under the atlas home, not the process home', async () => {
+    const home = tempDir()
+    const atlasHome = tempDir()
+    const report = await mountProjectFiles({
+      mounts: [{ path: '@/skills/commit/SKILL.md', contents: '# commit', mode: 0o600 }],
+      repositoryDir: null,
+      homeDir: home,
+      atlasHomeDir: atlasHome,
+    })
+    expect(report.outcomes).toEqual([
+      { path: '@/skills/commit/SKILL.md', state: EFileMountState.Written },
+    ])
+    expect(readFileSync(join(atlasHome, 'skills/commit/SKILL.md'), 'utf8')).toBe('# commit')
+    expect(existsSync(join(home, 'skills/commit/SKILL.md'))).toBe(false)
+  })
+
+  it('fails an atlas-home mount when no atlas home is rooted', async () => {
+    const report = await mountProjectFiles({
+      mounts: [{ path: '@/skills/commit/SKILL.md', contents: '# commit', mode: 0o600 }],
+      repositoryDir: null,
+      homeDir: tempDir(),
+    })
+    expect(report.outcomes[0]?.state).toBe(EFileMountState.Failed)
+  })
+
+  it('confines an atlas-home mount inside the atlas home', async () => {
+    const atlasHome = tempDir()
+    const report = await mountProjectFiles({
+      mounts: [{ path: '@/skills/../stolen.txt', contents: 'x', mode: 0o600 }],
+      repositoryDir: null,
+      homeDir: tempDir(),
+      atlasHomeDir: atlasHome,
+    })
+    expect(report.outcomes[0]?.state).toBe(EFileMountState.Failed)
+  })
+
+  describe('managed-prefix sweep', () => {
+    const prefixes = { globalPrefix: 'skills', projectPrefix: 'project-skills' }
+
+    it('removes files the current mount set no longer carries', async () => {
+      const atlasHome = tempDir()
+      const first = [
+        { path: '@/skills/commit/SKILL.md', contents: '# commit', mode: 0o600 },
+        { path: '@/project-skills/review/SKILL.md', contents: '# review', mode: 0o600 },
+      ]
+      await mountProjectFiles({
+        mounts: first,
+        repositoryDir: null,
+        homeDir: tempDir(),
+        atlasHomeDir: atlasHome,
+        managedPrefixes: prefixes,
+      })
+      await mountProjectFiles({
+        mounts: [first[0]!],
+        repositoryDir: null,
+        homeDir: tempDir(),
+        atlasHomeDir: atlasHome,
+        managedPrefixes: prefixes,
+      })
+
+      expect(existsSync(join(atlasHome, 'skills/commit/SKILL.md'))).toBe(true)
+      expect(existsSync(join(atlasHome, 'project-skills/review/SKILL.md'))).toBe(false)
+      expect(existsSync(join(atlasHome, 'project-skills/review'))).toBe(false)
+    })
+
+    it('never sweeps outside the managed prefixes', async () => {
+      const atlasHome = tempDir()
+      writeFileSync(join(atlasHome, 'mcp.json'), '{}')
+      mkdirSync(join(atlasHome, 'operational'), { recursive: true })
+      writeFileSync(join(atlasHome, 'operational/log.txt'), 'keep')
+      await mountProjectFiles({
+        mounts: [{ path: '@/skills/commit/SKILL.md', contents: '# commit', mode: 0o600 }],
+        repositoryDir: null,
+        homeDir: tempDir(),
+        atlasHomeDir: atlasHome,
+        managedPrefixes: prefixes,
+      })
+
+      expect(readFileSync(join(atlasHome, 'mcp.json'), 'utf8')).toBe('{}')
+      expect(readFileSync(join(atlasHome, 'operational/log.txt'), 'utf8')).toBe('keep')
+    })
+
+    it('drops a bundle-installed skill the DB no longer carries', async () => {
+      const atlasHome = tempDir()
+      mkdirSync(join(atlasHome, 'skills', 'bundle-only'), { recursive: true })
+      writeFileSync(join(atlasHome, 'skills/bundle-only/SKILL.md'), '# stale bundle skill')
+      await mountProjectFiles({
+        mounts: [{ path: '@/skills/commit/SKILL.md', contents: '# commit', mode: 0o600 }],
+        repositoryDir: null,
+        homeDir: tempDir(),
+        atlasHomeDir: atlasHome,
+        managedPrefixes: prefixes,
+      })
+
+      expect(existsSync(join(atlasHome, 'skills/bundle-only/SKILL.md'))).toBe(false)
+      expect(existsSync(join(atlasHome, 'skills/commit/SKILL.md'))).toBe(true)
+    })
+
+    it('sweeps nothing when no atlas home is rooted', async () => {
+      const home = tempDir()
+      writeFileSync(join(home, 'skills-dangling.txt'), 'keep')
+      await mountProjectFiles({
+        mounts: [],
+        repositoryDir: null,
+        homeDir: home,
+        managedPrefixes: prefixes,
+      })
+      expect(readFileSync(join(home, 'skills-dangling.txt'), 'utf8')).toBe('keep')
+    })
+  })
 })

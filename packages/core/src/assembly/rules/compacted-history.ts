@@ -1,3 +1,4 @@
+import { keptThroughCompaction } from '../../compaction/disposition'
 import { compactionWatermarks, type CompactionWatermark } from '../../compaction/watermark'
 import { systemContext } from '../../context/envelope'
 import type { Event } from '../../events/envelope'
@@ -18,13 +19,8 @@ const summaryMessage = (watermark: CompactionWatermark): AssembledMessage => ({
   origin: { eventId: watermark.id, seq: watermark.seq },
 })
 
-/**
- * Loaded context is current content rather than history, so it outlives the range that covers it.
- * That is what keeps a thread's instructions and skills in the prompt across a compaction without
- * anything having to restore them afterwards.
- */
 const outlivesCompaction = (events: readonly Event[]): ReadonlySet<number> =>
-  new Set(events.flatMap((event) => (event.type === 'context-loaded' ? [event.seq] : [])))
+  new Set(events.flatMap((event) => (keptThroughCompaction(event.type) ? [event.seq] : [])))
 
 const covered = (args: { watermark: CompactionWatermark; seq: number }): boolean =>
   args.seq >= args.watermark.fromSeq &&

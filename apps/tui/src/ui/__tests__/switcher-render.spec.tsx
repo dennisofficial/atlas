@@ -143,7 +143,7 @@ const CROWDED: readonly SwitcherProvider[] = [
 
 const KEYED = new Set(['anthropic'])
 
-const state = (index: number, effort: EEffort): SwitcherState => ({ index, effort })
+const state = (index: number, effort: EEffort): SwitcherState => ({ index, effort, fast: false })
 
 const DEFAULT_MODEL_TARGET: SwitcherTarget = {
   scope: EModelScope.Setting,
@@ -280,6 +280,39 @@ describe('what the switcher says', () => {
   it('names the model you keep by walking away when the row is wide enough', async () => {
     const lines = written(await rowsOf(overlay({ width: WIDE }), WIDE))
     expect(lines.at(-1)).toContain('esc keep sonnet-5')
+  })
+
+  it('offers the fast toggle on a card that has it, with the tab key named', async () => {
+    const providers: readonly SwitcherProvider[] = [
+      {
+        id: 'anthropic',
+        label: 'Claude Plan',
+        cards: [
+          {
+            ...card({
+              providerId: 'anthropic',
+              modelId: 'claude-opus-5',
+              label: 'opus-5',
+              price: 25,
+              effort: LADDER,
+            }),
+            fast: true,
+          },
+        ],
+      },
+    ]
+    const lines = written(
+      await rowsOf(overlay({ providers, state: state(1, EEffort.Medium), width: 80 }), 80),
+    )
+    expect(rowWith(lines, 'FAST')).not.toBe('')
+    expect(rowWith(lines, 'off')).toContain(glyph.fast)
+    expect(lines.at(-1)).toContain('tab fast')
+  })
+
+  it('keeps the fast section and its key off a card without it', async () => {
+    const lines = written(await rowsOf(overlay({})))
+    expect(rowWith(lines, 'FAST')).toBe('')
+    expect(lines.at(-1)).not.toContain('tab fast')
   })
 
   it('spends the last of a narrow row on the pin key rather than on the name', async () => {

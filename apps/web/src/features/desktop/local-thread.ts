@@ -32,7 +32,13 @@ export function localThreadOf(pod: LocalPod): WireThread {
     ...(pod.title === undefined ? {} : { title: pod.title }),
     ...(pod.model === undefined || pod.effort === undefined
       ? {}
-      : { model: { ref: pod.model, effort: pod.effort } }),
+      : {
+          model: {
+            ref: pod.model,
+            effort: pod.effort,
+            ...(pod.fast === undefined ? {} : { fast: pod.fast }),
+          },
+        }),
   }
 }
 

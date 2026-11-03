@@ -6,8 +6,6 @@ import {
   ProcessPort,
 } from '@dltech/atlas-core'
 
-import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
-
 import { SelectableModelToken } from '@dltech/atlas-harness'
 import { atlasDirectory, composeHarness, inProcessPortBindings } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
@@ -34,10 +32,13 @@ import {
 
 import { activateTransferredChildren, adoptTransferredChildren } from '@dltech/atlas-harness'
 import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './serve-app'
+import { subscribeFastRefused } from './fast-refused'
+import { serveModelBridgeOf } from './serve-model-bridge'
 import { ServeProcessPort } from './serve-process'
 import { serveFamilyOf } from './serve-family'
 import { stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
 import { exposerFor } from './serve-port-exposer'
+import { threadModelPersisterOf } from './serve-thread-model-persist'
 
 export const SERVE_COMMAND = 'serve'
 
@@ -87,17 +88,15 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
                   .service.subscribe(listener),
             }
           : undefined
-        const modelBridge: ServeModelBridge = {
-          effort: () => model.choice().effort,
-          identity: () => model.choice().ref,
-          select: (next) => {
-            const ref = parseRef(next.ref)
-            if (ref === undefined) return
-            const effort =
-              EFFORT_LADDER.find((rung) => rung === next.effort) ?? model.choice().effort
-            model.select({ ref, effort })
-          },
-        }
+        const modelBridge = serveModelBridgeOf(model)
+
+        subscribeFastRefused({
+          model,
+          threads,
+          persist: threadModelPersisterOf(args),
+          notice: args.notice,
+          threadId: args.threadId,
+        })
 
         container.register(registeredPortToken(ProcessPort), {
           useValue: new SessionEnvironmentProcessPort({
@@ -223,6 +222,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     },
     titling: app.titling,
     expandContext: skillExpander({ skillRegistry: app.skillRegistry }),
+    skillRegistry: app.skillRegistry,
     commands: {
       skills: async ({ reload }) => {
         const skills = reload ? await app.skillRegistry.reload() : app.skillRegistry.all()

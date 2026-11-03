@@ -4,7 +4,6 @@ import {
   DEFAULT_DOCKER_SOCKET,
   DockerEngine,
   listWorktrees,
-  logFieldsOf,
   sweepSandboxes,
 } from '@dltech/atlas-harness'
 
@@ -22,6 +21,7 @@ import {
 } from './open-conversation'
 import { type SettingsBinding } from '@dltech/atlas-harness'
 import { stateOfDirectory, workspaceRefusal } from './workspace-directory'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
 const REFUSED = 1
 

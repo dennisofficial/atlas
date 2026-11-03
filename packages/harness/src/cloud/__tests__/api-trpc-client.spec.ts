@@ -198,6 +198,25 @@ describe('createHarnessApiClient', () => {
     expect(failure).toMatchObject({ status: 429 })
   })
 
+  it('retries an idempotent mutation on a 5xx', async () => {
+    const delays: number[] = []
+    const { fetchFn, seen } = scripted([() => envelope({ status: 500 }), success])
+
+    await cloudCall(
+      createHarnessApiClient({
+        url: 'https://cloud.test',
+        token: 'sess_test',
+        clientVersion: '1.2.3',
+        fetchFn,
+        sleep: instant(delays),
+        randomFn: () => 1,
+      }).githubSubscriptions.heartbeat.mutate({ id: 'sub_1' }),
+    )
+
+    expect(seen.map((call) => call.method)).toEqual(['POST', 'POST'])
+    expect(delays).toHaveLength(1)
+  })
+
   it('does not retry a mutation after a network error and reports status 0', async () => {
     const { fetchFn, seen } = scripted([
       () => {

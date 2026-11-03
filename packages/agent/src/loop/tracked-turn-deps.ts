@@ -3,7 +3,7 @@ import type { Assembled, ToolDeclaration } from '@dltech/atlas-core'
 import type { SettlePending } from './settle-pending'
 
 export type TrackedTurnDeps = Omit<
-  import('./run-turn').TurnDeps,
+  import('./turn-deps').TurnDeps,
   'logPort' | 'dispatch' | 'output' | 'spend'
 > & {
   onContext: ((args: { tokens: number; window: number }) => void) | undefined

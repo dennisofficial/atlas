@@ -6,17 +6,16 @@ slice 5 (client SDK). Anchors are `path:line` at `ac1dfb7e6`; re-check before re
 
 ## What the operator does
 
-Under any of their own messages, a **Summarise** button opens a menu with **Summarise up to here**
-and **Summarise from here**. Picking one opens a confirm dialog naming what becomes one summary.
-On confirm, the covered messages and their replies leave the transcript and the model's context,
-replaced by one summary. This is the TUI rewind picker's `summarise up to here` /
-`summarise from here` verbs (`apps/tui/src/ui/rewind-model.ts:17-22`), on every surface.
+Under any of their own messages, a **Summarise up to here** button opens a confirm dialog naming
+what becomes one summary. On confirm, the earlier messages and their replies leave the transcript
+and the model's context, replaced by one summary. This is the TUI rewind picker's
+`summarise up to here` verb (`apps/tui/src/ui/rewind-model.ts`), on every surface.
 - **Up to here** (`anchor: prefix`) covers everything before the message: `fromSeq` = first
   uncovered seq, `throughSeq` = message seq − 1. Offered when at least one earlier message is
   uncovered.
-- **From here** (`anchor: suffix`) covers the message and everything after it: `fromSeq` = message
-  seq, `throughSeq` = head when the holder runs it. Offered when the message and at least one
-  later message are uncovered (one message summarised into one summary saves nothing).
+- **From here was dropped (decided 2026-11-03).** The operator never used it; web and the TUI
+  removed it. v2 builds prefix only. v1 serve and wire still accept `anchor: suffix` until a
+  later release, so an older client is never refused; v2 does not carry it.
 
 ## What exists in v1 (shipped)
 
@@ -24,7 +23,7 @@ replaced by one summary. This is the TUI rewind picker's `summarise up to here` 
   `suffixCompactionTarget` (`suffix-target.ts:6`) refuse a target outside the log, under an
   existing summary, splitting a tool call, or (suffix) saving nothing.
 - Pure points: `summarisePoints` (`packages/core/src/compaction/summarise-points.ts`) maps each
-  user message to its up-to / from reach `{ anchor, seq, messages }`. Web and the TUI rules agree.
+  user message to its up-to reach `{ throughSeq, messages }`. Web and the TUI rules agree.
 - The harness op: `summariseAt` (`packages/harness/src/composition/compact-turn.ts:107`) →
   `compactThread({ destructive: true })` (`packages/harness/src/store/compact.ts:101`), which
   summarises the range, **deletes** the covered rows, raises the rewind floor
@@ -48,7 +47,7 @@ replaced by one summary. This is the TUI rewind picker's `summarise up to here` 
 (`packages/core/src/record/event.ts:24-30`) and its visibility rule hides the range while keeping
 `SURVIVES_SUMMARY` types (`packages/core/src/record/visibility.ts:32-39`). Nothing is deleted
 (P5). Two additions:
-1. **v2 guards.** `compactionTarget` / `suffixCompactionTarget` / `summarisePoints` read the floor
+1. **v2 guards.** `compactionTarget` / `summarisePoints` read the floor
    from v1's `history-compacted` (`compactedThrough`, `watermark.ts:40`). Generalise them to take
    the floor as a parameter, with a v2 floor function over `history-summarised` events and the
    visible events (`visibleEvents`, `visibility.ts:94`). v1 passes `compactedThrough(events)` and
@@ -68,16 +67,16 @@ sequenceDiagram
   participant C as Client
   participant CP as Control plane
   participant H as Holder (agent host)
-  C->>CP: post inbox {kind: summarise-history, anchor, seq}
+  C->>CP: post inbox {kind: summarise-history, throughSeq}
   CP-->>H: wake
   H->>H: wait for the turn to settle
   H->>CP: append input-consumed{inboxId}
   H->>H: guard over visible events, summarise the range
-  H->>CP: append history-summarised{fromSeq, throughSeq, anchor, summary}
+  H->>CP: append history-summarised{fromSeq, throughSeq, anchor: prefix, summary}
   CP-->>C: log tail: rows hidden, summary shown
 ```
 
-- **Inbox, not a request (D4).** The client posts `summarise-history{ anchor, seq }`. There is no
+- **Inbox, not a request (D4).** The client posts `summarise-history{ throughSeq }`. There is no
   reply channel and no 10-minute request timeout: the client shows the entry as pending from the
   inbox, then the outcome from the log.
 - **Settled only.** The holder consumes it between turns, like v1's `holdHistory`. While it is
@@ -88,7 +87,7 @@ sequenceDiagram
   its inbox every 2 s), which appends `input-refused{reason: cancelled}`.
 - **Guard at consumption time.** The holder runs the v2 guards over the visible events at the
   moment it consumes. A refusal appends `input-refused{ inboxId, reason }`; the client shows the
-  reason. Suffix `throughSeq` is the head at that moment.
+  reason.
 - **Crash mid-summary.** A consumed `summarise-history` with neither `history-summarised` nor
   `input-refused` after it is re-run by the next holder. The summariser has no side effects, so
   re-running is safe; this is the "no tool run twice" rule's easy case and needs no `OnceLedger`
@@ -112,19 +111,18 @@ before the summary brings the messages back. v1 keeps its copy, because v1 reall
 
 | File        | Holds                                                                                                                  |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `spec.ts`   | Inbox payload schema `{ anchor, seq }`, the command name, settled-only timing                                          |
+| `spec.ts`   | Inbox payload schema `{ throughSeq }`, the command name, settled-only timing                                           |
 | `pod.ts`    | The holder handler: guard, summarise with the compaction role's model, append outcome; reuses the v1 summariser prompt |
 | `client.ts` | `summarisePoints` over the v2 view, the pending/outcome state from inbox + log, the confirm copy (moved from web)      |
-| `web.tsx`   | The `UserMessage` summarise menu and `SummariseDialog` already shipped in v1 web                                       |
-| `tui.tsx`   | The rewind picker verbs                                                                                                |
+| `web.tsx`   | The `UserMessage` summarise button and `SummariseDialog` already shipped in v1 web                                     |
+| `tui.tsx`   | The rewind picker's summarise-up-to verb                                                                               |
 
 ## Validation
 
-- Core: property test that `visibleEvents` after `history-summarised` from either anchor equals a
+- Core: property test that `visibleEvents` after a prefix `history-summarised` equals a
   reference model (extend `packages/core/src/record/__tests__/visibility.spec.ts`); guard specs for
-  the v2 floor beside the existing `compaction-target.spec.ts` / `suffix-target.spec.ts`;
-  `summarisePoints` with a v2 floor.
-- Holder (with slice 3's scripted model and in-memory record): prefix and suffix each append
+  the v2 floor beside the existing `compaction-target.spec.ts`; `summarisePoints` with a v2 floor.
+- Holder (with slice 3's scripted model and in-memory record): a summarise appends
   `input-consumed` then `history-summarised`; a split tool call appends `input-refused`; a send
   posted mid-summary is consumed after; killing the holder after `input-consumed` re-runs the
   summary on the next holder exactly once.

@@ -1,0 +1,21 @@
+{
+  "name": "@dltech/atlas-daemon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --timeout 30000",
+    "build": "bun build --target=bun --outfile=bin/daemon.js --define ATLAS_DAEMON_VERSION='\"0.1.0\"' src/index.ts"
+  },
+  "dependencies": {
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
+    "@dltech/atlas-sandbox": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@vscode/ripgrep": "^1.18.0"
+  }
+}

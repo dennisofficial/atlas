@@ -10,6 +10,7 @@ import {
   ServerIcon,
   ShieldCheckIcon,
   ShieldIcon,
+  SparklesIcon,
   UserIcon,
   VariableIcon,
   WrenchIcon,
@@ -21,6 +22,7 @@ export enum ESettingsPage {
   Integrations = 'integrations',
   UsageSandboxes = 'usage-sandboxes',
   Instructions = 'instructions',
+  Skills = 'skills',
   Memory = 'memory',
   ModelsEffort = 'models-effort',
   Providers = 'providers',
@@ -59,6 +61,7 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
     label: 'Agent',
     items: [
       { page: ESettingsPage.Instructions, label: 'Instructions', icon: BookOpenTextIcon },
+      { page: ESettingsPage.Skills, label: 'Skills', icon: SparklesIcon },
       { page: ESettingsPage.Memory, label: 'Memory', icon: BrainIcon },
       { page: ESettingsPage.ModelsEffort, label: 'Models & Effort', icon: GaugeIcon },
       { page: ESettingsPage.Providers, label: 'Providers', icon: BotIcon },

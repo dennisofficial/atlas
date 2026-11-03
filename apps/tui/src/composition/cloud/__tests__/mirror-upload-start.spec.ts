@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { LogPort, type LogEntry } from '@dltech/atlas-core'
-
 import { startMirrorUpload } from '../mirror-upload-start'
+import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 class RecordingLog extends LogPort {
   readonly entries: LogEntry[] = []

@@ -8,6 +8,7 @@ export type CreateThreadBody = {
   projectId?: string
   model?: string
   effort?: string
+  fast?: boolean
   firstMessage: {
     sendId: string
     text: string
@@ -24,11 +25,13 @@ export function createThreadBodyOf(args: {
   uploads?: SaidUpload[] | undefined
   model?: string | undefined
   effort?: string | undefined
+  fast?: boolean | undefined
 }): CreateThreadBody {
   return {
     ...(args.projectId === null ? {} : { projectId: args.projectId }),
     ...(args.model === undefined ? {} : { model: args.model }),
     ...(args.effort === undefined ? {} : { effort: args.effort }),
+    ...(args.fast === true ? { fast: true } : {}),
     firstMessage: {
       sendId: args.sendId,
       text: args.text,

@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { LogPort, type LogEntry } from '@dltech/atlas-core'
-
 import { EForge, EPullRequestLookup, EPullRequestState } from '../pure'
 
 import { EGhPollRole, GH_TIMEOUT_MS, GhPullRequestPort } from '../gh-pull-requests'
 import { ESpawnFailure } from '../run-command'
 import { aCheckout, ghAnswering, ghSpawnFailure } from '../testing'
+import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 const PAYLOAD = JSON.stringify({
   isDraft: false,

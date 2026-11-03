@@ -19,6 +19,7 @@ import {
 import { PULL_REQUEST_SUBSCRIPTION_PROVIDER } from '@dltech/atlas-wire'
 
 import type { CloudBridgeFactory } from './bridge-factory'
+import { sharedListing } from './shared-listing'
 
 const isUrgent = ({ frame, policy }: { frame: PrEventFrame; policy: PrEditPolicy }): boolean =>
   occurrenceOf({ frame, policy })?.urgency === EOccurrenceUrgency.Now
@@ -68,6 +69,7 @@ export function createPrEventForwarder(args: {
   editPolicy: () => PrEditPolicy
   apiProvisioned?: ((args: { threadId: ThreadId; runner: ERunner }) => boolean) | undefined
 }): PrEventForwarder {
+  const listThreads = sharedListing({ list: args.listThreads, keyOf: ({ project }) => project })
   const channels = new Map<ThreadId, CloudChannel>()
   const runners = new Map<ThreadId, ERunner>()
   const bridgeFor = (threadId: ThreadId) => {
@@ -88,7 +90,7 @@ export function createPrEventForwarder(args: {
 
   const cloudThreadsWatching = async (frame: PrEventFrame): Promise<readonly ThreadId[]> => {
     const repo = repoOfFrame(frame)
-    const listed = await args.listThreads({ project: args.project }).catch(() => [])
+    const listed = await listThreads({ project: args.project }).catch(() => [])
     const active = args.activeThreadId()
 
     const watching = listed.filter(

@@ -25,6 +25,17 @@ import {
 
 const TRPC_INTERNAL_ERROR_CODE = -32603
 
+export const IDEMPOTENT_MUTATIONS: ReadonlySet<string> = new Set([
+  'githubSubscriptions.heartbeat',
+  'composerDrafts.put',
+  'threadEvents.import',
+])
+
+const procedureOf = (path: string): string => path.replace(/^.*\/trpc\//, '')
+
+const isRetryable = (args: { method: string; path: string }): boolean =>
+  args.method === 'GET' || IDEMPOTENT_MUTATIONS.has(procedureOf(args.path))
+
 type FetchInput = Parameters<typeof fetch>[0]
 
 export type RetryingFetchArgs = {
@@ -94,7 +105,7 @@ export const createRetryingFetch = (args: RetryingFetchArgs): typeof fetch => {
   const run = async (input: FetchInput, init?: RequestInit): Promise<Response> => {
     const method = init?.method ?? 'GET'
     const path = pathOf(input)
-    const retry = method === 'GET'
+    const retry = isRetryable({ method, path })
 
     for (let attempt = 0; ; attempt += 1) {
       const attemptsLeft =

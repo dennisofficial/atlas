@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ELogSeverity, LogPort, toThreadId, type LogEntry, type ThreadId } from '@dltech/atlas-core'
+import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 
 import { HookChain } from '../../hooks/registry'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { readCall, toolNamed } from '../../tools/__tests__/fixtures'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 class CapturingLog extends LogPort {
   readonly entries: LogEntry[] = []

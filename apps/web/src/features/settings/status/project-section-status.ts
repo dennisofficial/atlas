@@ -18,6 +18,10 @@ export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusI
   [EProjectSettingsSection.Files]: {
     status: EPageStatus.Live,
   },
+  [EProjectSettingsSection.Skills]: {
+    status: EPageStatus.Live,
+    detail: 'Saved for this project and written into its sandboxes when they start.',
+  },
   [EProjectSettingsSection.Mcp]: {
     status: EPageStatus.Live,
     detail:

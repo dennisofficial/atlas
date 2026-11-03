@@ -280,3 +280,24 @@ describe('harness notices', () => {
     expect(turns.map((turn) => turn.kind)).toEqual([ETurnKind.Notice, ETurnKind.Agent])
   })
 })
+
+describe('fast turns', () => {
+  it('marks a turn fast when any agent message in it carries the flag', () => {
+    const [turn] = agentTurnsOf([user('u1'), tools('tl1', 1), { ...agent('a1'), fast: true }])
+    expect(turn?.fast).toBe(true)
+  })
+
+  it('leaves the turn unmarked when no agent message carries the flag', () => {
+    const [turn] = agentTurnsOf([user('u1'), tools('tl1', 1), agent('a1')])
+    expect(turn?.fast).toBeUndefined()
+  })
+
+  it('does not leak the flag across a notice boundary', () => {
+    const turns = turnsOf({
+      items: [user('u1'), { ...agent('a1'), fast: true }, notice('n1'), agent('a2')],
+      working: false,
+    })
+    const agents = turns.flatMap((turn) => (turn.kind === ETurnKind.Agent ? [turn] : []))
+    expect(agents.map((turn) => turn.fast ?? false)).toEqual([true, false])
+  })
+})

@@ -1,8 +1,12 @@
+import { agentLabel } from '../agents/label'
+import { EReportKind } from '../agents/report'
 import { EMessageOrigin, saidBy } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
 import { reachesModel } from '../events/notice-stage'
 import { EExecutionLocation } from '../execution/location'
 import { elapsedPhrase } from '../shells/elapsed'
+import { prEventContent } from '../assembly/rules/pr-event-block'
+import type { SummarisedType } from './disposition'
 
 const PAYLOAD_CHARACTER_LIMIT = 600
 
@@ -27,68 +31,85 @@ function jsonOrDescription(value: unknown, limit: number): string {
   }
 }
 
+type LineArgs<TType extends SummarisedType> = { event: EventOfType<TType>; limit: number }
+
+const assistantLine = ({ event, limit }: LineArgs<'assistant-said'>): string | undefined => {
+  const spoken = event.parts
+    .filter((part) => part.type === 'text')
+    .map((part) => part.text)
+    .join('\n')
+    .trim()
+  return spoken === '' ? undefined : `Atlas: ${clipped(spoken, limit)}`
+}
+
+const toolResultLine = ({ event, limit }: LineArgs<'tool-result'>): string => {
+  if (event.error !== undefined)
+    return `${event.name} failed: ${clipped(event.error.message, limit)}`
+  return `${event.name} returned ${jsonOrDescription(event.modelText ?? event.output, limit)}`
+}
+
+const SUMMARISED_LINES: {
+  [TType in SummarisedType]: (args: LineArgs<TType>) => string | undefined
+} = {
+  'user-said': ({ event, limit }) => saidLine(event, limit),
+  'assistant-said': assistantLine,
+  'tool-called': ({ event, limit }) =>
+    `Atlas called ${event.name} with ${jsonOrDescription(event.input, limit)}`,
+  'tool-result': toolResultLine,
+  'tool-denied': ({ event, limit }) => `${event.name} was denied: ${clipped(event.reason, limit)}`,
+  'history-compacted': ({ event }) => `Summary of the conversation before this: ${event.summary}`,
+  'agent-ended': ({ event, limit }) =>
+    `Sub-agent (${event.agentType}, ${event.intent}) ${event.status}: ${clipped(event.prose, limit)}`,
+  'agent-reported': ({ event, limit }) =>
+    `Agent ${event.agentId} (${agentLabel(event)}) reported ${event.kind ?? EReportKind.Done}: ${clipped(event.prose, limit)}`,
+  'agent-restarted': ({ event }) =>
+    `Sub-agent (${event.agentType}, ${event.intent}) was restarted (via ${event.via})`,
+  'background-shell-ended': ({ event, limit }) =>
+    `Background shell "${event.command}" ${event.status}: ${clipped(event.output, limit)}`,
+  'background-shell-still-running': ({ event }) =>
+    `Background shell "${event.command}" still running after ${elapsedPhrase(event.runningForMs)}`,
+  'background-shell-matched': ({ event, limit }) =>
+    `Background shell "${event.command}" matched ${event.pattern}: ${clipped(event.lines, limit)}`,
+  'background-shell-awaiting-input': ({ event, limit }) =>
+    `Background shell "${event.command}" is waiting for input: ${clipped(event.output, limit)}`,
+  'service-ended': ({ event, limit }) =>
+    `Service "${event.command}" ${event.status}: ${clipped(event.tail, limit)}`,
+  'pr-event': ({ event }) => prEventContent(event),
+  nudge: ({ event, limit }) => `Harness nudge: ${clipped(event.text, limit)}`,
+  'sandbox-setup-reported': ({ event }) => `Atlas sandbox setup: ${event.text}`,
+  parked: ({ event }) => `Atlas parked this session (${event.reason})`,
+}
+
+type KeptLineType =
+  | 'location-changed'
+  | 'worktree-entered'
+  | 'worktree-exited'
+  | 'directory-changed'
+
+type KeptLineArgs<TType extends KeptLineType> = { event: EventOfType<TType>; limit: number }
+
+const KEPT_LINES: { [TType in KeptLineType]: (args: KeptLineArgs<TType>) => string } = {
+  'location-changed': ({ event }) => {
+    const base = `Atlas moved this conversation's processing to ${locationPhrase(event.to)} — earlier tool results came from ${locationPhrase(event.from)}`
+    return event.cwd === undefined ? base : `${base} — the working directory is now ${event.cwd}`
+  },
+  'worktree-entered': ({ event }) => `Atlas entered worktree ${event.path} (${event.branch})`,
+  'worktree-exited': ({ event }) => `Atlas left worktree ${event.path} (${event.action})`,
+  'directory-changed': ({ event }) => `Atlas moved the project directory to ${event.path}`,
+}
+
+type AnyLine = (args: { event: Event; limit: number }) => string | undefined
+
+const LINES = { ...SUMMARISED_LINES, ...KEPT_LINES } as unknown as Partial<
+  Record<Event['type'], AnyLine>
+>
+
 function lineOf(event: Event, payloadLimit: number): string | undefined {
   if (!reachesModel(event)) return undefined
 
-  if (event.type === 'history-compacted')
-    return `Summary of the conversation before this: ${event.summary}`
-  if (event.type === 'user-said') return saidLine(event, payloadLimit)
-
-  if (event.type === 'assistant-said') {
-    const spoken = event.parts
-      .filter((part) => part.type === 'text')
-      .map((part) => part.text)
-      .join('\n')
-      .trim()
-    return spoken === '' ? undefined : `Atlas: ${clipped(spoken, payloadLimit)}`
-  }
-
-  if (event.type === 'tool-called') {
-    return `Atlas called ${event.name} with ${jsonOrDescription(event.input, payloadLimit)}`
-  }
-
-  if (event.type === 'tool-result') {
-    if (event.error !== undefined)
-      return `${event.name} failed: ${clipped(event.error.message, payloadLimit)}`
-    return `${event.name} returned ${jsonOrDescription(event.modelText ?? event.output, payloadLimit)}`
-  }
-
-  if (event.type === 'tool-denied')
-    return `${event.name} was denied: ${clipped(event.reason, payloadLimit)}`
-
-  if (event.type === 'agent-ended') {
-    return `Sub-agent (${event.agentType}, ${event.intent}) ${event.status}: ${clipped(event.prose, payloadLimit)}`
-  }
-
-  if (event.type === 'agent-restarted') {
-    return `Sub-agent (${event.agentType}, ${event.intent}) was restarted (via ${event.via})`
-  }
-
-  if (event.type === 'background-shell-ended') {
-    return `Background shell "${event.command}" ${event.status}: ${clipped(event.output, payloadLimit)}`
-  }
-
-  if (event.type === 'background-shell-still-running') {
-    return `Background shell "${event.command}" still running after ${elapsedPhrase(event.runningForMs)}`
-  }
-
-  if (event.type === 'service-ended') {
-    return `Service "${event.command}" ${event.status}: ${clipped(event.tail, payloadLimit)}`
-  }
-
-  if (event.type === 'location-changed') {
-    const base = `Atlas moved this conversation's processing to ${locationPhrase(event.to)} — earlier tool results came from ${locationPhrase(event.from)}`
-    return event.cwd === undefined ? base : `${base} — the working directory is now ${event.cwd}`
-  }
-  if (event.type === 'sandbox-setup-reported') return `Atlas sandbox setup: ${event.text}`
-  if (event.type === 'parked') return `Atlas parked this session (${event.reason})`
-  if (event.type === 'worktree-entered')
-    return `Atlas entered worktree ${event.path} (${event.branch})`
-  if (event.type === 'worktree-exited') return `Atlas left worktree ${event.path} (${event.action})`
-  if (event.type === 'directory-changed')
-    return `Atlas moved the project directory to ${event.path}`
-
-  return undefined
+  const render = LINES[event.type]
+  if (render === undefined) return undefined
+  return render({ event, limit: payloadLimit })
 }
 
 function saidLine(event: EventOfType<'user-said'>, limit: number): string {

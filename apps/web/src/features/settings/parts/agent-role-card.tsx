@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 
 import { ModelSelector } from '@dltech/atlas-ui/ai/model-selector'
+import { Switch } from '@dltech/atlas-ui/components/switch'
 
 import type { ModelPicker } from '@/features/threads/data/use-model-picker'
 
@@ -46,11 +47,13 @@ export function RoleCard({
   setting,
   picker,
   onChange,
+  fast,
 }: {
   meta: RoleMeta
   setting: RoleSetting
   picker: ModelPicker
   onChange: (next: RoleSetting) => void
+  fast?: boolean
 }) {
   const router = useRouter()
   const models = roleModelOptions({
@@ -66,6 +69,7 @@ export function RoleCard({
     setting.model !== AUTO_MODEL && selected !== undefined && supportedEfforts === undefined
   const showEffort = effort !== undefined && !modelHasNoEffortMap
 
+  const handleFastChange = (next: boolean) => onChange({ ...setting, fast: next })
   const handleModelChange = (model: string) => {
     const nextSupported =
       effort === undefined
@@ -114,6 +118,15 @@ export function RoleCard({
               {...(supportedEfforts === undefined ? {} : { supportedEfforts })}
             />
           </SettingsRow>
+        )}
+        {fast === undefined ? null : (
+          <SettingsRow
+            title="Fast mode"
+            description="Start conversations in fast mode on models that offer it. Faster output at a higher price: Claude bills usage credits at 2× API rates; ChatGPT plans spend included usage 2.5× as fast."
+            control={
+              <Switch checked={fast} onCheckedChange={handleFastChange} aria-label="Fast mode" />
+            }
+          />
         )}
       </SettingsCard>
     </SettingsSection>

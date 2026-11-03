@@ -14,7 +14,7 @@ export const wireThreadSchema = z.object({
   agent: z.object({ spawnedBy: z.string(), type: z.string() }).optional(),
   workspace: z.string().nullable(),
   repo: z.string().nullable(),
-  model: z.object({ ref: z.string(), effort: z.string() }).optional(),
+  model: z.object({ ref: z.string(), effort: z.string(), fast: z.boolean().optional() }).optional(),
   worktree: z.object({ path: z.string(), branch: z.string() }).optional(),
   checkout: z
     .object({ path: z.string().nullable(), branch: z.string().nullable(), detached: z.boolean() })

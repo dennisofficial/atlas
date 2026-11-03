@@ -14,7 +14,7 @@ export type ServeArgs = {
   token?: string | undefined
   controlPlaneUrl?: string | undefined
   cwd?: string | undefined
-  model?: { ref: string; effort?: string | undefined } | undefined
+  model?: { ref: string; effort?: string | undefined; fast?: boolean | undefined } | undefined
   clientVersion?: string | undefined
   env?: Record<string, string | undefined> | undefined
   bufferSize?: number | undefined

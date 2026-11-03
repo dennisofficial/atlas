@@ -24,6 +24,13 @@ export type VercelCredentialView = {
 
 export type VercelDraft = { teamId: string; vercelProjectId: string; token: string }
 
+export const PLAN_BADGE_LABEL: Record<EVercelPlan, string> = {
+  [EVercelPlan.Hobby]: 'Hobby',
+  [EVercelPlan.Pro]: 'Pro',
+  [EVercelPlan.Enterprise]: 'Enterprise',
+  [EVercelPlan.Unknown]: 'Plan unknown',
+}
+
 export type VercelUpsertBody = VercelCredentialUpsert
 
 export const NOT_CONFIGURED_STATUS = 'Not configured'

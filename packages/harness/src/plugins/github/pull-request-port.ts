@@ -1,5 +1,3 @@
-import type { LogPort } from '@dltech/atlas-core'
-
 import type { CloudSession, CloudSessionStore } from '../../cloud/cloud-session'
 import type { PrEventFrame } from '../../cloud/pr-event-frame'
 import type { AppInstallRecommendation } from '../../cloud/pr-subscription-client'
@@ -7,6 +5,7 @@ import { SsePullRequestPort } from '../../cloud/sse-pull-requests'
 import { FailoverPullRequestPort } from './failover-pull-requests'
 import { EGhPollRole, GhPullRequestPort } from './gh-pull-requests'
 import type { PullRequestReading } from './pure'
+import type { LogPort } from '@dltech/atlas-observability'
 
 /**
  * A cloud session (serve or signed-in operator) rides the SSE port: the API fans webhook

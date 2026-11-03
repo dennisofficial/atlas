@@ -15,6 +15,7 @@ export type ThreadLaunchDraft = {
   projectId?: string | undefined
   model?: string | undefined
   effort?: string | undefined
+  fast?: boolean | undefined
 }
 
 export type ThreadLaunch = {

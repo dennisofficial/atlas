@@ -18,6 +18,7 @@ export const sharedPortBindings = {
   TelemetryPort: { runtime: 'shared', transport: null },
   EventLogPort: { runtime: 'shared', transport: RemoteEventLog },
   LogPort: { runtime: 'shared', transport: null },
+  TracePort: { runtime: 'shared', transport: null },
   ModelPort: { runtime: 'shared', transport: null },
   CredentialPort: { runtime: 'shared', transport: null },
   CredentialAvailabilityPort: { runtime: 'shared', transport: null },

@@ -86,7 +86,7 @@ export function useViewModel(args: {
       const prior = selection
       if (prior === null) return
 
-      const next: ModelSelection = { ref: choice.ref, effort: choice.effort }
+      const next: ModelSelection = { ref: choice.ref, effort: choice.effort, fast: choice.fast }
       pendingPick.current = next
       setSelection(next)
       void app.threads

@@ -2,7 +2,6 @@ import {
   EExecutionLocation,
   projectDirectoryOf,
   type IdPort,
-  type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -13,9 +12,9 @@ import type { DockerEngine } from './docker/engine'
 import type { ServiceRegistryPort } from '../services/service-registry'
 import type { ShellRegistryPort } from '../shells/shell-registry'
 import { stopMovingShells } from './moving-shells'
-import { logFieldsOf } from '../store/logs'
 import { relocateSession, type RelocatedSession } from '../store/relocate-session'
 import type { ThreadStorePort } from '../store/thread-store'
+import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'
 
 export type LocalPlacementMove = {
   from: EExecutionLocation

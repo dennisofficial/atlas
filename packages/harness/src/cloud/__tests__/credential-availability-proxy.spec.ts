@@ -160,6 +160,47 @@ describe('CredentialAvailabilityProxy', () => {
     })
   })
 
+  describe('when the cloud cannot answer admit', () => {
+    const answering = (status: number) => {
+      globalThis.fetch = (async (input: string | URL | Request) => {
+        const url = String(input)
+        if (!isTrpcUrl(url)) return new Response('nf', { status: 404 })
+        remoteCalls.push({ procedure: trpcCallOf({ url }).procedure, authorization: null })
+        return Response.json(
+          {
+            error: {
+              message: 'failed',
+              code: -32603,
+              data: { code: 'INTERNAL_SERVER_ERROR', httpStatus: status },
+            },
+          },
+          { status },
+        )
+      }) as typeof fetch
+    }
+
+    it.each([500, 503, 429])(
+      'admits locally on a %s and settles the permit locally',
+      async (status) => {
+        sessions.write({ url: 'http://cloud.test', token: 'tok-1', email: null })
+        answering(status)
+
+        const permit = permitOf(await proxy.admit({ key, revision }))
+        await proxy.complete({ permit, completion: { outcome: EAdmissionCompletion.Succeeded } })
+
+        expect(permit.permitId).toBeUndefined()
+        expect(remoteCalls.map((call) => call.procedure)).toEqual(['credentialAvailability.admit'])
+      },
+    )
+
+    it('still surfaces a refusal, which needs the operator to sign back in', async () => {
+      sessions.write({ url: 'http://cloud.test', token: 'tok-1', email: null })
+      answering(401)
+
+      await expect(proxy.admit({ key, revision })).rejects.toThrow('401')
+    })
+  })
+
   it('rebuilds the remote client when the token changes', async () => {
     sessions.write({ url: 'http://cloud.test', token: 'tok-1', email: null })
     await proxy.admit({ key, revision })

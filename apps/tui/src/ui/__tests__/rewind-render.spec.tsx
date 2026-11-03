@@ -190,7 +190,6 @@ describe('choosing what to do at that message', () => {
     const rows = await rowsOf({ state: committing })
     expect(rowWith(rows, VERB_LABEL[ERewindVerb.ToHere])).toContain('1 lost')
     expect(rowWith(rows, VERB_LABEL[ERewindVerb.SummariseUpTo])).toContain('1 before')
-    expect(rowWith(rows, VERB_LABEL[ERewindVerb.SummariseFrom])).toContain('2 from here')
   })
 
   it('spells out what the highlighted verb costs, and that it is final', async () => {
@@ -215,7 +214,6 @@ describe('choosing what to do at that message', () => {
     })
     expect(rowWith(rows, VERB_LABEL[ERewindVerb.ToHere])).not.toBe('')
     expect(rowWith(rows, VERB_LABEL[ERewindVerb.SummariseUpTo])).toBe('')
-    expect(rowWith(rows, VERB_LABEL[ERewindVerb.SummariseFrom])).toBe('')
     expect(prose(rows)).toContain('the compaction is undone and 1 later message')
   })
 

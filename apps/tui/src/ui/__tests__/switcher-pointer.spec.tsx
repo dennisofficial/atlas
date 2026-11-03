@@ -91,6 +91,7 @@ function Browsing(props: {
   const [state, setState] = useState<SwitcherState>({
     index: props.opened,
     effort: EEffort.Medium,
+    fast: false,
   })
 
   const handleSelect = useCallback(

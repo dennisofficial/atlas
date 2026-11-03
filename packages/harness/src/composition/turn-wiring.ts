@@ -12,9 +12,7 @@ import {
   DecisionPort,
   EventLogPort,
   IdPort,
-  LogPort,
   QualityReviewPort,
-  TelemetryPort,
   rangeValueOf,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -39,7 +37,6 @@ import type { TurnDeps } from '../loop/run-turn'
 
 import type { MessageIntake } from '../intake'
 import { bindIntake } from './intake-binding'
-
 import type { TurnSetup } from './turn-setup'
 import { TitlingTurnRunner } from './titling-turn-runner'
 import { TldrTurnRunner } from '../loop/tldr-turn-runner'
@@ -60,6 +57,7 @@ import { LocalRewindMachinery } from '../store/local-rewind-machinery'
 import { createUsageTracker } from './usage-tracker'
 import { turnBackgroundState } from './turn-background-state'
 import { loopNotices } from './loop-notices'
+import { LogPort, TelemetryPort, TracePort } from '@dltech/atlas-observability'
 
 export type TurnWiring = {
   turn: TurnDeps
@@ -141,6 +139,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const turn: TurnDeps = {
     log,
     logPort,
+    trace: container.resolve(registeredPortToken(TracePort)),
     model: modelPort,
     ids,
     waitState,

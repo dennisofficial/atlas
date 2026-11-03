@@ -7,7 +7,6 @@ import {
   type ModelPort,
   type ProviderIdentity,
   type QualityReviewPort,
-  type TelemetryPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -24,7 +23,7 @@ import type { HookChain } from '../../hooks/registry'
 import type { PendingDrain, TurnDeps } from '../../loop/run-turn'
 import type { TurnRunner } from '../../loop/turn-runner.port'
 import type { ChildFallbackSwitch } from '../../composition/child-fallback-model'
-import { ObservingToolDispatcher } from '../../telemetry/observing-dispatcher'
+import { ObservingToolDispatcher } from '../../tools/observing-dispatcher'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { QualityStage } from '../../tools/quality-dispatch'
 import { filteredToolRegistry, type ToolRegistry } from '../../tools/registry'
@@ -35,6 +34,7 @@ import {
   toolRegistryFor,
   type AgentType,
 } from '../types'
+import type { TelemetryPort } from '@dltech/atlas-observability'
 
 export type ChildRunnerDeps = {
   activity: ActivityLifecycle
@@ -199,6 +199,7 @@ export async function buildChildRunner({
           registry,
           hooks: deps.hooks,
           logPort: turn.logPort,
+          trace: turn.trace,
           quality: new QualityStage({ quality: deps.quality, logPort: turn.logPort }),
         }),
         telemetry: deps.telemetry,

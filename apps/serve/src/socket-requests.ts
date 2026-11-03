@@ -57,7 +57,9 @@ export function createRequestRouter(args: {
   context?: ContextReaders | undefined
   mentions?: MentionRouting | undefined
   transcript?: TranscriptReaders | undefined
-  selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
+  selectModel?:
+    | ((model: { ref: string; effort: string; fast?: boolean | undefined }) => void)
+    | undefined
   persistModel?: ThreadModelPersister | undefined
   tools?: SessionTools | undefined
   processes?: ServeProcesses | undefined

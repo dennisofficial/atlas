@@ -159,6 +159,7 @@ export async function bootServeFiles(args: {
           ? null
           : cwd,
       homeDir: env.HOME ?? homedir(),
+      atlasHomeDir: atlasHome,
     },
   })
   const settingsStartedAt = Date.now()
@@ -200,6 +201,7 @@ export async function bootServeFiles(args: {
           projectDirectory: cwd,
           prefetched: prefetchedBundle,
         })
+        refreshCloudState.remergeMcpServers()
         await applyCloudInstructions({ ...context, prefetched: prefetchedInstructions })
       },
     })

@@ -2,7 +2,7 @@ import { ENoticeTone, type NoticePort, type ThreadId } from '@dltech/atlas-core'
 import { SessionsClient } from '@dltech/atlas-harness'
 import { isApiProvisioned } from '@dltech/atlas-wire'
 
-export type BootModel = { ref: string; effort?: string | undefined }
+export type BootModel = { ref: string; effort?: string | undefined; fast?: boolean | undefined }
 
 export async function apiThreadModel(args: {
   env: Record<string, string | undefined>

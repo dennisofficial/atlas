@@ -279,6 +279,7 @@ export class ThreadsService {
     await db.orm.public.Thread.where({ id: args.threadId }).update({
       modelRef: args.draft.ref,
       modelEffort: args.draft.effort,
+      modelFast: args.draft.fast ?? false,
     })
     this.signals.threadChanged({ threadId: args.threadId })
   }

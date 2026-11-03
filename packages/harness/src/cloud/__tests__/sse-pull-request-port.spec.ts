@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { ELogSeverity, type LogEntry, type LogPort } from '@dltech/atlas-core'
-
 import { EPullRequestLookup, EForge, type RepositoryCheckout } from '../../plugins/github/pure'
 import { SsePullRequestPort } from '../sse-pull-requests'
 import { inputOf, procedureOf, STREAM_PROCEDURE, trpcFailure, trpcOk } from './trpc-fakes'
+import { ELogSeverity, type LogEntry, type LogPort } from '@dltech/atlas-observability'
 
 const SESSION = { url: 'https://api.test', token: 'tok', email: null }
 const ports: SsePullRequestPort[] = []

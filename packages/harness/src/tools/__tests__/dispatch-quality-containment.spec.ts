@@ -2,11 +2,9 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EQualityReviewStatus,
-  LogPort,
   toCallId,
   type CodeQualityReviewedBody,
   type EventDraft,
-  type LogEntry,
 } from '@dltech/atlas-core'
 
 import {
@@ -19,6 +17,7 @@ import {
   type NudgeDraft,
   type ReviewRecordDraft,
 } from './quality-fixtures'
+import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 class ThrowingLog extends LogPort {
   attempts = 0

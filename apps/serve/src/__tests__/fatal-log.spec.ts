@@ -3,10 +3,9 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'bun:test'
 
-import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-core'
-
 import { logServeFatal, serveFatalEntry, serveOpLog } from '../fatal-log'
 import { EServeEnv, ServeNeedsConfiguration } from '../serve-config'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 class CapturingLog extends LogPort {
   readonly entries: LogEntry[] = []
