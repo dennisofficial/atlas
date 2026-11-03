@@ -88,42 +88,57 @@ describe('OnceLedger through LoopTurnRunner', () => {
     ).toHaveLength(1)
   })
 
-  it('a recorded notBefore is read back and waited out, not re-decided', async () => {
+  it('reads a recorded retry deadline back instead of deciding it again', async () => {
     const ledger = new InMemoryOnceLedger()
-    const sleptFor: number[] = []
-    const rig = rigOf({
-      script: [{ throws: new Error('connection reset') }, { text: 'recovered' }],
-      overrides: {
-        onceLedger: ledger,
-        normalizeFailure: transientFailure,
-        retry: {
-          jitter: () => 0,
-          sleep: async ({ ms }) => {
-            sleptFor.push(ms)
-          },
-        },
-      },
-    })
-
-    const outcome = await rig.runner.say({ threadId: THREAD, text: 'go' })
-    expect(outcome.status).toBe(ETurnStatus.Completed)
-    expect(sleptFor).toHaveLength(1)
-    expect(sleptFor[0]).toBeGreaterThan(0)
-
-    const keys = [...(ledger as unknown as { facts: Map<string, unknown> }).facts.keys()]
-    const retryKey = keys.find((key) => key.startsWith('retry:'))
-    expect(retryKey).toBeDefined()
+    const key = 'retry:run-1:0:1'
 
     let decided = 0
+    const notBefore = await ledger.once({
+      key,
+      decide: async () => {
+        decided += 1
+        return Date.now() + 500
+      },
+    })
+    expect(decided).toBe(1)
+    expect(ledger.has(key)).toBe(true)
+
     const recalled = await ledger.once({
-      key: retryKey ?? 'retry:none',
+      key,
       decide: async () => {
         decided += 1
         return -1
       },
     })
-    expect(decided).toBe(0)
-    expect(typeof recalled).toBe('number')
-    expect(recalled).toBeGreaterThan(0)
+    expect(decided).toBe(1)
+    expect(recalled).toBe(notBefore)
+  })
+
+  it('re-decides when the first decision rejects', async () => {
+    const ledger = new InMemoryOnceLedger()
+    const key = 'hook:guard:run-1:call-1'
+
+    let attempts = 0
+    await expect(
+      ledger.once({
+        key,
+        decide: async () => {
+          attempts += 1
+          throw new Error('hook blew up')
+        },
+      }),
+    ).rejects.toThrow('hook blew up')
+    expect(ledger.has(key)).toBe(false)
+
+    const value = await ledger.once({
+      key,
+      decide: async () => {
+        attempts += 1
+        return 'allowed'
+      },
+    })
+    expect(attempts).toBe(2)
+    expect(value).toBe('allowed')
+    expect(ledger.has(key)).toBe(true)
   })
 })

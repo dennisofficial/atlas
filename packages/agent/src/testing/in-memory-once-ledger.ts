@@ -12,6 +12,10 @@ export class InMemoryOnceLedger extends OnceLedger {
     return this.facts.has(key)
   }
 
+  keys(): string[] {
+    return [...this.facts.keys()]
+  }
+
   once<T>(args: { key: string; decide: () => Promise<T> }): Promise<T> {
     const recorded = this.facts.get(args.key)
     if (recorded !== undefined || this.facts.has(args.key)) {
@@ -21,10 +25,13 @@ export class InMemoryOnceLedger extends OnceLedger {
     if (inFlight !== undefined) return inFlight as Promise<T>
     const deciding = args.decide().then((value) => {
       this.facts.set(args.key, value)
-      this.pending.delete(args.key)
       return value as unknown
     })
     this.pending.set(args.key, deciding)
+    deciding.then(
+      () => this.pending.delete(args.key),
+      () => this.pending.delete(args.key),
+    )
     return deciding as Promise<T>
   }
 }

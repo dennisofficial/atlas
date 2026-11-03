@@ -214,7 +214,6 @@ export async function runTrackedTurn(
     const assembled = prepared.assembled
     position.previous = assembled
 
-    const retry = deps.retry && { ...deps.retry, runId, step: position.modelSteps }
     const stepOnce = () =>
       takeModelStepWithRetry({
         model: deps.model,
@@ -222,7 +221,7 @@ export async function runTrackedTurn(
         onChunk: deps.onChunk,
         assembled,
         signal: abortSignal,
-        retry,
+        retry: deps.retry,
         normalizeFailure: deps.normalizeFailure,
         prepare: prepareAttempt,
       })

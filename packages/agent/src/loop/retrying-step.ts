@@ -19,7 +19,6 @@ import { preparedFailureMessage, type PreparedStep } from './step-prepare'
 import { blockedErrorOf, type ModelAdmissionBlockedError } from '../model/admission-blocked'
 import { causeChainOf } from '../model/cause-chain'
 import type { NormalizeFailure } from '../model/run-failure'
-import type { OnceLedger } from './once-ledger.port'
 import { takeModelStep, type SteppedTurn } from './model-step'
 
 export type RetryNotice = {
@@ -59,9 +58,6 @@ export type RetryDeps = {
    */
   failover?: (() => boolean) | undefined
   now?: (() => number) | undefined
-  onceLedger?: OnceLedger | undefined
-  runId?: string | undefined
-  step?: number | undefined
 }
 
 export function sleepUnlessAborted(args: { ms: number; signal: AbortSignal }): Promise<void> {
@@ -249,22 +245,8 @@ export async function takeModelStepWithRetry(args: {
         reason: decision.reason,
       })
 
-      let delayMs = decision.delayMs
-      const ledger = args.retry?.onceLedger
-      if (
-        ledger !== undefined &&
-        args.retry?.runId !== undefined &&
-        args.retry?.step !== undefined
-      ) {
-        const notBefore = await ledger.once({
-          key: `retry:${args.retry.runId}:${args.retry.step}:${attempts}`,
-          decide: async () => now() + decision.delayMs,
-        })
-        delayMs = Math.max(0, notBefore - now())
-      }
-
       await interruptibleSleep({
-        ms: delayMs,
+        ms: decision.delayMs,
         callerSignal: args.signal,
         jumpSignal: wake.signal,
         sleep,
