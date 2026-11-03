@@ -5,12 +5,14 @@ import { filesEventSchemas, filesOpSchemas, filesResultSchemas } from './files'
 import { mcpEventSchemas, mcpOpSchemas, mcpResultSchemas } from './mcp'
 import { failedCallResultSchema } from './result'
 import { servicesEventSchemas, servicesOpSchemas, servicesResultSchemas } from './services'
+import { terminalEventSchemas, terminalOpSchemas, terminalResultSchemas } from './terminal'
 
 export const callOpSchema = z.discriminatedUnion('op', [
   ...execOpSchemas,
   ...filesOpSchemas,
   ...mcpOpSchemas,
   ...servicesOpSchemas,
+  ...terminalOpSchemas,
 ])
 
 export const okCallResultSchema = z.discriminatedUnion('op', [
@@ -18,6 +20,7 @@ export const okCallResultSchema = z.discriminatedUnion('op', [
   ...filesResultSchemas,
   ...mcpResultSchemas,
   ...servicesResultSchemas,
+  ...terminalResultSchemas,
 ])
 
 export const callResultSchema = z.union([okCallResultSchema, failedCallResultSchema])
@@ -27,6 +30,7 @@ export const daemonEventSchema = z.discriminatedUnion('type', [
   ...filesEventSchemas,
   ...mcpEventSchemas,
   ...servicesEventSchemas,
+  ...terminalEventSchemas,
 ])
 
 export type CallOp = z.infer<typeof callOpSchema>
@@ -42,3 +46,4 @@ export * from './files'
 export * from './mcp'
 export * from './result'
 export * from './services'
+export * from './terminal'
