@@ -67,13 +67,12 @@ describe('the skill listing fragment', () => {
     expect(text).not.toContain('Run the research procedure.')
   })
 
-  it('places one affirmative instruction before the generated roster', () => {
+  it('keeps loading guidance in the skill tool contract rather than the prompt', () => {
     const text = listingOver(new FakeSkillRegistry({ skills: CORPUS }))
 
-    expect(text.split('\n\n')[0]).toBe(
-      'Load the skill that matches your task before choosing an approach.',
-    )
-    expect(text).not.toContain('not its neighbours')
+    expect(text).not.toContain('Load the skill that matches your task')
+    expect(text).not.toContain('load ui-design')
+    expect(text).not.toContain('skill-relevance hint')
   })
 
   it('emits nothing when no skill is model-invocable', () => {
@@ -96,98 +95,6 @@ describe('the skill listing fragment', () => {
     for (const groups of [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS]) {
       expect(fragment.applies({ ...OPUS, groups })).toBe(true)
     }
-  })
-})
-
-const UI_DIRECTIVE =
-  'For every task involving UI design, implementation, changes, or review—including web, mobile, and terminal interfaces—load ui-design before choosing an approach. Load it alongside any other relevant skills, independently of the skill-relevance hint.'
-
-const occurrences = ({ text, needle }: { text: string; needle: string }): number =>
-  text.split(needle).length - 1
-
-describe('the standing ui-design directive', () => {
-  const withUiDesign = [
-    ...CORPUS,
-    fakeSkill({ name: 'ui-design', description: 'Design interfaces' }),
-  ]
-
-  it('follows the generic preamble exactly once when ui-design is model-invocable', () => {
-    const text = listingOver(new FakeSkillRegistry({ skills: withUiDesign }))
-
-    expect(text.split('\n\n').slice(0, 2)).toEqual([
-      'Load the skill that matches your task before choosing an approach.',
-      UI_DIRECTIVE,
-    ])
-    expect(occurrences({ text, needle: 'load ui-design' })).toBe(1)
-  })
-
-  it('leaves the generic preamble alone when ui-design is absent', () => {
-    const text = listingOver(new FakeSkillRegistry({ skills: CORPUS }))
-
-    expect(text).not.toContain('ui-design')
-    expect(text.split('\n\n')[0]).toBe(
-      'Load the skill that matches your task before choosing an approach.',
-    )
-  })
-
-  it('does not name a ui-design that the model may not invoke', () => {
-    const text = listingOver(
-      new FakeSkillRegistry({
-        skills: [...CORPUS, fakeSkill({ name: 'ui-design', modelInvocable: false })],
-      }),
-    )
-
-    expect(text).not.toContain('ui-design')
-  })
-
-  it('does not ride on a skill that merely mentions ui-design', () => {
-    const text = listingOver(
-      new FakeSkillRegistry({
-        skills: [
-          fakeSkill({
-            name: 'better-ui',
-            description: 'Polish; pairs with ui-design',
-          }),
-        ],
-      }),
-    )
-
-    expect(text).not.toContain(UI_DIRECTIVE)
-  })
-
-  it('holds when the roster budget trims the ui-design entry itself', () => {
-    const crowd = Array.from({ length: 400 }, (_, index) =>
-      fakeSkill({ name: `crowd-${index}`, description: 'x'.repeat(300) }),
-    )
-    const text = fragmentOver(
-      new FakeSkillRegistry({
-        skills: [...crowd, fakeSkill({ name: 'ui-design' })],
-      }),
-    ).text({ ...OPUS, model: { contextWindow: 20_000 } })
-
-    expect(text).toContain(UI_DIRECTIVE)
-    expect(occurrences({ text, needle: 'load ui-design' })).toBe(1)
-  })
-
-  it('keeps the preamble and directive when the budget leaves no room for the roster', () => {
-    const text = fragmentOver(
-      new FakeSkillRegistry({ skills: [fakeSkill({ name: 'ui-design' })] }),
-    ).text({ ...OPUS, model: { contextWindow: 0 } })
-
-    expect(text.split('\n\n').slice(0, 2)).toEqual([
-      'Load the skill that matches your task before choosing an approach.',
-      UI_DIRECTIVE,
-    ])
-  })
-
-  it('is the same text for every agent the prompt compiles for', () => {
-    const fragment = fragmentOver(new FakeSkillRegistry({ skills: withUiDesign }))
-    const texts = [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS].map((groups) =>
-      fragment.text({ ...OPUS, groups }),
-    )
-
-    expect(new Set(texts).size).toBe(1)
-    expect(texts[0]).toContain(UI_DIRECTIVE)
   })
 })
 
@@ -240,28 +147,5 @@ describe('the listing compiled into a prompt', () => {
       'identity',
       'skills.listing',
     ])
-  })
-
-  it('adds and removes the ui-design directive as availability changes across reloads', async () => {
-    let present = false
-    const skills = new FakeSkillRegistry({
-      skills: [fakeSkill({ name: 'research' })],
-      onReload: () =>
-        present
-          ? [fakeSkill({ name: 'research' }), fakeSkill({ name: 'ui-design' })]
-          : [fakeSkill({ name: 'research' })],
-    })
-    const prompts = registryHolding(skills)
-    const textOf = (): string => prompts.compile(OPUS).blocks[0]?.text ?? ''
-
-    expect(textOf()).not.toContain(UI_DIRECTIVE)
-
-    present = true
-    await skills.reload()
-    expect(textOf()).toContain(UI_DIRECTIVE)
-
-    present = false
-    await skills.reload()
-    expect(textOf()).not.toContain(UI_DIRECTIVE)
   })
 })

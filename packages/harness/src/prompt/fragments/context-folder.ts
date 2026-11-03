@@ -24,6 +24,9 @@ export class ContextFolderFragment extends PromptFragment {
       '  artifacts/ — human-facing deliverables (previews, mockups, reports).',
       '  evidence/ — live-run proof: verification logs, screenshots, results.',
       '',
+      'Write these files when work is split across agents or will outlive your context window; work you do',
+      'alone in one sitting needs none.',
+      '',
       'Write as you go, never in one burst at the end: the moment a slice’s shape settles — its files are',
       'open, its decisions logged — write its section file and grow plan.md, before you scope the next.',
       '',
@@ -33,11 +36,8 @@ export class ContextFolderFragment extends PromptFragment {
       'commands that prove the work. A spec only you could execute — because you still hold unwritten',
       'context in your head — is a failed spec.',
       '',
-      'Calibrate the ceremony to the work. A one-line fix writes nothing. A small, well-understood change',
-      'gets a brief plan.md — a goal, a few lines of overview, the concrete edits, the check that proves it.',
-      'Feature-sized work gets the full structure. Sub-agent briefs and teammate spawns point at these files',
-      'rather than re-deriving them, and before you call any delegated work done you check it against the',
-      'spec it was built from.',
+      'Sub-agent briefs and teammate spawns point at these files rather than re-deriving them, and before',
+      'you call any delegated work done you check it against the spec it was built from.',
     ].join('\n')
   }
 }

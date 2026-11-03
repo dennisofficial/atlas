@@ -25,19 +25,22 @@ describe('the delegation fragment across the agent axis', () => {
     expect(new DelegationFragment().applies(contextFor(NO_PROMPT_GROUPS))).toBe(false)
   })
 
-  it('anchors the keep-it-yourself line to a scale, not a feeling', () => {
+  it('keeps coherent single-agent work with the agent doing it', () => {
     const text = new DelegationFragment().text()
-    expect(text).toContain('smaller than the brief that would describe it')
+    expect(text).toContain('one coherent change one agent can finish in a')
+    expect(text).toContain('cost more than they save')
   })
 
-  it('names planned, sliced work as past the delegation line', () => {
+  it('cuts slices along seams and names the integration owner', () => {
     const text = new DelegationFragment().text()
-    expect(text).toContain('plan file, a checklist, or')
-    expect(text).toContain('go to agents now')
+    expect(text).toContain('seams, not layers')
+    expect(text).toContain('who owns the integration')
+    expect(text).toContain('Never leave an agent waiting on another.')
   })
 
-  it('sends a remaining slice stack to a teammate', () => {
+  it('sends a whole workstream to a teammate and bounded slices to sub-agents', () => {
     const text = new DelegationFragment().text()
-    expect(text).toContain('a remaining slice stack — goes to a')
+    expect(text).toContain('a teammate for a whole workstream')
+    expect(text).toContain('verify the assembled whole yourself')
   })
 })
