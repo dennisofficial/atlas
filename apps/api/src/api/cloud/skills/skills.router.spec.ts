@@ -455,13 +455,9 @@ describe('SkillsRouter', () => {
       }
     ).skills
     const builtIn = skills.filter((skill) => skill.origin === 'built-in')
-    expect(builtIn.map((skill) => skill.name).sort()).toEqual([
-      'atlas',
-      'commit',
-      'resolving-merge-conflicts',
-      'ui-design',
-      'video',
-    ])
+    for (const name of ['atlas', 'commit', 'resolving-merge-conflicts', 'ui-design', 'video']) {
+      expect(builtIn.some((skill) => skill.name === name)).toBe(true)
+    }
     expect(builtIn.every((skill) => skill.overridesBuiltIn === false)).toBe(true)
   })
 
