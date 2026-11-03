@@ -25,7 +25,7 @@ repository; nothing from that session's scratch or context folder survives.
 
 ## The job
 
-Write `docs/v2/slices/03-worker-host.md`, walk the operator through it point by point, and build
+Write `docs/v2/slices/03-agent-host.md`, walk the operator through it point by point, and build
 nothing until it is approved.
 
 ## Settled, and where it is recorded
