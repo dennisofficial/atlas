@@ -5,6 +5,7 @@ import { needsTrustedOrigin } from '@dltech/atlas-wire'
 import { z } from 'zod'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { auth } from '../auth/auth.server'
+import { trustedOriginsOf } from './trusted-origins'
 
 export const CODE_TTL_MS = 60_000
 const INVALID_GRANT = 'the authorization code is invalid, expired or already used'
@@ -20,14 +21,6 @@ const identifierOf = (code: string): string => `desktop-auth:${sha256(code).toSt
 
 // https://datatracker.ietf.org/doc/html/rfc7636#section-4.6
 export const challengeOf = (verifier: string): string => sha256(verifier).toString('base64url')
-
-export const trustedOriginsOf = (env: EnvService): Set<string> => {
-  const listed = (env.get('TRUSTED_ORIGINS') ?? '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0)
-  return new Set([...listed, env.get('WEB_ORIGIN')])
-}
 
 @Injectable()
 export class DesktopAuthService {
