@@ -1,15 +1,14 @@
 import {
   EventLogPort,
-  LogPort,
   stampDrafts,
   toEventId,
   toRunId,
   type Event,
   type EventDraft,
   type EventOfType,
-  type LogEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
+import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 export class RecordingLog extends EventLogPort {
   readonly appended: EventDraft[] = []

@@ -1,5 +1,4 @@
 import {
-  ELogSeverity,
   ESinkLevel,
   ESinkSource,
   consoleTextOf,
@@ -12,6 +11,7 @@ import {
 
 import type { JsonlLog } from '@dltech/atlas-harness'
 import { currentNotices, ENoticeTone, notify, tickNotices } from '../ui/notice-store'
+import { ELogSeverity } from '@dltech/atlas-observability'
 
 const PACKAGE_WARNING_TTL_MS = 15_000
 

@@ -174,17 +174,18 @@ cohesive packages where each feature's code sits in one place.
 
 **Foundation packages (`packages/`)**
 
-| Package      | Owns                                                                                                                       |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| `core`       | Pure shared vocabulary: ids, event envelope, assembly, and the record rules (log, inbox, lease, history folds)             |
-| `protocol`   | Wire schemas for the three directions (today's `wire`, without sandbox provisioning I/O or the ticket HMAC implementation) |
-| `agent`      | The loop every agent runs: turn runner, retries, intake, tool dispatch, model port. Knows nothing about pods or leases     |
-| `pod`        | Hosts agents in a pod: holds the lease, local record cache, replication, inbox consumption (0018 called this `runtime`)    |
-| `control`    | The CP library: record, inbox, leases, view materialization. Adapters: Postgres (hosted by `apps/api`), SQLite (D2)        |
-| `client`     | The client SDK and headless React hooks shared by web, TUI and Mac: session stream, view cache, commands                   |
-| `plugin-sdk` | The plugin contract (slots), the type-level registries and the loader; native and repo plugins share it                    |
-| `commands`   | The command contract: spec, arguments, registry, dispatch as inbox commands, the shared command menu and its hooks         |
-| `settings`   | Settings schema and resolution (pure) plus per-tier subpaths; plugins contribute keys                                      |
+| Package         | Owns                                                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `core`          | Pure shared vocabulary: ids, event envelope, assembly, and the record rules (log, inbox, lease, history folds)                 |
+| `protocol`      | Wire schemas for the three directions (today's `wire`, without sandbox provisioning I/O or the ticket HMAC implementation)     |
+| `agent`         | The loop every agent runs: turn runner, retries, intake, tool dispatch, model port. Knows nothing about pods or leases         |
+| `pod`           | Hosts agents in a pod: holds the lease, local record cache, replication, inbox consumption (0018 called this `runtime`)        |
+| `control`       | The CP library: record, inbox, leases, view materialization. Adapters: Postgres (hosted by `apps/api`), SQLite (D2)            |
+| `client`        | The client SDK and headless React hooks shared by web, TUI and Mac: session stream, view cache, commands                       |
+| `plugin-sdk`    | The plugin contract (slots), the type-level registries and the loader; native and repo plugins share it                        |
+| `commands`      | The command contract: spec, arguments, registry, dispatch as inbox commands, the shared command menu and its hooks             |
+| `settings`      | Settings schema and resolution (pure) plus per-tier subpaths; plugins contribute keys                                          |
+| `observability` | Telemetry, operational log and (soon) tracing ports; exporters on `/node` ([0023](../decisions/0023-observability-package.md)) |
 
 `ui`, `db` and `models` are unchanged.
 

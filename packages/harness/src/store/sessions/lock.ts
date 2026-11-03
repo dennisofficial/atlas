@@ -3,10 +3,8 @@ import { dirname } from 'node:path'
 
 import { z } from 'zod'
 
-import type { LogPort } from '@dltech/atlas-core'
-
-import { logFieldsOf } from '../logs'
 import { holderIsLive, ownIdentity } from '../../workspace/process-identity'
+import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'
 
 export enum ESessionClaim {
   Owned = 'owned',

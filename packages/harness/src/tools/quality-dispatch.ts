@@ -6,7 +6,6 @@ import {
   type CodeQualityReviewedBody,
   type Event,
   type EventDraft,
-  type LogPort,
   type QualityReviewPort,
   type RunId,
   type ThreadId,
@@ -17,7 +16,7 @@ import {
 import type { QualityReviewOutcome, QualityStagePort } from '@dltech/atlas-agent'
 
 import { createQualityBudget, settleReview } from '../quality/deadline'
-import { logFieldsOf } from '../store/logs'
+import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'
 
 export const QUALITY_REVIEW_BUDGET_MS = 1000
 

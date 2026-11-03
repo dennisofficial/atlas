@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ATLAS_TELEMETRY_ENV, ATLAS_TESTING_ENV, telemetryEnabled } from '../../index'
+import { ATLAS_TESTING_ENV } from '@dltech/atlas-core'
+
+import { ATLAS_TELEMETRY_ENV, telemetryEnabled } from '../telemetry-policy'
 
 describe('telemetryEnabled', () => {
   it('is on for a plain production environment', () => {

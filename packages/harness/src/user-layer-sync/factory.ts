@@ -1,10 +1,11 @@
 import { join } from 'node:path'
 
-import type { LogPort, NoticePort } from '@dltech/atlas-core'
+import type { NoticePort } from '@dltech/atlas-core'
 
 import type { UserLayerSyncClient } from './client'
 import { UserLayerSyncEngine } from './engine'
 import { userLayerTrees, type UserLayerRootsArgs } from './roots'
+import type { LogPort } from '@dltech/atlas-observability'
 
 const SYNC_DIRECTORY_NAME = 'sync'
 const STATE_FILE_NAME = 'user-layer-sync.json'

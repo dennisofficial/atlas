@@ -1,4 +1,4 @@
-import { ATLAS_TESTING_ENV } from './atlas-home'
+import { ATLAS_TESTING_ENV } from '@dltech/atlas-core'
 
 export const ATLAS_TELEMETRY_ENV = 'ATLAS_TELEMETRY'
 export const ATLAS_TELEMETRY_IDENTITY_ENV = 'ATLAS_TELEMETRY_IDENTITY'

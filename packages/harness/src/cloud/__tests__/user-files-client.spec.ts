@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-core'
-
 import { CloudUserFilesClient, UserFileConflict } from '../user-files-client'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 type Call = { url: string; method: string; body: unknown }
 type Answer = { status: number; body?: unknown }

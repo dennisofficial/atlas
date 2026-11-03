@@ -1,4 +1,4 @@
-import { ClockPort, EventLogPort, IdPort, LogPort, ProcessPort } from '@dltech/atlas-core'
+import { ClockPort, EventLogPort, IdPort, ProcessPort } from '@dltech/atlas-core'
 
 import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { registerDisposable } from '../container/disposal'
@@ -12,6 +12,7 @@ import { DeltaChannelToken, WorkspaceRoot } from '../container/tokens'
 import { atlasBinDirectory, atlasServicesDirectory } from '../store/paths'
 import { tryEnsureAtlasSvcShim } from './atlas-svc-shim'
 import { BunServiceRegistry, ServiceRegistryPort } from './service-registry'
+import { LogPort } from '@dltech/atlas-observability'
 
 export function registerServices({ container }: { container: DependencyContainer }): void {
   let live: ServiceRegistryPort | undefined

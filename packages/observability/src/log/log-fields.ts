@@ -1,4 +1,4 @@
-import type { LogEntry } from '@dltech/atlas-core'
+import type { LogEntry } from './log.port'
 
 export function logFieldsOf({ error }: { error: unknown }): Pick<LogEntry, 'error' | 'stack'> {
   if (!(error instanceof Error)) return { error: String(error) }

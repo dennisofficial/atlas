@@ -1,5 +1,4 @@
 import {
-  ATLAS_TELEMETRY_IDENTITY_ENV,
   EExecutionLocation,
   ELocationChangeCause,
   ESettingId,
@@ -9,7 +8,6 @@ import {
 } from '@dltech/atlas-core'
 import {
   atlasDirectory,
-  persistedTelemetryDistinctId,
   requireVercelCredentials,
   SandboxClient,
   sandboxImageOf,
@@ -28,6 +26,8 @@ import { liveReaperListFailureMark } from './cloud/reaper-failure-marker'
 import type { AtlasApp } from './compose'
 import { messageOf } from './error-text'
 import { noticePortBinding } from './notice-binding'
+import { ATLAS_TELEMETRY_IDENTITY_ENV } from '@dltech/atlas-observability'
+import { persistedTelemetryDistinctId } from '@dltech/atlas-observability/node'
 
 type RegistryMetadata = { title?: string; repo?: string; model?: string }
 

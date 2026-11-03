@@ -1,4 +1,4 @@
-import { TelemetryPort } from '@dltech/atlas-core'
+import { TelemetryPort } from './telemetry.port'
 
 export class NullTelemetry extends TelemetryPort {
   turnCompleted(): void {}

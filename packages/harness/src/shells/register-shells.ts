@@ -1,4 +1,4 @@
-import { ClockPort, EventLogPort, IdPort, LogPort, ProcessPort } from '@dltech/atlas-core'
+import { ClockPort, EventLogPort, IdPort, ProcessPort } from '@dltech/atlas-core'
 
 import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { registerDisposable } from '../container/disposal'
@@ -24,6 +24,7 @@ import { ShellLauncherPort, ShellRegistryPort } from './port'
 import { BunShellRegistry } from './shell-registry'
 import { ShellStorage } from './storage'
 import { prepareSupervisorLauncher } from './supervisor-launch'
+import { LogPort } from '@dltech/atlas-observability'
 
 export function registerShells({ container }: { container: DependencyContainer }): void {
   let live: ShellRegistryPort | undefined

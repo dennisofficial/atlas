@@ -1,4 +1,5 @@
-import { ELogSeverity, type LogEntry, type LogPort, type ThreadId } from '@dltech/atlas-core'
+import { type ThreadId } from '@dltech/atlas-core'
+import { ELogSeverity, type LogEntry, type LogPort } from '@dltech/atlas-observability'
 
 export const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))

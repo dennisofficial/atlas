@@ -14,10 +14,9 @@ import {
   type OnToolOutput,
   type WorkspacePort,
   type HookOutcome,
-  type LogPort,
 } from '@dltech/atlas-core'
 
-import { logFieldsOf } from '../logging/log-fields'
+import { logFieldsOf } from '@dltech/atlas-observability'
 import { withinBudget, type OnHookMishap } from '../hooks/budget'
 import type { HookChain } from '../hooks/registry'
 import type { OnceLedger } from '../loop/once-ledger.port'
@@ -31,6 +30,7 @@ import {
 import { NO_QUALITY_STAGE, type QualityStagePort } from './quality-stage'
 import type { ToolRegistry } from './registry'
 import { resultDraft } from './tool-result-draft'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export type DispatchableCall = {
   callId: CallId

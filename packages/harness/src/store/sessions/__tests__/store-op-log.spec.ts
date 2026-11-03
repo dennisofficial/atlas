@@ -5,14 +5,11 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 import {
-  ELogSeverity,
-  LogPort,
   toEventId,
   toRunId,
   toThreadId,
   type EventDraft,
   type EventEnvelope,
-  type LogEntry,
 } from '@dltech/atlas-core'
 
 import { EUnreadableReason } from '../../decode-events'
@@ -20,6 +17,7 @@ import { dropTornTail, encodeEventLine, parseEventLines } from '../lines'
 import { claimSession, ESessionClaim } from '../lock'
 import { readMetaSync, sessionMetaSchema, threadMetaSchema } from '../meta'
 import { eventLogFile, sessionLockFile, sessionMetaFile, threadMetaFile } from '../paths'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 class CapturingLog extends LogPort {
   readonly entries: LogEntry[] = []

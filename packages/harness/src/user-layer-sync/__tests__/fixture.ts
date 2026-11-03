@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { LogPort, NoticePort, type LogEntry, type NoticePost } from '@dltech/atlas-core'
+import { NoticePort, type NoticePost } from '@dltech/atlas-core'
 
 import {
   UserFileConflict,
@@ -12,6 +12,7 @@ import {
 import type { UserLayerSyncClient } from '../client'
 import { createUserLayerSync } from '../factory'
 import { sha256Hex } from '../local-file'
+import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 type Row = {
   revision: number

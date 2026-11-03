@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import {
   AfterShellHook,
   EKilledBy,
-  ELogSeverity,
   ENoticeStage,
   EStage,
   type AfterShell,
@@ -27,6 +26,7 @@ import {
   shellAdapters,
   THREAD,
 } from './shell-registry-fixture'
+import { ELogSeverity } from '@dltech/atlas-observability'
 
 afterEach(closeRegistries)
 

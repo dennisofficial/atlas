@@ -1,6 +1,10 @@
 import { PostHog } from 'posthog-node'
 
-import { TelemetryPort, type TelemetryAgentRun, type TelemetryTurn } from '@dltech/atlas-core'
+import {
+  TelemetryPort,
+  type TelemetryAgentRun,
+  type TelemetryTurn,
+} from '../telemetry/telemetry.port'
 
 const POSTHOG_KEY = 'phc_q27hvgM8kSbwyjca72m3v7QexFE25FfFG8n529zM2WqL'
 const POSTHOG_HOST = 'https://us.i.posthog.com'

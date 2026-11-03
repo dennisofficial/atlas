@@ -3,11 +3,12 @@ import { writeFileSync } from 'node:fs'
 import { mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { LogPort, toThreadId, type LogEntry } from '@dltech/atlas-core'
+import { toThreadId } from '@dltech/atlas-core'
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
 import { JsonlEventLog } from '../event-log'
 import { eventLogFile, sessionDirectory } from '../paths'
 import { SessionRegistry } from '../registry'
+import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 const homes: string[] = []
 afterEach(async () => {

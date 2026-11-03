@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  NOTHING_BILLED,
-  TelemetryPort,
-  type TelemetryTurn,
-  type RunId,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { NOTHING_BILLED, type RunId, type ThreadId } from '@dltech/atlas-core'
 
 import { recordTurnSpend, TURN_CRASHED } from '../record-turn-spend'
 import { TurnLedgerPort, type TurnSpend } from '../turn-ledger.port'
+import { TelemetryPort, type TelemetryTurn } from '@dltech/atlas-observability'
 
 class RecordingTelemetry extends TelemetryPort {
   turns: TelemetryTurn[] = []

@@ -9,7 +9,6 @@ import {
   toThreadId,
   type CapturedFileChange,
   type EventDraft,
-  type LogPort,
   type QualityCoverageDiagnostic,
   type ToolDefinition,
   type ToolInvocation,
@@ -20,6 +19,7 @@ import { HookChain } from '../../hooks/registry'
 import { HookedToolDispatcher, type DispatchableCall } from '../dispatch'
 import { QualityStage } from '../quality-dispatch'
 import { InMemoryToolRegistry } from '../registry'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export const writeCall: DispatchableCall = {
   callId: toCallId('call-w'),

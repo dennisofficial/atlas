@@ -1,5 +1,4 @@
 import {
-  ELogSeverity,
   EOwnedUnitKind,
   liveOwnedUnits,
   rowsOwnedBy,
@@ -7,12 +6,12 @@ import {
   type EventDraft,
   type EventLogPort,
   type IdPort,
-  type LogPort,
   type LiveOwnedUnits,
   type ThreadId,
 } from '@dltech/atlas-core'
 import type { InputBatch, MessageIntake } from '../intake'
 import { flushThreadInput } from './flush-session-input'
+import { ELogSeverity, type LogPort } from '@dltech/atlas-observability'
 
 export type TeardownSource = {
   closeAll(): Promise<void>

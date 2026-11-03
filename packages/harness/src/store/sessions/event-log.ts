@@ -10,7 +10,6 @@ import {
   type EventEnvelope,
   type EventLogPort,
   type IdPort,
-  type LogPort,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -28,6 +27,7 @@ import { dropTornTail, encodeEventLine } from './lines'
 import { newThreadMeta, readMetaSync, threadMetaSchema, writeMeta } from './meta'
 import { eventLogFile, threadMetaFile, threadsDirectory } from './paths'
 import { rebuildContextIndex, type SessionRegistry } from './registry'
+import type { LogPort } from '@dltech/atlas-observability'
 
 export type DecodedSessionLog = {
   events: Event[]

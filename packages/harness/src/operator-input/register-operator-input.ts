@@ -1,4 +1,4 @@
-import { AgentFileSystemPort, EventLogPort, IdPort, LogPort, ProcessPort } from '@dltech/atlas-core'
+import { AgentFileSystemPort, EventLogPort, IdPort, ProcessPort } from '@dltech/atlas-core'
 
 import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import {
@@ -12,6 +12,7 @@ import { ShellRegistryPort } from '../shells/port'
 import { deliverOperatorInput, prepareOperatorInputDestination } from './deliver'
 import { InProcessOperatorInput } from './registry'
 import { OperatorInputPort } from './port'
+import { LogPort } from '@dltech/atlas-observability'
 
 export function registerOperatorInput({ container }: { container: DependencyContainer }): void {
   container.register(registeredPortToken(OperatorInputPort), {
