@@ -17,16 +17,16 @@ const required = (args: { env: Record<string, string | undefined>; name: string 
 }
 
 const env = process.env
-let secret: string
+let token: string
 let sandboxName: string
 try {
-  secret = required({ env, name: 'DAEMON_SECRET' })
+  token = required({ env, name: 'DAEMON_TOKEN' })
   sandboxName = required({ env, name: 'ATLAS_SANDBOX_NAME' })
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))
   process.exit(78)
 }
-delete env.DAEMON_SECRET
+delete env.DAEMON_TOKEN
 
 const home = daemonHomeFromEnv(env)
 const protection = protectDaemon(env)
@@ -34,8 +34,7 @@ const bootId = randomUUID()
 const engine = new DaemonEngine({
   bootId,
   version: DAEMON_VERSION,
-  secret,
-  sandboxName,
+  token,
   store: new DiskCallStore(home),
   groups: daemonGroups({ env, home }),
   health: () => {
