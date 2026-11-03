@@ -60,6 +60,9 @@ const bootStepRow = (seq: number): WireEvent => ({
   body: JSON.stringify({ step: 'clone', state: 'done' }),
 })
 
+const readInputOf = (url: string): { fromSeq?: number } =>
+  JSON.parse(new URL(url).searchParams.get('input') ?? '{}')
+
 const fakePostgres = (seed: readonly WireEvent[] = []) => {
   const rows = new Map(seed.map((row) => [row.seq, row]))
   const batches: number[][] = []
@@ -82,7 +85,11 @@ const fakePostgres = (seed: readonly WireEvent[] = []) => {
       return trpcOk({ head: head() })
     }
     if (url.startsWith(trpcUrl({ controlPlaneUrl, procedure: 'threadEvents.read' }))) {
-      return trpcOk([...rows.values()])
+      const fromSeq = readInputOf(url).fromSeq ?? 0
+      return trpcOk([...rows.values()].filter((row) => row.seq >= fromSeq))
+    }
+    if (url.startsWith(trpcUrl({ controlPlaneUrl, procedure: 'threadEvents.head' }))) {
+      return trpcOk({ head: head() })
     }
     return new Response(null, { status: 204 })
   }) as unknown as typeof fetch
