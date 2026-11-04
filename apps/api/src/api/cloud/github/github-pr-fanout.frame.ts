@@ -62,6 +62,12 @@ const eventSchema = z.object({
     failedChecks: z.array(failedCheckSchema).exactOptional(),
     commentId: z.string().exactOptional(),
     edited: z.boolean().exactOptional(),
+    path: z.string().exactOptional(),
+    line: z.number().exactOptional(),
+    startLine: z.number().exactOptional(),
+    side: z.string().exactOptional(),
+    diffHunk: z.string().exactOptional(),
+    inReplyTo: z.string().exactOptional(),
   }),
   createdAt: z.string(),
 })

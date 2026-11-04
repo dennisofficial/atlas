@@ -1,9 +1,15 @@
 import { systemNotice } from '../../context/envelope'
 import { EPrEventKind, EPrVerdict } from '../../events/body'
 import type { DraftOfType } from '../../events/envelope'
+import { stripHtmlComments } from '../../github/comment-text'
+import {
+  reviewCommentHunk,
+  reviewCommentLocation,
+  reviewCommentReply,
+} from './pr-review-comment-lines'
 import { failedChecksBlock, failedChecksCountPhrase } from './pr-failed-checks-lines'
 
-const BODY_CLIP = 400
+const BODY_CLIP = 4000
 
 type PrEvent = DraftOfType<'pr-event'>
 
@@ -16,7 +22,7 @@ const fromAuthor = ({ noun, event }: { noun: string; event: PrEvent }): string =
 }
 
 const withBody = ({ lead, event }: { lead: string; event: PrEvent }): string => {
-  const body = event.body?.trim() ?? ''
+  const body = stripHtmlComments(event.body ?? '').trim()
   const said = body === '' ? `${lead}.` : `${lead} — ${clip(body, BODY_CLIP)}.`
   return `${said} ${event.url}`
 }
@@ -72,7 +78,8 @@ const sentenceOf = (event: PrEvent): string => {
     return withBody({ lead: fromAuthor({ noun: 'comment', event }), event })
   }
   if (event.kind === EPrEventKind.ReviewComment) {
-    return withBody({ lead: fromAuthor({ noun: 'review comment', event }), event })
+    const lead = `${fromAuthor({ noun: 'review comment', event })}${reviewCommentLocation(event)}${reviewCommentReply(event)}`
+    return `${withBody({ lead, event })}${reviewCommentHunk(event)}`
   }
   if (event.kind === EPrEventKind.Review) return withBody({ lead: reviewLead(event), event })
   if (event.kind === EPrEventKind.Verdict) return verdictSentence(event)

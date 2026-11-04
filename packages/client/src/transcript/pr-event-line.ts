@@ -1,4 +1,11 @@
-import { EPrEventKind, EPrReviewState, EPrVerdict, type EventOfType } from '@dltech/atlas-core'
+import {
+  EPrEventKind,
+  EPrReviewState,
+  EPrVerdict,
+  reviewCommentPlace,
+  stripHtmlComments,
+  type EventOfType,
+} from '@dltech/atlas-core'
 
 type PrEvent = EventOfType<'pr-event'>
 
@@ -8,7 +15,7 @@ const clip = (text: string, limit: number): string =>
   text.length <= limit ? text : `${text.slice(0, limit - 1)}…`
 
 const firstLineOf = (body: string | undefined): string => {
-  const trimmed = body?.trim() ?? ''
+  const trimmed = stripHtmlComments(body ?? '').trim()
   if (trimmed === '') return ''
   return clip(trimmed.split('\n')[0] ?? '', LINE_CLIP)
 }
@@ -34,8 +41,14 @@ const reviewLead = (event: PrEvent): string => {
 const reviewLine = (event: PrEvent): string =>
   withBody(`${prefix(event)}: ${reviewLead(event)}`, undefined)
 
-const reviewCommentLine = (event: PrEvent): string =>
-  withBody(`${prefix(event)}: ${author(event)} left an inline review comment`, event.body)
+const reviewCommentLine = (event: PrEvent): string => {
+  const place = reviewCommentPlace({ path: event.path, line: event.line })
+  const lead =
+    place === undefined
+      ? `${author(event)} left an inline review comment`
+      : `${author(event)} commented on ${place}`
+  return withBody(`${prefix(event)}: ${lead}`, event.body)
+}
 
 const FAILED_NAMES_SHOWN = 3
 

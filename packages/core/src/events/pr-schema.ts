@@ -30,6 +30,12 @@ export const prEventSchemas = [
     mergeable: z.boolean().optional(),
     state: z.string().optional(),
     reviewState: z.enum(EPrReviewState).optional(),
+    path: z.string().optional(),
+    line: z.number().int().positive().optional(),
+    startLine: z.number().int().positive().optional(),
+    side: z.string().optional(),
+    diffHunk: z.string().optional(),
+    inReplyTo: z.string().optional(),
     notice: noticeStampSchema.optional(),
   }),
 ] as const

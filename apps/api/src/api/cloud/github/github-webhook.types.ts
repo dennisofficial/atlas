@@ -90,6 +90,16 @@ export interface GithubWebhookComment {
   user: GithubWebhookUser | null
 }
 
+export interface GithubWebhookReviewComment extends GithubWebhookComment {
+  path?: string | null
+  line?: number | null
+  start_line?: number | null
+  original_line?: number | null
+  side?: string | null
+  diff_hunk?: string | null
+  in_reply_to_id?: number | null
+}
+
 export interface GithubWebhookCommentChanges {
   body?: { from: string }
 }
@@ -118,7 +128,7 @@ export interface GithubPullRequestReviewWebhookPayload {
 export interface GithubPullRequestReviewCommentWebhookPayload {
   action: string
   pull_request: GithubWebhookPullRequest
-  comment: GithubWebhookComment
+  comment: GithubWebhookReviewComment
   changes?: GithubWebhookCommentChanges
   sender: GithubWebhookUser
   repository: GithubWebhookRepository
