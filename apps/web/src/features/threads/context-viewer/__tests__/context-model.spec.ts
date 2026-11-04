@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { copyTextOf, isMarkdownPath } from '../context-model'
+import { copyTextOf, ERenderKind, isMarkdownPath, renderKindOf } from '../context-model'
 
 describe('isMarkdownPath', () => {
   it('matches markdown extensions only', () => {
@@ -8,6 +8,17 @@ describe('isMarkdownPath', () => {
     expect(isMarkdownPath('A.MARKDOWN')).toBe(true)
     expect(isMarkdownPath('notes.txt')).toBe(false)
     expect(isMarkdownPath('md')).toBe(false)
+  })
+})
+
+describe('renderKindOf', () => {
+  it('renders markdown and html, leaves everything else as source', () => {
+    expect(renderKindOf('packages/db/AGENTS.md')).toBe(ERenderKind.Markdown)
+    expect(renderKindOf('docs/page.mdx')).toBe(ERenderKind.Markdown)
+    expect(renderKindOf('site/index.html')).toBe(ERenderKind.Html)
+    expect(renderKindOf('OLD.HTM')).toBe(ERenderKind.Html)
+    expect(renderKindOf('src/client.ts')).toBeNull()
+    expect(renderKindOf('page.html.ts')).toBeNull()
   })
 })
 
