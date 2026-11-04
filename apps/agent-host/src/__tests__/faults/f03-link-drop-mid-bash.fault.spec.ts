@@ -1,16 +1,40 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
-import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
+import { startRig, type FaultRig } from '../../testing/fault-rig'
+import {
+  callIdOf,
+  expectEpochsOrdered,
+  expectOneResultPerDispatch,
+  isDoneResult,
+  makeFifo,
+  readEvents,
+  releaseFifo,
+} from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
-const epochOf = (row: ReadEvent): number => (row.event as { epoch: number }).epoch
+const waitForText = async (args: {
+  path: string
+  text: string
+  timeoutMs?: number
+}): Promise<void> => {
+  const deadline = Date.now() + (args.timeoutMs ?? 20_000)
+  while (Date.now() < deadline) {
+    try {
+      if (readFileSync(args.path, 'utf8').includes(args.text)) return
+    } catch {
+      // the tap file does not exist yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  throw new Error(`timed out waiting for ${args.text} in ${args.path}`)
+}
 
 describe.skipIf(REDIS_URL === undefined)('F3 daemon link dropped mid-bash, back in 3 s', () => {
   const testDb = useTestDatabase()
@@ -25,24 +49,35 @@ describe.skipIf(REDIS_URL === undefined)('F3 daemon link dropped mid-bash, back 
   })
 
   it('reattaches at the offset; output is neither doubled nor missing', async () => {
-    const sessionId = 'fault-f03-1'
+    const suffix = Math.random().toString(36).slice(2, 8)
+    const sessionId = `fault-f03-${suffix}`
     const threadId = await rig.newSession({ sessionId, text: 'stream lines' })
     const daemon = await rig.spawnDaemonFor({ sessionId })
+    const tapDir = mkdtempSync(join(tmpdir(), `atlas-fault-f03-tap-${suffix}-`))
+    const tapFile = join(tapDir, 'tool-output.log')
     const startedFile = join(daemon.home, `started-${sessionId}`)
     const gateFifo = join(daemon.home, `gate-${sessionId}`)
     const runsFile = join(daemon.home, `runs-${sessionId}`)
     makeFifo({ path: gateFifo })
+    const before = Array.from({ length: 5 }, (_, i) => `before-${i + 1}`)
+    const during = Array.from({ length: 5 }, (_, i) => `during-${i + 1}`)
+    const after = Array.from({ length: 5 }, (_, i) => `after-${i + 1}`)
+    const emit = (lines: string[], gap: string): string =>
+      lines.map((line) => `echo ${line}; sleep ${gap}`).join('; ')
     const bash = [
       `touch ${startedFile}`,
       `echo run >> ${runsFile}`,
-      'for i in $(seq 1 30); do echo line-$i; sleep 0.05; done',
+      emit(before, '0.2'),
+      emit(during, '0.6'),
       `cat ${gateFifo}`,
+      emit(after, '0.05'),
       'echo done',
     ].join('; ')
 
     const hostA = await rig.spawnHost({
       holderId: 'host-a',
       daemonUrl: daemon.url,
+      knobs: { toolOutputFile: tapFile },
       scripts: {
         [sessionId]: [
           {
@@ -60,15 +95,17 @@ describe.skipIf(REDIS_URL === undefined)('F3 daemon link dropped mid-bash, back 
       want: (rows) => rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
       timeoutMs: 20_000,
     })
-    await waitForFile({ path: startedFile })
+    await waitForText({ path: tapFile, text: 'before-5' })
+
+    const beforeDrop = await readEvents({ plane: rig.plane, threadId })
+    expect(beforeDrop.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(
+      false,
+    )
 
     daemon.proxy.set({ refuse: true })
-    const before = await readEvents({ plane: rig.plane, threadId })
-    expect(before.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)
-
     await new Promise((resolve) => setTimeout(resolve, 3_000))
     daemon.proxy.clear()
-    writeFileSync(gateFifo, 'go\n')
+    await releaseFifo({ path: gateFifo })
 
     const events = await rig
       .waitForSeq({
@@ -84,27 +121,19 @@ describe.skipIf(REDIS_URL === undefined)('F3 daemon link dropped mid-bash, back 
         )
       })
 
-    const dispatches = events.filter(
-      (row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1',
-    )
-    const results = events.filter((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')
-    expect(dispatches.length).toBe(1)
-    expect(results.length).toBe(1)
-
-    const result = results[0]?.event as { output?: { stdout?: string } }
+    expectOneResultPerDispatch(events)
+    const result = events.find((row) => callIdOf(row) === 'c1' && isDoneResult(row))?.event as {
+      output?: { stdout?: string }
+    }
     const stdout = result.output?.stdout ?? ''
-    const lines = stdout.split('\n')
-    const expected = Array.from({ length: 30 }, (_, i) => `line-${i + 1}`)
-    expect(lines.filter((line) => line.startsWith('line-'))).toEqual(expected)
+    const expected = [...before, ...during, 'go', ...after, 'done'].join('\n')
+    expect(stdout.trim()).toBe(expected)
 
     const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
     expect(runs).toEqual(['run'])
 
     const lease = await rig.plane.currentLease({ sessionId })
     expect(lease.lease.holderId).toBe('host-a')
-    const epochs = events.map(epochOf)
-    expect(Math.max(...epochs)).toBeLessThanOrEqual(lease.lease.epoch)
-    const sorted = [...epochs].sort((a, b) => a - b)
-    expect(epochs).toEqual(sorted)
+    expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
   }, 60_000)
 })
