@@ -1,4 +1,4 @@
-import { EHeldAction, type Lease, type ThreadId } from '@dltech/atlas-core'
+import { activeFailure, EHeldAction, type Lease, type ThreadId } from '@dltech/atlas-core'
 import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
 import { statusFrame, type SessionRuntime } from './ports'
@@ -259,7 +259,8 @@ export class HeldSession {
     this.released = true
     const drop = (): void => this.drop()
     const finish = (): void => this.finish()
-    await releaseIdleAndRewake({ deps: this.deps, runtime: this.runtime, drop, finish })
+    const failure = activeFailure(this.record?.eventCache().all() ?? [])
+    await releaseIdleAndRewake({ deps: this.deps, runtime: this.runtime, failure, drop, finish })
   }
 
   private drop(): void {

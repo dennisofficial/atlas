@@ -2,7 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import { chainEvents } from '../chain-events'
 import { v2EventSchema, type V2Body } from '../event'
-import { EWorkspaceState, isWorkspacePrepared, workspaceStateOf } from '../workspace'
+import {
+  actionableInboxIds,
+  EWorkspaceState,
+  isWorkspacePrepared,
+  workspaceStateOf,
+} from '../workspace'
 import { isRecordOnly, toLoopEvent } from '../loop-events'
 import { NOW, runId, threadId } from './support'
 
@@ -90,5 +95,22 @@ describe('workspaceStateOf', () => {
     expect(state({ bodies: [failed(1), prepared], pending: [5] }).state).toBe(
       EWorkspaceState.Prepared,
     )
+  })
+})
+
+describe('actionableInboxIds', () => {
+  const entries = [
+    { inboxId: 1, kind: 'message' },
+    { inboxId: 2, kind: 'stop' },
+    { inboxId: 3, kind: 'message' },
+  ]
+
+  it('keeps everything when there is no failure', () => {
+    expect(actionableInboxIds({ entries, failure: undefined })).toEqual([1, 2, 3])
+  })
+
+  it('drops messages up to the failure head and keeps stops and newer messages', () => {
+    expect(actionableInboxIds({ entries, failure: { inboxHead: 1 } })).toEqual([2, 3])
+    expect(actionableInboxIds({ entries, failure: { inboxHead: 3 } })).toEqual([2])
   })
 })

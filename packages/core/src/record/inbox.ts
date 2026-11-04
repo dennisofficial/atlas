@@ -1,3 +1,5 @@
+export const INBOX_KIND_STOP = 'stop'
+
 export type InboxEntry = {
   sessionId: string
   inboxId: number

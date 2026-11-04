@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+
 import type { PrepareResult } from '../ports'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
@@ -11,6 +13,25 @@ const gate = (): Gate => {
     settle = resolve
   })
   return { promise, settle }
+}
+
+const seedLog = async (args: { rig: Awaited<ReturnType<typeof makeRig>>; bodies: V2Body[] }) => {
+  const { rig } = args
+  const { epoch } = await rig.plane.grant({ sessionId: SESSION, holderId: 'seed', ttlMs: 1_000 })
+  const outcome = await rig.plane.append({
+    threadId: THREAD_ID,
+    epoch,
+    events: chainEvents({
+      threadId: toThreadId(THREAD_ID),
+      runId: toRunId('seed-run'),
+      epoch,
+      at: new Date(0).toISOString(),
+      bodies: args.bodies,
+      from: await rig.plane.head({ threadId: THREAD_ID }),
+    }),
+  })
+  if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
+  await rig.plane.revoke({ sessionId: SESSION, wantsHolder: false })
 }
 
 const typesOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<string[]> =>
@@ -141,5 +162,33 @@ describe('SessionHolder prepare', () => {
     })
     expect(answered).toBe(true)
     expect(rig.clock.now()).toBe(0)
+  })
+
+  it('releases an idle session whose only message is covered by the failure, without polling', async () => {
+    const rig = await makeRig({ idleMinutes: 1, ttlMs: 300_000 })
+    await seedSession(rig)
+    await rig.post('hello')
+    await seedLog({
+      rig,
+      bodies: [{ type: 'workspace-prepare-failed', reason: 'clone failed', inboxHead: 1 }],
+    })
+    let reads = 0
+    const readInbox = rig.plane.readInbox.bind(rig.plane)
+    rig.plane.readInbox = ((params: Parameters<typeof rig.plane.readInbox>[0]) => {
+      reads += 1
+      return readInbox(params)
+    }) as typeof rig.plane.readInbox
+    await rig.holder.start()
+    await rig.wake()
+    await rig.flush()
+    expect(rig.runtimes[0]?.released).toBe(false)
+    const readsAtStart = reads
+
+    rig.clock.advance(61_000)
+    const released = await flushUntil({ check: () => rig.runtimes[0]?.released === true })
+    expect(released).toBe(true)
+    expect(rig.holder.heldIds()).toEqual([])
+    expect(reads - readsAtStart).toBeLessThan(10)
+    expect(await typesOf(rig)).toEqual(['workspace-prepare-failed'])
   })
 })

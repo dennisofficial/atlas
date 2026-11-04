@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { V2Event } from './event'
+import { INBOX_KIND_STOP, type InboxEntry } from './inbox'
 
 export const workspacePreparedSchema = z.object({ type: z.literal('workspace-prepared') })
 
@@ -30,6 +31,22 @@ export const lastPrepareFailure = (events: readonly V2Event[]): PrepareFailure |
   if (failed === undefined || failed.type !== 'workspace-prepare-failed') return undefined
   return { inboxHead: failed.inboxHead, reason: failed.reason, at: failed.at }
 }
+
+export const activeFailure = (events: readonly V2Event[]): PrepareFailure | undefined =>
+  isWorkspacePrepared(events) ? undefined : lastPrepareFailure(events)
+
+export const actionableInboxIds = (args: {
+  entries: readonly Pick<InboxEntry, 'inboxId' | 'kind'>[]
+  failure: Pick<PrepareFailure, 'inboxHead'> | undefined
+}): number[] =>
+  args.entries
+    .filter(
+      (entry) =>
+        entry.kind === INBOX_KIND_STOP ||
+        args.failure === undefined ||
+        entry.inboxId > args.failure.inboxHead,
+    )
+    .map((entry) => entry.inboxId)
 
 export const workspaceStateOf = (args: {
   events: readonly V2Event[]

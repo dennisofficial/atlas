@@ -1,4 +1,10 @@
-import type { EventDraft, InboxEntry, RunId, ThreadId } from '@dltech/atlas-core'
+import {
+  INBOX_KIND_STOP,
+  type EventDraft,
+  type InboxEntry,
+  type RunId,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
@@ -6,7 +12,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { SessionRecord } from './record/record-adapter'
 
-export const INBOX_KIND_STOP = 'stop'
+export { INBOX_KIND_STOP }
 
 export type InboxIntakeArgs = {
   plane: ControlPlane

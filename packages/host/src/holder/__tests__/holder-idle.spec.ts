@@ -92,7 +92,7 @@ describe('SessionHolder idle release (F15)', () => {
 
     const original = rig.plane.readInbox.bind(rig.plane)
     rig.plane.readInbox = (async (params: Parameters<typeof rig.plane.readInbox>[0]) => {
-      if (params.limit === 1) throw new Error('late read down')
+      if (rig.runtimes[0]?.released === true) throw new Error('late read down')
       return original(params)
     }) as typeof rig.plane.readInbox
 
