@@ -54,7 +54,7 @@ export class V2OnceLedger extends OnceLedger {
   }
 
   private lookup(key: string): { found: true; value: unknown } | { found: false } {
-    for (const event of this.args.cache.all()) {
+    for (const event of this.args.cache.resolvedAll()) {
       if (event.type === 'fact-recorded' && event.key === key) {
         return { found: true, value: event.value }
       }

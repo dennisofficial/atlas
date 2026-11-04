@@ -1,9 +1,6 @@
 import {
-  blobRefsOf,
-  blobValueOf,
   chainEvents,
   chainHash,
-  spillBody,
   type BlobPayload,
   type Event,
   type RunId,
@@ -19,6 +16,7 @@ import type { RemoteCalls } from '../../calls/remote-calls'
 import type { HostTimers } from '../ports'
 import { toLoopEvent } from './event-strip'
 import { RecordCache } from './record-cache'
+import { spillForAppend } from './record-spill'
 import { abortedOnHandoff, inboxIdOf, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
 import { ackDaemonScope, ackRecordedDaemonResults, prepareDraft, resyncHead } from './record-commit'
@@ -70,7 +68,11 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   }
 
   static async open(args: SessionRecordArgs): Promise<SessionRecord> {
-    const cache = await RecordCache.load({ plane: args.plane, threadId: args.threadId })
+    const cache = await RecordCache.load({
+      plane: args.plane,
+      threadId: args.threadId,
+      ...(args.log === undefined ? {} : { log: args.log }),
+    })
     await ackRecordedDaemonResults({
       cache,
       daemonTools: args.daemonTools,
@@ -151,23 +153,12 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       const bodies: V2Body[] = []
       const inboxId = inboxIdOf(draft)
       if (inboxId !== undefined) bodies.push({ type: 'input-consumed', inboxId })
-      const spilled = spillBody({
+      const spilled = spillForAppend({
         body: toRecordBody(draft),
         thresholdBytes: this.args.blobSpillBytes ?? BLOB_SPILL_BYTES,
+        ...(this.args.log === undefined ? {} : { log: this.args.log }),
       })
       bodies.push(spilled.body)
-      const resolved = new Map<string, unknown>()
-      for (const [index, blob] of spilled.blobs.entries()) {
-        resolved.set(blob.hash, blobValueOf(blob.bytes))
-        this.args.log?.info({
-          source: 'holder.record',
-          message: 'spilled a large field to a blob',
-          data: {
-            field: blobRefsOf(spilled.body)[index]?.field ?? 'unknown',
-            size: blob.bytes.byteLength,
-          },
-        })
-      }
       const events = chainEvents({
         threadId: args.threadId,
         runId: args.runId,
@@ -183,13 +174,13 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
         threadId: args.threadId,
         events,
         blobs: spilled.blobs,
-        resolved,
+        resolved: spilled.resolved,
         ...(draft.type === 'tool-result'
           ? { ackDaemon: { callId: draft.callId, name: draft.name, runId: args.runId } }
           : {}),
       })
       for (const event of events) {
-        const loop = toLoopEvent(event)
+        const loop = toLoopEvent(this.cache.resolvedEvent(event))
         if (loop !== undefined) committed.push(loop)
       }
     }
