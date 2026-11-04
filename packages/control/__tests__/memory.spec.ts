@@ -1,5 +1,6 @@
 import { InMemoryControlStore } from '../src/testing/memory'
 import {
+  describeControlPlaneBlobs,
   describeControlPlaneClaims,
   describeControlPlaneConformance,
   describeControlPlaneSessions,
@@ -18,3 +19,4 @@ const conformanceParams = {
 describeControlPlaneConformance(conformanceParams)
 describeControlPlaneSessions(conformanceParams)
 describeControlPlaneClaims(conformanceParams)
+describeControlPlaneBlobs(conformanceParams)

@@ -1,0 +1,9 @@
+// use prisma-8
+namespace v2 {
+  model V2Blob {
+    hash      String @id
+    bytes     Bytes
+    size      Int
+    createdAt TimestamptzJsDate(3)
+  }
+}

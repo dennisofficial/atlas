@@ -44,6 +44,7 @@ describe('AgentHostRouter', () => {
         projectId: 'proj-a',
         model: { configured: false, gap: 'no anthropic account' },
         vercel: { configured: false, gap: 'user-credential' },
+        workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
         config: {
           settings: {},
           secrets: [],

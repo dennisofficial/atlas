@@ -3,5 +3,6 @@ export type { ControlPlaneParams, ReadEventsPage, TakeBackResult } from './contr
 export { LeaseConflictError, UnknownThreadError } from './errors'
 export { ControlStorePort, SeqConflictError } from './port'
 export type { ControlTx, ReadEventsParams, StoredEvent, ThreadRow, ControlSessionRow } from './port'
+export type { BlobRow, BlobWrite } from './port'
 export { RecordCorruptError } from './refusal'
-export type { AppendOutcome, ControlRefusal } from './refusal'
+export type { AppendOutcome, BlobRefusal, ControlRefusal } from './refusal'

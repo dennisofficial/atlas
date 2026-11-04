@@ -1,6 +1,7 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import {
+  describeControlPlaneBlobs,
   describeControlPlaneClaims,
   describeControlPlaneConformance,
   describeControlPlaneSessions,
@@ -18,3 +19,4 @@ const conformanceParams = {
 describeControlPlaneConformance(conformanceParams)
 describeControlPlaneSessions(conformanceParams)
 describeControlPlaneClaims(conformanceParams)
+describeControlPlaneBlobs(conformanceParams)

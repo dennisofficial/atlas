@@ -1,16 +1,8 @@
-import { defaultPipeline, EMPTY_PROMPT, type ModelPort } from '@dltech/atlas-core'
+import { defaultPipeline, type ModelPort } from '@dltech/atlas-core'
 import {
   AiSdkModelPort,
-  BashTool,
   createAnthropicOauthModel,
-  EditTool,
-  GlobTool,
-  GrepTool,
-  MultiEditTool,
   normalizeProviderFailure,
-  ReadTool,
-  SerializedWrites,
-  WriteTool,
 } from '@dltech/atlas-harness'
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
@@ -30,7 +22,9 @@ import { WORKSPACE_PATH } from '@dltech/atlas-wire'
 import type { AgentHostApi } from '../config/agent-host-api'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
-import { ForegroundOnlyShells } from './foreground-shells'
+import { agentHostPrompt } from './prompt'
+import { daemonToolsOf } from './tools'
+import { ensureWorkspace } from './workspace-setup'
 
 export class SandboxNotConfiguredError extends Error {
   constructor(public readonly gap: string) {
@@ -41,6 +35,7 @@ export class SandboxNotConfiguredError extends Error {
 
 const KEEP_ALIVE_EVERY_MS = 10 * 60_000
 const KEEP_ALIVE_WINDOW_MS = 45 * 60_000
+const SETUP_DEADLINE_MS = 15 * 60_000
 
 export type SessionRuntimeFactoryArgs = {
   api: AgentHostApi
@@ -49,6 +44,7 @@ export type SessionRuntimeFactoryArgs = {
   timers: HostTimers
   modelFor?: ((args: { sessionId: string }) => ModelPort) | undefined
   launchDirectory?: string | undefined
+  setupDeadlineMs?: number | undefined
   log?: LogPort | undefined
 }
 
@@ -97,16 +93,42 @@ export const createSessionRuntimeFactory = (
     const processes = new DaemonProcessPort({ calls })
     const files = new DaemonFileSystemPort({ calls })
     const agentFiles = new DaemonAgentFileSystemPort({ calls })
-    const guard = new SerializedWrites()
-    const tools = [
-      new ReadTool({ files: agentFiles }),
-      new WriteTool(guard, agentFiles),
-      new EditTool(guard, agentFiles),
-      new MultiEditTool(guard, agentFiles),
-      new GrepTool(processes, agentFiles),
-      new GlobTool(agentFiles),
-      new BashTool(new ForegroundOnlyShells(), files, processes),
-    ]
+    const setup = calls
+      .ready()
+      .then(async () => {
+        const { token } = await args.api.githubToken({ sessionId })
+        await ensureWorkspace({
+          calls,
+          processes,
+          files,
+          workspace: config.workspace,
+          githubToken: token,
+          launchDirectory,
+          sandboxName: sandboxNameOf(sessionId),
+          ...(args.log === undefined ? {} : { log: args.log }),
+        })
+      })
+      .catch((error: unknown) => {
+        args.log?.error({
+          source: 'runtime.workspace-setup',
+          message: `workspace setup for ${sessionId} failed`,
+          ...logFieldsOf({ error }),
+        })
+      })
+    const deadlineMs = args.setupDeadlineMs ?? SETUP_DEADLINE_MS
+    const gate = Promise.race([
+      setup,
+      new Promise<void>((resolve) => {
+        args.timers.setTimeout(() => {
+          args.log?.error({
+            source: 'runtime.workspace-setup',
+            message: `workspace setup for ${sessionId} did not finish within ${deadlineMs}ms; releasing the tool gate`,
+          })
+          resolve()
+        }, deadlineMs)
+      }),
+    ])
+    const tools = daemonToolsOf({ processes, files, agentFiles, setup: gate })
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
@@ -156,7 +178,10 @@ export const createSessionRuntimeFactory = (
       tools: registry,
       daemonTools: new Set(byName.keys()),
       effectOf: (name) => byName.get(name)?.effect,
-      assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory }),
+      assembly: defaultPipeline({
+        prompt: agentHostPrompt({ identity: model.identity }),
+        launchDirectory,
+      }),
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,
       stop: async () => {

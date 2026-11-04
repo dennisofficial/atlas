@@ -16,6 +16,14 @@ export class InMemoryOnceLedger extends OnceLedger {
     return [...this.facts.keys()]
   }
 
+  recall(args: { prefix: string }): Promise<readonly { key: string; value: unknown }[]> {
+    const matches: { key: string; value: unknown }[] = []
+    for (const [key, value] of this.facts) {
+      if (key.startsWith(args.prefix)) matches.push({ key, value })
+    }
+    return Promise.resolve(matches)
+  }
+
   once<T>(args: { key: string; decide: () => Promise<T> }): Promise<T> {
     const recorded = this.facts.get(args.key)
     if (recorded !== undefined || this.facts.has(args.key)) {

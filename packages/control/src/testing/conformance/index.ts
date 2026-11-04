@@ -1,3 +1,4 @@
+export { describeControlPlaneBlobs } from './conformance-blobs'
 export { describeControlPlaneClaims } from './conformance-claims'
 export { describeControlPlaneConformance } from './conformance'
 export { describeControlPlaneSessions } from './conformance-sessions'

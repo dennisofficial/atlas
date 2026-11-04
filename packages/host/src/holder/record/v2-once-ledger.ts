@@ -53,8 +53,18 @@ export class V2OnceLedger extends OnceLedger {
     return value
   }
 
+  recall(args: { prefix: string }): Promise<readonly { key: string; value: unknown }[]> {
+    const matches: { key: string; value: unknown }[] = []
+    for (const event of this.args.cache.resolvedAll()) {
+      if (event.type === 'fact-recorded' && event.key.startsWith(args.prefix)) {
+        matches.push({ key: event.key, value: event.value })
+      }
+    }
+    return Promise.resolve(matches)
+  }
+
   private lookup(key: string): { found: true; value: unknown } | { found: false } {
-    for (const event of this.args.cache.all()) {
+    for (const event of this.args.cache.resolvedAll()) {
       if (event.type === 'fact-recorded' && event.key === key) {
         return { found: true, value: event.value }
       }
