@@ -253,9 +253,9 @@ export class HeldSession {
     this.lostOwnership = true
     this.branches?.stop()
     this.record?.fence()
+    this.runtime?.remoteCalls.handoff()
     this.turns.abort()
     this.lifetimeAbort.abort()
-    this.runtime?.remoteCalls.handoff()
     this.runtime?.remoteCalls.close()
   }
 
