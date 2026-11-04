@@ -1,4 +1,4 @@
-import { Ctx, Input, Query, Router, UseMiddlewares } from 'nestjs-trpc'
+import { Input, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import {
   agentHostConfigInputSchema,
   agentHostConfigOutputSchema,

@@ -27,6 +27,8 @@ export const createRedisLiveFrames = (args: {
     })
   })
 
+  let closing: Promise<void> | undefined
+
   return {
     live({ sessionId, frame }) {
       const result = liveFrameSchema.safeParse(frame)
@@ -50,8 +52,17 @@ export const createRedisLiveFrames = (args: {
     },
 
     async close() {
-      publisher.disconnect()
-      await publisher.quit()
+      closing ??= publisher.quit().then(
+        () => undefined,
+        (error: unknown) => {
+          args.log?.error({
+            source: 'bus.live',
+            message: 'redis publisher close failed',
+            ...logFieldsOf({ error }),
+          })
+        },
+      )
+      await closing
     },
   }
 }
