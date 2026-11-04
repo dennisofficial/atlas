@@ -148,7 +148,17 @@ push to main (no path filter, because Vercel requires the check on every product
 Its `migrate-production` job runs `bun run db:migrate:deploy` and then `prisma db verify --strict`
 against PlanetScale with `MIGRATE_TIER=production`; Vercel holds the aliasing until that job is
 green, so a failed migration leaves the previous deploy serving and the schema never half-applied.
-The job name is the Deployment Check name, so keep it unique across workflows. `deploy-trigger`
+The job name is the Deployment Check name, so keep it unique across workflows.
+
+**`api-health` is the second Deployment Check: it holds the alias until the new build answers
+`GET /v1/health` with 200.** It runs after `migrate-production` (so a build that expects a new
+migration is probed against the migrated schema) and calls `scripts/deployment-health-gate.ts`, which
+finds the production deployment of `GITHUB_SHA` through the Vercel API, waits for it to settle, and
+probes its `*.vercel.app` URL with the `VERCEL_AUTOMATION_BYPASS_SECRET` repo secret (the project's
+automation bypass) six times, 10 s apart. A deployment Vercel canceled through `ignoreCommand` passes
+unprobed; one that errors, never settles or never answers 200 fails the check, and `api.byatlas.io`
+stays on the previous build. A build passing CI but crashing on cold start (#1782 read `SECRET_KEY`
+at module load, before `vercel-tier-env.ts` decrypted it) is exactly what this catches. `deploy-trigger`
 (see Background jobs) needs `migrate-production` and runs only when the push touched the API's
 build closure. Locally the same migration is `MIGRATE_TIER=production bun run db:migrate:deploy`.
 
@@ -202,7 +212,11 @@ from a `docker run --read-only` container of the same Bun image Vercel runs
 (`BUN_IMAGE` in `test/bundle-container.ts`), with HOME on the read-only mount — the way Vercel's filesystem sees
 it, so a package the bundle left out fails the spec instead of resolving from `node_modules`. A
 host-side run cannot stand in for this: `bun --no-install` hides auto-install, and a read-only HOME
-on macOS still finds a writable cache. It runs against a throwaway `postgres:17-alpine` container on
+on macOS still finds a writable cache. The container gets no app secrets as plain env: the spec
+encrypts them into a throwaway `.env.production.enc` in the function directory with a freshly minted
+keypair (`test/bundle-tier.ts`) and passes only the private key plus `.vc-config.json`'s
+`environment`, so the bundle boots through `vercel-tier-env.ts` the way Vercel boots it and a module
+that reads a secret at load time fails the spec. It runs against a throwaway `postgres:17-alpine` container on
 a spec-owned network and hits health, 401, bearer-authenticated, tRPC input validation, better-auth and the
 HMAC webhook. Only the `api-bundle` CI job sets `ATLAS_LIVE_DOCKER=1` for it; elsewhere it is skipped. It
 migrates the throwaway database the way `scripts/migrate-deploy.mjs` does (`db migrate --to db`).

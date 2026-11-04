@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
+import { functionConfigEnv, writeEncryptedTier } from './bundle-tier'
 
 const READY_TIMEOUT_MS = 60_000
 const POLL_INTERVAL_MS = 500
@@ -88,10 +89,7 @@ export async function startBundleApi({
   extraEnv: Record<string, string>
 }): Promise<BundleApi> {
   const baseUrl = `http://127.0.0.1:${hostPort}`
-  const env: Record<string, string> = {
-    HOME: '/var/task',
-    NODE_ENV: 'test',
-    PORT: String(API_CONTAINER_PORT),
+  const secrets: Record<string, string> = {
     DATABASE_URL: `postgresql://atlas:atlas@${names.postgres}:5432/atlas`,
     APP_TIER: 'local',
     SECRET_KEY: 'bundle-spec-throwaway-secret-with-32-chars',
@@ -106,6 +104,13 @@ export async function startBundleApi({
     CLOUDFLARE_ACCOUNT_ID: 'cf-test-account',
     CLOUDFLARE_ZONE_ID: 'cf-test-zone',
     ...extraEnv,
+  }
+  const env: Record<string, string> = {
+    HOME: '/var/task',
+    NODE_ENV: 'test',
+    PORT: String(API_CONTAINER_PORT),
+    ...functionConfigEnv({ functionDir }),
+    ...writeEncryptedTier({ functionDir, secrets }),
   }
   docker([
     'run',
