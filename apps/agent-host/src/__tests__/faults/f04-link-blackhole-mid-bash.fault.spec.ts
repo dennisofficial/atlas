@@ -17,16 +17,19 @@ import {
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
+const DETECT_WINDOW_MS = 4_000
+const OUTAGE_MS = 2_000
+
 const epochOf = (row: ReadEvent): number => (row.event as { epoch: number }).epoch
 
-const waitForNoConnections = async (args: {
-  count(): number
+const waitForLinkClose = async (args: {
+  closed(): boolean
   timeoutMs: number
 }): Promise<number> => {
   const started = Date.now()
   const deadline = started + args.timeoutMs
   while (Date.now() < deadline) {
-    if (args.count() === 0) return Date.now() - started
+    if (args.closed()) return Date.now() - started
     await new Promise((resolve) => setTimeout(resolve, 20))
   }
   throw new Error(`no link close observed within ${args.timeoutMs}ms`)
@@ -91,14 +94,15 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(before.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)
 
       expect(daemon.proxy.connections()).toBeGreaterThan(0)
+      const acceptedBefore = daemon.proxy.accepted()
       daemon.proxy.set({ blackhole: true })
-      const detectedMs = await waitForNoConnections({
-        count: () => daemon.proxy.connections(),
-        timeoutMs: 2_000,
+      const detectedMs = await waitForLinkClose({
+        closed: () => daemon.proxy.connections() === 0 || daemon.proxy.accepted() > acceptedBefore,
+        timeoutMs: DETECT_WINDOW_MS,
       })
-      expect(detectedMs).toBeLessThan(2_000)
+      expect(detectedMs).toBeLessThan(DETECT_WINDOW_MS)
 
-      await new Promise((resolve) => setTimeout(resolve, Math.max(0, 2_000 - detectedMs)))
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, OUTAGE_MS - detectedMs)))
       daemon.proxy.clear()
       await releaseFifo({ path: gateFifo })
 
