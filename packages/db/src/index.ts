@@ -11,6 +11,7 @@ export {
   type Db,
   type Tx,
 } from './client'
+export { isRetryableConnectionLoss, retryOnConnectionLoss } from './connection-retry'
 export { databaseErrorCode, isNoRows, isUniqueViolation, violatedConstraint } from './errors'
 export { createPool, type Pool } from './pool'
 export type { Models } from './prisma/schema/contract'

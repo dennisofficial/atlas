@@ -113,7 +113,9 @@ const main = async (): Promise<void> => {
     ScriptedModelStep[]
   >
 
-  const pool = createPool(requireEnv('DATABASE_URL'))
+  const pool = createPool(requireEnv('DATABASE_URL'), {
+    queryTimeoutMs: numberEnv('DB_QUERY_TIMEOUT_MS', 10_000),
+  })
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
   const log = new JsonLog()
   const bus = createRedisBus({ url: requireEnv('REDIS_URL'), log })

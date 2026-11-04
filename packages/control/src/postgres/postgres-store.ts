@@ -1,4 +1,4 @@
-import { and, isUniqueViolation, type Db, type Tx } from '@dltech/atlas-db'
+import { and, isUniqueViolation, retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
 import { GENESIS_HASH, type Hash, type InboxEntry, type Lease } from '@dltech/atlas-core'
 
 import {
@@ -283,6 +283,6 @@ export class PostgresControlStore extends ControlStorePort {
   }
 
   transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
-    return this.db.transaction((tx) => work(new PostgresTx(tx)))
+    return retryOnConnectionLoss(() => this.db.transaction((tx) => work(new PostgresTx(tx))))
   }
 }
