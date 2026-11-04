@@ -190,6 +190,10 @@ export class HeldSession {
     if (this.ended) return
     const deps = this.deps
     const turnRunning = this.turns.turnRunning
+    if (this.draining) {
+      if (!turnRunning) this.finish()
+      return
+    }
     const { entries, action } = await readHeldAction({
       deps,
       draining: this.draining,
@@ -230,8 +234,7 @@ export class HeldSession {
       }
       case EHeldAction.Wait: {
         if (turnRunning) return
-        if (this.draining) this.finish()
-        else this.idle.arm({ lastActivityAt: this.lastActivityAt })
+        this.idle.arm({ lastActivityAt: this.lastActivityAt })
       }
     }
   }
