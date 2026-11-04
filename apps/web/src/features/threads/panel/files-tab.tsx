@@ -21,14 +21,14 @@ import { useThreadPanel } from './thread-panel-context'
 const ICON = <FolderTreeIcon />
 
 function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
-  const { working, openFile } = useThreadPanel()
+  const { threadId, working, openFile } = useThreadPanel()
   const [selected, setSelected] = useState<string | undefined>(undefined)
   const turnEnds = useTurnEndCount(working)
   const {
     view: tree,
     open,
     setOpen,
-  } = useFileTree({ channel: props.channel, refreshKey: turnEnds })
+  } = useFileTree({ channel: props.channel, refreshKey: turnEnds, threadId })
   const { view: changes } = useGitChanges({
     channel: props.channel,
     scope: EChangeScope.All,

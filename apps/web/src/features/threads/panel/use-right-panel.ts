@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { ERightTab } from './right-tab'
+import { recallThreadPanel, rememberThreadPanel } from './thread-panel-memory'
 
 export type RightPanelState = {
   tab: ERightTab
@@ -22,8 +23,9 @@ export type RightPanelState = {
   closeFile: () => void
 }
 
-export function useRightPanel(): RightPanelState {
-  const [tab, setTab] = useState(ERightTab.Details)
+export function useRightPanel(threadId: string): RightPanelState {
+  const [tab, setTab] = useState(() => recallThreadPanel(threadId).tab ?? ERightTab.Details)
+  useEffect(() => rememberThreadPanel({ threadId, patch: { tab } }), [threadId, tab])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [changesPath, setChangesPath] = useState<string | undefined>(undefined)
   const [agentId, setAgentId] = useState<string | undefined>(undefined)

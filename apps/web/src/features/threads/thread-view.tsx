@@ -81,7 +81,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   useEffect(() => {
     if (source.live) afterConnect({ threadId, send: sendLive })
   }, [source.live, afterConnect, threadId, sendLive])
-  const rightPanel = useRightPanel()
+  const rightPanel = useRightPanel(threadId)
   const family = useSessionFamily(threadId)
   const pullRequests = usePullRequests({ threadId, channel, thread: thread.data, family })
   const spawnerId = spawnerIdOf(thread.data)
@@ -233,7 +233,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
 
   return (
     <ThreadPanelProvider value={panel}>
-      <ThreadPreviewsProvider channel={channel} rightPanel={rightPanel}>
+      <ThreadPreviewsProvider threadId={threadId} channel={channel} rightPanel={rightPanel}>
         <div className="flex min-h-0 flex-1 flex-col">
           {header}
           <ThreadLayout

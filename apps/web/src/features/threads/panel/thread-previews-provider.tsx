@@ -10,13 +10,14 @@ import { ERightTab } from './right-tab'
 import type { RightPanelState } from './use-right-panel'
 
 export function ThreadPreviewsProvider(props: {
+  threadId: string
   channel: RosterChannel | null
   rightPanel: RightPanelState
   children: ReactNode
 }) {
-  const { channel, rightPanel, children } = props
+  const { threadId, channel, rightPanel, children } = props
   const { setTab, setSheetOpen } = rightPanel
-  const { ports, selectedId, src, select, openUrl } = usePreviews(channel)
+  const { ports, selectedId, src, select, openUrl } = usePreviews({ channel, threadId })
   const value = useMemo(() => {
     const handleOpenUrl = (route: PreviewLinkRoute) => {
       openUrl(route)

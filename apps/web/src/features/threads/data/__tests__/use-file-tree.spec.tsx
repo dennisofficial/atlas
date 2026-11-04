@@ -34,15 +34,20 @@ function channelOf() {
   return { channel, asked }
 }
 
+let mounts = 0
+
 function mount(args: {
   channel: FileTreeChannel
   refreshKey: number
   latest: { current?: FileTreeState }
+  threadId?: string
 }) {
+  const threadId = args.threadId ?? `tree-thread-${++mounts}`
   function Probe(props: { refreshKey: number }) {
     args.latest.current = useFileTree({
       channel: args.channel,
       refreshKey: props.refreshKey,
+      threadId,
     })
     return null
   }
@@ -78,5 +83,36 @@ describe('useFileTree', () => {
     await tree.render(1)
     expect(asked).toEqual(['', 'src', '', 'src'])
     await tree.unmount()
+  })
+
+  it('reopens and lists the folders left open when the same thread mounts again', async () => {
+    const first = channelOf()
+    const latest: { current?: FileTreeState } = {}
+    const before = mount({ channel: first.channel, refreshKey: 0, latest, threadId: 'tree-kept' })
+    await before.render(0)
+    await act(async () => latest.current?.setOpen({ directory: 'src', open: true }))
+    await before.unmount()
+
+    const second = channelOf()
+    const after = mount({ channel: second.channel, refreshKey: 0, latest, threadId: 'tree-kept' })
+    await after.render(0)
+    expect(latest.current?.open).toEqual(['src'])
+    expect(second.asked).toEqual(['', 'src'])
+    await after.unmount()
+  })
+
+  it('forgets a folder closed before leaving', async () => {
+    const { channel } = channelOf()
+    const latest: { current?: FileTreeState } = {}
+    const before = mount({ channel, refreshKey: 0, latest, threadId: 'tree-closed' })
+    await before.render(0)
+    await act(async () => latest.current?.setOpen({ directory: 'src', open: true }))
+    await act(async () => latest.current?.setOpen({ directory: 'src', open: false }))
+    await before.unmount()
+
+    const after = mount({ channel, refreshKey: 0, latest, threadId: 'tree-closed' })
+    await after.render(0)
+    expect(latest.current?.open).toEqual([])
+    await after.unmount()
   })
 })

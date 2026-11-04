@@ -14,19 +14,23 @@ afterAll(async () => {
   await GlobalRegistrator.unregister()
 })
 
-async function mount() {
+let mounts = 0
+
+async function mount(threadId = `thread-${++mounts}`) {
   const { createRoot } = await import('react-dom/client')
   const root = createRoot(document.createElement('div'))
   let latest: RightPanelState | null = null
   function Probe() {
-    latest = useRightPanel()
+    latest = useRightPanel(threadId)
     return null
   }
   await act(async () => root.render(<Probe />))
-  return () => {
+  const state = () => {
     if (latest === null) throw new Error('the probe never rendered')
     return latest
   }
+  state.unmount = () => act(async () => root.unmount())
+  return state
 }
 
 describe('useRightPanel', () => {
@@ -108,6 +112,22 @@ describe('useRightPanel', () => {
     expect(state().sheetOpen).toBe(false)
     await act(async () => state().closeFile())
     expect(state().filePath).toBeUndefined()
+  })
+
+  it('restores the tab when the same thread mounts again', async () => {
+    const first = await mount('remembered')
+    await act(async () => first().setTab(ERightTab.Preview))
+    await first.unmount()
+    const again = await mount('remembered')
+    expect(again().tab).toBe(ERightTab.Preview)
+  })
+
+  it('keeps each thread on its own tab', async () => {
+    const a = await mount('thread-a')
+    await act(async () => a().setTab(ERightTab.Terminal))
+    await a.unmount()
+    const b = await mount('thread-b')
+    expect(b().tab).toBe(ERightTab.Details)
   })
 
   it('openChanges leaves the file view', async () => {
