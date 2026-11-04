@@ -189,7 +189,8 @@ describe('pool recovery after a dropped link', () => {
       if (settled.state === 'rejected') {
         expect(Date.now() - started).toBeLessThan(2_000)
       }
-      client.release(new Error('black-holed'))
+      client.release()
+      expect(ownPool.totalCount).toBe(0)
       blackHole.release()
       await ownPool.query('SELECT 1')
     } finally {

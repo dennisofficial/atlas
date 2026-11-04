@@ -49,6 +49,50 @@ export type PoolOptions = {
   queryTimeoutMs?: number
 }
 
+// pg's query_timeout rejects the hung query but keeps the deaf connection; pg-pool then hands
+// the same client to the next waiter (acquire is LIFO), so the pool never recovers from a
+// half-open link. Ending the client makes pg-pool remove it on release.
+// https://github.com/brianc/node-postgres/blob/pg@8.22.0/packages/pg/lib/client.js#L660
+class TimeoutDiscardingClient extends pg.Client {
+  override query<T extends pg.Submittable>(queryStream: T): T
+  override query<R extends any[] = any[], I = any[]>(
+    queryConfig: pg.QueryArrayConfig<I>,
+    values?: pg.QueryConfigValues<I>,
+  ): Promise<pg.QueryArrayResult<R>>
+  override query<R extends pg.QueryResultRow = any, I = any>(
+    queryConfig: pg.QueryConfig<I>,
+  ): Promise<pg.QueryResult<R>>
+  override query<R extends pg.QueryResultRow = any, I = any[]>(
+    queryTextOrConfig: string | pg.QueryConfig<I>,
+    values?: pg.QueryConfigValues<I>,
+  ): Promise<pg.QueryResult<R>>
+  override query<R extends any[] = any[], I = any[]>(
+    queryConfig: pg.QueryArrayConfig<I>,
+    callback: (err: Error, result: pg.QueryArrayResult<R>) => void,
+  ): void
+  override query<R extends pg.QueryResultRow = any, I = any[]>(
+    queryTextOrConfig: string | pg.QueryConfig<I>,
+    callback: (err: Error, result: pg.QueryResult<R>) => void,
+  ): void
+  override query<R extends pg.QueryResultRow = any, I = any[]>(
+    queryText: string,
+    values: pg.QueryConfigValues<I>,
+    callback: (err: Error, result: pg.QueryResult<R>) => void,
+  ): void
+  override query(...args: unknown[]): unknown {
+    const result: unknown = Reflect.apply(super.query, this, args)
+    if (result instanceof Promise) {
+      return result.catch((error: unknown) => this.discardAfterTimeout(error))
+    }
+    return result
+  }
+
+  private discardAfterTimeout(error: unknown): never {
+    if (error instanceof Error && error.message === 'Query read timeout') void this.end()
+    throw error
+  }
+}
+
 export function createPool(connectionString: string, options?: PoolOptions): Pool {
   const pool = new pg.Pool({
     connectionString,
@@ -58,6 +102,7 @@ export function createPool(connectionString: string, options?: PoolOptions): Poo
     keepAlive: true,
     keepAliveInitialDelayMillis: 1_000,
     query_timeout: options?.queryTimeoutMs,
+    ...(options?.queryTimeoutMs === undefined ? {} : { Client: TimeoutDiscardingClient }),
   })
   pool.connect = evictDeadOnCheckout(pool)
   pool.on('error', (error) => {
