@@ -1,287 +1,125 @@
 # CLAUDE.md
 
-Guidance for Claude Code (claude.ai/code) working in this repository.
+Atlas is a model-agnostic coding-agent harness. The agent loop is ours: raw LLM calls through the
+Vercel AI SDK, and we decide what context the model sees, which tools it may call, when a human is
+asked and what happens on rewind. Claude and Codex credentials are one provider among several.
 
-## What this repo is
+It has one user, the developer building it, in a public repo with occasional contributors
+(`CONTRIBUTING.md`). There is no customer data or workflow to preserve: a breaking change costs an
+afternoon, and a feature nobody asked for is not needed. Keep interfaces honest for readers, note
+setup-breaking changes in the PR, and spend the effort on what the user feels: hangs, silent
+failures, seams that make the next feature cheap.
 
-Atlas is a **coding-agent harness**. Not a wrapper around someone else's harness — the agentic
-loop is ours. We make raw LLM calls through the Vercel AI SDK and own every decision the loop
-makes: what context the model sees, which tools it may call, when a human is asked, what happens
-on rewind.
+Read `docs/architecture.md` before changing anything structural; it and `docs/core-contract.md` win
+over inferences from code. The v2 redesign (client ↔ control plane ↔ pod) lives in `docs/v2`.
+Packages and apps may carry their own `AGENTS.md` with local rules.
 
-Because we make raw model calls, Atlas is model-agnostic by construction. Claude and Codex
-subscription credentials are one provider implementation among several, not a foundation.
+## Boundaries
 
-## Who uses Atlas
-
-**Mainly one developer, in a public repo, with the occasional outside contributor.** Atlas is
-still in development and its only user is the person building it — there is no customer base, no
-other user's data or workflow to preserve, no support burden, and no migration window. Weigh
-decisions accordingly: a breaking change costs an afternoon, not a quarter, and a feature nobody
-has asked for is a feature nobody needs. But the code is read by contributors and strangers, so
-keep interfaces honest and note setup-breaking changes in the PR. Spend the saved effort on the things
-daily users still feel: a hang, a silent failure, a seam that makes the next feature cheap.
-
-Contributions are welcome — `CONTRIBUTING.md` holds the setup and the PR flow.
-
-Read `docs/architecture.md` before changing anything structural. It is the source of truth over
-any inference from code, and `docs/core-contract.md` holds the seams it depends on.
-`docs/research/` holds the primary-source investigation both were derived from.
-
-## Package layout
-
-| Package                                                  | Depends on                                                                              | Owns                                                                                                                                                                                                                                                                                                                                                                                                |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-core`                                     | `zod` only                                                                              | Events, IDs, context assembly, hook and port contracts. Pure.                                                                                                                                                                                                                                                                                                                                       |
-| `@dltech/atlas-harness`                                  | core                                                                                    | The loop, hooks, tools, model adapters, credentials, store. Its `/models` subpath (`@dltech/atlas-harness/models`) is browser-safe: the live Codex list over injected fetch/cache/clock ports and the pure catalogue composition, with no `node:*`, Bun or `@ai-sdk/*` reachable.                                                                                                                   |
-| `@dltech/atlas-models` (`packages/models`)               | core, `zod`                                                                             | The generated model catalogue (models.dev + inference.net cards), its generator scripts, and the pure card helpers. Shared by harness and web.                                                                                                                                                                                                                                                      |
-| `@dltech/atlas-observability` (`packages/observability`) | core, `posthog-node` (`/node` only)                                                     | Telemetry and operational-log ports, the telemetry policy, `logFieldsOf`; PostHog adapter and distinct id on `/node`. Home of tracing (0023).                                                                                                                                                                                                                                                       |
-| `@dltech/atlas-ui`                                       | nothing                                                                                 | Design tokens and shadcn (Base UI) components + AI patterns, with their co-located stories. No Atlas imports.                                                                                                                                                                                                                                                                                       |
-| `@dltech/atlas-storybook` (`apps/storybook`)             | ui                                                                                      | The Storybook host: loads the stories co-located in `ui`.                                                                                                                                                                                                                                                                                                                                           |
-| `@dltech/atlas-prototype` (`apps/prototype`)             | ui                                                                                      | The clickable north-star prototype of apps/web: same route tree and feature folders, hardcoded fixtures, no backend.                                                                                                                                                                                                                                                                                |
-| `@dltech/atlas-wire`                                     | `zod`, `@vercel/sandbox`                                                                | The wire contract: channel/session zod schemas, protocol version, serve-env constants — plus the sandbox boot primitives (create/resume retries, serve install/launch) shared by harness and the API. No in-repo deps.                                                                                                                                                                              |
-| `@dltech/atlas` (`apps/tui`)                             | core, harness                                                                           | OpenTUI + React terminal app; binds its stores into the shared root.                                                                                                                                                                                                                                                                                                                                |
-| `@dltech/atlas-serve` (`apps/serve`)                     | core, harness, wire, api-router                                                         | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build.                                                                                                                                                                                                                                                                                     |
-| `@dltech/atlas-db` (`packages/db`)                       | `@prisma/orm-postgres`, `pg`                                                            | The Postgres contract (one model per file), Prisma 8 migrations, the lazy `db` client and test databases. No in-repo deps.                                                                                                                                                                                                                                                                          |
-| `@dltech/atlas-api-router` (`packages/api-router`)       | `@dltech/atlas-wire`, `@trpc/client`, `@trpc/server`, `zod`                             | The generated `AppRouter` type (nestjs-trpc output, committed; the pre-commit hook regenerates it when api or wire sources are staged, CI's `check` job fails on drift, and `nestjs-trpc watch` runs in api dev) and the browser-safe tRPC client (`createApiClient`, bearer or same-origin cookies, SSE subscriptions) every client shares. Clients import it instead of reaching into `apps/api`. |
-| `@dltech/atlas-api` (`apps/api`)                         | `@dltech/atlas-wire`, `@dltech/atlas-db`, `@dltech/atlas-harness/models` (subpath only) | Atlas Cloud backend (NestJS + better-auth + Prisma 8 over Postgres).                                                                                                                                                                                                                                                                                                                                |
-| `web` (`apps/web`)                                       | client, core, models, ui, wire                                                          | Atlas Cloud frontend (Next.js App Router; deploys to Vercel).                                                                                                                                                                                                                                                                                                                                       |
-
-A package boundary is worth it only where the compiler should enforce a dependency rule.
-
-**`ui` is a design-system package, not an Atlas app package.** Its token layer (`/tokens`) is
-pure TS with no platform imports — that subpath is the contract a future Expo app consumes. Its
-components are vendored shadcn/ui `base-nova` (Base UI + CVA + Tailwind v4) plus the AI Elements
-patterns in `src/ai`; nothing in the package imports from `core` or `harness`.
-
-**`core` performs no I/O.** No filesystem, no network, no database, no clock, no randomness. It is
-pure functions and types. When something is hard to test, that is the signal to move the decision
-into `core`, not to add a mock.
-
-**`tui` never reaches past `harness`.** It talks to `harness` through its ports. The shared
-composition root lives in `packages/harness/src/composition` (`composeHarness`); `apps/tui`
-supplies only its surface bindings (notices, tl;dr feed) through it. Plugins are loaded by the
-shared root itself (`packages/harness/src/plugins`), so serve sessions get the same hooks, tools,
-and prompt fragments; only the UI contributions (projections, surfaces) are TUI-concrete.
-
-**Features live in `harness`; surfaces own none.** The TUI, serve, and (later) web are interfaces
-to the same harness over different transports — nothing more. The harness is location-agnostic: a
-session behaves identically whether its loop runs on the local machine or in a cloud container, and
-two sessions of different kinds must think identically, not just act identically — same hooks, same
-tools, same prompt fragments. The TUI is _only_ a UI — no ad-hoc behavior, no feature logic of its
-own. Anything a session does — classifiers, guardrails, decision models, tools — is harness-level
-machinery the shared root composes into every session kind, configured per session; if it cannot be
-composed into every session kind, it does not belong in a session at all. Surface-specific behavior
-should be rare and deliberate — transport-latency loading states are the exemplar — never a quiet
-feature fork. When a surface needs something the harness does not offer, the surface gets an adapter
-or a port, not a reimplementation. `apps/tui` contributes projections and surfaces; `apps/api`
-provisions and configures sessions. Neither reimplements what the loop owns.
-
-A session feature spans three strata, and the vocabulary is canonical. **Feature logic** is the
-location-agnostic harness code that decides what a session does. **Runtime logic** is the port
-implementation where the session executes — the in-process impl local sessions and
-serve-in-sandbox share; the sandbox is a runtime, not a separate stratum. **Transport logic** is
-the wire adapter carrying a port to a detached client. A port with no remote surface declares an
-explicit empty transport slot — "no transport needed" is written down, never an omission. Every
-session port is registered in the type-level registry (`packages/core/src/ports/registry.ts`,
-extended by harness) with its slots, and `composeHarness` requires the full manifest — so a
-feature isn't done when the loop works; it's done when its port is registered with all its
-bindings, and adding one without them breaks typecheck in both apps.
-
-**`api` runs on Bun (NestJS 12) and its tests run `bun test`.** Bun executes Nest's constructor
-`@Inject(...)` decorators under the api's tsconfig — `test/bun-runtime.spec.ts` boots the real app
-under `bun` and proves it. `apps/api/AGENTS.md` holds its conventions (env tiers, module layout,
-testing tiers).
-
-## `deprecated/`
-
-`deprecated/` holds frozen reference code and is **not a Bun workspace member**:
-
-| Path                      | What it was                                                          |
-| ------------------------- | -------------------------------------------------------------------- |
-| `deprecated/tui`          | The previous Atlas TUI, built over the Claude and Codex agent SDKs.  |
-| `deprecated/agent-engine` | `@workspace/agent-engine` — never-run EngineAdapter port. Prior art. |
-| `deprecated/codex-sdk`    | `@workspace/codex-sdk` — JSON-RPC client for the `codex app-server`. |
-| `deprecated/backend`      | Paused NestJS cloud harness.                                         |
-| `deprecated/web`          | Paused Next.js front end for the cloud harness.                      |
-| `deprecated/shared`       | `@workspace/shared` — DTOs and enums for backend + web.              |
-| `deprecated/docs`         | The design docs for the above: wireframes, architecture, decisions.  |
-| `deprecated/.github`      | The CI and blue/green deploy workflows for the cloud stack.          |
-| `deprecated/infra`        | Dockerfiles, Caddy, deploy scripts, prod compose.                    |
-
-Read it for prior art. Never import from it, never extend it, and do not fix it. It does not
-install and is not expected to build.
+A Bun workspace of `packages/*` and `apps/*`. A package boundary exists only where the compiler
+should enforce a dependency rule.
+- **`core` is pure** (`zod` only): no filesystem, network, database, clock or randomness. When
+  something is hard to test, move the decision into `core` instead of adding a mock.
+- **Features live in `harness`; surfaces own none.** TUI, serve, web and the API are interfaces to
+  one harness over different transports, and every session kind must think identically: same hooks,
+  tools and prompt fragments, composed by `composeHarness` (`packages/harness/src/composition`),
+  which also loads plugins. A surface that lacks something gets a port or adapter, never a
+  reimplementation; surface-specific behavior (transport-latency loading states) is rare and
+  deliberate.
+- **A session feature is done when its port is registered.** Feature logic runs on a runtime port
+  implementation and reaches detached clients through a transport adapter; a port with no remote
+  surface declares an explicit empty transport slot. Ports are registered in
+  `packages/core/src/ports/registry.ts` (extended by harness), and `composeHarness` requires the
+  full manifest, so a missing binding breaks typecheck.
+- **`tui` never reaches past `harness`.**
+- **`ui` is a design system with no Atlas imports**: shadcn `base-nova` (Base UI + CVA + Tailwind
+  v4) plus AI Elements. Its `/tokens` subpath is pure TS with no platform imports.
+- **Clients reach the API through `@dltech/atlas-api-router`** (the generated `AppRouter` and
+  `createApiClient`), never by importing `apps/api`.
+- **`deprecated/` is frozen prior art** outside the workspace: read it, never import, extend or fix
+  it, and don't copy its comment density.
 
 ## Code style
 
-- **Max 300 lines per file.** Split into focused modules if exceeded.
-- **No `as any` casts.** Use proper types, generics, or `unknown` with type guards.
-- **No `@ts-ignore` / `@ts-expect-error`.** Fix the type instead.
-- **Strict TypeScript.** `strict`, `noUncheckedIndexedAccess`, no implicit `any`.
-- **Early returns** over nested conditionals.
-- **Named parameters** for functions with 2+ arguments.
-- **Event handlers** prefixed with `handle`.
-- **`E`-prefixed real TS enums** for value unions (`EEngine`, `EHookPhase`), not const-tuple + type.
-
-## Comments
-
-**Don't write them.** A comment is a second thing to maintain that the compiler cannot check, and
-it silently rots the moment the code beneath it changes. Two artifacts, one truth, no enforcement.
-
-Make the code say it instead:
-- Rename the variable, function, or type until the line explains itself.
-- Extract a well-named function rather than heading a block with a comment.
-- Encode the constraint in the type system, where it is checked.
-- Put the scenario in a test, where it is executed.
-
-The one exception is a fact that **lives outside this repository** and therefore cannot drift when
-the code is refactored: a provider's undocumented protocol quirk, a spec section number, a
-deliberate deviation from a library's intended use and the bug that forced it. Those are durable,
-so they are worth writing down. Link the source when there is one.
-
-Never write a comment that restates the code, labels a section, marks a step number, or explains a
-language feature. Delete those on sight when you encounter them.
-
-No JSDoc on internal code. Exported API of a package may carry a one-line description where the
-name genuinely cannot carry it alone.
-
-This rule is inverted from what `deprecated/` does. Do not carry that density forward.
-
-## Dependency injection
-
-**Bun cannot run tsyringe's decorators.** Bun's transpiler rewrites legacy decorators as TC39
-standard decorators and silently drops constructor-parameter decorators, so `@inject(...)` and
-`@injectAll(...)` never execute under Bun no matter what `experimentalDecorators` or
-`emitDecoratorMetadata` says. tsyringe's `TypeInfo not known for "X"` is the symptom that
-reaches tests.
-
-Therefore classes never carry tsyringe decorators — the registrar decides construction:
-- Zero-argument constructor → `container.register(token, { useClass: X })`.
-- Any constructor parameters → `container.register(token, { useFactory: (resolver) =>
-  new X(resolver.resolve(dep)) })`.
-- One instance per container → wrap the factory in `instanceCachingFactory`.
-
-Spec-side wiring follows the same rule: construct with `new X(...)` rather than resolving a class
-token out of a container. Tokens resolve ports and symbol keys; class tokens are for zero-arg
-classes only.
+- Max 300 lines per file; split into focused modules.
+- Strict TypeScript (`strict`, `noUncheckedIndexedAccess`). No `as any`, `@ts-ignore` or
+  `@ts-expect-error`: fix the type.
+- Early returns, named parameters for 2+ arguments, `handle`-prefixed event handlers, and real
+  `E`-prefixed enums (`EEngine`) for value unions.
+- **No comments.** Say it with names, extracted functions, types and tests. The exception is a fact
+  that lives outside the repo and cannot drift with a refactor: a provider's undocumented quirk, a
+  spec section, a deliberate library misuse and the bug that forced it (link the source). No JSDoc
+  on internal code; an exported API may carry one line where its name cannot.
+- **No tsyringe decorators**: Bun drops constructor-parameter decorators. Register zero-argument
+  classes with `useClass`, everything else with `useFactory: (r) => new X(r.resolve(dep))` (wrapped
+  in `instanceCachingFactory` for one per container), and construct with `new X(...)` in specs.
+  Nest's `@Inject` in `apps/api` does work; see its `AGENTS.md`.
 
 ## Testing
 
-- **Every new feature includes tests.** TDD preferred.
-- Tests live in a sibling `__tests__/` directory as `*.spec.ts(x)`.
-- **`bun test` everywhere.** Specs import from `bun:test` (`mock`, `spyOn`, `mock.module`,
-  `setSystemTime`); every package script is `bun test`, because source calls `Bun.spawn` /
-  `Bun.file` / `Bun.serve`. Each package's `bunfig.toml` sets `[test] preload` to the shared root
-  `bun-test.setup.ts` (sets `ATLAS_TESTING=1`, registers the custom matchers) plus its own
-  `test-home-setup.ts` where it needs one. Bun reads `bunfig.toml` from the directory it runs in,
-  so run it per package (`bun run test` at the root fans out through each package's script).
-- **`evals` stays on Vitest.** `evalite` is a vitest-based harness, so `evals/` keeps its
-  `vitest.config.ts`, the `vitest` dependency, and `bun --bun vitest run`. It is the only exception.
-- **Tests are incremental.** `bun-test-incremental` (`packages/bun-test-incremental`, a `bun:test`
-  preload) runs only what a change can affect: `bun test --changed=<base>` pre-filters spec files by
-  git diff, then a fingerprint pass-cache skips any spec with a cached pass for its exact current
-  inputs. Failed tests are never cached — they re-run until green. `BUN_TEST_INCREMENTAL=1` enables
-  it (CI always sets it; locally it is opt-in), `plan` shows what would run, `force` runs everything
-  and refreshes the cache, `clear` drops it. A spec that starts a child process is never cached.
-  Never add a paths filter or sharding to CI tests — relevance is decided per file. The nightly
-  (`tests-nightly.yml`) runs the whole suite without `--changed` and fails if the cache hid a failure.
-- Live Docker specs (anything gating on `describeLiveDocker` / `dockerUnavailableReason`, plus the
-  docker shell-adapter specs) run only with `ATLAS_LIVE_DOCKER=1`. CI does not set it: under turbo
-  the variable never reached them, several were found broken when the runner first honoured it, and they
-  need repair before CI turns them on. Locally they skip by default so a running Docker Desktop
-  doesn't turn every test pass into real containers.
-- Context assembly, hook resolution, and policy decisions are pure and belong to `core` — test them
-  with plain data, never with a live model, a terminal, or a database.
+- Every feature ships with tests, TDD preferred. Specs are `*.spec.ts(x)` in a sibling `__tests__/`.
+- `bun test` everywhere, importing from `bun:test`. Run it inside the package, since Bun reads that
+  package's `bunfig.toml` preloads; `bun run test` at the root fans out. Only `evals/` stays on
+  Vitest (`bun --bun vitest run`).
+- Tests are incremental (`packages/bun-test-incremental`): with `BUN_TEST_INCREMENTAL=1` (always on
+  in CI) only specs whose inputs changed run, and failures are never cached. Never add path filters
+  or sharding to CI; the nightly runs everything.
+- Live Docker specs run only with `ATLAS_LIVE_DOCKER=1`, which CI doesn't set (several need repair).
+- Context assembly, hook resolution and policy decisions are pure `core` code: test them with plain
+  data, never a live model, terminal or database.
 
-## TUI performance
+## Git and releases
 
-OpenTUI repaints **every visible renderable every frame** — there is no dirty-region painting — so
-the renderable count of the visible tree is the per-frame cost, and the frame count is the rest.
-These are measured facts from the September 2026 perf round (#338, #340, #342, #343, #346); the
-throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx`.
-- **One `<text>` with styled spans, never a `<box>` + `<text>` per cell.** A row of N elements costs
-  N × (5 native handles + a Yoga node) and is repainted every frame; one text with spans draws the
-  same pixels for a fraction of it. Gutter numbers, signs, background tints: they are all spans.
-- **A React commit is a frame.** Never `setState` on a timer in a component — subscribe to the
-  shared ticker (`subscribeTicker` in `ui/hooks/use-shimmer-clock.ts`) and write to the renderable
-  by ref (`content`, or a span's `children`), so the tick skips React entirely.
-- **An effect that awaits and then `setState`s must be keyed on content and bail when the answer is
-  unchanged.** Keyed on array identity, it loops render → effect → setState forever at 60 fps — one
-  such block pinned a whole core per tile. See `tool-block-idle.spec.tsx`.
-- **Never `content={new StyledText(...)}` inline.** `content` compares by reference, so a fresh
-  object is a full native buffer re-push every render. Memoize it.
-- **`targetFps` is inert.** The renderer is request-driven; frames happen only when something calls
-  `requestRender` (every React commit does), capped by `maxFps` (60). When a tile is hot while idle,
-  count frames first (`renderer.getStats().frameCount` over a quiet window) — nonzero means a state
-  loop, and the fix is upstream of any cadence knob.
+- Branch `<you>/<slug>` from `origin/main`, open a PR, and `gh pr merge --squash` once CI is green.
+  Keep PRs reviewable in one sitting. Never force-push or `--no-verify`.
+- Conventional commits, imperative and lowercase: `<type>(<scope>): <description>`. The PR title
+  sizes the release: `feat` cuts a minor, anything else a patch. Reserve `feat` for something a
+  user can do today that they couldn't yesterday; polish and restyles are `fix` or `refactor`.
+- A merge releases when it is a `fix`/`feat` or changes TUI, serve, Mac or web (directly or through
+  a dependency). The API deploys on every merge, but sandboxes download the latest serve _release_,
+  so an API change the released serve or TUI can't talk to must be titled `fix` or `feat` to cut
+  one (#1400 left every new sandbox hanging on "Start Atlas").
 
-## Git
+## Workspace
 
-- **Branch from `origin/main`, ship as a PR.** Branch as `<you>/<slug>` (e.g.
-  `dennis/add-the-thing`), push, `gh pr create`, and merge with `gh pr merge --squash` once CI is
-  green. Keep PRs small enough to review in one sitting.
-- Never force-push, never `--no-verify`.
-- Conventional commits: `<type>(<scope>): <description>` — imperative, lowercase. The merged PR
-  title sizes the release: `feat` cuts a minor, anything else a patch. A merge releases whenever
-  it changes TUI, serve, Mac or web (directly or through a workspace dependency), or is a `fix`/`feat`.
-  Reserve `feat` for "a user can do something today they couldn't yesterday" — cosmetic tweaks,
-  restyles, and behavior polish are `fix` or `refactor`.
-- **A change the released serve or TUI cannot talk to must cut a release.** The API deploys on
-  every merge, but sandboxes download the latest _release_ of serve. A `refactor` that moves or
-  removes a route serve calls leaves every new sandbox hanging on "Start Atlas" until the next
-  release (#1400 did exactly that). Title such an api-only PR `fix` or `feat`.
+- Bun is the package manager and the runtime (OpenTUI needs Bun's FFI; `bun build --compile` makes
+  the binary). `bun install` at the root; never npm, pnpm or yarn.
+- The isolated linker means an undeclared dependency won't resolve. `typescript`, `react`,
+  `react-dom` and their types are pinned in root `overrides`; never bump them in one package. A
+  blocked postinstall goes in root `trustedDependencies` with the reason.
+- Turborepo orchestrates `bun run typecheck|test|build`; one package is
+  `turbo run <task> --filter <name>`. Packages are raw TS with no build step, so every task keeps
+  `dependsOn: ["^<task>"]` to invalidate dependents. CI runs tests with `bun test`, not turbo.
+- CI builds the real binaries, not just a typecheck: bundling catches assets loaded by path (the
+  tree-sitter grammars) and optional peers that need `--external`.
+- The sandbox image publishes to GHCR (`ghcr.io/<owner>/atlas-sandbox`, multi-arch, `sha-<7>` and
+  `latest`, anonymous pulls) and Vercel's VCR (`linux/amd64`, `latest` only). Serve isn't in the
+  image; a sandbox downloads the release matching its client at boot.
 
-## Workspace mechanics
+## Environment secrets
 
-**Bun is both the package manager and the runtime.** `bun install` from the repo root installs the
-whole workspace; `bun.lock` is committed. Workspace members are declared in the root
-`package.json` → `workspaces` (`packages/*`, `apps/*`). Never `pnpm install` / `npm install` /
-`yarn`. `.nvmrc` still pins Node 22.13, for the node-based CLIs in root `devDependencies`.
+- Secrets are managed with `dotenvx`. The committed, encrypted `*.enc` files (e.g.
+  `apps/api/envs/.env.api.<tier>.enc`) are the source of truth for every tier, local dev included.
+- Deploy targets (Vercel, trigger.dev, Render, GitHub Actions) hold only the private key. Its name
+  matches the `DOTENV_PUBLIC_KEY_*` line at the top of the file, e.g.
+  `DOTENV_PRIVATE_KEY_API_PRODUCTION`. Never paste an app secret into a vendor dashboard.
+- Private keys live in a gitignored `.env.keys` beside the `.enc` file, where dotenvx finds them on
+  its own. In Atlas Cloud they are project file mounts, so add or rotate a key there. Per-machine
+  plaintext goes in a gitignored `.env.personal`; it loads after the tier and can't override a key
+  the tier already sets.
+- Encrypting needs no private key (the public key is in the file); decrypting does. Encrypting a
+  file that has no public key yet mints a new keypair.
+- The CLI is a root devDependency, not on `PATH`: run it as `bunx dotenvx`.
+  - `dotenvx get KEY -f <file>` reads one value; `dotenvx get -pp -f <file>` prints all of them as
+    JSON. Without the private key `get` prints the ciphertext and exits 0; add `--strict` to fail.
+  - `dotenvx set KEY VALUE -f <file>` writes the value encrypted.
+  - `dotenvx decrypt -f <file> --stdout` prints the plaintext file. Without `--stdout`, `decrypt`
+    and `encrypt` rewrite the file in place; re-encrypt before committing, or the pre-commit hook
+    (`dotenvx ext precommit`) rejects it.
+  - `dotenvx run -f <file> -- <cmd>` injects the values into a process; `apps/api` wraps this as
+    `bun run env:inject -- <cmd>`.
 
-The runtime was already Bun and still is, for the reasons it always was: OpenTUI's renderer is a
-Zig library reachable only through Bun's FFI, and `bun build --compile` produces the shipped
-binary. The package manager has simply stopped being a second tool.
-- `typescript`, `react`, `react-dom`, and their `@types` are pinned repo-wide via root
-  `package.json` → `overrides`; don't bump them in one package. Those pins are the only thing
-  keeping a single instance of each — Bun's isolated linker does not dedupe across versions.
-- `bunfig.toml` pins the **isolated** linker: real packages live in `node_modules/.bun/` and each
-  member's `node_modules` holds symlinks to exactly its declared dependencies, so a package you did
-  not declare will not resolve. Bun 1.3 already defaults to this for workspaces; the file makes it
-  a decision rather than a default we inherited.
-- Lifecycle scripts run only for packages on Bun's default allowlist. Nothing in the live workspace
-  currently needs more; if `bun pm untrusted` ever reports a blocked postinstall, add that package
-  to root `package.json` → `trustedDependencies` and say why.
+## Triage
 
-**Turborepo runs the tasks.** `bun run typecheck` / `test` / `build` at the root are
-`turbo run <task>`; `turbo.json` holds the graph. Per-package scripts still call `tsc` and
-`bun test` directly — turbo orchestrates, it is not the runner. CI runs tests through `bun test`, not
-turbo: turbo's package-level replay would stop the incremental cache from ever being seeded.
-- Run one package with `turbo run <task> --filter @dltech/atlas-core`, or `bun run <script>` inside
-  the package.
-- `typecheck` and `test` declare `outputs: []` — they produce no artifacts, only an exit code.
-- Every task declares `dependsOn: ["^<task>"]`. That is load-bearing, not ordering garnish: the
-  packages are raw TS with no build step, so a change in `core` must invalidate `tui`'s cached
-  typecheck, and the topological edge is what makes it do so.
-- `tsconfig.base.json` is in `globalDependencies`; editing it busts every cache entry.
-
-**CI must actually build the binary**, not merely typecheck. Bundling a Bun binary surfaces failures a
-typecheck cannot: runtime assets loaded by path, and optional peer dependencies that need `--external`.
-Nest was the original reason for that warning and now lives only under `deprecated/`, but the class of
-failure is not specific to it — the tree-sitter grammars are the live example.
-
-## Sandbox image
-
-The sandbox image lives in two registries. GHCR (`ghcr.io/<owner>/atlas-sandbox`) is the public
-canonical listing — multi-arch, `sha-<7>` + `latest` per merge, used by local Docker sandboxes and
-as the build cache; pulls are anonymous (no login), pushes ride on GitHub Actions. VCR (`vcr.vercel.com`) is the delivery mechanism Vercel
-Sandbox requires — `linux/amd64` only, `latest` only: no per-release tag, because the image is a pure
-runtime toolkit with nothing Atlas-versioned in it. Serve is delivered by an in-sandbox download at
-boot, pinned to the client's own release version.
-
-## Triage labels
-
-The repo's labels are the GitHub defaults — `bug`, `documentation`, `duplicate`, `enhancement`,
-`good first issue`, `help wanted`, `invalid`, `question`, `wontfix` — plus `needs-triage`,
-applied to anything not yet triaged onto the workstream board. (`autorelease: pending` belongs to
-the release automation, not triage.) There is no `ready-for-agent` or `ready-for-human`: readiness
-for an agent is read off the Projects board, not off a label.
+GitHub's default labels plus `needs-triage` for anything not yet on the workstream board. Agent
+readiness is read off the Projects board, not a label.
