@@ -115,9 +115,12 @@ describe.skipIf(REDIS_URL === undefined)(
       const lease = await rig.plane.currentLease({ sessionId })
       expect(lease.lease.holderId).toBe('host-b')
       expectEpochsOrdered(events, lease.lease.epoch)
+
+      hostB.kill('SIGKILL')
+      await hostB.exited
     }, 60_000)
 
-    it.skip('exit 3b: SIGTERM mid model stream leaves the partial output marked aborted: handoff [gap: a model step aborted for handoff records no assistant-said; HandoffAborted escapes run-turn without appending the partial]', async () => {
+    it('exit 3b: SIGTERM mid model stream leaves the partial output marked aborted: handoff', async () => {
       const sessionId = 'fault-f10-3b'
       const threadId = await rig.newSession({ sessionId, text: 'tell me a story' })
       const daemon = await rig.spawnDaemonFor({ sessionId })
