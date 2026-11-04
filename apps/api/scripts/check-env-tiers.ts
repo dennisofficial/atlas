@@ -2,14 +2,17 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { lineFaultsOf } from './env-tier-lines'
 
-const ENVS = join(import.meta.dirname, '..', 'envs')
+const REPO = join(import.meta.dirname, '..', '..', '..')
+const ENV_DIRS = ['apps/api/envs', 'apps/agent-host', 'apps/trigger/envs']
 
-const tiers = readdirSync(ENVS).filter((name) => name.endsWith('.enc'))
-const faults = tiers.flatMap((name) =>
-  lineFaultsOf(readFileSync(join(ENVS, name), 'utf8')).map(
-    (fault) =>
-      `apps/api/envs/${name}:${fault.line} ${fault.fault}${fault.key ? ` ${fault.key}` : ''}`,
-  ),
+const faults = ENV_DIRS.flatMap((dir) =>
+  readdirSync(join(REPO, dir))
+    .filter((name) => name.endsWith('.enc'))
+    .flatMap((name) =>
+      lineFaultsOf(readFileSync(join(REPO, dir, name), 'utf8')).map(
+        (fault) => `${dir}/${name}:${fault.line} ${fault.fault}${fault.key ? ` ${fault.key}` : ''}`,
+      ),
+    ),
 )
 
 if (faults.length > 0) {

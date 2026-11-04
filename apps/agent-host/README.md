@@ -5,6 +5,12 @@ sandboxes, drives the loop, and publishes live frames.
 
 ## Env
 
+Values live in the committed dotenvx tier files `.env.<tier>.enc` at this package's root (production, local).
+The private keys are in `.env.keys` (git-ignored, an Atlas Cloud project file mount). A host holds only
+`DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. Add a value with
+`dotenvx set KEY value -f .env.<tier>.enc -fk .env.keys` in every tier.
+
+
 | Var                       | Required | Default                                              |
 | ------------------------- | -------- | ---------------------------------------------------- |
 | `DATABASE_URL`            | yes      | —                                                    |
@@ -29,5 +35,8 @@ bun install --frozen-lockfile && bun run --cwd apps/daemon build
 Start command:
 
 ```
-bun apps/agent-host/src/main.ts
+bun run --cwd apps/agent-host start
 ```
+
+Render env holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC` (plus `BUN_VERSION`). Locally:
+`bun run --cwd apps/agent-host dev` (needs the api, docker Postgres and `test-redis`).

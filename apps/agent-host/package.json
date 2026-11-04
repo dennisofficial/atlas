@@ -10,7 +10,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test --timeout 30000",
-    "start": "bun src/main.ts"
+    "start": "dotenvx run --strict -f .env.production.enc -- bun src/main.ts",
+    "dev": "dotenvx run --strict -f .env.local.enc -fk .env.keys -- bun --watch src/main.ts"
   },
   "dependencies": {
     "@dltech/atlas-agent": "workspace:*",
@@ -23,6 +24,7 @@
     "@dltech/atlas-observability": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
+    "@dotenvx/dotenvx": "^1.71.0",
     "@vercel/sandbox": "^3.3.0",
     "ioredis": "^6.0.0",
     "zod": "^4.4.3"
