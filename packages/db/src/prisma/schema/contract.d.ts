@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'c6274268faee4d3d652622919270c0984d8ec8c5d589c4774061dd813f11fa97'>;
+  StorageHashBase<'f62273e682f44e7f454ec6d488e54f124e9589e6492c9caab91ba8434fca8f1d'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1074,6 +1074,13 @@ export namespace Models {
     value: FieldOutputTypes['public']['Verification']['value'];
     readonly [RelationKeys]?: never;
   };
+  export type v2_V2Blob = {
+    bytes: FieldOutputTypes['v2']['V2Blob']['bytes'];
+    createdAt: FieldOutputTypes['v2']['V2Blob']['createdAt'];
+    hash: FieldOutputTypes['v2']['V2Blob']['hash'];
+    size: FieldOutputTypes['v2']['V2Blob']['size'];
+    readonly [RelationKeys]?: never;
+  };
   export type v2_V2Event = {
     at: FieldOutputTypes['v2']['V2Event']['at'];
     canonical: FieldOutputTypes['v2']['V2Event']['canonical'];
@@ -1188,6 +1195,7 @@ export declare const models: {
     Verification: Models.public_Verification;
   };
   v2: {
+    V2Blob: Models.v2_V2Blob;
     V2Event: Models.v2_V2Event;
     V2InboxEntry: Models.v2_V2InboxEntry;
     V2Lease: Models.v2_V2Lease;
@@ -5923,6 +5931,39 @@ type ContractBase = Omit<
         readonly kind: 'postgres-schema';
         readonly entries: {
           readonly table: {
+            readonly V2Blob: {
+              columns: {
+                readonly bytes: {
+                  readonly dataType: 'pg/bytea';
+                  readonly codecId: 'pg/bytea@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly hash: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly size: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['hash'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
             readonly V2Event: {
               columns: {
                 readonly at: {
@@ -6437,6 +6478,7 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'UserVercelCredential';
     };
+    readonly V2Blob: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Blob' };
     readonly V2Event: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Event' };
     readonly V2InboxEntry: {
       readonly namespace: 'v2' & NamespaceId;
@@ -11100,6 +11142,41 @@ type ContractBase = Omit<
       };
       readonly v2: {
         readonly models: {
+          readonly V2Blob: {
+            readonly fields: {
+              readonly bytes: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bytea@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly hash: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly size: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'V2Blob';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly bytes: { readonly column: 'bytes' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly hash: { readonly column: 'hash' };
+                readonly size: { readonly column: 'size' };
+              };
+            };
+          };
           readonly V2Event: {
             readonly fields: {
               readonly at: {
