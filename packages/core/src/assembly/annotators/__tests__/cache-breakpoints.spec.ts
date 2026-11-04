@@ -85,6 +85,35 @@ describe('cacheBreakpoints', () => {
     expect(markedBlockPositions(marked)).toEqual([3])
   })
 
+  it('marks the last history block, not a reminder rebuilt fresh every step', () => {
+    const reminder: AssembledMessage = { ...said('running shells: 2', 4), volatile: true }
+
+    const marked = apply({ assembled: { system: [], messages: [...spoken(3), reminder] } })
+
+    expect(markedBlockPositions(marked)).toEqual([3])
+  })
+
+  it('lets the next step read back everything the previous step cached', () => {
+    const reminderAt = (seq: number): AssembledMessage => ({
+      ...said(`workspace note ${seq}`, seq),
+      volatile: true,
+    })
+    const history = spoken(10)
+    const step = apply({ assembled: { system: [], messages: [...history, reminderAt(11)] } })
+    const next = apply({
+      assembled: {
+        system: [],
+        messages: [...history, said('tool result', 11), said('tool result', 12), reminderAt(13)],
+      },
+    })
+
+    const cachedThrough = markedBlockPositions(step).at(-1) ?? 0
+    const nextTail = markedBlockPositions(next).at(-1) ?? 0
+    expect(cachedThrough).toBe(10)
+    expect(nextTail - cachedThrough).toBeLessThanOrEqual(CACHE_LOOKBACK_BLOCKS)
+    expect(nextTail).toBe(12)
+  })
+
   it('gives the conversation the same hour-long ttl as the system entry behind it', () => {
     const marked = apply({ assembled: { system: [{ text: 'preamble' }], messages: spoken(1) } })
 

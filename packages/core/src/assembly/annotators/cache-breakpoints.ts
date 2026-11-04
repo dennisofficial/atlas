@@ -68,6 +68,7 @@ function cacheablePositions(messages: readonly AssembledMessage[]): CacheablePos
   let tail: BlockPosition | undefined
 
   for (const [messageIndex, entry] of messages.entries()) {
+    if (entry.volatile === true) continue
     const parts: readonly MessagePart[] = entry.message.content
 
     for (const [partIndex, part] of parts.entries()) {

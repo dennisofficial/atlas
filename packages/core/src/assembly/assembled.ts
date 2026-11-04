@@ -4,7 +4,8 @@ import type { ProviderOptions } from '../provider'
 
 export type SystemBlock = { text: string; providerOptions?: ProviderOptions | undefined }
 
-export type AssembledMessage = { message: Message; origin: EventRef }
+/** `volatile` marks a block rebuilt fresh every step, which no cache entry can reuse. */
+export type AssembledMessage = { message: Message; origin: EventRef; volatile?: true | undefined }
 
 export type Assembled = {
   system: readonly SystemBlock[]

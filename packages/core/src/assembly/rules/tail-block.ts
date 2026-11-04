@@ -23,6 +23,7 @@ export function appendedAtTail({
       {
         message: { role: 'user' as const, content: [{ type: 'text' as const, text }] },
         origin: { eventId: anchor.id, seq: anchor.seq },
+        volatile: true,
       },
     ],
   }

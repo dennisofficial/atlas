@@ -229,7 +229,7 @@ describe('the block at the tail of the prompt', () => {
     expect(assembled.system).toEqual([{ text: DOCTRINE }])
   })
 
-  it('takes an ordinary cache breakpoint when it is the newest thing in the prompt', () => {
+  it('takes the cache breakpoint as the newest durable block, ahead of the workspace reminder', () => {
     const events = log([...CONVERSATION, ended()])
 
     const { assembled } = assemble({
@@ -240,6 +240,9 @@ describe('the block at the tail of the prompt', () => {
       },
     })
 
-    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
+    const durable = assembled.messages.filter((entry) => entry.volatile !== true)
+    expect(durable.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
+    expect(assembled.messages.at(-1)?.volatile).toBe(true)
+    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeUndefined()
   })
 })
