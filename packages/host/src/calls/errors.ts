@@ -64,4 +64,18 @@ export const actionForLostCall = (args: {
   return { rerun: action.type === 'rerun' || action.type === 'run' }
 }
 
+export const callLostAcrossBoot = (args: {
+  op: string
+  dispatchedBootId: string | undefined
+  currentBootId: string | undefined
+}): boolean => {
+  if (args.dispatchedBootId === undefined || args.currentBootId === undefined) return false
+  if (args.dispatchedBootId === args.currentBootId) return false
+  return !actionForLostCall({
+    op: args.op,
+    dispatchedBootId: args.dispatchedBootId,
+    currentBootId: args.currentBootId,
+  }).rerun
+}
+
 export const interruptedMessage = crashedCallMessage
