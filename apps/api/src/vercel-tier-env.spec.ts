@@ -6,8 +6,8 @@ import { afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { injectEncryptedTierEnv } from './vercel-tier-env'
 
 const DOTENVX = join(import.meta.dirname, '..', 'node_modules', '.bin', 'dotenvx')
-const TIER_FILE = '.env.api.production.enc'
-const PRIVATE_KEY_VAR = 'DOTENV_PRIVATE_KEY_API_PRODUCTION'
+const TIER_FILE = '.env.production.enc'
+const PRIVATE_KEY_VAR = 'DOTENV_PRIVATE_KEY_PRODUCTION_ENC'
 const PROBE_KEYS = ['TIER_PROBE_ONE', 'TIER_PROBE_TWO']
 
 let envsDir: string

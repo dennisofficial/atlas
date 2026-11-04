@@ -14,7 +14,7 @@ interface EnvEntry {
 }
 
 function parseTier(tier: (typeof TIERS)[number]): EnvEntry[] {
-  const path = join(import.meta.dirname, '..', 'envs', `.env.api.${tier}.enc`)
+  const path = join(import.meta.dirname, '..', `.env.${tier}.enc`)
   return readFileSync(path, 'utf8')
     .split('\n')
     .map((line) => /^(#\s*)?([A-Z][A-Z0-9_]*)=(.*)$/.exec(line))
@@ -51,7 +51,7 @@ describe('env tier alignment', () => {
 
   it('holds only comments, blanks and encrypted assignments in every tier', () => {
     for (const tier of TIERS) {
-      const path = join(import.meta.dirname, '..', 'envs', `.env.api.${tier}.enc`)
+      const path = join(import.meta.dirname, '..', `.env.${tier}.enc`)
       expect(lineFaultsOf(readFileSync(path, 'utf8')), tier).toEqual([])
     }
   })

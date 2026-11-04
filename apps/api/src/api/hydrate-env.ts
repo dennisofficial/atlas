@@ -23,14 +23,10 @@ function readIfPresent(path: string): string | undefined {
 }
 
 function tierFilePath(args: { tier: string; cwd: string }): string | undefined {
-  const anchoredName = args.tier === 'local' ? '.env.api.local.enc' : '.env.api.production.enc'
-  const anchored = join(import.meta.dirname, '..', '..', 'envs', anchoredName)
+  const anchoredName = args.tier === 'local' ? '.env.local.enc' : '.env.production.enc'
+  const anchored = join(import.meta.dirname, '..', '..', anchoredName)
 
-  const name = `.env.api.${args.tier}.enc`
-  const candidates = [
-    join(args.cwd, 'envs', name),
-    join(args.cwd, 'apps', 'api', 'envs', name),
-    anchored,
-  ]
+  const name = `.env.${args.tier}.enc`
+  const candidates = [join(args.cwd, name), join(args.cwd, 'apps', 'api', name), anchored]
   return candidates.find((candidate) => readIfPresent(candidate) !== undefined)
 }

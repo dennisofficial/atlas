@@ -53,16 +53,16 @@ jobs:
         working-directory: apps/api
         env:
           MIGRATE_TIER: production
-          DOTENV_PRIVATE_KEY_API_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_API_PRODUCTION }}
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
 
       - name: verify the database matches the contract
         working-directory: apps/api
         run: |
-          ./node_modules/.bin/dotenvx run --strict -f "envs/.env.api.$MIGRATE_TIER.enc" -- \
+          ./node_modules/.bin/dotenvx run --strict -f ".env.$MIGRATE_TIER.enc" -- \
             sh -c "cd ../../packages/db && DATABASE_URL=\"\${DIRECT_URL:-\$DATABASE_URL}\" bun run --bun prisma db verify --strict"
         env:
           MIGRATE_TIER: production
-          DOTENV_PRIVATE_KEY_API_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_API_PRODUCTION }}
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
 
   deploy-trigger:
     needs: [changes, migrate-production]
@@ -98,8 +98,8 @@ jobs:
       - name: smoke the deployed worker
         timeout-minutes: 4
         run: |
-          key=$(./node_modules/.bin/dotenvx get TRIGGER_SECRET_KEY -f envs/.env.api.production.enc)
+          key=$(./node_modules/.bin/dotenvx get TRIGGER_SECRET_KEY -f .env.production.enc)
           echo "::add-mask::$key"
           TRIGGER_SECRET_KEY="$key" bun run trigger:smoke
         env:
-          DOTENV_PRIVATE_KEY_API_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_API_PRODUCTION }}
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
