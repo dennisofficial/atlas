@@ -1,0 +1,9 @@
+// use prisma-8
+namespace v2 {
+  model V2BlobRef {
+    sessionId String
+    hash      String
+
+    @@id([sessionId, hash])
+  }
+}

@@ -1,0 +1,64 @@
+[
+  {
+    "id": "table.V2BlobRef",
+    "label": "Create table \"V2BlobRef\"",
+    "summary": "Creates table \"V2BlobRef\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2BlobRef"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2BlobRef\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2BlobRef\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2BlobRef\"",
+        "sql": "CREATE TABLE \"v2\".\"V2BlobRef\" (\n  \"hash\" text NOT NULL,\n  \"sessionId\" text NOT NULL,\n  PRIMARY KEY (\"sessionId\", \"hash\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2BlobRef\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2BlobRef\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data.v2-blob-ref-backfill",
+    "label": "Backfill V2BlobRef from the $blob hashes referenced in V2Event canonical text",
+    "operationClass": "data",
+    "target": {
+      "id": "table.V2BlobRef",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2BlobRef"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Backfill V2BlobRef from V2Event canonical text",
+        "sql": "INSERT INTO \"v2\".\"V2BlobRef\" (\"sessionId\", \"hash\")\nSELECT DISTINCT t.\"sessionId\", (m.\"match\")[1]\nFROM \"v2\".\"V2Event\" e\nJOIN \"v2\".\"V2Thread\" t ON t.\"id\" = e.\"threadId\"\nCROSS JOIN LATERAL regexp_matches(e.\"canonical\", '\"\\$blob\":\\{\"hash\":\"([0-9a-f]{64})\"', 'g') AS m(\"match\")\nON CONFLICT DO NOTHING"
+      }
+    ],
+    "postcheck": []
+  }
+]

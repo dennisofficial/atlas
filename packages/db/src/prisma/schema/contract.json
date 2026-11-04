@@ -204,6 +204,10 @@
       "model": "V2Blob",
       "namespace": "v2"
     },
+    "V2BlobRef": {
+      "model": "V2BlobRef",
+      "namespace": "v2"
+    },
     "V2Event": {
       "model": "V2Event",
       "namespace": "v2"
@@ -7712,6 +7716,37 @@
               "table": "V2Blob"
             }
           },
+          "V2BlobRef": {
+            "fields": {
+              "hash": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "hash": {
+                  "column": "hash"
+                },
+                "sessionId": {
+                  "column": "sessionId"
+                }
+              },
+              "namespaceId": "v2",
+              "table": "V2BlobRef"
+            }
+          },
           "V2Event": {
             "fields": {
               "at": {
@@ -13975,6 +14010,29 @@
               },
               "uniques": []
             },
+            "V2BlobRef": {
+              "columns": {
+                "hash": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sessionId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "sessionId",
+                  "hash"
+                ]
+              },
+              "uniques": []
+            },
             "V2Event": {
               "columns": {
                 "at": {
@@ -14371,7 +14429,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "f62273e682f44e7f454ec6d488e54f124e9589e6492c9caab91ba8434fca8f1d"
+    "storageHash": "65d02fc990c733d3676e480ab5bd6af2247c27ad5a181f8083099cecbdf7bf08"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

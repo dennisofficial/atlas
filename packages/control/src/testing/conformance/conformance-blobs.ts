@@ -2,7 +2,17 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { spillBody, toCallId, type V2Body } from '@dltech/atlas-core'
 
 import type { ConformanceParams } from './conformance'
-import { makeHarness, mint, seedGranted, THREAD, type Harness } from './support'
+import {
+  createSessionParams,
+  HOLDER,
+  makeHarness,
+  mint,
+  said,
+  seedGranted,
+  SESSION,
+  THREAD,
+  type Harness,
+} from './support'
 
 const spill = (text: string) =>
   spillBody({
@@ -102,6 +112,59 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       expect((await harness.plane.head({ threadId: THREAD })).seq).toBe(0)
       expect(await harness.plane.readBlob({ hash: keptBlob.hash })).toBeUndefined()
       expect(await harness.plane.readBlob({ hash: droppedBlob.hash })).toBeUndefined()
+    })
+
+    it('reports whether a hash is referenced by an event of the session', async () => {
+      const { body, blobs } = spillOnce()
+      const blob = blobs[0]
+      if (blob === undefined) throw new Error('expected a spill')
+      const events = mint({ bodies: [body as V2Body], epoch })
+      await harness.plane.append({ threadId: THREAD, epoch, events, blobs })
+      expect(await harness.plane.blobReferencedBy({ sessionId: SESSION, hash: blob.hash })).toBe(
+        true,
+      )
+      expect(
+        await harness.plane.blobReferencedBy({ sessionId: SESSION, hash: 'f'.repeat(64) }),
+      ).toBe(false)
+      await harness.plane.createSession(
+        createSessionParams({ sessionId: 'other', mainThreadId: 'other-thread' }),
+      )
+      expect(await harness.plane.blobReferencedBy({ sessionId: 'other', hash: blob.hash })).toBe(
+        false,
+      )
+    })
+
+    it('does not treat a hash in ordinary user-said text as a reference', async () => {
+      const { body, blobs } = spillOnce()
+      const blob = blobs[0]
+      if (blob === undefined) throw new Error('expected a spill')
+      const events = mint({ bodies: [body as V2Body, said(`stolen hash: ${blob.hash}`)], epoch })
+      const outcome = await harness.plane.append({ threadId: THREAD, epoch, events, blobs })
+      expect(outcome.ok).toBe(true)
+      expect(await harness.plane.blobReferencedBy({ sessionId: SESSION, hash: blob.hash })).toBe(
+        true,
+      )
+      await harness.plane.createSession(
+        createSessionParams({ sessionId: 'attacker', mainThreadId: 'attacker-thread' }),
+      )
+      const attack = await harness.plane.grant({
+        sessionId: 'attacker',
+        holderId: HOLDER,
+        ttlMs: 60_000,
+      })
+      const planted = await harness.plane.append({
+        threadId: 'attacker-thread',
+        epoch: attack.epoch,
+        events: mint({
+          bodies: [said(`the victim hash is ${blob.hash}`)],
+          epoch: attack.epoch,
+          threadId: 'attacker-thread',
+        }),
+      })
+      expect(planted.ok).toBe(true)
+      expect(await harness.plane.blobReferencedBy({ sessionId: 'attacker', hash: blob.hash })).toBe(
+        false,
+      )
     })
 
     it('refuses a tampered blob and commits nothing', async () => {

@@ -21,6 +21,8 @@ export type BlobWrite = { hash: string; bytes: Uint8Array }
 
 export type BlobRow = { size: number; bytes: Uint8Array }
 
+export type BlobRefWrite = { sessionId: string; hash: string }
+
 export type StoredEvent = {
   threadId: string
   seq: number
@@ -83,8 +85,10 @@ export interface ControlTx {
   }): Promise<boolean>
   insertEvents(rows: readonly StoredEvent[]): Promise<void>
   insertBlobs(rows: readonly BlobWrite[]): Promise<void>
+  insertBlobRefs(rows: readonly BlobRefWrite[]): Promise<void>
   readBlob(params: { hash: string }): Promise<BlobRow | undefined>
   blobsExist(hashes: readonly string[]): Promise<ReadonlySet<string>>
+  blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean>
   readEvents(params: ReadEventsParams): Promise<StoredEvent[]>
   readLease(sessionId: string): Promise<Lease | undefined>
   lockLease(sessionId: string): Promise<Lease | undefined>
