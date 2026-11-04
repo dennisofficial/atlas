@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -46,6 +47,10 @@ const waitForListening = async (child: DaemonChild): Promise<{ port: number; boo
   throw new Error(`daemon did not start: ${seen}${stderr}`)
 }
 
+const killOrphans = (home: string): void => {
+  spawnSync('pkill', ['-9', '-f', home])
+}
+
 const killChild = async (child: DaemonChild, signal: 'SIGTERM' | 'SIGKILL'): Promise<void> => {
   if (signal === 'SIGKILL') {
     child.kill('SIGKILL')
@@ -91,12 +96,20 @@ export const startDaemon = async (args: {
       stdout: 'pipe',
       stderr: 'pipe',
     })
-    const listening = await waitForListening(next)
+    child = next
+    let listening: { port: number; bootId: string }
+    try {
+      listening = await waitForListening(next)
+    } catch (error) {
+      if (child === next) child = undefined
+      await killChild(next, 'SIGKILL')
+      throw error
+    }
     if (stopped) {
+      if (child === next) child = undefined
       await killChild(next, 'SIGKILL')
       return
     }
-    child = next
     currentBootId = listening.bootId
     if (proxy === undefined) {
       proxy = await FaultProxy.start({ target: { host: '127.0.0.1', port: listening.port } })
@@ -111,6 +124,7 @@ export const startDaemon = async (args: {
     const current = child
     child = undefined
     if (current !== undefined) await killChild(current, 'SIGTERM')
+    killOrphans(home)
     await proxy?.stop()
     rmSync(home, { recursive: true, force: true })
   }
@@ -135,6 +149,7 @@ export const startDaemon = async (args: {
       const current = child
       child = undefined
       if (current !== undefined) await killChild(current, 'SIGKILL')
+      killOrphans(home)
       await spawn()
     },
     stop,
