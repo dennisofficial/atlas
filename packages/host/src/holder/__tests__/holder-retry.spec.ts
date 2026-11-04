@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { V2Event } from '@dltech/atlas-core'
+import { ScriptedModel } from '@dltech/atlas-agent/testing'
 
-import { flushUntil, makeRig, postAndRun, seedSession, SESSION, THREAD_ID } from './holder-rig'
+import {
+  flushUntil,
+  makeRig,
+  postAndRun,
+  seedSession,
+  SESSION,
+  THREAD_ID,
+  type HolderRig,
+} from './holder-rig'
+
+const scriptedModelOf = (rig: HolderRig): ScriptedModel => {
+  const runtime = rig.runtimes[0]
+  if (runtime === undefined) throw new Error('no runtime')
+  return runtime.model as ScriptedModel
+}
 
 const fullEvents = async (rig: {
   plane: {
@@ -81,16 +96,15 @@ describe('holder retry deadlines', () => {
     expect(lease.lease.holderId).toBe('holder-b')
     expect(lease.lease.epoch).toBeGreaterThan(1)
 
-    const runtimeB = b.runtimes[0]
-    if (runtimeB === undefined) throw new Error('no runtime for b')
-    expect(runtimeB.model.requests).toHaveLength(0)
+    const modelB = scriptedModelOf(b)
+    expect(modelB.requests).toHaveLength(0)
 
     while (a.clock.now() < notBeforeMs) {
       a.clock.advance(Math.min(100, notBeforeMs - a.clock.now()))
       await b.flush()
-      if (a.clock.now() < notBeforeMs) expect(runtimeB.model.requests).toHaveLength(0)
+      if (a.clock.now() < notBeforeMs) expect(modelB.requests).toHaveLength(0)
     }
-    const called = await flushUntil({ check: () => runtimeB.model.requests.length > 0 })
+    const called = await flushUntil({ check: () => modelB.requests.length > 0 })
     expect(called).toBe(true)
     expect(a.clock.now()).toBeGreaterThanOrEqual(notBeforeMs)
 

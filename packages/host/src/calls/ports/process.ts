@@ -4,9 +4,9 @@ import {
   type SpawnCommand,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { ECallStatus, EExecOutcome, type ExecResult } from '@dltech/atlas-protocol'
+import { ECallFailure, ECallStatus, EExecOutcome, type ExecResult } from '@dltech/atlas-protocol'
 
-import { nextKey } from '../call-scope'
+import { markInterrupted, nextKey } from '../call-scope'
 import type { RemoteCalls } from '../remote-calls'
 
 export const DEFAULT_SANDBOX_COMMANDS: Readonly<Record<string, string>> = {
@@ -61,7 +61,10 @@ export class DaemonProcessPort extends ProcessPort {
         onOutput: (bytes) => void writer.write(bytes),
       })
       .then((result) => {
-        if (result.status === ECallStatus.Failed) return 1
+        if (result.status === ECallStatus.Failed) {
+          if (result.error.code === ECallFailure.Interrupted) markInterrupted()
+          return 1
+        }
         return exitCodeOf(result.value as ExecResult)
       })
       .catch(() => 1)

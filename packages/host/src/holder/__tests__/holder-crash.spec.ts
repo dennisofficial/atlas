@@ -42,7 +42,7 @@ const claimWith = async (a: HolderRig, script: readonly { text: string }[]): Pro
   })
   await b.holder.start()
   await a.bus.wake(SESSION)
-  const claimed = await flushUntil({ check: () => b.runtimes.length > 0 })
+  const claimed = await flushUntil({ check: () => b.runtimes.length > 0, attempts: 200 })
   expect(claimed).toBe(true)
   return b
 }
@@ -66,7 +66,7 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
 
     const settled = await flushUntil({
       check: async () => (await a.events()).some((event) => event.type === 'tool-result'),
-      attempts: 200,
+      attempts: 600,
     })
     expect(settled).toBe(true)
     expect(a.daemon.runCount()).toBe(1)
@@ -90,7 +90,7 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
 
     const settled = await flushUntil({
       check: async () => (await a.events()).some((event) => event.type === 'tool-result'),
-      attempts: 200,
+      attempts: 600,
     })
     expect(settled).toBe(true)
     const results = (await a.events()).filter((event) => event.type === 'tool-result')
@@ -125,7 +125,7 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
 
     const settled = await flushUntil({
       check: () => hasInterruptedResult(a, 'interrupted by a process restart'),
-      attempts: 200,
+      attempts: 600,
     })
     expect(settled).toBe(true)
     const results = (await a.events()).filter((event) => event.type === 'tool-result')

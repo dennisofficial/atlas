@@ -110,7 +110,7 @@ export class HeldSession {
         timers: deps.timers,
         remoteCalls: runtime.remoteCalls,
         daemonTools: runtime.daemonTools,
-        retryUntil: () => this.drainDeadline ?? renewal.fenceDeadline(),
+        retryUntil: () => renewal.appendDeadline(this.drainDeadline),
         nowIso: () => new Date(deps.timers.now()).toISOString(),
         onLeaseLost: () => this.drop(),
         ...(deps.log === undefined ? {} : { log: deps.log }),
@@ -249,9 +249,9 @@ export class HeldSession {
     this.lostOwnership = true
     this.branches?.stop()
     this.record?.fence()
+    this.runtime?.remoteCalls.handoff()
     this.turns.abort()
     this.lifetimeAbort.abort()
-    this.runtime?.remoteCalls.handoff()
     this.runtime?.remoteCalls.close()
   }
 

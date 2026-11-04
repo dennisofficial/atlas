@@ -6,7 +6,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
-import { startRig, type FaultRig, type ReadEvent, type RigDaemon } from '../../testing/fault-rig'
+import {
+  startRig,
+  type FaultRig,
+  type HostProcess,
+  type ReadEvent,
+  type RigDaemon,
+} from '../../testing/fault-rig'
 import {
   callIdOf,
   expectEpochsOrdered,
@@ -23,6 +29,7 @@ const RUN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)
 type Scenario = {
   daemon: RigDaemon
   events: ReadEvent[]
+  hostA: HostProcess
   bootIds: { first: string; second: string; third: string }
 }
 
@@ -128,12 +135,12 @@ describe.skipIf(REDIS_URL === undefined)('F17 kill the daemon mid bash and resta
         )
       })
 
-    return { daemon, events, bootIds: { first, second, third } }
+    return { daemon, events, hostA, bootIds: { first, second, third } }
   }
 
   it('a read dispatched before the restart reruns and succeeds', async () => {
     const sessionId = `fault-f17-rerun-${RUN}`
-    const { daemon, events, bootIds } = await runScenario('rerun')
+    const { daemon, events, hostA, bootIds } = await runScenario('rerun')
 
     const readDispatch = events.filter(
       (row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1',
@@ -159,12 +166,15 @@ describe.skipIf(REDIS_URL === undefined)('F17 kill the daemon mid bash and resta
     const runs = readFileSync(join(daemon.home, `runs-${sessionId}`), 'utf8')
     expect(runs.trim().split('\n')).toEqual(['run'])
 
+    hostA.kill('SIGKILL')
+    await hostA.exited
+
     await daemon.stop()
     const orphans = spawnSync('pgrep', ['-f', daemon.home])
     expect(orphans.status).toBe(1)
   }, 90_000)
 
-  it.skip('F17 bash reported interrupted after a daemon restart [gap: DaemonProcessPort maps a boot change to exit 1]', async () => {
+  it('F17 bash reported interrupted after a daemon restart', async () => {
     const { events, bootIds } = await runScenario('interrupted')
 
     const bashDispatch = events.filter(

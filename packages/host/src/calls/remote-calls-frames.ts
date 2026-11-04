@@ -23,7 +23,7 @@ export type Pending = {
 }
 
 export const interruptedResult = (op: string): CallResult =>
-  failedResult({ op, code: ECallFailure.Internal, message: interruptedMessage(op) })
+  failedResult({ op, code: ECallFailure.Interrupted, message: interruptedMessage(op) })
 
 export const rejectPending = (args: {
   pending: Map<string, Pending>
@@ -192,7 +192,7 @@ export const recoverRestartedCalls = (args: {
       call,
       failedResult({
         op: call.op.op,
-        code: ECallFailure.Internal,
+        code: ECallFailure.Interrupted,
         message: interruptedMessage(call.op.op),
       }),
     )
