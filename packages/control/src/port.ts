@@ -84,6 +84,7 @@ export interface ControlTx {
   insertEvents(rows: readonly StoredEvent[]): Promise<void>
   insertBlobs(rows: readonly BlobWrite[]): Promise<void>
   readBlob(params: { hash: string }): Promise<BlobRow | undefined>
+  blobsExist(hashes: readonly string[]): Promise<ReadonlySet<string>>
   readEvents(params: ReadEventsParams): Promise<StoredEvent[]>
   readLease(sessionId: string): Promise<Lease | undefined>
   lockLease(sessionId: string): Promise<Lease | undefined>

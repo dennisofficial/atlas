@@ -11,6 +11,8 @@ import {
   type ThreadRow,
   type ControlSessionRow,
 } from '../../port'
+import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
+import { bisectAfter, leaseLiveAt } from './memory-helpers'
 
 type SessionRow = ControlSessionRow & { nextInboxId: number }
 
@@ -43,23 +45,6 @@ const cloneState = (state: State): State => ({
   inbox: new Map([...state.inbox].map(([key, value]) => [key, value.map((e) => ({ ...e }))])),
   blobs: new Map([...state.blobs].map(([key, value]) => [key, { ...value }])),
 })
-
-const bisectAfter = (params: { rows: readonly StoredEvent[]; afterSeq: number }): number => {
-  const { rows, afterSeq } = params
-  let low = 0
-  let high = rows.length
-  while (low < high) {
-    const mid = (low + high) >> 1
-    if ((rows[mid] as StoredEvent).seq > afterSeq) high = mid
-    else low = mid + 1
-  }
-  return low
-}
-
-const leaseLiveAt = (params: { lease: Lease | undefined; now: string }): boolean =>
-  params.lease !== undefined &&
-  params.lease.holderId !== null &&
-  Date.parse(params.now) < Date.parse(params.lease.renewedAt) + params.lease.ttlMs
 
 class MemoryTx implements ControlTx {
   private readonly state: State
@@ -188,19 +173,15 @@ class MemoryTx implements ControlTx {
   }
 
   async insertBlobs(rows: readonly BlobWrite[]): Promise<void> {
-    for (const row of rows) {
-      if (this.state.blobs.has(row.hash)) continue
-      this.state.blobs.set(row.hash, {
-        size: row.bytes.byteLength,
-        bytes: new Uint8Array(row.bytes),
-      })
-    }
+    insertBlobRows(this.state.blobs, rows)
   }
 
   async readBlob(params: { hash: string }): Promise<BlobRow | undefined> {
-    const row = this.state.blobs.get(params.hash)
-    if (row === undefined) return undefined
-    return { size: row.size, bytes: new Uint8Array(row.bytes) }
+    return readBlobRow(this.state.blobs, params.hash)
+  }
+
+  async blobsExist(hashes: readonly string[]): Promise<ReadonlySet<string>> {
+    return blobHashesPresent(this.state.blobs, hashes)
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {

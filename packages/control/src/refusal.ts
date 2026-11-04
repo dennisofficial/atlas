@@ -1,6 +1,6 @@
 import type { AppendRefusal, InboxRefusal, LogHead } from '@dltech/atlas-core'
 
-export type BlobRefusal = { kind: 'blob-mismatch'; hash: string }
+export type BlobRefusal = { kind: 'blob-mismatch' | 'blob-missing'; hash: string }
 
 export type ControlRefusal = AppendRefusal | InboxRefusal | BlobRefusal
 

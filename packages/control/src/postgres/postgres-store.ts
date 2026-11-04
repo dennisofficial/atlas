@@ -12,17 +12,8 @@ import {
   type ThreadRow,
   type ControlSessionRow,
 } from '../port'
-
-const iso = (value: Date): string => value.toISOString()
-
-const toInbox = (row: {
-  sessionId: string
-  inboxId: number
-  kind: string
-  payload: string
-  postedAt: Date
-  consumedSeq: number | null
-}): InboxEntry => ({ ...row, postedAt: iso(row.postedAt) })
+import { blobHashesPresent, insertBlobRows, readBlobRow } from './postgres-blobs'
+import { iso, toInbox, toSessionRow, toThreadRow } from './postgres-rows'
 
 class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
@@ -60,7 +51,7 @@ class PostgresTx implements ControlTx {
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     const row = await this.tx.orm.v2.V2Session.first({ id: params.sessionId })
-    return row === null ? undefined : this.toSessionRow(row)
+    return row === null ? undefined : toSessionRow(row)
   }
 
   async listSessions(params: {
@@ -76,25 +67,7 @@ class PostgresTx implements ControlTx {
       .orderBy((s) => s.createdAt.desc())
       .limit(params.limit)
       .all()
-    return rows.map((row) => this.toSessionRow(row))
-  }
-
-  private toSessionRow(row: {
-    id: string
-    userId: string
-    projectId: string
-    title: string | null
-    mainThreadId: string
-    createdAt: Date
-  }): ControlSessionRow {
-    return {
-      sessionId: row.id,
-      userId: row.userId,
-      projectId: row.projectId,
-      title: row.title,
-      mainThreadId: row.mainThreadId,
-      createdAt: iso(row.createdAt),
-    }
+    return rows.map((row) => toSessionRow(row))
   }
 
   async sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]> {
@@ -132,28 +105,12 @@ class PostgresTx implements ControlTx {
 
   async lockThread(threadId: string): Promise<ThreadRow | undefined> {
     const row = await this.tx.orm.v2.V2Thread.where({ id: threadId }).forNoKeyUpdate().first()
-    return row === null ? undefined : this.toThreadRow(row)
+    return row === null ? undefined : toThreadRow(row)
   }
 
   async readThread(threadId: string): Promise<ThreadRow | undefined> {
     const row = await this.tx.orm.v2.V2Thread.first({ id: threadId })
-    return row === null ? undefined : this.toThreadRow(row)
-  }
-
-  private toThreadRow(row: {
-    id: string
-    sessionId: string
-    headSeq: number
-    headHash: string
-    visibility: string
-  }): ThreadRow {
-    return {
-      threadId: row.id,
-      sessionId: row.sessionId,
-      headSeq: row.headSeq,
-      headHash: row.headHash as Hash,
-      visibility: row.visibility,
-    }
+    return row === null ? undefined : toThreadRow(row)
   }
 
   async writeThreadHead(params: {
@@ -186,21 +143,15 @@ class PostgresTx implements ControlTx {
   }
 
   async insertBlobs(rows: readonly BlobWrite[]): Promise<void> {
-    for (const row of rows) {
-      const statement = this.tx.raw
-        .sql`INSERT INTO "v2"."V2Blob" ("hash", "bytes", "size", "createdAt")
-        VALUES (${row.hash}, ${Buffer.from(row.bytes)}, ${row.bytes.byteLength}, clock_timestamp())
-        ON CONFLICT ("hash") DO NOTHING`
-        .affectedCount()
-        .build()
-      await this.tx.execute(statement)
-    }
+    await insertBlobRows(this.tx, rows)
   }
 
   async readBlob(params: { hash: string }): Promise<BlobRow | undefined> {
-    const row = await this.tx.orm.v2.V2Blob.first({ hash: params.hash })
-    if (row === null) return undefined
-    return { size: row.size, bytes: new Uint8Array(row.bytes) }
+    return readBlobRow(this.tx, params.hash)
+  }
+
+  async blobsExist(hashes: readonly string[]): Promise<ReadonlySet<string>> {
+    return blobHashesPresent(this.tx, hashes)
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {
