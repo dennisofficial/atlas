@@ -1,22 +1,24 @@
 import {
   acceptAppend,
   stepVisibility,
-  takeBack,
   type ClaimResult,
   type InboxEntry,
-  type InboxRefusal,
   type Lease,
   type LeaseResult,
   type LogHead,
   type RevokeResult,
 } from '@dltech/atlas-core'
 
+import { missingBlobHashes, readBlobIn, verifyBlobWrites } from './blob-ops'
 import { UnknownThreadError } from './errors'
+import { postIn, takeBackIn, type TakeBackResult } from './inbox-ops'
 import { LeaseOps } from './lease-ops'
 import { parseAppendEvents } from './parse-append'
 import {
   ControlStorePort,
   SeqConflictError,
+  type BlobRow,
+  type BlobWrite,
   type ControlTx,
   type StoredEvent,
   type ThreadRow,
@@ -38,8 +40,7 @@ export const MAX_SESSION_LIST_LIMIT = 100
 export type ControlPlaneParams = { store: ControlStorePort; clock?: (() => string) | undefined }
 
 export type { ReadEventsPage } from './read-events'
-
-export type TakeBackResult = { ok: true } | { ok: false; refusal: InboxRefusal }
+export type { TakeBackResult } from './inbox-ops'
 
 const clampLimit = (limit: number): number => Math.max(1, Math.min(limit, MAX_READ_LIMIT))
 
@@ -120,6 +121,7 @@ export class ControlPlane {
     threadId: string
     epoch: number
     events: readonly unknown[]
+    blobs?: readonly BlobWrite[] | undefined
   }): Promise<AppendOutcome> {
     try {
       return await this.store.transact((tx) => this.appendIn({ tx, ...params }))
@@ -146,34 +148,24 @@ export class ControlPlane {
     })
   }
 
+  async readBlob(params: {
+    hash: string
+    offset?: number | undefined
+    length?: number | undefined
+  }): Promise<BlobRow | undefined> {
+    return this.store.transact((tx) => readBlobIn({ tx, ...params }))
+  }
+
   async post(params: {
     sessionId: string
     kind: string
     payload: string
   }): Promise<{ inboxId: number }> {
-    return this.store.transact(async (tx) => {
-      const inboxId = await tx.allocateInboxId(params.sessionId)
-      await tx.insertInboxEntry({
-        sessionId: params.sessionId,
-        inboxId,
-        kind: params.kind,
-        payload: params.payload,
-        postedAt: await this.nowIn(tx),
-        consumedSeq: null,
-      })
-      return { inboxId }
-    })
+    return this.store.transact(async (tx) => postIn({ tx, ...params, at: await this.nowIn(tx) }))
   }
 
   async takeBack(params: { sessionId: string; inboxId: number }): Promise<TakeBackResult> {
-    return this.store.transact(async (tx) => {
-      const entry = await tx.readInboxEntry(params)
-      if (entry === undefined) return { ok: false, refusal: { kind: 'unknown-inbox-entry' } }
-      const move = takeBack(entry)
-      if (!move.ok) return move
-      const deleted = await tx.deleteInboxEntry(params)
-      return deleted ? { ok: true } : { ok: false, refusal: { kind: 'already-consumed' } }
-    })
+    return this.store.transact((tx) => takeBackIn({ tx, ...params }))
   }
 
   async readInbox(params: {
@@ -236,6 +228,7 @@ export class ControlPlane {
     threadId: string
     epoch: number
     events: readonly unknown[]
+    blobs?: readonly BlobWrite[] | undefined
   }): Promise<AppendOutcome> {
     const { tx } = params
     const row = await tx.lockThread(params.threadId)
@@ -263,6 +256,12 @@ export class ControlPlane {
     })
     if (!accepted.ok) return refuse(accepted.refusal)
 
+    const blobs = params.blobs ?? []
+    const mismatch = verifyBlobWrites(blobs)
+    if (mismatch !== undefined) return refuse(mismatch)
+    const missing = await missingBlobHashes({ tx, events: parsed.events, blobs })
+    if (missing !== undefined) return refuse(missing)
+
     let visibility = decodeVisibility(row.visibility)
     const stored: StoredEvent[] = []
     for (const [index, event] of parsed.events.entries()) {
@@ -278,6 +277,7 @@ export class ControlPlane {
       }
       stored.push(toStoredEvent({ event, hash: accepted.hashes[index] as StoredEvent['hash'] }))
     }
+    await tx.insertBlobs(blobs)
     await tx.insertEvents(stored)
     const swapped = await tx.writeThreadHead({
       threadId: params.threadId,

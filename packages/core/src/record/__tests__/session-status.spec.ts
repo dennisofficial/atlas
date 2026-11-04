@@ -179,6 +179,21 @@ describe('sessionStatusOf', () => {
     expect(result.state).toBe(ESessionStatus.Thinking)
   })
 
+  it('ignores a retry fact whose value is an unresolved blob ref', () => {
+    const refFact: V2Event = {
+      ...envelope(),
+      type: 'fact-recorded',
+      key: 'retry:model',
+      kind: 'retry',
+      value: { $blob: { hash: 'b'.repeat(64), size: 100, preview: '{}' } },
+    }
+    const result = status({
+      events: [userSaid(), refFact],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Thinking)
+  })
+
   it('reports waiting-for-credentials on an open credential wait', () => {
     const result = status({
       events: [userSaid(), modelWaiting({ reason: 'auth' })],

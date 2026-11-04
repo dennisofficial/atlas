@@ -1,6 +1,7 @@
 import {
   chainEvents,
   chainHash,
+  type BlobPayload,
   type Event,
   type RunId,
   type ThreadId,
@@ -15,6 +16,7 @@ import type { RemoteCalls } from '../../calls/remote-calls'
 import type { HostTimers } from '../ports'
 import { toLoopEvent } from './event-strip'
 import { RecordCache } from './record-cache'
+import { spillForAppend } from './record-spill'
 import { abortedOnHandoff, inboxIdOf, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
 import { ackDaemonScope, ackRecordedDaemonResults, prepareDraft, resyncHead } from './record-commit'
@@ -35,6 +37,8 @@ export class LeaseLostError extends Error {
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
+export const BLOB_SPILL_BYTES = 256 * 1024
+
 export type SessionRecordArgs = {
   plane: ControlPlane
   threadId: ThreadId
@@ -42,6 +46,7 @@ export type SessionRecordArgs = {
   timers: HostTimers
   remoteCalls: RemoteCalls
   daemonTools: ReadonlySet<string>
+  blobSpillBytes?: number | undefined
   retryUntil?: (() => number) | undefined
   onLeaseLost?: ((error: LeaseLostError) => void) | undefined
   log?: LogPort | undefined
@@ -63,7 +68,11 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   }
 
   static async open(args: SessionRecordArgs): Promise<SessionRecord> {
-    const cache = await RecordCache.load({ plane: args.plane, threadId: args.threadId })
+    const cache = await RecordCache.load({
+      plane: args.plane,
+      threadId: args.threadId,
+      ...(args.log === undefined ? {} : { log: args.log }),
+    })
     await ackRecordedDaemonResults({
       cache,
       daemonTools: args.daemonTools,
@@ -144,7 +153,12 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       const bodies: V2Body[] = []
       const inboxId = inboxIdOf(draft)
       if (inboxId !== undefined) bodies.push({ type: 'input-consumed', inboxId })
-      bodies.push(toRecordBody(draft))
+      const spilled = spillForAppend({
+        body: toRecordBody(draft),
+        thresholdBytes: this.args.blobSpillBytes ?? BLOB_SPILL_BYTES,
+        ...(this.args.log === undefined ? {} : { log: this.args.log }),
+      })
+      bodies.push(spilled.body)
       const events = chainEvents({
         threadId: args.threadId,
         runId: args.runId,
@@ -159,12 +173,14 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       await this.commitWithRetry({
         threadId: args.threadId,
         events,
+        blobs: spilled.blobs,
+        resolved: spilled.resolved,
         ...(draft.type === 'tool-result'
           ? { ackDaemon: { callId: draft.callId, name: draft.name, runId: args.runId } }
           : {}),
       })
       for (const event of events) {
-        const loop = toLoopEvent(event)
+        const loop = toLoopEvent(this.cache.resolvedEvent(event))
         if (loop !== undefined) committed.push(loop)
       }
     }
@@ -174,6 +190,8 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   private async commitWithRetry(args: {
     threadId: ThreadId
     events: V2Event[]
+    blobs: readonly BlobPayload[]
+    resolved: ReadonlyMap<string, unknown>
     ackDaemon?: { callId: string; name: string; runId: RunId } | undefined
   }): Promise<void> {
     let delayMs = 100
@@ -184,7 +202,12 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       if (this.retryExhausted()) {
         this.lost(new LeaseLostError('the record store never answered in time', 'retry-exhausted'))
       }
-      const outcome = await this.tryAppend({ threadId: args.threadId, events: args.events })
+      const outcome = await this.tryAppend({
+        threadId: args.threadId,
+        events: args.events,
+        blobs: args.blobs,
+        resolved: args.resolved,
+      })
       if (outcome === 'committed') {
         if (args.ackDaemon !== undefined) {
           await ackDaemonScope({
@@ -209,6 +232,8 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   private async tryAppend(args: {
     threadId: ThreadId
     events: V2Event[]
+    blobs: readonly BlobPayload[]
+    resolved: ReadonlyMap<string, unknown>
   }): Promise<'committed' | 'retry'> {
     let outcome: AppendOutcome
     try {
@@ -216,12 +241,13 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
         threadId: args.threadId,
         epoch: this.args.epoch,
         events: args.events,
+        blobs: args.blobs,
       })
     } catch {
       return 'retry'
     }
     if (outcome.ok) {
-      this.cache.extend({ events: args.events, head: outcome.head })
+      this.cache.extend({ events: args.events, head: outcome.head, resolved: args.resolved })
       return 'committed'
     }
     const refusal = outcome.refusal
