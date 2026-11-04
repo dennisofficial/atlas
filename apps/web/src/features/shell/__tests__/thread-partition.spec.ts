@@ -6,6 +6,7 @@ import {
   EThreadBucket,
   hasThread,
   INACTIVE_AFTER_MS,
+  lastActivityOf,
   mainThreadsOf,
   partitionThreads,
 } from '../thread-partition'
@@ -75,11 +76,11 @@ describe('partitionThreads', () => {
   const partition = partitionThreads({ entries, now: NOW })
 
   it('sorts pinned first, then oldest created first, ignoring activity', () => {
-    expect(idsOf(partition.groups)).toEqual([['pinned', 'fresh', 'newer'], ['solo'], []])
+    expect(idsOf(partition.groups)).toEqual([['pinned', 'fresh', 'newer'], ['solo']])
   })
 
-  it('keeps every project as a group, even with no active threads', () => {
-    expect(partition.groups.map((group) => group.project.id)).toEqual(['p1', 'p2', 'p3'])
+  it('hides a project with no active threads and no activity in 72h', () => {
+    expect(partition.groups.map((group) => group.project?.id)).toEqual(['p1', 'p2'])
   })
 
   it('collects inactive and archived threads per project and drops empty projects', () => {
@@ -108,12 +109,62 @@ describe('projectless threads', () => {
       ],
       now: NOW,
     })
-    expect(shown.groups.map((group) => group.project?.id ?? null)).toEqual(['p1', null])
-    expect(idsOf(shown.groups)).toEqual([[], ['loose']])
+    expect(shown.groups.map((group) => group.project?.id ?? null)).toEqual([null])
+    expect(idsOf(shown.groups)).toEqual([['loose']])
 
     const hidden = partitionThreads({ entries: [{ project: null, sessions: [stale] }], now: NOW })
     expect(hidden.groups).toEqual([])
     expect(idsOf(hidden.inactive)).toEqual([['stale']])
+  })
+})
+
+describe('project visibility', () => {
+  const projectCreatedAt = (createdAt: string) => ({ ...projectOf('p1'), createdAt })
+  const groupIdsOf = (entries: Parameters<typeof partitionThreads>[0]['entries']) =>
+    partitionThreads({ entries, now: NOW }).groups.map((group) => group.project?.id)
+
+  it('keeps a project visible right after its only thread is archived', () => {
+    const done = threadOf({ id: 'done', updatedAt: agoIso(0.2), archivedAt: agoIso(0.1) })
+    expect(groupIdsOf([{ project: projectOf('p1'), sessions: [sessionOf(done)] }])).toEqual(['p1'])
+  })
+
+  it('counts an archive as activity even when updatedAt is older', () => {
+    const done = threadOf({ id: 'done', updatedAt: agoIso(200), archivedAt: agoIso(2) })
+    expect(groupIdsOf([{ project: projectOf('p1'), sessions: [sessionOf(done)] }])).toEqual(['p1'])
+  })
+
+  it('hides a project idle for over 72h and keeps its threads in inactive', () => {
+    const stale = sessionOf(threadOf({ id: 'stale', updatedAt: agoIso(80) }))
+    const partition = partitionThreads({
+      entries: [{ project: projectOf('p1'), sessions: [stale] }],
+      now: NOW,
+    })
+    expect(partition.groups).toEqual([])
+    expect(idsOf(partition.inactive)).toEqual([['stale']])
+  })
+
+  it('keeps a newly created project with no threads visible', () => {
+    expect(groupIdsOf([{ project: projectCreatedAt(agoIso(1)), sessions: [] }])).toEqual(['p1'])
+  })
+
+  it('hides a project once its last activity is more than 72h old', () => {
+    const edge = new Date(NOW - INACTIVE_AFTER_MS).toISOString()
+    const past = new Date(NOW - INACTIVE_AFTER_MS - 1).toISOString()
+    expect(groupIdsOf([{ project: projectCreatedAt(edge), sessions: [] }])).toEqual(['p1'])
+    expect(groupIdsOf([{ project: projectCreatedAt(past), sessions: [] }])).toEqual([])
+  })
+
+  it('keeps a project with an old pinned thread visible', () => {
+    const pin = threadOf({ id: 'pin', updatedAt: agoIso(500), pinnedAt: agoIso(400) })
+    expect(groupIdsOf([{ project: projectOf('p1'), sessions: [sessionOf(pin)] }])).toEqual(['p1'])
+  })
+
+  it('takes the newest stamp across threads, teammates and the project', () => {
+    const mate = sessionOf(threadOf({ id: 'mate', updatedAt: agoIso(3) }))
+    const boss = sessionOf(threadOf({ id: 'boss', updatedAt: agoIso(100) }), [mate])
+    expect(lastActivityOf({ project: projectOf('p1'), sessions: [boss] })).toBe(
+      Date.parse(agoIso(3)),
+    )
   })
 })
 

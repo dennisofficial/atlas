@@ -28,7 +28,14 @@ export interface ThreadPartition {
   archived: ProjectThreads[]
 }
 
-const isSet = (stamp: string | null | undefined): boolean => stamp !== null && stamp !== undefined
+const isSet = (stamp: string | null | undefined): stamp is string =>
+  stamp !== null && stamp !== undefined
+
+const activityStampOf = (stamp: string | null | undefined): number => {
+  if (!isSet(stamp)) return Number.NEGATIVE_INFINITY
+  const parsed = Date.parse(stamp)
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed
+}
 
 const createdAtOf = (thread: WireThread): number => {
   const parsed = Date.parse(thread.createdAt)
@@ -55,6 +62,17 @@ export function sortSessions(sessions: readonly SessionNode[]): SessionNode[] {
 const withSessions = (entries: ProjectThreads[]): ProjectThreads[] =>
   entries.filter((entry) => entry.sessions.length > 0)
 
+export function lastActivityOf(entry: ProjectThreads): number {
+  return mainThreadsOf(entry.sessions).reduce(
+    (latest, thread) =>
+      Math.max(latest, activityStampOf(thread.updatedAt), activityStampOf(thread.archivedAt)),
+    activityStampOf(entry.project?.createdAt),
+  )
+}
+
+const isRecentProject = (args: { entry: ProjectThreads; now: number }): boolean =>
+  args.entry.project !== null && args.now - lastActivityOf(args.entry) <= INACTIVE_AFTER_MS
+
 export function partitionThreads(args: {
   entries: readonly ProjectThreads[]
   now: number
@@ -62,7 +80,8 @@ export function partitionThreads(args: {
   const groups: ProjectThreads[] = []
   const inactive: ProjectThreads[] = []
   const archived: ProjectThreads[] = []
-  for (const { project, sessions } of args.entries) {
+  for (const entry of args.entries) {
+    const { project, sessions } = entry
     const byBucket: Record<EThreadBucket, SessionNode[]> = {
       [EThreadBucket.Active]: [],
       [EThreadBucket.Inactive]: [],
@@ -71,12 +90,15 @@ export function partitionThreads(args: {
     for (const session of sortSessions(sessions)) {
       byBucket[bucketOf({ thread: session.mainThread, now: args.now })].push(session)
     }
-    groups.push({ project, sessions: byBucket[EThreadBucket.Active] })
+    const active = byBucket[EThreadBucket.Active]
+    if (active.length > 0 || isRecentProject({ entry, now: args.now })) {
+      groups.push({ project, sessions: active })
+    }
     inactive.push({ project, sessions: byBucket[EThreadBucket.Inactive] })
     archived.push({ project, sessions: byBucket[EThreadBucket.Archived] })
   }
   return {
-    groups: groups.filter((entry) => entry.project !== null || entry.sessions.length > 0),
+    groups,
     inactive: withSessions(inactive),
     archived: withSessions(archived),
   }
