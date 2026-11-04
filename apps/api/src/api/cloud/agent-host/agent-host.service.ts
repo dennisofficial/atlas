@@ -3,7 +3,6 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { z } from 'zod'
 import { ControlPlane } from '@dltech/atlas-control'
 import { db } from '@dltech/atlas-db'
-import { githubCloneUrlOf, projectRepoSchema } from '@dltech/atlas-wire'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import type {
   AgentHostConfigOutput,
@@ -16,6 +15,7 @@ import { ScopedConfigService } from '../scoped-config/scoped-config.service'
 import { AccountsService } from '../../platform/accounts/accounts.service'
 import { OauthConnectionsService } from '../../platform/oauth-connections/oauth-connections.service'
 import { modelConfigOf } from './agent-host-model-config'
+import { githubCloneUrlOf, projectRepoSchema } from './agent-host-repo'
 
 const CONFIG_TTL_MS = 300_000
 
