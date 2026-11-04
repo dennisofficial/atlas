@@ -30,7 +30,7 @@ describe('F9 Redis down for the whole session', () => {
     const sessionId = `fault-f9-${suffix}`
     const threadId = await rig.newSession({ sessionId, text: 'sleep then stop' })
     const daemon = await rig.spawnDaemonFor({ sessionId })
-    await rig.spawnHost({
+    const host = await rig.spawnHost({
       holderId: 'host-f9',
       daemonUrl: daemon.url,
       redisUrl: DEAD_REDIS,
@@ -74,6 +74,8 @@ describe('F9 Redis down for the whole session', () => {
     })
     expect(events.some((row) => row.type === 'assistant-said')).toBe(false)
     expect(await readEvents({ plane: rig.plane, threadId })).toEqual(events)
+    host.kill('SIGKILL')
+    await host.exited
   }, 60_000)
 
   it('delivers a post to a running host in tens of milliseconds', async () => {
@@ -94,7 +96,7 @@ describe('F9 Redis down for the whole session', () => {
     for (;;) {
       const current = await rig.plane.currentLease({ sessionId })
       if (current.live && current.lease.holderId === 'host-f9-hot') break
-      if (Date.now() > deadline) throw new Error('hot claim timed out')
+      if (Date.now() > deadline) throw new Error(`hot claim timed out: ${JSON.stringify(current)}`)
       await new Promise((resolve) => setTimeout(resolve, 25))
     }
     const latencyMs = Date.now() - postedAt
