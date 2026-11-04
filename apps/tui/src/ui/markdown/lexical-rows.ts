@@ -1,6 +1,6 @@
 import type { StyleDefinitionInput } from '@opentui/core'
 
-import type { LexHighlight } from './spec'
+import type { LexHighlight } from '@dltech/atlas-syntax/lexical'
 
 export type StyledRun = {
   readonly text: string

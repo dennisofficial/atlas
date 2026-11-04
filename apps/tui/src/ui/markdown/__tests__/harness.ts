@@ -1,4 +1,4 @@
-import { registerGrammars } from '../grammars/index'
+import { registerGrammars } from '@dltech/atlas-syntax/tree-sitter'
 import { frameSettled } from '../../__tests__/waiting'
 
 /**

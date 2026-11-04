@@ -24,7 +24,7 @@ import {
 } from '../src/ui/composer-edge-store'
 import { subscribeDensity, densityVersion, EBlockDensity } from '../src/ui/density-store'
 import { subscribePalette, paletteVersion } from '../src/ui/palette-store'
-import { registerGrammars } from '../src/ui/markdown/grammars/index'
+import { registerGrammars } from '@dltech/atlas-syntax/tree-sitter'
 import { theme } from '../src/ui/theme'
 import { previewFor } from './settings-previews'
 

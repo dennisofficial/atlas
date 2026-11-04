@@ -7,7 +7,7 @@ import {
   sweepSandboxes,
 } from '@dltech/atlas-harness'
 
-import { registerGrammars } from '../ui/markdown/grammars/index'
+import { registerGrammars } from '@dltech/atlas-syntax/tree-sitter'
 import { ENoticeTone, notify } from '../ui/notice-store'
 import { EBootStep, type BootProgress } from './boot-progress'
 import { durableOpLog } from './durable-op-log'

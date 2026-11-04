@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Builds `src/ui/markdown/grammars/vendor/tree-sitter-dockerfile.wasm`.
+ * Builds `src/tree-sitter/vendor/tree-sitter-dockerfile.wasm`.
  *
  * No published wasm exists: npm's `tree-sitter-dockerfile` is a 0.0.1-security placeholder,
  * and the grammar (camdencheek/tree-sitter-dockerfile) ships no release artefacts, so like
@@ -26,7 +26,7 @@ const GRAMMAR_TAG = 'v0.2.0'
 const GRAMMAR_REPO = 'https://github.com/camdencheek/tree-sitter-dockerfile.git'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const out = join(root, 'src', 'ui', 'markdown', 'grammars', 'vendor', 'tree-sitter-dockerfile.wasm')
+const out = join(root, 'src', 'tree-sitter', 'vendor', 'tree-sitter-dockerfile.wasm')
 
 if (existsSync(out) && !process.argv.includes('--force')) {
   console.log(`${out} already exists — pass --force to rebuild.`)

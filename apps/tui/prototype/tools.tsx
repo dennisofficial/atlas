@@ -31,7 +31,7 @@ import {
 import { EntryView } from '../src/ui/components/entry-view'
 import { toolsRanEntry } from '../src/store'
 import { useShimmerClock } from '../src/ui/hooks/use-shimmer-clock'
-import { registerGrammars } from '../src/ui/markdown/grammars/index'
+import { registerGrammars } from '@dltech/atlas-syntax/tree-sitter'
 import { theme, TRANSCRIPT_PADDING } from '../src/ui/theme'
 import { EMark, MARK_ORDER } from '../src/ui/tool-marks'
 import { busiestRun, liveRunAt } from './tools/live'

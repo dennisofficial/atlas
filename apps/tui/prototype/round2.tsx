@@ -25,7 +25,7 @@ import { SideBySideDiff } from '../src/ui/components/diff/side-by-side-diff'
 import { Footer } from '../src/ui/components/footer'
 import { Sidebar } from '../src/ui/components/sidebar'
 import { Switcher } from '../src/ui/components/switcher'
-import { registerGrammars } from '../src/ui/markdown/grammars/index'
+import { registerGrammars } from '@dltech/atlas-syntax/tree-sitter'
 import {
   modelCount,
   openSwitcher,

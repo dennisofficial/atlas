@@ -1788,8 +1788,7 @@ apps/tui/src/
   ui/            components, pages
   ui/markdown/            segmenter, prose, tables, fenced blocks; the renderer registry
   ui/markdown/renderers/  one FencedRenderer per fence kind: diff, lexical, code, plain
-  ui/markdown/grammars/   tier-1 highlighting: parsers-config.json, vendored wasm, generated loader
-  ui/markdown/lexical/    tier-2 highlighting: the scanner, the rule primitives, one spec per language
+  ui/markdown/lexical-rows.ts  styled runs from a lexical scan, in OpenTUI style definitions
   ui/markdown/themes/     capture name → semantic role → colour, for both tiers
 ```
 
@@ -1834,7 +1833,7 @@ whether `<T>` opens a generic or a JSX element. It is not worth paying forty mor
 whose highlighting is entirely lexical, and for most of them the question is moot: their maintainers
 publish no `.wasm` at all.
 
-So `apps/tui/src/ui/markdown/lexical/` holds a second highlighter — a pure single-pass scanner over a
+So `packages/syntax/src/lexical/` (`@dltech/atlas-syntax/lexical`) holds a second highlighter — a pure single-pass scanner over a
 declarative `LanguageSpec` of comment forms, string forms, keyword sets and an identifier alphabet,
 about a kilobyte of source per language. It is not a fallback for tier 1's failures; it is the right
 answer for a token-shaped language.
@@ -1844,7 +1843,7 @@ The seam that makes this cheap already existed. A tree-sitter highlight pass ret
 the same triples under the same nvim-treesitter names and inherits every theme unchanged. Adding a
 theme still means editing one file. `lexicalRenderer` is registered ahead of `codeRenderer` in the
 fenced-renderer registry, because the code renderable claims every non-empty language; a test in
-`lexical/__tests__/registry.spec.ts` holds the two language sets disjoint so a lexical spec can never
+`packages/syntax/src/lexical/__tests__/registry.spec.ts` holds the two language sets disjoint so a lexical spec can never
 silently outrank a real grammar.
 
 The lexer is also synchronous, which the tree-sitter path is not. A `CodeRenderable` clears to plain

@@ -22,8 +22,6 @@
     "probe:size": "bun scripts/probe-size.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "grammars:update": "bun scripts/update-grammars.ts",
-    "grammars:build-dockerfile": "bun scripts/build-dockerfile-grammar.ts",
     "build:prepare": "bun run --filter @dltech/atlas-harness plugins:generate && bun run --filter @dltech/atlas-harness plugin-types:generate && bun scripts/generate-manifest.ts && bun scripts/generate-skills.ts",
     "build": "bun run build:prepare && bun scripts/build.ts",
     "skills:generate": "bun scripts/generate-skills.ts"
@@ -34,6 +32,7 @@
     "@dltech/atlas-harness": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
     "@dltech/atlas-observability": "workspace:*",
+    "@dltech/atlas-syntax": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "@mariozechner/clipboard": "^0.3.9",
     "@opentui/core": "0.5.12",

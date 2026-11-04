@@ -2,7 +2,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
-import { LEXICAL_LANGUAGES } from '../lexical/languages/index'
+import { LEXICAL_LANGUAGES } from '@dltech/atlas-syntax/lexical'
 import { MarkdownView } from '../markdown-view'
 import { rendererFor } from '../registry'
 import { teardown } from './harness'

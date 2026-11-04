@@ -1,7 +1,7 @@
 import { createTextAttributes } from '@opentui/core'
 
-import { lexicalScannerFor } from '../lexical/registry'
-import { styledRows, type StyledRows } from '../lexical/rows'
+import { lexicalScannerFor } from '@dltech/atlas-syntax/lexical'
+import { styledRows, type StyledRows } from '../lexical-rows'
 import type { FencedBlockView, FencedRenderer } from '../registry'
 import { codeScopes, codeTheme, type CodeTheme, rolesFor } from '../themes/index'
 

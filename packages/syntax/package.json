@@ -1,0 +1,22 @@
+{
+  "name": "@dltech/atlas-syntax",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tree-sitter": "./src/tree-sitter/index.ts",
+    "./lexical": "./src/lexical/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "grammars:update": "bun scripts/update-grammars.ts",
+    "grammars:build-dockerfile": "bun scripts/build-dockerfile-grammar.ts"
+  },
+  "dependencies": {
+    "@opentui/core": "0.5.12"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
