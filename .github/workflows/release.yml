@@ -64,6 +64,24 @@ jobs:
           MIGRATE_TIER: production
           DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
 
+  api-health:
+    needs: migrate-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - name: probe the production deployment's health before it is aliased
+        run: bun scripts/deployment-health-gate.ts
+        working-directory: apps/api
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          VERCEL_TEAM_ID: team_GR4aCzLIY5D3YYWgITz3Tere
+          VERCEL_PROJECT_ID: prj_2WZtbG1HZHkgHCYiCTxVp4lfRZ47
+
   deploy-trigger:
     needs: [changes, migrate-production]
     if: needs.changes.outputs.deploy-trigger == 'true'
