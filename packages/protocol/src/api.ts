@@ -20,7 +20,7 @@ export const sessionEventsInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   afterSeq: z.number().int().min(0).optional(),
   limit: z.number().int().min(1).max(1000).optional(),
-  maxBytes: z.number().int().min(1).max(4_000_000).optional(),
+  maxBytes: z.number().int().min(1).max(3_000_000).optional(),
 })
 
 export const sessionBlobInputSchema = z.strictObject({

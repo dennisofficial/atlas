@@ -13,10 +13,9 @@ const boundRowsByBytes = (
   const kept: StoredEvent[] = []
   let bytes = 0
   for (const row of rows) {
-    if (kept.length > 0 && bytes + row.canonical.length > maxBytes) {
-      return { kept, stoppedEarly: true }
-    }
-    bytes += row.canonical.length
+    const size = Buffer.byteLength(row.canonical, 'utf8')
+    if (kept.length > 0 && bytes + size > maxBytes) return { kept, stoppedEarly: true }
+    bytes += size
     kept.push(row)
   }
   return { kept, stoppedEarly: false }

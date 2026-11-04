@@ -238,13 +238,45 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
           maxBytes,
         })
         expect(page.events.length).toBeGreaterThan(0)
-        const bytes = page.events.reduce((sum, event) => sum + canonicalEvent(event).length, 0)
+        const bytes = page.events.reduce(
+          (sum, event) => sum + Buffer.byteLength(canonicalEvent(event), 'utf8'),
+          0,
+        )
         if (page.events.length > 1) expect(bytes).toBeLessThanOrEqual(maxBytes)
         seen.push(...page.events)
         if (page.next === undefined) break
         afterSeq = page.next
       }
       expect(seen).toEqual(events)
+    })
+
+    it('budgets multi-byte text in UTF-8 bytes, not code units', async () => {
+      const { events } = await appendBodies({
+        harness,
+        epoch,
+        bodies: [said('漢'.repeat(400)), said('字'.repeat(400))],
+      })
+      const canonicalBytes = events.map((event) => Buffer.byteLength(canonicalEvent(event), 'utf8'))
+      const utf16Units = events.map((event) => canonicalEvent(event).length)
+      for (const [index, event] of events.entries()) {
+        expect(canonicalBytes[index]).toBeGreaterThan(utf16Units[index] as number)
+        const page = await harness.plane.readEvents({
+          threadId: THREAD,
+          afterSeq: event.seq - 1,
+          limit: 100,
+          visible: false,
+          maxBytes: (canonicalBytes[index] as number) + 1,
+        })
+        expect(page.events).toEqual([event])
+      }
+      const both = await harness.plane.readEvents({
+        threadId: THREAD,
+        afterSeq: 0,
+        limit: 100,
+        visible: false,
+        maxBytes: (canonicalBytes[0] as number) + (canonicalBytes[1] as number),
+      })
+      expect(both.events).toEqual(events)
     })
 
     it('concurrent first grants on one session fail only with LeaseConflictError', async () => {
