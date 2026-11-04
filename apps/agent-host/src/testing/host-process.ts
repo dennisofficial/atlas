@@ -113,10 +113,13 @@ const main = async (): Promise<void> => {
     ScriptedModelStep[]
   >
 
-  const pool = createPool(requireEnv('DATABASE_URL'), {
+  const databaseUrl = requireEnv('DATABASE_URL')
+  const pool = createPool(databaseUrl, {
     queryTimeoutMs: numberEnv('DB_QUERY_TIMEOUT_MS', 10_000),
   })
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
+  const leasePool = createPool(databaseUrl, { queryTimeoutMs: 5_000, max: 2 })
+  const leasePlane = new ControlPlane({ store: new PostgresControlStore(createDb(leasePool)) })
   const log = new JsonLog()
   const bus = createRedisBus({ url: requireEnv('REDIS_URL'), log })
   tapToolOutput(bus)
@@ -125,6 +128,7 @@ const main = async (): Promise<void> => {
   const holder = new SessionHolder({
     holderId,
     plane,
+    leasePlane,
     bus,
     timers,
     runtimes: createSessionRuntimeFactory({
@@ -158,6 +162,7 @@ const main = async (): Promise<void> => {
     await holder.drain({ deadline: Date.now() + numberEnv('DRAIN_MS', 270_000) })
     await bus.close()
     await pool.end()
+    await leasePool.end()
     process.exit(0)
   }
   const handleSignal = (): void => {

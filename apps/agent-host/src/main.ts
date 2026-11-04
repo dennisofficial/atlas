@@ -22,8 +22,11 @@ const main = async (): Promise<void> => {
     console.error(`agent-host refuses to start; daemon bundle not found at ${env.daemonBundlePath}`)
     process.exit(78)
   }
-  const pool = createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: 10_000 })
+  const databaseUrl = databaseUrlWithTls(env.databaseUrl)
+  const pool = createPool(databaseUrl, { queryTimeoutMs: 10_000 })
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
+  const leasePool = createPool(databaseUrl, { queryTimeoutMs: 5_000, max: 2 })
+  const leasePlane = new ControlPlane({ store: new PostgresControlStore(createDb(leasePool)) })
   const log = new JsonLog()
   const bus = createRedisBus({ url: env.redisUrl, log })
   const api = createAgentHostApi({
@@ -37,7 +40,7 @@ const main = async (): Promise<void> => {
     cloudUrl: env.apiOrigin,
     log: (line) => console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line })),
   })
-  const holder = composeAgentHost({ env, plane, bus, sandbox, api, log })
+  const holder = composeAgentHost({ env, plane, leasePlane, bus, sandbox, api, log })
   await holder.start()
   log.info({ source: 'main', message: 'agent-host started' })
 
@@ -49,6 +52,7 @@ const main = async (): Promise<void> => {
     await holder.drain({ deadline: Date.now() + 270_000 })
     await bus.close()
     await pool.end()
+    await leasePool.end()
     process.exit(0)
   }
   const handleSignal = (): void => {

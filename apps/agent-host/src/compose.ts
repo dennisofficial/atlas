@@ -16,6 +16,7 @@ import { createSessionRuntimeFactory } from './runtime/session-runtime-factory'
 export type ComposeAgentHostArgs = {
   env: AgentHostEnv
   plane: ControlPlane
+  leasePlane?: ControlPlane | undefined
   bus: RedisBus
   sandbox: SandboxProvider
   api: AgentHostApi
@@ -29,6 +30,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   return new SessionHolder({
     holderId: args.holderId ?? `${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`,
     plane: args.plane,
+    ...(args.leasePlane === undefined ? {} : { leasePlane: args.leasePlane }),
     bus: args.bus,
     timers,
     runtimes: createSessionRuntimeFactory({
