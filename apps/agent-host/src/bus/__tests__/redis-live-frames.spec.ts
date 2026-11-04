@@ -37,4 +37,11 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
     }
     expect(received[0]).toEqual({ type: 'status', state: 'thinking' })
   }, 15_000)
+
+  it('closes a live client and tolerates a second close', async () => {
+    const frames = createRedisLiveFrames({ url })
+    frames.live({ sessionId: 'session-close', frame: { type: 'status', state: 'thinking' } })
+    await expect(frames.close()).resolves.toBeUndefined()
+    await expect(frames.close()).resolves.toBeUndefined()
+  }, 15_000)
 })
