@@ -50,7 +50,9 @@ describe('AgentHostRouter', () => {
           secrets: [],
           harnessSecrets: [],
           mcpServers: [],
-          fileMounts: [],
+          fileMounts: [
+            { path: 'apps/api/.env.keys', contents: 'k', mode: 0o600, encoding: 'utf8' },
+          ],
           provenance: {},
         },
         revision: 'r1',
