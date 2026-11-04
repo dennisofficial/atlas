@@ -1,5 +1,12 @@
 import { afterAll, describe, expect, it } from 'bun:test'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -100,6 +107,18 @@ const setupFor = (args: {
     ...(args.log === undefined ? {} : { log: args.log }),
   })
 
+const filesUnder = (dir: string): string[] => {
+  if (!existsSync(dir)) return []
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath, entry.name))
+}
+
+const daemonHomeFiles = (): string[] =>
+  readdirSync(tmpdir())
+    .filter((entry) => entry.startsWith('atlas-agent-host-local-'))
+    .flatMap((entry) => filesUnder(join(tmpdir(), entry, 'daemon')))
+
 const waitFor = async (want: () => boolean): Promise<void> => {
   const deadline = Date.now() + 15_000
   while (Date.now() < deadline) {
@@ -178,6 +197,9 @@ describe('ensureWorkspace', () => {
       expect(JSON.stringify(entry)).not.toContain(TOKEN)
     }
     expect(existsSync(join(root, WORKSPACE_STATE_DIR, 'github-token'))).toBe(false)
+    for (const file of daemonHomeFiles()) {
+      expect(readFileSync(file, 'utf8').includes(TOKEN)).toBe(false)
+    }
     calls.close()
   }, 60_000)
 
