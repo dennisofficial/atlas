@@ -1,27 +1,17 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
-import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
+import { startRig, type FaultRig } from '../../testing/fault-rig'
+import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
-const testDb = useTestDatabase()
-
-const isDoneResult = (row: ReadEvent): boolean => {
-  if (row.type !== 'tool-result') return false
-  const result = row.event as { output?: unknown; interrupted?: boolean }
-  if (result.interrupted === true) return false
-  if (typeof result.output !== 'object' || result.output === null) return false
-  const output = result.output as { stdout?: unknown; exitCode?: unknown }
-  return (
-    output.exitCode === 0 && typeof output.stdout === 'string' && output.stdout.includes('done')
-  )
-}
 
 describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () => {
+  const testDb = useTestDatabase()
   let rig: FaultRig
 
   beforeAll(async () => {
@@ -36,8 +26,11 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
     const sessionId = 'fault-f11-1'
     const threadId = await rig.newSession({ sessionId, text: 'sleep then echo' })
     const daemon = await rig.spawnDaemonFor({ sessionId })
+    const startedFile = join(daemon.home, `started-${sessionId}`)
+    const gateFifo = join(daemon.home, `gate-${sessionId}`)
     const runsFile = join(daemon.home, `runs-${sessionId}`)
-    const bash = `echo run >> ${runsFile}; sleep 3; echo done`
+    makeFifo({ path: gateFifo })
+    const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
     const hostA = await rig.spawnHost({
       holderId: 'host-a',
@@ -54,9 +47,13 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
     await rig.claim({ sessionId, holderId: 'host-a' })
     await rig.waitForSeq({
       threadId,
-      want: (rows) => rows.some((row) => row.type === 'tool-dispatched'),
+      want: (rows) => rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
       timeoutMs: 20_000,
     })
+    await waitForFile({ path: startedFile })
+
+    const before = await readEvents({ plane: rig.plane, threadId })
+    expect(before.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)
 
     hostA.kill('SIGKILL')
     await hostA.exited
@@ -68,10 +65,12 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
     })
     await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
 
+    writeFileSync(gateFifo, 'go\n')
+
     const events = await rig
       .waitForSeq({
         threadId,
-        want: (rows) => rows.some(isDoneResult),
+        want: (rows) => rows.some((row) => callIdOf(row) === 'c1' && isDoneResult(row)),
         timeoutMs: 30_000,
       })
       .catch((error: unknown) => {
@@ -80,9 +79,14 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
         )
       })
 
-    const dispatches = events.filter((row) => row.type === 'tool-dispatched')
-    const results = events.filter((row) => row.type === 'tool-result')
+    const dispatches = events.filter(
+      (row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1',
+    )
+    const results = events.filter((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')
     expect(dispatches.length).toBe(1)
+    expect(dispatches.map((row) => (row.event as { bootId?: string }).bootId)).toEqual([
+      daemon.bootId,
+    ])
     expect(results.length).toBe(1)
     expect(results.filter(isDoneResult).length).toBe(1)
 
