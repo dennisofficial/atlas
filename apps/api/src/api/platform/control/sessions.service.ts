@@ -3,6 +3,8 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
+  blobValueOf,
+  isBlobRef,
   sessionStatusOf,
   type InboxEntry,
   type V2Event,
@@ -122,7 +124,7 @@ export class SessionsService {
     ])
     const unconsumed = inbox.some((entry: InboxEntry) => entry.consumedSeq === null)
     const current: SessionStatus = sessionStatusOf({
-      events: page.events,
+      events: await this.resolveFactRefs(page.events),
       live,
       unconsumedInbox: unconsumed,
       now: new Date().toISOString(),
@@ -133,6 +135,17 @@ export class SessionsService {
       ...(current.since === undefined ? {} : { since: current.since }),
       lease: { epoch: lease.epoch, holderId: lease.holderId, live },
     }
+  }
+
+  private async resolveFactRefs(events: readonly V2Event[]): Promise<V2Event[]> {
+    return Promise.all(
+      events.map(async (event) => {
+        if (event.type !== 'fact-recorded' || !isBlobRef(event.value)) return event
+        const blob = await this.plane.readBlob({ hash: event.value.$blob.hash })
+        if (blob === undefined) return event
+        return { ...event, value: blobValueOf(blob.bytes) }
+      }),
+    )
   }
 
   private async requireOwnedSession(args: {
