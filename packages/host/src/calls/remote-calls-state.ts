@@ -11,7 +11,6 @@ import {
 } from './errors'
 import { DaemonLink } from './link'
 import {
-  cancelledResult,
   failedResult,
   handedOffResult,
   handleDaemonFrame,
@@ -19,7 +18,7 @@ import {
   type Pending,
   type Waiter,
 } from './remote-calls-frames'
-import type { CallTimers, RemoteCallsArgs } from './remote-calls'
+import type { RemoteCallsArgs } from './remote-calls'
 
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()

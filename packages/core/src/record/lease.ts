@@ -72,7 +72,10 @@ export const revokeIfEpoch = (params: {
   if (params.epoch !== params.lease.epoch) {
     return { ok: false, refusal: { kind: 'stale-epoch', current: params.lease.epoch } }
   }
-  return { ok: true, lease: revoke({ lease: params.lease, wantsHolder: params.wantsHolder, now: params.now }) }
+  return {
+    ok: true,
+    lease: revoke({ lease: params.lease, wantsHolder: params.wantsHolder, now: params.now }),
+  }
 }
 
 export function renew(params: {

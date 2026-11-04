@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
+import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
 const ttlMs = 30_000
 const fenceMarginMs = 5_000

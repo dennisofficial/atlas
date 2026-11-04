@@ -8,13 +8,11 @@ import {
   HOLDER,
   makeHarness,
   mint,
-  PROJECT,
   readAll,
   said,
   seedGranted,
   SESSION,
   THREAD,
-  USER,
   createSessionParams,
   type Harness,
 } from './support'
@@ -115,7 +113,11 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
     })
 
     it('revoke with an expected epoch refuses a stale epoch and leaves the lease untouched', async () => {
-      const stale = await harness.plane.revoke({ sessionId: SESSION, wantsHolder: true, epoch: epoch + 1 })
+      const stale = await harness.plane.revoke({
+        sessionId: SESSION,
+        wantsHolder: true,
+        epoch: epoch + 1,
+      })
       expect(stale).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch', current: epoch } })
       const current = await harness.plane.currentLease({ sessionId: SESSION })
       expect(current.lease.epoch).toBe(epoch)

@@ -26,7 +26,6 @@ import { consumeInbox } from './consume-inbox'
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { AppendAbort, type AppendOutcome, type ControlRefusal } from './refusal'
 import {
-  decodeStoredEvent,
   decodeVisibility,
   EMPTY_VISIBILITY_TEXT,
   encodeVisibility,

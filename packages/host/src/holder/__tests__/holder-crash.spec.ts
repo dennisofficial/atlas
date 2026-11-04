@@ -23,7 +23,7 @@ const crashA = async (a: HolderRig): Promise<void> => {
 const rerunAbruptly = (a: HolderRig): void => {
   const runtimes = a.runtimes
   if (runtimes.length === 0) throw new Error('no runtime')
-  runtimes.forEach((runtime) => runtime.remoteCalls.close())
+  for (const runtime of runtimes) runtime.remoteCalls.close()
 }
 
 const hasInterruptedResult = async (rig: HolderRig): Promise<boolean> => {

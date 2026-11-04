@@ -99,7 +99,7 @@ export function createSettlePending(deps: {
             homeDirectory,
             activeWorktree,
           })
-          if (signal.aborted && detach !== undefined && detach(call.name)) return []
+          if (signal.aborted && detach?.(call.name)) return []
           if (drafts.length > 0) await deps.record.append({ threadId, runId: call.runId, drafts })
           return drafts
         }),
