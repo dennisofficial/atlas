@@ -1,5 +1,8 @@
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
+import { TRPCError } from '@trpc/server'
 import {
+  sessionBlobInputSchema,
+  sessionBlobOutputSchema,
   sessionCreateInputSchema,
   sessionCreateOutputSchema,
   sessionEventsInputSchema,
@@ -10,6 +13,8 @@ import {
   sessionPostOutputSchema,
   sessionStatusInputSchema,
   sessionStatusOutputSchema,
+  type SessionBlobInput,
+  type SessionBlobOutput,
   type SessionCreateInput,
   type SessionCreateOutput,
   type SessionEventsInput,
@@ -28,6 +33,12 @@ import { SessionsService } from './sessions.service'
 @UseMiddlewares(SessionMiddleware)
 export class SessionsRouter {
   constructor(private readonly sessions: SessionsService) {}
+
+  private refuseBatched(ctx: SessionTrpcCtx): void {
+    if (ctx.req.query.batch === '1') {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'batched calls are not supported' })
+    }
+  }
 
   @Mutation({ input: sessionCreateInputSchema, output: sessionCreateOutputSchema })
   create(
@@ -52,7 +63,14 @@ export class SessionsRouter {
     @Input() input: SessionEventsInput,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionEventsOutput> {
+    this.refuseBatched(ctx)
     return this.sessions.events({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: sessionBlobInputSchema, output: sessionBlobOutputSchema })
+  blob(@Input() input: SessionBlobInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionBlobOutput> {
+    this.refuseBatched(ctx)
+    return this.sessions.blob({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionStatusInputSchema, output: sessionStatusOutputSchema })
