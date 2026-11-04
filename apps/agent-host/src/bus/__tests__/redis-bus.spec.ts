@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'bun:test'
-import { join } from 'node:path'
+import { connect, createServer, type Server, type Socket } from 'node:net'
 
 import { Redis } from 'ioredis'
 
@@ -18,20 +18,32 @@ const waitFor = async (args: { condition: () => boolean; timeoutMs?: number }): 
   }
 }
 
-const composeFile = join(import.meta.dir, '../../../../api/docker-compose.yml')
-
-const compose = async (...args: string[]): Promise<void> => {
-  const spawned = Bun.spawn({
-    cmd: ['docker', 'compose', '-f', composeFile, ...args],
-    stdout: 'pipe',
-    stderr: 'pipe',
+const freePort = (): Promise<number> =>
+  new Promise((resolve) => {
+    const probe = createServer()
+    probe.listen(0, '127.0.0.1', () => {
+      const address = probe.address()
+      const port = typeof address === 'object' && address !== null ? address.port : 0
+      probe.close(() => resolve(port))
+    })
   })
-  const exitCode = await spawned.exited
-  if (exitCode !== 0) {
-    const stderr = await new Response(spawned.stderr).text()
-    throw new Error(`docker compose ${args.join(' ')} exited ${exitCode}: ${stderr}`)
-  }
-}
+
+const startRelay = (args: {
+  port: number
+  target: URL
+}): Promise<{ server: Server; sockets: Socket[] }> =>
+  new Promise((resolve) => {
+    const sockets: Socket[] = []
+    const server = createServer((client) => {
+      const upstream = connect(Number(args.target.port), args.target.hostname)
+      sockets.push(client, upstream)
+      client.pipe(upstream)
+      upstream.pipe(client)
+      client.on('error', () => upstream.destroy())
+      upstream.on('error', () => client.destroy())
+    })
+    server.listen(args.port, '127.0.0.1', () => resolve({ server, sockets }))
+  })
 
 describe('redis bus', () => {
   const clients: Redis[] = []
@@ -43,8 +55,8 @@ describe('redis bus', () => {
     return client
   }
 
-  const makeBus = (): ReturnType<typeof createRedisBus> => {
-    const bus = createRedisBus({ url })
+  const makeBus = (busUrl: string = url): ReturnType<typeof createRedisBus> => {
+    const bus = createRedisBus({ url: busUrl })
     buses.push(bus)
     return bus
   }
@@ -86,15 +98,15 @@ describe('redis bus', () => {
   })
 
   it('receives a wake published after redis recovers from a startup outage', async () => {
-    await compose('stop', 'test-redis')
+    const port = await freePort()
+    const receiver = makeBus(`redis://127.0.0.1:${port}`)
+    const received: string[] = []
+    receiver.onWake((sessionId) => {
+      received.push(sessionId)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 3_000))
+    const relay = await startRelay({ port, target: new URL(url) })
     try {
-      const receiver = makeBus()
-      const received: string[] = []
-      receiver.onWake((sessionId) => {
-        received.push(sessionId)
-      })
-      await new Promise((resolve) => setTimeout(resolve, 3_000))
-      await compose('start', 'test-redis')
       const sender = makeBus()
       const publishing = (async () => {
         while (!received.includes('session-after-outage')) {
@@ -108,7 +120,8 @@ describe('redis bus', () => {
       })
       await publishing
     } finally {
-      await compose('start', 'test-redis').catch(() => undefined)
+      for (const socket of relay.sockets) socket.destroy()
+      relay.server.close()
     }
   }, 30_000)
 
