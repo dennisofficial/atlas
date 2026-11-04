@@ -4,6 +4,11 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 import type { SessionRuntime } from './ports'
 import type { HeldSessionDeps } from './held-session-deps'
 
+export const pendingInputCount = (deps: HeldSessionDeps): Promise<number> =>
+  deps.plane
+    .readInbox({ sessionId: deps.sessionId, afterId: 0, limit: 1 })
+    .then((entries) => entries.length)
+
 export const idleWaitMs = (args: { deps: HeldSessionDeps; lastActivityAt: number }): number => {
   const deadline = args.lastActivityAt + args.deps.idleMinutes * 60_000
   return Math.max(1, deadline - args.deps.timers.now())
@@ -86,4 +91,18 @@ export const releaseIdleSession = async (args: {
       ...logFieldsOf({ error }),
     })
   }
+}
+
+export const releaseIdleAndRewake = async (args: {
+  deps: HeldSessionDeps
+  runtime: SessionRuntime
+  drop(): void
+}): Promise<void> => {
+  const { deps } = args
+  await releaseIdleSession({ deps, runtime: args.runtime })
+  const late = await pendingInputCount(deps)
+  args.drop()
+  if (late === 0) return
+  deps.onDrop?.()
+  await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
 }

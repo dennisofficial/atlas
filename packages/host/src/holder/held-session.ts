@@ -5,7 +5,13 @@ import { statusFrame, type SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
 import { createBranchObserver, createLoopRunner, logDriveFault } from './held-runner'
 import { InboxIntake } from './inbox-intake'
-import { idleDueNow, idleWaitMs, releaseIdleSession, teardownHeldSession } from './held-idle'
+import {
+  idleDueNow,
+  idleWaitMs,
+  pendingInputCount,
+  releaseIdleAndRewake,
+  teardownHeldSession,
+} from './held-idle'
 import {
   consumeStops,
   pollStopsWithRetry,
@@ -226,7 +232,7 @@ export class HeldSession {
         await this.retryStops()
         await this.consumeStops()
         if (await this.checkIdle()) return
-        pending = await this.pendingInput()
+        pending = await pendingInputCount(deps)
         readFailures = 0
       } catch {
         readFailures += 1
@@ -250,12 +256,6 @@ export class HeldSession {
     }
   }
 
-  private pendingInput(): Promise<number> {
-    return this.deps.plane
-      .readInbox({ sessionId: this.deps.sessionId, afterId: 0, limit: 1 })
-      .then((entries) => entries.length)
-  }
-
   private drop(): void {
     if (this.lostOwnership) return
     this.lostOwnership = true
@@ -275,17 +275,11 @@ export class HeldSession {
       turnRunning: this.turns.turnRunning,
       lastActivityAt: this.lastActivityAt,
       released: this.released,
-      pendingInput: () => this.pendingInput(),
+      pendingInput: () => pendingInputCount(deps),
     })
     if (!due || this.runtime === undefined) return false
     this.released = true
-    await releaseIdleSession({ deps, runtime: this.runtime })
-    const late = await this.pendingInput()
-    this.drop()
-    if (late > 0) {
-      deps.onDrop?.()
-      await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
-    }
+    await releaseIdleAndRewake({ deps, runtime: this.runtime, drop: () => this.drop() })
     return true
   }
 
