@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowLeftIcon, CodeIcon, EyeIcon, GitCompareIcon } from 'lucide-react'
+import { ArrowLeftIcon, GitCompareIcon } from 'lucide-react'
 
 import { CodeViewer } from '@dltech/atlas-ui/ai/code-viewer'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -12,8 +12,9 @@ import { lineMarksOf } from '../data/line-marks'
 import { EGitChangesStatus, useGitChanges, useTurnEndCount } from '../data/use-git-changes'
 import { useWorkspaceFile, type LoadedWorkspaceFile } from '../data/use-workspace-file'
 import { useThreadPanel } from '../panel/thread-panel-context'
-import { type ERenderKind, renderKindOf } from './context-model'
+import { EContextView, type ERenderKind, renderKindOf } from './context-model'
 import { CopyButton, Notice } from './context-viewer'
+import { ContextViewToggle } from './html-view'
 import { RenderedFile } from './rendered-file'
 
 export function FileBody(props: {
@@ -63,7 +64,8 @@ export function FileViewer({ path }: { path: string }) {
   const renderKind = renderKindOf(path)
   const [renderedPath, setRenderedPath] = useState<string | null>(null)
   const isRendered = renderKind !== null && renderedPath === path
-  const handleToggleRender = () => setRenderedPath(isRendered ? null : path)
+  const handleViewChange = (next: EContextView) =>
+    setRenderedPath(next === EContextView.Rendered ? path : null)
 
   return (
     <section aria-label="File" className="flex h-full min-h-0 flex-col">
@@ -82,16 +84,10 @@ export function FileViewer({ path }: { path: string }) {
           </Button>
         )}
         {text === null || renderKind === null ? null : (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={isRendered ? 'Show source' : 'Render file'}
-            aria-pressed={isRendered}
-            title={isRendered ? 'Show source' : 'Render file'}
-            onClick={handleToggleRender}
-          >
-            {isRendered ? <CodeIcon /> : <EyeIcon />}
-          </Button>
+          <ContextViewToggle
+            value={isRendered ? EContextView.Rendered : EContextView.Source}
+            onValueChange={handleViewChange}
+          />
         )}
         {text === null ? null : <CopyButton text={text} />}
       </header>
