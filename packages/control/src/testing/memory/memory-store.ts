@@ -14,53 +14,7 @@ import {
 } from '../../port'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { bisectAfter, leaseLiveAt } from './memory-helpers'
-
-type SessionRow = ControlSessionRow & { nextInboxId: number }
-
-type State = {
-  sessions: Map<string, SessionRow>
-  threads: Map<string, ThreadRow>
-  events: Map<string, StoredEvent[]>
-  eventIds: Set<string>
-  leases: Map<string, Lease>
-  inbox: Map<string, InboxEntry[]>
-  blobs: Map<string, BlobRow>
-  blobRefs: Set<string>
-  notifications: string[]
-}
-
-const PREPARE_HISTORY_TYPES: ReadonlySet<string> = new Set([
-  'workspace-prepared',
-  'user-said',
-  'workspace-prepare-failed',
-])
-
-const refKey = (params: { sessionId: string; hash: string }): string =>
-  `${params.sessionId}${params.hash}`
-
-const emptyState = (): State => ({
-  sessions: new Map(),
-  threads: new Map(),
-  events: new Map(),
-  eventIds: new Set(),
-  leases: new Map(),
-  inbox: new Map(),
-  blobs: new Map(),
-  blobRefs: new Set(),
-  notifications: [],
-})
-
-const cloneState = (state: State): State => ({
-  sessions: new Map([...state.sessions].map(([key, value]) => [key, { ...value }])),
-  threads: new Map([...state.threads].map(([key, value]) => [key, { ...value }])),
-  events: new Map([...state.events].map(([key, value]) => [key, [...value]])),
-  eventIds: new Set(state.eventIds),
-  leases: new Map([...state.leases].map(([key, value]) => [key, { ...value }])),
-  inbox: new Map([...state.inbox].map(([key, value]) => [key, value.map((e) => ({ ...e }))])),
-  blobs: new Map([...state.blobs].map(([key, value]) => [key, { ...value }])),
-  blobRefs: new Set(state.blobRefs),
-  notifications: [...state.notifications],
-})
+import { cloneState, emptyState, PREPARE_HISTORY_TYPES, refKey, type State } from './memory-state'
 
 class MemoryTx implements ControlTx {
   private readonly state: State
