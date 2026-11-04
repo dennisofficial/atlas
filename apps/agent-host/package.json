@@ -10,8 +10,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test --timeout 30000",
-    "start": "dotenvx run --strict -f envs/.env.agent_host.production.enc -- bun src/main.ts",
-    "dev": "dotenvx run --strict -f envs/.env.agent_host.local.enc -fk envs/.env.keys -- bun --watch src/main.ts"
+    "start": "dotenvx run --strict -f .env.production.enc -- bun src/main.ts",
+    "dev": "dotenvx run --strict -f .env.local.enc -fk .env.keys -- bun --watch src/main.ts"
   },
   "dependencies": {
     "@dltech/atlas-agent": "workspace:*",

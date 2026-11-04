@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { lineFaultsOf } from './env-tier-lines'
 
 const REPO = join(import.meta.dirname, '..', '..', '..')
-const ENV_DIRS = ['apps/api/envs', 'apps/agent-host/envs', 'apps/trigger/envs']
+const ENV_DIRS = ['apps/api/envs', 'apps/agent-host', 'apps/trigger/envs']
 
 const faults = ENV_DIRS.flatMap((dir) =>
   readdirSync(join(REPO, dir))

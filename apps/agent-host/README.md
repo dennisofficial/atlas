@@ -5,10 +5,10 @@ sandboxes, drives the loop, and publishes live frames.
 
 ## Env
 
-Values live in the committed dotenvx tier files `envs/.env.agent_host.<tier>.enc` (production, local).
-The private keys are in `envs/.env.keys` (git-ignored, an Atlas Cloud project file mount). A host holds only
-`DOTENV_PRIVATE_KEY_AGENT_HOST_PRODUCTION`. Add a value with
-`dotenvx set KEY value -f envs/.env.agent_host.<tier>.enc -fk envs/.env.keys` in every tier.
+Values live in the committed dotenvx tier files `.env.<tier>.enc` at this package's root (production, local).
+The private keys are in `.env.keys` (git-ignored, an Atlas Cloud project file mount). A host holds only
+`DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. Add a value with
+`dotenvx set KEY value -f .env.<tier>.enc -fk .env.keys` in every tier.
 
 
 | Var                       | Required | Default                                              |
@@ -38,5 +38,5 @@ Start command:
 bun run --cwd apps/agent-host start
 ```
 
-Render env holds only `DOTENV_PRIVATE_KEY_AGENT_HOST_PRODUCTION` (plus `BUN_VERSION`). Locally:
+Render env holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC` (plus `BUN_VERSION`). Locally:
 `bun run --cwd apps/agent-host dev` (needs the api, docker Postgres and `test-redis`).
