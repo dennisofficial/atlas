@@ -48,12 +48,13 @@ const liveOf = (cards: readonly ModelCard[] | undefined): LiveCards => ({
 })
 
 describe('catalogueProviders', () => {
-  it('lists the four providers with the labels the pickers show', () => {
+  it('lists the five providers with the labels the pickers show', () => {
     expect(catalogueProviders().map(({ id, label }) => ({ id, label }))).toEqual([
       { id: 'anthropic', label: 'Claude Plan' },
       { id: 'openai', label: 'Codex Plan' },
       { id: 'openrouter', label: 'OpenRouter' },
       { id: 'inference', label: 'Inference.net' },
+      { id: 'gateway', label: 'Vercel AI Gateway' },
     ])
   })
 

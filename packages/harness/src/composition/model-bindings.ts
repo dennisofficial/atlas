@@ -21,6 +21,7 @@ import {
 import { CODEX_VERSION, CodexModelsCatalogue } from '../models'
 import { codexModelsFsPorts } from './codex-models-fs-ports'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
+import { GatewayAdapter, GATEWAY_PROVIDER_ID } from '../providers/gateway-adapter'
 import { InferenceAdapter, INFERENCE_PROVIDER_ID } from '../providers/inference-adapter'
 import { OpenAiAdapter, OPENAI_PROVIDER_ID } from '../providers/openai-adapter'
 import { OpenRouterAdapter, OPENROUTER_PROVIDER_ID } from '../providers/openrouter-adapter'
@@ -107,6 +108,11 @@ export async function bindModels(args: {
         credentials,
         admission,
         cards: cardsForProvider(INFERENCE_PROVIDER_ID),
+      }),
+      new GatewayAdapter({
+        credentials,
+        admission,
+        cards: cardsForProvider(GATEWAY_PROVIDER_ID),
       }),
     ],
     accounts: args.accountList,

@@ -139,6 +139,7 @@ describe('the provider list', () => {
     expect(frame).toContain('OpenAI')
     expect(frame).toContain('OpenRouter')
     expect(frame).toContain('Inference.net')
+    expect(frame).toContain('Vercel AI Gateway')
   })
 
   it('marks the connected providers with a live dot', async () => {

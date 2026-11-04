@@ -188,6 +188,7 @@ export enum EProviderId {
   OpenAI = 'openai',
   OpenRouter = 'openrouter',
   Inference = 'inference',
+  Gateway = 'gateway',
 }
 
 export type ApiKeyEntry = { id: string; label: string; added: string }
@@ -224,6 +225,12 @@ export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
     brand: EBrand.Inference,
     description: 'Open models on managed inference',
   },
+  {
+    id: EProviderId.Gateway,
+    name: 'Vercel AI Gateway',
+    brand: EBrand.Vercel,
+    description: 'Every major model behind one key, billed through Vercel',
+  },
 ]
 
 export const KEY_PREFIXES: Record<EProviderId, string> = {
@@ -231,4 +238,5 @@ export const KEY_PREFIXES: Record<EProviderId, string> = {
   [EProviderId.OpenAI]: 'sk-proj-',
   [EProviderId.OpenRouter]: 'sk-or-',
   [EProviderId.Inference]: 'sk-inference-',
+  [EProviderId.Gateway]: '',
 }

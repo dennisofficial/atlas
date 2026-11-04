@@ -2,6 +2,7 @@ import { ANTHROPIC_PROVIDER_ID, type Account, type CredentialPort } from '@dltec
 import { cardsForProvider } from '@dltech/atlas-models'
 
 import {
+  GATEWAY_PROVIDER_ID,
   INFERENCE_PROVIDER_ID,
   composeModelCatalogue,
   OPENAI_PROVIDER_ID,
@@ -11,6 +12,7 @@ import {
 } from '../models'
 import type { ProviderAdapter } from '../providers/adapter'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
+import { GatewayAdapter } from '../providers/gateway-adapter'
 import { InferenceAdapter } from '../providers/inference-adapter'
 import { OpenAiAdapter } from '../providers/openai-adapter'
 import { OpenRouterAdapter } from '../providers/openrouter-adapter'
@@ -84,5 +86,10 @@ export const providerAdapters = (args: {
     credentials: args.credentials,
     admission: args.admission,
     cards: cardsForProvider(INFERENCE_PROVIDER_ID),
+  }),
+  new GatewayAdapter({
+    credentials: args.credentials,
+    admission: args.admission,
+    cards: cardsForProvider(GATEWAY_PROVIDER_ID),
   }),
 ]

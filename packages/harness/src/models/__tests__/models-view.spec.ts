@@ -31,6 +31,7 @@ describe('modelsView', () => {
       'openai',
       'openrouter',
       'inference',
+      'gateway',
     ])
     for (const provider of view) {
       expect(provider.status).toBe('unavailable')
@@ -51,6 +52,7 @@ describe('modelsView', () => {
       'openai',
       'openrouter',
       'inference',
+      'gateway',
     ])
     expect(providerOf(view, 'anthropic')).toMatchObject({
       label: 'Claude Plan',
@@ -71,6 +73,7 @@ describe('modelsView', () => {
       'openai',
       'openrouter',
       'inference',
+      'gateway',
     ])
     expect(view.every((provider) => provider.status === 'unavailable')).toBe(true)
   })

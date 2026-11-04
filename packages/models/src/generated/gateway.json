@@ -1,0 +1,5303 @@
+[
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen-3-14b"
+    },
+    "label": "Qwen3-14B",
+    "api": "ai-gateway",
+    "contextWindow": 40960,
+    "imageTier": "standard",
+    "maxOutputTokens": 16384,
+    "cost": {
+      "inputPerMillion": 0.12,
+      "outputPerMillion": 0.24
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen-3-235b"
+    },
+    "label": "Qwen3 235B A22B",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 16384,
+    "cost": {
+      "inputPerMillion": 0.22,
+      "outputPerMillion": 0.88
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen-3-30b"
+    },
+    "label": "Qwen3-30B-A3B",
+    "api": "ai-gateway",
+    "contextWindow": 40960,
+    "imageTier": "standard",
+    "maxOutputTokens": 16384,
+    "cost": {
+      "inputPerMillion": 0.12,
+      "outputPerMillion": 0.5
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen-3-32b"
+    },
+    "label": "Qwen 3 32B",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.6
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3-coder"
+    },
+    "label": "Qwen3 Coder 480B A35B Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.22,
+      "outputPerMillion": 1.8,
+      "cacheReadPerMillion": 0.022
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3-coder-30b-a3b"
+    },
+    "label": "Qwen 3 Coder 30B A3B Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.6
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3-coder-next"
+    },
+    "label": "Qwen3 Coder Next",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 0.5,
+      "outputPerMillion": 1.2
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3-max-thinking"
+    },
+    "label": "Qwen 3 Max Thinking",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65536,
+    "cost": {
+      "inputPerMillion": 1.2,
+      "outputPerMillion": 6,
+      "cacheReadPerMillion": 0.24
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3-next-80b-a3b-instruct"
+    },
+    "label": "Qwen3 Next 80B A3B Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 262114,
+    "imageTier": "standard",
+    "maxOutputTokens": 262114,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 1.2
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3-next-80b-a3b-thinking"
+    },
+    "label": "Qwen3 Next 80B A3B Thinking",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 1.2
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3-vl-instruct"
+    },
+    "label": "Qwen3 VL 235B A22B Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.2,
+      "outputPerMillion": 0.88,
+      "cacheReadPerMillion": 0.11
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.5-flash"
+    },
+    "label": "Qwen 3.5 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.4,
+      "cacheReadPerMillion": 0.01,
+      "cacheWritePerMillion": 0.125
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.5-plus"
+    },
+    "label": "Qwen 3.5 Plus",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.4,
+      "outputPerMillion": 2.4,
+      "cacheReadPerMillion": 0.04,
+      "cacheWritePerMillion": 0.5
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.6-27b"
+    },
+    "label": "Qwen 3.6 27B",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 3.6
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.6-plus"
+    },
+    "label": "Qwen 3.6 Plus",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.5,
+      "outputPerMillion": 3,
+      "cacheReadPerMillion": 0.05,
+      "cacheWritePerMillion": 0.625
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.7-flash"
+    },
+    "label": "Qwen 3.7 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 991000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.03,
+      "outputPerMillion": 0.13,
+      "cacheReadPerMillion": 0.006,
+      "cacheWritePerMillion": 0.038
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.7-max"
+    },
+    "label": "Qwen 3.7 Max",
+    "api": "ai-gateway",
+    "contextWindow": 991000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 2.5,
+      "outputPerMillion": 7.5,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 3.125
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.7-plus"
+    },
+    "label": "Qwen 3.7 Plus",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.4,
+      "outputPerMillion": 1.6,
+      "cacheReadPerMillion": 0.08,
+      "cacheWritePerMillion": 0.5
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.8-2.4t-a95b"
+    },
+    "label": "Qwen3.8 2.4T A95B",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 6,
+      "cacheReadPerMillion": 0.25
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.8-27b"
+    },
+    "label": "Qwen3.8 27B",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.5,
+      "outputPerMillion": 3,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 0.625
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.8-flash"
+    },
+    "label": "Qwen 3.8 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 991000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.47,
+      "cacheReadPerMillion": 0.016,
+      "cacheWritePerMillion": 0.2
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.8-max"
+    },
+    "label": "Qwen 3.8 Max",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 6,
+      "cacheReadPerMillion": 0.25
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.8-max-0902"
+    },
+    "label": "Qwen3.8 Max 0902",
+    "api": "ai-gateway",
+    "contextWindow": 991000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 6,
+      "cacheReadPerMillion": 0.25,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.8-max-prime"
+    },
+    "label": "Qwen 3.8 Max Prime",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 12,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.8-omni-flash"
+    },
+    "label": "Qwen 3.8 Omni Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.47,
+      "cacheReadPerMillion": 0.016
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "amazon/nova-2-lite"
+    },
+    "label": "Nova 2 Lite",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 0.33,
+      "outputPerMillion": 2.75,
+      "cacheReadPerMillion": 0.0825
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "amazon/nova-lite"
+    },
+    "label": "Nova Lite",
+    "api": "ai-gateway",
+    "contextWindow": 300000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 0.24,
+      "cacheReadPerMillion": 0.015
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "amazon/nova-micro"
+    },
+    "label": "Nova Micro",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.035,
+      "outputPerMillion": 0.14,
+      "cacheReadPerMillion": 0.0087
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "amazon/nova-pro"
+    },
+    "label": "Nova Pro",
+    "api": "ai-gateway",
+    "contextWindow": 300000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.8,
+      "outputPerMillion": 3.2,
+      "cacheReadPerMillion": 0.2
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-fable-5"
+    },
+    "label": "Claude Fable 5",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 10,
+      "outputPerMillion": 50,
+      "cacheReadPerMillion": 1,
+      "cacheWritePerMillion": 12.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-fable-5.1"
+    },
+    "label": "Claude Fable 5.1",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 10,
+      "outputPerMillion": 50,
+      "cacheReadPerMillion": 0.25,
+      "cacheWritePerMillion": 12.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-haiku-4.5"
+    },
+    "label": "Claude Haiku 4.5",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 1,
+      "outputPerMillion": 5,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 1.25
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-haiku-5.5"
+    },
+    "label": "Claude Haiku 5.5",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.01,
+      "cacheWritePerMillion": 0.125
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-opus-4.5"
+    },
+    "label": "Claude Opus 4.5",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-opus-4.6"
+    },
+    "label": "Claude Opus 4.6",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-opus-4.7"
+    },
+    "label": "Claude Opus 4.7",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-opus-4.8"
+    },
+    "label": "Claude Opus 4.8",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-opus-4.8-fast"
+    },
+    "label": "Claude Opus 4.8 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 10,
+      "outputPerMillion": 50,
+      "cacheReadPerMillion": 1,
+      "cacheWritePerMillion": 12.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-opus-5"
+    },
+    "label": "Claude Opus 5",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-opus-5-fast"
+    },
+    "label": "Claude Opus 5 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 10,
+      "outputPerMillion": 50,
+      "cacheReadPerMillion": 1,
+      "cacheWritePerMillion": 12.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-opus-5.5"
+    },
+    "label": "Claude Opus 5.5",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-opus-5.5-fast"
+    },
+    "label": "Claude Opus 5.5 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 8,
+      "outputPerMillion": 40,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 10
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-sonnet-4.5"
+    },
+    "label": "Claude Sonnet 4.5",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 3,
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.3,
+      "cacheWritePerMillion": 3.75
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-sonnet-4.6"
+    },
+    "label": "Claude Sonnet 4.6",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 3,
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.3,
+      "cacheWritePerMillion": 3.75
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-sonnet-5"
+    },
+    "label": "Claude Sonnet 5",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-sonnet-5.5"
+    },
+    "label": "Claude Sonnet 5.5",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "bytedance/seed-1.6"
+    },
+    "label": "Seed 1.6",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 32000,
+    "cost": {
+      "inputPerMillion": 0.25,
+      "outputPerMillion": 2,
+      "cacheReadPerMillion": 0.05
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "bytedance/seed-1.8"
+    },
+    "label": "Bytedance Seed 1.8",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.25,
+      "outputPerMillion": 2,
+      "cacheReadPerMillion": 0.05
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "bytedance/seed-2.1-turbo"
+    },
+    "label": "Seed 2.1 Turbo",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.5,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.1
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "callstack/apex"
+    },
+    "label": "Apex",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.5,
+      "outputPerMillion": 3,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "cohere/command-a"
+    },
+    "label": "Command A",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8000,
+    "cost": {
+      "inputPerMillion": 2.5,
+      "outputPerMillion": 10
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-r1"
+    },
+    "label": "DeepSeek-R1",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 1.35,
+      "outputPerMillion": 5.4
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v3.1"
+    },
+    "label": "DeepSeek V3.1",
+    "api": "ai-gateway",
+    "contextWindow": 163840,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.25,
+      "outputPerMillion": 0.95,
+      "cacheReadPerMillion": 0.13
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v3.2"
+    },
+    "label": "DeepSeek V3.2",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8000,
+    "cost": {
+      "inputPerMillion": 0.62,
+      "outputPerMillion": 1.85
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v3.2-thinking"
+    },
+    "label": "DeepSeek V3.2 Thinking",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8000,
+    "cost": {
+      "inputPerMillion": 0.62,
+      "outputPerMillion": 1.85
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4-flash"
+    },
+    "label": "DeepSeek V4 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 384000,
+    "cost": {
+      "inputPerMillion": 0.13,
+      "outputPerMillion": 0.26,
+      "cacheReadPerMillion": 0.028
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4-flash-0731"
+    },
+    "label": "DeepSeek V4 Flash 0731",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 384000,
+    "cost": {
+      "inputPerMillion": 0.13,
+      "outputPerMillion": 0.26,
+      "cacheReadPerMillion": 0.028
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4-flash-vision-exp"
+    },
+    "label": "DeepSeek V4 Flash Vision Exp",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 0.2156,
+      "outputPerMillion": 0.6468,
+      "cacheReadPerMillion": 0.0068
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4-pro"
+    },
+    "label": "DeepSeek V4 Pro",
+    "api": "ai-gateway",
+    "contextWindow": 1048600,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048600,
+    "cost": {
+      "inputPerMillion": 1.32,
+      "outputPerMillion": 3.96,
+      "cacheReadPerMillion": 0.132
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4-pro-0813"
+    },
+    "label": "DeepSeek V4 Pro 0813",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 384000,
+    "cost": {
+      "inputPerMillion": 0.66,
+      "outputPerMillion": 1.98,
+      "cacheReadPerMillion": 0.066
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4.1-flash"
+    },
+    "label": "DeepSeek V4.1 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.007
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4.1-flash-1017"
+    },
+    "label": "DeepSeek V4.1 Flash 1017",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.007
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4.1-flash-1017-fast"
+    },
+    "label": "DeepSeek V4.1 Flash 1017 Fast",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.4,
+      "cacheReadPerMillion": 0.014
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4.1-flash-fast"
+    },
+    "label": "DeepSeek V4.1 Flash Fast",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.4,
+      "cacheReadPerMillion": 0.014
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "fireworks/ember-1"
+    },
+    "label": "Ember-1",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 3,
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.3
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-2.5-flash"
+    },
+    "label": "Gemini 2.5 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65535,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.03
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-2.5-flash-lite"
+    },
+    "label": "Gemini 2.5 Flash Lite",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 65535,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.4,
+      "cacheReadPerMillion": 0.01
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-2.5-pro"
+    },
+    "label": "Gemini 2.5 Pro",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 65535,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.125
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-3-flash"
+    },
+    "label": "Gemini 3 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65000,
+    "cost": {
+      "inputPerMillion": 0.5,
+      "outputPerMillion": 3,
+      "cacheReadPerMillion": 0.05
+    },
+    "effort": {
+      "low": "low",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-3.1-flash-lite"
+    },
+    "label": "Gemini 3.1 Flash Lite",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65000,
+    "cost": {
+      "inputPerMillion": 0.25,
+      "outputPerMillion": 1.5,
+      "cacheReadPerMillion": 0.03
+    },
+    "effort": {
+      "low": "low",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-3.1-pro-preview"
+    },
+    "label": "Gemini 3.1 Pro Preview",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 12,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "low": "low",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-3.5-flash"
+    },
+    "label": "Gemini 3.5 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 1.5,
+      "outputPerMillion": 9,
+      "cacheReadPerMillion": 0.15
+    },
+    "effort": {
+      "low": "low",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-3.5-flash-lite"
+    },
+    "label": "Gemini 3.5 Flash Lite",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65000,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.03
+    },
+    "effort": {
+      "low": "low",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-3.6-flash"
+    },
+    "label": "Gemini 3.6 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.75,
+      "outputPerMillion": 3.75,
+      "cacheReadPerMillion": 0.075
+    },
+    "effort": {
+      "low": "low",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-3.7-flash"
+    },
+    "label": "Gemini 3.7 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65535,
+    "cost": {
+      "inputPerMillion": 0.75,
+      "outputPerMillion": 3.75,
+      "cacheReadPerMillion": 0.075
+    },
+    "effort": {
+      "low": "low",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-3.8-flash"
+    },
+    "label": "Gemini 3.8 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65535,
+    "cost": {
+      "inputPerMillion": 0.75,
+      "outputPerMillion": 3.75,
+      "cacheReadPerMillion": 0.075
+    },
+    "effort": {
+      "low": "low",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-4-argon"
+    },
+    "label": "Gemini 4 Argon",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.1
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemma-4-26b-a4b-it"
+    },
+    "label": "Google Gemma 4 26B A4B",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.6,
+      "cacheReadPerMillion": 0.015
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemma-4-31b-it"
+    },
+    "label": "Gemma 4 31B IT",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.14,
+      "outputPerMillion": 0.4
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inception/mercury-2"
+    },
+    "label": "Mercury 2",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.25,
+      "outputPerMillion": 0.75,
+      "cacheReadPerMillion": 0.025
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inception/mercury-2.5"
+    },
+    "label": "Mercury 2.5",
+    "api": "ai-gateway",
+    "contextWindow": 260000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65536,
+    "cost": {
+      "inputPerMillion": 0.04,
+      "outputPerMillion": 0.15,
+      "cacheReadPerMillion": 0.004
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inception/mercury-3"
+    },
+    "label": "Mercury 3",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.35,
+      "cacheReadPerMillion": 0.01
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inception/mercury-coder-small"
+    },
+    "label": "Mercury Coder Small Beta",
+    "api": "ai-gateway",
+    "contextWindow": 32000,
+    "imageTier": "standard",
+    "maxOutputTokens": 16384,
+    "cost": {
+      "inputPerMillion": 0.25,
+      "outputPerMillion": 1
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inclusionai/ling-3.0-flash"
+    },
+    "label": "Ling 3.0 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 32000,
+    "cost": {
+      "inputPerMillion": 0.021,
+      "outputPerMillion": 0.063,
+      "cacheReadPerMillion": 0.0042
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inclusionai/ling-3.0-flash-fin"
+    },
+    "label": "Ling 3.0 Flash Fin",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 32000,
+    "cost": {
+      "inputPerMillion": 0.075,
+      "outputPerMillion": 0.22,
+      "cacheReadPerMillion": 0.015
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inclusionai/ling-3.0-flash-sante"
+    },
+    "label": "Ling 3.0 Flash Sante",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 32000,
+    "cost": {
+      "inputPerMillion": 0.075,
+      "outputPerMillion": 0.22,
+      "cacheReadPerMillion": 0.015
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inclusionai/ling-3.0-flash-vl"
+    },
+    "label": "Ling 3.0 Flash VL",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 32000,
+    "cost": {
+      "inputPerMillion": 0.075,
+      "outputPerMillion": 0.22,
+      "cacheReadPerMillion": 0.015
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inclusionai/ling-3.1-flash"
+    },
+    "label": "Ling 3.1 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 0.9,
+      "cacheReadPerMillion": 0.06
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "inclusionai/ling-3.1-flash-1019"
+    },
+    "label": "Ling 3.1 Flash 1019",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 0.9,
+      "cacheReadPerMillion": 0.06
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "interfaze/interfaze-beta"
+    },
+    "label": "Interfaze Beta",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 32000,
+    "cost": {
+      "inputPerMillion": 1.5,
+      "outputPerMillion": 3.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "liquid/lfm2.5-24b-a2b"
+    },
+    "label": "LFM2.5-24B-A2B",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8200,
+    "cost": {
+      "inputPerMillion": 0.05,
+      "outputPerMillion": 0.7,
+      "cacheReadPerMillion": 0.025
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meituan/longcat-2.5"
+    },
+    "label": "LongCat 2.5",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.006
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/llama-3.1-70b"
+    },
+    "label": "Llama 3.1 70B Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.72,
+      "outputPerMillion": 0.72
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/llama-3.1-8b"
+    },
+    "label": "Llama 3.1 8B Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.22,
+      "outputPerMillion": 0.22
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/llama-3.3-70b"
+    },
+    "label": "Llama 3.3 70B Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.72,
+      "outputPerMillion": 0.72
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/llama-4-maverick"
+    },
+    "label": "Llama 4 Maverick 17B Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.24,
+      "outputPerMillion": 0.97
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/llama-4-scout"
+    },
+    "label": "Llama 4 Scout 17B Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.17,
+      "outputPerMillion": 0.66
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/muse-glimmer-30b"
+    },
+    "label": "Muse Glimmer 30B",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.35,
+      "outputPerMillion": 1.5,
+      "cacheReadPerMillion": 0.04
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/muse-spark-1.1"
+    },
+    "label": "Muse Spark 1.1",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 4.25,
+      "cacheReadPerMillion": 0.15
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/muse-spark-1.2"
+    },
+    "label": "Muse Spark 1.2",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 4.25,
+      "cacheReadPerMillion": 0.15
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/muse-spark-1.2-contributor"
+    },
+    "label": "Muse Spark 1.2 Contributor",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.2,
+      "cacheReadPerMillion": 0.002
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/muse-spark-1.3"
+    },
+    "label": "Muse Spark 1.3",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 4.25,
+      "cacheReadPerMillion": 0.15
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/muse-spark-1.3-contributor"
+    },
+    "label": "Muse Spark 1.3 Contributor",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.2,
+      "cacheReadPerMillion": 0.002
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/muse-spark-open"
+    },
+    "label": "Muse Spark Open",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 4.25,
+      "cacheReadPerMillion": 0.15
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "meta/muse-wonder-1.0"
+    },
+    "label": "Muse Wonder",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "minimax/minimax-m2"
+    },
+    "label": "MiniMax M2",
+    "api": "ai-gateway",
+    "contextWindow": 205000,
+    "imageTier": "standard",
+    "maxOutputTokens": 205000,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.03,
+      "cacheWritePerMillion": 0.375
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "minimax/minimax-m2.1"
+    },
+    "label": "MiniMax M2.1",
+    "api": "ai-gateway",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.03,
+      "cacheWritePerMillion": 0.375
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "minimax/minimax-m2.1-lightning"
+    },
+    "label": "MiniMax M2.1 Lightning",
+    "api": "ai-gateway",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 2.4,
+      "cacheReadPerMillion": 0.03,
+      "cacheWritePerMillion": 0.375
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "minimax/minimax-m2.5"
+    },
+    "label": "MiniMax M2.5",
+    "api": "ai-gateway",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "maxOutputTokens": 131000,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.03,
+      "cacheWritePerMillion": 0.375
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "minimax/minimax-m2.5-highspeed"
+    },
+    "label": "MiniMax M2.5 High Speed",
+    "api": "ai-gateway",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "maxOutputTokens": 131000,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.4,
+      "cacheReadPerMillion": 0.03,
+      "cacheWritePerMillion": 0.375
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "minimax/minimax-m2.7"
+    },
+    "label": "MiniMax M2.7",
+    "api": "ai-gateway",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "maxOutputTokens": 131000,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.06,
+      "cacheWritePerMillion": 0.375
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "minimax/minimax-m2.7-highspeed"
+    },
+    "label": "MiniMax M2.7 High Speed",
+    "api": "ai-gateway",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "maxOutputTokens": 131100,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.4,
+      "cacheReadPerMillion": 0.06,
+      "cacheWritePerMillion": 0.375
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "minimax/minimax-m3"
+    },
+    "label": "MiniMax M3",
+    "api": "ai-gateway",
+    "contextWindow": 512000,
+    "imageTier": "standard",
+    "maxOutputTokens": 512000,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.06
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "minimax/minimax-m3.1-flash"
+    },
+    "label": "MiniMax-M3.1-Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.6,
+      "cacheReadPerMillion": 0.015
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mistral/codestral"
+    },
+    "label": "Mistral Codestral",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 4000,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 0.9,
+      "cacheReadPerMillion": 0.03
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mistral/ministral-14b"
+    },
+    "label": "Ministral 14B",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 0.2,
+      "outputPerMillion": 0.2,
+      "cacheReadPerMillion": 0.02
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mistral/ministral-3b"
+    },
+    "label": "Ministral 3B",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 4000,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.1,
+      "cacheReadPerMillion": 0.01
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mistral/ministral-8b"
+    },
+    "label": "Ministral 8B",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 4000,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.15,
+      "cacheReadPerMillion": 0.015
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mistral/mistral-large-3"
+    },
+    "label": "Mistral Large 3",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 0.5,
+      "outputPerMillion": 1.5,
+      "cacheReadPerMillion": 0.05
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mistral/mistral-large-4"
+    },
+    "label": "Mistral Large 4",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.7,
+      "outputPerMillion": 2.1,
+      "cacheReadPerMillion": 0.07
+    },
+    "effort": {
+      "off": "none",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mistral/mistral-medium-3.5"
+    },
+    "label": "Mistral Medium Latest",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 1.5,
+      "outputPerMillion": 7.5,
+      "cacheReadPerMillion": 0.15
+    },
+    "effort": {
+      "off": "none",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mistral/mistral-nemo"
+    },
+    "label": "Mistral Nemo 12B",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.029,
+      "outputPerMillion": 0.03
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mistral/mistral-small"
+    },
+    "label": "Mistral Small",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 4000,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.6,
+      "cacheReadPerMillion": 0.015
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "mixedbread/toast-1"
+    },
+    "label": "Toast 1",
+    "api": "ai-gateway",
+    "contextWindow": 131000,
+    "imageTier": "standard",
+    "maxOutputTokens": 4000,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 0.72,
+      "cacheReadPerMillion": 0.036
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "moonshotai/kimi-k2"
+    },
+    "label": "Kimi K2 Instruct",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.57,
+      "outputPerMillion": 2.3
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "moonshotai/kimi-k2.5"
+    },
+    "label": "Kimi K2.5",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 3
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "moonshotai/kimi-k2.6"
+    },
+    "label": "Kimi K2.6",
+    "api": "ai-gateway",
+    "contextWindow": 262000,
+    "imageTier": "standard",
+    "maxOutputTokens": 262000,
+    "cost": {
+      "inputPerMillion": 0.95,
+      "outputPerMillion": 4,
+      "cacheReadPerMillion": 0.16
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "moonshotai/kimi-k2.7-code"
+    },
+    "label": "Kimi K2.7 Code",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.95,
+      "outputPerMillion": 4,
+      "cacheReadPerMillion": 0.19
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "moonshotai/kimi-k2.7-code-highspeed"
+    },
+    "label": "Kimi K2.7 Code High Speed",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 1.9,
+      "outputPerMillion": 8,
+      "cacheReadPerMillion": 0.38
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "moonshotai/kimi-k3"
+    },
+    "label": "Kimi K3",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 3,
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.3
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "moonshotai/kimi-k3-fast"
+    },
+    "label": "Kimi K3 Fast",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 4.5,
+      "outputPerMillion": 22.5,
+      "cacheReadPerMillion": 0.45
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "moonshotai/kimi-k3.1-pro"
+    },
+    "label": "Kimi K3.1 Pro",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 2
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "moonshotai/kimi-k3.1-pro-highspeed"
+    },
+    "label": "Kimi K3.1 Pro Highspeed",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 4
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "nvidia/nemotron-3-nano-30b-a3b"
+    },
+    "label": "Nemotron 3 Nano 30B A3B",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.05,
+      "outputPerMillion": 0.2,
+      "cacheReadPerMillion": 0.025
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "nvidia/nemotron-3-super-120b-a12b"
+    },
+    "label": "NVIDIA Nemotron 3 Super 120B A12B",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 32000,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.65
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    "label": "Nemotron 3 Ultra",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65000,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.4,
+      "cacheReadPerMillion": 0.12
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "nvidia/nemotron-3.5-lightning"
+    },
+    "label": "Nemotron 3.5 Lightning 30B",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.05,
+      "outputPerMillion": 0.2,
+      "cacheReadPerMillion": 0.01
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "nvidia/nemotron-3.5-lightning-free"
+    },
+    "label": "Nemotron 3.5 Lightning Free",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 65000,
+    "cost": {
+      "inputPerMillion": 0,
+      "outputPerMillion": 0
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "nvidia/nemotron-3.5-super-vl"
+    },
+    "label": "NVIDIA Nemotron 3.5 Super VL",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 0.2,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.04
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "nvidia/nemotron-nano-12b-v2-vl"
+    },
+    "label": "Nvidia Nemotron Nano 12B V2 VL",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.2,
+      "outputPerMillion": 0.6
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "nvidia/nemotron-nano-9b-v2"
+    },
+    "label": "Nvidia Nemotron Nano 9B V2",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 0.23
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-4.1"
+    },
+    "label": "GPT-4.1",
+    "api": "ai-gateway",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 8,
+      "cacheReadPerMillion": 0.5
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-4.1-fast"
+    },
+    "label": "GPT-4.1 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 3.5,
+      "outputPerMillion": 14,
+      "cacheReadPerMillion": 0.875
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-4.1-mini"
+    },
+    "label": "GPT-4.1 mini",
+    "api": "ai-gateway",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.4,
+      "outputPerMillion": 1.6,
+      "cacheReadPerMillion": 0.1
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-4.1-mini-fast"
+    },
+    "label": "GPT-4.1 mini (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.7,
+      "outputPerMillion": 2.8,
+      "cacheReadPerMillion": 0.175
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-4.1-nano"
+    },
+    "label": "GPT-4.1 nano",
+    "api": "ai-gateway",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.4,
+      "cacheReadPerMillion": 0.03
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-4o"
+    },
+    "label": "GPT-4o",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 16384,
+    "cost": {
+      "inputPerMillion": 2.5,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 1.25
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-4o-fast"
+    },
+    "label": "GPT-4o (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 16384,
+    "cost": {
+      "inputPerMillion": 4.25,
+      "outputPerMillion": 17,
+      "cacheReadPerMillion": 2.125
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-4o-mini"
+    },
+    "label": "GPT-4o mini",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 16384,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.6,
+      "cacheReadPerMillion": 0.075
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-4o-mini-fast"
+    },
+    "label": "GPT-4o mini (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 16384,
+    "cost": {
+      "inputPerMillion": 0.25,
+      "outputPerMillion": 1,
+      "cacheReadPerMillion": 0.125
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5"
+    },
+    "label": "GPT-5",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.125
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5-codex"
+    },
+    "label": "GPT-5-Codex",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.13
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5-fast"
+    },
+    "label": "GPT-5 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2.5,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.25
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5-mini"
+    },
+    "label": "GPT-5 mini",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.25,
+      "outputPerMillion": 2,
+      "cacheReadPerMillion": 0.025
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5-mini-fast"
+    },
+    "label": "GPT-5 mini (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.45,
+      "outputPerMillion": 3.6,
+      "cacheReadPerMillion": 0.045
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5-nano"
+    },
+    "label": "GPT-5 nano",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.05,
+      "outputPerMillion": 0.4,
+      "cacheReadPerMillion": 0.005
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5-pro"
+    },
+    "label": "GPT-5 pro",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 272000,
+    "cost": {
+      "inputPerMillion": 15,
+      "outputPerMillion": 120
+    },
+    "effort": {
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.1-codex"
+    },
+    "label": "GPT-5.1-Codex",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.13
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.1-codex-max"
+    },
+    "label": "GPT 5.1 Codex Max",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.125
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.1-codex-mini"
+    },
+    "label": "GPT 5.1 Codex Mini",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.25,
+      "outputPerMillion": 2,
+      "cacheReadPerMillion": 0.03
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.1-thinking"
+    },
+    "label": "GPT 5.1 Thinking",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.125
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.1-thinking-fast"
+    },
+    "label": "GPT 5.1 Thinking (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2.5,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.25
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.2"
+    },
+    "label": "GPT 5.2",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.75,
+      "outputPerMillion": 14,
+      "cacheReadPerMillion": 0.175
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.2-codex"
+    },
+    "label": "GPT 5.2 Codex",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.75,
+      "outputPerMillion": 14,
+      "cacheReadPerMillion": 0.175
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.2-fast"
+    },
+    "label": "GPT 5.2 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 3.5,
+      "outputPerMillion": 28,
+      "cacheReadPerMillion": 0.35
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.2-pro"
+    },
+    "label": "GPT 5.2 ",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 21,
+      "outputPerMillion": 168
+    },
+    "effort": {
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.3-codex"
+    },
+    "label": "GPT 5.3 Codex",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.75,
+      "outputPerMillion": 14,
+      "cacheReadPerMillion": 0.175
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.3-codex-fast"
+    },
+    "label": "GPT 5.3 Codex (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 3.5,
+      "outputPerMillion": 28,
+      "cacheReadPerMillion": 0.35
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.4"
+    },
+    "label": "GPT 5.4",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2.5,
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.25
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.4-fast"
+    },
+    "label": "GPT 5.4 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 30,
+      "cacheReadPerMillion": 0.5
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.4-mini"
+    },
+    "label": "GPT 5.4 Mini",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.75,
+      "outputPerMillion": 4.5,
+      "cacheReadPerMillion": 0.075
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.4-mini-fast"
+    },
+    "label": "GPT 5.4 Mini (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.5,
+      "outputPerMillion": 9,
+      "cacheReadPerMillion": 0.15
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.4-nano"
+    },
+    "label": "GPT 5.4 Nano",
+    "api": "ai-gateway",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.2,
+      "outputPerMillion": 1.25,
+      "cacheReadPerMillion": 0.02
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.4-pro"
+    },
+    "label": "GPT 5.4 Pro",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 30,
+      "outputPerMillion": 180
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.5"
+    },
+    "label": "GPT 5.5",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 30,
+      "cacheReadPerMillion": 0.5
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.5-fast"
+    },
+    "label": "GPT 5.5 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 12.5,
+      "outputPerMillion": 75,
+      "cacheReadPerMillion": 1.25
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.5-pro"
+    },
+    "label": "GPT 5.5 Pro",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 30,
+      "outputPerMillion": 180
+    },
+    "effort": {
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.6-luna"
+    },
+    "label": "GPT 5.6 Luna",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.2,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.02,
+      "cacheWritePerMillion": 0.25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.6-luna-fast"
+    },
+    "label": "GPT 5.6 Luna (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.4,
+      "outputPerMillion": 2.4,
+      "cacheReadPerMillion": 0.04,
+      "cacheWritePerMillion": 0.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.6-sol"
+    },
+    "label": "GPT 5.6 Sol",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.6-sol-fast"
+    },
+    "label": "GPT 5.6 Sol (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 8,
+      "outputPerMillion": 40,
+      "cacheReadPerMillion": 0.8,
+      "cacheWritePerMillion": 10
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.6-terra"
+    },
+    "label": "GPT 5.6 Terra",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 12,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-5.6-terra-fast"
+    },
+    "label": "GPT 5.6 Terra (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 24,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6-astra"
+    },
+    "label": "GPT-6 Astra",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 10,
+      "outputPerMillion": 50,
+      "cacheReadPerMillion": 1,
+      "cacheWritePerMillion": 12.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6-astra-fast"
+    },
+    "label": "GPT-6 Astra (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 20,
+      "outputPerMillion": 100,
+      "cacheReadPerMillion": 2,
+      "cacheWritePerMillion": 25
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6-luna"
+    },
+    "label": "GPT-6 Luna",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.01,
+      "cacheWritePerMillion": 0.125
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6-luna-fast"
+    },
+    "label": "GPT-6 Luna (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.2,
+      "outputPerMillion": 1,
+      "cacheReadPerMillion": 0.02,
+      "cacheWritePerMillion": 0.25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6-sol"
+    },
+    "label": "GPT-6 Sol",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6-sol-fast"
+    },
+    "label": "GPT-6 Sol (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6.1-sol"
+    },
+    "label": "GPT-6.1 Sol",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6.1-sol-fast"
+    },
+    "label": "GPT-6.1 Sol (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6.1-terra"
+    },
+    "label": "GPT-6.1 Terra",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1,
+      "outputPerMillion": 5,
+      "cacheReadPerMillion": 0.05,
+      "cacheWritePerMillion": 1.25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6.1-terra-fast"
+    },
+    "label": "GPT-6.1 Terra (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-oss-120b"
+    },
+    "label": "GPT OSS 120B",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.1
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-oss-20b"
+    },
+    "label": "GPT OSS 20B",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 8192,
+    "cost": {
+      "inputPerMillion": 0.03,
+      "outputPerMillion": 0.14
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-oss-safeguard-120b"
+    },
+    "label": "GPT OSS Safeguard 120B",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 16000,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.6
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-oss-safeguard-20b"
+    },
+    "label": "GPT OSS Safeguard 20B",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 16000,
+    "cost": {
+      "inputPerMillion": 0.07,
+      "outputPerMillion": 0.2
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/o1"
+    },
+    "label": "o1",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 100000,
+    "cost": {
+      "inputPerMillion": 15,
+      "outputPerMillion": 60,
+      "cacheReadPerMillion": 7.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/o3"
+    },
+    "label": "o3",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 100000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 8,
+      "cacheReadPerMillion": 0.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/o3-fast"
+    },
+    "label": "o3 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 100000,
+    "cost": {
+      "inputPerMillion": 3.5,
+      "outputPerMillion": 14,
+      "cacheReadPerMillion": 0.875
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/o3-mini"
+    },
+    "label": "o3-mini",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 100000,
+    "cost": {
+      "inputPerMillion": 1.1,
+      "outputPerMillion": 4.4,
+      "cacheReadPerMillion": 0.55
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/o3-pro"
+    },
+    "label": "o3 Pro",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 100000,
+    "cost": {
+      "inputPerMillion": 20,
+      "outputPerMillion": 80
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/o4-mini"
+    },
+    "label": "o4-mini",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 100000,
+    "cost": {
+      "inputPerMillion": 1.1,
+      "outputPerMillion": 4.4,
+      "cacheReadPerMillion": 0.275
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "particle/particle-1"
+    },
+    "label": "Particle-1",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.125,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.015
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "poolside/laguna-s-2.1"
+    },
+    "label": "Laguna S 2.1",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.09,
+      "outputPerMillion": 0.18,
+      "cacheReadPerMillion": 0.009
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "quiverai/arrow-2"
+    },
+    "label": "Arrow 2",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "quiverai/arrow-2-telos"
+    },
+    "label": "Arrow 2 Telos",
+    "api": "ai-gateway",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 6,
+      "outputPerMillion": 30,
+      "cacheReadPerMillion": 0.6,
+      "cacheWritePerMillion": 7.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "reflection/beam"
+    },
+    "label": "Beam 1.0",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0,
+      "outputPerMillion": 0
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "reflection/beam-free"
+    },
+    "label": "Beam 1.0 (Free)",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0,
+      "outputPerMillion": 0
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "sakana/fugu-max"
+    },
+    "label": "Fugu Max",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 6,
+      "cacheReadPerMillion": 0.25
+    },
+    "effort": {
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "sakana/fugu-ultra"
+    },
+    "label": "Fugu Ultra",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 30,
+      "cacheReadPerMillion": 0.5
+    },
+    "effort": {
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "sakana/fugu-ultra-v2"
+    },
+    "label": "Fugu Ultra v2",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 30,
+      "cacheReadPerMillion": 0.5
+    },
+    "effort": {
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "sakana/namazu"
+    },
+    "label": "Sakana Namazu",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 0.95,
+      "outputPerMillion": 4,
+      "cacheReadPerMillion": 0.15
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.20-multi-agent"
+    },
+    "label": "Grok 4.20 Multi-Agent",
+    "api": "ai-gateway",
+    "contextWindow": 2000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 2000000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.20-multi-agent-beta"
+    },
+    "label": "Grok 4.20 Multi Agent Beta",
+    "api": "ai-gateway",
+    "contextWindow": 2000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 2000000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.20-non-reasoning"
+    },
+    "label": "Grok 4.20 Non-Reasoning",
+    "api": "ai-gateway",
+    "contextWindow": 2000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 2000000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.20-non-reasoning-beta"
+    },
+    "label": "Grok 4.20 Beta Non-Reasoning",
+    "api": "ai-gateway",
+    "contextWindow": 2000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 2000000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.20-reasoning"
+    },
+    "label": "Grok 4.20 Reasoning",
+    "api": "ai-gateway",
+    "contextWindow": 2000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 2000000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.20-reasoning-beta"
+    },
+    "label": "Grok 4.20 Beta Reasoning",
+    "api": "ai-gateway",
+    "contextWindow": 2000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 2000000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.3"
+    },
+    "label": "Grok 4.3",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 1.25,
+      "outputPerMillion": 2.5,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.5"
+    },
+    "label": "Grok 4.5",
+    "api": "ai-gateway",
+    "contextWindow": 500000,
+    "imageTier": "standard",
+    "maxOutputTokens": 500000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 6,
+      "cacheReadPerMillion": 0.3
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.6"
+    },
+    "label": "Grok 4.6",
+    "api": "ai-gateway",
+    "contextWindow": 500000,
+    "imageTier": "standard",
+    "maxOutputTokens": 500000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 6,
+      "cacheReadPerMillion": 0.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-4.7"
+    },
+    "label": "Grok 4.7",
+    "api": "ai-gateway",
+    "contextWindow": 500000,
+    "imageTier": "standard",
+    "maxOutputTokens": 500000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 6,
+      "cacheReadPerMillion": 0.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "spacexai/grok-build-0.1"
+    },
+    "label": "Grok Build 0.1",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 1,
+      "outputPerMillion": 2,
+      "cacheReadPerMillion": 0.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "stealth/glyph-cluster"
+    },
+    "label": "Glyph Cluster",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 0,
+      "outputPerMillion": 0
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "stepfun/step-3.7-flash"
+    },
+    "label": "Step 3.7 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 0.2,
+      "outputPerMillion": 1.15,
+      "cacheReadPerMillion": 0.04
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "stepfun/step-5-preview"
+    },
+    "label": "Step 5 Preview",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 1,
+      "outputPerMillion": 2.7,
+      "cacheReadPerMillion": 0.1
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "tencent/hy3"
+    },
+    "label": "Tencent Hy3",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.14,
+      "outputPerMillion": 0.58,
+      "cacheReadPerMillion": 0.035
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "tencent/hy4"
+    },
+    "label": "Tencent Hy4",
+    "api": "ai-gateway",
+    "contextWindow": 1024000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.417,
+      "outputPerMillion": 1.2505,
+      "cacheReadPerMillion": 0.021
+    },
+    "effort": {
+      "off": "none",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "tencent/hy4-preview"
+    },
+    "label": "Tencent Hy4 Preview",
+    "api": "ai-gateway",
+    "contextWindow": 1024000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.834,
+      "outputPerMillion": 2.501,
+      "cacheReadPerMillion": 0.042
+    },
+    "effort": {
+      "off": "none",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "thinkingmachines/inkling"
+    },
+    "label": "Inkling",
+    "api": "ai-gateway",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "maxOutputTokens": 256000,
+    "cost": {
+      "inputPerMillion": 1,
+      "outputPerMillion": 4.05,
+      "cacheReadPerMillion": 0.17
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "thinkingmachines/inkling-small"
+    },
+    "label": "Inkling Small",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 0.45,
+      "outputPerMillion": 1.2,
+      "cacheReadPerMillion": 0.1
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "xiaomi/mimo-v2.6-flash"
+    },
+    "label": "MiMo V2.6 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.14,
+      "outputPerMillion": 0.28,
+      "cacheReadPerMillion": 0.0028
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "xiaomi/mimo-v2.6-pro"
+    },
+    "label": "MiMo V2.6 Pro",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.435,
+      "outputPerMillion": 0.87,
+      "cacheReadPerMillion": 0.0036
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "xiaomi/mimo-v2.6-pro-ultraspeed"
+    },
+    "label": "MiMo V2.6 Pro UltraSpeed",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 4.35,
+      "outputPerMillion": 8.7,
+      "cacheReadPerMillion": 0.036
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-4.5"
+    },
+    "label": "GLM 4.5",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 96000,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.2,
+      "cacheReadPerMillion": 0.11
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-4.5-air"
+    },
+    "label": "GLM 4.5 Air",
+    "api": "ai-gateway",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "maxOutputTokens": 96000,
+    "cost": {
+      "inputPerMillion": 0.2,
+      "outputPerMillion": 1.1,
+      "cacheReadPerMillion": 0.03
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-4.5v"
+    },
+    "label": "GLM 4.5V",
+    "api": "ai-gateway",
+    "contextWindow": 66000,
+    "imageTier": "standard",
+    "maxOutputTokens": 16000,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 1.8,
+      "cacheReadPerMillion": 0.11
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-4.6"
+    },
+    "label": "GLM 4.6",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 96000,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.2,
+      "cacheReadPerMillion": 0.11
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-4.7"
+    },
+    "label": "GLM 4.7",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 120000,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-4.7-flash"
+    },
+    "label": "GLM 4.7 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131000,
+    "cost": {
+      "inputPerMillion": 0.07,
+      "outputPerMillion": 0.4
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-4.7-flashx"
+    },
+    "label": "GLM 4.7 FlashX",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 0.4,
+      "cacheReadPerMillion": 0.01
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5"
+    },
+    "label": "GLM 5",
+    "api": "ai-gateway",
+    "contextWindow": 202800,
+    "imageTier": "standard",
+    "maxOutputTokens": 131100,
+    "cost": {
+      "inputPerMillion": 1,
+      "outputPerMillion": 3.2
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5-turbo"
+    },
+    "label": "GLM 5 Turbo",
+    "api": "ai-gateway",
+    "contextWindow": 202800,
+    "imageTier": "standard",
+    "maxOutputTokens": 131100,
+    "cost": {
+      "inputPerMillion": 1.2,
+      "outputPerMillion": 4,
+      "cacheReadPerMillion": 0.24
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5.1"
+    },
+    "label": "GLM 5.1",
+    "api": "ai-gateway",
+    "contextWindow": 202800,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 1.4,
+      "outputPerMillion": 4.4,
+      "cacheReadPerMillion": 0.26
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5.2"
+    },
+    "label": "GLM 5.2",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.4,
+      "outputPerMillion": 4.4,
+      "cacheReadPerMillion": 0.14
+    },
+    "effort": {
+      "off": "none",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5.2-fast"
+    },
+    "label": "GLM 5.2 Fast",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2.8,
+      "outputPerMillion": 8.8,
+      "cacheReadPerMillion": 0.56
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5.3"
+    },
+    "label": "GLM 5.3",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 1.4,
+      "outputPerMillion": 4.4,
+      "cacheReadPerMillion": 0.14
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5.3-fast"
+    },
+    "label": "GLM 5.3 Fast",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 2.1,
+      "outputPerMillion": 6.6,
+      "cacheReadPerMillion": 0.21
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5.3-flash"
+    },
+    "label": "GLM 5.3 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131000,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.03
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5.3-flashx"
+    },
+    "label": "GLM 5.3 FlashX",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.37,
+      "outputPerMillion": 1.25,
+      "cacheReadPerMillion": 0.075
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5.3-flashx-legal"
+    },
+    "label": "GLM 5.3 FlashX Legal",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.37,
+      "outputPerMillion": 1.25,
+      "cacheReadPerMillion": 0.075
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "zai/glm-5v-turbo"
+    },
+    "label": "GLM 5V Turbo",
+    "api": "ai-gateway",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1.2,
+      "outputPerMillion": 4,
+      "cacheReadPerMillion": 0.24
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  }
+]

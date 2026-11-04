@@ -10,13 +10,13 @@ const account = (provider: string, status = 'active') => ({ provider, kind: 'oau
 
 const CLAUDE = 'Claude Plan'
 const CODEX = 'Codex Plan'
-const ALL_LABELS = [CLAUDE, CODEX, 'OpenRouter', 'Inference.net']
+const ALL_LABELS = [CLAUDE, CODEX, 'OpenRouter', 'Inference.net', 'Vercel AI Gateway']
 const selectable = (options: { disabled?: boolean }[]) =>
   options.filter((option) => option.disabled !== true)
 const countOf = (provider: string) => withoutDatedDuplicates(cardsForProvider(provider)).length
 
 describe('modelOptionsOf', () => {
-  it('lists all four providers in catalogue order, unconnected ones disabled', () => {
+  it('lists all five providers in catalogue order, unconnected ones disabled', () => {
     const { models, reconnectProviders } = modelOptionsOf({
       accounts: [account('openai'), account('anthropic')],
     })

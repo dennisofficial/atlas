@@ -16,6 +16,7 @@ const AUTH_PROVIDER_OF: Record<EProviderId, EAuthProvider> = {
   [EProviderId.OpenAI]: EAuthProvider.OpenAI,
   [EProviderId.OpenRouter]: EAuthProvider.OpenRouter,
   [EProviderId.Inference]: EAuthProvider.Inference,
+  [EProviderId.Gateway]: EAuthProvider.Gateway,
 }
 
 const accountSchema = z.object({

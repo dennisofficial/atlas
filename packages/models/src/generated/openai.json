@@ -623,6 +623,31 @@
   {
     "ref": {
       "providerId": "openai",
+      "modelId": "gpt-6.1-terra"
+    },
+    "label": "GPT-6.1 Terra",
+    "api": "openai-responses",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 1,
+      "outputPerMillion": 5,
+      "cacheReadPerMillion": 0.05,
+      "cacheWritePerMillion": 1.25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
       "modelId": "gpt-daybreak-blue-latest"
     },
     "label": "Daybreak Blue",

@@ -2,9 +2,6 @@
 
 import { useCallback } from 'react'
 
-import { Badge } from '@dltech/atlas-ui/components/badge'
-import { Button } from '@dltech/atlas-ui/components/button'
-
 import { MODEL_PICKER_KEY } from '@/lib/cloud-keys'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
@@ -27,8 +24,8 @@ import { ApiKeyRow } from '../parts/agent-api-key-row'
 import { ProviderSignInPanel } from '../parts/provider-sign-in-panel'
 import { SubscriptionRow, type SubscriptionAccount } from '../parts/agent-subscription-row'
 import { EOauthProvider } from '@dltech/atlas-wire/web'
-import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
-import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../settings-layout'
+import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
+import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Providers'
 const DESCRIPTION = 'Where Atlas gets model access. A subscription is used first, then an API key.'
@@ -178,7 +175,6 @@ function ProvidersContent({
               />
             )
           })}
-          <AiGatewayRow />
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>
@@ -221,26 +217,6 @@ function SubscriptionSignInRow({
       onSignOut={() => {
         if (account !== null) onSignOut(account.id)
       }}
-    />
-  )
-}
-
-function AiGatewayRow() {
-  return (
-    <SettingsRow
-      media={<BrandMark brand={EBrand.Vercel} />}
-      title={
-        <>
-          Vercel AI Gateway
-          <Badge variant="outline">Coming soon</Badge>
-        </>
-      }
-      description="Every major model behind one key, billed through Vercel."
-      control={
-        <Button variant="outline" size="sm" disabled>
-          Add key
-        </Button>
-      }
     />
   )
 }

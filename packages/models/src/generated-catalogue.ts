@@ -1,5 +1,6 @@
 import { catalogOf, refKey, type ModelCard, type ModelCatalog } from '@dltech/atlas-core'
 import anthropicRows from './generated/anthropic.json'
+import gatewayRows from './generated/gateway.json'
 import inferenceRows from './generated/inference.json'
 import manifestRow from './generated/manifest.json'
 import openaiRows from './generated/openai.json'
@@ -16,6 +17,7 @@ const SOURCES: readonly (readonly GeneratedCard[])[] = [
   openaiRows,
   openrouterRows,
   inferenceRows,
+  gatewayRows,
 ]
 
 export const GENERATED_MANIFEST: GeneratedManifest = manifestRow

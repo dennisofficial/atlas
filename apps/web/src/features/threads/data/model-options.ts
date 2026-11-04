@@ -10,6 +10,8 @@ import {
   catalogueProviders,
   CLAUDE_PLAN_LABEL,
   CODEX_PLAN_LABEL,
+  GATEWAY_LABEL,
+  GATEWAY_PROVIDER_ID,
   INFERENCE_LABEL,
   INFERENCE_PROVIDER_ID,
   OPENAI_PROVIDER_ID,
@@ -35,6 +37,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   [OPENAI_PROVIDER_ID]: CODEX_PLAN_LABEL,
   [OPENROUTER_PROVIDER_ID]: OPENROUTER_LABEL,
   [INFERENCE_PROVIDER_ID]: INFERENCE_LABEL,
+  [GATEWAY_PROVIDER_ID]: GATEWAY_LABEL,
 }
 
 const PROVIDER_BRANDS: Record<string, EBrand> = {
@@ -42,6 +45,7 @@ const PROVIDER_BRANDS: Record<string, EBrand> = {
   [OPENAI_PROVIDER_ID]: EBrand.OpenAI,
   [OPENROUTER_PROVIDER_ID]: EBrand.OpenRouter,
   [INFERENCE_PROVIDER_ID]: EBrand.Inference,
+  [GATEWAY_PROVIDER_ID]: EBrand.Vercel,
 }
 
 const efforts = new Map<string, EEffort>(Object.values(EEffort).map((effort) => [effort, effort]))

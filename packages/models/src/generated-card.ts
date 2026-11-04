@@ -14,11 +14,16 @@ export { OPENAI_COMPLETIONS_API }
 
 export const INFERENCE_CATALOGUE_PROVIDER_ID = 'inference'
 
+export const GATEWAY_CATALOGUE_PROVIDER_ID = 'gateway'
+
+export const GATEWAY_API = 'ai-gateway'
+
 export const MODELS_DEV_PROVIDER_IDS: readonly string[] = ['anthropic', 'openai', 'openrouter']
 
 export const CATALOGUE_PROVIDER_IDS: readonly string[] = [
   ...MODELS_DEV_PROVIDER_IDS,
   INFERENCE_CATALOGUE_PROVIDER_ID,
+  GATEWAY_CATALOGUE_PROVIDER_ID,
 ]
 
 /**
@@ -32,6 +37,7 @@ export const API_BY_NPM: Readonly<Record<string, string>> = {
   '@ai-sdk/openai': 'openai-responses',
   '@ai-sdk/openai-compatible': OPENAI_COMPLETIONS_API,
   '@openrouter/ai-sdk-provider': OPENAI_COMPLETIONS_API,
+  '@ai-sdk/gateway': GATEWAY_API,
 }
 
 export type GeneratedCard = {
