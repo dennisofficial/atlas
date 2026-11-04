@@ -4,6 +4,7 @@ model McpOauthPending {
   serverUrl String
   sealed    String
   returnTo  String
+  returnSurface String @default("web")
   expiresAt TimestamptzJsDate(3)
   createdAt TimestamptzJsDate(3) @default(now())
   mcpServerId String?

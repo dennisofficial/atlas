@@ -1,0 +1,64 @@
+[
+  {
+    "id": "column.public.McpOauthPending.returnSurface",
+    "label": "Add column \"returnSurface\" to \"McpOauthPending\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "returnSurface",
+        "table": "McpOauthPending"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"returnSurface\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpOauthPending",
+          "returnSurface"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"returnSurface\"",
+        "sql": "ALTER TABLE \"public\".\"McpOauthPending\" ADD COLUMN \"returnSurface\" text DEFAULT 'web' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"returnSurface\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpOauthPending",
+          "returnSurface"
+        ]
+      },
+      {
+        "description": "verify column \"returnSurface\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "McpOauthPending",
+          "returnSurface",
+          "text"
+        ]
+      },
+      {
+        "description": "verify column \"returnSurface\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "McpOauthPending",
+          "returnSurface",
+          "NO"
+        ]
+      }
+    ]
+  }
+]

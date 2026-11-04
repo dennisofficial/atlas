@@ -1,17 +1,22 @@
 import { describe, expect, it } from 'bun:test'
-import { EMcpOauthBeginOutcome, EMcpOauthGrantStatus } from '@dltech/atlas-wire'
+import {
+  EMcpOauthBeginOutcome,
+  EMcpOauthGrantStatus,
+  EMcpOauthReturnSurface,
+} from '@dltech/atlas-wire'
 import { AUTH, SERVER, json } from './mcp-oauth.fakes'
 import { EGrantRowStatus } from './mcp-oauth.types'
 import { addCloudServer, build, NORMALIZED, seedGrant, stateOf } from './mcp-oauth.testkit'
 
 describe('McpOauthService.complete', () => {
-  const begun = async () => {
+  const begun = async (surface?: EMcpOauthReturnSurface) => {
     const env = build()
     const server = await addCloudServer(env)
     const result = await env.oauth.begin({
       userId: 'user-a',
       serverId: server.id,
       returnTo: '/settings/integrations?tab=mcp',
+      ...(surface === undefined ? {} : { surface }),
     })
     if (result.outcome !== EMcpOauthBeginOutcome.Redirect) throw new Error('expected redirect')
     env.fetcher.on(`${AUTH}/token`, () =>
@@ -37,6 +42,28 @@ describe('McpOauthService.complete', () => {
     expect(body.get('resource')).toBe(SERVER)
     expect(body.get('code')).toBe('code-1')
     expect(await statusOf(env, server.id)).toBe(EGrantRowStatus.Active)
+  })
+
+  it('returns to the Mac app over atlas:// when sign-in began there', async () => {
+    const { env, state } = await begun(EMcpOauthReturnSurface.Desktop)
+    const location = new URL(
+      await env.oauth.complete({ state, code: 'code-1', sessionUserId: 'user-a' }),
+    )
+    expect(location.protocol).toBe('atlas:')
+    expect(location.host).toBe('open')
+    expect(location.pathname).toBe('/settings/integrations')
+    expect(location.searchParams.get('tab')).toBe('mcp')
+    expect(location.searchParams.get('mcpOauth')).toBe('connected')
+  })
+
+  it('returns a failed desktop sign-in to the Mac app too', async () => {
+    const { env, state } = await begun(EMcpOauthReturnSurface.Desktop)
+    const location = new URL(
+      await env.oauth.complete({ state, error: 'access_denied', sessionUserId: 'user-a' }),
+    )
+    expect(location.protocol).toBe('atlas:')
+    expect(location.searchParams.get('mcpOauth')).toBe('failed')
+    expect(location.searchParams.get('mcpReason')).toBe('access_denied')
   })
 
   it('is single use', async () => {

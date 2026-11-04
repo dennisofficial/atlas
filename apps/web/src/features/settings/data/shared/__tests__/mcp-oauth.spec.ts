@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMcpOauthGrantStatus, EMcpServerSource, type McpOauthServer } from '@dltech/atlas-wire/web'
+import {
+  EMcpOauthGrantStatus,
+  EMcpOauthReturnSurface,
+  EMcpServerSource,
+  type McpOauthServer,
+} from '@dltech/atlas-wire/web'
 
 import { ELinkReturnKind } from '../../personal/link-return'
 import {
@@ -10,6 +15,7 @@ import {
   lastUsedOf,
   mcpOauthReturnOf,
   repoServersOf,
+  returnSurfaceOf,
 } from '../mcp-oauth'
 
 const URL_A = 'https://mcp.example.com/mcp'
@@ -126,5 +132,17 @@ describe('mcpOauthReturnOf', () => {
       kind: ELinkReturnKind.Error,
       message: "Couldn't sign in to the server",
     })
+  })
+})
+
+describe('returnSurfaceOf', () => {
+  it('returns to the Mac app when the desktop bridge is present', () => {
+    expect(returnSurfaceOf({ atlasDesktop: { vibrancy: false } })).toBe(
+      EMcpOauthReturnSurface.Desktop,
+    )
+  })
+
+  it('returns to the website otherwise', () => {
+    expect(returnSurfaceOf({})).toBe(EMcpOauthReturnSurface.Web)
   })
 })

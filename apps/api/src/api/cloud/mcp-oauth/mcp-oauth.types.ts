@@ -1,4 +1,4 @@
-import { EMcpServerSource } from '@dltech/atlas-wire'
+import { EMcpOauthReturnSurface, EMcpServerSource } from '@dltech/atlas-wire'
 import { z } from 'zod'
 import type { HostResolver } from './mcp-oauth-ssrf'
 
@@ -65,6 +65,7 @@ export interface PendingRow {
   serverUrl: string
   sealed: string
   returnTo: string
+  returnSurface: EMcpOauthReturnSurface
   expiresAt: Date
   mcpServerId: string | null
 }

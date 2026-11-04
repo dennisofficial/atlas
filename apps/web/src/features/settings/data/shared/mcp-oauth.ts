@@ -1,12 +1,15 @@
 import {
   EMcpOauthCallbackResult,
   EMcpOauthGrantStatus,
+  EMcpOauthReturnSurface,
   EMcpServerSource,
   MCP_OAUTH_REASON_PARAM,
   MCP_OAUTH_RESULT_PARAM,
   MCP_OAUTH_SERVER_PARAM,
   type McpOauthServer,
 } from '@dltech/atlas-wire/web'
+
+import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 
 import { ELinkReturnKind, type LinkReturn } from '../personal/link-return'
 import { relativeTimeOf } from './relative-time'
@@ -40,6 +43,9 @@ export const authStateOf = (server: McpOauthServer | undefined): EMcpAuthState =
   if (server.status === EMcpOauthGrantStatus.Expired) return EMcpAuthState.SignInAgain
   return EMcpAuthState.SignIn
 }
+
+export const returnSurfaceOf = (host: object): EMcpOauthReturnSurface =>
+  isDesktopHost(host) ? EMcpOauthReturnSurface.Desktop : EMcpOauthReturnSurface.Web
 
 const hostOf = (serverUrl: string | null): string =>
   serverUrl !== null && URL.canParse(serverUrl) ? new URL(serverUrl).host : 'the server'

@@ -12,7 +12,17 @@ import { DESKTOP_PRELOAD } from './preload'
 import { runLogged, writeLog } from './crash-log'
 import { type IExternalLinkRouter, routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
+import { deepLinkTargetOf, openUrlOf } from './deep-link'
 import { readDoubleClickAction, runTitlebarAction } from './titlebar-action'
+
+const earlyLinks: string[] = []
+const deepLinkRef: { open?: (link: string) => void } = {}
+Electrobun.events.on('open-url', (event: unknown) => {
+  const link = openUrlOf(event)
+  if (link === null) return
+  if (deepLinkRef.open) deepLinkRef.open(link)
+  else earlyLinks.push(link)
+})
 
 await runLogged(async () => {
   const localInfo = await Updater.getLocalInfo()
@@ -57,6 +67,14 @@ await runLogged(async () => {
   windowRef.current = win
 
   syncFullscreen({ win })
+  deepLinkRef.open = (link) => {
+    const target = deepLinkTargetOf({ link, hostUrl: host.url, secret })
+    if (target === null) return
+    win.webview.loadURL(target)
+    if (win.isMinimized()) win.unminimize()
+    win.activate()
+  }
+  for (const link of earlyLinks.splice(0)) deepLinkRef.open(link)
   linksRef.current = routeExternalLinks({
     webview: win.webview,
     onNewWindow: (handler) =>

@@ -26,6 +26,14 @@ export enum EMcpServerSource {
   Repo = 'repo',
 }
 
+export enum EMcpOauthReturnSurface {
+  Web = 'web',
+  Desktop = 'desktop',
+}
+
+export const DESKTOP_URL_SCHEME = 'atlas'
+export const DESKTOP_OPEN_HOST = 'open'
+
 export const MCP_OAUTH_CALLBACK_PATH = '/v1/mcp/oauth/callback'
 export const MCP_OAUTH_RESULT_PARAM = 'mcpOauth'
 export const MCP_OAUTH_SERVER_PARAM = 'mcpServer'
@@ -42,6 +50,7 @@ export type McpOauthServerRef = z.infer<typeof mcpOauthServerRefSchema>
 
 export const mcpOauthBeginInputSchema = mcpOauthServerRefSchema.extend({
   returnTo: returnToSchema.optional(),
+  surface: z.enum(EMcpOauthReturnSurface).optional(),
 })
 export type McpOauthBeginInput = z.infer<typeof mcpOauthBeginInputSchema>
 
