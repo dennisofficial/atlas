@@ -5,15 +5,35 @@ import { FaultProxy, type ProxyFault } from '../fault-proxy'
 type EchoServer = { port: number; stop(): void }
 
 const startEcho = (): EchoServer => {
-  const server = Bun.listen<{ count: number }>({
+  const pump = (socket: {
+    data: { queue: Uint8Array[] }
+    write(chunk: Uint8Array): number
+  }): void => {
+    const { queue } = socket.data
+    while (queue.length > 0) {
+      const head = queue[0]
+      if (head === undefined) return
+      const written = socket.write(head)
+      if (written < head.byteLength) {
+        queue[0] = head.subarray(written)
+        return
+      }
+      queue.shift()
+    }
+  }
+  const server = Bun.listen<{ queue: Uint8Array[] }>({
     hostname: '127.0.0.1',
     port: 0,
     socket: {
       open(socket) {
-        socket.data = { count: 0 }
+        socket.data = { queue: [] }
       },
       data(socket, chunk) {
-        socket.write(chunk)
+        socket.data.queue.push(new Uint8Array(chunk))
+        pump(socket)
+      },
+      drain(socket) {
+        pump(socket)
       },
     },
   })
@@ -22,6 +42,7 @@ const startEcho = (): EchoServer => {
 
 const roundTrip = async (args: { port: number; bytes: Uint8Array }): Promise<Uint8Array> => {
   const chunks: Uint8Array[] = []
+  let sent = 0
   const socket = await Bun.connect({
     hostname: '127.0.0.1',
     port: args.port,
@@ -29,10 +50,21 @@ const roundTrip = async (args: { port: number; bytes: Uint8Array }): Promise<Uin
       data(_socket, chunk) {
         chunks.push(new Uint8Array(chunk))
       },
+      drain(ready) {
+        while (sent < args.bytes.byteLength) {
+          const written = ready.write(args.bytes.subarray(sent))
+          if (written === 0) return
+          sent += written
+        }
+      },
     },
   })
-  socket.write(args.bytes)
-  const deadline = Date.now() + 5_000
+  while (sent < args.bytes.byteLength) {
+    const written = socket.write(args.bytes.subarray(sent))
+    if (written === 0) break
+    sent += written
+  }
+  const deadline = Date.now() + 15_000
   let total = 0
   while (total < args.bytes.byteLength && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 10))
@@ -165,6 +197,88 @@ describe('FaultProxy', () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
     }
     expect(closed).toBe(true)
+    socket.end()
+  })
+
+  it('keeps every byte in order through a downstream throttle', async () => {
+    const proxy = await start({ bytesPerSecond: 4_000_000 })
+    const size = 5 * 1024 * 1024
+    const bytes = new Uint8Array(size)
+    for (let i = 0; i < size; i += 1) bytes[i] = i % 251
+    const echoed = await roundTrip({ port: proxy.port, bytes })
+    expect(echoed.byteLength).toBe(size)
+    expect(echoed).toEqual(bytes)
+  }, 30_000)
+
+  it('holds upstream bytes written before the target connection opened', async () => {
+    const proxy = await start({ holdUpstream: true })
+    const echoed: Uint8Array[] = []
+    const socketPromise = Bun.connect({
+      hostname: '127.0.0.1',
+      port: proxy.port,
+      socket: {
+        data(_socket, chunk) {
+          echoed.push(new Uint8Array(chunk))
+        },
+      },
+    })
+    const socket = await socketPromise
+    socket.write(new TextEncoder().encode('early'))
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    expect(echoed.length).toBe(0)
+    proxy.clear()
+    const deadline = Date.now() + 3_000
+    while (echoed.length === 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    expect(new TextDecoder().decode(echoed[0])).toBe('early')
+    socket.end()
+  })
+
+  it('holds a latency-scheduled upstream send when hold is set mid-flight', async () => {
+    const proxy = await start({ latencyMs: 300 })
+    const echoed: Uint8Array[] = []
+    const socket = await Bun.connect({
+      hostname: '127.0.0.1',
+      port: proxy.port,
+      socket: {
+        data(_socket, chunk) {
+          echoed.push(new Uint8Array(chunk))
+        },
+      },
+    })
+    socket.write(new TextEncoder().encode('in-flight'))
+    proxy.set({ holdUpstream: true })
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    expect(echoed.length).toBe(0)
+    proxy.clear()
+    const deadline = Date.now() + 3_000
+    while (echoed.length === 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    expect(new TextDecoder().decode(echoed[0])).toBe('in-flight')
+    socket.end()
+  })
+
+  it('stop closes the listener and every pending connection', async () => {
+    const proxy = await start()
+    const socket = await Bun.connect({
+      hostname: '127.0.0.1',
+      port: proxy.port,
+      socket: { data() {} },
+    })
+    socket.write(new TextEncoder().encode('pending'))
+    const connecting = Bun.connect({
+      hostname: '127.0.0.1',
+      port: proxy.port,
+      socket: { data() {} },
+    }).catch((error: unknown) => error)
+    await proxy.stop()
+    expect(proxy.connections()).toBe(0)
+    await connecting
+    await expect(
+      Bun.connect({ hostname: '127.0.0.1', port: proxy.port, socket: { data() {} } }),
+    ).rejects.toThrow()
     socket.end()
   })
 })

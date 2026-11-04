@@ -25,6 +25,7 @@ type Relay = {
   target: RelaySocket | undefined
   buffers: Record<Direction, Uint8Array[]>
   writing: Record<Direction, boolean>
+  pausedOn: Record<Direction, RelaySocket | undefined>
   closed: boolean
 }
 
@@ -33,6 +34,7 @@ const newRelay = (client: RelaySocket): Relay => ({
   target: undefined,
   buffers: { upstream: [], downstream: [] },
   writing: { upstream: false, downstream: false },
+  pausedOn: { upstream: undefined, downstream: undefined },
   closed: false,
 })
 
@@ -40,6 +42,7 @@ type State = {
   fault: ProxyFault | undefined
   relays: Set<Relay>
   target: { host: string; port: number }
+  stopped: boolean
 }
 
 const latencyOf = (fault: ProxyFault | undefined): number => {
@@ -48,35 +51,73 @@ const latencyOf = (fault: ProxyFault | undefined): number => {
   return fault.latencyMs + (jitter > 0 ? Math.random() * jitter : 0)
 }
 
-const writeChunk = (socket: RelaySocket, chunk: Uint8Array): void => {
-  const written = socket.write(chunk)
-  if (written < chunk.byteLength) socket.write(chunk.subarray(written))
-}
+const isHeldUpstream = (fault: ProxyFault | undefined): boolean =>
+  fault !== undefined && 'holdUpstream' in fault
+
+const isBlackholed = (fault: ProxyFault | undefined): boolean =>
+  fault !== undefined && 'blackhole' in fault
 
 const destinationOf = (relay: Relay, direction: Direction): RelaySocket | undefined =>
   direction === 'upstream' ? relay.target : relay.client
 
 const flush = (state: State, relay: Relay, direction: Direction): void => {
   const destination = destinationOf(relay, direction)
-  if (destination === undefined || relay.closed || relay.writing[direction]) return
+  if (destination === undefined || relay.closed) return
+  if (relay.writing[direction] || relay.pausedOn[direction] !== undefined) return
+  if (direction === 'upstream' && isHeldUpstream(state.fault)) return
   const queue = relay.buffers[direction]
   const chunk = queue.shift()
   if (chunk === undefined) return
-  const fault = state.fault
-  const latency = latencyOf(fault)
-  const throttle = fault !== undefined && 'bytesPerSecond' in fault ? fault : undefined
+  if (isBlackholed(state.fault)) {
+    queue.length = 0
+    return
+  }
+  const latency = latencyOf(state.fault)
+  const throttle =
+    state.fault !== undefined && 'bytesPerSecond' in state.fault ? state.fault : undefined
   const send = (): void => {
     relay.writing[direction] = false
-    if (relay.closed) return
-    if (state.fault !== undefined && 'blackhole' in state.fault) {
-      flush(state, relay, direction)
+    if (relay.closed || state.stopped) return
+    if (direction === 'upstream' && isHeldUpstream(state.fault)) {
+      queue.unshift(chunk)
       return
     }
+    if (isBlackholed(state.fault)) {
+      queue.length = 0
+      return
+    }
+    let part = chunk
     if (throttle !== undefined && direction === 'downstream') {
-      const slice = chunk.subarray(0, Math.max(1, Math.floor(throttle.bytesPerSecond / 10)))
-      writeChunk(destination, slice)
-      const rest = chunk.subarray(slice.byteLength)
-      if (rest.byteLength > 0) queue.unshift(rest)
+      const budget = Math.max(1, Math.floor(throttle.bytesPerSecond / 10))
+      const parts = [chunk]
+      let gathered = chunk.byteLength
+      while (gathered < budget) {
+        const next = queue.shift()
+        if (next === undefined) break
+        parts.push(next)
+        gathered += next.byteLength
+      }
+      if (parts.length > 1) {
+        const joined = new Uint8Array(gathered)
+        let offset = 0
+        for (const piece of parts) {
+          joined.set(piece, offset)
+          offset += piece.byteLength
+        }
+        part = joined
+      }
+      if (part.byteLength > budget) {
+        queue.unshift(part.subarray(budget))
+        part = part.subarray(0, budget)
+      }
+    }
+    const written = destination.write(part)
+    if (written < part.byteLength) {
+      queue.unshift(part.subarray(written))
+      relay.pausedOn[direction] = destination
+      return
+    }
+    if (throttle !== undefined && direction === 'downstream' && queue.length > 0) {
       relay.writing[direction] = true
       setTimeout(() => {
         relay.writing[direction] = false
@@ -84,7 +125,6 @@ const flush = (state: State, relay: Relay, direction: Direction): void => {
       }, 100)
       return
     }
-    writeChunk(destination, chunk)
     flush(state, relay, direction)
   }
   relay.writing[direction] = true
@@ -93,14 +133,7 @@ const flush = (state: State, relay: Relay, direction: Direction): void => {
 }
 
 const receive = (state: State, relay: Relay, direction: Direction, chunk: Uint8Array): void => {
-  const fault = state.fault
-  if (fault !== undefined) {
-    if ('blackhole' in fault) return
-    if (direction === 'upstream' && 'holdUpstream' in fault) {
-      relay.buffers.upstream.push(new Uint8Array(chunk))
-      return
-    }
-  }
+  if (isBlackholed(state.fault)) return
   relay.buffers[direction].push(new Uint8Array(chunk))
   flush(state, relay, direction)
 }
@@ -124,7 +157,22 @@ const closeRelay = (state: State, relay: Relay, withFin: boolean): void => {
 
 export const FaultProxy = {
   start: async (args: { target: { host: string; port: number } }): Promise<FaultProxy> => {
-    const state: State = { fault: undefined, relays: new Set(), target: args.target }
+    const state: State = {
+      fault: undefined,
+      relays: new Set(),
+      target: args.target,
+      stopped: false,
+    }
+
+    const handleDrain = (socket: RelaySocket): void => {
+      const relay = socket.data
+      if (relay === undefined || relay.closed) return
+      for (const direction of ['upstream', 'downstream'] as const) {
+        if (relay.pausedOn[direction] !== socket) continue
+        relay.pausedOn[direction] = undefined
+        flush(state, relay, direction)
+      }
+    }
 
     const openUpstream = (relay: Relay): void => {
       Bun.connect<Relay>({
@@ -132,17 +180,31 @@ export const FaultProxy = {
         port: state.target.port,
         socket: {
           open(target) {
+            if (relay.closed || state.stopped) {
+              try {
+                target.close()
+              } catch {
+                // the socket is already gone
+              }
+              return
+            }
             target.data = relay
             relay.target = target
             flush(state, relay, 'upstream')
           },
           data(target, chunk) {
+            if (target.data === undefined) return
             receive(state, target.data, 'downstream', chunk)
           },
+          drain(target) {
+            handleDrain(target)
+          },
           close(target) {
+            if (target.data === undefined) return
             closeRelay(state, target.data, true)
           },
           error(target) {
+            if (target.data === undefined) return
             closeRelay(state, target.data, false)
           },
         },
@@ -156,7 +218,7 @@ export const FaultProxy = {
       port: 0,
       socket: {
         open(client) {
-          if (state.fault !== undefined && 'refuse' in state.fault) {
+          if (state.stopped || (state.fault !== undefined && 'refuse' in state.fault)) {
             client.end()
             return
           }
@@ -168,6 +230,9 @@ export const FaultProxy = {
         data(client, chunk) {
           if (client.data === undefined) return
           receive(state, client.data, 'upstream', chunk)
+        },
+        drain(client) {
+          handleDrain(client)
         },
         close(client) {
           if (client.data === undefined) return
@@ -189,7 +254,7 @@ export const FaultProxy = {
         state.fault = fault
       },
       clear() {
-        const held = state.fault !== undefined && 'holdUpstream' in state.fault
+        const held = isHeldUpstream(state.fault)
         state.fault = undefined
         if (held) {
           for (const relay of state.relays) flush(state, relay, 'upstream')
@@ -200,6 +265,7 @@ export const FaultProxy = {
       },
       connections: () => state.relays.size,
       async stop() {
+        state.stopped = true
         for (const relay of [...state.relays]) closeRelay(state, relay, false)
         server.stop(true)
       },
