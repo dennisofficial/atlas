@@ -4,7 +4,8 @@ import { FaultProxy, type ProxyFault } from '../fault-proxy'
 
 type EchoServer = { port: number; stop(): void }
 
-const startEcho = (): EchoServer => {
+const startEcho = (prefix?: string): EchoServer => {
+  const tag = prefix === undefined ? new Uint8Array() : new TextEncoder().encode(prefix)
   const pump = (socket: {
     data: { queue: Uint8Array[] }
     write(chunk: Uint8Array): number
@@ -29,7 +30,10 @@ const startEcho = (): EchoServer => {
         socket.data = { queue: [] }
       },
       data(socket, chunk) {
-        socket.data.queue.push(new Uint8Array(chunk))
+        const tagged = new Uint8Array(tag.byteLength + chunk.byteLength)
+        tagged.set(tag)
+        tagged.set(new Uint8Array(chunk), tag.byteLength)
+        socket.data.queue.push(tagged)
         pump(socket)
       },
       drain(socket) {
@@ -282,6 +286,40 @@ describe('FaultProxy', () => {
     }
     expect(new TextDecoder().decode(echoed[0])).toBe('in-flight')
     socket.end()
+  })
+
+  it('retarget drops live connections and relays new ones to the new target', async () => {
+    const first = startEcho('first:')
+    const second = startEcho('second:')
+    const proxy = await FaultProxy.start({ target: { host: '127.0.0.1', port: first.port } })
+    running.push(proxy)
+    const stale = await Bun.connect({
+      hostname: '127.0.0.1',
+      port: proxy.port,
+      socket: { data() {} },
+    })
+    try {
+      expect(proxy.connections()).toBe(1)
+      const before = new TextEncoder().encode('ping')
+      expect(await roundTrip({ port: proxy.port, bytes: before })).toEqual(
+        new TextEncoder().encode('first:ping'),
+      )
+      proxy.retarget({ host: '127.0.0.1', port: second.port })
+      const deadline = Date.now() + 3_000
+      while (proxy.connections() !== 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      expect(proxy.connections()).toBe(0)
+      expect(stale.readyState).not.toBe('open')
+      const after = new TextEncoder().encode('ping')
+      expect(await roundTrip({ port: proxy.port, bytes: after })).toEqual(
+        new TextEncoder().encode('second:ping'),
+      )
+    } finally {
+      first.stop()
+      second.stop()
+      stale.end()
+    }
   })
 
   it('stop closes the listener and every pending connection', async () => {

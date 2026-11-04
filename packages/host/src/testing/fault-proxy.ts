@@ -13,6 +13,7 @@ export type FaultProxy = {
   set(fault: ProxyFault): void
   clear(): void
   drop(): void
+  retarget(target: { host: string; port: number }): void
   connections(): number
   stop(): Promise<void>
 }
@@ -272,6 +273,10 @@ export const FaultProxy = {
         }
       },
       drop() {
+        for (const relay of [...state.relays]) closeRelay(state, relay, false)
+      },
+      retarget(target) {
+        state.target = target
         for (const relay of [...state.relays]) closeRelay(state, relay, false)
       },
       connections: () => state.relays.size,

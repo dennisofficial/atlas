@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 
+import { expect } from 'bun:test'
+
 import type { ControlPlane } from '@dltech/atlas-control'
 
 import type { ReadEvent } from '../../testing/fault-rig'
@@ -46,4 +48,43 @@ export const waitForFile = async (args: { path: string; timeoutMs?: number }): P
     await new Promise((resolve) => setTimeout(resolve, 50))
   }
   throw new Error(`timed out waiting for ${args.path}`)
+}
+
+export const releaseFifo = async (args: { path: string; timeoutMs?: number }): Promise<void> => {
+  const child = Bun.spawn({
+    cmd: ['sh', '-c', `printf 'go\\n' > '${args.path}'`],
+    stdin: 'ignore',
+    stdout: 'ignore',
+    stderr: 'ignore',
+  })
+  const done = await Promise.race([
+    child.exited.then(() => true as const),
+    new Promise<false>((resolve) => setTimeout(() => resolve(false), args.timeoutMs ?? 10_000)),
+  ])
+  if (!done) {
+    child.kill('SIGKILL')
+    await child.exited.catch(() => undefined)
+    throw new Error(`timed out releasing ${args.path}`)
+  }
+}
+
+export const expectOneResultPerDispatch = (events: readonly ReadEvent[]): void => {
+  for (const marker of events.filter((row) => row.type === 'tool-dispatched')) {
+    const id = callIdOf(marker)
+    expect(events.filter((row) => row.type === 'tool-result' && callIdOf(row) === id)).toHaveLength(
+      1,
+    )
+  }
+}
+
+export const expectEpochsOrdered = (args: {
+  events: readonly ReadEvent[]
+  finalEpoch: number
+}): void => {
+  const epochs = args.events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
+  for (const [index, epoch] of epochs.entries()) {
+    expect(epoch).toBeLessThanOrEqual(args.finalEpoch)
+    const previous = epochs[index - 1]
+    if (previous !== undefined) expect(epoch).toBeGreaterThanOrEqual(previous)
+  }
 }
