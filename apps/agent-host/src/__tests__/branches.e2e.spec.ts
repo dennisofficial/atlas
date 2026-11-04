@@ -157,7 +157,12 @@ describe('branches-observed e2e', () => {
       threadId: mainThreadId,
       want: (rows) => branchRecords(rows).some((row) => hasBranch(row, 'feat-x')),
     }).catch(async (error: unknown) => {
-      const rows = await plane.readEvents({ threadId: mainThreadId, afterSeq: 0, limit: 100 })
+      const rows = await plane.readEvents({
+        threadId: mainThreadId,
+        afterSeq: 0,
+        limit: 100,
+        visible: true,
+      })
       const bodies = rows.events.map((row) => JSON.stringify(row)).join('\n')
       throw new Error(`${String(error)}\n${log.dump('branches-e2e')}\n${bodies}`)
     })
