@@ -13,7 +13,60 @@ import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fau
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
-type DaemonFrame = { kind?: string; errorKind?: string }
+type DaemonFrame = { kind?: string; errorKind?: string; key?: string }
+
+type RunOutcome = {
+  helloOk: boolean
+  runErrorKind: string | undefined
+  sawResult: boolean
+}
+
+const runOutcome = (args: {
+  url: string
+  sessionId: string
+  helloEpoch: number
+  runEpoch: number
+}): Promise<RunOutcome> =>
+  new Promise((resolve, reject) => {
+    const token = daemonToken({
+      secret: RIG_SECRET,
+      sandboxName: sandboxNameOf(args.sessionId),
+    })
+    const socket = new WebSocket(args.url)
+    const outcome: RunOutcome = { helloOk: false, runErrorKind: undefined, sawResult: false }
+    const deadline = setTimeout(() => {
+      socket.close()
+      resolve(outcome)
+    }, 3_000)
+    socket.addEventListener('open', () => {
+      socket.send(
+        JSON.stringify({ kind: 'hello', sessionId: args.sessionId, epoch: args.helloEpoch, token }),
+      )
+    })
+    socket.addEventListener('message', (message) => {
+      const frame = JSON.parse(String(message.data)) as DaemonFrame
+      if (frame.kind === 'hello-reply') {
+        outcome.helloOk = true
+        socket.send(
+          JSON.stringify({
+            kind: 'run',
+            key: 'zombie-run',
+            epoch: args.runEpoch,
+            op: { op: 'exec', argv: ['/bin/sh', '-c', 'echo zombie'] },
+          }),
+        )
+        return
+      }
+      if (frame.kind === 'error' && frame.key === 'zombie-run') {
+        outcome.runErrorKind = frame.errorKind
+      }
+      if (frame.kind === 'result' && frame.key === 'zombie-run') outcome.sawResult = true
+    })
+    socket.addEventListener('error', () => {
+      clearTimeout(deadline)
+      reject(new Error('the daemon socket failed'))
+    })
+  })
 
 const helloOutcome = (args: {
   url: string
@@ -125,6 +178,7 @@ describe.skipIf(REDIS_URL === undefined)(
         scripts: { [sessionId]: [{ text: 'host b finished' }] },
       })
       await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+      const headAtBClaim = (await rig.plane.head({ threadId })).seq
 
       writeFileSync(gateFifo, 'go\n')
       const events = await rig
@@ -150,6 +204,14 @@ describe.skipIf(REDIS_URL === undefined)(
       const fenced = hostA.logs().some((line) => line.includes('self-fenced'))
       expect(fenced).toBe(true)
 
+      await new Promise((resolve) => setTimeout(resolve, 3_000))
+      const afterHeal = await readEvents({ plane: rig.plane, threadId })
+      const zombieEvents = afterHeal.filter(
+        (row) =>
+          ((row.event as { epoch?: number }).epoch ?? 0) === epochA && row.seq > headAtBClaim,
+      )
+      expect(zombieEvents).toEqual([])
+
       const head = await rig.plane.head({ threadId })
       const zombieWrites = chainEvents({
         threadId: toThreadId(threadId),
@@ -162,8 +224,21 @@ describe.skipIf(REDIS_URL === undefined)(
       const staleWrite = await rig.plane.append({ threadId, epoch: epochA, events: zombieWrites })
       expect(staleWrite).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch' } })
 
+      hostB.kill('SIGKILL')
+      await hostB.exited
+
       const outcome = await helloOutcome({ url: daemon.url, sessionId, epoch: epochA })
       expect(outcome.errorKind).toBe('stale-epoch')
+
+      const staleRun = await runOutcome({
+        url: daemon.url,
+        sessionId,
+        helloEpoch: epochA + 1,
+        runEpoch: epochA,
+      })
+      expect(staleRun.helloOk).toBe(true)
+      expect(staleRun.runErrorKind).toBeDefined()
+      expect(staleRun.sawResult).toBe(false)
 
       const dispatches = events.filter(
         (row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1',
