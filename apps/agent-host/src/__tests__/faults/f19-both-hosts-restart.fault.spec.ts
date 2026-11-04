@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
@@ -7,9 +7,19 @@ import { GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, makeFifo, waitForFile } from './fault-support'
+import {
+  callIdOf,
+  expectEpochsOrdered,
+  expectOneResultPerDispatch,
+  isDoneResult,
+  makeFifo,
+  releaseFifo,
+  waitForFile,
+} from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
+
+const RUN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
 describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once', () => {
   const testDb = useTestDatabase()
@@ -24,7 +34,7 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
   })
 
   it('the session resumes on a fresh host with the record intact', async () => {
-    const sessionId = 'fault-f19-1'
+    const sessionId = `fault-f19-1-${RUN}`
     const threadId = await rig.newSession({ sessionId, text: 'two commands' })
     const daemon = await rig.spawnDaemonFor({ sessionId })
     const startedFile = join(daemon.home, `started-${sessionId}`)
@@ -68,6 +78,9 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
     })
     expect(beforeKill.some((row) => callIdOf(row) === 'c1' && isDoneResult(row))).toBe(true)
 
+    const preKill = await rig.plane.currentLease({ sessionId })
+    expect(preKill.lease.holderId).toBe('host-a')
+
     hostA.kill('SIGKILL')
     hostB.kill('SIGKILL')
     await Promise.all([hostA.exited, hostB.exited])
@@ -99,15 +112,16 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
       }
     })()
 
-    await new Promise((resolve) => setTimeout(resolve, 1_000))
-    writeFileSync(gateFifo, 'go\n')
+    await releaseFifo({ path: gateFifo })
 
     const events = await rig
       .waitForSeq({
         threadId,
         want: (rows) =>
           rows.some((row) => callIdOf(row) === 'c2' && isDoneResult(row)) &&
-          rows.some((row) => row.type === 'assistant-said'),
+          rows.some(
+            (row) => row.type === 'assistant-said' && JSON.stringify(row.event).includes('resumed'),
+          ),
         timeoutMs: 30_000,
       })
       .catch((error: unknown) => {
@@ -143,10 +157,11 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
     })
     expect(chain).toMatchObject({ ok: true })
 
+    expectOneResultPerDispatch(events)
+
     const lease = await rig.plane.currentLease({ sessionId })
     expect(lease.lease.holderId).toBe(claimed)
-    const finalEpoch = lease.lease.epoch
-    const epochs = events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
-    for (const epoch of epochs) expect(epoch).toBeLessThanOrEqual(finalEpoch)
+    expect(lease.lease.epoch).toBeGreaterThan(preKill.lease.epoch)
+    expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
   }, 90_000)
 })
