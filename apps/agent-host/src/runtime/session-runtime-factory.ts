@@ -1,9 +1,4 @@
 import { defaultPipeline, type ModelPort } from '@dltech/atlas-core'
-import {
-  AiSdkModelPort,
-  createAnthropicOauthModel,
-  normalizeProviderFailure,
-} from '@dltech/atlas-harness'
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import {
@@ -19,6 +14,9 @@ import {
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
+import { AiSdkModelPort } from '../model/ai-sdk-model-port'
+import { createAnthropicOauthModel } from '../model/anthropic-oauth'
+import { normalizeProviderFailure } from '../model/failure'
 import type { AgentHostApi } from '../config/agent-host-api'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { WORKSPACE_PATH } from '../sandbox/constants'
