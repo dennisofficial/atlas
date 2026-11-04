@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildCreateDmgArgs, pickDmgName, readSigningEnv } from '../dmg-plan'
+import { buildCreateDmgArgs, dmgNameFor, readSigningEnv } from '../dmg-plan'
 
 const signedEnv = {
   ELECTROBUN_DEVELOPER_ID: 'Developer ID Application: X',
@@ -46,15 +46,15 @@ describe('buildCreateDmgArgs', () => {
   })
 })
 
-describe('pickDmgName', () => {
-  test('finds the stable dmg and ignores update files', () => {
-    expect(
-      pickDmgName({
-        files: ['stable-macos-arm64-update.json', 'macos-arm64-Atlas.dmg', 'x.tar.zst'],
-      }),
-    ).toBe('macos-arm64-Atlas.dmg')
+describe('dmgNameFor', () => {
+  test('drops the stable channel prefix', () => {
+    expect(dmgNameFor({ channelDir: 'stable-macos-arm64', bundleName: 'Atlas' })).toBe(
+      'macos-arm64-Atlas.dmg',
+    )
   })
-  test('returns null when absent', () => {
-    expect(pickDmgName({ files: ['a.json'] })).toBeNull()
+  test('keeps any other channel prefix', () => {
+    expect(dmgNameFor({ channelDir: 'canary-macos-x64', bundleName: 'Atlas' })).toBe(
+      'canary-macos-x64-Atlas.dmg',
+    )
   })
 })

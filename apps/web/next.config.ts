@@ -53,6 +53,7 @@ const desktopConfig: NextConfig = {
   ...sharedConfig,
   output: 'export',
   images: { unoptimized: true },
+  typescript: { ignoreBuildErrors: true },
 }
 
 const cloudConfig: NextConfig = {

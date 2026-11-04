@@ -64,6 +64,14 @@ export function buildCreateDmgArgs(params: {
   ]
 }
 
-export function pickDmgName({ files }: { files: string[] }): string | null {
-  return files.find((file) => /^(stable-)?macos-[a-z0-9]+-.*\.dmg$/.test(file)) ?? null
+export function dmgNameFor({
+  channelDir,
+  bundleName,
+}: {
+  channelDir: string
+  bundleName: string
+}): string {
+  const [channel, ...platform] = channelDir.split('-')
+  const prefix = channel === 'stable' ? '' : `${channel}-`
+  return `${prefix}${platform.join('-')}-${bundleName}.dmg`
 }

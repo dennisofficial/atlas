@@ -17,7 +17,7 @@ export default {
     mac: {
       codesign: signed,
       notarize: signed,
-      createDmg: true,
+      createDmg: false,
       icons: 'icon.iconset',
     },
   },
