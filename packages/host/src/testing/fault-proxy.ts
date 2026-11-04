@@ -15,6 +15,7 @@ export type FaultProxy = {
   drop(): void
   retarget(target: { host: string; port: number }): void
   connections(): number
+  accepted(): number
   stop(): Promise<void>
 }
 
@@ -45,6 +46,7 @@ type State = {
   relays: Set<Relay>
   target: { host: string; port: number }
   stopped: boolean
+  accepted: number
 }
 
 const latencyOf = (fault: ProxyFault | undefined): number => {
@@ -172,6 +174,7 @@ export const FaultProxy = {
       relays: new Set(),
       target: args.target,
       stopped: false,
+      accepted: 0,
     }
 
     const handleDrain = (socket: RelaySocket): void => {
@@ -235,6 +238,7 @@ export const FaultProxy = {
           const relay = newRelay(client)
           client.data = relay
           state.relays.add(relay)
+          state.accepted += 1
           openUpstream(relay)
         },
         data(client, chunk) {
@@ -280,6 +284,7 @@ export const FaultProxy = {
         for (const relay of [...state.relays]) closeRelay(state, relay, false)
       },
       connections: () => state.relays.size,
+      accepted: () => state.accepted,
       async stop() {
         state.stopped = true
         for (const relay of [...state.relays]) closeRelay(state, relay, false)

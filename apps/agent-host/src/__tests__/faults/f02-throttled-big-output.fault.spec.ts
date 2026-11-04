@@ -85,6 +85,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
       })
       await rig.claim({ sessionId, holderId: 'host-a' })
       await waitForFile({ path: startedFile })
+      const acceptedBaseline = daemon.proxy.accepted()
 
       const events = await rig
         .waitForSeq({
@@ -112,6 +113,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
 
       const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
       expect(runs).toEqual(['run'])
+      expect(daemon.proxy.accepted()).toBe(acceptedBaseline)
 
       const lease = await rig.plane.currentLease({ sessionId })
       expect(lease.lease.holderId).toBe('host-a')
@@ -122,7 +124,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
       await runF2({ pingMs: 600_000 })
     }, 260_000)
 
-    it.skip('F2 with default pings [gap: pongs starve behind bulk output; the link is declared dead ~30 s into a 64 KB/s stream]', async () => {
+    it('F2 with default pings stays alive while output streams', async () => {
       await runF2({})
     }, 260_000)
   },

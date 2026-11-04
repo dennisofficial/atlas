@@ -5,13 +5,16 @@ import { ECallJournalState, MemoryCallStore } from '../call-store'
 
 type OutputFrame = { offset: number; bytes: Uint8Array }
 
-const pattern = (length: number): Uint8Array => {
+const pattern = (length: number): Uint8Array<ArrayBuffer> => {
   const bytes = new Uint8Array(length)
   for (let index = 0; index < length; index += 1) bytes[index] = index % 251
   return bytes
 }
 
-const expectContiguous = (args: { frames: readonly OutputFrame[]; bytes: Uint8Array }): void => {
+const expectContiguous = (args: {
+  frames: readonly OutputFrame[]
+  bytes: Uint8Array<ArrayBuffer>
+}): void => {
   expect(args.frames.length).toBeGreaterThan(1)
   let expectedOffset = 0
   const parts: Uint8Array[] = []
