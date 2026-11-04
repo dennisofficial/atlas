@@ -37,7 +37,13 @@ export type HostProcess = {
 
 export type ReadEvent = { seq: number; type: string; event: unknown }
 
-export type HostKnobs = { ttlMs?: number; renewMs?: number; fenceMs?: number; inboxPollMs?: number }
+export type HostKnobs = {
+  ttlMs?: number
+  renewMs?: number
+  fenceMs?: number
+  inboxPollMs?: number
+  drainMs?: number
+}
 
 export type FaultRig = {
   plane: ControlPlane
@@ -263,6 +269,7 @@ export const startRig = async (args: {
           RENEW_MS: String(knobs?.renewMs ?? 500),
           FENCE_MS: String(knobs?.fenceMs ?? 1_000),
           INBOX_POLL_MS: String(knobs?.inboxPollMs ?? 100),
+          ...(knobs?.drainMs === undefined ? {} : { DRAIN_MS: String(knobs.drainMs) }),
         },
         stdin: 'ignore',
         stdout: 'pipe',
