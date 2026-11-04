@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { visibleEvents, ECompactionAnchor, type V2Body } from '@dltech/atlas-core'
+import {
+  canonicalEvent,
+  visibleEvents,
+  ECompactionAnchor,
+  type V2Body,
+  type V2Event,
+} from '@dltech/atlas-core'
 
 import { LeaseConflictError } from '../../errors'
 import type { ControlStorePort } from '../../port'
@@ -214,6 +220,31 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       })
       expect(page.events.length).toBe(120)
       expect(page.next).toBeUndefined()
+    })
+
+    it('byte-bounded paging returns every event once and keeps pages within maxBytes', async () => {
+      const bodies: V2Body[] = Array.from({ length: 25 }, (_, i) => said(`m${i}${'x'.repeat(300)}`))
+      bodies.push(said('oversize-'.repeat(2000)))
+      const { events } = await appendBodies({ harness, epoch, bodies })
+      const maxBytes = 2_000
+      const seen: V2Event[] = []
+      let afterSeq = 0
+      for (let guard = 0; guard < 100; guard += 1) {
+        const page = await harness.plane.readEvents({
+          threadId: THREAD,
+          afterSeq,
+          limit: 100,
+          visible: false,
+          maxBytes,
+        })
+        expect(page.events.length).toBeGreaterThan(0)
+        const bytes = page.events.reduce((sum, event) => sum + canonicalEvent(event).length, 0)
+        if (page.events.length > 1) expect(bytes).toBeLessThanOrEqual(maxBytes)
+        seen.push(...page.events)
+        if (page.next === undefined) break
+        afterSeq = page.next
+      }
+      expect(seen).toEqual(events)
     })
 
     it('concurrent first grants on one session fail only with LeaseConflictError', async () => {

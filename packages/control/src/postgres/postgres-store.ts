@@ -12,7 +12,7 @@ import {
   type ThreadRow,
   type ControlSessionRow,
 } from '../port'
-import { blobHashesPresent, insertBlobRows, readBlobRow } from './postgres-blobs'
+import { blobHashesPresent, blobReferencedIn, insertBlobRows, readBlobRow } from './postgres-blobs'
 import { iso, toInbox, toSessionRow, toThreadRow } from './postgres-rows'
 
 class PostgresTx implements ControlTx {
@@ -152,6 +152,10 @@ class PostgresTx implements ControlTx {
 
   async blobsExist(hashes: readonly string[]): Promise<ReadonlySet<string>> {
     return blobHashesPresent(this.tx, hashes)
+  }
+
+  async blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean> {
+    return blobReferencedIn(this.tx, params)
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {

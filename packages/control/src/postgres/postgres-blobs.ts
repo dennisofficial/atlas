@@ -29,3 +29,20 @@ export const blobHashesPresent = async (
     .all()
   return new Set(rows.map((row) => row.hash))
 }
+
+export const blobReferencedIn = async (
+  tx: Tx,
+  params: { sessionId: string; hash: string },
+): Promise<boolean> => {
+  const [row] = await tx.query(
+    tx.raw.sql`SELECT EXISTS (
+      SELECT 1 FROM "v2"."V2Event" e
+      JOIN "v2"."V2Thread" t ON t."id" = e."threadId"
+      WHERE t."sessionId" = ${params.sessionId}
+        AND position(${params.hash} in e."canonical") > 0
+    ) AS "found"`
+      .returnsRow({ found: 'pg/bool@1' })
+      .build(),
+  )
+  return row?.found === true
+}

@@ -184,6 +184,15 @@ class MemoryTx implements ControlTx {
     return blobHashesPresent(this.state.blobs, hashes)
   }
 
+  async blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean> {
+    for (const thread of this.state.threads.values()) {
+      if (thread.sessionId !== params.sessionId) continue
+      const log = this.state.events.get(thread.threadId) ?? []
+      if (log.some((row) => row.canonical.includes(params.hash))) return true
+    }
+    return false
+  }
+
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {
     const log = this.state.events.get(params.threadId) ?? []
     const out: StoredEvent[] = []

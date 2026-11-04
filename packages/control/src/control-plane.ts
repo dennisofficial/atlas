@@ -140,11 +140,19 @@ export class ControlPlane {
     afterSeq: number
     limit: number
     visible: boolean
+    maxBytes?: number | undefined
   }): Promise<ReadEventsPage> {
     const limit = clampLimit(params.limit)
     return this.store.transact(async (tx) => {
       const row = await this.requireThread({ tx, threadId: params.threadId })
-      return readEventsIn({ tx, row, afterSeq: params.afterSeq, limit, visible: params.visible })
+      return readEventsIn({
+        tx,
+        row,
+        afterSeq: params.afterSeq,
+        limit,
+        visible: params.visible,
+        maxBytes: params.maxBytes,
+      })
     })
   }
 
@@ -154,6 +162,10 @@ export class ControlPlane {
     length?: number | undefined
   }): Promise<BlobRow | undefined> {
     return this.store.transact((tx) => readBlobIn({ tx, ...params }))
+  }
+
+  async blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean> {
+    return this.store.transact((tx) => tx.blobReferencedBy(params))
   }
 
   async post(params: {
