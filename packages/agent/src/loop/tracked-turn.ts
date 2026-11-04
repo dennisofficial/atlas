@@ -159,6 +159,7 @@ export async function runTrackedTurn(
     }
 
     position.seenThrough = owned.at(-1)?.seq
+    const stepBase = owned.findLast((event) => event.type === 'assistant-said')?.seq ?? 0
     let preparedThrough = position.seenThrough
 
     const prepareAttempt = async () => {
@@ -209,7 +210,16 @@ export async function runTrackedTurn(
         onChunk: deps.onChunk,
         assembled,
         signal: abortSignal,
-        retry: deps.retry,
+        retry:
+          deps.onceLedger === undefined
+            ? deps.retry
+            : {
+                ...deps.retry,
+                ledger: {
+                  onceLedger: deps.onceLedger,
+                  stepKey: `retry:${threadId}:s${stepBase}`,
+                },
+              },
         normalizeFailure: deps.normalizeFailure,
         prepare: prepareAttempt,
       })
