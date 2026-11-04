@@ -1,12 +1,13 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
+import { GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
-import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, readEvents } from './fault-support'
+import { startRig, type FaultRig } from '../../testing/fault-rig'
+import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -14,14 +15,24 @@ const waitForCommittedResult = async (args: {
   rig: FaultRig
   threadId: string
   timeoutMs?: number
-}): Promise<ReadEvent[]> => {
+}): Promise<void> => {
   const deadline = Date.now() + (args.timeoutMs ?? 15_000)
   for (;;) {
     const rows = await readEvents({ plane: args.rig.plane, threadId: args.threadId })
-    if (rows.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')) return rows
+    if (rows.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')) return
     if (Date.now() > deadline) throw new Error('the result append never committed')
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
+}
+
+const readAllEvents = async (args: { rig: FaultRig; threadId: string }): Promise<V2Event[]> => {
+  const page = await args.rig.plane.readEvents({
+    threadId: args.threadId,
+    afterSeq: 0,
+    limit: 1_000,
+    visible: false,
+  })
+  return page.events
 }
 
 describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is lost', () => {
@@ -38,19 +49,22 @@ describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is los
 
   it('recognises the retried append as already committed and does not fork', async () => {
     const sessionId = 'fault-f8-1'
-    const threadId = await rig.newSession({ sessionId, text: 'quick bash' })
+    const threadId = await rig.newSession({ sessionId, text: 'gated bash' })
     const daemon = await rig.spawnDaemonFor({ sessionId })
+    const startedFile = join(daemon.home, `started-${sessionId}`)
+    const gateFifo = join(daemon.home, `gate-${sessionId}`)
     const runsFile = join(daemon.home, `runs-${sessionId}`)
-    const bash = `echo run >> ${runsFile}; echo done`
+    makeFifo({ path: gateFifo })
+    const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
     const hostA = await rig.spawnHost({
       holderId: 'host-a',
       daemonUrl: daemon.url,
-      knobs: { ttlMs: 5_000, fenceMs: 1_500 },
+      knobs: { ttlMs: 8_000, fenceMs: 2_000 },
       scripts: {
         [sessionId]: [
           {
-            calls: [{ callId: 'c1', name: 'bash', input: { description: 'quick', command: bash } }],
+            calls: [{ callId: 'c1', name: 'bash', input: { description: 'gated', command: bash } }],
           },
           { text: 'host a finished' },
         ],
@@ -62,9 +76,13 @@ describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is los
       want: (rows) => rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
       timeoutMs: 20_000,
     })
+    await waitForFile({ path: startedFile })
 
-    rig.dbProxy.set({ latencyMs: 800 })
+    rig.dbProxy.set({ latencyMs: 400 })
+    writeFileSync(gateFifo, 'go\n')
+
     await waitForCommittedResult({ rig, threadId })
+    rig.dbProxy.set({ holdDownstream: true })
     rig.dbProxy.drop()
     rig.dbProxy.clear()
 
@@ -98,6 +116,13 @@ describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is los
 
     const corruption = hostA.logs().some((line) => line.includes('RecordCorrupt'))
     expect(corruption).toBe(false)
+
+    const all = await readAllEvents({ rig, threadId })
+    const verified = verifySuffix({ trusted: { seq: 0, hash: GENESIS_HASH }, events: all })
+    expect(verified.ok).toBe(true)
+    if (verified.ok) {
+      expect(verified.head).toEqual(await rig.plane.head({ threadId }))
+    }
 
     const finalLease = await rig.plane.currentLease({ sessionId })
     expect(finalLease.lease.holderId).toBe('host-a')

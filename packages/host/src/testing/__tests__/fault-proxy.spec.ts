@@ -174,6 +174,30 @@ describe('FaultProxy', () => {
     socket.end()
   })
 
+  it('holds downstream bytes until cleared', async () => {
+    const proxy = await start({ holdDownstream: true })
+    const echoed: Uint8Array[] = []
+    const socket = await Bun.connect({
+      hostname: '127.0.0.1',
+      port: proxy.port,
+      socket: {
+        data(_socket, chunk) {
+          echoed.push(new Uint8Array(chunk))
+        },
+      },
+    })
+    socket.write(new TextEncoder().encode('held'))
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(echoed.length).toBe(0)
+    proxy.clear()
+    const deadline = Date.now() + 3_000
+    while (echoed.length === 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    expect(new TextDecoder().decode(echoed[0])).toBe('held')
+    socket.end()
+  })
+
   it('drop closes live connections', async () => {
     const proxy = await start()
     let closed = false

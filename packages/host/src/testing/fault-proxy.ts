@@ -6,6 +6,7 @@ export type ProxyFault =
   | { blackhole: true }
   | { refuse: true }
   | { holdUpstream: true }
+  | { holdDownstream: true }
 
 export type FaultProxy = {
   port: number
@@ -54,6 +55,9 @@ const latencyOf = (fault: ProxyFault | undefined): number => {
 const isHeldUpstream = (fault: ProxyFault | undefined): boolean =>
   fault !== undefined && 'holdUpstream' in fault
 
+const isHeldDownstream = (fault: ProxyFault | undefined): boolean =>
+  fault !== undefined && 'holdDownstream' in fault
+
 const isBlackholed = (fault: ProxyFault | undefined): boolean =>
   fault !== undefined && 'blackhole' in fault
 
@@ -65,6 +69,7 @@ const flush = (state: State, relay: Relay, direction: Direction): void => {
   if (destination === undefined || relay.closed) return
   if (relay.writing[direction] || relay.pausedOn[direction] !== undefined) return
   if (direction === 'upstream' && isHeldUpstream(state.fault)) return
+  if (direction === 'downstream' && isHeldDownstream(state.fault)) return
   const queue = relay.buffers[direction]
   const chunk = queue.shift()
   if (chunk === undefined) return
@@ -79,6 +84,10 @@ const flush = (state: State, relay: Relay, direction: Direction): void => {
     relay.writing[direction] = false
     if (relay.closed || state.stopped) return
     if (direction === 'upstream' && isHeldUpstream(state.fault)) {
+      queue.unshift(chunk)
+      return
+    }
+    if (direction === 'downstream' && isHeldDownstream(state.fault)) {
       queue.unshift(chunk)
       return
     }
@@ -254,10 +263,12 @@ export const FaultProxy = {
         state.fault = fault
       },
       clear() {
-        const held = isHeldUpstream(state.fault)
+        const heldUpstream = isHeldUpstream(state.fault)
+        const heldDownstream = isHeldDownstream(state.fault)
         state.fault = undefined
-        if (held) {
-          for (const relay of state.relays) flush(state, relay, 'upstream')
+        for (const relay of state.relays) {
+          if (heldUpstream) flush(state, relay, 'upstream')
+          if (heldDownstream) flush(state, relay, 'downstream')
         }
       },
       drop() {
