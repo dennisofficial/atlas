@@ -15,6 +15,7 @@ import {
   handedOffResult,
   handleDaemonFrame,
   recoverRestartedCalls,
+  rejectPending,
   type Pending,
   type Waiter,
 } from './remote-calls-frames'
@@ -92,15 +93,7 @@ export class RemoteCallsState {
     this.closed = true
     this.link.teardown()
     const error = new FencedError(`session ${this.args.sessionId} closed its daemon link`)
-    for (const call of [...this.pending.values()]) {
-      if (call.done) continue
-      call.done = true
-      this.pending.delete(call.key)
-      call.detach?.()
-      for (const waiter of call.waiters) waiter.reject?.(error)
-    }
-    for (const ack of [...this.pendingAcks.values()]) ack.resolve(false)
-    this.pendingAcks.clear()
+    rejectPending({ pending: this.pending, pendingAcks: this.pendingAcks, error })
     const readyReject = this.readyReject
     this.readyResolve = null
     this.readyReject = null

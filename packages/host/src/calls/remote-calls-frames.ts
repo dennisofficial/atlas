@@ -22,6 +22,22 @@ export type Pending = {
   detach?: (() => void) | undefined
 }
 
+export const rejectPending = (args: {
+  pending: Map<string, Pending>
+  pendingAcks: Map<string, { key: string; resolve(found: boolean): void }>
+  error: Error
+}): void => {
+  for (const call of [...args.pending.values()]) {
+    if (call.done) continue
+    call.done = true
+    args.pending.delete(call.key)
+    call.detach?.()
+    for (const waiter of call.waiters) waiter.reject?.(args.error)
+  }
+  for (const ack of [...args.pendingAcks.values()]) ack.resolve(false)
+  args.pendingAcks.clear()
+}
+
 export const failedResult = (args: {
   op: string
   code: ECallFailure
