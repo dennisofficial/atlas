@@ -5,4 +5,4 @@ export {
   type RecordTurnSpendArgs,
   type TurnLedgerDeps,
   type TurnSpendTally,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'

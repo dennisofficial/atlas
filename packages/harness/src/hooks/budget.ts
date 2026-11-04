@@ -4,4 +4,4 @@ export {
   withinBudget,
   type HookMishap,
   type OnHookMishap,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'

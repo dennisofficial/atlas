@@ -1,1 +1,1 @@
-export { causeChainOf } from '@dltech/atlas-agent'
+export { causeChainOf } from '@dltech/atlas-agent-v1'

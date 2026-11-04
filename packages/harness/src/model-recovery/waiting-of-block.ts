@@ -1,1 +1,1 @@
-export { waitingOfBlock } from '@dltech/atlas-agent'
+export { waitingOfBlock } from '@dltech/atlas-agent-v1'

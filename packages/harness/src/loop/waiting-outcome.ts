@@ -1,1 +1,1 @@
-export { waitingIfBlocked } from '@dltech/atlas-agent'
+export { waitingIfBlocked } from '@dltech/atlas-agent-v1'

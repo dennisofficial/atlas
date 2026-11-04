@@ -1,4 +1,4 @@
-import { AgentRecordPort, ModelContextPort } from '@dltech/atlas-agent'
+import { AgentRecordPort, ModelContextPort } from '@dltech/atlas-agent-v1'
 import type { EventLogPort } from '@dltech/atlas-core'
 
 export class EventLogAgentRecord extends AgentRecordPort {

@@ -1,1 +1,1 @@
-export { appendShellCompletionNudge } from '@dltech/atlas-agent'
+export { appendShellCompletionNudge } from '@dltech/atlas-agent-v1'

@@ -2,7 +2,7 @@ import {
   crashedCallDraft,
   settleCrashedCalls as settleAgentCrashedCalls,
   type ToolEffectResolver,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'
 import type { EventLogPort } from '@dltech/atlas-core'
 
 export { crashedCallDraft, type ToolEffectResolver }

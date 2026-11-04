@@ -3,4 +3,4 @@ export {
   markDispatchStarted,
   markerFailureDraft,
   unknownToolDraft,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'

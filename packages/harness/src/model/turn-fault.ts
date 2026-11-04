@@ -1,1 +1,1 @@
-export { TurnFault } from '@dltech/atlas-agent'
+export { TurnFault } from '@dltech/atlas-agent-v1'

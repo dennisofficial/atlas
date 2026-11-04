@@ -2,7 +2,7 @@ import {
   MessageIntake as AgentMessageIntake,
   type IntakeDriver,
   type IntakeSource as AgentIntakeSource,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { PendingQueue } from '../pending/pending-queue'
