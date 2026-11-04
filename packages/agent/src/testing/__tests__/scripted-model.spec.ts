@@ -1,10 +1,10 @@
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'bun:test'
+import { afterAll, describe, expect, it } from 'bun:test'
 
-import type { Chunk } from '@dltech/atlas-core'
+import { EFinishReason, type Chunk } from '@dltech/atlas-core'
 
 import { ScriptedModel } from '../scripted-model'
 
@@ -13,6 +13,23 @@ const stepArgs = (signal?: AbortSignal) => ({
   tools: [],
   signal: signal ?? new AbortController().signal,
 })
+
+const tempDirs: string[] = []
+const tempDir = (): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'scripted-model-'))
+  tempDirs.push(dir)
+  return dir
+}
+
+afterAll(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+const deltaText = (chunks: readonly Chunk[]): string =>
+  chunks
+    .filter((chunk) => chunk.type === 'text-delta')
+    .map((chunk) => (chunk as { text: string }).text)
+    .join('')
 
 describe('ScriptedModel streamMs', () => {
   it('emits the text through onChunk in pieces over the duration', async () => {
@@ -28,18 +45,38 @@ describe('ScriptedModel streamMs', () => {
       },
     })
     const elapsed = Date.now() - started
-    const deltas = chunks.filter((chunk) => chunk.type === 'text-delta')
     expect(chunks[0]?.type).toBe('text-start')
     expect(chunks.at(-1)?.type).toBe('text-end')
-    expect(deltas.length).toBeGreaterThan(1)
-    expect(deltas.map((chunk) => (chunk as { text: string }).text).join('')).toBe(text)
+    expect(chunks.filter((chunk) => chunk.type === 'text-delta').length).toBe(32)
+    expect(deltaText(chunks)).toBe(text)
     expect(elapsed).toBeGreaterThanOrEqual(150)
     expect(result.parts).toEqual([{ type: 'text', text }])
   })
 
-  it('throws the abort reason when aborted mid-stream', async () => {
+  it('splits a non-divisible length into exactly pieces segments over the full duration', async () => {
+    const text = 'x'.repeat(100)
+    const chunks: Chunk[] = []
+    const model = new ScriptedModel([{ text, streamMs: 320 }])
+    const started = Date.now()
+    await model.step({
+      ...stepArgs(),
+      onChunk: (chunk) => {
+        chunks.push(chunk)
+        return chunk
+      },
+    })
+    const elapsed = Date.now() - started
+    const deltas = chunks.filter((chunk) => chunk.type === 'text-delta')
+    expect(deltas.length).toBe(32)
+    expect(deltaText(chunks)).toBe(text)
+    expect(elapsed).toBeGreaterThanOrEqual(300)
+    expect(elapsed).toBeLessThan(3_000)
+  })
+
+  it('returns the parts streamed so far when aborted mid-stream', async () => {
+    const text = 'a'.repeat(64)
     const controller = new AbortController()
-    const model = new ScriptedModel([{ text: 'a'.repeat(64), streamMs: 3_200 }])
+    const model = new ScriptedModel([{ text, streamMs: 3_200 }])
     const chunks: Chunk[] = []
     const pending = model.step({
       ...stepArgs(controller.signal),
@@ -48,17 +85,22 @@ describe('ScriptedModel streamMs', () => {
         return chunk
       },
     })
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    await new Promise((resolve) => setTimeout(resolve, 350))
     controller.abort('handoff')
-    await expect(pending).rejects.toBe('handoff')
-    expect(chunks.filter((chunk) => chunk.type === 'text-delta').length).toBeGreaterThan(0)
+    const result = await pending
+    const streamed = deltaText(chunks)
+    expect(streamed.length).toBeGreaterThan(0)
+    expect(streamed.length).toBeLessThan(text.length)
+    expect(result.parts).toEqual([{ type: 'text', text: streamed }])
+    expect(result.toolCalls).toEqual([])
+    expect(result.finishReason).toBe(EFinishReason.Stop)
     expect(chunks.at(-1)?.type).not.toBe('text-end')
   })
 })
 
 describe('ScriptedModel gateFile', () => {
   it('holds the step until the file exists', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'scripted-model-gate-'))
+    const dir = tempDir()
     const gate = join(dir, 'gate')
     const model = new ScriptedModel([{ text: 'gated', gateFile: gate }], undefined, existsSync)
     const pending = model.step(stepArgs())
@@ -69,7 +111,7 @@ describe('ScriptedModel gateFile', () => {
   })
 
   it('throws the abort reason when aborted while gated', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'scripted-model-gate-'))
+    const dir = tempDir()
     const gate = join(dir, 'gate')
     const controller = new AbortController()
     const model = new ScriptedModel([{ text: 'gated', gateFile: gate }], undefined, existsSync)

@@ -77,13 +77,14 @@ export class ScriptedModel implements ModelPort {
       await waitForGateFile({ path: scripted.gateFile, signal, fileExists: this.fileExists })
     }
     const text = scripted.text
-    if (text !== undefined && scripted.streamMs !== undefined) {
-      await this.streamText({ text, streamMs: scripted.streamMs, signal, onChunk })
-    }
-    abortIfAborted(signal)
-    const calls = scripted.calls ?? []
+    const streamed =
+      text !== undefined && scripted.streamMs !== undefined
+        ? await this.streamText({ text, streamMs: scripted.streamMs, signal, onChunk })
+        : undefined
+    const finalText = streamed === undefined ? text : streamed.text
+    const calls = streamed?.aborted === true ? [] : (scripted.calls ?? [])
     const result: ModelStepResult = {
-      parts: text === undefined ? [] : [{ type: 'text', text }],
+      parts: finalText === undefined ? [] : [{ type: 'text', text: finalText }],
       toolCalls: calls.map((call) => ({ ...call, callId: toCallId(call.callId) })),
       finishReason: calls.length > 0 ? EFinishReason.ToolCalls : EFinishReason.Stop,
     }
@@ -95,19 +96,25 @@ export class ScriptedModel implements ModelPort {
     streamMs: number
     signal: AbortSignal
     onChunk: ChunkFilter | undefined
-  }): Promise<void> {
+  }): Promise<{ text: string; aborted: boolean }> {
     const pieces = Math.max(1, Math.min(STREAM_PIECES, args.text.length))
-    const size = Math.ceil(args.text.length / pieces)
     const intervalMs = args.streamMs / pieces
+    const boundary = (index: number): number => Math.round((index * args.text.length) / pieces)
     const id = `text-${this.cursor}`
     args.onChunk?.({ type: 'text-start', id })
-    let sent = 0
-    while (sent < args.text.length) {
-      await waitUnlessAborted({ ms: intervalMs, signal: args.signal })
-      const piece = args.text.slice(sent, sent + size)
-      sent += piece.length
-      args.onChunk?.({ type: 'text-delta', id, text: piece })
+    let sent = ''
+    try {
+      for (let index = 0; index < pieces; index += 1) {
+        await waitUnlessAborted({ ms: intervalMs, signal: args.signal })
+        const piece = args.text.slice(boundary(index), boundary(index + 1))
+        sent += piece
+        args.onChunk?.({ type: 'text-delta', id, text: piece })
+      }
+    } catch (error) {
+      if (!args.signal.aborted) throw error
+      return { text: sent, aborted: true }
     }
     args.onChunk?.({ type: 'text-end', id })
+    return { text: args.text, aborted: false }
   }
 }
