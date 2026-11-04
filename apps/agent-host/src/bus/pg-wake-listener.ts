@@ -9,12 +9,24 @@ export type PgWakeListener = {
   close(): Promise<void>
 }
 
+type WakeNotification = { channel: string; payload?: string | undefined }
+
+export type PgWakeClient = {
+  connect(): Promise<unknown>
+  query(text: string): Promise<unknown>
+  end(): Promise<void>
+  on(event: 'notification', listener: (message: WakeNotification) => void): void
+  on(event: 'error', listener: (error: unknown) => void): void
+  on(event: 'end', listener: () => void): void
+}
+
 const RECONNECT_BASE_MS = 250
 const RECONNECT_CAP_MS = 5_000
 
 export const startPgWakeListener = (args: {
   url: string
   applicationName?: string | undefined
+  createClient?: (() => PgWakeClient) | undefined
   log?: LogPort | undefined
 }): PgWakeListener => {
   const wakeListeners = new Set<(sessionId: string) => void>()
@@ -22,7 +34,7 @@ export const startPgWakeListener = (args: {
   let closed = false
   let scheduled = false
   let attempt = 0
-  let client: pg.Client | undefined
+  let client: PgWakeClient | undefined
 
   const logError = (message: string, error: unknown): void => {
     args.log?.error({ source: 'bus.pg-wake', message, ...logFieldsOf({ error }) })
@@ -39,20 +51,25 @@ export const startPgWakeListener = (args: {
     }, delay)
   }
 
-  const drop = async (dead: pg.Client, error?: unknown): Promise<void> => {
+  const drop = async (dead: PgWakeClient, error?: unknown): Promise<void> => {
     if (closed || client !== dead) return
+    client = undefined
     if (error !== undefined) logError('wake listener connection lost', error)
     await dead.end().catch(() => undefined)
     schedule()
   }
 
   const connect = async (): Promise<void> => {
-    const next = new pg.Client({
-      connectionString: args.url,
-      keepAlive: true,
-      application_name: args.applicationName ?? 'atlas-wake-listener',
-    })
+    const next =
+      args.createClient?.() ??
+      new pg.Client({
+        connectionString: args.url,
+        keepAlive: true,
+        application_name: args.applicationName ?? 'atlas-wake-listener',
+      })
     client = next
+    next.on('error', (error: unknown) => void drop(next, error))
+    next.on('end', () => void drop(next))
     try {
       await next.connect()
       await next.query(`LISTEN ${PG_WAKE_CHANNEL}`)
@@ -68,12 +85,10 @@ export const startPgWakeListener = (args: {
       return
     }
     attempt = 0
-    next.on('notification', (message) => {
+    next.on('notification', (message: WakeNotification) => {
       if (message.channel !== PG_WAKE_CHANNEL || message.payload === undefined) return
       for (const listener of [...wakeListeners]) listener(message.payload)
     })
-    next.on('error', (error: unknown) => void drop(next, error))
-    next.on('end', () => void drop(next))
     for (const listener of [...resyncListeners]) listener()
   }
 

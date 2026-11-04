@@ -1,10 +1,37 @@
 import { afterAll, describe, expect, it } from 'bun:test'
+import { EventEmitter } from 'node:events'
 import pg from 'pg'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
 
 import { startPgWakeListener, type PgWakeListener } from '../pg-wake-listener'
+
+class FakeWakeClient extends EventEmitter {
+  ended = false
+  private readonly holdsListen: boolean
+
+  constructor(args: { holdsListen: boolean }) {
+    super()
+    this.holdsListen = args.holdsListen
+  }
+
+  connect(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  query(_text: string): Promise<unknown> {
+    if (!this.holdsListen) return Promise.resolve({ rows: [] })
+    return new Promise((_resolve, reject) => {
+      this.once('error', (error: unknown) => reject(error))
+    })
+  }
+
+  end(): Promise<void> {
+    this.ended = true
+    return Promise.resolve()
+  }
+}
 
 const testDb = useTestDatabase()
 
@@ -49,6 +76,31 @@ describe('pg wake listener', () => {
     const delivered = await waitFor({ check: () => wakes.length === 1 })
     expect(delivered).toBe(true)
     expect(wakes).toEqual(['session-x'])
+  }, 30_000)
+
+  it('an async error while LISTEN is pending drops the client, reconnects and resyncs', async () => {
+    const created: FakeWakeClient[] = []
+    const listener = startPgWakeListener({
+      url: 'postgres://unused',
+      createClient: () => {
+        const fake = new FakeWakeClient({ holdsListen: created.length === 0 })
+        created.push(fake)
+        return fake
+      },
+    })
+    listeners.push(listener)
+    let resyncs = 0
+    listener.onResync(() => {
+      resyncs += 1
+    })
+
+    const first = created[0]
+    if (first === undefined) throw new Error('listener created no client')
+    first.emit('error', new Error('socket blew up'))
+
+    expect(await waitFor({ check: () => created.length === 2 })).toBe(true)
+    expect(first.ended).toBe(true)
+    expect(await waitFor({ check: () => resyncs === 1 })).toBe(true)
   }, 30_000)
 
   it('killing the listener backend reconnects and emits resync', async () => {
