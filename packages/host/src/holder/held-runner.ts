@@ -1,14 +1,49 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { HookChain, HookedToolDispatcher, LoopTurnRunner } from '@dltech/atlas-agent'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
+import { BranchObserver } from './branch-observer'
 import type { HeldSessionDeps } from './held-session-deps'
+import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
 import type { InboxIntake } from './inbox-intake'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 import { V2OnceLedger } from './record/v2-once-ledger'
 import { retryDepsFromTimers } from './timer-sleep'
+
+export const logDriveFault = (args: { deps: HeldSessionDeps; error: unknown }): void => {
+  if (args.error instanceof LeaseLostError) return
+  args.deps.log?.error({
+    source: 'holder.session',
+    message: `session ${args.deps.sessionId} faulted`,
+    ...logFieldsOf({ error: args.error }),
+  })
+}
+
+export const createBranchObserver = (args: {
+  deps: HeldSessionDeps
+  record: SessionRecord
+  runtime: SessionRuntime
+  threadId: ThreadId
+  signal: AbortSignal
+}): BranchObserver => {
+  const { deps, record, runtime, threadId } = args
+  return new BranchObserver({
+    record: {
+      append: ({ threadId: to, runId, body }) =>
+        record.append({ threadId: to, runId, drafts: [body] }),
+      events: () => record.eventCache().all(),
+    },
+    remoteCalls: runtime.remoteCalls,
+    threadId,
+    repos: () => runtime.watchedRepos(),
+    runId: () => deps.ids.nextRunId(),
+    signal: args.signal,
+    ...(deps.log === undefined ? {} : { log: deps.log }),
+  })
+}
 
 export const createLoopRunner = (args: {
   deps: HeldSessionDeps

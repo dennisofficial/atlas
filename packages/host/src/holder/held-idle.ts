@@ -30,6 +30,47 @@ export const idleReleaseDue = (args: {
   })
 }
 
+export const idleDueNow = async (args: {
+  deps: HeldSessionDeps
+  runtime: SessionRuntime | undefined
+  turnRunning: boolean
+  lastActivityAt: number
+  released: boolean
+  pendingInput(): Promise<number>
+}): Promise<boolean> => {
+  if (args.runtime === undefined) return false
+  return idleReleaseDue({
+    deps: args.deps,
+    turnRunning: args.turnRunning,
+    lastActivityAt: args.lastActivityAt,
+    runtime: args.runtime,
+    released: args.released,
+    pendingInput: (await args.pendingInput()) > 0,
+  })
+}
+
+export const teardownHeldSession = async (args: {
+  deps: HeldSessionDeps
+  runtime: SessionRuntime | undefined
+  draining: boolean
+  lostOwnership: boolean
+  released: boolean
+  epoch: number
+}): Promise<void> => {
+  const { deps, runtime } = args
+  if (runtime === undefined) return
+  if (args.draining) {
+    await runtime.stop()
+    if (!args.lostOwnership) {
+      await deps.plane
+        .revoke({ sessionId: deps.sessionId, wantsHolder: true, epoch: args.epoch })
+        .catch(() => undefined)
+    }
+    return
+  }
+  if (!args.released) runtime.remoteCalls.close()
+}
+
 export const releaseIdleSession = async (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime

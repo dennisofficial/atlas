@@ -42,7 +42,7 @@ export class InboxIntake implements AgentIntake {
   }
 
   async pollStops(): Promise<void> {
-    const entries = await this.fetch({ afterId: this.stopAfterId })
+    const entries = await this.readStrict({ afterId: this.stopAfterId })
     const last = entries[entries.length - 1]
     if (last !== undefined) this.stopAfterId = last.inboxId
     for (const entry of entries) {
@@ -95,6 +95,10 @@ export class InboxIntake implements AgentIntake {
   }
 
   private async fetch(args: { afterId: number }): Promise<InboxEntry[]> {
+    return this.readStrict(args).catch(() => [])
+  }
+
+  private async readStrict(args: { afterId: number }): Promise<InboxEntry[]> {
     try {
       return await this.args.plane.readInbox({
         sessionId: this.args.sessionId,
@@ -107,7 +111,7 @@ export class InboxIntake implements AgentIntake {
         message: 'reading the inbox failed',
         ...logFieldsOf({ error }),
       })
-      return []
+      throw error
     }
   }
 }

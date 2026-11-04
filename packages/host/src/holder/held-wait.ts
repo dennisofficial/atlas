@@ -23,6 +23,52 @@ export const consumeStops = async (args: {
   }
 }
 
+export const raceDeadline = (args: {
+  deps: HeldSessionDeps
+  done: Promise<void>
+  deadlineMs: number
+}): Promise<'done' | 'late'> => {
+  const late = new Promise<'late'>((resolve) => {
+    const timer = args.deps.timers.setTimeout(() => resolve('late'), args.deadlineMs)
+    void args.done.then(
+      () => args.deps.timers.clearTimeout(timer),
+      () => args.deps.timers.clearTimeout(timer),
+    )
+  })
+  return Promise.race([args.done.then(() => 'done' as const), late])
+}
+
+export const readRetryMs = (args: { failures: number }): number =>
+  Math.min(250 * 2 ** Math.max(0, args.failures - 1), 5_000)
+
+export const waitMs = (args: {
+  deps: HeldSessionDeps
+  signal: AbortSignal
+  ms: number
+}): Promise<void> => interruptibleWait({ ...args, setInterrupter: () => undefined })
+
+export const pollStopsWithRetry = async (args: {
+  deps: HeldSessionDeps
+  signal: AbortSignal
+  intake(): InboxIntake | undefined
+  active(): boolean
+  onStopSeen(): void
+}): Promise<void> => {
+  let failures = 0
+  for (;;) {
+    const intake = args.intake()
+    if (intake === undefined || args.signal.aborted || !args.active()) return
+    try {
+      await intake.pollStops()
+      if (intake.hasPendingStop()) args.onStopSeen()
+      return
+    } catch {
+      failures += 1
+      await waitMs({ deps: args.deps, signal: args.signal, ms: readRetryMs({ failures }) })
+    }
+  }
+}
+
 export class WakeSignal {
   private pending = false
   private interrupter: (() => void) | undefined

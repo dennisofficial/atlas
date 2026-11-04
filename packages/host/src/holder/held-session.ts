@@ -1,14 +1,20 @@
 import { EToolEffect, isResumable, type Lease, type ThreadId } from '@dltech/atlas-core'
 import { LoopTurnRunner, PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
-import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { statusFrame, type SessionRuntime } from './ports'
-import { BranchObserver } from './branch-observer'
-import { createLoopRunner } from './held-runner'
+import type { BranchObserver } from './branch-observer'
+import { createBranchObserver, createLoopRunner, logDriveFault } from './held-runner'
 import { InboxIntake } from './inbox-intake'
-import { idleReleaseDue, idleWaitMs, releaseIdleSession } from './held-idle'
-import { consumeStops, WakeSignal } from './held-wait'
-import { LeaseLostError, SessionRecord } from './record/record-adapter'
+import { idleDueNow, idleWaitMs, releaseIdleSession, teardownHeldSession } from './held-idle'
+import {
+  consumeStops,
+  pollStopsWithRetry,
+  raceDeadline,
+  readRetryMs,
+  waitMs,
+  WakeSignal,
+} from './held-wait'
+import { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 
 export type { HeldSessionDeps }
@@ -50,7 +56,7 @@ export class HeldSession {
   notifyWake(): void {
     if (this.draining || this.lostOwnership) return
     this.wake.notify()
-    void this.intake?.pollStops()
+    void this.retryStops()
   }
 
   beginDrain(): void {
@@ -78,14 +84,7 @@ export class HeldSession {
     this.drainDeadline = args.deadline
     if (this.done === undefined) return
     const remaining = Math.max(0, args.deadline - this.deps.timers.now())
-    const late = new Promise<'late'>((resolve) => {
-      const timer = this.deps.timers.setTimeout(() => resolve('late'), remaining)
-      void this.done?.then(
-        () => this.deps.timers.clearTimeout(timer),
-        () => this.deps.timers.clearTimeout(timer),
-      )
-    })
-    const winner = await Promise.race([this.done.then(() => 'done' as const), late])
+    const winner = await raceDeadline({ deps: this.deps, done: this.done, deadlineMs: remaining })
     if (winner === 'late') {
       this.drainModelOnly = true
       this.runtime?.remoteCalls.handoff()
@@ -143,18 +142,12 @@ export class HeldSession {
         threadId,
         isModelOnlyDrain: () => this.drainModelOnly,
       })
-      const branches = new BranchObserver({
-        record: {
-          append: ({ threadId: to, runId, body }) =>
-            record.append({ threadId: to, runId, drafts: [body] }),
-          events: () => record.eventCache().all(),
-        },
-        remoteCalls: runtime.remoteCalls,
+      const branches = createBranchObserver({
+        deps,
+        record,
+        runtime,
         threadId,
-        repos: () => runtime.watchedRepos(),
-        runId: () => deps.ids.nextRunId(),
         signal: this.lifetimeAbort.signal,
-        ...(deps.log === undefined ? {} : { log: deps.log }),
       })
       this.branches = branches
       branches.start()
@@ -168,20 +161,14 @@ export class HeldSession {
       })
 
       const events = await record.ownEvents({ threadId })
-      await intake.pollStops()
+      await this.retryStops()
       if (isResumable(events)) {
         await this.driveTurn({ runner, threadId, resume: true })
       }
 
       await this.pollLoop({ runner, threadId })
     } catch (error) {
-      if (!(error instanceof LeaseLostError)) {
-        this.deps.log?.error({
-          source: 'holder.session',
-          message: `session ${this.deps.sessionId} faulted`,
-          ...logFieldsOf({ error }),
-        })
-      }
+      logDriveFault({ deps: this.deps, error })
     } finally {
       await this.teardown()
     }
@@ -218,15 +205,39 @@ export class HeldSession {
     })
   }
 
+  private retryStops(): Promise<void> {
+    return pollStopsWithRetry({
+      deps: this.deps,
+      signal: this.lifetimeAbort.signal,
+      intake: () => this.intake,
+      active: () => !this.draining && !this.lostOwnership,
+      onStopSeen: () => this.wake.notify(),
+    })
+  }
+
   private async pollLoop(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
     const deps = this.deps
+    let readFailures = 0
     while (!this.lifetimeAbort.signal.aborted) {
       if (this.draining) return
       this.wake.clear()
-      await this.intake?.pollStops()
-      await this.consumeStops()
-      if (await this.checkIdle()) return
-      if ((await this.pendingInput()) === 0) {
+      let pending: number
+      try {
+        await this.retryStops()
+        await this.consumeStops()
+        if (await this.checkIdle()) return
+        pending = await this.pendingInput()
+        readFailures = 0
+      } catch {
+        readFailures += 1
+        await waitMs({
+          deps,
+          signal: this.lifetimeAbort.signal,
+          ms: readRetryMs({ failures: readFailures }),
+        })
+        continue
+      }
+      if (pending === 0) {
         await this.wake.wait({
           deps,
           signal: this.lifetimeAbort.signal,
@@ -243,7 +254,6 @@ export class HeldSession {
     return this.deps.plane
       .readInbox({ sessionId: this.deps.sessionId, afterId: 0, limit: 1 })
       .then((entries) => entries.length)
-      .catch(() => 0)
   }
 
   private drop(): void {
@@ -259,41 +269,36 @@ export class HeldSession {
 
   private async checkIdle(): Promise<boolean> {
     const deps = this.deps
-    if (this.runtime === undefined) return false
-    const due = idleReleaseDue({
+    const due = await idleDueNow({
       deps,
+      runtime: this.runtime,
       turnRunning: this.turns.turnRunning,
       lastActivityAt: this.lastActivityAt,
-      runtime: this.runtime,
       released: this.released,
-      pendingInput: (await this.pendingInput()) > 0,
+      pendingInput: () => this.pendingInput(),
     })
-    if (!due) return false
+    if (!due || this.runtime === undefined) return false
     this.released = true
     await releaseIdleSession({ deps, runtime: this.runtime })
     const late = await this.pendingInput()
     this.drop()
     if (late > 0) {
-      this.deps.onDrop?.()
+      deps.onDrop?.()
       await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
     }
     return true
   }
 
   private async teardown(): Promise<void> {
-    const deps = this.deps
     this.renewal?.stop()
     this.branches?.stop()
-    if (this.runtime === undefined) return
-    if (this.draining) {
-      await this.runtime.stop()
-      if (!this.lostOwnership) {
-        await deps.plane
-          .revoke({ sessionId: deps.sessionId, wantsHolder: true, epoch: this.leaseEpoch })
-          .catch(() => undefined)
-      }
-      return
-    }
-    if (!this.released) this.runtime.remoteCalls.close()
+    await teardownHeldSession({
+      deps: this.deps,
+      runtime: this.runtime,
+      draining: this.draining,
+      lostOwnership: this.lostOwnership,
+      released: this.released,
+      epoch: this.leaseEpoch,
+    })
   }
 }
