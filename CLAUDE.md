@@ -98,11 +98,13 @@ should enforce a dependency rule.
 
 ## Environment secrets
 
-- Secrets are managed with `dotenvx`. The committed, encrypted `*.enc` files (e.g.
-  `apps/api/envs/.env.api.<tier>.enc`) are the source of truth for every tier, local dev included.
-- Deploy targets (Vercel, trigger.dev, Render, GitHub Actions) hold only the private key. Its name
-  matches the `DOTENV_PUBLIC_KEY_*` line at the top of the file, e.g.
-  `DOTENV_PRIVATE_KEY_API_PRODUCTION`. Never paste an app secret into a vendor dashboard.
+- Secrets are managed with `dotenvx`. The committed, encrypted tier files at each app's root
+  (`apps/<app>/.env.<tier>.enc`, e.g. `apps/api/.env.production.enc`) are the source of truth for
+  every tier, local dev included.
+- Deploy targets (Vercel, trigger.dev, Render, GitHub Actions) hold only the private key. dotenvx
+  reads exactly the name that matches the `DOTENV_PUBLIC_KEY_*` line at the top of the file
+  (`DOTENV_PRIVATE_KEY_PRODUCTION_ENC` for `.env.production.enc`), so renaming a tier file renames
+  the key everywhere. Never paste an app secret into a vendor dashboard.
 - Private keys live in a gitignored `.env.keys` beside the `.enc` file, where dotenvx finds them on
   its own. In Atlas Cloud they are project file mounts, so add or rotate a key there. Per-machine
   plaintext goes in a gitignored `.env.personal`; it loads after the tier and can't override a key
