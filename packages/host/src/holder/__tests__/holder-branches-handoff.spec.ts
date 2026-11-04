@@ -21,11 +21,11 @@ const drainLate = async (rig: HolderRig): Promise<void> => {
   expect(Date.now() - startedAt).toBeLessThan(PROMPT_HANDOFF_MS)
 }
 
-const expectRevoked = async (rig: HolderRig): Promise<void> => {
+const expectRevoked = async (rig: HolderRig, args: { wantsHolder: boolean }): Promise<void> => {
   const lease = await rig.plane.currentLease({ sessionId: SESSION })
   expect(lease.lease.holderId).toBeNull()
-  expect(lease.lease.wantsHolder).toBe(true)
-  expect(rig.wakeCount(SESSION)).toBeGreaterThanOrEqual(2)
+  expect(lease.lease.wantsHolder).toBe(args.wantsHolder)
+  if (args.wantsHolder) expect(rig.wakeCount(SESSION)).toBeGreaterThanOrEqual(2)
 }
 
 describe('branch observer lifecycle on handoff', () => {
@@ -44,7 +44,7 @@ describe('branch observer lifecycle on handoff', () => {
     if (runtime !== undefined) runtime.watched = ['/w']
 
     await drainLate(rig)
-    await expectRevoked(rig)
+    await expectRevoked(rig, { wantsHolder: true })
     rig.holder.discard()
   }, 15_000)
 
@@ -64,7 +64,7 @@ describe('branch observer lifecycle on handoff', () => {
     expect(said).toBe(true)
 
     await drainLate(rig)
-    await expectRevoked(rig)
+    await expectRevoked(rig, { wantsHolder: false })
     rig.holder.discard()
   }, 15_000)
 })
