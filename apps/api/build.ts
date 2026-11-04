@@ -8,7 +8,7 @@ import { SKILL_TEXT_EXTENSIONS } from '@dltech/atlas-wire'
 import { BUILT_IN_SKILLS_DIRECTORY } from './src/api/cloud/skills/builtin-skills-directory'
 import { lockedRuntimePackages } from './build-runtime-packages'
 
-const TIER_FILE = '.env.api.production.enc'
+const TIER_FILE = '.env.production.enc'
 
 const MAX_DURATION_SECONDS = 300
 
@@ -120,7 +120,7 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
     throw new Error('Installing the runtime packages of the function failed')
   }
 
-  const tierSource = join(import.meta.dirname, 'envs', TIER_FILE)
+  const tierSource = join(import.meta.dirname, TIER_FILE)
   if (!existsSync(tierSource)) {
     throw new Error(
       `${TIER_FILE} not found at ${tierSource}; the committed tier must exist to ship in the bundle.`,

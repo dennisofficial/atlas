@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { config } from '@dotenvx/dotenvx'
 
-const TIER_FILE = '.env.api.production.enc'
+const TIER_FILE = '.env.production.enc'
 
 export function injectEncryptedTierEnv(): void {
   const envsDir = process.env.DOTENVX_ENVS_DIR
@@ -25,7 +25,7 @@ export function injectEncryptedTierEnv(): void {
   )
   if (undecrypted.length > 0) {
     throw new Error(
-      `dotenvx reported success but ${undecrypted.length} value(s) are still ciphertext (${undecrypted.join(', ')}); DOTENV_PRIVATE_KEY_API_PRODUCTION does not match ${TIER_FILE}.`,
+      `dotenvx reported success but ${undecrypted.length} value(s) are still ciphertext (${undecrypted.join(', ')}); DOTENV_PRIVATE_KEY_PRODUCTION_ENC does not match ${TIER_FILE}.`,
     )
   }
 }

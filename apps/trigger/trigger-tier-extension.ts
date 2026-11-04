@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-const TIER_FILE = '.env.trigger.production.enc'
+const TIER_FILE = '.env.production.enc'
 const ENV_DEST_REL = 'envs'
 
 // The trigger.dev worker image root is /app.
@@ -25,7 +25,7 @@ export function dotenvxTierExtension(): BuildExtension {
     onBuildComplete: async (context: BuildContext, manifest: BuildManifest) => {
       if (context.target === 'dev') return
 
-      const source = join(context.workingDir, 'envs', TIER_FILE)
+      const source = join(context.workingDir, TIER_FILE)
       if (!existsSync(source)) {
         throw new Error(
           `DotenvxTierExtension: ${TIER_FILE} not found at ${source}; the committed tier file must exist to ship it in the bundle.`,

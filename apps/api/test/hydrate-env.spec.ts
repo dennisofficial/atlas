@@ -14,17 +14,15 @@ const SAVED_ENV = { ...process.env }
 
 beforeAll(() => {
   fixtureDir = mkdtempSync(join(tmpdir(), 'atlas-hydrate-'))
-  const envs = join(fixtureDir, 'envs')
-  mkdirSync(envs)
   const childEnv = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith('DOTENV_')),
   )
-  execFileSync(
-    DOTENVX,
-    ['set', 'HYDRATION_PROBE', 'hydrated-value', '-f', '.env.api.production.enc'],
-    { cwd: envs, stdio: 'pipe', env: childEnv },
-  )
-  const keys = readFileSync(join(envs, '.env.keys'), 'utf8')
+  execFileSync(DOTENVX, ['set', 'HYDRATION_PROBE', 'hydrated-value', '-f', '.env.production.enc'], {
+    cwd: fixtureDir,
+    stdio: 'pipe',
+    env: childEnv,
+  })
+  const keys = readFileSync(join(fixtureDir, '.env.keys'), 'utf8')
   const match = /DOTENV_PRIVATE_KEY[A-Z_]*="?([0-9a-f]{64})"?/.exec(keys)
   if (match === null) throw new Error('no private key in generated .env.keys')
   privateKey = match[1] as string
@@ -38,18 +36,18 @@ afterEach(() => {
 })
 
 describe('hydrateEnvFromTierFile', () => {
-  it('hydrates from envs/<tier>.enc when a private key is present', () => {
-    process.env.DOTENV_PRIVATE_KEY_API_PRODUCTION = privateKey
+  it('hydrates from .env.<tier>.enc when a private key is present', () => {
+    process.env.DOTENV_PRIVATE_KEY_PRODUCTION_ENC = privateKey
     process.env.APP_TIER = 'production'
     hydrateEnvFromTierFile({ cwd: fixtureDir })
     expect(process.env.HYDRATION_PROBE).toBe('hydrated-value')
   })
 
-  it('finds the tier file under apps/api/envs as well', () => {
+  it('finds the tier file under apps/api as well', () => {
     const dir = mkdtempSync(join(tmpdir(), 'atlas-hydrate-nested-'))
     mkdirSync(join(dir, 'apps', 'api'), { recursive: true })
-    cpSync(join(fixtureDir, 'envs'), join(dir, 'apps', 'api', 'envs'), { recursive: true })
-    process.env.DOTENV_PRIVATE_KEY_API_PRODUCTION = privateKey
+    cpSync(join(fixtureDir, '.env.production.enc'), join(dir, 'apps', 'api', '.env.production.enc'))
+    process.env.DOTENV_PRIVATE_KEY_PRODUCTION_ENC = privateKey
     process.env.APP_TIER = 'production'
 
     hydrateEnvFromTierFile({ cwd: dir })
@@ -64,7 +62,7 @@ describe('hydrateEnvFromTierFile', () => {
 
   it('does nothing when the tier file is absent', () => {
     const dir = mkdtempSync(join(tmpdir(), 'atlas-hydrate-empty-'))
-    process.env.DOTENV_PRIVATE_KEY_API_PRODUCTION = privateKey
+    process.env.DOTENV_PRIVATE_KEY_PRODUCTION_ENC = privateKey
     process.env.APP_TIER = 'production'
     expect(() => hydrateEnvFromTierFile({ cwd: dir })).not.toThrow()
   })

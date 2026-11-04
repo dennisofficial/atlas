@@ -23,7 +23,7 @@ function probeEnv({ port }: { port: number }): NodeJS.ProcessEnv {
     CLOUDFLARE_ACCOUNT_ID: 'cf-test-account',
     CLOUDFLARE_ZONE_ID: 'cf-test-zone',
     NODE_ENV: 'development',
-    DOTENV_PRIVATE_KEY_API_LOCAL: undefined,
+    DOTENV_PRIVATE_KEY_LOCAL_ENC: undefined,
   }
 }
 

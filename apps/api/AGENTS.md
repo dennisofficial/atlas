@@ -120,7 +120,7 @@ src/
   vercel.ts   the Vercel function entry — decrypts the shipped tier (vercel-tier-env.ts),
               validates env, createApp(), default-exports the Express instance.
 build.ts      bundles vercel.ts into a Build Output API v3 directory (see "Vercel bundle").
-envs/         dotenvx tier files (.env.api.<tier>.enc, committed; .env.keys, never).
+.env.<tier>.enc  dotenvx tier files at the app root (committed; .env.keys, never).
 test/         cross-cutting specs (env alignment).
 ```
 
@@ -181,8 +181,8 @@ shows up on the health check instead of as 500s. A database it cannot reach is r
 `bun run build` (`build.ts`) writes `.vercel/output`: `Bun.build` bundles
 `src/vercel.ts` into one `index.js` (`target: 'bun'`, ESM), plus `config.json` routing everything to
 the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). The committed
-`envs/.env.api.production.enc` is copied into the function; Vercel holds only
-`DOTENV_PRIVATE_KEY_API_PRODUCTION`, and `DOTENVX_ENVS_DIR=.` in `.vc-config.json` makes
+`.env.production.enc` is copied into the function; Vercel holds only
+`DOTENV_PRIVATE_KEY_PRODUCTION_ENC`, and `DOTENVX_ENVS_DIR=.` in `.vc-config.json` makes
 `vercel-tier-env.ts` decrypt it at boot (fatal if the file is missing or any value stays
 `encrypted:`). The migration graph's contract hashes are inlined at build time as
 `__ATLAS_MIGRATION_GRAPH__`, because the bundle has no `packages/db/migrations` directory to read.
@@ -264,8 +264,8 @@ hook > poll-backed. User auth stays OAuth — the app is transport only, and the
 
 ## Env
 
-House dotenvx conventions (see the `env-conventions` skill): encrypted per-tier files in
-`envs/`, `.env.keys` and `.env.personal` git-ignored, key parity across tiers enforced by
+House dotenvx conventions: each app keeps its encrypted per-tier files at its root as
+`.env.<tier>.enc`, with `.env.keys` and `.env.personal` git-ignored, key parity across tiers enforced by
 `test/env-alignment.spec.ts`, which also fails on any tier line that is not a comment, a blank or an
 `encrypted:` assignment (an unquoted multi-line value lands as bare lines that dotenvx never
 encrypts). The repo pre-commit hook (`lefthook.yml`, installed by the root `postinstall`) runs
@@ -319,10 +319,10 @@ one exact version; bump all three at once.
   exception: only CI dispatches `atlas-smoke`, so its contract sits beside the task.
 - **`TRIGGER_SECRET_KEY` is required.** A missing key fails boot. Local uses the dev-environment
   key (`tr_dev_…`) and production uses the prod key. Specs and the CI image probe use a fixture.
-- **Worker env is the tier.** `trigger-tier-extension.ts` ships `envs/.env.api.production.enc` in
+- **Worker env is the tier.** `trigger-tier-extension.ts` ships `.env.production.enc` in
   the worker bundle, and `src/trigger/init.ts` decrypts it into `process.env` before any task
   loads (`tier-env.ts` is fatal on a missing file or any value left `encrypted:`). The dashboard
-  holds only `DOTENV_PRIVATE_KEY_API_PRODUCTION`; never paste an app secret into it.
+  holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`; never paste an app secret into it.
 - **Tasks build their service graph by hand**, outside Nest DI and once per run
   (`src/trigger/github/github-sweep-graph.ts`): plain constructor chains over an `EnvService` built
   from the validated `process.env`. The fan-out gets a `RedisPrFrameBus` when the tier carries

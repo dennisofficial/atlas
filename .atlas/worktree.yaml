@@ -1,3 +1,5 @@
 copy:
-  - apps/api/envs/.env.keys
-  - apps/api/envs/.env.personal
+  - apps/api/.env.keys
+  - apps/api/.env.personal
+  - apps/agent-host/.env.keys
+  - apps/trigger/.env.keys

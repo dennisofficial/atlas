@@ -59,7 +59,7 @@ A fresh worktree is a clean checkout, so files git ignores (`.env.keys`, `.env.l
 
 ```yaml
 copy:
-  - apps/api/envs/.env.keys
+  - apps/api/.env.keys
   - "apps/*/.env.local"
 link:
   - .turbo/cache
@@ -85,7 +85,7 @@ Once, each time `enter_worktree` creates a worktree (`name`) or adopts one (`pat
 The `enter_worktree` reply ends with one sentence about the file, for example:
 
 ```
-.atlas/worktree.yaml from /repo: copied apps/api/envs/.env.keys; linked .turbo/cache; skipped README.md (tracked by git), apps/web/.env.local (already present); missing (no match) apps/*/.env.test; refused ../secrets (contains ..).
+.atlas/worktree.yaml from /repo: copied apps/api/.env.keys; linked .turbo/cache; skipped README.md (tracked by git), apps/web/.env.local (already present); missing (no match) apps/*/.env.test; refused ../secrets (contains ..).
 ```
 
 - `copied` / `linked`: placed now.
@@ -100,7 +100,7 @@ No sentence means there is no `.atlas/worktree.yaml`.
 
 ### Rotated or edited sources
 
-Copies are one-shot. When a copied file changes in the main checkout (a rotated `.env.keys`, a new local env value), existing worktrees keep the old copy. Re-copy it by hand (`cp -p <main>/apps/api/envs/.env.keys apps/api/envs/.env.keys`), or delete the stale copy and enter the worktree again. Use `link` for files that must always track the main checkout.
+Copies are one-shot. When a copied file changes in the main checkout (a rotated `.env.keys`, a new local env value), existing worktrees keep the old copy. Re-copy it by hand (`cp -p <main>/apps/api/.env.keys apps/api/.env.keys`), or delete the stale copy and enter the worktree again. Use `link` for files that must always track the main checkout.
 
 ## Recommended repo setup
 
