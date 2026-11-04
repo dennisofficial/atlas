@@ -22,6 +22,19 @@ describe('databaseUrlWithTls', () => {
     expect(databaseUrlWithTls(url)).toBe(url)
   })
 
+  it('rejects an insecure sslmode for a remote host', () => {
+    for (const mode of ['disable', 'allow', 'prefer']) {
+      expect(() =>
+        databaseUrlWithTls(`postgres://u:p@db.render.com/atlas?sslmode=${mode}`),
+      ).toThrow(`sslmode=${mode}`)
+    }
+  })
+
+  it('allows an insecure sslmode for a local host', () => {
+    const url = 'postgres://u:p@127.0.0.1:5433/atlas?sslmode=disable'
+    expect(databaseUrlWithTls(url)).toBe(url)
+  })
+
   it('the pg connection parser turns sslmode=require into ssl on', async () => {
     const { createRequire } = await import('node:module')
     const requireFromPg = createRequire(import.meta.resolve('@dltech/atlas-db'))
