@@ -6,9 +6,9 @@ import { GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
 import { startRig, type FaultRig } from '../../testing/fault-rig'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
-const testDb = useTestDatabase()
 
 describe.skipIf(REDIS_URL === undefined)('scripted session across processes', () => {
+  const testDb = useTestDatabase()
   let rig: FaultRig
 
   beforeAll(async () => {

@@ -9,7 +9,7 @@ import { createDb, createPool, type Pool } from '@dltech/atlas-db'
 import { FaultProxy } from '@dltech/atlas-host/testing'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
-import { daemonTestEnv, spawnDaemon } from '@dltech/atlas-daemon/testing'
+import { daemonTestEnv } from '@dltech/atlas-daemon/testing'
 
 import { createRedisBus, type RedisBus } from '../bus/redis-bus'
 import { sandboxNameOf } from '../sandbox/sandbox-provider'
@@ -57,6 +57,33 @@ export type FaultRig = {
     knobs?: HostKnobs
   }): Promise<HostProcess>
   stop(): Promise<void>
+}
+
+const LISTENING = /listening on (\d+) bootId=(\S+)/
+
+const waitForListening = async (
+  child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>,
+): Promise<{ port: number; bootId: string }> => {
+  const reader = child.stdout.getReader()
+  const decoder = new TextDecoder()
+  let seen = ''
+  const deadline = setTimeout(() => void reader.cancel(), 10_000)
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      seen += decoder.decode(value, { stream: true })
+      const match = LISTENING.exec(seen)
+      if (match?.[1] !== undefined && match[2] !== undefined) {
+        return { port: Number(match[1]), bootId: match[2] }
+      }
+    }
+  } finally {
+    clearTimeout(deadline)
+    reader.releaseLock()
+  }
+  const stderr = await new Response(child.stderr).text()
+  throw new Error(`daemon did not start: ${seen}${stderr}`)
 }
 
 const collectLines = (stream: ReadableStream<Uint8Array>, into: string[]): void => {
@@ -148,36 +175,57 @@ export const startRig = async (args: {
     async spawnDaemonFor({ sessionId }) {
       const home = mkdtempSync(join(tmpdir(), 'atlas-fault-rig-daemon-'))
       const sandboxName = sandboxNameOf(sessionId)
-      const spawned = await spawnDaemon({
-        entry: daemonEntry,
+      const child = Bun.spawn({
+        cmd: ['setsid', 'bun', daemonEntry],
         env: {
           ...daemonTestEnv(home),
           DAEMON_TOKEN: daemonToken({ secret: RIG_SECRET, sandboxName }),
           ATLAS_SANDBOX_NAME: sandboxName,
           HOME: home,
         },
+        stdin: 'ignore',
+        stdout: 'pipe',
+        stderr: 'pipe',
       })
-      const proxy = await FaultProxy.start({
-        target: { host: '127.0.0.1', port: spawned.port },
+      let proxy: FaultProxy | undefined
+      let stopped = false
+      const stop = async (): Promise<void> => {
+        if (stopped) return
+        stopped = true
+        child.kill('SIGTERM')
+        const exited = await Promise.race([
+          child.exited.then(() => true),
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2_000)),
+        ])
+        if (!exited) child.kill('SIGKILL')
+        await child.exited.catch(() => undefined)
+        try {
+          process.kill(-child.pid, 'SIGKILL')
+        } catch {
+          // the process group is already gone
+        }
+        await proxy?.stop()
+        rmSync(home, { recursive: true, force: true })
+      }
+      closers.push(stop)
+      const listening = await waitForListening(child)
+      proxy = await FaultProxy.start({
+        target: { host: '127.0.0.1', port: listening.port },
       })
-      const daemon: RigDaemon = {
+      return {
         url: `ws://127.0.0.1:${proxy.port}`,
         proxy,
         home,
-        bootId: spawned.bootId,
-        async stop() {
-          spawned.child.kill('SIGKILL')
-          await spawned.child.exited
-          await proxy.stop()
-          rmSync(home, { recursive: true, force: true })
-        },
+        bootId: listening.bootId,
+        stop,
       }
-      closers.push(daemon.stop)
-      return daemon
     },
 
     async spawnHost({ holderId, daemonUrl, scripts, knobs }) {
       const dir = mkdtempSync(join(tmpdir(), `atlas-fault-rig-host-${holderId}-`))
+      closers.push(async () => {
+        rmSync(dir, { recursive: true, force: true })
+      })
       const workspace = join(dir, 'workspace')
       mkdirSync(workspace, { recursive: true })
       const scriptFile = join(dir, 'scripts.json')
@@ -209,7 +257,6 @@ export const startRig = async (args: {
       closers.push(async () => {
         child.kill('SIGKILL')
         await child.exited.catch(() => undefined)
-        rmSync(dir, { recursive: true, force: true })
       })
       return {
         holderId,

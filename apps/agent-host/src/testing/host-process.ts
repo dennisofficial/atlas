@@ -47,6 +47,7 @@ const testApi = (): AgentHostApi => ({
       fileMounts: [],
       provenance: {},
     },
+    workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
     revision: 'rev-1',
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
   }),
