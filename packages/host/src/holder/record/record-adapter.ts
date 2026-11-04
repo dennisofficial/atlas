@@ -73,7 +73,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       threadId: args.threadId,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
-    await ackRecordedDaemonResults({
+    void ackRecordedDaemonResults({
       cache,
       daemonTools: args.daemonTools,
       remoteCalls: args.remoteCalls,

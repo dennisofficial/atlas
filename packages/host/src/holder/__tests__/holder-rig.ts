@@ -47,6 +47,7 @@ export const makeRig = async (args: {
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   model?: (() => ModelPort) | undefined
   prepare?: (() => Promise<PrepareResult>) | undefined
+  connectGate?: Promise<void> | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
@@ -66,6 +67,7 @@ export const makeRig = async (args: {
     watchedRepos: args.watchedRepos,
     model: args.model,
     prepare: args.prepare,
+    connectGate: args.connectGate,
   })
 
   const holder = new SessionHolder({

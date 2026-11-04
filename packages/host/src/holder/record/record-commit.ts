@@ -35,12 +35,13 @@ export const ackRecordedDaemonResults = async (args: {
   remoteCalls: RemoteCalls
   log?: LogPort | undefined
 }): Promise<void> => {
+  const events = [...args.cache.all()]
   let lastUserSaidSeq = 0
-  for (const event of args.cache.all()) {
+  for (const event of events) {
     if (event.type === 'user-said') lastUserSaidSeq = event.seq
   }
   const dispatched = new Map<string, { runId: string; name: string }>()
-  for (const event of args.cache.all()) {
+  for (const event of events) {
     if (event.seq <= lastUserSaidSeq) continue
     if (event.type === 'tool-dispatched') {
       dispatched.set(event.callId, { runId: event.runId, name: event.name })

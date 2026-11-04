@@ -21,7 +21,6 @@ import { inMemoryDaemonToken, type InMemoryDaemon } from '@dltech/atlas-protocol
 
 import { RemoteCalls } from '../../calls/remote-calls'
 import { scopeDispatchedBootId } from '../../calls/call-scope'
-import type { DaemonConnector } from '../../calls/socket'
 import type { PrepareResult, SessionRuntime } from '../ports'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
 
@@ -74,6 +73,7 @@ export const makeRuntimeFactory = (args: {
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   prepare?: (() => Promise<PrepareResult>) | undefined
   model?: (() => ModelPort) | undefined
+  connectGate?: Promise<void> | undefined
 }): ((params: {
   sessionId: string
   threadId: ThreadId
@@ -85,10 +85,10 @@ export const makeRuntimeFactory = (args: {
     const calls = new RemoteCalls({
       sessionId,
       token: inMemoryDaemonToken({ secret: SECRET, sandboxName: SANDBOX }),
-      connector: () =>
-        Promise.resolve<DaemonConnector>((handlers) =>
-          Promise.resolve(args.daemon.connectRaw(handlers)),
-        ),
+      connector: async () => {
+        await args.connectGate
+        return (handlers) => Promise.resolve(args.daemon.connectRaw(handlers))
+      },
       timers: args.clock,
       onFenced: () => {},
     })
@@ -96,8 +96,8 @@ export const makeRuntimeFactory = (args: {
     const ackedScopes: string[] = []
     const originalAckScope = calls.ackScope.bind(calls)
     calls.ackScope = async ({ scopeKey, count }) => {
+      await originalAckScope({ scopeKey, count })
       ackedScopes.push(scopeKey)
-      return originalAckScope({ scopeKey, count })
     }
     const runtime: RigRuntime = {
       remoteCalls: calls,
