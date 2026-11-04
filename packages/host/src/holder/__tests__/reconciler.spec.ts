@@ -107,6 +107,52 @@ describe('Reconciler', () => {
     }
   })
 
+  it('an explicit request clears a pending backoff retry', async () => {
+    const clock = new FakeClock()
+    let steps = 0
+    let failing = true
+    const reconciler = new Reconciler({
+      timers: clock,
+      step: () => {
+        steps += 1
+        return failing ? Promise.reject(new Error('down')) : Promise.resolve()
+      },
+    })
+    reconciler.request()
+    await tick()
+    expect(steps).toBe(1)
+
+    failing = false
+    reconciler.request()
+    await tick()
+    expect(steps).toBe(2)
+    clock.advance(250)
+    await tick()
+    expect(steps).toBe(2)
+  })
+
+  it('stop() clears a pending backoff retry and ignores later requests', async () => {
+    const clock = new FakeClock()
+    let steps = 0
+    const reconciler = new Reconciler({
+      timers: clock,
+      step: () => {
+        steps += 1
+        return Promise.reject(new Error('down'))
+      },
+    })
+    reconciler.request()
+    await tick()
+    expect(steps).toBe(1)
+
+    reconciler.stop()
+    reconciler.request()
+    clock.advance(10_000)
+    await tick()
+    expect(steps).toBe(1)
+    expect(clock.pendingWithin(Number.MAX_SAFE_INTEGER)).toBe(false)
+  })
+
   it('arms no timer while idle after a successful step', async () => {
     const clock = new FakeClock()
     const reconciler = new Reconciler({

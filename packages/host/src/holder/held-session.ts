@@ -279,6 +279,7 @@ export class HeldSession {
     if (this.ended) return
     this.ended = true
     this.idle.disarm()
+    this.reconciler?.stop()
     this.finishDrive?.()
   }
 
