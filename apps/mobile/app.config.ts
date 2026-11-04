@@ -8,7 +8,7 @@ export default (): ExpoConfig => ({
   owner: 'dennisofficial',
   version: '1.0.0',
   platforms: ['ios', 'web'],
-  orientation: 'portrait',
+  orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'atlas',
   userInterfaceStyle: 'automatic',
