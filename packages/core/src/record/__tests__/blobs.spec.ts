@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toCallId, toRunId, toThreadId } from '../../events/ids'
+import { canonicalJson } from '../canonical'
 import {
   BLOB_PREVIEW_BYTES,
   blobRefsOf,
+  blobValueOf,
+  containsRefShape,
   isBlobRef,
   resolveBody,
   spillBody,
@@ -111,12 +114,16 @@ describe('spillBody', () => {
 })
 
 describe('resolveBody', () => {
-  it('round-trips a spilled body back to the original', () => {
+  it('round-trips a spilled body from the decoded blob bytes', () => {
     const output = { text: 'r'.repeat(5000), nested: [1, 2, { ok: true }] }
     const body = toolResult(output)
     const spilled = spillBody({ body, thresholdBytes })
-    const values = new Map<string, unknown>([[spilled.blobs[0]?.hash ?? '', output]])
-    expect(resolveBody({ body: spilled.body, values })).toEqual(body)
+    const blob = spilled.blobs[0]
+    if (blob === undefined) throw new Error('expected a spill')
+    const values = new Map<string, unknown>([[blob.hash, blobValueOf(blob.bytes)]])
+    const resolved = resolveBody({ body: spilled.body, values })
+    if (resolved.type !== 'tool-result') throw new Error('type drifted')
+    expect(canonicalJson(resolved.output)).toBe(canonicalJson(output))
   })
 
   it('returns the same body when nothing references a blob', () => {
@@ -133,14 +140,43 @@ describe('resolveBody', () => {
 })
 
 describe('isBlobRef', () => {
-  it('accepts only the reference shape', () => {
+  it('accepts only the exact reference shape', () => {
     const ref: BlobRef = {
       $blob: { hash: 'a'.repeat(64), size: 3, preview: 'abc' },
     }
     expect(isBlobRef(ref)).toBe(true)
+    expect(isBlobRef({ ...ref, extra: 1 })).toBe(false)
+    expect(isBlobRef({ $blob: { ...ref.$blob, extra: 1 } })).toBe(false)
     expect(isBlobRef({ $blob: { hash: 'nope', size: 3, preview: 'abc' } })).toBe(false)
     expect(isBlobRef({ $blob: 'x' })).toBe(false)
     expect(isBlobRef('x')).toBe(false)
     expect(isBlobRef(undefined)).toBe(false)
+  })
+})
+
+describe('ref-shape escape', () => {
+  const shaped = (extra?: unknown): unknown => ({
+    $blob: { hash: 'b'.repeat(64), size: 3, preview: 'abc', ...(extra as object | undefined) },
+  })
+
+  it('matches exact, extra-keyed, and nested shapes', () => {
+    expect(containsRefShape(shaped())).toBe(true)
+    expect(containsRefShape(shaped({ extra: 1 }))).toBe(true)
+    expect(containsRefShape({ data: [shaped()] })).toBe(true)
+    expect(containsRefShape({ $blob: { hash: 'nope', size: 3, preview: 'abc' } })).toBe(false)
+    expect(containsRefShape({ data: ['plain'] })).toBe(false)
+  })
+
+  it('spills a ref-shaped value whatever its size and resolves it untouched', () => {
+    const output = { small: shaped() }
+    const body = toolResult(output)
+    const spilled = spillBody({ body, thresholdBytes: 1_000_000 })
+    expect(spilled.blobs.length).toBe(1)
+    const blob = spilled.blobs[0]
+    if (blob === undefined) throw new Error('expected a spill')
+    const values = new Map<string, unknown>([[blob.hash, blobValueOf(blob.bytes)]])
+    const resolved = resolveBody({ body: spilled.body, values })
+    if (resolved.type !== 'tool-result') throw new Error('type drifted')
+    expect(resolved.output).toEqual(output)
   })
 })

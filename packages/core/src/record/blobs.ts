@@ -12,8 +12,8 @@ export type BlobRef = {
 
 export type BlobPayload = { hash: string; bytes: Uint8Array }
 
-const blobRefSchema = z.object({
-  $blob: z.object({
+const blobRefSchema = z.strictObject({
+  $blob: z.strictObject({
     hash: z.string().regex(/^[0-9a-f]{64}$/),
     size: z.number().int().nonnegative(),
     preview: z.string(),
@@ -22,6 +22,35 @@ const blobRefSchema = z.object({
 
 export const isBlobRef = (value: unknown): value is BlobRef =>
   blobRefSchema.safeParse(value).success
+
+const HASH_PATTERN = /^[0-9a-f]{64}$/
+
+const looksLikeRefPayload = (value: unknown): boolean => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const record = value as Record<string, unknown>
+  return (
+    typeof record.hash === 'string' &&
+    HASH_PATTERN.test(record.hash) &&
+    typeof record.size === 'number' &&
+    typeof record.preview === 'string'
+  )
+}
+
+const looksLikeRef = (value: unknown): boolean =>
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value) &&
+  '$blob' in value &&
+  looksLikeRefPayload((value as Record<string, unknown>).$blob)
+
+export const containsRefShape = (value: unknown): boolean => {
+  if (looksLikeRef(value)) return true
+  if (Array.isArray(value)) return value.some(containsRefShape)
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value).some(containsRefShape)
+  }
+  return false
+}
 
 export type SpillableField = 'input' | 'output' | 'value'
 
@@ -73,7 +102,9 @@ export function spillBody(args: { body: V2Body; thresholdBytes: number }): {
   if (field === undefined || value === undefined) return { body: args.body, blobs: [] }
   const json = canonicalJson(value)
   const bytes = new TextEncoder().encode(json)
-  if (bytes.byteLength <= args.thresholdBytes) return { body: args.body, blobs: [] }
+  if (!containsRefShape(value) && bytes.byteLength <= args.thresholdBytes) {
+    return { body: args.body, blobs: [] }
+  }
   const hash = sha256Hex(bytes)
   const ref: BlobRef = { $blob: { hash, size: bytes.byteLength, preview: previewOf(json) } }
   return { body: withField(args.body, field, ref), blobs: [{ hash, bytes }] }
