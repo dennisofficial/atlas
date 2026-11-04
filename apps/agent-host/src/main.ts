@@ -22,7 +22,7 @@ const main = async (): Promise<void> => {
     console.error(`agent-host refuses to start; daemon bundle not found at ${env.daemonBundlePath}`)
     process.exit(78)
   }
-  const pool = createPool(databaseUrlWithTls(env.databaseUrl))
+  const pool = createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: 10_000 })
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
   const log = new JsonLog()
   const bus = createRedisBus({ url: env.redisUrl, log })

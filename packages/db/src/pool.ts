@@ -45,7 +45,11 @@ function evictDeadOnCheckout(pool: pg.Pool): pg.Pool['connect'] {
   return guarded
 }
 
-export function createPool(connectionString: string): Pool {
+export type PoolOptions = {
+  queryTimeoutMs?: number
+}
+
+export function createPool(connectionString: string, options?: PoolOptions): Pool {
   const pool = new pg.Pool({
     connectionString,
     max: poolMaxOf(process.env.DATABASE_POOL_MAX),
@@ -53,6 +57,7 @@ export function createPool(connectionString: string): Pool {
     idleTimeoutMillis: IDLE_TIMEOUT_MS,
     keepAlive: true,
     keepAliveInitialDelayMillis: 1_000,
+    query_timeout: options?.queryTimeoutMs,
   })
   pool.connect = evictDeadOnCheckout(pool)
   pool.on('error', (error) => {

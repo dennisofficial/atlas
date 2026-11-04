@@ -37,6 +37,7 @@ export type HostKnobs = {
   fenceMs?: number
   inboxPollMs?: number
   drainMs?: number
+  queryTimeoutMs?: number
 }
 
 export type FaultRig = {
@@ -191,6 +192,9 @@ export const startRig = async (args: {
           FENCE_MS: String(knobs?.fenceMs ?? 1_000),
           INBOX_POLL_MS: String(knobs?.inboxPollMs ?? 100),
           ...(knobs?.drainMs === undefined ? {} : { DRAIN_MS: String(knobs.drainMs) }),
+          ...(knobs?.queryTimeoutMs === undefined
+            ? {}
+            : { DB_QUERY_TIMEOUT_MS: String(knobs.queryTimeoutMs) }),
           ...(firstChunkFile === undefined ? {} : { FIRST_CHUNK_FILE: firstChunkFile }),
         },
         stdin: 'ignore',
