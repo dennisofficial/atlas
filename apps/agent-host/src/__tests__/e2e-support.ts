@@ -59,6 +59,7 @@ export const apiFor = (): AgentHostApi => ({
     projectId: 'proj-1',
     model: { configured: false, gap: 'scripted model in test' },
     vercel: { configured: true, token: '', teamId: '', projectId: '' },
+    workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
     config: {
       settings: {},
       secrets: [],

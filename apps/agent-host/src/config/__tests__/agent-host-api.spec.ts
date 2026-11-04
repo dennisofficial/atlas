@@ -9,6 +9,7 @@ const configBody = (expiresAt: string): AgentHostConfigOutput => ({
   projectId: 'p1',
   model: { configured: false, gap: 'none' },
   vercel: { configured: false, gap: 'none' },
+  workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
   config: {
     settings: {},
     secrets: [],

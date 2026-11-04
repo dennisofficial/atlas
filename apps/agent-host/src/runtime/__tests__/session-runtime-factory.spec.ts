@@ -33,6 +33,7 @@ const configured = (over: Partial<AgentHostConfigOutput> = {}): AgentHostConfigO
     credential: { kind: 'api-key', apiKey: 'sk-test' },
   },
   vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
+  workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
   config: projectConfig,
   revision: 'rev-1',
   expiresAt: new Date(Date.now() + 60_000).toISOString(),
