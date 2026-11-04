@@ -18,10 +18,10 @@ import {
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
-import { WORKSPACE_PATH } from '@dltech/atlas-wire'
 
 import type { AgentHostApi } from '../config/agent-host-api'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
+import { WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
