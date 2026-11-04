@@ -23,6 +23,7 @@ export class DaemonLink {
   private readonly pingMs: number
   private socket: DaemonSocket | null = null
   private connectAttempt = 0
+  private failures = 0
   private linkGeneration = 0
   private misses = 0
   private pingTimer: unknown = null
@@ -105,10 +106,16 @@ export class DaemonLink {
     this.send(hello())
   }
 
+  markReady(): void {
+    this.ready = true
+    this.failures = 0
+  }
+
   private reconnectLater(args: { from: number }): void {
     if (this.stopped) return
     if (args.from !== this.connectAttempt) return
-    const ceiling = Math.min(BACKOFF_MAX_MS, BACKOFF_MIN_MS * 2 ** (args.from - 1))
+    this.failures += 1
+    const ceiling = Math.min(BACKOFF_MAX_MS, BACKOFF_MIN_MS * 2 ** (this.failures - 1))
     const wait = Math.floor(this.args.timers.random() * ceiling)
     const timer = this.args.timers.setTimeout(() => {
       this.stopReconnect = null

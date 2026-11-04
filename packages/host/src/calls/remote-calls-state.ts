@@ -244,7 +244,7 @@ export class RemoteCallsState {
     const previousBootId = this.linkBootId
     const restart = previousBootId !== undefined && previousBootId !== frame.bootId
     this.linkBootId = frame.bootId
-    this.link.ready = true
+    this.link.markReady()
     this.readyResolve?.(frame)
     this.readyResolve = null
     this.readyReject = null
