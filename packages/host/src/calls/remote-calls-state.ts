@@ -7,13 +7,13 @@ import {
   ProtocolViolationError,
   SandboxUnavailableError,
   actionForLostCall,
-  interruptedMessage,
 } from './errors'
 import { DaemonLink } from './link'
 import {
   failedResult,
   handedOffResult,
   handleDaemonFrame,
+  interruptedResult,
   recoverRestartedCalls,
   rejectPending,
   type Pending,
@@ -143,14 +143,7 @@ export class RemoteCallsState {
       throw error
     }
     if (this.lostAcrossBoot(call, args.dispatchedBootId)) {
-      this.settle(
-        call,
-        failedResult({
-          op: args.op.op,
-          code: ECallFailure.Internal,
-          message: interruptedMessage(args.op.op),
-        }),
-      )
+      this.settle(call, interruptedResult(args.op.op))
       return outcome
     }
     if (this.link.ready) this.sendRun(call)

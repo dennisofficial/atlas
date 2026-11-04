@@ -22,6 +22,9 @@ export type Pending = {
   detach?: (() => void) | undefined
 }
 
+export const interruptedResult = (op: string): CallResult =>
+  failedResult({ op, code: ECallFailure.Internal, message: interruptedMessage(op) })
+
 export const rejectPending = (args: {
   pending: Map<string, Pending>
   pendingAcks: Map<string, { key: string; resolve(found: boolean): void }>
