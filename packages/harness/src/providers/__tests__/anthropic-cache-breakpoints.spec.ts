@@ -108,11 +108,14 @@ describe('the breakpoints the default annotators place', () => {
     })
   })
 
-  it('reaches the wire as cache_control on the last conversation block', async () => {
+  it('reaches the wire as cache_control on the last history block, before the step reminder', async () => {
     const body = await sentBody()
     const last = body.messages[body.messages.length - 1]?.content ?? []
+    const reminder = last[last.length - 1]
+    const history = last[last.length - 2]
 
-    expect(last[last.length - 1]?.cache_control).toEqual({
+    expect(reminder?.cache_control).toBeUndefined()
+    expect(history?.cache_control).toEqual({
       type: 'ephemeral',
       ttl: ECacheTtl.OneHour,
     })
