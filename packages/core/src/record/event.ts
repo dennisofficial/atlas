@@ -5,6 +5,12 @@ import { eventIdSchema, runIdSchema, threadIdSchema } from '../events/ids'
 import type { EventId, RunId, ThreadId } from '../events/ids'
 import { eventBodySchema } from '../events/schema'
 import { branchesObservedSchema, type BranchesObserved } from './branches'
+import {
+  workspacePrepareFailedSchema,
+  workspacePreparedSchema,
+  type WorkspacePrepared,
+  type WorkspacePrepareFailed,
+} from './workspace'
 
 export type Hash = string & { readonly __brand: 'Hash' }
 
@@ -32,6 +38,8 @@ export type RecordBody =
   | { type: 'input-consumed'; inboxId: number }
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
   | BranchesObserved
+  | WorkspacePrepared
+  | WorkspacePrepareFailed
 
 export type V2Body = Exclude<EventBody, { type: 'history-compacted' }> | RecordBody
 
@@ -81,6 +89,8 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     value: z.unknown().optional(),
   }),
   branchesObservedSchema,
+  workspacePreparedSchema,
+  workspacePrepareFailedSchema,
 ])
 
 const RECORD_TYPES: readonly string[] = [
@@ -89,6 +99,8 @@ const RECORD_TYPES: readonly string[] = [
   'input-consumed',
   'fact-recorded',
   'branches-observed',
+  'workspace-prepared',
+  'workspace-prepare-failed',
 ]
 
 const typeOf = (raw: unknown): unknown =>
