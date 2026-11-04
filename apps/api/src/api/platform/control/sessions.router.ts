@@ -1,5 +1,7 @@
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import {
+  sessionBlobInputSchema,
+  sessionBlobOutputSchema,
   sessionCreateInputSchema,
   sessionCreateOutputSchema,
   sessionEventsInputSchema,
@@ -10,6 +12,8 @@ import {
   sessionPostOutputSchema,
   sessionStatusInputSchema,
   sessionStatusOutputSchema,
+  type SessionBlobInput,
+  type SessionBlobOutput,
   type SessionCreateInput,
   type SessionCreateOutput,
   type SessionEventsInput,
@@ -53,6 +57,11 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionEventsOutput> {
     return this.sessions.events({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: sessionBlobInputSchema, output: sessionBlobOutputSchema })
+  blob(@Input() input: SessionBlobInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionBlobOutput> {
+    return this.sessions.blob({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionStatusInputSchema, output: sessionStatusOutputSchema })

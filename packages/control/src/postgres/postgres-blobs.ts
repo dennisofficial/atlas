@@ -14,9 +14,14 @@ export const insertBlobRows = async (tx: Tx, rows: readonly BlobWrite[]): Promis
 }
 
 export const readBlobRow = async (tx: Tx, hash: string): Promise<BlobRow | undefined> => {
-  const row = await tx.orm.v2.V2Blob.first({ hash })
-  if (row === null) return undefined
-  return { size: row.size, bytes: new Uint8Array(row.bytes) }
+  const [row] = await tx.query(
+    tx.raw.sql`SELECT "size", encode("bytes", 'base64') AS "b64"
+      FROM "v2"."V2Blob" WHERE "hash" = ${hash}`
+      .returnsRow({ size: 'pg/int4@1', b64: 'pg/text@1' })
+      .build(),
+  )
+  if (row === undefined) return undefined
+  return { size: row.size, bytes: new Uint8Array(Buffer.from(row.b64, 'base64')) }
 }
 
 export const blobHashesPresent = async (

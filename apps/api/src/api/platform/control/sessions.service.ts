@@ -12,6 +12,7 @@ import {
 } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import type {
+  SessionBlobOutput,
   SessionEventsOutput,
   SessionListOutput,
   SessionStatusOutput,
@@ -22,6 +23,8 @@ import { WakePublisher } from './wake.publisher'
 export type LeaseView = { epoch: number; holderId: string | null; live: boolean }
 
 const STATUS_EVENT_LIMIT = 1000
+const EVENTS_DEFAULT_MAX_BYTES = 2_000_000
+const BLOB_READ_DEFAULT_LENGTH = 1_000_000
 
 const toSummary = (row: ControlSessionRow) => ({
   sessionId: row.sessionId,
@@ -95,6 +98,7 @@ export class SessionsService {
     sessionId: string
     afterSeq?: number | undefined
     limit?: number | undefined
+    maxBytes?: number | undefined
   }): Promise<SessionEventsOutput> {
     const session = await this.requireOwnedSession(args)
     const page = await this.plane.readEvents({
@@ -102,11 +106,35 @@ export class SessionsService {
       afterSeq: args.afterSeq ?? 0,
       limit: args.limit ?? STATUS_EVENT_LIMIT,
       visible: true,
+      maxBytes: args.maxBytes ?? EVENTS_DEFAULT_MAX_BYTES,
     })
     return {
       events: page.events.map((event) => event as Record<string, unknown>),
       ...(page.next === undefined ? {} : { next: page.next }),
     }
+  }
+
+  async blob(args: {
+    userId: string
+    sessionId: string
+    hash: string
+    offset?: number | undefined
+    length?: number | undefined
+  }): Promise<SessionBlobOutput> {
+    await this.requireOwnedSession(args)
+    const referenced = await this.plane.blobReferencedBy({
+      sessionId: args.sessionId,
+      hash: args.hash,
+    })
+    if (!referenced) throw new NotFoundException('blob not found')
+    const offset = args.offset ?? 0
+    const blob = await this.plane.readBlob({
+      hash: args.hash,
+      offset,
+      length: args.length ?? BLOB_READ_DEFAULT_LENGTH,
+    })
+    if (blob === undefined) throw new NotFoundException('blob not found')
+    return { size: blob.size, offset, bytes: Buffer.from(blob.bytes).toString('base64') }
   }
 
   async status(args: { userId: string; sessionId: string }): Promise<SessionStatusOutput> {
