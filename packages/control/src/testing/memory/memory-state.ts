@@ -16,7 +16,7 @@ export type State = {
   notifications: string[]
 }
 
-export const PREPARE_HISTORY_TYPES: ReadonlySet<string> = new Set([
+const PREPARE_HISTORY_TYPES: ReadonlySet<string> = new Set([
   'workspace-prepared',
   'user-said',
   'workspace-prepare-failed',
@@ -48,3 +48,15 @@ export const cloneState = (state: State): State => ({
   blobRefs: new Set(state.blobRefs),
   notifications: [...state.notifications],
 })
+
+export const hasPrepareHistory = (log: readonly StoredEvent[]): boolean =>
+  log.some((event) => PREPARE_HISTORY_TYPES.has(event.type))
+
+export const activeFailureOf = (log: readonly StoredEvent[]): { inboxHead: number } | undefined => {
+  if (log.some((event) => event.type === 'workspace-prepared' || event.type === 'user-said')) {
+    return undefined
+  }
+  const failed = log.findLast((event) => event.type === 'workspace-prepare-failed')
+  if (failed === undefined) return undefined
+  return { inboxHead: (JSON.parse(failed.canonical) as { inboxHead: number }).inboxHead }
+}

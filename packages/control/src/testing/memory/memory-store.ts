@@ -14,7 +14,14 @@ import {
 } from '../../port'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { bisectAfter, leaseLiveAt } from './memory-helpers'
-import { cloneState, emptyState, PREPARE_HISTORY_TYPES, refKey, type State } from './memory-state'
+import {
+  activeFailureOf,
+  cloneState,
+  emptyState,
+  hasPrepareHistory,
+  refKey,
+  type State,
+} from './memory-state'
 
 class MemoryTx implements ControlTx {
   private readonly state: State
@@ -81,9 +88,11 @@ class MemoryTx implements ControlTx {
         )
         const actionable = actionableInboxIds({
           entries: unconsumed,
-          failure: this.activeFailureOf(row.mainThreadId),
+          failure: activeFailureOf(this.state.events.get(row.mainThreadId) ?? []),
         })
-        return actionable.length > 0 || !this.hasPrepareHistory(row.mainThreadId)
+        return (
+          actionable.length > 0 || !hasPrepareHistory(this.state.events.get(row.mainThreadId) ?? [])
+        )
       })
       .sort(
         (a, b) =>
@@ -92,22 +101,6 @@ class MemoryTx implements ControlTx {
       )
       .slice(0, params.limit)
       .map((row) => row.sessionId)
-  }
-
-  private activeFailureOf(threadId: string): { inboxHead: number } | undefined {
-    const log = this.state.events.get(threadId) ?? []
-    if (log.some((event) => event.type === 'workspace-prepared' || event.type === 'user-said')) {
-      return undefined
-    }
-    const failed = log.findLast((event) => event.type === 'workspace-prepare-failed')
-    if (failed === undefined) return undefined
-    return { inboxHead: (JSON.parse(failed.canonical) as { inboxHead: number }).inboxHead }
-  }
-
-  private hasPrepareHistory(threadId: string): boolean {
-    return (this.state.events.get(threadId) ?? []).some((event) =>
-      PREPARE_HISTORY_TYPES.has(event.type),
-    )
   }
 
   async createThread(params: {
