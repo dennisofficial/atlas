@@ -4,6 +4,8 @@ import { ECallStatus } from '@dltech/atlas-protocol'
 import { createInMemoryDaemon, inMemoryDaemonToken } from '@dltech/atlas-protocol/testing'
 
 import { RemoteCalls, type DaemonConnector, type DaemonSocket } from '../..'
+import type { DaemonLinkHandlers } from '../socket'
+import { DaemonLink } from '../link'
 import { fakeTimers } from '../../testing'
 
 const SANDBOX = 'atlas-v2-health-test'
@@ -129,5 +131,52 @@ describe('link health on a fake clock', () => {
     expect(waits[0]).toBe(125)
     calls.close()
     await daemon.stop()
+  })
+
+  it('keeps the link alive while output frames arrive, even with no pongs for 40 s', async () => {
+    const timers = fakeTimers()
+    let handlers: DaemonLinkHandlers | null = null
+    let closed = false
+    let fatal: Error | null = null
+    const socket: DaemonSocket = {
+      send: () => {},
+      close: () => {
+        closed = true
+      },
+    }
+    const link = new DaemonLink({
+      timers,
+      events: {
+        onFrame: () => {},
+        onSuperseded: () => {},
+        onUnauthenticated: () => {},
+        onFatal: (error) => {
+          fatal = error
+        },
+      },
+    })
+    link.start({
+      connector: () =>
+        Promise.resolve((given: DaemonLinkHandlers) => {
+          handlers = given
+          return Promise.resolve(socket)
+        }),
+      hello: () => ({ kind: 'hello', sessionId: 's-health-4', epoch: 1, token: 'tok' }),
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(handlers).not.toBeNull()
+    link.markReady()
+    link.schedulePing()
+    const outputFrame = JSON.stringify({ kind: 'output', key: 'k', offset: 0, bytes: 'AA==' })
+    for (let elapsed = 0; elapsed < 40_000; elapsed += 10_000) {
+      timers.advance(9_000)
+      ;(handlers as DaemonLinkHandlers | null)?.onText(outputFrame)
+      timers.advance(1_000)
+    }
+    expect(fatal).toBeNull()
+    expect(closed).toBe(false)
+    link.teardown()
   })
 })
