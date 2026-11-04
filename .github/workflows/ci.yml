@@ -246,11 +246,16 @@ jobs:
         env:
           ATLAS_LIVE_DOCKER: '1'
 
-  # Unsigned rehearsal of the mac build on every PR and main push: proves the web export, main
-  # bundle and Hutch packaging still work without touching a secret, so fork PRs run it too and
-  # it gates merges. Signing and notarization happen only in `mac-release`. Hutch builds for the
-  # host only, so this runs on the arm64 mac runner.
+  # Unsigned rehearsal of the mac build on PRs: proves the web export, main bundle and Hutch
+  # packaging still work without touching a secret, so fork PRs run it too and it gates merges.
+  # Main pushes skip it: the PR run already proved the merge commit and `mac-release` builds it
+  # for real, so a main push never waits on a second macOS runner before releasing. Signing and
+  # notarization happen only in `mac-release`. Hutch builds for the host only, so this runs on
+  # the arm64 mac runner.
+  # No bun cache on macOS: restoring the ~650 MB archive takes longer than a cold install. The
+  # Next cache is restore-only here and saved by `mac-release` on main, so PRs never upload one.
   mac-app-rehearsal:
+    if: github.event_name != 'push'
     runs-on: macos-latest
     timeout-minutes: 30
     env:
@@ -260,14 +265,9 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
 
-      - uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
       - run: bun install --frozen-lockfile
 
-      - uses: actions/cache@v6
+      - uses: actions/cache/restore@v6
         with:
           path: apps/web/.next/cache
           key: next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ hashFiles('apps/web/src/**', 'apps/web/*.ts', 'apps/web/*.mjs', 'apps/web/package.json') }}
@@ -279,7 +279,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.hutch
-          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'bun.lock') }}
+          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'apps/mac/package.json') }}
 
       - name: install create-dmg
         run: command -v create-dmg >/dev/null || brew install create-dmg
@@ -292,6 +292,8 @@ jobs:
         run: ls -la artifacts
         working-directory: apps/mac
 
+  # The jobs below spell out `!cancelled()` because an implicit success() also sees transitive
+  # needs, so the rehearsal skipped on main pushes would otherwise skip both release jobs.
   # Single required status for the main ruleset: one name covers every job above, so tightening
   # CI never leaves the ruleset behind. Named `ci` only on pull_request runs — a required check is
   # satisfied by whichever run reports the name first on a sha, and the push run's answers are not
@@ -303,12 +305,17 @@ jobs:
     needs: [check, test, api-bundle, mac-app-rehearsal]
     if: always()
     steps:
-      - name: Fail if any check failed
+      - name: Fail unless every check passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
         run: |
-          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "true" ]; then
-            echo "::error::one or more CI checks failed"
-            exit 1
-          fi
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$NEEDS" | jq -e --arg event "$EVENT" '
+            to_entries | all(
+              .value.result == "success"
+              or (.key == "mac-app-rehearsal" and $event == "push" and .value.result == "skipped")
+            )' >/dev/null || { echo "::error::one or more CI checks did not pass"; exit 1; }
           echo "all CI checks passed"
 
   # Releasing is a job of the same run that proved the commit green, not a second workflow
@@ -325,7 +332,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs: [ci]
-    if: github.ref == 'refs/heads/main' && needs.ci.result == 'success'
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.ci.result == 'success' }}
     permissions:
       contents: write
       actions: write
@@ -416,7 +423,7 @@ jobs:
   mac-release:
     runs-on: macos-latest
     needs: [release]
-    if: needs.release.outputs.tag != ''
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.tag != '' }}
     timeout-minutes: 45
     permissions:
       contents: write
@@ -433,18 +440,21 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
 
+      - run: bun install --frozen-lockfile
+
       - uses: actions/cache@v6
         with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile
+          path: apps/web/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ hashFiles('apps/web/src/**', 'apps/web/*.ts', 'apps/web/*.mjs', 'apps/web/package.json') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
+            next-${{ runner.os }}-
 
       - name: restore hutch
         uses: actions/cache@v6
         with:
           path: ~/.hutch
-          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'bun.lock') }}
+          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'apps/mac/package.json') }}
 
       - name: import signing certificate
         env:

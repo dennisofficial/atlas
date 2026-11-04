@@ -1,7 +1,7 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { buildCreateDmgArgs, pickDmgName, readSigningEnv, type SigningEnv } from './dmg-plan'
+import { buildCreateDmgArgs, dmgNameFor, readSigningEnv, type SigningEnv } from './dmg-plan'
 
 const appRoot = resolve(import.meta.dir, '..')
 const assets = join(appRoot, 'assets', 'dmg')
@@ -17,15 +17,15 @@ function run({ cmd }: { cmd: string[] }) {
   if (result.exitCode !== 0) fail(`${cmd[0]} exited with ${result.exitCode}`)
 }
 
-function findApp(): string {
+function findApp(): { channelDir: string; appName: string; path: string } {
   const buildDir = join(appRoot, 'build')
   const channelDir = existsSync(buildDir)
     ? readdirSync(buildDir).find((entry) => /^stable-macos-/.test(entry))
     : undefined
   if (!channelDir) fail(`no stable-macos-* directory in ${buildDir}; run electrobun build first`)
-  const app = readdirSync(join(buildDir, channelDir)).find((entry) => entry.endsWith('.app'))
-  if (!app) fail(`no .app in ${join(buildDir, channelDir)}`)
-  return join(buildDir, channelDir, app)
+  const appName = readdirSync(join(buildDir, channelDir)).find((entry) => entry.endsWith('.app'))
+  if (!appName) fail(`no .app in ${join(buildDir, channelDir)}`)
+  return { channelDir, appName, path: join(buildDir, channelDir, appName) }
 }
 
 function signAndNotarize({ dmg, signing }: { dmg: string; signing: SigningEnv }) {
@@ -68,12 +68,11 @@ if (!Bun.which('create-dmg'))
   fail('create-dmg not found; install it with `brew install create-dmg`')
 
 const signing = readSigningEnv({ env: process.env })
-const sourceApp = findApp()
-const appName = sourceApp.split('/').pop() as string
+const { channelDir, appName, path: sourceApp } = findApp()
 const artifacts = join(appRoot, 'artifacts')
-const existing = existsSync(artifacts) ? pickDmgName({ files: readdirSync(artifacts) }) : null
-if (!existing) fail(`no macos .dmg in ${artifacts}; run electrobun build first`)
-const outputPath = join(artifacts, existing)
+mkdirSync(artifacts, { recursive: true })
+const dmgName = dmgNameFor({ channelDir, bundleName: appName.replace(/\.app$/, '') })
+const outputPath = join(artifacts, dmgName)
 
 const work = mkdtempSync(join(tmpdir(), 'atlas-dmg-'))
 try {
@@ -96,7 +95,7 @@ try {
   const volumeIcon = join(work, 'volume.icns')
   run({ cmd: ['iconutil', '-c', 'icns', join(appRoot, 'icon.iconset'), '-o', volumeIcon] })
 
-  const branded = join(work, existing)
+  const branded = join(work, dmgName)
   run({
     cmd: [
       'create-dmg',
