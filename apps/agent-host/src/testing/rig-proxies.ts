@@ -7,16 +7,6 @@ export const proxiedDatabaseUrl = (args: { databaseUrl: string; port: number }):
   return url.toString()
 }
 
-export const startOwnDbProxy = async (args: {
-  databaseUrl: string
-}): Promise<{ proxy: FaultProxy; url: string }> => {
-  const target = new URL(args.databaseUrl)
-  const proxy = await FaultProxy.start({
-    target: { host: target.hostname, port: Number(target.port) },
-  })
-  return { proxy, url: proxiedDatabaseUrl({ databaseUrl: args.databaseUrl, port: proxy.port }) }
-}
-
 export const startOwnDaemonProxy = async (args: {
   daemonUrl: string
 }): Promise<{ proxy: FaultProxy; url: string }> => {

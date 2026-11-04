@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 import { ControlPlane } from '@dltech/atlas-control'
+import { ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { RandomIds } from '@dltech/atlas-harness'
@@ -25,6 +26,41 @@ const numberEnv = (name: string, fallback: number): number => {
   const parsed = Number(value)
   if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`${name} is not a number: ${value}`)
   return parsed
+}
+
+class FirstChunkMarker extends ModelPort {
+  private marked = false
+
+  constructor(
+    private readonly inner: ModelPort,
+    private readonly path: string,
+  ) {
+    super()
+  }
+
+  get identity(): ModelPort['identity'] {
+    return this.inner.identity
+  }
+
+  step: ModelPort['step'] = (args) => {
+    const onChunk = args.onChunk
+    return this.inner.step({
+      ...args,
+      onChunk: (chunk) => {
+        if (!this.marked && chunk.type === 'text-delta') {
+          this.marked = true
+          writeFileSync(this.path, '1')
+        }
+        return onChunk?.(chunk) ?? chunk
+      },
+    })
+  }
+}
+
+const withFirstChunkMarker = (model: ModelPort): ModelPort => {
+  const path = process.env.FIRST_CHUNK_FILE
+  if (path === undefined || path === '') return model
+  return new FirstChunkMarker(model, path)
 }
 
 class JsonLog extends LogPort {
@@ -83,7 +119,8 @@ const main = async (): Promise<void> => {
       sandbox,
       daemonSecret,
       timers,
-      modelFor: ({ sessionId }) => new ScriptedModel(scripts[sessionId] ?? []),
+      modelFor: ({ sessionId }) =>
+        withFirstChunkMarker(new ScriptedModel(scripts[sessionId] ?? [], undefined, existsSync)),
       launchDirectory: workspace,
       log,
     }),
@@ -104,7 +141,7 @@ const main = async (): Promise<void> => {
     if (shuttingDown) process.exit(1)
     shuttingDown = true
     log.info({ source: 'host-process', message: 'draining' })
-    await holder.drain({ deadline: Date.now() + 5_000 })
+    await holder.drain({ deadline: Date.now() + numberEnv('DRAIN_MS', 270_000) })
     await bus.close()
     await pool.end()
     process.exit(0)

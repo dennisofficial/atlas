@@ -13,7 +13,8 @@ import { daemonTestEnv } from '@dltech/atlas-daemon/testing'
 
 import { createRedisBus, type RedisBus } from '../bus/redis-bus'
 import { sandboxNameOf } from '../sandbox/sandbox-provider'
-import { proxiedDatabaseUrl, startOwnDbProxy, startOwnDaemonProxy } from './rig-proxies'
+import { collectLines, waitForListening } from './rig-process'
+import { proxiedDatabaseUrl, startOwnDaemonProxy } from './rig-proxies'
 
 const daemonEntry = join(import.meta.dir, '../../../daemon/src/index.ts')
 const hostEntry = join(import.meta.dir, 'host-process.ts')
@@ -30,8 +31,8 @@ export type RigDaemon = {
 
 export type HostProcess = {
   holderId: string
-  dbProxy: FaultProxy | undefined
-  daemonProxy: FaultProxy | undefined
+  dbProxy?: FaultProxy
+  daemonProxy?: FaultProxy
   kill(signal: 'SIGKILL' | 'SIGTERM'): void
   exited: Promise<number>
   logs(): string[]
@@ -39,7 +40,13 @@ export type HostProcess = {
 
 export type ReadEvent = { seq: number; type: string; event: unknown }
 
-export type HostKnobs = { ttlMs?: number; renewMs?: number; fenceMs?: number; inboxPollMs?: number }
+export type HostKnobs = {
+  ttlMs?: number
+  renewMs?: number
+  fenceMs?: number
+  inboxPollMs?: number
+  drainMs?: number
+}
 
 export type FaultRig = {
   plane: ControlPlane
@@ -61,48 +68,9 @@ export type FaultRig = {
     dbProxy?: 'shared' | 'own'
     daemonProxy?: 'shared' | 'own'
     redisUrl?: string
+    firstChunkFile?: string
   }): Promise<HostProcess>
   stop(): Promise<void>
-}
-
-const LISTENING = /listening on (\d+) bootId=(\S+)/
-
-const waitForListening = async (
-  child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>,
-): Promise<{ port: number; bootId: string }> => {
-  const reader = child.stdout.getReader()
-  const decoder = new TextDecoder()
-  let seen = ''
-  const deadline = setTimeout(() => void reader.cancel(), 10_000)
-  try {
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      seen += decoder.decode(value, { stream: true })
-      const match = LISTENING.exec(seen)
-      if (match?.[1] !== undefined && match[2] !== undefined) {
-        return { port: Number(match[1]), bootId: match[2] }
-      }
-    }
-  } finally {
-    clearTimeout(deadline)
-    reader.releaseLock()
-  }
-  const stderr = await new Response(child.stderr).text()
-  throw new Error(`daemon did not start: ${seen}${stderr}`)
-}
-
-const collectLines = (stream: ReadableStream<Uint8Array>, into: string[]): void => {
-  void (async () => {
-    const decoder = new TextDecoder()
-    let rest = ''
-    for await (const chunk of stream as unknown as AsyncIterable<Uint8Array>) {
-      rest += decoder.decode(chunk, { stream: true })
-      const lines = rest.split('\n')
-      rest = lines.pop() ?? ''
-      for (const line of lines) if (line !== '') into.push(line)
-    }
-  })()
 }
 
 export const startRig = async (args: {
@@ -228,13 +196,8 @@ export const startRig = async (args: {
       dbProxy: dbProxyMode,
       daemonProxy: daemonProxyMode,
       redisUrl,
+      firstChunkFile,
     }) {
-      const ownDb =
-        dbProxyMode === 'own' ? await startOwnDbProxy({ databaseUrl: args.databaseUrl }) : undefined
-      if (ownDb !== undefined) closers.push(async () => ownDb.proxy.stop())
-      const ownDaemon =
-        daemonProxyMode === 'own' ? await startOwnDaemonProxy({ daemonUrl }) : undefined
-      if (ownDaemon !== undefined) closers.push(async () => ownDaemon.proxy.stop())
       const dir = mkdtempSync(join(tmpdir(), `atlas-fault-rig-host-${holderId}-`))
       closers.push(async () => {
         rmSync(dir, { recursive: true, force: true })
@@ -243,13 +206,32 @@ export const startRig = async (args: {
       mkdirSync(workspace, { recursive: true })
       const scriptFile = join(dir, 'scripts.json')
       writeFileSync(scriptFile, JSON.stringify(scripts))
+      let ownProxy: FaultProxy | undefined
+      if (dbProxyMode === 'own') {
+        ownProxy = await FaultProxy.start({
+          target: { host: '127.0.0.1', port: dbProxy.port },
+        })
+        const stopping = ownProxy
+        closers.push(() => stopping.stop())
+      }
+      const ownDaemon =
+        daemonProxyMode === 'own' ? await startOwnDaemonProxy({ daemonUrl }) : undefined
+      if (ownDaemon !== undefined) closers.push(async () => ownDaemon.proxy.stop())
+      const databaseUrl = (): string => {
+        if (ownProxy === undefined) {
+          return proxiedDatabaseUrl({ databaseUrl: args.databaseUrl, port: dbProxy.port })
+        }
+        const url = new URL(args.databaseUrl)
+        url.hostname = '127.0.0.1'
+        url.port = String(ownProxy.port)
+        return url.toString()
+      }
       const child = Bun.spawn({
         cmd: ['bun', hostEntry],
         env: {
           ...process.env,
           ATLAS_HOME: join(dir, 'atlas-home'),
-          DATABASE_URL:
-            ownDb?.url ?? proxiedDatabaseUrl({ databaseUrl: args.databaseUrl, port: dbProxy.port }),
+          DATABASE_URL: databaseUrl(),
           REDIS_URL: redisUrl ?? args.redisUrl,
           HOLDER_ID: holderId,
           DAEMON_URL: ownDaemon?.url ?? daemonUrl,
@@ -260,6 +242,8 @@ export const startRig = async (args: {
           RENEW_MS: String(knobs?.renewMs ?? 500),
           FENCE_MS: String(knobs?.fenceMs ?? 1_000),
           INBOX_POLL_MS: String(knobs?.inboxPollMs ?? 100),
+          ...(knobs?.drainMs === undefined ? {} : { DRAIN_MS: String(knobs.drainMs) }),
+          ...(firstChunkFile === undefined ? {} : { FIRST_CHUNK_FILE: firstChunkFile }),
         },
         stdin: 'ignore',
         stdout: 'pipe',
@@ -274,8 +258,8 @@ export const startRig = async (args: {
       })
       return {
         holderId,
-        dbProxy: ownDb?.proxy,
-        daemonProxy: ownDaemon?.proxy,
+        ...(ownProxy === undefined ? {} : { dbProxy: ownProxy }),
+        ...(ownDaemon === undefined ? {} : { daemonProxy: ownDaemon.proxy }),
         kill(signal) {
           child.kill(signal)
         },
