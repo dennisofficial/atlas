@@ -29,8 +29,17 @@ const retryFacts = (events: readonly V2Event[]) =>
       event.type === 'fact-recorded' && event.key.startsWith('retry:'),
   )
 
+const notBeforeOf = (fact: V2Event): number => {
+  if (fact.type !== 'fact-recorded') throw new Error('not a fact')
+  const value = fact.value
+  if (typeof value !== 'object' || value === null || !('notBefore' in value)) {
+    throw new Error('retry fact without notBefore')
+  }
+  return Date.parse(String(value.notBefore))
+}
+
 describe('holder retry deadlines', () => {
-  it("B's first model call waits out the notBefore A recorded, recorded exactly once", async () => {
+  it('a handoff shorter than the backoff revokes and wakes; B waits out the deadline', async () => {
     const a = await makeRig({
       holderId: 'holder-a',
       script: [{ throws: new Error('transient boom') }],
@@ -45,17 +54,8 @@ describe('holder retry deadlines', () => {
     expect(recorded).toBe(true)
     const fact = retryFacts(await fullEvents(a))[0]
     if (fact === undefined) throw new Error('no retry fact')
-    const value = fact.value
-    if (typeof value !== 'object' || value === null || !('notBefore' in value)) {
-      throw new Error('retry fact without notBefore')
-    }
-    const notBeforeMs = Date.parse(String(value.notBefore))
-    expect(Number.isFinite(notBeforeMs)).toBe(true)
-
-    const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
-    a.clock.advance(1_100)
-    await drain
-    a.clock.advance(31_000)
+    const notBeforeMs = notBeforeOf(fact)
+    expect(notBeforeMs).toBeGreaterThan(a.clock.now())
 
     const b = await makeRig({
       holderId: 'holder-b',
@@ -66,25 +66,37 @@ describe('holder retry deadlines', () => {
       script: [{ text: 'b answer' }],
     })
     await b.holder.start()
-    await a.bus.wake(SESSION)
+
+    const wakesBefore = a.bus.wakes.length
+    const drain = a.holder.drain({ deadline: a.clock.now() + 100 })
+    a.clock.advance(200)
+    await drain
+
+    expect((await a.events()).some((event) => event.type === 'run-failed')).toBe(false)
+    expect(a.bus.wakes.length).toBeGreaterThan(wakesBefore)
+
     const claimed = await flushUntil({ check: () => b.holder.heldIds().length === 1 })
     expect(claimed).toBe(true)
+    const lease = await b.plane.currentLease({ sessionId: SESSION })
+    expect(lease.lease.holderId).toBe('holder-b')
+    expect(lease.lease.epoch).toBeGreaterThan(1)
 
     const runtimeB = b.runtimes[0]
     if (runtimeB === undefined) throw new Error('no runtime for b')
-    expect(Date.now()).toBeLessThan(notBeforeMs)
     expect(runtimeB.model.requests).toHaveLength(0)
 
-    const called = await flushUntil({
-      check: () => runtimeB.model.requests.length > 0,
-      attempts: 5_000,
-    })
+    while (a.clock.now() < notBeforeMs) {
+      a.clock.advance(Math.min(100, notBeforeMs - a.clock.now()))
+      await b.flush()
+      if (a.clock.now() < notBeforeMs) expect(runtimeB.model.requests).toHaveLength(0)
+    }
+    const called = await flushUntil({ check: () => runtimeB.model.requests.length > 0 })
     expect(called).toBe(true)
-    expect(Date.now()).toBeGreaterThanOrEqual(notBeforeMs)
+    expect(a.clock.now()).toBeGreaterThanOrEqual(notBeforeMs)
+
     expect(retryFacts(await fullEvents(a)).filter((event) => event.key === fact.key)).toHaveLength(
       1,
     )
-
     const answered = await flushUntil({
       check: async () => (await a.events()).some((event) => event.type === 'assistant-said'),
     })
