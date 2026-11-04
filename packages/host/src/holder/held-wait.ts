@@ -23,7 +23,34 @@ export const consumeStops = async (args: {
   }
 }
 
-export const interruptibleWait = (args: {
+export class WakeSignal {
+  private pending = false
+  private interrupter: (() => void) | undefined
+
+  notify(): void {
+    this.pending = true
+    this.interrupter?.()
+  }
+
+  clear(): void {
+    this.pending = false
+  }
+
+  wait(args: { deps: HeldSessionDeps; signal: AbortSignal; ms: number }): Promise<void> {
+    if (this.pending) {
+      this.pending = false
+      return Promise.resolve()
+    }
+    return interruptibleWait({
+      ...args,
+      setInterrupter: (interrupter) => {
+        this.interrupter = interrupter
+      },
+    })
+  }
+}
+
+const interruptibleWait = (args: {
   deps: HeldSessionDeps
   signal: AbortSignal
   ms: number

@@ -4,6 +4,11 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 import type { SessionRuntime } from './ports'
 import type { HeldSessionDeps } from './held-session-deps'
 
+export const idleWaitMs = (args: { deps: HeldSessionDeps; lastActivityAt: number }): number => {
+  const deadline = args.lastActivityAt + args.deps.idleMinutes * 60_000
+  return Math.max(1, deadline - args.deps.timers.now())
+}
+
 export const idleReleaseDue = (args: {
   deps: HeldSessionDeps
   turnRunning: boolean

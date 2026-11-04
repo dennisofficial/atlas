@@ -6,8 +6,8 @@ import { statusFrame, type SessionRuntime } from './ports'
 import { BranchObserver } from './branch-observer'
 import { createLoopRunner } from './held-runner'
 import { InboxIntake } from './inbox-intake'
-import { idleReleaseDue, releaseIdleSession } from './held-idle'
-import { consumeStops, interruptibleWait } from './held-wait'
+import { idleReleaseDue, idleWaitMs, releaseIdleSession } from './held-idle'
+import { consumeStops, WakeSignal } from './held-wait'
 import { LeaseLostError, SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 
@@ -30,7 +30,7 @@ export class HeldSession {
   private intake: InboxIntake | undefined
   private branches: BranchObserver | undefined
   private renewal: LeaseRenewal | undefined
-  private interruptWait: (() => void) | undefined
+  private readonly wake = new WakeSignal()
   private leaseEpoch = 0
   private drainModelOnly = false
   private lostOwnership = false
@@ -49,7 +49,7 @@ export class HeldSession {
 
   notifyWake(): void {
     if (this.draining || this.lostOwnership) return
-    this.interruptWait?.()
+    this.wake.notify()
     void this.intake?.pollStops()
   }
 
@@ -58,7 +58,7 @@ export class HeldSession {
     this.branches?.stop()
     this.pause.pause()
     this.record?.markDraining()
-    this.interruptWait?.()
+    this.wake.notify()
   }
 
   run(args: { lease: Lease; threadId: ThreadId }): Promise<void> {
@@ -220,10 +220,16 @@ export class HeldSession {
     const deps = this.deps
     while (!this.lifetimeAbort.signal.aborted) {
       if (this.draining) return
+      this.wake.clear()
+      await this.intake?.pollStops()
       await this.consumeStops()
       if (await this.checkIdle()) return
       if ((await this.pendingInput()) === 0) {
-        await this.wait(this.idleWaitMs())
+        await this.wake.wait({
+          deps,
+          signal: this.lifetimeAbort.signal,
+          ms: idleWaitMs({ deps, lastActivityAt: this.lastActivityAt }),
+        })
         continue
       }
       this.lastActivityAt = deps.timers.now()
@@ -236,22 +242,6 @@ export class HeldSession {
       .readInbox({ sessionId: this.deps.sessionId, afterId: 0, limit: 1 })
       .then((entries) => entries.length)
       .catch(() => 0)
-  }
-
-  private idleWaitMs(): number {
-    const deadline = this.lastActivityAt + this.deps.idleMinutes * 60_000
-    return Math.max(1, deadline - this.deps.timers.now())
-  }
-
-  private wait(ms: number): Promise<void> {
-    return interruptibleWait({
-      deps: this.deps,
-      signal: this.lifetimeAbort.signal,
-      ms,
-      setInterrupter: (interrupter) => {
-        this.interruptWait = interrupter
-      },
-    })
   }
 
   private drop(): void {
