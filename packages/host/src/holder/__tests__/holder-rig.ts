@@ -17,6 +17,7 @@ export type HolderRig = {
   plane: ControlPlane
   bus: FakeBus
   clock: FakeClock
+  wakeCount(sessionId: string): number
   ids: SequentialIds
   holder: SessionHolder
   daemon: InMemoryDaemon
@@ -41,7 +42,6 @@ export const makeRig = async (args: {
   ttlMs?: number | undefined
   renewEveryMs?: number | undefined
   fenceMarginMs?: number | undefined
-  inboxPollMs?: number | undefined
   idleMinutes?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   model?: (() => ModelPort) | undefined
@@ -76,7 +76,6 @@ export const makeRig = async (args: {
     ttlMs: args.ttlMs ?? 30_000,
     renewEveryMs: args.renewEveryMs ?? 5_000,
     fenceMarginMs: args.fenceMarginMs ?? 5_000,
-    inboxPollMs: args.inboxPollMs ?? 2_000,
     idleMinutes: args.idleMinutes ?? 30,
   })
 
@@ -84,6 +83,7 @@ export const makeRig = async (args: {
     plane,
     bus,
     clock,
+    wakeCount: (sessionId) => store.wakeCount(sessionId),
     ids,
     holder,
     daemon,

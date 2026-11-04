@@ -9,6 +9,7 @@ export class AgentHostEnvError extends Error {
 
 export type AgentHostEnv = {
   databaseUrl: string
+  databaseDirectUrl: string
   redisUrl: string
   agentHostToken: string
   daemonSecret: string
@@ -43,12 +44,14 @@ export const readAgentHostEnv = (
   env: Record<string, string | undefined> = process.env,
 ): AgentHostEnv => {
   const databaseUrl = take(env, 'DATABASE_URL')
+  const databaseDirectUrl = take(env, 'DATABASE_DIRECT_URL')
   const redisUrl = take(env, 'REDIS_URL')
   const agentHostToken = take(env, 'AGENT_HOST_TOKEN')
   const daemonSecret = take(env, 'DAEMON_SECRET')
   const apiOrigin = take(env, 'ATLAS_API_ORIGIN')
   const required: ReadonlyArray<[string, string | undefined]> = [
     ['DATABASE_URL', databaseUrl],
+    ['DATABASE_DIRECT_URL', databaseDirectUrl],
     ['REDIS_URL', redisUrl],
     ['AGENT_HOST_TOKEN', agentHostToken],
     ['DAEMON_SECRET', daemonSecret],
@@ -58,6 +61,7 @@ export const readAgentHostEnv = (
   if (missing.length > 0) throw new AgentHostEnvError(missing)
   return {
     databaseUrl: databaseUrl as string,
+    databaseDirectUrl: databaseDirectUrl as string,
     redisUrl: redisUrl as string,
     agentHostToken: agentHostToken as string,
     daemonSecret: daemonSecret as string,

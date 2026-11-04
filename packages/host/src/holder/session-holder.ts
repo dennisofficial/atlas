@@ -16,7 +16,6 @@ export type SessionHolderArgs = {
   ttlMs?: number | undefined
   renewEveryMs?: number | undefined
   fenceMarginMs?: number | undefined
-  inboxPollMs?: number | undefined
   idleMinutes?: number | undefined
   log?: LogPort | undefined
 }
@@ -25,7 +24,6 @@ const DEFAULTS = {
   ttlMs: 30_000,
   renewEveryMs: 5_000,
   fenceMarginMs: 5_000,
-  inboxPollMs: 2_000,
   idleMinutes: 30,
 } as const
 
@@ -40,13 +38,13 @@ export class SessionHolder {
   private readonly ttlMs: number
   private readonly renewEveryMs: number
   private readonly fenceMarginMs: number
-  private readonly inboxPollMs: number
   private readonly idleMinutes: number
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
   private readonly pendingClaims = new Map<string, Promise<void>>()
   private unsubWake: (() => void) | undefined
+  private unsubResync: (() => void) | undefined
   private draining = false
 
   constructor(args: SessionHolderArgs) {
@@ -60,20 +58,23 @@ export class SessionHolder {
     this.ttlMs = args.ttlMs ?? DEFAULTS.ttlMs
     this.renewEveryMs = args.renewEveryMs ?? DEFAULTS.renewEveryMs
     this.fenceMarginMs = args.fenceMarginMs ?? DEFAULTS.fenceMarginMs
-    this.inboxPollMs = args.inboxPollMs ?? DEFAULTS.inboxPollMs
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.log = args.log
   }
 
   async start(): Promise<void> {
     this.unsubWake = this.bus.onWake((sessionId) => {
-      void this.onWake(sessionId)
+      this.onWake(sessionId)
+    })
+    this.unsubResync = this.bus.onResync(() => {
+      void this.onResync()
     })
   }
 
   async drain(args: { deadline: number }): Promise<void> {
     this.draining = true
     this.unsubWake?.()
+    this.unsubResync?.()
     const sessions = [...this.held.values()]
     for (const session of sessions) session.beginDrain()
     await Promise.all(
@@ -96,12 +97,17 @@ export class SessionHolder {
   discard(): void {
     this.draining = true
     this.unsubWake?.()
+    this.unsubResync?.()
     for (const session of this.held.values()) session.discard()
   }
 
   private onWake(sessionId: string): void {
     if (this.draining) return
-    if (this.held.has(sessionId)) return
+    const held = this.held.get(sessionId)
+    if (held !== undefined) {
+      held.notifyWake()
+      return
+    }
     if (this.pendingClaims.has(sessionId)) return
     if (this.held.size + this.pendingClaims.size >= this.maxSessions) return
     const pending = this.claimAndHold(sessionId).finally(() => {
@@ -109,6 +115,23 @@ export class SessionHolder {
     })
     this.pendingClaims.set(sessionId, pending)
     pending.catch(() => undefined)
+  }
+
+  private async onResync(): Promise<void> {
+    if (this.draining) return
+    for (const session of this.held.values()) session.notifyWake()
+    let ids: string[]
+    try {
+      ids = await this.plane.sessionsNeedingHolder({ limit: this.maxSessions })
+    } catch (error) {
+      this.log?.error({
+        source: 'holder.resync',
+        message: 'listing sessions needing a holder failed',
+        ...logFieldsOf({ error }),
+      })
+      return
+    }
+    for (const sessionId of ids) this.onWake(sessionId)
   }
 
   private async claimAndHold(sessionId: string): Promise<void> {
@@ -123,7 +146,6 @@ export class SessionHolder {
         await this.plane
           .revoke({ sessionId, wantsHolder: true, epoch: claim.lease.epoch })
           .catch(() => undefined)
-        await this.bus.wake(sessionId).catch(() => undefined)
         return
       }
       await this.hold({ sessionId, lease: claim.lease })
@@ -175,7 +197,6 @@ export class SessionHolder {
       ttlMs: this.ttlMs,
       renewEveryMs: this.renewEveryMs,
       fenceMarginMs: this.fenceMarginMs,
-      inboxPollMs: this.inboxPollMs,
       idleMinutes: this.idleMinutes,
       runtimeFor: this.runtimes,
       ...(args.onDrop === undefined ? {} : { onDrop: args.onDrop }),

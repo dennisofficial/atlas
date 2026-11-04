@@ -6,7 +6,7 @@ import type { RemoteCalls } from '../calls/remote-calls'
 
 export type HostBus = {
   onWake(listener: (sessionId: string) => void): () => void
-  wake(sessionId: string): Promise<void>
+  onResync(listener: () => void): () => void
   live(args: { sessionId: string; frame: LiveFrame }): void
 }
 

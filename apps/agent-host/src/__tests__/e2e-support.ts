@@ -22,6 +22,7 @@ export const E2E_SECRET = 'e2e-daemon-secret'
 
 export type InMemoryBus = HostBus & {
   reset(): void
+  wake(sessionId: string): Promise<void>
   wakes: string[]
   lives: { sessionId: string; frame: unknown }[]
 }
@@ -36,6 +37,9 @@ export const makeInMemoryBus = (): InMemoryBus => {
       return () => {
         listeners.delete(listener)
       }
+    },
+    onResync() {
+      return () => {}
     },
     async wake(sessionId) {
       wakes.push(sessionId)
@@ -118,7 +122,6 @@ export const makeHolder = (args: {
     ttlMs: 30_000,
     renewEveryMs: 5_000,
     fenceMarginMs: 5_000,
-    inboxPollMs: 100,
     idleMinutes: 30,
     ...(args.log === undefined ? {} : { log: args.log }),
   })

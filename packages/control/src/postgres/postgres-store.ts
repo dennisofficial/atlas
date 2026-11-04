@@ -1,5 +1,6 @@
 import { and, isUniqueViolation, retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
 import { GENESIS_HASH, type Hash, type InboxEntry, type Lease } from '@dltech/atlas-core'
+import { PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
 
 import {
   ControlStorePort,
@@ -274,6 +275,14 @@ class PostgresTx implements ControlTx {
       .limit(params.limit)
       .all()
     return rows.map(toInbox)
+  }
+
+  async notifyWake(sessionId: string): Promise<void> {
+    await this.tx.query(
+      this.tx.raw.sql`SELECT (pg_notify(${PG_WAKE_CHANNEL}, ${sessionId}) IS NULL)::text AS "sent"`
+        .returnsRow({ sent: 'pg/text@1' })
+        .build(),
+    )
   }
 }
 

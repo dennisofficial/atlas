@@ -9,7 +9,9 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
-import { createRedisBus, type RedisBus } from '../bus/redis-bus'
+import { createHostBus } from '../bus/host-bus'
+import { startPgWakeListener } from '../bus/pg-wake-listener'
+import { createRedisLiveFrames } from '../bus/redis-live-frames'
 import type { AgentHostApi } from '../config/agent-host-api'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
@@ -63,11 +65,11 @@ const withFirstChunkMarker = (model: ModelPort): ModelPort => {
   return new FirstChunkMarker(model, path)
 }
 
-const tapToolOutput = (bus: RedisBus): void => {
+const tapToolOutput = (liveFrames: ReturnType<typeof createRedisLiveFrames>): void => {
   const path = process.env.TOOL_OUTPUT_FILE
   if (path === undefined || path === '') return
-  const live = bus.live.bind(bus)
-  bus.live = (args) => {
+  const live = liveFrames.live.bind(liveFrames)
+  liveFrames.live = (args) => {
     if (args.frame.type === 'tool-output') appendFileSync(path, args.frame.text)
     live(args)
   }
@@ -118,8 +120,10 @@ const main = async (): Promise<void> => {
   })
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
   const log = new JsonLog()
-  const bus = createRedisBus({ url: requireEnv('REDIS_URL'), log })
-  tapToolOutput(bus)
+  const liveFrames = createRedisLiveFrames({ url: requireEnv('REDIS_URL'), log })
+  tapToolOutput(liveFrames)
+  const wakes = startPgWakeListener({ url: requireEnv('DATABASE_DIRECT_URL'), log })
+  const bus = createHostBus({ wakes, liveFrames })
   const timers = { now: () => Date.now(), ...systemTimers }
   const sandbox = new FixedEndpointSandboxProvider({ url: daemonUrl, daemonSecret })
   const holder = new SessionHolder({
@@ -143,7 +147,6 @@ const main = async (): Promise<void> => {
     ttlMs: numberEnv('TTL_MS', 3_000),
     renewEveryMs: numberEnv('RENEW_MS', 500),
     fenceMarginMs: numberEnv('FENCE_MS', 1_000),
-    inboxPollMs: numberEnv('INBOX_POLL_MS', 100),
     idleMinutes: 30,
     log,
   })
@@ -156,7 +159,8 @@ const main = async (): Promise<void> => {
     shuttingDown = true
     log.info({ source: 'host-process', message: 'draining' })
     await holder.drain({ deadline: Date.now() + numberEnv('DRAIN_MS', 270_000) })
-    await bus.close()
+    await wakes.close()
+    await liveFrames.close()
     await pool.end()
     process.exit(0)
   }

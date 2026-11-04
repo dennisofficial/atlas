@@ -25,7 +25,7 @@ const expectRevoked = async (rig: HolderRig): Promise<void> => {
   const lease = await rig.plane.currentLease({ sessionId: SESSION })
   expect(lease.lease.holderId).toBeNull()
   expect(lease.lease.wantsHolder).toBe(true)
-  expect(rig.bus.wakes.filter((id) => id === SESSION).length).toBeGreaterThanOrEqual(2)
+  expect(rig.wakeCount(SESSION)).toBeGreaterThanOrEqual(2)
 }
 
 describe('branch observer lifecycle on handoff', () => {

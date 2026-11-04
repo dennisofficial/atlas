@@ -103,6 +103,7 @@ export interface ControlTx {
     afterId: number
     limit: number
   }): Promise<InboxEntry[]>
+  notifyWake(sessionId: string): Promise<void>
 }
 
 export abstract class ControlStorePort {

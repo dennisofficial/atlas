@@ -66,7 +66,7 @@ describe('SessionHolder handoff (F12/F15)', () => {
     const leaseAfterDrain = await a.plane.currentLease({ sessionId: SESSION })
     expect(leaseAfterDrain.lease.holderId).toBeNull()
     expect(leaseAfterDrain.lease.wantsHolder).toBe(true)
-    expect(a.bus.wakes.filter((id) => id === SESSION).length).toBeGreaterThanOrEqual(2)
+    expect(a.wakeCount(SESSION)).toBeGreaterThanOrEqual(2)
 
     const b = await claimWithB(a)
 

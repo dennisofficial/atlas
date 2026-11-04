@@ -53,12 +53,24 @@ export class FakeBus implements HostBus {
   readonly wakes: string[] = []
   readonly frames: { sessionId: string; frame: LiveFrame }[] = []
   private readonly listeners = new Set<(sessionId: string) => void>()
+  private readonly resyncListeners = new Set<() => void>()
 
   onWake(listener: (sessionId: string) => void): () => void {
     this.listeners.add(listener)
     return () => {
       this.listeners.delete(listener)
     }
+  }
+
+  onResync(listener: () => void): () => void {
+    this.resyncListeners.add(listener)
+    return () => {
+      this.resyncListeners.delete(listener)
+    }
+  }
+
+  resync(): void {
+    for (const listener of [...this.resyncListeners]) listener()
   }
 
   async wake(sessionId: string): Promise<void> {

@@ -20,6 +20,7 @@ export const postIn = async (params: {
     postedAt: params.at,
     consumedSeq: null,
   })
+  await params.tx.notifyWake(params.sessionId)
   return { inboxId }
 }
 

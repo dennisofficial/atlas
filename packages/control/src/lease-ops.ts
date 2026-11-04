@@ -86,6 +86,7 @@ export class LeaseOps {
   }): Promise<RevokeResult> {
     return this.mutateLease({
       sessionId: params.sessionId,
+      wakeOnWrite: params.wantsHolder,
       decide: (lease, now) =>
         revokeIfEpoch({ lease, wantsHolder: params.wantsHolder, epoch: params.epoch, now }),
     }) as Promise<RevokeResult>
@@ -94,6 +95,7 @@ export class LeaseOps {
   async revoke(params: { sessionId: string; wantsHolder: boolean }): Promise<Lease> {
     const result = await this.mutateLease({
       sessionId: params.sessionId,
+      wakeOnWrite: params.wantsHolder,
       decide: (lease, now) => ({
         ok: true,
         lease: revoke({ lease, wantsHolder: params.wantsHolder, now }),
@@ -113,6 +115,7 @@ export class LeaseOps {
 
   private async mutateLease(params: {
     sessionId: string
+    wakeOnWrite?: boolean | undefined
     decide: (lease: Lease, now: string) => LeaseResult
   }): Promise<LeaseResult> {
     return this.store.transact(async (tx) => {
@@ -123,6 +126,7 @@ export class LeaseOps {
       if (!result.ok) return result
       const written = await tx.writeLease({ lease: result.lease, expectedEpoch: lease.epoch })
       if (!written) throw new LeaseConflictError(params.sessionId)
+      if (params.wakeOnWrite === true) await tx.notifyWake(params.sessionId)
       return result
     })
   }

@@ -26,6 +26,7 @@ type State = {
   inbox: Map<string, InboxEntry[]>
   blobs: Map<string, BlobRow>
   blobRefs: Set<string>
+  notifications: string[]
 }
 
 const refKey = (params: { sessionId: string; hash: string }): string =>
@@ -40,6 +41,7 @@ const emptyState = (): State => ({
   inbox: new Map(),
   blobs: new Map(),
   blobRefs: new Set(),
+  notifications: [],
 })
 
 const cloneState = (state: State): State => ({
@@ -51,6 +53,7 @@ const cloneState = (state: State): State => ({
   inbox: new Map([...state.inbox].map(([key, value]) => [key, value.map((e) => ({ ...e }))])),
   blobs: new Map([...state.blobs].map(([key, value]) => [key, { ...value }])),
   blobRefs: new Set(state.blobRefs),
+  notifications: [...state.notifications],
 })
 
 class MemoryTx implements ControlTx {
@@ -279,6 +282,10 @@ class MemoryTx implements ControlTx {
       .slice(0, params.limit)
       .map((e) => ({ ...e }))
   }
+
+  async notifyWake(sessionId: string): Promise<void> {
+    this.state.notifications.push(sessionId)
+  }
 }
 
 export class InMemoryControlStore extends ControlStorePort {
@@ -301,5 +308,9 @@ export class InMemoryControlStore extends ControlStorePort {
     const next = this.tail.then(run, run)
     this.tail = next.catch(() => undefined)
     return next
+  }
+
+  wakeCount(sessionId: string): number {
+    return this.state.notifications.filter((id) => id === sessionId).length
   }
 }

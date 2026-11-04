@@ -146,7 +146,6 @@ describe('branches-observed e2e', () => {
       ttlMs: 30_000,
       renewEveryMs: 5_000,
       fenceMarginMs: 5_000,
-      inboxPollMs: 100,
       idleMinutes: 30,
     })
     await holder.start()

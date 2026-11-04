@@ -9,14 +9,13 @@ import type { LogPort } from '@dltech/atlas-observability'
 import type { AgentHostApi } from './config/agent-host-api'
 import type { AgentHostEnv } from './config/env'
 import type { SandboxProvider } from './sandbox/sandbox-provider'
-import type { RedisBus } from './bus/redis-bus'
-import { systemTimers, type HostTimers } from '@dltech/atlas-host'
+import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { createSessionRuntimeFactory } from './runtime/session-runtime-factory'
 
 export type ComposeAgentHostArgs = {
   env: AgentHostEnv
   plane: ControlPlane
-  bus: RedisBus
+  bus: HostBus
   sandbox: SandboxProvider
   api: AgentHostApi
   timers?: HostTimers | undefined

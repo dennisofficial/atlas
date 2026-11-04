@@ -25,6 +25,8 @@
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "@dotenvx/dotenvx": "^1.71.0",
+    "pg": "8.22.0",
+    "@types/pg": "^8",
     "@vercel/sandbox": "^3.3.0",
     "ioredis": "^6.0.0",
     "zod": "^4.4.3"

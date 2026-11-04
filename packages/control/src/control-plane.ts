@@ -230,6 +230,12 @@ export class ControlPlane {
     return this.leases.currentLease(params)
   }
 
+  async wake(params: { sessionIds: readonly string[] }): Promise<void> {
+    await this.store.transact(async (tx) => {
+      for (const sessionId of params.sessionIds) await tx.notifyWake(sessionId)
+    })
+  }
+
   private async requireThread(params: { tx: ControlTx; threadId: string }): Promise<ThreadRow> {
     const row = await params.tx.readThread(params.threadId)
     if (row === undefined) throw new UnknownThreadError(params.threadId)

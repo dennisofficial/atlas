@@ -19,7 +19,6 @@ import type {
   SessionStatusOutput,
 } from '@dltech/atlas-protocol'
 import { ProjectAccess } from './project-access'
-import { WakePublisher } from './wake.publisher'
 
 export type LeaseView = { epoch: number; holderId: string | null; live: boolean }
 
@@ -48,7 +47,6 @@ export class SessionsService {
 
   constructor(
     private readonly plane: ControlPlane,
-    private readonly wakes: WakePublisher,
     private readonly projects: ProjectAccess,
   ) {}
 
@@ -93,11 +91,6 @@ export class SessionsService {
       kind: INBOX_KIND_MESSAGE,
       payload,
     })
-    try {
-      await this.wakes.publish({ sessionId: args.sessionId })
-    } catch (failure) {
-      this.logger.warn(`publishing the wake for ${args.sessionId} failed: ${String(failure)}`)
-    }
     return { inboxId }
   }
 

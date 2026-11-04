@@ -3,7 +3,9 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { logFieldsOf, LogPort } from '@dltech/atlas-observability'
 
-import { createRedisBus } from './bus/redis-bus'
+import { createHostBus } from './bus/host-bus'
+import { startPgWakeListener } from './bus/pg-wake-listener'
+import { createRedisLiveFrames } from './bus/redis-live-frames'
 import { composeAgentHost } from './compose'
 import { createAgentHostApi } from './config/agent-host-api'
 import { AgentHostEnvError, readAgentHostEnv } from './config/env'
@@ -25,7 +27,9 @@ const main = async (): Promise<void> => {
   const pool = createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: 10_000 })
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
   const log = new JsonLog()
-  const bus = createRedisBus({ url: env.redisUrl, log })
+  const liveFrames = createRedisLiveFrames({ url: env.redisUrl, log })
+  const wakes = startPgWakeListener({ url: databaseUrlWithTls(env.databaseDirectUrl), log })
+  const bus = createHostBus({ wakes, liveFrames })
   const api = createAgentHostApi({
     apiOrigin: env.apiOrigin,
     agentHostToken: env.agentHostToken,
@@ -47,7 +51,8 @@ const main = async (): Promise<void> => {
     shuttingDown = true
     log.info({ source: 'main', message: 'draining' })
     await holder.drain({ deadline: Date.now() + 270_000 })
-    await bus.close()
+    await wakes.close()
+    await liveFrames.close()
     await pool.end()
     process.exit(0)
   }

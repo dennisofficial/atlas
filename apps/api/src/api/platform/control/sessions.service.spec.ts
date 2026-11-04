@@ -13,7 +13,6 @@ import {
 import { inboxMessageSchema } from '@dltech/atlas-protocol'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'
-import { WakePublisher } from './wake.publisher'
 
 const NOW = '2026-11-03T12:00:00.000Z'
 
@@ -23,33 +22,17 @@ class FakeProjectAccess extends ProjectAccess {
   }
 }
 
-class RecordingWakePublisher extends WakePublisher {
-  readonly published: string[] = []
-
-  async publish(args: { sessionId: string }): Promise<void> {
-    this.published.push(args.sessionId)
-  }
-}
-
-class FailingWakePublisher extends WakePublisher {
-  async publish(): Promise<void> {
-    throw new Error('redis down')
-  }
-}
-
 describe('SessionsService', () => {
-  const setup = (args: { publisher?: WakePublisher } = {}) => {
+  const setup = () => {
     const plane = new ControlPlane({
       store: new InMemoryControlStore({ clock: () => NOW }),
     })
-    const publisher = args.publisher ?? new RecordingWakePublisher()
-    const service = new SessionsService(plane, publisher, new FakeProjectAccess())
-    const published = publisher instanceof RecordingWakePublisher ? publisher.published : []
-    return { plane, published, service }
+    const service = new SessionsService(plane, new FakeProjectAccess())
+    return { plane, service }
   }
 
   it('creates, lists, posts and reads events for the owner', async () => {
-    const { plane, published, service } = setup()
+    const { plane, service } = setup()
 
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a', title: 't' })
     expect(created.sessionId).toBeDefined()
@@ -66,7 +49,6 @@ describe('SessionsService', () => {
       text: 'hello',
     })
     expect(posted.inboxId).toBe(1)
-    expect(published).toEqual([created.sessionId])
 
     const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })
     expect(inbox).toHaveLength(1)
@@ -100,17 +82,6 @@ describe('SessionsService', () => {
     await expect(service.create({ userId: 'user-b', projectId: 'proj-a' })).rejects.toBeInstanceOf(
       NotFoundException,
     )
-  })
-
-  it('swallows a failed wake publish', async () => {
-    const { service } = setup({ publisher: new FailingWakePublisher() })
-    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
-    const posted = await service.post({
-      userId: 'user-a',
-      sessionId: created.sessionId,
-      text: 'hello',
-    })
-    expect(posted.inboxId).toBe(1)
   })
 
   it('maps an unconsumed post to sent and a consumed one past it', async () => {

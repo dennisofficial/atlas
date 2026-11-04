@@ -14,6 +14,7 @@ The private keys are in `.env.keys` (git-ignored, an Atlas Cloud project file mo
 | Var                       | Required | Default                                              |
 | ------------------------- | -------- | ---------------------------------------------------- |
 | `DATABASE_URL`            | yes      | —                                                    |
+| `DATABASE_DIRECT_URL`     | yes      | —                                                    |
 | `REDIS_URL`               | yes      | —                                                    |
 | `AGENT_HOST_TOKEN`        | yes      | —                                                    |
 | `DAEMON_SECRET`           | yes      | —                                                    |
