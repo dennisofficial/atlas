@@ -29,6 +29,7 @@ export type RigRuntime = SessionRuntime & {
   stopped: boolean
   released: boolean
   ackedScopes: string[]
+  watched: string[]
 }
 
 export type ScriptRef = { current: readonly ScriptedModelStep[] }
@@ -109,6 +110,8 @@ export const makeRuntimeFactory = (args: {
         message,
       }),
       launchDirectory: '/w',
+      watched: [],
+      watchedRepos: async () => runtime.watched,
       stopped: false,
       released: false,
       stop: async () => {

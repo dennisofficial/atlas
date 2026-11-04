@@ -1,21 +1,14 @@
 import { EToolEffect, isResumable, type Lease, type ThreadId } from '@dltech/atlas-core'
-import {
-  HookChain,
-  HookedToolDispatcher,
-  LoopTurnRunner,
-  PauseSignal,
-  settleCrashedCalls,
-} from '@dltech/atlas-agent'
+import { LoopTurnRunner, PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
-import { ScopedToolDispatcher } from '../calls/call-scope'
 import { statusFrame, type SessionRuntime } from './ports'
+import { BranchObserver } from './branch-observer'
+import { createLoopRunner } from './held-runner'
 import { InboxIntake } from './inbox-intake'
 import { idleReleaseDue, releaseIdleSession } from './held-idle'
 import { consumeStops, interruptibleWait } from './held-wait'
 import { LeaseLostError, SessionRecord } from './record/record-adapter'
-import { V2OnceLedger } from './record/v2-once-ledger'
-import { retryDepsFromTimers } from './timer-sleep'
 import type { HeldSessionDeps } from './held-session-deps'
 
 export type { HeldSessionDeps }
@@ -35,6 +28,7 @@ export class HeldSession {
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
   private intake: InboxIntake | undefined
+  private branches: BranchObserver | undefined
   private renewal: LeaseRenewal | undefined
   private interruptWait: (() => void) | undefined
   private leaseEpoch = 0
@@ -133,29 +127,29 @@ export class HeldSession {
         ...(deps.log === undefined ? {} : { log: deps.log }),
       })
       this.intake = intake
-      const runner = new LoopTurnRunner({
+      const runner = createLoopRunner({
+        deps,
+        runtime,
         record,
-        modelContext: record,
-        model: runtime.model,
-        ids: deps.ids,
-        assembly: runtime.assembly,
-        tools: () => runtime.tools.declarations(),
-        dispatch: new ScopedToolDispatcher(
-          new HookedToolDispatcher({ registry: runtime.tools, hooks: new HookChain({}) }),
-        ),
         intake,
-        output: this.turns.liveOutput(),
-        detachTool: (tool) => this.drainModelOnly && runtime.daemonTools.has(tool),
-        launchDirectory: runtime.launchDirectory,
-        normalizeFailure: runtime.normalizeFailure,
-        retry: retryDepsFromTimers(deps.timers),
-        onceLedger: new V2OnceLedger({
-          cache: record.eventCache(),
-          record,
-          threadId,
-          runId: () => deps.ids.nextRunId(),
-        }),
+        turns: this.turns,
+        threadId,
+        isModelOnlyDrain: () => this.drainModelOnly,
       })
+      const branches = new BranchObserver({
+        record: {
+          append: ({ threadId: to, runId, body }) =>
+            record.append({ threadId: to, runId, drafts: [body] }),
+          events: () => record.eventCache().all(),
+        },
+        remoteCalls: runtime.remoteCalls,
+        threadId,
+        repos: () => runtime.watchedRepos(),
+        runId: () => deps.ids.nextRunId(),
+        ...(deps.log === undefined ? {} : { log: deps.log }),
+      })
+      this.branches = branches
+      branches.start()
 
       await settleCrashedCalls({
         record,
@@ -201,6 +195,7 @@ export class HeldSession {
       },
     })
     await this.consumeStops()
+    await this.branches?.refresh()
   }
 
   private consumeStops(): Promise<void> {

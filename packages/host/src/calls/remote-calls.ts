@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import type { LogPort } from '@dltech/atlas-observability'
-import type { CallOp, CallResult } from '@dltech/atlas-protocol'
+import type { CallOp, CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
 import { RemoteCallsState } from './remote-calls-state'
 import type { DaemonConnector } from './socket'
@@ -12,6 +12,8 @@ export type CallTimers = {
   random(): number
 }
 
+export type EventFrame = Extract<DaemonFrame, { kind: 'event' }>
+
 export type RemoteCallsArgs = {
   sessionId: string
   token: string
@@ -19,13 +21,27 @@ export type RemoteCallsArgs = {
   timers: CallTimers
   onFenced(): void
   log?: LogPort | undefined
+  onEvent?: ((frame: EventFrame) => void) | undefined
 }
 
 export class RemoteCalls {
   private readonly state: RemoteCallsState
+  private readonly eventListeners = new Set<(frame: EventFrame) => void>()
 
   constructor(args: RemoteCallsArgs) {
-    this.state = new RemoteCallsState(args)
+    this.state = new RemoteCallsState({
+      ...args,
+      onEvent: (frame) => {
+        for (const listener of [...this.eventListeners]) listener(frame)
+      },
+    })
+  }
+
+  onEvent(listener: (frame: EventFrame) => void): () => void {
+    this.eventListeners.add(listener)
+    return () => {
+      this.eventListeners.delete(listener)
+    }
   }
 
   open(args: { epoch: number }): void {
