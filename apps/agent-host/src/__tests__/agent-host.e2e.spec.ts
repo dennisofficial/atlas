@@ -5,6 +5,7 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { createDb } from '@dltech/atlas-db'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
+import { GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
 
 import { LocalSandboxProvider } from '../testing/local-sandbox-provider'
 import {
@@ -14,6 +15,7 @@ import {
   makeHolder,
   makeInMemoryBus,
   readAllEvents,
+  waitForLease,
   waitForSeq,
 } from './e2e-support'
 
@@ -110,9 +112,20 @@ describe('agent-host e2e', () => {
     })
 
     const results = events.filter((row) => row.type === 'tool-result')
-    expect(results.length).toBeGreaterThanOrEqual(5)
+    expect(results.length).toBe(5)
+    for (const result of results) {
+      const body = result.event as { error?: unknown; interrupted?: boolean; output?: unknown }
+      expect(body.error).toBeUndefined()
+      expect(body.interrupted).not.toBe(true)
+      expect(body.output).toBeDefined()
+    }
     const names = results.map((row) => (row.event as { name?: string }).name)
-    expect(names).toEqual(expect.arrayContaining(['bash', 'write', 'read', 'edit', 'grep']))
+    expect(names).toEqual(['bash', 'write', 'read', 'edit', 'grep'])
+    const chain = verifySuffix({
+      trusted: { seq: 0, hash: GENESIS_HASH },
+      events: events.map((row) => row.event as V2Event),
+    })
+    expect(chain).toMatchObject({ ok: true })
     holder.discard()
   }, 60_000)
 
@@ -130,23 +143,26 @@ describe('agent-host e2e', () => {
       log: logA,
       scripts: { [sessionId]: [sleepCall, { text: 'host a finished' }] },
     })
+    await hostA.start()
+
+    await bus.wake(sessionId)
+    const leaseA = await waitForLease({ plane, sessionId, holderId: 'host-a' })
+    await waitForSeq({
+      plane,
+      threadId: mainThreadId,
+      want: (rows) => rows.some((row) => row.type === 'tool-dispatched'),
+    })
+
     const hostB = makeHolder({
       holderId: 'host-b',
       plane,
       bus,
       sandbox,
       log: logB,
-      scripts: { [sessionId]: [sleepCall, { text: 'host b finished' }] },
+      scripts: { [sessionId]: [{ text: 'host b finished' }] },
     })
-    await hostA.start()
     await hostB.start()
 
-    await bus.wake(sessionId)
-    await waitForSeq({
-      plane,
-      threadId: mainThreadId,
-      want: (rows) => rows.some((row) => row.type === 'tool-dispatched'),
-    })
     await hostA.drain({ deadline: Date.now() + 500 })
     await bus.wake(sessionId)
 
@@ -162,8 +178,16 @@ describe('agent-host e2e', () => {
         `${error instanceof Error ? error.message : String(error)}\n${logA.dump('hostA')}\n${logB.dump('hostB')}\nlease: ${JSON.stringify(row)}\nevents: ${JSON.stringify(last)}`,
       )
     })
-    const doneResults = events.filter((row) => row.type === 'tool-result').filter(isDoneResult)
-    expect(doneResults.length).toBe(1)
+    const leaseB = await plane.currentLease({ sessionId })
+    expect(leaseB.lease.holderId).toBe('host-b')
+    expect(leaseB.lease.epoch).toBeGreaterThan(leaseA.epoch)
+    const dispatches = events.filter((row) => row.type === 'tool-dispatched')
+    const results = events.filter((row) => row.type === 'tool-result')
+    expect(dispatches.length).toBe(1)
+    expect(results.length).toBe(1)
+    const result = results[0]?.event as { error?: unknown; output?: unknown } | undefined
+    expect(result?.error).toBeUndefined()
+    expect(results.filter(isDoneResult).length).toBe(1)
     hostA.discard()
     hostB.discard()
   }, 90_000)

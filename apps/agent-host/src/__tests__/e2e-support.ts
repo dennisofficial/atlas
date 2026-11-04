@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { LogPort, type LogEntry } from '@dltech/atlas-observability'
+import type { Lease } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { HostBus } from '@dltech/atlas-host'
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
@@ -157,9 +158,28 @@ export const isDoneResult = (row: ReadEvent): boolean => {
   if (row.type !== 'tool-result') return false
   const result = row.event as { output?: unknown; interrupted?: boolean }
   if (result.interrupted === true) return false
+  if (typeof result.output !== 'object' || result.output === null) return false
+  const output = result.output as { stdout?: unknown; exitCode?: unknown }
   return (
-    typeof result.output === 'object' &&
-    result.output !== null &&
-    JSON.stringify(result.output).includes('done')
+    output.exitCode === 0 && typeof output.stdout === 'string' && output.stdout.includes('done')
   )
+}
+
+export const waitForLease = async (args: {
+  plane: ControlPlane
+  sessionId: string
+  holderId: string
+  timeoutMs?: number | undefined
+}): Promise<Lease> => {
+  const deadline = Date.now() + (args.timeoutMs ?? 30_000)
+  for (;;) {
+    const current = await args.plane.currentLease({ sessionId: args.sessionId })
+    if (current.live && current.lease.holderId === args.holderId) return current.lease
+    if (Date.now() > deadline) {
+      throw new Error(
+        `timed out waiting for ${args.holderId} to hold ${args.sessionId}: ${JSON.stringify(current)}`,
+      )
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
 }
