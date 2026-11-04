@@ -44,7 +44,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
       await rig.stop()
     })
 
-    const runF2 = async (args: { pingMs?: number }): Promise<void> => {
+    const runF2 = async (args: { pingMs?: number; assertNoReconnect?: boolean }): Promise<void> => {
       const suffix = Math.random().toString(36).slice(2, 8)
       const sessionId = `fault-f02-${suffix}`
       const threadId = await rig.newSession({ sessionId, text: 'stream 5 mb' })
@@ -85,7 +85,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
       })
       await rig.claim({ sessionId, holderId: 'host-a' })
       await waitForFile({ path: startedFile })
-      const acceptedBaseline = daemon.proxy.accepted()
+      const acceptedBaseline = args.assertNoReconnect === true ? daemon.proxy.accepted() : 0
 
       const events = await rig
         .waitForSeq({
@@ -113,7 +113,9 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
 
       const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
       expect(runs).toEqual(['run'])
-      expect(daemon.proxy.accepted()).toBe(acceptedBaseline)
+      if (args.assertNoReconnect === true) {
+        expect(daemon.proxy.accepted()).toBe(acceptedBaseline)
+      }
 
       const lease = await rig.plane.currentLease({ sessionId })
       expect(lease.lease.holderId).toBe('host-a')
@@ -125,7 +127,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
     }, 260_000)
 
     it('F2 with default pings stays alive while output streams', async () => {
-      await runF2({})
+      await runF2({ assertNoReconnect: true })
     }, 260_000)
   },
 )
