@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'65d02fc990c733d3676e480ab5bd6af2247c27ad5a181f8083099cecbdf7bf08'>;
+  StorageHashBase<'f9d1545e96be8e862d435b7b8e1f6e87f907a2cec641ec26742b6c0e93726e5e'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -466,12 +466,15 @@ export namespace Models {
   export type public_GithubCommitCheck = {
     appSlug: FieldOutputTypes['public']['GithubCommitCheck']['appSlug'];
     checkKey: FieldOutputTypes['public']['GithubCommitCheck']['checkKey'];
+    detailsUrl: FieldOutputTypes['public']['GithubCommitCheck']['detailsUrl'];
     headSha: FieldOutputTypes['public']['GithubCommitCheck']['headSha'];
     name: FieldOutputTypes['public']['GithubCommitCheck']['name'];
     outcome: FieldOutputTypes['public']['GithubCommitCheck']['outcome'];
     repoFullName: FieldOutputTypes['public']['GithubCommitCheck']['repoFullName'];
     sourceUpdatedAt: FieldOutputTypes['public']['GithubCommitCheck']['sourceUpdatedAt'];
     startedAt: FieldOutputTypes['public']['GithubCommitCheck']['startedAt'];
+    summary: FieldOutputTypes['public']['GithubCommitCheck']['summary'];
+    title: FieldOutputTypes['public']['GithubCommitCheck']['title'];
     updatedAt: FieldOutputTypes['public']['GithubCommitCheck']['updatedAt'];
     readonly [RelationKeys]?: never;
   };
@@ -2496,6 +2499,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly detailsUrl: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly headSha: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -2528,6 +2537,18 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly startedAt: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly summary: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly title: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
@@ -7605,6 +7626,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly detailsUrl: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly headSha: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -7633,6 +7658,14 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly summary: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly title: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly updatedAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -7649,12 +7682,15 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly appSlug: { readonly column: 'appSlug' };
                 readonly checkKey: { readonly column: 'checkKey' };
+                readonly detailsUrl: { readonly column: 'detailsUrl' };
                 readonly headSha: { readonly column: 'headSha' };
                 readonly name: { readonly column: 'name' };
                 readonly outcome: { readonly column: 'outcome' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
                 readonly sourceUpdatedAt: { readonly column: 'sourceUpdatedAt' };
                 readonly startedAt: { readonly column: 'startedAt' };
+                readonly summary: { readonly column: 'summary' };
+                readonly title: { readonly column: 'title' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
               };
             };

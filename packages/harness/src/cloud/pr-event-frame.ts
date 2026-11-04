@@ -1,4 +1,10 @@
-import { EPrEventKind, EPrReviewState, EPrVerdict, type EventDraft } from '@dltech/atlas-core'
+import {
+  EPrEventKind,
+  EPrReviewState,
+  EPrVerdict,
+  prFailedCheckSchema,
+  type EventDraft,
+} from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import type { TransportRetryLog } from './cloud-transport'
@@ -15,6 +21,7 @@ const payloadSchema = z.object({
   commentId: z.string().optional(),
   edited: z.boolean().optional(),
   settled: z.boolean().optional(),
+  failedChecks: z.array(prFailedCheckSchema).optional().catch(undefined),
   reviewState: z.enum(EPrReviewState).optional(),
   verdict: z.enum(EPrVerdict).optional(),
   mergeable: z.boolean().optional(),
@@ -53,6 +60,7 @@ export function prEventNoticeOf(frame: PrEventFrame): PrEventDraft {
     ...(payload.headSha === undefined ? {} : { headSha: payload.headSha }),
     ...(payload.edited === true ? { edited: true } : {}),
     ...(payload.settled === undefined ? {} : { settled: payload.settled }),
+    ...(payload.failedChecks === undefined ? {} : { failedChecks: payload.failedChecks }),
     ...(payload.mergeable === undefined ? {} : { mergeable: payload.mergeable }),
     ...(payload.state === undefined ? {} : { state: payload.state }),
     ...(payload.reviewState === undefined ? {} : { reviewState: payload.reviewState }),

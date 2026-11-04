@@ -2,7 +2,8 @@ import type { Row, Tx } from '@dltech/atlas-db'
 
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { verdictTimingByUser } from './github-pr-event-policy'
-import { dischargeHeadVerdict } from './github-pr-head-checks'
+import { failedChecksOf } from './github-failed-checks'
+import { dischargeHeadVerdict, EHeadVerdict } from './github-pr-head-checks'
 import {
   transitionsOf,
   type PrTransitionEvent,
@@ -56,11 +57,14 @@ export async function deliverPrTransitions(args: {
     next,
     now: new Date(),
     emitVerdict: async (verdict, eventKey) => {
+      const failedChecks =
+        verdict === EHeadVerdict.Failed ? await failedChecksFor({ writes, next, tx: args.tx }) : []
       const payload: GithubPrEventPayload = {
         url: writes.url,
         verdict,
         headSha: next.headSha,
         settled: true,
+        ...(failedChecks.length === 0 ? {} : { failedChecks }),
       }
       await writes.mailbox.record({
         userIds: args.userIds,
@@ -82,6 +86,7 @@ export async function deliverPrTransitions(args: {
       (userId) => (timings.get(userId) ?? 'fail-fast') === 'fail-fast',
     )
     if (users.length > 0) {
+      const failedChecks = await failedChecksFor({ writes, next, tx: args.tx })
       await record(
         {
           kind: EPrEventKind.Verdict,
@@ -97,6 +102,7 @@ export async function deliverPrTransitions(args: {
             verdict: 'failed',
             headSha: next.headSha,
             settled: false,
+            ...(failedChecks.length === 0 ? {} : { failedChecks }),
           },
         },
         users,
@@ -110,6 +116,18 @@ export async function deliverPrTransitions(args: {
     options: { repoFullName: writes.repoFullName, prNumber: writes.prNumber },
   }).filter((event) => event.kind !== EPrEventKind.Verdict)
   for (const event of rest) await record(event, args.userIds)
+}
+
+function failedChecksFor(args: {
+  writes: PrTransitionWrites
+  next: PrTransitionSnapshot
+  tx: Tx | undefined
+}) {
+  return failedChecksOf({
+    tx: args.tx,
+    repoFullName: args.writes.repoFullName,
+    headSha: args.next.headSha,
+  })
 }
 
 export function snapshotOf(row: Row<'GithubPrState'> | null): PrTransitionSnapshot | null {

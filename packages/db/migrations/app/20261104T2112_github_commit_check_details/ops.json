@@ -1,0 +1,158 @@
+[
+  {
+    "id": "column.public.GithubCommitCheck.detailsUrl",
+    "label": "Add column \"detailsUrl\" to \"GithubCommitCheck\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "detailsUrl",
+        "table": "GithubCommitCheck"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"detailsUrl\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "detailsUrl"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"detailsUrl\"",
+        "sql": "ALTER TABLE \"public\".\"GithubCommitCheck\" ADD COLUMN \"detailsUrl\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"detailsUrl\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "detailsUrl"
+        ]
+      },
+      {
+        "description": "verify column \"detailsUrl\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "detailsUrl",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubCommitCheck.summary",
+    "label": "Add column \"summary\" to \"GithubCommitCheck\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "summary",
+        "table": "GithubCommitCheck"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"summary\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "summary"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"summary\"",
+        "sql": "ALTER TABLE \"public\".\"GithubCommitCheck\" ADD COLUMN \"summary\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"summary\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "summary"
+        ]
+      },
+      {
+        "description": "verify column \"summary\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "summary",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubCommitCheck.title",
+    "label": "Add column \"title\" to \"GithubCommitCheck\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "title",
+        "table": "GithubCommitCheck"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"title\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "title"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"title\"",
+        "sql": "ALTER TABLE \"public\".\"GithubCommitCheck\" ADD COLUMN \"title\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"title\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "title"
+        ]
+      },
+      {
+        "description": "verify column \"title\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "title",
+          "text"
+        ]
+      }
+    ]
+  }
+]

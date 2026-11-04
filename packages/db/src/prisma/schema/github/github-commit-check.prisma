@@ -7,6 +7,9 @@ model GithubCommitCheck {
   startedAt       String?
   outcome         String
   appSlug         String?
+  detailsUrl      String?
+  title           String?
+  summary         String?
   sourceUpdatedAt TimestamptzJsDate(3)
   updatedAt       TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
 

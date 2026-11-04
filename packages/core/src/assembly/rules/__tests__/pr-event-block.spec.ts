@@ -209,3 +209,45 @@ describe('messagesFromEvents and PR events', () => {
     expect(assembled.messages[1]?.origin.seq).toBe(2)
   })
 })
+
+describe('naming the checks behind a failed verdict', () => {
+  const failed = (over: Partial<EventOfType<'pr-event'>> = {}) =>
+    prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed, ...over }))
+
+  it('lists each failed check with its app, link, detail and log command', () => {
+    const block = failed({
+      settled: false,
+      repo: 'github.com/owner/repo',
+      failedChecks: [
+        {
+          name: 'typecheck',
+          app: 'github-actions',
+          url: 'https://github.com/owner/repo/runs/7',
+          checkRunId: '7',
+        },
+        { name: 'vercel', summary: 'Build failed' },
+      ],
+    })
+
+    expect(block).toContain('2 checks failed while CI is still running')
+    expect(block).toContain('- typecheck (github-actions) https://github.com/owner/repo/runs/7')
+    expect(block).toContain('    logs: gh run view --job 7 --log-failed -R owner/repo')
+    expect(block).toContain('- vercel\n    Build failed')
+  })
+
+  it('joins a title and summary on one detail line', () => {
+    const block = failed({
+      settled: true,
+      failedChecks: [{ name: 'lint', title: '3 errors', summary: 'src/a.ts:1 no-unused-vars' }],
+    })
+
+    expect(block).toContain(`CI finished, a check failed. ${URL}`)
+    expect(block).toContain('    3 errors: src/a.ts:1 no-unused-vars')
+  })
+
+  it('offers no log command for a check outside GitHub Actions', () => {
+    const block = failed({ settled: true, failedChecks: [{ name: 'vercel', checkRunId: '9' }] })
+
+    expect(block).not.toContain('logs:')
+  })
+})

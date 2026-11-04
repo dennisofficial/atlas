@@ -53,6 +53,8 @@ export interface GithubCheckRunWebhookPayload {
     completed_at: string | null
     head_sha: string
     app?: { slug: string } | null
+    html_url?: string | null
+    output?: { title?: string | null; summary?: string | null } | null
     pull_requests?: { number: number }[]
     check_suite?: { head_branch?: string | null }
   }
@@ -66,6 +68,8 @@ export interface GithubStatusWebhookPayload {
   state: string
   created_at: string | null
   updated_at: string | null
+  target_url?: string | null
+  description?: string | null
   branches?: { name: string }[]
   repository: GithubWebhookRepository
 }

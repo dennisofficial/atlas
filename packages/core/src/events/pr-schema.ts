@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { prFailedCheckSchema } from '../github/failed-check'
 import { EPrEventKind, EPrReviewState, EPrVerdict } from './body'
 import { noticeStampSchema } from './notice-stamp-schema'
 
@@ -25,6 +26,7 @@ export const prEventSchemas = [
     headSha: z.string().optional(),
     edited: z.boolean().optional(),
     settled: z.boolean().optional(),
+    failedChecks: z.array(prFailedCheckSchema).optional(),
     mergeable: z.boolean().optional(),
     state: z.string().optional(),
     reviewState: z.enum(EPrReviewState).optional(),

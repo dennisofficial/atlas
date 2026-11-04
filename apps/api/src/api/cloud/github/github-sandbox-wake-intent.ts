@@ -81,6 +81,7 @@ export async function appendWakeIntent(args: {
             ...(payload.verdict === undefined ? {} : { verdict: payload.verdict }),
             ...(payload.headSha === undefined ? {} : { headSha: payload.headSha }),
             ...(payload.settled === undefined ? {} : { settled: payload.settled }),
+            ...(payload.failedChecks === undefined ? {} : { failedChecks: payload.failedChecks }),
             ...(payload.mergeable === undefined ? {} : { mergeable: payload.mergeable }),
             ...(payload.state === undefined ? {} : { state: payload.state }),
             ...(payload.reviewState === undefined ? {} : { reviewState: payload.reviewState }),

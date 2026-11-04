@@ -1,3 +1,4 @@
+import type { PrFailedCheck } from '../github/failed-check'
 import type { EPrEventKind, EPrReviewState, EPrVerdict } from './body'
 import type { NoticeStamp } from './notice-stage'
 
@@ -23,6 +24,7 @@ export type PrEventBody =
       headSha?: string | undefined
       edited?: boolean | undefined
       settled?: boolean | undefined
+      failedChecks?: readonly PrFailedCheck[] | undefined
       mergeable?: boolean | undefined
       state?: string | undefined
       reviewState?: EPrReviewState | undefined
