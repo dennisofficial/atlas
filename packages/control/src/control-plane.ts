@@ -1,5 +1,6 @@
 import {
   acceptAppend,
+  blobRefsOf,
   stepVisibility,
   type ClaimResult,
   type InboxEntry,
@@ -289,7 +290,12 @@ export class ControlPlane {
       }
       stored.push(toStoredEvent({ event, hash: accepted.hashes[index] as StoredEvent['hash'] }))
     }
+    const refHashes = new Set<string>()
+    for (const event of parsed.events) {
+      for (const ref of blobRefsOf(event)) refHashes.add(ref.hash)
+    }
     await tx.insertBlobs(blobs)
+    await tx.insertBlobRefs([...refHashes].map((hash) => ({ sessionId: row.sessionId, hash })))
     await tx.insertEvents(stored)
     const swapped = await tx.writeThreadHead({
       threadId: params.threadId,

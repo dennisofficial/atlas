@@ -4,6 +4,7 @@ import { GENESIS_HASH, type Hash, type InboxEntry, type Lease } from '@dltech/at
 import {
   ControlStorePort,
   SeqConflictError,
+  type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
   type ControlTx,
@@ -12,7 +13,13 @@ import {
   type ThreadRow,
   type ControlSessionRow,
 } from '../port'
-import { blobHashesPresent, blobReferencedIn, insertBlobRows, readBlobRow } from './postgres-blobs'
+import {
+  blobHashesPresent,
+  blobReferencedIn,
+  insertBlobRefRows,
+  insertBlobRows,
+  readBlobRow,
+} from './postgres-blobs'
 import { iso, toInbox, toSessionRow, toThreadRow } from './postgres-rows'
 
 class PostgresTx implements ControlTx {
@@ -144,6 +151,10 @@ class PostgresTx implements ControlTx {
 
   async insertBlobs(rows: readonly BlobWrite[]): Promise<void> {
     await insertBlobRows(this.tx, rows)
+  }
+
+  async insertBlobRefs(rows: readonly BlobRefWrite[]): Promise<void> {
+    await insertBlobRefRows(this.tx, rows)
   }
 
   async readBlob(params: { hash: string }): Promise<BlobRow | undefined> {

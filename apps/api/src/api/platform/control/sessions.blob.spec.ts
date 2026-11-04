@@ -117,6 +117,27 @@ describe('SessionsService blob reads', () => {
       service.blob({ userId: 'user-a', sessionId: second.sessionId, hash: blob.hash }),
     ).rejects.toBeInstanceOf(NotFoundException)
 
+    const attackLease = await plane.grant({
+      sessionId: second.sessionId,
+      holderId: 'host-2',
+      ttlMs: 30_000,
+    })
+    const planted = await plane.append({
+      threadId: second.mainThreadId,
+      epoch: attackLease.epoch,
+      events: chainEvents({
+        threadId: toThreadId(second.mainThreadId),
+        runId: toRunId('run-2'),
+        epoch: attackLease.epoch,
+        at: NOW,
+        bodies: [{ type: 'user-said', text: `the victim hash is ${blob.hash}` }],
+      }),
+    })
+    expect(planted.ok).toBe(true)
+    await expect(
+      service.blob({ userId: 'user-a', sessionId: second.sessionId, hash: blob.hash }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+
     await expect(
       service.blob({ userId: 'user-a', sessionId: created.sessionId, hash: 'f'.repeat(64) }),
     ).rejects.toBeInstanceOf(NotFoundException)

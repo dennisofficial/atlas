@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'f62273e682f44e7f454ec6d488e54f124e9589e6492c9caab91ba8434fca8f1d'>;
+  StorageHashBase<'65d02fc990c733d3676e480ab5bd6af2247c27ad5a181f8083099cecbdf7bf08'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1081,6 +1081,11 @@ export namespace Models {
     size: FieldOutputTypes['v2']['V2Blob']['size'];
     readonly [RelationKeys]?: never;
   };
+  export type v2_V2BlobRef = {
+    hash: FieldOutputTypes['v2']['V2BlobRef']['hash'];
+    sessionId: FieldOutputTypes['v2']['V2BlobRef']['sessionId'];
+    readonly [RelationKeys]?: never;
+  };
   export type v2_V2Event = {
     at: FieldOutputTypes['v2']['V2Event']['at'];
     canonical: FieldOutputTypes['v2']['V2Event']['canonical'];
@@ -1196,6 +1201,7 @@ export declare const models: {
   };
   v2: {
     V2Blob: Models.v2_V2Blob;
+    V2BlobRef: Models.v2_V2BlobRef;
     V2Event: Models.v2_V2Event;
     V2InboxEntry: Models.v2_V2InboxEntry;
     V2Lease: Models.v2_V2Lease;
@@ -5964,6 +5970,26 @@ type ContractBase = Omit<
               indexes: readonly [];
               foreignKeys: readonly [];
             };
+            readonly V2BlobRef: {
+              columns: {
+                readonly hash: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['sessionId', 'hash'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
             readonly V2Event: {
               columns: {
                 readonly at: {
@@ -6479,6 +6505,7 @@ type ContractBase = Omit<
       readonly model: 'UserVercelCredential';
     };
     readonly V2Blob: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Blob' };
+    readonly V2BlobRef: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2BlobRef' };
     readonly V2Event: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Event' };
     readonly V2InboxEntry: {
       readonly namespace: 'v2' & NamespaceId;
@@ -11174,6 +11201,27 @@ type ContractBase = Omit<
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly hash: { readonly column: 'hash' };
                 readonly size: { readonly column: 'size' };
+              };
+            };
+          };
+          readonly V2BlobRef: {
+            readonly fields: {
+              readonly hash: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sessionId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'V2BlobRef';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly hash: { readonly column: 'hash' };
+                readonly sessionId: { readonly column: 'sessionId' };
               };
             };
           };
