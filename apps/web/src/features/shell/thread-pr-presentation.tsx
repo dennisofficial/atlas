@@ -49,8 +49,7 @@ export function PullRequestChecks({
   entry: PullRequestEntry
   detailed?: boolean
 }) {
-  if (!detailed && entry.state?.toLowerCase() === 'merged')
-    return <span className="text-pr-merged">merged</span>
+  if (!detailed && entry.state?.toLowerCase() === 'merged') return null
   const { checksRunning: running, checksPassed: passed, checksFailed: failed } = entry
   if (running === undefined && passed === undefined && failed === undefined)
     return <span className="sr-only">Checks unknown</span>

@@ -61,6 +61,48 @@ describe('handing a PR event to the model', () => {
     expect(block).toContain('review comment from octocat — nit.')
   })
 
+  it('places a review comment on its file, lines and diff hunk', () => {
+    const block = prEventBlock(
+      eventOf({
+        kind: EPrEventKind.ReviewComment,
+        authorLogin: 'octocat',
+        body: 'rename this',
+        path: 'src/foo.ts',
+        line: 12,
+        startLine: 10,
+        side: 'RIGHT',
+        diffHunk: '@@ -8,3 +8,5 @@\n+const a = 1\n+const b = 2',
+        inReplyTo: '55',
+      }),
+    )
+
+    expect(block).toBe(
+      `<system-notice kind="pr-event">\nPR #12 in github.com/owner/repo: review comment from octocat on src/foo.ts:12 (lines 10-12) (reply to comment 55) — rename this. ${URL}\n\`\`\`diff\n@@ -8,3 +8,5 @@\n+const a = 1\n+const b = 2\n\`\`\`\n</system-notice>`,
+    )
+  })
+
+  it('marks a comment on the removed side of the diff', () => {
+    const block = prEventBlock(
+      eventOf({
+        kind: EPrEventKind.ReviewComment,
+        body: 'why drop this',
+        path: 'a.ts',
+        line: 3,
+        side: 'LEFT',
+      }),
+    )
+
+    expect(block).toContain('review comment on a.ts:3 (old side) — why drop this.')
+  })
+
+  it('strips html comments and keeps up to 4000 characters of body', () => {
+    const body = `<!-- codex-pull-request-review-summary -->\n${'x'.repeat(3000)}`
+    const block = prEventBlock(eventOf({ authorLogin: 'codex', body }))
+
+    expect(block).not.toContain('<!--')
+    expect(block).toContain('x'.repeat(3000))
+  })
+
   it('carries the review state beside the author', () => {
     const block = prEventBlock(
       eventOf({
@@ -155,10 +197,10 @@ describe('handing a PR event to the model', () => {
   })
 
   it('clips a long body', () => {
-    const block = prEventBlock(eventOf({ authorLogin: 'octocat', body: 'x'.repeat(2000) }))
+    const block = prEventBlock(eventOf({ authorLogin: 'octocat', body: 'x'.repeat(5000) }))
 
-    expect(block).toContain(`${'x'.repeat(399)}…`)
-    expect(block).not.toContain('x'.repeat(400))
+    expect(block).toContain(`${'x'.repeat(3999)}…`)
+    expect(block).not.toContain('x'.repeat(4000))
   })
 
   it('wraps every kind in the pr-event system notice', () => {

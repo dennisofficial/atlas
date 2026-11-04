@@ -162,3 +162,103 @@ describe('GithubPrDiscussionDeliveryService edited comments', () => {
     expect(payload.edited).toBeUndefined()
   })
 })
+
+describe('GithubPrDiscussionDeliveryService review comment location', () => {
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await prepareDelivery()
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+  })
+
+  const reviewComment = (over: Record<string, unknown>) => ({
+    action: 'created',
+    pull_request: PULL_REQUEST_PAYLOAD.pull_request,
+    comment: {
+      id: 77,
+      body: 'rename this',
+      html_url: 'https://github.com/compai/app/pull/42#discussion_r77',
+      user: { login: 'reviewer' },
+      ...over,
+    },
+    sender: { login: 'reviewer' },
+    repository: REPOSITORY,
+  })
+
+  it('records the file, lines, side, hunk tail and parent comment', async () => {
+    const { discussion } = discussionWith()
+    const hunk = Array.from({ length: 20 }, (_, index) => `+line ${index + 1}`).join('\n')
+
+    await discussion.handleReviewComment(
+      reviewComment({
+        path: 'src/foo.ts',
+        line: 12,
+        start_line: 10,
+        side: 'RIGHT',
+        diff_hunk: hunk,
+        in_reply_to_id: 55,
+      }),
+    )
+
+    expect((await prEventRows())[0]).toMatchObject({
+      kind: 'review-comment',
+      payload: {
+        path: 'src/foo.ts',
+        line: 12,
+        startLine: 10,
+        side: 'RIGHT',
+        diffHunk: Array.from({ length: 12 }, (_, index) => `+line ${index + 9}`).join('\n'),
+        inReplyTo: '55',
+        commentId: '77',
+        headSha: 'abc123',
+      },
+    })
+  })
+
+  it('falls back to original_line for an outdated comment and omits null fields', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleReviewComment(
+      reviewComment({
+        path: 'src/foo.ts',
+        line: null,
+        original_line: 7,
+        start_line: null,
+        side: null,
+        diff_hunk: null,
+        in_reply_to_id: null,
+      }),
+    )
+
+    const payload = (await prEventRows())[0]?.payload as Record<string, unknown>
+    expect(payload).toMatchObject({ path: 'src/foo.ts', line: 7 })
+    for (const key of ['startLine', 'side', 'diffHunk', 'inReplyTo']) {
+      expect(key in payload).toBe(false)
+    }
+  })
+
+  it('clips a long hunk to 1500 characters', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleReviewComment(
+      reviewComment({ path: 'a.ts', line: 1, diff_hunk: `+${'y'.repeat(4000)}` }),
+    )
+
+    const payload = (await prEventRows())[0]?.payload as { diffHunk: string }
+    expect(payload.diffHunk).toHaveLength(1500)
+  })
+
+  it('an edited review comment keeps its location', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleReviewComment({
+      ...reviewComment({ path: 'src/foo.ts', line: 12, body: 'a\nb' }),
+      action: 'edited',
+      changes: { body: { from: 'a' } },
+    })
+
+    expect((await prEventRows())[0]).toMatchObject({
+      payload: { edited: true, path: 'src/foo.ts', line: 12 },
+    })
+  })
+})

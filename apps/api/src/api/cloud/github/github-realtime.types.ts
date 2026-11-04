@@ -43,6 +43,12 @@ export type GithubPrEventPayload = {
   failedChecks?: GithubPrFailedCheck[]
   commentId?: string
   edited?: boolean
+  path?: string
+  line?: number
+  startLine?: number
+  side?: string
+  diffHunk?: string
+  inReplyTo?: string
 }
 
 export interface GithubPrEventDto {

@@ -3,6 +3,7 @@ import { and, db, or } from '@dltech/atlas-db'
 import { editExcerptOf } from './github-comment-edit-excerpt'
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
+import { reviewCommentLocationOf } from './github-review-comment-location'
 import { EPrEventKind, type GithubPrEventPayload } from './github-realtime.types'
 import type {
   GithubIssueCommentWebhookPayload,
@@ -95,6 +96,7 @@ export class GithubPrDiscussionDeliveryService {
       kind: EPrEventKind.ReviewComment,
       payload: {
         ...commentPayloadOf({ payload, edited }),
+        ...reviewCommentLocationOf(payload.comment),
         headSha: payload.pull_request.head.sha,
       },
       wake: !edited,

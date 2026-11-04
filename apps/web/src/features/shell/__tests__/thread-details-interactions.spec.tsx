@@ -109,7 +109,7 @@ describe('shared row details access', () => {
     expect(metadataRow?.querySelector('[aria-label="Merge conflicts"]')).not.toBeNull()
   })
 
-  it('keeps the inline merged label but shows all available checks in merged PR details', async () => {
+  it('hides inline checks for a merged PR but shows them all in its details', async () => {
     const thread = threadOf({
       id: 'merged',
       title: 'Merged thread',
@@ -118,7 +118,7 @@ describe('shared row details access', () => {
       ],
     })
     await view.render({ session: sessionOf(thread) })
-    expect(view.link('merged').textContent).toContain('merged')
+    expect(view.link('merged').textContent).not.toContain('merged')
     expect(view.link('merged').textContent).not.toContain('15 passed')
     await showDetails('merged')
     expect(popup()?.querySelector('[aria-label="0 running, 15 passed, 2 failed"]')).not.toBeNull()
