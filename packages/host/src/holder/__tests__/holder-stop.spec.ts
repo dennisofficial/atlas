@@ -95,7 +95,10 @@ describe('SessionHolder idle', () => {
     const runtime = rig.runtimes[0]
     if (runtime === undefined) throw new Error('no runtime')
 
-    rig.clock.advance(31 * 60_000)
+    for (let step = 0; step < 30 * 6 + 6; step += 1) {
+      rig.clock.advance(10_000)
+      await rig.flush()
+    }
     const released = await flushUntil({ check: () => runtime.released })
     expect(released).toBe(true)
     const lease = await rig.plane.currentLease({ sessionId: SESSION })
@@ -108,6 +111,7 @@ describe('SessionHolder idle', () => {
     const reclaimed = await flushUntil({
       check: async () =>
         (await rig.events()).filter((event) => event.type === 'assistant-said').length >= 2,
+      attempts: 200,
     })
     expect(reclaimed).toBe(true)
     expect(rig.runtimes.length).toBe(2)

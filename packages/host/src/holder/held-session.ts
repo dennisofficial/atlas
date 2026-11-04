@@ -91,6 +91,9 @@ export class HeldSession {
     const { lease, threadId } = args
     const deps = this.deps
     deps.bus.live({ sessionId: deps.sessionId, frame: statusFrame({ state: 'starting' }) })
+    const renewal = new LeaseRenewal(deps, { epoch: lease.epoch, onLost: () => this.drop() })
+    this.renewal = renewal
+    renewal.schedule()
     try {
       const runtime = await deps.runtimeFor({
         sessionId: deps.sessionId,
@@ -106,7 +109,7 @@ export class HeldSession {
         timers: deps.timers,
         remoteCalls: runtime.remoteCalls,
         daemonTools: runtime.daemonTools,
-        retryUntil: () => this.drainDeadline ?? deps.timers.now() + deps.ttlMs - deps.fenceMarginMs,
+        retryUntil: () => this.drainDeadline ?? renewal.fenceDeadline(),
         nowIso: () => new Date(deps.timers.now()).toISOString(),
         onLeaseLost: () => this.drop(),
         ...(deps.log === undefined ? {} : { log: deps.log }),
@@ -154,10 +157,6 @@ export class HeldSession {
         effectOf: (name) =>
           runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name),
       })
-
-      const renewal = new LeaseRenewal(deps, { epoch: lease.epoch, onLost: () => this.drop() })
-      this.renewal = renewal
-      renewal.schedule()
 
       const events = await record.ownEvents({ threadId })
       if (isResumable(events)) {
@@ -253,8 +252,10 @@ export class HeldSession {
 
   private drop(): void {
     this.lostOwnership = true
+    this.record?.fence()
     this.turns.abort()
     this.lifetimeAbort.abort()
+    this.runtime?.remoteCalls.handoff()
     this.runtime?.remoteCalls.close()
   }
 

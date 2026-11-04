@@ -1,8 +1,72 @@
 import { describe, expect, it } from 'bun:test'
 
-import { flushUntil, makeRig, seedSession, SESSION, type HolderRig } from './holder-rig'
+import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
+
+const ttlMs = 30_000
+const fenceMarginMs = 5_000
+const renewEveryMs = 5_000
 
 describe('SessionHolder self-fence (F7)', () => {
+  it('a renew that never settles self-fences at ttl−margin on the fake clock', async () => {
+    const a = await makeRig({ holderId: 'holder-a' })
+    await seedSession(a)
+    await a.holder.start()
+    await a.post('hello')
+    await a.wake()
+    const saw = await flushUntil({
+      check: async () => (await a.events()).some((event) => event.type === 'assistant-said'),
+    })
+    expect(saw).toBe(true)
+    expect(a.holder.heldIds().length).toBe(1)
+
+    a.plane.renew = () => new Promise(() => {})
+
+    a.clock.advance(ttlMs - fenceMarginMs + renewEveryMs)
+    const dropped = await flushUntil({ check: () => a.holder.heldIds().length === 0 })
+    expect(dropped).toBe(true)
+  }, 15_000)
+
+  it('during an active turn, no append lands after the fence deadline', async () => {
+    const a = await makeRig({
+      holderId: 'holder-a',
+      script: [
+        {
+          calls: [
+            {
+              callId: 'call-1',
+              name: 'bash',
+              input: { command: 'echo started; sleep 600; echo late' },
+            },
+          ],
+        },
+        { text: 'after' },
+      ],
+    })
+    await seedSession(a)
+    await a.holder.start()
+    await a.post('run')
+    await a.wake()
+    const dispatched = await flushUntil({
+      check: async () => (await a.events()).some((event) => event.type === 'tool-dispatched'),
+    })
+    expect(dispatched).toBe(true)
+
+    a.plane.renew = () => new Promise(() => {})
+    const seqBefore = (await a.events()).length
+
+    a.clock.advance(ttlMs - fenceMarginMs + renewEveryMs)
+    const dropped = await flushUntil({ check: () => a.holder.heldIds().length === 0 })
+    expect(dropped).toBe(true)
+
+    const after = await a.plane.readEvents({
+      threadId: THREAD_ID,
+      afterSeq: 0,
+      limit: 1000,
+      visible: false,
+    })
+    expect(after.events.length).toBe(seqBefore)
+  }, 15_000)
+
   it('when renew always fails the holder self-fences and no append lands after B claims', async () => {
     const a = await makeRig({ holderId: 'holder-a' })
     await seedSession(a)

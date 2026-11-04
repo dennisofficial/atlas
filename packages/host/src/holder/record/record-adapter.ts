@@ -52,6 +52,8 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   private readonly cache: RecordCache
   private tail: Promise<void> = Promise.resolve()
   private draining = false
+  private fenced = false
+  private wakeSleep: (() => void) | undefined
 
   constructor(
     private readonly args: SessionRecordArgs,
@@ -71,6 +73,11 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
 
   markDraining(): void {
     this.draining = true
+  }
+
+  fence(): void {
+    this.fenced = true
+    this.wakeSleep?.()
   }
 
   eventCache(): RecordCache {
@@ -113,6 +120,9 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     depth?: number | undefined
     drafts: readonly AppendBody[]
   }): Promise<Event[]> {
+    if (this.fenced) {
+      throw new LeaseLostError('the holder self-fenced; no append is attempted', 'self-fenced')
+    }
     const committed: Event[] = []
     for (const raw of args.drafts) {
       const draft = await this.prepareDraft({
@@ -190,6 +200,12 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   }): Promise<void> {
     let delayMs = 100
     for (;;) {
+      if (this.fenced) {
+        throw new LeaseLostError('the holder self-fenced; no append is attempted', 'self-fenced')
+      }
+      if (this.retryExhausted()) {
+        this.lost(new LeaseLostError('the record store never answered in time', 'retry-exhausted'))
+      }
       const outcome = await this.tryAppend({
         threadId: args.threadId,
         events: args.events,
@@ -197,9 +213,6 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       if (outcome === 'committed') {
         if (args.ackDaemon !== undefined) await this.ackDaemonScope(args.ackDaemon)
         return
-      }
-      if (this.retryExhausted()) {
-        this.lost(new LeaseLostError('the record store never answered in time', 'retry-exhausted'))
       }
       await this.sleep(delayMs)
       delayMs = Math.min(delayMs * 2, 2_000)
@@ -280,8 +293,17 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
 
   private async sleep(ms: number): Promise<void> {
     const jittered = ms * (0.5 + this.args.timers.random())
+    const until = this.args.retryUntil?.()
+    const capped =
+      until === undefined
+        ? jittered
+        : Math.min(jittered, Math.max(0, until - this.args.timers.now()))
     await new Promise<void>((resolve) => {
-      this.args.timers.setTimeout(resolve, jittered)
+      this.wakeSleep = resolve
+      this.args.timers.setTimeout(() => {
+        this.wakeSleep = undefined
+        resolve()
+      }, capped)
     })
   }
 }
