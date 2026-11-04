@@ -27,6 +27,7 @@ export type ConformanceParams = {
   name: string
   makeStore: () => ControlStorePort
   reset: () => Promise<void>
+  wakes: (sessionId: string) => Promise<number>
 }
 
 const consumed = (inboxId: number): V2Body => ({ type: 'input-consumed', inboxId })

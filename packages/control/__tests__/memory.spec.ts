@@ -4,6 +4,7 @@ import {
   describeControlPlaneClaims,
   describeControlPlaneConformance,
   describeControlPlaneSessions,
+  describeControlPlaneWakes,
 } from '../src/testing/conformance'
 
 let store = new InMemoryControlStore()
@@ -14,9 +15,11 @@ const conformanceParams = {
   reset: async () => {
     store = new InMemoryControlStore()
   },
+  wakes: async (sessionId: string) => store.wakeCount(sessionId),
 }
 
 describeControlPlaneConformance(conformanceParams)
 describeControlPlaneSessions(conformanceParams)
 describeControlPlaneClaims(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
+describeControlPlaneWakes(conformanceParams)
