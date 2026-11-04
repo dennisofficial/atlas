@@ -9,7 +9,6 @@ import { createDb, createPool, type Pool } from '@dltech/atlas-db'
 import { FaultProxy } from '@dltech/atlas-host/testing'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
-import { createRedisBus, type RedisBus } from '../bus/redis-bus'
 import { startDaemon, type RigDaemon } from './rig-daemon'
 import { collectLines } from './rig-process'
 import { proxiedDatabaseUrl, startOwnDaemonProxy } from './rig-proxies'
@@ -35,7 +34,6 @@ export type HostKnobs = {
   ttlMs?: number
   renewMs?: number
   fenceMs?: number
-  inboxPollMs?: number
   pingMs?: number
   drainMs?: number
   queryTimeoutMs?: number
@@ -77,7 +75,6 @@ export const startRig = async (args: {
   })
   const pool: Pool = createPool(args.databaseUrl)
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
-  const bus: RedisBus = createRedisBus({ url: args.redisUrl })
   const closers: (() => Promise<void>)[] = []
 
   return {
@@ -101,13 +98,13 @@ export const startRig = async (args: {
     },
 
     async wake(sessionId) {
-      await bus.wake(sessionId)
+      await plane.wake({ sessionIds: [sessionId] })
     },
 
     async claim({ sessionId, holderId, timeoutMs }) {
       const deadline = Date.now() + (timeoutMs ?? 15_000)
       for (;;) {
-        await bus.wake(sessionId).catch(() => undefined)
+        await plane.wake({ sessionIds: [sessionId] }).catch(() => undefined)
         const current = await plane.currentLease({ sessionId })
         if (current.live && current.lease.holderId === holderId) return
         if (Date.now() > deadline) {
@@ -183,6 +180,7 @@ export const startRig = async (args: {
           ...process.env,
           ATLAS_HOME: join(dir, 'atlas-home'),
           DATABASE_URL: databaseUrl(),
+          DATABASE_DIRECT_URL: args.databaseUrl,
           REDIS_URL: redisUrl ?? args.redisUrl,
           HOLDER_ID: holderId,
           DAEMON_URL: ownDaemon?.url ?? daemonUrl,
@@ -192,7 +190,6 @@ export const startRig = async (args: {
           TTL_MS: String(knobs?.ttlMs ?? 3_000),
           RENEW_MS: String(knobs?.renewMs ?? 500),
           FENCE_MS: String(knobs?.fenceMs ?? 1_000),
-          INBOX_POLL_MS: String(knobs?.inboxPollMs ?? 100),
           PING_MS: String(knobs?.pingMs ?? 10_000),
           ...(knobs?.drainMs === undefined ? {} : { DRAIN_MS: String(knobs.drainMs) }),
           ...(knobs?.queryTimeoutMs === undefined
@@ -230,7 +227,6 @@ export const startRig = async (args: {
       for (const closer of closers.splice(0).reverse()) {
         await closer().catch(() => undefined)
       }
-      await bus.close()
       await pool.end()
       await dbProxy.stop()
     },

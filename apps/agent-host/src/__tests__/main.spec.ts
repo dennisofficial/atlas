@@ -35,6 +35,7 @@ describe('main.ts smoke', () => {
         PATH: process.env.PATH,
         HOME: process.env.HOME,
         DATABASE_URL: 'postgres://u:p@127.0.0.1:5433/atlas',
+        DATABASE_DIRECT_URL: 'postgres://u:p@127.0.0.1:5433/atlas',
         REDIS_URL: 'redis://127.0.0.1:55442',
         AGENT_HOST_TOKEN: 'token',
         DAEMON_SECRET: 'secret',

@@ -4,6 +4,7 @@ import { AgentHostEnvError, readAgentHostEnv } from '../env'
 
 const complete: Record<string, string> = {
   DATABASE_URL: 'postgres://x',
+  DATABASE_DIRECT_URL: 'postgres://direct',
   REDIS_URL: 'redis://x',
   AGENT_HOST_TOKEN: 't'.repeat(32),
   DAEMON_SECRET: 'secret',
@@ -14,6 +15,7 @@ describe('readAgentHostEnv', () => {
   it('reads the required vars and applies defaults', () => {
     const env = readAgentHostEnv(complete)
     expect(env.databaseUrl).toBe('postgres://x')
+    expect(env.databaseDirectUrl).toBe('postgres://direct')
     expect(env.agentHostToken).toBe('t'.repeat(32))
     expect(env.daemonSecret).toBe('secret')
     expect(env.apiOrigin).toBe('https://api.byatlas.io')
@@ -45,6 +47,7 @@ describe('readAgentHostEnv', () => {
     const missing = (thrown as AgentHostEnvError).missing
     expect(missing).toEqual([
       'DATABASE_URL',
+      'DATABASE_DIRECT_URL',
       'REDIS_URL',
       'AGENT_HOST_TOKEN',
       'DAEMON_SECRET',
