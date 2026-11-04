@@ -80,8 +80,9 @@ export class LeaseRenewal {
 
   private async attemptRenew(): Promise<void> {
     const deps = this.deps
+    const leasePlane = deps.leasePlane ?? deps.plane
     try {
-      const result = await deps.plane.renew({
+      const result = await leasePlane.renew({
         sessionId: deps.sessionId,
         holderId: deps.holderId,
         epoch: this.args.epoch,

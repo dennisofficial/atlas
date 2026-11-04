@@ -37,6 +37,7 @@ export const makeRig = async (args: {
   clock?: FakeClock | undefined
   bus?: FakeBus | undefined
   plane?: ControlPlane | undefined
+  leasePlane?: ControlPlane | undefined
   maxSessions?: number | undefined
   ttlMs?: number | undefined
   renewEveryMs?: number | undefined
@@ -68,6 +69,7 @@ export const makeRig = async (args: {
   const holder = new SessionHolder({
     holderId: args.holderId ?? 'holder-a',
     plane,
+    ...(args.leasePlane === undefined ? {} : { leasePlane: args.leasePlane }),
     bus,
     timers: clock,
     runtimes: runtimeFor,

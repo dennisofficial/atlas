@@ -8,6 +8,7 @@ export type HeldSessionDeps = {
   sessionId: string
   holderId: string
   plane: ControlPlane
+  leasePlane?: ControlPlane | undefined
   bus: HostBus
   timers: HostTimers
   ids: IdPort

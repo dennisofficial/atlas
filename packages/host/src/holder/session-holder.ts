@@ -8,6 +8,7 @@ import { HeldSession, type HeldSessionDeps } from './held-session'
 export type SessionHolderArgs = {
   holderId: string
   plane: ControlPlane
+  leasePlane?: ControlPlane | undefined
   bus: HostBus
   timers: HostTimers
   runtimes: SessionRuntimeFactory
@@ -32,6 +33,7 @@ const DEFAULTS = {
 export class SessionHolder {
   private readonly holderId: string
   private readonly plane: ControlPlane
+  private readonly leasePlane: ControlPlane
   private readonly bus: HostBus
   private readonly timers: HostTimers
   private readonly runtimes: SessionRuntimeFactory
@@ -52,6 +54,7 @@ export class SessionHolder {
   constructor(args: SessionHolderArgs) {
     this.holderId = args.holderId
     this.plane = args.plane
+    this.leasePlane = args.leasePlane ?? args.plane
     this.bus = args.bus
     this.timers = args.timers
     this.runtimes = args.runtimes
@@ -169,6 +172,7 @@ export class SessionHolder {
       sessionId: args.sessionId,
       holderId: this.holderId,
       plane: this.plane,
+      leasePlane: this.leasePlane,
       bus: this.bus,
       timers: this.timers,
       ids: this.ids,
