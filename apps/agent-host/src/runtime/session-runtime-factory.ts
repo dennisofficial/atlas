@@ -23,6 +23,7 @@ import type { AgentHostApi } from '../config/agent-host-api'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
 import { agentHostPrompt } from './prompt'
+import { watchWorkspaceRepos } from './git-watch'
 import { daemonToolsOf } from './tools'
 import { ensureWorkspace } from './workspace-setup'
 
@@ -128,6 +129,13 @@ export const createSessionRuntimeFactory = (
         }, deadlineMs)
       }),
     ])
+    const gitWatch = watchWorkspaceRepos({
+      calls,
+      gate,
+      launchDirectory,
+      additionalRepos: config.workspace.additionalRepos,
+      ...(args.log === undefined ? {} : { log: args.log }),
+    })
     const tools = daemonToolsOf({ processes, files, agentFiles, setup: gate })
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
@@ -184,6 +192,7 @@ export const createSessionRuntimeFactory = (
       }),
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,
+      watchedRepos: () => gitWatch.watchedRepos(),
       stop: async () => {
         stopKeepAlive()
         calls.close()

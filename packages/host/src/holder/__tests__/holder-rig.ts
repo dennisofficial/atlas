@@ -43,6 +43,7 @@ export const makeRig = async (args: {
   fenceMarginMs?: number | undefined
   inboxPollMs?: number | undefined
   idleMinutes?: number | undefined
+  watchedRepos?: (() => Promise<readonly string[]>) | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
@@ -54,7 +55,13 @@ export const makeRig = async (args: {
     (await createInMemoryDaemon({ version: 'test', sandboxName: SANDBOX, secret: SECRET }))
   const script: ScriptRef = { current: args.script ?? [{ text: 'ok' }] }
   const runtimes: RigRuntime[] = []
-  const runtimeFor = makeRuntimeFactory({ daemon, clock, script, runtimes })
+  const runtimeFor = makeRuntimeFactory({
+    daemon,
+    clock,
+    script,
+    runtimes,
+    watchedRepos: args.watchedRepos,
+  })
 
   const holder = new SessionHolder({
     holderId: args.holderId ?? 'holder-a',

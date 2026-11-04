@@ -3,6 +3,7 @@ import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
 import {
   ControlStorePort,
   SeqConflictError,
+  type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
   type ControlTx,
@@ -24,7 +25,11 @@ type State = {
   leases: Map<string, Lease>
   inbox: Map<string, InboxEntry[]>
   blobs: Map<string, BlobRow>
+  blobRefs: Set<string>
 }
+
+const refKey = (params: { sessionId: string; hash: string }): string =>
+  `${params.sessionId}${params.hash}`
 
 const emptyState = (): State => ({
   sessions: new Map(),
@@ -34,6 +39,7 @@ const emptyState = (): State => ({
   leases: new Map(),
   inbox: new Map(),
   blobs: new Map(),
+  blobRefs: new Set(),
 })
 
 const cloneState = (state: State): State => ({
@@ -44,6 +50,7 @@ const cloneState = (state: State): State => ({
   leases: new Map([...state.leases].map(([key, value]) => [key, { ...value }])),
   inbox: new Map([...state.inbox].map(([key, value]) => [key, value.map((e) => ({ ...e }))])),
   blobs: new Map([...state.blobs].map(([key, value]) => [key, { ...value }])),
+  blobRefs: new Set(state.blobRefs),
 })
 
 class MemoryTx implements ControlTx {
@@ -176,12 +183,20 @@ class MemoryTx implements ControlTx {
     insertBlobRows(this.state.blobs, rows)
   }
 
+  async insertBlobRefs(rows: readonly BlobRefWrite[]): Promise<void> {
+    for (const row of rows) this.state.blobRefs.add(refKey(row))
+  }
+
   async readBlob(params: { hash: string }): Promise<BlobRow | undefined> {
     return readBlobRow(this.state.blobs, params.hash)
   }
 
   async blobsExist(hashes: readonly string[]): Promise<ReadonlySet<string>> {
     return blobHashesPresent(this.state.blobs, hashes)
+  }
+
+  async blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean> {
+    return this.state.blobRefs.has(refKey(params))
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {
