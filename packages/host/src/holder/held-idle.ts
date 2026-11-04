@@ -64,16 +64,31 @@ export const releaseIdleSession = async (args: {
   }
 }
 
+const lateInputMaybePending = async (deps: HeldSessionDeps): Promise<boolean> => {
+  try {
+    const late = await deps.plane.readInbox({ sessionId: deps.sessionId, afterId: 0, limit: 1 })
+    return late.length > 0
+  } catch {
+    return true
+  }
+}
+
 export const releaseIdleAndRewake = async (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
   drop(): void
+  finish(): void
 }): Promise<void> => {
   const { deps } = args
-  await releaseIdleSession({ deps, runtime: args.runtime })
-  const late = await deps.plane.readInbox({ sessionId: deps.sessionId, afterId: 0, limit: 1 })
-  args.drop()
-  if (late.length === 0) return
-  deps.onDrop?.()
-  await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
+  try {
+    await releaseIdleSession({ deps, runtime: args.runtime })
+    const maybePending = await lateInputMaybePending(deps)
+    args.drop()
+    if (!maybePending) return
+    deps.onDrop?.()
+    await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
+  } finally {
+    args.drop()
+    args.finish()
+  }
 }

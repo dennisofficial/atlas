@@ -72,6 +72,41 @@ describe('SessionHolder idle release (F15)', () => {
     expect(rig.holder.heldIds().length).toBe(1)
   }, 15_000)
 
+  it('a failing late read still ends the session, sends a wake and arms no timer', async () => {
+    const rig = await makeRig({
+      holderId: 'holder-a',
+      idleMinutes: 0.2,
+      ttlMs: 300_000,
+      renewEveryMs: 5_000,
+      fenceMarginMs: 5_000,
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await postAndRun(rig, 'hello')
+    const saw = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
+      clock: rig.clock,
+      advanceMs: 2_000,
+    })
+    expect(saw).toBe(true)
+
+    const original = rig.plane.readInbox.bind(rig.plane)
+    rig.plane.readInbox = (async (params: Parameters<typeof rig.plane.readInbox>[0]) => {
+      if (params.limit === 1) throw new Error('late read down')
+      return original(params)
+    }) as typeof rig.plane.readInbox
+
+    const wakesBefore = rig.wakeCount(SESSION)
+    rig.clock.advance(13_000)
+    const ended = await flushUntil({
+      check: () => rig.holder.heldIds().length === 0,
+      attempts: 100,
+    })
+    expect(ended).toBe(true)
+    expect(rig.wakeCount(SESSION)).toBeGreaterThan(wakesBefore)
+    expect(rig.clock.pendingWithin(Number.MAX_SAFE_INTEGER)).toBe(false)
+  }, 15_000)
+
   it('a holder that self-fenced can claim again on a later wake', async () => {
     const a = await makeRig({ holderId: 'holder-a', maxSessions: 1 })
     await seedSession(a)

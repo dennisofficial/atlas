@@ -259,8 +259,9 @@ export class HeldSession {
   private async releaseIdle(): Promise<void> {
     if (this.runtime === undefined || this.released) return
     this.released = true
-    await releaseIdleAndRewake({ deps: this.deps, runtime: this.runtime, drop: () => this.drop() })
-    this.finish()
+    const drop = (): void => this.drop()
+    const finish = (): void => this.finish()
+    await releaseIdleAndRewake({ deps: this.deps, runtime: this.runtime, drop, finish })
   }
 
   private drop(): void {
