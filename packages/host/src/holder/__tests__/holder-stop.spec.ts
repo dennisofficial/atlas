@@ -48,7 +48,7 @@ describe('SessionHolder stop', () => {
     const runsBeforeStop = rig.runCount()
 
     await rig.postStop()
-    rig.clock.advance(2_000)
+    await rig.wake()
     await rig.flush()
 
     const settled = await flushUntil({

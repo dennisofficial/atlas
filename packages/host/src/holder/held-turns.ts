@@ -6,7 +6,6 @@ import {
 } from '@dltech/atlas-agent'
 import type { ThreadId } from '@dltech/atlas-core'
 
-import type { InboxIntake } from './inbox-intake'
 import { statusFrame } from './ports'
 import type { HeldSessionDeps } from './held-session-deps'
 
@@ -14,7 +13,6 @@ const TURN_EXITED = new Set<ETurnStatus>([ETurnStatus.Failed, ETurnStatus.Interr
 
 export class HeldTurns {
   private turnAbort: AbortController | undefined
-  private inboxTimer: unknown
   turnRunning = false
 
   constructor(private readonly deps: HeldSessionDeps) {}
@@ -26,14 +24,12 @@ export class HeldTurns {
   async drive(args: {
     runner: LoopTurnRunner
     threadId: ThreadId
-    intake: InboxIntake
     pause: PauseSignal
     resume: boolean
     onActivity(): void
   }): Promise<void> {
     this.turnAbort = new AbortController()
     this.turnRunning = true
-    this.scheduleInboxPoll({ intake: args.intake })
     this.deps.bus.live({
       sessionId: this.deps.sessionId,
       frame: statusFrame({ state: 'thinking' }),
@@ -52,20 +48,11 @@ export class HeldTurns {
           })
       if (TURN_EXITED.has(outcome.status as ETurnStatus)) args.onActivity()
     } finally {
-      if (this.inboxTimer !== undefined) this.deps.timers.clearTimeout(this.inboxTimer)
       this.turnRunning = false
       this.turnAbort = undefined
       this.deps.bus.live({ sessionId: this.deps.sessionId, frame: statusFrame({ state: 'idle' }) })
       args.onActivity()
     }
-  }
-
-  private scheduleInboxPoll(args: { intake: InboxIntake }): void {
-    this.inboxTimer = this.deps.timers.setTimeout(() => {
-      void args.intake.pollStops().finally(() => {
-        if (this.turnRunning) this.scheduleInboxPoll(args)
-      })
-    }, this.deps.inboxPollMs)
   }
 
   liveOutput(): AgentOutput {

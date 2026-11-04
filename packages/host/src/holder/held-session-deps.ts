@@ -14,7 +14,6 @@ export type HeldSessionDeps = {
   ttlMs: number
   renewEveryMs: number
   fenceMarginMs: number
-  inboxPollMs: number
   idleMinutes: number
   runtimeFor: SessionRuntimeFactory
   onDrop?: (() => void) | undefined

@@ -82,13 +82,14 @@ describe('holder retry deadlines', () => {
     })
     await b.holder.start()
 
-    const wakesBefore = a.bus.wakes.length
+    const wakesBefore = a.wakeCount(SESSION)
     const drain = a.holder.drain({ deadline: a.clock.now() + 100 })
     a.clock.advance(200)
     await drain
 
     expect((await a.events()).some((event) => event.type === 'run-failed')).toBe(false)
-    expect(a.bus.wakes.length).toBeGreaterThan(wakesBefore)
+    expect(a.wakeCount(SESSION)).toBeGreaterThan(wakesBefore)
+    await a.bus.wake(SESSION)
 
     const claimed = await flushUntil({ check: () => b.holder.heldIds().length === 1 })
     expect(claimed).toBe(true)

@@ -54,16 +54,21 @@ describe('SessionHolder idle release (F15)', () => {
       return originalRevoke(params)
     }) as typeof rig.plane.revoke
 
+    const wakesBefore = rig.wakeCount(SESSION)
     rig.clock.advance(13_000)
+    const released = await flushUntil({
+      check: () => rig.runtimes[0]?.released === true,
+      attempts: 100,
+    })
+    expect(released).toBe(true)
+    expect(rig.wakeCount(SESSION)).toBeGreaterThan(wakesBefore)
+    await rig.bus.wake(SESSION)
     const reclaimed = await flushUntil({
-      check: async () => {
-        const said = (await rig.events()).filter((event) => event.type === 'user-said').length
-        return rig.runtimes[0]?.released === true && said === 2
-      },
+      check: async () =>
+        (await rig.events()).filter((event) => event.type === 'user-said').length === 2,
       attempts: 100,
     })
     expect(reclaimed).toBe(true)
-    expect(rig.bus.wakes.filter((id) => id === SESSION).length).toBeGreaterThanOrEqual(2)
     expect(rig.holder.heldIds().length).toBe(1)
   }, 15_000)
 

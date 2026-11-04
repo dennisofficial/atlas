@@ -47,6 +47,12 @@ export class HeldSession {
     this.turns = new HeldTurns(deps)
   }
 
+  notifyWake(): void {
+    if (this.draining || this.lostOwnership) return
+    this.interruptWait?.()
+    void this.intake?.pollStops()
+  }
+
   beginDrain(): void {
     this.draining = true
     this.branches?.stop()
@@ -189,7 +195,6 @@ export class HeldSession {
     await this.turns.drive({
       runner: args.runner,
       threadId: args.threadId,
-      intake: this.intake,
       pause: this.pause,
       resume: args.resume,
       onActivity: () => {
@@ -218,7 +223,7 @@ export class HeldSession {
       await this.consumeStops()
       if (await this.checkIdle()) return
       if ((await this.pendingInput()) === 0) {
-        await this.wait(deps.inboxPollMs)
+        await this.wait(this.idleWaitMs())
         continue
       }
       this.lastActivityAt = deps.timers.now()
@@ -231,6 +236,11 @@ export class HeldSession {
       .readInbox({ sessionId: this.deps.sessionId, afterId: 0, limit: 1 })
       .then((entries) => entries.length)
       .catch(() => 0)
+  }
+
+  private idleWaitMs(): number {
+    const deadline = this.lastActivityAt + this.deps.idleMinutes * 60_000
+    return Math.max(1, deadline - this.deps.timers.now())
   }
 
   private wait(ms: number): Promise<void> {
@@ -273,7 +283,7 @@ export class HeldSession {
     this.drop()
     if (late > 0) {
       this.deps.onDrop?.()
-      await deps.bus.wake(deps.sessionId).catch(() => undefined)
+      await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
     }
     return true
   }
@@ -289,7 +299,6 @@ export class HeldSession {
         await deps.plane
           .revoke({ sessionId: deps.sessionId, wantsHolder: true, epoch: this.leaseEpoch })
           .catch(() => undefined)
-        await deps.bus.wake(deps.sessionId).catch(() => undefined)
       }
       return
     }
