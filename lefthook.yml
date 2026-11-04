@@ -5,6 +5,7 @@ pre-commit:
       run: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
     dotenvx:
+      glob: '*.env*'
       run: node_modules/.bin/dotenvx ext precommit
     env-tiers:
       run: bun apps/api/scripts/check-env-tiers.ts

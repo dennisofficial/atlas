@@ -3,6 +3,8 @@ import { HttpAdapterHost, NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import helmet from 'helmet'
 import { GlobalExceptionFilter } from './api/global-exception.filter'
+import { trustedOriginsOf } from './api/platform/desktop-auth/trusted-origins'
+import { EnvService } from './_core/config/env/env.service'
 import { JSON_BODY_LIMIT } from './_lib/body-limits'
 import { GITHUB_WEBHOOK_BODY_LIMIT, webhookJsonParser } from './_lib/webhook-body-limit'
 
@@ -18,6 +20,18 @@ export async function createApp(): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true })
 
   app.use(helmet())
+  const trustedOrigins = trustedOriginsOf(app.get(EnvService))
+  // The Expo web test build calls the API cross-origin with a bearer header, so no credentials
+  // and no blanket origin: only TRUSTED_ORIGINS ∪ WEB_ORIGIN.
+  app.enableCors({
+    origin: (origin, allow) => {
+      if (origin === undefined || trustedOrigins.has(origin)) allow(null, true)
+      else allow(null, false)
+    },
+    credentials: false,
+    allowedHeaders: ['authorization', 'content-type', 'atlas-client-version', 'trpc-accept'],
+    exposedHeaders: ['set-auth-token'],
+  })
   // Unauthenticated webhook routes get tight body caps well under the global limit: the HMAC is
   // verified only after buffering, so anything bigger must be refused before it is read.
   app.use('/v1/github/hooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))

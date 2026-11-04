@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'346b2d0f20945a4896b92f3a9b64554fb077b7bf6b120f16c69d89cc5d3a3249'>;
+  StorageHashBase<'4e8f8d4679e4d2a3d9c6f451da4701aae4cad8fa6b9f194f287b094fde1c3932'>;
 export type ExecutionHash =
-  ExecutionHashBase<'395a1481e98e83f5120bc102ff6082480d9a2959eb5c52518bace5284bc0e7ef'>;
+  ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -590,7 +590,6 @@ export namespace Models {
     expiresAt: FieldOutputTypes['public']['McpOauthPending']['expiresAt'];
     id: FieldOutputTypes['public']['McpOauthPending']['id'];
     mcpServerId: FieldOutputTypes['public']['McpOauthPending']['mcpServerId'];
-    returnSurface: FieldOutputTypes['public']['McpOauthPending']['returnSurface'];
     returnTo: FieldOutputTypes['public']['McpOauthPending']['returnTo'];
     sealed: FieldOutputTypes['public']['McpOauthPending']['sealed'];
     serverUrl: FieldOutputTypes['public']['McpOauthPending']['serverUrl'];
@@ -757,6 +756,17 @@ export namespace Models {
     sizeBytes: FieldOutputTypes['public']['PublishedBundle']['sizeBytes'];
     userId: FieldOutputTypes['public']['PublishedBundle']['userId'];
     version: FieldOutputTypes['public']['PublishedBundle']['version'];
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
+  };
+  export type public_PushDevice = {
+    createdAt: FieldOutputTypes['public']['PushDevice']['createdAt'];
+    id: FieldOutputTypes['public']['PushDevice']['id'];
+    lastSeenAt: FieldOutputTypes['public']['PushDevice']['lastSeenAt'];
+    platform: FieldOutputTypes['public']['PushDevice']['platform'];
+    token: FieldOutputTypes['public']['PushDevice']['token'];
+    updatedAt: FieldOutputTypes['public']['PushDevice']['updatedAt'];
+    userId: FieldOutputTypes['public']['PushDevice']['userId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
@@ -950,6 +960,7 @@ export namespace Models {
     ownedProjects: public_Project[];
     previewTunnels: public_PreviewTunnel[];
     publishedBundles: public_PublishedBundle[];
+    pushDevices: public_PushDevice[];
     secrets: public_UserSecret[];
     sessions: public_Session[];
     settings: public_UserSetting[];
@@ -982,6 +993,7 @@ export namespace Models {
       | 'ownedProjects'
       | 'previewTunnels'
       | 'publishedBundles'
+      | 'pushDevices'
       | 'secrets'
       | 'sessions'
       | 'settings'
@@ -1157,6 +1169,7 @@ export declare const models: {
     ProjectSecret: Models.public_ProjectSecret;
     ProjectSetting: Models.public_ProjectSetting;
     PublishedBundle: Models.public_PublishedBundle;
+    PushDevice: Models.public_PushDevice;
     SandboxBootStep: Models.public_SandboxBootStep;
     Session: Models.public_Session;
     Skill: Models.public_Skill;
@@ -3327,16 +3340,6 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly many: false;
                 };
-                readonly returnSurface: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/text@1', 'web'>;
-                  };
-                  readonly many: false;
-                };
                 readonly returnTo: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -4414,6 +4417,81 @@ type ContractBase = Omit<
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'PublishedBundle';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly PushDevice: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly lastSeenAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly platform: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly token: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['token']; readonly name: 'PushDevice_token_key' },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'PushDevice_userId_idx';
+                  readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'PushDevice';
                     readonly columns: readonly ['userId'];
                   };
                   readonly target: {
@@ -6313,6 +6391,10 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'PublishedBundle';
     };
+    readonly PushDevice: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'PushDevice';
+    };
     readonly SandboxBootStep: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'SandboxBootStep';
@@ -8168,10 +8250,6 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly returnSurface: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly returnTo: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -8220,7 +8298,6 @@ type ContractBase = Omit<
                 readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
                 readonly mcpServerId: { readonly column: 'mcpServerId' };
-                readonly returnSurface: { readonly column: 'returnSurface' };
                 readonly returnTo: { readonly column: 'returnTo' };
                 readonly sealed: { readonly column: 'sealed' };
                 readonly serverUrl: { readonly column: 'serverUrl' };
@@ -9180,6 +9257,74 @@ type ContractBase = Omit<
                 readonly sizeBytes: { readonly column: 'sizeBytes' };
                 readonly userId: { readonly column: 'userId' };
                 readonly version: { readonly column: 'version' };
+              };
+            };
+          };
+          readonly PushDevice: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly lastSeenAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly platform: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly token: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'PushDevice';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly lastSeenAt: { readonly column: 'lastSeenAt' };
+                readonly platform: { readonly column: 'platform' };
+                readonly token: { readonly column: 'token' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
               };
             };
           };
@@ -10389,6 +10534,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
+              readonly pushDevices: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'PushDevice';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
               readonly secrets: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -11549,6 +11705,23 @@ type ContractBase = Omit<
           readonly ref: {
             readonly entry: 'PublishedBundle';
             readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'cuid2'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'PushDevice';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'PushDevice';
+            readonly field: 'updatedAt';
             readonly namespace: 'public';
           };
         },

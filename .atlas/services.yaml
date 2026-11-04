@@ -11,7 +11,7 @@ services:
     env:
       ATLAS_POSTGRES_PORT: ${services.postgres.port}
       WEB_ORIGIN: ${services.web.publicUrl}
-      TRUSTED_ORIGINS: ${services.web.publicUrl}
+      TRUSTED_ORIGINS: ${services.web.publicUrl},${services.mobile.publicUrl}
     setup:
       - bun install
       - bun run db:migrate
@@ -41,3 +41,16 @@ services:
       - bun install
     portal:
       title: Prototype
+  mobile:
+    command: bunx expo start --web --port $PORT
+    cwd: apps/mobile
+    health: /
+    needs: [web]
+    env:
+      CI: '1'
+      EXPO_PUBLIC_API_ORIGIN: ${services.web.publicUrl}
+      EXPO_PUBLIC_WEB_ORIGIN: ${services.web.publicUrl}
+    setup:
+      - bun install
+    portal:
+      title: Atlas mobile (web)

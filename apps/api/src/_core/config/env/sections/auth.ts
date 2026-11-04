@@ -7,6 +7,7 @@ export interface IAuthEnv {
   WEB_ORIGIN: string
   GOOGLE_CLIENT_ID: string
   GOOGLE_CLIENT_SECRET: string
+  APPLE_APP_BUNDLE_IDENTIFIER?: string
 }
 
 export const authEnvSchema = {
@@ -16,4 +17,5 @@ export const authEnvSchema = {
   WEB_ORIGIN: Joi.string().uri().default('http://localhost:3001'),
   GOOGLE_CLIENT_ID: Joi.string().required(),
   GOOGLE_CLIENT_SECRET: Joi.string().required(),
+  APPLE_APP_BUNDLE_IDENTIFIER: Joi.string().optional(),
 }

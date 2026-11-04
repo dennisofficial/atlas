@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { NotificationsModule } from '../notifications/notifications.module'
 import { ThreadSignalsModule } from '../sessions/thread-signals.module'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { CloudflareTunnelClient } from './cloudflare-tunnel.client'
@@ -12,7 +13,7 @@ import { SandboxesService } from './sandboxes.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 
 @Module({
-  imports: [ThreadSignalsModule],
+  imports: [ThreadSignalsModule, NotificationsModule],
   providers: [
     SandboxesService,
     SandboxEndpointService,

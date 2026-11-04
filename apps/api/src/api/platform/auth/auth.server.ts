@@ -43,6 +43,10 @@ const emailHooks = createAuthEmailHooks({
 // through the web app's /api/* rewrite, so the OAuth state and session cookies live on WEB_ORIGIN.
 const googleRedirectUri = `${webOrigin}/api/auth/callback/google`
 
+// The native app signs in with an ID token only, so no client secret (which would build the web
+// authorization URL) is configured; audience verification goes through appBundleIdentifier.
+const appleBundleIdentifier = process.env.APPLE_APP_BUNDLE_IDENTIFIER
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3400',
   secret,
@@ -55,7 +59,10 @@ export const auth = betterAuth({
     cookieCache: { enabled: true, maxAge: 300 },
     storeSessionInDatabase: true,
   },
-  account: { modelName: 'Account' },
+  account: {
+    modelName: 'Account',
+    accountLinking: { enabled: true, trustedProviders: ['google', 'apple'] },
+  },
   verification: { modelName: 'Verification', storeInDatabase: true },
   rateLimit: { storage: 'memory' },
   emailAndPassword: {
@@ -69,6 +76,9 @@ export const auth = betterAuth({
       clientSecret: googleClientSecret,
       redirectURI: googleRedirectUri,
     },
+    ...(appleBundleIdentifier === undefined
+      ? {}
+      : { apple: { clientId: appleBundleIdentifier, appBundleIdentifier: appleBundleIdentifier } }),
   },
   trustedOrigins,
   plugins: [

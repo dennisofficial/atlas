@@ -2,12 +2,14 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { setSystemTime } from 'bun:test'
 import { afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { randomBytes } from 'node:crypto'
+import { EnvService } from '../../../../_core/config/env/env.service'
 
 const REDIRECT = 'http://127.0.0.1:51234/desktop/auth/callback'
 
 describe('DesktopAuthService', () => {
   useTestDatabase()
   let service: import('../desktop-auth.service').DesktopAuthService
+  let env: EnvService
   let auth: typeof import('../../auth/auth.server').auth
   let challengeOf: (verifier: string) => string
   let ttl: number
@@ -16,7 +18,11 @@ describe('DesktopAuthService', () => {
   beforeAll(async () => {
     const module = await import('../desktop-auth.service')
     ;({ auth } = await import('../../auth/auth.server'))
-    service = new module.DesktopAuthService()
+    env = new EnvService({
+      WEB_ORIGIN: 'http://localhost:3001',
+      TRUSTED_ORIGINS: 'http://localhost:8081',
+    })
+    service = new module.DesktopAuthService(env)
     challengeOf = module.challengeOf
     ttl = module.CODE_TTL_MS
   })
@@ -87,5 +93,28 @@ describe('DesktopAuthService', () => {
     await expect(
       service.exchange({ code, codeVerifier: verifier, redirectUri: REDIRECT }),
     ).rejects.toThrow('invalid')
+  })
+
+  const authorizeAs = async (redirectUri: string) => {
+    const verifier = randomBytes(32).toString('base64url')
+    return service.authorize({
+      userId,
+      input: { redirectUri, codeChallenge: challengeOf(verifier), codeChallengeMethod: 'S256' },
+    })
+  }
+
+  it('authorizes the native app scheme without a trusted origin', async () => {
+    await expect(authorizeAs('atlas://auth/callback')).resolves.toBeTruthy()
+  })
+
+  it('authorizes a web callback on a trusted origin', async () => {
+    await expect(authorizeAs('http://localhost:8081/auth/callback')).resolves.toBeTruthy()
+    await expect(authorizeAs('http://localhost:3001/auth/callback')).resolves.toBeTruthy()
+  })
+
+  it('rejects a web callback on an untrusted origin', async () => {
+    await expect(authorizeAs('https://evil.test/auth/callback')).rejects.toThrow(
+      'redirect origin is not trusted',
+    )
   })
 })

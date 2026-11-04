@@ -37,6 +37,7 @@ model User {
   threads                  Thread[]
   threadReads              ThreadRead[]
   userFiles                UserFile[]
+  pushDevices              PushDevice[]
   vercelCredential         UserVercelCredential?
 
   @@unique([email], map: "User_email_key")

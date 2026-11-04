@@ -26,7 +26,8 @@
       "!packages/ui/src/styles/theme.css",
       "!**/.next",
       "!**/next-env.d.ts",
-      "!**/storybook-static"
+      "!**/storybook-static",
+      "!apps/mobile/assets"
     ]
   },
   "formatter": {

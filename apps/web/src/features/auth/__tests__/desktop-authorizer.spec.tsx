@@ -98,4 +98,21 @@ describe('DesktopAuthorizer', () => {
     expect(assign).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('invalid')
   })
+
+  it('redirects the native app scheme with code and state', async () => {
+    search = query('atlas://auth/callback')
+    signedIn = true
+    await mount(nextCall(assign))
+    expect(minted[0]).toMatchObject({ redirectUri: 'atlas://auth/callback' })
+    expect(assign).toHaveBeenCalledWith('atlas://auth/callback?code=the-code&state=st')
+  })
+
+  it('redirects a web-app callback with code and state', async () => {
+    search = query('http://localhost:8081/auth/callback')
+    signedIn = true
+    await mount(nextCall(assign))
+    expect(assign).toHaveBeenCalledWith(
+      'http://localhost:8081/auth/callback?code=the-code&state=st',
+    )
+  })
 })

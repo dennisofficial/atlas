@@ -1,8 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import type { AuthorizeDesktopInput, ExchangeDesktopCodeInput } from '@dltech/atlas-wire'
+import { needsTrustedOrigin } from '@dltech/atlas-wire'
 import { z } from 'zod'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { auth } from '../auth/auth.server'
+import { trustedOriginsOf } from './trusted-origins'
 
 export const CODE_TTL_MS = 60_000
 const INVALID_GRANT = 'the authorization code is invalid, expired or already used'
@@ -21,7 +24,15 @@ export const challengeOf = (verifier: string): string => sha256(verifier).toStri
 
 @Injectable()
 export class DesktopAuthService {
+  constructor(private readonly env: EnvService) {}
+
   async authorize(args: { userId: string; input: AuthorizeDesktopInput }): Promise<string> {
+    if (needsTrustedOrigin(args.input.redirectUri)) {
+      const origin = new URL(args.input.redirectUri).origin
+      if (!trustedOriginsOf(this.env).has(origin)) {
+        throw new BadRequestException('redirect origin is not trusted')
+      }
+    }
     const code = randomBytes(32).toString('base64url')
     const { internalAdapter } = await auth.$context
     await internalAdapter.createVerificationValue({
