@@ -3,4 +3,4 @@ export {
   type TurnPolicy,
   type TurnPolicyListener,
   type TurnPolicyState,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'

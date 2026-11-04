@@ -7,4 +7,4 @@ export {
   stalledReport,
   swallowedReport,
   type SilentOutcome,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'

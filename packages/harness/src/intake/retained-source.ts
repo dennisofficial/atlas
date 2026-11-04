@@ -1,4 +1,4 @@
-import { retainedSource as agentRetainedSource } from '@dltech/atlas-agent'
+import { retainedSource as agentRetainedSource } from '@dltech/atlas-agent-v1'
 
 import type { IntakeSource, SubmittedInput } from './message-intake'
 

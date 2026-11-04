@@ -6,4 +6,4 @@ export {
   type LoopWatch,
   type WatchOutcome,
   type WatchState,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'

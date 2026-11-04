@@ -1,1 +1,1 @@
-export { waitForInput } from '@dltech/atlas-agent'
+export { waitForInput } from '@dltech/atlas-agent-v1'

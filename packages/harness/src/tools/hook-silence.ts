@@ -1,1 +1,1 @@
-export { outcomeWhenAHookDidNotAnswerInTime } from '@dltech/atlas-agent'
+export { outcomeWhenAHookDidNotAnswerInTime } from '@dltech/atlas-agent-v1'

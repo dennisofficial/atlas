@@ -13,7 +13,7 @@ import {
 import { ActivityTurnRunner } from '../../activity/activity-turn-runner'
 import type { ActivityLifecycle } from '../../activity/runtime-session-activity'
 import type { SteerMessage } from './child-state'
-import { composeIntake, type AgentIntake } from '@dltech/atlas-agent'
+import { composeIntake, type AgentIntake } from '@dltech/atlas-agent-v1'
 import type { MessageIntake } from '../../intake/message-intake'
 import type { ThreadModel } from '../../store/thread-store'
 import type { DeltaChannel } from '../../channel/delta-channel'

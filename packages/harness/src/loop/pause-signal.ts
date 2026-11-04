@@ -1,1 +1,1 @@
-export { PauseSignal } from '@dltech/atlas-agent'
+export { PauseSignal } from '@dltech/atlas-agent-v1'

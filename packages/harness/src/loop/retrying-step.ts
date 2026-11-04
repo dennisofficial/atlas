@@ -5,7 +5,7 @@ import {
   type RetryDeps,
   type RetryNotice,
   type Waiting,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'
 
 import { normalizeProviderFailure } from '../model/failure'
 

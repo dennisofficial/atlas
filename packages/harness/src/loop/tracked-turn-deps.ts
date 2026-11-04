@@ -1,1 +1,1 @@
-export type { TrackedTurnDeps } from '@dltech/atlas-agent'
+export type { TrackedTurnDeps } from '@dltech/atlas-agent-v1'

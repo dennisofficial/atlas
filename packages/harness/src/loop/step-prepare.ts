@@ -5,4 +5,4 @@ export {
   type PreparedFailure,
   type PreparedStep,
   type StepPrepareDeps,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'

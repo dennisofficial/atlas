@@ -3,7 +3,7 @@ import {
   type OnToolOutputNotice,
   type SettlePending,
   type ToolOutputNotice,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'
 import type { EventLogPort } from '@dltech/atlas-core'
 
 import { eventLogAgentRecord } from './event-log-agent-record'

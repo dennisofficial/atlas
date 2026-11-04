@@ -13,7 +13,7 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 
-import type { QualityReviewOutcome, QualityStagePort } from '@dltech/atlas-agent'
+import type { QualityReviewOutcome, QualityStagePort } from '@dltech/atlas-agent-v1'
 
 import { createQualityBudget, settleReview } from '../quality/deadline'
 import { type LogPort, logFieldsOf } from '@dltech/atlas-observability'

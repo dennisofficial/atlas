@@ -1,5 +1,5 @@
 import type { RunFailure } from '@dltech/atlas-core'
-import { runFailureWith, safeFailureMessage } from '@dltech/atlas-agent'
+import { runFailureWith, safeFailureMessage } from '@dltech/atlas-agent-v1'
 
 import { normalizeProviderFailure } from './failure'
 

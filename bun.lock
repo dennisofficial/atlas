@@ -478,7 +478,7 @@
         "@ai-sdk/openai": "^4.0.101",
         "@ai-sdk/openai-compatible": "^3.0.77",
         "@ai-sdk/provider": "4.0.33",
-        "@dltech/atlas-agent": "workspace:*",
+        "@dltech/atlas-agent-v1": "workspace:*",
         "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-client": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
