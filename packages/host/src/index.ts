@@ -48,4 +48,3 @@ export {
 } from './holder/record/record-adapter'
 export { RecordCache } from './holder/record/record-cache'
 export { V2OnceLedger } from './holder/record/v2-once-ledger'
-export { toLoopEvent, isRecordOnly } from './holder/record/event-strip'

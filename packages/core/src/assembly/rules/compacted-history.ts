@@ -16,7 +16,7 @@ const compactionBlock = (summary: string): string =>
 
 const summaryMessage = (watermark: CompactionWatermark): AssembledMessage => ({
   message: { role: 'user', content: [{ type: 'text', text: compactionBlock(watermark.summary) }] },
-  origin: { eventId: watermark.id, seq: watermark.seq },
+  origin: { eventId: watermark.id, seq: watermark.throughSeq },
 })
 
 const outlivesCompaction = (events: readonly Event[]): ReadonlySet<number> =>
@@ -27,16 +27,49 @@ const covered = (args: { watermark: CompactionWatermark; seq: number }): boolean
   args.seq <= args.watermark.throughSeq &&
   args.seq !== args.watermark.seq
 
+const callsTools = (entry: AssembledMessage | undefined): boolean =>
+  entry?.message.role === 'assistant' &&
+  entry.message.content.some((part) => part.type === 'tool-call')
+
+function keptOutside({
+  messages,
+  watermark,
+  spared,
+}: {
+  messages: readonly AssembledMessage[]
+  watermark: CompactionWatermark
+  spared: ReadonlySet<number>
+}): AssembledMessage[] {
+  const kept: AssembledMessage[] = []
+  let callerDropped: boolean | undefined
+
+  for (const entry of messages) {
+    const own = spared.has(entry.origin.seq) || !covered({ watermark, seq: entry.origin.seq })
+    const keep = entry.message.role === 'tool' && callerDropped !== undefined ? !callerDropped : own
+    callerDropped = callsTools(entry)
+      ? !keep
+      : entry.message.role === 'tool'
+        ? callerDropped
+        : undefined
+    if (keep) kept.push(entry)
+  }
+
+  return kept
+}
+
 function spliced({
   messages,
   summary,
+  throughSeq,
 }: {
   messages: readonly AssembledMessage[]
   summary: AssembledMessage
+  throughSeq: number
 }): readonly AssembledMessage[] {
-  const after = messages.findIndex((entry) => entry.origin.seq > summary.origin.seq)
-  if (after === -1) return [...messages, summary]
-  return [...messages.slice(0, after), summary, ...messages.slice(after)]
+  let at = messages.findIndex((entry) => entry.origin.seq > throughSeq)
+  if (at === -1) return [...messages, summary]
+  while (messages[at]?.message.role === 'tool' && callsTools(messages[at - 1])) at += 1
+  return [...messages.slice(0, at), summary, ...messages.slice(at)]
 }
 
 export function compactedHistory(): Rule {
@@ -48,16 +81,17 @@ export function compactedHistory(): Rule {
 
       const spared = outlivesCompaction(ctx.events)
 
-      return watermarks.reduce((assembled, watermark) => {
-        const kept = assembled.messages.filter(
-          (entry) => spared.has(entry.origin.seq) || !covered({ watermark, seq: entry.origin.seq }),
-        )
-
-        return {
+      return watermarks.reduce(
+        (assembled, watermark) => ({
           system: assembled.system,
-          messages: spliced({ messages: kept, summary: summaryMessage(watermark) }),
-        }
-      }, input)
+          messages: spliced({
+            messages: keptOutside({ messages: assembled.messages, watermark, spared }),
+            summary: summaryMessage(watermark),
+            throughSeq: watermark.throughSeq,
+          }),
+        }),
+        input,
+      )
     },
   })
 }
