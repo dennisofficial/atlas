@@ -20,7 +20,7 @@ const grammarFailure = new Error('the grammar bundle would not load')
 
 let grammarsFail = true
 
-vi.mock('../../ui/markdown/grammars/index', () => ({
+vi.mock('@dltech/atlas-syntax/tree-sitter', () => ({
   registerGrammars: async (): Promise<void> => {
     if (grammarsFail) throw grammarFailure
   },

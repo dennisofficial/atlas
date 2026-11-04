@@ -8,7 +8,7 @@ import { lexicalKeys, lexicalScannerFor } from '../registry'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const grammars = JSON.parse(
-  readFileSync(join(here, '..', '..', 'grammars', 'parsers-config.json'), 'utf8'),
+  readFileSync(join(here, '..', '..', 'tree-sitter', 'parsers-config.json'), 'utf8'),
 ) as { parsers: { filetype: string; aliases?: string[] }[] }
 
 // OpenTUI ships these parsers itself; `parsers-config.json` never names them, so a lexical spec

@@ -40,7 +40,7 @@ import {
 } from '../src/ui/borders'
 import { UserBlock } from '../src/ui/components/blocks/user-block'
 import { PANEL_INSET, PANEL_PAD } from '../src/ui/components/panel'
-import { registerGrammars } from '../src/ui/markdown/grammars/index'
+import { registerGrammars } from '@dltech/atlas-syntax/tree-sitter'
 import { MarkdownView } from '../src/ui/markdown/markdown-view'
 import { formatTokens, theme, TRANSCRIPT_INSET } from '../src/ui/theme'
 

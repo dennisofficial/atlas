@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const grammarsDir = join(root, 'src', 'ui', 'markdown', 'grammars')
+const grammarsDir = join(root, 'src', 'tree-sitter')
 const outFile = join(grammarsDir, 'parsers.generated.ts')
 
 const updateAssets = fileURLToPath(import.meta.resolve('@opentui/core/tree-sitter/update-assets'))
@@ -41,4 +41,4 @@ writeFileSync(
   generated.replace(UPSTREAM_HEADER, '// GENERATED from parsers-config.json — do not edit.'),
 )
 
-console.log('vendored grammars → src/ui/markdown/grammars/')
+console.log('vendored grammars → src/tree-sitter/')

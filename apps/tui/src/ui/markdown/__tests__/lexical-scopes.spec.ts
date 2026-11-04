@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { codeScopes, codeTheme, rolesFor } from '../../themes/index'
-import { LEXICAL_LANGUAGES } from '../languages/index'
-import { styleForGroup } from '../rows'
-import type { LanguageSpec } from '../spec'
+import { LEXICAL_LANGUAGES, type LanguageSpec } from '@dltech/atlas-syntax/lexical'
+
+import { codeScopes, codeTheme, rolesFor } from '../themes/index'
+import { styleForGroup } from '../lexical-rows'
 
 function groupsOf(spec: LanguageSpec): readonly string[] {
   return [

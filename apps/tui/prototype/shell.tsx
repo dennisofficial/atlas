@@ -16,7 +16,7 @@ import { Composer, composerRows, EComposerTone } from '../src/ui/components/comp
 import { ComposerHints, type Hint } from '../src/ui/components/composer-hints'
 import { Transcript } from '../src/ui/components/transcript'
 import { useDraft } from '../src/ui/hooks/use-draft'
-import { registerGrammars } from '../src/ui/markdown/grammars/index'
+import { registerGrammars } from '@dltech/atlas-syntax/tree-sitter'
 import {
   EAuthor,
   EEntryKind,

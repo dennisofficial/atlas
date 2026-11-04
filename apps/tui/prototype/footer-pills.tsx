@@ -29,7 +29,7 @@ import { Footer } from '../src/ui/components/footer'
 import { Sidebar } from '../src/ui/components/sidebar'
 import { chipItem, EFooterItemReach, type FooterItem } from '../src/ui/footer-item'
 import { enterStrip, moveStripSelection, type FooterStripState } from '../src/ui/footer-strip'
-import { registerGrammars } from '../src/ui/markdown/grammars/index'
+import { registerGrammars } from '@dltech/atlas-syntax/tree-sitter'
 import { SIDEBAR_WIDTH, theme } from '../src/ui/theme'
 import { FED_SIDEBAR } from './round2-data'
 
