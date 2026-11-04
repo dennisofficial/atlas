@@ -1,0 +1,107 @@
+import { describe, expect, it } from 'bun:test'
+
+import { flushUntil, makeRig, postAndRun, seedSession, SESSION } from './holder-rig'
+
+describe('SessionHolder idle release (F15)', () => {
+  it('pending inbox input blocks the idle release', async () => {
+    const rig = await makeRig({
+      holderId: 'holder-a',
+      idleMinutes: 0.2,
+      ttlMs: 300_000,
+      renewEveryMs: 5_000,
+      fenceMarginMs: 5_000,
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await postAndRun(rig, 'hello')
+    const saw = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
+      clock: rig.clock,
+      advanceMs: 2_000,
+    })
+    expect(saw).toBe(true)
+    expect(rig.holder.heldIds().length).toBe(1)
+
+    const posted = rig.post('waiting input')
+    rig.clock.advance(13_000)
+    await posted
+    await rig.flush()
+    expect(rig.holder.heldIds().length).toBe(1)
+    expect(rig.runtimes[0]?.released).toBe(false)
+  }, 15_000)
+
+  it('input posted during the release re-wakes the session after revoke', async () => {
+    const rig = await makeRig({
+      holderId: 'holder-a',
+      idleMinutes: 0.2,
+      ttlMs: 300_000,
+      renewEveryMs: 5_000,
+      fenceMarginMs: 5_000,
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await postAndRun(rig, 'hello')
+    const saw = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
+      clock: rig.clock,
+      advanceMs: 2_000,
+    })
+    expect(saw).toBe(true)
+
+    const originalRevoke = rig.plane.revoke.bind(rig.plane)
+    rig.plane.revoke = (async (params: Parameters<typeof rig.plane.revoke>[0]) => {
+      await rig.post('late arrival')
+      return originalRevoke(params)
+    }) as typeof rig.plane.revoke
+
+    rig.clock.advance(13_000)
+    const reclaimed = await flushUntil({
+      check: async () => {
+        const said = (await rig.events()).filter((event) => event.type === 'user-said').length
+        return rig.runtimes[0]?.released === true && said === 2
+      },
+      attempts: 100,
+    })
+    expect(reclaimed).toBe(true)
+    expect(rig.bus.wakes.filter((id) => id === SESSION).length).toBeGreaterThanOrEqual(2)
+    expect(rig.holder.heldIds().length).toBe(1)
+  }, 15_000)
+
+  it('a holder that self-fenced can claim again on a later wake', async () => {
+    const a = await makeRig({ holderId: 'holder-a', maxSessions: 1 })
+    await seedSession(a)
+    await a.holder.start()
+    await postAndRun(a, 'first')
+    const saw = await flushUntil({
+      check: async () => (await a.events()).some((event) => event.type === 'assistant-said'),
+      clock: a.clock,
+      advanceMs: 2_000,
+    })
+    expect(saw).toBe(true)
+
+    const originalRenew = a.plane.renew.bind(a.plane)
+    a.plane.renew = () => Promise.reject(new Error('network down'))
+    const dropped = await flushUntil({
+      check: () => a.holder.heldIds().length === 0,
+      clock: a.clock,
+      advanceMs: 5_000,
+      attempts: 20,
+    })
+    expect(dropped).toBe(true)
+    a.plane.renew = originalRenew
+    a.clock.advance(31_000)
+
+    await a.post('second')
+    await a.bus.wake(SESSION)
+    const reclaimed = await flushUntil({
+      check: async () =>
+        (await a.events()).filter((event) => event.type === 'assistant-said').length === 2,
+      clock: a.clock,
+      advanceMs: 5_000,
+      attempts: 50,
+    })
+    expect(reclaimed).toBe(true)
+    expect(a.holder.heldIds().length).toBe(1)
+    expect(a.runtimes.length).toBe(2)
+  }, 15_000)
+})

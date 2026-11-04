@@ -6,6 +6,7 @@ import type { DaemonLink } from './link'
 
 export type Waiter = {
   settle(result: CallResult): void
+  reject?: ((error: Error) => void) | undefined
   onOutput?: ((bytes: Uint8Array) => void) | undefined
   detach?: (() => void) | undefined
 }
@@ -18,6 +19,26 @@ export type Pending = {
   delivered: number
   sent: boolean
   done: boolean
+  detach?: (() => void) | undefined
+}
+
+export const interruptedResult = (op: string): CallResult =>
+  failedResult({ op, code: ECallFailure.Internal, message: interruptedMessage(op) })
+
+export const rejectPending = (args: {
+  pending: Map<string, Pending>
+  pendingAcks: Map<string, { key: string; resolve(found: boolean): void }>
+  error: Error
+}): void => {
+  for (const call of [...args.pending.values()]) {
+    if (call.done) continue
+    call.done = true
+    args.pending.delete(call.key)
+    call.detach?.()
+    for (const waiter of call.waiters) waiter.reject?.(args.error)
+  }
+  for (const ack of [...args.pendingAcks.values()]) ack.resolve(false)
+  args.pendingAcks.clear()
 }
 
 export const failedResult = (args: {
@@ -29,6 +50,26 @@ export const failedResult = (args: {
   op: args.op,
   error: { code: args.code, message: args.message },
 })
+
+export const handedOffResult = (call: Pending): CallResult => {
+  if (call.op.op !== 'exec') {
+    return failedResult({
+      op: call.op.op,
+      code: ECallFailure.Internal,
+      message: interruptedMessage(call.op.op),
+    })
+  }
+  return {
+    status: ECallStatus.Ok,
+    op: 'exec',
+    value: {
+      exitCode: null,
+      signal: 'SIGTERM',
+      outcome: EExecOutcome.TimedOut,
+      outputBytes: call.delivered,
+    },
+  }
+}
 
 export const cancelledResult = (call: Pending): CallResult => {
   if (call.op.op !== 'exec') {

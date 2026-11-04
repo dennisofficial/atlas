@@ -54,6 +54,7 @@ export type TurnDeps = {
   retry?: RetryDeps | undefined
   sleepPrevention?: SleepPrevention | undefined
   waitState?: ModelWaitObserver | undefined
+  detachTool?: ((name: string) => boolean) | undefined
   normalizeFailure: NormalizeFailure
   failureDiagnostics?: FailureDiagnostics | undefined
   onceLedger?: OnceLedger | undefined

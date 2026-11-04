@@ -214,6 +214,10 @@ function walkEvents({
     if (isNoticeArrival(event)) continue
 
     if (event.type === 'assistant-said') {
+      if (event.aborted === 'handoff') {
+        openAssistant = undefined
+        continue
+      }
       openAssistant = {
         message: { role: 'assistant', content: [...event.parts] },
         origin: originOf(event),

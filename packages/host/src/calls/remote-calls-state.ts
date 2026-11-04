@@ -7,18 +7,19 @@ import {
   ProtocolViolationError,
   SandboxUnavailableError,
   actionForLostCall,
-  interruptedMessage,
 } from './errors'
 import { DaemonLink } from './link'
 import {
-  cancelledResult,
   failedResult,
+  handedOffResult,
   handleDaemonFrame,
+  interruptedResult,
   recoverRestartedCalls,
+  rejectPending,
   type Pending,
   type Waiter,
 } from './remote-calls-frames'
-import type { CallTimers, RemoteCallsArgs } from './remote-calls'
+import type { RemoteCallsArgs } from './remote-calls'
 
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
@@ -30,6 +31,7 @@ export class RemoteCallsState {
   private linkBootId: string | undefined
   private fenced = false
   private closed = false
+  private detached = false
   private availability: SandboxUnavailableError | null = null
   private readyResolve: ((reply: { bootId: string; version: string }) => void) | null = null
   private readyReject: ((error: Error) => void) | null = null
@@ -78,9 +80,24 @@ export class RemoteCallsState {
     return this.linkBootId
   }
 
+  handoff(): void {
+    this.detached = true
+    for (const call of [...this.pending.values()]) {
+      if (call.done) continue
+      this.settle(call, handedOffResult(call))
+    }
+  }
+
   close(): void {
+    if (this.closed) return
     this.closed = true
     this.link.teardown()
+    const error = new FencedError(`session ${this.args.sessionId} closed its daemon link`)
+    rejectPending({ pending: this.pending, pendingAcks: this.pendingAcks, error })
+    const readyReject = this.readyReject
+    this.readyResolve = null
+    this.readyReject = null
+    if (readyReject !== null) queueMicrotask(() => readyReject(error))
   }
 
   async invoke(args: {
@@ -92,24 +109,30 @@ export class RemoteCallsState {
   }): Promise<CallResult> {
     if (this.fenced) throw new FencedError(`session ${this.args.sessionId} lost its lease`)
     if (this.availability !== null) throw this.availability
+    if (this.closed) {
+      throw new FencedError(`session ${this.args.sessionId} closed its daemon link`)
+    }
     const waiter: Waiter = { settle: () => {}, onOutput: args.onOutput }
-    const outcome = new Promise<CallResult>((resolve) => {
+    const outcome = new Promise<CallResult>((resolve, reject) => {
       waiter.settle = resolve
+      waiter.reject = reject
     })
     const existing = this.pending.get(args.key)
     if (existing !== undefined) {
+      if (this.detached) return outcome
       existing.waiters.push(waiter)
       return outcome
     }
     const call: Pending = {
       key: args.key,
       op: args.op,
-      waiters: [waiter],
+      waiters: [],
       controller: new AbortController(),
       delivered: 0,
       sent: false,
       done: false,
     }
+    if (!this.detached) call.waiters.push(waiter)
     if (args.signal !== undefined) this.attachSignal({ call, signal: args.signal })
     this.pending.set(args.key, call)
     try {
@@ -120,14 +143,7 @@ export class RemoteCallsState {
       throw error
     }
     if (this.lostAcrossBoot(call, args.dispatchedBootId)) {
-      this.settle(
-        call,
-        failedResult({
-          op: args.op.op,
-          code: ECallFailure.Internal,
-          message: interruptedMessage(args.op.op),
-        }),
-      )
+      this.settle(call, interruptedResult(args.op.op))
       return outcome
     }
     if (this.link.ready) this.sendRun(call)
@@ -185,15 +201,14 @@ export class RemoteCallsState {
 
   private attachSignal(args: { call: Pending; signal: AbortSignal }): void {
     const onAbort = (): void => {
+      if (this.detached) return
       args.call.controller.abort()
       if (args.call.sent && this.link.ready) {
         this.link.send({ kind: 'cancel', key: args.call.key, epoch: this.epoch })
       }
     }
     args.signal.addEventListener('abort', onAbort, { once: true })
-    for (const waiter of args.call.waiters) {
-      waiter.detach = () => args.signal.removeEventListener('abort', onAbort)
-    }
+    args.call.detach = () => args.signal.removeEventListener('abort', onAbort)
     if (args.signal.aborted) onAbort()
   }
 
@@ -201,8 +216,8 @@ export class RemoteCallsState {
     if (call.done) return
     call.done = true
     this.pending.delete(call.key)
+    call.detach?.()
     for (const waiter of call.waiters) {
-      waiter.detach?.()
       waiter.settle(result)
     }
   }

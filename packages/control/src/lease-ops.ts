@@ -1,4 +1,15 @@
-import { grant, isLive, renew, revoke, type Lease, type LeaseResult } from '@dltech/atlas-core'
+import {
+  claim,
+  grant,
+  isLive,
+  renew,
+  revoke,
+  revokeIfEpoch,
+  type ClaimResult,
+  type Lease,
+  type LeaseResult,
+  type RevokeResult,
+} from '@dltech/atlas-core'
 
 import { LeaseConflictError } from './errors'
 import type { ControlStorePort, ControlTx } from './port'
@@ -40,6 +51,23 @@ export class LeaseOps {
     return result.lease
   }
 
+  async claimLease(params: {
+    sessionId: string
+    holderId: string
+    ttlMs: number
+  }): Promise<ClaimResult> {
+    return this.store.transact(async (tx) => {
+      const current = await tx.lockLease(params.sessionId)
+      const now = await this.nowIn(tx)
+      const lease = current ?? initialLease({ sessionId: params.sessionId, now })
+      const result = claim({ lease, holderId: params.holderId, ttlMs: params.ttlMs, now })
+      if (!result.ok) return result
+      const written = await tx.writeLease({ lease: result.lease, expectedEpoch: lease.epoch })
+      if (!written) throw new LeaseConflictError(params.sessionId)
+      return result
+    })
+  }
+
   async renew(params: {
     sessionId: string
     holderId: string
@@ -49,6 +77,18 @@ export class LeaseOps {
       sessionId: params.sessionId,
       decide: (lease, now) => renew({ lease, holderId: params.holderId, epoch: params.epoch, now }),
     })
+  }
+
+  async revokeIfEpoch(params: {
+    sessionId: string
+    wantsHolder: boolean
+    epoch: number
+  }): Promise<RevokeResult> {
+    return this.mutateLease({
+      sessionId: params.sessionId,
+      decide: (lease, now) =>
+        revokeIfEpoch({ lease, wantsHolder: params.wantsHolder, epoch: params.epoch, now }),
+    }) as Promise<RevokeResult>
   }
 
   async revoke(params: { sessionId: string; wantsHolder: boolean }): Promise<Lease> {

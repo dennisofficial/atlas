@@ -37,6 +37,7 @@ export function createSettlePending(deps: {
   launchDirectory: string
   onToolOutput?: OnToolOutputNotice | undefined
   onceLedger?: OnceLedger | undefined
+  detachTool?: ((name: string) => boolean) | undefined
 }): SettlePending {
   const isSafe = (call: DispatchableCall): boolean => {
     const declarations = new Map((deps.tools?.() ?? []).map((tool) => [tool.name, tool]))
@@ -87,6 +88,7 @@ export function createSettlePending(deps: {
 
       const current = index === 0 ? events : await deps.record.composedEvents({ threadId })
       const projectDirectory = activeWorktree?.path ?? homeDirectory
+      const detach = deps.detachTool
       const settled = await Promise.all(
         run.map(async (call) => {
           const drafts = await settleOne({
@@ -97,6 +99,7 @@ export function createSettlePending(deps: {
             homeDirectory,
             activeWorktree,
           })
+          if (signal.aborted && detach?.(call.name)) return []
           if (drafts.length > 0) await deps.record.append({ threadId, runId: call.runId, drafts })
           return drafts
         }),

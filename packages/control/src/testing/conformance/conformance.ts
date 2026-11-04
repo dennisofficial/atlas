@@ -8,14 +8,11 @@ import {
   HOLDER,
   makeHarness,
   mint,
-  PROJECT,
   readAll,
   said,
   seedGranted,
   SESSION,
-  T0,
   THREAD,
-  USER,
   createSessionParams,
   type Harness,
 } from './support'
@@ -113,6 +110,20 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       expect((await harness.plane.currentLease({ sessionId: SESSION })).live).toBe(true)
       const revoked = await harness.plane.revoke({ sessionId: SESSION, wantsHolder: false })
       expect(revoked).toMatchObject({ epoch: epoch + 1, holderId: null, wantsHolder: false })
+    })
+
+    it('revoke with an expected epoch refuses a stale epoch and leaves the lease untouched', async () => {
+      const stale = await harness.plane.revoke({
+        sessionId: SESSION,
+        wantsHolder: true,
+        epoch: epoch + 1,
+      })
+      expect(stale).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch', current: epoch } })
+      const current = await harness.plane.currentLease({ sessionId: SESSION })
+      expect(current.lease.epoch).toBe(epoch)
+      expect(current.lease.holderId).toBe(HOLDER)
+      const right = await harness.plane.revoke({ sessionId: SESSION, wantsHolder: true, epoch })
+      expect(right).toMatchObject({ ok: true, lease: { epoch: epoch + 1, holderId: null } })
     })
 
     it('refuses a tampered or skipped event with hash-mismatch', async () => {

@@ -40,6 +40,10 @@ export class RemoteCalls {
     return this.state.bootId()
   }
 
+  handoff(): void {
+    this.state.handoff()
+  }
+
   close(): void {
     this.state.close()
   }
