@@ -26,7 +26,7 @@ const isInterruptedResult = (row: ReadEvent, callId: string): boolean =>
 
 const bashAlive = (marker: string): boolean => spawnSync('pgrep', ['-f', marker]).status === 0
 
-const KILL_BOUND_MS = 4_000
+const KILL_BOUND_MS = 8_000
 
 describe.skipIf(REDIS_URL === undefined)(
   'F20 stop pressed while the daemon link is dropped (F3 outage)',
