@@ -43,6 +43,7 @@ export type FaultRig = {
   dbProxy: FaultProxy
   newSession(args: { sessionId: string; text: string }): Promise<string>
   wake(sessionId: string): Promise<void>
+  claim(args: { sessionId: string; holderId: string; timeoutMs?: number }): Promise<void>
   waitForSeq(args: {
     threadId: string
     want: (events: readonly ReadEvent[]) => boolean
@@ -113,6 +114,21 @@ export const startRig = async (args: {
 
     async wake(sessionId) {
       await bus.wake(sessionId)
+    },
+
+    async claim({ sessionId, holderId, timeoutMs }) {
+      const deadline = Date.now() + (timeoutMs ?? 15_000)
+      for (;;) {
+        await bus.wake(sessionId).catch(() => undefined)
+        const current = await plane.currentLease({ sessionId })
+        if (current.live && current.lease.holderId === holderId) return
+        if (Date.now() > deadline) {
+          throw new Error(
+            `timed out waiting for ${holderId} to hold ${sessionId}: ${JSON.stringify(current)}`,
+          )
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
     },
 
     async waitForSeq({ threadId, want, timeoutMs }) {
