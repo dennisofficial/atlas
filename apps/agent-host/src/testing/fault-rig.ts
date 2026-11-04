@@ -36,8 +36,10 @@ export type HostKnobs = {
   renewMs?: number
   fenceMs?: number
   inboxPollMs?: number
+  pingMs?: number
   drainMs?: number
   queryTimeoutMs?: number
+  toolOutputFile?: string
 }
 
 export type FaultRig = {
@@ -191,10 +193,14 @@ export const startRig = async (args: {
           RENEW_MS: String(knobs?.renewMs ?? 500),
           FENCE_MS: String(knobs?.fenceMs ?? 1_000),
           INBOX_POLL_MS: String(knobs?.inboxPollMs ?? 100),
+          PING_MS: String(knobs?.pingMs ?? 10_000),
           ...(knobs?.drainMs === undefined ? {} : { DRAIN_MS: String(knobs.drainMs) }),
           ...(knobs?.queryTimeoutMs === undefined
             ? {}
             : { DB_QUERY_TIMEOUT_MS: String(knobs.queryTimeoutMs) }),
+          ...(knobs?.toolOutputFile === undefined
+            ? {}
+            : { TOOL_OUTPUT_FILE: knobs.toolOutputFile }),
           ...(firstChunkFile === undefined ? {} : { FIRST_CHUNK_FILE: firstChunkFile }),
         },
         stdin: 'ignore',

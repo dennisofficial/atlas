@@ -6,7 +6,7 @@ import {
   FencedError,
   ProtocolViolationError,
   SandboxUnavailableError,
-  actionForLostCall,
+  callLostAcrossBoot,
 } from './errors'
 import { DaemonLink } from './link'
 import {
@@ -45,6 +45,7 @@ export class RemoteCallsState {
     })
     this.link = new DaemonLink({
       timers: args.timers,
+      ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
       events: {
         onFrame: (frame) => handleDaemonFrame(this.sink(), frame),
         onSuperseded: (reason) => {
@@ -142,7 +143,13 @@ export class RemoteCallsState {
       waiter.detach?.()
       throw error
     }
-    if (this.lostAcrossBoot(call, args.dispatchedBootId)) {
+    if (
+      callLostAcrossBoot({
+        op: call.op.op,
+        dispatchedBootId: args.dispatchedBootId,
+        currentBootId: this.linkBootId,
+      })
+    ) {
       this.settle(call, interruptedResult(args.op.op))
       return outcome
     }
@@ -187,16 +194,6 @@ export class RemoteCallsState {
         },
       )
     })
-  }
-
-  private lostAcrossBoot(call: Pending, dispatchedBootId: string | undefined): boolean {
-    if (dispatchedBootId === undefined || this.linkBootId === undefined) return false
-    if (dispatchedBootId === this.linkBootId) return false
-    return !actionForLostCall({
-      op: call.op.op,
-      dispatchedBootId,
-      currentBootId: this.linkBootId,
-    }).rerun
   }
 
   private attachSignal(args: { call: Pending; signal: AbortSignal }): void {
@@ -247,7 +244,7 @@ export class RemoteCallsState {
     const previousBootId = this.linkBootId
     const restart = previousBootId !== undefined && previousBootId !== frame.bootId
     this.linkBootId = frame.bootId
-    this.link.ready = true
+    this.link.markReady()
     this.readyResolve?.(frame)
     this.readyResolve = null
     this.readyReject = null
