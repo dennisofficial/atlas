@@ -13,6 +13,7 @@ import { DaemonLink } from './link'
 import {
   cancelledResult,
   failedResult,
+  handedOffResult,
   handleDaemonFrame,
   recoverRestartedCalls,
   type Pending,
@@ -30,6 +31,7 @@ export class RemoteCallsState {
   private linkBootId: string | undefined
   private fenced = false
   private closed = false
+  private detached = false
   private availability: SandboxUnavailableError | null = null
   private readyResolve: ((reply: { bootId: string; version: string }) => void) | null = null
   private readyReject: ((error: Error) => void) | null = null
@@ -78,6 +80,14 @@ export class RemoteCallsState {
     return this.linkBootId
   }
 
+  handoff(): void {
+    this.detached = true
+    for (const call of [...this.pending.values()]) {
+      if (call.done) continue
+      this.settle(call, handedOffResult(call))
+    }
+  }
+
   close(): void {
     this.closed = true
     this.link.teardown()
@@ -98,18 +108,20 @@ export class RemoteCallsState {
     })
     const existing = this.pending.get(args.key)
     if (existing !== undefined) {
+      if (this.detached) return outcome
       existing.waiters.push(waiter)
       return outcome
     }
     const call: Pending = {
       key: args.key,
       op: args.op,
-      waiters: [waiter],
+      waiters: [],
       controller: new AbortController(),
       delivered: 0,
       sent: false,
       done: false,
     }
+    if (!this.detached) call.waiters.push(waiter)
     if (args.signal !== undefined) this.attachSignal({ call, signal: args.signal })
     this.pending.set(args.key, call)
     try {
@@ -185,15 +197,14 @@ export class RemoteCallsState {
 
   private attachSignal(args: { call: Pending; signal: AbortSignal }): void {
     const onAbort = (): void => {
+      if (this.detached) return
       args.call.controller.abort()
       if (args.call.sent && this.link.ready) {
         this.link.send({ kind: 'cancel', key: args.call.key, epoch: this.epoch })
       }
     }
     args.signal.addEventListener('abort', onAbort, { once: true })
-    for (const waiter of args.call.waiters) {
-      waiter.detach = () => args.signal.removeEventListener('abort', onAbort)
-    }
+    args.call.detach = () => args.signal.removeEventListener('abort', onAbort)
     if (args.signal.aborted) onAbort()
   }
 
@@ -201,8 +212,8 @@ export class RemoteCallsState {
     if (call.done) return
     call.done = true
     this.pending.delete(call.key)
+    call.detach?.()
     for (const waiter of call.waiters) {
-      waiter.detach?.()
       waiter.settle(result)
     }
   }

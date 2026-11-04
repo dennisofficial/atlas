@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { flushUntil, makeRig, seedSession, SESSION, type HolderRig } from './holder-rig'
+import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const longExecScript = [
   {
     calls: [
-      { callId: 'call-1', name: 'bash', input: { command: 'echo started; sleep 600; echo late' } },
+      { callId: 'call-1', name: 'bash', input: { command: 'echo started; sleep 0.3; echo late' } },
     ],
   },
   { text: 'after crash' },
@@ -17,6 +17,27 @@ const crashA = async (a: HolderRig): Promise<void> => {
   const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
   a.clock.advance(1_100)
   await drain
+  await new Promise((resolve) => setTimeout(resolve, 1_000))
+}
+
+const rerunAbruptly = (a: HolderRig): void => {
+  const runtimes = a.runtimes
+  if (runtimes.length === 0) throw new Error('no runtime')
+  runtimes.forEach((runtime) => runtime.remoteCalls.close())
+}
+
+const hasInterruptedResult = async (rig: HolderRig): Promise<boolean> => {
+  const raw = await rig.plane.readEvents({
+    threadId: THREAD_ID,
+    afterSeq: 0,
+    limit: 1000,
+    visible: false,
+  })
+  return raw.events.some(
+    (event) =>
+      event.type === 'tool-result' &&
+      JSON.stringify(event).includes('interrupted by a process restart'),
+  )
 }
 
 describe('SessionHolder crash (F11/F13/F14)', () => {
@@ -91,7 +112,19 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
   }, 15_000)
 
   it('after a daemon restart a bash call becomes interrupted', async () => {
-    const a = await makeRig({ holderId: 'holder-a', script: longExecScript })
+    const stillRunning = [
+      {
+        calls: [
+          {
+            callId: 'call-1',
+            name: 'bash',
+            input: { command: 'echo started; sleep 600; echo late' },
+          },
+        ],
+      },
+      { text: 'after crash' },
+    ] as const
+    const a = await makeRig({ holderId: 'holder-a', script: stillRunning })
     await seedSession(a)
     await a.holder.start()
     await a.post('exec then restart')
@@ -102,7 +135,7 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
     expect(dispatched).toBe(true)
     const bootBefore = a.daemon.bootId()
 
-    await crashA(a)
+    rerunAbruptly(a)
     await a.daemon.restart()
     expect(a.daemon.bootId()).not.toBe(bootBefore)
     a.clock.advance(leaseExpiry)
@@ -119,11 +152,9 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
     await a.bus.wake(SESSION)
 
     const settled = await flushUntil({
-      check: async () => (await a.events()).some((event) => event.type === 'tool-result'),
+      check: () => hasInterruptedResult(a),
       attempts: 200,
     })
     expect(settled).toBe(true)
-    const result = (await a.events()).find((event) => event.type === 'tool-result')
-    expect(result).toBeDefined()
   }, 15_000)
 })

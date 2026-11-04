@@ -104,6 +104,7 @@ export class LoopTurnRunner extends TurnRunner {
               tools,
               launchDirectory: deps.launchDirectory,
               onceLedger: deps.onceLedger,
+              detachTool: deps.detachTool,
               onToolOutput:
                 deps.output === undefined
                   ? undefined

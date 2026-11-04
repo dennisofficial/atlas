@@ -19,6 +19,7 @@ import {
 import { inMemoryDaemonToken, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
 import { RemoteCalls } from '../../calls/remote-calls'
+import { scopeDispatchedBootId } from '../../calls/call-scope'
 import type { DaemonConnector } from '../../calls/socket'
 import type { SessionRuntime } from '../ports'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
@@ -47,6 +48,7 @@ class BashTool extends ToolDefinition {
       key: args.idempotencyKey,
       op: { op: 'exec', argv: ['/bin/sh', '-c', bashCommandOf(args.input)] },
       signal: args.signal,
+      dispatchedBootId: scopeDispatchedBootId(),
     })
     if (result.status !== 'ok') return { ok: false, reason: result.error.message }
     const value = result.value as { outcome: string; stdout?: string; exitCode: number | null }

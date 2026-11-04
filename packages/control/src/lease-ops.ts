@@ -4,9 +4,11 @@ import {
   isLive,
   renew,
   revoke,
+  revokeIfEpoch,
   type ClaimResult,
   type Lease,
   type LeaseResult,
+  type RevokeResult,
 } from '@dltech/atlas-core'
 
 import { LeaseConflictError } from './errors'
@@ -75,6 +77,18 @@ export class LeaseOps {
       sessionId: params.sessionId,
       decide: (lease, now) => renew({ lease, holderId: params.holderId, epoch: params.epoch, now }),
     })
+  }
+
+  async revokeIfEpoch(params: {
+    sessionId: string
+    wantsHolder: boolean
+    epoch: number
+  }): Promise<RevokeResult> {
+    return this.mutateLease({
+      sessionId: params.sessionId,
+      decide: (lease, now) =>
+        revokeIfEpoch({ lease, wantsHolder: params.wantsHolder, epoch: params.epoch, now }),
+    }) as Promise<RevokeResult>
   }
 
   async revoke(params: { sessionId: string; wantsHolder: boolean }): Promise<Lease> {

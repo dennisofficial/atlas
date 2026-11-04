@@ -40,6 +40,9 @@ export class HeldSession {
   private intake: InboxIntake | undefined
   private renewal: LeaseRenewal | undefined
   private interruptWait: (() => void) | undefined
+  private leaseEpoch = 0
+  private drainModelOnly = false
+  private lostOwnership = false
   private released = false
 
   get isSelfFenced(): boolean {
@@ -61,6 +64,7 @@ export class HeldSession {
   }
 
   run(args: { lease: Lease; threadId: ThreadId }): Promise<void> {
+    this.leaseEpoch = args.lease.epoch
     const done = this.drive(args)
     this.done = done
     return done
@@ -75,7 +79,11 @@ export class HeldSession {
       this.deps.timers.setTimeout(() => resolve('late'), remaining)
     })
     const winner = await Promise.race([this.done.then(() => 'done' as const), late])
-    if (winner === 'late') this.turns.abort('handoff')
+    if (winner === 'late') {
+      this.drainModelOnly = true
+      this.runtime?.remoteCalls.handoff()
+      this.turns.abort('handoff')
+    }
     await this.done
   }
 
@@ -128,6 +136,7 @@ export class HeldSession {
         ),
         intake,
         output: this.turns.liveOutput(),
+        detachTool: (tool) => this.drainModelOnly && runtime.daemonTools.has(tool),
         launchDirectory: runtime.launchDirectory,
         normalizeFailure: runtime.normalizeFailure,
         onceLedger: new V2OnceLedger({
@@ -243,6 +252,7 @@ export class HeldSession {
   }
 
   private drop(): void {
+    this.lostOwnership = true
     this.turns.abort()
     this.lifetimeAbort.abort()
     this.runtime?.remoteCalls.close()
@@ -285,10 +295,12 @@ export class HeldSession {
     if (this.runtime === undefined) return
     if (this.draining) {
       await this.runtime.stop()
-      await deps.plane
-        .revoke({ sessionId: deps.sessionId, wantsHolder: true })
-        .catch(() => undefined)
-      await deps.bus.wake(deps.sessionId).catch(() => undefined)
+      if (!this.lostOwnership) {
+        await deps.plane
+          .revoke({ sessionId: deps.sessionId, wantsHolder: true, epoch: this.leaseEpoch })
+          .catch(() => undefined)
+        await deps.bus.wake(deps.sessionId).catch(() => undefined)
+      }
       return
     }
     if (!this.released) this.runtime.remoteCalls.close()

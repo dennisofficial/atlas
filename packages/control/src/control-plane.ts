@@ -8,6 +8,7 @@ import {
   type Lease,
   type LeaseResult,
   type LogHead,
+  type RevokeResult,
 } from '@dltech/atlas-core'
 
 import { UnknownThreadError } from './errors'
@@ -206,8 +207,19 @@ export class ControlPlane {
     return this.leases.claimLease(params)
   }
 
-  async revoke(params: { sessionId: string; wantsHolder: boolean }): Promise<Lease> {
-    return this.leases.revoke(params)
+  revoke(params: { sessionId: string; wantsHolder: boolean }): Promise<Lease>
+  revoke(params: { sessionId: string; wantsHolder: boolean; epoch: number }): Promise<RevokeResult>
+  async revoke(params: {
+    sessionId: string
+    wantsHolder: boolean
+    epoch?: number | undefined
+  }): Promise<Lease | RevokeResult> {
+    if (params.epoch === undefined) return this.leases.revoke(params)
+    return this.leases.revokeIfEpoch({
+      sessionId: params.sessionId,
+      wantsHolder: params.wantsHolder,
+      epoch: params.epoch,
+    })
   }
 
   async currentLease(params: { sessionId: string }): Promise<{ lease: Lease; live: boolean }> {
