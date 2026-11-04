@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { recallThreadPanel, rememberThreadPanel } from '../panel/thread-panel-memory'
 import { messageOfFailure } from './git-changes-load'
 import { ROOT_DIRECTORY, browseDirectory } from './file-tree-source'
 import type { DirectoryListings } from './file-tree-nodes'
@@ -39,11 +40,14 @@ async function listOrEmpty(args: {
 export function useFileTree(args: {
   channel: FileTreeChannel | null
   refreshKey: number
+  threadId: string
 }): FileTreeState {
-  const { channel, refreshKey } = args
+  const { channel, refreshKey, threadId } = args
   const [view, setView] = useState<FileTreeView>(LOADING)
-  const [open, setOpenState] = useState<string[]>([])
-  const openRef = useRef<string[]>([])
+  const [open, setOpenState] = useState<string[]>(
+    () => recallThreadPanel(threadId).openFolders ?? [],
+  )
+  const openRef = useRef<string[]>(open)
   const listed = useRef<Set<string>>(new Set())
 
   const store = useCallback((entries: ReadonlyMap<string, TreeEntry[]>) => {
@@ -89,11 +93,12 @@ export function useFileTree(args: {
         : openRef.current.filter((path) => path !== directory)
       openRef.current = next
       setOpenState(next)
+      rememberThreadPanel({ threadId, patch: { openFolders: next } })
       if (!change.open || channel === null || listed.current.has(directory)) return
       listed.current.add(directory)
       listOrEmpty({ channel, directory }).then((entries) => store(new Map([[directory, entries]])))
     },
-    [channel, store],
+    [channel, store, threadId],
   )
 
   return { view, open, setOpen }
