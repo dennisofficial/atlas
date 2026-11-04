@@ -1,3 +1,4 @@
+export { FaultProxy, type ProxyFault } from './fault-proxy'
 export {
   describeRemoteCalls,
   fakeTimers,
