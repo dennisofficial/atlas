@@ -52,6 +52,7 @@ export function createPool(connectionString: string): Pool {
     connectionTimeoutMillis: 5_000,
     idleTimeoutMillis: IDLE_TIMEOUT_MS,
     keepAlive: true,
+    keepAliveInitialDelayMillis: 1_000,
   })
   pool.connect = evictDeadOnCheckout(pool)
   pool.on('error', (error) => {
