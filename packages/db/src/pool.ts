@@ -47,6 +47,7 @@ function evictDeadOnCheckout(pool: pg.Pool): pg.Pool['connect'] {
 
 export type PoolOptions = {
   queryTimeoutMs?: number
+  max?: number
 }
 
 // pg's query_timeout rejects the hung query but keeps the deaf connection; pg-pool then hands
@@ -96,7 +97,7 @@ class TimeoutDiscardingClient extends pg.Client {
 export function createPool(connectionString: string, options?: PoolOptions): Pool {
   const pool = new pg.Pool({
     connectionString,
-    max: poolMaxOf(process.env.DATABASE_POOL_MAX),
+    max: options?.max ?? poolMaxOf(process.env.DATABASE_POOL_MAX),
     connectionTimeoutMillis: 5_000,
     idleTimeoutMillis: IDLE_TIMEOUT_MS,
     keepAlive: true,
