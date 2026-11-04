@@ -21,6 +21,7 @@ import {
   insertBlobRows,
   readBlobRow,
 } from './postgres-blobs'
+import { sessionsNeedingHolderIn } from './postgres-needing-holder'
 import { iso, toInbox, toSessionRow, toThreadRow } from './postgres-rows'
 
 class PostgresTx implements ControlTx {
@@ -79,20 +80,7 @@ class PostgresTx implements ControlTx {
   }
 
   async sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]> {
-    const rows = await this.tx.query(
-      this.tx.raw.sql`SELECT s."id" FROM "v2"."V2Session" s
-        LEFT JOIN "v2"."V2Lease" l ON l."sessionId" = s."id"
-        WHERE (l."sessionId" IS NULL OR l."holderId" IS NULL
-            OR l."renewedAt" + make_interval(secs => l."ttlMs" / 1000.0) <= ${params.now}::timestamptz)
-          AND (l."holderId" IS NOT NULL OR l."wantsHolder"
-            OR EXISTS (SELECT 1 FROM "v2"."V2InboxEntry" i
-              WHERE i."sessionId" = s."id" AND i."consumedSeq" IS NULL))
-        ORDER BY s."createdAt" ASC, s."id" ASC
-        LIMIT ${params.limit}`
-        .returnsRow({ id: 'pg/text@1' })
-        .build(),
-    )
-    return rows.map((row) => row.id)
+    return sessionsNeedingHolderIn({ tx: this.tx, ...params })
   }
 
   async createThread(params: {
@@ -267,9 +255,19 @@ class PostgresTx implements ControlTx {
     return changed === 1
   }
 
-  async readInboxEntries(params: { sessionId: string; afterId: number; limit: number }) {
+  async readInboxEntries(params: {
+    sessionId: string
+    afterId: number
+    limit: number
+    excludeKind?: string | undefined
+  }) {
     const rows = await this.tx.orm.v2.V2InboxEntry.where((e) =>
-      and(e.sessionId.eq(params.sessionId), e.inboxId.gt(params.afterId), e.consumedSeq.isNull()),
+      and(
+        e.sessionId.eq(params.sessionId),
+        e.inboxId.gt(params.afterId),
+        e.consumedSeq.isNull(),
+        ...(params.excludeKind === undefined ? [] : [e.kind.neq(params.excludeKind)]),
+      ),
     )
       .orderBy((e) => e.inboxId.asc())
       .limit(params.limit)

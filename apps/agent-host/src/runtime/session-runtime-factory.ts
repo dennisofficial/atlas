@@ -14,6 +14,7 @@ import {
   SandboxUnavailableError,
   webSocketConnector,
   type HostTimers,
+  type PrepareResult,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
@@ -96,41 +97,55 @@ export const createSessionRuntimeFactory = (
     const processes = new DaemonProcessPort({ calls })
     const files = new DaemonFileSystemPort({ calls })
     const agentFiles = new DaemonAgentFileSystemPort({ calls })
-    const setup = calls
-      .ready()
-      .then(async () => {
-        const { token } = await args.api.githubToken({ sessionId })
-        await ensureWorkspace({
-          calls,
-          processes,
-          files,
-          workspace: config.workspace,
-          githubToken: token,
-          launchDirectory,
-          sandboxName: sandboxNameOf(sessionId),
-          ...(args.log === undefined ? {} : { log: args.log }),
+    const attempt = (): Promise<PrepareResult> =>
+      calls
+        .ready()
+        .then(async () => {
+          const { token } = await args.api.githubToken({ sessionId })
+          return ensureWorkspace({
+            calls,
+            processes,
+            files,
+            workspace: config.workspace,
+            githubToken: token,
+            launchDirectory,
+            sandboxName: sandboxNameOf(sessionId),
+            ...(args.log === undefined ? {} : { log: args.log }),
+          })
         })
-      })
-      .catch((error: unknown) => {
-        args.log?.error({
-          source: 'runtime.workspace-setup',
-          message: `workspace setup for ${sessionId} failed`,
-          ...logFieldsOf({ error }),
-        })
-      })
-    const deadlineMs = args.setupDeadlineMs ?? SETUP_DEADLINE_MS
-    const gate = Promise.race([
-      setup,
-      new Promise<void>((resolve) => {
-        args.timers.setTimeout(() => {
+        .catch((error: unknown): PrepareResult => {
           args.log?.error({
             source: 'runtime.workspace-setup',
-            message: `workspace setup for ${sessionId} did not finish within ${deadlineMs}ms; releasing the tool gate`,
+            message: `workspace setup for ${sessionId} failed`,
+            ...logFieldsOf({ error }),
           })
-          resolve()
+          return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+        })
+    const deadlineMs = args.setupDeadlineMs ?? SETUP_DEADLINE_MS
+    let failed = false
+    const start = (): Promise<PrepareResult> => {
+      let deadline: unknown
+      const expired = new Promise<PrepareResult>((resolve) => {
+        deadline = args.timers.setTimeout(() => {
+          args.log?.error({
+            source: 'runtime.workspace-setup',
+            message: `workspace setup for ${sessionId} did not finish within ${deadlineMs}ms`,
+          })
+          resolve({ ok: false, reason: `workspace setup did not finish within ${deadlineMs}ms` })
         }, deadlineMs)
-      }),
-    ])
+      })
+      return Promise.race([attempt(), expired]).then((result) => {
+        args.timers.clearTimeout(deadline)
+        failed = !result.ok
+        return result
+      })
+    }
+    let current = start()
+    const prepare = (): Promise<PrepareResult> => {
+      if (failed) current = start()
+      return current
+    }
+    const gate = current.then(() => undefined)
     const gitWatch = watchWorkspaceRepos({
       calls,
       gate,
@@ -195,6 +210,7 @@ export const createSessionRuntimeFactory = (
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,
       watchedRepos: () => gitWatch.watchedRepos(),
+      prepare,
       stop: async () => {
         stopKeepAlive()
         calls.close()

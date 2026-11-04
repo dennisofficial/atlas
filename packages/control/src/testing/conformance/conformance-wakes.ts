@@ -17,14 +17,36 @@ export function describeControlPlaneWakes(params: ConformanceParams): void {
       harness = makeHarness(params.makeStore())
     })
 
+    it('createSession notifies once on commit', async () => {
+      await harness.plane.createSession(
+        createSessionParams({ sessionId: WAKE_SESSION, mainThreadId: WAKE_THREAD }),
+      )
+      expect(await params.wakes(WAKE_SESSION)).toBe(1)
+    })
+
+    it('a rolled-back createSession notifies nothing', async () => {
+      const store = params.makeStore()
+      await expect(
+        store.transact(async (tx) => {
+          await tx.createSession({
+            ...createSessionParams({ sessionId: WAKE_SESSION, mainThreadId: WAKE_THREAD }),
+            at: T0,
+          })
+          await tx.notifyWake(WAKE_SESSION)
+          throw new Error('forced rollback')
+        }),
+      ).rejects.toThrow('forced rollback')
+      expect(await params.wakes(WAKE_SESSION)).toBe(0)
+    })
+
     it('post notifies once on commit, for a message and for a stop', async () => {
       await harness.plane.createSession(
         createSessionParams({ sessionId: WAKE_SESSION, mainThreadId: WAKE_THREAD }),
       )
       await harness.plane.post({ sessionId: WAKE_SESSION, kind: 'user', payload: '"a"' })
-      expect(await params.wakes(WAKE_SESSION)).toBe(1)
-      await harness.plane.post({ sessionId: WAKE_SESSION, kind: 'stop', payload: '{}' })
       expect(await params.wakes(WAKE_SESSION)).toBe(2)
+      await harness.plane.post({ sessionId: WAKE_SESSION, kind: 'stop', payload: '{}' })
+      expect(await params.wakes(WAKE_SESSION)).toBe(3)
     })
 
     it('a rolled-back post notifies nothing', async () => {
@@ -38,7 +60,7 @@ export function describeControlPlaneWakes(params: ConformanceParams): void {
           throw new Error('forced rollback')
         }),
       ).rejects.toThrow('forced rollback')
-      expect(await params.wakes(WAKE_SESSION)).toBe(0)
+      expect(await params.wakes(WAKE_SESSION)).toBe(1)
     })
 
     it('a wantsHolder revoke notifies; a plain revoke does not', async () => {
@@ -47,10 +69,10 @@ export function describeControlPlaneWakes(params: ConformanceParams): void {
       )
       await harness.plane.grant({ sessionId: WAKE_SESSION, holderId: HOLDER, ttlMs: 60_000 })
       await harness.plane.revoke({ sessionId: WAKE_SESSION, wantsHolder: false })
-      expect(await params.wakes(WAKE_SESSION)).toBe(0)
+      expect(await params.wakes(WAKE_SESSION)).toBe(1)
       await harness.plane.grant({ sessionId: WAKE_SESSION, holderId: HOLDER, ttlMs: 60_000 })
       await harness.plane.revoke({ sessionId: WAKE_SESSION, wantsHolder: true })
-      expect(await params.wakes(WAKE_SESSION)).toBe(1)
+      expect(await params.wakes(WAKE_SESSION)).toBe(2)
     })
 
     it('a wantsHolder revokeIfEpoch notifies once when it lands', async () => {
@@ -68,14 +90,14 @@ export function describeControlPlaneWakes(params: ConformanceParams): void {
         epoch: lease.epoch + 1,
       })
       expect(refused).toMatchObject({ ok: false })
-      expect(await params.wakes(WAKE_SESSION)).toBe(0)
+      expect(await params.wakes(WAKE_SESSION)).toBe(1)
       const landed = await harness.plane.revoke({
         sessionId: WAKE_SESSION,
         wantsHolder: true,
         epoch: lease.epoch,
       })
       expect(landed).toMatchObject({ ok: true })
-      expect(await params.wakes(WAKE_SESSION)).toBe(1)
+      expect(await params.wakes(WAKE_SESSION)).toBe(2)
     })
 
     it('wake notifies each listed session exactly once', async () => {
@@ -86,8 +108,8 @@ export function describeControlPlaneWakes(params: ConformanceParams): void {
         createSessionParams({ sessionId: WAKE_OTHER, mainThreadId: 'wakes-other-thread' }),
       )
       await harness.plane.wake({ sessionIds: [WAKE_SESSION, WAKE_OTHER] })
-      expect(await params.wakes(WAKE_SESSION)).toBe(1)
-      expect(await params.wakes(WAKE_OTHER)).toBe(1)
+      expect(await params.wakes(WAKE_SESSION)).toBe(2)
+      expect(await params.wakes(WAKE_OTHER)).toBe(2)
     })
   })
 }

@@ -1,9 +1,10 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import { EToolEffect, isResumable, type ThreadId } from '@dltech/atlas-core'
 import {
   HookChain,
   HookedToolDispatcher,
   LoopTurnRunner,
   type PauseSignal,
+  settleCrashedCalls,
 } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
@@ -14,7 +15,7 @@ import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
 import { InboxIntake } from './inbox-intake'
 import type { SessionRuntime } from './ports'
-import type { SessionRecord } from './record/record-adapter'
+import { SessionRecord } from './record/record-adapter'
 import { V2OnceLedger } from './record/v2-once-ledger'
 import { retryDepsFromTimers } from './timer-sleep'
 
@@ -66,6 +67,45 @@ export const startHeldTurn = (args: {
     .finally(() => {
       args.onSettled()
     })
+}
+
+export const openHeldRecord = (args: {
+  deps: HeldSessionDeps
+  runtime: SessionRuntime
+  threadId: ThreadId
+  epoch: number
+  retryUntil(): number
+  onLeaseLost(): void
+}): Promise<SessionRecord> => {
+  const { deps, runtime } = args
+  return SessionRecord.open({
+    plane: deps.plane,
+    threadId: args.threadId,
+    epoch: args.epoch,
+    timers: deps.timers,
+    remoteCalls: runtime.remoteCalls,
+    daemonTools: runtime.daemonTools,
+    retryUntil: args.retryUntil,
+    nowIso: () => new Date(deps.timers.now()).toISOString(),
+    onLeaseLost: args.onLeaseLost,
+    ...(deps.log === undefined ? {} : { log: deps.log }),
+  })
+}
+
+export const settleAndCheckResume = async (args: {
+  deps: HeldSessionDeps
+  runtime: SessionRuntime
+  record: SessionRecord
+  threadId: ThreadId
+}): Promise<boolean> => {
+  const { deps, runtime, record, threadId } = args
+  await settleCrashedCalls({
+    record,
+    ids: deps.ids,
+    threadId,
+    effectOf: (name) => (runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name)),
+  })
+  return isResumable(await record.ownEvents({ threadId }))
 }
 
 export const createBranchObserver = (args: {

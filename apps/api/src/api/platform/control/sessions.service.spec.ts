@@ -87,6 +87,24 @@ describe('SessionsService', () => {
   it('maps an unconsumed post to sent and a consumed one past it', async () => {
     const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const seeded = await plane.grant({
+      sessionId: created.sessionId,
+      holderId: 'host-0',
+      ttlMs: 30_000,
+    })
+    const prepared = await plane.append({
+      threadId: created.mainThreadId,
+      epoch: seeded.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-0'),
+        epoch: seeded.epoch,
+        at: NOW,
+        bodies: [{ type: 'workspace-prepared' }],
+      }),
+    })
+    expect(prepared.ok).toBe(true)
+    await plane.revoke({ sessionId: created.sessionId, wantsHolder: false })
     await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'hi' })
 
     const sent = await service.status({ userId: 'user-a', sessionId: created.sessionId })
@@ -111,6 +129,7 @@ describe('SessionsService', () => {
         epoch: granted.epoch,
         at: NOW,
         bodies,
+        from: await plane.head({ threadId: created.mainThreadId }),
       }),
     })
     expect(appended.ok).toBe(true)
@@ -120,8 +139,8 @@ describe('SessionsService', () => {
     expect(thinking.lease).toEqual({ epoch: granted.epoch, holderId: 'host-1', live: true })
 
     const events = await service.events({ userId: 'user-a', sessionId: created.sessionId })
-    expect(events.events).toHaveLength(2)
-    expect(events.events[1]).toMatchObject({ type: 'user-said', text: 'hi' })
+    expect(events.events).toHaveLength(3)
+    expect(events.events[2]).toMatchObject({ type: 'user-said', text: 'hi' })
   })
 
   it('derives status from the tail of a log longer than one page', async () => {
@@ -238,5 +257,36 @@ describe('SessionsService', () => {
     expect(inboxMessageSchema.parse(JSON.parse(inbox[0]?.payload ?? ''))).toEqual({
       text: 'run the tests',
     })
+  })
+
+  it('reports preparing for a retry message that sits behind a hundred covered ones', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    for (let index = 0; index < 100; index += 1) {
+      await service.post({ userId: 'user-a', sessionId: created.sessionId, text: `m${index}` })
+    }
+    const granted = await plane.grant({
+      sessionId: created.sessionId,
+      holderId: 'host-1',
+      ttlMs: 30_000,
+    })
+    const appended = await plane.append({
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-1'),
+        epoch: granted.epoch,
+        at: NOW,
+        bodies: [{ type: 'workspace-prepare-failed', reason: 'clone failed', inboxHead: 100 }],
+      }),
+    })
+    expect(appended.ok).toBe(true)
+    const failed = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(failed.state).toBe(ESessionStatus.SetupFailed)
+
+    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'retry' })
+    const retrying = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(retrying.state).toBe(ESessionStatus.Preparing)
   })
 })

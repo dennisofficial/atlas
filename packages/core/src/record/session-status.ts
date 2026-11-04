@@ -1,7 +1,10 @@
 import { EWaitEpisodeKind } from '../model-recovery/waiting'
 import type { V2Event } from './event'
+import { isWorkspacePrepared, lastPrepareFailure } from './workspace'
 
 export enum ESessionStatus {
+  Preparing = 'preparing',
+  SetupFailed = 'setup-failed',
   Sent = 'sent',
   Thinking = 'thinking',
   RunningTool = 'running-tool',
@@ -23,6 +26,8 @@ const RETRY_KEY_PREFIX = 'retry:'
 const TURN_ENDING_TYPES: ReadonlySet<V2Event['type']> = new Set([
   'run-failed',
   'run-failure-dismissed',
+  'workspace-prepared',
+  'workspace-prepare-failed',
 ])
 
 const isTurnEnding = (event: V2Event): boolean =>
@@ -53,14 +58,34 @@ const unfinishedRunFailed = (
   return undefined
 }
 
+const workspaceStatusOf = (args: {
+  events: readonly V2Event[]
+  messageAfterFailure: boolean
+}): SessionStatus | undefined => {
+  const { events } = args
+  if ((events[0]?.seq ?? 1) > 1 || isWorkspacePrepared(events)) return undefined
+  const failure = lastPrepareFailure(events)
+  if (failure === undefined || args.messageAfterFailure) {
+    return { state: ESessionStatus.Preparing }
+  }
+  return { state: ESessionStatus.SetupFailed, reason: failure.reason, since: failure.at }
+}
+
 export function sessionStatusOf(params: {
   events: readonly V2Event[]
   live: boolean
   unconsumedInbox: boolean
+  messageAfterFailure?: boolean | undefined
   now: string
 }): SessionStatus {
   const { events, live } = params
   const nowMs = Date.parse(params.now)
+
+  const workspace =
+    params.messageAfterFailure === undefined
+      ? undefined
+      : workspaceStatusOf({ events, messageAfterFailure: params.messageAfterFailure })
+  if (workspace !== undefined) return workspace
 
   if (params.unconsumedInbox) {
     return { state: ESessionStatus.Sent }

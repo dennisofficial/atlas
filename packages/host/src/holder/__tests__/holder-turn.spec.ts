@@ -39,11 +39,12 @@ describe('SessionHolder turn', () => {
     })
     expect(saw).toBe(true)
 
-    expect(appends.length).toBe(2)
-    expect(appends[0]?.map((event) => event.type)).toEqual(['input-consumed', 'user-said'])
-    expect(appends[1]?.map((event) => event.type)).toEqual(['assistant-said'])
+    expect(appends.length).toBe(3)
+    expect(appends[0]?.map((event) => event.type)).toEqual(['workspace-prepared'])
+    expect(appends[1]?.map((event) => event.type)).toEqual(['input-consumed', 'user-said'])
+    expect(appends[2]?.map((event) => event.type)).toEqual(['assistant-said'])
 
-    const log = await fullLog(rig)
+    const log = (await fullLog(rig)).filter((event) => event.type !== 'workspace-prepared')
     const types = log.map((event) => event.type)
     expect(types.slice(0, 2)).toEqual(['input-consumed', 'user-said'])
     const consumed = log[0]

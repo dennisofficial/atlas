@@ -57,13 +57,13 @@ export const makeInMemoryBus = (): InMemoryBus => {
   }
 }
 
-export const apiFor = (): AgentHostApi => ({
+export const apiFor = (setupScript = ''): AgentHostApi => ({
   config: async () => ({
     userId: 'user-1',
     projectId: 'proj-1',
     model: { configured: false, gap: 'scripted model in test' },
     vercel: { configured: true, token: '', teamId: '', projectId: '' },
-    workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
+    workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript },
     config: {
       settings: {},
       secrets: [],
@@ -102,6 +102,8 @@ export const makeHolder = (args: {
   sandbox: LocalSandboxProvider
   scripts: Record<string, ScriptedModelStep[]>
   log?: CollectingLog | undefined
+  setupScript?: string | undefined
+  launchDirectory?: string | undefined
 }): SessionHolder => {
   const timers = { now: () => Date.now(), ...systemTimers }
   return new SessionHolder({
@@ -110,12 +112,12 @@ export const makeHolder = (args: {
     bus: args.bus,
     timers,
     runtimes: createSessionRuntimeFactory({
-      api: apiFor(),
+      api: apiFor(args.setupScript),
       sandbox: args.sandbox,
       daemonSecret: E2E_SECRET,
       timers,
       modelFor: ({ sessionId }) => new ScriptedModel(args.scripts[sessionId] ?? []),
-      launchDirectory: E2E_WORKSPACE,
+      launchDirectory: args.launchDirectory ?? E2E_WORKSPACE,
     }),
     ids: new RandomIds(),
     maxSessions: 25,

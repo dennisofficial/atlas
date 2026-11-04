@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
+import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool, type Pool } from '@dltech/atlas-db'
@@ -43,7 +44,7 @@ export type HostKnobs = {
 export type FaultRig = {
   plane: ControlPlane
   dbProxy: FaultProxy
-  newSession(args: { sessionId: string; text: string }): Promise<string>
+  newSession(args: { sessionId: string; text: string; prepared?: boolean }): Promise<string>
   wake(sessionId: string): Promise<void>
   claim(args: { sessionId: string; holderId: string; timeoutMs?: number }): Promise<void>
   waitForSeq(args: {
@@ -65,6 +66,34 @@ export type FaultRig = {
   stop(): Promise<void>
 }
 
+const seedPrepared = async (args: {
+  plane: ControlPlane
+  sessionId: string
+  threadId: string
+}): Promise<void> => {
+  const { plane } = args
+  const { epoch } = await plane.grant({
+    sessionId: args.sessionId,
+    holderId: 'seed',
+    ttlMs: 60_000,
+  })
+  const head = await plane.head({ threadId: args.threadId })
+  const outcome = await plane.append({
+    threadId: args.threadId,
+    epoch,
+    events: chainEvents({
+      threadId: toThreadId(args.threadId),
+      runId: toRunId('seed-prepared'),
+      epoch,
+      at: new Date().toISOString(),
+      bodies: [{ type: 'workspace-prepared' }],
+      from: head,
+    }),
+  })
+  if (!outcome.ok) throw new Error(`seeding prepared refused: ${JSON.stringify(outcome.refusal)}`)
+  await plane.revoke({ sessionId: args.sessionId, wantsHolder: false })
+}
+
 export const startRig = async (args: {
   databaseUrl: string
   redisUrl: string
@@ -81,7 +110,7 @@ export const startRig = async (args: {
     plane,
     dbProxy,
 
-    async newSession({ sessionId, text }) {
+    async newSession({ sessionId, text, prepared }) {
       const mainThreadId = `thread-${sessionId}`
       await plane.createSession({
         sessionId,
@@ -89,6 +118,7 @@ export const startRig = async (args: {
         projectId: 'proj-1',
         mainThreadId,
       })
+      if (prepared !== false) await seedPrepared({ plane, sessionId, threadId: mainThreadId })
       await plane.post({
         sessionId,
         kind: INBOX_KIND_MESSAGE,

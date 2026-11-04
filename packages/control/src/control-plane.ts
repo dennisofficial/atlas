@@ -1,7 +1,4 @@
 import {
-  acceptAppend,
-  blobRefsOf,
-  stepVisibility,
   type ClaimResult,
   type InboxEntry,
   type Lease,
@@ -10,30 +7,23 @@ import {
   type RevokeResult,
 } from '@dltech/atlas-core'
 
-import { missingBlobHashes, readBlobIn, verifyBlobWrites } from './blob-ops'
+import { appendIn } from './append-ops'
+import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
 import { postIn, takeBackIn, type TakeBackResult } from './inbox-ops'
 import { LeaseOps } from './lease-ops'
-import { parseAppendEvents } from './parse-append'
 import {
   ControlStorePort,
   SeqConflictError,
   type BlobRow,
   type BlobWrite,
   type ControlTx,
-  type StoredEvent,
   type ThreadRow,
   type ControlSessionRow,
 } from './port'
-import { consumeInbox } from './consume-inbox'
 import { readEventsIn, type ReadEventsPage } from './read-events'
-import { AppendAbort, type AppendOutcome, type ControlRefusal } from './refusal'
-import {
-  decodeVisibility,
-  EMPTY_VISIBILITY_TEXT,
-  encodeVisibility,
-  toStoredEvent,
-} from './stored-event'
+import { AppendAbort, type AppendOutcome } from './refusal'
+import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 
 export const MAX_READ_LIMIT = 1000
 export const MAX_SESSION_LIST_LIMIT = 100
@@ -78,6 +68,7 @@ export class ControlPlane {
         visibility: EMPTY_VISIBILITY_TEXT,
         at,
       })
+      await tx.notifyWake(params.sessionId)
     })
   }
 
@@ -125,7 +116,9 @@ export class ControlPlane {
     blobs?: readonly BlobWrite[] | undefined
   }): Promise<AppendOutcome> {
     try {
-      return await this.store.transact((tx) => this.appendIn({ tx, ...params }))
+      return await this.store.transact((tx) =>
+        appendIn({ tx, leases: this.leases, nowIn: (inner) => this.nowIn(inner), ...params }),
+      )
     } catch (error) {
       if (error instanceof AppendAbort) {
         return { ok: false, refusal: error.refusal, head: error.head }
@@ -191,6 +184,15 @@ export class ControlPlane {
     )
   }
 
+  async hasMessageAfter(params: {
+    sessionId: string
+    afterId: number
+    excludeKind: string
+  }): Promise<boolean> {
+    const found = await this.store.transact((tx) => tx.readInboxEntries({ ...params, limit: 1 }))
+    return found.length > 0
+  }
+
   async grant(params: { sessionId: string; holderId: string; ttlMs: number }): Promise<Lease> {
     return this.leases.grant(params)
   }
@@ -240,77 +242,5 @@ export class ControlPlane {
     const row = await params.tx.readThread(params.threadId)
     if (row === undefined) throw new UnknownThreadError(params.threadId)
     return row
-  }
-
-  private async appendIn(params: {
-    tx: ControlTx
-    threadId: string
-    epoch: number
-    events: readonly unknown[]
-    blobs?: readonly BlobWrite[] | undefined
-  }): Promise<AppendOutcome> {
-    const { tx } = params
-    const row = await tx.lockThread(params.threadId)
-    if (row === undefined) throw new UnknownThreadError(params.threadId)
-    const head = headOf(row)
-    const refuse = (refusal: ControlRefusal): AppendOutcome => ({
-      ok: false,
-      refusal,
-      head,
-    })
-    const now = await this.nowIn(tx)
-    const lease = await this.leases.leaseOf({ tx, sessionId: row.sessionId, now })
-    const parsed = parseAppendEvents({
-      threadId: params.threadId,
-      nextSeq: head.seq + 1,
-      raw: params.events,
-    })
-    if (!parsed.ok) return refuse(parsed.refusal)
-    const accepted = acceptAppend({
-      head,
-      lease,
-      now,
-      epoch: params.epoch,
-      events: parsed.events,
-    })
-    if (!accepted.ok) return refuse(accepted.refusal)
-
-    const blobs = params.blobs ?? []
-    const mismatch = verifyBlobWrites(blobs)
-    if (mismatch !== undefined) return refuse(mismatch)
-    const missing = await missingBlobHashes({ tx, events: parsed.events, blobs })
-    if (missing !== undefined) return refuse(missing)
-
-    let visibility = decodeVisibility(row.visibility)
-    const stored: StoredEvent[] = []
-    for (const [index, event] of parsed.events.entries()) {
-      visibility = stepVisibility(visibility, event)
-      if (event.type === 'input-consumed') {
-        await consumeInbox({
-          tx,
-          sessionId: row.sessionId,
-          inboxId: event.inboxId,
-          seq: event.seq,
-          head,
-        })
-      }
-      stored.push(toStoredEvent({ event, hash: accepted.hashes[index] as StoredEvent['hash'] }))
-    }
-    const refHashes = new Set<string>()
-    for (const event of parsed.events) {
-      for (const ref of blobRefsOf(event)) refHashes.add(ref.hash)
-    }
-    await tx.insertBlobs(blobs)
-    await tx.insertBlobRefs([...refHashes].map((hash) => ({ sessionId: row.sessionId, hash })))
-    await tx.insertEvents(stored)
-    const swapped = await tx.writeThreadHead({
-      threadId: params.threadId,
-      expectedHeadSeq: head.seq,
-      headSeq: accepted.head.seq,
-      headHash: accepted.head.hash,
-      visibility: encodeVisibility(visibility),
-    })
-    if (!swapped) throw new SeqConflictError()
-    return { ok: true, head: accepted.head }
   }
 }

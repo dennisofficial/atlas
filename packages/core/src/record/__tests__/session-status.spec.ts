@@ -5,7 +5,8 @@ import { toCallId, toEventId, toRunId, toThreadId } from '../../events/ids'
 import { ERunFailureKind } from '../../events/run-failure'
 import { EModelWaitCause, EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EProviderFailureKind } from '../../models/provider-failure'
-import type { Hash, V2Event } from '../event'
+import { chainEvents } from '../chain-events'
+import type { Hash, V2Body, V2Event } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
 
 const NOW = '2026-11-03T12:00:00.000Z'
@@ -250,5 +251,50 @@ describe('sessionStatusOf', () => {
   it('reports thinking after a handoff-aborted assistant message under a live lease', () => {
     const result = status({ events: [assistantSaid({ aborted: 'handoff' })], live: true })
     expect(result.state).toBe(ESessionStatus.Thinking)
+  })
+})
+
+describe('sessionStatusOf workspace preparation', () => {
+  const chained = (bodies: V2Body[]): V2Event[] =>
+    chainEvents({ threadId: THREAD, runId: RUN, epoch: 1, at: NOW, bodies })
+  const failed = (inboxHead: number): V2Body => ({
+    type: 'workspace-prepare-failed',
+    reason: 'clone failed',
+    inboxHead,
+  })
+  const tracked = (args: { bodies: V2Body[]; pending?: number[]; retry?: boolean }) =>
+    sessionStatusOf({
+      events: chained(args.bodies),
+      live: true,
+      unconsumedInbox: (args.pending ?? []).length > 0,
+      messageAfterFailure: args.retry ?? false,
+      now: NOW,
+    })
+
+  it('reports preparing for a new session, with or without a message', () => {
+    expect(tracked({ bodies: [] }).state).toBe(ESessionStatus.Preparing)
+    expect(tracked({ bodies: [], pending: [1] }).state).toBe(ESessionStatus.Preparing)
+  })
+
+  it('reports setup-failed with the reason until a newer message arrives', () => {
+    expect(tracked({ bodies: [failed(1)], pending: [1] })).toEqual({
+      state: ESessionStatus.SetupFailed,
+      reason: 'clone failed',
+      since: NOW,
+    })
+    expect(tracked({ bodies: [failed(1)], pending: [1, 2], retry: true }).state).toBe(
+      ESessionStatus.Preparing,
+    )
+  })
+
+  it('leaves a prepared session to the ordinary rules', () => {
+    const bodies: V2Body[] = [{ type: 'workspace-prepared' }]
+    expect(tracked({ bodies }).state).toBe(ESessionStatus.Idle)
+    expect(tracked({ bodies, pending: [1] }).state).toBe(ESessionStatus.Sent)
+  })
+
+  it('treats a session with turns but no prepare event as prepared', () => {
+    const bodies: V2Body[] = [{ type: 'user-said', text: 'hi' }]
+    expect(tracked({ bodies }).state).toBe(ESessionStatus.Thinking)
   })
 })

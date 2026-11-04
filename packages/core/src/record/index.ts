@@ -1,5 +1,6 @@
 export * from './blobs'
 export * from './branches'
+export * from './workspace'
 export * from './canonical'
 export * from './event'
 export * from './chain'

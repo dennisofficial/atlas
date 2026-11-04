@@ -17,6 +17,8 @@ export type HostTimers = {
   random(): number
 }
 
+export type PrepareResult = { ok: true } | { ok: false; reason: string }
+
 export type SessionRuntime = {
   remoteCalls: RemoteCalls
   model: ModelPort
@@ -27,6 +29,7 @@ export type SessionRuntime = {
   normalizeFailure: NormalizeFailure
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>
+  prepare(): Promise<PrepareResult>
   stop(): Promise<void>
   release(): Promise<void>
 }
@@ -38,7 +41,7 @@ export type SessionRuntimeFactory = (args: {
   signal: AbortSignal
 }) => Promise<SessionRuntime>
 
-export type StatusState = 'starting' | 'thinking' | 'idle'
+export type StatusState = 'starting' | 'preparing' | 'setup-failed' | 'thinking' | 'idle'
 
 export const statusFrame = (args: { state: StatusState }): LiveFrame => ({
   type: 'status',

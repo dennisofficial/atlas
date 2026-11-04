@@ -1,4 +1,4 @@
-import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
+import { actionableInboxIds, GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
 
 import {
   ControlStorePort,
@@ -14,47 +14,14 @@ import {
 } from '../../port'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { bisectAfter, leaseLiveAt } from './memory-helpers'
-
-type SessionRow = ControlSessionRow & { nextInboxId: number }
-
-type State = {
-  sessions: Map<string, SessionRow>
-  threads: Map<string, ThreadRow>
-  events: Map<string, StoredEvent[]>
-  eventIds: Set<string>
-  leases: Map<string, Lease>
-  inbox: Map<string, InboxEntry[]>
-  blobs: Map<string, BlobRow>
-  blobRefs: Set<string>
-  notifications: string[]
-}
-
-const refKey = (params: { sessionId: string; hash: string }): string =>
-  `${params.sessionId}${params.hash}`
-
-const emptyState = (): State => ({
-  sessions: new Map(),
-  threads: new Map(),
-  events: new Map(),
-  eventIds: new Set(),
-  leases: new Map(),
-  inbox: new Map(),
-  blobs: new Map(),
-  blobRefs: new Set(),
-  notifications: [],
-})
-
-const cloneState = (state: State): State => ({
-  sessions: new Map([...state.sessions].map(([key, value]) => [key, { ...value }])),
-  threads: new Map([...state.threads].map(([key, value]) => [key, { ...value }])),
-  events: new Map([...state.events].map(([key, value]) => [key, [...value]])),
-  eventIds: new Set(state.eventIds),
-  leases: new Map([...state.leases].map(([key, value]) => [key, { ...value }])),
-  inbox: new Map([...state.inbox].map(([key, value]) => [key, value.map((e) => ({ ...e }))])),
-  blobs: new Map([...state.blobs].map(([key, value]) => [key, { ...value }])),
-  blobRefs: new Set(state.blobRefs),
-  notifications: [...state.notifications],
-})
+import {
+  activeFailureOf,
+  cloneState,
+  emptyState,
+  hasPrepareHistory,
+  refKey,
+  type State,
+} from './memory-state'
 
 class MemoryTx implements ControlTx {
   private readonly state: State
@@ -116,8 +83,15 @@ class MemoryTx implements ControlTx {
         if (leaseLiveAt({ lease, now: params.now })) return false
         if (lease !== undefined && lease.holderId !== null) return true
         if (lease?.wantsHolder === true) return true
-        return (this.state.inbox.get(row.sessionId) ?? []).some(
+        const unconsumed = (this.state.inbox.get(row.sessionId) ?? []).filter(
           (entry) => entry.consumedSeq === null,
+        )
+        const actionable = actionableInboxIds({
+          entries: unconsumed,
+          failure: activeFailureOf(this.state.events.get(row.mainThreadId) ?? []),
+        })
+        return (
+          actionable.length > 0 || !hasPrepareHistory(this.state.events.get(row.mainThreadId) ?? [])
         )
       })
       .sort(
@@ -275,9 +249,15 @@ class MemoryTx implements ControlTx {
     return true
   }
 
-  async readInboxEntries(params: { sessionId: string; afterId: number; limit: number }) {
+  async readInboxEntries(params: {
+    sessionId: string
+    afterId: number
+    limit: number
+    excludeKind?: string | undefined
+  }) {
     return (this.state.inbox.get(params.sessionId) ?? [])
       .filter((e) => e.inboxId > params.afterId && e.consumedSeq === null)
+      .filter((e) => e.kind !== params.excludeKind)
       .sort((a, b) => a.inboxId - b.inboxId)
       .slice(0, params.limit)
       .map((e) => ({ ...e }))

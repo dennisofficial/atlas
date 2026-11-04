@@ -4,7 +4,16 @@ import type { ProcessPort } from '@dltech/atlas-core'
 import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
 import { githubCloneUrlOf } from '@dltech/atlas-wire'
 
-import { report, TOKEN_FILE, writeSentinel, type Deps, type Sentinels } from './workspace-state'
+import {
+  additionalSentinelOf,
+  exists,
+  fail,
+  report,
+  TOKEN_FILE,
+  writeSentinel,
+  type Deps,
+  type Sentinels,
+} from './workspace-state'
 
 type WorkspaceConfig = AgentHostConfigOutput['workspace']
 
@@ -108,7 +117,9 @@ const clonePrimary = async (args: {
     timeoutMs: CLONE_TIMEOUT_MS,
   })
   if (!cloned.ok) {
-    report({ deps, message: 'workspace clone failed', detail: args.scrub(cloned.output) })
+    const detail = args.scrub(cloned.output)
+    report({ deps, message: 'workspace clone failed', detail })
+    fail({ deps, message: 'workspace clone failed', detail })
     await deps.files.removeFile({ path: staging }).catch(() => undefined)
     return false
   }
@@ -120,9 +131,13 @@ const cloneAdditional = async (args: {
   repos: WorkspaceConfig['additionalRepos']
   credentialFlags: readonly string[]
   launchDirectory: string
+  stateDir: string
   scrub: (text: string) => string
-}): Promise<void> => {
+}): Promise<boolean> => {
+  let allCloned = true
   for (const { repo, branch } of args.repos) {
+    const marker = additionalSentinelOf({ stateDir: args.stateDir, repo })
+    if (await exists({ files: args.deps.files, path: marker })) continue
     const target = additionalRepoDirOf({ cwd: args.launchDirectory, repo })
     await args.deps.files.removeFile({ path: target })
     const cloned = await run({
@@ -141,14 +156,21 @@ const cloneAdditional = async (args: {
       timeoutMs: CLONE_TIMEOUT_MS,
     })
     if (!cloned.ok) {
-      report({
-        deps: args.deps,
-        message: `additional repo ${repo} clone failed`,
-        detail: args.scrub(cloned.output),
-      })
+      const detail = args.scrub(cloned.output)
+      report({ deps: args.deps, message: `additional repo ${repo} clone failed`, detail })
+      fail({ deps: args.deps, message: `additional repo ${repo} clone failed`, detail })
       await args.deps.files.removeFile({ path: target }).catch(() => undefined)
+      allCloned = false
+      continue
     }
+    const marked = await writeSentinel({
+      deps: args.deps,
+      path: marker,
+      message: `additional repo ${repo} marker write failed; setup is not done`,
+    })
+    allCloned = allCloned && marked
   }
+  return allCloned
 }
 
 export const materialize = async (args: {
@@ -170,7 +192,9 @@ export const materialize = async (args: {
     if (tokenPath !== null && githubToken !== null) {
       await deps.files.writeFile({ path: tokenPath, content: githubToken, mode: 0o600 })
     }
-    if (workspace.remoteUrl !== null) {
+    if (workspace.remoteUrl === null) {
+      await deps.files.mkdir({ path: launchDirectory })
+    } else if (!(await exists({ files: deps.files, path: args.sentinels.primary }))) {
       const cloned = await clonePrimary({
         deps,
         remoteUrl: workspace.remoteUrl,
@@ -181,16 +205,22 @@ export const materialize = async (args: {
         scrub: args.scrub,
       })
       if (!cloned) return false
-    } else {
-      await deps.files.mkdir({ path: launchDirectory })
+      const marked = await writeSentinel({
+        deps,
+        path: args.sentinels.primary,
+        message: 'primary clone marker write failed; setup is not done',
+      })
+      if (!marked) return false
     }
-    await cloneAdditional({
+    const additionalCloned = await cloneAdditional({
       deps,
       repos: workspace.additionalRepos,
       credentialFlags,
       launchDirectory,
+      stateDir,
       scrub: args.scrub,
     })
+    if (!additionalCloned) return false
     return writeSentinel({
       deps,
       path: args.sentinels.materialized,

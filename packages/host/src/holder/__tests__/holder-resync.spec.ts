@@ -45,7 +45,7 @@ describe('SessionHolder F8 resync', () => {
     expect(saw).toBe(true)
 
     const cache = await RecordCache.load({ plane: rig.plane, threadId: THREAD_ID })
-    expect(cache.currentHead().seq).toBe(3)
+    expect(cache.currentHead().seq).toBe(4)
 
     await otherWriterCommits(rig, { count: 1_500, epoch: 1 })
     const storeHead = await rig.plane.head({ threadId: THREAD_ID })
@@ -63,7 +63,7 @@ describe('SessionHolder F8 resync', () => {
     await resyncHead({ plane: countingPlane, threadId: THREAD_ID }, cache)
 
     expect(readCalls.length).toBeGreaterThan(1)
-    expect(readCalls[0]).toBe(3)
+    expect(readCalls[0]).toBe(4)
     expect(cache.currentHead().seq).toBe(storeHead.seq)
     expect(cache.all().length).toBe(storeHead.seq)
   }, 30_000)

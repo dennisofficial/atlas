@@ -3,11 +3,12 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
+  activeFailure,
   blobValueOf,
   canonicalEvent,
+  INBOX_KIND_STOP,
   isBlobRef,
   sessionStatusOf,
-  type InboxEntry,
   type V2Event,
   type SessionStatus,
 } from '@dltech/atlas-core'
@@ -141,21 +142,32 @@ export class SessionsService {
   async status(args: { userId: string; sessionId: string }): Promise<SessionStatusOutput> {
     const session = await this.requireOwnedSession(args)
     const head = await this.plane.head({ threadId: session.mainThreadId })
-    const [page, inbox, { lease, live }] = await Promise.all([
+    const [page, unconsumed, { lease, live }] = await Promise.all([
       this.plane.readEvents({
         threadId: session.mainThreadId,
         afterSeq: Math.max(0, head.seq - STATUS_EVENT_LIMIT),
         limit: STATUS_EVENT_LIMIT,
         visible: true,
       }),
-      this.plane.readInbox({ sessionId: args.sessionId, afterId: 0, limit: 1 }),
+      this.plane
+        .readInbox({ sessionId: args.sessionId, afterId: 0, limit: 1 })
+        .then((entries) => entries.length > 0),
       this.plane.currentLease({ sessionId: args.sessionId }),
     ])
-    const unconsumed = inbox.some((entry: InboxEntry) => entry.consumedSeq === null)
+    const events = await this.resolveFactRefs(page.events)
+    const failure = activeFailure(events)
+    const messageAfterFailure =
+      failure !== undefined &&
+      (await this.plane.hasMessageAfter({
+        sessionId: args.sessionId,
+        afterId: failure.inboxHead,
+        excludeKind: INBOX_KIND_STOP,
+      }))
     const current: SessionStatus = sessionStatusOf({
-      events: await this.resolveFactRefs(page.events),
+      events,
       live,
       unconsumedInbox: unconsumed,
+      messageAfterFailure,
       now: new Date().toISOString(),
     })
     return {

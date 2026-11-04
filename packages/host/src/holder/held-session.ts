@@ -1,11 +1,5 @@
-import {
-  EHeldAction,
-  EToolEffect,
-  isResumable,
-  type Lease,
-  type ThreadId,
-} from '@dltech/atlas-core'
-import { LoopTurnRunner, PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
+import { EHeldAction, type Lease, type ThreadId } from '@dltech/atlas-core'
+import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
 import { statusFrame, type SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
@@ -14,19 +8,22 @@ import {
   createLoopRunner,
   logDriveFault,
   logReconcileFault,
+  openHeldRecord,
+  settleAndCheckResume,
   startHeldTurn,
 } from './held-runner'
 import { releaseIdleAndRewake, teardownHeldSession } from './held-idle'
+import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
 import { IdleDeadline } from './idle-deadline'
 import { consumeStops, raceDeadline } from './held-wait'
 import { Reconciler } from './reconciler'
-import { SessionRecord } from './record/record-adapter'
+import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
-
-export type { HeldSessionDeps }
 import { HeldTurns } from './held-turns'
 import { LeaseRenewal } from './lease-renewal'
+
+export type { HeldSessionDeps }
 
 export class HeldSession {
   readonly sessionId: string
@@ -34,6 +31,7 @@ export class HeldSession {
   private readonly lifetimeAbort = new AbortController()
   private readonly pause = new PauseSignal()
   private readonly turns: HeldTurns
+  private readonly prepare: HeldPrepare
   private draining = false
   private drainDeadline: number | undefined
   private done: Promise<void> | undefined
@@ -57,6 +55,15 @@ export class HeldSession {
     this.sessionId = deps.sessionId
     this.lastActivityAt = deps.timers.now()
     this.turns = new HeldTurns(deps)
+    this.prepare = new HeldPrepare({
+      deps,
+      abandoned: () => this.draining || this.ended,
+      onSettled: ({ failed }) => {
+        this.lastActivityAt = deps.timers.now()
+        if (failed) void this.releaseIdle((runtime) => runtime.stop())
+        else this.reconciler?.request()
+      },
+    })
     this.idle = new IdleDeadline({
       timers: deps.timers,
       idleMinutes: deps.idleMinutes,
@@ -118,17 +125,13 @@ export class HeldSession {
         signal: this.lifetimeAbort.signal,
       })
       this.runtime = runtime
-      const record = await SessionRecord.open({
-        plane: deps.plane,
+      const record = await openHeldRecord({
+        deps,
+        runtime,
         threadId,
         epoch: lease.epoch,
-        timers: deps.timers,
-        remoteCalls: runtime.remoteCalls,
-        daemonTools: runtime.daemonTools,
         retryUntil: () => renewal.appendDeadline(this.drainDeadline),
-        nowIso: () => new Date(deps.timers.now()).toISOString(),
         onLeaseLost: () => this.drop(),
-        ...(deps.log === undefined ? {} : { log: deps.log }),
       })
       this.record = record
       if (this.draining) record.markDraining()
@@ -151,16 +154,7 @@ export class HeldSession {
       this.branches = branches
       branches.start()
 
-      await settleCrashedCalls({
-        record,
-        ids: deps.ids,
-        threadId,
-        effectOf: (name) =>
-          runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name),
-      })
-
-      const events = await record.ownEvents({ threadId })
-      this.resumePending = isResumable(events)
+      this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })
 
       const completion = new Promise<void>((resolve) => {
         this.finishDrive = resolve
@@ -186,11 +180,8 @@ export class HeldSession {
     if (this.ended) return
     const deps = this.deps
     const turnRunning = this.turns.turnRunning
-    if (this.draining) {
-      if (!turnRunning) this.finish()
-      return
-    }
-    const { entries, action } = await readHeldAction({
+    if (this.draining) return turnRunning ? undefined : this.finish()
+    const { entries, action, inboxHead } = await readHeldAction({
       deps,
       draining: this.draining,
       turnRunning,
@@ -198,6 +189,8 @@ export class HeldSession {
       lastActivityAt: this.lastActivityAt,
       runtime: this.runtime,
       released: this.released,
+      events: this.record?.eventCache().all() ?? [],
+      preparing: this.prepare.running,
     })
     switch (action) {
       case EHeldAction.AbortTurn: {
@@ -217,6 +210,12 @@ export class HeldSession {
         this.reconciler?.request()
         return
       }
+      case EHeldAction.Prepare: {
+        const { runtime, record } = this
+        if (runtime === undefined || record === undefined) return
+        this.prepare.start({ runtime, record, threadId: args.threadId, inboxHead })
+        return
+      }
       case EHeldAction.StartTurn: {
         const resume = this.resumePending
         this.resumePending = false
@@ -225,11 +224,11 @@ export class HeldSession {
         return
       }
       case EHeldAction.Release: {
-        await this.releaseIdle()
+        await this.releaseIdle((runtime) => runtime.release())
         return
       }
       case EHeldAction.Wait: {
-        if (turnRunning) return
+        if (turnRunning || this.prepare.running) return
         this.idle.arm({ lastActivityAt: this.lastActivityAt })
       }
     }
@@ -256,12 +255,13 @@ export class HeldSession {
     })
   }
 
-  private async releaseIdle(): Promise<void> {
+  private async releaseIdle(end: (runtime: SessionRuntime) => Promise<void>): Promise<void> {
     if (this.runtime === undefined || this.released) return
     this.released = true
     const drop = (): void => this.drop()
     const finish = (): void => this.finish()
-    await releaseIdleAndRewake({ deps: this.deps, runtime: this.runtime, drop, finish })
+    const { runtime, record } = this
+    await releaseIdleAndRewake({ deps: this.deps, end: () => end(runtime), record, drop, finish })
   }
 
   private drop(): void {
