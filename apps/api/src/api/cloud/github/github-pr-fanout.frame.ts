@@ -35,6 +35,15 @@ const stateSchema = z.object({
   updatedAt: z.string(),
 })
 
+const failedCheckSchema = z.object({
+  name: z.string(),
+  app: z.string().exactOptional(),
+  url: z.string().exactOptional(),
+  checkRunId: z.string().exactOptional(),
+  title: z.string().exactOptional(),
+  summary: z.string().exactOptional(),
+})
+
 const eventSchema = z.object({
   id: z.string(),
   repoFullName: z.string(),
@@ -50,6 +59,7 @@ const eventSchema = z.object({
     state: z.enum(['merged', 'closed']).exactOptional(),
     headSha: z.string().exactOptional(),
     settled: z.boolean().exactOptional(),
+    failedChecks: z.array(failedCheckSchema).exactOptional(),
     commentId: z.string().exactOptional(),
     edited: z.boolean().exactOptional(),
   }),

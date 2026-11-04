@@ -37,11 +37,26 @@ const reviewLine = (event: PrEvent): string =>
 const reviewCommentLine = (event: PrEvent): string =>
   withBody(`${prefix(event)}: ${author(event)} left an inline review comment`, event.body)
 
+const FAILED_NAMES_SHOWN = 3
+
+const failedNames = (event: PrEvent): string | undefined => {
+  const names = (event.failedChecks ?? []).map((check) => check.name)
+  if (names.length === 0) return undefined
+  const shown = names.slice(0, FAILED_NAMES_SHOWN).join(', ')
+  const more = names.length - FAILED_NAMES_SHOWN
+  return more > 0 ? `${shown} +${more} more` : shown
+}
+
 const verdictLine = (event: PrEvent): string => {
+  const names = failedNames(event)
   if (event.verdict === EPrVerdict.Failed && event.settled === true)
-    return `${prefix(event)}: CI finished, still failing`
+    return names === undefined
+      ? `${prefix(event)}: CI finished, still failing`
+      : `${prefix(event)}: CI finished, ${names} failed`
   if (event.verdict === EPrVerdict.Failed && event.settled === false)
-    return `${prefix(event)}: a check failed, CI still running`
+    return names === undefined
+      ? `${prefix(event)}: a check failed, CI still running`
+      : `${prefix(event)}: ${names} failed, CI still running`
   if (event.verdict === EPrVerdict.Failed) return `${prefix(event)}: CI failed`
   return `${prefix(event)}: CI green`
 }

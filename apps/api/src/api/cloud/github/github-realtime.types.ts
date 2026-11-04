@@ -13,6 +13,15 @@ export enum EPrEventKind {
   State = 'state',
 }
 
+export type GithubPrFailedCheck = {
+  name: string
+  app?: string
+  url?: string
+  checkRunId?: string
+  title?: string
+  summary?: string
+}
+
 export type GithubPrEventPayload = {
   url: string
   authorLogin?: string
@@ -23,6 +32,7 @@ export type GithubPrEventPayload = {
   state?: 'merged' | 'closed'
   headSha?: string
   settled?: boolean
+  failedChecks?: GithubPrFailedCheck[]
   commentId?: string
   edited?: boolean
 }

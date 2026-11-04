@@ -144,3 +144,24 @@ describe('parsePrEventFrame', () => {
     expect(parsePrEventFrame({ value: frame() })).toHaveProperty('frame.id', 'evt_1')
   })
 })
+
+describe('failed checks on a verdict frame', () => {
+  const checks = [{ name: 'typecheck', app: 'github-actions', checkRunId: '7' }]
+
+  it('carries them onto the notice', () => {
+    const parsed = prEventFrameSchema.parse(
+      frame({ kind: 'verdict', payload: { url: 'u', verdict: 'failed', failedChecks: checks } }),
+    )
+
+    expect(prEventNoticeOf(parsed).failedChecks).toEqual(checks)
+  })
+
+  it('drops a malformed list without dropping the notice', () => {
+    const parsed = prEventFrameSchema.safeParse(
+      frame({ kind: 'verdict', payload: { url: 'u', verdict: 'failed', failedChecks: [{}] } }),
+    )
+
+    expect(parsed.success).toBe(true)
+    expect(parsed.success && prEventNoticeOf(parsed.data).failedChecks).toBeUndefined()
+  })
+})

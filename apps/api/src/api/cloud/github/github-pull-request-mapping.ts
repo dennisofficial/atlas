@@ -26,6 +26,8 @@ export interface RestCheckRun {
   started_at: string | null
   completed_at: string | null
   app?: { slug: string } | null
+  html_url?: string | null
+  output?: { title?: string | null; summary?: string | null } | null
 }
 
 export interface RestCommitStatus {
@@ -33,6 +35,8 @@ export interface RestCommitStatus {
   state: string
   created_at: string | null
   updated_at: string | null
+  target_url?: string | null
+  description?: string | null
 }
 
 export interface PullRequestCacheFields {

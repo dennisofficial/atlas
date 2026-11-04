@@ -1,6 +1,7 @@
 import { systemNotice } from '../../context/envelope'
 import { EPrEventKind, EPrVerdict } from '../../events/body'
 import type { DraftOfType } from '../../events/envelope'
+import { failedChecksBlock, failedChecksCountPhrase } from './pr-failed-checks-lines'
 
 const BODY_CLIP = 400
 
@@ -27,14 +28,25 @@ const tipSuffix = (event: PrEvent): string =>
     ? ''
     : ` on ${event.headSha.slice(0, SHORT_SHA_LENGTH)}`
 
+const failedVerdictSentence = (event: PrEvent): string => {
+  const failed = event.failedChecks ?? []
+  if (event.settled === true) {
+    const lead = failed.length === 0 ? 'checks failed' : failedChecksCountPhrase(failed)
+    return `CI finished, ${lead}${tipSuffix(event)}. ${event.url}`
+  }
+  if (event.settled === false) {
+    const lead = failed.length === 0 ? 'a check failed' : failedChecksCountPhrase(failed)
+    return `${lead}${tipSuffix(event)} while CI is still running; another notice follows when CI finishes. ${event.url}`
+  }
+  return `checks failed${tipSuffix(event)}. ${event.url}`
+}
+
 const verdictSentence = (event: PrEvent): string => {
   if (event.verdict === EPrVerdict.Green)
     return `CI finished, all checks passed${tipSuffix(event)}.`
-  if (event.verdict === EPrVerdict.Failed && event.settled === true)
-    return `CI finished, checks failed${tipSuffix(event)}. ${event.url}`
-  if (event.verdict === EPrVerdict.Failed && event.settled === false)
-    return `a check failed${tipSuffix(event)} while CI is still running; another notice follows when CI finishes. ${event.url}`
-  if (event.verdict === EPrVerdict.Failed) return `checks failed${tipSuffix(event)}. ${event.url}`
+  if (event.verdict === EPrVerdict.Failed) {
+    return `${failedVerdictSentence(event)}${failedChecksBlock({ checks: event.failedChecks, repo: event.repo })}`
+  }
   return `checks reported. ${event.url}`
 }
 

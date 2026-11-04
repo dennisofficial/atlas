@@ -1,4 +1,5 @@
 import {
+  clipCheckText,
   checkRunOutcomeOf,
   checksTally,
   ECheckOutcome,
@@ -26,6 +27,9 @@ export type CommitCheckInput = {
   sourceUpdatedAt: Date
   isRun: boolean
   appSlug?: string | null
+  detailsUrl?: string | null
+  title?: string | null
+  summary?: string | null
 }
 
 export type CheckRunShape = {
@@ -36,6 +40,8 @@ export type CheckRunShape = {
   started_at: string | null
   completed_at?: string | null
   app?: { slug: string } | null
+  html_url?: string | null
+  output?: { title?: string | null; summary?: string | null } | null
 }
 
 export type CommitStatusShape = {
@@ -43,6 +49,8 @@ export type CommitStatusShape = {
   state: string
   created_at: string | null
   updated_at?: string | null
+  target_url?: string | null
+  description?: string | null
 }
 
 const timeOf = (iso: string | null | undefined): Date | null =>
@@ -60,6 +68,9 @@ export function checkRunInputOf(run: CheckRunShape): CommitCheckInput {
     sourceUpdatedAt: timeOf(run.completed_at) ?? timeOf(run.started_at) ?? new Date(),
     isRun: true,
     appSlug: run.app?.slug ?? null,
+    detailsUrl: run.html_url ?? null,
+    title: clipCheckText(run.output?.title) ?? null,
+    summary: clipCheckText(run.output?.summary) ?? null,
   }
 }
 
@@ -71,6 +82,8 @@ export function commitStatusInputOf(status: CommitStatusShape): CommitCheckInput
     outcome: statusContextOutcomeOf(status.state),
     sourceUpdatedAt: timeOf(status.updated_at) ?? timeOf(status.created_at) ?? new Date(),
     isRun: false,
+    detailsUrl: status.target_url ?? null,
+    summary: clipCheckText(status.description) ?? null,
   }
 }
 
@@ -126,6 +139,9 @@ export async function recordCommitChecks(args: {
         outcome: check.outcome,
         sourceUpdatedAt: check.sourceUpdatedAt,
         appSlug: check.appSlug ?? null,
+        detailsUrl: check.detailsUrl ?? null,
+        title: check.title ?? null,
+        summary: check.summary ?? null,
       }
       await tx.orm.public.GithubCommitCheck.upsert({
         conflictOn: {

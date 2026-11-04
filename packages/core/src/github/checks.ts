@@ -44,8 +44,12 @@ export type CheckAttempt = {
  * all survive rather than being ordered by guesswork — the doubt resolves towards alarming.
  */
 export function latestAttemptOutcomes(attempts: readonly CheckAttempt[]): ECheckOutcome[] {
-  const byName = new Map<string, CheckAttempt[]>()
-  const kept: CheckAttempt[] = []
+  return latestAttempts(attempts).map((attempt) => attempt.outcome)
+}
+
+export function latestAttempts<T extends CheckAttempt>(attempts: readonly T[]): T[] {
+  const byName = new Map<string, T[]>()
+  const kept: T[] = []
 
   for (const attempt of attempts) {
     if (attempt.name === null || attempt.startedAt === null) {
@@ -62,7 +66,7 @@ export function latestAttemptOutcomes(attempts: readonly CheckAttempt[]): ECheck
     kept.push(...group.filter((attempt) => attempt.startedAt === newest.startedAt))
   }
 
-  return kept.map((attempt) => attempt.outcome)
+  return kept
 }
 
 export function checksTally(outcomes: readonly ECheckOutcome[]): ChecksCount {
