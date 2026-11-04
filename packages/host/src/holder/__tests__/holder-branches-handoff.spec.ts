@@ -11,10 +11,14 @@ const longExecScript = [
   { text: 'after handoff' },
 ] as const
 
+const PROMPT_HANDOFF_MS = 2_000
+
 const drainLate = async (rig: HolderRig): Promise<void> => {
+  const startedAt = Date.now()
   const drain = rig.holder.drain({ deadline: rig.clock.now() + 1_000 })
   rig.clock.advance(1_100)
   await drain
+  expect(Date.now() - startedAt).toBeLessThan(PROMPT_HANDOFF_MS)
 }
 
 const expectRevoked = async (rig: HolderRig): Promise<void> => {
