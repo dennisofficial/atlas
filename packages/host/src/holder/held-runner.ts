@@ -7,7 +7,7 @@ import { BranchObserver } from './branch-observer'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
-import type { InboxIntake } from './inbox-intake'
+import { InboxIntake } from './inbox-intake'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 import { V2OnceLedger } from './record/v2-once-ledger'
@@ -18,6 +18,15 @@ export const logDriveFault = (args: { deps: HeldSessionDeps; error: unknown }): 
   args.deps.log?.error({
     source: 'holder.session',
     message: `session ${args.deps.sessionId} faulted`,
+    ...logFieldsOf({ error: args.error }),
+  })
+}
+
+export const logReconcileFault = (args: { deps: HeldSessionDeps; error: unknown }): void => {
+  if (args.error instanceof LeaseLostError) return
+  args.deps.log?.error({
+    source: 'holder.session',
+    message: `reconciling ${args.deps.sessionId} failed`,
     ...logFieldsOf({ error: args.error }),
   })
 }
@@ -49,12 +58,19 @@ export const createLoopRunner = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
   record: SessionRecord
-  intake: InboxIntake
   turns: HeldTurns
   threadId: ThreadId
   isModelOnlyDrain(): boolean
 }): LoopTurnRunner => {
-  const { deps, runtime, record, intake, threadId } = args
+  const { deps, runtime, record, threadId } = args
+  const intake = new InboxIntake({
+    plane: deps.plane,
+    sessionId: deps.sessionId,
+    record,
+    threadId,
+    runId: () => deps.ids.nextRunId(),
+    ...(deps.log === undefined ? {} : { log: deps.log }),
+  })
   return new LoopTurnRunner({
     record,
     modelContext: record,

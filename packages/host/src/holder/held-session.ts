@@ -1,5 +1,4 @@
 import {
-  decideHeldAction,
   EHeldAction,
   EToolEffect,
   isResumable,
@@ -7,16 +6,21 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import { LoopTurnRunner, PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
-import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { statusFrame, type SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
-import { createBranchObserver, createLoopRunner, logDriveFault } from './held-runner'
-import { InboxIntake, INBOX_KIND_STOP } from './inbox-intake'
-import { idleReleaseDue, releaseIdleAndRewake, teardownHeldSession } from './held-idle'
+import {
+  createBranchObserver,
+  createLoopRunner,
+  logDriveFault,
+  logReconcileFault,
+} from './held-runner'
+import { releaseIdleAndRewake, teardownHeldSession } from './held-idle'
+import { readHeldAction } from './held-snapshot'
+import { IdleDeadline } from './idle-deadline'
 import { consumeStops, raceDeadline } from './held-wait'
 import { Reconciler } from './reconciler'
-import { LeaseLostError, SessionRecord } from './record/record-adapter'
+import { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 
 export type { HeldSessionDeps }
@@ -39,7 +43,7 @@ export class HeldSession {
   private renewal: LeaseRenewal | undefined
   private reconciler: Reconciler | undefined
   private finishDrive: (() => void) | undefined
-  private idleTimer: unknown
+  private readonly idle: IdleDeadline
   private leaseEpoch = 0
   private drainModelOnly = false
   private lostOwnership = false
@@ -56,6 +60,11 @@ export class HeldSession {
     this.sessionId = deps.sessionId
     this.lastActivityAt = deps.timers.now()
     this.turns = new HeldTurns(deps)
+    this.idle = new IdleDeadline({
+      timers: deps.timers,
+      idleMinutes: deps.idleMinutes,
+      onDue: () => this.reconciler?.request(),
+    })
   }
 
   notifyWake(): void {
@@ -127,19 +136,10 @@ export class HeldSession {
       this.record = record
       if (this.draining) record.markDraining()
 
-      const intake = new InboxIntake({
-        plane: deps.plane,
-        sessionId: deps.sessionId,
-        record,
-        threadId,
-        runId: () => deps.ids.nextRunId(),
-        ...(deps.log === undefined ? {} : { log: deps.log }),
-      })
       const runner = createLoopRunner({
         deps,
         runtime,
         record,
-        intake,
         turns: this.turns,
         threadId,
         isModelOnlyDrain: () => this.drainModelOnly,
@@ -172,14 +172,7 @@ export class HeldSession {
         const reconciler = new Reconciler({
           timers: deps.timers,
           step: () => this.step({ runner, threadId }),
-          onError: (error) => {
-            if (error instanceof LeaseLostError) return
-            deps.log?.error({
-              source: 'holder.session',
-              message: `reconciling ${deps.sessionId} failed`,
-              ...logFieldsOf({ error }),
-            })
-          },
+          onError: (error) => logReconcileFault({ deps, error }),
         })
         this.reconciler = reconciler
         reconciler.request()
@@ -195,27 +188,15 @@ export class HeldSession {
   private async step(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
     if (this.ended) return
     const deps = this.deps
-    const entries = await deps.plane.readInbox({
-      sessionId: deps.sessionId,
-      afterId: 0,
-      limit: 100,
-    })
-    const stopPending = entries.some((entry) => entry.kind === INBOX_KIND_STOP)
-    const messagePending = entries.some((entry) => entry.kind !== INBOX_KIND_STOP)
     const turnRunning = this.turns.turnRunning
-    const action = decideHeldAction({
+    const { entries, action } = await readHeldAction({
+      deps,
       draining: this.draining,
-      turn: turnRunning ? 'running' : 'idle',
-      stopPending,
-      messagePending: messagePending || this.resumePending,
-      idleDue: idleReleaseDue({
-        deps,
-        turnRunning,
-        lastActivityAt: this.lastActivityAt,
-        runtime: this.runtime,
-        released: this.released,
-        pendingInput: messagePending,
-      }),
+      turnRunning,
+      resumePending: this.resumePending,
+      lastActivityAt: this.lastActivityAt,
+      runtime: this.runtime,
+      released: this.released,
     })
     switch (action) {
       case EHeldAction.AbortTurn: {
@@ -247,24 +228,25 @@ export class HeldSession {
         return
       }
       case EHeldAction.Wait: {
-        this.armIdleDeadline()
-        if (this.draining && !turnRunning) this.finish()
+        if (turnRunning) return
+        if (this.draining) this.finish()
+        else this.idle.arm({ lastActivityAt: this.lastActivityAt })
       }
     }
   }
 
   private startTurn(args: { runner: LoopTurnRunner; threadId: ThreadId; resume: boolean }): void {
-    this.disarmIdleDeadline()
-    const turn = this.turns.drive({
-      runner: args.runner,
-      threadId: args.threadId,
-      pause: this.pause,
-      resume: args.resume,
-      onActivity: () => {
-        this.lastActivityAt = this.deps.timers.now()
-      },
-    })
-    void turn
+    this.idle.disarm()
+    void this.turns
+      .drive({
+        runner: args.runner,
+        threadId: args.threadId,
+        pause: this.pause,
+        resume: args.resume,
+        onActivity: () => {
+          this.lastActivityAt = this.deps.timers.now()
+        },
+      })
       .then(async () => {
         if (!this.draining && !this.lostOwnership) await this.branches?.refresh()
       })
@@ -275,23 +257,6 @@ export class HeldSession {
       .finally(() => {
         this.reconciler?.request()
       })
-  }
-
-  private armIdleDeadline(): void {
-    if (this.turns.turnRunning || this.draining || this.ended) return
-    this.disarmIdleDeadline()
-    const deadline = this.lastActivityAt + this.deps.idleMinutes * 60_000
-    const ms = Math.max(1, deadline - this.deps.timers.now())
-    this.idleTimer = this.deps.timers.setTimeout(() => {
-      this.idleTimer = undefined
-      this.reconciler?.request()
-    }, ms)
-  }
-
-  private disarmIdleDeadline(): void {
-    if (this.idleTimer === undefined) return
-    this.deps.timers.clearTimeout(this.idleTimer)
-    this.idleTimer = undefined
   }
 
   private async releaseIdle(): Promise<void> {
@@ -316,7 +281,7 @@ export class HeldSession {
   private finish(): void {
     if (this.ended) return
     this.ended = true
-    this.disarmIdleDeadline()
+    this.idle.disarm()
     this.finishDrive?.()
   }
 
