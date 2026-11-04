@@ -14,6 +14,7 @@ import {
   createLoopRunner,
   logDriveFault,
   logReconcileFault,
+  startHeldTurn,
 } from './held-runner'
 import { releaseIdleAndRewake, teardownHeldSession } from './held-idle'
 import { readHeldAction } from './held-snapshot'
@@ -237,26 +238,22 @@ export class HeldSession {
 
   private startTurn(args: { runner: LoopTurnRunner; threadId: ThreadId; resume: boolean }): void {
     this.idle.disarm()
-    void this.turns
-      .drive({
-        runner: args.runner,
-        threadId: args.threadId,
-        pause: this.pause,
-        resume: args.resume,
-        onActivity: () => {
-          this.lastActivityAt = this.deps.timers.now()
-        },
-      })
-      .then(async () => {
+    startHeldTurn({
+      deps: this.deps,
+      turns: this.turns,
+      pause: this.pause,
+      runner: args.runner,
+      threadId: args.threadId,
+      resume: args.resume,
+      onActivity: () => {
+        this.lastActivityAt = this.deps.timers.now()
+      },
+      refreshBranches: async () => {
         if (!this.draining && !this.lostOwnership) await this.branches?.refresh()
-      })
-      .catch((error) => {
-        logDriveFault({ deps: this.deps, error })
-        this.finish()
-      })
-      .finally(() => {
-        this.reconciler?.request()
-      })
+      },
+      onFault: () => this.finish(),
+      onSettled: () => this.reconciler?.request(),
+    })
   }
 
   private async releaseIdle(): Promise<void> {

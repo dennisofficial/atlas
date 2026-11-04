@@ -1,5 +1,10 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { HookChain, HookedToolDispatcher, LoopTurnRunner } from '@dltech/atlas-agent'
+import {
+  HookChain,
+  HookedToolDispatcher,
+  LoopTurnRunner,
+  type PauseSignal,
+} from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
@@ -29,6 +34,38 @@ export const logReconcileFault = (args: { deps: HeldSessionDeps; error: unknown 
     message: `reconciling ${args.deps.sessionId} failed`,
     ...logFieldsOf({ error: args.error }),
   })
+}
+
+export const startHeldTurn = (args: {
+  deps: HeldSessionDeps
+  turns: HeldTurns
+  pause: PauseSignal
+  runner: LoopTurnRunner
+  threadId: ThreadId
+  resume: boolean
+  onActivity(): void
+  refreshBranches(): Promise<void>
+  onFault(): void
+  onSettled(): void
+}): void => {
+  void args.turns
+    .drive({
+      runner: args.runner,
+      threadId: args.threadId,
+      pause: args.pause,
+      resume: args.resume,
+      onActivity: args.onActivity,
+    })
+    .then(async () => {
+      await args.refreshBranches()
+    })
+    .catch((error) => {
+      logDriveFault({ deps: args.deps, error })
+      args.onFault()
+    })
+    .finally(() => {
+      args.onSettled()
+    })
 }
 
 export const createBranchObserver = (args: {
