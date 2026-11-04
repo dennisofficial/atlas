@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
@@ -6,7 +6,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
+import {
+  callIdOf,
+  isDoneResult,
+  makeFifo,
+  readEvents,
+  releaseFifo,
+  waitForFile,
+} from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -26,7 +33,7 @@ const waitForNoConnections = async (args: {
 }
 
 describe.skipIf(REDIS_URL === undefined)(
-  'F4 daemon link black-holed mid-bash (40 s outage scaled to 5 s, 30 s detection scaled to 4 s, ping 10 s scaled to 500 ms)',
+  'F4 daemon link black-holed mid-bash (40 s outage scaled to 2 s, 30 s detection scaled to 1.5 s, ping 10 s scaled to 500 ms)',
   () => {
     const testDb = useTestDatabase()
     let rig: FaultRig
@@ -40,7 +47,8 @@ describe.skipIf(REDIS_URL === undefined)(
     })
 
     it('detects the dead link, reconnects and collects the result', async () => {
-      const sessionId = 'fault-f04-1'
+      const suffix = Math.random().toString(36).slice(2, 8)
+      const sessionId = `fault-f04-${suffix}`
       const threadId = await rig.newSession({ sessionId, text: 'stream lines' })
       const daemon = await rig.spawnDaemonFor({ sessionId })
       const startedFile = join(daemon.home, `started-${sessionId}`)
@@ -82,16 +90,17 @@ describe.skipIf(REDIS_URL === undefined)(
       const before = await readEvents({ plane: rig.plane, threadId })
       expect(before.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)
 
+      expect(daemon.proxy.connections()).toBeGreaterThan(0)
       daemon.proxy.set({ blackhole: true })
       const detectedMs = await waitForNoConnections({
         count: () => daemon.proxy.connections(),
-        timeoutMs: 4_000,
+        timeoutMs: 2_000,
       })
-      expect(detectedMs).toBeLessThan(4_000)
+      expect(detectedMs).toBeLessThan(2_000)
 
-      await new Promise((resolve) => setTimeout(resolve, Math.max(0, 5_000 - detectedMs)))
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, 2_000 - detectedMs)))
       daemon.proxy.clear()
-      writeFileSync(gateFifo, 'go\n')
+      await releaseFifo({ path: gateFifo })
 
       const events = await rig
         .waitForSeq({
