@@ -1,5 +1,5 @@
 import { daemonToken } from '@dltech/atlas-protocol/engine'
-import type { VercelCredentials } from '@dltech/atlas-wire'
+import type { VercelCredentials } from '../sandbox/constants'
 
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
 

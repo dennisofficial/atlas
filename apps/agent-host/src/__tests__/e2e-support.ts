@@ -8,7 +8,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import type { HostBus } from '@dltech/atlas-host'
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
-import { RandomIds } from '@dltech/atlas-harness'
+import { RandomIds } from '../runtime/random-ids'
 import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 
 import type { LocalSandboxProvider } from '../testing/local-sandbox-provider'

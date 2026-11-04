@@ -1,4 +1,4 @@
-import type { VercelCredentials } from '@dltech/atlas-wire'
+import type { VercelCredentials } from './constants'
 
 export type DaemonEndpoint = { url: string; token: string; sandboxName: string }
 

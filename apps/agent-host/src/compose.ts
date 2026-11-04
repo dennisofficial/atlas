@@ -1,7 +1,7 @@
 import { hostname } from 'node:os'
 import { randomUUID } from 'node:crypto'
 
-import { RandomIds } from '@dltech/atlas-harness'
+import { RandomIds } from './runtime/random-ids'
 import { SessionHolder } from '@dltech/atlas-host'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'

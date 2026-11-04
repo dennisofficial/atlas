@@ -9,6 +9,7 @@ export const SPLIT_RULES: readonly SplitRule[] = [
       'packages/control',
       'packages/protocol',
       'apps/agent-host',
+      'apps/api/src/api/cloud/agent-host',
       'apps/daemon',
     ],
     forbidden: [

@@ -1,7 +1,7 @@
 import { describe, expect, it, spyOn } from 'bun:test'
 import { EToolEffect, toThreadId } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
-import { WORKSPACE_PATH, type VercelCredentials } from '@dltech/atlas-wire'
+import { WORKSPACE_PATH, type VercelCredentials } from '../../sandbox/constants'
 import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
 import {
   RemoteCalls,

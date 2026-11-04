@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto'
 import { dirname } from 'node:path'
 
 import type { Sandbox } from '@vercel/sandbox'
-import { SANDBOX_HOME_PATH, SANDBOX_SERVE_PORT, sandboxSh } from '@dltech/atlas-wire'
+import { SANDBOX_HOME_PATH, SANDBOX_SERVE_PORT } from './constants'
+import { sandboxSh } from './sandbox-sh'
 
 const DAEMON_HOME = `${SANDBOX_HOME_PATH}/.atlas/daemon`
 const DAEMON_BUNDLE_PATH = `${DAEMON_HOME}/daemon.js`

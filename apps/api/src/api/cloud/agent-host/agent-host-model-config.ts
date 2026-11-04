@@ -4,13 +4,15 @@ import {
   EAccountChoice,
   EAuthKind,
   EAuthProvider,
+  parseRef,
   toAccountId,
   type Account,
-} from '@dltech/atlas-harness/titling'
-import { parseRef } from '@dltech/atlas-core'
-import { SHIPPED_DEFAULT_REF } from '@dltech/atlas-harness/models'
-import type { AccountLease, StoredAccountDto } from '@dltech/atlas-wire'
-import { decodeSettingValue } from '@dltech/atlas-wire/web'
+} from '@dltech/atlas-core'
+
+import type { AccountLease, StoredAccountDto } from './agent-host-account-types'
+import { decodeSettingValue } from './agent-host-setting-codec'
+
+const SHIPPED_DEFAULT_MODEL_ID = 'claude-haiku-4-5'
 
 export type ModelCredential =
   | { kind: 'oauth'; connectionId: string }
@@ -62,7 +64,7 @@ export const modelIdOf = (settings: Record<string, string>): string => {
     const ref = parseRef(decoded)
     if (ref !== undefined && ref.providerId === 'anthropic') return ref.modelId
   }
-  return SHIPPED_DEFAULT_REF.modelId
+  return SHIPPED_DEFAULT_MODEL_ID
 }
 
 export const modelConfigOf = (args: {

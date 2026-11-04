@@ -2,7 +2,7 @@ import { dirname, join } from 'node:path'
 
 import type { ProcessPort } from '@dltech/atlas-core'
 import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
-import { githubCloneUrlOf } from '@dltech/atlas-wire'
+import { githubCloneUrlOf } from '../sandbox/constants'
 
 import {
   additionalSentinelOf,

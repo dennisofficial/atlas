@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { daemonToken } from '@dltech/atlas-protocol/engine'
-import type { VercelSdk } from '@dltech/atlas-wire'
+import type { VercelSdk } from '../vercel-sdk'
 
 import { sandboxNameOf } from '../sandbox-provider'
 import { VercelSandboxProvider } from '../vercel-sandbox-provider'
