@@ -21,7 +21,6 @@ import {
   RemoteCalls,
   webSocketConnector,
   type HostTimers,
-  type SessionRuntime,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
