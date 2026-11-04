@@ -60,7 +60,7 @@ describe('SessionHolder inbox read failures', () => {
     let failures = 0
     const readInbox = plane.readInbox.bind(plane)
     plane.readInbox = async (params) => {
-      if (failures < 2 && params.limit === 1) {
+      if (failures < 2 && params.limit === 100) {
         failures += 1
         throw new Error('inbox read blew up')
       }

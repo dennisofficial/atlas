@@ -4,16 +4,6 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 import type { SessionRuntime } from './ports'
 import type { HeldSessionDeps } from './held-session-deps'
 
-export const pendingInputCount = (deps: HeldSessionDeps): Promise<number> =>
-  deps.plane
-    .readInbox({ sessionId: deps.sessionId, afterId: 0, limit: 1 })
-    .then((entries) => entries.length)
-
-export const idleWaitMs = (args: { deps: HeldSessionDeps; lastActivityAt: number }): number => {
-  const deadline = args.lastActivityAt + args.deps.idleMinutes * 60_000
-  return Math.max(1, deadline - args.deps.timers.now())
-}
-
 export const idleReleaseDue = (args: {
   deps: HeldSessionDeps
   turnRunning: boolean
@@ -32,25 +22,6 @@ export const idleReleaseDue = (args: {
     pendingInput: args.pendingInput,
     idleMinutes: args.deps.idleMinutes,
     now: args.deps.timers.now(),
-  })
-}
-
-export const idleDueNow = async (args: {
-  deps: HeldSessionDeps
-  runtime: SessionRuntime | undefined
-  turnRunning: boolean
-  lastActivityAt: number
-  released: boolean
-  pendingInput(): Promise<number>
-}): Promise<boolean> => {
-  if (args.runtime === undefined) return false
-  return idleReleaseDue({
-    deps: args.deps,
-    turnRunning: args.turnRunning,
-    lastActivityAt: args.lastActivityAt,
-    runtime: args.runtime,
-    released: args.released,
-    pendingInput: (await args.pendingInput()) > 0,
   })
 }
 
@@ -100,9 +71,9 @@ export const releaseIdleAndRewake = async (args: {
 }): Promise<void> => {
   const { deps } = args
   await releaseIdleSession({ deps, runtime: args.runtime })
-  const late = await pendingInputCount(deps)
+  const late = await deps.plane.readInbox({ sessionId: deps.sessionId, afterId: 0, limit: 1 })
   args.drop()
-  if (late === 0) return
+  if (late.length === 0) return
   deps.onDrop?.()
   await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
 }
