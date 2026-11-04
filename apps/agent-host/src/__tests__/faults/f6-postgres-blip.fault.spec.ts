@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, makeFifo, waitForFile } from './fault-support'
+import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -65,10 +65,17 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(leaseBefore.lease.holderId).toBe('host-a')
 
       rig.dbProxy.set({ refuse: true })
-      await sleep(1_000)
+      writeFileSync(gateFifo, 'go\n')
+      await sleep(600)
+
+      const duringRefuse = await readEvents({ plane: rig.plane, threadId })
+      expect(duringRefuse.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(
+        false,
+      )
+
+      await sleep(400)
       rig.dbProxy.clear()
 
-      writeFileSync(gateFifo, 'go\n')
       const events = await rig
         .waitForSeq({
           threadId,
@@ -96,6 +103,11 @@ describe.skipIf(REDIS_URL === undefined)(
 
       const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
       expect(runs).toEqual(['run'])
+
+      const renewFailures = hostA
+        .logs()
+        .filter((line) => line.includes('renewing') && line.includes('failed'))
+      expect(renewFailures.length).toBeGreaterThan(0)
 
       const leaseAfter = await rig.plane.currentLease({ sessionId })
       expect(leaseAfter.live).toBe(true)
