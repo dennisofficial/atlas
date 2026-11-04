@@ -6,9 +6,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, readEvents } from './fault-support'
+import {
+  callIdOf,
+  expectEpochsOrdered,
+  expectOneResultPerDispatch,
+  isDoneResult,
+  readEvents,
+} from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
+
+const RUN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
 describe.skipIf(REDIS_URL === undefined)(
   'F21 holder killed while the sandbox is still waking',
@@ -25,7 +33,7 @@ describe.skipIf(REDIS_URL === undefined)(
     })
 
     it('the new holder reuses the same daemon boot and runs the call exactly once', async () => {
-      const sessionId = 'fault-f21-1'
+      const sessionId = `fault-f21-1-${RUN}`
       const threadId = await rig.newSession({ sessionId, text: 'run one command' })
       const daemon = await rig.spawnDaemonFor({ sessionId })
       const bootId = daemon.bootId
@@ -61,6 +69,9 @@ describe.skipIf(REDIS_URL === undefined)(
         false,
       )
 
+      const preKill = await rig.plane.currentLease({ sessionId })
+      expect(preKill.lease.holderId).toBe('host-a')
+
       hostA.kill('SIGKILL')
       await hostA.exited
       daemon.proxy.clear()
@@ -75,7 +86,13 @@ describe.skipIf(REDIS_URL === undefined)(
       const events = await rig
         .waitForSeq({
           threadId,
-          want: (rows) => rows.some((row) => callIdOf(row) === 'c1' && isDoneResult(row)),
+          want: (rows) =>
+            rows.some((row) => callIdOf(row) === 'c1' && isDoneResult(row)) &&
+            rows.some(
+              (row) =>
+                row.type === 'assistant-said' &&
+                JSON.stringify(row.event).includes('host b finished'),
+            ),
           timeoutMs: 30_000,
         })
         .catch((error: unknown) => {
@@ -93,8 +110,12 @@ describe.skipIf(REDIS_URL === undefined)(
       const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
       expect(runs).toEqual(['run'])
 
+      expectOneResultPerDispatch(events)
+
       const lease = await rig.plane.currentLease({ sessionId })
       expect(lease.lease.holderId).toBe('host-b')
+      expect(lease.lease.epoch).toBeGreaterThan(preKill.lease.epoch)
+      expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
     }, 90_000)
   },
 )
