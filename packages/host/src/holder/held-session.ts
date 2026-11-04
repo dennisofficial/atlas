@@ -15,6 +15,7 @@ import { idleReleaseDue, releaseIdleSession } from './held-idle'
 import { consumeStops, interruptibleWait } from './held-wait'
 import { LeaseLostError, SessionRecord } from './record/record-adapter'
 import { V2OnceLedger } from './record/v2-once-ledger'
+import { retryDepsFromTimers } from './timer-sleep'
 import type { HeldSessionDeps } from './held-session-deps'
 
 export type { HeldSessionDeps }
@@ -147,6 +148,7 @@ export class HeldSession {
         detachTool: (tool) => this.drainModelOnly && runtime.daemonTools.has(tool),
         launchDirectory: runtime.launchDirectory,
         normalizeFailure: runtime.normalizeFailure,
+        retry: retryDepsFromTimers(deps.timers),
         onceLedger: new V2OnceLedger({
           cache: record.eventCache(),
           record,
