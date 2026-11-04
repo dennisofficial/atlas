@@ -29,6 +29,12 @@ type State = {
   notifications: string[]
 }
 
+const PREPARE_HISTORY_TYPES: ReadonlySet<string> = new Set([
+  'workspace-prepared',
+  'user-said',
+  'workspace-prepare-failed',
+])
+
 const refKey = (params: { sessionId: string; hash: string }): string =>
   `${params.sessionId}${params.hash}`
 
@@ -116,9 +122,10 @@ class MemoryTx implements ControlTx {
         if (leaseLiveAt({ lease, now: params.now })) return false
         if (lease !== undefined && lease.holderId !== null) return true
         if (lease?.wantsHolder === true) return true
-        return (this.state.inbox.get(row.sessionId) ?? []).some(
+        const unconsumed = (this.state.inbox.get(row.sessionId) ?? []).some(
           (entry) => entry.consumedSeq === null,
         )
+        return unconsumed || !this.hasPrepareHistory(row.mainThreadId)
       })
       .sort(
         (a, b) =>
@@ -127,6 +134,12 @@ class MemoryTx implements ControlTx {
       )
       .slice(0, params.limit)
       .map((row) => row.sessionId)
+  }
+
+  private hasPrepareHistory(threadId: string): boolean {
+    return (this.state.events.get(threadId) ?? []).some((event) =>
+      PREPARE_HISTORY_TYPES.has(event.type),
+    )
   }
 
   async createThread(params: {

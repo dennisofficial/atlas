@@ -78,6 +78,7 @@ export class ControlPlane {
         visibility: EMPTY_VISIBILITY_TEXT,
         at,
       })
+      await tx.notifyWake(params.sessionId)
     })
   }
 

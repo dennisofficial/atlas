@@ -19,11 +19,39 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       plane = new ControlPlane({ store: params.makeStore(), clock: () => now })
     })
 
-    const seedSession = async (seed: { sessionId: string; offsetMs: number }): Promise<void> => {
+    const markPrepared = async (args: { sessionId: string; threadId: string }): Promise<void> => {
+      const { epoch } = await plane.grant({
+        sessionId: args.sessionId,
+        holderId: HOLDER,
+        ttlMs: 60_000,
+      })
+      const head = await plane.head({ threadId: args.threadId })
+      const outcome = await plane.append({
+        threadId: args.threadId,
+        epoch,
+        events: mint({
+          bodies: [{ type: 'workspace-prepared' }],
+          epoch,
+          from: head,
+          threadId: args.threadId,
+        }),
+      })
+      if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
+      await plane.revoke({ sessionId: args.sessionId, wantsHolder: false })
+    }
+
+    const seedSession = async (seed: {
+      sessionId: string
+      offsetMs: number
+      prepared?: boolean
+    }): Promise<void> => {
       setNow(after({ iso: T0, offsetMs: seed.offsetMs }))
+      const threadId = `t-${seed.sessionId}`
       await plane.createSession(
-        createSessionParams({ sessionId: seed.sessionId, mainThreadId: `t-${seed.sessionId}` }),
+        createSessionParams({ sessionId: seed.sessionId, mainThreadId: threadId }),
       )
+      if (seed.prepared === false) return
+      await markPrepared({ sessionId: seed.sessionId, threadId })
     }
 
     it('creates a session and its main thread in one transaction', async () => {
@@ -133,8 +161,38 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([])
     })
 
-    it('excludes a never-leased session with an empty inbox', async () => {
+    it('lists a never-leased session with an empty inbox until its workspace is prepared', async () => {
+      await seedSession({ sessionId: SESSION, offsetMs: 0, prepared: false })
+      expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([SESSION])
+    })
+
+    it('excludes a prepared never-leased session with an empty inbox', async () => {
       await seedSession({ sessionId: SESSION, offsetMs: 0 })
+      expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([])
+    })
+
+    it('lists an unprepared session among prepared ones, in creation order', async () => {
+      await seedSession({ sessionId: 'prepared-old', offsetMs: 0 })
+      await seedSession({ sessionId: 'fresh-a', offsetMs: 1000, prepared: false })
+      await seedSession({ sessionId: 'prepared-new', offsetMs: 2000 })
+      await seedSession({ sessionId: 'fresh-b', offsetMs: 3000, prepared: false })
+      expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual(['fresh-a', 'fresh-b'])
+    })
+
+    it('stops listing a session once it has turns, even without a prepare event', async () => {
+      await seedSession({ sessionId: SESSION, offsetMs: 0, prepared: false })
+      const { epoch } = await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
+      const outcome = await plane.append({
+        threadId: `t-${SESSION}`,
+        epoch,
+        events: mint({
+          bodies: [{ type: 'user-said', text: 'hi' }],
+          epoch,
+          threadId: `t-${SESSION}`,
+        }),
+      })
+      if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
+      await plane.revoke({ sessionId: SESSION, wantsHolder: false })
       expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([])
     })
 
@@ -146,7 +204,10 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       const outcome = await plane.append({
         threadId: THREAD,
         epoch,
-        events: mint({ bodies: [{ type: 'input-consumed', inboxId }], epoch }),
+        events: mint({
+          bodies: [{ type: 'workspace-prepared' }, { type: 'input-consumed', inboxId }],
+          epoch,
+        }),
       })
       if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
       await plane.revoke({ sessionId: SESSION, wantsHolder: false })

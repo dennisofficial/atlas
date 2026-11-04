@@ -86,7 +86,10 @@ class PostgresTx implements ControlTx {
             OR l."renewedAt" + make_interval(secs => l."ttlMs" / 1000.0) <= ${params.now}::timestamptz)
           AND (l."holderId" IS NOT NULL OR l."wantsHolder"
             OR EXISTS (SELECT 1 FROM "v2"."V2InboxEntry" i
-              WHERE i."sessionId" = s."id" AND i."consumedSeq" IS NULL))
+              WHERE i."sessionId" = s."id" AND i."consumedSeq" IS NULL)
+            OR NOT EXISTS (SELECT 1 FROM "v2"."V2Event" e
+              WHERE e."threadId" = s."mainThreadId"
+                AND e."type" IN ('workspace-prepared', 'user-said', 'workspace-prepare-failed')))
         ORDER BY s."createdAt" ASC, s."id" ASC
         LIMIT ${params.limit}`
         .returnsRow({ id: 'pg/text@1' })
