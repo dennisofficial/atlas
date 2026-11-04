@@ -171,3 +171,27 @@ describe('SessionHolder handoff (F12/F15)', () => {
     plane.revoke = originalRevoke
   }, 15_000)
 })
+
+describe('SessionHolder drain while idle', () => {
+  it('ends the session without waiting on a failing inbox read and resolves handoff', async () => {
+    const rig = await makeRig({ holderId: 'holder-a' })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.post('hello')
+    await rig.wake()
+    const saw = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
+    })
+    expect(saw).toBe(true)
+
+    rig.plane.readInbox = () => Promise.reject(new Error('inbox down'))
+    const draining = rig.holder.drain({ deadline: rig.clock.now() + 30_000 })
+    const ended = await flushUntil({
+      check: () => rig.holder.heldIds().length === 0,
+      clock: rig.clock,
+      advanceMs: 2_000,
+    })
+    expect(ended).toBe(true)
+    await draining
+  }, 15_000)
+})

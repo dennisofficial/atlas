@@ -79,6 +79,91 @@ describe('SessionHolder stop', () => {
     const afterResult = log.filter((event) => event.seq > (result?.seq ?? 0))
     expect(afterResult.some((event) => event.type === 'assistant-said')).toBe(false)
   }, 15_000)
+
+  it('a stop behind a full page of messages still aborts the running turn on one wake', async () => {
+    const rig = await makeRig({
+      holderId: 'holder-a',
+      script: [
+        {
+          calls: [
+            {
+              callId: 'call-1',
+              name: 'bash',
+              input: { command: 'echo started; sleep 600; echo late' },
+            },
+          ],
+        },
+        { text: 'never reached' },
+      ],
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.post('long exec')
+    await rig.wake()
+    const dispatched = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'tool-dispatched'),
+    })
+    expect(dispatched).toBe(true)
+
+    for (let i = 0; i < 100; i += 1) await rig.post(`queued ${i}`)
+    await rig.postStop()
+    await rig.wake()
+
+    const aborted = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'tool-result'),
+      attempts: 200,
+      clock: rig.clock,
+      advanceMs: 2_000,
+    })
+    expect(aborted).toBe(true)
+    const log = await fullLog(rig)
+    const result = log.find((event) => event.type === 'tool-result')
+    if (result?.type === 'tool-result') {
+      expect(result.error?.message ?? '').toContain('cancelled')
+    }
+  }, 15_000)
+
+  it('a stopped turn consumes the stop before a gated branch refresh opens', async () => {
+    let openGate: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      openGate = () => resolve()
+    })
+    const rig = await makeRig({
+      holderId: 'holder-a',
+      script: [
+        {
+          calls: [
+            {
+              callId: 'call-1',
+              name: 'bash',
+              input: { command: 'echo started; sleep 600; echo late' },
+            },
+          ],
+        },
+        { text: 'after' },
+      ],
+      watchedRepos: () => gate.then(() => ['/w']),
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.post('long exec')
+    await rig.wake()
+    const dispatched = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'tool-dispatched'),
+    })
+    expect(dispatched).toBe(true)
+
+    await rig.postStop()
+    await rig.wake()
+
+    const consumed = await flushUntil({
+      check: async () =>
+        (await rig.events()).filter((event) => event.type === 'input-consumed').length >= 2,
+      attempts: 100,
+    })
+    expect(consumed).toBe(true)
+    openGate?.()
+  }, 15_000)
 })
 
 describe('SessionHolder idle', () => {

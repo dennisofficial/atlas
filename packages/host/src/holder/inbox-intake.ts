@@ -14,46 +14,13 @@ export type InboxIntakeArgs = {
   record: SessionRecord
   threadId: ThreadId
   runId: () => RunId
-  onStop?: ((inboxId: number) => void) | undefined
   log?: LogPort | undefined
 }
 
 export class InboxIntake implements AgentIntake {
   private afterId = 0
-  private stopAfterId = 0
-  private stopSeen: number | undefined
-  private lastStopConsumed = 0
 
   constructor(private readonly args: InboxIntakeArgs) {}
-
-  takeStop(): number | undefined {
-    const found = this.stopSeen
-    this.stopSeen = undefined
-    if (found === undefined || found <= this.lastStopConsumed) return undefined
-    return found
-  }
-
-  hasPendingStop(): boolean {
-    return this.stopSeen !== undefined && this.stopSeen > this.lastStopConsumed
-  }
-
-  stopConsumed(inboxId: number): void {
-    if (inboxId > this.lastStopConsumed) this.lastStopConsumed = inboxId
-  }
-
-  async pollStops(): Promise<void> {
-    const entries = await this.readStrict({ afterId: this.stopAfterId })
-    const last = entries[entries.length - 1]
-    if (last !== undefined) this.stopAfterId = last.inboxId
-    for (const entry of entries) {
-      if (entry.kind !== INBOX_KIND_STOP) continue
-      if (entry.inboxId <= this.lastStopConsumed) continue
-      if (this.stopSeen === undefined) {
-        this.stopSeen = entry.inboxId
-        this.args.onStop?.(entry.inboxId)
-      }
-    }
-  }
 
   async prepare(): Promise<PendingDrain> {
     const entries = await this.fetch({ afterId: this.afterId })

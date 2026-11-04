@@ -1,25 +1,26 @@
-import { EToolEffect, isResumable, type Lease, type ThreadId } from '@dltech/atlas-core'
+import {
+  EHeldAction,
+  EToolEffect,
+  isResumable,
+  type Lease,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { LoopTurnRunner, PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
 
 import { statusFrame, type SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
-import { createBranchObserver, createLoopRunner, logDriveFault } from './held-runner'
-import { InboxIntake } from './inbox-intake'
 import {
-  idleDueNow,
-  idleWaitMs,
-  pendingInputCount,
-  releaseIdleAndRewake,
-  teardownHeldSession,
-} from './held-idle'
-import {
-  consumeStops,
-  pollStopsWithRetry,
-  raceDeadline,
-  readRetryMs,
-  waitMs,
-  WakeSignal,
-} from './held-wait'
+  createBranchObserver,
+  createLoopRunner,
+  logDriveFault,
+  logReconcileFault,
+  startHeldTurn,
+} from './held-runner'
+import { releaseIdleAndRewake, teardownHeldSession } from './held-idle'
+import { readHeldAction } from './held-snapshot'
+import { IdleDeadline } from './idle-deadline'
+import { consumeStops, raceDeadline } from './held-wait'
+import { Reconciler } from './reconciler'
 import { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 
@@ -39,30 +40,33 @@ export class HeldSession {
   private lastActivityAt: number
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
-  private intake: InboxIntake | undefined
   private branches: BranchObserver | undefined
   private renewal: LeaseRenewal | undefined
-  private readonly wake = new WakeSignal()
+  private reconciler: Reconciler | undefined
+  private finishDrive: (() => void) | undefined
+  private readonly idle: IdleDeadline
   private leaseEpoch = 0
   private drainModelOnly = false
   private lostOwnership = false
   private released = false
-
-  get isSelfFenced(): boolean {
-    return this.renewal?.isSelfFenced ?? false
-  }
+  private ended = false
+  private resumePending = false
 
   constructor(deps: HeldSessionDeps) {
     this.deps = deps
     this.sessionId = deps.sessionId
     this.lastActivityAt = deps.timers.now()
     this.turns = new HeldTurns(deps)
+    this.idle = new IdleDeadline({
+      timers: deps.timers,
+      idleMinutes: deps.idleMinutes,
+      onDue: () => this.reconciler?.request(),
+    })
   }
 
   notifyWake(): void {
     if (this.draining || this.lostOwnership) return
-    this.wake.notify()
-    void this.retryStops()
+    this.reconciler?.request()
   }
 
   beginDrain(): void {
@@ -70,7 +74,7 @@ export class HeldSession {
     this.branches?.stop()
     this.pause.pause()
     this.record?.markDraining()
-    this.wake.notify()
+    this.reconciler?.request()
   }
 
   run(args: { lease: Lease; threadId: ThreadId }): Promise<void> {
@@ -129,21 +133,10 @@ export class HeldSession {
       this.record = record
       if (this.draining) record.markDraining()
 
-      const intake = new InboxIntake({
-        plane: deps.plane,
-        sessionId: deps.sessionId,
-        record,
-        threadId,
-        runId: () => deps.ids.nextRunId(),
-        onStop: () => this.turns.abort('stop'),
-        ...(deps.log === undefined ? {} : { log: deps.log }),
-      })
-      this.intake = intake
       const runner = createLoopRunner({
         deps,
         runtime,
         record,
-        intake,
         turns: this.turns,
         threadId,
         isModelOnlyDrain: () => this.drainModelOnly,
@@ -167,12 +160,21 @@ export class HeldSession {
       })
 
       const events = await record.ownEvents({ threadId })
-      await this.retryStops()
-      if (isResumable(events)) {
-        await this.driveTurn({ runner, threadId, resume: true })
-      }
+      this.resumePending = isResumable(events)
 
-      await this.pollLoop({ runner, threadId })
+      const completion = new Promise<void>((resolve) => {
+        this.finishDrive = resolve
+      })
+      if (!this.ended) {
+        const reconciler = new Reconciler({
+          timers: deps.timers,
+          step: () => this.step({ runner, threadId }),
+          onError: (error) => logReconcileFault({ deps, error }),
+        })
+        this.reconciler = reconciler
+        reconciler.request()
+        await completion
+      }
     } catch (error) {
       logDriveFault({ deps: this.deps, error })
     } finally {
@@ -180,80 +182,86 @@ export class HeldSession {
     }
   }
 
-  private async driveTurn(args: {
-    runner: LoopTurnRunner
-    threadId: ThreadId
-    resume: boolean
-  }): Promise<void> {
-    if (this.intake === undefined) return
-    await this.turns.drive({
+  private async step(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
+    if (this.ended) return
+    const deps = this.deps
+    const turnRunning = this.turns.turnRunning
+    if (this.draining) {
+      if (!turnRunning) this.finish()
+      return
+    }
+    const { entries, action } = await readHeldAction({
+      deps,
+      draining: this.draining,
+      turnRunning,
+      resumePending: this.resumePending,
+      lastActivityAt: this.lastActivityAt,
+      runtime: this.runtime,
+      released: this.released,
+    })
+    switch (action) {
+      case EHeldAction.AbortTurn: {
+        this.turns.abort('stop')
+        return
+      }
+      case EHeldAction.ConsumeStop: {
+        this.resumePending = false
+        await consumeStops({
+          deps,
+          record: this.record,
+          entries,
+          onActivity: () => {
+            this.lastActivityAt = deps.timers.now()
+          },
+        })
+        this.reconciler?.request()
+        return
+      }
+      case EHeldAction.StartTurn: {
+        const resume = this.resumePending
+        this.resumePending = false
+        this.lastActivityAt = deps.timers.now()
+        this.startTurn({ runner: args.runner, threadId: args.threadId, resume })
+        return
+      }
+      case EHeldAction.Release: {
+        await this.releaseIdle()
+        return
+      }
+      case EHeldAction.Wait: {
+        if (turnRunning) return
+        this.idle.arm({ lastActivityAt: this.lastActivityAt })
+      }
+    }
+  }
+
+  private startTurn(args: { runner: LoopTurnRunner; threadId: ThreadId; resume: boolean }): void {
+    this.idle.disarm()
+    startHeldTurn({
+      deps: this.deps,
+      turns: this.turns,
+      pause: this.pause,
       runner: args.runner,
       threadId: args.threadId,
-      pause: this.pause,
       resume: args.resume,
-      hasPendingStop: () => this.intake?.hasPendingStop() ?? false,
       onActivity: () => {
         this.lastActivityAt = this.deps.timers.now()
       },
-    })
-    await this.consumeStops()
-    if (!this.draining && !this.lostOwnership) await this.branches?.refresh()
-  }
-
-  private consumeStops(): Promise<void> {
-    return consumeStops({
-      deps: this.deps,
-      record: this.record,
-      intake: this.intake,
-      onActivity: () => {
-        this.lastActivityAt = this.deps.timers.now()
+      refreshBranches: () => {
+        if (this.draining || this.lostOwnership) return
+        void this.branches?.refresh().catch((error) => logDriveFault({ deps: this.deps, error }))
       },
+      onFault: () => this.finish(),
+      onSettled: () => this.reconciler?.request(),
     })
   }
 
-  private retryStops(): Promise<void> {
-    return pollStopsWithRetry({
-      deps: this.deps,
-      signal: this.lifetimeAbort.signal,
-      intake: () => this.intake,
-      active: () => !this.draining && !this.lostOwnership,
-      onStopSeen: () => this.wake.notify(),
-    })
-  }
-
-  private async pollLoop(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
-    const deps = this.deps
-    let readFailures = 0
-    while (!this.lifetimeAbort.signal.aborted) {
-      if (this.draining) return
-      this.wake.clear()
-      let pending: number
-      try {
-        await this.retryStops()
-        await this.consumeStops()
-        if (await this.checkIdle()) return
-        pending = await pendingInputCount(deps)
-        readFailures = 0
-      } catch {
-        readFailures += 1
-        await waitMs({
-          deps,
-          signal: this.lifetimeAbort.signal,
-          ms: readRetryMs({ failures: readFailures }),
-        })
-        continue
-      }
-      if (pending === 0) {
-        await this.wake.wait({
-          deps,
-          signal: this.lifetimeAbort.signal,
-          ms: idleWaitMs({ deps, lastActivityAt: this.lastActivityAt }),
-        })
-        continue
-      }
-      this.lastActivityAt = deps.timers.now()
-      await this.driveTurn({ runner: args.runner, threadId: args.threadId, resume: false })
-    }
+  private async releaseIdle(): Promise<void> {
+    if (this.runtime === undefined || this.released) return
+    this.released = true
+    const drop = (): void => this.drop()
+    const finish = (): void => this.finish()
+    await releaseIdleAndRewake({ deps: this.deps, runtime: this.runtime, drop, finish })
   }
 
   private drop(): void {
@@ -265,22 +273,15 @@ export class HeldSession {
     this.turns.abort()
     this.lifetimeAbort.abort()
     this.runtime?.remoteCalls.close()
+    this.finish()
   }
 
-  private async checkIdle(): Promise<boolean> {
-    const deps = this.deps
-    const due = await idleDueNow({
-      deps,
-      runtime: this.runtime,
-      turnRunning: this.turns.turnRunning,
-      lastActivityAt: this.lastActivityAt,
-      released: this.released,
-      pendingInput: () => pendingInputCount(deps),
-    })
-    if (!due || this.runtime === undefined) return false
-    this.released = true
-    await releaseIdleAndRewake({ deps, runtime: this.runtime, drop: () => this.drop() })
-    return true
+  private finish(): void {
+    if (this.ended) return
+    this.ended = true
+    this.idle.disarm()
+    this.reconciler?.stop()
+    this.finishDrive?.()
   }
 
   private async teardown(): Promise<void> {

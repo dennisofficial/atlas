@@ -4,16 +4,6 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 import type { SessionRuntime } from './ports'
 import type { HeldSessionDeps } from './held-session-deps'
 
-export const pendingInputCount = (deps: HeldSessionDeps): Promise<number> =>
-  deps.plane
-    .readInbox({ sessionId: deps.sessionId, afterId: 0, limit: 1 })
-    .then((entries) => entries.length)
-
-export const idleWaitMs = (args: { deps: HeldSessionDeps; lastActivityAt: number }): number => {
-  const deadline = args.lastActivityAt + args.deps.idleMinutes * 60_000
-  return Math.max(1, deadline - args.deps.timers.now())
-}
-
 export const idleReleaseDue = (args: {
   deps: HeldSessionDeps
   turnRunning: boolean
@@ -32,25 +22,6 @@ export const idleReleaseDue = (args: {
     pendingInput: args.pendingInput,
     idleMinutes: args.deps.idleMinutes,
     now: args.deps.timers.now(),
-  })
-}
-
-export const idleDueNow = async (args: {
-  deps: HeldSessionDeps
-  runtime: SessionRuntime | undefined
-  turnRunning: boolean
-  lastActivityAt: number
-  released: boolean
-  pendingInput(): Promise<number>
-}): Promise<boolean> => {
-  if (args.runtime === undefined) return false
-  return idleReleaseDue({
-    deps: args.deps,
-    turnRunning: args.turnRunning,
-    lastActivityAt: args.lastActivityAt,
-    runtime: args.runtime,
-    released: args.released,
-    pendingInput: (await args.pendingInput()) > 0,
   })
 }
 
@@ -93,16 +64,31 @@ export const releaseIdleSession = async (args: {
   }
 }
 
+const lateInputMaybePending = async (deps: HeldSessionDeps): Promise<boolean> => {
+  try {
+    const late = await deps.plane.readInbox({ sessionId: deps.sessionId, afterId: 0, limit: 1 })
+    return late.length > 0
+  } catch {
+    return true
+  }
+}
+
 export const releaseIdleAndRewake = async (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
   drop(): void
+  finish(): void
 }): Promise<void> => {
   const { deps } = args
-  await releaseIdleSession({ deps, runtime: args.runtime })
-  const late = await pendingInputCount(deps)
-  args.drop()
-  if (late === 0) return
-  deps.onDrop?.()
-  await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
+  try {
+    await releaseIdleSession({ deps, runtime: args.runtime })
+    const maybePending = await lateInputMaybePending(deps)
+    args.drop()
+    if (!maybePending) return
+    deps.onDrop?.()
+    await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
+  } finally {
+    args.drop()
+    args.finish()
+  }
 }

@@ -82,9 +82,9 @@ describe('SessionHolder wake routing', () => {
     let pendingReads = 0
     plane.readInbox = async (params) => {
       const entries = await readInbox(params)
-      if (params.limit !== 1) return entries
+      if (params.limit !== 100) return entries
       pendingReads += 1
-      if (pendingReads === 2) {
+      if (pendingReads === 1) {
         await rig.post('raced')
         await rig.bus.wake(SESSION)
       }
