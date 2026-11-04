@@ -13,6 +13,7 @@ import { daemonTestEnv } from '@dltech/atlas-daemon/testing'
 
 import { createRedisBus, type RedisBus } from '../bus/redis-bus'
 import { sandboxNameOf } from '../sandbox/sandbox-provider'
+import { proxiedDatabaseUrl, startOwnDbProxy, startOwnDaemonProxy } from './rig-proxies'
 
 const daemonEntry = join(import.meta.dir, '../../../daemon/src/index.ts')
 const hostEntry = join(import.meta.dir, 'host-process.ts')
@@ -29,6 +30,8 @@ export type RigDaemon = {
 
 export type HostProcess = {
   holderId: string
+  dbProxy: FaultProxy | undefined
+  daemonProxy: FaultProxy | undefined
   kill(signal: 'SIGKILL' | 'SIGTERM'): void
   exited: Promise<number>
   logs(): string[]
@@ -55,6 +58,9 @@ export type FaultRig = {
     daemonUrl: string
     scripts: Record<string, ScriptedModelStep[]>
     knobs?: HostKnobs
+    dbProxy?: 'shared' | 'own'
+    daemonProxy?: 'shared' | 'own'
+    redisUrl?: string
   }): Promise<HostProcess>
   stop(): Promise<void>
 }
@@ -111,13 +117,6 @@ export const startRig = async (args: {
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
   const bus: RedisBus = createRedisBus({ url: args.redisUrl })
   const closers: (() => Promise<void>)[] = []
-
-  const proxyDatabaseUrl = (): string => {
-    const url = new URL(args.databaseUrl)
-    url.hostname = '127.0.0.1'
-    url.port = String(dbProxy.port)
-    return url.toString()
-  }
 
   return {
     plane,
@@ -221,7 +220,21 @@ export const startRig = async (args: {
       }
     },
 
-    async spawnHost({ holderId, daemonUrl, scripts, knobs }) {
+    async spawnHost({
+      holderId,
+      daemonUrl,
+      scripts,
+      knobs,
+      dbProxy: dbProxyMode,
+      daemonProxy: daemonProxyMode,
+      redisUrl,
+    }) {
+      const ownDb =
+        dbProxyMode === 'own' ? await startOwnDbProxy({ databaseUrl: args.databaseUrl }) : undefined
+      if (ownDb !== undefined) closers.push(async () => ownDb.proxy.stop())
+      const ownDaemon =
+        daemonProxyMode === 'own' ? await startOwnDaemonProxy({ daemonUrl }) : undefined
+      if (ownDaemon !== undefined) closers.push(async () => ownDaemon.proxy.stop())
       const dir = mkdtempSync(join(tmpdir(), `atlas-fault-rig-host-${holderId}-`))
       closers.push(async () => {
         rmSync(dir, { recursive: true, force: true })
@@ -235,10 +248,11 @@ export const startRig = async (args: {
         env: {
           ...process.env,
           ATLAS_HOME: join(dir, 'atlas-home'),
-          DATABASE_URL: proxyDatabaseUrl(),
-          REDIS_URL: args.redisUrl,
+          DATABASE_URL:
+            ownDb?.url ?? proxiedDatabaseUrl({ databaseUrl: args.databaseUrl, port: dbProxy.port }),
+          REDIS_URL: redisUrl ?? args.redisUrl,
           HOLDER_ID: holderId,
-          DAEMON_URL: daemonUrl,
+          DAEMON_URL: ownDaemon?.url ?? daemonUrl,
           DAEMON_SECRET: RIG_SECRET,
           SCRIPT_FILE: scriptFile,
           WORKSPACE_DIR: workspace,
@@ -260,6 +274,8 @@ export const startRig = async (args: {
       })
       return {
         holderId,
+        dbProxy: ownDb?.proxy,
+        daemonProxy: ownDaemon?.proxy,
         kill(signal) {
           child.kill(signal)
         },
