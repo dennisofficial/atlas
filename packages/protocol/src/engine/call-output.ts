@@ -2,6 +2,8 @@ import { ECallFailure, type CallResult, type OpName } from '../ops'
 import type { CallStore } from './call-store'
 import { failedResult } from './results'
 
+export const OUTPUT_FRAME_BYTES = 64 * 1024
+
 export type CallSink = {
   output(args: { offset: number; bytes: Uint8Array }): void
   result(args: { result: CallResult }): void
@@ -132,7 +134,13 @@ export class CallOutput {
     const end = args.offset + args.bytes.length
     if (end <= cursor) return
     const skip = Math.max(0, cursor - args.offset)
-    args.sink.output({ offset: args.offset + skip, bytes: args.bytes.subarray(skip) })
+    for (let at = args.offset + skip; at < end; at += OUTPUT_FRAME_BYTES) {
+      const frameEnd = Math.min(end, at + OUTPUT_FRAME_BYTES)
+      args.sink.output({
+        offset: at,
+        bytes: args.bytes.subarray(at - args.offset, frameEnd - args.offset),
+      })
+    }
     this.cursors.set(args.owner, end)
   }
 

@@ -140,10 +140,8 @@ export class DaemonLink {
       )
       return
     }
-    if (parsed.data.kind === 'pong') {
-      this.misses = 0
-      return
-    }
+    this.misses = 0
+    if (parsed.data.kind === 'pong') return
     this.args.events.onFrame(parsed.data)
   }
 

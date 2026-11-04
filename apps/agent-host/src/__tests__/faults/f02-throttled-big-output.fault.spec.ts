@@ -44,7 +44,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
       await rig.stop()
     })
 
-    const runF2 = async (args: { pingMs?: number }): Promise<void> => {
+    const runF2 = async (args: { pingMs?: number; assertNoReconnect?: boolean }): Promise<void> => {
       const suffix = Math.random().toString(36).slice(2, 8)
       const sessionId = `fault-f02-${suffix}`
       const threadId = await rig.newSession({ sessionId, text: 'stream 5 mb' })
@@ -84,46 +84,55 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
         },
       })
       await rig.claim({ sessionId, holderId: 'host-a' })
-      await waitForFile({ path: startedFile })
+      try {
+        await waitForFile({ path: startedFile })
+        const acceptedBaseline = args.assertNoReconnect === true ? daemon.proxy.accepted() : 0
 
-      const events = await rig
-        .waitForSeq({
-          threadId,
-          want: (rows) =>
-            rows.some((row) => isOkResult(row, 'c1')) &&
-            rows.some((row) => row.type === 'assistant-said'),
-          timeoutMs: 220_000,
-        })
-        .catch((error: unknown) => {
-          throw new Error(
-            `${error instanceof Error ? error.message : String(error)}\nhostA logs:\n${hostA.logs().join('\n')}`,
-          )
-        })
+        const events = await rig
+          .waitForSeq({
+            threadId,
+            want: (rows) =>
+              rows.some((row) => isOkResult(row, 'c1')) &&
+              rows.some((row) => row.type === 'assistant-said'),
+            timeoutMs: 220_000,
+          })
+          .catch((error: unknown) => {
+            throw new Error(
+              `${error instanceof Error ? error.message : String(error)}\nhostA logs:\n${hostA.logs().join('\n')}`,
+            )
+          })
 
-      expectOneResultPerDispatch(events)
-      const result = events.find((row) => isOkResult(row, 'c1'))?.event as {
-        output?: { truncated?: boolean; exitCode?: number }
+        expectOneResultPerDispatch(events)
+        const result = events.find((row) => isOkResult(row, 'c1'))?.event as {
+          output?: { truncated?: boolean; exitCode?: number }
+        }
+        expect(result.output?.truncated).toBe(true)
+        expect(result.output?.exitCode).toBe(0)
+
+        const payloadLength = readFileSync(payloadFile).length
+        expect(sha256File(tapFile, payloadLength)).toBe(sha256File(payloadFile))
+
+        const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
+        expect(runs).toEqual(['run'])
+        if (args.assertNoReconnect === true) {
+          expect(daemon.proxy.accepted()).toBe(acceptedBaseline)
+        }
+
+        const lease = await rig.plane.currentLease({ sessionId })
+        expect(lease.lease.holderId).toBe('host-a')
+        expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
+      } finally {
+        hostA.kill('SIGKILL')
+        await hostA.exited.catch(() => undefined)
       }
-      expect(result.output?.truncated).toBe(true)
-      expect(result.output?.exitCode).toBe(0)
-
-      const payloadLength = readFileSync(payloadFile).length
-      expect(sha256File(tapFile, payloadLength)).toBe(sha256File(payloadFile))
-
-      const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
-      expect(runs).toEqual(['run'])
-
-      const lease = await rig.plane.currentLease({ sessionId })
-      expect(lease.lease.holderId).toBe('host-a')
-      expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
     }
 
     it('F2 throughput with pings parked (the saturated downstream starves pongs, which F4 owns)', async () => {
       await runF2({ pingMs: 600_000 })
     }, 260_000)
 
-    it.skip('F2 with default pings [gap: pongs starve behind bulk output; the link is declared dead ~30 s into a 64 KB/s stream]', async () => {
-      await runF2({})
+    it('F2 with default pings stays alive while output streams', async () => {
+      await runF2({ assertNoReconnect: true })
     }, 260_000)
   },
 )
