@@ -1,6 +1,7 @@
 import {
   chainEvents,
   chainHash,
+  toLoopEvent,
   type BlobPayload,
   type Event,
   type RunId,
@@ -14,7 +15,6 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import type { RemoteCalls } from '../../calls/remote-calls'
 import type { HostTimers } from '../ports'
-import { toLoopEvent } from './event-strip'
 import { RecordCache } from './record-cache'
 import { spillForAppend } from './record-spill'
 import { abortedOnHandoff, inboxIdOf, toRecordBody, type AppendBody } from './append-drafts'
@@ -180,7 +180,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
           : {}),
       })
       for (const event of events) {
-        const loop = toLoopEvent(this.cache.resolvedEvent(event))
+        const loop = toLoopEvent({ event: this.cache.resolvedEvent(event), log: this.cache.all() })
         if (loop !== undefined) committed.push(loop)
       }
     }

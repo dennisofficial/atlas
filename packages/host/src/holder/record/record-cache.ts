@@ -3,6 +3,7 @@ import {
   blobValueOf,
   chainHash,
   resolveBody,
+  toLoopEvent,
   visibleEvents,
   type LogHead,
   type ThreadId,
@@ -10,8 +11,6 @@ import {
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
-
-import { toLoopEvent } from './event-strip'
 
 const BLOB_FETCH_CONCURRENCY = 8
 
@@ -96,14 +95,14 @@ export class RecordCache {
 
   visibleLoopEvents() {
     return visibleEvents(this.events).flatMap((event) => {
-      const loop = toLoopEvent(this.resolvedEvent(event))
+      const loop = toLoopEvent({ event: this.resolvedEvent(event), log: this.events })
       return loop === undefined ? [] : [loop]
     })
   }
 
   loopEvents() {
     return this.events.flatMap((event) => {
-      const loop = toLoopEvent(this.resolvedEvent(event))
+      const loop = toLoopEvent({ event: this.resolvedEvent(event), log: this.events })
       return loop === undefined ? [] : [loop]
     })
   }

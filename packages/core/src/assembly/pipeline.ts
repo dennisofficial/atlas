@@ -5,6 +5,7 @@ import { agentEndingsBlock } from './rules/agent-endings-block'
 import { compactedHistory } from './rules/compacted-history'
 import { corruptImagesDropped, imagesInContext } from './rules/images'
 import { messagesFromEvents } from './rules/messages-from-events'
+import { opensOnUserTurn } from './rules/opens-on-user-turn'
 import { runningAgentsBlock, type RunningAgentsSource } from './rules/running-agents-block'
 import { runningServicesBlock, type RunningServicesSource } from './rules/running-services-block'
 import { runningShellsBlock, type RunningShellsSource } from './rules/running-shells-block'
@@ -36,6 +37,7 @@ export function defaultRules({
     messagesFromEvents(),
     agentEndingsBlock(),
     compactedHistory(),
+    opensOnUserTurn(),
     corruptImagesDropped(),
     imagesInContext(),
     worktreeBlock({ launchDirectory, repoRoot }),
