@@ -13,7 +13,7 @@ export const sessionListInputSchema = z.strictObject({
 
 export const sessionPostInputSchema = z.strictObject({
   sessionId: z.string().min(1),
-  text: z.string().min(1),
+  text: z.string().min(1).max(1_000_000),
 })
 
 export const sessionEventsInputSchema = z.strictObject({

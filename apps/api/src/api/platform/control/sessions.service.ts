@@ -4,6 +4,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
   blobValueOf,
+  canonicalEvent,
   isBlobRef,
   sessionStatusOf,
   type InboxEntry,
@@ -24,6 +25,7 @@ export type LeaseView = { epoch: number; holderId: string | null; live: boolean 
 
 const STATUS_EVENT_LIMIT = 1000
 const EVENTS_DEFAULT_MAX_BYTES = 2_000_000
+const EVENTS_HARD_CEILING_BYTES = 3_500_000
 const BLOB_READ_DEFAULT_LENGTH = 1_000_000
 
 const toSummary = (row: ControlSessionRow) => ({
@@ -33,6 +35,12 @@ const toSummary = (row: ControlSessionRow) => ({
   mainThreadId: row.mainThreadId,
   createdAt: row.createdAt,
 })
+
+const toPageEvent = (event: V2Event): Record<string, unknown> => {
+  const bytes = Buffer.byteLength(canonicalEvent(event), 'utf8')
+  if (bytes <= EVENTS_HARD_CEILING_BYTES) return event as Record<string, unknown>
+  return { seq: event.seq, type: event.type, oversized: { bytes } }
+}
 
 @Injectable()
 export class SessionsService {
@@ -109,7 +117,7 @@ export class SessionsService {
       maxBytes: args.maxBytes ?? EVENTS_DEFAULT_MAX_BYTES,
     })
     return {
-      events: page.events.map((event) => event as Record<string, unknown>),
+      events: page.events.map(toPageEvent),
       ...(page.next === undefined ? {} : { next: page.next }),
     }
   }
