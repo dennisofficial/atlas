@@ -303,6 +303,63 @@
   {
     "ref": {
       "providerId": "inference",
+      "modelId": "deepseek-v4.1-flash-1017-cyber"
+    },
+    "label": "deepseek-v4.1-flash-1017-cyber",
+    "api": "openai-completions",
+    "contextWindow": 1040000,
+    "imageTier": "standard",
+    "maxOutputTokens": 393216,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "deepseek-v4.1-flash-with-ads"
+    },
+    "label": "deepseek-v4.1-flash-with-ads",
+    "api": "openai-completions",
+    "contextWindow": 1040000,
+    "imageTier": "standard",
+    "maxOutputTokens": 393216,
+    "cost": {
+      "inputPerMillion": 0.285,
+      "outputPerMillion": 0.95
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "deepseek-v4.1-pro"
+    },
+    "label": "deepseek-v4.1-pro",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 393216,
+    "cost": {
+      "inputPerMillion": 1.32,
+      "outputPerMillion": 3.96
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
       "modelId": "gemini-2.5-flash"
     },
     "label": "gemini-2.5-flash",
@@ -620,6 +677,26 @@
     "cost": {
       "inputPerMillion": 0.1,
       "outputPerMillion": 0.45
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "glm-5.3-with-ads"
+    },
+    "label": "glm-5.3-with-ads",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 943718,
+    "cost": {
+      "inputPerMillion": 0.855,
+      "outputPerMillion": 2.85
     },
     "effort": {
       "low": "low",
@@ -1069,6 +1146,27 @@
   {
     "ref": {
       "providerId": "inference",
+      "modelId": "kimi-k3.1-pro"
+    },
+    "label": "kimi-k3.1-pro",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 1.8,
+      "outputPerMillion": 9
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
       "modelId": "llama-3.2-1b-instruct"
     },
     "label": "llama-3.2-1b-instruct",
@@ -1178,6 +1276,27 @@
   {
     "ref": {
       "providerId": "inference",
+      "modelId": "moonshotai/kimi-k3-with-ads"
+    },
+    "label": "moonshotai/kimi-k3-with-ads",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 2.4,
+      "outputPerMillion": 12
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
       "modelId": "nemotron-3-super"
     },
     "label": "nemotron-3-super",
@@ -1240,26 +1359,6 @@
     },
     "effort": {
       "off": "none",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "inference",
-      "modelId": "stepfun/step-5-preview"
-    },
-    "label": "stepfun/step-5-preview",
-    "api": "openai-completions",
-    "contextWindow": 1048576,
-    "imageTier": "standard",
-    "maxOutputTokens": 131072,
-    "cost": {
-      "inputPerMillion": 1,
-      "outputPerMillion": 2.7
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
       "high": "high"
     }
   }

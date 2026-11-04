@@ -49,6 +49,14 @@ export const PROVIDER_SPECS: readonly ProviderSpec[] = [
     apiKeyVariable: 'INFERENCE_API_KEY',
     reachable: true,
   },
+  {
+    provider: EAuthProvider.Gateway,
+    label: 'Vercel AI Gateway',
+    kinds: [EAuthKind.ApiKey],
+    logins: [ELoginFlow.ApiKey],
+    apiKeyVariable: 'AI_GATEWAY_API_KEY',
+    reachable: true,
+  },
 ]
 
 export const providerSpec = (provider: EAuthProvider): ProviderSpec => {

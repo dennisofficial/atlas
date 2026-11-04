@@ -15,6 +15,8 @@ import { cardsForProvider, enrichLiveCards, withoutDatedDuplicates } from '@dlte
 import {
   CLAUDE_PLAN_LABEL,
   CODEX_PLAN_LABEL,
+  GATEWAY_LABEL,
+  GATEWAY_PROVIDER_ID,
   INFERENCE_LABEL,
   INFERENCE_PROVIDER_ID,
   OPENAI_PROVIDER_ID,
@@ -167,6 +169,7 @@ export const catalogueProviders = (): readonly CatalogueSource[] => [
   staticSource({ id: OPENAI_PROVIDER_ID, label: CODEX_PLAN_LABEL }),
   staticSource({ id: OPENROUTER_PROVIDER_ID, label: OPENROUTER_LABEL }),
   staticSource({ id: INFERENCE_PROVIDER_ID, label: INFERENCE_LABEL }),
+  staticSource({ id: GATEWAY_PROVIDER_ID, label: GATEWAY_LABEL }),
 ]
 
 export const unanswerableRef = (key: string): Error =>

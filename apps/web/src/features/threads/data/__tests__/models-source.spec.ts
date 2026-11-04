@@ -36,7 +36,7 @@ describe('modelOptionsOfSource', () => {
     const connected = models.filter((model) => model.disabled !== true)
     expect(connected.length).toBeGreaterThan(0)
     expect(connected.every((model) => model.provider === 'Claude Plan')).toBe(true)
-    expect(new Set(models.map((model) => model.provider)).size).toBe(4)
+    expect(new Set(models.map((model) => model.provider)).size).toBe(5)
   })
 
   it('builds the live options on the live path', () => {

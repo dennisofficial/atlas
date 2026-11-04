@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { AiSdkModelPort } from '../ai-sdk-model-port'
-import { GATEWAY_PROVIDER_ID, providerIdentityOf } from '../provider-identity'
+import { GATEWAY_PROVIDER_ID } from '../../models/provider-ids'
+import { providerIdentityOf } from '../provider-identity'
 import { createSwitchableModel } from '../switchable-model'
 import { scriptedModel } from '../testing/scripted-model'
 

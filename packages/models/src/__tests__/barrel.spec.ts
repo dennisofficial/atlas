@@ -8,7 +8,9 @@ describe('models barrel', () => {
     expect(typeof models.cardsForProvider).toBe('function')
     expect(typeof models.withoutDatedDuplicates).toBe('function')
     expect(typeof models.enrichLiveCards).toBe('function')
-    expect(models.GENERATED_MANIFEST.source).toBe('models.dev + api.inference.net')
+    expect(models.GENERATED_MANIFEST.source).toBe(
+      'models.dev + api.inference.net + ai-gateway.vercel.sh',
+    )
   })
 
   it('resolves the same catalogue through the barrel as through the module', () => {

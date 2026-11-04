@@ -3,11 +3,13 @@ import { fileURLToPath } from 'node:url'
 import { MODELS_DEV_PROVIDER_IDS, type GeneratedManifest } from '../src/generated-card'
 import { mapProvider } from './catalogue-map'
 import type { ProviderMapping, ProviderReport } from './catalogue-report'
+import { mapGatewayModels } from './gateway-map'
 import { mapInferenceModels } from './inference-map'
 import { fetchInferenceModels, INFERENCE_SOURCE } from './inference-net'
 import { fetchModelsDevIndex, MODELS_DEV_SOURCE } from './models-dev'
+import { fetchGatewayModels, GATEWAY_SOURCE } from './vercel-gateway'
 
-const SOURCE = `${MODELS_DEV_SOURCE} + ${INFERENCE_SOURCE}`
+const SOURCE = `${MODELS_DEV_SOURCE} + ${INFERENCE_SOURCE} + ${GATEWAY_SOURCE}`
 
 const SHRINK_FLOOR = 0.6
 const OUTPUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '../src/generated')
@@ -96,6 +98,7 @@ async function main(): Promise<void> {
   }
 
   mappings.push(mapInferenceModels(await fetchInferenceModels()))
+  mappings.push(mapGatewayModels(await fetchGatewayModels()))
 
   await assertNoShrink(mappings)
 

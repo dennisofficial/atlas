@@ -76,6 +76,7 @@ describe('providerRows', () => {
       EAuthProvider.OpenAI,
       EAuthProvider.OpenRouter,
       EAuthProvider.Inference,
+      EAuthProvider.Gateway,
     ])
     expect(rows.every((row) => row.accounts.length === 0)).toBe(true)
   })

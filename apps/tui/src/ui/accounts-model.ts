@@ -66,6 +66,7 @@ const PROVIDER_ORDER: readonly EAuthProvider[] = [
   EAuthProvider.OpenAI,
   EAuthProvider.OpenRouter,
   EAuthProvider.Inference,
+  EAuthProvider.Gateway,
 ]
 
 export function providerRows(args: {

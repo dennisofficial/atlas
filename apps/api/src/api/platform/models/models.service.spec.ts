@@ -42,6 +42,7 @@ describe('ModelsService', () => {
       'openai',
       'openrouter',
       'inference',
+      'gateway',
     ])
     for (const provider of response.providers) {
       expect(provider.status).toBe(EModelProviderStatus.Unavailable)

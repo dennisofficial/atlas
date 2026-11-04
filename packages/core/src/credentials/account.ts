@@ -10,6 +10,7 @@ export enum EAuthProvider {
   OpenAI = 'openai',
   OpenRouter = 'openrouter',
   Inference = 'inference',
+  Gateway = 'gateway',
 }
 
 export enum EAccountStatus {

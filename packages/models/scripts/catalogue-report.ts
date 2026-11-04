@@ -7,6 +7,8 @@ export enum ESkipReason {
   NoToolCall = 'tool_call is not true',
   NoContextWindow = 'limit.context is missing',
   NoChatEndpoint = 'supported_endpoints omits chat',
+  NotLanguage = 'type is not language',
+  BatchOnly = 'served by the batch api only',
 }
 
 export enum ENote {
