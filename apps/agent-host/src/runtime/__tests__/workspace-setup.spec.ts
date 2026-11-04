@@ -256,6 +256,39 @@ describe('ensureWorkspace', () => {
     calls.close()
   }, 60_000)
 
+  it('does not report ok or mark the workspace materialized after a failed additional clone', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-extra-'))
+    const launchDirectory = join(root, 'workspace')
+    const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-extra' })
+    const workspace = {
+      remoteUrl: makeRemote(root),
+      baseBranch: null,
+      additionalRepos: [{ repo: 'nobody/missing-extra' }],
+      setupScript: '',
+    }
+    const run = () =>
+      setupFor({
+        sessionId: 'setup-session-extra',
+        calls,
+        processes,
+        files,
+        workspace,
+        launchDirectory,
+      })
+
+    const failed = await run()
+    expect(failed.ok).toBe(false)
+    expect(existsSync(join(root, WORKSPACE_STATE_DIR, MATERIALIZED_SENTINEL))).toBe(false)
+    writeFileSync(join(launchDirectory, 'marker.txt'), 'primary stays\n')
+
+    const retried = await run()
+    expect(retried.ok).toBe(false)
+    if (!retried.ok) expect(retried.reason).toContain('additional repo nobody/missing-extra')
+    expect(readFileSync(join(launchDirectory, 'marker.txt'), 'utf8')).toBe('primary stays\n')
+    expect(existsSync(join(root, WORKSPACE_STATE_DIR, MATERIALIZED_SENTINEL))).toBe(false)
+    calls.close()
+  }, 60_000)
+
   it('never lets the github token reach the log or outlive the setup', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-scrub-'))
     const launchDirectory = join(root, 'workspace')
