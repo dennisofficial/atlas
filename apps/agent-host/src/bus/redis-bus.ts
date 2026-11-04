@@ -28,6 +28,12 @@ export const createRedisBus = (args: { url: string; log?: LogPort | undefined })
     args.log?.error({ source, message, ...logFieldsOf({ error }) })
   }
 
+  publisher.on('error', (error: unknown) => {
+    logError('bus.publisher', 'redis publisher connection error', error)
+  })
+  subscriber.on('error', (error: unknown) => {
+    logError('bus.subscriber', 'redis subscriber connection error', error)
+  })
   subscriber.subscribe(WAKE_CHANNEL).catch((error: unknown) => {
     logError('bus.subscribe', 'subscribing to the wake channel failed', error)
   })

@@ -48,6 +48,7 @@ export type SessionRuntimeFactoryArgs = {
   daemonSecret: string
   timers: HostTimers
   modelFor?: ((args: { sessionId: string }) => ModelPort) | undefined
+  launchDirectory?: string | undefined
   log?: LogPort | undefined
 }
 
@@ -56,6 +57,7 @@ const fallbackModelId = 'claude-sonnet-4-5'
 export const createSessionRuntimeFactory = (
   args: SessionRuntimeFactoryArgs,
 ): SessionRuntimeFactory => {
+  const launchDirectory = args.launchDirectory ?? WORKSPACE_PATH
   return async ({ sessionId, epoch, signal }) => {
     const config = await args.api.config({ sessionId })
     if (config.vercel.configured === false) {
@@ -154,9 +156,9 @@ export const createSessionRuntimeFactory = (
       tools: registry,
       daemonTools: new Set(byName.keys()),
       effectOf: (name) => byName.get(name)?.effect,
-      assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: WORKSPACE_PATH }),
+      assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory }),
       normalizeFailure: normalizeProviderFailure,
-      launchDirectory: WORKSPACE_PATH,
+      launchDirectory,
       stop: async () => {
         stopKeepAlive()
         calls.close()

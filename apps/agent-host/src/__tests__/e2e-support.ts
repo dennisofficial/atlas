@@ -16,6 +16,7 @@ import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import type { AgentHostApi } from '../config/agent-host-api'
 
 process.env.ATLAS_HOME = mkdtempSync(join(tmpdir(), 'atlas-agent-host-e2e-'))
+const E2E_WORKSPACE = mkdtempSync(join(tmpdir(), 'atlas-agent-host-e2e-workspace-'))
 
 export const E2E_SECRET = 'e2e-daemon-secret'
 
@@ -109,6 +110,7 @@ export const makeHolder = (args: {
       daemonSecret: E2E_SECRET,
       timers,
       modelFor: ({ sessionId }) => new ScriptedModel(args.scripts[sessionId] ?? []),
+      launchDirectory: E2E_WORKSPACE,
     }),
     ids: new RandomIds(),
     maxSessions: 25,
