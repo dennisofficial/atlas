@@ -1,4 +1,6 @@
 import { afterAll, describe, expect, it } from 'bun:test'
+import { join } from 'node:path'
+
 import { Redis } from 'ioredis'
 
 import { sessionLiveChannel, WAKE_CHANNEL } from '@dltech/atlas-protocol'
@@ -13,6 +15,21 @@ const waitFor = async (args: { condition: () => boolean; timeoutMs?: number }): 
   while (!args.condition()) {
     if (Date.now() > deadline) throw new Error('timed out waiting for a condition')
     await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+}
+
+const composeFile = join(import.meta.dir, '../../../../api/docker-compose.yml')
+
+const compose = async (...args: string[]): Promise<void> => {
+  const spawned = Bun.spawn({
+    cmd: ['docker', 'compose', '-f', composeFile, ...args],
+    stdout: 'pipe',
+    stderr: 'pipe',
+  })
+  const exitCode = await spawned.exited
+  if (exitCode !== 0) {
+    const stderr = await new Response(spawned.stderr).text()
+    throw new Error(`docker compose ${args.join(' ')} exited ${exitCode}: ${stderr}`)
   }
 }
 
@@ -67,6 +84,33 @@ describe('redis bus', () => {
     await waitFor({ condition: () => received.includes('good-one') })
     expect(received).toEqual(['good-one'])
   })
+
+  it('receives a wake published after redis recovers from a startup outage', async () => {
+    await compose('stop', 'test-redis')
+    try {
+      const receiver = makeBus()
+      const received: string[] = []
+      receiver.onWake((sessionId) => {
+        received.push(sessionId)
+      })
+      await new Promise((resolve) => setTimeout(resolve, 3_000))
+      await compose('start', 'test-redis')
+      const sender = makeBus()
+      const publishing = (async () => {
+        while (!received.includes('session-after-outage')) {
+          await sender.wake('session-after-outage').catch(() => undefined)
+          await new Promise((resolve) => setTimeout(resolve, 300))
+        }
+      })()
+      await waitFor({
+        condition: () => received.includes('session-after-outage'),
+        timeoutMs: 15_000,
+      })
+      await publishing
+    } finally {
+      await compose('start', 'test-redis').catch(() => undefined)
+    }
+  }, 30_000)
 
   it('publishes a live frame on the session channel', async () => {
     const bus = makeBus()

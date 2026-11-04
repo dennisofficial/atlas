@@ -19,7 +19,9 @@ export const createRedisBus = (args: { url: string; log?: LogPort | undefined })
     maxRetriesPerRequest: 3,
   }
   const publisher = new Redis(args.url, options)
-  const subscriber = new Redis(args.url, options)
+  // ioredis only resubscribes subscriptions it acknowledges, so a wake-channel
+  // subscribe that outlives its retries is lost for good: the subscriber retries forever.
+  const subscriber = new Redis(args.url, { ...options, maxRetriesPerRequest: null })
   const listeners = new Set<(sessionId: string) => void>()
 
   const logError = (source: string, message: string, error: unknown): void => {
