@@ -45,7 +45,6 @@ export class SessionHolder {
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
-  private readonly fencedOut = new Set<string>()
   private readonly pendingClaims = new Map<string, Promise<void>>()
   private unsubWake: (() => void) | undefined
   private draining = false
@@ -94,11 +93,16 @@ export class SessionHolder {
     return [...this.held.keys()]
   }
 
+  discard(): void {
+    this.draining = true
+    this.unsubWake?.()
+    for (const session of this.held.values()) session.discard()
+  }
+
   private onWake(sessionId: string): void {
     if (this.draining) return
     if (this.held.has(sessionId)) return
     if (this.pendingClaims.has(sessionId)) return
-    if (this.fencedOut.has(sessionId)) return
     if (this.held.size + this.pendingClaims.size >= this.maxSessions) return
     const pending = this.claimAndHold(sessionId).finally(() => {
       this.pendingClaims.delete(sessionId)
@@ -135,15 +139,32 @@ export class SessionHolder {
   private async hold(args: { sessionId: string; lease: Lease }): Promise<void> {
     const row = await this.plane.readSession({ sessionId: args.sessionId })
     if (row === undefined) return
-    const session = new HeldSession(this.deps({ sessionId: args.sessionId }))
+    const session = new HeldSession(
+      this.deps({
+        sessionId: args.sessionId,
+        onDrop: () => {
+          if (this.held.get(args.sessionId) === session) this.held.delete(args.sessionId)
+        },
+      }),
+    )
     this.held.set(args.sessionId, session)
-    session.run({ lease: args.lease, threadId: toThreadId(row.mainThreadId) }).finally(() => {
-      if (session.isSelfFenced) this.fencedOut.add(args.sessionId)
-      if (this.held.get(args.sessionId) === session) this.held.delete(args.sessionId)
-    })
+    const done = session.run({ lease: args.lease, threadId: toThreadId(row.mainThreadId) })
+    done.then(
+      () => {
+        if (this.held.get(args.sessionId) === session) this.held.delete(args.sessionId)
+      },
+      (error) => {
+        this.log?.error({
+          source: 'holder.session',
+          message: `the drive of ${args.sessionId} rejected past its guard`,
+          ...logFieldsOf({ error }),
+        })
+        if (this.held.get(args.sessionId) === session) this.held.delete(args.sessionId)
+      },
+    )
   }
 
-  private deps(args: { sessionId: string }): HeldSessionDeps {
+  private deps(args: { sessionId: string; onDrop?: (() => void) | undefined }): HeldSessionDeps {
     return {
       sessionId: args.sessionId,
       holderId: this.holderId,
@@ -157,6 +178,7 @@ export class SessionHolder {
       inboxPollMs: this.inboxPollMs,
       idleMinutes: this.idleMinutes,
       runtimeFor: this.runtimes,
+      ...(args.onDrop === undefined ? {} : { onDrop: args.onDrop }),
       log: this.log,
     }
   }

@@ -14,19 +14,11 @@ const longExecScript = [
 const leaseExpiry = 31_000
 
 const crashA = async (a: HolderRig): Promise<void> => {
-  const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
-  a.clock.advance(1_100)
-  await drain
-  await new Promise((resolve) => setTimeout(resolve, 1_000))
+  a.holder.discard()
+  await a.flush()
 }
 
-const rerunAbruptly = (a: HolderRig): void => {
-  const runtimes = a.runtimes
-  if (runtimes.length === 0) throw new Error('no runtime')
-  for (const runtime of runtimes) runtime.remoteCalls.close()
-}
-
-const hasInterruptedResult = async (rig: HolderRig): Promise<boolean> => {
+const hasInterruptedResult = async (rig: HolderRig, needle: string): Promise<boolean> => {
   const raw = await rig.plane.readEvents({
     threadId: THREAD_ID,
     afterSeq: 0,
@@ -34,10 +26,25 @@ const hasInterruptedResult = async (rig: HolderRig): Promise<boolean> => {
     visible: false,
   })
   return raw.events.some(
-    (event) =>
-      event.type === 'tool-result' &&
-      JSON.stringify(event).includes('interrupted by a process restart'),
+    (event) => event.type === 'tool-result' && JSON.stringify(event).includes(needle),
   )
+}
+
+const claimWith = async (a: HolderRig, script: readonly { text: string }[]): Promise<HolderRig> => {
+  a.clock.advance(leaseExpiry)
+  const b = await makeRig({
+    holderId: 'holder-b',
+    plane: a.plane,
+    bus: a.bus,
+    clock: a.clock,
+    daemon: a.daemon,
+    script,
+  })
+  await b.holder.start()
+  await a.bus.wake(SESSION)
+  const claimed = await flushUntil({ check: () => b.runtimes.length > 0 })
+  expect(claimed).toBe(true)
+  return b
 }
 
 describe('SessionHolder crash (F11/F13/F14)', () => {
@@ -54,18 +61,8 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
     expect(a.daemon.runCount()).toBe(1)
 
     await crashA(a)
-    a.clock.advance(leaseExpiry)
-
-    const b = await makeRig({
-      holderId: 'holder-b',
-      plane: a.plane,
-      bus: a.bus,
-      clock: a.clock,
-      daemon: a.daemon,
-      script: [{ text: 'collected' }],
-    })
-    await b.holder.start()
-    await a.bus.wake(SESSION)
+    const b = await claimWith(a, [{ text: 'collected' }])
+    expect(b.runtimes.length).toBeGreaterThan(0)
 
     const settled = await flushUntil({
       check: async () => (await a.events()).some((event) => event.type === 'tool-result'),
@@ -89,18 +86,7 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
     expect(dispatched).toBe(true)
 
     await crashA(a)
-    a.clock.advance(leaseExpiry)
-
-    const b = await makeRig({
-      holderId: 'holder-b',
-      plane: a.plane,
-      bus: a.bus,
-      clock: a.clock,
-      daemon: a.daemon,
-      script: [{ text: 'rerun done' }],
-    })
-    await b.holder.start()
-    await a.bus.wake(SESSION)
+    await claimWith(a, [{ text: 'rerun done' }])
 
     const settled = await flushUntil({
       check: async () => (await a.events()).some((event) => event.type === 'tool-result'),
@@ -111,18 +97,12 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
     expect(results.length).toBe(1)
   }, 15_000)
 
-  it('after a daemon restart a bash call becomes interrupted', async () => {
+  it('after a daemon restart a bash call is reported interrupted', async () => {
     const stillRunning = [
       {
-        calls: [
-          {
-            callId: 'call-1',
-            name: 'bash',
-            input: { command: 'echo started; sleep 600; echo late' },
-          },
-        ],
+        calls: [{ callId: 'call-1', name: 'bash', input: { command: 'echo started; sleep 600' } }],
       },
-      { text: 'after crash' },
+      { text: 'after restart' },
     ] as const
     const a = await makeRig({ holderId: 'holder-a', script: stillRunning })
     await seedSession(a)
@@ -135,26 +115,21 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
     expect(dispatched).toBe(true)
     const bootBefore = a.daemon.bootId()
 
-    rerunAbruptly(a)
     await a.daemon.restart()
     expect(a.daemon.bootId()).not.toBe(bootBefore)
+    await crashA(a)
     a.clock.advance(leaseExpiry)
 
-    const b = await makeRig({
-      holderId: 'holder-b',
-      plane: a.plane,
-      bus: a.bus,
-      clock: a.clock,
-      daemon: a.daemon,
-      script: [{ text: 'recovered' }],
-    })
-    await b.holder.start()
-    await a.bus.wake(SESSION)
+    const b = await claimWith(a, [{ text: 'recovered' }])
+    expect(b.runtimes.length).toBeGreaterThan(0)
 
     const settled = await flushUntil({
-      check: () => hasInterruptedResult(a),
+      check: () => hasInterruptedResult(a, 'interrupted by a process restart'),
       attempts: 200,
     })
     expect(settled).toBe(true)
+    const results = (await a.events()).filter((event) => event.type === 'tool-result')
+    expect(results.length).toBe(1)
+    expect((await a.events()).filter((event) => event.type === 'tool-dispatched').length).toBe(1)
   }, 15_000)
 })

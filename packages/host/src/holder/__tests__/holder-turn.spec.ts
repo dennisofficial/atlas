@@ -25,6 +25,12 @@ describe('SessionHolder turn', () => {
   it('post -> claim -> input-consumed + user-said in one append, then assistant-said', async () => {
     const rig = await makeRig({ script: [{ text: 'hello back' }] })
     await seedSession(rig)
+    const appends: { type: string }[][] = []
+    const originalAppend = rig.plane.append.bind(rig.plane)
+    rig.plane.append = (async (params: Parameters<typeof rig.plane.append>[0]) => {
+      appends.push(params.events.map((event) => ({ type: (event as { type: string }).type })))
+      return originalAppend(params)
+    }) as typeof rig.plane.append
     await rig.holder.start()
 
     const posted = await postAndRun(rig, 'hello')
@@ -32,6 +38,10 @@ describe('SessionHolder turn', () => {
       check: async () => (await rig.events()).some((e) => e.type === 'assistant-said'),
     })
     expect(saw).toBe(true)
+
+    expect(appends.length).toBe(2)
+    expect(appends[0]?.map((event) => event.type)).toEqual(['input-consumed', 'user-said'])
+    expect(appends[1]?.map((event) => event.type)).toEqual(['assistant-said'])
 
     const log = await fullLog(rig)
     const types = log.map((event) => event.type)

@@ -9,15 +9,15 @@ import {
 } from '@dltech/atlas-core'
 import type { AppendOutcome, ControlPlane } from '@dltech/atlas-control'
 import type { AgentRecordPort, ModelContextPort } from '@dltech/atlas-agent'
-import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+import type { LogPort } from '@dltech/atlas-observability'
 
-import { markDispatched, scopeKeyOf } from '../../calls/call-scope'
 import type { RemoteCalls } from '../../calls/remote-calls'
 import type { HostTimers } from '../ports'
 import { toLoopEvent } from './event-strip'
 import { RecordCache } from './record-cache'
 import { abortedOnHandoff, inboxIdOf, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
+import { ackDaemonScope, ackRecordedDaemonResults, prepareDraft, resyncHead } from './record-commit'
 
 export { RecordCorruptionError }
 export type { AppendBody }
@@ -64,6 +64,12 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
 
   static async open(args: SessionRecordArgs): Promise<SessionRecord> {
     const cache = await RecordCache.load({ plane: args.plane, threadId: args.threadId })
+    await ackRecordedDaemonResults({
+      cache,
+      daemonTools: args.daemonTools,
+      remoteCalls: args.remoteCalls,
+      ...(args.log === undefined ? {} : { log: args.log }),
+    })
     return new SessionRecord(args, cache)
   }
 
@@ -85,13 +91,13 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   }
 
   async ownEvents(args: { threadId: ThreadId; afterSeq?: number }): Promise<Event[]> {
-    const events = this.cache.loopEvents()
+    const events = this.cache.visibleLoopEvents()
     if (args.afterSeq === undefined) return events
     return events.filter((event) => event.seq > (args.afterSeq ?? 0))
   }
 
   async composedEvents(_args: { threadId: ThreadId }): Promise<Event[]> {
-    return this.cache.loopEvents()
+    return this.cache.visibleLoopEvents()
   }
 
   async read(_args: { threadId: ThreadId }): Promise<{ events: readonly Event[] }> {
@@ -124,10 +130,16 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       throw new LeaseLostError('the holder self-fenced; no append is attempted', 'self-fenced')
     }
     const committed: Event[] = []
+    let head = this.cache.currentHead()
     for (const raw of args.drafts) {
-      const draft = await this.prepareDraft({
-        draft: abortedOnHandoff(raw, this.draining),
-      })
+      const draft = await prepareDraft(
+        {
+          cache: this.cache,
+          daemonTools: this.args.daemonTools,
+          remoteCalls: this.args.remoteCalls,
+        },
+        abortedOnHandoff(raw, this.draining),
+      )
       if (draft === undefined) continue
       const bodies: V2Body[] = []
       const inboxId = inboxIdOf(draft)
@@ -138,10 +150,12 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
         runId: args.runId,
         epoch: this.args.epoch,
         bodies,
-        from: this.cache.currentHead(),
+        from: head,
         at: this.args.nowIso(),
         ...(args.parentRunId === undefined ? {} : { parentRunId: args.parentRunId }),
       })
+      const last = events[events.length - 1]
+      if (last !== undefined) head = { seq: last.seq, hash: chainHash(last) }
       await this.commitWithRetry({
         threadId: args.threadId,
         events,
@@ -157,46 +171,6 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return committed
   }
 
-  private async prepareDraft(args: { draft: AppendBody }): Promise<AppendBody | undefined> {
-    const { draft } = args
-    if (draft.type !== 'tool-dispatched') return draft
-    const recorded = this.cache.findDispatched(draft.callId)
-    if (recorded !== undefined) {
-      if (recorded.bootId !== undefined && recorded.bootId !== null) {
-        markDispatched({ bootId: recorded.bootId })
-      }
-      return undefined
-    }
-    if (!this.args.daemonTools.has(draft.name)) return draft
-    await this.args.remoteCalls.ready()
-    const bootId = this.args.remoteCalls.bootId()
-    if (bootId === undefined) {
-      throw new RecordCorruptionError('the daemon link had no bootId after ready() resolved')
-    }
-    markDispatched({ bootId })
-    return { ...draft, bootId }
-  }
-
-  private async ackDaemonScope(args: {
-    callId: string
-    name: string
-    runId: RunId
-  }): Promise<void> {
-    if (!this.args.daemonTools.has(args.name)) return
-    try {
-      await this.args.remoteCalls.ackScope({
-        scopeKey: scopeKeyOf({ runId: args.runId, callId: args.callId }),
-      })
-    } catch (error) {
-      this.args.log?.error({
-        source: 'holder.record',
-        message: `acking the daemon scope of ${args.name} failed; the daemon prunes it at boot`,
-        data: { tool: args.name },
-        ...logFieldsOf({ error }),
-      })
-    }
-  }
-
   private async commitWithRetry(args: {
     threadId: ThreadId
     events: V2Event[]
@@ -210,12 +184,16 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       if (this.retryExhausted()) {
         this.lost(new LeaseLostError('the record store never answered in time', 'retry-exhausted'))
       }
-      const outcome = await this.tryAppend({
-        threadId: args.threadId,
-        events: args.events,
-      })
+      const outcome = await this.tryAppend({ threadId: args.threadId, events: args.events })
       if (outcome === 'committed') {
-        if (args.ackDaemon !== undefined) await this.ackDaemonScope(args.ackDaemon)
+        if (args.ackDaemon !== undefined) {
+          await ackDaemonScope({
+            ...args.ackDaemon,
+            daemonTools: this.args.daemonTools,
+            remoteCalls: this.args.remoteCalls,
+            ...(this.args.log === undefined ? {} : { log: this.args.log }),
+          })
+        }
         return
       }
       await this.sleep(delayMs)
@@ -253,7 +231,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     if (refusal.kind !== 'seq-mismatch') {
       throw new RecordCorruptionError(`append refused: ${JSON.stringify(refusal)}`)
     }
-    await this.resyncHead({ threadId: args.threadId })
+    await resyncHead({ plane: this.args.plane, threadId: args.threadId }, this.cache)
     if (this.replyLost({ events: args.events })) return 'committed'
     throw new RecordCorruptionError(
       `append refused with seq-mismatch at ${args.events[0]?.seq ?? -1} and the recorded chain differs`,
@@ -266,24 +244,6 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return args.events.every(
       (event) => this.cache.committedHashAtSeq(event.seq) === chainHash(event),
     )
-  }
-
-  private async resyncHead(args: { threadId: ThreadId }): Promise<void> {
-    for (;;) {
-      const head = await this.args.plane.head({ threadId: args.threadId })
-      if (head.seq <= this.cache.currentHead().seq) {
-        this.cache.replaceHead(head)
-        return
-      }
-      const page = await this.args.plane.readEvents({
-        threadId: args.threadId,
-        afterSeq: this.cache.currentHead().seq,
-        limit: 1000,
-        visible: false,
-      })
-      this.cache.extend({ events: page.events, head })
-      if (page.next === undefined) return
-    }
   }
 
   private lost(error: unknown): never {

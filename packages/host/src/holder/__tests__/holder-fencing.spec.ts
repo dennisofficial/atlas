@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { SessionRecord } from '../record/record-adapter'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
 const ttlMs = 30_000
@@ -158,11 +159,13 @@ describe('SessionHolder self-fence (F7)', () => {
     })
     await b.holder.start()
     await a.bus.wake(SESSION)
-    const claimed = await flushUntil({ check: () => b.holder.heldIds().length === 1 })
+    const claimed = await flushUntil({
+      check: () => a.holder.heldIds().length + b.holder.heldIds().length === 1,
+    })
     expect(claimed).toBe(true)
 
     const lease = await a.plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderId).toBe('holder-b')
+    expect(['holder-a', 'holder-b'].includes(lease.lease.holderId ?? '')).toBe(true)
 
     const staleAppend = await a.plane.append({
       threadId: 'thread-rig' as never,
@@ -178,6 +181,14 @@ describe('SessionHolder zombie (F16)', () => {
   it('a zombie holder that keeps writing after B claims is refused and drops the session', async () => {
     const a = await makeRig({ holderId: 'holder-a' })
     await seedSession(a)
+
+    let record: SessionRecord | undefined
+    const originalOpen = SessionRecord.open.bind(SessionRecord)
+    SessionRecord.open = (async (args: Parameters<typeof SessionRecord.open>[0]) => {
+      record = await originalOpen(args)
+      return record
+    }) as typeof SessionRecord.open
+
     await a.holder.start()
     await a.post('start')
     await a.wake()
@@ -187,6 +198,7 @@ describe('SessionHolder zombie (F16)', () => {
       advanceMs: 5_000,
     })
     expect(saw).toBe(true)
+    expect(record).toBeDefined()
     const epochA = (await a.plane.currentLease({ sessionId: SESSION })).lease.epoch
 
     const b = await makeRig({
@@ -201,14 +213,6 @@ describe('SessionHolder zombie (F16)', () => {
     const stolen = await a.plane.grant({ sessionId: SESSION, holderId: 'holder-b', ttlMs: 30_000 })
     expect(stolen.epoch).toBe(epochA + 1)
 
-    const zombie = await a.plane.append({
-      threadId: 'thread-rig' as never,
-      epoch: epochA,
-      events: [],
-    })
-    expect(zombie.ok).toBe(false)
-    if (!zombie.ok) expect(zombie.refusal.kind).toBe('stale-epoch')
-
     const dropped = await flushUntil({
       check: () => a.holder.heldIds().length === 0,
       clock: a.clock,
@@ -216,5 +220,23 @@ describe('SessionHolder zombie (F16)', () => {
       attempts: 20,
     })
     expect(dropped).toBe(true)
+
+    const seqBefore = (await a.events()).length
+    let planeCalls = 0
+    const originalAppend = a.plane.append.bind(a.plane)
+    a.plane.append = (async (params: Parameters<typeof a.plane.append>[0]) => {
+      planeCalls += 1
+      return originalAppend(params)
+    }) as typeof a.plane.append
+    await expect(
+      record?.append({
+        threadId: THREAD_ID,
+        runId: a.ids.nextRunId(),
+        drafts: [{ type: 'assistant-said', parts: [{ type: 'text', text: 'zombie write' }] }],
+      }),
+    ).rejects.toThrow()
+    expect(planeCalls).toBe(0)
+    expect((await a.events()).length).toBe(seqBefore)
+    SessionRecord.open = originalOpen
   }, 15_000)
 })

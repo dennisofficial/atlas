@@ -6,6 +6,7 @@ import type { DaemonLink } from './link'
 
 export type Waiter = {
   settle(result: CallResult): void
+  reject?: ((error: Error) => void) | undefined
   onOutput?: ((bytes: Uint8Array) => void) | undefined
   detach?: (() => void) | undefined
 }

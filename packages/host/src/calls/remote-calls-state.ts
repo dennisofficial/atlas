@@ -88,10 +88,23 @@ export class RemoteCallsState {
   }
 
   close(): void {
+    if (this.closed) return
     this.closed = true
     this.link.teardown()
+    const error = new FencedError(`session ${this.args.sessionId} closed its daemon link`)
+    for (const call of [...this.pending.values()]) {
+      if (call.done) continue
+      call.done = true
+      this.pending.delete(call.key)
+      call.detach?.()
+      for (const waiter of call.waiters) waiter.reject?.(error)
+    }
     for (const ack of [...this.pendingAcks.values()]) ack.resolve(false)
     this.pendingAcks.clear()
+    const readyReject = this.readyReject
+    this.readyResolve = null
+    this.readyReject = null
+    if (readyReject !== null) queueMicrotask(() => readyReject(error))
   }
 
   async invoke(args: {
@@ -103,9 +116,13 @@ export class RemoteCallsState {
   }): Promise<CallResult> {
     if (this.fenced) throw new FencedError(`session ${this.args.sessionId} lost its lease`)
     if (this.availability !== null) throw this.availability
+    if (this.closed) {
+      throw new FencedError(`session ${this.args.sessionId} closed its daemon link`)
+    }
     const waiter: Waiter = { settle: () => {}, onOutput: args.onOutput }
-    const outcome = new Promise<CallResult>((resolve) => {
+    const outcome = new Promise<CallResult>((resolve, reject) => {
       waiter.settle = resolve
+      waiter.reject = reject
     })
     const existing = this.pending.get(args.key)
     if (existing !== undefined) {

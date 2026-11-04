@@ -1,10 +1,4 @@
-import {
-  EToolEffect,
-  isResumable,
-  serveIdleDue,
-  type Lease,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EToolEffect, isResumable, type Lease, type ThreadId } from '@dltech/atlas-core'
 import {
   HookChain,
   HookedToolDispatcher,
@@ -17,6 +11,8 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { statusFrame, type SessionRuntime } from './ports'
 import { InboxIntake } from './inbox-intake'
+import { idleReleaseDue, releaseIdleSession } from './held-idle'
+import { consumeStops, interruptibleWait } from './held-wait'
 import { LeaseLostError, SessionRecord } from './record/record-adapter'
 import { V2OnceLedger } from './record/v2-once-ledger'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -70,13 +66,22 @@ export class HeldSession {
     return done
   }
 
+  discard(): void {
+    this.beginDrain()
+    this.drop()
+  }
+
   async handoff(args: { deadline: number }): Promise<void> {
     this.beginDrain()
     this.drainDeadline = args.deadline
     if (this.done === undefined) return
     const remaining = Math.max(0, args.deadline - this.deps.timers.now())
     const late = new Promise<'late'>((resolve) => {
-      this.deps.timers.setTimeout(() => resolve('late'), remaining)
+      const timer = this.deps.timers.setTimeout(() => resolve('late'), remaining)
+      void this.done?.then(
+        () => this.deps.timers.clearTimeout(timer),
+        () => this.deps.timers.clearTimeout(timer),
+      )
     })
     const winner = await Promise.race([this.done.then(() => 'done' as const), late])
     if (winner === 'late') {
@@ -196,19 +201,15 @@ export class HeldSession {
     await this.consumeStops()
   }
 
-  private async consumeStops(): Promise<void> {
-    if (this.record === undefined || this.intake === undefined) return
-    for (;;) {
-      const inboxId = this.intake.takeStop()
-      if (inboxId === undefined) return
-      this.lastActivityAt = this.deps.timers.now()
-      await this.record.append({
-        threadId: this.record.threadId,
-        runId: this.deps.ids.nextRunId(),
-        drafts: [{ type: 'input-consumed', inboxId }],
-      })
-      this.intake.stopConsumed(inboxId)
-    }
+  private consumeStops(): Promise<void> {
+    return consumeStops({
+      deps: this.deps,
+      record: this.record,
+      intake: this.intake,
+      onActivity: () => {
+        this.lastActivityAt = this.deps.timers.now()
+      },
+    })
   }
 
   private async pollLoop(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
@@ -217,12 +218,7 @@ export class HeldSession {
       if (this.draining) return
       await this.consumeStops()
       if (await this.checkIdle()) return
-      const pending = await deps.plane.readInbox({
-        sessionId: deps.sessionId,
-        afterId: 0,
-        limit: 1,
-      })
-      if (pending.length === 0) {
+      if ((await this.pendingInput()) === 0) {
         await this.wait(deps.inboxPollMs)
         continue
       }
@@ -231,26 +227,26 @@ export class HeldSession {
     }
   }
 
+  private pendingInput(): Promise<number> {
+    return this.deps.plane
+      .readInbox({ sessionId: this.deps.sessionId, afterId: 0, limit: 1 })
+      .then((entries) => entries.length)
+      .catch(() => 0)
+  }
+
   private wait(ms: number): Promise<void> {
-    return new Promise<void>((resolve) => {
-      const finish = (): void => {
-        this.interruptWait = undefined
-        resolve()
-      }
-      const timer = this.deps.timers.setTimeout(finish, ms)
-      this.interruptWait = () => {
-        this.deps.timers.clearTimeout(timer)
-        finish()
-      }
-      const onAbort = (): void => {
-        this.deps.timers.clearTimeout(timer)
-        finish()
-      }
-      this.lifetimeAbort.signal.addEventListener('abort', onAbort, { once: true })
+    return interruptibleWait({
+      deps: this.deps,
+      signal: this.lifetimeAbort.signal,
+      ms,
+      setInterrupter: (interrupter) => {
+        this.interruptWait = interrupter
+      },
     })
   }
 
   private drop(): void {
+    if (this.lostOwnership) return
     this.lostOwnership = true
     this.record?.fence()
     this.turns.abort()
@@ -261,32 +257,24 @@ export class HeldSession {
 
   private async checkIdle(): Promise<boolean> {
     const deps = this.deps
-    const due =
-      !this.turns.turnRunning &&
-      !this.released &&
-      this.runtime !== undefined &&
-      serveIdleDue({
-        lastActivityAt: this.lastActivityAt,
-        turnRunning: this.turns.turnRunning,
-        childrenSettling: false,
-        runningShells: 0,
-        runningServices: 0,
-        idleMinutes: deps.idleMinutes,
-        now: deps.timers.now(),
-      })
+    if (this.runtime === undefined) return false
+    const due = idleReleaseDue({
+      deps,
+      turnRunning: this.turns.turnRunning,
+      lastActivityAt: this.lastActivityAt,
+      runtime: this.runtime,
+      released: this.released,
+      pendingInput: (await this.pendingInput()) > 0,
+    })
     if (!due) return false
     this.released = true
-    try {
-      await this.runtime?.release()
-      await deps.plane.revoke({ sessionId: deps.sessionId, wantsHolder: false })
-    } catch (error) {
-      deps.log?.error({
-        source: 'holder.idle',
-        message: `idle release of ${deps.sessionId} failed`,
-        ...logFieldsOf({ error }),
-      })
-    }
+    await releaseIdleSession({ deps, runtime: this.runtime })
+    const late = await this.pendingInput()
     this.drop()
+    if (late > 0) {
+      this.deps.onDrop?.()
+      await deps.bus.wake(deps.sessionId).catch(() => undefined)
+    }
     return true
   }
 

@@ -17,5 +17,6 @@ export type HeldSessionDeps = {
   inboxPollMs: number
   idleMinutes: number
   runtimeFor: SessionRuntimeFactory
+  onDrop?: (() => void) | undefined
   log?: LogPort | undefined
 }
