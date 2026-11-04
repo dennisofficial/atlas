@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toRunId, toThreadId } from '../../events/ids'
+import { toCallId, toRunId, toThreadId } from '../../events/ids'
 import {
   BLOB_PREVIEW_BYTES,
   blobRefsOf,
@@ -14,7 +14,7 @@ import { v2EventSchema, type V2Body } from '../event'
 
 const toolResult = (output: unknown): V2Body => ({
   type: 'tool-result',
-  callId: 'call-1',
+  callId: toCallId('call-1'),
   name: 'bash',
   output,
 })
@@ -41,13 +41,13 @@ describe('spillBody', () => {
     const result = spillBody({ body: toolResult(output), thresholdBytes })
     expect(result.blobs.length).toBe(1)
     const blob = result.blobs[0]
-    expect(blob).toBeDefined()
+    if (blob === undefined) throw new Error('expected a spill')
     if (result.body.type !== 'tool-result') throw new Error('type drifted')
     const ref = result.body.output
     expect(isBlobRef(ref)).toBe(true)
     if (!isBlobRef(ref)) throw new Error('unreachable')
-    expect(ref.$blob.hash).toBe(blob?.hash)
-    expect(ref.$blob.size).toBe(blob?.bytes.byteLength)
+    expect(ref.$blob.hash).toBe(blob.hash)
+    expect(ref.$blob.size).toBe(blob.bytes.byteLength)
     expect(new TextEncoder().encode(ref.$blob.preview).byteLength).toBeLessThanOrEqual(
       BLOB_PREVIEW_BYTES,
     )
@@ -56,7 +56,7 @@ describe('spillBody', () => {
   it('spills tool-called input and fact-recorded value', () => {
     const called: V2Body = {
       type: 'tool-called',
-      callId: 'c1',
+      callId: toCallId('c1'),
       name: 'bash',
       input: { big: 'z'.repeat(1000) },
       ordinal: 0,

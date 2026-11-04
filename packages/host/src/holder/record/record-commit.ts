@@ -113,6 +113,7 @@ export const resyncHead = async (
       if (page.events.length > 0) {
         const last = page.events[page.events.length - 1]
         if (last !== undefined) lastSeq = last.seq
+        await cache.resolveBlobsOf(page.events)
         cache.extend({ events: page.events, head: { seq: lastSeq, hash: target.hash } })
       }
       if (page.next === undefined) break

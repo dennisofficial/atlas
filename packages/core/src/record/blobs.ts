@@ -39,10 +39,10 @@ const fieldValue = (body: V2Body, field: SpillableField): unknown => {
   return undefined
 }
 
-const withField = (body: V2Body, field: SpillableField, value: unknown): V2Body => {
-  if (body.type === 'tool-called' && field === 'input') return { ...body, input: value }
-  if (body.type === 'tool-result' && field === 'output') return { ...body, output: value }
-  if (body.type === 'fact-recorded' && field === 'value') return { ...body, value }
+const withField = <T extends V2Body>(body: T, field: SpillableField, value: unknown): T => {
+  if (body.type === 'tool-called' && field === 'input') return { ...body, input: value } as T
+  if (body.type === 'tool-result' && field === 'output') return { ...body, output: value } as T
+  if (body.type === 'fact-recorded' && field === 'value') return { ...body, value } as T
   return body
 }
 
@@ -90,7 +90,10 @@ export const blobRefsOf = (event: V2Body): BlobRefOccurrence[] => {
   return [{ field, hash, size }]
 }
 
-export function resolveBody(args: { body: V2Body; values: ReadonlyMap<string, unknown> }): V2Body {
+export function resolveBody<T extends V2Body>(args: {
+  body: T
+  values: ReadonlyMap<string, unknown>
+}): T {
   const [ref] = blobRefsOf(args.body)
   if (ref === undefined) return args.body
   const value = args.values.get(ref.hash)

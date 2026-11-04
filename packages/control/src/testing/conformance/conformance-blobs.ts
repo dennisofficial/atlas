@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { spillBody, type V2Body } from '@dltech/atlas-core'
+import { spillBody, toCallId, type V2Body } from '@dltech/atlas-core'
 
 import type { ConformanceParams } from './conformance'
 import { makeHarness, mint, seedGranted, THREAD, type Harness } from './support'
@@ -8,7 +8,7 @@ const bigOutput = { text: 'blob-'.repeat(5_000) }
 
 const spill = () =>
   spillBody({
-    body: { type: 'tool-result', callId: 'call-1', name: 'bash', output: bigOutput },
+    body: { type: 'tool-result', callId: toCallId('call-1'), name: 'bash', output: bigOutput },
     thresholdBytes: 64,
   })
 

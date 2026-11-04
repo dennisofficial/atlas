@@ -1,5 +1,8 @@
 import {
+  blobRefsOf,
+  blobValueOf,
   chainHash,
+  resolveBody,
   visibleEvents,
   type LogHead,
   type ThreadId,
@@ -11,6 +14,7 @@ import { toLoopEvent } from './event-strip'
 
 export class RecordCache {
   private readonly events: V2Event[] = []
+  private readonly blobValues = new Map<string, unknown>()
   private head: LogHead = { seq: 0, hash: '' as LogHead['hash'] }
 
   constructor(private readonly args: { plane: ControlPlane; threadId: ThreadId }) {}
@@ -27,9 +31,26 @@ export class RecordCache {
         visible: false,
       })
       cache.events.push(...page.events)
+      await cache.resolveBlobsOf(page.events)
       if (page.next === undefined) return cache
       afterSeq = page.next
     }
+  }
+
+  async resolveBlobsOf(events: readonly V2Event[]): Promise<void> {
+    for (const event of events) {
+      for (const ref of blobRefsOf(event)) {
+        if (this.blobValues.has(ref.hash)) continue
+        const blob = await this.args.plane.readBlob({ hash: ref.hash })
+        if (blob === undefined) throw new Error(`the record store lost blob ${ref.hash}`)
+        this.blobValues.set(ref.hash, blobValueOf(blob.bytes))
+      }
+    }
+  }
+
+  private resolved(event: V2Event): V2Event {
+    if (blobRefsOf(event).length === 0) return event
+    return resolveBody({ body: event, values: this.blobValues })
   }
 
   currentHead(): LogHead {
@@ -42,21 +63,27 @@ export class RecordCache {
 
   visibleLoopEvents() {
     return visibleEvents(this.events).flatMap((event) => {
-      const loop = toLoopEvent(event)
+      const loop = toLoopEvent(this.resolved(event))
       return loop === undefined ? [] : [loop]
     })
   }
 
   loopEvents() {
     return this.events.flatMap((event) => {
-      const loop = toLoopEvent(event)
+      const loop = toLoopEvent(this.resolved(event))
       return loop === undefined ? [] : [loop]
     })
   }
 
-  extend(args: { events: readonly V2Event[]; head: LogHead }): void {
+  extend(args: {
+    events: readonly V2Event[]
+    head: LogHead
+    resolved?: ReadonlyMap<string, unknown> | undefined
+  }): void {
     this.events.push(...args.events)
     this.head = args.head
+    if (args.resolved === undefined) return
+    for (const [hash, value] of args.resolved) this.blobValues.set(hash, value)
   }
 
   replaceHead(head: LogHead): void {
