@@ -31,7 +31,9 @@ const runSetupOnce = async (args: {
   if (setupScript.trim() === '') return
   const outcome = await run({
     processes: deps.processes,
-    cmd: ['bash', '-lc', setupScript],
+    // sh -c like v1 (apps/serve/src/container-setup.ts): a bash login shell sources
+    // /etc/profile, which resets PATH and drops the sandbox image's mise and bun shims.
+    cmd: ['sh', '-c', setupScript],
     cwd: launchDirectory,
     timeoutMs: SETUP_TIMEOUT_MS,
   })
@@ -50,7 +52,7 @@ const scopeFor = (args: { sandboxName: string; phase: string }): string =>
   scopeKeyOf({ runId: 'setup', callId: `${args.sandboxName}:${args.phase}` })
 
 export const ensureWorkspace = async (args: {
-  calls: RemoteCalls
+  calls: Pick<RemoteCalls, 'ackScope'>
   processes: ProcessPort
   files: FileSystemPort
   workspace: WorkspaceConfig
