@@ -260,6 +260,31 @@ describe('FaultProxy', () => {
     socket.end()
   })
 
+  it('retarget drops live connections and relays new ones to the new target', async () => {
+    const proxy = await start()
+    const stale = await Bun.connect({
+      hostname: '127.0.0.1',
+      port: proxy.port,
+      socket: { data() {} },
+    })
+    expect(proxy.connections()).toBe(1)
+    const other = startEcho()
+    try {
+      proxy.retarget({ host: '127.0.0.1', port: other.port })
+      const deadline = Date.now() + 3_000
+      while (proxy.connections() !== 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      expect(proxy.connections()).toBe(0)
+      expect(stale.readyState).not.toBe('open')
+      const bytes = new TextEncoder().encode('to the new target')
+      expect(await roundTrip({ port: proxy.port, bytes })).toEqual(bytes)
+    } finally {
+      other.stop()
+      stale.end()
+    }
+  })
+
   it('stop closes the listener and every pending connection', async () => {
     const proxy = await start()
     const socket = await Bun.connect({
