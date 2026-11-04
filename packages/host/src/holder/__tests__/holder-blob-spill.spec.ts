@@ -119,10 +119,13 @@ describe('SessionRecord blob spill', () => {
         threadId: THREAD_ID,
         runId: () => toRunId('run-replay'),
       })
-      return ledger.once({
+      const once = await ledger.once({
         key: 'notes:big',
         decide: () => Promise.reject(new Error('decide must not run for a recorded fact')),
       })
+      const recalled = await ledger.recall({ prefix: 'notes:' })
+      expect(recalled.map((fact) => canonicalJson(fact.value))).toEqual([canonicalJson(value)])
+      return once
     }
     expect(canonicalJson(await replay(record))).toBe(canonicalJson(value))
 
