@@ -22,7 +22,7 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 ## Current state
 
-_Updated at the end of every slice. Last update: 2026-11-03._
+_Updated at the end of every slice. Last update: 2026-11-04._
 - **Done:** slice 0 (design). Decision 0018 accepted, 0019 (package map) proposed; D6 storage verified (Prisma 8
   `namespace v2`); research censuses refreshed to `a0bf4110`.
 - **Done:** slice 1, record core ([spec](slices/01-record-core.md)). Pure rules in
@@ -45,13 +45,37 @@ _Updated at the end of every slice. Last update: 2026-11-03._
   jobs and schedules run on trigger.dev in their own `apps/trigger` (own deploy, keys and trigger.dev
   project; contracts in `packages/jobs`), never as timers in the agent host. Built when v2 first needs
   a job, after the reconciler. v1's `apps/api/src/trigger/` takes fixes only and retires at slice 10.
-- **Next: slice 3, the agent host and the sandbox daemon (0021).** Spec approved 2026-11-02:
-  [slices/03-agent-host.md](slices/03-agent-host.md). Render Virginia → Vercel `iad1` RTT
-  measured first ([research/d8/rtt-render.md](research/d8/rtt-render.md): 5–20 ms p50 per tool
-  call, Postgres 5.5 ms). The toggle is per session with a `v2` badge.
-  **In progress (2026-11-03):** PR 1 merged (#1735: call protocol, crash simulation, `OnceLedger`,
-  `packages/protocol`). PR 2a is draft #1736 with review fixes outstanding. Continue from
-  [handoffs/slice-3-pr2.md](handoffs/slice-3-pr2.md).
+- **Done (exit tests partly live): slice 3, the agent host and the sandbox daemon (0021).** Spec:
+  [slices/03-agent-host.md](slices/03-agent-host.md); PRs #1735 to #1846. Render Virginia → Vercel `iad1`
+  RTT was measured first ([research/d8/rtt-render.md](research/d8/rtt-render.md): 5–20 ms p50 per tool
+  call, Postgres 5.5 ms). The toggle is per session with a `v2` badge. What it delivered:
+  - A runnable agent host (`apps/agent-host`, Render) and sandbox daemon (`apps/daemon`); the lease
+    holder runs the loop, appends hash-chained events to Postgres and survives a restart: retry
+    deadlines, hook decisions and tool results are recorded, so a new holder resumes the turn.
+  - A fault rig and the fault rows F1–F21 against real processes; rows that cannot fit in about 20 s
+    run when `ATLAS_FAULT_TESTS=1`, which the nightly sets.
+  - Large payloads: tool inputs and outputs spill to content-addressed blobs in the append
+    transaction; the API pages events under a byte budget and returns an oversized single event as a
+    marker; branch observation from the sandbox's git refs is logged as `branches-observed`.
+  - A new session is prepared (clone, setup script) before its first turn, and a failed setup is a
+    status with a reason (`setup-failed`), not a log line.
+  - Wakes are Postgres `LISTEN`/`NOTIFY`, and the host has no polling timers; an idle session stays
+    parked across an agent-host deploy.
+  - **Live numbers (2026-11-04, production, the atlas repo).** New session: create to workspace
+    prepared 26 s (sandbox and daemon about 6 s, clone and `bun install` about 20 s). Then a warm
+    wake: the first message reached `user-said` in 66 ms, a bash call took 65 ms, and the reply came
+    3.4 s after posting. Before prepare-before-first-turn, a cold first turn took 3438 ms to
+    `user-said` and 19.9 s in total. Parked wake: `TBD (measuring)`. The first parked measurement,
+    9.0 s, exposed a turn that waited for the sandbox (#1841); it is fixed and not yet re-measured.
+  - **Left:** the live exit tests 8 (append p99), 9 (hog) and 10 (20k events), and the starred fault
+    rows on Render. F9 is now "Redis down: unaffected", since no wake path uses Redis. Continue from
+    [handoffs/slice-4.md](handoffs/slice-4.md).
+- **Decided 2026-11-04, slice 3:** wakes move from Redis pub/sub to Postgres `LISTEN`/`NOTIFY`
+  ([0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md) amended); the agent host polls nothing,
+  and one reactive reconcile loop per held session replaces the inbox, stop and idle polls; a session is
+  prepared before its first turn; v1 and v2 share no logic: v1 has its own copy of the loop
+  (`packages/agent-v1`), `packages/agent` is v2-only, a lint guard (`scripts/check-package-split.ts`)
+  rejects imports across the split, and v1 is deleted at cutover.
 - **Slice 3 spec must settle:** oversize single events against the 4 MB body cap (L5), the `engine: v2`
   session flag and who sees it, and that v1's API stays the only writer of users, projects,
   credentials and settings until cutover; the sandbox disk is one session (sandboxes are 1:1 with sessions, no
@@ -71,7 +95,8 @@ _Updated at the end of every slice. Last update: 2026-11-03._
   refused inbox command appends `input-refused{inboxId, reason}`).
 - **Scale target:** ~20k events per thread, from production data (architecture §12). Earlier 1M
   figures were a hypothetical stress size; whole-log work is removed only where that is trivial.
-- **Open:** D2 (local control plane), needed only at slice 9. 0020 (sub-agent worktrees, peer
+- **Open:** browsing the files of a parked sandbox (a workspace mirror kept by the control plane) is
+  proposed, not scheduled. D2 (local control plane), needed only at slice 9. 0020 (sub-agent worktrees, peer
   sessions) proposed; teammates survive as the peer-session preset — placement, ownership and
   conversation separated, the operator owning and archiving — settled in
   [slices/03-teammates.md](slices/03-teammates.md) (a design section, not a build slice).
@@ -106,7 +131,7 @@ _Updated at the end of every slice. Last update: 2026-11-03._
 | 1   | Record core                           | Pure log/inbox/lease/history rules in `core`; the `control` package with a Postgres adapter over `namespace v2`                                                                                                                                                                                             | Property tests pass for the seq-466 interleaving, stale-epoch writes, hash mismatch and append-only rewind; the v2 schema migrates cleanly beside v1                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Done        |
 | 2   | `agent` package                       | Extract the loop (turn runner, retries, intake, tool dispatch, model port) from `harness` into `packages/agent`; v1 imports it                                                                                                                                                                              | `harness` re-exports or imports `agent`; no v1 behaviour change; the loop runs in a test with no pod, lease or filesystem store                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Done        |
 | 2b  | Tracing ([spec](slices/02b-trace.md)) | `TracePort` in `observability`, PostHog export, spans on the loop's model calls, tools, hooks, intake and record                                                                                                                                                                                            | A scripted turn yields a nested span tree; spans reach PostHog with names, ids and counts only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Done        |
-| 3   | Agent host + sandbox daemon (cloud)   | The agent host holds the lease, runs `agent`, appends hash-chained events to the CP, consumes the inbox; the sandbox daemon executes (exec, files, grep, shells, services, MCP, terminal) over one persistent WebSocket; v2 agent host ⇄ CP and agent host ⇄ daemon schemas in `protocol`; v2 API namespace | The Render Virginia → Vercel `iad1` RTT is measured (0021); a scripted multi-turn session with tools runs through the daemon; killing an agent host mid-model-stream and mid-tool hands the turn to another agent host, which finishes it with no tool run twice; an agent host killed mid-bash leaves the call running and the next holder collects its result; a hook decision and a retry backoff survive a restart; a second writer at the same seq is rejected; append latency stays ~1 s; under a CPU and memory hog the lease never lapses, stop lands, and the watchdog kills the hog, not the daemon (architecture §11) | Not started |
+| 3   | Agent host + sandbox daemon (cloud)   | The agent host holds the lease, runs `agent`, appends hash-chained events to the CP, consumes the inbox; the sandbox daemon executes (exec, files, grep, shells, services, MCP, terminal) over one persistent WebSocket; v2 agent host ⇄ CP and agent host ⇄ daemon schemas in `protocol`; v2 API namespace | The Render Virginia → Vercel `iad1` RTT is measured (0021); a scripted multi-turn session with tools runs through the daemon; killing an agent host mid-model-stream and mid-tool hands the turn to another agent host, which finishes it with no tool run twice; an agent host killed mid-bash leaves the call running and the next holder collects its result; a hook decision and a retry backoff survive a restart; a second writer at the same seq is rejected; append latency stays ~1 s; under a CPU and memory hog the lease never lapses, stop lands, and the watchdog kills the hog, not the daemon (architecture §11) | In progress (exit tests) |
 | 4   | Views                                 | Status, the context meter (`contextMeterOf` in `core/src/record/context-meter.ts`, already written), the session's checkout set (every thread's branch and worktree, 0020), PR links and subscriptions summary are folds in `core`, materialized by the CP at a log position                                | Every field v1 clients derive by heuristic is a view or shown as unknown; the incident's branch and PR link appear from the log alone                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Not started |
 | 5   | Client SDK, web and Mac               | `packages/client` session stream, view cache and inbox commands; web and Mac open v2 sessions behind the `engine: v2` flag                                                                                                                                                                                  | **First milestone:** a real cloud session on v2 from the web, with basic chat and tools, resumable after the stream drops and after a park                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Not started |
 | 6   | `plugin-sdk` and `commands`           | The type-level event registry and plugin contract; the `commands` package and the `commands/` root with the native commands as inbox commands rendered on web and TUI                                                                                                                                       | A command defined once runs from web and TUI; a plugin's events are exhaustively typed without editing `core`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Not started |
