@@ -6,7 +6,14 @@ import { ToolDispatcher, type DispatchArgs, type DispatchableCall } from '@dltec
 import type { EventDraft } from '@dltech/atlas-core'
 import { callKeySchema } from '@dltech/atlas-protocol'
 
-type CallScope = { scopeKey: string; next: number; dispatchedBootId?: string | undefined }
+import { interruptedMessage } from './errors'
+
+type CallScope = {
+  scopeKey: string
+  next: number
+  dispatchedBootId?: string | undefined
+  interrupted?: boolean | undefined
+}
 
 const storage = new AsyncLocalStorage<CallScope>()
 
@@ -23,6 +30,11 @@ export const markDispatched = (args: { bootId: string }): void => {
 }
 
 export const scopeDispatchedBootId = (): string | undefined => storage.getStore()?.dispatchedBootId
+
+export const markInterrupted = (): void => {
+  const scope = storage.getStore()
+  if (scope !== undefined) scope.interrupted = true
+}
 
 export const runInCallScope = <T>(args: { scopeKey: string; body(): T }): T =>
   storage.run({ scopeKey: args.scopeKey, next: 0 }, args.body)
@@ -41,9 +53,22 @@ export class ScopedToolDispatcher extends ToolDispatcher {
   }
 
   dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
-    return runInCallScope({
+    const scope: CallScope = {
       scopeKey: scopeKeyOf({ runId: args.call.runId, callId: args.call.callId }),
-      body: () => this.inner.dispatch(args),
+      next: 0,
+    }
+    return storage.run(scope, async () => {
+      const drafts = await this.inner.dispatch(args)
+      if (scope.interrupted !== true) return drafts
+      return drafts.map((draft) => {
+        if (draft.type !== 'tool-result' || draft.callId !== args.call.callId) return draft
+        return {
+          ...draft,
+          output: undefined,
+          error: { message: interruptedMessage(args.call.name) },
+          interrupted: true,
+        }
+      })
     })
   }
 }
