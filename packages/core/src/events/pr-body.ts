@@ -28,5 +28,11 @@ export type PrEventBody =
       mergeable?: boolean | undefined
       state?: string | undefined
       reviewState?: EPrReviewState | undefined
+      path?: string | undefined
+      line?: number | undefined
+      startLine?: number | undefined
+      side?: string | undefined
+      diffHunk?: string | undefined
+      inReplyTo?: string | undefined
       notice?: NoticeStamp | undefined
     }

@@ -48,3 +48,36 @@ describe('a failed verdict line', () => {
     )
   })
 })
+
+describe('a review comment line', () => {
+  const comment = (over: Partial<EventOfType<'pr-event'>>) =>
+    verdict({
+      kind: EPrEventKind.ReviewComment,
+      verdict: undefined,
+      authorLogin: 'octocat',
+      ...over,
+    })
+
+  it('names the file and line', () => {
+    expect(
+      prEventLine(comment({ path: 'src/foo.ts', line: 12, body: 'rename this\nand that' })),
+    ).toBe('PR #794: octocat commented on src/foo.ts:12 — rename this')
+  })
+
+  it('falls back to the plain wording without a location', () => {
+    expect(prEventLine(comment({ body: 'nit' }))).toBe(
+      'PR #794: octocat left an inline review comment — nit',
+    )
+  })
+
+  it('skips a leading html comment', () => {
+    expect(
+      prEventLine(
+        comment({
+          kind: EPrEventKind.Comment,
+          body: '<!-- codex-pull-request-review-summary -->\n### Codex Review',
+        }),
+      ),
+    ).toBe('PR #794: octocat commented — ### Codex Review')
+  })
+})

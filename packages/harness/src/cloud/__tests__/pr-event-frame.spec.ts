@@ -134,6 +134,49 @@ describe('prEventNoticeOf', () => {
   })
 })
 
+describe('review comment location', () => {
+  const located = {
+    url: 'u',
+    path: 'src/foo.ts',
+    line: 12,
+    startLine: 10,
+    side: 'RIGHT',
+    diffHunk: '@@ -1 +1 @@\n+x',
+    inReplyTo: '55',
+  }
+
+  it('maps the location fields onto the draft', () => {
+    const notice = prEventNoticeOf(
+      prEventFrameSchema.parse(frame({ kind: 'review-comment', payload: located })),
+    )
+
+    expect(notice).toMatchObject(located)
+  })
+
+  it('drops a non-positive line instead of rejecting the frame', () => {
+    const parsed = prEventFrameSchema.safeParse(
+      frame({ kind: 'review-comment', payload: { ...located, line: 0, startLine: 1.5 } }),
+    )
+
+    expect(parsed.success).toBe(true)
+    const notice = prEventNoticeOf(
+      prEventFrameSchema.parse(
+        frame({ kind: 'review-comment', payload: { ...located, line: 0, startLine: 1.5 } }),
+      ),
+    )
+    expect(notice).not.toHaveProperty('line')
+    expect(notice).not.toHaveProperty('startLine')
+    expect(notice).toMatchObject({ path: 'src/foo.ts' })
+  })
+
+  it('leaves the location off a plain comment', () => {
+    const notice = prEventNoticeOf(prEventFrameSchema.parse(frame()))
+
+    expect(notice).not.toHaveProperty('path')
+    expect(notice).not.toHaveProperty('diffHunk')
+  })
+})
+
 describe('parsePrEventFrame', () => {
   it('reports invalid JSON and schema failures instead of throwing', () => {
     expect(parsePrEventFrame({ value: 'nope' })).toHaveProperty('failure')

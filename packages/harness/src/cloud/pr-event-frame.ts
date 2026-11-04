@@ -23,6 +23,12 @@ const payloadSchema = z.object({
   settled: z.boolean().optional(),
   failedChecks: z.array(prFailedCheckSchema).optional().catch(undefined),
   reviewState: z.enum(EPrReviewState).optional(),
+  path: z.string().optional().catch(undefined),
+  line: z.number().int().positive().optional().catch(undefined),
+  startLine: z.number().int().positive().optional().catch(undefined),
+  side: z.string().optional().catch(undefined),
+  diffHunk: z.string().optional().catch(undefined),
+  inReplyTo: z.string().optional().catch(undefined),
   verdict: z.enum(EPrVerdict).optional(),
   mergeable: z.boolean().optional(),
   state: z.string().optional(),
@@ -64,6 +70,12 @@ export function prEventNoticeOf(frame: PrEventFrame): PrEventDraft {
     ...(payload.mergeable === undefined ? {} : { mergeable: payload.mergeable }),
     ...(payload.state === undefined ? {} : { state: payload.state }),
     ...(payload.reviewState === undefined ? {} : { reviewState: payload.reviewState }),
+    ...(payload.path === undefined ? {} : { path: payload.path }),
+    ...(payload.line === undefined ? {} : { line: payload.line }),
+    ...(payload.startLine === undefined ? {} : { startLine: payload.startLine }),
+    ...(payload.side === undefined ? {} : { side: payload.side }),
+    ...(payload.diffHunk === undefined ? {} : { diffHunk: payload.diffHunk }),
+    ...(payload.inReplyTo === undefined ? {} : { inReplyTo: payload.inReplyTo }),
   }
 }
 
