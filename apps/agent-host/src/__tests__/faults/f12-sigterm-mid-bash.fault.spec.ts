@@ -102,10 +102,9 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
     await hostA.exited
 
     await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
-    const claimedAt = Date.now()
 
-    expect(claimedAt).toBeLessThan(ttlDeadline)
     const leaseAfter = await rig.plane.currentLease({ sessionId })
+    expect(Date.parse(leaseAfter.lease.renewedAt)).toBeLessThan(ttlDeadline)
     expect(leaseAfter.lease.epoch).toBeGreaterThan(epochBefore)
 
     writeFileSync(gateFifo, 'go\n')

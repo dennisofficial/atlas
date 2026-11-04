@@ -7,7 +7,7 @@ import { ESessionStatus, sessionStatusOf, type V2Event } from '@dltech/atlas-cor
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
-import { readEvents } from './fault-support'
+import { readEvents, waitForFile } from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -52,18 +52,17 @@ describe.skipIf(REDIS_URL === undefined)(
       const sessionId = 'fault-f10-1'
       const threadId = await rig.newSession({ sessionId, text: 'tell me a story' })
       const daemon = await rig.spawnDaemonFor({ sessionId })
-      const gateFile = join(daemon.home, `model-gate-${sessionId}`)
+      const chunkFile = join(daemon.home, `chunk-${sessionId}`)
       const streamed = 'once upon a midnight dreary '.repeat(20)
 
       const hostA = await rig.spawnHost({
         holderId: 'host-a',
         daemonUrl: daemon.url,
-        scripts: { [sessionId]: [{ text: streamed, streamMs: 30_000, gateFile }] },
+        firstChunkFile: chunkFile,
+        scripts: { [sessionId]: [{ text: streamed, streamMs: 30_000 }] },
       })
       await rig.claim({ sessionId, holderId: 'host-a' })
-
-      writeFileSync(gateFile, 'open\n')
-      await sleep(800)
+      await waitForFile({ path: chunkFile })
 
       const before = await readEvents({ plane: rig.plane, threadId })
       expect(before.some((row) => row.type === 'assistant-said')).toBe(false)

@@ -48,8 +48,9 @@ describe.skipIf(REDIS_URL === undefined)(
       const startedFile = join(daemon.home, `started-${sessionId}`)
       const gateFifo = join(daemon.home, `gate-${sessionId}`)
       const runsFile = join(daemon.home, `runs-${sessionId}`)
+      const doneFile = join(daemon.home, `done-${sessionId}`)
       makeFifo({ path: gateFifo })
-      const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
+      const bash = `touch ${startedFile}; cat ${gateFifo}; echo run >> ${runsFile}; touch ${doneFile}; echo done`
 
       const hostA = await rig.spawnHost({
         holderId: 'host-a',
@@ -79,7 +80,9 @@ describe.skipIf(REDIS_URL === undefined)(
 
       ownProxy?.set({ holdUpstream: true })
       writeFileSync(gateFifo, 'go\n')
-      await sleep(1_500)
+      await waitForFile({ path: doneFile })
+      expect(readFileSync(runsFile, 'utf8').trim().split('\n')).toEqual(['run'])
+      await sleep(1_000)
 
       const before = await readEvents({ plane: rig.plane, threadId })
       expect(before.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)

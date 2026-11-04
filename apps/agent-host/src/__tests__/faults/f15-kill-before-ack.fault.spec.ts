@@ -1,12 +1,13 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { scopeKeyOf } from '@dltech/atlas-host'
 
 import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, readEvents, waitForFile } from './fault-support'
+import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -21,6 +22,15 @@ const expectEpochsOrdered = (events: readonly ReadEvent[], finalEpoch: number): 
     previous = epoch
   }
 }
+
+const journalOf = (args: { daemonHome: string; runId: string; callId: string }): string =>
+  join(
+    args.daemonHome,
+    'daemon',
+    'calls',
+    `${scopeKeyOf({ runId: args.runId, callId: args.callId })}.0`,
+    'state.json',
+  )
 
 describe.skipIf(REDIS_URL === undefined)(
   'F15 SIGKILL after the result is appended, before ack',
@@ -40,8 +50,10 @@ describe.skipIf(REDIS_URL === undefined)(
       const sessionId = 'fault-f15-1'
       const threadId = await rig.newSession({ sessionId, text: 'run then reply' })
       const daemon = await rig.spawnDaemonFor({ sessionId })
+      const gateFifo = join(daemon.home, `gate-${sessionId}`)
       const runsFile = join(daemon.home, `runs-${sessionId}`)
-      const bash = `echo run >> ${runsFile}; sleep 1; echo done`
+      makeFifo({ path: gateFifo })
+      const bash = `echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
       const hostA = await rig.spawnHost({
         holderId: 'host-a',
@@ -58,7 +70,7 @@ describe.skipIf(REDIS_URL === undefined)(
         },
       })
       await rig.claim({ sessionId, holderId: 'host-a' })
-      await rig.waitForSeq({
+      const dispatched = await rig.waitForSeq({
         threadId,
         want: (rows) =>
           rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
@@ -67,6 +79,7 @@ describe.skipIf(REDIS_URL === undefined)(
       await waitForFile({ path: runsFile })
 
       daemon.proxy.set({ holdUpstream: true })
+      writeFileSync(gateFifo, 'go\n')
 
       await rig.waitForSeq({
         threadId,
@@ -77,6 +90,16 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(
         before.filter((row) => row.type === 'tool-result' && callIdOf(row) === 'c1').length,
       ).toBe(1)
+
+      const dispatchedEvent = dispatched.find(
+        (row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1',
+      )?.event as { runId: string }
+      const journal = journalOf({
+        daemonHome: daemon.home,
+        runId: dispatchedEvent.runId,
+        callId: 'c1',
+      })
+      expect(existsSync(journal)).toBe(true)
 
       hostA.kill('SIGKILL')
       await hostA.exited
@@ -105,6 +128,8 @@ describe.skipIf(REDIS_URL === undefined)(
             `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB.logs().join('\n')}`,
           )
         })
+
+      expect(existsSync(journal)).toBe(false)
 
       const dispatches = events.filter(
         (row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1',
