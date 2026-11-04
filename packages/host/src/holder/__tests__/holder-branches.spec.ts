@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { chainEvents, toRunId, toThreadId, type BranchesObserved } from '@dltech/atlas-core'
 import { defineOp, type DaemonGroupFactory } from '@dltech/atlas-protocol/engine'
-import type { BranchSet } from '@dltech/atlas-protocol'
+import { ECallStatus, type BranchSet } from '@dltech/atlas-protocol'
 import {
   createInMemoryDaemon,
   inMemoryDaemonToken,
@@ -106,7 +106,7 @@ describe('RemoteCalls.onEvent', () => {
     })
     await calls.ready()
     const result = await calls.invoke({ key: 'k1', op: { op: 'git.watch', repoPath: '/w' } })
-    expect(result.status).toBe('ok')
+    expect(result.status).toBe(ECallStatus.Ok)
     await received
     expect(seen).toEqual(['/w'])
     calls.close()
