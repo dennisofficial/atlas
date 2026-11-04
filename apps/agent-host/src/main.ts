@@ -1,7 +1,7 @@
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
-import { LogPort } from '@dltech/atlas-observability'
+import { logFieldsOf, LogPort } from '@dltech/atlas-observability'
 
 import { createRedisBus } from './bus/redis-bus'
 import { composeAgentHost } from './compose'
@@ -18,6 +18,10 @@ class JsonLog extends LogPort {
 
 const main = async (): Promise<void> => {
   const env = readAgentHostEnv()
+  if (!(await Bun.file(env.daemonBundlePath).exists())) {
+    console.error(`agent-host refuses to start; daemon bundle not found at ${env.daemonBundlePath}`)
+    process.exit(78)
+  }
   const pool = createPool(databaseUrlWithTls(env.databaseUrl))
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
   const log = new JsonLog()
@@ -47,12 +51,14 @@ const main = async (): Promise<void> => {
     await pool.end()
     process.exit(0)
   }
-  process.on('SIGTERM', () => {
-    void shutdown()
-  })
-  process.on('SIGINT', () => {
-    void shutdown()
-  })
+  const handleSignal = (): void => {
+    shutdown().catch((error: unknown) => {
+      log.error({ source: 'main', message: 'shutdown failed', ...logFieldsOf({ error }) })
+      process.exit(1)
+    })
+  }
+  process.on('SIGTERM', handleSignal)
+  process.on('SIGINT', handleSignal)
 }
 
 main().catch((error: unknown) => {
