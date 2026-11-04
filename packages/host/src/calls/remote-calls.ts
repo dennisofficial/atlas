@@ -21,6 +21,7 @@ export type RemoteCallsArgs = {
   timers: CallTimers
   onFenced(): void
   log?: LogPort | undefined
+  pingMs?: number | undefined
   onEvent?: ((frame: EventFrame) => void) | undefined
 }
 

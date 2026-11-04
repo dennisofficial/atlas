@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 import { ControlPlane } from '@dltech/atlas-control'
 import { ModelPort } from '@dltech/atlas-core'
@@ -9,7 +9,7 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
-import { createRedisBus } from '../bus/redis-bus'
+import { createRedisBus, type RedisBus } from '../bus/redis-bus'
 import type { AgentHostApi } from '../config/agent-host-api'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
@@ -63,6 +63,16 @@ const withFirstChunkMarker = (model: ModelPort): ModelPort => {
   return new FirstChunkMarker(model, path)
 }
 
+const tapToolOutput = (bus: RedisBus): void => {
+  const path = process.env.TOOL_OUTPUT_FILE
+  if (path === undefined || path === '') return
+  const live = bus.live.bind(bus)
+  bus.live = (args) => {
+    if (args.frame.type === 'tool-output') appendFileSync(path, args.frame.text)
+    live(args)
+  }
+}
+
 class JsonLog extends LogPort {
   record(entry: Parameters<LogPort['record']>[0]): void {
     console.log(JSON.stringify(entry))
@@ -107,6 +117,7 @@ const main = async (): Promise<void> => {
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
   const log = new JsonLog()
   const bus = createRedisBus({ url: requireEnv('REDIS_URL'), log })
+  tapToolOutput(bus)
   const timers = { now: () => Date.now(), ...systemTimers }
   const sandbox = new FixedEndpointSandboxProvider({ url: daemonUrl, daemonSecret })
   const holder = new SessionHolder({
@@ -123,6 +134,7 @@ const main = async (): Promise<void> => {
         withFirstChunkMarker(new ScriptedModel(scripts[sessionId] ?? [], undefined, existsSync)),
       launchDirectory: workspace,
       log,
+      pingMs: numberEnv('PING_MS', 10_000),
     }),
     ids: new RandomIds(),
     maxSessions: 25,
