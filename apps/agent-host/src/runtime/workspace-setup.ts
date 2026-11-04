@@ -31,8 +31,6 @@ const runSetupOnce = async (args: {
   if (setupScript.trim() === '') return
   const outcome = await run({
     processes: deps.processes,
-    // sh -c like v1 (apps/serve/src/container-setup.ts): a bash login shell sources
-    // /etc/profile, which resets PATH and drops the sandbox image's mise and bun shims.
     cmd: ['sh', '-c', setupScript],
     cwd: launchDirectory,
     timeoutMs: SETUP_TIMEOUT_MS,

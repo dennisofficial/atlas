@@ -52,8 +52,6 @@ export const createRedisLiveFrames = (args: {
     },
 
     async close() {
-      // quit() after disconnect() rejects with "Connection is closed."; a lone quit() closes
-      // the client cleanly, and memoizing keeps a second close() from touching an ended client.
       closing ??= publisher.quit().then(
         () => undefined,
         (error: unknown) => {
