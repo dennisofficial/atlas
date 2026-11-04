@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { GithubDeliveryChecks } from './github-delivery-checks'
 import { GithubDeliveryFillDeferred, tryRestFill, type RestFill } from './github-delivery-fill'
+import { EGithubCallSource } from './github-call-log'
 import { normalizedRepo, repoPattern } from './github-pr-identity'
 import { GithubObservationStore } from './github-observation.store'
 import { withGithubRequestBudget } from './github-request-budget'
@@ -72,6 +73,18 @@ export class GithubDeliveryService {
         if (token === undefined) return { kind: 'skipped' }
         const [owner, repo] = args.repoFullName.split('/') as [string, string]
         return this.restFill({ token, owner, repo, prNumber: args.prNumber, collect: true })
+      },
+      fetchAnnotations: async (args) => {
+        const token = await this.findFillToken({ repoFullName: args.repoFullName })
+        if (token === undefined) return null
+        const [owner, repo] = args.repoFullName.split('/') as [string, string]
+        return this.reads.readCheckAnnotations({
+          source: EGithubCallSource.CheckAnnotations,
+          token,
+          owner,
+          repo,
+          checkRunId: args.checkRunId,
+        })
       },
     })
   }

@@ -35,6 +35,13 @@ const stateSchema = z.object({
   updatedAt: z.string(),
 })
 
+const checkAnnotationSchema = z.object({
+  path: z.string().exactOptional(),
+  line: z.number().exactOptional(),
+  message: z.string(),
+  title: z.string().exactOptional(),
+})
+
 const failedCheckSchema = z.object({
   name: z.string(),
   app: z.string().exactOptional(),
@@ -42,6 +49,7 @@ const failedCheckSchema = z.object({
   checkRunId: z.string().exactOptional(),
   title: z.string().exactOptional(),
   summary: z.string().exactOptional(),
+  annotations: z.array(checkAnnotationSchema).exactOptional(),
 })
 
 const eventSchema = z.object({

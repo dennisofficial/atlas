@@ -54,7 +54,11 @@ export interface GithubCheckRunWebhookPayload {
     head_sha: string
     app?: { slug: string } | null
     html_url?: string | null
-    output?: { title?: string | null; summary?: string | null } | null
+    output?: {
+      title?: string | null
+      summary?: string | null
+      annotations_count?: number | null
+    } | null
     pull_requests?: { number: number }[]
     check_suite?: { head_branch?: string | null }
   }

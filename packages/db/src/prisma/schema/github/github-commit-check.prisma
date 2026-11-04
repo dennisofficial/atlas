@@ -10,6 +10,8 @@ model GithubCommitCheck {
   detailsUrl      String?
   title           String?
   summary         String?
+  annotationsCount Int?
+  annotations     Jsonb?
   sourceUpdatedAt TimestamptzJsDate(3)
   updatedAt       TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
 
