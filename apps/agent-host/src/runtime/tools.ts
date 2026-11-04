@@ -27,6 +27,15 @@ import type {
 
 import { ForegroundOnlyShells } from './foreground-shells'
 
+const abortedWith = (signal: AbortSignal): Promise<true> =>
+  new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve(true)
+      return
+    }
+    signal.addEventListener('abort', () => resolve(true), { once: true })
+  })
+
 export class SetupGatedTool extends ToolDefinition {
   readonly name: string
   readonly description: string
@@ -61,7 +70,13 @@ export class SetupGatedTool extends ToolDefinition {
   }
 
   async invoke(args: ToolInvocation): Promise<ToolOutcome> {
-    await this.setup
+    const interrupted = await Promise.race([
+      this.setup.then(() => false as const),
+      abortedWith(args.signal),
+    ])
+    if (interrupted) {
+      return { ok: false, reason: 'interrupted while the workspace was being set up' }
+    }
     return this.inner.invoke(args)
   }
 }

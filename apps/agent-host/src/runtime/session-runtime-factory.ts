@@ -35,6 +35,7 @@ export class SandboxNotConfiguredError extends Error {
 
 const KEEP_ALIVE_EVERY_MS = 10 * 60_000
 const KEEP_ALIVE_WINDOW_MS = 45 * 60_000
+const SETUP_DEADLINE_MS = 15 * 60_000
 
 export type SessionRuntimeFactoryArgs = {
   api: AgentHostApi
@@ -43,6 +44,7 @@ export type SessionRuntimeFactoryArgs = {
   timers: HostTimers
   modelFor?: ((args: { sessionId: string }) => ModelPort) | undefined
   launchDirectory?: string | undefined
+  setupDeadlineMs?: number | undefined
   log?: LogPort | undefined
 }
 
@@ -96,11 +98,13 @@ export const createSessionRuntimeFactory = (
       .then(async () => {
         const { token } = await args.api.githubToken({ sessionId })
         await ensureWorkspace({
+          calls,
           processes,
           files,
           workspace: config.workspace,
           githubToken: token,
           launchDirectory,
+          sandboxName: sandboxNameOf(sessionId),
           ...(args.log === undefined ? {} : { log: args.log }),
         })
       })
@@ -111,7 +115,20 @@ export const createSessionRuntimeFactory = (
           ...logFieldsOf({ error }),
         })
       })
-    const tools = daemonToolsOf({ processes, files, agentFiles, setup })
+    const deadlineMs = args.setupDeadlineMs ?? SETUP_DEADLINE_MS
+    const gate = Promise.race([
+      setup,
+      new Promise<void>((resolve) => {
+        args.timers.setTimeout(() => {
+          args.log?.error({
+            source: 'runtime.workspace-setup',
+            message: `workspace setup for ${sessionId} did not finish within ${deadlineMs}ms; releasing the tool gate`,
+          })
+          resolve()
+        }, deadlineMs)
+      }),
+    ])
+    const tools = daemonToolsOf({ processes, files, agentFiles, setup: gate })
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
