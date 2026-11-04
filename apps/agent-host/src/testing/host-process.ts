@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
@@ -83,7 +83,8 @@ const main = async (): Promise<void> => {
       sandbox,
       daemonSecret,
       timers,
-      modelFor: ({ sessionId }) => new ScriptedModel(scripts[sessionId] ?? []),
+      modelFor: ({ sessionId }) =>
+        new ScriptedModel(scripts[sessionId] ?? [], undefined, existsSync),
       launchDirectory: workspace,
       log,
     }),
@@ -104,7 +105,7 @@ const main = async (): Promise<void> => {
     if (shuttingDown) process.exit(1)
     shuttingDown = true
     log.info({ source: 'host-process', message: 'draining' })
-    await holder.drain({ deadline: Date.now() + 5_000 })
+    await holder.drain({ deadline: Date.now() + numberEnv('DRAIN_MS', 270_000) })
     await bus.close()
     await pool.end()
     process.exit(0)

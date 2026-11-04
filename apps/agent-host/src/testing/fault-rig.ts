@@ -29,6 +29,7 @@ export type RigDaemon = {
 
 export type HostProcess = {
   holderId: string
+  dbProxy?: FaultProxy
   kill(signal: 'SIGKILL' | 'SIGTERM'): void
   exited: Promise<number>
   logs(): string[]
@@ -55,6 +56,7 @@ export type FaultRig = {
     daemonUrl: string
     scripts: Record<string, ScriptedModelStep[]>
     knobs?: HostKnobs
+    dbProxy?: 'shared' | 'own'
   }): Promise<HostProcess>
   stop(): Promise<void>
 }
@@ -221,7 +223,7 @@ export const startRig = async (args: {
       }
     },
 
-    async spawnHost({ holderId, daemonUrl, scripts, knobs }) {
+    async spawnHost({ holderId, daemonUrl, scripts, knobs, dbProxy: dbProxyMode }) {
       const dir = mkdtempSync(join(tmpdir(), `atlas-fault-rig-host-${holderId}-`))
       closers.push(async () => {
         rmSync(dir, { recursive: true, force: true })
@@ -230,12 +232,27 @@ export const startRig = async (args: {
       mkdirSync(workspace, { recursive: true })
       const scriptFile = join(dir, 'scripts.json')
       writeFileSync(scriptFile, JSON.stringify(scripts))
+      let ownProxy: FaultProxy | undefined
+      if (dbProxyMode === 'own') {
+        ownProxy = await FaultProxy.start({
+          target: { host: '127.0.0.1', port: dbProxy.port },
+        })
+        const stopping = ownProxy
+        closers.push(() => stopping.stop())
+      }
+      const databaseUrl = (): string => {
+        if (ownProxy === undefined) return proxyDatabaseUrl()
+        const url = new URL(args.databaseUrl)
+        url.hostname = '127.0.0.1'
+        url.port = String(ownProxy.port)
+        return url.toString()
+      }
       const child = Bun.spawn({
         cmd: ['bun', hostEntry],
         env: {
           ...process.env,
           ATLAS_HOME: join(dir, 'atlas-home'),
-          DATABASE_URL: proxyDatabaseUrl(),
+          DATABASE_URL: databaseUrl(),
           REDIS_URL: args.redisUrl,
           HOLDER_ID: holderId,
           DAEMON_URL: daemonUrl,
@@ -260,6 +277,7 @@ export const startRig = async (args: {
       })
       return {
         holderId,
+        ...(ownProxy === undefined ? {} : { dbProxy: ownProxy }),
         kill(signal) {
           child.kill(signal)
         },
