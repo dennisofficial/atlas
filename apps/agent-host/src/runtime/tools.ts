@@ -9,22 +9,20 @@ import {
   type WholeFileClaim,
 } from '@dltech/atlas-core'
 import type { ZodType } from 'zod'
-import {
-  BashTool,
-  EditTool,
-  GlobTool,
-  GrepTool,
-  MultiEditTool,
-  ReadTool,
-  SerializedWrites,
-  WriteTool,
-} from '@dltech/atlas-harness'
 import type {
   DaemonAgentFileSystemPort,
   DaemonFileSystemPort,
   DaemonProcessPort,
 } from '@dltech/atlas-host'
 
+import { BashTool } from '../agent-tools/bash'
+import { EditTool } from '../agent-tools/edit'
+import { GlobTool } from '../agent-tools/glob'
+import { GrepTool } from '../agent-tools/grep'
+import { MultiEditTool } from '../agent-tools/multi-edit'
+import { ReadTool } from '../agent-tools/read'
+import { SerializedWrites } from '../agent-tools/write-guard'
+import { WriteTool } from '../agent-tools/write'
 import { ForegroundOnlyShells } from './foreground-shells'
 
 const abortedWith = (signal: AbortSignal): Promise<true> =>

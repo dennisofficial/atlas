@@ -7,7 +7,7 @@ import {
   type ShellSnapshot,
   type StartedShellOutcome,
   type StartShellArgs,
-} from '@dltech/atlas-harness'
+} from '../agent-tools/shell-port'
 
 const UNAVAILABLE = 'background shells are not available in this session yet'
 
