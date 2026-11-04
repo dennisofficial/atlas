@@ -29,6 +29,7 @@ import {
   type NormalizeFailure,
 } from '../model/run-failure'
 import { recordEscapedFailure, recordRunFailure } from './recorded-failures'
+import { HandoffAborted } from './retry-ledger'
 import { appendResumeDrafts } from './resume-turn'
 import { createSettlePending } from './settle-pending'
 import { runTrackedTurn, type TrackedTurnDeps } from './tracked-turn'
@@ -257,6 +258,10 @@ export class LoopTurnRunner extends TurnRunner {
       }
       return outcome
     } catch (error) {
+      if (error instanceof HandoffAborted) {
+        status = ETurnStatus.HandoffPaused
+        return { status: ETurnStatus.HandoffPaused, runId }
+      }
       await recordEscapedFailure({
         record: this.record,
         threadId,

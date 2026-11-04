@@ -21,12 +21,15 @@ import type { NormalizeFailure } from '../model/run-failure'
 import { takeModelStep, type SteppedTurn } from './model-step'
 import {
   recordedWaitMs,
-  waitOutPendingBackoff,
+  settleRecordedDeadline,
+  sleepUnlessAborted,
+  throwIfHandoff,
   type RetryLedgerRef,
   type Waiting,
 } from './retry-ledger'
 
 export type { RetryNotice, Waiting } from './retry-ledger'
+export { sleepUnlessAborted } from './retry-ledger'
 
 export type ClockJumpDetector = {
   onJump: (callback: (gapMs: number) => void) => () => void
@@ -50,24 +53,6 @@ export type RetryDeps = {
   failover?: (() => boolean) | undefined
   now?: (() => number) | undefined
   ledger?: RetryLedgerRef | undefined
-}
-
-export function sleepUnlessAborted(args: { ms: number; signal: AbortSignal }): Promise<void> {
-  return new Promise<void>((resolve) => {
-    if (args.signal.aborted) {
-      resolve()
-      return
-    }
-
-    const settle = () => {
-      clearTimeout(timer)
-      args.signal.removeEventListener('abort', settle)
-      resolve()
-    }
-
-    const timer = setTimeout(settle, args.ms)
-    args.signal.addEventListener('abort', settle, { once: true })
-  })
 }
 
 /**
@@ -169,7 +154,7 @@ export async function takeModelStepWithRetry(args: {
     const ledger = args.retry?.ledger
 
     if (ledger !== undefined) {
-      attempts = await waitOutPendingBackoff({
+      attempts = await settleRecordedDeadline({
         ref: ledger,
         nowMs: now(),
         maxAttempts: policy.maxAttempts,
@@ -184,6 +169,7 @@ export async function takeModelStepWithRetry(args: {
           if (wake.signal.aborted) wake = new AbortController()
         },
       })
+      throwIfHandoff(args.signal)
       if (args.signal.aborted) {
         return {
           ok: false,
@@ -209,6 +195,7 @@ export async function takeModelStepWithRetry(args: {
         return { ok: false, message: attempt.message, cause: attempt.cause }
       }
 
+      throwIfHandoff(args.signal)
       if (args.signal.aborted) return settled()
 
       if (attempt.blocked !== undefined) {
@@ -281,6 +268,7 @@ export async function takeModelStepWithRetry(args: {
         sleep,
       })
       if (wake.signal.aborted) wake = new AbortController()
+      throwIfHandoff(args.signal)
       if (args.signal.aborted) return settled()
 
       if (args.prepare !== undefined) {
@@ -294,6 +282,7 @@ export async function takeModelStepWithRetry(args: {
             break
           }
         } catch (error) {
+          throwIfHandoff(args.signal)
           if (args.signal.aborted) return settled()
           return { ok: false, message: messageOf(error), cause: error }
         }

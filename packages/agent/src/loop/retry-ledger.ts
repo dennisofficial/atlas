@@ -16,6 +16,35 @@ export type RetryLedgerRef = {
   stepKey: string
 }
 
+export class HandoffAborted extends Error {
+  constructor() {
+    super('model step aborted for handoff')
+    this.name = 'HandoffAborted'
+  }
+}
+
+export const throwIfHandoff = (signal: AbortSignal): void => {
+  if (signal.aborted && signal.reason === 'handoff') throw new HandoffAborted()
+}
+
+export function sleepUnlessAborted(args: { ms: number; signal: AbortSignal }): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (args.signal.aborted) {
+      resolve()
+      return
+    }
+
+    const settle = () => {
+      clearTimeout(timer)
+      args.signal.removeEventListener('abort', settle)
+      resolve()
+    }
+
+    const timer = setTimeout(settle, args.ms)
+    args.signal.addEventListener('abort', settle, { once: true })
+  })
+}
+
 export type RecordedBackoff = {
   notBefore: string
   reason: ERetryReason
@@ -45,11 +74,10 @@ export async function pendingBackoff(args: {
   const backoff = backoffOfValue(last.value)
   if (attempt === undefined || backoff === undefined) return undefined
   const remainingMs = Date.parse(backoff.notBefore) - args.nowMs
-  if (remainingMs <= 0) return undefined
   return { attempt, backoff, remainingMs }
 }
 
-export async function waitOutPendingBackoff(args: {
+export async function settleRecordedDeadline(args: {
   ref: RetryLedgerRef
   nowMs: number
   maxAttempts: number
@@ -58,13 +86,15 @@ export async function waitOutPendingBackoff(args: {
 }): Promise<number> {
   const pending = await pendingBackoff({ ref: args.ref, nowMs: args.nowMs })
   if (pending === undefined) return 0
-  args.onWaiting?.({
-    attempt: pending.attempt,
-    maxAttempts: args.maxAttempts,
-    delayMs: pending.remainingMs,
-    reason: pending.backoff.reason,
-  })
-  await args.sleep(pending.remainingMs)
+  if (pending.remainingMs > 0) {
+    args.onWaiting?.({
+      attempt: pending.attempt,
+      maxAttempts: args.maxAttempts,
+      delayMs: pending.remainingMs,
+      reason: pending.backoff.reason,
+    })
+    await args.sleep(pending.remainingMs)
+  }
   return pending.attempt
 }
 
