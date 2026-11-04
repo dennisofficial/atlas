@@ -22,7 +22,7 @@ import { inMemoryDaemonToken, type InMemoryDaemon } from '@dltech/atlas-protocol
 import { RemoteCalls } from '../../calls/remote-calls'
 import { scopeDispatchedBootId } from '../../calls/call-scope'
 import type { DaemonConnector } from '../../calls/socket'
-import type { SessionRuntime } from '../ports'
+import type { PrepareResult, SessionRuntime } from '../ports'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
 
 export type RigRuntime = SessionRuntime & {
@@ -72,6 +72,7 @@ export const makeRuntimeFactory = (args: {
   script: ScriptRef
   runtimes: RigRuntime[]
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
+  prepare?: (() => Promise<PrepareResult>) | undefined
   model?: (() => ModelPort) | undefined
 }): ((params: {
   sessionId: string
@@ -115,6 +116,7 @@ export const makeRuntimeFactory = (args: {
       launchDirectory: '/w',
       watched: [],
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
+      prepare: args.prepare ?? (async () => ({ ok: true })),
       stopped: false,
       released: false,
       stop: async () => {

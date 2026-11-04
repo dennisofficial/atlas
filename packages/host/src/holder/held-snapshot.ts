@@ -1,4 +1,10 @@
-import { decideHeldAction, type EHeldAction, type InboxEntry } from '@dltech/atlas-core'
+import {
+  decideHeldAction,
+  workspaceStateOf,
+  type EHeldAction,
+  type InboxEntry,
+  type V2Event,
+} from '@dltech/atlas-core'
 
 import { idleReleaseDue } from './held-idle'
 import { INBOX_KIND_STOP } from './inbox-intake'
@@ -31,15 +37,25 @@ export const readHeldAction = async (args: {
   lastActivityAt: number
   runtime: SessionRuntime | undefined
   released: boolean
-}): Promise<{ entries: InboxEntry[]; action: EHeldAction }> => {
+  events: readonly V2Event[]
+  preparing: boolean
+}): Promise<{ entries: InboxEntry[]; action: EHeldAction; inboxHead: number }> => {
   const { deps } = args
   const entries = await readFullInbox(deps)
-  const messagePending = entries.some((entry) => entry.kind !== INBOX_KIND_STOP)
+  const messageIds = entries.filter((entry) => entry.kind !== INBOX_KIND_STOP).map((e) => e.inboxId)
+  const messagePending = messageIds.length > 0
+  const workspace = workspaceStateOf({
+    events: args.events,
+    preparing: args.preparing,
+    pendingMessageIds: messageIds,
+  })
   const action = decideHeldAction({
     draining: args.draining,
     turn: args.turnRunning ? 'running' : 'idle',
     stopPending: entries.some((entry) => entry.kind === INBOX_KIND_STOP),
     messagePending: messagePending || args.resumePending,
+    workspace: workspace.state,
+    retryPending: workspace.retryPending,
     idleDue: idleReleaseDue({
       deps,
       turnRunning: args.turnRunning,
@@ -49,5 +65,5 @@ export const readHeldAction = async (args: {
       pendingInput: messagePending,
     }),
   })
-  return { entries, action }
+  return { entries, action, inboxHead: Math.max(0, ...entries.map((entry) => entry.inboxId)) }
 }

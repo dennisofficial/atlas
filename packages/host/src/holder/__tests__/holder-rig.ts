@@ -4,6 +4,7 @@ import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
+import type { PrepareResult } from '../ports'
 import { SessionHolder } from '../session-holder'
 import { FakeBus, FakeClock, flushUntil, SANDBOX, SECRET, SESSION, THREAD } from './rig-fakes'
 import { makeRuntimeFactory, type RigRuntime, type ScriptRef } from './rig-runtime'
@@ -45,6 +46,7 @@ export const makeRig = async (args: {
   idleMinutes?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   model?: (() => ModelPort) | undefined
+  prepare?: (() => Promise<PrepareResult>) | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
@@ -63,6 +65,7 @@ export const makeRig = async (args: {
     runtimes,
     watchedRepos: args.watchedRepos,
     model: args.model,
+    prepare: args.prepare,
   })
 
   const holder = new SessionHolder({
