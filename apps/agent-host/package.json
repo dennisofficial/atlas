@@ -9,15 +9,22 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun test --timeout 30000"
+    "test": "bun test --timeout 30000",
+    "start": "bun src/main.ts"
   },
   "dependencies": {
+    "@dltech/atlas-agent": "workspace:*",
     "@dltech/atlas-api-router": "workspace:*",
+    "@dltech/atlas-control": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-db": "workspace:*",
+    "@dltech/atlas-harness": "workspace:*",
     "@dltech/atlas-host": "workspace:*",
+    "@dltech/atlas-observability": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "@vercel/sandbox": "^3.3.0",
+    "ioredis": "^6.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

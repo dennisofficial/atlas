@@ -7,3 +7,10 @@ export { AgentHostEnvError, readAgentHostEnv, type AgentHostEnv } from './config
 export { daemonPaths, launchDaemon, type DaemonBundle } from './sandbox/daemon-launch'
 export { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox/sandbox-provider'
 export { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
+export { ForegroundOnlyShells } from './runtime/foreground-shells'
+export { createRedisBus, type RedisBus } from './bus/redis-bus'
+export {
+  createSessionRuntimeFactory,
+  SandboxNotConfiguredError,
+  type SessionRuntimeFactoryArgs,
+} from './runtime/session-runtime-factory'

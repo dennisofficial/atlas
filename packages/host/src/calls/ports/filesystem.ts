@@ -39,7 +39,12 @@ export class DaemonFileSystemPort extends FileSystemPort {
   }
 
   async readLink(args: { path: string }): Promise<string | null> {
-    return await invoke({ calls: this.args.calls, op: { op: 'readLink', path: args.path } })
+    return await invoke({ calls: this.args.calls, op: { op: 'readLink', path: args.path } }).catch(
+      (error: unknown) => {
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return null
+        throw error
+      },
+    )
   }
 
   async readFile(args: { path: string }): Promise<string> {

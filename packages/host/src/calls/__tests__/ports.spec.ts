@@ -75,6 +75,14 @@ describe('daemon-backed ports over the fake daemon', () => {
     await daemon.stop()
   })
 
+  it('answers null for readLink on a missing path', async () => {
+    const { files, calls, daemon } = await openPorts()
+    await files.mkdir({ path: '/work' })
+    expect(await files.readLink({ path: '/work/nope.txt' })).toBeNull()
+    calls.close()
+    await daemon.stop()
+  })
+
   it('throws an ENOENT-coded error for a missing file', async () => {
     const { files, calls, daemon } = await openPorts()
     expect(await codeOf(files.readFile({ path: '/missing' }))).toBe('ENOENT')
