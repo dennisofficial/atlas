@@ -119,7 +119,6 @@ function SkillDetail({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPath, isText])
 
   const savedContent = loaded?.path === currentPath ? loaded.content : ''

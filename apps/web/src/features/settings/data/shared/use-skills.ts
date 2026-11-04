@@ -44,7 +44,7 @@ export function useSkills(target: SkillScopeTarget) {
       skills: await listSkills(target),
       fetchedAt: Date.now(),
     }),
-    [target.scope, target.projectId], // eslint-disable-line react-hooks/exhaustive-deps
+    [target.scope, target.projectId],
   )
   const query = useCloudQuery<SkillsSnapshot>({ key: keyOfSkills(target), load })
   const { reload } = query
@@ -54,7 +54,7 @@ export function useSkills(target: SkillScopeTarget) {
       await putBase64({ ...target, skill: name, path: 'SKILL.md' }, toBase64Utf8(EMPTY_SKILL_MD))
       reload()
     },
-    [reload, target.scope, target.projectId], // eslint-disable-line react-hooks/exhaustive-deps
+    [reload, target.scope, target.projectId],
   )
 
   const deleteSkills = useCallback(
@@ -62,7 +62,7 @@ export function useSkills(target: SkillScopeTarget) {
       for (const name of names) await removeSkill({ ...target, skill: name })
       reload()
     },
-    [reload, target.scope, target.projectId], // eslint-disable-line react-hooks/exhaustive-deps
+    [reload, target.scope, target.projectId],
   )
 
   return { query, createSkill, deleteSkills }
@@ -71,7 +71,7 @@ export function useSkills(target: SkillScopeTarget) {
 export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
   const load = useCallback(
     () => listSkillFiles(target),
-    [target.scope, target.projectId, target.skill], // eslint-disable-line react-hooks/exhaustive-deps
+    [target.scope, target.projectId, target.skill],
   )
   const query = useCloudQuery<SkillFileMeta[]>({
     key: `${keyOfSkills(target)}:${target.skill}`,
@@ -84,7 +84,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       const file = await getSkillFile({ ...target, path })
       return { content: fromBase64Utf8(file.content), revision: file.revision }
     },
-    [target.scope, target.projectId, target.skill], // eslint-disable-line react-hooks/exhaustive-deps
+    [target.scope, target.projectId, target.skill],
   )
 
   const deletePath = useCallback(
@@ -96,7 +96,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       }
       reload()
     },
-    [reload, target.scope, target.projectId, target.skill], // eslint-disable-line react-hooks/exhaustive-deps
+    [reload, target.scope, target.projectId, target.skill],
   )
 
   const addTextFile = useCallback(
@@ -104,7 +104,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       await putBase64({ ...target, path }, toBase64Utf8(''))
       reload()
     },
-    [reload, target.scope, target.projectId, target.skill], // eslint-disable-line react-hooks/exhaustive-deps
+    [reload, target.scope, target.projectId, target.skill],
   )
 
   const uploadFile = useCallback(
@@ -112,7 +112,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       await putBase64({ ...target, path }, await fileToBase64(file))
       reload()
     },
-    [reload, target.scope, target.projectId, target.skill], // eslint-disable-line react-hooks/exhaustive-deps
+    [reload, target.scope, target.projectId, target.skill],
   )
 
   const renamePath = useCallback(
@@ -132,7 +132,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       }
       reload()
     },
-    [reload, target.scope, target.projectId, target.skill], // eslint-disable-line react-hooks/exhaustive-deps
+    [reload, target.scope, target.projectId, target.skill],
   )
 
   return { query, readTextFile, deletePath, addTextFile, uploadFile, renamePath }

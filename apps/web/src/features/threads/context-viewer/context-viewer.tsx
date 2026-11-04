@@ -47,7 +47,7 @@ export function ContextFileBody(props: { loaded: LoadedContextFile; path: string
   if (file.type === 'refused') return <Notice>{file.reason}</Notice>
   if (file.type === 'image') {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- next/image cannot optimize a data: URL
+      // biome-ignore lint/performance/noImgElement: next/image cannot optimize a data: URL
       <img
         src={`data:${file.mediaType};base64,${file.data}`}
         alt={path}
