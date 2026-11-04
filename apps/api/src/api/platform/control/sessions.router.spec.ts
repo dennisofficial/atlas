@@ -88,4 +88,25 @@ describe('SessionsRouter', () => {
     expect((await read({ sessionId: 's1', hash: 'abc', offset: -1 })).status).toBe(400)
     expect((await read({ sessionId: 's1', hash: 'abc', length: 2_000_001 })).status).toBe(400)
   })
+
+  it('refuses batched calls to events and blob', async () => {
+    const input = JSON.stringify({
+      0: { sessionId: 's1' },
+      1: { sessionId: 's1', hash: 'abc' },
+    })
+    const batched = await request(app.getHttpServer())
+      .get('/v1/trpc/sessions.events,sessions.blob')
+      .set(as('session-a'))
+      .query({ batch: '1', input })
+    expect(batched.status).toBe(400)
+    expect(sessions.events).not.toHaveBeenCalled()
+    expect(sessions.blob).not.toHaveBeenCalled()
+
+    sessions.list.mockResolvedValue({ sessions: [] })
+    const allowed = await request(app.getHttpServer())
+      .get('/v1/trpc/sessions.list,sessions.list')
+      .set(as('session-a'))
+      .query({ batch: '1', input: JSON.stringify({ 0: {}, 1: {} }) })
+    expect(allowed.status).toBe(200)
+  })
 })
