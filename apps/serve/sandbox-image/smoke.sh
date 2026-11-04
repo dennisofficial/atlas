@@ -89,6 +89,17 @@ expect 'node outside fixture is not 22' 'v' run 'node --version | grep -v "^v22\
 expect_fail 'uninstalled bun pin fails loudly instead of falling through' \
   run 'mkdir -p /Users/smoke/bunpin && echo 0.0.1 > /Users/smoke/bunpin/.bun-version && cd /Users/smoke/bunpin && bun --version'
 
+expect 'BUN_INSTALL points at the baked bun home' '/opt/bun' run 'echo "$BUN_INSTALL"'
+expect '$BUN_INSTALL/bin/bun runs for tools that spawn bun by path' '.' run501 '"$BUN_INSTALL/bin/bun" --version'
+expect_fail '$BUN_INSTALL/bin/bun still honors per-directory bun pins' \
+  run 'cd /Users/smoke/bunpin && "$BUN_INSTALL/bin/bun" --version'
+expect 'bun global bin dir is on PATH' '/opt/bun/bin' run 'echo "$PATH"'
+
+expect 'npm stays on the corepack stub after a reshim' '/opt/corepack/bin/npm' \
+  run 'mise reshim && command -v npm'
+expect 'corepack shim stays excluded after a reshim' '/usr/local/bin/corepack' \
+  run 'mise reshim && command -v corepack'
+
 expect 'idiomatic version files enabled as uid 501 with foreign HOME' 'node' \
   run501 'mise settings get idiomatic_version_file_enable_tools'
 expect 'no system fallback as uid 501 with foreign HOME' 'false' \

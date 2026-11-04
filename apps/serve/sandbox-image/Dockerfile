@@ -208,6 +208,7 @@ RUN mkdir -p /etc/mise \
       'not_found_system_fallback = false' \
       'not_found_auto_install = false' \
       'trusted_config_paths = ["/"]' \
+      'shims.exclude = ["npm", "npx", "corepack"]' \
       > /etc/mise/config.toml \
   && mise install node@lts node@22 python@3 bun@latest \
   && chmod -R a+rwX /opt/mise
@@ -217,10 +218,12 @@ RUN mkdir -p /etc/mise \
 # /opt/corepack/bin is appended so a mise-resolved tool always wins over the corepack stubs.
 ENV PATH=/opt/mise/shims:${PATH}:/opt/corepack/bin
 # mise shims every binary in a tool's install, so node brings npm/npx/corepack shims that
-# would shadow the packageManager-aware corepack stubs appended after them; the node base
-# image likewise ships npm/npx at /usr/local/bin ahead of /opt/corepack/bin.
-RUN rm -f /opt/mise/shims/npm /opt/mise/shims/npx /opt/mise/shims/corepack \
-  && rm -f /usr/local/bin/npm /usr/local/bin/npx \
+# would shadow the packageManager-aware corepack stubs appended after them. shims.exclude
+# keeps them out across every later reshim (a repo's `mise install` at boot reshims); the
+# node base image likewise ships npm/npx at /usr/local/bin ahead of /opt/corepack/bin.
+RUN rm -f /usr/local/bin/npm /usr/local/bin/npx \
+  && mise reshim \
+  && [ ! -e /opt/mise/shims/npm ] && [ ! -e /opt/mise/shims/npx ] && [ ! -e /opt/mise/shims/corepack ] \
   && mkdir -p /tmp/foreign-home \
   && node --version \
   && python --version \
@@ -231,7 +234,19 @@ RUN rm -f /opt/mise/shims/npm /opt/mise/shims/npx /opt/mise/shims/corepack \
   && HOME=/tmp/foreign-home mise settings get idiomatic_version_file_enable_tools | grep -q bun \
   && HOME=/tmp/foreign-home mise settings get not_found_system_fallback | grep -qx false \
   && HOME=/tmp/foreign-home mise settings get not_found_auto_install | grep -qx false \
-  && HOME=/tmp/foreign-home mise settings get trusted_config_paths | grep -qx '\["/"\]'
+  && HOME=/tmp/foreign-home mise settings get trusted_config_paths | grep -qx '\["/"\]' \
+  && HOME=/tmp/foreign-home mise settings get shims.exclude | grep -q npm
+
+# Tools that spawn bun by path rather than PATH look for $BUN_INSTALL/bin/bun, then
+# ~/.bun/bin/bun (trigger.dev's execPathForRuntime in @trigger.dev/core v3/build/runtime.js).
+# Linking the mise shims there keeps per-directory version selection, and bun's own
+# `bun add -g` binaries land in the same dir, appended to PATH so mise tools still win.
+ENV BUN_INSTALL=/opt/bun
+RUN install -d -m 0777 /opt/bun /opt/bun/bin /opt/bun/install \
+  && ln -s /opt/mise/shims/bun /opt/bun/bin/bun \
+  && ln -s /opt/mise/shims/bunx /opt/bun/bin/bunx \
+  && /opt/bun/bin/bun --version
+ENV PATH=${PATH}:/opt/bun/bin
 
 ENV COREPACK_HOME=/opt/corepack
 RUN mkdir -p /opt/corepack/bin \
