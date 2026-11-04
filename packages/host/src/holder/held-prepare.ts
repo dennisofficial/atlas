@@ -12,7 +12,7 @@ export class HeldPrepare {
     private readonly args: {
       deps: HeldSessionDeps
       abandoned(): boolean
-      onSettled(): void
+      onSettled(args: { failed: boolean }): void
     },
   ) {}
 
@@ -29,6 +29,7 @@ export class HeldPrepare {
     if (this.active) return
     this.active = true
     const { deps } = this.args
+    let failed = false
     deps.bus.live({ sessionId: deps.sessionId, frame: statusFrame({ state: 'preparing' }) })
     void args.runtime
       .prepare()
@@ -40,7 +41,10 @@ export class HeldPrepare {
         })
         return { ok: false, reason: error instanceof Error ? error.message : String(error) }
       })
-      .then((result) => this.record({ ...args, result }))
+      .then(async (result) => {
+        await this.record({ ...args, result })
+        failed = !result.ok
+      })
       .catch((error) => {
         deps.log?.error({
           source: 'holder.prepare',
@@ -50,7 +54,7 @@ export class HeldPrepare {
       })
       .finally(() => {
         this.active = false
-        this.args.onSettled()
+        this.args.onSettled({ failed })
       })
   }
 

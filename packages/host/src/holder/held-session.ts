@@ -1,4 +1,4 @@
-import { activeFailure, EHeldAction, type Lease, type ThreadId } from '@dltech/atlas-core'
+import { EHeldAction, type Lease, type ThreadId } from '@dltech/atlas-core'
 import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
 import { statusFrame, type SessionRuntime } from './ports'
@@ -58,9 +58,10 @@ export class HeldSession {
     this.prepare = new HeldPrepare({
       deps,
       abandoned: () => this.draining || this.ended,
-      onSettled: () => {
+      onSettled: ({ failed }) => {
         this.lastActivityAt = deps.timers.now()
-        this.reconciler?.request()
+        if (failed) void this.releaseIdle((runtime) => runtime.stop())
+        else this.reconciler?.request()
       },
     })
     this.idle = new IdleDeadline({
@@ -223,7 +224,7 @@ export class HeldSession {
         return
       }
       case EHeldAction.Release: {
-        await this.releaseIdle()
+        await this.releaseIdle((runtime) => runtime.release())
         return
       }
       case EHeldAction.Wait: {
@@ -254,13 +255,13 @@ export class HeldSession {
     })
   }
 
-  private async releaseIdle(): Promise<void> {
+  private async releaseIdle(end: (runtime: SessionRuntime) => Promise<void>): Promise<void> {
     if (this.runtime === undefined || this.released) return
     this.released = true
     const drop = (): void => this.drop()
     const finish = (): void => this.finish()
-    const failure = activeFailure(this.record?.eventCache().all() ?? [])
-    await releaseIdleAndRewake({ deps: this.deps, runtime: this.runtime, failure, drop, finish })
+    const { runtime, record } = this
+    await releaseIdleAndRewake({ deps: this.deps, end: () => end(runtime), record, drop, finish })
   }
 
   private drop(): void {

@@ -191,4 +191,35 @@ describe('SessionHolder prepare', () => {
     expect(reads - readsAtStart).toBeLessThan(10)
     expect(await typesOf(rig)).toEqual(['workspace-prepare-failed'])
   })
+
+  it('builds a fresh runtime, and so a new sandbox wake, when a newer message retries a failed prepare', async () => {
+    let attempts = 0
+    const rig = await makeRig({
+      prepare: async () => {
+        attempts += 1
+        return attempts === 1 ? { ok: false, reason: 'sandbox wake rejected' } : { ok: true }
+      },
+    })
+    await seedSession(rig)
+    await rig.post('first')
+    await rig.holder.start()
+    await rig.wake()
+    await flushUntil({
+      check: async () => (await typesOf(rig)).includes('workspace-prepare-failed'),
+    })
+    await rig.flush()
+    expect(rig.runtimes).toHaveLength(1)
+    expect(rig.runtimes[0]?.stopped).toBe(true)
+    expect(rig.holder.heldIds()).toEqual([])
+
+    await rig.post('second')
+    await rig.wake()
+    const answered = await flushUntil({
+      check: async () => (await typesOf(rig)).includes('assistant-said'),
+      attempts: 100,
+    })
+    expect(answered).toBe(true)
+    expect(rig.runtimes).toHaveLength(2)
+    expect(attempts).toBe(2)
+  })
 })

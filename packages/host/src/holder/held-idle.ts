@@ -1,9 +1,10 @@
-import { serveIdleDue, type PrepareFailure } from '@dltech/atlas-core'
+import { activeFailure, serveIdleDue, type PrepareFailure } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import type { SessionRuntime } from './ports'
 import { actionableEntries, readFullInbox } from './held-inbox'
 import type { HeldSessionDeps } from './held-session-deps'
+import type { SessionRecord } from './record/record-adapter'
 
 export const idleReleaseDue = (args: {
   deps: HeldSessionDeps
@@ -50,11 +51,11 @@ export const teardownHeldSession = async (args: {
 
 export const releaseIdleSession = async (args: {
   deps: HeldSessionDeps
-  runtime: SessionRuntime
+  end(): Promise<void>
 }): Promise<void> => {
   const { deps } = args
   try {
-    await args.runtime.release()
+    await args.end()
     await deps.plane.revoke({ sessionId: deps.sessionId, wantsHolder: false })
   } catch (error) {
     deps.log?.error({
@@ -79,15 +80,18 @@ const lateInputMaybePending = async (args: {
 
 export const releaseIdleAndRewake = async (args: {
   deps: HeldSessionDeps
-  runtime: SessionRuntime
-  failure: PrepareFailure | undefined
+  end(): Promise<void>
+  record: SessionRecord | undefined
   drop(): void
   finish(): void
 }): Promise<void> => {
   const { deps } = args
   try {
-    await releaseIdleSession({ deps, runtime: args.runtime })
-    const maybePending = await lateInputMaybePending({ deps, failure: args.failure })
+    await releaseIdleSession({ deps, end: args.end })
+    const maybePending = await lateInputMaybePending({
+      deps,
+      failure: activeFailure(args.record?.eventCache().all() ?? []),
+    })
     args.drop()
     if (!maybePending) return
     deps.onDrop?.()
