@@ -155,7 +155,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(leaseA.lease.holderId).toBe('host-a')
       const epochA = leaseA.lease.epoch
 
-      const reused = dispatched[0]
+      const reused = dispatched.find((row) => row.type === 'tool-dispatched')
       if (reused === undefined) throw new Error('no events recorded yet')
       const secondWriter = await rig.plane.append({
         threadId,
