@@ -1,6 +1,26 @@
 import { describe, expect, it } from 'bun:test'
 
-import { copyTextOf, isMarkdownPath } from '../context-model'
+import { copyTextOf, isHtmlPath, isMarkdownPath, renderableHtmlOf } from '../context-model'
+
+describe('isHtmlPath', () => {
+  it('matches html extensions only', () => {
+    expect(isHtmlPath('artifacts/pr-794-deck.html')).toBe(true)
+    expect(isHtmlPath('INDEX.HTM')).toBe(true)
+    expect(isHtmlPath('notes.md')).toBe(false)
+    expect(isHtmlPath('page.html.txt')).toBe(false)
+  })
+})
+
+describe('renderableHtmlOf', () => {
+  it('returns the content of a text file at an html path', () => {
+    const file = { type: 'text' as const, content: '<p>hi</p>', truncated: false }
+    expect(renderableHtmlOf({ file, path: 'a.html' })).toBe('<p>hi</p>')
+    expect(renderableHtmlOf({ file, path: 'a.md' })).toBeNull()
+    expect(
+      renderableHtmlOf({ file: { type: 'refused', reason: 'big' }, path: 'a.html' }),
+    ).toBeNull()
+  })
+})
 
 describe('isMarkdownPath', () => {
   it('matches markdown extensions only', () => {
