@@ -7,7 +7,8 @@ import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Button } from '@dltech/atlas-ui/components/button'
 
 import { useThreadPanel } from '../panel/thread-panel-context'
-import { copyTextOf, isMarkdownPath } from './context-model'
+import { copyTextOf, EContextView, isMarkdownPath, renderableHtmlOf } from './context-model'
+import { ContextViewToggle, HtmlFrame } from './html-view'
 import { type LoadedContextFile, useContextFile } from './use-context-file'
 
 export function CopyButton({ text }: { text: string }) {
@@ -70,7 +71,10 @@ export function ContextFileBody(props: { loaded: LoadedContextFile; path: string
 export function ContextViewer({ path }: { path: string }) {
   const { threadId, channel, closeContextFile } = useThreadPanel()
   const loaded = useContextFile({ threadId, channel, path })
+  const [view, setView] = useState(EContextView.Rendered)
   const text = loaded.state === 'ready' ? copyTextOf(loaded.file) : null
+  const html = loaded.state === 'ready' ? renderableHtmlOf({ file: loaded.file, path }) : null
+  const showsFrame = html !== null && view === EContextView.Rendered
 
   return (
     <section aria-label="Context file" className="flex h-full min-h-0 flex-col">
@@ -82,11 +86,18 @@ export function ContextViewer({ path }: { path: string }) {
         <p className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={path}>
           {path}
         </p>
+        {html === null ? null : <ContextViewToggle value={view} onValueChange={setView} />}
         {text === null ? null : <CopyButton text={text} />}
       </header>
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 overflow-auto px-4 py-6">
-        <ContextFileBody loaded={loaded} path={path} />
-      </div>
+      {showsFrame ? (
+        <div className="min-h-0 flex-1">
+          <HtmlFrame html={html} title={path} />
+        </div>
+      ) : (
+        <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 overflow-auto px-4 py-6">
+          <ContextFileBody loaded={loaded} path={path} />
+        </div>
+      )}
     </section>
   )
 }
