@@ -1,7 +1,14 @@
 import type { CallId, RunFailure, RunId, WaitingForModel } from '@dltech/atlas-core'
-import { ETurnStatus } from '@dltech/atlas-wire/web'
 
-export { ETurnStatus }
+export enum ETurnStatus {
+  Completed = 'completed',
+  Paused = 'paused',
+  Idle = 'idle',
+  Interrupted = 'interrupted',
+  HandoffPaused = 'relocation-paused',
+  Failed = 'failed',
+  WaitingForModel = 'waiting-for-model',
+}
 
 export type TurnOutcome =
   | { status: ETurnStatus.Completed; runId: RunId }
