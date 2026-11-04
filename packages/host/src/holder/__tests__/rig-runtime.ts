@@ -29,6 +29,7 @@ export type RigRuntime = SessionRuntime & {
   stopped: boolean
   released: boolean
   ackedScopes: string[]
+  watched: string[]
 }
 
 export type ScriptRef = { current: readonly ScriptedModelStep[] }
@@ -69,6 +70,7 @@ export const makeRuntimeFactory = (args: {
   clock: FakeClock
   script: ScriptRef
   runtimes: RigRuntime[]
+  watchedRepos?: (() => Promise<readonly string[]>) | undefined
 }): ((params: {
   sessionId: string
   threadId: ThreadId
@@ -109,6 +111,8 @@ export const makeRuntimeFactory = (args: {
         message,
       }),
       launchDirectory: '/w',
+      watched: [],
+      watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
       stopped: false,
       released: false,
       stop: async () => {

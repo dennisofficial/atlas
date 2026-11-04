@@ -1,6 +1,6 @@
 import type { LogPort } from '@dltech/atlas-observability'
 import { ECallFailure } from '@dltech/atlas-protocol'
-import type { CallOp, CallResult } from '@dltech/atlas-protocol'
+import type { CallOp, CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
 import {
   FencedError,
@@ -295,6 +295,7 @@ export class RemoteCallsState {
       handleHelloReply: (frame: { bootId: string; version: string }) =>
         this.handleHelloReply(frame),
       recoverAcrossRestart: (bootId: string) => this.recoverAcrossRestart(bootId),
+      emitEvent: (frame: Extract<DaemonFrame, { kind: 'event' }>) => this.args.onEvent?.(frame),
     }
   }
 }

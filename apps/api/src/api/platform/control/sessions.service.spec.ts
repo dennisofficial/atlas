@@ -181,6 +181,84 @@ describe('SessionsService', () => {
     expect(status.state).toBe(ESessionStatus.Failed)
   })
 
+  it('pages events by bytes through maxBytes', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const granted = await plane.grant({
+      sessionId: created.sessionId,
+      holderId: 'host-1',
+      ttlMs: 30_000,
+    })
+    const bodies: V2Body[] = Array.from({ length: 20 }, (_, i) => ({
+      type: 'user-said',
+      text: `m${i}${'x'.repeat(300)}`,
+    }))
+    const appended = await plane.append({
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-1'),
+        epoch: granted.epoch,
+        at: NOW,
+        bodies,
+      }),
+    })
+    expect(appended.ok).toBe(true)
+
+    const seen: unknown[] = []
+    let afterSeq: number | undefined
+    for (let guard = 0; guard < 50; guard += 1) {
+      const page = await service.events({
+        userId: 'user-a',
+        sessionId: created.sessionId,
+        afterSeq,
+        maxBytes: 2_000,
+      })
+      expect(page.events.length).toBeGreaterThan(0)
+      expect(JSON.stringify(page.events).length).toBeLessThanOrEqual(4_000)
+      seen.push(...page.events)
+      if (page.next === undefined) break
+      afterSeq = page.next
+    }
+    expect(seen).toHaveLength(20)
+  })
+
+  it('replaces a single event over the ceiling with an oversized placeholder', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const granted = await plane.grant({
+      sessionId: created.sessionId,
+      holderId: 'host-1',
+      ttlMs: 30_000,
+    })
+    const appended = await plane.append({
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-1'),
+        epoch: granted.epoch,
+        at: NOW,
+        bodies: [{ type: 'user-said', text: 'big-'.repeat(1_300_000) }],
+      }),
+    })
+    expect(appended.ok).toBe(true)
+
+    const page = await service.events({ userId: 'user-a', sessionId: created.sessionId })
+    expect(page.events).toHaveLength(1)
+    const placeholder = page.events[0] as {
+      seq: number
+      type: string
+      oversized: { bytes: number }
+    }
+    expect(placeholder.seq).toBe(1)
+    expect(placeholder.type).toBe('user-said')
+    expect(placeholder.oversized.bytes).toBeGreaterThan(3_500_000)
+    expect('text' in placeholder).toBe(false)
+    expect(page.next).toBeUndefined()
+  })
+
   it('stamps inbox messages with the same schema the host parses', async () => {
     const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })

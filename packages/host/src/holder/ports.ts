@@ -26,6 +26,7 @@ export type SessionRuntime = {
   assembly: AssemblyPipeline
   normalizeFailure: NormalizeFailure
   launchDirectory: string
+  watchedRepos(): Promise<readonly string[]>
   stop(): Promise<void>
   release(): Promise<void>
 }
