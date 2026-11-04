@@ -1,6 +1,9 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
+import { languageOfPath } from '#lib/language-of-path'
 import { cn } from '#lib/utils'
+
+import { useDiffHighlight } from './internal/diff-highlight'
 
 const MINUS = '−'
 
@@ -27,6 +30,7 @@ export interface DiffViewerProps {
 interface RowProps {
   line: DiffLine
   mode: DiffMode
+  highlighted: ReactNode | null
 }
 
 interface GutterInput {
@@ -40,7 +44,7 @@ export function gutterNumbers({ line, mode }: GutterInput): string[] {
   return [`${line.newNumber ?? line.oldNumber ?? ''}`]
 }
 
-function Row({ line, mode }: RowProps) {
+function Row({ line, mode, highlighted }: RowProps) {
   const added = line.kind === 'add'
   const removed = line.kind === 'remove'
   const gap = line.kind === 'gap'
@@ -79,7 +83,7 @@ function Row({ line, mode }: RowProps) {
           gap ? 'text-muted-foreground italic' : 'text-foreground',
         )}
       >
-        {line.text}
+        {highlighted ?? line.text}
       </span>
     </div>
   )
@@ -94,6 +98,8 @@ export function DiffViewer({
   hunk,
   style,
 }: DiffViewerProps) {
+  const highlighted = useDiffHighlight({ lines, language: languageOfPath(path) })
+
   return (
     <div
       className="min-w-0 overflow-hidden rounded-lg border border-border bg-card font-mono text-xs"
@@ -116,7 +122,7 @@ export function DiffViewer({
       ) : null}
       <div className="overflow-auto py-1 leading-relaxed">
         {lines.map((line, index) => (
-          <Row key={index} line={line} mode={mode} />
+          <Row key={index} line={line} mode={mode} highlighted={highlighted?.[index] ?? null} />
         ))}
       </div>
     </div>
