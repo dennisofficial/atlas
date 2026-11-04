@@ -64,7 +64,7 @@ export class AgentHostService {
               additionalRepos: additionalReposOf(project.additionalRepos),
               setupScript: project.setupScript,
             },
-      config: config as unknown as AgentHostConfigOutput['config'],
+      config,
       revision: createHash('sha256')
         .update(JSON.stringify(config))
         .update(JSON.stringify(model))

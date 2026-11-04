@@ -120,7 +120,8 @@ const v2ScopedMcpServerSchema = z.object({
 const v2ScopedFileMountSchema = z.object({
   path: z.string().min(1),
   contents: z.string(),
-  mode: z.string().min(1),
+  mode: z.number().int().min(0).max(0o777),
+  encoding: z.enum(['utf8', 'base64']).optional(),
 })
 
 const v2ProjectConfigSchema = z.object({
