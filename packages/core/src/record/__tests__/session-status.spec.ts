@@ -262,12 +262,12 @@ describe('sessionStatusOf workspace preparation', () => {
     reason: 'clone failed',
     inboxHead,
   })
-  const tracked = (args: { bodies: V2Body[]; pending?: number[] }) =>
+  const tracked = (args: { bodies: V2Body[]; pending?: number[]; retry?: boolean }) =>
     sessionStatusOf({
       events: chained(args.bodies),
       live: true,
       unconsumedInbox: (args.pending ?? []).length > 0,
-      pendingInboxIds: args.pending ?? [],
+      messageAfterFailure: args.retry ?? false,
       now: NOW,
     })
 
@@ -282,7 +282,9 @@ describe('sessionStatusOf workspace preparation', () => {
       reason: 'clone failed',
       since: NOW,
     })
-    expect(tracked({ bodies: [failed(1)], pending: [1, 2] }).state).toBe(ESessionStatus.Preparing)
+    expect(tracked({ bodies: [failed(1)], pending: [1, 2], retry: true }).state).toBe(
+      ESessionStatus.Preparing,
+    )
   })
 
   it('leaves a prepared session to the ordinary rules', () => {

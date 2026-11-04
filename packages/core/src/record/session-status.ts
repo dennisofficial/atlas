@@ -60,12 +60,12 @@ const unfinishedRunFailed = (
 
 const workspaceStatusOf = (args: {
   events: readonly V2Event[]
-  pendingInboxIds: readonly number[]
+  messageAfterFailure: boolean
 }): SessionStatus | undefined => {
   const { events } = args
   if ((events[0]?.seq ?? 1) > 1 || isWorkspacePrepared(events)) return undefined
   const failure = lastPrepareFailure(events)
-  if (failure === undefined || args.pendingInboxIds.some((id) => id > failure.inboxHead)) {
+  if (failure === undefined || args.messageAfterFailure) {
     return { state: ESessionStatus.Preparing }
   }
   return { state: ESessionStatus.SetupFailed, reason: failure.reason, since: failure.at }
@@ -75,16 +75,16 @@ export function sessionStatusOf(params: {
   events: readonly V2Event[]
   live: boolean
   unconsumedInbox: boolean
-  pendingInboxIds?: readonly number[] | undefined
+  messageAfterFailure?: boolean | undefined
   now: string
 }): SessionStatus {
   const { events, live } = params
   const nowMs = Date.parse(params.now)
 
   const workspace =
-    params.pendingInboxIds === undefined
+    params.messageAfterFailure === undefined
       ? undefined
-      : workspaceStatusOf({ events, pendingInboxIds: params.pendingInboxIds })
+      : workspaceStatusOf({ events, messageAfterFailure: params.messageAfterFailure })
   if (workspace !== undefined) return workspace
 
   if (params.unconsumedInbox) {

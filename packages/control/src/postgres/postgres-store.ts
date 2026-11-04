@@ -255,9 +255,19 @@ class PostgresTx implements ControlTx {
     return changed === 1
   }
 
-  async readInboxEntries(params: { sessionId: string; afterId: number; limit: number }) {
+  async readInboxEntries(params: {
+    sessionId: string
+    afterId: number
+    limit: number
+    excludeKind?: string | undefined
+  }) {
     const rows = await this.tx.orm.v2.V2InboxEntry.where((e) =>
-      and(e.sessionId.eq(params.sessionId), e.inboxId.gt(params.afterId), e.consumedSeq.isNull()),
+      and(
+        e.sessionId.eq(params.sessionId),
+        e.inboxId.gt(params.afterId),
+        e.consumedSeq.isNull(),
+        ...(params.excludeKind === undefined ? [] : [e.kind.neq(params.excludeKind)]),
+      ),
     )
       .orderBy((e) => e.inboxId.asc())
       .limit(params.limit)

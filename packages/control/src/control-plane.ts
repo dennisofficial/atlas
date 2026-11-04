@@ -184,6 +184,15 @@ export class ControlPlane {
     )
   }
 
+  async hasMessageAfter(params: {
+    sessionId: string
+    afterId: number
+    excludeKind: string
+  }): Promise<boolean> {
+    const found = await this.store.transact((tx) => tx.readInboxEntries({ ...params, limit: 1 }))
+    return found.length > 0
+  }
+
   async grant(params: { sessionId: string; holderId: string; ttlMs: number }): Promise<Lease> {
     return this.leases.grant(params)
   }

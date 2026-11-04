@@ -256,9 +256,15 @@ class MemoryTx implements ControlTx {
     return true
   }
 
-  async readInboxEntries(params: { sessionId: string; afterId: number; limit: number }) {
+  async readInboxEntries(params: {
+    sessionId: string
+    afterId: number
+    limit: number
+    excludeKind?: string | undefined
+  }) {
     return (this.state.inbox.get(params.sessionId) ?? [])
       .filter((e) => e.inboxId > params.afterId && e.consumedSeq === null)
+      .filter((e) => e.kind !== params.excludeKind)
       .sort((a, b) => a.inboxId - b.inboxId)
       .slice(0, params.limit)
       .map((e) => ({ ...e }))

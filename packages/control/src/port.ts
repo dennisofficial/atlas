@@ -102,6 +102,7 @@ export interface ControlTx {
     sessionId: string
     afterId: number
     limit: number
+    excludeKind?: string | undefined
   }): Promise<InboxEntry[]>
   notifyWake(sessionId: string): Promise<void>
 }

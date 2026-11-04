@@ -258,4 +258,35 @@ describe('SessionsService', () => {
       text: 'run the tests',
     })
   })
+
+  it('reports preparing for a retry message that sits behind a hundred covered ones', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    for (let index = 0; index < 100; index += 1) {
+      await service.post({ userId: 'user-a', sessionId: created.sessionId, text: `m${index}` })
+    }
+    const granted = await plane.grant({
+      sessionId: created.sessionId,
+      holderId: 'host-1',
+      ttlMs: 30_000,
+    })
+    const appended = await plane.append({
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-1'),
+        epoch: granted.epoch,
+        at: NOW,
+        bodies: [{ type: 'workspace-prepare-failed', reason: 'clone failed', inboxHead: 100 }],
+      }),
+    })
+    expect(appended.ok).toBe(true)
+    const failed = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(failed.state).toBe(ESessionStatus.SetupFailed)
+
+    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'retry' })
+    const retrying = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(retrying.state).toBe(ESessionStatus.Preparing)
+  })
 })
