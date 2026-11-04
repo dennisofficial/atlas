@@ -23,6 +23,7 @@ import { ProjectAccess } from './project-access'
 export type LeaseView = { epoch: number; holderId: string | null; live: boolean }
 
 const STATUS_EVENT_LIMIT = 1000
+const STATUS_INBOX_LIMIT = 100
 const EVENTS_DEFAULT_MAX_BYTES = 2_000_000
 const EVENTS_HARD_CEILING_BYTES = 3_500_000
 const BLOB_READ_DEFAULT_LENGTH = 1_000_000
@@ -148,7 +149,7 @@ export class SessionsService {
         limit: STATUS_EVENT_LIMIT,
         visible: true,
       }),
-      this.plane.readInbox({ sessionId: args.sessionId, afterId: 0, limit: 1 }),
+      this.plane.readInbox({ sessionId: args.sessionId, afterId: 0, limit: STATUS_INBOX_LIMIT }),
       this.plane.currentLease({ sessionId: args.sessionId }),
     ])
     const unconsumed = inbox.some((entry: InboxEntry) => entry.consumedSeq === null)
@@ -156,6 +157,9 @@ export class SessionsService {
       events: await this.resolveFactRefs(page.events),
       live,
       unconsumedInbox: unconsumed,
+      pendingInboxIds: inbox
+        .filter((entry: InboxEntry) => entry.kind !== 'stop')
+        .map((entry: InboxEntry) => entry.inboxId),
       now: new Date().toISOString(),
     })
     return {
