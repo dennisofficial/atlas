@@ -103,7 +103,7 @@ export class CheckAnnotationFetcher {
       })
       return raw === null ? undefined : failureAnnotationsOf(raw)
     } catch {
-      return []
+      return undefined
     }
   }
 }
