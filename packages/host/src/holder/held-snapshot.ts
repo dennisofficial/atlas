@@ -5,6 +5,24 @@ import { INBOX_KIND_STOP } from './inbox-intake'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
 
+const INBOX_PAGE_LIMIT = 100
+
+const readFullInbox = async (deps: HeldSessionDeps): Promise<InboxEntry[]> => {
+  const entries: InboxEntry[] = []
+  let afterId = 0
+  for (;;) {
+    const page = await deps.plane.readInbox({
+      sessionId: deps.sessionId,
+      afterId,
+      limit: INBOX_PAGE_LIMIT,
+    })
+    entries.push(...page)
+    const last = page[page.length - 1]
+    if (last === undefined || page.length < INBOX_PAGE_LIMIT) return entries
+    afterId = last.inboxId
+  }
+}
+
 export const readHeldAction = async (args: {
   deps: HeldSessionDeps
   draining: boolean
@@ -15,7 +33,7 @@ export const readHeldAction = async (args: {
   released: boolean
 }): Promise<{ entries: InboxEntry[]; action: EHeldAction }> => {
   const { deps } = args
-  const entries = await deps.plane.readInbox({ sessionId: deps.sessionId, afterId: 0, limit: 100 })
+  const entries = await readFullInbox(deps)
   const messagePending = entries.some((entry) => entry.kind !== INBOX_KIND_STOP)
   const action = decideHeldAction({
     draining: args.draining,
