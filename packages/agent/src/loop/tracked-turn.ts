@@ -209,7 +209,16 @@ export async function runTrackedTurn(
         onChunk: deps.onChunk,
         assembled,
         signal: abortSignal,
-        retry: deps.retry,
+        retry:
+          deps.onceLedger === undefined
+            ? deps.retry
+            : {
+                ...deps.retry,
+                ledger: {
+                  onceLedger: deps.onceLedger,
+                  stepKey: `retry:${threadId}:s${position.seenThrough ?? 0}`,
+                },
+              },
         normalizeFailure: deps.normalizeFailure,
         prepare: prepareAttempt,
       })
