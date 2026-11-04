@@ -138,7 +138,7 @@ describe('retry deadlines through OnceLedger', () => {
     expect(outcome.status).toBe(ETurnStatus.Completed)
     expect(sleeps).toEqual([500])
     expect(
-      rig.record.eventsOf(THREAD).filter((event) => event.type === 'fact-recorded'),
+      rig.record.eventsOf(THREAD).filter((event) => String(event.type) === 'fact-recorded'),
     ).toHaveLength(0)
   })
 })
