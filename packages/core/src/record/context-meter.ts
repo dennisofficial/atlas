@@ -28,7 +28,8 @@ const tokensOf = (event: V2Event): number => {
   if (
     event.type === 'history-rewound' ||
     event.type === 'input-consumed' ||
-    event.type === 'fact-recorded'
+    event.type === 'fact-recorded' ||
+    event.type === 'branches-observed'
   )
     return 0
   return estimateBodyTokens(event)

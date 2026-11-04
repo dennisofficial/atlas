@@ -4,6 +4,7 @@ import { ECompactionAnchor, type EventBody } from '../events/body'
 import { eventIdSchema, runIdSchema, threadIdSchema } from '../events/ids'
 import type { EventId, RunId, ThreadId } from '../events/ids'
 import { eventBodySchema } from '../events/schema'
+import { branchesObservedSchema, type BranchesObserved } from './branches'
 
 export type Hash = string & { readonly __brand: 'Hash' }
 
@@ -30,6 +31,7 @@ export type RecordBody =
     }
   | { type: 'input-consumed'; inboxId: number }
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
+  | BranchesObserved
 
 export type V2Body = Exclude<EventBody, { type: 'history-compacted' }> | RecordBody
 
@@ -78,6 +80,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     kind: z.string().min(1),
     value: z.unknown().optional(),
   }),
+  branchesObservedSchema,
 ])
 
 const RECORD_TYPES: readonly string[] = [
@@ -85,6 +88,7 @@ const RECORD_TYPES: readonly string[] = [
   'history-summarised',
   'input-consumed',
   'fact-recorded',
+  'branches-observed',
 ]
 
 const typeOf = (raw: unknown): unknown =>
