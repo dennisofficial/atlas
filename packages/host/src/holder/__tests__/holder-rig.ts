@@ -1,4 +1,4 @@
-import { toThreadId } from '@dltech/atlas-core'
+import { toThreadId, type ModelPort } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
@@ -44,6 +44,7 @@ export const makeRig = async (args: {
   inboxPollMs?: number | undefined
   idleMinutes?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
+  model?: (() => ModelPort) | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
@@ -61,6 +62,7 @@ export const makeRig = async (args: {
     script,
     runtimes,
     watchedRepos: args.watchedRepos,
+    model: args.model,
   })
 
   const holder = new SessionHolder({

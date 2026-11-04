@@ -6,6 +6,7 @@ import {
   EProviderRetry,
   EToolEffect,
   ToolDefinition,
+  type ModelPort,
   type ThreadId,
   type ToolInvocation,
   type ToolOutcome,
@@ -25,7 +26,7 @@ import type { SessionRuntime } from '../ports'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
 
 export type RigRuntime = SessionRuntime & {
-  model: ScriptedModel
+  model: ModelPort
   stopped: boolean
   released: boolean
   ackedScopes: string[]
@@ -71,6 +72,7 @@ export const makeRuntimeFactory = (args: {
   script: ScriptRef
   runtimes: RigRuntime[]
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
+  model?: (() => ModelPort) | undefined
 }): ((params: {
   sessionId: string
   threadId: ThreadId
@@ -78,7 +80,7 @@ export const makeRuntimeFactory = (args: {
   signal: AbortSignal
 }) => Promise<SessionRuntime>) => {
   return async ({ sessionId, epoch }) => {
-    const model = new ScriptedModel(args.script.current)
+    const model = args.model?.() ?? new ScriptedModel(args.script.current)
     const calls = new RemoteCalls({
       sessionId,
       token: inMemoryDaemonToken({ secret: SECRET, sandboxName: SANDBOX }),
