@@ -168,6 +168,7 @@ export class HeldSession {
       })
 
       const events = await record.ownEvents({ threadId })
+      await intake.pollStops()
       if (isResumable(events)) {
         await this.driveTurn({ runner, threadId, resume: true })
       }
@@ -197,6 +198,7 @@ export class HeldSession {
       threadId: args.threadId,
       pause: this.pause,
       resume: args.resume,
+      hasPendingStop: () => this.intake?.hasPendingStop() ?? false,
       onActivity: () => {
         this.lastActivityAt = this.deps.timers.now()
       },

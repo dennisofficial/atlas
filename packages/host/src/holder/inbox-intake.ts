@@ -33,6 +33,10 @@ export class InboxIntake implements AgentIntake {
     return found
   }
 
+  hasPendingStop(): boolean {
+    return this.stopSeen !== undefined && this.stopSeen > this.lastStopConsumed
+  }
+
   stopConsumed(inboxId: number): void {
     if (inboxId > this.lastStopConsumed) this.lastStopConsumed = inboxId
   }

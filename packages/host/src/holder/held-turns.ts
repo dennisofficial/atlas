@@ -26,9 +26,11 @@ export class HeldTurns {
     threadId: ThreadId
     pause: PauseSignal
     resume: boolean
+    hasPendingStop(): boolean
     onActivity(): void
   }): Promise<void> {
     this.turnAbort = new AbortController()
+    if (args.hasPendingStop()) this.turnAbort.abort('stop')
     this.turnRunning = true
     this.deps.bus.live({
       sessionId: this.deps.sessionId,
