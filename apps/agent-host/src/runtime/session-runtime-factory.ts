@@ -131,7 +131,7 @@ export const createSessionRuntimeFactory = (
     ])
     const gitWatch = watchWorkspaceRepos({
       calls,
-      setup,
+      gate,
       launchDirectory,
       additionalRepos: config.workspace.additionalRepos,
       ...(args.log === undefined ? {} : { log: args.log }),

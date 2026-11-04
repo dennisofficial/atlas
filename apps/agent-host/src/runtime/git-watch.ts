@@ -13,12 +13,12 @@ const additionalRepoDir = (args: { launchDirectory: string; repo: string }): str
 
 export const watchWorkspaceRepos = (args: {
   calls: RemoteCalls
-  setup: Promise<void>
+  gate: Promise<void>
   launchDirectory: string
   additionalRepos: AgentHostConfigOutput['workspace']['additionalRepos']
   log?: LogPort | undefined
 }): GitWatch => {
-  const watched = args.setup
+  const watched = args.gate
     .then(async () => {
       const candidates = [
         args.launchDirectory,
@@ -28,9 +28,17 @@ export const watchWorkspaceRepos = (args: {
       ]
       const repos: string[] = []
       for (const repoPath of candidates) {
+        const key = newKey()
         const result = await args.calls.invoke({
-          key: newKey(),
+          key,
           op: { op: 'git.watch', repoPath },
+        })
+        await args.calls.ack({ key }).catch((error: unknown) => {
+          args.log?.error({
+            source: 'runtime.git-watch',
+            message: `ack for ${key} failed`,
+            ...logFieldsOf({ error }),
+          })
         })
         if (result.status === 'ok') repos.push(repoPath)
       }

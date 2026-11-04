@@ -70,6 +70,7 @@ export const makeRuntimeFactory = (args: {
   clock: FakeClock
   script: ScriptRef
   runtimes: RigRuntime[]
+  watchedRepos?: (() => Promise<readonly string[]>) | undefined
 }): ((params: {
   sessionId: string
   threadId: ThreadId
@@ -111,7 +112,7 @@ export const makeRuntimeFactory = (args: {
       }),
       launchDirectory: '/w',
       watched: [],
-      watchedRepos: async () => runtime.watched,
+      watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
       stopped: false,
       released: false,
       stop: async () => {

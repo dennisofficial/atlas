@@ -49,6 +49,7 @@ export class HeldSession {
 
   beginDrain(): void {
     this.draining = true
+    this.branches?.stop()
     this.pause.pause()
     this.record?.markDraining()
     this.interruptWait?.()
@@ -146,6 +147,7 @@ export class HeldSession {
         threadId,
         repos: () => runtime.watchedRepos(),
         runId: () => deps.ids.nextRunId(),
+        signal: this.lifetimeAbort.signal,
         ...(deps.log === undefined ? {} : { log: deps.log }),
       })
       this.branches = branches
@@ -195,7 +197,7 @@ export class HeldSession {
       },
     })
     await this.consumeStops()
-    await this.branches?.refresh()
+    if (!this.draining && !this.lostOwnership) await this.branches?.refresh()
   }
 
   private consumeStops(): Promise<void> {
@@ -245,6 +247,7 @@ export class HeldSession {
   private drop(): void {
     if (this.lostOwnership) return
     this.lostOwnership = true
+    this.branches?.stop()
     this.record?.fence()
     this.turns.abort()
     this.lifetimeAbort.abort()
@@ -278,6 +281,7 @@ export class HeldSession {
   private async teardown(): Promise<void> {
     const deps = this.deps
     this.renewal?.stop()
+    this.branches?.stop()
     if (this.runtime === undefined) return
     if (this.draining) {
       await this.runtime.stop()
