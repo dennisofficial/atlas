@@ -1,5 +1,6 @@
 import {
   acceptAppend,
+  sha256Hex,
   stepVisibility,
   takeBack,
   type ClaimResult,
@@ -17,6 +18,8 @@ import { parseAppendEvents } from './parse-append'
 import {
   ControlStorePort,
   SeqConflictError,
+  type BlobRow,
+  type BlobWrite,
   type ControlTx,
   type StoredEvent,
   type ThreadRow,
@@ -120,6 +123,7 @@ export class ControlPlane {
     threadId: string
     epoch: number
     events: readonly unknown[]
+    blobs?: readonly BlobWrite[] | undefined
   }): Promise<AppendOutcome> {
     try {
       return await this.store.transact((tx) => this.appendIn({ tx, ...params }))
@@ -143,6 +147,23 @@ export class ControlPlane {
     return this.store.transact(async (tx) => {
       const row = await this.requireThread({ tx, threadId: params.threadId })
       return readEventsIn({ tx, row, afterSeq: params.afterSeq, limit, visible: params.visible })
+    })
+  }
+
+  async readBlob(params: {
+    hash: string
+    offset?: number | undefined
+    length?: number | undefined
+  }): Promise<BlobRow | undefined> {
+    return this.store.transact(async (tx) => {
+      const row = await tx.readBlob({ hash: params.hash })
+      if (row === undefined) return undefined
+      const offset = Math.max(0, params.offset ?? 0)
+      const end =
+        params.length === undefined
+          ? row.bytes.byteLength
+          : Math.min(row.bytes.byteLength, offset + Math.max(0, params.length))
+      return { size: row.size, bytes: row.bytes.subarray(offset, end) }
     })
   }
 
@@ -236,6 +257,7 @@ export class ControlPlane {
     threadId: string
     epoch: number
     events: readonly unknown[]
+    blobs?: readonly BlobWrite[] | undefined
   }): Promise<AppendOutcome> {
     const { tx } = params
     const row = await tx.lockThread(params.threadId)
@@ -263,6 +285,13 @@ export class ControlPlane {
     })
     if (!accepted.ok) return refuse(accepted.refusal)
 
+    const blobs = params.blobs ?? []
+    for (const blob of blobs) {
+      if (sha256Hex(blob.bytes) !== blob.hash) {
+        return refuse({ kind: 'blob-mismatch', hash: blob.hash })
+      }
+    }
+
     let visibility = decodeVisibility(row.visibility)
     const stored: StoredEvent[] = []
     for (const [index, event] of parsed.events.entries()) {
@@ -278,6 +307,7 @@ export class ControlPlane {
       }
       stored.push(toStoredEvent({ event, hash: accepted.hashes[index] as StoredEvent['hash'] }))
     }
+    await tx.insertBlobs(blobs)
     await tx.insertEvents(stored)
     const swapped = await tx.writeThreadHead({
       threadId: params.threadId,

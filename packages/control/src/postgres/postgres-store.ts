@@ -4,6 +4,8 @@ import { GENESIS_HASH, type Hash, type InboxEntry, type Lease } from '@dltech/at
 import {
   ControlStorePort,
   SeqConflictError,
+  type BlobRow,
+  type BlobWrite,
   type ControlTx,
   type ReadEventsParams,
   type StoredEvent,
@@ -181,6 +183,24 @@ class PostgresTx implements ControlTx {
       if (isUniqueViolation(error)) throw new SeqConflictError()
       throw error
     }
+  }
+
+  async insertBlobs(rows: readonly BlobWrite[]): Promise<void> {
+    for (const row of rows) {
+      const statement = this.tx.raw
+        .sql`INSERT INTO "v2"."V2Blob" ("hash", "bytes", "size", "createdAt")
+        VALUES (${row.hash}, ${Buffer.from(row.bytes)}, ${row.bytes.byteLength}, clock_timestamp())
+        ON CONFLICT ("hash") DO NOTHING`
+        .affectedCount()
+        .build()
+      await this.tx.execute(statement)
+    }
+  }
+
+  async readBlob(params: { hash: string }): Promise<BlobRow | undefined> {
+    const row = await this.tx.orm.v2.V2Blob.first({ hash: params.hash })
+    if (row === null) return undefined
+    return { size: row.size, bytes: new Uint8Array(row.bytes) }
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {

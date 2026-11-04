@@ -3,6 +3,8 @@ import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
 import {
   ControlStorePort,
   SeqConflictError,
+  type BlobRow,
+  type BlobWrite,
   type ControlTx,
   type ReadEventsParams,
   type StoredEvent,
@@ -19,6 +21,7 @@ type State = {
   eventIds: Set<string>
   leases: Map<string, Lease>
   inbox: Map<string, InboxEntry[]>
+  blobs: Map<string, BlobRow>
 }
 
 const emptyState = (): State => ({
@@ -28,6 +31,7 @@ const emptyState = (): State => ({
   eventIds: new Set(),
   leases: new Map(),
   inbox: new Map(),
+  blobs: new Map(),
 })
 
 const cloneState = (state: State): State => ({
@@ -37,6 +41,7 @@ const cloneState = (state: State): State => ({
   eventIds: new Set(state.eventIds),
   leases: new Map([...state.leases].map(([key, value]) => [key, { ...value }])),
   inbox: new Map([...state.inbox].map(([key, value]) => [key, value.map((e) => ({ ...e }))])),
+  blobs: new Map([...state.blobs].map(([key, value]) => [key, { ...value }])),
 })
 
 const bisectAfter = (params: { rows: readonly StoredEvent[]; afterSeq: number }): number => {
@@ -180,6 +185,22 @@ class MemoryTx implements ControlTx {
       log.push(row)
       this.state.eventIds.add(row.id)
     }
+  }
+
+  async insertBlobs(rows: readonly BlobWrite[]): Promise<void> {
+    for (const row of rows) {
+      if (this.state.blobs.has(row.hash)) continue
+      this.state.blobs.set(row.hash, {
+        size: row.bytes.byteLength,
+        bytes: new Uint8Array(row.bytes),
+      })
+    }
+  }
+
+  async readBlob(params: { hash: string }): Promise<BlobRow | undefined> {
+    const row = this.state.blobs.get(params.hash)
+    if (row === undefined) return undefined
+    return { size: row.size, bytes: new Uint8Array(row.bytes) }
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {
