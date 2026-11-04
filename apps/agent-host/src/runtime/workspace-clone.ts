@@ -4,7 +4,14 @@ import type { ProcessPort } from '@dltech/atlas-core'
 import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
 import { githubCloneUrlOf } from '@dltech/atlas-wire'
 
-import { report, TOKEN_FILE, writeSentinel, type Deps, type Sentinels } from './workspace-state'
+import {
+  fail,
+  report,
+  TOKEN_FILE,
+  writeSentinel,
+  type Deps,
+  type Sentinels,
+} from './workspace-state'
 
 type WorkspaceConfig = AgentHostConfigOutput['workspace']
 
@@ -108,7 +115,9 @@ const clonePrimary = async (args: {
     timeoutMs: CLONE_TIMEOUT_MS,
   })
   if (!cloned.ok) {
-    report({ deps, message: 'workspace clone failed', detail: args.scrub(cloned.output) })
+    const detail = args.scrub(cloned.output)
+    report({ deps, message: 'workspace clone failed', detail })
+    fail({ deps, message: 'workspace clone failed', detail })
     await deps.files.removeFile({ path: staging }).catch(() => undefined)
     return false
   }
@@ -141,11 +150,9 @@ const cloneAdditional = async (args: {
       timeoutMs: CLONE_TIMEOUT_MS,
     })
     if (!cloned.ok) {
-      report({
-        deps: args.deps,
-        message: `additional repo ${repo} clone failed`,
-        detail: args.scrub(cloned.output),
-      })
+      const detail = args.scrub(cloned.output)
+      report({ deps: args.deps, message: `additional repo ${repo} clone failed`, detail })
+      fail({ deps: args.deps, message: `additional repo ${repo} clone failed`, detail })
       await args.deps.files.removeFile({ path: target }).catch(() => undefined)
     }
   }

@@ -115,3 +115,56 @@ describe('the setup gate deadline', () => {
     }
   }, 60_000)
 })
+
+describe('SessionRuntime.prepare', () => {
+  const runtimeWith = async (args: { githubToken: () => Promise<{ token: string | null }> }) => {
+    const sandbox = new LocalSandboxProvider({ daemonSecret: 'prepare-secret' })
+    const factory = createSessionRuntimeFactory({
+      api: { ...apiFor(), githubToken: args.githubToken },
+      sandbox,
+      daemonSecret: 'prepare-secret',
+      timers: { now: () => Date.now(), ...systemTimers },
+      modelFor: () => new ScriptedModel([]),
+      launchDirectory: mkdtempSync(join(tmpdir(), 'atlas-prepare-')),
+      setupDeadlineMs: 60_000,
+    })
+    const runtime = await factory({
+      sessionId: 'prepare-session-1',
+      threadId: toThreadId('prepare-thread'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    return { runtime, sandbox }
+  }
+
+  it('resolves ok once the workspace is ready and keeps answering ok', async () => {
+    const { runtime, sandbox } = await runtimeWith({ githubToken: async () => ({ token: null }) })
+    try {
+      expect(await runtime.prepare()).toEqual({ ok: true })
+      expect(await runtime.prepare()).toEqual({ ok: true })
+      await runtime.stop()
+    } finally {
+      await sandbox.stopAll()
+    }
+  }, 60_000)
+
+  it('reports a failure with its reason and attempts again on the next call', async () => {
+    let attempts = 0
+    const { runtime, sandbox } = await runtimeWith({
+      githubToken: async () => {
+        attempts += 1
+        if (attempts === 1) throw new Error('token endpoint down')
+        return { token: null }
+      },
+    })
+    try {
+      const failed = await runtime.prepare()
+      expect(failed).toEqual({ ok: false, reason: 'token endpoint down' })
+      expect(await runtime.prepare()).toEqual({ ok: true })
+      expect(attempts).toBe(2)
+      await runtime.stop()
+    } finally {
+      await sandbox.stopAll()
+    }
+  }, 60_000)
+})

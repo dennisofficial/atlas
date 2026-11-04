@@ -34,6 +34,7 @@ export { SessionHolder, type SessionHolderArgs } from './holder/session-holder'
 export {
   type HostBus,
   type HostTimers,
+  type PrepareResult,
   type SessionRuntime,
   type SessionRuntimeFactory,
   type StatusState,

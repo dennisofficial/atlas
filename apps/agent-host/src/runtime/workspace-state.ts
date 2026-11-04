@@ -14,6 +14,14 @@ export type Deps = {
   processes: ProcessPort
   files: FileSystemPort
   log?: LogPort | undefined
+  failures?: string[] | undefined
+}
+
+const FAILURE_TAIL_CHARS = 1000
+
+export const fail = (args: { deps: Deps; message: string; detail?: string | undefined }): void => {
+  const tail = (args.detail ?? '').trim().slice(-FAILURE_TAIL_CHARS)
+  args.deps.failures?.push(tail === '' ? args.message : `${args.message}: ${tail}`)
 }
 
 export const stateDirOf = (launchDirectory: string): string =>
@@ -55,6 +63,7 @@ export const writeSentinel = async (args: {
     })
     return true
   } catch (error) {
+    fail({ deps: args.deps, message: args.message, detail: String(error) })
     args.deps.log?.error({
       source: 'runtime.workspace-setup',
       message: args.message,

@@ -1,11 +1,17 @@
 import type { FileSystemPort, ProcessPort } from '@dltech/atlas-core'
-import { runInCallScope, scopeKeyOf, type RemoteCalls } from '@dltech/atlas-host'
+import {
+  runInCallScope,
+  scopeKeyOf,
+  type PrepareResult,
+  type RemoteCalls,
+} from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
 
 import { materialize, run } from './workspace-clone'
 import {
   checkSentinels,
+  fail,
   report,
   sentinelsOf,
   stateDirOf,
@@ -36,7 +42,9 @@ const runSetupOnce = async (args: {
     timeoutMs: SETUP_TIMEOUT_MS,
   })
   if (!outcome.ok) {
-    report({ deps, message: 'workspace setup script failed', detail: args.scrub(outcome.output) })
+    const detail = args.scrub(outcome.output)
+    report({ deps, message: 'workspace setup script failed', detail })
+    fail({ deps, message: 'workspace setup script failed', detail })
     return
   }
   await writeSentinel({
@@ -45,6 +53,9 @@ const runSetupOnce = async (args: {
     message: 'setup sentinel write failed; setup is not done',
   })
 }
+
+const resultOf = (failures: readonly string[]): PrepareResult =>
+  failures.length === 0 ? { ok: true } : { ok: false, reason: failures.join('\n') }
 
 const scopeFor = (args: { sandboxName: string; phase: string }): string =>
   scopeKeyOf({ runId: 'setup', callId: `${args.sandboxName}:${args.phase}` })
@@ -58,10 +69,12 @@ export const ensureWorkspace = async (args: {
   launchDirectory: string
   sandboxName: string
   log?: LogPort | undefined
-}): Promise<void> => {
+}): Promise<PrepareResult> => {
+  const failures: string[] = []
   const deps: Deps = {
     processes: args.processes,
     files: args.files,
+    failures,
     ...(args.log === undefined ? {} : { log: args.log }),
   }
   const { workspace, launchDirectory, githubToken } = args
@@ -91,7 +104,7 @@ export const ensureWorkspace = async (args: {
             scrub,
           }),
       })
-      if (!materialized) return
+      if (!materialized) return resultOf(failures)
     }
     if (!state.setupRan) {
       await runInCallScope({
@@ -106,12 +119,15 @@ export const ensureWorkspace = async (args: {
           }),
       })
     }
+    return resultOf(failures)
   } catch (error) {
+    fail({ deps, message: 'workspace setup failed', detail: String(error) })
     deps.log?.error({
       source: 'runtime.workspace-setup',
       message: 'workspace setup failed',
       ...logFieldsOf({ error }),
     })
+    return resultOf(failures)
   } finally {
     for (const scopeKey of phases) {
       await args.calls.ackScope({ scopeKey }).catch(() => undefined)

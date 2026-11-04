@@ -170,6 +170,92 @@ describe('ensureWorkspace', () => {
     calls.close()
   }, 60_000)
 
+  it('reports ok after a clean clone and setup', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-ok-'))
+    const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-ok' })
+    const result = await setupFor({
+      sessionId: 'setup-session-ok',
+      calls,
+      processes,
+      files,
+      workspace: {
+        remoteUrl: makeRemote(root),
+        baseBranch: null,
+        additionalRepos: [],
+        setupScript: 'true',
+      },
+      launchDirectory: join(root, 'workspace'),
+    })
+    expect(result).toEqual({ ok: true })
+    calls.close()
+  }, 60_000)
+
+  it('reports a failing setup script with its output tail and no sentinel', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-badsetup-'))
+    const launchDirectory = join(root, 'workspace')
+    const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-bad' })
+    const result = await setupFor({
+      sessionId: 'setup-session-bad',
+      calls,
+      processes,
+      files,
+      workspace: {
+        remoteUrl: null,
+        baseBranch: null,
+        additionalRepos: [],
+        setupScript: 'echo installing; echo boom-marker >&2; exit 3',
+      },
+      launchDirectory,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toContain('workspace setup script failed')
+      expect(result.reason).toContain('boom-marker')
+    }
+    expect(existsSync(join(root, WORKSPACE_STATE_DIR, SETUP_SENTINEL))).toBe(false)
+    calls.close()
+  }, 60_000)
+
+  it('reports a failing clone without the github token and retries it next time', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-badclone-'))
+    const launchDirectory = join(root, 'workspace')
+    const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-clone' })
+    const workspace = {
+      remoteUrl: `file://${join(root, 'missing.git')}`,
+      baseBranch: null,
+      additionalRepos: [],
+      setupScript: '',
+    }
+    const failed = await setupFor({
+      sessionId: 'setup-session-clone',
+      calls,
+      processes,
+      files,
+      workspace,
+      githubToken: TOKEN,
+      launchDirectory,
+    })
+    expect(failed.ok).toBe(false)
+    if (!failed.ok) {
+      expect(failed.reason).toContain('workspace clone failed')
+      expect(failed.reason).not.toContain(TOKEN)
+    }
+    const remoteUrl = makeRemote(root)
+    const retried = await setupFor({
+      sessionId: 'setup-session-clone',
+      calls,
+      processes,
+      files,
+      workspace: { ...workspace, remoteUrl },
+      launchDirectory,
+    })
+    expect(retried).toEqual({ ok: true })
+    expect(await files.readFile({ path: join(launchDirectory, 'hello.txt') })).toBe(
+      'hello from the repo\n',
+    )
+    calls.close()
+  }, 60_000)
+
   it('never lets the github token reach the log or outlive the setup', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-scrub-'))
     const launchDirectory = join(root, 'workspace')
