@@ -8,9 +8,20 @@ export enum EContextView {
   Source = 'source',
 }
 
+export enum ERenderKind {
+  Markdown = 'markdown',
+  Html = 'html',
+}
+
 export const isMarkdownPath = (path: string): boolean => MARKDOWN_PATH.test(path)
 
 export const isHtmlPath = (path: string): boolean => HTML_PATH.test(path)
+
+export const renderKindOf = (path: string): ERenderKind | null => {
+  if (isMarkdownPath(path)) return ERenderKind.Markdown
+  if (isHtmlPath(path)) return ERenderKind.Html
+  return null
+}
 
 export const renderableHtmlOf = (args: {
   file: ContextFileContentWire

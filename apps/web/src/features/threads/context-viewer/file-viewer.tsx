@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { ArrowLeftIcon, GitCompareIcon } from 'lucide-react'
 
 import { CodeViewer } from '@dltech/atlas-ui/ai/code-viewer'
@@ -12,26 +12,34 @@ import { lineMarksOf } from '../data/line-marks'
 import { EGitChangesStatus, useGitChanges, useTurnEndCount } from '../data/use-git-changes'
 import { useWorkspaceFile, type LoadedWorkspaceFile } from '../data/use-workspace-file'
 import { useThreadPanel } from '../panel/thread-panel-context'
+import { EContextView, type ERenderKind, renderKindOf } from './context-model'
 import { CopyButton, Notice } from './context-viewer'
+import { ContextViewToggle } from './html-view'
+import { RenderedFile } from './rendered-file'
 
-function Body(props: {
+export function FileBody(props: {
   loaded: LoadedWorkspaceFile
   path: string
   marks: ReturnType<typeof lineMarksOf>
+  rendered: ERenderKind | null
 }) {
-  const { loaded, path, marks } = props
+  const { loaded, path, marks, rendered } = props
   if (loaded.state === 'loading') return <Notice>Reading file…</Notice>
   if (loaded.state === 'failed') return <Notice>File unavailable</Notice>
   if (loaded.file.type === 'refused') return <Notice>{loaded.file.reason}</Notice>
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1">
-        <CodeViewer
-          path={path}
-          content={loaded.file.content}
-          language={languageOfPath(path)}
-          marks={marks}
-        />
+        {rendered === null ? (
+          <CodeViewer
+            path={path}
+            content={loaded.file.content}
+            language={languageOfPath(path)}
+            marks={marks}
+          />
+        ) : (
+          <RenderedFile kind={rendered} content={loaded.file.content} path={path} />
+        )}
       </div>
       {loaded.file.truncated ? <Notice>Truncated</Notice> : null}
     </div>
@@ -53,6 +61,11 @@ export function FileViewer({ path }: { path: string }) {
   const marks = useMemo(() => lineMarksOf(changedFile?.lines ?? []), [changedFile])
   const text = loaded.state === 'ready' && loaded.file.type === 'text' ? loaded.file.content : null
   const handleViewDiff = () => openChanges(path)
+  const renderKind = renderKindOf(path)
+  const [renderedPath, setRenderedPath] = useState<string | null>(null)
+  const isRendered = renderKind !== null && renderedPath === path
+  const handleViewChange = (next: EContextView) =>
+    setRenderedPath(next === EContextView.Rendered ? path : null)
 
   return (
     <section aria-label="File" className="flex h-full min-h-0 flex-col">
@@ -70,10 +83,21 @@ export function FileViewer({ path }: { path: string }) {
             View diff
           </Button>
         )}
+        {text === null || renderKind === null ? null : (
+          <ContextViewToggle
+            value={isRendered ? EContextView.Rendered : EContextView.Source}
+            onValueChange={handleViewChange}
+          />
+        )}
         {text === null ? null : <CopyButton text={text} />}
       </header>
       <div className="min-h-0 flex-1">
-        <Body loaded={loaded} path={path} marks={marks} />
+        <FileBody
+          loaded={loaded}
+          path={path}
+          marks={marks}
+          rendered={isRendered ? renderKind : null}
+        />
       </div>
     </section>
   )
