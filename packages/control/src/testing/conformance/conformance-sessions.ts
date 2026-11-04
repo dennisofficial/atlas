@@ -214,6 +214,26 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([])
     })
 
+    it('does not list a failed session whose only pending message is covered, until a newer one arrives', async () => {
+      setNow(T0)
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      await plane.post({ sessionId: SESSION, kind: 'message', payload: '"a"' })
+      const { epoch } = await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
+      const outcome = await plane.append({
+        threadId: THREAD,
+        epoch,
+        events: mint({
+          bodies: [{ type: 'workspace-prepare-failed', reason: 'clone failed', inboxHead: 1 }],
+          epoch,
+        }),
+      })
+      if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
+      await plane.revoke({ sessionId: SESSION, wantsHolder: false })
+      expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([])
+      await plane.post({ sessionId: SESSION, kind: 'message', payload: '"b"' })
+      expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([SESSION])
+    })
+
     it('returns a session posted to after an idle release, but not before', async () => {
       await seedSession({ sessionId: SESSION, offsetMs: 0 })
       await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })

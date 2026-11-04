@@ -1,4 +1,4 @@
-import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
+import { actionableInboxIds, GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
 
 import {
   ControlStorePort,
@@ -76,10 +76,14 @@ class MemoryTx implements ControlTx {
         if (leaseLiveAt({ lease, now: params.now })) return false
         if (lease !== undefined && lease.holderId !== null) return true
         if (lease?.wantsHolder === true) return true
-        const unconsumed = (this.state.inbox.get(row.sessionId) ?? []).some(
+        const unconsumed = (this.state.inbox.get(row.sessionId) ?? []).filter(
           (entry) => entry.consumedSeq === null,
         )
-        return unconsumed || !this.hasPrepareHistory(row.mainThreadId)
+        const actionable = actionableInboxIds({
+          entries: unconsumed,
+          failure: this.activeFailureOf(row.mainThreadId),
+        })
+        return actionable.length > 0 || !this.hasPrepareHistory(row.mainThreadId)
       })
       .sort(
         (a, b) =>
@@ -88,6 +92,16 @@ class MemoryTx implements ControlTx {
       )
       .slice(0, params.limit)
       .map((row) => row.sessionId)
+  }
+
+  private activeFailureOf(threadId: string): { inboxHead: number } | undefined {
+    const log = this.state.events.get(threadId) ?? []
+    if (log.some((event) => event.type === 'workspace-prepared' || event.type === 'user-said')) {
+      return undefined
+    }
+    const failed = log.findLast((event) => event.type === 'workspace-prepare-failed')
+    if (failed === undefined) return undefined
+    return { inboxHead: (JSON.parse(failed.canonical) as { inboxHead: number }).inboxHead }
   }
 
   private hasPrepareHistory(threadId: string): boolean {
