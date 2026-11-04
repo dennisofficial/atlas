@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import type { LogPort } from '@dltech/atlas-observability'
+import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { CallOp, CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
 import { RemoteCallsState } from './remote-calls-state'
@@ -27,13 +27,13 @@ export type RemoteCallsArgs = {
 export class RemoteCalls {
   private readonly state: RemoteCallsState
   private readonly eventListeners = new Set<(frame: EventFrame) => void>()
+  private readonly log: LogPort | undefined
 
   constructor(args: RemoteCallsArgs) {
+    this.log = args.log
     this.state = new RemoteCallsState({
       ...args,
-      onEvent: (frame) => {
-        for (const listener of [...this.eventListeners]) listener(frame)
-      },
+      onEvent: (frame) => this.emitEvent(frame),
     })
   }
 
@@ -41,6 +41,20 @@ export class RemoteCalls {
     this.eventListeners.add(listener)
     return () => {
       this.eventListeners.delete(listener)
+    }
+  }
+
+  private emitEvent(frame: EventFrame): void {
+    for (const listener of [...this.eventListeners]) {
+      try {
+        listener(frame)
+      } catch (error) {
+        this.log?.error({
+          source: 'remote-calls',
+          message: 'event listener threw',
+          ...logFieldsOf({ error }),
+        })
+      }
     }
   }
 
@@ -61,6 +75,7 @@ export class RemoteCalls {
   }
 
   close(): void {
+    this.eventListeners.clear()
     this.state.close()
   }
 
