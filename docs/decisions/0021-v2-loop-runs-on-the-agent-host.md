@@ -140,3 +140,19 @@ work.
 `apps/agent-host` and trimmed to what v2 uses. `scripts/check-package-split.ts`, part of `bun run lint`,
 fails on an import across the split. Its allowlist of known offenders is empty and may only shrink. v1 is
 deleted at cutover, not refactored.
+
+**Partial output on a handoff is kept, not discarded.** The decision said a model stream aborted at the
+drain deadline has its partial output discarded and the new holder asks again. The guarantee table above
+already said "kept"; the code keeps it:
+- At the drain deadline, `HeldSession.handoff` first detaches running daemon calls
+  (`remoteCalls.handoff()`), then aborts the turn with reason `'handoff'`. The turn ends as
+  `HandoffPaused`, never `run-failed`.
+- The model port returns the step accumulated so far on abort instead of throwing. The loop appends it as
+  an `assistant-said` with `interrupted: true`, and while the host is draining the record adapter marks it
+  `aborted: 'handoff'` (`abortedOnHandoff`). The next holder resumes from the record and asks again.
+- The append has a grace past the deadline. Its retry limit is
+  `min(drainDeadline + 10 s, fenceDeadline)` (`LeaseRenewal.appendDeadline`,
+  `DRAIN_APPEND_GRACE_MS = 10_000`), where `fenceDeadline` is the last successful renewal plus the TTL minus
+  the fence margin. Before this, the limit was the drain deadline itself, which is when the abort fires, so
+  every append after it was refused, tripped lease loss and dropped the session without a revoke, leaving
+  the lease to expire on its TTL.

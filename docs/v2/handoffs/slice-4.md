@@ -38,6 +38,8 @@ in about 20 s run when `ATLAS_FAULT_TESTS=1`, which the nightly sets.
   #1822 scaled F8's lease window and it passes 10/10. A dedicated lease pool was tried on
   `dennis/v2-lease-pool` (unmerged) and made no difference, so it was not shipped.
 - **Browsing the files of a parked sandbox** (a workspace mirror) is proposed, not scheduled.
+- `packages/core/src/assembly/rules/messages-from-events.ts` is 453 lines, over the 300-line limit in
+  `CLAUDE.md` (449 before slice 3); split it when next touched.
 - v1's tool copies in `apps/agent-host/src/agent-tools/` are a fork and will drift from v1 by design.
 
 ## Decisions made on 2026-11-04

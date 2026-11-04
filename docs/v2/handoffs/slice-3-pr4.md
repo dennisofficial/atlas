@@ -1,5 +1,7 @@
 # Handoff: Atlas v2 slice 3, PR 4 (live exit tests, fault matrix, docs)
 
+**Historical: superseded by [`slice-4.md`](slice-4.md).** Kept as written on 2026-11-04; its gap list is stale.
+
 Written 2026-11-04 by the session that finished slice 3 PR 3. Read with the spec
 [`../slices/03-agent-host.md`](../slices/03-agent-host.md) (exit tests, fault matrix, "Delivery" step 4) and
 [`slice-3-pr3/`](slice-3-pr3/) (README, decisions.md).
