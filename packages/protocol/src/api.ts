@@ -132,10 +132,23 @@ export const agentHostModelConfigSchema = z.union([
   z.strictObject({ configured: z.literal(false), gap: z.string().min(1) }),
 ])
 
+export const agentHostWorkspaceRepoSchema = z.strictObject({
+  repo: z.string().min(1),
+  branch: z.string().min(1).optional(),
+})
+
+export const agentHostWorkspaceSchema = z.strictObject({
+  remoteUrl: z.string().min(1).nullable(),
+  baseBranch: z.string().min(1).nullable(),
+  additionalRepos: z.array(agentHostWorkspaceRepoSchema),
+  setupScript: z.string(),
+})
+
 export const agentHostConfigOutputSchema = z.strictObject({
   userId: z.string().min(1),
   projectId: z.string().min(1),
   model: agentHostModelConfigSchema,
+  workspace: agentHostWorkspaceSchema,
   vercel: z.union([
     z.strictObject({
       configured: z.literal(true),

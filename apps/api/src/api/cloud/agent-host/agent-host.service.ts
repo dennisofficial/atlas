@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto'
 import { Injectable, NotFoundException } from '@nestjs/common'
+import { z } from 'zod'
 import { ControlPlane } from '@dltech/atlas-control'
+import { db } from '@dltech/atlas-db'
+import { githubCloneUrlOf, projectRepoSchema } from '@dltech/atlas-wire'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import type {
   AgentHostConfigOutput,
@@ -15,6 +18,16 @@ import { OauthConnectionsService } from '../../platform/oauth-connections/oauth-
 import { modelConfigOf } from './agent-host-model-config'
 
 const CONFIG_TTL_MS = 300_000
+
+const EMPTY_WORKSPACE: AgentHostConfigOutput['workspace'] = {
+  remoteUrl: null,
+  baseBranch: null,
+  additionalRepos: [],
+  setupScript: '',
+}
+
+const additionalReposOf = (value: unknown): AgentHostConfigOutput['workspace']['additionalRepos'] =>
+  z.array(projectRepoSchema).catch([]).parse(value)
 
 @Injectable()
 export class AgentHostService {
@@ -35,12 +48,22 @@ export class AgentHostService {
     const vercel = await this.vercelOf({ userId: session.userId })
     const lease = await this.accounts.lease({ userId: session.userId })
     const model = modelConfigOf({ lease, settings: config.settings })
+    const project = await db.orm.public.Project.first({ id: session.projectId })
     const issuedAt = Date.now()
     return {
       userId: session.userId,
       projectId: session.projectId,
       model,
       vercel,
+      workspace:
+        project === null
+          ? EMPTY_WORKSPACE
+          : {
+              remoteUrl: project.repo === null ? null : githubCloneUrlOf(project.repo),
+              baseBranch: project.baseBranch,
+              additionalRepos: additionalReposOf(project.additionalRepos),
+              setupScript: project.setupScript,
+            },
       config: config as unknown as AgentHostConfigOutput['config'],
       revision: createHash('sha256')
         .update(JSON.stringify(config))
