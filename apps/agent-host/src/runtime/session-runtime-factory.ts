@@ -19,6 +19,7 @@ import {
   DaemonFileSystemPort,
   DaemonProcessPort,
   RemoteCalls,
+  SandboxUnavailableError,
   webSocketConnector,
   type HostTimers,
   type SessionRuntimeFactory,
@@ -76,7 +77,14 @@ export const createSessionRuntimeFactory = (
     const calls = new RemoteCalls({
       sessionId,
       token: daemonToken({ secret: args.daemonSecret, sandboxName: sandboxNameOf(sessionId) }),
-      connector: async () => webSocketConnector({ url: (await endpoint).url }),
+      connector: async () => {
+        try {
+          return webSocketConnector({ url: (await endpoint).url })
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error)
+          throw new SandboxUnavailableError(`sandbox wake for ${sessionId} failed: ${reason}`)
+        }
+      },
       timers: args.timers,
       onFenced: () => {},
       ...(args.log === undefined ? {} : { log: args.log }),
@@ -100,35 +108,45 @@ export const createSessionRuntimeFactory = (
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
-    const model =
-      args.modelFor === undefined
-        ? new AiSdkModelPort({
-            model: createAnthropicOauthModel({
-              credentials: new AgentHostCredentialPort({
-                sessionId,
-                model: config.model,
-                api: args.api,
+    let model: ModelPort
+    try {
+      model =
+        args.modelFor === undefined
+          ? new AiSdkModelPort({
+              model: createAnthropicOauthModel({
+                credentials: new AgentHostCredentialPort({
+                  sessionId,
+                  model: config.model,
+                  api: args.api,
+                }),
+                modelId: config.model.configured === true ? config.model.modelId : fallbackModelId,
               }),
-              modelId: config.model.configured === true ? config.model.modelId : fallbackModelId,
-            }),
-          })
-        : args.modelFor({ sessionId })
+            })
+          : args.modelFor({ sessionId })
+    } catch (error) {
+      calls.close()
+      throw error
+    }
 
-    let keepAlive = args.timers.setTimeout(function renew() {
-      args.sandbox
-        .keepAlive({ sessionId, credentials, until: args.timers.now() + KEEP_ALIVE_WINDOW_MS })
-        .catch((error: unknown) => {
-          args.log?.error({
-            source: 'runtime.keep-alive',
-            message: `keep-alive for ${sessionId} failed`,
-            ...logFieldsOf({ error }),
-          })
-        })
-      keepAlive = args.timers.setTimeout(renew, KEEP_ALIVE_EVERY_MS)
-    }, KEEP_ALIVE_EVERY_MS)
+    let keepAlive = signal.aborted
+      ? undefined
+      : args.timers.setTimeout(function renew() {
+          args.sandbox
+            .keepAlive({ sessionId, credentials, until: args.timers.now() + KEEP_ALIVE_WINDOW_MS })
+            .catch((error: unknown) => {
+              args.log?.error({
+                source: 'runtime.keep-alive',
+                message: `keep-alive for ${sessionId} failed`,
+                ...logFieldsOf({ error }),
+              })
+            })
+          keepAlive = args.timers.setTimeout(renew, KEEP_ALIVE_EVERY_MS)
+        }, KEEP_ALIVE_EVERY_MS)
     const stopKeepAlive = (): void => {
       args.timers.clearTimeout(keepAlive)
+      signal.removeEventListener('abort', stopKeepAlive)
     }
+    signal.addEventListener('abort', stopKeepAlive, { once: true })
 
     return {
       remoteCalls: calls,

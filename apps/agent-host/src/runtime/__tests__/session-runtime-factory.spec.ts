@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, spyOn } from 'bun:test'
 import { EToolEffect, toThreadId } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { WORKSPACE_PATH, type VercelCredentials } from '@dltech/atlas-wire'
 import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
-import { systemTimers, type HostTimers } from '@dltech/atlas-host'
+import {
+  RemoteCalls,
+  SandboxUnavailableError,
+  systemTimers,
+  type HostTimers,
+} from '@dltech/atlas-host'
 
 import type { AgentHostApi } from '../../config/agent-host-api'
 import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
@@ -38,8 +43,12 @@ class FakeSandbox extends SandboxProvider {
   wakeStarted: string[] = []
   wakeResolve: ((endpoint: DaemonEndpoint) => void) | undefined
   stopped: string[] = []
+  keptAlive: string[] = []
 
-  constructor(private readonly neverResolve = false) {
+  constructor(
+    private readonly neverResolve = false,
+    private readonly rejectWake = false,
+  ) {
     super()
   }
 
@@ -49,6 +58,7 @@ class FakeSandbox extends SandboxProvider {
     signal: AbortSignal
   }): Promise<DaemonEndpoint> {
     this.wakeStarted.push(args.sessionId)
+    if (this.rejectWake) return Promise.reject(new Error('daemon bundle missing'))
     if (this.neverResolve) return new Promise(() => {})
     return new Promise((resolve) => {
       this.wakeResolve = resolve
@@ -59,7 +69,35 @@ class FakeSandbox extends SandboxProvider {
     this.stopped.push(args.sessionId)
   }
 
-  async keepAlive(): Promise<void> {}
+  async keepAlive(args: { sessionId: string }): Promise<void> {
+    this.keptAlive.push(args.sessionId)
+  }
+}
+
+type ScheduledTimer = { handler: () => void; cleared: boolean }
+
+const makeFakeTimers = (): { timers: HostTimers; fireScheduled: () => void } => {
+  const scheduled: ScheduledTimer[] = []
+  const timers: HostTimers = {
+    now: () => Date.now(),
+    setTimeout: (handler) => {
+      const timer: ScheduledTimer = { handler, cleared: false }
+      scheduled.push(timer)
+      return timer
+    },
+    clearTimeout: (timer) => {
+      ;(timer as ScheduledTimer).cleared = true
+    },
+    random: () => 0,
+  }
+  return {
+    timers,
+    fireScheduled: () => {
+      for (const timer of [...scheduled]) {
+        if (!timer.cleared) timer.handler()
+      }
+    },
+  }
 }
 
 const apiOf = (output: AgentHostConfigOutput): AgentHostApi => ({
@@ -179,6 +217,104 @@ describe('createSessionRuntimeFactory', () => {
     })
     expect(runtime.model).toBeDefined()
     await runtime.stop()
+  })
+
+  it('surfaces a wake rejection to ready() and a waiting dispatch', async () => {
+    const sandbox = new FakeSandbox(false, true)
+    const factory = makeFactory({
+      api: apiOf(configured()),
+      sandbox,
+      modelFor: () => new ScriptedModel([{ text: 'done' }]),
+    })
+    const runtime = await factory({
+      sessionId: 's-wake-fail',
+      threadId: toThreadId('t-wake-fail'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    const hung = new Promise<'hung'>((resolve) => setTimeout(() => resolve('hung'), 2_000))
+    const ready = runtime.remoteCalls.ready().then(
+      () => 'resolved',
+      (error: unknown) => error,
+    )
+    const readyOutcome = await Promise.race([ready, hung])
+    const dispatch = runtime.remoteCalls.invoke({ key: 'k1', op: { op: 'stat', path: '/x' } }).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    )
+    const dispatchOutcome = await Promise.race([dispatch, hung])
+    await runtime.stop()
+    expect(readyOutcome).toBeInstanceOf(SandboxUnavailableError)
+    expect(dispatchOutcome).toBeInstanceOf(SandboxUnavailableError)
+  })
+
+  it('stops the keep-alive when the session lifetime ends without stop()', async () => {
+    const { timers, fireScheduled } = makeFakeTimers()
+    const sandbox = new FakeSandbox(true)
+    const factory = createSessionRuntimeFactory({
+      api: apiOf(configured()),
+      sandbox,
+      daemonSecret: 'secret-1',
+      timers,
+      modelFor: () => new ScriptedModel([{ text: 'done' }]),
+    })
+    const lifetime = new AbortController()
+    await factory({
+      sessionId: 's-keep-alive',
+      threadId: toThreadId('t-keep-alive'),
+      epoch: 1,
+      signal: lifetime.signal,
+    })
+    lifetime.abort()
+    fireScheduled()
+    expect(sandbox.keptAlive).toEqual([])
+  })
+
+  it('never arms the keep-alive when the lifetime already ended', async () => {
+    const { timers, fireScheduled } = makeFakeTimers()
+    const sandbox = new FakeSandbox(true)
+    const factory = createSessionRuntimeFactory({
+      api: apiOf(configured()),
+      sandbox,
+      daemonSecret: 'secret-1',
+      timers,
+      modelFor: () => new ScriptedModel([{ text: 'done' }]),
+    })
+    const lifetime = new AbortController()
+    lifetime.abort()
+    await factory({
+      sessionId: 's-aborted',
+      threadId: toThreadId('t-aborted'),
+      epoch: 1,
+      signal: lifetime.signal,
+    })
+    fireScheduled()
+    expect(sandbox.keptAlive).toEqual([])
+  })
+
+  it('closes the daemon link when the model override throws', async () => {
+    const closeSpy = spyOn(RemoteCalls.prototype, 'close')
+    try {
+      const sandbox = new FakeSandbox(true)
+      const factory = makeFactory({
+        api: apiOf(configured()),
+        sandbox,
+        modelFor: () => {
+          throw new Error('no model')
+        },
+      })
+      await expect(
+        factory({
+          sessionId: 's-model',
+          threadId: toThreadId('t-model'),
+          epoch: 1,
+          signal: new AbortController().signal,
+        }),
+      ).rejects.toThrow('no model')
+      expect(closeSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      closeSpy.mockRestore()
+    }
   })
 
   it('builds with an unconfigured model; reads fail as typed errors', async () => {
