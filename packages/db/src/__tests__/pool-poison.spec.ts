@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import net from 'node:net'
 import { createDb, type Db } from '../client'
+import { retryOnConnectionLoss } from '../connection-retry'
 import { createPool, type Pool } from '../pool'
 
 type SeveringProxy = {
@@ -51,9 +52,11 @@ function lane(): URL {
 }
 
 async function selectOne(db: Db): Promise<void> {
-  await db.transaction(async (tx) => {
-    await tx.query(tx.raw.sql`SELECT 1 AS "ok"`.returnsRow({ ok: 'pg/int4@1' }).build())
-  })
+  await retryOnConnectionLoss(() =>
+    db.transaction(async (tx) => {
+      await tx.query(tx.raw.sql`SELECT 1 AS "ok"`.returnsRow({ ok: 'pg/int4@1' }).build())
+    }),
+  )
 }
 
 describe('pool recovery after a dropped link', () => {
@@ -93,5 +96,31 @@ describe('pool recovery after a dropped link', () => {
       }
     }
     expect(failures).toBeLessThanOrEqual(1)
+  })
+
+  it('never replays a plain transaction callback after its connection dies mid-callback', async () => {
+    const target = lane()
+    const local = await startSeveringProxy({ host: target.hostname, port: Number(target.port) })
+    const proxied = new URL(target)
+    proxied.hostname = '127.0.0.1'
+    proxied.port = String(local.port)
+    proxied.pathname = '/postgres'
+    const ownPool = createPool(proxied.toString())
+    const db = createDb(ownPool)
+    let entered = 0
+    try {
+      await expect(
+        db.transaction(async (tx) => {
+          entered += 1
+          await tx.query(tx.raw.sql`SELECT 1 AS "ok"`.returnsRow({ ok: 'pg/int4@1' }).build())
+          local.severAll()
+          await tx.query(tx.raw.sql`SELECT 2 AS "ok"`.returnsRow({ ok: 'pg/int4@1' }).build())
+        }),
+      ).rejects.toThrow()
+      expect(entered).toBe(1)
+    } finally {
+      await ownPool.end().catch(() => undefined)
+      await local.stop()
+    }
   })
 })
