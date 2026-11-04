@@ -97,6 +97,7 @@ export type FrameSink = {
   failAll(error: Error): void
   handleHelloReply(frame: { bootId: string; version: string }): void
   recoverAcrossRestart(previousBootId: string): void
+  emitEvent(frame: Extract<DaemonFrame, { kind: 'event' }>): void
 }
 
 export const handleDaemonFrame = (state: FrameSink, frame: DaemonFrame): void => {
@@ -117,7 +118,11 @@ export const handleDaemonFrame = (state: FrameSink, frame: DaemonFrame): void =>
     handleResult(state, frame)
     return
   }
-  if (frame.kind === 'run-reply' || frame.kind === 'event' || frame.kind === 'health') return
+  if (frame.kind === 'event') {
+    state.emitEvent(frame)
+    return
+  }
+  if (frame.kind === 'run-reply' || frame.kind === 'health') return
   if (frame.kind === 'pong') return
   if (frame.kind === 'acked') {
     state.pendingAcks.get(frame.key)?.resolve(true)

@@ -58,9 +58,10 @@ export const mint = (params: {
   bodies: readonly V2Body[]
   epoch: number
   from?: LogHead | undefined
+  threadId?: string | undefined
 }): V2Event[] =>
   chainEvents({
-    threadId: toThreadId(THREAD),
+    threadId: toThreadId(params.threadId ?? THREAD),
     runId: toRunId('run-1'),
     epoch: params.epoch,
     at: T0,

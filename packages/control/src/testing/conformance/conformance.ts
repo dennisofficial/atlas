@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { visibleEvents, ECompactionAnchor, type V2Body } from '@dltech/atlas-core'
+import {
+  canonicalEvent,
+  visibleEvents,
+  ECompactionAnchor,
+  type V2Body,
+  type V2Event,
+} from '@dltech/atlas-core'
 
 import { LeaseConflictError } from '../../errors'
 import type { ControlStorePort } from '../../port'
@@ -214,6 +220,63 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       })
       expect(page.events.length).toBe(120)
       expect(page.next).toBeUndefined()
+    })
+
+    it('byte-bounded paging returns every event once and keeps pages within maxBytes', async () => {
+      const bodies: V2Body[] = Array.from({ length: 25 }, (_, i) => said(`m${i}${'x'.repeat(300)}`))
+      bodies.push(said('oversize-'.repeat(2000)))
+      const { events } = await appendBodies({ harness, epoch, bodies })
+      const maxBytes = 2_000
+      const seen: V2Event[] = []
+      let afterSeq = 0
+      for (let guard = 0; guard < 100; guard += 1) {
+        const page = await harness.plane.readEvents({
+          threadId: THREAD,
+          afterSeq,
+          limit: 100,
+          visible: false,
+          maxBytes,
+        })
+        expect(page.events.length).toBeGreaterThan(0)
+        const bytes = page.events.reduce(
+          (sum, event) => sum + Buffer.byteLength(canonicalEvent(event), 'utf8'),
+          0,
+        )
+        if (page.events.length > 1) expect(bytes).toBeLessThanOrEqual(maxBytes)
+        seen.push(...page.events)
+        if (page.next === undefined) break
+        afterSeq = page.next
+      }
+      expect(seen).toEqual(events)
+    })
+
+    it('budgets multi-byte text in UTF-8 bytes, not code units', async () => {
+      const { events } = await appendBodies({
+        harness,
+        epoch,
+        bodies: [said('漢'.repeat(400)), said('字'.repeat(400))],
+      })
+      const canonicalBytes = events.map((event) => Buffer.byteLength(canonicalEvent(event), 'utf8'))
+      const utf16Units = events.map((event) => canonicalEvent(event).length)
+      for (const [index, event] of events.entries()) {
+        expect(canonicalBytes[index]).toBeGreaterThan(utf16Units[index] as number)
+        const page = await harness.plane.readEvents({
+          threadId: THREAD,
+          afterSeq: event.seq - 1,
+          limit: 100,
+          visible: false,
+          maxBytes: (canonicalBytes[index] as number) + 1,
+        })
+        expect(page.events).toEqual([event])
+      }
+      const both = await harness.plane.readEvents({
+        threadId: THREAD,
+        afterSeq: 0,
+        limit: 100,
+        visible: false,
+        maxBytes: (canonicalBytes[0] as number) + (canonicalBytes[1] as number),
+      })
+      expect(both.events).toEqual(events)
     })
 
     it('concurrent first grants on one session fail only with LeaseConflictError', async () => {

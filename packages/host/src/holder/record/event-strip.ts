@@ -5,6 +5,7 @@ const RECORD_ONLY_TYPES: ReadonlySet<string> = new Set([
   'history-summarised',
   'input-consumed',
   'fact-recorded',
+  'branches-observed',
 ])
 
 export const isRecordOnly = (event: V2Event): boolean => RECORD_ONLY_TYPES.has(event.type)
