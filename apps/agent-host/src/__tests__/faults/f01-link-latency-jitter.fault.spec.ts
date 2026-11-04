@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
+import { callIdOf, isDoneResult, makeFifo, waitForFile } from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
