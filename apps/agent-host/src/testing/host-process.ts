@@ -86,6 +86,7 @@ const main = async (): Promise<void> => {
       modelFor: ({ sessionId }) => new ScriptedModel(scripts[sessionId] ?? []),
       launchDirectory: workspace,
       log,
+      pingMs: numberEnv('PING_MS', 10_000),
     }),
     ids: new RandomIds(),
     maxSessions: 25,

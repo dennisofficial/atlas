@@ -45,6 +45,7 @@ export class RemoteCallsState {
     })
     this.link = new DaemonLink({
       timers: args.timers,
+      ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
       events: {
         onFrame: (frame) => handleDaemonFrame(this.sink(), frame),
         onSuperseded: (reason) => {

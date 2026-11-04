@@ -46,6 +46,7 @@ export type SessionRuntimeFactoryArgs = {
   launchDirectory?: string | undefined
   setupDeadlineMs?: number | undefined
   log?: LogPort | undefined
+  pingMs?: number | undefined
 }
 
 const fallbackModelId = 'claude-sonnet-4-5'
@@ -85,6 +86,7 @@ export const createSessionRuntimeFactory = (
       },
       timers: args.timers,
       onFenced: () => {},
+      ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
       ...(args.log === undefined ? {} : { log: args.log }),
     })
     calls.open({ epoch })

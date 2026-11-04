@@ -20,6 +20,7 @@ export type LinkEvents = {
 }
 
 export class DaemonLink {
+  private readonly pingMs: number
   private socket: DaemonSocket | null = null
   private connectAttempt = 0
   private linkGeneration = 0
@@ -31,7 +32,11 @@ export class DaemonLink {
   private hello: (() => HostFrame) | null = null
   ready = false
 
-  constructor(private readonly args: { timers: CallTimers; events: LinkEvents }) {}
+  constructor(
+    private readonly args: { timers: CallTimers; events: LinkEvents; pingMs?: number | undefined },
+  ) {
+    this.pingMs = args.pingMs ?? PING_MS
+  }
 
   start(args: { connector(): Promise<DaemonConnector>; hello(): HostFrame }): void {
     this.connector = args.connector
@@ -54,7 +59,7 @@ export class DaemonLink {
         }
         this.send({ kind: 'ping' })
         arm()
-      }, PING_MS)
+      }, this.pingMs)
     }
     this.send({ kind: 'ping' })
     arm()
