@@ -91,6 +91,8 @@ export class RemoteCallsState {
   close(): void {
     this.closed = true
     this.link.teardown()
+    for (const ack of [...this.pendingAcks.values()]) ack.resolve(false)
+    this.pendingAcks.clear()
   }
 
   async invoke(args: {

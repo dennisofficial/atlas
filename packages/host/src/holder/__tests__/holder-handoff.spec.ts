@@ -125,14 +125,16 @@ describe('SessionHolder handoff (F12/F15)', () => {
 
     const plane = a.plane
     const originalRevoke = plane.revoke.bind(plane)
-    let firstRevoke: ((value: unknown) => void) | undefined
+    let firstRevoke: (() => void) | undefined
     plane.revoke = ((params: { sessionId: string; wantsHolder: boolean; epoch?: number }) => {
       if (firstRevoke !== undefined) {
         return originalRevoke(params as { sessionId: string; wantsHolder: boolean })
       }
-      return new Promise((resolve) => {
-        firstRevoke = () =>
-          resolve(originalRevoke(params as { sessionId: string; wantsHolder: boolean }))
+      return new Promise<unknown>((resolve) => {
+        firstRevoke = () => {
+          resolve(undefined)
+          void originalRevoke(params as { sessionId: string; wantsHolder: boolean })
+        }
       })
     }) as typeof plane.revoke
 
