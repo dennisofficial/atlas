@@ -44,7 +44,7 @@ export const startHeldTurn = (args: {
   threadId: ThreadId
   resume: boolean
   onActivity(): void
-  refreshBranches(): Promise<void>
+  refreshBranches(): void
   onFault(): void
   onSettled(): void
 }): void => {
@@ -56,8 +56,8 @@ export const startHeldTurn = (args: {
       resume: args.resume,
       onActivity: args.onActivity,
     })
-    .then(async () => {
-      await args.refreshBranches()
+    .then(() => {
+      args.refreshBranches()
     })
     .catch((error) => {
       logDriveFault({ deps: args.deps, error })

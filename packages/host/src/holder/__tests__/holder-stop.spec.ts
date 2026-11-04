@@ -122,6 +122,48 @@ describe('SessionHolder stop', () => {
       expect(result.error?.message ?? '').toContain('cancelled')
     }
   }, 15_000)
+
+  it('a stopped turn consumes the stop before a gated branch refresh opens', async () => {
+    let openGate: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      openGate = () => resolve()
+    })
+    const rig = await makeRig({
+      holderId: 'holder-a',
+      script: [
+        {
+          calls: [
+            {
+              callId: 'call-1',
+              name: 'bash',
+              input: { command: 'echo started; sleep 600; echo late' },
+            },
+          ],
+        },
+        { text: 'after' },
+      ],
+      watchedRepos: () => gate.then(() => ['/w']),
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.post('long exec')
+    await rig.wake()
+    const dispatched = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'tool-dispatched'),
+    })
+    expect(dispatched).toBe(true)
+
+    await rig.postStop()
+    await rig.wake()
+
+    const consumed = await flushUntil({
+      check: async () =>
+        (await rig.events()).filter((event) => event.type === 'input-consumed').length >= 2,
+      attempts: 100,
+    })
+    expect(consumed).toBe(true)
+    openGate?.()
+  }, 15_000)
 })
 
 describe('SessionHolder idle', () => {

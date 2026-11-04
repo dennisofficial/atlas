@@ -52,10 +52,6 @@ export class HeldSession {
   private ended = false
   private resumePending = false
 
-  get isSelfFenced(): boolean {
-    return this.renewal?.isSelfFenced ?? false
-  }
-
   constructor(deps: HeldSessionDeps) {
     this.deps = deps
     this.sessionId = deps.sessionId
@@ -251,8 +247,9 @@ export class HeldSession {
       onActivity: () => {
         this.lastActivityAt = this.deps.timers.now()
       },
-      refreshBranches: async () => {
-        if (!this.draining && !this.lostOwnership) await this.branches?.refresh()
+      refreshBranches: () => {
+        if (this.draining || this.lostOwnership) return
+        void this.branches?.refresh().catch((error) => logDriveFault({ deps: this.deps, error }))
       },
       onFault: () => this.finish(),
       onSettled: () => this.reconciler?.request(),
