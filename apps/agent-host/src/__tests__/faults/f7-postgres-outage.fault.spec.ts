@@ -84,35 +84,45 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
 
   aDb.set({ refuse: true })
 
-  const hostB = await rig.spawnHost({
-    holderId: 'host-b',
-    daemonUrl: daemon.url,
-    scripts: { [sessionId]: [{ text: 'host b finished' }] },
-  })
-
-  const fencedAt = await waitForFence({ host: hostA })
-  await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
-
-  aDb.clear()
-  const released = releaseFifo(gateFifo)
-
-  const events = await rig
-    .waitForSeq({
-      threadId,
-      want: (rows) =>
-        rows.some(
-          (row) =>
-            row.type === 'assistant-said' && JSON.stringify(row.event).includes('host b finished'),
-        ),
-      timeoutMs: 30_000,
-    })
-    .catch((error: unknown) => {
-      throw new Error(
-        `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB.logs().join('\n')}`,
-      )
+  let hostB: HostProcess | undefined
+  try {
+    hostB = await rig.spawnHost({
+      holderId: 'host-b',
+      daemonUrl: daemon.url,
+      scripts: { [sessionId]: [{ text: 'host b finished' }] },
     })
 
-  return { events, released, fencedAt, renewedAtMs, epochA, runsFile }
+    const fencedAt = await waitForFence({ host: hostA })
+    await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+
+    aDb.clear()
+    const released = releaseFifo(gateFifo)
+
+    const events = await rig
+      .waitForSeq({
+        threadId,
+        want: (rows) =>
+          rows.some(
+            (row) =>
+              row.type === 'assistant-said' &&
+              JSON.stringify(row.event).includes('host b finished'),
+          ),
+        timeoutMs: 30_000,
+      })
+      .catch((error: unknown) => {
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB?.logs().join('\n') ?? ''}`,
+        )
+      })
+
+    return { events, released, fencedAt, renewedAtMs, epochA, runsFile }
+  } finally {
+    for (const host of [hostA, hostB]) {
+      if (host === undefined) continue
+      host.kill('SIGKILL')
+      await host.exited
+    }
+  }
 }
 
 describe.skipIf(REDIS_URL === undefined)(
@@ -158,7 +168,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(epochs).toEqual(sorted)
     }, 90_000)
 
-    it.skip('F7 healthy bash survives a self-fence [gap: drop() aborts before handoff and cancels it]', async () => {
+    it('F7 healthy bash survives a self-fence', async () => {
       const scenario = await runOutage({ rig, sessionId: 'fault-f7-2' })
       expect(scenario.released).toBe(true)
       const results = scenario.events.filter(

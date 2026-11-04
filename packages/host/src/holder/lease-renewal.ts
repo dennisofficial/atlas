@@ -4,14 +4,6 @@ import type { HeldSessionDeps } from './held-session-deps'
 
 export const DRAIN_APPEND_GRACE_MS = 10_000
 
-export const drainRetryUntil = (args: {
-  drainDeadline: number | undefined
-  fenceDeadline(): number
-}): number =>
-  args.drainDeadline === undefined
-    ? args.fenceDeadline()
-    : Math.min(args.drainDeadline + DRAIN_APPEND_GRACE_MS, args.fenceDeadline())
-
 export class LeaseRenewal {
   private renewTimer: unknown
   private fenceTimer: unknown
@@ -35,6 +27,11 @@ export class LeaseRenewal {
 
   fenceDeadline(): number {
     return this.lastRenewOk + this.deps.ttlMs - this.deps.fenceMarginMs
+  }
+
+  appendDeadline(drainDeadline: number | undefined): number {
+    if (drainDeadline === undefined) return this.fenceDeadline()
+    return Math.min(drainDeadline + DRAIN_APPEND_GRACE_MS, this.fenceDeadline())
   }
 
   private fenceAt(): number {

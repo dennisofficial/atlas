@@ -13,7 +13,7 @@ import type { HeldSessionDeps } from './held-session-deps'
 
 export type { HeldSessionDeps }
 import { HeldTurns } from './held-turns'
-import { drainRetryUntil, LeaseRenewal } from './lease-renewal'
+import { LeaseRenewal } from './lease-renewal'
 
 export class HeldSession {
   readonly sessionId: string
@@ -110,11 +110,7 @@ export class HeldSession {
         timers: deps.timers,
         remoteCalls: runtime.remoteCalls,
         daemonTools: runtime.daemonTools,
-        retryUntil: () =>
-          drainRetryUntil({
-            drainDeadline: this.drainDeadline,
-            fenceDeadline: () => renewal.fenceDeadline(),
-          }),
+        retryUntil: () => renewal.appendDeadline(this.drainDeadline),
         nowIso: () => new Date(deps.timers.now()).toISOString(),
         onLeaseLost: () => this.drop(),
         ...(deps.log === undefined ? {} : { log: deps.log }),
