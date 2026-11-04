@@ -26,6 +26,61 @@ describe('SessionHolder self-fence (F7)', () => {
     expect(dropped).toBe(true)
   }, 15_000)
 
+  it('an append retrying across the fence never lands and the turn stops', async () => {
+    const a = await makeRig({
+      holderId: 'holder-a',
+      script: [
+        {
+          calls: [
+            {
+              callId: 'call-1',
+              name: 'bash',
+              input: { command: 'echo started; sleep 600; echo late' },
+            },
+          ],
+        },
+        { text: 'after' },
+      ],
+    })
+    await seedSession(a)
+    await a.holder.start()
+    await a.post('run')
+    await a.wake()
+    const dispatched = await flushUntil({
+      check: async () => (await a.events()).some((event) => event.type === 'tool-dispatched'),
+    })
+    expect(dispatched).toBe(true)
+
+    const plane = a.plane
+    const originalAppend = plane.append.bind(plane)
+    let appendAttempts = 0
+    let threwAppend = true
+    plane.append = (async (params: Parameters<typeof plane.append>[0]) => {
+      appendAttempts += 1
+      if (threwAppend) throw new Error('store unreachable')
+      return originalAppend(params)
+    }) as typeof plane.append
+    a.plane.renew = () => new Promise(() => {})
+
+    const seqBefore = (await a.events()).length
+    a.clock.advance(ttlMs - fenceMarginMs + renewEveryMs)
+    const dropped = await flushUntil({ check: () => a.holder.heldIds().length === 0 })
+    expect(dropped).toBe(true)
+
+    threwAppend = false
+    a.clock.advance(10_000)
+    await a.flush()
+
+    const after = await plane.readEvents({
+      threadId: THREAD_ID,
+      afterSeq: 0,
+      limit: 1000,
+      visible: false,
+    })
+    expect(after.events.length).toBe(seqBefore)
+    plane.append = originalAppend
+  }, 15_000)
+
   it('during an active turn, no append lands after the fence deadline', async () => {
     const a = await makeRig({
       holderId: 'holder-a',
