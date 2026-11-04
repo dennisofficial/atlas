@@ -8,25 +8,16 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool, type Pool } from '@dltech/atlas-db'
 import { FaultProxy } from '@dltech/atlas-host/testing'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
-import { daemonToken } from '@dltech/atlas-protocol/engine'
-import { daemonTestEnv } from '@dltech/atlas-daemon/testing'
 
 import { createRedisBus, type RedisBus } from '../bus/redis-bus'
-import { sandboxNameOf } from '../sandbox/sandbox-provider'
-import { collectLines, waitForListening } from './rig-process'
+import { startDaemon, type RigDaemon } from './rig-daemon'
+import { collectLines } from './rig-process'
 
-const daemonEntry = join(import.meta.dir, '../../../daemon/src/index.ts')
+export type { RigDaemon } from './rig-daemon'
+
 const hostEntry = join(import.meta.dir, 'host-process.ts')
 
 export const RIG_SECRET = 'fault-rig-secret'
-
-export type RigDaemon = {
-  url: string
-  proxy: FaultProxy
-  home: string
-  bootId: string
-  stop(): Promise<void>
-}
 
 export type HostProcess = {
   holderId: string
@@ -143,52 +134,9 @@ export const startRig = async (args: {
     },
 
     async spawnDaemonFor({ sessionId }) {
-      const home = mkdtempSync(join(tmpdir(), 'atlas-fault-rig-daemon-'))
-      const sandboxName = sandboxNameOf(sessionId)
-      const child = Bun.spawn({
-        cmd: ['setsid', 'bun', daemonEntry],
-        env: {
-          ...daemonTestEnv(home),
-          DAEMON_TOKEN: daemonToken({ secret: RIG_SECRET, sandboxName }),
-          ATLAS_SANDBOX_NAME: sandboxName,
-          HOME: home,
-        },
-        stdin: 'ignore',
-        stdout: 'pipe',
-        stderr: 'pipe',
-      })
-      let proxy: FaultProxy | undefined
-      let stopped = false
-      const stop = async (): Promise<void> => {
-        if (stopped) return
-        stopped = true
-        child.kill('SIGTERM')
-        const exited = await Promise.race([
-          child.exited.then(() => true),
-          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2_000)),
-        ])
-        if (!exited) child.kill('SIGKILL')
-        await child.exited.catch(() => undefined)
-        try {
-          process.kill(-child.pid, 'SIGKILL')
-        } catch {
-          // the process group is already gone
-        }
-        await proxy?.stop()
-        rmSync(home, { recursive: true, force: true })
-      }
-      closers.push(stop)
-      const listening = await waitForListening(child)
-      proxy = await FaultProxy.start({
-        target: { host: '127.0.0.1', port: listening.port },
-      })
-      return {
-        url: `ws://127.0.0.1:${proxy.port}`,
-        proxy,
-        home,
-        bootId: listening.bootId,
-        stop,
-      }
+      const daemon = await startDaemon({ sessionId, secret: RIG_SECRET })
+      closers.push(daemon.stop)
+      return daemon
     },
 
     async spawnHost({ holderId, daemonUrl, scripts, knobs, dbProxy: dbProxyMode, firstChunkFile }) {
