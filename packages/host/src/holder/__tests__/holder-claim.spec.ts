@@ -80,4 +80,48 @@ describe('SessionHolder claim', () => {
     expect(saw).toBe(true)
     expect(a.runtimes.length).toBe(1)
   })
+
+  it('maxSessions=1 with two concurrent wakes issues exactly one claim', async () => {
+    const a = await makeRig({ holderId: 'holder-a', maxSessions: 1 })
+    await seedSession(a)
+    await a.holder.start()
+
+    let claimCalls = 0
+    const originalClaim = a.plane.claim.bind(a.plane)
+    a.plane.claim = async (params) => {
+      claimCalls += 1
+      return originalClaim(params)
+    }
+
+    await a.post('one')
+    const first = a.bus.wake(SESSION)
+    const second = a.bus.wake(SESSION)
+    await Promise.all([first, second])
+    const saw = await flushUntil({
+      check: async () => (await a.events()).some((e) => e.type === 'assistant-said'),
+    })
+    expect(saw).toBe(true)
+    expect(claimCalls).toBe(1)
+    expect(a.runtimes.length).toBe(1)
+  })
+
+  it('a wake arriving during drain starts nothing', async () => {
+    const a = await makeRig({ holderId: 'holder-a', maxSessions: 1 })
+    await seedSession(a)
+    await a.holder.start()
+    await postAndRun(a, 'first')
+    await flushUntil({
+      check: async () => (await a.events()).some((e) => e.type === 'assistant-said'),
+    })
+    expect(a.runtimes.length).toBe(1)
+
+    const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
+    a.clock.advance(1_100)
+    await a.bus.wake(SESSION)
+    await drain
+    await a.flush()
+
+    expect(a.runtimes.length).toBe(1)
+    expect(a.holder.heldIds().length).toBe(0)
+  })
 })

@@ -46,6 +46,7 @@ export class SessionHolder {
 
   private readonly held = new Map<string, HeldSession>()
   private readonly fencedOut = new Set<string>()
+  private readonly pendingClaims = new Map<string, Promise<void>>()
   private unsubWake: (() => void) | undefined
   private draining = false
 
@@ -93,11 +94,20 @@ export class SessionHolder {
     return [...this.held.keys()]
   }
 
-  private async onWake(sessionId: string): Promise<void> {
+  private onWake(sessionId: string): void {
     if (this.draining) return
     if (this.held.has(sessionId)) return
+    if (this.pendingClaims.has(sessionId)) return
     if (this.fencedOut.has(sessionId)) return
-    if (this.held.size >= this.maxSessions) return
+    if (this.held.size + this.pendingClaims.size >= this.maxSessions) return
+    const pending = this.claimAndHold(sessionId).finally(() => {
+      this.pendingClaims.delete(sessionId)
+    })
+    this.pendingClaims.set(sessionId, pending)
+    pending.catch(() => undefined)
+  }
+
+  private async claimAndHold(sessionId: string): Promise<void> {
     try {
       const claim = await this.plane.claim({
         sessionId,
@@ -105,6 +115,13 @@ export class SessionHolder {
         ttlMs: this.ttlMs,
       })
       if (!claim.ok) return
+      if (this.draining) {
+        await this.plane
+          .revoke({ sessionId, wantsHolder: true, epoch: claim.lease.epoch })
+          .catch(() => undefined)
+        await this.bus.wake(sessionId).catch(() => undefined)
+        return
+      }
       await this.hold({ sessionId, lease: claim.lease })
     } catch (error) {
       this.log?.error({

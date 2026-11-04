@@ -168,9 +168,13 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       return undefined
     }
     if (!this.args.daemonTools.has(draft.name)) return draft
-    const ready = await this.args.remoteCalls.ready()
-    markDispatched({ bootId: ready.bootId })
-    return { ...draft, bootId: ready.bootId }
+    await this.args.remoteCalls.ready()
+    const bootId = this.args.remoteCalls.bootId()
+    if (bootId === undefined) {
+      throw new RecordCorruptionError('the daemon link had no bootId after ready() resolved')
+    }
+    markDispatched({ bootId })
+    return { ...draft, bootId }
   }
 
   private async ackDaemonScope(args: {
