@@ -1,3 +1,4 @@
+export * from './blobs'
 export * from './canonical'
 export * from './event'
 export * from './chain'
