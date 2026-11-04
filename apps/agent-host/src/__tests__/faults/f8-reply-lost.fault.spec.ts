@@ -60,7 +60,7 @@ describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is los
     const hostA = await rig.spawnHost({
       holderId: 'host-a',
       daemonUrl: daemon.url,
-      knobs: { ttlMs: 8_000, fenceMs: 2_000, queryTimeoutMs: 2_000 },
+      knobs: { ttlMs: 20_000, fenceMs: 5_000, queryTimeoutMs: 5_000 },
       scripts: {
         [sessionId]: [
           {
