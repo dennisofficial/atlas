@@ -17,7 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
+import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import {
   Table,
   TableBody,

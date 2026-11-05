@@ -1,6 +1,6 @@
 'use client'
 
-import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
+import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
 import type { AgentsData } from '../../data/use-agents'
 import { useContextFiles } from '../../data/use-context-files'

@@ -12,7 +12,7 @@ import type { CrewRow } from './details/details-model'
 import { PodChanges, PodFiles, PodPreview, PodTerminal } from './pod-panels'
 import type { PodPanelState } from './pod-state'
 import { ERightTab, isRightTab } from './session-types'
-import { PreviewTab } from './preview-tab'
+import { PreviewBrowser, usePreviewTabCount } from './preview-browser/preview-browser'
 import { RightTabStrip } from './right-tab-strip'
 import type { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import { TerminalTab } from './terminal-tab'
@@ -23,7 +23,6 @@ export interface RightPanelProps {
   expanded: string[]
   onExpandedChange: (paths: string[]) => void
   initialTerminalConnection?: ETerminalConnection
-  initialPreviewId?: string
   pod?: PodPanelState
   agents: AgentsPanelAgent[]
   teammates: CrewRow[]
@@ -43,7 +42,6 @@ export function RightPanel({
   expanded,
   onExpandedChange,
   initialTerminalConnection,
-  initialPreviewId,
   pod,
   agents,
   teammates,
@@ -57,6 +55,7 @@ export function RightPanel({
   const running = runningAgentCount(agents)
   const [scope, setScope] = useState('all')
   const [selectedFile, setSelectedFile] = useState<string>()
+  const previewTabs = usePreviewTabCount()
 
   const handleTabChange = (value: unknown) => {
     if (isRightTab(value)) onTabChange(value)
@@ -64,7 +63,9 @@ export function RightPanel({
 
   return (
     <Tabs value={tab} onValueChange={handleTabChange} className="h-full min-h-0 gap-0 bg-card">
-      <RightTabStrip counts={{ [ERightTab.Details]: running }} />
+      <RightTabStrip
+        counts={{ [ERightTab.Details]: running, [ERightTab.Preview]: pod ? 0 : previewTabs }}
+      />
       <TabsContent value={ERightTab.Details} className="min-h-0 flex-1">
         <DetailsTab
           agents={agents}
@@ -108,8 +109,8 @@ export function RightPanel({
           <TerminalTab initialConnection={initialTerminalConnection} />
         )}
       </TabsContent>
-      <TabsContent value={ERightTab.Preview} className="min-h-0 flex-1">
-        {pod ? <PodPreview /> : <PreviewTab initialPreviewId={initialPreviewId} />}
+      <TabsContent value={ERightTab.Preview} keepMounted className="min-h-0 flex-1">
+        {pod ? <PodPreview /> : <PreviewBrowser />}
       </TabsContent>
     </Tabs>
   )

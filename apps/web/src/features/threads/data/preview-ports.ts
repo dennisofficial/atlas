@@ -1,4 +1,4 @@
-import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
+import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import { EServiceStatus, type RosterWire, type ServiceSnapshotWire } from '@dltech/atlas-wire/web'
 
 const MAX_LABEL = 28

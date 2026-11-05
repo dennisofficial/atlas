@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
+import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
 import { previewLinkRouteOf, previewPortForUrl, type LinkClickModifiers } from '../preview-ports'
 
