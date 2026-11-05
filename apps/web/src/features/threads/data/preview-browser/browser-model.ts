@@ -88,10 +88,16 @@ export function updateTab(args: {
   return { ...state, tabs: state.tabs.map((tab) => (tab.id === id ? change(tab) : tab)) }
 }
 
+const comparableOf = (url: string): string | null => {
+  const parsed = parseWebUrl(url)
+  if (parsed === null) return null
+  return `${parsed.origin}${parsed.pathname}${parsed.search}${parsed.hash}`
+}
+
 const sameUrl = (left: string, right: string): boolean => {
   if (left === right) return true
-  const parsed = parseWebUrl(left)
-  return parsed !== null && parsed.href === parseWebUrl(right)?.href
+  const comparable = comparableOf(left)
+  return comparable !== null && comparable === comparableOf(right)
 }
 
 const pushed = (args: { tab: BrowserTab; url: string }): BrowserTab => {
