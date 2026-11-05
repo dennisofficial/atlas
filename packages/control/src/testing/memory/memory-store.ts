@@ -24,6 +24,7 @@ import {
 } from './memory-inbox'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { insertEventsIn, readEventsIn } from './memory-events'
+import { leasesHeldByIn } from './memory-leases'
 import { sessionsNeedingHolderIn } from './memory-needing-holder'
 import { cloneState, emptyState, refKey, type State } from './memory-state'
 
@@ -169,6 +170,10 @@ class MemoryTx implements ControlTx {
   async readLease(sessionId: string): Promise<Lease | undefined> {
     const lease = this.state.leases.get(sessionId)
     return lease === undefined ? undefined : { ...lease }
+  }
+
+  async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
+    return leasesHeldByIn({ state: this.state, ...params })
   }
 
   async lockLease(sessionId: string): Promise<Lease | undefined> {

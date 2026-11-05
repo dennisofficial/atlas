@@ -51,6 +51,7 @@ export const makeRig = async (args: {
   maxSessions?: number | undefined
   appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
+  sweepMs?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   model?: (() => ModelPort) | undefined
   prepare?: (() => Promise<PrepareResult>) | undefined
@@ -105,6 +106,7 @@ export const makeRig = async (args: {
     maxSessions: args.maxSessions ?? 4,
     ...(args.appendRetryMs === undefined ? {} : { appendRetryMs: args.appendRetryMs }),
     idleMinutes: args.idleMinutes ?? 30,
+    sweepMs: args.sweepMs ?? 0,
     ...(args.log === undefined ? {} : { log: args.log }),
     onHostIdChanged: args.onHostIdChanged,
   })

@@ -92,6 +92,7 @@ export interface ControlTx {
   blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean>
   readEvents(params: ReadEventsParams): Promise<StoredEvent[]>
   readLease(sessionId: string): Promise<Lease | undefined>
+  leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]>
   lockLease(sessionId: string): Promise<Lease | undefined>
   shareLease(sessionId: string): Promise<Lease | undefined>
   writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean>

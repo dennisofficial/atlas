@@ -99,6 +99,12 @@ export class ControlPlane {
     )
   }
 
+  async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
+    return this.store.transact((tx) =>
+      tx.leasesHeldBy({ hostId: params.hostId, limit: clampLimit(params.limit) }),
+    )
+  }
+
   async createThread(params: { threadId: string; sessionId: string }): Promise<void> {
     await this.store.transact(async (tx) =>
       tx.createThread({ ...params, visibility: EMPTY_VISIBILITY_TEXT, at: await this.nowIn(tx) }),

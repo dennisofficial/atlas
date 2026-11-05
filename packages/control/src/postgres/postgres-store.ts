@@ -187,6 +187,14 @@ class PostgresTx implements ControlTx {
     return (await this.tx.orm.v2.V2Lease.first({ sessionId })) ?? undefined
   }
 
+  async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
+    const rows = await this.tx.orm.v2.V2Lease.where({ holderHostId: params.hostId })
+      .orderBy((l) => l.sessionId.asc())
+      .limit(params.limit)
+      .all()
+    return rows.map((row) => ({ ...row }))
+  }
+
   async lockLease(sessionId: string): Promise<Lease | undefined> {
     const row = await this.tx.orm.v2.V2Lease.where({ sessionId }).forNoKeyUpdate().first()
     return row ?? undefined
