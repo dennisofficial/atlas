@@ -33,7 +33,7 @@ export class FollowSubscription implements FollowTarget {
   private dirty = false
   private pumping = false
   private stopped = false
-  private foldedTail = false
+  private announcedLive = false
   private drainTimer: unknown
   private wakeDrain: (() => void) | undefined
 
@@ -88,7 +88,10 @@ export class FollowSubscription implements FollowTarget {
     this.pumping = true
     try {
       while (!this.stopped && this.dirty) {
-        if (this.cursor === undefined && !(await this.start())) return
+        if (this.cursor === undefined) {
+          if (!(await this.awaitDrained())) return
+          if (!(await this.start())) return
+        }
         await this.drainPages()
       }
     } catch (error) {
@@ -106,7 +109,6 @@ export class FollowSubscription implements FollowTarget {
     })
     if (this.stopped) return false
     this.cursor = position.cursor
-    this.foldedTail = this.args.request.afterSeq !== undefined && position.reset === undefined
     if (position.reset !== undefined) {
       this.args.connection.send({ type: 'reset', id: this.id, ...position.reset })
     }
@@ -123,20 +125,15 @@ export class FollowSubscription implements FollowTarget {
         threadId,
         afterSeq: this.cursor ?? 0,
         limit: STREAM_PAGE_EVENTS,
-        visible: !this.foldedTail,
+        visible: false,
         maxBytes: FOLLOW_PAGE_BYTES,
       })
-      const last = page.events[page.events.length - 1]
-      if (this.stopped) return
-      if (last === undefined) {
-        if (this.foldedTail) return
-        this.foldedTail = true
-        continue
-      }
       const head = await plane.head({ threadId })
       if (this.stopped) return
-      this.cursor = last.seq
-      const live = page.next === undefined
+      const last = page.events[page.events.length - 1]
+      if (last === undefined && this.announcedLive) return
+      if (last !== undefined) this.cursor = last.seq
+      const live = page.next === undefined && (this.cursor ?? 0) >= head.seq
       this.args.connection.send({
         type: 'events',
         id: this.id,
@@ -145,7 +142,7 @@ export class FollowSubscription implements FollowTarget {
         live,
       })
       if (live) {
-        this.foldedTail = true
+        this.announcedLive = true
         return
       }
     }

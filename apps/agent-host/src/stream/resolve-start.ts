@@ -1,7 +1,7 @@
 import { chainHash, GENESIS_HASH } from '@dltech/atlas-core'
 import { EStreamResetReason, STREAM_TAIL_EVENTS } from '@dltech/atlas-protocol'
 
-import { FOLLOW_MAX_RESUME_BEHIND } from './follow-limits'
+import { FOLLOW_MAX_RESUME_BEHIND, FOLLOW_TAIL_BYTES } from './follow-limits'
 import type { FollowPlane } from './follow-types'
 
 export type StartRequest = { afterSeq: number | undefined; afterHash: string | undefined }
@@ -27,6 +27,28 @@ const hashAt = async (args: {
   return event === undefined ? undefined : chainHash(event)
 }
 
+const tailCursor = async (args: {
+  plane: FollowPlane
+  threadId: string
+  headSeq: number
+}): Promise<number> => {
+  const from = Math.max(0, args.headSeq - STREAM_TAIL_EVENTS)
+  const page = await args.plane.readEvents({
+    threadId: args.threadId,
+    afterSeq: from,
+    limit: STREAM_TAIL_EVENTS,
+    visible: false,
+  })
+  let bytes = 0
+  for (let index = page.events.length - 1; index >= 0; index -= 1) {
+    const event = page.events[index]
+    if (event === undefined) break
+    bytes += Buffer.byteLength(JSON.stringify(event))
+    if (bytes > FOLLOW_TAIL_BYTES && index < page.events.length - 1) return event.seq
+  }
+  return from
+}
+
 export const resolveStart = async (args: {
   plane: FollowPlane
   threadId: string
@@ -34,7 +56,7 @@ export const resolveStart = async (args: {
 }): Promise<StartPosition> => {
   const { plane, threadId, request } = args
   const head = await plane.head({ threadId })
-  const tailFrom = Math.max(0, head.seq - STREAM_TAIL_EVENTS)
+  const tailFrom = await tailCursor({ plane, threadId, headSeq: head.seq })
   const reset = (reason: EStreamResetReason): StartPosition => ({
     cursor: tailFrom,
     reset: { reason, tailFrom },

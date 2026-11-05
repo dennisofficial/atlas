@@ -2,6 +2,8 @@ export const FOLLOW_HIGH_WATER_BYTES = 1_048_576
 
 export const FOLLOW_PAGE_BYTES = 1_048_576
 
+export const FOLLOW_TAIL_BYTES = 1_048_576
+
 export const FOLLOW_SLOW_CONSUMER_MS = 30_000
 
 export const FOLLOW_DRAIN_POLL_MS = 250
