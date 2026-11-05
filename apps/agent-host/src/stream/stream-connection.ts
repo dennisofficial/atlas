@@ -16,7 +16,12 @@ import {
 
 import { decodeFrame, frameBytes } from './decode-frame'
 import type { StreamAuthPort } from './stream-auth'
-import { EStreamServerClose, STREAM_AUTH_RECHECK_MS } from './stream-limits'
+import {
+  EStreamServerClose,
+  STREAM_AUTH_LOOKUP_TIMEOUT_MS,
+  STREAM_AUTH_RECHECK_MS,
+  STREAM_HEARTBEAT_MS,
+} from './stream-limits'
 import type { SubscriptionPort } from './subscription-port'
 
 enum EPhase {
@@ -47,8 +52,10 @@ export class StreamConnection {
   private phase = EPhase.AwaitingHello
   private bearer = ''
   private userId: string | undefined
+  private expiresAt = 0
   private helloTimer: unknown
   private recheckTimer: unknown
+  private heartbeatTimer: unknown
 
   constructor(
     private readonly socket: ServerWebSocket<StreamSocketData>,
@@ -71,6 +78,10 @@ export class StreamConnection {
     if (this.phase === EPhase.AwaitingHello) {
       if (decoded.ok && decoded.message.type === 'hello') {
         this.clearHelloTimer()
+        this.helloTimer = this.deps.timers.setTimeout(
+          () => this.close(EStreamClose.Unauthenticated),
+          STREAM_AUTH_LOOKUP_TIMEOUT_MS,
+        )
         this.phase = EPhase.Authenticating
         this.bearer = decoded.message.token
         this.authenticate(decoded.message.v)
@@ -139,7 +150,9 @@ export class StreamConnection {
           this.close(EStreamServerClose.PolicyViolation)
           return
         }
+        this.clearHelloTimer()
         this.userId = principal.userId
+        this.expiresAt = principal.expiresAt
         this.phase = EPhase.Ready
         this.send({
           type: 'ready',
@@ -147,6 +160,7 @@ export class StreamConnection {
           connectionId: this.id,
         })
         this.armRecheck()
+        this.armHeartbeat()
       },
       (error: unknown) => {
         this.deps.log?.error({
@@ -160,18 +174,35 @@ export class StreamConnection {
   }
 
   private armRecheck(): void {
-    this.recheckTimer = this.deps.timers.setTimeout(() => {
-      this.recheckTimer = undefined
-      this.recheck()
-    }, STREAM_AUTH_RECHECK_MS)
+    const untilExpiry = this.expiresAt - this.deps.timers.now()
+    this.recheckTimer = this.deps.timers.setTimeout(
+      () => {
+        this.recheckTimer = undefined
+        this.recheck()
+      },
+      Math.max(0, Math.min(STREAM_AUTH_RECHECK_MS, untilExpiry)),
+    )
+  }
+
+  private armHeartbeat(): void {
+    this.heartbeatTimer = this.deps.timers.setTimeout(() => {
+      this.heartbeatTimer = undefined
+      if (this.phase !== EPhase.Ready) return
+      this.send({ type: 'pong' })
+      this.armHeartbeat()
+    }, STREAM_HEARTBEAT_MS)
   }
 
   private recheck(): void {
     this.deps.auth.resolve(this.bearer).then(
       (principal) => {
         if (this.phase !== EPhase.Ready) return
-        if (principal === undefined) this.close(EStreamClose.Unauthenticated)
-        else this.armRecheck()
+        if (principal === undefined) {
+          this.close(EStreamClose.Unauthenticated)
+          return
+        }
+        this.expiresAt = principal.expiresAt
+        this.armRecheck()
       },
       (error: unknown) => {
         this.deps.log?.error({
@@ -179,7 +210,9 @@ export class StreamConnection {
           message: 'auth recheck failed',
           ...logFieldsOf({ error }),
         })
-        if (this.phase === EPhase.Ready) this.armRecheck()
+        if (this.phase !== EPhase.Ready) return
+        if (this.deps.timers.now() >= this.expiresAt) this.close(EStreamClose.Unauthenticated)
+        else this.armRecheck()
       },
     )
   }
@@ -197,8 +230,10 @@ export class StreamConnection {
 
   private clearTimers(): void {
     this.clearHelloTimer()
-    if (this.recheckTimer === undefined) return
-    this.deps.timers.clearTimeout(this.recheckTimer)
+    for (const timer of [this.recheckTimer, this.heartbeatTimer]) {
+      if (timer !== undefined) this.deps.timers.clearTimeout(timer)
+    }
     this.recheckTimer = undefined
+    this.heartbeatTimer = undefined
   }
 }

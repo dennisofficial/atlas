@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EStreamErrorCode, STREAM_PROTOCOL_VERSION, EStreamClose } from '@dltech/atlas-protocol'
 
-import { STREAM_AUTH_RECHECK_MS, STREAM_MAX_CONNECTIONS_PER_USER } from '../stream-limits'
+import {
+  STREAM_AUTH_LOOKUP_TIMEOUT_MS,
+  STREAM_AUTH_RECHECK_MS,
+  STREAM_HEARTBEAT_MS,
+  STREAM_MAX_CONNECTIONS_PER_USER,
+} from '../stream-limits'
 import { StreamHarness } from './stream-harness'
 import { until } from './test-client'
 
@@ -43,13 +48,13 @@ describe('stream server lifecycle', () => {
     harness.timers.advance(STREAM_AUTH_RECHECK_MS)
     await Bun.sleep(20)
     expect(kept.isClosed).toBe(false)
-    expect(harness.timers.pendingCount()).toBe(2)
+    expect(harness.timers.pendingCount()).toBe(4)
     harness.auth.revoke({ token: 'tok-a' })
     harness.timers.advance(STREAM_AUTH_RECHECK_MS)
     expect(await revoked.waitClosed()).toBe(EStreamClose.Unauthenticated)
     expect(kept.isClosed).toBe(false)
     await until(
-      () => harness.timers.pendingCount() === 1,
+      () => harness.timers.pendingCount() === 2,
       'the closed connection to clear its timer',
     )
   })
@@ -84,6 +89,44 @@ describe('stream server lifecycle', () => {
     await harness.server.stop()
     expect(await client.waitClosed()).toBeGreaterThan(0)
     expect(await pending.waitClosed()).toBeGreaterThan(0)
+    expect(harness.timers.pendingCount()).toBe(0)
+  })
+
+  it('closes 4401 once the session expires while rechecks keep failing', async () => {
+    harness = new StreamHarness()
+    harness.auth.grant({ token: 'tok-short', userId: 'user-s', expiresAt: 60_000 })
+    const client = await harness.ready({ token: 'tok-short' })
+    harness.auth.failing = true
+    harness.timers.advance(60_000)
+    expect(await client.waitClosed()).toBe(EStreamClose.Unauthenticated)
+  })
+
+  it('a failed recheck before expiry keeps the connection and tries again', async () => {
+    harness = new StreamHarness()
+    const client = await harness.ready({ token: 'tok-b' })
+    harness.auth.failing = true
+    harness.timers.advance(STREAM_AUTH_RECHECK_MS)
+    await Bun.sleep(20)
+    expect(client.isClosed).toBe(false)
+  })
+
+  it('pings an idle connection every heartbeat', async () => {
+    harness = new StreamHarness()
+    const client = await harness.ready({ token: 'tok-b' })
+    harness.timers.advance(STREAM_HEARTBEAT_MS)
+    expect(await client.next()).toEqual({ type: 'pong' })
+    harness.timers.advance(STREAM_HEARTBEAT_MS)
+    expect(await client.next()).toEqual({ type: 'pong' })
+  })
+
+  it('closes 4401 when the auth lookup never settles', async () => {
+    harness = new StreamHarness()
+    harness.auth.hanging = true
+    const client = harness.connect()
+    client.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'tok-a' })
+    await until(() => harness.timers.pendingCount() === 1, 'the lookup deadline')
+    harness.timers.advance(STREAM_AUTH_LOOKUP_TIMEOUT_MS)
+    expect(await client.waitClosed()).toBe(EStreamClose.Unauthenticated)
     expect(harness.timers.pendingCount()).toBe(0)
   })
 })

@@ -13,14 +13,14 @@ export const upgradeHeaders = {
 }
 
 export class StreamHarness {
-  readonly auth = new MemoryStreamAuth()
   readonly timers = new FakeTimers()
+  readonly auth = new MemoryStreamAuth({ now: () => this.timers.now() })
   server: StreamServer
   private readonly clients: TestClient[] = []
 
   constructor(args: { trustedOrigins?: string[] } = {}) {
-    this.auth.grant({ token: 'tok-a', userId: 'user-a', expiresAt: Date.now() + 3_600_000 })
-    this.auth.grant({ token: 'tok-b', userId: 'user-b', expiresAt: Date.now() + 3_600_000 })
+    this.auth.grant({ token: 'tok-a', userId: 'user-a', expiresAt: 3_600_000 })
+    this.auth.grant({ token: 'tok-b', userId: 'user-b', expiresAt: 3_600_000 })
     this.server = startStreamServer({
       port: 0,
       auth: this.auth,
