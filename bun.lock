@@ -35,6 +35,7 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@dltech/atlas-client": "workspace:*",
         "@dltech/atlas-daemon": "workspace:*",
         "@types/bun": "latest",
       },
@@ -407,12 +408,14 @@
       "version": "0.1.0",
       "dependencies": {
         "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "ai": "^7.0.152",
         "zod": "^4.4.3",
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "fast-check": "^4.0.0",
         "typescript": "6.0.3",
       },
     },

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./stream": "./src/stream/index.ts",
     "./channel": "./src/channel/index.ts",
     "./chat": "./src/chat/index.ts",
     "./crew": "./src/crew/index.ts",
@@ -19,12 +20,14 @@
   },
   "dependencies": {
     "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "ai": "^7.0.152",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "fast-check": "^4.0.0",
     "typescript": "6.0.3"
   }
 }

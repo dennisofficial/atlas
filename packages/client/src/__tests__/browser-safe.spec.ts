@@ -56,3 +56,18 @@ describe('the client package', () => {
     expect(offences).toEqual([])
   })
 })
+
+describe('the protocol root', () => {
+  it('is browser-safe, so the stream client can import it', () => {
+    const PROTOCOL_SRC = join(import.meta.dir, '..', '..', '..', 'protocol', 'src')
+    const offences = sourceFilesUnder(PROTOCOL_SRC)
+      .filter((file) => !relative(PROTOCOL_SRC, file).startsWith('engine'))
+      .filter((file) => !relative(PROTOCOL_SRC, file).startsWith('testing'))
+      .flatMap((file) =>
+        browserSafetyViolations(readFileSync(file, 'utf8')).map(
+          ({ rule, line }) => `${relative(PROTOCOL_SRC, file)}:${line} ${rule}`,
+        ),
+      )
+    expect(offences).toEqual([])
+  })
+})
