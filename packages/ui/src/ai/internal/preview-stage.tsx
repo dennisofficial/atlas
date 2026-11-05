@@ -39,7 +39,7 @@ function StageBody({ viewport, fit, stageFit, children }: StageBodyProps) {
   if (stageFit === EStageFit.Scroll) {
     return (
       <div className="flex min-h-full w-full min-w-fit p-4">
-        <div style={size} className={cn('m-auto', DEVICE_FRAME)}>
+        <div style={size} className="m-auto shrink-0 overflow-hidden shadow-lg ring-1 ring-border">
           {content}
         </div>
       </div>
