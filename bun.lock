@@ -20,7 +20,6 @@
         "@ai-sdk/anthropic": "^4.0.87",
         "@ai-sdk/provider": "4.0.33",
         "@dltech/atlas-agent": "workspace:*",
-        "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",

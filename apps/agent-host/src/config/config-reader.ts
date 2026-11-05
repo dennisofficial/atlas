@@ -10,6 +10,7 @@ import type {
 import { MODEL_SETTING_KEY, modelConfigOf } from './model-config'
 import type { SecretCipher } from './secret-cipher'
 import { skillIndexOf } from './skill-index'
+import { VercelReconnectRequiredError } from '../tokens/vercel-token-refresher'
 
 const OAUTH_EXPIRY_MARGIN_MS = 60_000
 const ANTHROPIC = 'anthropic'
@@ -54,7 +55,12 @@ export class ConfigReader implements ConfigSource {
   private readonly now: () => number
 
   constructor(
-    private readonly args: { db: Db; cipher: SecretCipher; now?: (() => number) | undefined },
+    private readonly args: {
+      db: Db
+      cipher: SecretCipher
+      vercel: { refresh(args: { userId: string }): Promise<string> }
+      now?: (() => number) | undefined
+    },
   ) {
     this.now = args.now ?? Date.now
   }
@@ -83,12 +89,13 @@ export class ConfigReader implements ConfigSource {
         modelSetting: projectModel?.value ?? userModel?.value,
       }),
       workspace: workspaceOf(project),
-      vercel: this.vercelOf(vercel),
+      vercel: await this.vercelOf({ userId, row: vercel }),
       skills,
     }
   }
 
-  private vercelOf(row: VercelRow | null): VercelConfig {
+  private async vercelOf(args: { userId: string; row: VercelRow | null }): Promise<VercelConfig> {
+    const { row } = args
     if (row === null || row.vercelProjectId === null) {
       return { configured: false, gap: 'user-credential' }
     }
@@ -96,10 +103,31 @@ export class ConfigReader implements ConfigSource {
       if (row.oauthNeedsReconnect) return { configured: false, gap: 'vercel-reconnect-required' }
       const expiresAt = row.accessTokenExpiresAt?.getTime() ?? 0
       if (expiresAt - OAUTH_EXPIRY_MARGIN_MS <= this.now()) {
-        return { configured: false, gap: 'vercel-oauth-refresh-required' }
+        return this.refreshedVercel({ userId: args.userId, row })
       }
     }
-    const token: unknown = JSON.parse(this.args.cipher.decrypt(row.sealedToken))
+    return this.vercelConfigured({ row, token: this.openToken(row.sealedToken) })
+  }
+
+  private async refreshedVercel(args: { userId: string; row: VercelRow }): Promise<VercelConfig> {
+    try {
+      const token = await this.args.vercel.refresh({ userId: args.userId })
+      return this.vercelConfigured({ row: args.row, token })
+    } catch (error) {
+      if (error instanceof VercelReconnectRequiredError) {
+        return { configured: false, gap: 'vercel-reconnect-required' }
+      }
+      return { configured: false, gap: 'vercel-oauth-refresh-required' }
+    }
+  }
+
+  private openToken(sealed: string): unknown {
+    return JSON.parse(this.args.cipher.decrypt(sealed))
+  }
+
+  private vercelConfigured(args: { row: VercelRow; token: unknown }): VercelConfig {
+    const { row, token } = args
+    if (row.vercelProjectId === null) return { configured: false, gap: 'user-credential' }
     if (typeof token !== 'string') return { configured: false, gap: 'user-credential' }
     return { configured: true, token, teamId: row.teamId, projectId: row.vercelProjectId }
   }

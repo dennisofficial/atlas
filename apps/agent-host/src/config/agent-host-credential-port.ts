@@ -6,7 +6,7 @@ import {
   type CredentialRequest,
 } from '@dltech/atlas-core'
 
-import type { AgentHostApi } from './agent-host-api'
+import type { ModelTokenService } from '../tokens/model-token-service'
 import type { ModelConfig } from './agent-host-config'
 
 export class CredentialsUnavailableError extends Error {
@@ -27,9 +27,9 @@ export class AgentHostCredentialPort extends CredentialPort {
 
   constructor(
     private readonly args: {
-      sessionId: string
+      userId: string
       model: ModelBlock
-      api: Pick<AgentHostApi, 'modelAccessToken'>
+      tokens: Pick<ModelTokenService, 'issue'>
       now?: (() => number) | undefined
     },
   ) {
@@ -65,8 +65,8 @@ export class AgentHostCredentialPort extends CredentialPort {
     const connectionId =
       model.credential.kind === 'oauth' ? model.credential.connectionId : undefined
     if (connectionId === undefined) throw new CredentialsUnavailableError('no oauth connection')
-    const issued = await this.args.api.modelAccessToken({
-      sessionId: this.args.sessionId,
+    const issued = await this.args.tokens.issue({
+      userId: this.args.userId,
       connectionId,
       ...(this.rejectedAccessToken === undefined
         ? {}

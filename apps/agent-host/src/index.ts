@@ -1,4 +1,3 @@
-export { createAgentHostApi, type AgentHostApi } from './config/agent-host-api'
 export {
   AgentHostCredentialPort,
   CredentialsUnavailableError,

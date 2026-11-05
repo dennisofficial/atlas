@@ -12,7 +12,6 @@ import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testi
 import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
-import type { AgentHostApi } from '../config/agent-host-api'
 import type { ConfigSource } from '../config/agent-host-config'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
@@ -93,11 +92,10 @@ const testSource = (): ConfigSource => ({
   }),
 })
 
-const testApi = (): AgentHostApi => ({
-  modelAccessToken: async () => {
+const testTokens = () => ({
+  issue: async (): Promise<never> => {
     throw new Error('unused')
   },
-  githubToken: async () => ({ token: null }),
 })
 
 const main = async (): Promise<void> => {
@@ -128,7 +126,8 @@ const main = async (): Promise<void> => {
     timers,
     runtimes: createSessionRuntimeFactory({
       config: testSource(),
-      api: testApi(),
+      tokens: testTokens(),
+      github: { read: async () => null },
       sandbox,
       daemonSecret,
       timers,

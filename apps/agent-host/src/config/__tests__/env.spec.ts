@@ -6,7 +6,6 @@ const complete: Record<string, string> = {
   DATABASE_URL: 'postgres://x',
   DATABASE_DIRECT_URL: 'postgres://direct',
   REDIS_URL: 'redis://x',
-  AGENT_HOST_TOKEN: 't'.repeat(32),
   DAEMON_SECRET: 'secret',
   SECRETS_ENCRYPTION_KEY: 'k'.repeat(64),
   ATLAS_API_ORIGIN: 'https://api.byatlas.io',
@@ -17,13 +16,24 @@ describe('readAgentHostEnv', () => {
     const env = readAgentHostEnv(complete)
     expect(env.databaseUrl).toBe('postgres://x')
     expect(env.databaseDirectUrl).toBe('postgres://direct')
-    expect(env.agentHostToken).toBe('t'.repeat(32))
     expect(env.daemonSecret).toBe('secret')
     expect(env.secretsEncryptionKey).toBe('k'.repeat(64))
     expect(env.apiOrigin).toBe('https://api.byatlas.io')
+    expect(env.vercelOauth).toBeNull()
     expect(env.maxSessions).toBe(25)
     expect(env.sandboxImage).toBe('atlas-sandbox:latest')
     expect(env.daemonBundlePath.endsWith('apps/daemon/bin/daemon.js')).toBe(true)
+  })
+
+  it('reads the vercel oauth client only when both halves are set', () => {
+    expect(readAgentHostEnv({ ...complete, VERCEL_OAUTH_CLIENT_ID: 'cl' }).vercelOauth).toBeNull()
+    expect(
+      readAgentHostEnv({
+        ...complete,
+        VERCEL_OAUTH_CLIENT_ID: 'cl',
+        VERCEL_OAUTH_CLIENT_SECRET: 'sec',
+      }).vercelOauth,
+    ).toEqual({ clientId: 'cl', clientSecret: 'sec' })
   })
 
   it('honours the overrides', () => {
@@ -51,7 +61,6 @@ describe('readAgentHostEnv', () => {
       'DATABASE_URL',
       'DATABASE_DIRECT_URL',
       'REDIS_URL',
-      'AGENT_HOST_TOKEN',
       'DAEMON_SECRET',
       'SECRETS_ENCRYPTION_KEY',
       'ATLAS_API_ORIGIN',
