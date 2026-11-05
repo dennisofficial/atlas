@@ -34,7 +34,7 @@ export const startPgListener = (args: {
   const reconnectListeners = new Set<() => void>()
   const source = args.source ?? 'bus.pg-listener'
   let closed = false
-  let scheduled = false
+  let retryTimer: ReturnType<typeof setTimeout> | undefined
   let attempt = 0
   let client: PgListenerClient | undefined
 
@@ -43,12 +43,11 @@ export const startPgListener = (args: {
   }
 
   const schedule = (): void => {
-    if (closed || scheduled) return
-    scheduled = true
+    if (closed || retryTimer !== undefined) return
     attempt += 1
     const delay = Math.min(RECONNECT_BASE_MS * 2 ** (attempt - 1), RECONNECT_CAP_MS)
-    setTimeout(() => {
-      scheduled = false
+    retryTimer = setTimeout(() => {
+      retryTimer = undefined
       if (!closed) void connect()
     }, delay)
   }
@@ -74,9 +73,10 @@ export const startPgListener = (args: {
     next.on('end', () => void drop(next))
     try {
       await next.connect()
+      if (client !== next) return
       await next.query(args.channels.map((channel) => `LISTEN ${channel}`).join('; '))
     } catch (error) {
-      if (!closed) {
+      if (!closed && client === next) {
         logError('listener connect failed', error)
         await drop(next)
       }
@@ -86,6 +86,7 @@ export const startPgListener = (args: {
       await next.end().catch(() => undefined)
       return
     }
+    if (client !== next) return
     attempt = 0
     next.on('notification', (message: ListenerNotification) => {
       if (message.payload === undefined) return
@@ -117,6 +118,8 @@ export const startPgListener = (args: {
 
     async close() {
       closed = true
+      if (retryTimer !== undefined) clearTimeout(retryTimer)
+      retryTimer = undefined
       const current = client
       client = undefined
       await current?.end().catch(() => undefined)
