@@ -22,7 +22,7 @@ import {
   STREAM_AUTH_RECHECK_MS,
   STREAM_HEARTBEAT_MS,
 } from './stream-limits'
-import type { SubscriptionPort } from './subscription-port'
+import type { SubscriptionPort, SubscriptionSession } from './subscription-port'
 
 enum EPhase {
   AwaitingHello,
@@ -52,6 +52,7 @@ export class StreamConnection {
   private phase = EPhase.AwaitingHello
   private bearer = ''
   private userId: string | undefined
+  private session: SubscriptionSession | undefined
   private expiresAt = 0
   private helloTimer: unknown
   private recheckTimer: unknown
@@ -102,6 +103,8 @@ export class StreamConnection {
     this.phase = EPhase.Closed
     if (this.userId !== undefined) this.deps.users.release(this.userId)
     this.userId = undefined
+    this.session?.close()
+    this.session = undefined
     this.deps.onClosed(this)
   }
 
@@ -123,11 +126,9 @@ export class StreamConnection {
       return
     }
     if (message.type === 'hello') return
-    const userId = this.userId
-    if (userId === undefined) return
-    Promise.resolve(
-      this.deps.subscriptions.handle({ userId, message, send: (m) => this.send(m) }),
-    ).catch((error: unknown) => {
+    const session = this.session
+    if (session === undefined) return
+    Promise.resolve(session.handle(message)).catch((error: unknown) => {
       this.deps.log?.error({
         source: 'stream',
         message: 'subscription handler failed',
@@ -154,6 +155,12 @@ export class StreamConnection {
         this.userId = principal.userId
         this.expiresAt = principal.expiresAt
         this.phase = EPhase.Ready
+        this.session = this.deps.subscriptions.open({
+          userId: principal.userId,
+          send: (m) => this.send(m),
+          bufferedAmount: () => this.socket.getBufferedAmount(),
+          close: (code) => this.close(code),
+        })
         this.send({
           type: 'ready',
           v: Math.min(helloVersion, STREAM_PROTOCOL_VERSION),

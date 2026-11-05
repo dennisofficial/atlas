@@ -6,6 +6,7 @@ import { createDb, createPool } from '@dltech/atlas-db'
 import { logFieldsOf, LogPort } from '@dltech/atlas-observability'
 
 import { createHostBus } from './bus/host-bus'
+import { startPgChangeFeed } from './bus/pg-change-feed'
 import { startPgWakeListener } from './bus/pg-wake-listener'
 import { createRedisLiveFrames } from './bus/redis-live-frames'
 import { composeAgentHost } from './compose'
@@ -20,6 +21,8 @@ import { databaseUrlWithTls } from './config/database-url'
 import { createPgHostPresence } from './presence/pg-host-presence'
 import { startHostWatch, type HostWatch } from './presence/pg-host-watch'
 import { createPgStreamAuth } from './stream/pg-stream-auth'
+import { createFollowSubscriptions } from './stream/follow-port'
+import { systemHostTimers } from './stream/system-timers'
 import { startStreamServer } from './stream/stream-server'
 import { wakeOrphans } from './presence/wake-orphans'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
@@ -89,9 +92,18 @@ const main = async (): Promise<void> => {
   await wakeOrphans({ plane, log }).catch((error: unknown) => {
     log.error({ source: 'main', message: 'start-up orphan scan failed', ...logFieldsOf({ error }) })
   })
+  const changeFeed = startPgChangeFeed({ url: databaseUrlWithTls(env.databaseDirectUrl), log })
+  const follow = createFollowSubscriptions({
+    plane,
+    feed: changeFeed,
+    timers: systemHostTimers,
+    log,
+  })
   const stream = startStreamServer({
     port: env.port,
     auth: createPgStreamAuth({ pool }),
+    subscriptions: follow,
+    timers: systemHostTimers,
     trustedOrigins: env.trustedOrigins,
     log,
   })
@@ -110,6 +122,8 @@ const main = async (): Promise<void> => {
     await wakes.close()
     await liveFrames.close()
     await stream.stop()
+    follow.close()
+    await changeFeed.close()
     await pool.end()
     process.exit(0)
   }
