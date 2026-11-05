@@ -1,15 +1,20 @@
 import { EViewportKind, type Viewport } from '@dltech/atlas-ui/ai/preview-browser'
 
+import { parseWebUrl } from './web-url'
+
 export { EViewportKind, type Viewport }
 
 export const NEW_TAB_URL = 'atlas://new-tab'
 
 export const MAX_HISTORY = 50
 
+export type FrameLoad = { url: string; seq: number }
+
 export type BrowserTab = {
   id: string
   history: string[]
   index: number
+  load: FrameLoad
   viewport: Viewport
   lastUsedAt: number
 }
@@ -26,6 +31,7 @@ const tabOf = (args: { id: number; url: string; now: number }): BrowserTab => ({
   id: `tab-${args.id}`,
   history: [args.url],
   index: 0,
+  load: { url: args.url, seq: 0 },
   viewport: FULL_VIEWPORT,
   lastUsedAt: args.now,
 })
@@ -82,18 +88,46 @@ export function updateTab(args: {
   return { ...state, tabs: state.tabs.map((tab) => (tab.id === id ? change(tab) : tab)) }
 }
 
-export function navigated(args: { tab: BrowserTab; url: string }): BrowserTab {
+const sameUrl = (left: string, right: string): boolean => {
+  if (left === right) return true
+  const parsed = parseWebUrl(left)
+  return parsed !== null && parsed.href === parseWebUrl(right)?.href
+}
+
+const pushed = (args: { tab: BrowserTab; url: string }): BrowserTab => {
   const { tab, url } = args
-  if (currentUrlOf(tab) === url) return tab
   const history = [...tab.history.slice(0, tab.index + 1), url].slice(-MAX_HISTORY)
   return { ...tab, history, index: history.length - 1 }
 }
 
+const reloadedTo = (args: { tab: BrowserTab; index: number }): BrowserTab => {
+  const { tab, index } = args
+  const url = tab.history[index] ?? NEW_TAB_URL
+  return { ...tab, index, load: { url, seq: tab.load.seq + 1 } }
+}
+
+export function navigated(args: { tab: BrowserTab; url: string }): BrowserTab {
+  const { tab, url } = args
+  if (currentUrlOf(tab) === url) return tab
+  const next = pushed({ tab, url })
+  return { ...next, load: { url, seq: tab.load.seq + 1 } }
+}
+
+export function reconciled(args: { tab: BrowserTab; url: string }): BrowserTab {
+  const { tab, url } = args
+  if (sameUrl(currentUrlOf(tab), url)) return tab
+  const previous = tab.history[tab.index - 1]
+  if (previous !== undefined && sameUrl(previous, url)) return { ...tab, index: tab.index - 1 }
+  const following = tab.history[tab.index + 1]
+  if (following !== undefined && sameUrl(following, url)) return { ...tab, index: tab.index + 1 }
+  return pushed({ tab, url })
+}
+
 export const steppedBack = (tab: BrowserTab): BrowserTab =>
-  canGoBack(tab) ? { ...tab, index: tab.index - 1 } : tab
+  canGoBack(tab) ? reloadedTo({ tab, index: tab.index - 1 }) : tab
 
 export const steppedForward = (tab: BrowserTab): BrowserTab =>
-  canGoForward(tab) ? { ...tab, index: tab.index + 1 } : tab
+  canGoForward(tab) ? reloadedTo({ tab, index: tab.index + 1 }) : tab
 
 export const withViewport = (args: { tab: BrowserTab; viewport: Viewport }): BrowserTab => ({
   ...args.tab,

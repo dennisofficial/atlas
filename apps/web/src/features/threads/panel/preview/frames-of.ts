@@ -1,9 +1,19 @@
-import { currentUrlOf, type BrowserState } from '../../data/preview-browser/browser-model'
+import {
+  currentUrlOf,
+  type BrowserState,
+  type FrameLoad,
+} from '../../data/preview-browser/browser-model'
 import { liveKeyOf, liveTabIdsOf } from '../../data/preview-browser/live-tabs'
 import { parseWebUrl } from '../../data/preview-browser/web-url'
 import type { FrameRegistry } from './frame-registry'
 
-export type FrameSpec = { key: string; url: string }
+export type FrameSpec = {
+  key: string
+  threadId: string
+  tabId: string
+  url: string
+  load: FrameLoad
+}
 
 export function framesOf(args: {
   states: Record<string, BrowserState>
@@ -12,21 +22,18 @@ export function framesOf(args: {
 }): FrameSpec[] {
   const { states, registry, cap } = args
   const loadable: Record<string, BrowserState> = {}
-  const urls = new Map<string, string>()
+  const specs = new Map<string, FrameSpec>()
   for (const [threadId, state] of Object.entries(states)) {
     const tabs = state.tabs.filter((tab) => {
       const key = liveKeyOf({ threadId, tabId: tab.id })
       const url = currentUrlOf(tab)
       if (!registry.opened.has(key) || parseWebUrl(url) === null) return false
-      urls.set(key, url)
+      specs.set(key, { key, threadId, tabId: tab.id, url, load: tab.load })
       return true
     })
     loadable[threadId] = { ...state, tabs }
   }
   const live = liveTabIdsOf({ states: loadable, visibleThreadId: registry.visible?.threadId, cap })
   const inKeyOrder = (left: FrameSpec, right: FrameSpec) => left.key.localeCompare(right.key)
-  return [...urls]
-    .filter(([key]) => live.has(key))
-    .map(([key, url]) => ({ key, url }))
-    .sort(inKeyOrder)
+  return [...specs.values()].filter((spec) => live.has(spec.key)).sort(inKeyOrder)
 }

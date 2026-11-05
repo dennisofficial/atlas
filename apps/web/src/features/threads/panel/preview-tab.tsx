@@ -12,6 +12,8 @@ import {
 } from '@dltech/atlas-ui/ai/preview-browser'
 import { Button } from '@dltech/atlas-ui/components/button'
 
+import { useIsDesktop } from '@/features/desktop/use-is-desktop'
+
 import {
   activateTab,
   activeTabOf,
@@ -35,6 +37,7 @@ import { usePreviewBrowser } from '../data/preview-browser/use-preview-browser'
 import { previewPortForUrl } from '../data/preview-ports'
 import type { PreviewsState } from '../data/use-previews'
 import { changeRegistry, reloadedFrame } from './preview/frame-registry'
+import { useNativeNav, webviewOf } from './preview/native/native-controls'
 import { PreviewTabBody } from './preview/preview-tab-body'
 import { ETabPage, tabPageOf } from './preview/tab-page'
 import { useThreadPanel } from './thread-panel-context'
@@ -51,9 +54,12 @@ const chromeTabOf = (args: { tab: BrowserTab; ports: PreviewPort[] }): PreviewBr
 
 export function PreviewTab({ data }: { data: PreviewsState }) {
   const { threadId } = useThreadPanel()
+  const desktop = useIsDesktop()
   const { state, update } = usePreviewBrowser(threadId)
   const { ports, loaded } = data
   const tab = activeTabOf(state)
+  const frameKey = liveKeyOf({ threadId, tabId: tab?.id ?? '' })
+  const native = useNativeNav(frameKey)
   const handleOpen = () => update(({ state: held, now }) => openTab({ state: held, now }))
 
   if (tab === undefined) {
@@ -72,18 +78,20 @@ export function PreviewTab({ data }: { data: PreviewsState }) {
   }
 
   const url = currentUrlOf(tab)
-  const page = tabPageOf({ url, ports, loaded })
+  const page = tabPageOf({ url, ports, loaded, allowExternal: desktop })
   const change = (next: (held: BrowserTab) => BrowserTab) =>
     update(({ state: held }) => updateTab({ state: held, id: tab.id, change: next }))
   const handleNavigate = (target: string) => change((held) => navigated({ tab: held, url: target }))
   const handleAddress = (input: string) => {
-    const target = resolveAddress({ input, currentUrl: url, ports, allowExternal: false })
+    const target = resolveAddress({ input, currentUrl: url, ports, allowExternal: desktop })
     if (target !== null) handleNavigate(target)
   }
-  const handleReload = () =>
-    changeRegistry((registry) =>
-      reloadedFrame({ registry, key: liveKeyOf({ threadId, tabId: tab.id }) }),
-    )
+  const handleBack = () => (desktop ? webviewOf(frameKey)?.goBack() : change(steppedBack))
+  const handleForward = () => (desktop ? webviewOf(frameKey)?.goForward() : change(steppedForward))
+  const handleReload = () => {
+    if (desktop) return webviewOf(frameKey)?.reload()
+    changeRegistry((registry) => reloadedFrame({ registry, key: frameKey }))
+  }
   const handleViewport = (viewport: Viewport) =>
     change((held) => withViewport({ tab: held, viewport }))
 
@@ -95,16 +103,16 @@ export function PreviewTab({ data }: { data: PreviewsState }) {
       onClose={(id) => update(({ state: held }) => closeTab({ state: held, id }))}
       onOpen={handleOpen}
       address={url === NEW_TAB_URL ? '' : url}
-      canGoBack={canGoBack(tab)}
-      canGoForward={canGoForward(tab)}
+      canGoBack={desktop ? (native?.canGoBack ?? false) : canGoBack(tab)}
+      canGoForward={desktop ? (native?.canGoForward ?? false) : canGoForward(tab)}
       canReload={page.kind === ETabPage.Frame}
-      onBack={() => change(steppedBack)}
-      onForward={() => change(steppedForward)}
+      onBack={handleBack}
+      onForward={handleForward}
       onReload={handleReload}
       onAddress={handleAddress}
       viewport={tab.viewport}
       onViewportChange={handleViewport}
-      stageFit={EStageFit.Scale}
+      stageFit={desktop ? EStageFit.Scroll : EStageFit.Scale}
     >
       <PreviewTabBody
         threadId={threadId}
