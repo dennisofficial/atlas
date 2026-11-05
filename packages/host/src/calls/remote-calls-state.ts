@@ -108,6 +108,7 @@ export class RemoteCallsState {
       waiter.settle = resolve
       waiter.reject = reject
     })
+    outcome.catch(() => undefined)
     const existing = this.pending.get(args.key)
     if (existing !== undefined) {
       if (this.detached) return outcome
