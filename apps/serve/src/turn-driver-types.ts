@@ -1,3 +1,4 @@
+import type { EventId } from '@dltech/atlas-core'
 import type { MessageIntake, RotationSettle, TurnOutcome } from '@dltech/atlas-harness'
 
 import type { Said } from './turn-commit'
@@ -12,6 +13,7 @@ export type ServeTurnDriver = {
   run: (options?: TurnRunOptions) => void
   sayOrRun: () => boolean
   interrupt: () => void
+  stoppedAt: () => Promise<EventId | undefined>
   dismissFailure: (args: { failureSeq: number }) => Promise<void>
   pause: () => void
   beginRelocation: () => Promise<void>

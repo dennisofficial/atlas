@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import { lastInputId, type EventId, type ThreadId } from '@dltech/atlas-core'
 import { PauseSignal, ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
@@ -43,6 +43,7 @@ export function createTurnDriver(
   let lastOutcome: TurnOutcome | null = null
   let turnFailure: Error | null = null
   let resumeRelocation = false
+  let stopped: Promise<EventId | undefined> = Promise.resolve(undefined)
   const history = createHistoryAdmission({
     threadId: () => served,
     intake,
@@ -183,8 +184,15 @@ export function createTurnDriver(
     dismissFailure: dismissFailureFor({ app, threadId: served }),
     interrupt() {
       again = false
+      if (turning !== null) {
+        stopped = app.log
+          .readOwn({ threadId: served })
+          .then((events) => lastInputId(events))
+          .catch(() => undefined)
+      }
       abort?.abort()
     },
+    stoppedAt: () => stopped,
     pause() {
       pause?.pause()
     },

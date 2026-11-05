@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toEventId, toRunId, toThreadId, type Event } from '@dltech/atlas-core'
+import {
+  ENoticeStage,
+  EPrEventKind,
+  stampDrafts,
+  toCallId,
+  toEventId,
+  toRunId,
+  toThreadId,
+  type Event,
+  type EventId,
+  type EventDraft,
+} from '@dltech/atlas-core'
 
 import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { bindServePull, type PullSubscribe } from '../serve-pull'
@@ -26,12 +37,30 @@ const eventOf = (args: { seq: number; type: 'user-said' | 'assistant-said' }): E
     text: `m${args.seq}`,
   }) as Event
 
+const tailOf = (drafts: readonly EventDraft[]): Event[] =>
+  stampDrafts({
+    drafts: [...drafts],
+    envelopes: drafts.map((_, index) => ({
+      id: toEventId(`ev-${index + 1}`),
+      seq: index + 1,
+      threadId,
+      runId: toRunId('run-1'),
+      depth: 0,
+      at: '2026-10-29T00:00:00.000Z',
+    })),
+  })
+
 const settle = async (): Promise<void> => {
   for (let turn = 0; turn < 10; turn += 1) await Promise.resolve()
 }
 
 const setup = (
-  args: { tail?: Event[]; busy?: boolean; env?: Record<string, string | undefined> } = {},
+  args: {
+    tail?: Event[]
+    busy?: boolean
+    stoppedAt?: () => Promise<EventId | undefined>
+    env?: Record<string, string | undefined>
+  } = {},
 ) => {
   const runs: unknown[] = []
   const lines: ServeLogLine[] = []
@@ -56,6 +85,7 @@ const setup = (
         runs.push(options)
       },
       busy: () => args.busy === true,
+      stoppedAt: args.stoppedAt ?? (async () => undefined),
     },
     log: (line) => lines.push(line),
     hydrate: () => {
@@ -94,6 +124,63 @@ describe('bindServePull', () => {
     pull.tick()
     await settle()
     expect(pull.runs).toEqual([])
+  })
+
+  it('does not rerun a turn the operator stopped before its tool call ran', async () => {
+    const pull = setup({
+      tail: tailOf([
+        { type: 'user-said', text: 'go' },
+        { type: 'tool-called', callId: toCallId('call-1'), name: 'bash', input: {}, ordinal: 0 },
+        {
+          type: 'tool-denied',
+          callId: toCallId('call-1'),
+          name: 'bash',
+          reason: 'interrupted',
+          interrupted: true,
+        },
+      ]),
+    })
+    pull.tick()
+    await settle()
+    expect(pull.runs).toEqual([])
+  })
+
+  it('does not rerun for a delivered pr-event that follows the last reply', async () => {
+    const prEvent: EventDraft = {
+      type: 'pr-event',
+      repo: 'github.com/owner/repo',
+      prNumber: 12,
+      kind: EPrEventKind.State,
+      url: 'https://github.com/owner/repo/pull/12',
+      eventId: 'evt-1',
+      notice: { id: 'pr-event:evt-1', stage: ENoticeStage.Delivered },
+    }
+    const pull = setup({
+      tail: tailOf([
+        { type: 'user-said', text: 'go' },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+        prEvent,
+      ]),
+    })
+    pull.tick()
+    await settle()
+    expect(pull.runs).toEqual([])
+  })
+
+  it('does not rerun a turn stopped before the model produced anything', async () => {
+    const tail = [eventOf({ seq: 1, type: 'user-said' })]
+    const pull = setup({ tail, stoppedAt: async () => tail[0]?.id })
+    pull.tick()
+    await settle()
+    expect(pull.runs).toEqual([])
+  })
+
+  it('runs for a message sent after the stop', async () => {
+    const tail = [eventOf({ seq: 1, type: 'user-said' }), eventOf({ seq: 2, type: 'user-said' })]
+    const pull = setup({ tail, stoppedAt: async () => tail[0]?.id })
+    pull.tick()
+    await settle()
+    expect(pull.runs).toEqual([{ resume: false, onlyIfIdle: true }])
   })
 
   it('does not run while a turn is in flight', async () => {
@@ -209,7 +296,7 @@ describe('bindServePull', () => {
           },
         },
       },
-      driver: { run: () => undefined, busy: () => false },
+      driver: { run: () => undefined, busy: () => false, stoppedAt: async () => undefined },
       log: () => undefined,
       hydrate: async () => undefined,
       subscribe: ({ onTick }) => {
