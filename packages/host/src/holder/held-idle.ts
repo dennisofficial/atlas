@@ -88,9 +88,15 @@ export const teardownHeldSession = async (args: {
   draining: boolean
   lostOwnership: boolean
   released: boolean
+  failedToStart: boolean
   epoch: number
 }): Promise<void> => {
-  const { runtime } = args
+  const { runtime, deps } = args
+  if (args.failedToStart) {
+    await deps.plane
+      .revoke({ sessionId: deps.sessionId, wantsHolder: true, epoch: args.epoch })
+      .catch(() => undefined)
+  }
   if (runtime === undefined) return
   if (args.draining) {
     await runtime.stop()
@@ -100,20 +106,31 @@ export const teardownHeldSession = async (args: {
   if (!args.released) runtime.remoteCalls.close()
 }
 
+type IdleReleaseOutcome = 'released' | 'superseded' | 'failed'
+
 export const releaseIdleSession = async (args: {
   deps: HeldSessionDeps
+  epoch: number
   end(): Promise<void>
-}): Promise<void> => {
+}): Promise<IdleReleaseOutcome> => {
   const { deps } = args
   try {
+    const current = await deps.plane.currentLease({ sessionId: deps.sessionId })
+    if (current.lease.epoch !== args.epoch) return 'superseded'
     await args.end()
-    await deps.plane.revoke({ sessionId: deps.sessionId, wantsHolder: false })
+    const revoked = await deps.plane.revoke({
+      sessionId: deps.sessionId,
+      wantsHolder: false,
+      epoch: args.epoch,
+    })
+    return revoked.ok ? 'released' : 'superseded'
   } catch (error) {
     deps.log?.error({
       source: 'holder.idle',
       message: `idle release of ${deps.sessionId} failed`,
       ...logFieldsOf({ error }),
     })
+    return 'failed'
   }
 }
 
@@ -131,6 +148,7 @@ const lateInputMaybePending = async (args: {
 
 export const releaseIdleAndRewake = async (args: {
   deps: HeldSessionDeps
+  epoch: number
   end(): Promise<void>
   record: SessionRecord | undefined
   drop(): void
@@ -138,7 +156,8 @@ export const releaseIdleAndRewake = async (args: {
 }): Promise<void> => {
   const { deps } = args
   try {
-    await releaseIdleSession({ deps, end: args.end })
+    const outcome = await releaseIdleSession({ deps, epoch: args.epoch, end: args.end })
+    if (outcome === 'superseded') return
     const maybePending = await lateInputMaybePending({
       deps,
       failure: activeFailure(args.record?.eventCache().all() ?? []),

@@ -274,6 +274,9 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       error instanceof LeaseLostError
         ? error
         : new LeaseLostError(`the record store failed: ${messageOf(error)}`, 'store-error')
+    if (lost.refusal === 'retry-exhausted') {
+      this.args.log?.warn({ source: 'holder.append', message: 'append retry exhausted' })
+    }
     this.args.onLeaseLost?.(lost)
     throw lost
   }

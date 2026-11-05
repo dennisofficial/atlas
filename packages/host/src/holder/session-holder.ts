@@ -5,6 +5,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { HostBus, HostPresence, HostTimers, SessionRuntimeFactory } from './ports'
 import { HeldSession, type HeldSessionDeps } from './held-session'
 import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
+import { StartBackoff } from './start-backoff'
 
 export type SessionHolderArgs = {
   presence: HostPresence
@@ -46,6 +47,7 @@ export class SessionHolder {
   private unsubResync: (() => void) | undefined
   private resyncRetryTimer: unknown
   private resyncFailures = 0
+  private readonly startBackoff: StartBackoff
   private draining = false
 
   constructor(args: SessionHolderArgs) {
@@ -59,6 +61,10 @@ export class SessionHolder {
     this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.log = args.log
+    this.startBackoff = new StartBackoff({
+      timers: args.timers,
+      onDue: (sessionId) => this.onWake(sessionId),
+    })
   }
 
   async start(): Promise<void> {
@@ -76,6 +82,7 @@ export class SessionHolder {
     this.unsubWake?.()
     this.unsubResync?.()
     this.cancelResyncRetry()
+    this.startBackoff.cancelAll()
     const sessions = [...this.held.values()]
     for (const session of sessions) session.beginDrain()
     await Promise.all(
@@ -100,6 +107,7 @@ export class SessionHolder {
     this.unsubWake?.()
     this.unsubResync?.()
     this.cancelResyncRetry()
+    this.startBackoff.cancelAll()
     for (const session of this.held.values()) session.discard()
   }
 
@@ -110,7 +118,7 @@ export class SessionHolder {
       held.notifyWake()
       return
     }
-    if (this.pendingClaims.has(sessionId)) return
+    if (this.pendingClaims.has(sessionId) || this.startBackoff.waiting(sessionId)) return
     if (this.held.size + this.pendingClaims.size >= this.maxSessions) return
     const pending = this.claimAndHold(sessionId).finally(() => {
       this.pendingClaims.delete(sessionId)
@@ -155,11 +163,13 @@ export class SessionHolder {
   }
 
   private async claimAndHold(sessionId: string): Promise<void> {
+    let claimed: Lease | undefined
     try {
       const claimStartedAt = this.timers.now()
       if (this.hostId === undefined) return
       const claim = await this.plane.claim({ sessionId, hostId: this.hostId })
       if (!claim.ok) return
+      claimed = claim.lease
       if (this.draining) {
         await this.plane
           .revoke({ sessionId, wantsHolder: true, epoch: claim.lease.epoch })
@@ -177,7 +187,17 @@ export class SessionHolder {
         message: `claiming ${sessionId} failed`,
         ...logFieldsOf({ error }),
       })
+      if (claimed !== undefined && !this.held.has(sessionId)) {
+        await this.releaseUnstarted({ sessionId, epoch: claimed.epoch })
+      }
     }
+  }
+
+  private async releaseUnstarted(args: { sessionId: string; epoch: number }): Promise<void> {
+    await this.plane
+      .revoke({ sessionId: args.sessionId, wantsHolder: true, epoch: args.epoch })
+      .catch(() => undefined)
+    if (!this.draining) this.startBackoff.failed(args.sessionId)
   }
 
   private async hold(args: { sessionId: string; lease: Lease; claimMs: number }): Promise<void> {
@@ -200,6 +220,8 @@ export class SessionHolder {
     done.then(
       () => {
         if (this.held.get(args.sessionId) === session) this.held.delete(args.sessionId)
+        if (session.startFailed && !this.draining) this.startBackoff.failed(args.sessionId)
+        else this.startBackoff.started(args.sessionId)
       },
       (error) => {
         this.log?.error({

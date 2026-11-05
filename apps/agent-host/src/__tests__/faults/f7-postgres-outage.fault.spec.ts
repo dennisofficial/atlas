@@ -17,6 +17,22 @@ const sleep = (ms: number): Promise<void> =>
     setTimeout(resolve, ms)
   })
 
+const waitForLog = async (args: {
+  host: HostProcess
+  text: string
+  timeoutMs: number
+}): Promise<void> => {
+  const deadline = Date.now() + args.timeoutMs
+  while (!args.host.logs().some((line) => line.includes(args.text))) {
+    if (Date.now() > deadline) {
+      throw new Error(
+        `no "${args.text}" within ${args.timeoutMs} ms:\n${args.host.logs().join('\n')}`,
+      )
+    }
+    await sleep(100)
+  }
+}
+
 const releaseFifo = (path: string): boolean => {
   try {
     const fd = openSync(path, constants.O_WRONLY | constants.O_NONBLOCK)
@@ -85,19 +101,20 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
       scripts: { [sessionId]: [{ text: 'host b finished' }] },
     })
 
-    await sleep(APPEND_RETRY_MS + 1_500)
-    const stoppedAt = Date.now() - releasedAt
+    const stoppedAt = await waitForLog({
+      host: hostA,
+      text: 'append retry exhausted',
+      timeoutMs: APPEND_RETRY_MS + 10_000,
+    }).then(() => Date.now() - releasedAt)
     const whileDown = await rig.waitForSeq({ threadId, want: () => true })
     expect(whileDown.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(
       false,
     )
-    hostA.kill('SIGKILL')
-    await hostA.exited
     await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
 
     aDb.clear()
 
-    const events = await rig
+    await rig
       .waitForSeq({
         threadId,
         want: (rows) =>
@@ -113,6 +130,8 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
           `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB?.logs().join('\n') ?? ''}`,
         )
       })
+    await sleep(1_500)
+    const events = await rig.waitForSeq({ threadId, want: () => true })
 
     return { events, released, stoppedAt, epochA, runsFile }
   } finally {
@@ -142,6 +161,19 @@ describe.skipIf(REDIS_URL === undefined)(
       const scenario = await runOutage({ rig, sessionId: 'fault-f7-1' })
 
       expect(scenario.stoppedAt).toBeGreaterThanOrEqual(APPEND_RETRY_MS)
+      expect(scenario.stoppedAt).toBeLessThan(APPEND_RETRY_MS + 10_000)
+
+      const firstSuccessorSeq = Math.min(
+        ...scenario.events
+          .filter((row) => ((row.event as { epoch?: number }).epoch ?? 0) > scenario.epochA)
+          .map((row) => row.seq),
+      )
+      const lateFromA = scenario.events.filter(
+        (row) =>
+          (row.event as { epoch?: number }).epoch === scenario.epochA &&
+          row.seq > firstSuccessorSeq,
+      )
+      expect(lateFromA).toEqual([])
 
       const dispatches = scenario.events.filter(
         (row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1',

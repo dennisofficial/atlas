@@ -5,6 +5,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { PG_PRESENCE_LOCK_NAMESPACE } from '@dltech/atlas-protocol'
 
 import { ControlPlane } from '../src/control-plane'
+import type { ControlTx } from '../src/port'
 import { PostgresControlStore } from '../src/postgres'
 import {
   createSessionParams,
@@ -34,37 +35,65 @@ const pending = (promise: Promise<unknown>): Promise<boolean> =>
     new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 400)),
   ])
 
-it('postgres: an append holding the lease row FOR SHARE delays a concurrent claim, and the next append is stale-epoch', async () => {
+class GatedStore extends PostgresControlStore {
+  onLeaseShared: (() => Promise<void>) | undefined
+
+  override transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
+    return super.transact((tx) =>
+      work(
+        new Proxy(tx, {
+          get: (target, key, receiver) => {
+            if (key !== 'shareLease') return Reflect.get(target, key, receiver)
+            return async (sessionId: string) => {
+              const lease = await target.shareLease(sessionId)
+              await this.onLeaseShared?.()
+              return lease
+            }
+          },
+        }),
+      ),
+    )
+  }
+}
+
+it('postgres: an in-flight append holds the lease FOR SHARE, so a claim waits and the next append is stale-epoch', async () => {
   const { db } = testDb()
   const plane = new ControlPlane({ store: new PostgresControlStore(db) })
-  const appender = new PostgresControlStore(db)
+  const gated = new GatedStore(db)
+  const appender = new ControlPlane({ store: gated })
   await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
   const { epoch } = await plane.grant({ sessionId: SESSION, hostId: 101 })
   await holdPresence(102)
 
-  let locked!: () => void
+  let shared!: () => void
   let release!: () => void
-  const isLocked = new Promise<void>((resolve) => (locked = resolve))
+  const isShared = new Promise<void>((resolve) => (shared = resolve))
   const gate = new Promise<void>((resolve) => (release = resolve))
-  const sharing = appender.transact(async (tx) => {
-    await tx.shareLease(SESSION)
-    locked()
+  gated.onLeaseShared = async () => {
+    shared()
     await gate
+  }
+  const appending = appender.append({
+    threadId: THREAD,
+    epoch,
+    events: mint({ bodies: [said('in flight')], epoch }),
   })
-  await isLocked
+  await isShared
 
   const claiming = plane.claim({ sessionId: SESSION, hostId: 102 })
   expect(await pending(claiming)).toBe(true)
 
   release()
-  await sharing
+  expect(await appending).toMatchObject({ ok: true })
   const claimed = await claiming
   expect(claimed).toMatchObject({ ok: true, lease: { epoch: epoch + 1, holderHostId: 102 } })
 
-  const late = await plane.append({
+  gated.onLeaseShared = undefined
+  const head = await plane.head({ threadId: THREAD })
+  const late = await appender.append({
     threadId: THREAD,
     epoch,
-    events: mint({ bodies: [said('late')], epoch }),
+    events: mint({ bodies: [said('late')], epoch, from: head }),
   })
   expect(late).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch', current: epoch + 1 } })
 })
