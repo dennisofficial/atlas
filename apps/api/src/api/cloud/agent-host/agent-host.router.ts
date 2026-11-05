@@ -1,13 +1,9 @@
 import { Input, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import {
-  agentHostConfigInputSchema,
-  agentHostConfigOutputSchema,
   agentHostGithubTokenInputSchema,
   agentHostGithubTokenOutputSchema,
   agentHostModelAccessTokenInputSchema,
   agentHostModelAccessTokenOutputSchema,
-  type AgentHostConfigInput,
-  type AgentHostConfigOutput,
   type AgentHostGithubTokenInput,
   type AgentHostGithubTokenOutput,
   type AgentHostModelAccessTokenInput,
@@ -21,15 +17,6 @@ import { AgentHostService } from './agent-host.service'
 @UseMiddlewares(AgentHostMiddleware)
 export class AgentHostRouter {
   constructor(private readonly agentHost: AgentHostService) {}
-
-  @Query({
-    input: agentHostConfigInputSchema,
-    output: agentHostConfigOutputSchema,
-    meta: meta({ throttle: false }),
-  })
-  config(@Input() input: AgentHostConfigInput): Promise<AgentHostConfigOutput> {
-    return this.agentHost.config({ sessionId: input.sessionId })
-  }
 
   @Query({
     input: agentHostModelAccessTokenInputSchema,

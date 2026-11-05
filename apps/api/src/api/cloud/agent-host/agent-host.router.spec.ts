@@ -11,7 +11,7 @@ describe('AgentHostRouter', () => {
 
   const config = (token: string | undefined, input: object = { sessionId: 's1' }) => {
     const sent = request(app.getHttpServer())
-      .get('/v1/trpc/agentHost.config')
+      .get('/v1/trpc/agentHost.githubToken')
       .query({ input: JSON.stringify(input) })
     return token === undefined ? sent : sent.set(as(token))
   }
@@ -29,42 +29,23 @@ describe('AgentHostRouter', () => {
 
     it('refuses a request without a token', async () => {
       expect((await config(undefined)).status).toBe(401)
-      expect(agentHost.config).not.toHaveBeenCalled()
+      expect(agentHost.githubToken).not.toHaveBeenCalled()
     })
 
     it('refuses a wrong token', async () => {
       expect((await config(`${'b'.repeat(32)}`)).status).toBe(401)
       expect((await config('short')).status).toBe(401)
-      expect(agentHost.config).not.toHaveBeenCalled()
+      expect(agentHost.githubToken).not.toHaveBeenCalled()
     })
 
     it('answers with the right token', async () => {
-      const body = {
-        userId: 'user-a',
-        projectId: 'proj-a',
-        model: { configured: false, gap: 'no anthropic account' },
-        vercel: { configured: false, gap: 'user-credential' },
-        workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
-        config: {
-          settings: {},
-          secrets: [],
-          harnessSecrets: [],
-          mcpServers: [],
-          fileMounts: [
-            { path: 'apps/api/.env.keys', contents: 'k', mode: 0o600, encoding: 'utf8' },
-          ],
-          provenance: {},
-        },
-        revision: 'r1',
-        expiresAt: '2026-11-03T12:05:00.000Z',
-      }
-      agentHost.config.mockResolvedValue(body)
+      agentHost.githubToken.mockResolvedValue({ token: 'gh' })
 
       const response = await config(TOKEN)
 
       expect(response.status).toBe(200)
-      expect(response.body.result.data).toEqual(body)
-      expect(agentHost.config).toHaveBeenCalledWith({ sessionId: 's1' })
+      expect(response.body.result.data).toEqual({ token: 'gh' })
+      expect(agentHost.githubToken).toHaveBeenCalledWith({ sessionId: 's1' })
     })
 
     it('issues a model access token', async () => {
@@ -104,7 +85,7 @@ describe('AgentHostRouter', () => {
     it('validates the input', async () => {
       const response = await config(TOKEN, { sessionId: '' })
       expect(response.status).toBe(400)
-      expect(agentHost.config).not.toHaveBeenCalled()
+      expect(agentHost.githubToken).not.toHaveBeenCalled()
     })
   })
 
@@ -115,7 +96,7 @@ describe('AgentHostRouter', () => {
 
     it('refuses everything, even with a plausible token', async () => {
       expect((await config(TOKEN)).status).toBe(401)
-      expect(agentHost.config).not.toHaveBeenCalled()
+      expect(agentHost.githubToken).not.toHaveBeenCalled()
     })
   })
 })
