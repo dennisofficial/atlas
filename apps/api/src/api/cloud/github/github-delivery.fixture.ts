@@ -125,12 +125,14 @@ export function serviceWith(args: {
   tokens?: Record<string, string>
   observations?: GithubObservationStore
   readPullRequest?: GithubUserReads['readPullRequest']
+  readCheckAnnotations?: GithubUserReads['readCheckAnnotations']
 }): { service: GithubDeliveryService; fanout: GithubPrFanoutService } {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
   } as unknown as GithubService
   const reads = {
     readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
+    readCheckAnnotations: args.readCheckAnnotations ?? (async () => []),
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const cipher = {} as SecretCipherService

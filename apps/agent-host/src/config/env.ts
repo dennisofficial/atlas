@@ -11,9 +11,10 @@ export type AgentHostEnv = {
   databaseUrl: string
   databaseDirectUrl: string
   redisUrl: string
-  agentHostToken: string
   daemonSecret: string
+  secretsEncryptionKey: string
   apiOrigin: string
+  vercelOauth: { clientId: string; clientSecret: string } | null
   maxSessions: number
   sandboxImage: string
   daemonBundlePath: string
@@ -40,21 +41,27 @@ const parseMaxSessions = (raw: string | undefined): number => {
   return parsed
 }
 
+const vercelOauthOf = (env: Record<string, string | undefined>): AgentHostEnv['vercelOauth'] => {
+  const clientId = take(env, 'VERCEL_OAUTH_CLIENT_ID')
+  const clientSecret = take(env, 'VERCEL_OAUTH_CLIENT_SECRET')
+  return clientId === undefined || clientSecret === undefined ? null : { clientId, clientSecret }
+}
+
 export const readAgentHostEnv = (
   env: Record<string, string | undefined> = process.env,
 ): AgentHostEnv => {
   const databaseUrl = take(env, 'DATABASE_URL')
   const databaseDirectUrl = take(env, 'DATABASE_DIRECT_URL')
   const redisUrl = take(env, 'REDIS_URL')
-  const agentHostToken = take(env, 'AGENT_HOST_TOKEN')
   const daemonSecret = take(env, 'DAEMON_SECRET')
+  const secretsEncryptionKey = take(env, 'SECRETS_ENCRYPTION_KEY')
   const apiOrigin = take(env, 'ATLAS_API_ORIGIN')
   const required: ReadonlyArray<[string, string | undefined]> = [
     ['DATABASE_URL', databaseUrl],
     ['DATABASE_DIRECT_URL', databaseDirectUrl],
     ['REDIS_URL', redisUrl],
-    ['AGENT_HOST_TOKEN', agentHostToken],
     ['DAEMON_SECRET', daemonSecret],
+    ['SECRETS_ENCRYPTION_KEY', secretsEncryptionKey],
     ['ATLAS_API_ORIGIN', apiOrigin],
   ]
   const missing = required.filter((pair) => pair[1] === undefined).map((pair) => pair[0])
@@ -63,9 +70,10 @@ export const readAgentHostEnv = (
     databaseUrl: databaseUrl as string,
     databaseDirectUrl: databaseDirectUrl as string,
     redisUrl: redisUrl as string,
-    agentHostToken: agentHostToken as string,
     daemonSecret: daemonSecret as string,
+    secretsEncryptionKey: secretsEncryptionKey as string,
     apiOrigin: apiOrigin as string,
+    vercelOauth: vercelOauthOf(env),
     maxSessions: parseMaxSessions(take(env, 'AGENT_HOST_MAX_SESSIONS')),
     sandboxImage: take(env, 'ATLAS_SANDBOX_IMAGE') ?? DEFAULT_SANDBOX_IMAGE,
     daemonBundlePath: take(env, 'ATLAS_DAEMON_BUNDLE') ?? defaultDaemonBundlePath(),

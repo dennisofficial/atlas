@@ -13,6 +13,13 @@ export enum EPrEventKind {
   State = 'state',
 }
 
+export type GithubPrCheckAnnotation = {
+  path?: string
+  line?: number
+  message: string
+  title?: string
+}
+
 export type GithubPrFailedCheck = {
   name: string
   app?: string
@@ -20,6 +27,7 @@ export type GithubPrFailedCheck = {
   checkRunId?: string
   title?: string
   summary?: string
+  annotations?: GithubPrCheckAnnotation[]
 }
 
 export type GithubPrEventPayload = {

@@ -13,7 +13,7 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 
 import type { LocalSandboxProvider } from '../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
-import type { AgentHostApi } from '../config/agent-host-api'
+import type { ConfigSource } from '../config/agent-host-config'
 
 process.env.ATLAS_HOME = mkdtempSync(join(tmpdir(), 'atlas-agent-host-e2e-'))
 const E2E_WORKSPACE = mkdtempSync(join(tmpdir(), 'atlas-agent-host-e2e-workspace-'))
@@ -57,28 +57,23 @@ export const makeInMemoryBus = (): InMemoryBus => {
   }
 }
 
-export const apiFor = (setupScript = ''): AgentHostApi => ({
-  config: async () => ({
+export const sourceFor = (setupScript = ''): ConfigSource => ({
+  read: async () => ({
     userId: 'user-1',
     projectId: 'proj-1',
     model: { configured: false, gap: 'scripted model in test' },
     vercel: { configured: true, token: '', teamId: '', projectId: '' },
     workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript },
-    config: {
-      settings: {},
-      secrets: [],
-      harnessSecrets: [],
-      mcpServers: [],
-      fileMounts: [],
-      provenance: {},
-    },
-    revision: 'rev-1',
-    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    skills: [],
   }),
-  modelAccessToken: async () => {
+})
+
+export const noGithub = (): { read(): Promise<string | null> } => ({ read: async () => null })
+
+export const unusedTokens = (): { issue(): Promise<never> } => ({
+  issue: async () => {
     throw new Error('unused')
   },
-  githubToken: async () => ({ token: null }),
 })
 
 export class CollectingLog extends LogPort {
@@ -112,7 +107,9 @@ export const makeHolder = (args: {
     bus: args.bus,
     timers,
     runtimes: createSessionRuntimeFactory({
-      api: apiFor(args.setupScript),
+      config: sourceFor(args.setupScript),
+      tokens: unusedTokens(),
+      github: noGithub(),
       sandbox: args.sandbox,
       daemonSecret: E2E_SECRET,
       timers,

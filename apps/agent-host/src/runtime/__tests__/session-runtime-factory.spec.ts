@@ -2,7 +2,6 @@ import { describe, expect, it, spyOn } from 'bun:test'
 import { EToolEffect, toThreadId } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { WORKSPACE_PATH, type VercelCredentials } from '../../sandbox/constants'
-import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
 import {
   RemoteCalls,
   SandboxUnavailableError,
@@ -10,20 +9,11 @@ import {
   type HostTimers,
 } from '@dltech/atlas-host'
 
-import type { AgentHostApi } from '../../config/agent-host-api'
+import type { AgentHostConfig, ConfigSource } from '../../config/agent-host-config'
 import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
 import { createSessionRuntimeFactory, SandboxNotConfiguredError } from '../session-runtime-factory'
 
-const projectConfig = {
-  settings: {},
-  secrets: [],
-  harnessSecrets: [],
-  mcpServers: [],
-  fileMounts: [],
-  provenance: {},
-}
-
-const configured = (over: Partial<AgentHostConfigOutput> = {}): AgentHostConfigOutput => ({
+const configured = (over: Partial<AgentHostConfig> = {}): AgentHostConfig => ({
   userId: 'user-1',
   projectId: 'proj-1',
   model: {
@@ -34,9 +24,7 @@ const configured = (over: Partial<AgentHostConfigOutput> = {}): AgentHostConfigO
   },
   vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
-  config: projectConfig,
-  revision: 'rev-1',
-  expiresAt: new Date(Date.now() + 60_000).toISOString(),
+  skills: [],
   ...over,
 })
 
@@ -101,23 +89,24 @@ const makeFakeTimers = (): { timers: HostTimers; fireScheduled: () => void } => 
   }
 }
 
-const apiOf = (output: AgentHostConfigOutput): AgentHostApi => ({
-  config: async () => output,
-  modelAccessToken: async () => {
+const apiOf = (output: AgentHostConfig): ConfigSource & { issue(): Promise<never> } => ({
+  read: async () => output,
+  issue: async () => {
     throw new Error('unused')
   },
-  githubToken: async () => ({ token: null }),
 })
 
 const testTimers: HostTimers = { now: () => Date.now(), ...systemTimers }
 
 const makeFactory = (args: {
-  api: AgentHostApi
+  api: ConfigSource & { issue(): Promise<never> }
   sandbox: FakeSandbox
   modelFor?: Parameters<typeof createSessionRuntimeFactory>[0]['modelFor']
 }) =>
   createSessionRuntimeFactory({
-    api: args.api,
+    config: args.api,
+    tokens: args.api,
+    github: { read: async () => null },
     sandbox: args.sandbox,
     daemonSecret: 'secret-1',
     timers: testTimers,
@@ -253,7 +242,9 @@ describe('createSessionRuntimeFactory', () => {
     const { timers, fireScheduled } = makeFakeTimers()
     const sandbox = new FakeSandbox(true)
     const factory = createSessionRuntimeFactory({
-      api: apiOf(configured()),
+      config: apiOf(configured()),
+      tokens: apiOf(configured()),
+      github: { read: async () => null },
       sandbox,
       daemonSecret: 'secret-1',
       timers,
@@ -275,7 +266,9 @@ describe('createSessionRuntimeFactory', () => {
     const { timers, fireScheduled } = makeFakeTimers()
     const sandbox = new FakeSandbox(true)
     const factory = createSessionRuntimeFactory({
-      api: apiOf(configured()),
+      config: apiOf(configured()),
+      tokens: apiOf(configured()),
+      github: { read: async () => null },
       sandbox,
       daemonSecret: 'secret-1',
       timers,

@@ -4,6 +4,8 @@ import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
+import type { LogPort } from '@dltech/atlas-observability'
+
 import type { PrepareResult } from '../ports'
 import { SessionHolder } from '../session-holder'
 import { FakeBus, FakeClock, flushUntil, SANDBOX, SECRET, SESSION, THREAD } from './rig-fakes'
@@ -48,6 +50,9 @@ export const makeRig = async (args: {
   model?: (() => ModelPort) | undefined
   prepare?: (() => Promise<PrepareResult>) | undefined
   connectGate?: Promise<void> | undefined
+  runtimeGate?: Promise<void> | undefined
+  beforeRuntime?: (() => Promise<void>) | undefined
+  log?: LogPort | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
@@ -68,6 +73,8 @@ export const makeRig = async (args: {
     model: args.model,
     prepare: args.prepare,
     connectGate: args.connectGate,
+    runtimeGate: args.runtimeGate,
+    beforeRuntime: args.beforeRuntime,
   })
 
   const holder = new SessionHolder({
@@ -82,6 +89,7 @@ export const makeRig = async (args: {
     renewEveryMs: args.renewEveryMs ?? 5_000,
     fenceMarginMs: args.fenceMarginMs ?? 5_000,
     idleMinutes: args.idleMinutes ?? 30,
+    ...(args.log === undefined ? {} : { log: args.log }),
   })
 
   return {

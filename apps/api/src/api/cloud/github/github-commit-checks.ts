@@ -16,6 +16,7 @@ import {
   runnerAppSlugs,
 } from './github-check-suites'
 import { normalizedRepo } from './github-pr-identity'
+import type { GithubPrCheckAnnotation } from './github-realtime.types'
 
 export const COMMIT_CHECK_RETENTION_MS = 14 * 24 * 60 * 60 * 1_000
 
@@ -30,6 +31,8 @@ export type CommitCheckInput = {
   detailsUrl?: string | null
   title?: string | null
   summary?: string | null
+  annotationsCount?: number | null
+  annotations?: GithubPrCheckAnnotation[]
 }
 
 export type CheckRunShape = {
@@ -41,7 +44,11 @@ export type CheckRunShape = {
   completed_at?: string | null
   app?: { slug: string } | null
   html_url?: string | null
-  output?: { title?: string | null; summary?: string | null } | null
+  output?: {
+    title?: string | null
+    summary?: string | null
+    annotations_count?: number | null
+  } | null
 }
 
 export type CommitStatusShape = {
@@ -71,6 +78,7 @@ export function checkRunInputOf(run: CheckRunShape): CommitCheckInput {
     detailsUrl: run.html_url ?? null,
     title: clipCheckText(run.output?.title) ?? null,
     summary: clipCheckText(run.output?.summary) ?? null,
+    annotationsCount: run.output?.annotations_count ?? null,
   }
 }
 
@@ -110,6 +118,26 @@ export async function recordCommitChecksLocked(args: {
   })
 }
 
+export async function recordCheckCounts(args: {
+  repoFullName: string
+  headSha: string
+  checks: readonly CommitCheckInput[]
+}): Promise<ReturnType<typeof checkCountFieldsOf>> {
+  const tally = await db.transaction(async (tx) => {
+    await lockCommit({ tx, ...args })
+    await recordCommitChecks({ tx, ...args })
+    return commitChecksTally({ tx, repoFullName: args.repoFullName, headSha: args.headSha })
+  })
+  return checkCountFieldsOf(tally)
+}
+
+export const checkCountFieldsOf = (tally: ChecksCount) => ({
+  checksRunning: tally.running,
+  checksPassed: tally.passed,
+  checksFailed: tally.failed,
+  checksIgnored: tally.ignored,
+})
+
 export async function recordCommitChecks(args: {
   tx: Tx
   repoFullName: string
@@ -142,6 +170,8 @@ export async function recordCommitChecks(args: {
         detailsUrl: check.detailsUrl ?? null,
         title: check.title ?? null,
         summary: check.summary ?? null,
+        annotationsCount: check.annotationsCount ?? null,
+        ...(check.annotations === undefined ? {} : { annotations: check.annotations }),
       }
       await tx.orm.public.GithubCommitCheck.upsert({
         conflictOn: {

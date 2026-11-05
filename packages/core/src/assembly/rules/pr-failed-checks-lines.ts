@@ -1,4 +1,8 @@
-import { failedCheckLogCommand, type PrFailedCheck } from '../../github/failed-check'
+import {
+  failedCheckLogCommand,
+  type PrFailedCheck,
+  type PrFailedCheckAnnotation,
+} from '../../github/failed-check'
 
 const GITHUB_PREFIX = 'github.com/'
 
@@ -20,12 +24,23 @@ const detailOf = (check: PrFailedCheck): string | undefined => {
   return check.title ?? check.summary
 }
 
+const annotationLineOf = (annotation: PrFailedCheckAnnotation): string => {
+  const place =
+    annotation.path === undefined
+      ? ''
+      : annotation.line === undefined
+        ? `${annotation.path} `
+        : `${annotation.path}:${annotation.line} `
+  return `    ${indented(`${place}${annotation.message}`)}`
+}
+
 const linesOf = (args: { check: PrFailedCheck; repoFullName: string }): string[] => {
   const detail = detailOf(args.check)
   const logs = failedCheckLogCommand(args)
   return [
     headOf(args.check),
     ...(detail === undefined ? [] : [`    ${indented(detail)}`]),
+    ...(args.check.annotations ?? []).map(annotationLineOf),
     ...(logs === undefined ? [] : [`    logs: ${logs}`]),
   ]
 }

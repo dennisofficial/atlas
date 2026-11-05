@@ -2,7 +2,7 @@ import { dirname, join } from 'node:path'
 
 import { newKey, type RemoteCalls } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
-import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
+import type { WorkspaceConfig } from '../config/agent-host-config'
 
 export type GitWatch = {
   watchedRepos(): Promise<readonly string[]>
@@ -15,7 +15,7 @@ export const watchWorkspaceRepos = (args: {
   calls: RemoteCalls
   gate: Promise<void>
   launchDirectory: string
-  additionalRepos: AgentHostConfigOutput['workspace']['additionalRepos']
+  additionalRepos: WorkspaceConfig['additionalRepos']
   log?: LogPort | undefined
 }): GitWatch => {
   const watched = args.gate
