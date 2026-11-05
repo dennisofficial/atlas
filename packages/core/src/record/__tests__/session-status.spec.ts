@@ -50,11 +50,30 @@ const toolDispatched = (args: { name?: string } = {}): V2Event => ({
   name: args.name ?? 'bash',
 })
 
-const toolResult = (): V2Event => ({
+const toolResult = (args: { interrupted?: boolean } = {}): V2Event => ({
   ...envelope(),
   type: 'tool-result',
   callId: CALL,
   name: 'bash',
+  interrupted: args.interrupted,
+})
+
+const branchesObserved = (): V2Event => ({
+  ...envelope(),
+  type: 'branches-observed',
+  repo: '/work',
+  head: 'main',
+  branches: [],
+  worktrees: [],
+})
+
+const inputConsumed = (): V2Event => ({ ...envelope(), type: 'input-consumed', inboxId: 7 })
+
+const otherFact = (): V2Event => ({
+  ...envelope(),
+  type: 'fact-recorded',
+  key: 'note',
+  kind: 'note',
 })
 
 const runFailed = (args: { message?: string } = {}): V2Event => ({
@@ -174,7 +193,7 @@ describe('sessionStatusOf', () => {
 
   it('ignores a retry fact whose deadline has passed', () => {
     const result = status({
-      events: [retry({ notBefore: '2026-11-03T11:00:00.000Z' })],
+      events: [userSaid(), retry({ notBefore: '2026-11-03T11:00:00.000Z' })],
       live: true,
     })
     expect(result.state).toBe(ESessionStatus.Thinking)
@@ -251,6 +270,80 @@ describe('sessionStatusOf', () => {
   it('reports thinking after a handoff-aborted assistant message under a live lease', () => {
     const result = status({ events: [assistantSaid({ aborted: 'handoff' })], live: true })
     expect(result.state).toBe(ESessionStatus.Thinking)
+  })
+})
+
+describe('sessionStatusOf record-only events after the turn', () => {
+  it('reports idle when branches-observed follows the reply', () => {
+    const result = status({
+      events: [userSaid(), assistantSaid(), branchesObserved()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Idle)
+  })
+
+  it('reports idle when a fact follows the reply', () => {
+    const result = status({
+      events: [userSaid(), assistantSaid(), otherFact()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Idle)
+  })
+
+  it('reports idle after an interrupted tool-result and the stop being consumed', () => {
+    const result = status({
+      events: [userSaid(), toolDispatched(), toolResult({ interrupted: true }), inputConsumed()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Idle)
+  })
+
+  it('reports idle when a stop is consumed before the turn recorded anything', () => {
+    const result = status({
+      events: [userSaid(), inputConsumed()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Idle)
+  })
+
+  it('reports idle when the stop is consumed and branches are observed after it', () => {
+    const result = status({
+      events: [userSaid(), toolResult({ interrupted: true }), inputConsumed(), branchesObserved()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Idle)
+  })
+
+  it('stays thinking when branches are observed mid-turn', () => {
+    const result = status({
+      events: [userSaid(), branchesObserved()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Thinking)
+  })
+
+  it('keeps running-tool when a fact follows the dispatch', () => {
+    const result = status({
+      events: [userSaid(), toolDispatched(), otherFact()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.RunningTool)
+  })
+
+  it('starts a new turn when a message is consumed with its user-said', () => {
+    const result = status({
+      events: [userSaid(), assistantSaid(), inputConsumed(), userSaid()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Thinking)
+  })
+
+  it('keeps failed when record-only events follow the failure', () => {
+    const result = status({
+      events: [userSaid(), runFailed(), branchesObserved()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Failed)
   })
 })
 

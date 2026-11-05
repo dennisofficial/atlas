@@ -34,7 +34,20 @@ const isTurnEnding = (event: V2Event): boolean =>
   TURN_ENDING_TYPES.has(event.type) ||
   (event.type === 'assistant-said' && event.aborted !== 'handoff')
 
+const TURN_NEUTRAL_TYPES: ReadonlySet<V2Event['type']> = new Set([
+  'branches-observed',
+  'fact-recorded',
+  'input-consumed',
+])
+
+const isTurnNeutral = (event: V2Event): boolean => TURN_NEUTRAL_TYPES.has(event.type)
+
 const lastEventOf = (events: readonly V2Event[]): V2Event | undefined => events[events.length - 1]
+
+const stopConsumedAfterTurn = (events: readonly V2Event[]): boolean => {
+  const turnIndex = events.findLastIndex((event) => !isTurnNeutral(event))
+  return events.slice(turnIndex + 1).some((event) => event.type === 'input-consumed')
+}
 
 const retryDeadlineOf = (params: { event: V2Event; nowMs: number }): string | undefined => {
   const { event, nowMs } = params
@@ -91,13 +104,14 @@ export function sessionStatusOf(params: {
     return { state: ESessionStatus.Sent }
   }
 
-  const failed = unfinishedRunFailed(events)
+  const turnEvents = events.filter((event) => !isTurnNeutral(event))
+  const failed = unfinishedRunFailed(turnEvents)
   if (failed !== undefined) {
     return { state: ESessionStatus.Failed, reason: failed.failure.message, since: failed.at }
   }
 
-  const last = lastEventOf(events)
-  const turnOpen = last !== undefined && !isTurnEnding(last)
+  const last = lastEventOf(turnEvents)
+  const turnOpen = last !== undefined && !isTurnEnding(last) && !stopConsumedAfterTurn(events)
 
   if (turnOpen) {
     for (let index = events.length - 1; index >= 0; index -= 1) {
