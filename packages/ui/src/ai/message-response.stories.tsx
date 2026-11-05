@@ -80,6 +80,21 @@ export const Diagram: Story = {
   args: { children: DIAGRAM },
 }
 
+const BROKEN_DIAGRAM = [
+  '```mermaid',
+  'flowchart LR',
+  '  A[Start --> B{Check',
+  '  B --> C',
+  '```',
+].join('\n')
+
+export const BrokenDiagram: Story = {
+  args: {
+    children: BROKEN_DIAGRAM,
+    onRepairDiagram: () => new Promise((resolve) => setTimeout(resolve, 1500)),
+  },
+}
+
 const LARGE_DIAGRAM = [
   '```mermaid',
   'sequenceDiagram',
