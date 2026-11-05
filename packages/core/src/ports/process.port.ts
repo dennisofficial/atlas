@@ -7,10 +7,15 @@ export type SpawnCommand = {
   readonly threadId?: ThreadId | undefined
 }
 
+export enum EProcessTermination {
+  OomKilled = 'oom-killed',
+}
+
 export type ProcessHandle = {
   readonly stdout: ReadableStream<Uint8Array>
   readonly stderr: ReadableStream<Uint8Array>
   readonly exited: Promise<number>
+  readonly terminatedBy?: Promise<EProcessTermination | undefined>
   terminate(): void
 }
 

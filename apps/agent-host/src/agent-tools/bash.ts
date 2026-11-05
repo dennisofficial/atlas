@@ -233,11 +233,13 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         stderr: render(read.stderr),
         truncated: merged.truncated,
         timedOut,
+        ...(read.oomKilled ? { oomKilled: true } : {}),
       },
       modelText: renderModelText({
         merged: merged.text,
         exitCode: read.exitCode,
         timedOut,
+        oomKilled: read.oomKilled,
         timeoutMs: timeout,
         maximumTimeoutMs: MAXIMUM_TIMEOUT_MS,
       }),

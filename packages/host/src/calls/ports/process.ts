@@ -1,4 +1,5 @@
 import {
+  EProcessTermination,
   ProcessPort,
   type ProcessHandle,
   type SpawnCommand,
@@ -15,8 +16,11 @@ export const DEFAULT_SANDBOX_COMMANDS: Readonly<Record<string, string>> = {
   git: 'git',
 }
 
+const OOM_KILLED_EXIT_CODE = 137
+
 const exitCodeOf = (result: ExecResult): number => {
   if (result.exitCode !== null) return result.exitCode
+  if (result.outcome === EExecOutcome.OomKilled) return OOM_KILLED_EXIT_CODE
   if (result.outcome === EExecOutcome.Cancelled) return 130
   if (result.outcome === EExecOutcome.TimedOut) return 124
   return 1
@@ -33,7 +37,7 @@ const definedEnv = (env: Record<string, string | undefined>): Record<string, str
 export class DaemonProcessPort extends ProcessPort {
   constructor(
     private readonly args: {
-      calls: RemoteCalls
+      calls: Pick<RemoteCalls, 'invoke'>
       known?: Readonly<Record<string, string>> | undefined
     },
   ) {
@@ -48,6 +52,7 @@ export class DaemonProcessPort extends ProcessPort {
       Uint8Array
     >()
     const writer = output.writable.getWriter()
+    let oomKilled = false
     const exited = this.args.calls
       .invoke({
         key,
@@ -65,7 +70,9 @@ export class DaemonProcessPort extends ProcessPort {
           if (result.error.code === ECallFailure.Interrupted) markInterrupted()
           return 1
         }
-        return exitCodeOf(result.value as ExecResult)
+        const executed = result.value as ExecResult
+        oomKilled = executed.outcome === EExecOutcome.OomKilled
+        return exitCodeOf(executed)
       })
       .catch(() => 1)
       .finally(() => {
@@ -73,12 +80,14 @@ export class DaemonProcessPort extends ProcessPort {
         output = null
       })
     exited.catch(() => undefined)
+    const terminatedBy = exited.then(() => (oomKilled ? EProcessTermination.OomKilled : undefined))
     return {
       get stdout() {
         return output === null ? new ReadableStream<Uint8Array>() : output.readable
       },
       stderr: new ReadableStream<Uint8Array>({ start: (sink) => sink.close() }),
       exited,
+      terminatedBy,
       terminate: () => controller.abort(),
     }
   }

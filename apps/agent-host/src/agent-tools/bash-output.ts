@@ -61,6 +61,7 @@ export function renderModelText(args: {
   merged: string
   exitCode: number
   timedOut: boolean
+  oomKilled: boolean
   timeoutMs: number
   maximumTimeoutMs: number
 }): string {
@@ -69,6 +70,11 @@ export function renderModelText(args: {
   if (args.timedOut) {
     sections.push(
       `The command was killed after exceeding its ${args.timeoutMs} ms timeout. If it needs longer than ${args.maximumTimeoutMs} ms, start it again with runInBackground and its ending will be delivered to you whenever it lands.`,
+    )
+  }
+  if (args.oomKilled) {
+    sections.push(
+      "The kernel killed the command because it ran out of memory: it exceeded the sandbox's memory limit. Retrying it unchanged will fail the same way, so reduce its memory use (smaller inputs, streaming or batching, fewer parallel workers) before running it again.",
     )
   }
   if (args.exitCode !== 0) sections.push(`Exit code: ${args.exitCode}`)
