@@ -10,6 +10,12 @@ export type HostBus = {
   live(args: { sessionId: string; frame: LiveFrame }): void
 }
 
+export type HostPresence = {
+  register(): Promise<number>
+  onLost(listener: (hostId: number) => void): () => void
+  close(): Promise<void>
+}
+
 export type HostTimers = {
   now(): number
   setTimeout(handler: () => void, ms: number): unknown

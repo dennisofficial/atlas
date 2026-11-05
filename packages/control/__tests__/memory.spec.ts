@@ -3,6 +3,7 @@ import {
   describeControlPlaneBlobs,
   describeControlPlaneClaims,
   describeControlPlaneConformance,
+  describeControlPlanePresence,
   describeControlPlaneSessions,
   describeControlPlaneWakes,
 } from '../src/testing/conformance'
@@ -23,3 +24,13 @@ describeControlPlaneSessions(conformanceParams)
 describeControlPlaneClaims(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
+
+describeControlPlanePresence({
+  ...conformanceParams,
+  nextHostId: async () => store.nextHostId(),
+  holdPresence: async (hostId) => {
+    store.markHostPresent(hostId)
+    return async () => store.markHostAbsent(hostId)
+  },
+  holdShared: async () => async () => undefined,
+})

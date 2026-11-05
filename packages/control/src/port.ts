@@ -105,6 +105,7 @@ export interface ControlTx {
     excludeKind?: string | undefined
   }): Promise<InboxEntry[]>
   notifyWake(sessionId: string): Promise<void>
+  hostPresent(hostId: number): Promise<boolean>
 }
 
 export abstract class ControlStorePort {

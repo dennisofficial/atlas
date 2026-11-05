@@ -21,6 +21,7 @@ import {
   insertBlobRows,
   readBlobRow,
 } from './postgres-blobs'
+import { hostPresentIn } from './postgres-presence'
 import { sessionsNeedingHolderIn } from './postgres-needing-holder'
 import { iso, toInbox, toSessionRow, toThreadRow } from './postgres-rows'
 
@@ -281,6 +282,10 @@ class PostgresTx implements ControlTx {
         .returnsRow({ sent: 'pg/text@1' })
         .build(),
     )
+  }
+
+  async hostPresent(hostId: number): Promise<boolean> {
+    return hostPresentIn({ tx: this.tx, hostId })
   }
 }
 

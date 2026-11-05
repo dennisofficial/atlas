@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'9865c08ee43a57502ce30d8b837cb2a0804e8ee760f59f39d85758b15b4121fb'>;
+  StorageHashBase<'90a3934f5cbc3a945710f8efd4dea6beaa9df0440ddd84f4888e89b711a00e4d'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1105,6 +1105,12 @@ export namespace Models {
     thread: v2_V2Thread;
     readonly [RelationKeys]?: 'thread';
   };
+  export type v2_V2Host = {
+    id: FieldOutputTypes['v2']['V2Host']['id'];
+    label: FieldOutputTypes['v2']['V2Host']['label'];
+    startedAt: FieldOutputTypes['v2']['V2Host']['startedAt'];
+    readonly [RelationKeys]?: never;
+  };
   export type v2_V2InboxEntry = {
     consumedSeq: FieldOutputTypes['v2']['V2InboxEntry']['consumedSeq'];
     inboxId: FieldOutputTypes['v2']['V2InboxEntry']['inboxId'];
@@ -1208,6 +1214,7 @@ export declare const models: {
     V2Blob: Models.v2_V2Blob;
     V2BlobRef: Models.v2_V2BlobRef;
     V2Event: Models.v2_V2Event;
+    V2Host: Models.v2_V2Host;
     V2InboxEntry: Models.v2_V2InboxEntry;
     V2Lease: Models.v2_V2Lease;
     V2Session: Models.v2_V2Session;
@@ -6116,6 +6123,37 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly V2Host: {
+              columns: {
+                readonly id: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: 'autoincrement()';
+                  };
+                  readonly many: false;
+                };
+                readonly label: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly startedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
             readonly V2InboxEntry: {
               columns: {
                 readonly consumedSeq: {
@@ -6542,6 +6580,7 @@ type ContractBase = Omit<
     readonly V2Blob: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Blob' };
     readonly V2BlobRef: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2BlobRef' };
     readonly V2Event: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Event' };
+    readonly V2Host: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Host' };
     readonly V2InboxEntry: {
       readonly namespace: 'v2' & NamespaceId;
       readonly model: 'V2InboxEntry';
@@ -11357,6 +11396,36 @@ type ContractBase = Omit<
                 readonly seq: { readonly column: 'seq' };
                 readonly threadId: { readonly column: 'threadId' };
                 readonly type: { readonly column: 'type' };
+              };
+            };
+          };
+          readonly V2Host: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly label: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly startedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'V2Host';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly label: { readonly column: 'label' };
+                readonly startedAt: { readonly column: 'startedAt' };
               };
             };
           };

@@ -2,6 +2,10 @@ import { z } from 'zod'
 
 export const PG_WAKE_CHANNEL = 'atlas_session_wake'
 
+export const PG_HOST_CHANGE_CHANNEL = 'atlas_host_change'
+
+export const PG_PRESENCE_LOCK_NAMESPACE = 1095060563
+
 export const sessionLiveChannel = (sessionId: string): string => `atlas:session-live:${sessionId}`
 
 export const liveFrameSchema = z.discriminatedUnion('type', [

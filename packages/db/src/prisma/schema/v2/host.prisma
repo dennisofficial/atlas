@@ -1,0 +1,8 @@
+// use prisma-8
+namespace v2 {
+  model V2Host {
+    id        Int                  @id @default(autoincrement())
+    label     String
+    startedAt TimestamptzJsDate(3)
+  }
+}
