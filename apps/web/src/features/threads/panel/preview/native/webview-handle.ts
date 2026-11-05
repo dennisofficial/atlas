@@ -18,6 +18,7 @@ export type NativeWebview = {
   toggleHidden: (hidden: boolean) => void
   addMaskSelector: (selector: string) => void
   removeMaskSelector: (selector: string) => void
+  syncDimensions: (force?: boolean) => void
 }
 
 export type NavState = { canGoBack: boolean; canGoForward: boolean }

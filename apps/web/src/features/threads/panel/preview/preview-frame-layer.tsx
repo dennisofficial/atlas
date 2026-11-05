@@ -12,8 +12,11 @@ import {
 } from '../../data/preview-browser/use-preview-browser'
 import { slotKeyOf, useFrameRegistry } from './frame-registry'
 import { framesOf, type FrameSpec } from './frames-of'
+import { CLIP_COUNT } from './native/clip'
 import { isInSheet } from './native/masks'
+import { webviewOf } from './native/native-controls'
 import { NativeFrame } from './native/native-frame'
+import { useNativeOverlaySync } from './native/overlay-sync'
 import { reportedState } from './native/report-navigation'
 import { useSlotTracking } from './placement'
 
@@ -40,8 +43,29 @@ export function PreviewFrameLayer() {
     [visibleKey],
   )
   useSlotTracking({ slot: registry.visible?.element, frameOf })
+  const visibleWebview = useCallback(
+    () => (visibleKey === undefined ? undefined : webviewOf(visibleKey)),
+    [visibleKey],
+  )
+  const clipRef = useNativeOverlaySync({
+    active: desktop,
+    slot: registry.visible?.element,
+    visibleKey,
+    webviewOf: visibleWebview,
+  })
 
-  return frames.map((frame) => (
+  const clips = desktop
+    ? Array.from({ length: CLIP_COUNT }, (_, at) => (
+        <div
+          key={`clip-${at}`}
+          ref={clipRef(at)}
+          data-preview-clip=""
+          className="pointer-events-none fixed"
+        />
+      ))
+    : []
+
+  const frameNodes = frames.map((frame) => (
     <div
       key={frame.key}
       ref={(element) => {
@@ -71,4 +95,6 @@ export function PreviewFrameLayer() {
       )}
     </div>
   ))
+
+  return [...frameNodes, ...clips]
 }

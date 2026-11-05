@@ -68,6 +68,7 @@ export function PreviewStage({ stageRef, viewport, fit, stageFit, children }: Pr
   return (
     <div
       ref={stageRef}
+      data-slot="preview-stage"
       className={cn(
         'relative min-h-0 flex-1',
         !full && 'bg-muted/40',

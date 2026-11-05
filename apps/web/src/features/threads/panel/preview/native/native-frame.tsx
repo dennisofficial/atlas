@@ -11,6 +11,10 @@ import { isNativeWebview } from './webview-handle'
 
 export const NATIVE_PARTITION = 'persist:atlas-preview'
 
+// Electrobun injects an unlayered `electrobun-webview { width: 800px; height: 300px }` that beats layered Tailwind utilities.
+// https://github.com/blackboardsh/electrobun/blob/v2.0.5/package/src/preload/webviewTag.ts#L476-L485
+const FILL = { display: 'block', width: '100%', height: '100%' } as const
+
 export function NativeFrame(props: {
   frame: FrameSpec
   visible: boolean
@@ -60,7 +64,7 @@ export function NativeFrame(props: {
       src={initialUrl}
       partition={NATIVE_PARTITION}
       masks={OVERLAY_MASKS}
-      className="block size-full"
+      style={FILL}
     />
   )
 }
