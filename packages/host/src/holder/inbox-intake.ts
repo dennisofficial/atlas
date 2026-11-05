@@ -7,7 +7,11 @@ import {
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+import {
+  INBOX_KIND_MESSAGE,
+  INBOX_KIND_REPAIR_DIAGRAM,
+  inboxMessageSchema,
+} from '@dltech/atlas-protocol'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { SessionRecord } from './record/record-adapter'
@@ -35,7 +39,7 @@ export class InboxIntake implements AgentIntake {
     const drafts: EventDraft[] = []
     let wakesTurn = false
     for (const entry of entries) {
-      if (entry.kind === INBOX_KIND_STOP) continue
+      if (entry.kind === INBOX_KIND_STOP || entry.kind === INBOX_KIND_REPAIR_DIAGRAM) continue
       if (entry.kind === INBOX_KIND_MESSAGE) {
         const parsed = inboxMessageSchema.safeParse(JSON.parse(entry.payload))
         if (!parsed.success) {

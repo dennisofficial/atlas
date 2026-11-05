@@ -11,6 +11,7 @@ import {
   sessionListOutputSchema,
   sessionPostInputSchema,
   sessionPostOutputSchema,
+  sessionRepairDiagramInputSchema,
   sessionStatusInputSchema,
   sessionStatusOutputSchema,
   type SessionBlobInput,
@@ -23,6 +24,7 @@ import {
   type SessionListOutput,
   type SessionPostInput,
   type SessionPostOutput,
+  type SessionRepairDiagramInput,
   type SessionStatusInput,
   type SessionStatusOutput,
 } from '@dltech/atlas-protocol'
@@ -56,6 +58,14 @@ export class SessionsRouter {
   @Mutation({ input: sessionPostInputSchema, output: sessionPostOutputSchema })
   post(@Input() input: SessionPostInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionPostOutput> {
     return this.sessions.post({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Mutation({ input: sessionRepairDiagramInputSchema, output: sessionPostOutputSchema })
+  repairDiagram(
+    @Input() input: SessionRepairDiagramInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionPostOutput> {
+    return this.sessions.repairDiagram({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionEventsInputSchema, output: sessionEventsOutputSchema })

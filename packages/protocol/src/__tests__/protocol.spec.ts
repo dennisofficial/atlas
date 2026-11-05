@@ -21,7 +21,10 @@ import {
   sessionCreateInputSchema,
   sessionEventsInputSchema,
   sessionListInputSchema,
+  inboxRepairDiagramSchema,
+  INBOX_KIND_REPAIR_DIAGRAM,
   sessionPostInputSchema,
+  sessionRepairDiagramInputSchema,
   sessionStatusInputSchema,
   type DaemonFrame,
   type HealthFrame,
@@ -213,5 +216,25 @@ describe('session API inputs', () => {
     expect(sessionEventsInputSchema.safeParse({ sessionId: 's-1', limit: 1001 }).success).toBe(
       false,
     )
+  })
+})
+
+describe('repair-diagram', () => {
+  const payload = { messageId: 'evt-1', source: 'graph TD; A-->B', error: 'Parse error on line 1' }
+
+  it('round-trips the input and the inbox payload', () => {
+    const input = { sessionId: 's-1', ...payload }
+    expect(roundTrips(sessionRepairDiagramInputSchema, input)).toEqual(input)
+    expect(roundTrips(inboxRepairDiagramSchema, payload)).toEqual(payload)
+    expect(INBOX_KIND_REPAIR_DIAGRAM).toBe('repair-diagram')
+  })
+
+  it('rejects an empty source, an oversized source and unknown keys', () => {
+    expect(inboxRepairDiagramSchema.safeParse({ ...payload, source: '' }).success).toBe(false)
+    expect(
+      inboxRepairDiagramSchema.safeParse({ ...payload, source: 'x'.repeat(200_001) }).success,
+    ).toBe(false)
+    expect(inboxRepairDiagramSchema.safeParse({ ...payload, extra: 1 }).success).toBe(false)
+    expect(sessionRepairDiagramInputSchema.safeParse(payload).success).toBe(false)
   })
 })

@@ -12,6 +12,7 @@ import {
 } from './held-runner'
 import { releaseIdleAndRewake, teardownHeldSession } from './held-idle'
 import { HeldPrepare } from './held-prepare'
+import { HeldRepairs } from './held-repairs'
 import { readHeldAction } from './held-snapshot'
 import { IdleDeadline } from './idle-deadline'
 import { consumeStops, raceDeadline } from './held-wait'
@@ -30,6 +31,7 @@ export class HeldSession {
   private readonly pause = new PauseSignal()
   private readonly turns: HeldTurns
   private readonly prepare: HeldPrepare
+  private readonly repairs: HeldRepairs
   private draining = false
   private drainDeadline: number | undefined
   private done: Promise<void> | undefined
@@ -62,6 +64,11 @@ export class HeldSession {
         if (failed) void this.releaseIdle((runtime) => runtime.stop())
         else this.reconciler?.request()
       },
+    })
+    this.repairs = new HeldRepairs({
+      deps,
+      signal: this.lifetimeAbort.signal,
+      onChange: () => (this.touch(), this.reconciler?.request()),
     })
     this.idle = new IdleDeadline({
       timers: deps.timers,
@@ -170,7 +177,8 @@ export class HeldSession {
 
   private async step(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
     if (this.ended) return
-    const deps = this.deps
+    const { deps } = this
+    const { threadId } = args
     const turnRunning = this.turns.turnRunning
     if (this.draining) return turnRunning ? undefined : this.finish()
     const { entries, action, inboxHead } = await readHeldAction({
@@ -184,21 +192,13 @@ export class HeldSession {
       events: this.record?.eventCache().all() ?? [],
       preparing: this.prepare.running,
     })
+    this.repairs.start({ entries, runtime: this.runtime, record: this.record, threadId })
     switch (action) {
-      case EHeldAction.AbortTurn: {
-        this.turns.abort('stop')
-        return
-      }
+      case EHeldAction.AbortTurn:
+        return this.turns.abort('stop')
       case EHeldAction.ConsumeStop: {
         this.resumePending = false
-        await consumeStops({
-          deps,
-          record: this.record,
-          entries,
-          onActivity: () => {
-            this.lastActivityAt = deps.timers.now()
-          },
-        })
+        await consumeStops({ deps, record: this.record, entries, onActivity: () => this.touch() })
         this.reconciler?.request()
         return
       }
@@ -217,15 +217,16 @@ export class HeldSession {
         this.startTurn({ runner: args.runner, threadId: args.threadId, resume })
         return
       }
-      case EHeldAction.Release: {
-        await this.releaseIdle((runtime) => runtime.release())
-        return
-      }
-      case EHeldAction.Wait: {
-        if (turnRunning || this.prepare.running) return
+      case EHeldAction.Release:
+        return this.releaseIdle((runtime) => runtime.release())
+      case EHeldAction.Wait:
+        if (turnRunning || this.prepare.running || this.repairs.running) return
         this.idle.arm({ lastActivityAt: this.lastActivityAt })
-      }
     }
+  }
+
+  private touch(): void {
+    this.lastActivityAt = this.deps.timers.now()
   }
 
   private startTurn(args: { runner: LoopTurnRunner; threadId: ThreadId; resume: boolean }): void {
@@ -237,9 +238,7 @@ export class HeldSession {
       runner: args.runner,
       threadId: args.threadId,
       resume: args.resume,
-      onActivity: () => {
-        this.lastActivityAt = this.deps.timers.now()
-      },
+      onActivity: () => this.touch(),
       refreshBranches: () => {
         if (this.draining || this.lostOwnership) return
         void this.branches?.refresh().catch((error) => logDriveFault({ deps: this.deps, error }))
