@@ -18,9 +18,8 @@ available. The operator's `pgbase` is the WAL-based reference.
   `pg_notify` inside the append transaction (and `{sessionId}` for session, inbox and lease
   changes). Readers read `seq > cursor`. Logical replication is not used. A `ChangeFeed` seam keeps
   it adoptable.
-- **Service:** `apps/stream`, a Render Web Service, stateless, at least two instances. Not the agent
-  host (a Background Worker with no ingress and a different deploy and failure profile), not the
-  Vercel API.
+- **Service:** a stream module inside the agent host, which becomes a web service at
+  `agent.trycomp.ai` (operator, 2026-11-05). Any instance serves any client. Not the Vercel API.
 - **Transport and contract:** one WebSocket per client multiplexing `session` and `sessions`
   subscriptions; resume by `(seq, hash)`; commands stay tRPC mutations into the inbox. Live frames
   are an ephemeral overlay and never required for correctness. Token streaming is a separate
@@ -41,13 +40,15 @@ available. The operator's `pgbase` is the WAL-based reference.
 
 ## Consequences
 
-- **One-way part:** the client wire protocol and the separate service. Apps in the wild speak it, so
+- **One-way part:** the client wire protocol. Apps in the wild speak it, so
   it is versioned from `hello` (0017) and clients ignore unknown messages. The change source is
   internal behind `ChangeFeed` and can change without a protocol change.
 - Replaces "SSE" in architecture §5 with a WebSocket for the session and sidebar streams; the
   direct client ⇄ pod socket for ephemeral data is unchanged.
-- Adds a Render service, one direct Postgres connection per node for `LISTEN`, and a read pool.
-  `max_connections` (50) needs attention.
+- The agent host gains a public port, one more direct Postgres connection per instance for
+  `LISTEN`, and a read pool; `max_connections` goes from 50 to 100. An agent-host deploy closes
+  every client socket; clients resume by seq. The module can become its own service later without a
+  protocol change.
 - `NOTIFY` serializes notifying commits on a database-wide lock and drops notifications across a
   listener disconnect. The first is benchmarked in the first PR; the second is handled by
   re-reading every subscription from its cursor.

@@ -9,6 +9,12 @@ Operator decision (2026-11-05): the v1 API stays on Vercel, the agent host on Re
 "whatever is best practice and scalable"; **no client polling**. `pgbase`
 (github.com/dennisofficial/pgbase) is the reference for the WAL alternative, argued below.
 
+Operator answers (2026-11-05, after review): the stream runs **inside the agent host**, which
+becomes a web service at **`agent.trycomp.ai`**; clients stream reasoning as well as text; the
+session list ships now with title and last activity, status follows in slice 4; `max_connections`
+goes to 100 before this slice ships; lease transitions announce (0025). The agent host's platform
+(Render today, DigitalOcean App Platform under evaluation) does not change this design.
+
 ## The decision in one screen
 
 1. **Change source: `NOTIFY` a seq pointer in the append transaction; readers read by seq.** The
@@ -17,10 +23,11 @@ Operator decision (2026-11-05): the v1 API stays on Vercel, the agent host on Re
    `events where seq > cursor`. The notification carries no data, so the 8,000-byte `NOTIFY` limit
    and a 2.9 MB event do not matter. Logical replication stays out; the seam
    (`ChangeFeed`, below) keeps the door open.
-2. **Where it runs: a new Render Web Service, `apps/stream` (`atlas-stream`), plain Bun.** Not the
-   agent host (a Background Worker has no inbound port; different deploy cadence and failure
-   domain), not `apps/api` (Vercel cannot hold sockets). Stateless, ≥ 2 instances, same Virginia
-   region as the agent host.
+2. **Where it runs: a module inside the agent host (`apps/agent-host/src/stream/`), served at
+   `agent.trycomp.ai`.** The agent host becomes a web service with one public port. The module owns
+   its own `LISTEN` connection and read pool and shares nothing with the loop but the process, so it
+   can move to its own service later without a rewrite. Not `apps/api` (Vercel cannot hold sockets).
+   Stream state is per socket and per node: any instance serves any client.
 3. **Transport: one WebSocket per client, multiplexing subscriptions** (open sessions and the
    sidebar), JSON text frames, no socket.io. Commands stay tRPC mutations into the inbox (P7).
 4. **Fan-out across instances: none between instances.** Every node `LISTEN`s the same channel and
@@ -46,10 +53,9 @@ flowchart LR
   subgraph clients
     W[web / Mac<br/>packages/client]
   end
-  subgraph render[Render, Virginia]
-    S1[atlas-stream #1]
-    S2[atlas-stream #2]
-    AH[atlas-agent-host<br/>background worker]
+  subgraph host[agent.trycomp.ai, ≥ 2 instances]
+    S1[agent host #1<br/>loop + stream module]
+    S2[agent host #2<br/>loop + stream module]
   end
   API[API on Vercel<br/>tRPC: commands, paging, blobs]
   PG[(Postgres<br/>v2 log + inbox)]
@@ -58,8 +64,8 @@ flowchart LR
   W -. "reconnect lands anywhere" .-> S2
   W -- "post / paging / blob" --> API
   API --> PG
-  AH -- "append + NOTIFY, same tx" --> PG
-  AH -- "publish frames" --> R
+  S1 -- "append + NOTIFY, same tx" --> PG
+  S1 -- "publish frames" --> R
   PG -- "NOTIFY pointer" --> S1
   PG -- "NOTIFY pointer" --> S2
   S1 -- "read seq > cursor" --> PG
@@ -381,20 +387,22 @@ subscription); per-session state is `have[block]` lengths and the closed key, no
 
 ## 3. Where it runs and how it scales
 
-- **Service.** `apps/stream` on a Render **Web Service** (WebSockets need inbound traffic; the agent
-  host is a Background Worker, [0021](../../decisions/0021-v2-loop-runs-on-the-agent-host.md)).
-  Reasons not to colocate with the agent host: it deploys rarely and drains leases inside Render's
-  300 s grace, while stream nodes should restart freely; a socket flood must not starve loops; and
-  it has no ingress. Public hostname `stream.<api domain>`, same Virginia region as the agent host.
+- **Service.** The stream module runs in the agent host, which changes from a background worker to
+  a web service at `agent.trycomp.ai` (operator, 2026-11-05: at current load, CPU is near zero and
+  memory peaks at 429 MB). Accepted costs: an agent-host deploy closes every socket (clients resume
+  by seq within a second or two), and a socket flood shares the CPU with loops (bounded by the
+  per-connection, per-user and per-node caps in §2). Splitting it into its own service later moves
+  the module, not the protocol.
 - **Statelessness.** A node holds sockets and cursors, nothing durable. Any node serves any client,
   so Render's load balancer needs no affinity. At least two instances so a deploy is invisible.
-- **Deploy.** SIGTERM: stop accepting, send `going-away`, close 1001, exit before the grace ends.
-  Clients reconnect to the other instance and resume by seq.
+- **Deploy.** On SIGTERM the stream module stops accepting, sends `going-away` and closes 1001 at
+  once, while the loop drains its leases (up to 270 s). Clients reconnect to another instance and
+  resume by seq; they never wait for the drain.
 - **Connections to Postgres.** Per node: one **direct** connection for `LISTEN`
   (`DATABASE_DIRECT_URL`; PgBouncer transaction mode cannot `LISTEN`) and a small read pool of ≤ 4 on
   the pooled URL (reads are plain queries). Production has `max_connections` 50 and the agent hosts
-  already spend a pool + `LISTEN` + lock + waiters each (section 27); two stream nodes add ~10. Raise
-  `max_connections` with the agent host change, or route the read pool through the pooler.
+  already spend a pool + `LISTEN` + lock + waiters each (section 27); the stream module adds ~5 per
+  instance. `max_connections` goes to 100 before this slice ships (operator, 2026-11-05).
 - **Scale shape.** Work per node is O(notifications) plus O(sockets) memory (cursor, small
   buffers). Target: 5,000 sockets and 100 appends/s per node on a 1 GB instance. These are targets,
   proven or revised by the load gate (PR 8), not measurements. Past about ten nodes, relay pointers
@@ -534,9 +542,9 @@ Each is reviewable in one sitting and lands in order unless noted.
    emitter, conformance tests, `startPgListener` generalized from `startPgWakeListener`, the
    `NOTIFY` commit-cost benchmark. Asks section 27's lease code to call `announce`.
 2. `feat(protocol): stream messages`: `stream.ts` schemas and fixtures.
-3. `feat(stream): follow a session`: `apps/stream`, `StreamAuthPort`, `hello`, `subscribe`, pump,
-   `ThreadFeed`, limits, drain, health, the Render service declaration, Postgres integration and
-   resume tests.
+3. `feat(stream): follow a session`: the `apps/agent-host/src/stream/` module, `StreamAuthPort`,
+   `hello`, `subscribe`, pump, `ThreadFeed`, limits, drain, health, the agent host as a web service
+   at `agent.trycomp.ai`, Postgres integration and resume tests.
    4a. `feat(host): publish assistant deltas`: `step-start`/`delta`/`step-end` in `liveFrameSchema`, the
    `chunk` agent-output event emitted after the `onChunk` filter, `LiveStepBuffer`, the buffered
    pipelined publisher in `redis-live-frames.ts`, the Redis command-rate measurement. Independent of
@@ -554,18 +562,14 @@ Each is reviewable in one sitting and lands in order unless noted.
 PR 3's title is `feat` only if a user can use it that day; otherwise `refactor`/`fix` per the repo's
 release rule. The stream service ships dark until PR 7.
 
-## 9. Open questions for the operator
+## 9. Operator answers (2026-11-05)
 
-1. **Stream hostname and Render org.** Same Comp AI workspace as the agent host, at
-   `stream.<api domain>`?
-2. **`max_connections` (50).** Raise it with this slice, or put the stream's read pool behind the
-   pooler? (`LISTEN` needs direct either way.)
-3. **Redis plan.** The delta path adds up to ~30 commands/s per streaming step (~700/s ceiling at
-   v1 peak). Is that within the current Redis plan (Upstash drops idle TCP at ~30 s, per
-   `redis-live-frames.ts`), or should the cadence be 250 ms? PR 4a measures; the constant is one line.
-   Also: stream reasoning text to clients, or text only?
-4. **Section 27 asks.** Agree that lease transitions and the death scan announce (§5, "Leases")?
-5. **Architecture §5 says "tRPC plus SSE".** This design replaces SSE with a WebSocket on Render.
-   The other agent editing `architecture.md` must update that row; 0024 records the reason.
-6. **Sidebar before slice 4?** Accept that the session list waits for slice 4's status row, or ship
-   a cheap interim row (title, `lastEventAt`, no status)?
+1. **Where and hostname:** inside the agent host, at `agent.trycomp.ai`.
+2. **`max_connections`:** raised to 100 before this slice ships (needs a Postgres restart, scheduled
+   by the operator).
+3. **Reasoning:** streamed to clients as well as text. The Redis cadence starts at 100 ms; PR 4a
+   measures it.
+4. **Leases:** lease transitions and the death scan announce
+   ([0025](../../decisions/0025-v2-connection-bound-leases.md)).
+5. **Architecture §5:** SSE is replaced by this WebSocket (0024).
+6. **Session list:** ships now with title and `lastEventAt`; status follows slice 4.
