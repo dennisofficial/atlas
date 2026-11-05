@@ -24,6 +24,7 @@ export enum ECapability {
   DismissFailure = 'dismiss-failure',
   ReadActivity = 'read-activity',
   ModelAvailabilityControls = 'model-availability-controls',
+  DiagramRepair = 'diagram-repair',
 }
 
 export const capabilitySchema = z.enum(ECapability)
@@ -53,4 +54,5 @@ export const SERVE_CAPABILITIES: readonly ECapability[] = [
   ECapability.DismissFailure,
   ECapability.ReadActivity,
   ECapability.ModelAvailabilityControls,
+  ECapability.DiagramRepair,
 ]

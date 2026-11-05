@@ -35,7 +35,12 @@ import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { TurnPolicy } from '@dltech/atlas-harness'
 import type { TurnRunner } from '@dltech/atlas-harness'
 import type { LostService, LostShell } from '@dltech/atlas-harness'
-import type { ThreadStorePort, CompactionPort, RotationPort } from '@dltech/atlas-harness'
+import type {
+  ThreadStorePort,
+  CompactionPort,
+  DiagramRepairPort,
+  RotationPort,
+} from '@dltech/atlas-harness'
 import type { TitlingTurnRunner } from '@dltech/atlas-harness'
 
 /**
@@ -261,6 +266,7 @@ export type ServeApp = {
   operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined
   compaction?: CompactionPort | undefined
   rotation?: RotationPort | undefined
+  diagramRepair?: DiagramRepairPort | undefined
   /** The session's placement controller; serve hydrates it to cloud once boot settles. */
   executionLocation?: PlacementController | undefined
   threadOpened?:

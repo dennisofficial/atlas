@@ -12,6 +12,7 @@ const COMPACTION: ReadonlySet<EClientRequest> = new Set([
 const LONG_RUNNING: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.ReadTranscriptIdentity,
   EClientRequest.ProvideOperatorInput,
+  EClientRequest.RepairDiagram,
 ])
 
 export const requestTimeoutFor = (args: {

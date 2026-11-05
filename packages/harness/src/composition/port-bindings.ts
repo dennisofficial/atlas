@@ -2,6 +2,7 @@ import type { ComposedPortBindings } from '@dltech/atlas-core'
 
 import { RemoteSessionActivity } from '../activity/remote-session-activity'
 import { RemoteAccountStore } from '../cloud/remote-account-store'
+import { RemoteDiagramRepair } from '../cloud/remote-diagram-repair'
 import { RemoteEventLog } from '../cloud/remote-event-log'
 import { RemoteThreadStore } from '../cloud/remote-thread-store'
 import { RemoteTurnLedger } from '../cloud/remote-turn-ledger'
@@ -56,6 +57,7 @@ export const sharedPortBindings = {
   GitChangesPort: { runtime: 'shared', transport: null },
   TerminalPort: { runtime: 'shared', transport: null },
   SaidUploadsPort: { runtime: 'shared', transport: null },
+  DiagramRepairPort: { runtime: 'shared', transport: RemoteDiagramRepair },
 } satisfies Partial<ComposedPortBindings>
 
 /**
@@ -67,6 +69,7 @@ export const sharedPortBindings = {
  */
 export const inProcessPortBindings = {
   ...sharedPortBindings,
+  DiagramRepairPort: { runtime: 'shared', transport: null },
   RotationPort: { runtime: 'shared', transport: null },
   ShellRegistryPort: { runtime: 'shared', transport: null },
   AgentRegistryPort: { runtime: 'shared', transport: null },

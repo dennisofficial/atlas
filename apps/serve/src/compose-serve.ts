@@ -24,6 +24,7 @@ import {
 import { ServiceRecovery, resumeDeclaredServices } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
 import {
+  DiagramRepairPort,
   RotationPort,
   ThreadStorePort,
   threadMentionFiles,
@@ -47,6 +48,7 @@ type ServeStores = {
   threads: ThreadStorePort
   modelBridge: ServeModelBridge
   rotation?: RotationPort | undefined
+  diagramRepair?: DiagramRepairPort | undefined
   prStates?: ServePrStates | undefined
   subscriptions: SubscriptionRegistryPort
 }
@@ -108,11 +110,15 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         const rotation = container.isRegistered(registeredPortToken(RotationPort), true)
           ? container.resolve(registeredPortToken(RotationPort))
           : undefined
+        const diagramRepair = container.isRegistered(registeredPortToken(DiagramRepairPort), true)
+          ? container.resolve(registeredPortToken(DiagramRepairPort))
+          : undefined
         return {
           log,
           threads,
           modelBridge,
           rotation,
+          diagramRepair,
           subscriptions: container.resolve(registeredPortToken(SubscriptionRegistryPort)),
           ...(prStates === undefined ? {} : { prStates }),
         }
@@ -294,6 +300,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     operatorInput: app.operatorInput,
     compaction: app.compaction,
     rotation: app.surface.rotation,
+    diagramRepair: app.surface.diagramRepair,
     threadOpened: app.threadOpened,
     close: app.close,
   }

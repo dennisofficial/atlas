@@ -8,6 +8,7 @@ import { routeActivityRead } from './activity-requests'
 import { isAgentSteerOp } from './agent-steer'
 import { routeAgentSteerRequest } from './agent-steer-routing'
 import { createCompactionRequests, isCompactionOp } from './compaction-requests'
+import { createDiagramRepairRequests, isDiagramRepairOp } from './diagram-repair-requests'
 import { routeContextRead } from './context-routing'
 import type { ContextReaders } from './context-requests'
 import { routeFileRequest } from './file-routing'
@@ -50,6 +51,7 @@ export function createRequestRouter(args: {
   rewind?: ServeRewind | undefined
   compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
   rotation?: import('@dltech/atlas-harness').RotationPort | undefined
+  diagramRepair?: import('@dltech/atlas-harness').DiagramRepairPort | undefined
   broadcastRotation?: ((rotation: RotationStateWire) => void) | undefined
   historyChanged?: (() => void) | undefined
   agents?: ServeAgentSteer | undefined
@@ -81,6 +83,11 @@ export function createRequestRouter(args: {
     changed: args.historyChanged ?? (() => undefined),
   })
 
+  const repairDiagram = createDiagramRepairRequests({
+    threadId,
+    diagramRepair: args.diagramRepair,
+  })
+
   const rotate = createRotationRequests({
     threadId,
     driver: {
@@ -110,6 +117,10 @@ export function createRequestRouter(args: {
       return
     if (isCompactionOp(frame.op)) {
       void compact.answer(frame).then((reply) => send({ socket, frame: reply }))
+      return
+    }
+    if (isDiagramRepairOp(frame.op)) {
+      void repairDiagram.answer(frame).then((reply) => send({ socket, frame: reply }))
       return
     }
     if (isRotationOp(frame.op)) {
