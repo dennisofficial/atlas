@@ -34,6 +34,7 @@ describe('F9 Redis down for the whole session', () => {
       label: 'host-f9',
       daemonUrl: daemon.url,
       redisUrl: DEAD_REDIS,
+      knobs: { noRing: true },
       scripts: {
         [sessionId]: [
           {
@@ -86,6 +87,7 @@ describe('F9 Redis down for the whole session', () => {
       label: 'host-f9-hot',
       daemonUrl: daemon.url,
       redisUrl: DEAD_REDIS,
+      knobs: { noRing: true },
       scripts: { [sessionId]: [{ text: 'hot answer' }] },
     })
     await new Promise((resolve) => setTimeout(resolve, 5_000))

@@ -73,6 +73,7 @@ const hasBranch = (row: ReadEvent, name: string): boolean => {
 describe('branches-observed e2e', () => {
   const sandbox = new LocalSandboxProvider({ daemonSecret: E2E_SECRET })
   let plane: ControlPlane
+  const holders: SessionHolder[] = []
 
   beforeEach(async () => {
     bus.reset()
@@ -80,6 +81,7 @@ describe('branches-observed e2e', () => {
   })
 
   afterAll(async () => {
+    for (const held of holders) await held.drain({ deadline: Date.now() + 2_000 })
     await sandbox.stopAll()
   })
 
@@ -137,6 +139,7 @@ describe('branches-observed e2e', () => {
       maxSessions: 25,
       idleMinutes: 30,
     })
+    holders.push(holder)
     await holder.start()
     await bus.wake(sessionId)
 

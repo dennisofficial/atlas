@@ -12,19 +12,22 @@ import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
 import { startDaemon, type RigDaemon } from './rig-daemon'
 import { collectLines } from './rig-process'
+import { hostEnv, RIG_SECRET } from './rig-host-env'
 import { proxiedDatabaseUrl, startOwnDaemonProxy } from './rig-proxies'
 
 export type { RigDaemon } from './rig-daemon'
 
 const hostEntry = join(import.meta.dir, 'host-process.ts')
 
-export const RIG_SECRET = 'fault-rig-secret'
+export { RIG_SECRET }
 
 export type HostProcess = {
   label: string
   dbProxy?: FaultProxy
   daemonProxy?: FaultProxy
   kill(signal: 'SIGKILL' | 'SIGTERM'): void
+  pause(): void
+  resume(): void
   exited: Promise<number>
   logs(): string[]
 }
@@ -35,6 +38,9 @@ export type HostKnobs = {
   appendRetryMs?: number
   pingMs?: number
   drainMs?: number
+  maxSessions?: number
+  poolMax?: number
+  noRing?: boolean
   queryTimeoutMs?: number
   toolOutputFile?: string
 }
@@ -45,6 +51,7 @@ export type FaultRig = {
   newSession(args: { sessionId: string; text: string; prepared?: boolean }): Promise<string>
   wake(sessionId: string): Promise<void>
   claim(args: { sessionId: string; label: string; timeoutMs?: number }): Promise<void>
+  waitHeldBy(args: { sessionId: string; label: string; timeoutMs?: number }): Promise<void>
   labelOf(hostId: number | null): Promise<string | undefined>
   waitForSeq(args: {
     threadId: string
@@ -55,6 +62,7 @@ export type FaultRig = {
   spawnHost(args: {
     label: string
     daemonUrl: string
+    daemonUrls?: Record<string, string>
     scripts: Record<string, ScriptedModelStep[]>
     knobs?: HostKnobs
     dbProxy?: 'shared' | 'own'
@@ -153,6 +161,20 @@ export const startRig = async (args: {
       }
     },
 
+    async waitHeldBy({ sessionId, label, timeoutMs }) {
+      const deadline = Date.now() + (timeoutMs ?? 15_000)
+      for (;;) {
+        const current = await plane.currentLease({ sessionId })
+        if (current.live && (await labelOf(current.lease.holderHostId)) === label) return
+        if (Date.now() > deadline) {
+          throw new Error(
+            `timed out waiting for ${label} to hold ${sessionId}: ${JSON.stringify(current)}`,
+          )
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+    },
+
     async waitForSeq({ threadId, want, timeoutMs }) {
       const deadline = Date.now() + (timeoutMs ?? 30_000)
       let last: ReadEvent[] = []
@@ -176,6 +198,7 @@ export const startRig = async (args: {
     async spawnHost({
       label,
       daemonUrl,
+      daemonUrls,
       scripts,
       knobs,
       dbProxy: dbProxyMode,
@@ -216,27 +239,21 @@ export const startRig = async (args: {
         cmd: ['bun', hostEntry],
         env: {
           ...process.env,
-          ATLAS_HOME: join(dir, 'atlas-home'),
-          DATABASE_URL: databaseUrl(),
-          DATABASE_DIRECT_URL: args.databaseUrl,
-          PRESENCE_DATABASE_URL:
-            ownProxy === undefined || directPresence === true ? args.databaseUrl : databaseUrl(),
-          REDIS_URL: redisUrl ?? args.redisUrl,
-          HOLDER_ID: label,
-          DAEMON_URL: ownDaemon?.url ?? daemonUrl,
-          DAEMON_SECRET: RIG_SECRET,
-          SCRIPT_FILE: scriptFile,
-          WORKSPACE_DIR: workspace,
-          APPEND_RETRY_MS: String(knobs?.appendRetryMs ?? 2_500),
-          PING_MS: String(knobs?.pingMs ?? 10_000),
-          ...(knobs?.drainMs === undefined ? {} : { DRAIN_MS: String(knobs.drainMs) }),
-          ...(knobs?.queryTimeoutMs === undefined
-            ? {}
-            : { DB_QUERY_TIMEOUT_MS: String(knobs.queryTimeoutMs) }),
-          ...(knobs?.toolOutputFile === undefined
-            ? {}
-            : { TOOL_OUTPUT_FILE: knobs.toolOutputFile }),
-          ...(firstChunkFile === undefined ? {} : { FIRST_CHUNK_FILE: firstChunkFile }),
+          ...hostEnv({
+            home: join(dir, 'atlas-home'),
+            databaseUrl: databaseUrl(),
+            directUrl: args.databaseUrl,
+            presenceUrl:
+              ownProxy === undefined || directPresence === true ? args.databaseUrl : databaseUrl(),
+            redisUrl: redisUrl ?? args.redisUrl,
+            label,
+            daemonUrl: ownDaemon?.url ?? daemonUrl,
+            daemonUrls,
+            scriptFile,
+            workspace,
+            knobs,
+            firstChunkFile,
+          }),
         },
         stdin: 'ignore',
         stdout: 'pipe',
@@ -255,6 +272,12 @@ export const startRig = async (args: {
         ...(ownDaemon === undefined ? {} : { daemonProxy: ownDaemon.proxy }),
         kill(signal) {
           child.kill(signal)
+        },
+        pause() {
+          child.kill('SIGSTOP')
+        },
+        resume() {
+          child.kill('SIGCONT')
         },
         exited: child.exited,
         logs: () => [...lines],

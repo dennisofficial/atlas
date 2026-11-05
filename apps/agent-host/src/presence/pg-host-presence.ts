@@ -28,6 +28,8 @@ export class PresenceLostDuringRegisterError extends Error {
 
 export const PRESENCE_APPLICATION_NAME = 'atlas-host-presence'
 
+export const PRESENCE_CONNECT_TIMEOUT_MS = 5_000
+
 const SESSION_SETTINGS = [
   'SET statement_timeout = 0',
   'SET idle_session_timeout = 0',
@@ -38,6 +40,7 @@ export const newPresenceClient = (url: string): pg.Client =>
   new pg.Client({
     connectionString: url,
     keepAlive: true,
+    connectionTimeoutMillis: PRESENCE_CONNECT_TIMEOUT_MS,
     application_name: PRESENCE_APPLICATION_NAME,
   })
 

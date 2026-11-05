@@ -221,6 +221,9 @@ describe.skipIf(REDIS_URL === undefined)(
       const staleWrite = await rig.plane.append({ threadId, epoch: epochA, events: zombieWrites })
       expect(staleWrite).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch' } })
 
+      const finalLease = await rig.plane.currentLease({ sessionId })
+      expect(await rig.labelOf(finalLease.lease.holderHostId)).toBe('host-b')
+
       hostB.kill('SIGKILL')
       await hostB.exited
 
@@ -248,8 +251,6 @@ describe.skipIf(REDIS_URL === undefined)(
       const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
       expect(runs).toEqual(['run'])
 
-      const finalLease = await rig.plane.currentLease({ sessionId })
-      expect(await rig.labelOf(finalLease.lease.holderHostId)).toBe('host-b')
       const epochs = events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
       expect(Math.max(...epochs)).toBeLessThanOrEqual(finalLease.lease.epoch)
       const sorted = [...epochs].sort((a, b) => a - b)
