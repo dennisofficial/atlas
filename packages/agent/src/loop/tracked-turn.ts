@@ -205,7 +205,11 @@ export async function runTrackedTurn(
     const assembled = prepared.assembled
     position.previous = assembled
 
-    const streamer = stepStreamerFor({ output: deps.streamOutput, runId, step: stepBase })
+    const streamer = stepStreamerFor({
+      output: deps.streamOutput,
+      runId,
+      step: position.modelSteps,
+    })
 
     const stepOnce = () =>
       takeModelStepWithRetry({

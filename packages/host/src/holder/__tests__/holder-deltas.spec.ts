@@ -47,4 +47,25 @@ describe('SessionHolder live deltas', () => {
     const finalText = said.parts.flatMap((part) => (part.type === 'text' ? [part.text] : []))
     expect([...byBlock.values()]).toEqual([finalText.join('')])
   })
+
+  it('a tool-only step and the answer after it stream under distinct keys', async () => {
+    const rig = await makeRig({
+      script: [
+        { calls: [{ callId: 'c1', name: 'bash', input: { command: 'echo hi' } }] },
+        { text: ANSWER, streamMs: 20 },
+      ],
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await postAndRun(rig, 'go')
+    const saw = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
+    })
+    expect(saw).toBe(true)
+    const starts = rig.bus.frames.flatMap((entry) =>
+      entry.frame.type === 'step-start' ? [JSON.stringify(entry.frame.key)] : [],
+    )
+    expect(starts.length).toBe(2)
+    expect(new Set(starts).size).toBe(2)
+  })
 })

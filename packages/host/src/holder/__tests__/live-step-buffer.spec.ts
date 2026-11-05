@@ -128,4 +128,27 @@ describe('LiveStepBuffer', () => {
     buffer.push({ type: 'chunk', key: next, chunk: { type: 'text-delta', id: 'b2', text: 'q' } })
     expect(frames.length).toBe(before + 1)
   })
+
+  it('stays capped after the first chunk that overflows, so the overlay is a prefix', () => {
+    text({ id: 'b1', text: 'a'.repeat(LIVE_STEP_CAP_BYTES - 1) })
+    text({ id: 'b1', text: 'XY' })
+    text({ id: 'b1', text: 'z' })
+    clock.advance(LIVE_FLUSH_MS)
+    const sent = deltas()
+      .map((frame) => frame.text)
+      .join('')
+    expect(sent).toBe('a'.repeat(LIVE_STEP_CAP_BYTES - 1))
+  })
+
+  it('a new step-start flushes the previous step and its old timer never fires later', () => {
+    text({ id: 'b1', text: 'A' })
+    text({ id: 'b1', text: 'B' })
+    const next = { runId: 'run-1', step: 1, attempt: 0 }
+    buffer.push({ type: 'step-start', key: next })
+    clock.advance(LIVE_FLUSH_MS * 3)
+    const old = deltas().filter((frame) => frame.key.step === 0)
+    expect(old.map((frame) => frame.text).join('')).toBe('AB')
+    expect(deltas().filter((frame) => frame.key.step === 1)).toEqual([])
+    expect(frames.at(-1)).toEqual({ type: 'step-start', key: next })
+  })
 })

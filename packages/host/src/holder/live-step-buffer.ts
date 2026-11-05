@@ -15,6 +15,7 @@ type ActiveStep = {
   blocks: Map<string, Block>
   pendingBytes: number
   acceptedBytes: number
+  capped: boolean
   lastFlushAt: number | undefined
   timer: unknown
 }
@@ -43,12 +44,14 @@ export class LiveStepBuffer {
   }
 
   private open(key: StepKey): void {
+    if (this.step !== undefined) this.flush(this.step)
     this.drop()
     this.step = {
       key,
       blocks: new Map(),
       pendingBytes: 0,
       acceptedBytes: 0,
+      capped: false,
       lastFlushAt: undefined,
       timer: undefined,
     }
@@ -73,7 +76,11 @@ export class LiveStepBuffer {
     const { id, text } = chunk
     if (id === undefined || text === undefined || text.length === 0) return
     const bytes = Buffer.byteLength(text)
-    if (step.acceptedBytes + bytes > LIVE_STEP_CAP_BYTES) return
+    if (step.capped) return
+    if (step.acceptedBytes + bytes > LIVE_STEP_CAP_BYTES) {
+      step.capped = true
+      return
+    }
     step.acceptedBytes += bytes
     step.pendingBytes += bytes
     const block = step.blocks.get(id) ?? { kind, sent: 0, pending: '' }

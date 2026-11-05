@@ -128,4 +128,19 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
       expect(await reader.exists(sessionLiveBufferKey(sessionId))).toBe(0)
     }, 15_000)
   })
+
+  it('forgets a session once its step ends', async () => {
+    const publisher = createRedisLiveFrames({ url })
+    publishers.push(publisher)
+    const key = { runId: 'run-evict', step: 0, attempt: 0 }
+    for (let n = 0; n < 50; n += 1) {
+      const sessionId = `session-evict-${n}`
+      publisher.live({ sessionId, frame: { type: 'step-start', key } })
+      publisher.live({
+        sessionId,
+        frame: { type: 'step-end', key, reason: EStepEndReason.Finished },
+      })
+    }
+    expect(publisher.trackedSessions()).toBe(0)
+  }, 15_000)
 })

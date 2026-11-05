@@ -13,6 +13,7 @@ export const LIVE_BUFFER_EXPIRE_EVERY_MS = 1_000
 
 export type RedisLiveFrames = {
   live(args: { sessionId: string; frame: LiveFrame }): void
+  trackedSessions(): number
   close(): Promise<void>
 }
 
@@ -48,10 +49,12 @@ export const createRedisLiveFrames = (args: {
     else multi.append(bufferKey, line)
     multi.publish(sessionLiveChannel(sessionId), json)
     const now = Date.now()
-    const replaced = frame.type === 'step-start'
-    if (replaced || now - (expiredAt.get(sessionId) ?? 0) >= LIVE_BUFFER_EXPIRE_EVERY_MS) {
-      expiredAt.set(sessionId, now)
+    const ended = frame.type === 'step-end'
+    const due = now - (expiredAt.get(sessionId) ?? 0) >= LIVE_BUFFER_EXPIRE_EVERY_MS
+    if (frame.type === 'step-start' || ended || due) {
       multi.expire(bufferKey, LIVE_BUFFER_TTL_SECONDS)
+      if (ended) expiredAt.delete(sessionId)
+      else expiredAt.set(sessionId, now)
     }
     return multi.exec()
   }
@@ -79,6 +82,10 @@ export const createRedisLiveFrames = (args: {
           ...logFieldsOf({ error }),
         })
       })
+    },
+
+    trackedSessions() {
+      return expiredAt.size
     },
 
     async close() {
