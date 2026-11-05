@@ -10,6 +10,11 @@ import { cn } from 'cn'
 import remarkGemoji from 'remark-gemoji'
 import { defaultRemarkPlugins, Streamdown } from 'streamdown'
 
+import {
+  DiagramRepairContext,
+  MermaidErrorView,
+  type RepairDiagram,
+} from './internal/diagram-repair-context'
 import { remarkGithubAlerts } from './internal/markdown-alerts'
 import { remarkLiteralHtml } from './internal/markdown-literal-html'
 import {
@@ -23,6 +28,7 @@ import { useDiagramWheelDamping } from './internal/mermaid-wheel'
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
   onLinkClick?: MarkdownLinkClick
+  onRepairDiagram?: RepairDiagram
 }
 
 const plugins = {
@@ -38,35 +44,48 @@ const remarkPlugins = [
 const allowedTags = { blockquote: ['cite', 'dataAlert'] }
 const remendOptions = { handlers: [starRuleHandler] }
 const linkSafety = { enabled: false }
+const messageMermaidOptions = {
+  ...mermaidOptions,
+  errorComponent: MermaidErrorView,
+}
 
 export const MessageResponse = memo(
-  function MessageResponse({ className, components, onLinkClick, ...props }: MessageResponseProps) {
+  function MessageResponse({
+    className,
+    components,
+    onLinkClick,
+    onRepairDiagram,
+    ...props
+  }: MessageResponseProps) {
     const merged = useMemo(() => ({ ...markdownComponents, ...components }), [components])
     useDiagramWheelDamping()
 
     return (
       <MarkdownLinkClickContext.Provider value={onLinkClick}>
-        <Streamdown
-          className={cn(
-            'size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>*:last-child]:after:text-primary',
-            className,
-          )}
-          allowedTags={allowedTags}
-          components={merged}
-          linkSafety={linkSafety}
-          mermaid={mermaidOptions}
-          plugins={plugins}
-          remarkPlugins={remarkPlugins}
-          remend={remendOptions}
-          {...props}
-        />
+        <DiagramRepairContext.Provider value={onRepairDiagram}>
+          <Streamdown
+            className={cn(
+              'size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>*:last-child]:after:text-primary',
+              className,
+            )}
+            allowedTags={allowedTags}
+            components={merged}
+            linkSafety={linkSafety}
+            mermaid={messageMermaidOptions}
+            plugins={plugins}
+            remarkPlugins={remarkPlugins}
+            remend={remendOptions}
+            {...props}
+          />
+        </DiagramRepairContext.Provider>
       </MarkdownLinkClickContext.Provider>
     )
   },
   (previous, next) =>
     previous.children === next.children &&
     previous.isAnimating === next.isAnimating &&
-    previous.onLinkClick === next.onLinkClick,
+    previous.onLinkClick === next.onLinkClick &&
+    previous.onRepairDiagram === next.onRepairDiagram,
 )
 
 MessageResponse.displayName = 'MessageResponse'
