@@ -69,7 +69,13 @@ const mount = async (args: { events: WireEvent[]; fallback: AgentsPanelAgent }) 
         running={false}
         now={0}
         models={new Map()}
-        actions={{ rewind: null, summarise: null, openChanges: null, openAgent: null }}
+        actions={{
+          rewind: null,
+          summarise: null,
+          openChanges: null,
+          openAgent: null,
+          repairDiagram: null,
+        }}
       />,
     ),
   )

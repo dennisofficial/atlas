@@ -18,6 +18,7 @@ import { type TranscriptRow } from './data/transcript'
 import { isLiveTurn } from './data/is-live-turn'
 import { ETurnKind, turnsOf } from './data/transcript-turns'
 import { useNow, useNowEvery } from './data/use-now'
+import { useDiagramRepair } from './data/use-diagram-repair'
 import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
@@ -93,13 +94,14 @@ export function ThreadTranscript({
   const now = useNow(working || anySpawnRunning(items))
   const { channel, openChanges, openAgent } = useThreadPanel()
   const roster = useRoster(channel)
+  const repairDiagram = useDiagramRepair()
   const models = useMemo(() => rosterModelsOf(roster), [roster])
   const turns = useMemo(() => turnsOf({ items, working }), [items, working])
   const boot = useMemo(() => bootTimelineOf({ turns, pod, now: 0 }), [turns, pod])
   const userName = user?.name
   const actions = useMemo(
-    () => ({ rewind, summarise, openChanges, openAgent }),
-    [rewind, summarise, openChanges, openAgent],
+    () => ({ rewind, summarise, openChanges, openAgent, repairDiagram }),
+    [rewind, summarise, openChanges, openAgent, repairDiagram],
   )
   const bootAfter = (index: number): ReactNode[] =>
     boot

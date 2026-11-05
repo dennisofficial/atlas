@@ -78,7 +78,13 @@ describe('AgentTranscriptBody re-renders', () => {
     document.body.append(container)
     const root = createRoot(container)
     const models = new Map<string, string>()
-    const actions = { rewind: null, summarise: null, openChanges: null, openAgent: null }
+    const actions = {
+      rewind: null,
+      summarise: null,
+      openChanges: null,
+      openAgent: null,
+      repairDiagram: null,
+    }
     const render = (now: number) =>
       act(async () =>
         root.render(
