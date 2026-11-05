@@ -2,14 +2,10 @@ import type { LogPort } from '@dltech/atlas-observability'
 import { ECallFailure } from '@dltech/atlas-protocol'
 import type { CallOp, CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
-import {
-  FencedError,
-  ProtocolViolationError,
-  SandboxUnavailableError,
-  callLostAcrossBoot,
-} from './errors'
+import { FencedError, ProtocolViolationError, callLostAcrossBoot } from './errors'
 import { scopeDispatchedBootId } from './call-scope'
 import { DaemonLink } from './link'
+import { ReadyGate, type ReadyReply } from './ready-gate'
 import {
   failedResult,
   handedOffResult,
@@ -33,18 +29,11 @@ export class RemoteCallsState {
   private fenced = false
   private closed = false
   private detached = false
-  private availability: SandboxUnavailableError | null = null
-  private readyResolve: ((reply: { bootId: string; version: string }) => void) | null = null
-  private readyReject: ((error: Error) => void) | null = null
-  private readonly readyPromise: Promise<{ bootId: string; version: string }>
+  private down: Error | null = null
+  private readonly gate = new ReadyGate()
 
   constructor(private readonly args: RemoteCallsArgs) {
     this.log = args.log
-    this.readyPromise = new Promise((resolve, reject) => {
-      this.readyResolve = resolve
-      this.readyReject = reject
-    })
-    this.readyPromise.catch(() => undefined)
     this.link = new DaemonLink({
       timers: args.timers,
       ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
@@ -75,8 +64,9 @@ export class RemoteCallsState {
     })
   }
 
-  ready(): Promise<{ bootId: string; version: string }> {
-    return this.readyPromise
+  ready(): Promise<ReadyReply> {
+    this.reopenIfDown()
+    return this.gate.promise
   }
 
   bootId(): string | undefined {
@@ -97,10 +87,7 @@ export class RemoteCallsState {
     this.link.teardown()
     const error = new FencedError(`session ${this.args.sessionId} closed its daemon link`)
     rejectPending({ pending: this.pending, pendingAcks: this.pendingAcks, error })
-    const readyReject = this.readyReject
-    this.readyResolve = null
-    this.readyReject = null
-    if (readyReject !== null) queueMicrotask(() => readyReject(error))
+    this.gate.rejectSoon(error)
   }
 
   async invoke(args: {
@@ -112,7 +99,7 @@ export class RemoteCallsState {
   }): Promise<CallResult> {
     const dispatchedBootId = args.dispatchedBootId ?? scopeDispatchedBootId()
     if (this.fenced) throw new FencedError(`session ${this.args.sessionId} lost its lease`)
-    if (this.availability !== null) throw this.availability
+    this.reopenIfDown()
     if (this.closed) {
       throw new FencedError(`session ${this.args.sessionId} closed its daemon link`)
     }
@@ -121,6 +108,7 @@ export class RemoteCallsState {
       waiter.settle = resolve
       waiter.reject = reject
     })
+    outcome.catch(() => undefined)
     const existing = this.pending.get(args.key)
     if (existing !== undefined) {
       if (this.detached) return outcome
@@ -140,7 +128,7 @@ export class RemoteCallsState {
     if (args.signal !== undefined) this.attachSignal({ call, signal: args.signal })
     this.pending.set(args.key, call)
     try {
-      await this.readyPromise
+      await this.gate.promise
     } catch (error) {
       this.pending.delete(args.key)
       waiter.detach?.()
@@ -179,7 +167,7 @@ export class RemoteCallsState {
   private ackKey(args: { key: string }): Promise<boolean> {
     if (this.fenced || this.closed) return Promise.resolve(false)
     return new Promise<boolean>((resolve, reject) => {
-      this.readyPromise.then(
+      this.gate.promise.then(
         () => {
           if (this.fenced) {
             resolve(false)
@@ -248,9 +236,7 @@ export class RemoteCallsState {
     const restart = previousBootId !== undefined && previousBootId !== frame.bootId
     this.linkBootId = frame.bootId
     this.link.markReady()
-    this.readyResolve?.(frame)
-    this.readyResolve = null
-    this.readyReject = null
+    this.gate.resolve(frame)
     for (const ack of this.pendingAcks.values()) {
       this.link.send({ kind: 'ack', key: ack.key, epoch: this.epoch })
     }
@@ -270,12 +256,17 @@ export class RemoteCallsState {
     })
   }
 
+  private reopenIfDown(): void {
+    if (this.down === null || this.fenced || this.closed) return
+    this.down = null
+    this.gate.rearm()
+    this.link.restart()
+  }
+
   private failAll(error: Error): void {
-    if (error instanceof SandboxUnavailableError) this.availability = error
+    if (!(error instanceof FencedError)) this.down = error
     this.link.teardown()
-    this.readyReject?.(error)
-    this.readyResolve = null
-    this.readyReject = null
+    this.gate.reject(error)
     for (const call of [...this.pending.values()]) this.settleError(call, error)
     for (const ack of [...this.pendingAcks.values()]) ack.resolve(false)
     this.pendingAcks.clear()
