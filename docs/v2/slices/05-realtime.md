@@ -159,30 +159,30 @@ newer side talks down, and a client ignores message kinds it does not know.
 
 **Client → server**
 
-| Message | Fields | Meaning |
-| --- | --- | --- |
-| `hello` | `v, token` | First frame within 5 s; otherwise close 4401 |
-| `subscribe` | `id, kind: 'session', sessionId, afterSeq?, afterHash?` | Follow a session's main thread |
-| `subscribe` | `id, kind: 'sessions', projectId?` | Follow the sidebar |
-| `unsubscribe` | `id` | |
-| `resnap` | `id` | The client saw a delta gap: send a fresh `overlay` |
-| `ping` | | Optional; server also pings |
+| Message       | Fields                                                  | Meaning                                            |
+| ------------- | ------------------------------------------------------- | -------------------------------------------------- |
+| `hello`       | `v, token`                                              | First frame within 5 s; otherwise close 4401       |
+| `subscribe`   | `id, kind: 'session', sessionId, afterSeq?, afterHash?` | Follow a session's main thread                     |
+| `subscribe`   | `id, kind: 'sessions', projectId?`                      | Follow the sidebar                                 |
+| `unsubscribe` | `id`                                                    |                                                    |
+| `resnap`      | `id`                                                    | The client saw a delta gap: send a fresh `overlay` |
+| `ping`        |                                                         | Optional; server also pings                        |
 
 **Server → client**
 
-| Message | Fields | Meaning |
-| --- | --- | --- |
-| `ready` | `v, connectionId` | Auth done |
-| `events` | `id, events[], head: {seq, hash}, live: boolean` | A page in seq order; `live: true` once caught up |
-| `reset` | `id, reason, tailFrom` | Drop the cache for this session; a tail page follows |
-| `view` | `id, name: 'status', at: seq, value` | Server-computed view at a log position (P6) |
-| `overlay` | `id, key, blocks[{block, kind, text}]` | Ephemeral snapshot of the in-flight step; replaces the client's overlay |
-| `delta` | `id, key, block, kind, from, text` | Ephemeral text appended at offset `from` |
-| `overlay-clear` | `id, reason` | `holder-lost` or `lost`; drop the overlay |
-| `frame` | `id, frame: LiveFrame` | Other ephemeral frames (`tool-output`, `retrying`); no seq |
-| `snapshot` / `upsert` / `remove` | `id, rows` / `row` / `sessionId` | Sidebar |
-| `error` | `id?, code` | `not-found`, `forbidden-limit`, `bad-frame`, `internal` |
-| `going-away` | `reconnectAfterMs` | Deploy drain, then close 1001 |
+| Message                          | Fields                                           | Meaning                                                                 |
+| -------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------- |
+| `ready`                          | `v, connectionId`                                | Auth done                                                               |
+| `events`                         | `id, events[], head: {seq, hash}, live: boolean` | A page in seq order; `live: true` once caught up                        |
+| `reset`                          | `id, reason, tailFrom`                           | Drop the cache for this session; a tail page follows                    |
+| `view`                           | `id, name: 'status', at: seq, value`             | Server-computed view at a log position (P6)                             |
+| `overlay`                        | `id, key, blocks[{block, kind, text}]`           | Ephemeral snapshot of the in-flight step; replaces the client's overlay |
+| `delta`                          | `id, key, block, kind, from, text`               | Ephemeral text appended at offset `from`                                |
+| `overlay-clear`                  | `id, reason`                                     | `holder-lost` or `lost`; drop the overlay                               |
+| `frame`                          | `id, frame: LiveFrame`                           | Other ephemeral frames (`tool-output`, `retrying`); no seq              |
+| `snapshot` / `upsert` / `remove` | `id, rows` / `row` / `sessionId`                 | Sidebar                                                                 |
+| `error`                          | `id?, code`                                      | `not-found`, `forbidden-limit`, `bad-frame`, `internal`                 |
+| `going-away`                     | `reconnectAfterMs`                               | Deploy drain, then close 1001                                           |
 
 Events cross the wire as the same `V2Event` JSON the events API returns
 (`sessionEventsOutputSchema`). Blob bytes never ride the stream: events carry blob references and
@@ -225,7 +225,6 @@ pump(sub): while sub.dirty:
 A notification (or a gap, or the initial subscribe) only sets `dirty` and schedules the pump. Because
 reading is idempotent from the cursor, there is no ordering race between "catch-up" and "live" and
 nothing to buffer: register first, then pump.
-
 - **Open at the tail.** `subscribe` without `afterSeq` is the L7 tail-first open: the last events
   that fit 1,000 events / 1 MiB, `live` after. Older history is paged on demand with the existing
   `sessions.events` over HTTP (paging, not following).
@@ -252,15 +251,15 @@ The client discards a view whose `at` is behind its cursor.
 
 ### Two channels, never mixed
 
-| | Durable channel | Ephemeral channel |
-| --- | --- | --- |
-| Carries | `V2Event`s of the log, status views | Assistant text and reasoning deltas, tool output, `retrying`, `status` frames |
-| Source | Postgres: `NOTIFY` pointer, read by seq | Redis: the agent host publishes (`sessionLiveChannel`) |
-| Order | Total, by `seq`, hash-chained | Per step, by character offset; no relation to `seq` |
-| Delivery | Exactly-once view by cursor; resumable | At-most-once delivery; recoverable from a Redis buffer; losable |
-| Truth | Yes. The client never needs anything else | No. A decoration that the durable event replaces |
-| Wire messages | `events`, `reset`, `view` | `overlay`, `delta`, `overlay-clear`, `frame` |
-| Redis down | Unaffected | Token streaming stops; the answer appears whole when its `assistant-said` lands |
+|               | Durable channel                           | Ephemeral channel                                                               |
+| ------------- | ----------------------------------------- | ------------------------------------------------------------------------------- |
+| Carries       | `V2Event`s of the log, status views       | Assistant text and reasoning deltas, tool output, `retrying`, `status` frames   |
+| Source        | Postgres: `NOTIFY` pointer, read by seq   | Redis: the agent host publishes (`sessionLiveChannel`)                          |
+| Order         | Total, by `seq`, hash-chained             | Per step, by character offset; no relation to `seq`                             |
+| Delivery      | Exactly-once view by cursor; resumable    | At-most-once delivery; recoverable from a Redis buffer; losable                 |
+| Truth         | Yes. The client never needs anything else | No. A decoration that the durable event replaces                                |
+| Wire messages | `events`, `reset`, `view`                 | `overlay`, `delta`, `overlay-clear`, `frame`                                    |
+| Redis down    | Unaffected                                | Token streaming stops; the answer appears whole when its `assistant-said` lands |
 
 The client keeps them in two stores: the event window (durable) and the overlay (ephemeral). The
 overlay is never written to the cache and never read by anything that needs a fact.
@@ -275,7 +274,7 @@ chunks stream through `ModelPort.step({ onChunk })` (`packages/core/src/ports/mo
 `tracked-turn.ts:210` and `retrying-step.ts:186`.
 
 **Producer.** The loop emits a new `AgentOutputEvent`, `{ type: 'chunk', step: StepKey, chunk }`,
-for `text-*` and `reasoning-*` chunks, taken *after* the `onChunk` filter so a redacted chunk never
+for `text-*` and `reasoning-*` chunks, taken _after_ the `onChunk` filter so a redacted chunk never
 leaves the host. `liveOutput()` hands them to a pure `LiveStepBuffer` in `packages/host` (injected
 clock and timers; no I/O). Tool-input deltas are not streamed: the durable `tool-called` is the first
 sight of a call. Tool output keeps today's tail-only behaviour: a client joining mid-call sees output
@@ -286,9 +285,23 @@ from then on and the durable `tool-result` completes it.
 ```ts
 type StepKey = { runId: string; step: number; attempt: number }
 // step = the loop's per-run step counter; attempt increments on a retried step
-{ type: 'step-start'; key: StepKey }
-{ type: 'delta'; key: StepKey; block: string; kind: 'text' | 'reasoning'; from: number; text: string }
-{ type: 'step-end'; key: StepKey; reason: 'finished' | 'aborted' }
+{
+  type: 'step-start'
+  key: StepKey
+}
+{
+  type: 'delta'
+  key: StepKey
+  block: string
+  kind: 'text' | 'reasoning'
+  from: number
+  text: string
+}
+{
+  type: 'step-end'
+  key: StepKey
+  reason: 'finished' | 'aborted'
+}
 ```
 
 `block` is the provider chunk `id` within the step; `from` is the block's length in UTF-16 code
@@ -343,28 +356,28 @@ holds across nodes and across the two transports, which have no common clock.
 
 **When the delta stream loses frames.**
 
-| Loss | Detection | Recovery |
-| --- | --- | --- |
-| A `PUBLISH` dropped between host and node (subscriber reconnect, Redis blip) | `from > have` on the next frame | Node re-`GET`s the buffer and sends a full `overlay`; the client replaces its blocks |
-| Last frame of a step lost | Undetectable | Harmless: the durable event replaces the overlay |
-| Redis restarted, buffer gone | `GET` empty while status says the step is streaming | `overlay-clear{lost}`; the client shows the working state with no text until the durable event |
-| Node's Redis subscriber reconnects | ioredis reconnect event | `onGap` for the ephemeral side: re-`SUBSCRIBE`, re-`GET`, `overlay` to every local subscriber of an open step |
-| Slow client socket | Socket above the high-water mark | Drop its queued deltas; when it drains send one `overlay` (a snapshot is smaller than the backlog) |
-| Host publishes a malformed frame | `liveFrameSchema` parse in the producer (already) and node | Dropped and logged; counts as loss above |
+| Loss                                                                         | Detection                                                  | Recovery                                                                                                      |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| A `PUBLISH` dropped between host and node (subscriber reconnect, Redis blip) | `from > have` on the next frame                            | Node re-`GET`s the buffer and sends a full `overlay`; the client replaces its blocks                          |
+| Last frame of a step lost                                                    | Undetectable                                               | Harmless: the durable event replaces the overlay                                                              |
+| Redis restarted, buffer gone                                                 | `GET` empty while status says the step is streaming        | `overlay-clear{lost}`; the client shows the working state with no text until the durable event                |
+| Node's Redis subscriber reconnects                                           | ioredis reconnect event                                    | `onGap` for the ephemeral side: re-`SUBSCRIBE`, re-`GET`, `overlay` to every local subscriber of an open step |
+| Slow client socket                                                           | Socket above the high-water mark                           | Drop its queued deltas; when it drains send one `overlay` (a snapshot is smaller than the backlog)            |
+| Host publishes a malformed frame                                             | `liveFrameSchema` parse in the producer (already) and node | Dropped and logged; counts as loss above                                                                      |
 
 **Node cost.** One ref-counted `SUBSCRIBE` per session with a local follower (not a pattern
 subscription); per-session state is `have[block]` lengths and the closed key, not the text.
 
 ### Backpressure and limits
 
-| Pressure | Mechanism |
-| --- | --- |
-| Slow client, durable data | No queue exists. The pump awaits `bufferedAmount < 1 MiB` before the next read; a socket above it for 30 s is closed with 4408 `slow-consumer` and resumes by cursor |
-| Slow client, ephemeral | Per-subscription bounded queue (256 KiB); on overflow drop it and send one `overlay` when drained; durable pages never wait on it |
-| Many subscribers on one thread | A per-node `ThreadFeed` reads `(minCursor, head]` once per pointer and fans out from a small ring (256 events / 4 MiB); a subscriber behind the ring reads for itself |
-| Huge catch-up | Page limits above; `too-far-behind` reset |
-| Reconnect storm after deploy | `going-away{reconnectAfterMs: random 0..5000}` and client jitter; each reconnect is one cheap read |
-| Abuse | Per connection: ≤ 32 session subscriptions + 1 sidebar, ≤ 20 `subscribe`/s. Per user: ≤ 20 connections. Per node: connection cap with `503` on upgrade and `/healthz` failing when saturated |
+| Pressure                       | Mechanism                                                                                                                                                                                    |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slow client, durable data      | No queue exists. The pump awaits `bufferedAmount < 1 MiB` before the next read; a socket above it for 30 s is closed with 4408 `slow-consumer` and resumes by cursor                         |
+| Slow client, ephemeral         | Per-subscription bounded queue (256 KiB); on overflow drop it and send one `overlay` when drained; durable pages never wait on it                                                            |
+| Many subscribers on one thread | A per-node `ThreadFeed` reads `(minCursor, head]` once per pointer and fans out from a small ring (256 events / 4 MiB); a subscriber behind the ring reads for itself                        |
+| Huge catch-up                  | Page limits above; `too-far-behind` reset                                                                                                                                                    |
+| Reconnect storm after deploy   | `going-away{reconnectAfterMs: random 0..5000}` and client jitter; each reconnect is one cheap read                                                                                           |
+| Abuse                          | Per connection: ≤ 32 session subscriptions + 1 sidebar, ≤ 20 `subscribe`/s. Per user: ≤ 20 connections. Per node: connection cap with `503` on upgrade and `/healthz` failing when saturated |
 
 ## 3. Where it runs and how it scales
 
@@ -396,14 +409,14 @@ subscription); per-session state is `have[block]` lengths and the closed key, no
 
 ### Failure behavior
 
-| Failure | Result |
-| --- | --- |
+| Failure                   | Result                                                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `LISTEN` connection drops | `onGap`: every subscription set dirty, sidebar subscriptions re-snapshotted. Same as the wake listener's resync-as-event; no timer |
-| A node dies | Sockets close; clients reconnect elsewhere with `(seq, hash)` |
-| Postgres failover | Reads fail, `LISTEN` reconnects with backoff, then `onGap`; clients stay connected and show `reconnecting` |
-| Redis down or restarted | No deltas or frames; the buffer may be gone (`overlay-clear{lost}`); durable stream unchanged |
-| Notification queue full | Notifying commits fail loudly. Prevented by the listener holding no transaction |
-| Agent host dies mid-turn | No stream event; status follows the lease design below |
+| A node dies               | Sockets close; clients reconnect elsewhere with `(seq, hash)`                                                                      |
+| Postgres failover         | Reads fail, `LISTEN` reconnects with backoff, then `onGap`; clients stay connected and show `reconnecting`                         |
+| Redis down or restarted   | No deltas or frames; the buffer may be gone (`overlay-clear{lost}`); durable stream unchanged                                      |
+| Notification queue full   | Notifying commits fail loudly. Prevented by the listener holding no transaction                                                    |
+| Agent host dies mid-turn  | No stream event; status follows the lease design below                                                                             |
 
 ## 4. Auth
 
@@ -433,7 +446,6 @@ subscription); per-session state is `have[block]` lengths and the closed key, no
 What a sidebar row is: `{sessionId, projectId, title, status, lastEventAt, headSeq}`. What changes it:
 an append (status, `lastEventAt`, a `title-set` event), session creation, an inbox post (`sent`) and
 a lease transition. All of them announce `{sessionId}` through the same channel.
-
 - **Subscribe:** `subscribe{kind:'sessions', projectId?}` returns `snapshot{rows}` (the existing
   `listSessions` bounds, ≤ 100), then deltas.
 - **Per change:** the node maps `sessionId → owner` (cached, immutable), and if that user has a
@@ -458,8 +470,8 @@ What this design asks of them:
    **announce** the holderless sessions it finds, not only wake them. Otherwise the stream, like any
    WAL consumer, would show `working` until the next claim.
 3. `currentLease(...).live` stays the one liveness read the status view uses.
-Until section 27 lands, a TTL expiry emits nothing, so the sidebar can show a dead holder as live
-until the reconcile wake; this is true of every change source and is not made worse here.
+   Until section 27 lands, a TTL expiry emits nothing, so the sidebar can show a dead holder as live
+   until the reconcile wake; this is true of every change source and is not made worse here.
 
 ## 6. Client SDK (`packages/client`)
 
@@ -469,8 +481,9 @@ subpath). v1's `./channel` is untouched.
 
 ```ts
 const connection = createStreamConnection({ url, getToken, webSocket, scheduler, cache })
-const session = connection.follow({ sessionId })   // SessionFollower
-session.subscribe(listener); session.getSnapshot() // useSyncExternalStore-compatible
+const session = connection.follow({ sessionId }) // SessionFollower
+session.subscribe(listener)
+session.getSnapshot() // useSyncExternalStore-compatible
 // snapshot: { events (window), cursor: {seq, hash}, status, overlay, connection }
 const sessions = connection.followSessions({ projectId })
 ```
@@ -496,27 +509,26 @@ const sessions = connection.followSessions({ projectId })
 
 ## 7. Test plan
 
-| Layer | What |
-| --- | --- |
-| Pure | Pump/cursor/dirty state machine, `ThreadFeed`, backpressure policy, view coalescing, frame-merge rule: plain data, no sockets or database |
-| Control conformance (memory + Postgres) | Every write path announces; a rolled-back transaction announces nothing (as `conformance-wakes.ts`); one notification per append batch; payload stays under 8,000 B |
-| Postgres integration | Append from one connection reaches a WebSocket client; `pg_terminate_backend` on the `LISTEN` session recovers with no lost event; two nodes, one client moving between them |
-| Property | Random appends racing a subscribe at random moments: the client's sequence is contiguous, with no duplicate and no gap; cache + stream equals a fresh tail across a rewind |
-| Resume | Drop mid catch-up and resume; forked hash → `reset`; far behind → `reset` + tail; park and resume |
-| Backpressure | A fake socket that never drains: reads stop, memory stays bounded, close at 30 s; frames dropped before durable pages |
-| Auth | Bad, expired and revoked (mid-connection) tokens; another user's session → `not-found`; every limit |
-| Delta path (pure) | `LiveStepBuffer`: coalescing at 100 ms / 4 KiB with a fake clock, first-delta immediate, offsets contiguous, 512 KiB cap, retry increments `attempt` |
-| Delta path (Redis) | Join mid-step gets text so far; a publisher racing the join yields no gap and no duplicate (property test over random join points); dropped `PUBLISH` → `resnap` recovers; buffer flushed → `overlay-clear{lost}`; Redis down → durable stream unchanged |
-| Overlay merge (client) | Durable `assistant-said` closes the overlay; a late delta below the high-water mark is dropped; hook-rewritten final text wins; holder crash clears via status; a drain-aborted step closes via its durable event |
-| Drain | SIGTERM sends `going-away`; clients land on the other node and resume with no visible gap |
-| Client | Connection machine with a fake `WebSocket` and clock; browser-safe spec; warm and cold cache |
-| Scale gate (L7, roadmap) | A seeded 20k-event thread: tail open ≤ 1 s cold and warm; 1,000 followers on one thread at 100 appends/s on one node: record p99 commit-to-socket, CPU and RSS in this doc |
-| Slice exit | A real cloud session on v2 from the web with chat and tools, resumable after the stream drops and after a park |
+| Layer                                   | What                                                                                                                                                                                                                                                     |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pure                                    | Pump/cursor/dirty state machine, `ThreadFeed`, backpressure policy, view coalescing, frame-merge rule: plain data, no sockets or database                                                                                                                |
+| Control conformance (memory + Postgres) | Every write path announces; a rolled-back transaction announces nothing (as `conformance-wakes.ts`); one notification per append batch; payload stays under 8,000 B                                                                                      |
+| Postgres integration                    | Append from one connection reaches a WebSocket client; `pg_terminate_backend` on the `LISTEN` session recovers with no lost event; two nodes, one client moving between them                                                                             |
+| Property                                | Random appends racing a subscribe at random moments: the client's sequence is contiguous, with no duplicate and no gap; cache + stream equals a fresh tail across a rewind                                                                               |
+| Resume                                  | Drop mid catch-up and resume; forked hash → `reset`; far behind → `reset` + tail; park and resume                                                                                                                                                        |
+| Backpressure                            | A fake socket that never drains: reads stop, memory stays bounded, close at 30 s; frames dropped before durable pages                                                                                                                                    |
+| Auth                                    | Bad, expired and revoked (mid-connection) tokens; another user's session → `not-found`; every limit                                                                                                                                                      |
+| Delta path (pure)                       | `LiveStepBuffer`: coalescing at 100 ms / 4 KiB with a fake clock, first-delta immediate, offsets contiguous, 512 KiB cap, retry increments `attempt`                                                                                                     |
+| Delta path (Redis)                      | Join mid-step gets text so far; a publisher racing the join yields no gap and no duplicate (property test over random join points); dropped `PUBLISH` → `resnap` recovers; buffer flushed → `overlay-clear{lost}`; Redis down → durable stream unchanged |
+| Overlay merge (client)                  | Durable `assistant-said` closes the overlay; a late delta below the high-water mark is dropped; hook-rewritten final text wins; holder crash clears via status; a drain-aborted step closes via its durable event                                        |
+| Drain                                   | SIGTERM sends `going-away`; clients land on the other node and resume with no visible gap                                                                                                                                                                |
+| Client                                  | Connection machine with a fake `WebSocket` and clock; browser-safe spec; warm and cold cache                                                                                                                                                             |
+| Scale gate (L7, roadmap)                | A seeded 20k-event thread: tail open ≤ 1 s cold and warm; 1,000 followers on one thread at 100 appends/s on one node: record p99 commit-to-socket, CPU and RSS in this doc                                                                               |
+| Slice exit                              | A real cloud session on v2 from the web with chat and tools, resumable after the stream drops and after a park                                                                                                                                           |
 
 ## 8. PR breakdown
 
 Each is reviewable in one sitting and lands in order unless noted.
-
 1. `refactor(control): announce changes through the port`: `ControlTx.announce`, Postgres
    `pg_notify` on `atlas_session_changed` in append, create, inbox and lease paths, in-memory
    emitter, conformance tests, `startPgListener` generalized from `startPgWakeListener`, the
@@ -525,18 +537,18 @@ Each is reviewable in one sitting and lands in order unless noted.
 3. `feat(stream): follow a session`: `apps/stream`, `StreamAuthPort`, `hello`, `subscribe`, pump,
    `ThreadFeed`, limits, drain, health, the Render service declaration, Postgres integration and
    resume tests.
-4a. `feat(host): publish assistant deltas`: `step-start`/`delta`/`step-end` in `liveFrameSchema`, the
+   4a. `feat(host): publish assistant deltas`: `step-start`/`delta`/`step-end` in `liveFrameSchema`, the
    `chunk` agent-output event emitted after the `onChunk` filter, `LiveStepBuffer`, the buffered
    pipelined publisher in `redis-live-frames.ts`, the Redis command-rate measurement. Independent of
    PRs 1-3; testable with a Redis and no stream node.
-4b. `feat(stream): status view and the live overlay`: status computation and coalescing, the Redis
+   4b. `feat(stream): status view and the live overlay`: status computation and coalescing, the Redis
    subscriber with the join protocol, `overlay`/`delta`/`overlay-clear`/`resnap`.
-5. `feat(client): stream connection and session follower`: `./stream` subpath, cache port, tests.
-6. `feat(stream): the session list`: after slice 4's view table. `sessions` subscription and
+4. `feat(client): stream connection and session follower`: `./stream` subpath, cache port, tests.
+5. `feat(stream): the session list`: after slice 4's view table. `sessions` subscription and
    `followSessions`.
-7. `feat(web): open v2 sessions behind engine v2`: the `V2Event` → transcript adapter (may split
+6. `feat(web): open v2 sessions behind engine v2`: the `V2Event` → transcript adapter (may split
    in two) and the hook; Mac follows.
-8. `test(stream): scale and chaos gate`: the seeded-thread and 1,000-follower runs; numbers written
+7. `test(stream): scale and chaos gate`: the seeded-thread and 1,000-follower runs; numbers written
    into this doc.
 
 PR 3's title is `feat` only if a user can use it that day; otherwise `refactor`/`fix` per the repo's
