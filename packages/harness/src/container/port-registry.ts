@@ -1,5 +1,6 @@
 import type { PortRegistryEntry } from '@dltech/atlas-core'
 
+import type { DiagramRepairPort } from '../diagrams/diagram-repair-port'
 import type { SessionActivityPort } from '../activity/port'
 import type { GitChangesPort } from '../changes/git-changes.port'
 import type { AgentRegistryPort } from '../agents/registry/port'
@@ -84,5 +85,8 @@ declare module '@dltech/atlas-core' {
     }
     readonly TerminalPort: PortRegistryEntry<TerminalPort> & { readonly transport: 'none' }
     readonly SaidUploadsPort: PortRegistryEntry<SaidUploadsPort> & { readonly transport: 'none' }
+    readonly DiagramRepairPort: PortRegistryEntry<DiagramRepairPort> & {
+      readonly transport: 'detached'
+    }
   }
 }

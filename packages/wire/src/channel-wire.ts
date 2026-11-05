@@ -136,6 +136,7 @@ export enum EClientRequest {
   SummariseHistory = 'summarise-history',
   CancelCompaction = 'cancel-compaction',
   Rotate = 'rotate',
+  RepairDiagram = 'repair-diagram',
   ReadSessionManifest = 'read-session-manifest',
   ReadSessionFiles = 'read-session-files',
   ReadGitChanges = 'read-git-changes',

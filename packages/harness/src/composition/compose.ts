@@ -35,6 +35,8 @@ import { ShellRegistryPort } from '../shells/shell-registry'
 import { atlasDirectory } from '../store/paths'
 import { SessionAuthorityPort } from '../store/sessions/meta'
 import { ThreadStorePort } from '../store/thread-store'
+import { DiagramRepairPort } from '../diagrams/diagram-repair-port'
+import { LocalDiagramRepair } from '../diagrams/local-diagram-repair'
 import { LocalCompaction } from '../store/local-compaction'
 import { LocalRotation, RotationPort, carryOverSummariser } from '../rotation'
 import { LateRotation } from './rotation-binding'
@@ -284,6 +286,15 @@ export async function composeHarness<
   const lateRotation = new LateRotation()
   container.register(registeredPortToken(RotationPort), {
     useValue: lateRotation,
+  })
+
+  container.register(registeredPortToken(DiagramRepairPort), {
+    useValue: new LocalDiagramRepair({
+      log,
+      model: utility.sessionModel,
+      modelId: () => model.choice().ref.modelId,
+      runId: () => ids.nextRunId(),
+    }),
   })
 
   container.register(HookMishapReporterToken, {

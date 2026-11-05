@@ -91,6 +91,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     rewind,
     compaction: args.compaction,
     rotation: args.rotation,
+    diagramRepair: args.diagramRepair,
     broadcastRotation: (rotation) => broadcast(buffer.push({ type: 'rotation-changed', rotation })),
     historyChanged: () => {
       historyGeneration += 1

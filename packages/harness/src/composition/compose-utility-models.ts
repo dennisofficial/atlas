@@ -24,6 +24,7 @@ import type { ModelChoice } from './model-selection'
 import { createUtilityModel, notifyingUtilityFallback } from './utility-model'
 
 export type UtilityModels = {
+  sessionModel: () => LanguageModelV4 | undefined
   decisionsEnabled: () => boolean
   tldrModel: LanguageModelV4
   compactionModel: LanguageModelV4
@@ -79,6 +80,7 @@ export function bindUtilityModels(args: {
   })
 
   return {
+    sessionModel: fallback,
     decisionsEnabled: () => decisionsEndpoint() !== null,
     tldrModel: utility(EUtilityModelRole.Tldr),
     compactionModel,
