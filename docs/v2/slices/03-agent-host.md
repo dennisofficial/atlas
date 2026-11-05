@@ -7,6 +7,17 @@ Applies [0021](../../decisions/0021-v2-loop-runs-on-the-agent-host.md) (D8),
 [architecture.md](../architecture.md) §3, §5, §11–§13, and builds on slice 1
 ([record core](01-record-core.md)) and slice 2 ([agent](02-agent.md)). Anchors read at `6cf3be0e3`.
 
+**Built 2026-11-04; superseded text is marked below.** Slice 3 was built to this spec with these changes:
+- Wakes are Postgres `LISTEN`/`NOTIFY`, not a Redis channel (points 3, 5, 9 and 10, the diagrams, the
+  Redis row of the failure table, F9, F20). Redis carries live frames only. No inbox poll or stop poll
+  exists; a stop is a wake. See [0021](../../decisions/0021-v2-loop-runs-on-the-agent-host.md), Amendments.
+- The agent host imports nothing from `harness` or `wire`; the tools, model port, prompt fragments and
+  sandbox helpers were copied into `apps/agent-host` (point 1).
+- A new session is prepared (clone, setup script) before its first turn, and an idle session stays
+  parked across an agent-host deploy ([architecture §13](../architecture.md)).
+- The `v2` prefix was dropped from names: `sessions.*`, `agentHost.*`, the task `reconcile-holders`.
+- Where the slice stands: the roadmap's Current state and [handoffs/slice-4.md](../handoffs/slice-4.md).
+
 ## Goal
 
 A v2 session runs end to end in the cloud with no v1 code path in it. An agent host on Render holds
@@ -87,8 +98,9 @@ with the Vercel → Vercel baseline ([rtt.md](../research/d8/rtt.md)).
 
 ## How it fits together
 
-**Who talks to whom.** Durable data goes through Postgres; Redis carries only wakes, stops and
-live output, and losing a Redis message loses nothing durable.
+**Who talks to whom.** Durable data and wakes go through Postgres; Redis carries live output only, and
+losing a Redis message loses nothing durable. (Redis also carried wakes and stops in the first design;
+superseded 2026-11-04. The diagrams below show what was built.)
 
 ```mermaid
 flowchart LR
@@ -100,7 +112,7 @@ flowchart LR
   end
   subgraph Data["Data (us-east-1)"]
     PG[("Postgres<br/>public = v1<br/>v2 = record, inbox, leases")]
-    R[("Redis<br/>atlas:session-wake, atlas:session-live")]
+    R[("Redis<br/>atlas:session-live")]
   end
   subgraph Render["Render, Virginia"]
     W1["Agent host 1<br/>runs agent loops"]
@@ -114,9 +126,8 @@ flowchart LR
 
   C -- "tRPC: post message, read events" --> API
   API -- "SSE: live output (slice 5)" --> C
-  API -- "inbox post, ranged reads" --> PG
-  API -- "publish wake" --> R
-  R -- "wake" --> W1 & W2
+  API -- "inbox post + pg_notify, ranged reads" --> PG
+  PG -- "NOTIFY wake" --> W1 & W2
   W1 & W2 -- "publish live output" --> R
   W1 & W2 -- "lease, append, read inbox" --> PG
   W1 & W2 -- "credentials, settings (internal route)" --> API
@@ -125,7 +136,7 @@ flowchart LR
   W2 -- "one WebSocket" --> D2
 ```
 
-**Pickup and one turn.** Both agent hosts hear the wake; the epoch compare-and-swap on the lease row
+**Pickup and one turn.** Both agent hosts hear the notification; the epoch compare-and-swap on the lease row
 lets exactly one win.
 
 ```mermaid
@@ -140,10 +151,9 @@ sequenceDiagram
   participant D as Sandbox daemon
 
   C->>API: v2.sessions.post(message)
-  API->>PG: insert inbox entry (inboxId 7)
-  API->>R: publish atlas:session-wake(session)
-  R-->>W1: wake
-  R-->>W2: wake
+  API->>PG: insert inbox entry (inboxId 7) + pg_notify(atlas_session_wake), one transaction
+  PG-->>W1: notification on commit
+  PG-->>W2: notification on commit
   par both try to claim
     W1->>PG: grant lease (epoch 4 to 5)
     PG-->>W1: won, epoch 5
@@ -151,7 +161,7 @@ sequenceDiagram
     W2->>PG: grant lease (epoch 4 to 5)
     PG-->>W2: CAS failed, drop it
   end
-  Note over W2,PG: A lost wake is caught by the 1-minute reconcile task instead
+  Note over W2,PG: A notification lost in a dropped connection is recovered by the resync on reconnect; a crashed holder by the 1-minute reconcile task
   W1->>PG: read log in pages, read inbox
   W1->>D: connect(session, epoch 5), or boot sandbox + upload daemon
   loop every 5 s while holding
@@ -180,18 +190,16 @@ sequenceDiagram
   participant Render
   participant W1 as Agent host 1 (old)
   participant PG as Postgres v2
-  participant R as Redis
   participant W2 as Agent host 2 (new)
   participant D as Sandbox daemon
 
   Note over W1,D: bash is running for key K at epoch 5
   Render->>W1: SIGTERM (deploy)
   W1->>W1: stop claiming, pause loops at the next step boundary
-  W1->>PG: revoke lease (epoch 5 to 6, no holder)
-  W1->>R: publish atlas:session-wake(session)
+  W1->>PG: revoke lease (epoch 5 to 6, no holder) + pg_notify, same transaction
   W1--xW1: exit
   Note over W1,PG: Any late write from W1 is refused as stale-epoch
-  R-->>W2: wake
+  PG-->>W2: notification
   W2->>PG: grant lease (epoch 6 to 7), read log
   W2->>D: connect(session, epoch 7)
   D--xW1: close the epoch-5 connection if still open
@@ -219,7 +227,7 @@ sequenceDiagram
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/protocol`             | New. Zod schemas only: agent host ⇄ daemon frames and the v2 API inputs. `wire` is not touched; it becomes `protocol` at cutover (0019)                                                                                                 |
 | `packages/host`                 | New, replaces 0019's `pod`. The agent host library: claiming and renewing leases, the per-thread record cache and per-event appends, inbox wake, running `agent`, the daemon client and the daemon-backed tool ports, the clean handoff |
-| `apps/agent-host`               | New. The Render service: plain Bun, composes `host` with the model adapters and builtin tools from `harness`. No Nest, no tRPC                                                                                                          |
+| `apps/agent-host`               | New. The Render service: plain Bun, composes `host` with the model adapters and builtin tools (copied from `harness` on 2026-11-04; the host imports no v1 code). No Nest, no tRPC                                                      |
 | `apps/daemon`                   | New. The in-sandbox daemon. Built into one JavaScript file that the agent host ships inside its own image and uploads to the sandbox                                                                                                    |
 | `apps/trigger`, `packages/jobs` | New (0022). trigger.dev app with one task, `v2-reconcile-holders` (point 3); its contract in `packages/jobs` (zod only)                                                                                                                 |
 | `apps/api`                      | Gains a `v2` tRPC namespace (point 9). No v1 route changes                                                                                                                                                                              |
@@ -261,20 +269,26 @@ OAuth refresh would gain a second home, which is the kind of fork v2 exists to r
 There is no separate scheduler. Claiming is part of the agent host; the periodic safety net is a
 trigger.dev task, because the agent host runs no timers of its own beyond its sessions' loops
 ([0022](../../decisions/0022-v2-background-jobs-in-apps-trigger.md)):
-- **Wake.** When the API posts to a v2 session's inbox, it publishes `atlas:session-wake` with the session
-  id on Redis. Every agent host below its capacity tries to `grant` the lease. The CAS on the epoch
-  lets exactly one win; the others drop it.
-- **Reconcile (in `apps/trigger`, not the agent host).** Redis pub/sub is fire-and-forget and a
-  crashed holder tells nobody, so a trigger.dev scheduled task, `v2-reconcile-holders`, runs every
-  minute (trigger.dev's finest schedule). It finds sessions with unconsumed inbox entries or an
-  unfinished turn and no live lease (one new store query, `sessionsNeedingHolder({ limit })`,
-  backed by an index) and republishes `atlas:session-wake` for each. It claims nothing itself; the agent
-  hosts claim as for any wake. Its contract lives in `packages/jobs`, its logic (the query) in
-  `packages/control`, so neither app imports the other. This makes slice 3 the first user of
-  `apps/trigger`, so slice 3 scaffolds it (own `trigger.config.ts`, own tier file with only
-  `DATABASE_URL` and `REDIS_URL`, own trigger.dev project) with this one task.
-- **What stays in the agent host** is what belongs to a session's loop: lease renewal, the
-  sandbox keep-alive, the idle rule's per-session deadline, and the stop poll during a turn.
+- **Wake (built 2026-11-04).** Posting to a session's inbox (message or stop), creating a session, and a
+  revoke that leaves work behind each call `pg_notify('atlas_session_wake', sessionId)` inside the write
+  transaction, so a notification exists only if the write committed. Every agent host `LISTEN`s on one
+  direct connection (`DATABASE_DIRECT_URL`). One below its capacity tries to `grant` the lease, and the CAS
+  on the epoch lets exactly one win; the others drop it. Every reconnect emits a resync: the host claims
+  `sessionsNeedingHolder` and each held session re-reads its inbox.
+- **Reconcile (in `apps/trigger`, not the agent host).** A crashed holder emits no event, so a trigger.dev
+  scheduled task, `reconcile-holders` (first named `v2-reconcile-holders`), runs every minute (trigger.dev's
+  finest schedule). It finds sessions with unconsumed inbox entries, an unfinished turn or an unprepared
+  workspace and no live lease (one store query, `sessionsNeedingHolder({ limit })`, backed by an index) and
+  notifies for each through `ControlPlane.wake`. It claims nothing itself; the agent hosts claim as for
+  any wake. Its contract lives in `packages/jobs`, its logic (the query) in `packages/control`, so
+  neither app imports the other. Slice 3 scaffolded `apps/trigger` (own `trigger.config.ts`, own tier file,
+  own trigger.dev project) with this one task; it needs only `DATABASE_URL`.
+- **Superseded 2026-11-04:** the first design published `atlas:session-wake` on Redis, from the API and from
+  the reconcile task. Pub/sub is fire-and-forget, and with Redis down no wake path existed, because
+  reconcile published through Redis too. See 0021, Amendments.
+- **What stays in the agent host** is what belongs to a session's loop: lease renewal, the sandbox
+  keep-alive and the idle rule's per-session deadline. The stop poll during a turn is gone (superseded
+  2026-11-04); a stop is a wake.
 - **Holding.** The holder renews every 5 s with a 30 s TTL. Lease times (`renewedAt`, expiry) use
   the database's clock (`now()` in the transaction), never a machine's own, so clock skew between
   hosts cannot shorten or stretch a lease. The lease now lives on the agent host, so
@@ -295,7 +309,7 @@ truth about who owns a session. trigger.dev runs bounded tasks (this project cap
 `apps/api/trigger.config.ts`) and checkpoints by freezing the process, which drops the daemon
 WebSocket; turns run p50 3.5 min and p90 32 min. trigger.dev keeps its v1 jobs (crons, sweeps)
 for session holding; v2's one periodic job, the reconcile pass, is a trigger.dev task (0022). The
-whole mechanism is three parts: the lease row (exists), a Redis wake message (latency), and the
+whole mechanism is three parts: the lease row (exists), a Postgres notification (latency; a Redis wake message in the first design, superseded 2026-11-04), and the
 one-minute reconcile task (safety net).
 
 ### 4. The record cache and append latency (~1 s)
@@ -323,10 +337,10 @@ cache is the simplest correct thing for a single holder.
 
 ### 5. An agent host restart is a clean handoff; a crash is a slower one
 
-| What happened to the agent host          | Who notices                                       | New holder starts                    | Lost                                   |
-| ---------------------------------------- | ------------------------------------------------- | ------------------------------------ | -------------------------------------- |
-| SIGTERM (deploy, Render restart)         | The agent host itself: revokes and publishes wake | ~1 s after it lets go                | Nothing; a step past 270 s is re-asked |
-| Crash, OOM, host lost, network partition | Nobody until the lease expires                    | ≤ ~90 s (30 s TTL + 1 min reconcile) | The in-flight model step (re-asked)    |
+| What happened to the agent host          | Who notices                                               | New holder starts                    | Lost                                   |
+| ---------------------------------------- | --------------------------------------------------------- | ------------------------------------ | -------------------------------------- |
+| SIGTERM (deploy, Render restart)         | The agent host itself: revokes, notifying if work remains | ~1 s after it lets go                | Nothing; a step past 270 s is re-asked |
+| Crash, OOM, host lost, network partition | Nobody until the lease expires                            | ≤ ~90 s (30 s TTL + 1 min reconcile) | The in-flight model step (re-asked)    |
 
 In both cases running tools keep running in the daemon and are collected (point 6), and every
 event already appended stays. A crashed agent host that comes back, or a partitioned one that never
@@ -344,7 +358,7 @@ On SIGTERM (Render deploy or restart; grace set to Render's maximum, 300 s):
    does not finish the turn; the turn's remaining steps run on the next holder. Most steps end
    long before the deadline; the deadline exists for long thinking. Past it the stream is
    aborted, the partial output is appended marked `aborted: 'handoff'`, and the next holder asks
-   again. PR 1 measures step duration from production `assistant-said` timestamps.
+   again. Appends after the abort get a 10 s grace past the drain deadline (0021, third amendment). PR 1 measures step duration from production `assistant-said` timestamps.
 5. Revoke every held lease (epoch + 1), then exit.
 
 Revoking is what makes this safe. After step 5, anything a leftover loop tries to write is refused
@@ -530,16 +544,17 @@ need no daemon. Dispatch recovery's v1 rule covers them.
 
 **Bad networks are the normal case, not an error path.**
 
-| Link                    | What goes wrong                       | What happens                                                                                                                                                                                                                                                      |
-| ----------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Agent host ⇄ daemon     | Drop, proxy restart, half-open socket | Ping every 10 s, dead after 3 missed. Reconnect with backoff and jitter (250 ms to 10 s, forever while holding). Calls keep running; on reconnect the agent host collects every open key                                                                          |
-| Agent host ⇄ daemon     | Output lost during the gap            | Output chunks carry a byte offset; the daemon keeps each running call's output on disk; the same holder resumes from the last offset it saw; a new holder after a crash re-reads the output from offset 0 off the daemon's disk, so nothing is missing or doubled |
-| Agent host ⇄ daemon     | Slow (high latency, low bandwidth)    | No call has a network timeout shorter than its own tool timeout; slowness delays, never fails. Large reads stream in chunks                                                                                                                                       |
-| Agent host ⇄ Postgres   | Blip, failover, slow query            | Appends and renewals retry with backoff inside the lease TTL. An append is idempotent by `(threadId, seq)` and hash, so a retry after an unknown outcome is safe. Past TTL − 5 s the agent host self-fences                                                       |
-| Agent host ⇄ Redis      | Down or a message lost                | Wake: the 1-minute reconcile task. Stop is not on Redis: the holder polls its inbox every 2 s while a turn runs. Live output: lost deltas only; clients recover from the record                                                                                   |
-| Agent host ⇄ API config | API slow or down                      | Cached credentials and settings are used until they expire; a model call that needs a fresh token waits and shows "waiting for credentials"                                                                                                                       |
-| Agent host ⇄ model      | Provider errors, stalls               | The existing retry machinery, with each retry deadline recorded through `OnceLedger` (point 8)                                                                                                                                                                    |
-| Daemon restarted        | Sandbox OOM, resume, upload           | New `bootId`; point 6's last row                                                                                                                                                                                                                                  |
+| Link                           | What goes wrong                       | What happens                                                                                                                                                                                                                                                      |
+| ------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent host ⇄ daemon            | Drop, proxy restart, half-open socket | Ping every 10 s, dead after 3 missed. Reconnect with backoff and jitter (250 ms to 10 s, forever while holding). Calls keep running; on reconnect the agent host collects every open key                                                                          |
+| Agent host ⇄ daemon            | Output lost during the gap            | Output chunks carry a byte offset; the daemon keeps each running call's output on disk; the same holder resumes from the last offset it saw; a new holder after a crash re-reads the output from offset 0 off the daemon's disk, so nothing is missing or doubled |
+| Agent host ⇄ daemon            | Slow (high latency, low bandwidth)    | No call has a network timeout shorter than its own tool timeout; slowness delays, never fails. Large reads stream in chunks                                                                                                                                       |
+| Agent host ⇄ Postgres          | Blip, failover, slow query            | Appends and renewals retry with backoff inside the lease TTL. An append is idempotent by `(threadId, seq)` and hash, so a retry after an unknown outcome is safe. Past TTL − 5 s the agent host self-fences                                                       |
+| Agent host ⇄ Postgres `LISTEN` | Connection dropped                    | Reconnect with capped backoff; every reconnect resyncs (claim `sessionsNeedingHolder`, re-read each held inbox), so a missed notification is recovered by an event, not a timer. The reconcile task covers a crashed holder                                       |
+| Agent host ⇄ Redis             | Down or a message lost                | Redis carries live frames only, so an outage loses live deltas and nothing else; clients recover from the record. Wakes and stops are Postgres notifications (superseded 2026-11-04: a reconcile-task wake and a 2 s stop poll)                                   |
+| Agent host ⇄ API config        | API slow or down                      | Cached credentials and settings are used until they expire; a model call that needs a fresh token waits and shows "waiting for credentials"                                                                                                                       |
+| Agent host ⇄ model             | Provider errors, stalls               | The existing retry machinery, with each retry deadline recorded through `OnceLedger` (point 8)                                                                                                                                                                    |
+| Daemon restarted               | Sandbox OOM, resume, upload           | New `bootId`; point 6's last row                                                                                                                                                                                                                                  |
 
 **The sandbox disk is one session.** The workspace clone and the session's files sit at the home
 root, with no `sessions/<id>/` level; each thread gets `threads/<threadId>/`. The sandbox is named
@@ -577,7 +592,7 @@ The PR delivery buffer uses the same port when the subscriptions plugin moves (s
 ### 9. The v2 API namespace and the toggle
 
 **The API gains `sessions.*` and `agentHost.*` tRPC procedures.** For slice 3, only what scripts and tests need:
-`sessions.create`, `sessions.list`, `sessions.post` (an inbox entry, then a Redis wake), `sessions.events`
+`sessions.create`, `sessions.list`, `sessions.post` (an inbox entry and a `pg_notify`, one transaction), `sessions.events`
 (a ranged read) and `sessions.status` (the lease and its liveness). The agent host's internal route
 is `agentHost.config` (point 2). Open to every signed-in user; each procedure checks the caller owns the session (decided 2026-11-03).
 
@@ -610,7 +625,7 @@ it:
 - **The watchdog** reads each box's `memory.events` and reports an OOM kill on the call's output
   stream. The agent sees "killed: out of memory" in the tool result, and the operator sees it in
   the transcript. The daemon kills nothing itself; the kernel does, inside `atlas-work`.
-- **Stop.** The API writes the stop to the inbox; the holder, polling every 2 s during a turn, aborts the
+- **Stop.** The API writes the stop to the inbox; the holder, woken by the notification (it polled every 2 s in the first design; superseded 2026-11-04), aborts the
   turn and sends `cancel` to the daemon, which kills the box.
 
 ### 11. Branch and PR tracking from git refs
@@ -734,29 +749,29 @@ throttle bandwidth, drop the connection, black-hole it (half-open: no FIN, no da
 connections for a while. Each row runs the scripted session and must end with the three
 invariants holding, the turn completed, and the user-visible states in the expected order.
 
-| #   | Fault                                                                       | Expected                                                                    |
-| --- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| F1  | 300 ms latency ± 200 ms jitter on agent host ⇄ daemon for the whole session | Completes; no call fails; slower only                                       |
-| F2  | 64 KB/s bandwidth while a tool streams 5 MB of output                       | Completes; output complete and in order                                     |
-| F3  | Daemon link dropped mid-bash, back in 3 s                                   | Reattach at the offset; output not doubled or missing                       |
-| F4  | Daemon link black-holed (half-open) for 40 s mid-bash                       | Detected in ≤ 30 s; reconnect; result collected                             |
-| F5  | Link flaps every 2 s for a minute                                           | Completes; one spawn per key                                                |
-| F6  | Postgres unreachable for 10 s mid-turn                                      | Appends retry; no lease loss; completes                                     |
-| F7  | Postgres unreachable for 45 s                                               | Agent host self-fences at 25 s; another agent host resumes; no double run   |
-| F8  | Append commits but the reply is lost                                        | Retry recognised as already committed; no fork                              |
-| F9  | Redis down for the whole session                                            | Wake by reconcile (≤ 60 s); stop by inbox poll (≤ 2 s) as always; completes |
-| F10 | SIGKILL the holder mid model stream *                                       | Resumed ≤ ~90 s; step re-asked; "Resuming" shown                            |
-| F11 | SIGKILL the holder mid bash *                                               | Bash survives; collected; run count 1                                       |
-| F12 | SIGTERM during a 5-minute bash *                                            | Handoff ~1 s; bash collected by the new holder                              |
-| F13 | SIGKILL the holder between `tool-dispatched` and `run`                      | New holder runs it once (same `bootId`)                                     |
-| F14 | SIGKILL the holder after bash ends, before the result is appended           | Result collected from the daemon's disk                                     |
-| F15 | SIGKILL the holder after the result is appended, before `ack`               | Only `ack`; nothing reruns                                                  |
-| F16 | Old holder partitioned (not killed) while the new holder takes over         | Old one self-fences; its writes and `run`s refused                          |
-| F17 | Kill the daemon mid bash                                                    | New `bootId`; bash reported interrupted; read-only calls rerun              |
-| F18 | Stop the sandbox mid turn (Vercel side) *                                   | Agent host resumes the sandbox, sees a new `bootId`, continues              |
-| F19 | Both agent hosts restarted at once (a deploy of both) *                     | Sessions resume when the first comes back; nothing lost                     |
-| F20 | Stop pressed during F3's outage                                             | Stop lands when the link returns, or via inbox ≤ 2 s; bash killed           |
-| F21 | Holder killed while waking a parked sandbox, model already streaming *      | New holder reuses the same sandbox; step re-asked; no tool ran              |
+| #   | Fault                                                                       | Expected                                                                                                            |
+| --- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| F1  | 300 ms latency ± 200 ms jitter on agent host ⇄ daemon for the whole session | Completes; no call fails; slower only                                                                               |
+| F2  | 64 KB/s bandwidth while a tool streams 5 MB of output                       | Completes; output complete and in order                                                                             |
+| F3  | Daemon link dropped mid-bash, back in 3 s                                   | Reattach at the offset; output not doubled or missing                                                               |
+| F4  | Daemon link black-holed (half-open) for 40 s mid-bash                       | Detected in ≤ 30 s; reconnect; result collected                                                                     |
+| F5  | Link flaps every 2 s for a minute                                           | Completes; one spawn per key                                                                                        |
+| F6  | Postgres unreachable for 10 s mid-turn                                      | Appends retry; no lease loss; completes                                                                             |
+| F7  | Postgres unreachable for 45 s                                               | Agent host self-fences at 25 s; another agent host resumes; no double run                                           |
+| F8  | Append commits but the reply is lost                                        | Retry recognised as already committed; no fork                                                                      |
+| F9  | Redis down for the whole session                                            | Unaffected: wakes and stops are Postgres notifications; only live frames are lost; completes (rewritten 2026-11-04) |
+| F10 | SIGKILL the holder mid model stream *                                       | Resumed ≤ ~90 s; step re-asked; "Resuming" shown                                                                    |
+| F11 | SIGKILL the holder mid bash *                                               | Bash survives; collected; run count 1                                                                               |
+| F12 | SIGTERM during a 5-minute bash *                                            | Handoff ~1 s; bash collected by the new holder                                                                      |
+| F13 | SIGKILL the holder between `tool-dispatched` and `run`                      | New holder runs it once (same `bootId`)                                                                             |
+| F14 | SIGKILL the holder after bash ends, before the result is appended           | Result collected from the daemon's disk                                                                             |
+| F15 | SIGKILL the holder after the result is appended, before `ack`               | Only `ack`; nothing reruns                                                                                          |
+| F16 | Old holder partitioned (not killed) while the new holder takes over         | Old one self-fences; its writes and `run`s refused                                                                  |
+| F17 | Kill the daemon mid bash                                                    | New `bootId`; bash reported interrupted; read-only calls rerun                                                      |
+| F18 | Stop the sandbox mid turn (Vercel side) *                                   | Agent host resumes the sandbox, sees a new `bootId`, continues                                                      |
+| F19 | Both agent hosts restarted at once (a deploy of both) *                     | Sessions resume when the first comes back; nothing lost                                                             |
+| F20 | Stop pressed during F3's outage                                             | Stop lands when the link returns, or at once via the inbox wake; bash killed                                        |
+| F21 | Holder killed while waking a parked sandbox, model already streaming *      | New holder reuses the same sandbox; step re-asked; no tool ran                                                      |
 
 ## Delivery
 
@@ -769,6 +784,9 @@ Four PRs, each green with v1 unchanged. I ask before each push, PR and merge.
    the Render service is created.
 4. The live exit tests, the docs (roadmap Current state, 0021 amended for the rename deferral and
    the toggle, architecture §5 updated: the agent host appends to Postgres directly) and the handoff.
+
+Status 2026-11-04: PRs 1 to 3 and most of 4 are merged. Left in step 4: the live exit tests 8, 9 and 10 and
+the starred fault rows on Render, then marking the slice done in the roadmap.
 
 Release note: PR 3 adds API routes the released serve never calls, so it needs no release-forcing
 title (CLAUDE.md, "A change the released serve or TUI cannot talk to").

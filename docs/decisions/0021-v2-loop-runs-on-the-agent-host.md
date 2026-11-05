@@ -112,3 +112,47 @@ it, while an Atlas tool runs in the sandbox and outlives the agent host that sta
   the rename is fixed in the slice 3 spec.
 - Nothing is built by this record. The slice 3 spec is written and approved before building
   starts.
+
+## Amendments (2026-11-04)
+
+Slice 3 changed two statements above.
+
+**Wakes use Postgres `LISTEN`/`NOTIFY`, not Redis pub/sub.** "Input wake and live deltas go through the
+CP" said the holder is notified through Redis. The inbox write, a session create and a revoke that still
+has work now call `pg_notify` inside their own transaction; agent hosts `LISTEN` on a direct connection
+and resync on every reconnect. Redis carries live frames only. Why:
+- The operator wanted no polling and an instant wake. Redis pub/sub is fire-and-forget, so it needed a
+  poll or a periodic sweep behind it.
+- With Redis down there was no wake path at all: the reconcile task also published through Redis. A
+  Postgres notification needs nothing else the write does not already need, so a Redis outage no longer
+  stops wakes.
+- A notification is delivered only if the write commits, so no host wakes for a rolled-back post.
+
+The reconcile task stays as the safety net for a crashed holder, which emits no event, and notifies through
+the control plane. This also amends [0022](0022-v2-background-jobs-in-apps-trigger.md)'s "no timers beyond
+session loops": the agent host's only timers are lease, daemon and idle-deadline ones, and none looks for
+work.
+
+**The agent host owns its runtime code and imports nothing from v1.** The decision said the host runs the
+`agent` loop; in practice it also pulled tools, the model port, prompt fragments and sandbox helpers from
+`harness` and `wire`. v1 and v2 now share no logic: v1 has its own copy of the loop
+(`packages/agent-v1`), `packages/agent` is v2-only, and the pieces the host used were copied into
+`apps/agent-host` and trimmed to what v2 uses. `scripts/check-package-split.ts`, part of `bun run lint`,
+fails on an import across the split. Its allowlist of known offenders is empty and may only shrink. v1 is
+deleted at cutover, not refactored.
+
+**Partial output on a handoff is kept, not discarded.** The decision said a model stream aborted at the
+drain deadline has its partial output discarded and the new holder asks again. The guarantee table above
+already said "kept"; the code keeps it:
+- At the drain deadline, `HeldSession.handoff` first detaches running daemon calls
+  (`remoteCalls.handoff()`), then aborts the turn with reason `'handoff'`. The turn ends as
+  `HandoffPaused`, never `run-failed`.
+- The model port returns the step accumulated so far on abort instead of throwing. The loop appends it as
+  an `assistant-said` with `interrupted: true`, and while the host is draining the record adapter marks it
+  `aborted: 'handoff'` (`abortedOnHandoff`). The next holder resumes from the record and asks again.
+- The append has a grace past the deadline. Its retry limit is
+  `min(drainDeadline + 10 s, fenceDeadline)` (`LeaseRenewal.appendDeadline`,
+  `DRAIN_APPEND_GRACE_MS = 10_000`), where `fenceDeadline` is the last successful renewal plus the TTL minus
+  the fence margin. Before this, the limit was the drain deadline itself, which is when the abort fires, so
+  every append after it was refused, tripped lease loss and dropped the session without a revoke, leaving
+  the lease to expire on its TTL.

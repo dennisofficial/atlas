@@ -131,12 +131,12 @@ contract. §7 gives the package shape.
 
 ## 5. Protocol: one, three directions
 
-| Direction                                 | Carries                                                                                                                                                                 | Mechanism                                            |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| **Client ⇄ CP**                           | Commands and queries; one ordered session stream per open session (`{log suffix \| view updates}` with a cursor `(epoch, seq)`); the sidebar as one stream of view rows | tRPC plus SSE                                        |
-| **Pod → CP**                              | `append(epoch, events[])` (batched, contiguous, hash-chained); `lease.renew`; observation reports                                                                       | HTTP                                                 |
-| **CP → pod**                              | Inbox entries and lease revocations                                                                                                                                     | An inbox stream (SSE) held open by the pod           |
-| **Client ⇄ pod** (direct, ephemeral only) | Deltas, PTY, file tree, interrupt hint                                                                                                                                  | WebSocket, authorized by a CP-minted ticket as today |
+| Direction                                 | Carries                                                                                                                                                                                                                           | Mechanism                                                                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Client ⇄ CP**                           | Commands and queries; one ordered session stream per open session (`{log suffix \| view updates}` with a cursor `(epoch, seq)`); the sidebar as one stream of view rows                                                           | tRPC plus SSE                                                                                                                       |
+| **Pod → CP**                              | `append(epoch, event)`, one transaction per event, hash-chained; `lease.renew`; observation reports. The agent host holds the control library, so these are Postgres writes, not HTTP; the API is called only for v1-owned config | Postgres, direct                                                                                                                    |
+| **CP → pod**                              | Inbox entries and lease revocations                                                                                                                                                                                               | A `pg_notify` wake in the write transaction; the agent host `LISTEN`s and reads the inbox. No stream is held open (wake path below) |
+| **Client ⇄ pod** (direct, ephemeral only) | Deltas, PTY, file tree, interrupt hint                                                                                                                                                                                            | WebSocket, authorized by a CP-minted ticket as today                                                                                |
 - Streams reconnect with cursors. Vercel serverless caps SSE at about 240 s, so reconnect is the
   normal case, not an error path.
 - Version negotiation carries over from [0017](../decisions/0017-wire-protocol-skew.md). The skew
@@ -144,6 +144,23 @@ contract. §7 gives the package shape.
 - v2 endpoints live in their own namespace, separate from the v1 routes (D6).
 - Cursor spaces stay distinct: the durable `(epoch, seq)`, and any transport replay cursor. v1
   conflates three (see [wire-surface](research/wire-surface.md)); v2 does not.
+
+**The wake path, as built in slice 3.** The agent host is the holder, so the CP-to-holder direction is a
+wake, not a stream the pod holds open:
+- A wake is written in the same transaction as what it announces. Posting an inbox entry (message or
+  stop), creating a session, and revoking a lease that still has work each call `pg_notify` on one
+  channel (`atlas_session_wake`, payload the session id) inside the write. Postgres delivers the
+  notification only on commit, so a rolled-back write wakes nobody.
+- Each agent host `LISTEN`s on one direct Postgres connection (`DATABASE_DIRECT_URL`; PgBouncer's
+  transaction mode cannot `LISTEN`). A wake for a held session re-runs that session's loop; a wake for an
+  unheld one tries to claim it.
+- A notification is lost while the connection is down, so every (re)connect emits a resync: the host
+  claims `sessionsNeedingHolder` and every held session re-reads its inbox. The recovery is an event, not
+  a timer.
+- `reconcile-holders` (trigger.dev, every minute) is the crash net only. A crashed holder emits no event,
+  so the task lists sessions that need a holder and notifies for them through `ControlPlane.wake`.
+- Redis carries live frames only (token deltas, tool output). Nothing durable and no wake depends on it,
+  so an outage costs live streaming and nothing else.
 
 ## 6. Where each piece of state moves
 
@@ -402,6 +419,38 @@ these are the parts of Kubernetes' design that fit:
 
 Not adopted: running Kubernetes itself. Vercel Sandbox is the runtime; v2 copies the control
 patterns, not the platform.
+
+**The held-session loop, as built in slice 3.** An agent host runs one reactive loop per session it holds
+(`packages/host/src/holder`). Wakes, a resync, a settled turn, a prepare result, the idle deadline and a
+failed read all call `Reconciler.request()`. It runs one step at a time and coalesces requests that arrive
+meanwhile. A step is three moves:
+1. Snapshot: read the inbox once, fold the log into the workspace state, and note whether a turn runs, a
+   stop is pending, a message is pending and the idle deadline has passed.
+2. Decide: a pure function in `core` (`decideHeldAction`) maps the snapshot to exactly one action: abort the
+   turn, consume a stop, prepare the workspace, start a turn, release, or wait.
+3. Act, then wait for the next event.
+
+Nothing in the loop looks for work on a timer. The timers that remain each guard something other than
+work: lease renewal and the self-fence (liveness), the daemon ping, one idle-release deadline armed only
+while idle, the backoff after a failed read, and the handoff deadline during a drain. Model retry backoff
+is not an in-memory timer: it is a recorded deadline (0021).
+
+**Session lifecycle.**
+- **New session: prepare, then the first turn.** Creating a session wakes a host, which claims the lease,
+  wakes the sandbox and runs the prepare ceremony: wait for the daemon, clone the repositories, run the
+  project's setup script. Status is `preparing`, then `idle` on success (`workspace-prepared` is appended)
+  or `setup-failed` with a reason (`workspace-prepare-failed{reason, inboxHead}`). A failed prepare starts
+  no model turn. Messages at or below the failure's `inboxHead` are covered: they do not retry the
+  prepare, keep their place in the inbox, and become the first turn's input once a later prepare succeeds.
+  A newer message retries on a fresh runtime. Each clone step leaves a marker, so a retry redoes only what
+  is missing.
+- **Parked session: the model starts at once.** Resuming a session whose sandbox is stopped does not wait
+  for the sandbox. The model call begins as soon as the record is open; a tool call waits for the daemon
+  link, and the acknowledgement of earlier tool results runs in the background.
+- **Deploy drain keeps idle sessions parked.** On SIGTERM a host hands off the sessions that have work: a
+  running turn, a resumable thread, an actionable inbox entry, or a workspace that is unprepared, preparing
+  or failed with a retry pending. An idle, prepared session is released without a wake. The next message
+  wakes it through `NOTIFY`, so a deploy no longer wakes every sandbox and restarts every idle clock.
 
 ## 14. Archive is read-only, and an archived session costs nothing
 
