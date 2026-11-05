@@ -35,8 +35,6 @@ import { ShellRegistryPort } from '../shells/shell-registry'
 import { atlasDirectory } from '../store/paths'
 import { SessionAuthorityPort } from '../store/sessions/meta'
 import { ThreadStorePort } from '../store/thread-store'
-import { DiagramRepairPort } from '../diagrams/diagram-repair-port'
-import { LocalDiagramRepair } from '../diagrams/local-diagram-repair'
 import { LocalCompaction } from '../store/local-compaction'
 import { LocalRotation, RotationPort, carryOverSummariser } from '../rotation'
 import { LateRotation } from './rotation-binding'
@@ -46,6 +44,7 @@ import { bindBrowser } from './compose-browser'
 import { bindSessionAgentTypes } from './compose-agent-types'
 import { bindCloudState } from './cloud-state-binding'
 import { bindCredentials } from './compose-credentials'
+import { bindDiagramRepair } from './compose-diagram-repair'
 import {
   bindProcessServices,
   claimLaunchWorkspace,
@@ -288,13 +287,12 @@ export async function composeHarness<
     useValue: lateRotation,
   })
 
-  container.register(registeredPortToken(DiagramRepairPort), {
-    useValue: new LocalDiagramRepair({
-      log,
-      model: utility.sessionModel,
-      modelId: () => model.choice().ref.modelId,
-      runId: () => ids.nextRunId(),
-    }),
+  bindDiagramRepair({
+    container,
+    log,
+    model: utility.sessionModel,
+    modelId: () => model.choice().ref.modelId,
+    runId: () => ids.nextRunId(),
   })
 
   container.register(HookMishapReporterToken, {
