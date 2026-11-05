@@ -75,7 +75,7 @@ export function bindServePull(args: {
     roster?: ServeApp['roster'] | undefined
     agents?: ServeApp['agents'] | undefined
   }
-  driver: Pick<ServeTurnDriver, 'run' | 'busy'>
+  driver: Pick<ServeTurnDriver, 'run' | 'busy' | 'stoppedAt'>
   log: ServeLog
   hydrate?: ((threadId: ThreadId) => Promise<unknown>) | undefined
   subscribe?: PullSubscribe | undefined
@@ -104,7 +104,7 @@ export function bindServePull(args: {
       await hydrate(threadId)
       await app.log.refresh({ threadId })
       const events = await app.log.readOwn({ threadId })
-      if (awaitsPulledInput(events) && !driver.busy())
+      if (awaitsPulledInput(events, await driver.stoppedAt()) && !driver.busy())
         driver.run({ resume: false, onlyIfIdle: true })
       // A message appended to a family (teammate) thread ticks the pod root's stream, not the
       // child's — the watch is root-scoped — so a tick sweeps the family for unanswered input.

@@ -62,4 +62,16 @@ describe('awaitsPulledInput', () => {
 
     expect(awaitsPulledInput(events)).toBe(true)
   })
+
+  it('is false when the operator stopped at the unanswered message', () => {
+    const events = eventsFrom([said('go')])
+
+    expect(awaitsPulledInput(events, events[0]?.id)).toBe(false)
+  })
+
+  it('is true for a message newer than the one the operator stopped at', () => {
+    const events = eventsFrom([said('go'), said('again')])
+
+    expect(awaitsPulledInput(events, events[0]?.id)).toBe(true)
+  })
 })

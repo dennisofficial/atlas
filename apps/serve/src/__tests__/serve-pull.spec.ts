@@ -9,6 +9,7 @@ import {
   toRunId,
   toThreadId,
   type Event,
+  type EventId,
   type EventDraft,
 } from '@dltech/atlas-core'
 
@@ -54,7 +55,12 @@ const settle = async (): Promise<void> => {
 }
 
 const setup = (
-  args: { tail?: Event[]; busy?: boolean; env?: Record<string, string | undefined> } = {},
+  args: {
+    tail?: Event[]
+    busy?: boolean
+    stoppedAt?: () => Promise<EventId | undefined>
+    env?: Record<string, string | undefined>
+  } = {},
 ) => {
   const runs: unknown[] = []
   const lines: ServeLogLine[] = []
@@ -79,6 +85,7 @@ const setup = (
         runs.push(options)
       },
       busy: () => args.busy === true,
+      stoppedAt: args.stoppedAt ?? (async () => undefined),
     },
     log: (line) => lines.push(line),
     hydrate: () => {
@@ -158,6 +165,22 @@ describe('bindServePull', () => {
     pull.tick()
     await settle()
     expect(pull.runs).toEqual([])
+  })
+
+  it('does not rerun a turn stopped before the model produced anything', async () => {
+    const tail = [eventOf({ seq: 1, type: 'user-said' })]
+    const pull = setup({ tail, stoppedAt: async () => tail[0]?.id })
+    pull.tick()
+    await settle()
+    expect(pull.runs).toEqual([])
+  })
+
+  it('runs for a message sent after the stop', async () => {
+    const tail = [eventOf({ seq: 1, type: 'user-said' }), eventOf({ seq: 2, type: 'user-said' })]
+    const pull = setup({ tail, stoppedAt: async () => tail[0]?.id })
+    pull.tick()
+    await settle()
+    expect(pull.runs).toEqual([{ resume: false, onlyIfIdle: true }])
   })
 
   it('does not run while a turn is in flight', async () => {
@@ -273,7 +296,7 @@ describe('bindServePull', () => {
           },
         },
       },
-      driver: { run: () => undefined, busy: () => false },
+      driver: { run: () => undefined, busy: () => false, stoppedAt: async () => undefined },
       log: () => undefined,
       hydrate: async () => undefined,
       subscribe: ({ onTick }) => {

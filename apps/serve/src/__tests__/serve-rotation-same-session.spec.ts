@@ -44,6 +44,7 @@ const recordingDriver = (runs: (TurnRunOptions | undefined)[]): ServeTurnDriver 
   },
   sayOrRun: () => false,
   interrupt: noop,
+  stoppedAt: async () => undefined,
   dismissFailure: async () => undefined,
   pause: noop,
   resume: noop,
