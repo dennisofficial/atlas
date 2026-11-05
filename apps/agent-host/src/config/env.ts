@@ -11,7 +11,6 @@ export type AgentHostEnv = {
   databaseUrl: string
   databaseDirectUrl: string
   redisUrl: string
-  agentHostToken: string
   daemonSecret: string
   secretsEncryptionKey: string
   apiOrigin: string
@@ -54,7 +53,6 @@ export const readAgentHostEnv = (
   const databaseUrl = take(env, 'DATABASE_URL')
   const databaseDirectUrl = take(env, 'DATABASE_DIRECT_URL')
   const redisUrl = take(env, 'REDIS_URL')
-  const agentHostToken = take(env, 'AGENT_HOST_TOKEN')
   const daemonSecret = take(env, 'DAEMON_SECRET')
   const secretsEncryptionKey = take(env, 'SECRETS_ENCRYPTION_KEY')
   const apiOrigin = take(env, 'ATLAS_API_ORIGIN')
@@ -62,7 +60,6 @@ export const readAgentHostEnv = (
     ['DATABASE_URL', databaseUrl],
     ['DATABASE_DIRECT_URL', databaseDirectUrl],
     ['REDIS_URL', redisUrl],
-    ['AGENT_HOST_TOKEN', agentHostToken],
     ['DAEMON_SECRET', daemonSecret],
     ['SECRETS_ENCRYPTION_KEY', secretsEncryptionKey],
     ['ATLAS_API_ORIGIN', apiOrigin],
@@ -73,7 +70,6 @@ export const readAgentHostEnv = (
     databaseUrl: databaseUrl as string,
     databaseDirectUrl: databaseDirectUrl as string,
     redisUrl: redisUrl as string,
-    agentHostToken: agentHostToken as string,
     daemonSecret: daemonSecret as string,
     secretsEncryptionKey: secretsEncryptionKey as string,
     apiOrigin: apiOrigin as string,
