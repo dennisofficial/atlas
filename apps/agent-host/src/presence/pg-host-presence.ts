@@ -127,6 +127,13 @@ export const createPgHostPresence = (args: {
       }
     },
 
+    async abandon(hostId) {
+      const client = live.get(hostId)
+      if (client === undefined) return
+      await client.end().catch(() => undefined)
+      handleLost({ hostId, client })
+    },
+
     async close() {
       const closing = [...live]
       live.clear()

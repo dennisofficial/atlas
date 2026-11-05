@@ -4,6 +4,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { HostBus, HostPresence, HostTimers, SessionRuntimeFactory } from './ports'
 import { HeldSession, type HeldSessionDeps } from './held-session'
+import { HolderPresence } from './holder-presence'
 import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
 import { StartBackoff } from './start-backoff'
 
@@ -29,8 +30,7 @@ const DEFAULTS = {
 } as const
 
 export class SessionHolder {
-  private readonly presence: HostPresence
-  private hostId: number | undefined
+  private readonly presence: HolderPresence
   private readonly plane: ControlPlane
   private readonly bus: HostBus
   private readonly timers: HostTimers
@@ -51,7 +51,13 @@ export class SessionHolder {
   private draining = false
 
   constructor(args: SessionHolderArgs) {
-    this.presence = args.presence
+    this.presence = new HolderPresence({
+      presence: args.presence,
+      timers: args.timers,
+      log: args.log,
+      onLost: (hostId) => this.handlePresenceLost(hostId),
+      onRegistered: () => void this.onResync(),
+    })
     this.plane = args.plane
     this.bus = args.bus
     this.timers = args.timers
@@ -68,7 +74,7 @@ export class SessionHolder {
   }
 
   async start(): Promise<void> {
-    this.hostId = await this.presence.register()
+    await this.presence.start()
     this.unsubWake = this.bus.onWake((sessionId) => {
       this.onWake(sessionId)
     })
@@ -81,6 +87,7 @@ export class SessionHolder {
     this.draining = true
     this.unsubWake?.()
     this.unsubResync?.()
+    this.presence.stop()
     this.cancelResyncRetry()
     this.startBackoff.cancelAll()
     const sessions = [...this.held.values()]
@@ -106,9 +113,21 @@ export class SessionHolder {
     this.draining = true
     this.unsubWake?.()
     this.unsubResync?.()
+    this.presence.stop()
     this.cancelResyncRetry()
     this.startBackoff.cancelAll()
     for (const session of this.held.values()) session.discard()
+  }
+
+  private handlePresenceLost(hostId: number): void {
+    this.log?.error({
+      source: 'holder.presence',
+      message: `host presence ${hostId} was lost; dropping ${this.held.size} held sessions`,
+      data: { hostId, held: this.held.size },
+    })
+    const sessions = [...this.held.values()]
+    this.held.clear()
+    for (const session of sessions) session.loseLease()
   }
 
   private onWake(sessionId: string): void {
@@ -166,11 +185,12 @@ export class SessionHolder {
     let claimed: Lease | undefined
     try {
       const claimStartedAt = this.timers.now()
-      if (this.hostId === undefined) return
-      const claim = await this.plane.claim({ sessionId, hostId: this.hostId })
+      const hostId = this.presence.current()
+      if (hostId === undefined) return
+      const claim = await this.plane.claim({ sessionId, hostId })
       if (!claim.ok) return
       claimed = claim.lease
-      if (this.draining) {
+      if (this.draining || this.presence.current() !== hostId) {
         await this.plane
           .revoke({ sessionId, wantsHolder: true, epoch: claim.lease.epoch })
           .catch(() => undefined)
@@ -245,6 +265,9 @@ export class SessionHolder {
       idleMinutes: this.idleMinutes,
       runtimeFor: this.runtimes,
       ...(args.onDrop === undefined ? {} : { onDrop: args.onDrop }),
+      onAppendExhausted: () => {
+        this.presence.abandon().catch(() => undefined)
+      },
       log: this.log,
     }
   }

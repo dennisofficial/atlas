@@ -66,6 +66,7 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
     label: 'host-a',
     daemonUrl: daemon.url,
     dbProxy: 'own',
+    directPresence: true,
     scripts: {
       [sessionId]: [
         {

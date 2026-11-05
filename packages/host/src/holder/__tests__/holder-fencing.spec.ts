@@ -26,26 +26,30 @@ describe('SessionHolder append retry deadline', () => {
 
     const plane = a.plane
     const originalAppend = plane.append.bind(plane)
-    let threwAppend = true
-    plane.append = (async (params: Parameters<typeof plane.append>[0]) => {
-      if (threwAppend) throw new Error('store unreachable')
-      return originalAppend(params)
+    plane.append = (async () => {
+      throw new Error('store unreachable')
     }) as typeof plane.append
+    const oldEpoch = (await plane.currentLease({ sessionId: SESSION })).lease.epoch
+    const abandoned: number[] = []
+    const originalAbandon = a.presence.abandon.bind(a.presence)
+    a.presence.abandon = async (hostId) => {
+      abandoned.push(hostId)
+      plane.append = originalAppend
+      await originalAbandon(hostId)
+    }
 
     const seqBefore = (await a.events()).length
-    const dropped = await flushUntil({
-      check: () => a.holder.heldIds().length === 0,
+    const gaveUp = await flushUntil({
+      check: () => abandoned.length > 0,
       clock: a.clock,
       advanceMs: 500,
       attempts: 3000,
     })
-    expect(dropped).toBe(true)
-
-    threwAppend = false
+    expect(gaveUp).toBe(true)
     a.clock.advance(10_000)
     await a.flush()
-    expect((await a.events()).length).toBe(seqBefore)
-    plane.append = originalAppend
+    const landed = (await a.events()).filter((event) => event.epoch === oldEpoch)
+    expect(landed.length).toBe(seqBefore)
   }, 15_000)
 })
 

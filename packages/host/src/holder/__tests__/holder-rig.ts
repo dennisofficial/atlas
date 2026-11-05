@@ -57,6 +57,7 @@ export const makeRig = async (args: {
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
   beforeRuntime?: (() => Promise<void>) | undefined
+  beforeRegister?: (() => Promise<void>) | undefined
   log?: LogPort | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
@@ -67,6 +68,7 @@ export const makeRig = async (args: {
   const presence = {
     ...memoryPresence,
     register: async () => {
+      await args.beforeRegister?.()
       registered = await memoryPresence.register()
       return registered
     },
@@ -108,7 +110,7 @@ export const makeRig = async (args: {
   return {
     plane,
     store,
-    presence: memoryPresence,
+    presence,
     hostId: () => {
       if (registered === undefined) throw new Error('the rig holder has not started')
       return registered

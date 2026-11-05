@@ -10,6 +10,12 @@ export const createMemoryHostPresence = (args: {
   const live = new Set<number>()
   const listeners = new Set<(hostId: number) => void>()
 
+  const loseOne = (hostId: number): void => {
+    if (!live.delete(hostId)) return
+    args.store.markHostAbsent(hostId)
+    for (const listener of [...listeners]) listener(hostId)
+  }
+
   return {
     async register() {
       const hostId = args.store.nextHostId()
@@ -30,13 +36,12 @@ export const createMemoryHostPresence = (args: {
       live.clear()
     },
 
+    async abandon(hostId) {
+      loseOne(hostId)
+    },
+
     lose() {
-      const lost = [...live]
-      live.clear()
-      for (const hostId of lost) {
-        args.store.markHostAbsent(hostId)
-        for (const listener of [...listeners]) listener(hostId)
-      }
+      for (const hostId of [...live]) loseOne(hostId)
     },
   }
 }

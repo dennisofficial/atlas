@@ -61,6 +61,7 @@ export type FaultRig = {
     daemonProxy?: 'shared' | 'own'
     redisUrl?: string
     firstChunkFile?: string
+    directPresence?: boolean
   }): Promise<HostProcess>
   stop(): Promise<void>
 }
@@ -181,6 +182,7 @@ export const startRig = async (args: {
       daemonProxy: daemonProxyMode,
       redisUrl,
       firstChunkFile,
+      directPresence,
     }) {
       const dir = mkdtempSync(join(tmpdir(), `atlas-fault-rig-host-${label}-`))
       closers.push(async () => {
@@ -217,7 +219,8 @@ export const startRig = async (args: {
           ATLAS_HOME: join(dir, 'atlas-home'),
           DATABASE_URL: databaseUrl(),
           DATABASE_DIRECT_URL: args.databaseUrl,
-          PRESENCE_DATABASE_URL: ownProxy === undefined ? args.databaseUrl : databaseUrl(),
+          PRESENCE_DATABASE_URL:
+            ownProxy === undefined || directPresence === true ? args.databaseUrl : databaseUrl(),
           REDIS_URL: redisUrl ?? args.redisUrl,
           HOLDER_ID: label,
           DAEMON_URL: ownDaemon?.url ?? daemonUrl,
