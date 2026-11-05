@@ -795,8 +795,9 @@ that keep-alive never renewed a sandbox and that status stayed `thinking` after 
 F12 in production: the drain deadline is 270 s, so a holder finishes a running call before handing off rather
 than handing off a live call after ~1 s (that path is the local F12 spec with `drainMs: 500`).
 
-Follow-up, not blocking: a bash interrupted by a sandbox restart reaches the model as `Exit code: 1`; it
-should say the call was interrupted by a restart, as the OOM case now does.
+A bash interrupted by a sandbox restart reached the model with the right "interrupted by a process restart"
+message (context assembly reads `error` first), but the stored result also kept the tool's `Exit code: 1` as
+`modelText`, which the loop detector reads; #1897 drops it.
 
 Release note: PR 3 adds API routes the released serve never calls, so it needs no release-forcing
 title (CLAUDE.md, "A change the released serve or TUI cannot talk to").
