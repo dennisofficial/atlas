@@ -53,9 +53,9 @@ flowchart LR
   subgraph clients
     W[web / Mac<br/>packages/client]
   end
-  subgraph host[agent.byatlas.io, ≥ 2 instances]
-    S1[agent host #1<br/>loop + stream module]
-    S2[agent host #2<br/>loop + stream module]
+  subgraph host[agent.byatlas.io, Render web service]
+    S1[agent host<br/>loop + stream module]
+    S2[next instance during a deploy<br/>or when scaled out]
   end
   API[API on Vercel<br/>tRPC: commands, paging, blobs]
   PG[(Postgres<br/>v2 log + inbox)]
@@ -397,9 +397,15 @@ subscription); per-session state is `have[block]` lengths and the closed key, no
   the module, not the protocol.
 - **Statelessness.** A node holds sockets and cursors, nothing durable. Any node serves any client,
   so Render's load balancer needs no affinity. At least two instances so a deploy is invisible.
-- **Deploy.** On SIGTERM the stream module stops accepting, sends `going-away` and closes 1001 at
-  once, while the loop drains its leases (up to 270 s). Clients reconnect to another instance and
-  resume by seq; they never wait for the drain.
+- **Instances.** One instance to start (operator, 2026-11-05: the loop mostly waits on HTTP; watch
+  CPU, memory and event-loop lag and scale out when they say so). Nothing in the design assumes one
+  instance, so scaling out is a setting.
+- **Deploy.** Render's zero-downtime deploy starts the new instance, moves incoming traffic to it,
+  then sends SIGTERM to the old one 60 s later (shutdown delay up to 300 s; the service has 300). On
+  SIGTERM the old instance's stream module sends `going-away` and closes 1001 at once, so clients
+  reconnect to the new instance and resume by seq; its loop drains its leases (up to 270 s) and the
+  new instance claims each session as it is released. A live deploy-mid-turn test proves this on one
+  instance before v2 carries real work.
 - **Connections to Postgres.** Per node: one **direct** connection for `LISTEN`
   (`DATABASE_DIRECT_URL`; PgBouncer transaction mode cannot `LISTEN`) and a small read pool of ≤ 4 on
   the pooled URL (reads are plain queries). Production has `max_connections` 50 and the agent hosts
