@@ -1,4 +1,5 @@
 import {
+  failedCheckConclusionLabel,
   failedCheckLogCommand,
   type PrFailedCheck,
   type PrFailedCheckAnnotation,
@@ -13,8 +14,10 @@ const indented = (text: string): string => text.split('\n').join('\n    ')
 
 const headOf = (check: PrFailedCheck): string => {
   const app = check.app === undefined ? '' : ` (${check.app})`
+  const label = failedCheckConclusionLabel(check)
+  const conclusion = label === undefined ? '' : ` [${label}]`
   const url = check.url === undefined ? '' : ` ${check.url}`
-  return `- ${check.name}${app}${url}`
+  return `- ${check.name}${app}${conclusion}${url}`
 }
 
 const detailOf = (check: PrFailedCheck): string | undefined => {

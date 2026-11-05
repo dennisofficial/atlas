@@ -104,11 +104,15 @@ export class GithubDeliveryChecks {
         deferred.push(prNumber)
         continue
       }
+      const restHead = rest.kind === 'filled' ? rest.fields.headSha : headSha
+      const restChecks =
+        rest.kind === 'filled' && rest.checks !== null
+          ? await this.withAnnotations({ repoFullName, headSha: restHead, checks: rest.checks })
+          : null
       const write = await db.transaction(async (tx) => {
-        const restHead = rest.kind === 'filled' ? rest.fields.headSha : headSha
         await lockCommit({ tx, repoFullName, headSha: restHead })
-        if (rest.kind === 'filled' && rest.checks !== null) {
-          await recordCommitChecks({ tx, repoFullName, headSha: restHead, checks: rest.checks })
+        if (restChecks !== null) {
+          await recordCommitChecks({ tx, repoFullName, headSha: restHead, checks: restChecks })
         }
         const tally = await commitChecksTally({ tx, repoFullName, headSha: restHead })
         const fields =
@@ -125,6 +129,18 @@ export class GithubDeliveryChecks {
     if (deferred.length > 0) {
       throw new GithubDeliveryFillDeferred({ repoFullName, prNumbers: deferred })
     }
+  }
+
+  private withAnnotations(args: {
+    repoFullName: string
+    headSha: string
+    checks: readonly CommitCheckInput[]
+  }): Promise<CommitCheckInput[]> {
+    return Promise.all(
+      args.checks.map((check) =>
+        this.annotations.attach({ repoFullName: args.repoFullName, headSha: args.headSha, check }),
+      ),
+    )
   }
 }
 

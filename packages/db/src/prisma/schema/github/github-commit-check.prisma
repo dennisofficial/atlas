@@ -6,6 +6,7 @@ model GithubCommitCheck {
   name            String?
   startedAt       String?
   outcome         String
+  conclusion      String?
   appSlug         String?
   detailsUrl      String?
   title           String?

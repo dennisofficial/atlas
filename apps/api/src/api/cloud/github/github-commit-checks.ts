@@ -27,6 +27,7 @@ export type CommitCheckInput = {
   outcome: ECheckOutcome
   sourceUpdatedAt: Date
   isRun: boolean
+  conclusion?: string | null
   appSlug?: string | null
   detailsUrl?: string | null
   title?: string | null
@@ -74,6 +75,7 @@ export function checkRunInputOf(run: CheckRunShape): CommitCheckInput {
     }),
     sourceUpdatedAt: timeOf(run.completed_at) ?? timeOf(run.started_at) ?? new Date(),
     isRun: true,
+    conclusion: run.conclusion?.toLowerCase() ?? null,
     appSlug: run.app?.slug ?? null,
     detailsUrl: run.html_url ?? null,
     title: clipCheckText(run.output?.title) ?? null,
@@ -166,6 +168,7 @@ export async function recordCommitChecks(args: {
         startedAt: check.startedAt,
         outcome: check.outcome,
         sourceUpdatedAt: check.sourceUpdatedAt,
+        conclusion: check.conclusion ?? null,
         appSlug: check.appSlug ?? null,
         detailsUrl: check.detailsUrl ?? null,
         title: check.title ?? null,

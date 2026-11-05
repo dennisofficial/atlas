@@ -12,6 +12,7 @@ import {
   serviceWith,
 } from './github-delivery.fixture'
 import { RUNNING } from './github-delivery.checks.fixture'
+import { checkRunInputOf } from './github-commit-checks'
 import type { GithubUserReads } from './github-user-reads'
 
 type Annotations = Awaited<ReturnType<GithubUserReads['readCheckAnnotations']>>
@@ -81,6 +82,7 @@ describe('failure annotations on a failed check', () => {
           name: 'typecheck',
           app: 'github-actions',
           checkRunId: '7',
+          conclusion: 'failure',
           annotations: [
             { path: 'src/a.ts', line: 12, message: 'Type error' },
             { message: 'one or more CI checks did not pass' },
@@ -126,7 +128,7 @@ describe('failure annotations on a failed check', () => {
     await service.handle({ event: 'check_run', payload: failingRun() })
 
     expect(await failedChecksOfVerdicts()).toEqual([
-      [{ name: 'typecheck', app: 'github-actions', checkRunId: '7' }],
+      [{ name: 'typecheck', app: 'github-actions', checkRunId: '7', conclusion: 'failure' }],
     ])
   })
 
@@ -141,5 +143,52 @@ describe('failure annotations on a failed check', () => {
     })
 
     expect(read).not.toHaveBeenCalled()
+  })
+
+  it('fetches annotations that only the REST fill reports and keeps the conclusion', async () => {
+    const read = vi.fn(async (..._args: unknown[]) => RAW)
+    const webhook = failingRun({ annotations_count: 0 })
+    const cancelled = {
+      ...webhook,
+      check_run: { ...webhook.check_run, conclusion: 'cancelled' },
+    }
+    const readPullRequest = vi.fn(
+      async (args: Parameters<GithubUserReads['readPullRequest']>[0]) => {
+        args.collectChecks?.({
+          headSha: 'abc123',
+          checks: [
+            checkRunInputOf({
+              ...cancelled.check_run,
+              output: { title: null, summary: null, annotations_count: 4 },
+            }),
+          ],
+        })
+        return REST_FIELDS
+      },
+    )
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+      readCheckAnnotations: read as unknown as GithubUserReads['readCheckAnnotations'],
+    })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 0, mergeable: null })
+
+    await service.handle({ event: 'check_run', payload: cancelled })
+
+    expect(read).toHaveBeenCalledTimes(1)
+    expect(await failedChecksOfVerdicts()).toContainEqual([
+      {
+        name: 'typecheck',
+        app: 'github-actions',
+        checkRunId: '7',
+        conclusion: 'cancelled',
+        annotations: [
+          { path: 'src/a.ts', line: 12, message: 'Type error' },
+          { message: 'one or more CI checks did not pass' },
+        ],
+      },
+    ])
   })
 })
