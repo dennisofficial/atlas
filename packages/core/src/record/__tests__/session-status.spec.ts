@@ -34,11 +34,7 @@ const envelope = (): Pick<
   }
 }
 
-const userSaid = (): V2Event => ({
-  ...envelope(),
-  type: 'user-said',
-  text: 'hi',
-})
+const userSaid = (): V2Event => ({ ...envelope(), type: 'user-said', text: 'hi' })
 
 const assistantSaid = (args: { aborted?: 'handoff' } = {}): V2Event => ({
   ...envelope(),
@@ -71,11 +67,7 @@ const branchesObserved = (): V2Event => ({
   worktrees: [],
 })
 
-const inputConsumed = (): V2Event => ({
-  ...envelope(),
-  type: 'input-consumed',
-  inboxId: 7,
-})
+const inputConsumed = (): V2Event => ({ ...envelope(), type: 'input-consumed', inboxId: 7 })
 
 const otherFact = (): V2Event => ({
   ...envelope(),
@@ -87,10 +79,7 @@ const otherFact = (): V2Event => ({
 const runFailed = (args: { message?: string } = {}): V2Event => ({
   ...envelope(),
   type: 'run-failed',
-  failure: {
-    kind: ERunFailureKind.Network,
-    message: args.message ?? 'connection reset',
-  },
+  failure: { kind: ERunFailureKind.Network, message: args.message ?? 'connection reset' },
 })
 
 const dismissFailure = (failure: V2Event): V2Event => ({
@@ -113,11 +102,7 @@ const modelWaiting = (args: { reason?: string } = {}): V2Event => ({
   waiting: {
     episode: {
       kind: EWaitEpisodeKind.Credential,
-      key: {
-        accountId: toAccountId('a'),
-        providerId: 'openai',
-        modelId: 'gpt-5',
-      },
+      key: { accountId: toAccountId('a'), providerId: 'openai', modelId: 'gpt-5' },
       generation: 1,
     },
     cause: EModelWaitCause.Availability,
@@ -158,17 +143,11 @@ describe('sessionStatusOf', () => {
   })
 
   it('reports idle when there are no events yet', () => {
-    expect(status({})).toEqual({
-      state: ESessionStatus.Idle,
-      since: undefined,
-    })
+    expect(status({})).toEqual({ state: ESessionStatus.Idle, since: undefined })
   })
 
   it('reports idle after a finished turn', () => {
-    const result = status({
-      events: [userSaid(), assistantSaid()],
-      live: true,
-    })
+    const result = status({ events: [userSaid(), assistantSaid()], live: true })
     expect(result).toEqual({ state: ESessionStatus.Idle, since: NOW })
   })
 
@@ -191,11 +170,7 @@ describe('sessionStatusOf', () => {
       events: [userSaid(), toolDispatched({ name: 'bash' })],
       live: true,
     })
-    expect(result).toEqual({
-      state: ESessionStatus.RunningTool,
-      reason: 'bash',
-      since: NOW,
-    })
+    expect(result).toEqual({ state: ESessionStatus.RunningTool, reason: 'bash', since: NOW })
   })
 
   it('returns to thinking once the tool result lands', () => {
@@ -251,10 +226,7 @@ describe('sessionStatusOf', () => {
   it('clears waiting-for-credentials once the wait is cleared', () => {
     const waiting = modelWaiting()
     const cleared = waitCleared(waiting as Extract<V2Event, { type: 'model-waiting' }>)
-    const result = status({
-      events: [waiting, cleared, assistantSaid()],
-      live: true,
-    })
+    const result = status({ events: [waiting, cleared, assistantSaid()], live: true })
     expect(result.state).toBe(ESessionStatus.Idle)
   })
 
@@ -280,10 +252,7 @@ describe('sessionStatusOf', () => {
 
   it('treats a dismissed failure as failed only when the turn never restarted', () => {
     const failed = runFailed({ message: 'boom' })
-    const dismissed = status({
-      events: [failed, dismissFailure(failed)],
-      live: false,
-    })
+    const dismissed = status({ events: [failed, dismissFailure(failed)], live: false })
     expect(dismissed.state).toBe(ESessionStatus.Failed)
 
     const restarted = status({
@@ -294,18 +263,12 @@ describe('sessionStatusOf', () => {
   })
 
   it('reports resuming after a handoff-aborted assistant message with no live lease', () => {
-    const result = status({
-      events: [assistantSaid({ aborted: 'handoff' })],
-      live: false,
-    })
+    const result = status({ events: [assistantSaid({ aborted: 'handoff' })], live: false })
     expect(result.state).toBe(ESessionStatus.Resuming)
   })
 
   it('reports thinking after a handoff-aborted assistant message under a live lease', () => {
-    const result = status({
-      events: [assistantSaid({ aborted: 'handoff' })],
-      live: true,
-    })
+    const result = status({ events: [assistantSaid({ aborted: 'handoff' })], live: true })
     expect(result.state).toBe(ESessionStatus.Thinking)
   })
 })
