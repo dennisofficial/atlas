@@ -1,6 +1,6 @@
 # 0025. v2 leases are held by the host's Postgres connection, not renewed
 
-Proposed 2026-11-05; accepted when the operator merges the PR that adds it. Replaces the TTL and
+Proposed 2026-11-05; accepted 2026-11-05 (#1854). Replaces the TTL and
 renewal mechanics of P4 and R4 in [architecture §13](../v2/architecture.md) and amends
 [0021](0021-v2-loop-runs-on-the-agent-host.md) (the agent host "renews the lease on its own timer"
 and the reconcile task is "the safety net for a crashed holder"). The epoch, the fence and the
