@@ -15,7 +15,7 @@ import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
 import { InboxIntake } from './inbox-intake'
 import type { SessionRuntime } from './ports'
-import { SessionRecord } from './record/record-adapter'
+import type { SessionRecord } from './record/record-adapter'
 import { V2OnceLedger } from './record/v2-once-ledger'
 import { retryDepsFromTimers } from './timer-sleep'
 
@@ -67,29 +67,6 @@ export const startHeldTurn = (args: {
     .finally(() => {
       args.onSettled()
     })
-}
-
-export const openHeldRecord = (args: {
-  deps: HeldSessionDeps
-  runtime: SessionRuntime
-  threadId: ThreadId
-  epoch: number
-  retryUntil(): number
-  onLeaseLost(): void
-}): Promise<SessionRecord> => {
-  const { deps, runtime } = args
-  return SessionRecord.open({
-    plane: deps.plane,
-    threadId: args.threadId,
-    epoch: args.epoch,
-    timers: deps.timers,
-    remoteCalls: runtime.remoteCalls,
-    daemonTools: runtime.daemonTools,
-    retryUntil: args.retryUntil,
-    nowIso: () => new Date(deps.timers.now()).toISOString(),
-    onLeaseLost: args.onLeaseLost,
-    ...(deps.log === undefined ? {} : { log: deps.log }),
-  })
 }
 
 export const settleAndCheckResume = async (args: {

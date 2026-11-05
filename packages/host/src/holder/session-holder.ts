@@ -136,6 +136,7 @@ export class SessionHolder {
 
   private async claimAndHold(sessionId: string): Promise<void> {
     try {
+      const claimStartedAt = this.timers.now()
       const claim = await this.plane.claim({
         sessionId,
         holderId: this.holderId,
@@ -148,7 +149,11 @@ export class SessionHolder {
           .catch(() => undefined)
         return
       }
-      await this.hold({ sessionId, lease: claim.lease })
+      await this.hold({
+        sessionId,
+        lease: claim.lease,
+        claimMs: this.timers.now() - claimStartedAt,
+      })
     } catch (error) {
       this.log?.error({
         source: 'holder.claim',
@@ -158,7 +163,7 @@ export class SessionHolder {
     }
   }
 
-  private async hold(args: { sessionId: string; lease: Lease }): Promise<void> {
+  private async hold(args: { sessionId: string; lease: Lease; claimMs: number }): Promise<void> {
     const row = await this.plane.readSession({ sessionId: args.sessionId })
     if (row === undefined) return
     const session = new HeldSession(
@@ -170,7 +175,11 @@ export class SessionHolder {
       }),
     )
     this.held.set(args.sessionId, session)
-    const done = session.run({ lease: args.lease, threadId: toThreadId(row.mainThreadId) })
+    const done = session.run({
+      lease: args.lease,
+      threadId: toThreadId(row.mainThreadId),
+      claimMs: args.claimMs,
+    })
     done.then(
       () => {
         if (this.held.get(args.sessionId) === session) this.held.delete(args.sessionId)
