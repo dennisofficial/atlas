@@ -1,4 +1,4 @@
-import { actionableInboxIds, GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
+import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
 
 import {
   ControlStorePort,
@@ -13,15 +13,9 @@ import {
   type ControlSessionRow,
 } from '../../port'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
-import { bisectAfter, leaseLiveAt } from './memory-helpers'
-import {
-  activeFailureOf,
-  cloneState,
-  emptyState,
-  hasPrepareHistory,
-  refKey,
-  type State,
-} from './memory-state'
+import { bisectAfter } from './memory-helpers'
+import { sessionsNeedingHolderIn } from './memory-needing-holder'
+import { cloneState, emptyState, refKey, type State } from './memory-state'
 
 class MemoryTx implements ControlTx {
   private readonly state: State
@@ -80,30 +74,7 @@ class MemoryTx implements ControlTx {
   }
 
   async sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]> {
-    return [...this.state.sessions.values()]
-      .filter((row) => {
-        const lease = this.state.leases.get(row.sessionId)
-        if (leaseLiveAt({ lease, now: params.now })) return false
-        if (lease !== undefined && lease.holderId !== null) return true
-        if (lease?.wantsHolder === true) return true
-        const unconsumed = (this.state.inbox.get(row.sessionId) ?? []).filter(
-          (entry) => entry.consumedSeq === null,
-        )
-        const actionable = actionableInboxIds({
-          entries: unconsumed,
-          failure: activeFailureOf(this.state.events.get(row.mainThreadId) ?? []),
-        })
-        return (
-          actionable.length > 0 || !hasPrepareHistory(this.state.events.get(row.mainThreadId) ?? [])
-        )
-      })
-      .sort(
-        (a, b) =>
-          Date.parse(a.createdAt) - Date.parse(b.createdAt) ||
-          a.sessionId.localeCompare(b.sessionId),
-      )
-      .slice(0, params.limit)
-      .map((row) => row.sessionId)
+    return sessionsNeedingHolderIn({ state: this.state, ...params })
   }
 
   async createThread(params: {

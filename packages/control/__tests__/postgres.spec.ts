@@ -1,4 +1,4 @@
-import { afterAll, beforeAll } from 'bun:test'
+import { afterAll, beforeAll, expect, it } from 'bun:test'
 import pg from 'pg'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -12,6 +12,7 @@ import {
   describeControlPlaneSessions,
   describeControlPlaneWakes,
 } from '../src/testing/conformance'
+import { ControlPlane } from '../src/control-plane'
 import { PostgresControlStore } from '../src/postgres'
 
 const testDb = useTestDatabase()
@@ -59,8 +60,12 @@ afterAll(async () => {
   for (const client of lockClients.splice(0)) await client.end().catch(() => undefined)
 })
 
-const holdLock = async (args: { hostId: number; fn: string }): Promise<() => Promise<void>> => {
-  const client = new pg.Client(testDb().url)
+const holdLock = async (args: {
+  hostId: number
+  fn: string
+  url?: string | undefined
+}): Promise<() => Promise<void>> => {
+  const client = new pg.Client(args.url ?? testDb().url)
   lockClients.push(client)
   await client.connect()
   await client.query(`SELECT ${args.fn}($1, $2)`, [PG_PRESENCE_LOCK_NAMESPACE, args.hostId])
@@ -77,4 +82,18 @@ describeControlPlanePresence({
   },
   holdPresence: (hostId) => holdLock({ hostId, fn: 'pg_advisory_lock' }),
   holdShared: (hostId) => holdLock({ hostId, fn: 'pg_advisory_lock_shared' }),
+})
+
+it('a presence lock held in another database of the cluster is not present here', async () => {
+  const other = new URL(testDb().url)
+  other.pathname = '/atlas_test'
+  lastHostId += 1
+  const hostId = lastHostId
+  const release = await holdLock({ hostId, fn: 'pg_advisory_lock', url: other.toString() })
+  try {
+    const plane = new ControlPlane({ store: new PostgresControlStore(testDb().db) })
+    expect(await plane.hostPresent({ hostId })).toBe(false)
+  } finally {
+    await release()
+  }
 })

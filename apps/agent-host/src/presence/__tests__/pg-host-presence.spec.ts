@@ -10,6 +10,7 @@ import {
   createPgHostPresence,
   newPresenceClient,
   PooledPresenceUrlError,
+  PresenceLostDuringRegisterError,
   PRESENCE_APPLICATION_NAME,
   type PgPresenceClient,
 } from '../pg-host-presence'
@@ -56,6 +57,34 @@ const pooledClient = (): PgPresenceClient & { ended: boolean } => ({
   on: () => undefined,
 })
 
+const dyingClient = (args: { event: 'error' | 'end' }): PgPresenceClient & { ended: boolean } => {
+  const handlers = new Map<string, ((value?: unknown) => void)[]>()
+  const emit = (event: string, value?: unknown): void => {
+    for (const handler of handlers.get(event) ?? []) handler(value)
+  }
+  return {
+    ended: false,
+    connect: () => Promise.resolve(),
+    query: (text) => {
+      if (text.includes('inet_server_port')) return Promise.resolve({ rows: [{ port: 5432 }] })
+      if (text.includes('nextval')) return Promise.resolve({ rows: [{ id: 42 }] })
+      if (text.includes('pg_try_advisory_lock'))
+        return Promise.resolve({ rows: [{ locked: true }] })
+      if (text.includes('pg_notify')) {
+        emit(args.event, args.event === 'error' ? new Error('socket closed') : undefined)
+      }
+      return Promise.resolve({ rows: [] })
+    },
+    end() {
+      this.ended = true
+      return Promise.resolve()
+    },
+    on: (event: string, listener: (value?: unknown) => void) => {
+      handlers.set(event, [...(handlers.get(event) ?? []), listener])
+    },
+  }
+}
+
 describe('pg host presence', () => {
   const clients: pg.Client[] = []
   const created: pg.Client[] = []
@@ -74,6 +103,22 @@ describe('pg host presence', () => {
     await expect(presence.register()).rejects.toBeInstanceOf(PooledPresenceUrlError)
     expect(fake.ended).toBe(true)
   })
+
+  for (const event of ['error', 'end'] as const) {
+    it(`refuses a registration whose connection emits ${event} as the last query resolves`, async () => {
+      const fake = dyingClient({ event })
+      const presence = createPgHostPresence({
+        url: 'postgres://unused',
+        label: 'dying',
+        createClient: () => fake,
+      })
+      const lost: number[] = []
+      presence.onLost((hostId) => lost.push(hostId))
+      await expect(presence.register()).rejects.toBeInstanceOf(PresenceLostDuringRegisterError)
+      expect(fake.ended).toBe(true)
+      expect(lost).toEqual([])
+    })
+  }
 
   it('registers a row and notifies the host change channel', async () => {
     const listener = new pg.Client(testDb().url)

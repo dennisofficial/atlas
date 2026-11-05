@@ -19,6 +19,13 @@ export type PgPresenceClient = {
   on(event: 'end', listener: () => void): void
 }
 
+export class PresenceLostDuringRegisterError extends Error {
+  constructor() {
+    super('the presence connection was lost while registering')
+    this.name = 'PresenceLostDuringRegisterError'
+  }
+}
+
 export const PRESENCE_APPLICATION_NAME = 'atlas-host-presence'
 
 const SESSION_SETTINGS = [
@@ -59,19 +66,11 @@ export const createPgHostPresence = (args: {
     for (const listener of [...listeners]) listener(params.hostId)
   }
 
-  const open = async (): Promise<PgPresenceClient> => {
-    const client = args.createClient?.() ?? newPresenceClient(args.url)
-    client.on('error', () => undefined)
-    try {
-      await client.connect()
-      for (const statement of SESSION_SETTINGS) await client.query(statement)
-      const port = await client.query('SELECT inet_server_port() AS "port"')
-      if (firstValue(port, 'port') === null) throw new PooledPresenceUrlError()
-      return client
-    } catch (error) {
-      await client.end().catch(() => undefined)
-      throw error
-    }
+  const open = async (client: PgPresenceClient): Promise<void> => {
+    await client.connect()
+    for (const statement of SESSION_SETTINGS) await client.query(statement)
+    const port = await client.query('SELECT inet_server_port() AS "port"')
+    if (firstValue(port, 'port') === null) throw new PooledPresenceUrlError()
   }
 
   const claim = async (client: PgPresenceClient): Promise<number> => {
@@ -96,18 +95,29 @@ export const createPgHostPresence = (args: {
 
   return {
     async register() {
-      const client = await open()
-      let hostId: number
+      const client = args.createClient?.() ?? newPresenceClient(args.url)
+      let hostId: number | undefined
+      let lostWhileRegistering = false
+      const handleClientGone = (error?: unknown): void => {
+        if (hostId === undefined) {
+          lostWhileRegistering = true
+          return
+        }
+        handleLost({ hostId, client, error })
+      }
+      client.on('error', (error: unknown) => handleClientGone(error))
+      client.on('end', () => handleClientGone())
       try {
-        hostId = await claim(client)
+        await open(client)
+        const claimed = await claim(client)
+        if (lostWhileRegistering) throw new PresenceLostDuringRegisterError()
+        live.set(claimed, client)
+        hostId = claimed
+        return claimed
       } catch (error) {
         await client.end().catch(() => undefined)
         throw error
       }
-      live.set(hostId, client)
-      client.on('error', (error: unknown) => handleLost({ hostId, client, error }))
-      client.on('end', () => handleLost({ hostId, client }))
-      return hostId
     },
 
     onLost(listener) {
