@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 import { ZapIcon } from 'lucide-react'
 
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
@@ -10,9 +10,11 @@ import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { formatElapsed } from '@dltech/atlas-client/transcript'
 
 import { clockTimeOf, spanMsOf } from '../data/clock-time'
+import type { RepairDiagramAction } from '../data/diagram-repair'
 import { messageImagesOf } from '../data/message-images'
 import { isSameItem } from '../data/same-item'
 import { isSameTurn } from '../data/same-turn'
+import { eventIdOf } from '../data/transcript-items'
 import type { TranscriptSummarise } from '../data/use-summarise'
 import { ETranscriptKind } from '../data/transcript'
 import {
@@ -40,6 +42,7 @@ export type TranscriptActions = {
   summarise: TranscriptSummarise | null
   openChanges: ((path: string) => void) | null
   openAgent: ((id: string) => void) | null
+  repairDiagram: RepairDiagramAction | null
 }
 
 const AGENT_AUTHOR = 'Atlas'
@@ -113,6 +116,7 @@ function AgentTurnView({
           segment={segment}
           now={now}
           onOpenChanges={actions.openChanges}
+          repairDiagram={actions.repairDiagram}
         />
       ))}
       {turn.spawns.length === 0 ? null : (
@@ -129,7 +133,12 @@ function AgentTurnView({
         </div>
       )}
       {answer === null ? null : (
-        <SegmentView segment={answer} now={now} onOpenChanges={actions.openChanges} />
+        <SegmentView
+          segment={answer}
+          now={now}
+          onOpenChanges={actions.openChanges}
+          repairDiagram={actions.repairDiagram}
+        />
       )}
     </div>
   )
@@ -139,11 +148,21 @@ function SegmentView({
   segment,
   now,
   onOpenChanges,
+  repairDiagram,
 }: {
   segment: Segment
   now: number
   onOpenChanges: ((path: string) => void) | null
+  repairDiagram: RepairDiagramAction | null
 }) {
+  const messageId = segment.kind === ESegmentKind.Message ? eventIdOf(segment.item.id) : null
+  const handleRepairDiagram = useCallback(
+    (args: { chart: string; error: string }) =>
+      repairDiagram === null || messageId === null
+        ? Promise.resolve()
+        : repairDiagram({ messageId, ...args }),
+    [repairDiagram, messageId],
+  )
   if (segment.kind === ESegmentKind.Message) {
     const { item } = segment
     return (
@@ -154,7 +173,14 @@ function SegmentView({
         caret={false}
         copyText={item.text}
       >
-        <TranscriptMarkdown isAnimating={item.streaming}>{item.text}</TranscriptMarkdown>
+        <TranscriptMarkdown
+          isAnimating={item.streaming}
+          onRepairDiagram={
+            repairDiagram === null || item.streaming ? undefined : handleRepairDiagram
+          }
+        >
+          {item.text}
+        </TranscriptMarkdown>
       </AgentMessage>
     )
   }

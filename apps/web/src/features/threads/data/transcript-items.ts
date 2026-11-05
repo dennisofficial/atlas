@@ -10,7 +10,16 @@ import {
   type ToolCall,
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
-import type { CallId, Event, SaidImage, SaidUpload } from '@dltech/atlas-core'
+import {
+  applyDiagramRepairs,
+  diagramRepairsByMessage,
+  repairsForMessage,
+  type CallId,
+  type DiagramRepairsByMessage,
+  type Event,
+  type SaidImage,
+  type SaidUpload,
+} from '@dltech/atlas-core'
 
 import {
   claimSpawn,
@@ -85,10 +94,12 @@ function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
   }
 }
 
-function textItemOf(
-  entry: TranscriptEntry,
-  fastEvents: ReadonlySet<string>,
-): TranscriptItem | null {
+function textItemOf(args: {
+  entry: TranscriptEntry
+  fastEvents: ReadonlySet<string>
+  repairs: DiagramRepairsByMessage
+}): TranscriptItem | null {
+  const { entry, fastEvents } = args
   switch (entry.kind) {
     case EEntryKind.OperatorSaid:
       return userItemOf(entry)
@@ -98,7 +109,13 @@ function textItemOf(
         : {
             kind: ETranscriptKind.Agent,
             id: entry.key,
-            text: entry.text,
+            text: applyDiagramRepairs({
+              text: entry.text,
+              repairs: repairsForMessage({
+                byMessage: args.repairs,
+                messageId: eventIdOf(entry.key),
+              }),
+            }),
             streaming: entry.streaming,
             ...(fastEvents.has(eventIdOf(entry.key)) ? { fast: true as const } : {}),
           }
@@ -147,7 +164,7 @@ function rowsOfTools(args: {
   })
 }
 
-const eventIdOf = (key: string): string => key.split('#')[0] ?? key
+export const eventIdOf = (key: string): string => key.split('#')[0] ?? key
 
 function stamped(args: { row: TranscriptRow; at: string | undefined }): TranscriptRow {
   return args.at === undefined || args.row.at !== undefined
@@ -170,6 +187,7 @@ export type DurableTranscript = {
   spawns: SpawnItem[]
   reports: ReportItem[]
   fast: ReadonlySet<string>
+  repairs: DiagramRepairsByMessage
 }
 
 const fastEventsOf = (events: readonly Event[]): ReadonlySet<string> =>
@@ -185,6 +203,7 @@ export const durableTranscriptOf = (args: { events: readonly Event[] }): Durable
   spawns: spawnItemsOf(args.events),
   reports: [...reportItemsOf(args.events).values()],
   fast: fastEventsOf(args.events),
+  repairs: diagramRepairsByMessage(args.events),
 })
 
 function prRunAt(args: { entries: readonly TranscriptEntry[]; index: number }): PrEventEntry[] {
@@ -215,7 +234,7 @@ export function transcriptViewOf(args: {
     thinking: EThinkingVisibility.Stream,
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
   })
-  const { stamps, fast: fastEvents } = args.durable
+  const { stamps, fast: fastEvents, repairs } = args.durable
   const pool = new Map(args.durable.spawns.map((spawn) => [spawn.agentId, spawn]))
   const rows: TranscriptRow[] = []
   let index = 0
@@ -227,9 +246,9 @@ export function transcriptViewOf(args: {
     const found =
       entry.kind === EEntryKind.ToolsRan
         ? rowsOfTools({ key: entry.key, calls: entry.run.calls, pool })
-        : [run.length > 0 ? prNoticeItemOf(run) : textItemOf(entry, fastEvents)].flatMap((item) =>
-            item === null ? [] : [item],
-          )
+        : [
+            run.length > 0 ? prNoticeItemOf(run) : textItemOf({ entry, fastEvents, repairs }),
+          ].flatMap((item) => (item === null ? [] : [item]))
     for (const row of found) rows.push(stamped({ row, at: atOf({ row, stamps }) }))
   }
   return {
