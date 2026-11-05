@@ -8,6 +8,7 @@ const complete: Record<string, string> = {
   REDIS_URL: 'redis://x',
   AGENT_HOST_TOKEN: 't'.repeat(32),
   DAEMON_SECRET: 'secret',
+  SECRETS_ENCRYPTION_KEY: 'k'.repeat(64),
   ATLAS_API_ORIGIN: 'https://api.byatlas.io',
 }
 
@@ -18,6 +19,7 @@ describe('readAgentHostEnv', () => {
     expect(env.databaseDirectUrl).toBe('postgres://direct')
     expect(env.agentHostToken).toBe('t'.repeat(32))
     expect(env.daemonSecret).toBe('secret')
+    expect(env.secretsEncryptionKey).toBe('k'.repeat(64))
     expect(env.apiOrigin).toBe('https://api.byatlas.io')
     expect(env.maxSessions).toBe(25)
     expect(env.sandboxImage).toBe('atlas-sandbox:latest')
@@ -51,6 +53,7 @@ describe('readAgentHostEnv', () => {
       'REDIS_URL',
       'AGENT_HOST_TOKEN',
       'DAEMON_SECRET',
+      'SECRETS_ENCRYPTION_KEY',
       'ATLAS_API_ORIGIN',
     ])
   })

@@ -17,11 +17,12 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 
 import { LocalSandboxProvider } from '../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
-import type { AgentHostApi } from '../config/agent-host-api'
+import type { ConfigSource } from '../config/agent-host-config'
 import {
   CollectingLog,
   E2E_SECRET,
   makeInMemoryBus,
+  unusedApi,
   waitForSeq,
   type ReadEvent,
 } from './e2e-support'
@@ -48,28 +49,15 @@ const bareRepoUrl = (): string => {
   return `file://${bare}`
 }
 
-const apiWithRepo = (remoteUrl: string): AgentHostApi => ({
-  config: async () => ({
+const sourceWithRepo = (remoteUrl: string): ConfigSource => ({
+  read: async () => ({
     userId: 'user-1',
     projectId: 'proj-1',
     model: { configured: false, gap: 'scripted model in test' },
     vercel: { configured: true, token: '', teamId: '', projectId: '' },
     workspace: { remoteUrl, baseBranch: null, additionalRepos: [], setupScript: '' },
-    config: {
-      settings: {},
-      secrets: [],
-      harnessSecrets: [],
-      mcpServers: [],
-      fileMounts: [],
-      provenance: {},
-    },
-    revision: 'rev-1',
-    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    skills: [],
   }),
-  modelAccessToken: async () => {
-    throw new Error('unused')
-  },
-  githubToken: async () => ({ token: null }),
 })
 
 const branchRecords = (events: readonly ReadEvent[]): ReadEvent[] =>
@@ -132,7 +120,8 @@ describe('branches-observed e2e', () => {
       bus,
       timers,
       runtimes: createSessionRuntimeFactory({
-        api: apiWithRepo(bareRepoUrl()),
+        config: sourceWithRepo(bareRepoUrl()),
+        api: unusedApi(),
         sandbox,
         daemonSecret: E2E_SECRET,
         timers,

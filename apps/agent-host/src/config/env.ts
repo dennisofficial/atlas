@@ -13,6 +13,7 @@ export type AgentHostEnv = {
   redisUrl: string
   agentHostToken: string
   daemonSecret: string
+  secretsEncryptionKey: string
   apiOrigin: string
   maxSessions: number
   sandboxImage: string
@@ -48,6 +49,7 @@ export const readAgentHostEnv = (
   const redisUrl = take(env, 'REDIS_URL')
   const agentHostToken = take(env, 'AGENT_HOST_TOKEN')
   const daemonSecret = take(env, 'DAEMON_SECRET')
+  const secretsEncryptionKey = take(env, 'SECRETS_ENCRYPTION_KEY')
   const apiOrigin = take(env, 'ATLAS_API_ORIGIN')
   const required: ReadonlyArray<[string, string | undefined]> = [
     ['DATABASE_URL', databaseUrl],
@@ -55,6 +57,7 @@ export const readAgentHostEnv = (
     ['REDIS_URL', redisUrl],
     ['AGENT_HOST_TOKEN', agentHostToken],
     ['DAEMON_SECRET', daemonSecret],
+    ['SECRETS_ENCRYPTION_KEY', secretsEncryptionKey],
     ['ATLAS_API_ORIGIN', apiOrigin],
   ]
   const missing = required.filter((pair) => pair[1] === undefined).map((pair) => pair[0])
@@ -65,6 +68,7 @@ export const readAgentHostEnv = (
     redisUrl: redisUrl as string,
     agentHostToken: agentHostToken as string,
     daemonSecret: daemonSecret as string,
+    secretsEncryptionKey: secretsEncryptionKey as string,
     apiOrigin: apiOrigin as string,
     maxSessions: parseMaxSessions(take(env, 'AGENT_HOST_MAX_SESSIONS')),
     sandboxImage: take(env, 'ATLAS_SANDBOX_IMAGE') ?? DEFAULT_SANDBOX_IMAGE,

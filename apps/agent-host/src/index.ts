@@ -3,6 +3,9 @@ export {
   AgentHostCredentialPort,
   CredentialsUnavailableError,
 } from './config/agent-host-credential-port'
+export { ConfigReader, SessionNotFoundError } from './config/config-reader'
+export { SecretCipher } from './config/secret-cipher'
+export type { AgentHostConfig, ConfigSource } from './config/agent-host-config'
 export { AgentHostEnvError, readAgentHostEnv, type AgentHostEnv } from './config/env'
 export { daemonPaths, launchDaemon, type DaemonBundle } from './sandbox/daemon-launch'
 export { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox/sandbox-provider'
