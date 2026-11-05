@@ -45,7 +45,7 @@ _Updated at the end of every slice. Last update: 2026-11-05._
   jobs and schedules run on trigger.dev in their own `apps/trigger` (own deploy, keys and trigger.dev
   project; contracts in `packages/jobs`), never as timers in the agent host. Built when v2 first needs
   a job, after the reconciler. v1's `apps/api/src/trigger/` takes fixes only and retires at slice 10.
-- **Done (exit tests partly live): slice 3, the agent host and the sandbox daemon (0021).** Spec:
+- **Done: slice 3, the agent host and the sandbox daemon (0021).** Spec:
   [slices/03-agent-host.md](slices/03-agent-host.md); PRs #1735 to #1846. Render Virginia → Vercel `iad1`
   RTT was measured first ([research/d8/rtt-render.md](research/d8/rtt-render.md): 5–20 ms p50 per tool
   call, Postgres 5.5 ms). The toggle is per session with a `v2` badge. What it delivered:
@@ -74,10 +74,11 @@ _Updated at the end of every slice. Last update: 2026-11-05._
     10 (claim 118 ms and first step 2.7 s at 20k events), F10, F11, F19, F21, and a deploy mid-turn with a
     stream client (going-away, close 1001, resume by cursor, no gap or duplicate). Under the hog the daemon
     answered in ≤ 1 ms and a stop landed in about 220 ms.
-  - **Left before the slice is done:** an OOM kill shows only as `Exit code: 1` (test 9); a SIGTERM drain
-    exits 1 after 5 s without handing off (F12); a sandbox stopped under a live holder is never re-woken and
-    the interrupted call re-runs (F18); keep-alive never renews a sandbox; status stays `thinking` after the
-    reply when a record-only event follows. Fix them, then rerun 9, F12 and F18 live. F9 is now "Redis down:
+  - The first live run failed test 9, F12 and F18 and found two more bugs (keep-alive never renewed a
+    sandbox; status stuck on `thinking`). Fixed in #1889 to #1893: the bash result names an OOM kill; the
+    host starts without the `dotenvx run` wrapper (it SIGKILLed the drain) and drains once; a stopped sandbox
+    is re-woken while held and a side-effecting call never reruns on a new boot. 9, F12 and F18 then passed
+    live. An interrupted result also kept a stale `Exit code: 1` `modelText` (#1897 drops it). F9 is now "Redis down:
     unaffected", since no wake path uses Redis. Continue from [handoffs/slice-4.md](handoffs/slice-4.md).
 - **Decided 2026-11-04, slice 3:** wakes move from Redis pub/sub to Postgres `LISTEN`/`NOTIFY`
   ([0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md) amended); the agent host polls nothing,

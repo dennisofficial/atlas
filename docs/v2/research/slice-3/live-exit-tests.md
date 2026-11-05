@@ -4,23 +4,23 @@ Run against Render `atlas-agent` (standard, virginia, scaled to 2 for the fault 
 
 ## Summary
 
-| Test                           | Result                                                              |
-| ------------------------------ | ------------------------------------------------------------------- |
-| 8 append latency               | PASS (p99 237 ms, earlier run)                                      |
-| 9 hog                          | PASS except the OOM is not shown in the tool result                 |
-| 10 20k events                  | PASS (claim 118 ms, first step 2.7 s)                               |
-| F10 kill mid model stream      | PASS (step re-asked, first step 142 ms after claim)                 |
-| F11 kill mid bash              | PASS (collected by the new holder, run count 1)                     |
-| F12 SIGTERM during a long bash | FAIL: drained host exits 1 at 5 s, no handoff; crash path recovers  |
-| F18 stop the sandbox mid turn  | FAIL: no resume while held; interrupted bash re-ran on the new boot |
-| F19 both hosts down            | PASS (run count 1, record intact)                                   |
-| F21 holder killed while waking | PASS (reclaim 37 ms, same sandbox, run count 1)                     |
-| Deploy mid turn, stream client | PASS (going-away, closing 1001, resume by cursor, no gap or dup)    |
+| Test                           | Result                                                           |
+| ------------------------------ | ---------------------------------------------------------------- |
+| 8 append latency               | PASS (p99 237 ms, earlier run)                                   |
+| 9 hog                          | PASS after #1890 (first run: OOM not shown in the tool result)   |
+| 10 20k events                  | PASS (claim 118 ms, first step 2.7 s)                            |
+| F10 kill mid model stream      | PASS (step re-asked, first step 142 ms after claim)              |
+| F11 kill mid bash              | PASS (collected by the new holder, run count 1)                  |
+| F12 SIGTERM during a long bash | PASS after #1893 (first run: drained host exited 1 at 5 s)       |
+| F18 stop the sandbox mid turn  | PASS after #1892 (first run: no resume while held; bash re-ran)  |
+| F19 both hosts down            | PASS (run count 1, record intact)                                |
+| F21 holder killed while waking | PASS (reclaim 37 ms, same sandbox, run count 1)                  |
+| Deploy mid turn, stream client | PASS (going-away, closing 1001, resume by cursor, no gap or dup) |
 
-Bugs found, none yet fixed:
+Bugs found (all fixed in #1889–#1893 and rerun live; see "Reruns" at the end):
 1. OOM kill reaches the model as `Exit code: 1` (`packages/host/src/calls/ports/process.ts:18`).
-2. SIGTERM drain dies 5 s in with exit 1 before `holder.drain` (`apps/agent-host/src/main.ts:114-137`; suspected second-signal `process.exit(1)` under `bun run start`).
-3. Stopped sandbox is never re-woken while held (`apps/agent-host/src/runtime/session-runtime-factory.ts:72-90` wakes once per runtime), and the resumed daemon re-runs the interrupted call.
+2. SIGTERM drain dies 5 s in with exit 1 before `holder.drain`. Cause (#1893): the `dotenvx run` wrapper in `start` forwards SIGTERM after 1 s (the old second-signal `process.exit(1)` fired) and its execa child is SIGKILLed 5 s later.
+3. Stopped sandbox is never re-woken while held (`apps/agent-host/src/runtime/session-runtime-factory.ts:72-90` wakes once per runtime), and the resumed daemon re-runs the interrupted call (cause, #1892: `DaemonProcessPort` never passed the recorded dispatch bootId, so the cross-boot guard skipped exec).
 4. Keep-alive always fails: `renewSessionDeadline` (`apps/agent-host/src/sandbox/vercel-sdk.ts:59`) compares the Vercel `sbx_…` session id with the Atlas session id.
 5. Status stays `thinking` after the reply when a record-only event (`branches-observed`, a stop's `input-consumed`) follows it (`packages/core/src/record/session-status.ts:99`).
 
@@ -188,3 +188,35 @@ record showed `live:false` with no host. The script died before resuming (my har
   while no host existed: `tool-result` `done-suspmw3z2khr` exit 0, then the reply. Record intact, no gaps.
 - `/tmp/fault-runs-suspmw3z2khr` in the sandbox: one line → **run count 1**.
 - v2 downtime was acceptable: Dennis confirmed nobody uses the Render v2 host before slice 5.
+### Reruns after the fixes (#1889–#1893), 2026-11-05 evening
+
+### Test 9 OOM rerun — PASS (21:42Z)
+
+Fresh session, same balloon (`head -c 64G /dev/zero | tail | wc -c`, atlas-work memory.max 2,881,982,464).
+`tool-result`: `oomKilled: true`, exit code 137, model text "The kernel killed the command because it ran out of
+memory: it exceeded the sandbox's memory limit. Retrying it unchanged will fail the same way, so reduce its memory
+use … Exit code: 137". Status after the reply: `idle` (the #1891 fix, live).
+
+### F12 rerun — PASS on the failing half (21:44–21:52Z), session `eb45a69b-f9fa-4953-bca5-9a555a8423b5`
+
+Bash (480 s python wait) dispatched on host 52 at 21:44:20 (epoch 1); `POST /restart` at 21:44:31; two hosts (52, 53).
+- Host 53: `draining` 21:49:11.8, gone at 21:49:12.2, **no `exited with code 1`**.
+- Host 52 (holder): `draining` 21:51:32.4, **no crash**. It kept draining 48 s, the bash finished on the daemon at
+  21:52:20.6 and host 52 appended the `tool-result` itself (epoch 1), then revoked (epoch 2) and host 55 claimed at
+  21:52:20.97 (epoch 3; claimMs 71, firstStepMs 154) and wrote the reply. Lease hand-off took ~0.4 s.
+- Run count 1 (`/tmp/fault-runs-f12mw42p1t1`).
+- Note on the spec's "handoff ~1 s": in production the drain deadline is 270 s (`main.ts`), so a holder finishes a
+  running call inside that window before handing off; it hands off a still-running call only once the deadline passes
+  (local F12 uses `drainMs: 500`). The bug — dying 5 s in with exit 1 — is gone.
+
+### F18 rerun — PASS (21:53–21:54Z), session `5400b8c5-a20b-4803-b47b-d5b574f166d3`
+
+Three bash calls; sandbox stopped (Vercel SDK) 15 s into call 2 (120 s wait). Holder never changed (epoch 1 throughout).
+- 5 s after the stop: `tool-result` for call 2 with `interrupted: true` (21:54:13.98), no rerun.
+- The holder re-woke the sandbox itself: next dispatches carry a new bootId `9abd9601-…` (was `73e25239-…`).
+- The model checked the runs file (one line) and continued; call 3 ran; reply. `/tmp/fault-runs-…` run count **1**.
+- The model saw the interrupted message (context assembly reads `error` before `modelText`). The stored
+  result also kept the tool's own `modelText` (`Exit code: 1`), which the fault script logged and the loop
+  detector (`loop-watch.ts`) reads; #1897 clears it in the interrupted rewrite.
+- Unrelated log: `holder.claim … lease changed concurrently` on host 55 at 21:53:20 — both hosts raced to claim the
+  new session and one lost; benign.
