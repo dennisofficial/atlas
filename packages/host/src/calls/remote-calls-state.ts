@@ -43,6 +43,7 @@ export class RemoteCallsState {
       this.readyResolve = resolve
       this.readyReject = reject
     })
+    this.readyPromise.catch(() => undefined)
     this.link = new DaemonLink({
       timers: args.timers,
       ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),

@@ -37,9 +37,9 @@ export class HolderPresence {
     this.cancelRetry()
   }
 
-  async abandon(): Promise<void> {
-    if (this.hostId === undefined) return
-    await this.args.presence.abandon(this.hostId)
+  async abandon(hostId: number): Promise<void> {
+    if (hostId !== this.hostId) return
+    await this.args.presence.abandon(hostId)
   }
 
   private handleLost(hostId: number): void {

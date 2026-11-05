@@ -130,6 +130,7 @@ export class HeldSession {
         },
       })
       this.record = record
+      if (this.lostOwnership) return record.fence()
       if (this.draining) record.markDraining()
 
       const { runner, branches } = wireHeldLoop({

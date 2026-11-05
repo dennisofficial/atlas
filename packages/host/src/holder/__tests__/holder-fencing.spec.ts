@@ -86,9 +86,15 @@ describe('SessionHolder zombie (F16)', () => {
       script: [{ text: 'b turn' }],
     })
     await b.holder.start()
-    a.presence.lose()
-    const claimed = await a.plane.claim({ sessionId: SESSION, hostId: b.hostId() })
-    expect(claimed).toMatchObject({ ok: true, lease: { epoch: epochA + 1 } })
+    const granted = await a.plane.grant({ sessionId: SESSION, hostId: b.hostId() })
+    expect(granted.epoch).toBe(epochA + 1)
+    const appended: string[] = []
+    const originalAppend = a.plane.append.bind(a.plane)
+    a.plane.append = async (params) => {
+      const outcome = await originalAppend(params)
+      if (!outcome.ok) appended.push(outcome.refusal.kind)
+      return outcome
+    }
 
     const seqBefore = (await a.events()).length
     await expect(
@@ -97,10 +103,12 @@ describe('SessionHolder zombie (F16)', () => {
         runId: a.ids.nextRunId(),
         drafts: [{ type: 'assistant-said', parts: [{ type: 'text', text: 'zombie write' }] }],
       }),
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({ name: 'LeaseLostError', refusal: 'stale-epoch' })
+    expect(appended).toEqual(['stale-epoch'])
     expect((await a.events()).length).toBe(seqBefore)
     const dropped = await flushUntil({ check: () => a.holder.heldIds().length === 0 })
     expect(dropped).toBe(true)
     SessionRecord.open = originalOpen
+    a.plane.append = originalAppend
   }, 15_000)
 })

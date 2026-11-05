@@ -139,11 +139,15 @@ export class SessionHolder {
     }
     if (this.pendingClaims.has(sessionId) || this.startBackoff.waiting(sessionId)) return
     if (this.held.size + this.pendingClaims.size >= this.maxSessions) return
-    const pending = this.claimAndHold(sessionId).finally(() => {
-      this.pendingClaims.delete(sessionId)
+    const pending: Promise<void> = this.claimAndHold(sessionId).then((claimHostId) => {
+      if (this.pendingClaims.get(sessionId) === pending) this.pendingClaims.delete(sessionId)
+      if (this.superseded(claimHostId)) this.onWake(sessionId)
     })
     this.pendingClaims.set(sessionId, pending)
-    pending.catch(() => undefined)
+  }
+
+  private superseded(hostId: number | undefined): boolean {
+    return hostId !== undefined && !this.draining && hostId !== this.presence.current()
   }
 
   private async onResync(): Promise<void> {
@@ -181,23 +185,18 @@ export class SessionHolder {
     this.resyncRetryTimer = undefined
   }
 
-  private async claimAndHold(sessionId: string): Promise<void> {
+  private async claimAndHold(sessionId: string): Promise<number | undefined> {
+    const hostId = this.presence.current()
+    if (hostId === undefined) return undefined
     let claimed: Lease | undefined
     try {
       const claimStartedAt = this.timers.now()
-      const hostId = this.presence.current()
-      if (hostId === undefined) return
       const claim = await this.plane.claim({ sessionId, hostId })
-      if (!claim.ok) return
+      if (!claim.ok) return hostId
       claimed = claim.lease
-      if (this.draining || this.presence.current() !== hostId) {
-        await this.plane
-          .revoke({ sessionId, wantsHolder: true, epoch: claim.lease.epoch })
-          .catch(() => undefined)
-        return
-      }
       await this.hold({
         sessionId,
+        hostId,
         lease: claim.lease,
         claimMs: this.timers.now() - claimStartedAt,
       })
@@ -211,6 +210,7 @@ export class SessionHolder {
         await this.releaseUnstarted({ sessionId, epoch: claimed.epoch })
       }
     }
+    return hostId
   }
 
   private async releaseUnstarted(args: { sessionId: string; epoch: number }): Promise<void> {
@@ -220,12 +220,26 @@ export class SessionHolder {
     if (!this.draining) this.startBackoff.failed(args.sessionId)
   }
 
-  private async hold(args: { sessionId: string; lease: Lease; claimMs: number }): Promise<void> {
-    const row = await this.plane.readSession({ sessionId: args.sessionId })
-    if (row === undefined) return
+  private async hold(args: {
+    sessionId: string
+    hostId: number
+    lease: Lease
+    claimMs: number
+  }): Promise<void> {
+    const row =
+      this.superseded(args.hostId) || this.draining
+        ? undefined
+        : await this.plane.readSession({ sessionId: args.sessionId })
+    if (row === undefined || this.draining || this.superseded(args.hostId)) {
+      await this.plane
+        .revoke({ sessionId: args.sessionId, wantsHolder: true, epoch: args.lease.epoch })
+        .catch(() => undefined)
+      return
+    }
     const session = new HeldSession(
       this.deps({
         sessionId: args.sessionId,
+        hostId: args.hostId,
         onDrop: () => {
           if (this.held.get(args.sessionId) === session) this.held.delete(args.sessionId)
         },
@@ -254,7 +268,11 @@ export class SessionHolder {
     )
   }
 
-  private deps(args: { sessionId: string; onDrop?: (() => void) | undefined }): HeldSessionDeps {
+  private deps(args: {
+    sessionId: string
+    hostId: number
+    onDrop?: (() => void) | undefined
+  }): HeldSessionDeps {
     return {
       sessionId: args.sessionId,
       plane: this.plane,
@@ -266,7 +284,7 @@ export class SessionHolder {
       runtimeFor: this.runtimes,
       ...(args.onDrop === undefined ? {} : { onDrop: args.onDrop }),
       onAppendExhausted: () => {
-        this.presence.abandon().catch(() => undefined)
+        this.presence.abandon(args.hostId).catch(() => undefined)
       },
       log: this.log,
     }
