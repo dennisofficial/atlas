@@ -7,6 +7,8 @@ import { createDb, createPool } from '@dltech/atlas-db'
 import { RandomIds } from '../runtime/random-ids'
 import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 import { createPgHostPresence } from '../presence/pg-host-presence'
+import { startHostWatch, type HostWatch } from '../presence/pg-host-watch'
+import { wakeOrphans } from '../presence/wake-orphans'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
@@ -29,6 +31,12 @@ const numberEnv = (name: string, fallback: number): number => {
   const parsed = Number(value)
   if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`${name} is not a number: ${value}`)
   return parsed
+}
+
+const daemonUrls = (): Record<string, string> | undefined => {
+  const raw = process.env.DAEMON_URLS
+  if (raw === undefined || raw === '') return undefined
+  return JSON.parse(raw) as Record<string, string>
 }
 
 class FirstChunkMarker extends ModelPort {
@@ -119,7 +127,11 @@ const main = async (): Promise<void> => {
   const wakes = startPgWakeListener({ url: requireEnv('DATABASE_DIRECT_URL'), log })
   const bus = createHostBus({ wakes, liveFrames })
   const timers = { now: () => Date.now(), ...systemTimers }
-  const sandbox = new FixedEndpointSandboxProvider({ url: daemonUrl, daemonSecret })
+  const sandbox = new FixedEndpointSandboxProvider({
+    url: daemonUrl,
+    daemonSecret,
+    urls: daemonUrls(),
+  })
   const pgPresence = createPgHostPresence({
     url: requireEnv('PRESENCE_DATABASE_URL'),
     label: holderLabel,
@@ -133,6 +145,7 @@ const main = async (): Promise<void> => {
       return hostId
     },
   }
+  let watch: HostWatch | undefined
   const generations = new Map<string, number>()
   const holder = new SessionHolder({
     presence,
@@ -157,12 +170,29 @@ const main = async (): Promise<void> => {
       pingMs: numberEnv('PING_MS', 10_000),
     }),
     ids: new RandomIds(),
-    maxSessions: 25,
+    maxSessions: numberEnv('MAX_SESSIONS', 25),
     appendRetryMs: numberEnv('APPEND_RETRY_MS', 2_500),
     idleMinutes: 30,
     log,
+    onHostIdChanged: () => watch?.recompute(),
   })
   await holder.start()
+  if (process.env.NO_RING !== '1') {
+    watch = startHostWatch({
+      url: requireEnv('PRESENCE_DATABASE_URL'),
+      selfId: () => holder.hostId(),
+      plane,
+      onHostChange: (listener) => wakes.onHostChange(listener),
+      log,
+    })
+    await wakeOrphans({ plane, log }).catch((error: unknown) => {
+      log.error({
+        source: 'host-process',
+        message: 'start-up orphan scan failed',
+        ...logFieldsOf({ error }),
+      })
+    })
+  }
   log.info({ source: 'host-process', message: `started hostId=${hostId} label=${holderLabel}` })
 
   let shuttingDown = false
@@ -171,6 +201,7 @@ const main = async (): Promise<void> => {
     shuttingDown = true
     log.info({ source: 'host-process', message: 'draining' })
     await holder.drain({ deadline: Date.now() + numberEnv('DRAIN_MS', 270_000) })
+    await watch?.close()
     await pgPresence.close()
     await wakes.close()
     await liveFrames.close()

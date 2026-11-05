@@ -4,7 +4,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import { PG_HOST_CHANGE_CHANNEL, PG_PRESENCE_LOCK_NAMESPACE } from '@dltech/atlas-protocol'
 
-import type { PgPresenceClient } from './pg-host-presence'
+import { PRESENCE_CONNECT_TIMEOUT_MS, type PgPresenceClient } from './pg-host-presence'
 import { wakeOrphans } from './wake-orphans'
 
 export type HostWatch = {
@@ -26,6 +26,7 @@ const newWatchClient = (url: string): pg.Client =>
   new pg.Client({
     connectionString: url,
     keepAlive: true,
+    connectionTimeoutMillis: PRESENCE_CONNECT_TIMEOUT_MS,
     application_name: HOST_WATCH_APPLICATION_NAME,
   })
 

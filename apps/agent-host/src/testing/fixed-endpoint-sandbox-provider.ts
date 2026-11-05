@@ -4,7 +4,13 @@ import type { VercelCredentials } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
 
 export class FixedEndpointSandboxProvider extends SandboxProvider {
-  constructor(private readonly args: { url: string; daemonSecret: string }) {
+  constructor(
+    private readonly args: {
+      url: string
+      daemonSecret: string
+      urls?: Record<string, string> | undefined
+    },
+  ) {
     super()
   }
 
@@ -15,7 +21,7 @@ export class FixedEndpointSandboxProvider extends SandboxProvider {
   }): Promise<DaemonEndpoint> {
     const sandboxName = sandboxNameOf(args.sessionId)
     return {
-      url: this.args.url,
+      url: this.args.urls?.[args.sessionId] ?? this.args.url,
       token: daemonToken({ secret: this.args.daemonSecret, sandboxName }),
       sandboxName,
     }
