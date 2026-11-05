@@ -8,49 +8,38 @@ import {
 
 import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
 import { foldLiveBuffer, type FoldedStep } from './fold-live-buffer'
-import { isLaterInRun, RetiredSteps, sameStep } from './step-order'
+import { ClosedSteps, isStepFrame, sameStep } from './step-frames'
 
 export const OVERLAY_QUEUE_BYTES = 256 * 1024
-
-type StepFrame = Extract<LiveFrame, { type: 'step-start' | 'delta' | 'step-end' }>
+export const MAX_JOIN_READS = 4
 
 type OpenStep = { key: StreamStepKey; have: Map<string, number> }
 
-type Queued = { frame: LiveFrame; size: number }
+export type QueuedFrame = { frame: LiveFrame; size: number }
 
-type Queue = { items: Queued[]; bytes: number }
+type JoinRead = { ok: true; folded: FoldedStep | undefined } | { ok: false }
 
 export type OverlayWatcherArgs = {
   id: string
   send(message: StreamServerMessage): void
   bufferedAmount(): number
   readBuffer(): Promise<string | null>
-  isLive(): boolean
   log: LogPort | undefined
 }
 
-const isStepFrame = (frame: LiveFrame): frame is StepFrame =>
-  frame.type === 'step-start' || frame.type === 'delta' || frame.type === 'step-end'
-
-const isEarlierInSameRun = (args: { candidate: StreamStepKey; current: StreamStepKey }): boolean =>
-  args.candidate.runId === args.current.runId &&
-  !sameStep({ left: args.candidate, right: args.current }) &&
-  !isLaterInRun(args)
-
-const lastStartOf = (args: { items: readonly Queued[]; key: StreamStepKey }): number =>
-  args.items.findLastIndex(
-    ({ frame }) => frame.type === 'step-start' && sameStep({ left: frame.key, right: args.key }),
-  )
-
-const emptyQueue = (): Queue => ({ items: [], bytes: 0 })
+const sameLengths = (args: { left: Map<string, number>; right: Map<string, number> }): boolean =>
+  args.left.size === args.right.size &&
+  [...args.left].every(([block, length]) => args.right.get(block) === length)
 
 export class OverlayWatcher {
-  private readonly retired = new RetiredSteps()
+  private readonly closed = new ClosedSteps()
   private open: OpenStep | undefined
   private shown: StreamStepKey | undefined
-  private wanted: StreamStepKey | undefined
-  private queue: Queue | undefined = emptyQueue()
+  private queue: QueuedFrame[] | undefined = []
+  private queuedBytes = 0
   private rejoin = false
+  private forced = false
+  private live = true
   private stale = false
   private stopped = false
 
@@ -61,23 +50,19 @@ export class OverlayWatcher {
   }
 
   resync(): void {
-    if (this.queue !== undefined) {
-      this.rejoin = true
-      return
-    }
-    this.queue = emptyQueue()
-    void this.join()
+    this.forced = true
+    this.requestJoin(undefined)
   }
 
-  holderLost(): void {
-    if (this.stopped) return
-    if (this.open !== undefined) this.retired.retire(this.open.key)
-    this.open = undefined
-    if (this.queue !== undefined) {
-      this.queue.items = this.queue.items.filter(({ frame }) => !isStepFrame(frame))
+  setLive(live: boolean): void {
+    if (this.stopped || live === this.live) return
+    this.live = live
+    if (live) {
+      this.resync()
+      return
     }
-    if (this.shown === undefined) return
-    this.emit({ type: 'overlay-clear', id: this.args.id, reason: EStreamClearReason.HolderLost })
+    this.open = undefined
+    this.closeShown({ folded: undefined, reason: EStreamClearReason.HolderLost })
   }
 
   stop(): void {
@@ -85,164 +70,150 @@ export class OverlayWatcher {
     this.queue = undefined
   }
 
-  handleFrame(item: Queued): void {
+  handleFrame(item: QueuedFrame): void {
     if (this.stopped) return
     if (this.queue !== undefined) {
-      this.enqueue({ queue: this.queue, item })
+      this.enqueue(item)
       return
     }
     if (this.stale && !this.overloaded()) {
       this.stale = false
-      this.queue = { items: [item], bytes: item.size }
-      void this.join()
+      this.forced = true
+      this.requestJoin(item)
       return
     }
-    this.apply(item.frame)
+    this.apply(item)
   }
 
-  private enqueue(args: { queue: Queue; item: Queued }): void {
-    const { queue, item } = args
-    if (queue.bytes + item.size > OVERLAY_QUEUE_BYTES) {
-      queue.items = []
-      queue.bytes = 0
+  private requestJoin(trigger: QueuedFrame | undefined): void {
+    if (this.queue !== undefined) {
       this.rejoin = true
+      if (trigger !== undefined) this.enqueue(trigger)
       return
     }
-    queue.items.push(item)
-    queue.bytes += item.size
+    this.queue = []
+    this.queuedBytes = 0
+    if (trigger !== undefined) this.enqueue(trigger)
+    void this.join()
   }
 
-  private apply(frame: LiveFrame): void {
+  private enqueue(item: QueuedFrame): void {
+    if (this.queue === undefined) return
+    if (this.queuedBytes + item.size > OVERLAY_QUEUE_BYTES) {
+      this.queue = []
+      this.queuedBytes = 0
+      this.rejoin = true
+      this.forced = true
+      return
+    }
+    this.queue.push(item)
+    this.queuedBytes += item.size
+  }
+
+  private apply(item: QueuedFrame): void {
+    const { frame } = item
     if (!isStepFrame(frame)) {
       this.emit({ type: 'frame', id: this.args.id, frame })
       return
     }
-    if (this.retired.has(frame.key)) return
-    if (frame.type === 'step-start') this.handleStepStart(frame.key)
-    else if (frame.type === 'delta') this.handleDelta(frame)
-    else this.handleStepEnd(frame)
-  }
-
-  private handleStepStart(key: StreamStepKey): void {
-    const open = this.open
-    if (open !== undefined) {
-      if (sameStep({ left: key, right: open.key })) return
-      if (isEarlierInSameRun({ candidate: key, current: open.key })) return
-      this.retired.retireSuperseded({ stale: open.key, latest: key })
-    }
-    this.open = { key, have: new Map() }
-    this.emit({ type: 'overlay', id: this.args.id, key, blocks: [] })
-  }
-
-  private handleDelta(frame: Extract<LiveFrame, { type: 'delta' }>): void {
+    if (!this.live || this.closed.has(frame.key)) return
     const open = this.open
     if (open === undefined || !sameStep({ left: open.key, right: frame.key })) {
-      if (open !== undefined && isEarlierInSameRun({ candidate: frame.key, current: open.key })) {
-        return
-      }
-      this.wanted = frame.key
-      this.resync()
+      this.requestJoin(item)
+      return
+    }
+    if (frame.type === 'step-start') return
+    if (frame.type === 'step-end') {
+      this.closed.add(frame.key)
+      this.open = undefined
+      this.emit({ type: 'frame', id: this.args.id, frame })
       return
     }
     const have = open.have.get(frame.block) ?? 0
     if (frame.from + frame.text.length <= have) return
     if (frame.from > have) {
-      this.resync()
+      this.requestJoin(item)
       return
     }
     const text = frame.text.slice(have - frame.from)
     open.have.set(frame.block, have + text.length)
-    this.emit({
-      type: 'delta',
-      id: this.args.id,
-      key: frame.key,
-      block: frame.block,
-      kind: frame.kind,
-      from: have,
-      text,
-    })
-  }
-
-  private handleStepEnd(frame: Extract<LiveFrame, { type: 'step-end' }>): void {
-    this.retired.retire(frame.key)
-    if (this.open !== undefined && sameStep({ left: this.open.key, right: frame.key })) {
-      this.open = undefined
-    }
-    this.emit({ type: 'frame', id: this.args.id, frame })
+    this.emit({ ...frame, id: this.args.id, from: have, text })
   }
 
   private async join(): Promise<void> {
-    let latest: FoldedStep | undefined
-    for (;;) {
+    let read: JoinRead = { ok: false }
+    let mark = 0
+    for (let reads = 1; ; reads += 1) {
       this.rejoin = false
-      try {
-        const folded = foldLiveBuffer(await this.args.readBuffer())
-        if (this.stopped) return
-        this.applySnapshot(folded)
-        latest = folded
-      } catch (error) {
-        this.args.log?.error({
-          source: 'stream',
-          message: 'reading the live buffer failed',
-          ...logFieldsOf({ error }),
-        })
-      }
+      mark = this.queue?.length ?? 0
+      read = await this.readSnapshot()
       if (this.stopped) return
+      if (!read.ok) break
       if (!this.rejoin) break
+      if (reads >= MAX_JOIN_READS) break
     }
-    const items = this.queue?.items ?? []
+    const items = this.queue ?? []
     this.queue = undefined
-    this.replay({ items, latest })
-  }
-
-  private replay(args: { items: readonly Queued[]; latest: FoldedStep | undefined }): void {
-    const { items, latest } = args
-    const cut = latest === undefined ? -1 : lastStartOf({ items, key: latest.key })
-    for (const [index, item] of items.entries()) {
+    const covered = read.ok ? items.slice(0, mark) : []
+    if (read.ok) this.applySnapshot({ folded: read.folded, covered })
+    this.forced = false
+    for (const item of covered) {
+      if (!isStepFrame(item.frame))
+        this.emit({ type: 'frame', id: this.args.id, frame: item.frame })
+    }
+    for (const item of read.ok ? items.slice(mark) : items) {
       if (this.stopped) return
-      if (this.queue !== undefined) {
-        this.enqueue({ queue: this.queue, item })
-        continue
-      }
-      const { frame } = item
-      if (latest !== undefined && index < cut && isStepFrame(frame)) {
-        this.retired.retireSuperseded({ stale: frame.key, latest: latest.key })
-        continue
-      }
-      this.apply(frame)
+      if (this.queue !== undefined) this.enqueue(item)
+      else this.apply(item)
     }
   }
 
-  private applySnapshot(folded: FoldedStep | undefined): void {
-    const wanted = this.wanted
-    this.wanted = undefined
+  private async readSnapshot(): Promise<JoinRead> {
+    try {
+      return { ok: true, folded: foldLiveBuffer(await this.args.readBuffer()) }
+    } catch (error) {
+      this.args.log?.error({
+        source: 'stream',
+        message: 'reading the live buffer failed',
+        ...logFieldsOf({ error }),
+      })
+      return { ok: false }
+    }
+  }
+
+  private applySnapshot(args: {
+    folded: FoldedStep | undefined
+    covered: readonly QueuedFrame[]
+  }): void {
+    const { folded } = args
+    const superseded = (key: StreamStepKey): boolean =>
+      folded === undefined || !sameStep({ left: key, right: folded.key })
+    for (const { frame } of args.covered) {
+      if (isStepFrame(frame) && superseded(frame.key)) this.closed.add(frame.key)
+    }
     const open = this.open
-    if (folded === undefined) {
-      if (open !== undefined) this.retired.retire(open.key)
-      if (wanted !== undefined) this.retired.retire(wanted)
+    if (open !== undefined && superseded(open.key)) this.closed.add(open.key)
+    if (folded?.end !== undefined) this.closed.add(folded.key)
+    if (folded === undefined || this.closed.has(folded.key)) {
       this.open = undefined
       this.closeShown({ folded, reason: EStreamClearReason.Lost })
       return
     }
-    for (const stale of [open?.key, wanted]) {
-      if (stale !== undefined) this.retired.retireSuperseded({ stale, latest: folded.key })
-    }
-    if (folded.end !== undefined) this.retired.retire(folded.key)
-    if (this.retired.has(folded.key)) {
+    if (!this.live) {
       this.open = undefined
-      this.closeShown({ folded, reason: EStreamClearReason.Lost })
+      this.closeShown({ folded: undefined, reason: EStreamClearReason.HolderLost })
       return
     }
-    if (!this.args.isLive()) {
-      this.retired.retire(folded.key)
-      this.open = undefined
-      this.closeShown({ folded, reason: EStreamClearReason.HolderLost })
-      return
-    }
-    this.open = {
-      key: folded.key,
-      have: new Map(folded.blocks.map((block) => [block.block, block.text.length])),
-    }
+    const have = new Map(folded.blocks.map((block) => [block.block, block.text.length]))
+    const unchanged =
+      !this.forced &&
+      this.shown !== undefined &&
+      sameStep({ left: this.shown, right: folded.key }) &&
+      open !== undefined &&
+      !superseded(open.key) &&
+      sameLengths({ left: open.have, right: have })
+    this.open = { key: folded.key, have }
+    if (unchanged) return
     this.emit({ type: 'overlay', id: this.args.id, key: folded.key, blocks: folded.blocks })
   }
 

@@ -37,7 +37,7 @@ export class StatusViews {
       read: StatusReader
       timers: HostTimers
       log: LogPort | undefined
-      onLiveness?: (args: { sessionId: string; live: boolean; readSince: number }) => void
+      onLiveness?: (args: { sessionId: string; live: boolean }) => void
     },
   ) {}
 
@@ -75,6 +75,11 @@ export class StatusViews {
       return
     }
     this.request({ sessionId: change.sessionId, entry })
+  }
+
+  recheck(sessionId: string): void {
+    const entry = this.entries.get(sessionId)
+    if (entry !== undefined) this.request({ sessionId, entry })
   }
 
   refreshAll(): void {
@@ -126,14 +131,13 @@ export class StatusViews {
     const { sessionId, entry } = args
     entry.running = true
     entry.dirty = false
-    const readSince = this.args.timers.now()
-    entry.lastRunAt = readSince
+    entry.lastRunAt = this.args.timers.now()
     try {
       const read = await this.args.read({ sessionId, threadId: entry.threadId })
       if (this.entries.get(sessionId) !== entry) return
       entry.last = read
       for (const watcher of [...entry.watchers.keys()]) this.deliver({ watcher, entry, read })
-      this.args.onLiveness?.({ sessionId, live: read.value.lease.live, readSince })
+      this.args.onLiveness?.({ sessionId, live: read.value.lease.live })
     } catch (error) {
       this.args.log?.error({
         source: 'stream',

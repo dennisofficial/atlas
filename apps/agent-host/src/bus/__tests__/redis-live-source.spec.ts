@@ -29,7 +29,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
     const source = createRedisLiveSource({ url })
     producers.push(producer)
     sources.push(source)
-    const overlay = new LiveOverlay({ source, now: () => Date.now(), log: undefined })
+    const overlay = new LiveOverlay({ source, log: undefined })
     const sent: StreamServerMessage[] = []
     overlay.add({ id: 'sub-1', sessionId, send: (m) => sent.push(m), bufferedAmount: () => 0 })
     const delta = (args: { from: number; text: string }) =>

@@ -14,8 +14,7 @@ export type OverlayTarget = {
 type SessionEntry = {
   ready: Promise<void>
   watchers: Map<OverlayTarget, OverlayWatcher>
-  heardAt: number | undefined
-  deadSince: number | undefined
+  live: boolean
 }
 
 export class LiveOverlay {
@@ -24,7 +23,11 @@ export class LiveOverlay {
   private readonly offGap: () => void
 
   constructor(
-    private readonly args: { source: LiveSource; now(): number; log: LogPort | undefined },
+    private readonly args: {
+      source: LiveSource
+      log: LogPort | undefined
+      onFrameWhileDead?: (sessionId: string) => void
+    },
   ) {
     this.offFrame = args.source.onFrame(({ sessionId, raw }) => this.handleRaw({ sessionId, raw }))
     this.offGap = args.source.onGap(() => this.handleGap())
@@ -38,9 +41,9 @@ export class LiveOverlay {
       send: (message) => target.send(message),
       bufferedAmount: () => target.bufferedAmount(),
       readBuffer: () => this.args.source.readBuffer(target.sessionId),
-      isLive: () => this.isLive(entry),
       log: this.args.log,
     })
+    watcher.setLive(entry.live)
     entry.watchers.set(target, watcher)
     void entry.ready.then(() => {
       if (entry.watchers.get(target) === watcher) watcher.start()
@@ -64,15 +67,11 @@ export class LiveOverlay {
     this.sessions.get(target.sessionId)?.watchers.get(target)?.resync()
   }
 
-  liveness(args: { sessionId: string; live: boolean; readSince: number }): void {
+  liveness(args: { sessionId: string; live: boolean }): void {
     const entry = this.sessions.get(args.sessionId)
     if (entry === undefined) return
-    if (args.live || (entry.heardAt !== undefined && entry.heardAt >= args.readSince)) {
-      entry.deadSince = undefined
-      return
-    }
-    entry.deadSince = args.readSince
-    for (const watcher of entry.watchers.values()) watcher.holderLost()
+    entry.live = args.live
+    for (const watcher of entry.watchers.values()) watcher.setLive(args.live)
   }
 
   close(): void {
@@ -91,8 +90,7 @@ export class LiveOverlay {
     const entry: SessionEntry = {
       ready,
       watchers: new Map(),
-      heardAt: undefined,
-      deadSince: undefined,
+      live: true,
     }
     this.sessions.set(sessionId, entry)
     return entry
@@ -103,15 +101,11 @@ export class LiveOverlay {
     if (entry === undefined) return
     const parsed = this.parse(args.raw)
     if (parsed === undefined) return
-    entry.heardAt = this.args.now()
-    entry.deadSince = undefined
+    if (!entry.live) this.args.onFrameWhileDead?.(args.sessionId)
+    const size = Buffer.byteLength(args.raw)
     for (const watcher of [...entry.watchers.values()]) {
-      watcher.handleFrame({ frame: parsed, size: args.raw.length })
+      watcher.handleFrame({ frame: parsed, size })
     }
-  }
-
-  private isLive(entry: SessionEntry): boolean {
-    return entry.deadSince === undefined
   }
 
   private parse(raw: string) {

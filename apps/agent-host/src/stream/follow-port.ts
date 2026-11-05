@@ -16,8 +16,12 @@ export const createFollowSubscriptions = (
   const overlay =
     args.live === undefined
       ? undefined
-      : new LiveOverlay({ source: args.live, now: () => timers.now(), log })
-  const statusViews = new StatusViews({
+      : new LiveOverlay({
+          source: args.live,
+          log,
+          onFrameWhileDead: (sessionId) => statusViews.recheck(sessionId),
+        })
+  const statusViews: StatusViews = new StatusViews({
     read: ({ sessionId, threadId }) =>
       readSessionStatus({ plane, sessionId, threadId, now: new Date(timers.now()).toISOString() }),
     timers,

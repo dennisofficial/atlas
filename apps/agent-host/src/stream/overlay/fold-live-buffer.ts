@@ -6,7 +6,7 @@ import {
   type StreamStepKey,
 } from '@dltech/atlas-protocol'
 
-import { sameStep } from './step-order'
+import { sameStep } from './step-frames'
 
 export type OverlayBlock = { block: string; kind: EStreamBlockKind; text: string }
 

@@ -209,7 +209,7 @@ describe('live overlay', () => {
     expect(rig.frames('overlay')).toHaveLength(1)
   })
 
-  it('moves to a later step and retires the earlier run', async () => {
+  it('moves to a newer step and never shows the superseded one', async () => {
     publish({ type: 'step-start', key: KEY })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
@@ -222,7 +222,10 @@ describe('live overlay', () => {
     publish(delta({ from: 0, text: 'new', key: next }))
     await rig.settled()
     expect(rig.frames('overlay').map((m) => m.key)).toEqual([KEY, next])
-    expect(rig.frames('delta').map((m) => m.text)).toEqual(['new'])
+    const view = client()
+    expect(view.key).toEqual(next)
+    expect(view.blocks.get('b1')).toBe('new')
+    expect(rig.frames('delta').map((m) => m.text)).not.toContain('old')
   })
 
   it('forwards other live frames untouched', async () => {

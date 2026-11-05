@@ -12,6 +12,7 @@ import {
 import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
 import { STATUS_COALESCE_MS } from '../status-views'
 import { FakeLiveSource } from './fake-live-source'
+import { clientViewOf } from './overlay-client'
 import { FollowRig, SESSION } from './follow-rig'
 
 const OLD: StreamStepKey = { runId: 'run-a', step: 0, attempt: 0 }
@@ -25,25 +26,6 @@ const delta = (args: { key: StreamStepKey; from: number; text: string }): LiveFr
   from: args.from,
   text: args.text,
 })
-
-type ClientView = { key: StreamStepKey | undefined; text: string }
-
-const clientViewOf = (sent: readonly StreamServerMessage[]): ClientView => {
-  const view: ClientView = { key: undefined, text: '' }
-  for (const message of sent) {
-    if (message.type === 'overlay') {
-      view.key = message.key
-      view.text = message.blocks[0]?.text ?? ''
-    }
-    if (message.type === 'overlay-clear') {
-      view.key = undefined
-      view.text = ''
-    }
-    if (message.type === 'delta') view.text = view.text.slice(0, message.from) + message.text
-    if (message.type === 'frame' && message.frame.type === 'step-end') view.key = undefined
-  }
-  return view
-}
 
 describe('live overlay recovery', () => {
   let live: FakeLiveSource
