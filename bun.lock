@@ -181,6 +181,13 @@
         "typescript": "~6.0.3",
       },
     },
+    "apps/preview-worker": {
+      "name": "@dltech/atlas-preview-worker",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "apps/prototype": {
       "name": "@dltech/atlas-prototype",
       "version": "0.1.0",
@@ -1109,6 +1116,8 @@
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
 
     "@dltech/atlas-observability": ["@dltech/atlas-observability@workspace:packages/observability"],
+
+    "@dltech/atlas-preview-worker": ["@dltech/atlas-preview-worker@workspace:apps/preview-worker"],
 
     "@dltech/atlas-protocol": ["@dltech/atlas-protocol@workspace:packages/protocol"],
 

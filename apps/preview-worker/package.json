@@ -1,0 +1,15 @@
+{
+  "name": "@dltech/atlas-preview-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker in front of *.byatlas.dev preview hosts: allows framing, partitions cookies and injects the location/command bridge script.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "deploy": "dotenvx run -f .env.production.enc -- bunx wrangler deploy"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
