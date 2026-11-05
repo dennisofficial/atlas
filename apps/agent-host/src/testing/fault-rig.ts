@@ -217,6 +217,7 @@ export const startRig = async (args: {
           ATLAS_HOME: join(dir, 'atlas-home'),
           DATABASE_URL: databaseUrl(),
           DATABASE_DIRECT_URL: args.databaseUrl,
+          PRESENCE_DATABASE_URL: ownProxy === undefined ? args.databaseUrl : databaseUrl(),
           REDIS_URL: redisUrl ?? args.redisUrl,
           HOLDER_ID: label,
           DAEMON_URL: ownDaemon?.url ?? daemonUrl,

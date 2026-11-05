@@ -121,7 +121,7 @@ const main = async (): Promise<void> => {
   const timers = { now: () => Date.now(), ...systemTimers }
   const sandbox = new FixedEndpointSandboxProvider({ url: daemonUrl, daemonSecret })
   const pgPresence = createPgHostPresence({
-    url: requireEnv('DATABASE_DIRECT_URL'),
+    url: requireEnv('PRESENCE_DATABASE_URL'),
     label: holderLabel,
     log,
   })
