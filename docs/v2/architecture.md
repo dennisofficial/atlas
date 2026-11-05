@@ -482,11 +482,11 @@ flowchart LR
   Wake --> Claim["claim race at epoch + 1"]
 ```
 
-| Measured, 4,000 leases, append = lease read + head update + event insert | 23 locks held | 600 | 3,000 |
-| --- | ---: | ---: | ---: |
-| Epoch check only, 8 clients | 1.66 ms | 0.83 ms | 0.59 ms |
-| Plus a `pg_locks` read, 8 clients | 1.97 ms | 2.56 ms | 5.22 ms |
-| Plus `pg_try_advisory_xact_lock_shared`, 8 clients | 1.79 ms | 1.10 ms | 0.99 ms |
+| Measured, 4,000 leases, append = lease read + head update + event insert | 23 locks held |     600 |   3,000 |
+| ------------------------------------------------------------------------ | ------------: | ------: | ------: |
+| Epoch check only, 8 clients                                              |       1.66 ms | 0.83 ms | 0.59 ms |
+| Plus a `pg_locks` read, 8 clients                                        |       1.97 ms | 2.56 ms | 5.22 ms |
+| Plus `pg_try_advisory_xact_lock_shared`, 8 clients                       |       1.79 ms | 1.10 ms | 0.99 ms |
 
 The `pg_locks` read scales with every lock in the cluster, so it stays off the append path. Connections
 per host are the pool plus three (`LISTEN`, lock, one waiter), independent of fleet size; one waiter per

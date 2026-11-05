@@ -37,11 +37,11 @@ reading those three parts against the numbers above changed the design.
 
 **D1. A lease is live while its holder host's presence lock is held. There is one lock per host, not
 one per session.**
-- A host registers once: `nextval` gives it an id, its dedicated *lock connection* runs
+- A host registers once: `nextval` gives it an id, its dedicated _lock connection_ runs
   `pg_try_advisory_lock(PRESENCE_NAMESPACE, id)`, and only then does it insert a `V2Host` row. A row
   therefore never exists without its lock having been taken.
 - The lease row becomes `{sessionId, epoch, holderHostId, wantsHolder}`. `renewedAt` and `ttlMs` go.
-- A lease is live iff `holderHostId` is set and `pg_locks` shows an *exclusive* advisory lock granted
+- A lease is live iff `holderHostId` is set and `pg_locks` shows an _exclusive_ advisory lock granted
   on `(PRESENCE_NAMESPACE, holderHostId)`. Shared mode is excluded on purpose: peers watch with shared
   locks (D5), and a watcher must not make a dead host look alive.
 - One lock covers every session the host holds. Losing the lock connection releases all of them at once,
@@ -160,18 +160,18 @@ survives both. The lock's job is to say when a claim is allowed.
 
 ## Failure cases
 
-| Case | What happens |
-| --- | --- |
-| Holder process SIGKILL | The OS closes the socket, the server frees the presence lock in about 0.1 s, the successor's waiter returns, its sessions are woken and claimed. |
-| Machine death or partition | The server's keepalives free the lock in about 11 s; same path. The zombie, if it comes back, is refused by epoch. |
-| Lock connection dead, pool alive | The host sees `error`/`end` at once, or the next append is refused. It stops, registers a new id and reclaims. Another host may claim first; the epoch refuses the old holder. |
-| Lock connection alive, pool dead | Appends fail on transport past their deadline; the host closes its lock connection (D3). Peers claim within the keepalive window at most. |
-| Two hosts race a claim | The lease row lock orders them. The second sees the first's presence lock granted and gets `held`. |
-| Deploy drain | Unchanged: revoke the sessions that have work with `pg_notify`, release the idle ones, close the lock connection last. |
-| PlanetScale failover | Every connection drops and the new primary has no advisory locks. Each host reads that as lock loss, registers a new id, and reclaims its sessions at the next epoch. The `V2Host` rows of the old ids are deleted by the first waiter that finds them free. Epoch fencing is as durable as the database; if an old primary stayed writable the design would have no protection, and neither would the TTL design. |
-| PgBouncer (transaction mode) | Refused at startup for the lock connection. Waiter connections follow the same rule. The API's pooled URL is unaffected. |
-| Every host down, then one starts | The start-up scan lists sessions whose holder is not present. |
-| Waiter connection drops | It reconnects and waits again; a death in the gap makes the wait return at once. |
+| Case                             | What happens                                                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Holder process SIGKILL           | The OS closes the socket, the server frees the presence lock in about 0.1 s, the successor's waiter returns, its sessions are woken and claimed.                                                                                                                                                                                                                                                                   |
+| Machine death or partition       | The server's keepalives free the lock in about 11 s; same path. The zombie, if it comes back, is refused by epoch.                                                                                                                                                                                                                                                                                                 |
+| Lock connection dead, pool alive | The host sees `error`/`end` at once, or the next append is refused. It stops, registers a new id and reclaims. Another host may claim first; the epoch refuses the old holder.                                                                                                                                                                                                                                     |
+| Lock connection alive, pool dead | Appends fail on transport past their deadline; the host closes its lock connection (D3). Peers claim within the keepalive window at most.                                                                                                                                                                                                                                                                          |
+| Two hosts race a claim           | The lease row lock orders them. The second sees the first's presence lock granted and gets `held`.                                                                                                                                                                                                                                                                                                                 |
+| Deploy drain                     | Unchanged: revoke the sessions that have work with `pg_notify`, release the idle ones, close the lock connection last.                                                                                                                                                                                                                                                                                             |
+| PlanetScale failover             | Every connection drops and the new primary has no advisory locks. Each host reads that as lock loss, registers a new id, and reclaims its sessions at the next epoch. The `V2Host` rows of the old ids are deleted by the first waiter that finds them free. Epoch fencing is as durable as the database; if an old primary stayed writable the design would have no protection, and neither would the TTL design. |
+| PgBouncer (transaction mode)     | Refused at startup for the lock connection. Waiter connections follow the same rule. The API's pooled URL is unaffected.                                                                                                                                                                                                                                                                                           |
+| Every host down, then one starts | The start-up scan lists sessions whose holder is not present.                                                                                                                                                                                                                                                                                                                                                      |
+| Waiter connection drops          | It reconnects and waits again; a death in the gap makes the wait return at once.                                                                                                                                                                                                                                                                                                                                   |
 
 ## Consequences
 
