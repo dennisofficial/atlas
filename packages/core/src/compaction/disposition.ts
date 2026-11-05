@@ -48,6 +48,7 @@ export const COMPACTION_DISPOSITION = {
   'classifier-judged': ECompactionDisposition.Drop,
   'loop-watch-verdict': ECompactionDisposition.Drop,
   'tldr-written': ECompactionDisposition.Drop,
+  'diagram-repaired': ECompactionDisposition.Keep,
   'turn-failed': ECompactionDisposition.Drop,
   'run-failed': ECompactionDisposition.Drop,
   'run-failure-dismissed': ECompactionDisposition.Drop,
