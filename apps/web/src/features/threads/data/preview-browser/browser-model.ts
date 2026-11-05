@@ -129,6 +129,8 @@ export function reconciled(args: { tab: BrowserTab; url: string }): BrowserTab {
   return pushed({ tab, url })
 }
 
+export const reloaded = (tab: BrowserTab): BrowserTab => reloadedTo({ tab, index: tab.index })
+
 export const steppedBack = (tab: BrowserTab): BrowserTab =>
   canGoBack(tab) ? reloadedTo({ tab, index: tab.index - 1 }) : tab
 

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react'
 
 import {
-  EStageFit,
   EViewportKind,
   FULL_VIEWPORT,
   PreviewBrowser,
@@ -85,7 +84,6 @@ const meta = {
     onAddress: () => undefined,
     viewport: FULL_VIEWPORT,
     onViewportChange: () => undefined,
-    stageFit: EStageFit.Scale,
     children: <Page />,
   },
   parameters: { layout: 'centered' },
@@ -109,10 +107,6 @@ export const Default: Story = {}
 const TABLET: Viewport = { kind: EViewportKind.Fixed, width: 768, height: 1024 }
 
 export const ScaledDevice: Story = { args: { viewport: TABLET } }
-
-export const ScrollingDevice: Story = {
-  args: { viewport: TABLET, stageFit: EStageFit.Scroll },
-}
 
 export const NewTab: Story = {
   args: {

@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EFrameCommand,
-  frameCommandOf,
-  isPreviewOrigin,
-  parseFrameMessage,
-} from '../frame-messages'
+import { isPreviewOrigin, parseFrameMessage } from '../frame-messages'
 
 describe('parseFrameMessage', () => {
   it('parses a location message', () => {
@@ -48,23 +43,6 @@ describe('parseFrameMessage', () => {
 describe('parseFrameMessage arrays', () => {
   it('rejects an array', () => {
     expect(parseFrameMessage([])).toBeNull()
-  })
-})
-
-describe('frameCommandOf', () => {
-  it('builds a command message per command', () => {
-    expect(frameCommandOf(EFrameCommand.Back)).toEqual({
-      kind: 'atlas-preview:command',
-      command: 'back',
-    })
-    expect(frameCommandOf(EFrameCommand.Forward)).toEqual({
-      kind: 'atlas-preview:command',
-      command: 'forward',
-    })
-    expect(frameCommandOf(EFrameCommand.Reload)).toEqual({
-      kind: 'atlas-preview:command',
-      command: 'reload',
-    })
   })
 })
 

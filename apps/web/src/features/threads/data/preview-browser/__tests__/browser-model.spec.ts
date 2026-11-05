@@ -14,6 +14,7 @@ import {
   navigated,
   openTab,
   reconciled,
+  reloaded,
   steppedBack,
   steppedForward,
   updateTab,
@@ -112,6 +113,14 @@ describe('browser-model', () => {
     expect(tab.history).toEqual([NEW_TAB_URL, A, C])
     expect(tab.index).toBe(2)
     expect(canGoForward(tab)).toBe(false)
+  })
+
+  it('reloads the current entry by bumping the load seq only', () => {
+    const tab = navigated({ tab: freshBrowser({ now: 1 }).tabs[0]!, url: A })
+    const next = reloaded(tab)
+    expect(next.load).toEqual({ url: A, seq: tab.load.seq + 1 })
+    expect(next.history).toBe(tab.history)
+    expect(next.index).toBe(tab.index)
   })
 
   it('steps back and forward within bounds', () => {

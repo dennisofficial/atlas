@@ -8,8 +8,10 @@ import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import { PreviewNewTab, PreviewOffline } from '@dltech/atlas-ui/ai/preview-new-tab'
 import { Button } from '@dltech/atlas-ui/components/button'
 
+import { EPreviewGate } from '@/features/desktop/use-preview-origins'
+
 import { liveKeyOf } from '../../data/preview-browser/live-tabs'
-import { changeRegistry, hidden, shown, unloaded } from './frame-registry'
+import { changeRegistry, hidden, shown, unloaded, useFrameRegistry } from './frame-registry'
 import { ETabPage, type TabPage } from './tab-page'
 
 function PreviewSlot(props: { threadId: string; tabId: string }) {
@@ -44,6 +46,16 @@ function ExternalNotice({ url }: { url: string }) {
   )
 }
 
+function BlockedNotice() {
+  return (
+    <Notice
+      icon={<GlobeIcon />}
+      title="Preview unavailable"
+      description="The desktop app couldn't allow this preview's origin, so it can't be shown here. Reload the window to try again."
+    />
+  )
+}
+
 export function PreviewTabBody(props: {
   threadId: string
   tabId: string
@@ -53,6 +65,7 @@ export function PreviewTabBody(props: {
   onNavigate: (url: string) => void
 }) {
   const { threadId, tabId, url, page, ports, onNavigate } = props
+  const { gate } = useFrameRegistry()
   const key = liveKeyOf({ threadId, tabId })
   const framed = page.kind === ETabPage.Frame || page.kind === ETabPage.Loading
   useEffect(() => {
@@ -65,5 +78,6 @@ export function PreviewTabBody(props: {
   if (page.kind === ETabPage.Loading) return null
   if (page.kind === ETabPage.External) return <ExternalNotice url={url} />
   if (page.kind === ETabPage.Offline) return <PreviewOffline port={page.port} />
+  if (gate === EPreviewGate.Failed) return <BlockedNotice />
   return <PreviewSlot threadId={threadId} tabId={tabId} />
 }

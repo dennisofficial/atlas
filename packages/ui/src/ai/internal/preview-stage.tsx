@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
 import { cn } from '#lib/utils'
-import { EStageFit } from './preview-browser-types'
 import { EViewportKind, type Size, type Viewport, type ViewportFit } from './viewport'
 
 const DEVICE_FRAME = 'shrink-0 overflow-hidden rounded-md shadow-lg ring-1 ring-border'
@@ -24,11 +23,10 @@ export function useStageSize() {
 interface StageBodyProps {
   viewport: Viewport
   fit: ViewportFit
-  stageFit: EStageFit
   children: ReactNode
 }
 
-function StageBody({ viewport, fit, stageFit, children }: StageBodyProps) {
+function StageBody({ viewport, fit, children }: StageBodyProps) {
   const content = (
     <div data-slot={CONTENT_SLOT} className="size-full">
       {children}
@@ -36,15 +34,6 @@ function StageBody({ viewport, fit, stageFit, children }: StageBodyProps) {
   )
   if (viewport.kind === EViewportKind.Full) return <div className="absolute inset-0">{content}</div>
   const size = { width: viewport.width, height: viewport.height }
-  if (stageFit === EStageFit.Scroll) {
-    return (
-      <div className="flex min-h-full w-full min-w-fit p-4">
-        <div style={size} className="m-auto shrink-0 overflow-hidden shadow-lg ring-1 ring-border">
-          {content}
-        </div>
-      </div>
-    )
-  }
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <div
@@ -63,19 +52,14 @@ export interface PreviewStageProps extends StageBodyProps {
   stageRef: (element: HTMLDivElement | null) => void
 }
 
-export function PreviewStage({ stageRef, viewport, fit, stageFit, children }: PreviewStageProps) {
+export function PreviewStage({ stageRef, viewport, fit, children }: PreviewStageProps) {
   const full = viewport.kind === EViewportKind.Full
   return (
     <div
       ref={stageRef}
-      data-slot="preview-stage"
-      className={cn(
-        'relative min-h-0 flex-1',
-        !full && 'bg-muted/40',
-        !full && stageFit === EStageFit.Scroll ? 'overflow-auto' : 'overflow-hidden',
-      )}
+      className={cn('relative min-h-0 flex-1 overflow-hidden', !full && 'bg-muted/40')}
     >
-      <StageBody viewport={viewport} fit={fit} stageFit={stageFit}>
+      <StageBody viewport={viewport} fit={fit}>
         {children}
       </StageBody>
     </div>

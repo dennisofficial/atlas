@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { deviceSummaryOf } from '../internal/preview-device-menu'
 import {
-  EStageFit,
   EViewportKind,
   FULL_VIEWPORT,
   PreviewBrowser,
@@ -50,7 +49,6 @@ const BASE: PreviewBrowserProps = {
   onAddress: noop,
   viewport: FULL_VIEWPORT,
   onViewportChange: noop,
-  stageFit: EStageFit.Scale,
   children: <p>page body</p>,
 }
 
@@ -100,30 +98,19 @@ describe('PreviewBrowser', () => {
     }
   })
 
-  it('scales the device box in Scale mode', () => {
+  it('scales the device box to fit the stage', () => {
     const html = render({ viewport: TABLET })
     expect(html).toContain('width:768px;height:1024px;transform:scale(')
-  })
-
-  it('leaves the device box unscaled in Scroll mode', () => {
-    const html = render({ viewport: TABLET, stageFit: EStageFit.Scroll })
-    expect(html).toContain('overflow-auto')
-    expect(html).not.toContain('transform:scale(')
   })
 })
 
 describe('deviceSummaryOf', () => {
   const fit = { width: 768, height: 1024, scale: 0.5 }
 
-  it('is empty for full, W×H when unscaled or scrolling, with zoom when scaled', () => {
-    expect(deviceSummaryOf({ viewport: FULL_VIEWPORT, fit, stageFit: EStageFit.Scale })).toBe('')
-    expect(
-      deviceSummaryOf({ viewport: TABLET, fit: { ...fit, scale: 1 }, stageFit: EStageFit.Scale }),
-    ).toBe('768×1024')
-    expect(deviceSummaryOf({ viewport: TABLET, fit, stageFit: EStageFit.Scale })).toBe(
-      '768×1024 · 50%',
-    )
-    expect(deviceSummaryOf({ viewport: TABLET, fit, stageFit: EStageFit.Scroll })).toBe('768×1024')
+  it('is empty for full, W×H when unscaled, with zoom when scaled', () => {
+    expect(deviceSummaryOf({ viewport: FULL_VIEWPORT, fit })).toBe('')
+    expect(deviceSummaryOf({ viewport: TABLET, fit: { ...fit, scale: 1 } })).toBe('768×1024')
+    expect(deviceSummaryOf({ viewport: TABLET, fit })).toBe('768×1024 · 50%')
   })
 })
 
