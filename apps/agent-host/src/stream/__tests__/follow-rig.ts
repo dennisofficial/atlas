@@ -14,6 +14,7 @@ import { EStreamSubscribeKind, type StreamServerMessage } from '@dltech/atlas-pr
 
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
 import type { FollowPlane } from '../follow-types'
+import type { LiveSource } from '../live-source'
 import type { StreamSubscriptionMessage, SubscriptionSession } from '../subscription-port'
 import { FakeTimers } from './fake-timers'
 import { until } from './test-client'
@@ -38,22 +39,33 @@ export class FollowRig {
   private epoch = 0
   private head: LogHead = { seq: 0, hash: GENESIS_HASH }
 
-  constructor() {
+  statusReads = 0
+
+  constructor(args: { live?: LiveSource } = {}) {
     const plane: FollowPlane = {
       readSession: (params) => this.plane.readSession(params),
       head: (params) => this.plane.head(params),
       readEvents: async (params) => {
+        if (params.visible) {
+          this.statusReads += 1
+          return this.plane.readEvents(params)
+        }
         this.reads += 1
         const page = await this.plane.readEvents(params)
         await this.onRead?.()
         return page
       },
+      readInbox: (params) => this.plane.readInbox(params),
+      currentLease: (params) => this.plane.currentLease(params),
+      readBlob: (params) => this.plane.readBlob(params),
+      hasMessageAfter: (params) => this.plane.hasMessageAfter(params),
     }
     this.follow = createFollowSubscriptions({
       plane,
       timers: this.timers,
       log: undefined,
       feed: this.store,
+      live: args.live,
     })
   }
 

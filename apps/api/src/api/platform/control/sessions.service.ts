@@ -1,17 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
-import { ControlPlane } from '@dltech/atlas-control'
+import { ControlPlane, readSessionStatus, STATUS_EVENT_LIMIT } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
-import {
-  activeFailure,
-  blobValueOf,
-  canonicalEvent,
-  INBOX_KIND_STOP,
-  isBlobRef,
-  sessionStatusOf,
-  type V2Event,
-  type SessionStatus,
-} from '@dltech/atlas-core'
+import { canonicalEvent, type V2Event } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import type {
   SessionBlobOutput,
@@ -23,7 +14,6 @@ import { ProjectAccess } from './project-access'
 
 export type LeaseView = { epoch: number; holderHostId: number | null; live: boolean }
 
-const STATUS_EVENT_LIMIT = 1000
 const EVENTS_DEFAULT_MAX_BYTES = 2_000_000
 const EVENTS_HARD_CEILING_BYTES = 3_500_000
 const BLOB_READ_DEFAULT_LENGTH = 1_000_000
@@ -141,52 +131,13 @@ export class SessionsService {
 
   async status(args: { userId: string; sessionId: string }): Promise<SessionStatusOutput> {
     const session = await this.requireOwnedSession(args)
-    const head = await this.plane.head({ threadId: session.mainThreadId })
-    const [page, unconsumed, { lease, live }] = await Promise.all([
-      this.plane.readEvents({
-        threadId: session.mainThreadId,
-        afterSeq: Math.max(0, head.seq - STATUS_EVENT_LIMIT),
-        limit: STATUS_EVENT_LIMIT,
-        visible: true,
-      }),
-      this.plane
-        .readInbox({ sessionId: args.sessionId, afterId: 0, limit: 1 })
-        .then((entries) => entries.length > 0),
-      this.plane.currentLease({ sessionId: args.sessionId }),
-    ])
-    const events = await this.resolveFactRefs(page.events)
-    const failure = activeFailure(events)
-    const messageAfterFailure =
-      failure !== undefined &&
-      (await this.plane.hasMessageAfter({
-        sessionId: args.sessionId,
-        afterId: failure.inboxHead,
-        excludeKind: INBOX_KIND_STOP,
-      }))
-    const current: SessionStatus = sessionStatusOf({
-      events,
-      live,
-      unconsumedInbox: unconsumed,
-      messageAfterFailure,
+    const { value } = await readSessionStatus({
+      plane: this.plane,
+      sessionId: args.sessionId,
+      threadId: session.mainThreadId,
       now: new Date().toISOString(),
     })
-    return {
-      state: current.state,
-      ...(current.reason === undefined ? {} : { reason: current.reason }),
-      ...(current.since === undefined ? {} : { since: current.since }),
-      lease: { epoch: lease.epoch, holderHostId: lease.holderHostId, live },
-    }
-  }
-
-  private async resolveFactRefs(events: readonly V2Event[]): Promise<V2Event[]> {
-    return Promise.all(
-      events.map(async (event) => {
-        if (event.type !== 'fact-recorded' || !isBlobRef(event.value)) return event
-        const blob = await this.plane.readBlob({ hash: event.value.$blob.hash })
-        if (blob === undefined) return event
-        return { ...event, value: blobValueOf(blob.bytes) }
-      }),
-    )
+    return value
   }
 
   private async requireOwnedSession(args: {

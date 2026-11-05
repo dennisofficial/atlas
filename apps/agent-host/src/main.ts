@@ -9,6 +9,7 @@ import { createHostBus } from './bus/host-bus'
 import { startPgChangeFeed } from './bus/pg-change-feed'
 import { startPgWakeListener } from './bus/pg-wake-listener'
 import { createRedisLiveFrames } from './bus/redis-live-frames'
+import { createRedisLiveSource } from './bus/redis-live-source'
 import { composeAgentHost } from './compose'
 import { ConfigReader } from './config/config-reader'
 import { ModelTokenService } from './tokens/model-token-service'
@@ -93,9 +94,11 @@ const main = async (): Promise<void> => {
     log.error({ source: 'main', message: 'start-up orphan scan failed', ...logFieldsOf({ error }) })
   })
   const changeFeed = startPgChangeFeed({ url: databaseUrlWithTls(env.databaseDirectUrl), log })
+  const liveSource = createRedisLiveSource({ url: env.redisUrl, log })
   const follow = createFollowSubscriptions({
     plane,
     feed: changeFeed,
+    live: liveSource,
     timers: systemHostTimers,
     log,
   })
@@ -123,6 +126,7 @@ const main = async (): Promise<void> => {
     await liveFrames.close()
     await stream.stop()
     follow.close()
+    await liveSource.close()
     await changeFeed.close()
     await pool.end()
     process.exit(0)
