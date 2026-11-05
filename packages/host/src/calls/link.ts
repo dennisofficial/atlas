@@ -66,6 +66,13 @@ export class DaemonLink {
     arm()
   }
 
+  restart(): void {
+    this.stopped = false
+    this.failures = 0
+    this.misses = 0
+    void this.connect()
+  }
+
   teardown(): void {
     this.stopped = true
     this.stopReconnect?.()
