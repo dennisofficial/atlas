@@ -2,7 +2,6 @@ export const PREVIEW_HOST_PATTERN = /^\d{2,5}-[a-z0-9]{10}\.byatlas\.dev$/
 
 export const ATLAS_WEB_ORIGIN_PATTERNS: readonly RegExp[] = [
   /^https:\/\/byatlas\.io$/,
-  /^https:\/\/app\.byatlas\.io$/,
   /^https:\/\/\d{2,5}-[a-z0-9]{10}\.byatlas\.dev$/,
   /^http:\/\/localhost:\d{1,5}$/,
 ]

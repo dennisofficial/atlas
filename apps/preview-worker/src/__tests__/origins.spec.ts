@@ -34,17 +34,16 @@ describe('isPreviewHost', () => {
 })
 
 describe('isAtlasWebOrigin', () => {
-  it.each([
-    'https://byatlas.io',
-    'https://app.byatlas.io',
-    'https://3001-abcdefghij.byatlas.dev',
-    'http://localhost:3001',
-  ])('accepts %p', (origin) => {
-    expect(isAtlasWebOrigin(origin)).toBe(true)
-  })
+  it.each(['https://byatlas.io', 'https://3001-abcdefghij.byatlas.dev', 'http://localhost:3001'])(
+    'accepts %p',
+    (origin) => {
+      expect(isAtlasWebOrigin(origin)).toBe(true)
+    },
+  )
 
   it.each([
     'https://byatlas.io.evil.com',
+    'https://app.byatlas.io',
     'https://evilbyatlas.io',
     'http://byatlas.io',
     'https://byatlas.io:444',
