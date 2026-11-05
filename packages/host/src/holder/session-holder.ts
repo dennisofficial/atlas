@@ -5,7 +5,11 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { HostBus, HostPresence, HostTimers, SessionRuntimeFactory } from './ports'
 import { HeldSession, type HeldSessionDeps } from './held-session'
 import { HolderPresence } from './holder-presence'
+import { HolderSweep } from './holder-sweep'
+import { listNeedingHolder } from './needing-holder-list'
+import { auditOwnLeases } from './own-lease-audit'
 import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
+import { ResyncRetry } from './resync-retry'
 import { StartBackoff } from './start-backoff'
 
 export type SessionHolderArgs = {
@@ -18,16 +22,15 @@ export type SessionHolderArgs = {
   maxSessions: number
   appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
+  sweepMs?: number | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
 }
 
-const RESYNC_RETRY_BASE_MS = 250
-const RESYNC_RETRY_CAP_MS = 5_000
-
 const DEFAULTS = {
   appendRetryMs: DEFAULT_APPEND_RETRY_MS,
   idleMinutes: 30,
+  sweepMs: 20_000,
 } as const
 
 export class SessionHolder {
@@ -46,8 +49,8 @@ export class SessionHolder {
   private readonly pendingClaims = new Map<string, Promise<void>>()
   private unsubWake: (() => void) | undefined
   private unsubResync: (() => void) | undefined
-  private resyncRetryTimer: unknown
-  private resyncFailures = 0
+  private readonly resyncRetry: ResyncRetry
+  private readonly sweep: HolderSweep
   private readonly startBackoff: StartBackoff
   private draining = false
 
@@ -69,6 +72,16 @@ export class SessionHolder {
     this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.log = args.log
+    this.resyncRetry = new ResyncRetry({
+      timers: args.timers,
+      retry: () => void this.onResync(),
+      draining: () => this.draining,
+    })
+    this.sweep = new HolderSweep({
+      timers: args.timers,
+      intervalMs: args.sweepMs ?? DEFAULTS.sweepMs,
+      tick: () => this.sweepOnce(),
+    })
     this.startBackoff = new StartBackoff({
       timers: args.timers,
       onDue: (sessionId) => this.onWake(sessionId),
@@ -83,15 +96,12 @@ export class SessionHolder {
     this.unsubResync = this.bus.onResync(() => {
       void this.onResync()
     })
+    this.sweep.start()
   }
 
   async drain(args: { deadline: number }): Promise<void> {
     this.draining = true
-    this.unsubWake?.()
-    this.unsubResync?.()
-    this.presence.stop()
-    this.cancelResyncRetry()
-    this.startBackoff.cancelAll()
+    this.stopTriggers()
     const sessions = [...this.held.values()]
     for (const session of sessions) session.beginDrain()
     await Promise.all(
@@ -107,6 +117,15 @@ export class SessionHolder {
     )
   }
 
+  private stopTriggers(): void {
+    this.unsubWake?.()
+    this.unsubResync?.()
+    this.presence.stop()
+    this.sweep.stop()
+    this.resyncRetry.cancel()
+    this.startBackoff.cancelAll()
+  }
+
   hostId(): number | undefined {
     return this.presence.current()
   }
@@ -117,11 +136,7 @@ export class SessionHolder {
 
   discard(): void {
     this.draining = true
-    this.unsubWake?.()
-    this.unsubResync?.()
-    this.presence.stop()
-    this.cancelResyncRetry()
-    this.startBackoff.cancelAll()
+    this.stopTriggers()
     for (const session of this.held.values()) session.discard()
   }
 
@@ -159,36 +174,26 @@ export class SessionHolder {
   private async onResync(): Promise<void> {
     if (this.draining) return
     for (const session of this.held.values()) session.notifyWake()
-    let ids: string[]
-    try {
-      ids = await this.plane.sessionsNeedingHolder({ limit: this.maxSessions })
-    } catch (error) {
-      this.log?.error({
-        source: 'holder.resync',
-        message: 'listing sessions needing a holder failed',
-        ...logFieldsOf({ error }),
-      })
-      this.scheduleResyncRetry()
-      return
-    }
-    this.resyncFailures = 0
+    const ids = await listNeedingHolder({
+      plane: this.plane,
+      limit: this.maxSessions,
+      log: this.log,
+    })
+    if (ids === undefined) return this.resyncRetry.schedule()
+    this.resyncRetry.succeeded()
     for (const sessionId of ids) this.onWake(sessionId)
   }
 
-  private scheduleResyncRetry(): void {
-    if (this.draining || this.resyncRetryTimer !== undefined) return
-    const delay = Math.min(RESYNC_RETRY_BASE_MS * 2 ** this.resyncFailures, RESYNC_RETRY_CAP_MS)
-    this.resyncFailures += 1
-    this.resyncRetryTimer = this.timers.setTimeout(() => {
-      this.resyncRetryTimer = undefined
-      void this.onResync()
-    }, delay)
-  }
-
-  private cancelResyncRetry(): void {
-    if (this.resyncRetryTimer === undefined) return
-    this.timers.clearTimeout(this.resyncRetryTimer)
-    this.resyncRetryTimer = undefined
+  private async sweepOnce(): Promise<void> {
+    const hostId = this.presence.current()
+    if (this.draining || hostId === undefined) return
+    await auditOwnLeases({
+      plane: this.plane,
+      hostId,
+      isRunning: (sessionId) => this.held.has(sessionId) || this.pendingClaims.has(sessionId),
+      log: this.log,
+    })
+    await this.onResync()
   }
 
   private async claimAndHold(sessionId: string): Promise<number | undefined> {

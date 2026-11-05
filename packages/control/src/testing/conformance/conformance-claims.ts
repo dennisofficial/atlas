@@ -115,6 +115,25 @@ export function describeControlPlaneClaims(params: ConformanceParams): void {
       }
     })
 
+    it('leasesHeldBy lists only that host leases in session order and respects the limit', async () => {
+      const mine = await present()
+      const other = await present()
+      for (const sessionId of ['held-c', 'held-a', 'held-b', 'held-other']) {
+        await newSession(sessionId)
+      }
+      for (const sessionId of ['held-c', 'held-a', 'held-b']) {
+        await harness.plane.claim({ sessionId, hostId: mine })
+      }
+      await harness.plane.claim({ sessionId: 'held-other', hostId: other })
+      const all = await harness.plane.leasesHeldBy({ hostId: mine, limit: 100 })
+      expect(all.map((lease) => lease.sessionId)).toEqual(['held-a', 'held-b', 'held-c'])
+      expect(all.every((lease) => lease.holderHostId === mine)).toBe(true)
+      const limited = await harness.plane.leasesHeldBy({ hostId: mine, limit: 2 })
+      expect(limited.map((lease) => lease.sessionId)).toEqual(['held-a', 'held-b'])
+      expect(await harness.plane.leasesHeldBy({ hostId: other, limit: 100 })).toHaveLength(1)
+      await releaseAll()
+    })
+
     it('eight concurrent claims produce exactly one winner', async () => {
       for (let round = 0; round < 5; round += 1) {
         const sessionId = `claim-race-${round}`
