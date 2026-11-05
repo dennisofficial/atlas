@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
+import { VercelReconnectRequiredError } from '../../tokens/vercel-token-refresher'
 import { ConfigReader, SessionNotFoundError } from '../config-reader'
 import {
   cipher,
@@ -14,7 +15,11 @@ import {
 
 const testDb = useTestDatabase()
 const NOW = Date.parse('2026-11-05T12:00:00.000Z')
-const readerOver = (db = testDb().db) => new ConfigReader({ db, cipher, now: () => NOW })
+const noRefresh = { refresh: async (): Promise<string> => 'refreshed-token' }
+const readerOver = (
+  db = testDb().db,
+  vercel: { refresh(a: { userId: string }): Promise<string> } = noRefresh,
+) => new ConfigReader({ db, cipher, vercel, now: () => NOW })
 
 describe('ConfigReader', () => {
   it('reads workspace, vercel credentials and the model choice for a session', async () => {
@@ -68,11 +73,31 @@ describe('ConfigReader', () => {
     expect(config.model).toEqual({ configured: false, gap: 'no anthropic account' })
   })
 
-  it('refuses a stale oauth vercel token instead of handing it out', async () => {
+  it('refreshes a near-expiry oauth vercel token instead of reporting a gap', async () => {
     const { db } = testDb()
     await seedOwner(db)
     await seedVercel(db, { kind: 'oauth', accessTokenExpiresAt: new Date(NOW + 30_000) })
     expect((await readerOver().read({ sessionId: 's-1' })).vercel).toEqual({
+      configured: true,
+      token: 'refreshed-token',
+      teamId: 'team-1',
+      projectId: 'vproj-1',
+    })
+    const reconnect = {
+      refresh: async (): Promise<string> => {
+        throw new VercelReconnectRequiredError()
+      },
+    }
+    expect((await readerOver(db, reconnect).read({ sessionId: 's-1' })).vercel).toEqual({
+      configured: false,
+      gap: 'vercel-reconnect-required',
+    })
+    const down = {
+      refresh: async (): Promise<string> => {
+        throw new Error('vercel down')
+      },
+    }
+    expect((await readerOver(db, down).read({ sessionId: 's-1' })).vercel).toEqual({
       configured: false,
       gap: 'vercel-oauth-refresh-required',
     })

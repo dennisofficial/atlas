@@ -10,6 +10,7 @@ import { composeAgentHost } from './compose'
 import { ConfigReader } from './config/config-reader'
 import { ModelTokenService } from './tokens/model-token-service'
 import { OauthConnectionStore } from './tokens/oauth-connection-store'
+import { VercelTokenRefresher } from './tokens/vercel-token-refresher'
 import { GithubTokenReader } from './tokens/github-token-reader'
 import { SecretCipher } from './config/secret-cipher'
 import { AgentHostEnvError, readAgentHostEnv } from './config/env'
@@ -42,7 +43,8 @@ const main = async (): Promise<void> => {
     log: (line) => console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line })),
   })
   const cipher = new SecretCipher(env.secretsEncryptionKey)
-  const config = new ConfigReader({ db: createDb(pool), cipher })
+  const vercel = new VercelTokenRefresher({ db: createDb(pool), cipher, oauth: env.vercelOauth })
+  const config = new ConfigReader({ db: createDb(pool), cipher, vercel })
   const github = new GithubTokenReader({ db: createDb(pool), cipher })
   const tokens = new ModelTokenService({
     store: new OauthConnectionStore(createDb(pool)),

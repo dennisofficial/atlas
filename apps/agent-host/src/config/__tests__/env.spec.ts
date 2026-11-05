@@ -21,9 +21,21 @@ describe('readAgentHostEnv', () => {
     expect(env.daemonSecret).toBe('secret')
     expect(env.secretsEncryptionKey).toBe('k'.repeat(64))
     expect(env.apiOrigin).toBe('https://api.byatlas.io')
+    expect(env.vercelOauth).toBeNull()
     expect(env.maxSessions).toBe(25)
     expect(env.sandboxImage).toBe('atlas-sandbox:latest')
     expect(env.daemonBundlePath.endsWith('apps/daemon/bin/daemon.js')).toBe(true)
+  })
+
+  it('reads the vercel oauth client only when both halves are set', () => {
+    expect(readAgentHostEnv({ ...complete, VERCEL_OAUTH_CLIENT_ID: 'cl' }).vercelOauth).toBeNull()
+    expect(
+      readAgentHostEnv({
+        ...complete,
+        VERCEL_OAUTH_CLIENT_ID: 'cl',
+        VERCEL_OAUTH_CLIENT_SECRET: 'sec',
+      }).vercelOauth,
+    ).toEqual({ clientId: 'cl', clientSecret: 'sec' })
   })
 
   it('honours the overrides', () => {

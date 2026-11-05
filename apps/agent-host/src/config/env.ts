@@ -15,6 +15,7 @@ export type AgentHostEnv = {
   daemonSecret: string
   secretsEncryptionKey: string
   apiOrigin: string
+  vercelOauth: { clientId: string; clientSecret: string } | null
   maxSessions: number
   sandboxImage: string
   daemonBundlePath: string
@@ -39,6 +40,12 @@ const parseMaxSessions = (raw: string | undefined): number => {
     ])
   }
   return parsed
+}
+
+const vercelOauthOf = (env: Record<string, string | undefined>): AgentHostEnv['vercelOauth'] => {
+  const clientId = take(env, 'VERCEL_OAUTH_CLIENT_ID')
+  const clientSecret = take(env, 'VERCEL_OAUTH_CLIENT_SECRET')
+  return clientId === undefined || clientSecret === undefined ? null : { clientId, clientSecret }
 }
 
 export const readAgentHostEnv = (
@@ -70,6 +77,7 @@ export const readAgentHostEnv = (
     daemonSecret: daemonSecret as string,
     secretsEncryptionKey: secretsEncryptionKey as string,
     apiOrigin: apiOrigin as string,
+    vercelOauth: vercelOauthOf(env),
     maxSessions: parseMaxSessions(take(env, 'AGENT_HOST_MAX_SESSIONS')),
     sandboxImage: take(env, 'ATLAS_SANDBOX_IMAGE') ?? DEFAULT_SANDBOX_IMAGE,
     daemonBundlePath: take(env, 'ATLAS_DAEMON_BUNDLE') ?? defaultDaemonBundlePath(),
