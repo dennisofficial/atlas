@@ -27,14 +27,6 @@ export const liveSdk: VercelSdk = {
   get: (params) => Sandbox.get({ ...params, fetch: gzipOnlyFetch }),
 }
 
-const assertLiveSession = (args: { sandbox: Sandbox; name: string; expected: string }): void => {
-  const live = args.sandbox.currentSession().sessionId
-  if (live === args.expected) return
-  throw new Error(
-    `refusing to renew sandbox ${args.name}: its live session ${live} is not the session ${args.expected} this renew was issued for`,
-  )
-}
-
 const routedUrlOf = (sandbox: Sandbox): string | undefined => {
   try {
     return sandbox.domain(SANDBOX_SERVE_PORT)
@@ -62,7 +54,6 @@ export const renewSessionDeadline = async (args: {
   sessionId: string
   until: number
 }): Promise<void> => {
-  assertLiveSession({ sandbox: args.sandbox, name: args.name, expected: args.sessionId })
   const session = args.sandbox.currentSession()
   if (session.status !== 'running')
     throw new Error(
