@@ -97,7 +97,6 @@ const testApi = (): AgentHostApi => ({
   modelAccessToken: async () => {
     throw new Error('unused')
   },
-  githubToken: async () => ({ token: null }),
 })
 
 const main = async (): Promise<void> => {
@@ -129,6 +128,7 @@ const main = async (): Promise<void> => {
     runtimes: createSessionRuntimeFactory({
       config: testSource(),
       api: testApi(),
+      github: { read: async () => null },
       sandbox,
       daemonSecret,
       timers,

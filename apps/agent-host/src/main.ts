@@ -9,6 +9,7 @@ import { createRedisLiveFrames } from './bus/redis-live-frames'
 import { composeAgentHost } from './compose'
 import { createAgentHostApi } from './config/agent-host-api'
 import { ConfigReader } from './config/config-reader'
+import { GithubTokenReader } from './tokens/github-token-reader'
 import { SecretCipher } from './config/secret-cipher'
 import { AgentHostEnvError, readAgentHostEnv } from './config/env'
 import { databaseUrlWithTls } from './config/database-url'
@@ -43,11 +44,10 @@ const main = async (): Promise<void> => {
     cloudUrl: env.apiOrigin,
     log: (line) => console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line })),
   })
-  const config = new ConfigReader({
-    db: createDb(pool),
-    cipher: new SecretCipher(env.secretsEncryptionKey),
-  })
-  const holder = composeAgentHost({ env, plane, bus, sandbox, config, api, log })
+  const cipher = new SecretCipher(env.secretsEncryptionKey)
+  const config = new ConfigReader({ db: createDb(pool), cipher })
+  const github = new GithubTokenReader({ db: createDb(pool), cipher })
+  const holder = composeAgentHost({ env, plane, bus, sandbox, config, api, github, log })
   await holder.start()
   log.info({ source: 'main', message: 'agent-host started' })
 

@@ -22,6 +22,7 @@ import {
   CollectingLog,
   E2E_SECRET,
   makeInMemoryBus,
+  noGithub,
   unusedApi,
   waitForSeq,
   type ReadEvent,
@@ -122,6 +123,7 @@ describe('branches-observed e2e', () => {
       runtimes: createSessionRuntimeFactory({
         config: sourceWithRepo(bareRepoUrl()),
         api: unusedApi(),
+        github: noGithub(),
         sandbox,
         daemonSecret: E2E_SECRET,
         timers,

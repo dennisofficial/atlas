@@ -1,8 +1,5 @@
 import { createApiClient } from '@dltech/atlas-api-router'
-import type {
-  AgentHostGithubTokenOutput,
-  AgentHostModelAccessTokenOutput,
-} from '@dltech/atlas-protocol'
+import type { AgentHostModelAccessTokenOutput } from '@dltech/atlas-protocol'
 
 export type AgentHostApi = {
   modelAccessToken(args: {
@@ -10,7 +7,6 @@ export type AgentHostApi = {
     connectionId: string
     rejectedAccessToken?: string | undefined
   }): Promise<AgentHostModelAccessTokenOutput>
-  githubToken(args: { sessionId: string }): Promise<AgentHostGithubTokenOutput>
 }
 
 export const createAgentHostApi = (args: {
@@ -32,6 +28,5 @@ export const createAgentHostApi = (args: {
           ? {}
           : { rejectedAccessToken: input.rejectedAccessToken }),
       }),
-    githubToken: ({ sessionId }) => client.agentHost.githubToken.query({ sessionId }),
   }
 }

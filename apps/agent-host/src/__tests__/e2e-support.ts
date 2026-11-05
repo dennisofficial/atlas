@@ -69,11 +69,12 @@ export const sourceFor = (setupScript = ''): ConfigSource => ({
   }),
 })
 
+export const noGithub = (): { read(): Promise<string | null> } => ({ read: async () => null })
+
 export const unusedApi = (): AgentHostApi => ({
   modelAccessToken: async () => {
     throw new Error('unused')
   },
-  githubToken: async () => ({ token: null }),
 })
 
 export class CollectingLog extends LogPort {
@@ -109,6 +110,7 @@ export const makeHolder = (args: {
     runtimes: createSessionRuntimeFactory({
       config: sourceFor(args.setupScript),
       api: unusedApi(),
+      github: noGithub(),
       sandbox: args.sandbox,
       daemonSecret: E2E_SECRET,
       timers,

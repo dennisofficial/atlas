@@ -95,7 +95,6 @@ const apiOf = (output: AgentHostConfig): AgentHostApi & ConfigSource => ({
   modelAccessToken: async () => {
     throw new Error('unused')
   },
-  githubToken: async () => ({ token: null }),
 })
 
 const testTimers: HostTimers = { now: () => Date.now(), ...systemTimers }
@@ -108,6 +107,7 @@ const makeFactory = (args: {
   createSessionRuntimeFactory({
     config: args.api,
     api: args.api,
+    github: { read: async () => null },
     sandbox: args.sandbox,
     daemonSecret: 'secret-1',
     timers: testTimers,
@@ -245,6 +245,7 @@ describe('createSessionRuntimeFactory', () => {
     const factory = createSessionRuntimeFactory({
       config: apiOf(configured()),
       api: apiOf(configured()),
+      github: { read: async () => null },
       sandbox,
       daemonSecret: 'secret-1',
       timers,
@@ -268,6 +269,7 @@ describe('createSessionRuntimeFactory', () => {
     const factory = createSessionRuntimeFactory({
       config: apiOf(configured()),
       api: apiOf(configured()),
+      github: { read: async () => null },
       sandbox,
       daemonSecret: 'secret-1',
       timers,
