@@ -78,7 +78,7 @@ _Updated at the end of every slice. Last update: 2026-11-05._
     sandbox; status stuck on `thinking`). Fixed in #1889 to #1893: the bash result names an OOM kill; the
     host starts without the `dotenvx run` wrapper (it SIGKILLed the drain) and drains once; a stopped sandbox
     is re-woken while held and a side-effecting call never reruns on a new boot. 9, F12 and F18 then passed
-    live. Follow-up: an interrupted bash still reads `Exit code: 1` to the model. F9 is now "Redis down:
+    live. An interrupted result also kept a stale `Exit code: 1` `modelText` (#1897 drops it). F9 is now "Redis down:
     unaffected", since no wake path uses Redis. Continue from [handoffs/slice-4.md](handoffs/slice-4.md).
 - **Decided 2026-11-04, slice 3:** wakes move from Redis pub/sub to Postgres `LISTEN`/`NOTIFY`
   ([0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md) amended); the agent host polls nothing,

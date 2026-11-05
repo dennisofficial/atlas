@@ -45,6 +45,7 @@ class ExecDispatcher extends ToolDispatcher {
         callId: args.call.callId,
         name: args.call.name,
         output: exitCode,
+        modelText: `Exit code: ${exitCode}`,
       },
     ]
   }
@@ -87,6 +88,8 @@ describe('ScopedToolDispatcher across a daemon restart (F17)', () => {
     if (result?.type !== 'tool-result') throw new Error('no tool-result draft')
     expect(result.interrupted).toBe(true)
     expect(result.output).toBeUndefined()
+    expect(result.modelText).toBeUndefined()
+    expect(result.modelParts).toBeUndefined()
     expect(result.error?.message).toBe(interruptedMessage('bash'))
     expect(daemon.runCount()).toBe(0)
 

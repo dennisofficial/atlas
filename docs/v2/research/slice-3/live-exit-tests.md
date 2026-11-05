@@ -215,7 +215,8 @@ Three bash calls; sandbox stopped (Vercel SDK) 15 s into call 2 (120 s wait). Ho
 - 5 s after the stop: `tool-result` for call 2 with `interrupted: true` (21:54:13.98), no rerun.
 - The holder re-woke the sandbox itself: next dispatches carry a new bootId `9abd9601-…` (was `73e25239-…`).
 - The model checked the runs file (one line) and continued; call 3 ran; reply. `/tmp/fault-runs-…` run count **1**.
-- Gap: the interrupted result's model text is just `Exit code: 1` (from `DaemonProcessPort`'s interrupted → 1);
-  it should say the command was interrupted by a sandbox restart. Small follow-up.
+- The model saw the interrupted message (context assembly reads `error` before `modelText`). The stored
+  result also kept the tool's own `modelText` (`Exit code: 1`), which the fault script logged and the loop
+  detector (`loop-watch.ts`) reads; #1897 clears it in the interrupted rewrite.
 - Unrelated log: `holder.claim … lease changed concurrently` on host 55 at 21:53:20 — both hosts raced to claim the
   new session and one lost; benign.
