@@ -20,6 +20,9 @@ export type SessionHolderArgs = {
   log?: LogPort | undefined
 }
 
+const RESYNC_RETRY_BASE_MS = 250
+const RESYNC_RETRY_CAP_MS = 5_000
+
 const DEFAULTS = {
   ttlMs: 30_000,
   renewEveryMs: 5_000,
@@ -45,6 +48,8 @@ export class SessionHolder {
   private readonly pendingClaims = new Map<string, Promise<void>>()
   private unsubWake: (() => void) | undefined
   private unsubResync: (() => void) | undefined
+  private resyncRetryTimer: unknown
+  private resyncFailures = 0
   private draining = false
 
   constructor(args: SessionHolderArgs) {
@@ -75,6 +80,7 @@ export class SessionHolder {
     this.draining = true
     this.unsubWake?.()
     this.unsubResync?.()
+    this.cancelResyncRetry()
     const sessions = [...this.held.values()]
     for (const session of sessions) session.beginDrain()
     await Promise.all(
@@ -98,6 +104,7 @@ export class SessionHolder {
     this.draining = true
     this.unsubWake?.()
     this.unsubResync?.()
+    this.cancelResyncRetry()
     for (const session of this.held.values()) session.discard()
   }
 
@@ -129,9 +136,27 @@ export class SessionHolder {
         message: 'listing sessions needing a holder failed',
         ...logFieldsOf({ error }),
       })
+      this.scheduleResyncRetry()
       return
     }
+    this.resyncFailures = 0
     for (const sessionId of ids) this.onWake(sessionId)
+  }
+
+  private scheduleResyncRetry(): void {
+    if (this.draining || this.resyncRetryTimer !== undefined) return
+    const delay = Math.min(RESYNC_RETRY_BASE_MS * 2 ** this.resyncFailures, RESYNC_RETRY_CAP_MS)
+    this.resyncFailures += 1
+    this.resyncRetryTimer = this.timers.setTimeout(() => {
+      this.resyncRetryTimer = undefined
+      void this.onResync()
+    }, delay)
+  }
+
+  private cancelResyncRetry(): void {
+    if (this.resyncRetryTimer === undefined) return
+    this.timers.clearTimeout(this.resyncRetryTimer)
+    this.resyncRetryTimer = undefined
   }
 
   private async claimAndHold(sessionId: string): Promise<void> {
