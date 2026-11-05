@@ -452,6 +452,64 @@ is not an in-memory timer: it is a recorded deadline (0021).
   or failed with a retry pending. An idle, prepared session is released without a wake. The next message
   wakes it through `NOTIFY`, so a deploy no longer wakes every sandbox and restarts every idle clock.
 
+**Connection-bound leases (proposed in [0025](../decisions/0025-v2-connection-bound-leases.md)).** Renewal
+and the reconcile task exist because liveness is something the control plane has to infer from a clock.
+Postgres already knows when a connection is gone, so the proposal makes that the liveness signal and
+removes every timer that proves or looks for it.
+- **One presence lock per host.** An agent host opens a dedicated direct connection (`DATABASE_DIRECT_URL`,
+  keepalives 5/2/3 s set on it, no statement or idle timeouts) and takes
+  `pg_try_advisory_lock(PRESENCE, hostId)` on it, then inserts its `V2Host` row. The lease row is
+  `{sessionId, epoch, holderHostId, wantsHolder}`. A lease is live iff its holder's presence lock is
+  granted exclusively. A host with 200 sessions uses one lock slot, not 200.
+- **The epoch fences; the lock says when a claim is allowed.** Appends compare the epoch under
+  `FOR SHARE` on the lease row and never read `pg_locks`. A claim locks the row, refuses if the current
+  holder is present or if the claimer is not, and writes `epoch + 1`.
+- **Lose the lock connection, lose every lease.** The host stops appending, pauses its loops, registers a
+  new host id and reclaims through the normal path. Postgres has already freed the old lock.
+- **Death is an event.** Each host keeps one connection blocked in
+  `pg_advisory_lock_shared(PRESENCE, successor)`, where the successor is the next host id in a ring. It
+  returns when the successor's connection dies; the waker then runs one scan for sessions whose holder is
+  not present and `NOTIFY`s them. A start-up scan covers an empty fleet.
+
+```mermaid
+flowchart LR
+  H1[host 1] -- "waits on" --> H2[host 2]
+  H2 -- "waits on" --> H3[host 3]
+  H3 -- "waits on" --> H1
+  H2 -. "connection dies: lock freed" .-> H1
+  H1 --> Scan["scan: sessions whose holder is not present"]
+  Scan --> Wake["pg_notify per session"]
+  Wake --> Claim["claim race at epoch + 1"]
+```
+
+| Measured, 4,000 leases, append = lease read + head update + event insert | 23 locks held |     600 |   3,000 |
+| ------------------------------------------------------------------------ | ------------: | ------: | ------: |
+| Epoch check only, 8 clients                                              |       1.66 ms | 0.83 ms | 0.59 ms |
+| Plus a `pg_locks` read, 8 clients                                        |       1.97 ms | 2.56 ms | 5.22 ms |
+| Plus `pg_try_advisory_xact_lock_shared`, 8 clients                       |       1.79 ms | 1.10 ms | 0.99 ms |
+
+The `pg_locks` read scales with every lock in the cluster, so it stays off the append path. Connections
+per host are the pool plus three (`LISTEN`, lock, one waiter), independent of fleet size; one waiter per
+peer would need N(N−1) backends against a limit of 50. What the lock connection must survive, and what
+the host does for each case, is the failure table in [0025](../decisions/0025-v2-connection-bound-leases.md).
+
+**Build plan** (each a reviewable PR; none starts before the operator accepts 0025):
+1. **Verify on PlanetScale.** A test-only script against the real role: `SET tcp_keepalives_*` is allowed,
+   no idle-session reaping, a killed connection frees the lock, a transaction-mode URL is detectable.
+   Amend 0025 with the numbers.
+2. **Presence.** `V2Host` table, a `HostPresence` port with Postgres and in-memory implementations
+   (conformance spec shared), the lock connection with `error`/`end` handling and the pooler refusal.
+3. **Lease row and fence.** Drop `renewedAt`/`ttlMs`, add `holderHostId`; `claim` and `acceptAppend` in `core`
+   take presence as input; `FOR SHARE` in append and `FOR NO KEY UPDATE` in claim; delete `lease-expired`
+   and `renew`. A race spec: append against a concurrent claim.
+4. **Host.** Delete `LeaseRenewal` and its timers; lock-connection loss fences every held session and
+   re-registers; an append transport failure past its deadline closes the lock connection.
+5. **Watch ring.** The waiter, successor recompute on `atlas_host_change`, the global scan on start and on
+   wake, and `sessionsNeedingHolder` on presence. Delete `reconcile-holders` and its trigger task.
+6. **Fault rig.** Cases for SIGKILL, `pg_terminate_backend` of the lock connection, a stalled pool with a
+   live lock connection, a partition (`iptables` drop, keepalives free the lock), a primary restart, and
+   three hosts dying in sequence around the ring.
+
 ## 14. Archive is read-only, and an archived session costs nothing
 
 **v1 today.** Archive (`apps/api/src/api/platform/sessions/thread-archive.service.ts`) sets
