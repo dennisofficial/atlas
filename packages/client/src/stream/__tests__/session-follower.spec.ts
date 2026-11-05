@@ -63,21 +63,6 @@ describe('the session follower', () => {
     expect(follower.getSnapshot().status?.state).toBe(ESessionStatus.Idle)
   })
 
-  it('closes the overlay when the status leaves thinking', () => {
-    const { follower } = setup()
-    const key = { runId: 'run-1', step: 1, attempt: 0 }
-    follower.handleMessage(statusView({ at: 0, state: ESessionStatus.Thinking }))
-    follower.handleMessage({
-      type: 'overlay',
-      id: 's1',
-      key,
-      blocks: [{ block: 'b0', kind: EStreamBlockKind.Text, text: 'Hel' }],
-    })
-    expect(follower.getSnapshot().overlay?.blocks[0]?.text).toBe('Hel')
-    follower.handleMessage(statusView({ at: 0, state: ESessionStatus.RunningTool }))
-    expect(follower.getSnapshot().overlay).toBeUndefined()
-  })
-
   it('sends a resnap request on a delta gap', () => {
     const { follower, resnaps } = setup()
     const key = { runId: 'run-1', step: 1, attempt: 0 }

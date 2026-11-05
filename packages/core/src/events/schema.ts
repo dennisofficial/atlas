@@ -75,6 +75,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     placeholder: z.enum(EAssistantPlaceholder).optional(),
     aborted: z.literal('handoff').optional(),
     fast: z.literal(true).optional(),
+    step: z.number().int().min(0).optional(),
     usage: stepUsageSchema.optional(),
   }),
   // Zod 4 requires a z.unknown() key to be present, where Zod 3 inferred it optional. A tool call or

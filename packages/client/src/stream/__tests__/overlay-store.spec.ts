@@ -128,24 +128,38 @@ describe('applyOverlayMessage', () => {
     expect(resnaps).toEqual([false, false, false])
   })
 
-  it('closes on a step-end frame and keeps the closed key as a high-water mark', () => {
+  it('keeps the text on a step-end frame, marks it ended and drops its later deltas', () => {
     const { state, resnaps } = run([
       overlay({ key: key('run-1', 1), text: 'Hel' }),
       stepEnd(key('run-1', 1)),
       delta({ key: key('run-1', 1), from: 3, text: 'lo' }),
       overlay({ key: key('run-1', 1), text: 'Hello' }),
     ])
-    expect(state.open).toBeUndefined()
+    expect(textOf(state)).toBe('Hel')
+    expect(state.open?.ended).toBe(true)
     expect(resnaps).toEqual([false, false, false, false])
   })
 
-  it('drops a late delta and a late overlay for a step below the high-water mark', () => {
+  it('opens a live overlay that is not ended', () => {
+    const { state } = run([overlay({ key: key('run-1', 1), text: 'Hel' })])
+    expect(state.open?.ended).toBe(false)
+  })
+
+  it('drops an ended overlay when a later step opens', () => {
     const { state } = run([
-      overlay({ key: key('run-1', 2), text: 'two' }),
-      stepEnd(key('run-1', 2)),
       overlay({ key: key('run-1', 1), text: 'one' }),
-      delta({ key: key('run-1', 1), from: 3, text: '!' }),
-      overlay({ key: key('run-1', 2, 0), text: 'again' }),
+      stepEnd(key('run-1', 1)),
+      overlay({ key: key('run-1', 2), text: 'two' }),
+    ])
+    expect(textOf(state)).toBe('two')
+    expect(state.open?.ended).toBe(false)
+  })
+
+  it('drops an ended overlay on overlay-clear', () => {
+    const { state } = run([
+      overlay({ key: key('run-1', 1), text: 'one' }),
+      stepEnd(key('run-1', 1)),
+      { type: 'overlay-clear', id: 's1', reason: EStreamClearReason.HolderLost },
     ])
     expect(state.open).toBeUndefined()
   })

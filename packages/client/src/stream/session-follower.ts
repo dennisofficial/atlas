@@ -4,11 +4,12 @@ import type { SessionStatusOutput, StreamServerMessage } from '@dltech/atlas-pro
 import { EStreamConnectionState } from './connection-machine'
 import {
   applyOverlayMessage,
-  closeOverlay,
   closeOverlayForEvents,
   EMPTY_OVERLAY_STATE,
+  endOverlay,
   type OpenOverlay,
   type OverlayState,
+  settleOverlay,
 } from './overlay-store'
 import type { SessionCache } from './session-cache'
 import {
@@ -120,7 +121,10 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       window: inner.window,
       page: { events: message.events, head: message.head },
     })
-    const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
+    const previous = inner.window.cursor?.seq ?? 0
+    const fresh = window.events.filter((event) => event.seq > previous)
+    const closed = closeOverlayForEvents({ state: inner.overlay, events: fresh })
+    const overlay = settleOverlay({ state: closed, cursorSeq: window.cursor?.seq ?? 0 })
     commit({ ...inner, window, overlay, live: message.live })
     saveThrottled()
   }
@@ -128,7 +132,10 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   const handleView = (message: Extract<StreamServerMessage, { type: 'view' }>): void => {
     if (!acceptsView({ inner, at: message.at })) return
     const leavesThinking = message.value.state !== ESessionStatus.Thinking
-    const overlay = leavesThinking ? closeOverlay(inner.overlay) : inner.overlay
+    const ended = leavesThinking
+      ? endOverlay({ state: inner.overlay, settleAt: message.at })
+      : inner.overlay
+    const overlay = settleOverlay({ state: ended, cursorSeq: inner.window.cursor?.seq ?? 0 })
     commit({ ...inner, status: message.value, overlay })
   }
 
@@ -148,7 +155,9 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     if (message.type === 'events') handleEvents(message)
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'reset') {
-      commit({ ...inner, window: resetWindow(), status: undefined, live: false })
+      const dropsEnded = inner.overlay.open?.ended === true
+      const overlay = dropsEnded ? { ...inner.overlay, open: undefined } : inner.overlay
+      commit({ ...inner, window: resetWindow(), status: undefined, live: false, overlay })
     } else if (
       message.type === 'overlay' ||
       message.type === 'delta' ||

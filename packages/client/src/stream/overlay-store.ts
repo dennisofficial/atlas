@@ -5,7 +5,12 @@ const MAX_REMEMBERED_RUNS = 16
 
 export type OverlayBlock = { block: string; kind: EStreamBlockKind; text: string }
 
-export type OpenOverlay = { key: StreamStepKey; blocks: readonly OverlayBlock[] }
+export type OpenOverlay = {
+  key: StreamStepKey
+  blocks: readonly OverlayBlock[]
+  ended: boolean
+  settleAt: number | undefined
+}
 
 export type OverlayState = {
   open: OpenOverlay | undefined
@@ -94,7 +99,11 @@ const openOverlay = (args: {
       : open.key.runId !== key.runId
         ? retireRun({ state, runId: open.key.runId })
         : retireStep({ state, key: open.key })
-  return { ...superseded, open: { key, blocks: args.blocks }, resnapPending: false }
+  return {
+    ...superseded,
+    open: { key, blocks: args.blocks, ended: false, settleAt: undefined },
+    resnapPending: false,
+  }
 }
 
 const applyOverlay = (args: {
@@ -126,7 +135,7 @@ const appendDelta = (args: {
       : open.blocks.map((block) =>
           block === existing ? { ...block, text: block.text + text } : block,
         )
-  return { key: open.key, blocks }
+  return { ...open, blocks }
 }
 
 const applyDelta = (args: {
@@ -148,11 +157,30 @@ const applyDelta = (args: {
   return noChange({ ...state, open: next })
 }
 
+export const endOverlay = (args: {
+  state: OverlayState
+  settleAt: number | undefined
+}): OverlayState => {
+  const { state, settleAt } = args
+  const { open } = state
+  if (open === undefined) return state
+  const retired = retireStep({ state, key: open.key })
+  return { ...retired, open: { ...open, ended: true, settleAt: settleAt ?? open.settleAt } }
+}
+
+export const settleOverlay = (args: { state: OverlayState; cursorSeq: number }): OverlayState => {
+  const { state, cursorSeq } = args
+  const settleAt = state.open?.settleAt
+  if (settleAt === undefined || cursorSeq < settleAt) return state
+  return closeOverlay(state)
+}
+
 const applyStepEnd = (args: { state: OverlayState; key: StreamStepKey }): OverlayStep => {
   const { state, key } = args
   const retired = retireStep({ state, key })
-  const closes = state.open !== undefined && sameStep({ left: state.open.key, right: key })
-  return noChange({ ...retired, open: closes ? undefined : state.open, resnapPending: false })
+  const ends = state.open !== undefined && sameStep({ left: state.open.key, right: key })
+  const next = ends ? endOverlay({ state: retired, settleAt: undefined }) : retired
+  return noChange({ ...next, resnapPending: false })
 }
 
 export const applyOverlayMessage = (args: {
@@ -169,16 +197,20 @@ export const applyOverlayMessage = (args: {
   return noChange(state)
 }
 
+const closesOverlay = (args: { open: OpenOverlay; event: V2Event }): boolean => {
+  const { open, event } = args
+  if (event.runId !== open.key.runId) return false
+  if (event.type === 'run-failed') return true
+  if (event.type !== 'assistant-said') return false
+  return event.step === undefined || event.step >= open.key.step
+}
+
 export const closeOverlayForEvents = (args: {
   state: OverlayState
   events: readonly V2Event[]
 }): OverlayState => {
   const { state, events } = args
-  const runId = state.open?.key.runId
-  if (runId === undefined) return state
-  const closes = events.some(
-    (event) =>
-      (event.type === 'assistant-said' || event.type === 'run-failed') && event.runId === runId,
-  )
-  return closes ? closeOverlay(state) : state
+  const { open } = state
+  if (open === undefined) return state
+  return events.some((event) => closesOverlay({ open, event })) ? closeOverlay(state) : state
 }
