@@ -205,8 +205,7 @@ export async function runTrackedTurn(
     const assembled = prepared.assembled
     position.previous = assembled
 
-    const modelStep = position.modelSteps
-    const stream = stepStreamerFor({ output: deps.streamOutput, runId, step: modelStep })
+    const stream = stepStreamerFor({ output: deps.streamOutput, runId, step: position.modelSteps })
 
     const stepOnce = () =>
       takeModelStepWithRetry({
@@ -256,10 +255,9 @@ export async function runTrackedTurn(
     }
     await deps.waitState?.admitted({ threadId })
 
-    const step = { result: stepped.result, step: modelStep, model: deps.model }
     if (abortSignal.aborted) {
       const abandoned = dedupeCallIds({
-        drafts: interruptedDrafts(step),
+        drafts: interruptedDrafts({ result: stepped.result, model: deps.model }),
         taken: callIdsIn(events),
       })
       if (abandoned.length > 0) await record.append({ threadId, runId, drafts: abandoned })
@@ -272,6 +270,7 @@ export async function runTrackedTurn(
       return interrupted()
     }
 
+    const step = { result: stepped.result, model: deps.model }
     const drafts = dedupeCallIds({ drafts: draftsFor(step), taken: callIdsIn(events) })
     if (drafts.length > 0) await record.append({ threadId, runId, drafts })
 

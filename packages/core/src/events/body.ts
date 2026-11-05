@@ -126,7 +126,6 @@ export type EventBody =
       placeholder?: EAssistantPlaceholder | undefined
       aborted?: 'handoff' | undefined
       fast?: true | undefined
-      step?: number | undefined
       usage?: StepReading | undefined
     }
   | {

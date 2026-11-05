@@ -14,9 +14,8 @@ const open: OpenOverlay = {
     { block: 'r0', kind: EStreamBlockKind.Reasoning, text: 'hmm' },
     { block: 't0', kind: EStreamBlockKind.Text, text: 'Hel' },
   ],
-  openedAt: 0,
+  afterSeq: 0,
   ended: false,
-  settleAt: undefined,
 }
 
 describe('overlayStepOf', () => {

@@ -12,6 +12,7 @@ export type OverlayBlock = { block: string; kind: EStreamBlockKind; text: string
 
 export type FoldedStep = {
   key: StreamStepKey
+  afterSeq: number
   blocks: OverlayBlock[]
   end: EStepEndReason | undefined
 }
@@ -34,14 +35,19 @@ export const appendAt = (args: { text: string; from: number; chunk: string }): s
 export const foldLiveBuffer = (raw: string | null): FoldedStep | undefined => {
   if (raw === null || raw.length === 0) return undefined
   let step:
-    | { key: StreamStepKey; blocks: Map<string, OverlayBlock>; end?: EStepEndReason }
+    | {
+        key: StreamStepKey
+        afterSeq: number
+        blocks: Map<string, OverlayBlock>
+        end?: EStepEndReason
+      }
     | undefined
   for (const line of raw.split('\n')) {
     if (line.length === 0) continue
     const frame = frameOf(line)
     if (frame === undefined) continue
     if (frame.type === 'step-start') {
-      step = { key: frame.key, blocks: new Map() }
+      step = { key: frame.key, afterSeq: frame.afterSeq, blocks: new Map() }
       continue
     }
     if (step === undefined) continue
@@ -55,5 +61,10 @@ export const foldLiveBuffer = (raw: string | null): FoldedStep | undefined => {
     step.blocks.set(frame.block, block)
   }
   if (step === undefined) return undefined
-  return { key: step.key, blocks: [...step.blocks.values()], end: step.end }
+  return {
+    key: step.key,
+    afterSeq: step.afterSeq,
+    blocks: [...step.blocks.values()],
+    end: step.end,
+  }
 }

@@ -6,10 +6,8 @@ import {
   applyOverlayMessage,
   closeOverlayForEvents,
   EMPTY_OVERLAY_STATE,
-  endOverlayForView,
   type OpenOverlay,
   type OverlayState,
-  settleOverlay,
 } from './overlay-store'
 import type { SessionCache } from './session-cache'
 import {
@@ -121,22 +119,14 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       window: inner.window,
       page: { events: message.events, head: message.head },
     })
-    const previous = inner.window.cursor?.seq ?? 0
-    const fresh = window.events.filter((event) => event.seq > previous)
-    const closed = closeOverlayForEvents({ state: inner.overlay, events: fresh })
-    const overlay = settleOverlay({ state: closed, cursorSeq: window.cursor?.seq ?? 0 })
+    const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
     commit({ ...inner, window, overlay, live: message.live })
     saveThrottled()
   }
 
   const handleView = (message: Extract<StreamServerMessage, { type: 'view' }>): void => {
     if (!acceptsView({ inner, at: message.at })) return
-    const leavesThinking = message.value.state !== ESessionStatus.Thinking
-    const ended = leavesThinking
-      ? endOverlayForView({ state: inner.overlay, at: message.at })
-      : inner.overlay
-    const overlay = settleOverlay({ state: ended, cursorSeq: inner.window.cursor?.seq ?? 0 })
-    commit({ ...inner, status: message.value, overlay })
+    commit({ ...inner, status: message.value })
   }
 
   const handleOverlayMessage = (
@@ -145,13 +135,13 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       { type: 'overlay' | 'delta' | 'overlay-clear' | 'frame' }
     >,
   ): void => {
-    const applied = applyOverlayMessage({
-      state: inner.overlay,
-      message,
-      cursorSeq: inner.window.cursor?.seq ?? 0,
-    })
-    if (applied.state === inner.overlay) return
-    commit({ ...inner, overlay: applied.state })
+    const applied = applyOverlayMessage({ state: inner.overlay, message })
+    const overlay =
+      message.type === 'overlay'
+        ? closeOverlayForEvents({ state: applied.state, events: inner.window.events })
+        : applied.state
+    if (overlay === inner.overlay) return
+    commit({ ...inner, overlay })
     if (applied.needsResnap) args.onResnap()
   }
 
@@ -159,9 +149,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     if (message.type === 'events') handleEvents(message)
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'reset') {
-      const dropsEnded = inner.overlay.open?.ended === true
-      const overlay = dropsEnded ? { ...inner.overlay, open: undefined } : inner.overlay
-      commit({ ...inner, window: resetWindow(), status: undefined, live: false, overlay })
+      commit({ ...inner, window: resetWindow(), status: undefined, live: false })
     } else if (
       message.type === 'overlay' ||
       message.type === 'delta' ||

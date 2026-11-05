@@ -57,7 +57,7 @@ describe('live overlay', () => {
   }
 
   it('sends the text so far to a subscriber joining mid-step, then forwards deltas', async () => {
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 9 })
     publish(delta({ from: 0, text: 'Hello' }))
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
@@ -68,6 +68,7 @@ describe('live overlay', () => {
         type: 'overlay',
         id: 'sub-1',
         key: KEY,
+        afterSeq: 9,
         blocks: [{ block: 'b1', kind: EStreamBlockKind.Text, text: 'Hello' }],
       },
       {
@@ -89,7 +90,7 @@ describe('live overlay', () => {
   })
 
   it('a publisher racing the join yields the producer text with no gap and no duplicate', async () => {
-    const producer: LiveFrame[] = [{ type: 'step-start', key: KEY }]
+    const producer: LiveFrame[] = [{ type: 'step-start', key: KEY, afterSeq: 0 }]
     const texts = ['The ', 'quick ', 'brown ', 'fox ', 'jumps ', 'over ', 'the ', 'dog']
     const thoughts = ['hm', 'mm', ' ok']
     const offsets = { b1: 0, r1: 0 }
@@ -134,7 +135,7 @@ describe('live overlay', () => {
   }, 60_000)
 
   it('re-snapshots on a delta gap after a dropped publish', async () => {
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     live.publish({ sessionId: SESSION, frame: delta({ from: 0, text: 'abc' }), deliver: false })
@@ -148,7 +149,7 @@ describe('live overlay', () => {
   })
 
   it('trims an overlapping delta to the part the client lacks', async () => {
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     publish(delta({ from: 0, text: 'abc' }))
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
@@ -159,7 +160,7 @@ describe('live overlay', () => {
   })
 
   it('clears with lost when the buffer is gone under an open step', async () => {
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     live.buffers.delete(SESSION)
@@ -175,12 +176,12 @@ describe('live overlay', () => {
   })
 
   it('forwards step-end as a frame and drops deltas of the ended step', async () => {
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     publish({ type: 'step-end', key: KEY, reason: EStepEndReason.Finished })
     publish(delta({ from: 0, text: 'stale' }))
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     await rig.settled()
     expect(rig.frames('frame').map((m) => m.frame.type)).toEqual(['step-end'])
     expect(rig.frames('delta')).toEqual([])
@@ -188,11 +189,11 @@ describe('live overlay', () => {
   })
 
   it('moves to a newer step and never shows the superseded one', async () => {
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     const next = { runId: 'run-2', step: 0, attempt: 0 }
-    publish({ type: 'step-start', key: next })
+    publish({ type: 'step-start', key: next, afterSeq: 0 })
     live.deliverRaw({
       sessionId: SESSION,
       raw: JSON.stringify(delta({ from: 0, text: 'old', key: { ...KEY, step: 3 } })),
@@ -226,7 +227,7 @@ describe('live overlay', () => {
   })
 
   it('resends the overlay on resnap and on a source gap', async () => {
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     publish(delta({ from: 0, text: 'abc' }))
     const session = rig.open()
     await rig.subscribe({ session })
@@ -239,7 +240,7 @@ describe('live overlay', () => {
   })
 
   it('clears with holder-lost when the status view loses its holder', async () => {
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     rig.store.markHostAbsent(1)
@@ -252,7 +253,7 @@ describe('live overlay', () => {
   })
 
   it('drops deltas while the socket is backed up, then sends one overlay', async () => {
-    publish({ type: 'step-start', key: KEY })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     rig.buffered = FOLLOW_HIGH_WATER_BYTES

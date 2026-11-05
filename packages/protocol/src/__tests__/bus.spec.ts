@@ -73,7 +73,11 @@ describe('step live frames', () => {
   const key = { runId: 'run-1', step: 3, attempt: 0 }
 
   it('parses step-start, delta and step-end', () => {
-    expect(liveFrameSchema.parse({ type: 'step-start', key })).toEqual({ type: 'step-start', key })
+    expect(liveFrameSchema.parse({ type: 'step-start', key, afterSeq: 4 })).toEqual({
+      type: 'step-start',
+      key,
+      afterSeq: 4,
+    })
     const delta: LiveFrame = {
       type: 'delta',
       key,

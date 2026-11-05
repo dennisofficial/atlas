@@ -17,6 +17,7 @@ describe('LiveStepBuffer', () => {
   let clock: FakeClock
   let frames: LiveFrame[]
   let buffer: LiveStepBuffer
+  let head: number
 
   const text = (args: { id: string; text: string; reasoning?: boolean }) =>
     buffer.push({
@@ -30,12 +31,17 @@ describe('LiveStepBuffer', () => {
   beforeEach(() => {
     clock = new FakeClock()
     frames = []
-    buffer = new LiveStepBuffer({ timers: clock, emit: (frame) => frames.push(frame) })
+    head = 7
+    buffer = new LiveStepBuffer({
+      timers: clock,
+      emit: (frame) => frames.push(frame),
+      headSeq: () => head,
+    })
     buffer.push({ type: 'step-start', key })
   })
 
   it('emits step-start itself', () => {
-    expect(frames).toEqual([{ type: 'step-start', key }])
+    expect(frames).toEqual([{ type: 'step-start', key, afterSeq: 7 }])
   })
 
   it('flushes the first delta of a step at once', () => {
@@ -149,6 +155,6 @@ describe('LiveStepBuffer', () => {
     const old = deltas().filter((frame) => frame.key.step === 0)
     expect(old.map((frame) => frame.text).join('')).toBe('AB')
     expect(deltas().filter((frame) => frame.key.step === 1)).toEqual([])
-    expect(frames.at(-1)).toEqual({ type: 'step-start', key: next })
+    expect(frames.at(-1)).toEqual({ type: 'step-start', key: next, afterSeq: head })
   })
 })

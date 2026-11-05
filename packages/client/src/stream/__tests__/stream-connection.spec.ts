@@ -165,7 +165,7 @@ describe('the stream connection', () => {
     connection.follow({ sessionId: 'session-1' })
     const socket = await bringUp({ sockets, index: 0 })
     const key = { runId: 'run-1', step: 1, attempt: 0 }
-    socket.receive({ type: 'overlay', id: 's1', key, blocks: [] })
+    socket.receive({ type: 'overlay', id: 's1', key, afterSeq: 0, blocks: [] })
     socket.receive({
       type: 'delta',
       id: 's1',

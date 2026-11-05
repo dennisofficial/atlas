@@ -67,6 +67,7 @@ export const streamServerFixtures = {
     type: 'overlay',
     id: 'sub-1',
     key: streamStepKeyFixture,
+    afterSeq: 412,
     blocks: [{ block: 'b0', kind: EStreamBlockKind.Text, text: 'Hel' }],
   },
   delta: {

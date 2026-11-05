@@ -66,7 +66,7 @@ describe('the session follower', () => {
   it('sends a resnap request on a delta gap', () => {
     const { follower, resnaps } = setup()
     const key = { runId: 'run-1', step: 1, attempt: 0 }
-    follower.handleMessage({ type: 'overlay', id: 's1', key, blocks: [] })
+    follower.handleMessage({ type: 'overlay', id: 's1', key, afterSeq: 0, blocks: [] })
     follower.handleMessage({
       type: 'delta',
       id: 's1',
@@ -132,7 +132,7 @@ describe('the session follower', () => {
     follower.handleMessage(
       eventsMessage({ id: 's1', events: mintUserEvents({ count: 1 }), live: true }),
     )
-    follower.handleMessage({ type: 'overlay', id: 's1', key, blocks: [] })
+    follower.handleMessage({ type: 'overlay', id: 's1', key, afterSeq: 0, blocks: [] })
     follower.markResubscribing()
     const snapshot = follower.getSnapshot()
     expect(snapshot.connection).toBe(ESessionConnection.CatchingUp)
