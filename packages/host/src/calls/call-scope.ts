@@ -65,6 +65,8 @@ export class ScopedToolDispatcher extends ToolDispatcher {
         return {
           ...draft,
           output: undefined,
+          modelText: undefined,
+          modelParts: undefined,
           error: { message: interruptedMessage(args.call.name) },
           interrupted: true,
         }
