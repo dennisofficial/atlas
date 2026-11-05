@@ -2020,6 +2020,20 @@
           },
           "GithubCommitCheck": {
             "fields": {
+              "annotations": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "annotationsCount": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "appSlug": {
                 "nullable": true,
                 "type": {
@@ -2114,6 +2128,12 @@
             "relations": {},
             "storage": {
               "fields": {
+                "annotations": {
+                  "column": "annotations"
+                },
+                "annotationsCount": {
+                  "column": "annotationsCount"
+                },
                 "appSlug": {
                   "column": "appSlug"
                 },
@@ -9810,6 +9830,16 @@
             },
             "GithubCommitCheck": {
               "columns": {
+                "annotations": {
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
+                  "nullable": true
+                },
+                "annotationsCount": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "appSlug": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -14474,7 +14504,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "f9d1545e96be8e862d435b7b8e1f6e87f907a2cec641ec26742b6c0e93726e5e"
+    "storageHash": "9865c08ee43a57502ce30d8b837cb2a0804e8ee760f59f39d85758b15b4121fb"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

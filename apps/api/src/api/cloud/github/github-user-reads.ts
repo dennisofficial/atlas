@@ -5,6 +5,7 @@ import { rateLimitOf } from './github-rate-limit'
 import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
 import { type CommitCheckInput, recordCommitChecksLocked } from './github-commit-checks'
+import type { RawCheckAnnotation } from './github-check-annotations'
 import { readHeadChecks } from './github-head-checks-read'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 
@@ -42,6 +43,20 @@ export interface HookConfig {
 @Injectable()
 export class GithubUserReads {
   private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
+
+  readCheckAnnotations(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    checkRunId: number
+  }): Promise<RawCheckAnnotation[]> {
+    return this.get<RawCheckAnnotation[]>({
+      source: args.source,
+      token: args.token,
+      path: `/repos/${args.owner}/${args.repo}/check-runs/${args.checkRunId}/annotations?per_page=50`,
+    })
+  }
 
   async readPullRequest(args: {
     source: EGithubCallSource

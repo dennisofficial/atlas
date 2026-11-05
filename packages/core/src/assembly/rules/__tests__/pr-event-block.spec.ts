@@ -287,6 +287,34 @@ describe('naming the checks behind a failed verdict', () => {
     expect(block).toContain('    3 errors: src/a.ts:1 no-unused-vars')
   })
 
+  it('lists failure annotations under the check with their location', () => {
+    const block = failed({
+      settled: true,
+      failedChecks: [
+        {
+          name: 'typecheck',
+          app: 'github-actions',
+          checkRunId: '7',
+          annotations: [
+            { path: 'src/a.ts', line: 12, message: "Type 'string' is not assignable to 'number'." },
+            { path: 'src/b.ts', message: 'Unused export' },
+            { message: 'one or more CI checks did not pass' },
+          ],
+        },
+      ],
+    })
+
+    expect(block).toContain(
+      [
+        '- typecheck (github-actions)',
+        "    src/a.ts:12 Type 'string' is not assignable to 'number'.",
+        '    src/b.ts Unused export',
+        '    one or more CI checks did not pass',
+        '    logs: gh run view --job 7 --log-failed -R owner/repo',
+      ].join('\n'),
+    )
+  })
+
   it('offers no log command for a check outside GitHub Actions', () => {
     const block = failed({ settled: true, failedChecks: [{ name: 'vercel', checkRunId: '9' }] })
 

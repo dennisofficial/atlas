@@ -1,0 +1,106 @@
+[
+  {
+    "id": "column.public.GithubCommitCheck.annotations",
+    "label": "Add column \"annotations\" to \"GithubCommitCheck\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "annotations",
+        "table": "GithubCommitCheck"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"annotations\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "annotations"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"annotations\"",
+        "sql": "ALTER TABLE \"public\".\"GithubCommitCheck\" ADD COLUMN \"annotations\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"annotations\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "annotations"
+        ]
+      },
+      {
+        "description": "verify column \"annotations\" has type \"jsonb\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "annotations",
+          "jsonb"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubCommitCheck.annotationsCount",
+    "label": "Add column \"annotationsCount\" to \"GithubCommitCheck\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "annotationsCount",
+        "table": "GithubCommitCheck"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"annotationsCount\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "annotationsCount"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"annotationsCount\"",
+        "sql": "ALTER TABLE \"public\".\"GithubCommitCheck\" ADD COLUMN \"annotationsCount\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"annotationsCount\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "annotationsCount"
+        ]
+      },
+      {
+        "description": "verify column \"annotationsCount\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "annotationsCount",
+          "integer"
+        ]
+      }
+    ]
+  }
+]
