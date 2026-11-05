@@ -11,6 +11,7 @@ export const hostEnv = (args: {
   label: string
   daemonUrl: string
   daemonUrls: Record<string, string> | undefined
+  daemonUrlFile: string | undefined
   scriptFile: string
   workspace: string
   knobs: HostKnobs | undefined
@@ -31,6 +32,7 @@ export const hostEnv = (args: {
     APPEND_RETRY_MS: String(knobs?.appendRetryMs ?? 2_500),
     PING_MS: String(knobs?.pingMs ?? 10_000),
     ...(args.daemonUrls === undefined ? {} : { DAEMON_URLS: JSON.stringify(args.daemonUrls) }),
+    ...(args.daemonUrlFile === undefined ? {} : { DAEMON_URL_FILE: args.daemonUrlFile }),
     ...(knobs?.drainMs === undefined ? {} : { DRAIN_MS: String(knobs.drainMs) }),
     ...(knobs?.noRing === true ? { NO_RING: '1' } : {}),
     ...(knobs?.poolMax === undefined ? {} : { DATABASE_POOL_MAX: String(knobs.poolMax) }),

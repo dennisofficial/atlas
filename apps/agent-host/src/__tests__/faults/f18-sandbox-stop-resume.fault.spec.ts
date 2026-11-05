@@ -43,12 +43,15 @@ describe.skipIf(REDIS_URL === undefined)(
       const startedFile = join(daemon.home, `started-${sessionId}`)
       const gateFifo = join(daemon.home, `gate-${sessionId}`)
       const runsFile = join(daemon.home, `runs-${sessionId}`)
+      const urlFile = join(daemon.home, `url-${sessionId}`)
+      writeFileSync(urlFile, daemon.url)
       makeFifo({ path: gateFifo })
       const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
       const hostA = await rig.spawnHost({
         label: 'host-a',
         daemonUrl: daemon.url,
+        daemonUrlFile: urlFile,
         scripts: {
           [sessionId]: [
             {
@@ -70,7 +73,10 @@ describe.skipIf(REDIS_URL === undefined)(
       )
       expect(midTurn.some((row) => row.type === 'assistant-said')).toBe(false)
 
-      await daemon.restart({ keepHome: true })
+      const urlBefore = daemon.url
+      await daemon.relocate({ keepHome: true })
+      writeFileSync(urlFile, daemon.url)
+      expect(daemon.url).not.toBe(urlBefore)
       const bootId2 = daemon.bootId
       expect(bootId2).not.toBe(bootId1)
 

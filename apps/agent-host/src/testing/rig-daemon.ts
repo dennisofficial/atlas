@@ -12,11 +12,12 @@ import { sandboxNameOf } from '../sandbox/sandbox-provider'
 const daemonEntry = join(import.meta.dir, '../../../daemon/src/index.ts')
 
 export type RigDaemon = {
-  url: string
+  readonly url: string
   proxy: FaultProxy
   home: string
   readonly bootId: string
   restart(args: { keepHome: true }): Promise<void>
+  relocate(args: { keepHome: true }): Promise<void>
   stop(): Promise<void>
 }
 
@@ -130,11 +131,16 @@ export const startDaemon = async (args: {
   }
 
   await spawn()
-  const started = proxy
-  if (started === undefined) throw new Error('daemon proxy did not start')
+  const urlOf = (): string => {
+    if (proxy === undefined) throw new Error('daemon proxy is stopped')
+    return `ws://127.0.0.1:${proxy.port}`
+  }
+  urlOf()
 
   return {
-    url: `ws://127.0.0.1:${started.port}`,
+    get url() {
+      return urlOf()
+    },
     get proxy() {
       if (proxy === undefined) throw new Error('daemon proxy is stopped')
       return proxy
@@ -150,6 +156,18 @@ export const startDaemon = async (args: {
       child = undefined
       if (current !== undefined) await killChild(current, 'SIGKILL')
       killOrphans(home)
+      await spawn()
+    },
+    async relocate({ keepHome }) {
+      if (stopped) throw new Error('cannot relocate a stopped daemon')
+      if (!keepHome) throw new Error('relocate requires keepHome: true')
+      const current = child
+      child = undefined
+      if (current !== undefined) await killChild(current, 'SIGKILL')
+      killOrphans(home)
+      const previous = proxy
+      proxy = undefined
+      await previous?.stop()
       await spawn()
     },
     stop,

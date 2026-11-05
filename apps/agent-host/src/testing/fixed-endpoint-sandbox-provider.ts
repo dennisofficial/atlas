@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import type { VercelCredentials } from '../sandbox/constants'
 
@@ -9,6 +11,7 @@ export class FixedEndpointSandboxProvider extends SandboxProvider {
       url: string
       daemonSecret: string
       urls?: Record<string, string> | undefined
+      urlFile?: string | undefined
     },
   ) {
     super()
@@ -21,10 +24,15 @@ export class FixedEndpointSandboxProvider extends SandboxProvider {
   }): Promise<DaemonEndpoint> {
     const sandboxName = sandboxNameOf(args.sessionId)
     return {
-      url: this.args.urls?.[args.sessionId] ?? this.args.url,
+      url: this.urlOf(args.sessionId),
       token: daemonToken({ secret: this.args.daemonSecret, sandboxName }),
       sandboxName,
     }
+  }
+
+  private urlOf(sessionId: string): string {
+    if (this.args.urlFile !== undefined) return readFileSync(this.args.urlFile, 'utf8').trim()
+    return this.args.urls?.[sessionId] ?? this.args.url
   }
 
   async stop(_args: { sessionId: string; credentials: VercelCredentials }): Promise<void> {}
