@@ -785,18 +785,18 @@ Four PRs, each green with v1 unchanged. I ask before each push, PR and merge.
 4. The live exit tests, the docs (roadmap Current state, 0021 amended for the rename deferral and
    the toggle, architecture §5 updated: the agent host appends to Postgres directly) and the handoff.
 
-Status 2026-11-05: PRs 1 to 4 are merged and every live exit test has run on production
-([research/slice-3/live-exit-tests.md](../research/slice-3/live-exit-tests.md)). Passed live: 8, 10, F10, F11,
-F19, F21 and a deploy mid-turn with a stream client. Failed live, so the slice is not done:
-- Test 9: an OOM kill reaches the model as `Exit code: 1`.
-- F12: a SIGTERM-drained agent host exits 1 five seconds in, before `holder.drain` hands off; sessions recover
-  only through the presence-loss path.
-- F18: a sandbox stopped under a live holder is never re-woken, and the resumed daemon re-runs the
-  interrupted call.
-- Also found: keep-alive never renews a sandbox (Vercel session id compared with the Atlas session id), and
-  `sessionStatusOf` reports `thinking` after the reply when a record-only event follows it.
+Status 2026-11-05: **done.** Every exit test passed live on production
+([research/slice-3/live-exit-tests.md](../research/slice-3/live-exit-tests.md)). The first run failed test 9
+(OOM shown as `Exit code: 1`), F12 (a SIGTERM drain died 5 s in under the `dotenvx run` wrapper) and F18 (a
+stopped sandbox was never re-woken while held, and the interrupted bash re-ran on the new boot); it also found
+that keep-alive never renewed a sandbox and that status stayed `thinking` after record-only events. Fixed in
+#1889 to #1893; 9, F12 and F18 then passed live the same evening.
 
-The slice closes when those five are fixed and test 9, F12 and F18 pass live again.
+F12 in production: the drain deadline is 270 s, so a holder finishes a running call before handing off rather
+than handing off a live call after ~1 s (that path is the local F12 spec with `drainMs: 500`).
+
+Follow-up, not blocking: a bash interrupted by a sandbox restart reaches the model as `Exit code: 1`; it
+should say the call was interrupted by a restart, as the OOM case now does.
 
 Release note: PR 3 adds API routes the released serve never calls, so it needs no release-forcing
 title (CLAUDE.md, "A change the released serve or TUI cannot talk to").
