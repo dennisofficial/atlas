@@ -19,7 +19,7 @@ available. The operator's `pgbase` is the WAL-based reference.
   changes). Readers read `seq > cursor`. Logical replication is not used. A `ChangeFeed` seam keeps
   it adoptable.
 - **Service:** a stream module inside the agent host, which becomes a web service at
-  `agent.trycomp.ai` (operator, 2026-11-05). Any instance serves any client. Not the Vercel API.
+  `agent.byatlas.io` (operator, 2026-11-05). Any instance serves any client. Not the Vercel API.
 - **Transport and contract:** one WebSocket per client multiplexing `session` and `sessions`
   subscriptions; resume by `(seq, hash)`; commands stay tRPC mutations into the inbox. Live frames
   are an ephemeral overlay and never required for correctness. Token streaming is a separate

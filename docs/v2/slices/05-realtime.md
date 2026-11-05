@@ -10,7 +10,7 @@ Operator decision (2026-11-05): the v1 API stays on Vercel, the agent host on Re
 (github.com/dennisofficial/pgbase) is the reference for the WAL alternative, argued below.
 
 Operator answers (2026-11-05, after review): the stream runs **inside the agent host**, which
-becomes a web service at **`agent.trycomp.ai`**; clients stream reasoning as well as text; the
+becomes a web service at **`agent.byatlas.io`**; clients stream reasoning as well as text; the
 session list ships now with title and last activity, status follows in slice 4; `max_connections`
 goes to 100 before this slice ships; lease transitions announce (0025). The agent host's platform
 (Render today, DigitalOcean App Platform under evaluation) does not change this design.
@@ -24,7 +24,7 @@ goes to 100 before this slice ships; lease transitions announce (0025). The agen
    and a 2.9 MB event do not matter. Logical replication stays out; the seam
    (`ChangeFeed`, below) keeps the door open.
 2. **Where it runs: a module inside the agent host (`apps/agent-host/src/stream/`), served at
-   `agent.trycomp.ai`.** The agent host becomes a web service with one public port. The module owns
+   `agent.byatlas.io`.** The agent host becomes a web service with one public port. The module owns
    its own `LISTEN` connection and read pool and shares nothing with the loop but the process, so it
    can move to its own service later without a rewrite. Not `apps/api` (Vercel cannot hold sockets).
    Stream state is per socket and per node: any instance serves any client.
@@ -53,7 +53,7 @@ flowchart LR
   subgraph clients
     W[web / Mac<br/>packages/client]
   end
-  subgraph host[agent.trycomp.ai, ≥ 2 instances]
+  subgraph host[agent.byatlas.io, ≥ 2 instances]
     S1[agent host #1<br/>loop + stream module]
     S2[agent host #2<br/>loop + stream module]
   end
@@ -388,8 +388,10 @@ subscription); per-session state is `have[block]` lengths and the closed key, no
 ## 3. Where it runs and how it scales
 
 - **Service.** The stream module runs in the agent host, which changes from a background worker to
-  a web service at `agent.trycomp.ai` (operator, 2026-11-05: at current load, CPU is near zero and
-  memory peaks at 429 MB). Accepted costs: an agent-host deploy closes every socket (clients resume
+  a web service at `agent.byatlas.io` (operator, 2026-11-05). No v2 load exists yet to size this
+  against; the agent host's measured usage reflects test sessions only, and the expected load is
+  extrapolated from v1 (peak ~15 events/s, 23 concurrent sessions). The load gate (PR 7) measures
+  loops and sockets together on one instance before v2 carries real work. Accepted costs: an agent-host deploy closes every socket (clients resume
   by seq within a second or two), and a socket flood shares the CPU with loops (bounded by the
   per-connection, per-user and per-node caps in §2). Splitting it into its own service later moves
   the module, not the protocol.
@@ -544,7 +546,7 @@ Each is reviewable in one sitting and lands in order unless noted.
 2. `feat(protocol): stream messages`: `stream.ts` schemas and fixtures.
 3. `feat(stream): follow a session`: the `apps/agent-host/src/stream/` module, `StreamAuthPort`,
    `hello`, `subscribe`, pump, `ThreadFeed`, limits, drain, health, the agent host as a web service
-   at `agent.trycomp.ai`, Postgres integration and resume tests.
+   at `agent.byatlas.io`, Postgres integration and resume tests.
    4a. `feat(host): publish assistant deltas`: `step-start`/`delta`/`step-end` in `liveFrameSchema`, the
    `chunk` agent-output event emitted after the `onChunk` filter, `LiveStepBuffer`, the buffered
    pipelined publisher in `redis-live-frames.ts`, the Redis command-rate measurement. Independent of
@@ -564,7 +566,7 @@ release rule. The stream service ships dark until PR 7.
 
 ## 9. Operator answers (2026-11-05)
 
-1. **Where and hostname:** inside the agent host, at `agent.trycomp.ai`.
+1. **Where and hostname:** inside the agent host, at `agent.byatlas.io`.
 2. **`max_connections`:** raised to 100 before this slice ships (needs a Postgres restart, scheduled
    by the operator).
 3. **Reasoning:** streamed to clients as well as text. The Redis cadence starts at 100 ms; PR 4a
