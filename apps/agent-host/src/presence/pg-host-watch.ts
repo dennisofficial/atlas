@@ -37,20 +37,25 @@ export const startHostWatch = (args: {
   createClient?: (() => PgPresenceClient) | undefined
   log?: LogPort | undefined
 }): HostWatch => {
-  let generation = 0
   let closed = false
   let client: PgPresenceClient | undefined
+  let reap: { owner: PgPresenceClient; successor: number } | undefined
+  let deathsSeen = 0
+  let deathsScanned = 0
   let retryTimer: ReturnType<typeof setTimeout> | undefined
   let failures = 0
-  let scanPending = false
+  let loop: Promise<void> | undefined
+  let again = false
   const pids = new WeakMap<PgPresenceClient, number>()
+
+  const open = (): PgPresenceClient => args.createClient?.() ?? newWatchClient(args.url)
 
   const logError = (message: string, error: unknown): void => {
     args.log?.error({ source: 'host-watch', message, ...logFieldsOf({ error }) })
   }
 
   const terminateBackend = async (pid: number): Promise<void> => {
-    const killer = newWatchClient(args.url)
+    const killer = open()
     killer.on('error', () => undefined)
     try {
       await killer.connect()
@@ -86,107 +91,115 @@ export const startHostWatch = (args: {
     failures += 1
     retryTimer = setTimeout(() => {
       retryTimer = undefined
-      recompute()
+      void pump()
     }, delay)
   }
 
   const fail = (params: { owner: PgPresenceClient; message: string; error?: unknown }): void => {
     if (closed || client !== params.owner) return
-    client = undefined
     logError(params.message, params.error)
-    void endClient(params.owner)
     scheduleRetry()
   }
 
-  const scanOrphans = async (gen: number): Promise<boolean> => {
-    if (!scanPending) return true
+  const handleDeath = (params: { owner: PgPresenceClient; successor: number }): void => {
+    if (closed || client !== params.owner) return
+    deathsSeen += 1
+    reap = params
+    void pump()
+  }
+
+  const reapDead = async (params: { owner: PgPresenceClient; successor: number }) => {
+    try {
+      await params.owner.query('DELETE FROM "v2"."V2Host" WHERE id = $1', [params.successor])
+      await params.owner.query('SELECT pg_notify($1, $2)', [
+        PG_HOST_CHANGE_CHANNEL,
+        String(params.successor),
+      ])
+    } catch (error) {
+      logError('reaping a dead host failed', error)
+    }
+  }
+
+  const scanOrphans = async (): Promise<boolean> => {
+    if (deathsScanned >= deathsSeen) return true
+    const covers = deathsSeen
     try {
       await wakeOrphans({ plane: args.plane, log: args.log })
-      scanPending = false
+      deathsScanned = Math.max(deathsScanned, covers)
       return true
     } catch (error) {
-      if (gen === generation && !closed) {
-        logError('waking orphaned sessions failed', error)
-        scheduleRetry()
-      }
+      logError('waking orphaned sessions failed', error)
       return false
     }
   }
 
-  const reapSuccessor = async (params: {
-    owner: PgPresenceClient
-    successor: number
-  }): Promise<void> => {
-    await params.owner.query('DELETE FROM "v2"."V2Host" WHERE id = $1', [params.successor])
-    await params.owner.query('SELECT pg_notify($1, $2)', [
-      PG_HOST_CHANGE_CHANNEL,
-      String(params.successor),
-    ])
-    scanPending = true
-    if (client === params.owner) client = undefined
-    await endClient(params.owner)
-    recompute()
-  }
-
-  const watchSuccessor = async (params: {
-    owner: PgPresenceClient
-    self: number
-  }): Promise<void> => {
-    const { owner } = params
-    await owner.connect()
-    for (const statement of SESSION_SETTINGS) {
-      if (client !== owner) return
-      await owner.query(statement)
-    }
-    const backend = await owner.query('SELECT pg_backend_pid() AS "pid"')
-    const pid = backend.rows[0]?.pid
-    if (typeof pid === 'number') pids.set(owner, pid)
-    if (client !== owner) return
-    const found = await owner.query(SUCCESSOR_SQL, [params.self])
-    if (client !== owner) return
-    const successor = found.rows[0]?.id
-    if (typeof successor !== 'number') {
-      client = undefined
-      failures = 0
-      await endClient(owner)
-      return
-    }
-    failures = 0
-    await owner.query('SELECT pg_advisory_lock_shared($1::int, $2::int)', [
-      PG_PRESENCE_LOCK_NAMESPACE,
-      successor,
-    ])
-    if (client !== owner) return
-    await reapSuccessor({ owner, successor })
-  }
-
-  const run = async (params: { gen: number; ended: Promise<void> }): Promise<void> => {
-    await params.ended
-    if (params.gen !== generation || closed) return
-    if (!(await scanOrphans(params.gen))) return
-    if (params.gen !== generation || closed) return
-    const self = args.selfId()
-    if (self === undefined) return
-    const owner = args.createClient?.() ?? newWatchClient(args.url)
+  const arm = async (self: number): Promise<void> => {
+    const owner = open()
     client = owner
     owner.on('error', (error: unknown) =>
       fail({ owner, message: 'host watch connection lost', error }),
     )
     owner.on('end', () => fail({ owner, message: 'host watch connection ended' }))
     try {
-      await watchSuccessor({ owner, self })
+      await owner.connect()
+      for (const statement of SESSION_SETTINGS) await owner.query(statement)
+      const backend = await owner.query('SELECT pg_backend_pid() AS "pid"')
+      const pid = backend.rows[0]?.pid
+      if (typeof pid === 'number') pids.set(owner, pid)
+      const found = await owner.query(SUCCESSOR_SQL, [self])
+      const successor = found.rows[0]?.id
+      failures = 0
+      if (typeof successor !== 'number') {
+        client = undefined
+        await endClient(owner)
+        return
+      }
+      owner
+        .query('SELECT pg_advisory_lock_shared($1::int, $2::int)', [
+          PG_PRESENCE_LOCK_NAMESPACE,
+          successor,
+        ])
+        .then(
+          () => handleDeath({ owner, successor }),
+          (error: unknown) => fail({ owner, message: 'host watch wait failed', error }),
+        )
     } catch (error) {
       fail({ owner, message: 'host watch failed', error })
     }
   }
 
+  const step = async (): Promise<void> => {
+    const pendingReap = reap
+    reap = undefined
+    if (pendingReap !== undefined) await reapDead(pendingReap)
+    const previous = client
+    client = undefined
+    await endClient(previous)
+    if (!(await scanOrphans())) return scheduleRetry()
+    if (closed) return
+    const self = args.selfId()
+    if (self === undefined) return
+    await arm(self)
+  }
+
+  const drain = async (): Promise<void> => {
+    while (again) {
+      again = false
+      await step().catch((error: unknown) => logError('host watch step failed', error))
+    }
+    loop = undefined
+  }
+
+  const pump = (): Promise<void> => {
+    again = true
+    loop ??= drain()
+    return loop
+  }
+
   const recompute = (): void => {
     if (closed) return
     cancelRetry()
-    generation += 1
-    const previous = client
-    client = undefined
-    void run({ gen: generation, ended: endClient(previous) })
+    void pump()
   }
 
   const unsubscribe = args.onHostChange(recompute)
@@ -199,9 +212,7 @@ export const startHostWatch = (args: {
       closed = true
       unsubscribe()
       cancelRetry()
-      const previous = client
-      client = undefined
-      await endClient(previous)
+      await pump()
     },
   }
 }
