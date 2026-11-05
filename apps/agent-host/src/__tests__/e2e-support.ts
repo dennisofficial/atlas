@@ -13,7 +13,6 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 
 import type { LocalSandboxProvider } from '../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
-import type { AgentHostApi } from '../config/agent-host-api'
 import type { ConfigSource } from '../config/agent-host-config'
 
 process.env.ATLAS_HOME = mkdtempSync(join(tmpdir(), 'atlas-agent-host-e2e-'))
@@ -71,8 +70,8 @@ export const sourceFor = (setupScript = ''): ConfigSource => ({
 
 export const noGithub = (): { read(): Promise<string | null> } => ({ read: async () => null })
 
-export const unusedApi = (): AgentHostApi => ({
-  modelAccessToken: async () => {
+export const unusedTokens = (): { issue(): Promise<never> } => ({
+  issue: async () => {
     throw new Error('unused')
   },
 })
@@ -109,7 +108,7 @@ export const makeHolder = (args: {
     timers,
     runtimes: createSessionRuntimeFactory({
       config: sourceFor(args.setupScript),
-      api: unusedApi(),
+      tokens: unusedTokens(),
       github: noGithub(),
       sandbox: args.sandbox,
       daemonSecret: E2E_SECRET,

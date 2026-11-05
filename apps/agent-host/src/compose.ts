@@ -6,7 +6,7 @@ import { SessionHolder } from '@dltech/atlas-host'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
-import type { AgentHostApi } from './config/agent-host-api'
+import type { ModelTokenService } from './tokens/model-token-service'
 import type { GithubTokenReader } from './tokens/github-token-reader'
 import type { ConfigSource } from './config/agent-host-config'
 import type { AgentHostEnv } from './config/env'
@@ -20,7 +20,7 @@ export type ComposeAgentHostArgs = {
   bus: HostBus
   sandbox: SandboxProvider
   config: ConfigSource
-  api: Pick<AgentHostApi, 'modelAccessToken'>
+  tokens: Pick<ModelTokenService, 'issue'>
   github: Pick<GithubTokenReader, 'read'>
   timers?: HostTimers | undefined
   log?: LogPort | undefined
@@ -36,7 +36,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     timers,
     runtimes: createSessionRuntimeFactory({
       config: args.config,
-      api: args.api,
+      tokens: args.tokens,
       github: args.github,
       sandbox: args.sandbox,
       daemonSecret: args.env.daemonSecret,

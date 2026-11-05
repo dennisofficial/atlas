@@ -7,8 +7,9 @@ import { createHostBus } from './bus/host-bus'
 import { startPgWakeListener } from './bus/pg-wake-listener'
 import { createRedisLiveFrames } from './bus/redis-live-frames'
 import { composeAgentHost } from './compose'
-import { createAgentHostApi } from './config/agent-host-api'
 import { ConfigReader } from './config/config-reader'
+import { ModelTokenService } from './tokens/model-token-service'
+import { OauthConnectionStore } from './tokens/oauth-connection-store'
 import { GithubTokenReader } from './tokens/github-token-reader'
 import { SecretCipher } from './config/secret-cipher'
 import { AgentHostEnvError, readAgentHostEnv } from './config/env'
@@ -33,10 +34,6 @@ const main = async (): Promise<void> => {
   const liveFrames = createRedisLiveFrames({ url: env.redisUrl, log })
   const wakes = startPgWakeListener({ url: databaseUrlWithTls(env.databaseDirectUrl), log })
   const bus = createHostBus({ wakes, liveFrames })
-  const api = createAgentHostApi({
-    apiOrigin: env.apiOrigin,
-    agentHostToken: env.agentHostToken,
-  })
   const sandbox = new VercelSandboxProvider({
     image: env.sandboxImage,
     daemonBundle: { path: env.daemonBundlePath },
@@ -47,7 +44,11 @@ const main = async (): Promise<void> => {
   const cipher = new SecretCipher(env.secretsEncryptionKey)
   const config = new ConfigReader({ db: createDb(pool), cipher })
   const github = new GithubTokenReader({ db: createDb(pool), cipher })
-  const holder = composeAgentHost({ env, plane, bus, sandbox, config, api, github, log })
+  const tokens = new ModelTokenService({
+    store: new OauthConnectionStore(createDb(pool)),
+    cipher,
+  })
+  const holder = composeAgentHost({ env, plane, bus, sandbox, config, tokens, github, log })
   await holder.start()
   log.info({ source: 'main', message: 'agent-host started' })
 

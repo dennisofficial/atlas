@@ -17,7 +17,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { createAnthropicOauthModel } from '../model/anthropic-oauth'
 import { normalizeProviderFailure } from '../model/failure'
-import type { AgentHostApi } from '../config/agent-host-api'
+import type { ModelTokenService } from '../tokens/model-token-service'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { ConfigSource } from '../config/agent-host-config'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
@@ -41,7 +41,7 @@ const SETUP_DEADLINE_MS = 15 * 60_000
 
 export type SessionRuntimeFactoryArgs = {
   config: ConfigSource
-  api: Pick<AgentHostApi, 'modelAccessToken'>
+  tokens: Pick<ModelTokenService, 'issue'>
   github: Pick<GithubTokenReader, 'read'>
   sandbox: SandboxProvider
   daemonSecret: string
@@ -166,9 +166,9 @@ export const createSessionRuntimeFactory = (
           ? new AiSdkModelPort({
               model: createAnthropicOauthModel({
                 credentials: new AgentHostCredentialPort({
-                  sessionId,
+                  userId: config.userId,
                   model: config.model,
-                  api: args.api,
+                  tokens: args.tokens,
                 }),
                 modelId: config.model.configured === true ? config.model.modelId : fallbackModelId,
               }),

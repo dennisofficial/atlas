@@ -9,7 +9,6 @@ import {
   type HostTimers,
 } from '@dltech/atlas-host'
 
-import type { AgentHostApi } from '../../config/agent-host-api'
 import type { AgentHostConfig, ConfigSource } from '../../config/agent-host-config'
 import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
 import { createSessionRuntimeFactory, SandboxNotConfiguredError } from '../session-runtime-factory'
@@ -90,9 +89,9 @@ const makeFakeTimers = (): { timers: HostTimers; fireScheduled: () => void } => 
   }
 }
 
-const apiOf = (output: AgentHostConfig): AgentHostApi & ConfigSource => ({
+const apiOf = (output: AgentHostConfig): ConfigSource & { issue(): Promise<never> } => ({
   read: async () => output,
-  modelAccessToken: async () => {
+  issue: async () => {
     throw new Error('unused')
   },
 })
@@ -100,13 +99,13 @@ const apiOf = (output: AgentHostConfig): AgentHostApi & ConfigSource => ({
 const testTimers: HostTimers = { now: () => Date.now(), ...systemTimers }
 
 const makeFactory = (args: {
-  api: AgentHostApi & ConfigSource
+  api: ConfigSource & { issue(): Promise<never> }
   sandbox: FakeSandbox
   modelFor?: Parameters<typeof createSessionRuntimeFactory>[0]['modelFor']
 }) =>
   createSessionRuntimeFactory({
     config: args.api,
-    api: args.api,
+    tokens: args.api,
     github: { read: async () => null },
     sandbox: args.sandbox,
     daemonSecret: 'secret-1',
@@ -244,7 +243,7 @@ describe('createSessionRuntimeFactory', () => {
     const sandbox = new FakeSandbox(true)
     const factory = createSessionRuntimeFactory({
       config: apiOf(configured()),
-      api: apiOf(configured()),
+      tokens: apiOf(configured()),
       github: { read: async () => null },
       sandbox,
       daemonSecret: 'secret-1',
@@ -268,7 +267,7 @@ describe('createSessionRuntimeFactory', () => {
     const sandbox = new FakeSandbox(true)
     const factory = createSessionRuntimeFactory({
       config: apiOf(configured()),
-      api: apiOf(configured()),
+      tokens: apiOf(configured()),
       github: { read: async () => null },
       sandbox,
       daemonSecret: 'secret-1',
