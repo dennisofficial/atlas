@@ -16,7 +16,7 @@ const result = (change: Partial<ModelStepResult>): ModelStepResult => ({
   ...change,
 })
 
-const stepOf = (change: Partial<ModelStepResult>) => ({ result: result(change) })
+const stepOf = (change: Partial<ModelStepResult>, step = 0) => ({ result: result(change), step })
 
 describe('the step usage a draft carries', () => {
   it('rides on the reply when the step spoke', () => {
@@ -33,13 +33,14 @@ describe('the step usage a draft carries', () => {
 
   it('is absent when the provider reported none', () => {
     const { usage: _dropped, ...unreported } = result({ parts: [{ type: 'text', text: 'hi' }] })
-    const drafts = draftsFor({ result: unreported })
+    const drafts = draftsFor({ result: unreported, step: 0 })
     expect(drafts[0]).not.toHaveProperty('usage')
   })
 
   it('records the window the call ran in, so the meter never guesses it from the picker', () => {
     const drafts = draftsFor({
       result: result({ toolCalls: [call] }),
+      step: 0,
       model: { traits: () => ({ contextWindow: WINDOW }) },
     })
     expect(drafts[0]).toMatchObject({ usage: { ...usage, contextWindow: WINDOW } })
@@ -48,6 +49,7 @@ describe('the step usage a draft carries', () => {
   it('leaves an unmeasured window out', () => {
     const drafts = draftsFor({
       result: result({ toolCalls: [call] }),
+      step: 0,
       model: { traits: () => ({}) },
     })
     expect(drafts[0]).toMatchObject({ usage })
@@ -57,5 +59,28 @@ describe('the step usage a draft carries', () => {
   it('survives an interrupted step', () => {
     const drafts = interruptedDrafts(stepOf({ toolCalls: [call] }))
     expect(drafts[0]).toMatchObject({ type: 'tool-called', usage })
+  })
+})
+
+describe('the step a reply carries', () => {
+  const said = [{ type: 'text' as const, text: 'hi' }]
+
+  it('stamps the reply with the step it was drafted in', () => {
+    expect(draftsFor(stepOf({ parts: said }, 3))[0]).toMatchObject({
+      type: 'assistant-said',
+      step: 3,
+    })
+  })
+
+  it('stamps an interrupted reply too', () => {
+    expect(interruptedDrafts(stepOf({ parts: said }, 2))[0]).toMatchObject({
+      type: 'assistant-said',
+      step: 2,
+      interrupted: true,
+    })
+  })
+
+  it('leaves the step off events that are not replies', () => {
+    expect(draftsFor(stepOf({ toolCalls: [call] }, 1))[0]).not.toHaveProperty('step')
   })
 })
