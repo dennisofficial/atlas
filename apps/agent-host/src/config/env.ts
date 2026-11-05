@@ -18,10 +18,13 @@ export type AgentHostEnv = {
   maxSessions: number
   sandboxImage: string
   daemonBundlePath: string
+  port: number
+  trustedOrigins: string[]
 }
 
 const DEFAULT_MAX_SESSIONS = 25
 const DEFAULT_SANDBOX_IMAGE = 'atlas-sandbox:latest'
+const DEFAULT_PORT = 10_000
 
 const defaultDaemonBundlePath = (): string => join(import.meta.dir, '../../../daemon/bin/daemon.js')
 
@@ -40,6 +43,21 @@ const parseMaxSessions = (raw: string | undefined): number => {
   }
   return parsed
 }
+
+const parsePort = (raw: string | undefined): number => {
+  if (raw === undefined) return DEFAULT_PORT
+  const parsed = Number(raw)
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65_535) {
+    throw new AgentHostEnvError([`PORT must be an integer from 0 to 65535, got "${raw}"`])
+  }
+  return parsed
+}
+
+const parseOrigins = (raw: string | undefined): string[] =>
+  (raw ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin !== '')
 
 const vercelOauthOf = (env: Record<string, string | undefined>): AgentHostEnv['vercelOauth'] => {
   const clientId = take(env, 'VERCEL_OAUTH_CLIENT_ID')
@@ -77,5 +95,7 @@ export const readAgentHostEnv = (
     maxSessions: parseMaxSessions(take(env, 'AGENT_HOST_MAX_SESSIONS')),
     sandboxImage: take(env, 'ATLAS_SANDBOX_IMAGE') ?? DEFAULT_SANDBOX_IMAGE,
     daemonBundlePath: take(env, 'ATLAS_DAEMON_BUNDLE') ?? defaultDaemonBundlePath(),
+    port: parsePort(take(env, 'PORT')),
+    trustedOrigins: parseOrigins(take(env, 'TRUSTED_ORIGINS')),
   }
 }

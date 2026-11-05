@@ -22,6 +22,8 @@ The private keys are in `.env.keys` (git-ignored, an Atlas Cloud project file mo
 | `AGENT_HOST_MAX_SESSIONS` | no       | 25                                                   |
 | `ATLAS_SANDBOX_IMAGE`     | no       | `atlas-sandbox:latest`                               |
 | `ATLAS_DAEMON_BUNDLE`     | no       | `apps/daemon/bin/daemon.js` relative to this package |
+| `PORT`                    | no       | 10000 (Render sets it)                               |
+| `TRUSTED_ORIGINS`         | no       | empty: any Origin; else a comma list                 |
 
 Missing required vars exit 78 with the names on stderr.
 

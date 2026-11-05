@@ -67,6 +67,20 @@ describe('readAgentHostEnv', () => {
     ])
   })
 
+  it('defaults the stream port and origins, and reads PORT and TRUSTED_ORIGINS', () => {
+    const defaults = readAgentHostEnv(complete)
+    expect(defaults.port).toBe(10_000)
+    expect(defaults.trustedOrigins).toEqual([])
+    const set = readAgentHostEnv({
+      ...complete,
+      PORT: '8080',
+      TRUSTED_ORIGINS: 'https://a.example, https://b.example,,',
+    })
+    expect(set.port).toBe(8080)
+    expect(set.trustedOrigins).toEqual(['https://a.example', 'https://b.example'])
+    expect(() => readAgentHostEnv({ ...complete, PORT: 'x' })).toThrow(AgentHostEnvError)
+  })
+
   it('rejects a non-integer AGENT_HOST_MAX_SESSIONS', () => {
     expect(() => readAgentHostEnv({ ...complete, AGENT_HOST_MAX_SESSIONS: 'many' })).toThrow(
       AgentHostEnvError,
