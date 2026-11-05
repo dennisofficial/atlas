@@ -33,6 +33,7 @@ export const REWIND_DISPOSITION = {
   'permission-revoked': ERewindDisposition.Discard,
   'pull-request-linked': ERewindDisposition.Discard,
   'tldr-written': ERewindDisposition.Discard,
+  'diagram-repaired': ERewindDisposition.Discard,
   'subscription-created': ERewindDisposition.Discard,
   'subscription-changed': ERewindDisposition.Discard,
   'subscription-ended': ERewindDisposition.Discard,

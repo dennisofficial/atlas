@@ -1,3 +1,4 @@
+import type { DiagramRepairedBody } from '../diagrams/diagram-body'
 import type { EExecutionLocation } from '../execution/location'
 import type { FilePart, ImagePart, ReasoningPart, TextPart } from '../message/parts'
 import type { CodeQualityReviewedBody } from '../quality/schema'
@@ -232,6 +233,7 @@ export type EventBody =
   | PolicyEventBody
   | SubscriptionEventBody
   | PrEventBody
+  | DiagramRepairedBody
   | {
       type: 'service-started'
       serviceId: string

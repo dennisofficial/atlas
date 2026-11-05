@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { diagramRepairedSchema } from '../diagrams/diagram-body'
 import { EExecutionLocation } from '../execution/location'
 import { ETldrStatus } from '../tldr/status'
 import {
@@ -253,6 +254,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
   ...agentEventSchemas,
   ...shellEventSchemas,
   ...prEventSchemas,
+  diagramRepairedSchema,
   ...policyEventSchemas,
   subscriptionCreatedSchema,
   subscriptionChangedSchema,
