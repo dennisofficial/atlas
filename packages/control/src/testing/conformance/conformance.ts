@@ -7,6 +7,8 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 
+import type { SessionChange } from '@dltech/atlas-protocol'
+
 import type { ControlStorePort } from '../../port'
 import {
   appendBodies,
@@ -27,6 +29,7 @@ export type ConformanceParams = {
   makeStore: () => ControlStorePort
   reset: () => Promise<void>
   wakes: (sessionId: string) => Promise<number>
+  changes: (sessionId: string) => Promise<SessionChange[]>
   nextHostId: () => Promise<number>
   holdPresence: (hostId: number) => Promise<() => Promise<void>>
 }

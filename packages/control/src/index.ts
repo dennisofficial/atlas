@@ -1,3 +1,4 @@
+export type { ChangeFeed } from './change-feed'
 export { ControlPlane, MAX_READ_LIMIT, MAX_SESSION_LIST_LIMIT } from './control-plane'
 export type { ControlPlaneParams, ReadEventsPage, TakeBackResult } from './control-plane'
 export { LeaseConflictError, UnknownThreadError } from './errors'

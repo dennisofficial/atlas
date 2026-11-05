@@ -68,6 +68,11 @@ export class ControlPlane {
         at,
       })
       await tx.notifyWake(params.sessionId)
+      await tx.announce({
+        sessionId: params.sessionId,
+        threadId: params.mainThreadId,
+        headSeq: 0,
+      })
     })
   }
 
@@ -215,7 +220,10 @@ export class ControlPlane {
 
   async wake(params: { sessionIds: readonly string[] }): Promise<void> {
     await this.store.transact(async (tx) => {
-      for (const sessionId of params.sessionIds) await tx.notifyWake(sessionId)
+      for (const sessionId of params.sessionIds) {
+        await tx.notifyWake(sessionId)
+        await tx.announce({ sessionId })
+      }
     })
   }
 

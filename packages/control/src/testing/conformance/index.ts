@@ -1,4 +1,5 @@
 export { describeControlPlaneBlobs } from './conformance-blobs'
+export { describeControlPlaneChanges } from './conformance-changes'
 export { describeControlPlaneClaims } from './conformance-claims'
 export { describeControlPlaneConformance } from './conformance'
 export { describeControlPlanePresence, type PresenceParams } from './conformance-presence'

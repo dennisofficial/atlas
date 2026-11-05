@@ -1,4 +1,5 @@
 import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
+import type { SessionChange } from '@dltech/atlas-protocol'
 
 export type ControlSessionRow = {
   sessionId: string
@@ -106,6 +107,7 @@ export interface ControlTx {
     excludeKind?: string | undefined
   }): Promise<InboxEntry[]>
   notifyWake(sessionId: string): Promise<void>
+  announce(change: SessionChange): Promise<void>
   hostPresent(hostId: number): Promise<boolean>
 }
 
