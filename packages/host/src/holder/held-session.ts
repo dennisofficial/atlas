@@ -153,7 +153,6 @@ export class HeldSession {
       })
       this.branches = branches
       branches.start()
-
       this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })
 
       const completion = new Promise<void>((resolve) => {
@@ -290,6 +289,8 @@ export class HeldSession {
     await teardownHeldSession({
       deps: this.deps,
       runtime: this.runtime,
+      record: this.record,
+      turnRunning: this.turns.turnRunning,
       draining: this.draining,
       lostOwnership: this.lostOwnership,
       released: this.released,

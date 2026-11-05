@@ -1,1 +1,1 @@
-export { appendResumeDrafts } from '@dltech/atlas-agent'
+export { appendResumeDrafts } from '@dltech/atlas-agent-v1'

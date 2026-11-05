@@ -4,4 +4,4 @@ export {
   repeatableFor,
   type GuardCutApplied,
   type GuardOutcome,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'

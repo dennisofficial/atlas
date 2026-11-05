@@ -1,8 +1,15 @@
-import { activeFailure, serveIdleDue, type PrepareFailure } from '@dltech/atlas-core'
+import {
+  activeFailure,
+  drainWantsHolder,
+  isResumable,
+  serveIdleDue,
+  workspaceStateOf,
+  type PrepareFailure,
+} from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import type { SessionRuntime } from './ports'
-import { actionableEntries, readFullInbox } from './held-inbox'
+import { actionableEntries, isStop, readFullInbox } from './held-inbox'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -27,23 +34,67 @@ export const idleReleaseDue = (args: {
   })
 }
 
+const drainNeedsHolder = async (args: {
+  deps: HeldSessionDeps
+  record: SessionRecord | undefined
+  turnRunning: boolean
+}): Promise<boolean> => {
+  const events = args.record?.eventCache().all() ?? []
+  try {
+    const entries = await readFullInbox(args.deps)
+    const workspace = workspaceStateOf({
+      events,
+      preparing: false,
+      pendingMessageIds: entries.filter((entry) => !isStop(entry)).map((entry) => entry.inboxId),
+    })
+    return drainWantsHolder({
+      turn: args.turnRunning ? 'running' : 'idle',
+      resumable: isResumable(args.record?.eventCache().visibleLoopEvents() ?? []),
+      messagePending: actionableEntries({ entries, failure: workspace.failure }).length > 0,
+      workspace: workspace.state,
+      retryPending: workspace.retryPending,
+    })
+  } catch {
+    return true
+  }
+}
+
+const revokeOnDrain = async (args: {
+  deps: HeldSessionDeps
+  record: SessionRecord | undefined
+  turnRunning: boolean
+  epoch: number
+}): Promise<void> => {
+  const { deps } = args
+  const wantsHolder = await drainNeedsHolder(args)
+  await deps.plane.revoke({
+    sessionId: deps.sessionId,
+    wantsHolder,
+    epoch: args.epoch,
+  })
+  if (wantsHolder) return
+  const maybePending = await lateInputMaybePending({
+    deps,
+    failure: activeFailure(args.record?.eventCache().all() ?? []),
+  })
+  if (maybePending) await deps.plane.wake({ sessionIds: [deps.sessionId] })
+}
+
 export const teardownHeldSession = async (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime | undefined
+  record: SessionRecord | undefined
+  turnRunning: boolean
   draining: boolean
   lostOwnership: boolean
   released: boolean
   epoch: number
 }): Promise<void> => {
-  const { deps, runtime } = args
+  const { runtime } = args
   if (runtime === undefined) return
   if (args.draining) {
     await runtime.stop()
-    if (!args.lostOwnership) {
-      await deps.plane
-        .revoke({ sessionId: deps.sessionId, wantsHolder: true, epoch: args.epoch })
-        .catch(() => undefined)
-    }
+    if (!args.lostOwnership) await revokeOnDrain(args).catch(() => undefined)
     return
   }
   if (!args.released) runtime.remoteCalls.close()

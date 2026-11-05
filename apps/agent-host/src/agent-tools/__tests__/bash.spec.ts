@@ -1,0 +1,318 @@
+import { toThreadId } from '@dltech/atlas-core'
+import { mkdtemp, realpath, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { beforeAll, describe, expect, it } from 'bun:test'
+import { z } from 'zod'
+
+import type { ProcessPort, SpawnCommand, ToolOutcome } from '@dltech/atlas-core'
+
+import { BashTool } from '../bash'
+import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
+import { files, processes, useTempAtlasHome } from './support'
+
+useTempAtlasHome()
+
+let root = ''
+
+beforeAll(async () => {
+  root = await mkdtemp(join(tmpdir(), 'atlas-bash-'))
+})
+
+const submit = (input: unknown): Promise<ToolOutcome> =>
+  new BashTool(new ForegroundOnlyShells(), files, processes).invoke({
+    input,
+    signal: new AbortController().signal,
+    idempotencyKey: 'bash-1',
+    projectDirectory: root,
+    threadId: toThreadId('thread-1'),
+  })
+
+const invoke = (input: Record<string, unknown>): Promise<ToolOutcome> =>
+  submit({ description: 'Exercise the shell', ...input })
+
+const outputOf = (outcome: ToolOutcome): Record<string, unknown> => {
+  if (!outcome.ok) throw new Error(`expected a successful outcome, got: ${outcome.reason}`)
+  return outcome.output as Record<string, unknown>
+}
+
+const exists = async (path: string): Promise<boolean> =>
+  await stat(path)
+    .then(() => true)
+    .catch(() => false)
+
+const after = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+describe('BashTool', () => {
+  it('refuses input the schema does not accept', async () => {
+    const outcome = await invoke({ command: '' })
+
+    expect(outcome).toMatchObject({ ok: false })
+    expect(!outcome.ok && outcome.reason).toContain('bash was called with invalid input')
+  }, 30_000)
+
+  it('refuses a command that arrives without a name', async () => {
+    const outcome = await submit({ command: 'echo unnamed' })
+
+    expect(outcome).toMatchObject({ ok: false })
+    expect(!outcome.ok && outcome.reason).toContain('description')
+  }, 30_000)
+
+  it('asks for the name before the command, so a row is named while the command still streams', () => {
+    const { inputSchema } = new BashTool(new ForegroundOnlyShells(), files, processes)
+    const declared = z.toJSONSchema(inputSchema)
+
+    expect(Object.keys(declared.properties ?? {})[0]).toBe('description')
+  })
+
+  it('returns what a command printed and the zero it exited with', async () => {
+    const outcome = await invoke({ command: 'echo hello; echo trouble >&2' })
+
+    expect(outputOf(outcome)).toMatchObject({
+      exitCode: 0,
+      stdout: 'hello\n',
+      stderr: 'trouble\n',
+      truncated: false,
+      timedOut: false,
+    })
+    expect(outcome.ok && outcome.modelText).toBe('hello\ntrouble')
+  }, 30_000)
+
+  it('runs the command in the workspace root it was given', async () => {
+    await Bun.write(join(root, 'rooted.txt'), 'found by a relative path\n')
+
+    const outcome = await invoke({ command: 'cat rooted.txt' })
+
+    expect(outputOf(outcome).stdout).toBe('found by a relative path\n')
+  }, 30_000)
+
+  it('reports a non-zero exit rather than failing the call', async () => {
+    const outcome = await invoke({ command: 'echo partial; exit 3' })
+
+    expect(outputOf(outcome)).toMatchObject({ exitCode: 3, stdout: 'partial\n' })
+    expect(outcome.ok && outcome.modelText).toBe('partial\n\nExit code: 3')
+  }, 30_000)
+
+  it('says so when a command produced nothing at all', async () => {
+    const outcome = await invoke({ command: `mkdir -p ${join(root, 'silent')}` })
+
+    expect(outcome.ok && outcome.modelText).toBe('The command completed with no output.')
+  }, 30_000)
+
+  it('kills the whole process group on timeout instead of waiting on what the shell forked', async () => {
+    const marker = join(root, 'orphan-survived')
+    const started = Date.now()
+
+    const outcome = await invoke({
+      command: `(sleep 2; touch ${marker}) & echo working; sleep 30`,
+      timeoutMs: 300,
+    })
+
+    expect(outputOf(outcome).timedOut).toBe(true)
+    expect(outcome.ok && outcome.modelText).toContain('killed after exceeding its 300 ms timeout')
+    expect(Date.now() - started).toBeLessThan(3_000)
+
+    await after(3_000)
+    expect(await exists(marker)).toBe(false)
+  }, 15_000)
+
+  it('keeps only the tail once the output passes its cap', async () => {
+    const outcome = await invoke({
+      command: 'for i in $(seq 1 4000); do echo "line-$i-padding-padding"; done',
+    })
+
+    const output = outputOf(outcome)
+    expect(output).toMatchObject({ exitCode: 0, truncated: true })
+    expect(String(output.stdout)).toContain('lines truncated')
+    expect(String(output.stdout)).toContain('line-4000-padding-padding')
+    expect(String(output.stdout)).not.toContain('line-1-padding-padding')
+  }, 30_000)
+
+  it('keeps the tail of both streams when each on its own would fill the cap', async () => {
+    const outcome = await invoke({
+      command: [
+        'for i in $(seq 1 4000); do echo "out-$i-padding-padding"; done',
+        'for i in $(seq 1 4000); do echo "err-$i-padding-padding" >&2; done',
+      ].join('; '),
+    })
+
+    if (!outcome.ok) throw new Error(outcome.reason)
+
+    expect(outcome.modelText).toContain('out-4000-padding-padding')
+    expect(outcome.modelText).toContain('err-4000-padding-padding')
+    expect(outcome.modelText).not.toContain('out-1-padding-padding')
+    expect(outputOf(outcome).truncated).toBe(true)
+  }, 30_000)
+
+  it('says the command may want a background shell when it runs out of time', async () => {
+    const outcome = await invoke({ command: 'sleep 30', timeoutMs: 400 })
+
+    if (!outcome.ok) throw new Error(outcome.reason)
+    expect(outcome.modelText).toContain('runInBackground')
+  }, 15_000)
+
+  it('abandons a command, and says who stopped it, once the turn is interrupted', async () => {
+    const controller = new AbortController()
+    const outcome = new BashTool(new ForegroundOnlyShells(), files, processes).invoke({
+      input: { command: 'sleep 30', description: 'Idle for a while' },
+      signal: controller.signal,
+      idempotencyKey: 'bash-2',
+      projectDirectory: root,
+      threadId: toThreadId('thread-1'),
+    })
+    setTimeout(() => controller.abort(), 100)
+
+    expect(await outcome).toEqual({
+      ok: false,
+      reason: 'the developer interrupted the turn while the command was running',
+    })
+  }, 15_000)
+})
+
+describe('choosing where the command runs', () => {
+  it('runs in the directory workdir names', async () => {
+    const nested = join(root, 'nested')
+    await invoke({ command: `mkdir -p ${nested}` })
+
+    const outcome = await invoke({ command: 'pwd', workdir: nested })
+
+    expect(await realpath((outputOf(outcome).stdout as string).trim())).toBe(await realpath(nested))
+  }, 30_000)
+
+  it('starts at the project directory when workdir is left out', async () => {
+    const outcome = await invoke({ command: 'pwd' })
+
+    expect(await realpath((outputOf(outcome).stdout as string).trim())).toBe(await realpath(root))
+  }, 30_000)
+
+  it('lets a cd move only the command that ran it, never the call that follows', async () => {
+    const nested = join(root, 'nested')
+    await invoke({ command: `mkdir -p ${nested}` })
+    await invoke({ command: 'cd nested && pwd' })
+
+    const outcome = await invoke({ command: 'pwd' })
+
+    expect(await realpath((outputOf(outcome).stdout as string).trim())).toBe(await realpath(root))
+  }, 30_000)
+
+  it('names the missing directory rather than blaming the shell', async () => {
+    const outcome = await invoke({ command: 'pwd', workdir: join(root, 'nowhere') })
+
+    expect(outcome).toEqual({
+      ok: false,
+      reason: `workdir ${join(root, 'nowhere')} does not exist, so there is nowhere to run the command`,
+    })
+  }, 30_000)
+
+  it('refuses a workdir that names a file rather than a directory', async () => {
+    const file = join(root, 'not-a-directory.txt')
+    await invoke({ command: `echo hi > ${file}` })
+
+    const outcome = await invoke({ command: 'pwd', workdir: file })
+
+    expect(outcome).toEqual({ ok: false, reason: `workdir ${file} is a file, not a directory` })
+  }, 30_000)
+
+  it('keeps the exit code of a command that also moved', async () => {
+    const outcome = await invoke({ command: 'cd nested && exit 3' })
+
+    expect(outputOf(outcome).exitCode).toBe(3)
+  }, 30_000)
+})
+
+describe('refusing to idle', () => {
+  it('names both ways out of a poll loop that has no end', async () => {
+    const outcome = await invoke({ command: 'while true; do gh pr checks 272; sleep 30; done' })
+
+    expect(outcome.ok).toBe(false)
+    const reason = !outcome.ok ? outcome.reason : ''
+    expect(reason).toContain('this loop has no end')
+    expect(reason).toContain('runInBackground')
+    expect(reason).toContain('gh run watch --exit-status')
+    expect(reason).not.toContain('end the turn and be woken')
+  }, 30_000)
+
+  it('counts the trips a bounded poll loop would make before it names them', async () => {
+    const outcome = await invoke({
+      command: 'for i in $(seq 1 60); do gh api runs; sleep 20; done',
+      timeoutMs: 600_000,
+    })
+
+    expect(outcome.ok).toBe(false)
+    const reason = !outcome.ok ? outcome.reason : ''
+    expect(reason).toContain('600 seconds asleep across 60 iterations')
+    expect(reason).toContain('runInBackground')
+    expect(reason).toContain('gh pr checks --watch')
+  }, 30_000)
+
+  it('still refuses a plain long sleep, and still points somewhere', async () => {
+    const outcome = await invoke({ command: 'sleep 90' })
+
+    expect(outcome.ok).toBe(false)
+    expect(!outcome.ok && outcome.reason).toContain('90 seconds asleep')
+  }, 30_000)
+
+  it('refuses a no-op run to pass the time, and names the wait that works', async () => {
+    const outcome = await invoke({ command: 'true' })
+
+    expect(outcome.ok).toBe(false)
+    const reason = !outcome.ok ? outcome.reason : ''
+    expect(reason).toContain('does nothing')
+    expect(reason).toContain('it waits by ending')
+    expect(reason).toContain('runInBackground')
+  }, 30_000)
+
+  it('refuses the other no-op spellings too', async () => {
+    expect((await invoke({ command: ':' })).ok).toBe(false)
+    expect((await invoke({ command: 'true; true' })).ok).toBe(false)
+  }, 30_000)
+
+  it('says in the description that do-nothing ticks are refused', () => {
+    const { description } = new BashTool(new ForegroundOnlyShells(), files, processes)
+
+    expect(description).toContain('do-nothing ticks')
+    expect(description).toContain('refused')
+  }, 30_000)
+})
+
+describe('refusing to hold the turn open on a watch', () => {
+  it('refuses a foreground gh run watch and points it at runInBackground', async () => {
+    const outcome = await invoke({ command: 'gh run watch 123 --exit-status' })
+
+    expect(outcome.ok).toBe(false)
+    const reason = !outcome.ok ? outcome.reason : ''
+    expect(reason).toContain('only ends when what it watches ends')
+    expect(reason).toContain('runInBackground')
+    expect(reason).toContain('gh run view')
+  }, 30_000)
+
+  it('refuses the other foreground watches too', async () => {
+    expect((await invoke({ command: 'gh pr checks 272 --watch' })).ok).toBe(false)
+    expect((await invoke({ command: 'tail -f /tmp/serve.log' })).ok).toBe(false)
+    expect((await invoke({ command: 'kubectl wait --for=condition=ready pod/api' })).ok).toBe(false)
+  }, 30_000)
+
+  it('says in the description that foreground watches are refused', () => {
+    const { description } = new BashTool(new ForegroundOnlyShells(), files, processes)
+
+    expect(description).toContain('foreground watches')
+    expect(description).toContain('refused')
+  }, 30_000)
+})
+
+describe('refusing a truncated CI watch', () => {
+  it('leaves a truncated one-shot read alone', async () => {
+    const outcome = await invoke({ command: 'echo check-one; echo check-two | tail -1' })
+
+    expect(outcome.ok).toBe(true)
+  }, 30_000)
+})
+
+describe('watching a background shell', () => {
+  it('refuses a watch on a foreground command, and says what it needs', async () => {
+    const outcome = await invoke({ command: 'echo hi', watch: 'ERROR' })
+
+    expect(outcome.ok).toBe(false)
+    expect(!outcome.ok && outcome.reason).toContain('runInBackground')
+  }, 30_000)
+})

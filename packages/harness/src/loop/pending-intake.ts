@@ -2,7 +2,7 @@ import {
   appendPending as appendAgentPending,
   type DrainedPending,
   type PendingDrain,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'
 import type { EventLogPort } from '@dltech/atlas-core'
 
 import { eventLogAgentRecord } from './event-log-agent-record'

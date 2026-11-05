@@ -12,7 +12,7 @@ import { createDb } from '@dltech/atlas-db'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
-import { RandomIds } from '@dltech/atlas-harness'
+import { RandomIds } from '../runtime/random-ids'
 import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 
 import { LocalSandboxProvider } from '../testing/local-sandbox-provider'

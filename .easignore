@@ -160,6 +160,8 @@ apps/mobile/example
 !/packages/db/package.json
 /packages/agent/*
 !/packages/agent/package.json
+/packages/agent-v1/*
+!/packages/agent-v1/package.json
 /packages/control/*
 !/packages/control/package.json
 /packages/protocol/*

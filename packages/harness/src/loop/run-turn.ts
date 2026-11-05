@@ -4,7 +4,7 @@ import {
   type PendingDrain,
   type ToolOutputNotice,
   type TurnDeps as AgentTurnDeps,
-} from '@dltech/atlas-agent'
+} from '@dltech/atlas-agent-v1'
 
 import type { EventLogPort } from '@dltech/atlas-core'
 

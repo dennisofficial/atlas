@@ -1,1 +1,1 @@
-export { safeFailureMessage } from '@dltech/atlas-agent'
+export { safeFailureMessage } from '@dltech/atlas-agent-v1'

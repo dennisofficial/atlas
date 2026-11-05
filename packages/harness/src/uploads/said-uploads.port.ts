@@ -1,1 +1,1 @@
-export { SaidUploadsPort } from '@dltech/atlas-agent'
+export { SaidUploadsPort } from '@dltech/atlas-agent-v1'

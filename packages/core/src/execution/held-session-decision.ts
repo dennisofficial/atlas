@@ -46,3 +46,24 @@ export const decideHeldAction = (snapshot: HeldSnapshot): EHeldAction => {
       return prepared(snapshot)
   }
 }
+
+export type DrainSnapshot = {
+  turn: 'idle' | 'running'
+  resumable: boolean
+  messagePending: boolean
+  workspace: EWorkspaceState
+  retryPending: boolean
+}
+
+export const drainWantsHolder = (snapshot: DrainSnapshot): boolean => {
+  if (snapshot.turn === 'running' || snapshot.resumable || snapshot.messagePending) return true
+  switch (snapshot.workspace) {
+    case EWorkspaceState.Unprepared:
+    case EWorkspaceState.Preparing:
+      return true
+    case EWorkspaceState.Failed:
+      return snapshot.retryPending
+    case EWorkspaceState.Prepared:
+      return false
+  }
+}

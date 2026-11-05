@@ -8,12 +8,12 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { ApplyLoopCut } from '@dltech/atlas-agent'
+import type { ApplyLoopCut } from '@dltech/atlas-agent-v1'
 
 import type { SessionRegistry } from '../registry'
 import { appendDrafts, truncateThreadLog } from './log-edits'
 
-export type { ApplyLoopCut } from '@dltech/atlas-agent'
+export type { ApplyLoopCut } from '@dltech/atlas-agent-v1'
 
 export function createLoopCut({
   log,

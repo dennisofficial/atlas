@@ -3,15 +3,12 @@ import { randomUUID } from 'node:crypto'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import {
   imageOptimizeRetry,
-  liveSdk,
-  mountWithRetries,
-  renewSessionDeadline,
-  routedUrlWithRetries,
   SANDBOX_QUICK_TIMEOUT_MS,
   settleRetry,
   type VercelCredentials,
-  type VercelSdk,
-} from '@dltech/atlas-wire'
+} from './constants'
+import { mountWithRetries } from './vercel-mount'
+import { liveSdk, renewSessionDeadline, routedUrlWithRetries, type VercelSdk } from './vercel-sdk'
 
 import { launchDaemon, type DaemonBundle } from './daemon-launch'
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox-provider'
@@ -53,7 +50,6 @@ export class VercelSandboxProvider extends SandboxProvider {
       threadId: args.sessionId,
       token: randomUUID(),
       environment: { ATLAS_SANDBOX_NAME: sandboxName },
-      injectVercelCredentials: false,
       onCreate: () => Promise.resolve(),
     })
     await launchDaemon({

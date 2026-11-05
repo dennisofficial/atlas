@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAuthKind, type AccountLease, type StoredAccountDto } from '@dltech/atlas-wire'
+import { EAuthKind } from '@dltech/atlas-core'
+
+import type { AccountLease, StoredAccountDto } from './agent-host-account-types'
 
 import { modelConfigOf, modelIdOf } from './agent-host-model-config'
 
