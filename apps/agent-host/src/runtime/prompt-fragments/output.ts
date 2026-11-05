@@ -9,7 +9,9 @@ export class OutputShapeFragment extends PromptFragment {
       'prose; distinct items, steps, or options get a flat list. Tables hold short enumerable facts, with',
       'the explaining around them. Put code in a fence.',
       'Draw a flow, sequence, state machine, or dependency graph that reads better as a picture in a',
-      '```mermaid fence; the client renders it as a diagram.',
+      '```mermaid fence; the client renders it as a diagram. Wrap a node label in double quotes when it',
+      'holds punctuation such as ()[]{}:;#, and keep sequence-message text to plain words, without',
+      'semicolons, # or arrow-like sequences such as -> inside it.',
     ].join('\n')
   }
 }
