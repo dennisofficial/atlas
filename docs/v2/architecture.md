@@ -452,9 +452,9 @@ is not an in-memory timer: it is a recorded deadline (0021).
   or failed with a retry pending. An idle, prepared session is released without a wake. The next message
   wakes it through `NOTIFY`, so a deploy no longer wakes every sandbox and restarts every idle clock.
 
-**Connection-bound leases (proposed in [0025](../decisions/0025-v2-connection-bound-leases.md)).** Renewal
+**Connection-bound leases (accepted in [0025](../decisions/0025-v2-connection-bound-leases.md)).** Renewal
 and the reconcile task exist because liveness is something the control plane has to infer from a clock.
-Postgres already knows when a connection is gone, so the proposal makes that the liveness signal and
+Postgres already knows when a connection is gone, so 0025 makes that the liveness signal and
 removes every timer that proves or looks for it.
 - **One presence lock per host.** An agent host opens a dedicated direct connection (`DATABASE_DIRECT_URL`,
   keepalives 5/2/3 s set on it, no statement or idle timeouts) and takes
@@ -493,7 +493,7 @@ per host are the pool plus three (`LISTEN`, lock, one waiter), independent of fl
 peer would need N(N−1) backends against a limit of 50. What the lock connection must survive, and what
 the host does for each case, is the failure table in [0025](../decisions/0025-v2-connection-bound-leases.md).
 
-**Build plan** (each a reviewable PR; none starts before the operator accepts 0025):
+**Build plan** (each a reviewable PR):
 1. **Verify on PlanetScale.** A test-only script against the real role: `SET tcp_keepalives_*` is allowed,
    no idle-session reaping, a killed connection frees the lock, a transaction-mode URL is detectable.
    Amend 0025 with the numbers.

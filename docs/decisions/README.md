@@ -32,4 +32,4 @@ says what it supersedes. Tactical choices and decisions that were later reversed
 | [0022](0022-v2-background-jobs-in-apps-trigger.md)       | v2 background jobs and schedules run on trigger.dev in their own `apps/trigger`; v1's stay in the API until v1 retires |
 | [0023](0023-observability-package.md)                    | Telemetry, operational logs and tracing live in `packages/observability`                                               |
 | [0024](0024-v2-realtime.md)                              | v2 real-time: a WebSocket stream fed by NOTIFY pointers and read by seq; token deltas are a separate Redis channel     |
-| [0025](0025-v2-connection-bound-leases.md)               | Proposed: v2 leases are held by the host's Postgres connection; the epoch fences, nothing renews                       |
+| [0025](0025-v2-connection-bound-leases.md)               | v2 leases are held by the host's Postgres connection; the epoch fences, nothing renews                                 |

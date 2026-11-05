@@ -1,6 +1,6 @@
 # 0024. v2 real-time: a WebSocket stream service fed by NOTIFY pointers and read by seq
 
-Proposed 2026-11-05; accepted when the operator merges the PR that adds it. Full design:
+Proposed 2026-11-05; accepted 2026-11-05 (#1852). Full design:
 [slices/05-realtime.md](../v2/slices/05-realtime.md). Refines the client ⇄ CP row of
 [architecture §5](../v2/architecture.md) (which says "tRPC plus SSE").
 
