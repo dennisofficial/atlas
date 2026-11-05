@@ -7,9 +7,10 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "deploy": "dotenvx run -f .env.production.enc -- bunx wrangler deploy"
+    "deploy": "dotenvx run -f .env.production.enc -- bunx wrangler@4.157.0 deploy"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@dotenvx/dotenvx": "^1.71.0"
   }
 }
