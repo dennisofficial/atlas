@@ -4,7 +4,7 @@ import { githubFetch } from './github-fetch'
 import { rateLimitOf } from './github-rate-limit'
 import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
-import { type CommitCheckInput, recordCommitChecksLocked } from './github-commit-checks'
+import { type CommitCheckInput, recordCheckCounts } from './github-commit-checks'
 import type { RawCheckAnnotation } from './github-check-annotations'
 import { readHeadChecks } from './github-head-checks-read'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
@@ -65,6 +65,7 @@ export class GithubUserReads {
     repo: string
     number: number
     collectChecks?: (args: { headSha: string; checks: CommitCheckInput[] }) => void
+    withSuites?: boolean
   }): Promise<PullRequestCacheFields> {
     const pull = await this.get<RestPullRequest>({
       source: args.source,
@@ -76,25 +77,24 @@ export class GithubUserReads {
       owner: args.owner,
       repo: args.repo,
       headSha: pull.head.sha,
-      withSuites: args.collectChecks !== undefined,
+      withSuites: args.collectChecks !== undefined || args.withSuites === true,
     })
-    const { checks } = head
-
-    if (args.collectChecks === undefined) {
-      await recordCommitChecksLocked({
-        repoFullName: `${args.owner}/${args.repo}`,
-        headSha: pull.head.sha,
-        checks,
-      })
-    } else {
-      args.collectChecks({ headSha: pull.head.sha, checks })
-    }
-
-    return pullRequestCacheFieldsOf({
+    const fields = pullRequestCacheFieldsOf({
       pull,
       checkRuns: head.checkRuns,
       statuses: head.statuses,
     })
+    if (args.collectChecks !== undefined) {
+      args.collectChecks({ headSha: pull.head.sha, checks: head.checks })
+      return fields
+    }
+    if (head.checks.length === 0) return fields
+    const counts = await recordCheckCounts({
+      repoFullName: `${args.owner}/${args.repo}`,
+      headSha: pull.head.sha,
+      checks: head.checks,
+    })
+    return { ...fields, ...counts }
   }
 
   /**

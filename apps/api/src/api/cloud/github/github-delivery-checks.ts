@@ -3,6 +3,7 @@ import { db, type Row, type Tx } from '@dltech/atlas-db'
 import { affectedPrsBySha } from './github-delivery-affected'
 import {
   type CommitCheckInput,
+  checkCountFieldsOf,
   checkRunInputOf,
   commitChecksTally,
   commitStatusInputOf,
@@ -114,7 +115,7 @@ export class GithubDeliveryChecks {
           rest.kind === 'filled'
             ? rest.checks === null
               ? rest.fields
-              : { ...rest.fields, ...countsOf(tally) }
+              : { ...rest.fields, ...checkCountFieldsOf(tally) }
             : withTally({ pr: await currentRow({ tx, repoFullName, prNumber }), tally })
         return this.deps.writer.writeState({ tx, repoFullName, prNumber, fields })
       })
@@ -153,15 +154,8 @@ async function awaitsSettleConfirmation(args: {
   return ledger?.settledAt == null
 }
 
-const countsOf = (tally: ChecksCount) => ({
-  checksRunning: tally.running,
-  checksPassed: tally.passed,
-  checksFailed: tally.failed,
-  checksIgnored: tally.ignored,
-})
-
 function withTally(args: { pr: Row<'GithubPrState'>; tally: ChecksCount }) {
-  return { ...stateFieldsOf(args.pr), ...countsOf(args.tally), updatedAt: new Date() }
+  return { ...stateFieldsOf(args.pr), ...checkCountFieldsOf(args.tally), updatedAt: new Date() }
 }
 
 function countsMatch(args: { tally: ChecksCount; pr: Row<'GithubPrState'> }): boolean {
