@@ -19,6 +19,8 @@ import { AgentHostEnvError, readAgentHostEnv } from './config/env'
 import { databaseUrlWithTls } from './config/database-url'
 import { createPgHostPresence } from './presence/pg-host-presence'
 import { startHostWatch, type HostWatch } from './presence/pg-host-watch'
+import { createPgStreamAuth } from './stream/pg-stream-auth'
+import { startStreamServer } from './stream/stream-server'
 import { wakeOrphans } from './presence/wake-orphans'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 
@@ -87,6 +89,13 @@ const main = async (): Promise<void> => {
   await wakeOrphans({ plane, log }).catch((error: unknown) => {
     log.error({ source: 'main', message: 'start-up orphan scan failed', ...logFieldsOf({ error }) })
   })
+  const stream = startStreamServer({
+    port: env.port,
+    auth: createPgStreamAuth({ pool }),
+    trustedOrigins: env.trustedOrigins,
+    log,
+  })
+  log.info({ source: 'main', message: 'stream listening', data: { port: stream.port } })
   log.info({ source: 'main', message: 'agent-host started' })
 
   let shuttingDown = false
@@ -94,11 +103,13 @@ const main = async (): Promise<void> => {
     if (shuttingDown) process.exit(1)
     shuttingDown = true
     log.info({ source: 'main', message: 'draining' })
+    await stream.drain({})
     await holder.drain({ deadline: Date.now() + 270_000 })
     await watch?.close()
     await presence.close()
     await wakes.close()
     await liveFrames.close()
+    await stream.stop()
     await pool.end()
     process.exit(0)
   }
