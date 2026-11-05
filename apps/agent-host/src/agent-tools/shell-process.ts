@@ -1,4 +1,10 @@
-import type { ProcessHandle, ProcessPort, ThreadId, ToolOutputChunk } from '@dltech/atlas-core'
+import {
+  EProcessTermination,
+  type ProcessHandle,
+  type ProcessPort,
+  type ThreadId,
+  type ToolOutputChunk,
+} from '@dltech/atlas-core'
 
 import { atlasBinDirectory, LOGIN_ENV_MARKER } from './atlas-bin'
 
@@ -20,7 +26,12 @@ export type TailBuffer = { append: (chunk: string) => void; tail: () => Tail }
 
 export type Drain = { stop: () => void; done: Promise<void> }
 
-export type ShellOutput = { stdout: Tail; stderr: Tail; exitCode: number }
+export type ShellOutput = {
+  stdout: Tail
+  stderr: Tail
+  exitCode: number
+  oomKilled: boolean
+}
 
 export const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -139,11 +150,12 @@ export async function readShell(args: {
   })
 
   const exitCode = await args.shell.exited
+  const oomKilled = (await args.shell.terminatedBy) === EProcessTermination.OomKilled
   await withinReadGrace(Promise.all([stdout.done, stderr.done]))
   stdout.stop()
   stderr.stop()
 
-  return { stdout: stdout.tail(), stderr: stderr.tail(), exitCode }
+  return { stdout: stdout.tail(), stderr: stderr.tail(), exitCode, oomKilled }
 }
 
 export function render(tail: Tail): string {
