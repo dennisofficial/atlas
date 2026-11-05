@@ -457,7 +457,7 @@ and the reconcile task exist because liveness is something the control plane has
 Postgres already knows when a connection is gone, so 0025 makes that the liveness signal and
 removes every timer that proves or looks for it.
 - **One presence lock per host.** An agent host opens a dedicated direct connection (`DATABASE_DIRECT_URL`,
-  keepalives 5/2/3 s set on it, no statement or idle timeouts) and takes
+  kernel keepalive on, no statement or idle timeouts) and takes
   `pg_try_advisory_lock(PRESENCE, hostId)` on it, then inserts its `V2Host` row. The lease row is
   `{sessionId, epoch, holderHostId, wantsHolder}`. A lease is live iff its holder's presence lock is
   granted exclusively. A host with 200 sessions uses one lock slot, not 200.
@@ -494,7 +494,7 @@ peer would need N(N−1) backends against a limit of 50. What the lock connectio
 the host does for each case, is the failure table in [0025](../decisions/0025-v2-connection-bound-leases.md).
 
 **Build plan** (each a reviewable PR):
-1. **Verify on PlanetScale.** A test-only script against the real role: `SET tcp_keepalives_*` is allowed,
+1. **Verify on PlanetScale** (done 2026-11-05; numbers in 0025 Consequences). A test-only script against the real role: `SET tcp_keepalives_*` is allowed,
    no idle-session reaping, a killed connection frees the lock, a transaction-mode URL is detectable.
    Amend 0025 with the numbers.
 2. **Presence.** `V2Host` table, a `HostPresence` port with Postgres and in-memory implementations
@@ -507,7 +507,7 @@ the host does for each case, is the failure table in [0025](../decisions/0025-v2
 5. **Watch ring.** The waiter, successor recompute on `atlas_host_change`, the global scan on start and on
    wake, and `sessionsNeedingHolder` on presence. Delete `reconcile-holders` and its trigger task.
 6. **Fault rig.** Cases for SIGKILL, `pg_terminate_backend` of the lock connection, a stalled pool with a
-   live lock connection, a partition (`iptables` drop, keepalives free the lock), a primary restart, and
+   live lock connection, a partition (`iptables` drop, the proxy frees the lock in about 60 s), a primary restart, and
    three hosts dying in sequence around the ring.
 
 ## 14. Archive is read-only, and an archived session costs nothing
