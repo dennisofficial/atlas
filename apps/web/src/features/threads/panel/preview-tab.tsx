@@ -64,16 +64,18 @@ export function PreviewTab({ data }: { data: PreviewsState }) {
 
   if (tab === undefined) {
     return (
-      <Notice
-        icon={<GlobeIcon />}
-        title="No tabs open"
-        description="Open a tab to browse the ports this session exposes."
-        action={
-          <Button variant="outline" size="sm" onClick={handleOpen}>
-            New tab
-          </Button>
-        }
-      />
+      <div className="flex h-full flex-col">
+        <Notice
+          icon={<GlobeIcon />}
+          title="No tabs open"
+          description="Open a tab to browse the ports this session exposes."
+          action={
+            <Button variant="outline" size="sm" onClick={handleOpen}>
+              New tab
+            </Button>
+          }
+        />
+      </div>
     )
   }
 
