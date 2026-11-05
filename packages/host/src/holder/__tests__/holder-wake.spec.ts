@@ -7,7 +7,7 @@ import { FakeClock, flushUntil, makeRig, postAndRun, seedSession, SESSION } from
 
 describe('SessionHolder wake routing', () => {
   it('a held idle session takes a new message the moment the wake fires, with no timer advance', async () => {
-    const rig = await makeRig({ holderId: 'holder-a' })
+    const rig = await makeRig({})
     await seedSession(rig)
     await rig.holder.start()
     await postAndRun(rig, 'hello')
@@ -28,7 +28,7 @@ describe('SessionHolder wake routing', () => {
   }, 15_000)
 
   it('a resync re-reads the inbox of every held session', async () => {
-    const rig = await makeRig({ holderId: 'holder-a' })
+    const rig = await makeRig({})
     await seedSession(rig)
     await rig.holder.start()
     await postAndRun(rig, 'hello')
@@ -48,7 +48,7 @@ describe('SessionHolder wake routing', () => {
   }, 15_000)
 
   it('a resync claims sessions that need a holder', async () => {
-    const rig = await makeRig({ holderId: 'holder-a' })
+    const rig = await makeRig({})
     await seedSession(rig)
     await rig.holder.start()
     await rig.post('orphaned')
@@ -66,10 +66,9 @@ describe('SessionHolder wake routing', () => {
   }, 15_000)
   it('a wake that lands between the last inbox read and the idle wait is not lost', async () => {
     const clock = new FakeClock()
-    const plane = new ControlPlane({
-      store: new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() }),
-    })
-    const rig = await makeRig({ holderId: 'holder-a', clock, plane })
+    const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
+    const plane = new ControlPlane({ store })
+    const rig = await makeRig({ clock, plane, store })
     await seedSession(rig)
     await rig.holder.start()
     await postAndRun(rig, 'hello')

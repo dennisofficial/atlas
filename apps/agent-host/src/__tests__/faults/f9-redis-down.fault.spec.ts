@@ -31,7 +31,7 @@ describe('F9 Redis down for the whole session', () => {
     const threadId = await rig.newSession({ sessionId, text: 'sleep then stop' })
     const daemon = await rig.spawnDaemonFor({ sessionId })
     const host = await rig.spawnHost({
-      holderId: 'host-f9',
+      label: 'host-f9',
       daemonUrl: daemon.url,
       redisUrl: DEAD_REDIS,
       scripts: {
@@ -51,7 +51,7 @@ describe('F9 Redis down for the whole session', () => {
     })
 
     const postedAt = Date.now()
-    await rig.claim({ sessionId, holderId: 'host-f9' })
+    await rig.claim({ sessionId, label: 'host-f9' })
     console.log(`f9 post->claim latency with redis down: ${Date.now() - postedAt} ms`)
 
     await rig.waitForSeq({
@@ -83,7 +83,7 @@ describe('F9 Redis down for the whole session', () => {
     const sessionId = `fault-f9-hot-${suffix}`
     const daemon = await rig.spawnDaemonFor({ sessionId })
     await rig.spawnHost({
-      holderId: 'host-f9-hot',
+      label: 'host-f9-hot',
       daemonUrl: daemon.url,
       redisUrl: DEAD_REDIS,
       scripts: { [sessionId]: [{ text: 'hot answer' }] },
@@ -95,7 +95,7 @@ describe('F9 Redis down for the whole session', () => {
     const deadline = Date.now() + 15_000
     for (;;) {
       const current = await rig.plane.currentLease({ sessionId })
-      if (current.live && current.lease.holderId === 'host-f9-hot') break
+      if (current.live && (await rig.labelOf(current.lease.holderHostId)) === 'host-f9-hot') break
       if (Date.now() > deadline) throw new Error(`hot claim timed out: ${JSON.stringify(current)}`)
       await new Promise((resolve) => setTimeout(resolve, 25))
     }

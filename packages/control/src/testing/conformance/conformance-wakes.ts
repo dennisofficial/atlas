@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { postIn } from '../../inbox-ops'
-import { createSessionParams, HOLDER, makeHarness, T0, type Harness } from './support'
+import { createSessionParams, HOLDER_HOST, makeHarness, T0, type Harness } from './support'
 import type { ConformanceParams } from './conformance'
 
 const WAKE_SESSION = 'wakes-session'
@@ -67,10 +67,10 @@ export function describeControlPlaneWakes(params: ConformanceParams): void {
       await harness.plane.createSession(
         createSessionParams({ sessionId: WAKE_SESSION, mainThreadId: WAKE_THREAD }),
       )
-      await harness.plane.grant({ sessionId: WAKE_SESSION, holderId: HOLDER, ttlMs: 60_000 })
+      await harness.plane.grant({ sessionId: WAKE_SESSION, hostId: HOLDER_HOST })
       await harness.plane.revoke({ sessionId: WAKE_SESSION, wantsHolder: false })
       expect(await params.wakes(WAKE_SESSION)).toBe(1)
-      await harness.plane.grant({ sessionId: WAKE_SESSION, holderId: HOLDER, ttlMs: 60_000 })
+      await harness.plane.grant({ sessionId: WAKE_SESSION, hostId: HOLDER_HOST })
       await harness.plane.revoke({ sessionId: WAKE_SESSION, wantsHolder: true })
       expect(await params.wakes(WAKE_SESSION)).toBe(2)
     })
@@ -79,11 +79,7 @@ export function describeControlPlaneWakes(params: ConformanceParams): void {
       await harness.plane.createSession(
         createSessionParams({ sessionId: WAKE_SESSION, mainThreadId: WAKE_THREAD }),
       )
-      const lease = await harness.plane.grant({
-        sessionId: WAKE_SESSION,
-        holderId: HOLDER,
-        ttlMs: 60_000,
-      })
+      const lease = await harness.plane.grant({ sessionId: WAKE_SESSION, hostId: HOLDER_HOST })
       const refused = await harness.plane.revoke({
         sessionId: WAKE_SESSION,
         wantsHolder: true,

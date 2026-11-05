@@ -1,5 +1,3 @@
-import type { Lease } from '@dltech/atlas-core'
-
 import type { StoredEvent } from '../../port'
 
 export const bisectAfter = (params: { rows: readonly StoredEvent[]; afterSeq: number }): number => {
@@ -13,8 +11,3 @@ export const bisectAfter = (params: { rows: readonly StoredEvent[]; afterSeq: nu
   }
   return low
 }
-
-export const leaseLiveAt = (params: { lease: Lease | undefined; now: string }): boolean =>
-  params.lease !== undefined &&
-  params.lease.holderId !== null &&
-  Date.parse(params.now) < Date.parse(params.lease.renewedAt) + params.lease.ttlMs

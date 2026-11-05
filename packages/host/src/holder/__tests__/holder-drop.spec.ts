@@ -10,7 +10,6 @@ import { flushUntil, makeRig, SANDBOX, SECRET, seedSession, SESSION } from './ho
 describe('SessionHolder drop releases the slot', () => {
   it('a partitioned session dropped mid-tool frees the slot for another wake at maxSessions=1', async () => {
     const a = await makeRig({
-      holderId: 'holder-a',
       maxSessions: 1,
       script: [
         {
@@ -18,7 +17,7 @@ describe('SessionHolder drop releases the slot', () => {
             {
               callId: 'call-1',
               name: 'bash',
-              input: { command: 'echo started; sleep 600; echo late' },
+              input: { command: 'echo started; sleep 0.3; echo late' },
             },
           ],
         },
@@ -40,9 +39,13 @@ describe('SessionHolder drop releases the slot', () => {
     })
     expect(dispatched).toBe(true)
 
-    a.plane.renew = () => new Promise(() => {})
-    a.clock.advance(31_000)
-    const dropped = await flushUntil({ check: () => !a.holder.heldIds().includes(SESSION) })
+    const thief = a.store.nextHostId()
+    a.store.markHostPresent(thief)
+    await a.plane.grant({ sessionId: SESSION, hostId: thief })
+    const dropped = await flushUntil({
+      check: () => !a.holder.heldIds().includes(SESSION),
+      attempts: 3000,
+    })
     expect(dropped).toBe(true)
 
     await a.bus.wake('session-other')
@@ -53,7 +56,7 @@ describe('SessionHolder drop releases the slot', () => {
 
 describe('RemoteCalls.close', () => {
   it('close rejects a pending invoke and a pending ready waiter', async () => {
-    const a = await makeRig({ holderId: 'holder-a' })
+    const a = await makeRig({})
     const hanging = new RemoteCalls({
       sessionId: SESSION,
       token: inMemoryDaemonToken({ secret: SECRET, sandboxName: SANDBOX }),
@@ -79,7 +82,7 @@ describe('RemoteCalls.close', () => {
   })
 
   it('close rejects an invoke in flight against a live daemon', async () => {
-    const a = await makeRig({ holderId: 'holder-a' })
+    const a = await makeRig({})
     await seedSession(a)
     const calls = new RemoteCalls({
       sessionId: SESSION,

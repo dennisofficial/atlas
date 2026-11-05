@@ -23,7 +23,6 @@ const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Even
 describe('SessionHolder stop', () => {
   it('a stop inbox entry mid-exec aborts the turn, cancels the daemon call and consumes the entry', async () => {
     const rig = await makeRig({
-      holderId: 'holder-a',
       script: [
         {
           calls: [
@@ -82,7 +81,6 @@ describe('SessionHolder stop', () => {
 
   it('a stop behind a full page of messages still aborts the running turn on one wake', async () => {
     const rig = await makeRig({
-      holderId: 'holder-a',
       script: [
         {
           calls: [
@@ -129,7 +127,6 @@ describe('SessionHolder stop', () => {
       openGate = () => resolve()
     })
     const rig = await makeRig({
-      holderId: 'holder-a',
       script: [
         {
           calls: [
@@ -168,7 +165,7 @@ describe('SessionHolder stop', () => {
 
 describe('SessionHolder idle', () => {
   it('after 30 idle minutes the runtime is released and the lease revoked; a new post reclaims', async () => {
-    const rig = await makeRig({ holderId: 'holder-a', idleMinutes: 30 })
+    const rig = await makeRig({ idleMinutes: 30 })
     await seedSession(rig)
     await rig.holder.start()
     await rig.post('hello')
@@ -187,7 +184,7 @@ describe('SessionHolder idle', () => {
     const released = await flushUntil({ check: () => runtime.released })
     expect(released).toBe(true)
     const lease = await rig.plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderId).toBeNull()
+    expect(lease.lease.holderHostId).toBeNull()
     expect(lease.lease.wantsHolder).toBe(false)
 
     rig.script.current = [{ text: 'again' }]

@@ -40,8 +40,7 @@ describe('SessionsService blob reads', () => {
     const created = await args.service.create({ userId: args.userId, projectId: 'proj-a' })
     const lease = await args.plane.grant({
       sessionId: created.sessionId,
-      holderId: 'host-1',
-      ttlMs: 30_000,
+      hostId: 9001,
     })
     const output = { text: 'tool-output-'.repeat(800_000) }
     const { body, blobs } = spillBody({
@@ -118,8 +117,7 @@ describe('SessionsService blob reads', () => {
 
     const attackLease = await plane.grant({
       sessionId: second.sessionId,
-      holderId: 'host-2',
-      ttlMs: 30_000,
+      hostId: 9002,
     })
     const planted = await plane.append({
       threadId: second.mainThreadId,

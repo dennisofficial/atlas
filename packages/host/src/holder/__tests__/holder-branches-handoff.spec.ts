@@ -23,14 +23,14 @@ const drainLate = async (rig: HolderRig): Promise<void> => {
 
 const expectRevoked = async (rig: HolderRig, args: { wantsHolder: boolean }): Promise<void> => {
   const lease = await rig.plane.currentLease({ sessionId: SESSION })
-  expect(lease.lease.holderId).toBeNull()
+  expect(lease.lease.holderHostId).toBeNull()
   expect(lease.lease.wantsHolder).toBe(args.wantsHolder)
   if (args.wantsHolder) expect(rig.wakeCount(SESSION)).toBeGreaterThanOrEqual(2)
 }
 
 describe('branch observer lifecycle on handoff', () => {
   it('handoff with a watched repo completes with revoke and wake', async () => {
-    const rig = await makeRig({ holderId: 'holder-a', script: longExecScript })
+    const rig = await makeRig({ script: longExecScript })
     await seedSession(rig)
     await rig.holder.start()
     await rig.post('run the long thing')
@@ -50,7 +50,6 @@ describe('branch observer lifecycle on handoff', () => {
 
   it('handoff completes when watchedRepos never resolves', async () => {
     const rig = await makeRig({
-      holderId: 'holder-b',
       script: [{ text: 'ok' }],
       watchedRepos: () => new Promise<readonly string[]>(() => {}),
     })

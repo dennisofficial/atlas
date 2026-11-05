@@ -4,12 +4,11 @@ import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 import { statusFrame, type SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
 import {
-  createBranchObserver,
-  createLoopRunner,
   logDriveFault,
   logReconcileFault,
   settleAndCheckResume,
   startHeldTurn,
+  wireHeldLoop,
 } from './held-runner'
 import { releaseIdleAndRewake, teardownHeldSession } from './held-idle'
 import { HeldPrepare } from './held-prepare'
@@ -21,7 +20,6 @@ import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
 import { TakeOver } from './held-takeover'
-import { LeaseRenewal } from './lease-renewal'
 
 export type { HeldSessionDeps }
 
@@ -39,7 +37,6 @@ export class HeldSession {
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
   private branches: BranchObserver | undefined
-  private renewal: LeaseRenewal | undefined
   private reconciler: Reconciler | undefined
   private finishDrive: (() => void) | undefined
   private readonly idle: IdleDeadline
@@ -47,6 +44,7 @@ export class HeldSession {
   private drainModelOnly = false
   private lostOwnership = false
   private released = false
+  private failedToStart = false
   private ended = false
   private resumePending = false
   private takeOver: TakeOver | undefined
@@ -70,6 +68,10 @@ export class HeldSession {
       idleMinutes: deps.idleMinutes,
       onDue: () => this.reconciler?.request(),
     })
+  }
+
+  get startFailed(): boolean {
+    return this.failedToStart
   }
 
   notifyWake(): void {
@@ -115,16 +117,13 @@ export class HeldSession {
     const { lease, threadId } = args
     const deps = this.deps
     deps.bus.live({ sessionId: deps.sessionId, frame: statusFrame({ state: 'starting' }) })
-    const renewal = new LeaseRenewal(deps, { epoch: lease.epoch, onLost: () => this.drop() })
-    this.renewal = renewal
-    renewal.schedule()
     try {
       this.takeOver = new TakeOver(deps, args.claimMs ?? 0)
       const { runtime, record } = await this.takeOver.open({
         threadId,
         epoch: lease.epoch,
         signal: this.lifetimeAbort.signal,
-        retryUntil: () => renewal.appendDeadline(this.drainDeadline),
+        drainDeadline: () => this.drainDeadline,
         onLeaseLost: () => this.drop(),
         onRuntime: (opened) => {
           this.runtime = opened
@@ -133,23 +132,16 @@ export class HeldSession {
       this.record = record
       if (this.draining) record.markDraining()
 
-      const runner = createLoopRunner({
+      const { runner, branches } = wireHeldLoop({
         deps,
         runtime,
         record,
         turns: this.turns,
         threadId,
+        signal: this.lifetimeAbort.signal,
         isModelOnlyDrain: () => this.drainModelOnly,
       })
-      const branches = createBranchObserver({
-        deps,
-        record,
-        runtime,
-        threadId,
-        signal: this.lifetimeAbort.signal,
-      })
       this.branches = branches
-      branches.start()
       this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })
 
       const completion = new Promise<void>((resolve) => {
@@ -167,6 +159,9 @@ export class HeldSession {
       }
     } catch (error) {
       logDriveFault({ deps: this.deps, error })
+      if (!this.lostOwnership && !this.draining && this.reconciler === undefined) {
+        this.failedToStart = true
+      }
     } finally {
       await this.teardown()
     }
@@ -256,10 +251,15 @@ export class HeldSession {
   private async releaseIdle(end: (runtime: SessionRuntime) => Promise<void>): Promise<void> {
     if (this.runtime === undefined || this.released) return
     this.released = true
-    const drop = (): void => this.drop()
-    const finish = (): void => this.finish()
     const { runtime, record } = this
-    await releaseIdleAndRewake({ deps: this.deps, end: () => end(runtime), record, drop, finish })
+    await releaseIdleAndRewake({
+      deps: this.deps,
+      epoch: this.leaseEpoch,
+      end: () => end(runtime),
+      record,
+      drop: () => this.drop(),
+      finish: () => this.finish(),
+    })
   }
 
   private drop(): void {
@@ -283,7 +283,6 @@ export class HeldSession {
   }
 
   private async teardown(): Promise<void> {
-    this.renewal?.stop()
     this.branches?.stop()
     await teardownHeldSession({
       deps: this.deps,
@@ -293,6 +292,7 @@ export class HeldSession {
       draining: this.draining,
       lostOwnership: this.lostOwnership,
       released: this.released,
+      failedToStart: this.failedToStart,
       epoch: this.leaseEpoch,
     })
   }

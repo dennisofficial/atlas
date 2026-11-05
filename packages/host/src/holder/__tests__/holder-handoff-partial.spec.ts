@@ -58,7 +58,7 @@ const assistantSaids = async (rig: HolderRig) => {
 
 describe('SessionHolder handoff with an open model step (exit 3b)', () => {
   it('appends the partial output aborted at the drain deadline, then revokes and wakes at once', async () => {
-    const a = await makeRig({ holderId: 'holder-a', model: () => new StreamingModel() })
+    const a = await makeRig({ model: () => new StreamingModel() })
     await seedSession(a)
     await a.holder.start()
     await a.post('say something')
@@ -80,7 +80,7 @@ describe('SessionHolder handoff with an open model step (exit 3b)', () => {
     expect(JSON.stringify(saids[0]?.parts)).toContain(PARTIAL_TEXT)
 
     const lease = await a.plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderId).toBeNull()
+    expect(lease.lease.holderHostId).toBeNull()
     expect(lease.lease.wantsHolder).toBe(true)
     expect(a.bus.wakes.filter((id) => id === SESSION).length).toBeGreaterThanOrEqual(1)
   }, 15_000)

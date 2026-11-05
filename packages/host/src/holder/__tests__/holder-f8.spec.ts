@@ -4,7 +4,7 @@ import { flushUntil, makeRig, seedSession } from './holder-rig'
 
 describe('SessionHolder append reply lost (F8)', () => {
   it('a store that commits then throws still completes the turn with no fork', async () => {
-    const rig = await makeRig({ holderId: 'holder-a', script: [{ text: 'recovered' }] })
+    const rig = await makeRig({ script: [{ text: 'recovered' }] })
     await seedSession(rig)
 
     const originalAppend = rig.plane.append.bind(rig.plane)

@@ -149,3 +149,18 @@ export const createLoopRunner = (args: {
     }),
   })
 }
+
+export const wireHeldLoop = (args: {
+  deps: HeldSessionDeps
+  runtime: SessionRuntime
+  record: SessionRecord
+  turns: HeldTurns
+  threadId: ThreadId
+  signal: AbortSignal
+  isModelOnlyDrain(): boolean
+}): { runner: LoopTurnRunner; branches: BranchObserver } => {
+  const runner = createLoopRunner(args)
+  const branches = createBranchObserver(args)
+  branches.start()
+  return { runner, branches }
+}

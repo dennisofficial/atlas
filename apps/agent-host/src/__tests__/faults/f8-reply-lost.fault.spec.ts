@@ -58,9 +58,9 @@ describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is los
     const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
     const hostA = await rig.spawnHost({
-      holderId: 'host-a',
+      label: 'host-a',
       daemonUrl: daemon.url,
-      knobs: { ttlMs: 20_000, fenceMs: 5_000, queryTimeoutMs: 5_000 },
+      knobs: { queryTimeoutMs: 5_000 },
       scripts: {
         [sessionId]: [
           {
@@ -70,7 +70,7 @@ describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is los
         ],
       },
     })
-    await rig.claim({ sessionId, holderId: 'host-a' })
+    await rig.claim({ sessionId, label: 'host-a' })
     await rig.waitForSeq({
       threadId,
       want: (rows) => rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
@@ -125,7 +125,7 @@ describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is los
     }
 
     const finalLease = await rig.plane.currentLease({ sessionId })
-    expect(finalLease.lease.holderId).toBe('host-a')
+    expect(await rig.labelOf(finalLease.lease.holderHostId)).toBe('host-a')
     const epochs = events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
     expect(Math.max(...epochs)).toBeLessThanOrEqual(finalLease.lease.epoch)
     const sorted = [...epochs].sort((a, b) => a - b)

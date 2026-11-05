@@ -6,14 +6,11 @@ import type { HostBus, HostTimers, SessionRuntimeFactory } from './ports'
 
 export type HeldSessionDeps = {
   sessionId: string
-  holderId: string
   plane: ControlPlane
   bus: HostBus
   timers: HostTimers
   ids: IdPort
-  ttlMs: number
-  renewEveryMs: number
-  fenceMarginMs: number
+  appendRetryMs: number
   idleMinutes: number
   runtimeFor: SessionRuntimeFactory
   onDrop?: (() => void) | undefined

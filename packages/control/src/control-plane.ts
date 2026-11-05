@@ -2,7 +2,6 @@ import {
   type ClaimResult,
   type InboxEntry,
   type Lease,
-  type LeaseResult,
   type LogHead,
   type RevokeResult,
 } from '@dltech/atlas-core'
@@ -45,7 +44,7 @@ export class ControlPlane {
   constructor(params: ControlPlaneParams) {
     this.store = params.store
     this.clock = params.clock
-    this.leases = new LeaseOps({ store: params.store, nowIn: (tx) => this.nowIn(tx) })
+    this.leases = new LeaseOps({ store: params.store })
   }
 
   private async nowIn(tx: ControlTx): Promise<string> {
@@ -90,18 +89,14 @@ export class ControlPlane {
   }
 
   async sessionsNeedingHolder(params: { limit: number }): Promise<string[]> {
-    return this.store.transact(async (tx) =>
-      tx.sessionsNeedingHolder({ now: await this.nowIn(tx), limit: clampLimit(params.limit) }),
+    return this.store.transact((tx) =>
+      tx.sessionsNeedingHolder({ limit: clampLimit(params.limit) }),
     )
   }
 
   async createThread(params: { threadId: string; sessionId: string }): Promise<void> {
     await this.store.transact(async (tx) =>
-      tx.createThread({
-        ...params,
-        visibility: EMPTY_VISIBILITY_TEXT,
-        at: await this.nowIn(tx),
-      }),
+      tx.createThread({ ...params, visibility: EMPTY_VISIBILITY_TEXT, at: await this.nowIn(tx) }),
     )
   }
 
@@ -116,9 +111,7 @@ export class ControlPlane {
     blobs?: readonly BlobWrite[] | undefined
   }): Promise<AppendOutcome> {
     try {
-      return await this.store.transact((tx) =>
-        appendIn({ tx, leases: this.leases, nowIn: (inner) => this.nowIn(inner), ...params }),
-      )
+      return await this.store.transact((tx) => appendIn({ tx, leases: this.leases, ...params }))
     } catch (error) {
       if (error instanceof AppendAbort) {
         return { ok: false, refusal: error.refusal, head: error.head }
@@ -193,23 +186,11 @@ export class ControlPlane {
     return found.length > 0
   }
 
-  async grant(params: { sessionId: string; holderId: string; ttlMs: number }): Promise<Lease> {
+  async grant(params: { sessionId: string; hostId: number }): Promise<Lease> {
     return this.leases.grant(params)
   }
 
-  async renew(params: {
-    sessionId: string
-    holderId: string
-    epoch: number
-  }): Promise<LeaseResult> {
-    return this.leases.renew(params)
-  }
-
-  async claim(params: {
-    sessionId: string
-    holderId: string
-    ttlMs: number
-  }): Promise<ClaimResult> {
+  async claim(params: { sessionId: string; hostId: number }): Promise<ClaimResult> {
     return this.leases.claimLease(params)
   }
 

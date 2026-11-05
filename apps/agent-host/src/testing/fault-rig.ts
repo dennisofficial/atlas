@@ -21,7 +21,7 @@ const hostEntry = join(import.meta.dir, 'host-process.ts')
 export const RIG_SECRET = 'fault-rig-secret'
 
 export type HostProcess = {
-  holderId: string
+  label: string
   dbProxy?: FaultProxy
   daemonProxy?: FaultProxy
   kill(signal: 'SIGKILL' | 'SIGTERM'): void
@@ -32,9 +32,7 @@ export type HostProcess = {
 export type ReadEvent = { seq: number; type: string; event: unknown }
 
 export type HostKnobs = {
-  ttlMs?: number
-  renewMs?: number
-  fenceMs?: number
+  appendRetryMs?: number
   pingMs?: number
   drainMs?: number
   queryTimeoutMs?: number
@@ -46,7 +44,8 @@ export type FaultRig = {
   dbProxy: FaultProxy
   newSession(args: { sessionId: string; text: string; prepared?: boolean }): Promise<string>
   wake(sessionId: string): Promise<void>
-  claim(args: { sessionId: string; holderId: string; timeoutMs?: number }): Promise<void>
+  claim(args: { sessionId: string; label: string; timeoutMs?: number }): Promise<void>
+  labelOf(hostId: number | null): Promise<string | undefined>
   waitForSeq(args: {
     threadId: string
     want: (events: readonly ReadEvent[]) => boolean
@@ -54,7 +53,7 @@ export type FaultRig = {
   }): Promise<ReadEvent[]>
   spawnDaemonFor(args: { sessionId: string }): Promise<RigDaemon>
   spawnHost(args: {
-    holderId: string
+    label: string
     daemonUrl: string
     scripts: Record<string, ScriptedModelStep[]>
     knobs?: HostKnobs
@@ -66,17 +65,15 @@ export type FaultRig = {
   stop(): Promise<void>
 }
 
+const SEED_HOST_ID = 2_000_000_000
+
 const seedPrepared = async (args: {
   plane: ControlPlane
   sessionId: string
   threadId: string
 }): Promise<void> => {
   const { plane } = args
-  const { epoch } = await plane.grant({
-    sessionId: args.sessionId,
-    holderId: 'seed',
-    ttlMs: 60_000,
-  })
+  const { epoch } = await plane.grant({ sessionId: args.sessionId, hostId: SEED_HOST_ID })
   const head = await plane.head({ threadId: args.threadId })
   const outcome = await plane.append({
     threadId: args.threadId,
@@ -105,10 +102,19 @@ export const startRig = async (args: {
   const pool: Pool = createPool(args.databaseUrl)
   const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
   const closers: (() => Promise<void>)[] = []
+  const labelOf = async (hostId: number | null): Promise<string | undefined> => {
+    if (hostId === null) return undefined
+    const result = await pool.query<{ label: string }>(
+      'SELECT "label" FROM "v2"."V2Host" WHERE "id" = $1',
+      [hostId],
+    )
+    return result.rows[0]?.label
+  }
 
   return {
     plane,
     dbProxy,
+    labelOf,
 
     async newSession({ sessionId, text, prepared }) {
       const mainThreadId = `thread-${sessionId}`
@@ -131,15 +137,15 @@ export const startRig = async (args: {
       await plane.wake({ sessionIds: [sessionId] })
     },
 
-    async claim({ sessionId, holderId, timeoutMs }) {
+    async claim({ sessionId, label, timeoutMs }) {
       const deadline = Date.now() + (timeoutMs ?? 15_000)
       for (;;) {
         await plane.wake({ sessionIds: [sessionId] }).catch(() => undefined)
         const current = await plane.currentLease({ sessionId })
-        if (current.live && current.lease.holderId === holderId) return
+        if (current.live && (await labelOf(current.lease.holderHostId)) === label) return
         if (Date.now() > deadline) {
           throw new Error(
-            `timed out waiting for ${holderId} to hold ${sessionId}: ${JSON.stringify(current)}`,
+            `timed out waiting for ${label} to hold ${sessionId}: ${JSON.stringify(current)}`,
           )
         }
         await new Promise((resolve) => setTimeout(resolve, 500))
@@ -167,7 +173,7 @@ export const startRig = async (args: {
     },
 
     async spawnHost({
-      holderId,
+      label,
       daemonUrl,
       scripts,
       knobs,
@@ -176,7 +182,7 @@ export const startRig = async (args: {
       redisUrl,
       firstChunkFile,
     }) {
-      const dir = mkdtempSync(join(tmpdir(), `atlas-fault-rig-host-${holderId}-`))
+      const dir = mkdtempSync(join(tmpdir(), `atlas-fault-rig-host-${label}-`))
       closers.push(async () => {
         rmSync(dir, { recursive: true, force: true })
       })
@@ -211,15 +217,14 @@ export const startRig = async (args: {
           ATLAS_HOME: join(dir, 'atlas-home'),
           DATABASE_URL: databaseUrl(),
           DATABASE_DIRECT_URL: args.databaseUrl,
+          PRESENCE_DATABASE_URL: ownProxy === undefined ? args.databaseUrl : databaseUrl(),
           REDIS_URL: redisUrl ?? args.redisUrl,
-          HOLDER_ID: holderId,
+          HOLDER_ID: label,
           DAEMON_URL: ownDaemon?.url ?? daemonUrl,
           DAEMON_SECRET: RIG_SECRET,
           SCRIPT_FILE: scriptFile,
           WORKSPACE_DIR: workspace,
-          TTL_MS: String(knobs?.ttlMs ?? 3_000),
-          RENEW_MS: String(knobs?.renewMs ?? 500),
-          FENCE_MS: String(knobs?.fenceMs ?? 1_000),
+          APPEND_RETRY_MS: String(knobs?.appendRetryMs ?? 2_500),
           PING_MS: String(knobs?.pingMs ?? 10_000),
           ...(knobs?.drainMs === undefined ? {} : { DRAIN_MS: String(knobs.drainMs) }),
           ...(knobs?.queryTimeoutMs === undefined
@@ -242,7 +247,7 @@ export const startRig = async (args: {
         await child.exited.catch(() => undefined)
       })
       return {
-        holderId,
+        label,
         ...(ownProxy === undefined ? {} : { dbProxy: ownProxy }),
         ...(ownDaemon === undefined ? {} : { daemonProxy: ownDaemon.proxy }),
         kill(signal) {

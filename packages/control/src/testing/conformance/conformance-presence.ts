@@ -4,8 +4,6 @@ import { makeHarness, type Harness } from './support'
 import type { ConformanceParams } from './conformance'
 
 export type PresenceParams = ConformanceParams & {
-  nextHostId: () => Promise<number>
-  holdPresence: (hostId: number) => Promise<() => Promise<void>>
   holdShared: (hostId: number) => Promise<() => Promise<void>>
 }
 

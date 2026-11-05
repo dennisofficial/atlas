@@ -67,7 +67,7 @@ describe.skipIf(REDIS_URL === undefined)(
       ].join('; ')
 
       const hostA = await rig.spawnHost({
-        holderId: 'host-a',
+        label: 'host-a',
         daemonUrl: daemon.url,
         knobs: { pingMs: 500 },
         scripts: {
@@ -81,7 +81,7 @@ describe.skipIf(REDIS_URL === undefined)(
           ],
         },
       })
-      await rig.claim({ sessionId, holderId: 'host-a' })
+      await rig.claim({ sessionId, label: 'host-a' })
       await rig.waitForSeq({
         threadId,
         want: (rows) =>
@@ -137,7 +137,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const lease = await rig.plane.currentLease({ sessionId })
-      expect(lease.lease.holderId).toBe('host-a')
+      expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-a')
       const epochs = events.map(epochOf)
       expect(Math.max(...epochs)).toBeLessThanOrEqual(lease.lease.epoch)
       const sorted = [...epochs].sort((a, b) => a - b)

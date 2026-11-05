@@ -66,7 +66,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
       ].join('; ')
 
       const hostA = await rig.spawnHost({
-        holderId: 'host-a',
+        label: 'host-a',
         daemonUrl: daemon.url,
         knobs: {
           toolOutputFile: tapFile,
@@ -83,7 +83,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
           ],
         },
       })
-      await rig.claim({ sessionId, holderId: 'host-a' })
+      await rig.claim({ sessionId, label: 'host-a' })
       try {
         await waitForFile({ path: startedFile })
         const acceptedBaseline = args.assertNoReconnect === true ? daemon.proxy.accepted() : 0
@@ -119,7 +119,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
         }
 
         const lease = await rig.plane.currentLease({ sessionId })
-        expect(lease.lease.holderId).toBe('host-a')
+        expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-a')
         expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
       } finally {
         hostA.kill('SIGKILL')

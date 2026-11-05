@@ -5,7 +5,6 @@ import { flushUntil, makeRig, seedSession, SESSION } from './holder-rig'
 describe('SessionHolder daemon ack probe on claim (F9)', () => {
   it('a result whose ack was lost is acked on the next claim instead of rerun', async () => {
     const a = await makeRig({
-      holderId: 'holder-a',
       script: [
         { calls: [{ callId: 'call-1', name: 'bash', input: { command: 'echo one' } }] },
         { text: 'after the call' },
@@ -34,12 +33,13 @@ describe('SessionHolder daemon ack probe on claim (F9)', () => {
     expect(a.daemon.runCount()).toBe(1)
 
     await a.holder.discard()
+    a.presence.lose()
     dropping = false
     a.clock.advance(31_000)
 
     const b = await makeRig({
-      holderId: 'holder-b',
       plane: a.plane,
+      store: a.store,
       bus: a.bus,
       clock: a.clock,
       daemon: a.daemon,

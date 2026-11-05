@@ -31,9 +31,7 @@ class PostgresTx implements ControlTx {
   async now(): Promise<string> {
     const [row] = await this.tx.query(
       this.tx.raw.sql`SELECT clock_timestamp() AS "at"`
-        .returnsRow({
-          at: this.tx.sql.v2.V2Lease.columns.renewedAt,
-        })
+        .returnsRow({ at: this.tx.sql.v2.V2Session.columns.createdAt })
         .build(),
     )
     if (row === undefined) throw new Error('database returned no clock reading')
@@ -184,13 +182,17 @@ class PostgresTx implements ControlTx {
   }
 
   async readLease(sessionId: string): Promise<Lease | undefined> {
-    const row = await this.tx.orm.v2.V2Lease.first({ sessionId })
-    return row === null ? undefined : { ...row, renewedAt: iso(row.renewedAt) }
+    return (await this.tx.orm.v2.V2Lease.first({ sessionId })) ?? undefined
   }
 
   async lockLease(sessionId: string): Promise<Lease | undefined> {
     const row = await this.tx.orm.v2.V2Lease.where({ sessionId }).forNoKeyUpdate().first()
-    return row === null ? undefined : { ...row, renewedAt: iso(row.renewedAt) }
+    return row ?? undefined
+  }
+
+  async shareLease(sessionId: string): Promise<Lease | undefined> {
+    const row = await this.tx.orm.v2.V2Lease.where({ sessionId }).forShare().first()
+    return row ?? undefined
   }
 
   async writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean> {
@@ -198,9 +200,7 @@ class PostgresTx implements ControlTx {
     const existing = await this.tx.orm.v2.V2Lease.first({ sessionId: lease.sessionId })
     const data = {
       epoch: lease.epoch,
-      holderId: lease.holderId,
-      renewedAt: new Date(lease.renewedAt),
-      ttlMs: lease.ttlMs,
+      holderHostId: lease.holderHostId,
       wantsHolder: lease.wantsHolder,
     }
     if (existing === null) {

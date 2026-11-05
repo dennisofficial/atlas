@@ -1,0 +1,180 @@
+[
+  {
+    "id": "dropColumn.V2Lease.holderId",
+    "label": "Drop column \"holderId\" from \"V2Lease\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "holderId",
+        "table": "V2Lease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"holderId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Lease",
+          "holderId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"holderId\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Lease\" DROP COLUMN \"holderId\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"holderId\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Lease",
+          "holderId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.V2Lease.renewedAt",
+    "label": "Drop column \"renewedAt\" from \"V2Lease\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "renewedAt",
+        "table": "V2Lease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"renewedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Lease",
+          "renewedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"renewedAt\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Lease\" DROP COLUMN \"renewedAt\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"renewedAt\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Lease",
+          "renewedAt"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.V2Lease.ttlMs",
+    "label": "Drop column \"ttlMs\" from \"V2Lease\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "ttlMs",
+        "table": "V2Lease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"ttlMs\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Lease",
+          "ttlMs"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"ttlMs\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Lease\" DROP COLUMN \"ttlMs\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"ttlMs\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Lease",
+          "ttlMs"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Lease.holderHostId",
+    "label": "Add column \"holderHostId\" to \"V2Lease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "holderHostId",
+        "table": "V2Lease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"holderHostId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Lease",
+          "holderHostId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"holderHostId\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Lease\" ADD COLUMN \"holderHostId\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"holderHostId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Lease",
+          "holderHostId"
+        ]
+      },
+      {
+        "description": "verify column \"holderHostId\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Lease",
+          "holderHostId",
+          "integer"
+        ]
+      }
+    ]
+  }
+]

@@ -8076,34 +8076,17 @@
                   "kind": "scalar"
                 }
               },
-              "holderId": {
+              "holderHostId": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
-                }
-              },
-              "renewedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
                 }
               },
               "sessionId": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "ttlMs": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
@@ -8138,17 +8121,11 @@
                 "epoch": {
                   "column": "epoch"
                 },
-                "holderId": {
-                  "column": "holderId"
-                },
-                "renewedAt": {
-                  "column": "renewedAt"
+                "holderHostId": {
+                  "column": "holderHostId"
                 },
                 "sessionId": {
                   "column": "sessionId"
-                },
-                "ttlMs": {
-                  "column": "ttlMs"
                 },
                 "wantsHolder": {
                   "column": "wantsHolder"
@@ -14381,27 +14358,14 @@
                   "dataType": "pg/int4",
                   "nullable": false
                 },
-                "holderId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                "holderHostId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "nullable": true
-                },
-                "renewedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
                 },
                 "sessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
-                },
-                "ttlMs": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
                   "nullable": false
                 },
                 "wantsHolder": {
@@ -14586,7 +14550,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "90a3934f5cbc3a945710f8efd4dea6beaa9df0440ddd84f4888e89b711a00e4d"
+    "storageHash": "f35adc786c78bd210a084bb4842db0ff8a17a5d01ac78ff2cbac99e9cd3fe642"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

@@ -28,8 +28,8 @@ const drainA = async (a: HolderRig): Promise<void> => {
 
 const claimWithB = async (a: HolderRig): Promise<HolderRig> => {
   const b = await makeRig({
-    holderId: 'holder-b',
     plane: a.plane,
+    store: a.store,
     bus: a.bus,
     clock: a.clock,
     daemon: a.daemon,
@@ -52,7 +52,7 @@ const toolResults = async (rig: HolderRig): Promise<unknown[]> => {
 
 describe('SessionHolder handoff (F12/F15)', () => {
   it('drain hands a long exec to the next holder, which collects it without a second spawn', async () => {
-    const a = await makeRig({ holderId: 'holder-a', script: longExecScript })
+    const a = await makeRig({ script: longExecScript })
     await seedSession(a)
     await a.holder.start()
 
@@ -64,7 +64,7 @@ describe('SessionHolder handoff (F12/F15)', () => {
     await drainA(a)
 
     const leaseAfterDrain = await a.plane.currentLease({ sessionId: SESSION })
-    expect(leaseAfterDrain.lease.holderId).toBeNull()
+    expect(leaseAfterDrain.lease.holderHostId).toBeNull()
     expect(leaseAfterDrain.lease.wantsHolder).toBe(true)
     expect(a.wakeCount(SESSION)).toBeGreaterThanOrEqual(2)
 
@@ -83,7 +83,7 @@ describe('SessionHolder handoff (F12/F15)', () => {
   }, 15_000)
 
   it('past the deadline a daemon tool wait detaches: no cancel, no record by A; B collects the successful result', async () => {
-    const a = await makeRig({ holderId: 'holder-a', script: longExecScript })
+    const a = await makeRig({ script: longExecScript })
     await seedSession(a)
     await a.holder.start()
 
@@ -115,7 +115,7 @@ describe('SessionHolder handoff (F12/F15)', () => {
   }, 15_000)
 
   it('a holder whose drain revoke resolves after a successor claimed never revokes that successor', async () => {
-    const a = await makeRig({ holderId: 'holder-a', script: longExecScript })
+    const a = await makeRig({ script: longExecScript })
     await seedSession(a)
     await a.holder.start()
 
@@ -143,10 +143,11 @@ describe('SessionHolder handoff (F12/F15)', () => {
     await new Promise((resolve) => setTimeout(resolve, 1_000))
     expect(firstRevoke).toBeDefined()
 
+    a.presence.lose()
     a.clock.advance(31_000)
     const b = await makeRig({
-      holderId: 'holder-b',
       plane,
+      store: a.store,
       bus: a.bus,
       clock: a.clock,
       daemon: a.daemon,
@@ -167,14 +168,14 @@ describe('SessionHolder handoff (F12/F15)', () => {
     await a.flush()
 
     const lease = await plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderId).toBe('holder-b')
+    expect(lease.lease.holderHostId).toBe(b.hostId())
     plane.revoke = originalRevoke
   }, 15_000)
 })
 
 describe('SessionHolder drain while idle', () => {
   it('ends the session without waiting on a failing inbox read and resolves handoff', async () => {
-    const rig = await makeRig({ holderId: 'holder-a' })
+    const rig = await makeRig({})
     await seedSession(rig)
     await rig.holder.start()
     await rig.post('hello')

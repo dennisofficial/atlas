@@ -2,20 +2,20 @@ import { toThreadId, type IdPort, type Lease } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { HostBus, HostTimers, SessionRuntimeFactory } from './ports'
+import type { HostBus, HostPresence, HostTimers, SessionRuntimeFactory } from './ports'
 import { HeldSession, type HeldSessionDeps } from './held-session'
+import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
+import { StartBackoff } from './start-backoff'
 
 export type SessionHolderArgs = {
-  holderId: string
+  presence: HostPresence
   plane: ControlPlane
   bus: HostBus
   timers: HostTimers
   runtimes: SessionRuntimeFactory
   ids: IdPort
   maxSessions: number
-  ttlMs?: number | undefined
-  renewEveryMs?: number | undefined
-  fenceMarginMs?: number | undefined
+  appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
   log?: LogPort | undefined
 }
@@ -24,23 +24,20 @@ const RESYNC_RETRY_BASE_MS = 250
 const RESYNC_RETRY_CAP_MS = 5_000
 
 const DEFAULTS = {
-  ttlMs: 30_000,
-  renewEveryMs: 5_000,
-  fenceMarginMs: 5_000,
+  appendRetryMs: DEFAULT_APPEND_RETRY_MS,
   idleMinutes: 30,
 } as const
 
 export class SessionHolder {
-  private readonly holderId: string
+  private readonly presence: HostPresence
+  private hostId: number | undefined
   private readonly plane: ControlPlane
   private readonly bus: HostBus
   private readonly timers: HostTimers
   private readonly runtimes: SessionRuntimeFactory
   private readonly ids: IdPort
   private readonly maxSessions: number
-  private readonly ttlMs: number
-  private readonly renewEveryMs: number
-  private readonly fenceMarginMs: number
+  private readonly appendRetryMs: number
   private readonly idleMinutes: number
   private readonly log: LogPort | undefined
 
@@ -50,24 +47,28 @@ export class SessionHolder {
   private unsubResync: (() => void) | undefined
   private resyncRetryTimer: unknown
   private resyncFailures = 0
+  private readonly startBackoff: StartBackoff
   private draining = false
 
   constructor(args: SessionHolderArgs) {
-    this.holderId = args.holderId
+    this.presence = args.presence
     this.plane = args.plane
     this.bus = args.bus
     this.timers = args.timers
     this.runtimes = args.runtimes
     this.ids = args.ids
     this.maxSessions = args.maxSessions
-    this.ttlMs = args.ttlMs ?? DEFAULTS.ttlMs
-    this.renewEveryMs = args.renewEveryMs ?? DEFAULTS.renewEveryMs
-    this.fenceMarginMs = args.fenceMarginMs ?? DEFAULTS.fenceMarginMs
+    this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.log = args.log
+    this.startBackoff = new StartBackoff({
+      timers: args.timers,
+      onDue: (sessionId) => this.onWake(sessionId),
+    })
   }
 
   async start(): Promise<void> {
+    this.hostId = await this.presence.register()
     this.unsubWake = this.bus.onWake((sessionId) => {
       this.onWake(sessionId)
     })
@@ -81,6 +82,7 @@ export class SessionHolder {
     this.unsubWake?.()
     this.unsubResync?.()
     this.cancelResyncRetry()
+    this.startBackoff.cancelAll()
     const sessions = [...this.held.values()]
     for (const session of sessions) session.beginDrain()
     await Promise.all(
@@ -105,6 +107,7 @@ export class SessionHolder {
     this.unsubWake?.()
     this.unsubResync?.()
     this.cancelResyncRetry()
+    this.startBackoff.cancelAll()
     for (const session of this.held.values()) session.discard()
   }
 
@@ -115,7 +118,7 @@ export class SessionHolder {
       held.notifyWake()
       return
     }
-    if (this.pendingClaims.has(sessionId)) return
+    if (this.pendingClaims.has(sessionId) || this.startBackoff.waiting(sessionId)) return
     if (this.held.size + this.pendingClaims.size >= this.maxSessions) return
     const pending = this.claimAndHold(sessionId).finally(() => {
       this.pendingClaims.delete(sessionId)
@@ -160,14 +163,13 @@ export class SessionHolder {
   }
 
   private async claimAndHold(sessionId: string): Promise<void> {
+    let claimed: Lease | undefined
     try {
       const claimStartedAt = this.timers.now()
-      const claim = await this.plane.claim({
-        sessionId,
-        holderId: this.holderId,
-        ttlMs: this.ttlMs,
-      })
+      if (this.hostId === undefined) return
+      const claim = await this.plane.claim({ sessionId, hostId: this.hostId })
       if (!claim.ok) return
+      claimed = claim.lease
       if (this.draining) {
         await this.plane
           .revoke({ sessionId, wantsHolder: true, epoch: claim.lease.epoch })
@@ -185,7 +187,17 @@ export class SessionHolder {
         message: `claiming ${sessionId} failed`,
         ...logFieldsOf({ error }),
       })
+      if (claimed !== undefined && !this.held.has(sessionId)) {
+        await this.releaseUnstarted({ sessionId, epoch: claimed.epoch })
+      }
     }
+  }
+
+  private async releaseUnstarted(args: { sessionId: string; epoch: number }): Promise<void> {
+    await this.plane
+      .revoke({ sessionId: args.sessionId, wantsHolder: true, epoch: args.epoch })
+      .catch(() => undefined)
+    if (!this.draining) this.startBackoff.failed(args.sessionId)
   }
 
   private async hold(args: { sessionId: string; lease: Lease; claimMs: number }): Promise<void> {
@@ -208,6 +220,8 @@ export class SessionHolder {
     done.then(
       () => {
         if (this.held.get(args.sessionId) === session) this.held.delete(args.sessionId)
+        if (session.startFailed && !this.draining) this.startBackoff.failed(args.sessionId)
+        else this.startBackoff.started(args.sessionId)
       },
       (error) => {
         this.log?.error({
@@ -223,14 +237,11 @@ export class SessionHolder {
   private deps(args: { sessionId: string; onDrop?: (() => void) | undefined }): HeldSessionDeps {
     return {
       sessionId: args.sessionId,
-      holderId: this.holderId,
       plane: this.plane,
       bus: this.bus,
       timers: this.timers,
       ids: this.ids,
-      ttlMs: this.ttlMs,
-      renewEveryMs: this.renewEveryMs,
-      fenceMarginMs: this.fenceMarginMs,
+      appendRetryMs: this.appendRetryMs,
       idleMinutes: this.idleMinutes,
       runtimeFor: this.runtimes,
       ...(args.onDrop === undefined ? {} : { onDrop: args.onDrop }),

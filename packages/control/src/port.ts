@@ -67,7 +67,7 @@ export interface ControlTx {
     projectId?: string | undefined
     limit: number
   }): Promise<ControlSessionRow[]>
-  sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]>
+  sessionsNeedingHolder(params: { limit: number }): Promise<string[]>
   createThread(params: {
     threadId: string
     sessionId: string
@@ -92,6 +92,7 @@ export interface ControlTx {
   readEvents(params: ReadEventsParams): Promise<StoredEvent[]>
   readLease(sessionId: string): Promise<Lease | undefined>
   lockLease(sessionId: string): Promise<Lease | undefined>
+  shareLease(sessionId: string): Promise<Lease | undefined>
   writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean>
   allocateInboxId(sessionId: string): Promise<number>
   insertInboxEntry(entry: InboxEntry): Promise<void>

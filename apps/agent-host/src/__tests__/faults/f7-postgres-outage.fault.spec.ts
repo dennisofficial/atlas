@@ -8,6 +8,8 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { startRig, type FaultRig, type HostProcess, type ReadEvent } from '../../testing/fault-rig'
 import { callIdOf, isDoneResult, makeFifo, waitForFile } from './fault-support'
 
+const APPEND_RETRY_MS = 2_500
+
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
 const sleep = (ms: number): Promise<void> =>
@@ -15,13 +17,20 @@ const sleep = (ms: number): Promise<void> =>
     setTimeout(resolve, ms)
   })
 
-const waitForFence = async (args: { host: HostProcess; timeoutMs?: number }): Promise<number> => {
-  const deadline = Date.now() + (args.timeoutMs ?? 10_000)
-  while (Date.now() < deadline) {
-    if (args.host.logs().some((line) => line.includes('self-fenced'))) return Date.now()
-    await sleep(25)
+const waitForLog = async (args: {
+  host: HostProcess
+  text: string
+  timeoutMs: number
+}): Promise<void> => {
+  const deadline = Date.now() + args.timeoutMs
+  while (!args.host.logs().some((line) => line.includes(args.text))) {
+    if (Date.now() > deadline) {
+      throw new Error(
+        `no "${args.text}" within ${args.timeoutMs} ms:\n${args.host.logs().join('\n')}`,
+      )
+    }
+    await sleep(100)
   }
-  throw new Error(`timed out waiting for ${args.host.holderId} to self-fence`)
 }
 
 const releaseFifo = (path: string): boolean => {
@@ -38,8 +47,7 @@ const releaseFifo = (path: string): boolean => {
 type Scenario = {
   events: ReadEvent[]
   released: boolean
-  fencedAt: number
-  renewedAtMs: number
+  stoppedAt: number
   epochA: number
   runsFile: string
 }
@@ -55,7 +63,7 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
   const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
   const hostA = await rig.spawnHost({
-    holderId: 'host-a',
+    label: 'host-a',
     daemonUrl: daemon.url,
     dbProxy: 'own',
     scripts: {
@@ -70,7 +78,7 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
   const aDb = hostA.dbProxy
   if (aDb === undefined) throw new Error('the rig did not hand back a per-host db proxy')
 
-  await rig.claim({ sessionId, holderId: 'host-a' })
+  await rig.claim({ sessionId, label: 'host-a' })
   await rig.waitForSeq({
     threadId,
     want: (rows) => rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
@@ -78,27 +86,35 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
   })
   await waitForFile({ path: startedFile })
   const leaseA = await rig.plane.currentLease({ sessionId })
-  expect(leaseA.lease.holderId).toBe('host-a')
+  expect(await rig.labelOf(leaseA.lease.holderHostId)).toBe('host-a')
   const epochA = leaseA.lease.epoch
-  const renewedAtMs = Date.parse(leaseA.lease.renewedAt)
 
   aDb.set({ refuse: true })
+  const releasedAt = Date.now()
+  const released = releaseFifo(gateFifo)
 
   let hostB: HostProcess | undefined
   try {
     hostB = await rig.spawnHost({
-      holderId: 'host-b',
+      label: 'host-b',
       daemonUrl: daemon.url,
       scripts: { [sessionId]: [{ text: 'host b finished' }] },
     })
 
-    const fencedAt = await waitForFence({ host: hostA })
-    await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+    const stoppedAt = await waitForLog({
+      host: hostA,
+      text: 'append retry exhausted',
+      timeoutMs: APPEND_RETRY_MS + 10_000,
+    }).then(() => Date.now() - releasedAt)
+    const whileDown = await rig.waitForSeq({ threadId, want: () => true })
+    expect(whileDown.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(
+      false,
+    )
+    await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
 
     aDb.clear()
-    const released = releaseFifo(gateFifo)
 
-    const events = await rig
+    await rig
       .waitForSeq({
         threadId,
         want: (rows) =>
@@ -114,8 +130,10 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
           `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB?.logs().join('\n') ?? ''}`,
         )
       })
+    await sleep(1_500)
+    const events = await rig.waitForSeq({ threadId, want: () => true })
 
-    return { events, released, fencedAt, renewedAtMs, epochA, runsFile }
+    return { events, released, stoppedAt, epochA, runsFile }
   } finally {
     for (const host of [hostA, hostB]) {
       if (host === undefined) continue
@@ -126,7 +144,7 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
 }
 
 describe.skipIf(REDIS_URL === undefined)(
-  'F7 Postgres unreachable for 45 s scaled (self-fence 25 s scaled to 2.5 s)',
+  'F7 Postgres unreachable for 45 s scaled (append retry budget 2.5 s)',
   () => {
     const testDb = useTestDatabase()
     let rig: FaultRig
@@ -139,12 +157,23 @@ describe.skipIf(REDIS_URL === undefined)(
       await rig.stop()
     })
 
-    it('fences within the scaled deadline and resumes on a new host without a double run', async () => {
+    it('stops appending after the retry budget and resumes on a new host without a double run', async () => {
       const scenario = await runOutage({ rig, sessionId: 'fault-f7-1' })
 
-      const fenceDeadlineMs = scenario.renewedAtMs + (3_000 - 1_000 + 500)
-      expect(scenario.fencedAt).toBeGreaterThanOrEqual(scenario.renewedAtMs + 2_000 - 500)
-      expect(scenario.fencedAt).toBeLessThanOrEqual(fenceDeadlineMs + 1_000)
+      expect(scenario.stoppedAt).toBeGreaterThanOrEqual(APPEND_RETRY_MS)
+      expect(scenario.stoppedAt).toBeLessThan(APPEND_RETRY_MS + 10_000)
+
+      const firstSuccessorSeq = Math.min(
+        ...scenario.events
+          .filter((row) => ((row.event as { epoch?: number }).epoch ?? 0) > scenario.epochA)
+          .map((row) => row.seq),
+      )
+      const lateFromA = scenario.events.filter(
+        (row) =>
+          (row.event as { epoch?: number }).epoch === scenario.epochA &&
+          row.seq > firstSuccessorSeq,
+      )
+      expect(lateFromA).toEqual([])
 
       const dispatches = scenario.events.filter(
         (row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1',
@@ -159,7 +188,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const finalLease = await rig.plane.currentLease({ sessionId: 'fault-f7-1' })
-      expect(finalLease.lease.holderId).toBe('host-b')
+      expect(await rig.labelOf(finalLease.lease.holderHostId)).toBe('host-b')
       expect(finalLease.lease.epoch).toBe(scenario.epochA + 1)
 
       const epochs = scenario.events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
@@ -168,7 +197,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(epochs).toEqual(sorted)
     }, 90_000)
 
-    it('F7 healthy bash survives a self-fence', async () => {
+    it('F7 healthy bash survives an append stop', async () => {
       const scenario = await runOutage({ rig, sessionId: 'fault-f7-2' })
       expect(scenario.released).toBe(true)
       const results = scenario.events.filter(

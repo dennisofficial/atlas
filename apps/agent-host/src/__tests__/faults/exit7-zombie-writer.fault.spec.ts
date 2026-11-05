@@ -98,7 +98,7 @@ const helloOutcome = (args: {
   })
 
 describe.skipIf(REDIS_URL === undefined)(
-  'exit test 7 + F16 second writer refused, zombie host fenced (TTL 30 s scaled to 3 s)',
+  'exit test 7 + F16 second writer refused, zombie host fenced (presence lost with the partition)',
   () => {
     const testDb = useTestDatabase()
     let rig: FaultRig
@@ -122,7 +122,7 @@ describe.skipIf(REDIS_URL === undefined)(
       const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
       const hostA = await rig.spawnHost({
-        holderId: 'host-a',
+        label: 'host-a',
         daemonUrl: daemon.url,
         dbProxy: 'own',
         daemonProxy: 'own',
@@ -143,7 +143,7 @@ describe.skipIf(REDIS_URL === undefined)(
         throw new Error('the rig did not hand back per-host proxies')
       }
 
-      await rig.claim({ sessionId, holderId: 'host-a' })
+      await rig.claim({ sessionId, label: 'host-a' })
       const dispatched = await rig.waitForSeq({
         threadId,
         want: (rows) =>
@@ -152,7 +152,7 @@ describe.skipIf(REDIS_URL === undefined)(
       })
       await waitForFile({ path: startedFile })
       const leaseA = await rig.plane.currentLease({ sessionId })
-      expect(leaseA.lease.holderId).toBe('host-a')
+      expect(await rig.labelOf(leaseA.lease.holderHostId)).toBe('host-a')
       const epochA = leaseA.lease.epoch
 
       const reused = dispatched.find((row) => row.type === 'tool-dispatched')
@@ -173,11 +173,11 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(before.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)
 
       const hostB = await rig.spawnHost({
-        holderId: 'host-b',
+        label: 'host-b',
         daemonUrl: daemon.url,
         scripts: { [sessionId]: [{ text: 'host b finished' }] },
       })
-      await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+      await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
       const headAtBClaim = (await rig.plane.head({ threadId })).seq
 
       writeFileSync(gateFifo, 'go\n')
@@ -200,9 +200,6 @@ describe.skipIf(REDIS_URL === undefined)(
 
       aDb.clear()
       aDaemon.clear()
-
-      const fenced = hostA.logs().some((line) => line.includes('self-fenced'))
-      expect(fenced).toBe(true)
 
       await new Promise((resolve) => setTimeout(resolve, 3_000))
       const afterHeal = await readEvents({ plane: rig.plane, threadId })
@@ -252,7 +249,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const finalLease = await rig.plane.currentLease({ sessionId })
-      expect(finalLease.lease.holderId).toBe('host-b')
+      expect(await rig.labelOf(finalLease.lease.holderHostId)).toBe('host-b')
       const epochs = events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
       expect(Math.max(...epochs)).toBeLessThanOrEqual(finalLease.lease.epoch)
       const sorted = [...epochs].sort((a, b) => a - b)

@@ -34,7 +34,7 @@ const fullEvents = async (rig: HolderRig): Promise<{ type: string; inboxId?: num
 
 describe('SessionHolder startup stop', () => {
   it('a stop posted while the record of a resumable turn is loading still lands, with no timer advance', async () => {
-    const a = await makeRig({ holderId: 'holder-a', script: handoffScript })
+    const a = await makeRig({ script: handoffScript })
     await seedSession(a)
     await a.holder.start()
     await a.post('run the long thing')
@@ -50,8 +50,8 @@ describe('SessionHolder startup stop', () => {
     await new Promise((resolve) => setTimeout(resolve, 1_000))
 
     const b = await makeRig({
-      holderId: 'holder-b',
       plane: a.plane,
+      store: a.store,
       bus: a.bus,
       clock: a.clock,
       daemon: a.daemon,

@@ -11,7 +11,14 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
 import { LocalSandboxProvider } from '../testing/local-sandbox-provider'
-import { E2E_SECRET, makeHolder, makeInMemoryBus, waitForSeq, type ReadEvent } from './e2e-support'
+import {
+  E2E_SECRET,
+  makeHolder,
+  makeInMemoryBus,
+  makePresence,
+  waitForSeq,
+  type ReadEvent,
+} from './e2e-support'
 
 const testDb = useTestDatabase()
 const bus = makeInMemoryBus()
@@ -52,7 +59,7 @@ describe('agent-host prepares a new session before its first turn', () => {
     const mainThreadId = await newSession({ sessionId, text: 'hello' })
     const launchDirectory = join(mkdtempSync(join(tmpdir(), 'atlas-prepare-e2e-')), 'workspace')
     const holder = makeHolder({
-      holderId: 'host-a',
+      presence: makePresence({ url: testDb().url, label: 'host-a' }),
       plane,
       bus,
       sandbox,
@@ -82,7 +89,7 @@ describe('agent-host prepares a new session before its first turn', () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-prepare-e2e-'))
     const marker = join(root, 'fixed')
     const holder = makeHolder({
-      holderId: 'host-b',
+      presence: makePresence({ url: testDb().url, label: 'host-b' }),
       plane,
       bus,
       sandbox,

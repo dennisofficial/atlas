@@ -5,11 +5,7 @@ import { flushUntil, makeRig, postAndRun, seedSession, SESSION } from './holder-
 describe('SessionHolder idle release (F15)', () => {
   it('pending inbox input blocks the idle release', async () => {
     const rig = await makeRig({
-      holderId: 'holder-a',
       idleMinutes: 0.2,
-      ttlMs: 300_000,
-      renewEveryMs: 5_000,
-      fenceMarginMs: 5_000,
     })
     await seedSession(rig)
     await rig.holder.start()
@@ -32,11 +28,7 @@ describe('SessionHolder idle release (F15)', () => {
 
   it('input posted during the release re-wakes the session after revoke', async () => {
     const rig = await makeRig({
-      holderId: 'holder-a',
       idleMinutes: 0.2,
-      ttlMs: 300_000,
-      renewEveryMs: 5_000,
-      fenceMarginMs: 5_000,
     })
     await seedSession(rig)
     await rig.holder.start()
@@ -74,11 +66,7 @@ describe('SessionHolder idle release (F15)', () => {
 
   it('a failing late read still ends the session, sends a wake and arms no timer', async () => {
     const rig = await makeRig({
-      holderId: 'holder-a',
       idleMinutes: 0.2,
-      ttlMs: 300_000,
-      renewEveryMs: 5_000,
-      fenceMarginMs: 5_000,
     })
     await seedSession(rig)
     await rig.holder.start()
@@ -105,43 +93,5 @@ describe('SessionHolder idle release (F15)', () => {
     expect(ended).toBe(true)
     expect(rig.wakeCount(SESSION)).toBeGreaterThan(wakesBefore)
     expect(rig.clock.pendingWithin(Number.MAX_SAFE_INTEGER)).toBe(false)
-  }, 15_000)
-
-  it('a holder that self-fenced can claim again on a later wake', async () => {
-    const a = await makeRig({ holderId: 'holder-a', maxSessions: 1 })
-    await seedSession(a)
-    await a.holder.start()
-    await postAndRun(a, 'first')
-    const saw = await flushUntil({
-      check: async () => (await a.events()).some((event) => event.type === 'assistant-said'),
-      clock: a.clock,
-      advanceMs: 2_000,
-    })
-    expect(saw).toBe(true)
-
-    const originalRenew = a.plane.renew.bind(a.plane)
-    a.plane.renew = () => Promise.reject(new Error('network down'))
-    const dropped = await flushUntil({
-      check: () => a.holder.heldIds().length === 0,
-      clock: a.clock,
-      advanceMs: 5_000,
-      attempts: 20,
-    })
-    expect(dropped).toBe(true)
-    a.plane.renew = originalRenew
-    a.clock.advance(31_000)
-
-    await a.post('second')
-    await a.bus.wake(SESSION)
-    const reclaimed = await flushUntil({
-      check: async () =>
-        (await a.events()).filter((event) => event.type === 'assistant-said').length === 2,
-      clock: a.clock,
-      advanceMs: 5_000,
-      attempts: 50,
-    })
-    expect(reclaimed).toBe(true)
-    expect(a.holder.heldIds().length).toBe(1)
-    expect(a.runtimes.length).toBe(2)
   }, 15_000)
 })

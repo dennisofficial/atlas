@@ -6,7 +6,6 @@ import { flushUntil, makeRig, seedSession, SESSION } from './holder-rig'
 describe('SessionHolder first turn on a parked sandbox', () => {
   it('starts the turn before the daemon link is ready and acks once it is', async () => {
     const a = await makeRig({
-      holderId: 'holder-a',
       script: [
         { calls: [{ callId: 'call-1', name: 'bash', input: { command: 'echo one' } }] },
         { text: 'after the call' },
@@ -21,6 +20,7 @@ describe('SessionHolder first turn on a parked sandbox', () => {
     })
     expect(first).toBe(true)
     await a.holder.discard()
+    a.presence.lose()
     a.clock.advance(31_000)
 
     const gate = Promise.withResolvers<void>()
@@ -29,8 +29,8 @@ describe('SessionHolder first turn on a parked sandbox', () => {
       { text: 'done' },
     ])
     const b = await makeRig({
-      holderId: 'holder-b',
       plane: a.plane,
+      store: a.store,
       bus: a.bus,
       clock: a.clock,
       daemon: a.daemon,

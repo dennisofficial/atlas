@@ -24,7 +24,7 @@ describe.skipIf(REDIS_URL === undefined)('scripted session across processes', ()
     const threadId = await rig.newSession({ sessionId, text: 'run the tools' })
     const daemon = await rig.spawnDaemonFor({ sessionId })
     const host = await rig.spawnHost({
-      holderId: 'host-a',
+      label: 'host-a',
       daemonUrl: daemon.url,
       scripts: {
         [sessionId]: [
@@ -58,7 +58,7 @@ describe.skipIf(REDIS_URL === undefined)('scripted session across processes', ()
       },
     })
 
-    await rig.claim({ sessionId, holderId: 'host-a' })
+    await rig.claim({ sessionId, label: 'host-a' })
     const events = await rig
       .waitForSeq({
         threadId,
