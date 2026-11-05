@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toEventId, toRunId, toThreadId, type Event } from '@dltech/atlas-core'
+import {
+  ENoticeStage,
+  EPrEventKind,
+  stampDrafts,
+  toCallId,
+  toEventId,
+  toRunId,
+  toThreadId,
+  type Event,
+  type EventDraft,
+} from '@dltech/atlas-core'
 
 import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { bindServePull, type PullSubscribe } from '../serve-pull'
@@ -25,6 +35,19 @@ const eventOf = (args: { seq: number; type: 'user-said' | 'assistant-said' }): E
     type: args.type,
     text: `m${args.seq}`,
   }) as Event
+
+const tailOf = (drafts: readonly EventDraft[]): Event[] =>
+  stampDrafts({
+    drafts: [...drafts],
+    envelopes: drafts.map((_, index) => ({
+      id: toEventId(`ev-${index + 1}`),
+      seq: index + 1,
+      threadId,
+      runId: toRunId('run-1'),
+      depth: 0,
+      at: '2026-10-29T00:00:00.000Z',
+    })),
+  })
 
 const settle = async (): Promise<void> => {
   for (let turn = 0; turn < 10; turn += 1) await Promise.resolve()
@@ -90,6 +113,47 @@ describe('bindServePull', () => {
   it('does not run when the tail is an assistant reply', async () => {
     const pull = setup({
       tail: [eventOf({ seq: 1, type: 'user-said' }), eventOf({ seq: 2, type: 'assistant-said' })],
+    })
+    pull.tick()
+    await settle()
+    expect(pull.runs).toEqual([])
+  })
+
+  it('does not rerun a turn the operator stopped before its tool call ran', async () => {
+    const pull = setup({
+      tail: tailOf([
+        { type: 'user-said', text: 'go' },
+        { type: 'tool-called', callId: toCallId('call-1'), name: 'bash', input: {}, ordinal: 0 },
+        {
+          type: 'tool-denied',
+          callId: toCallId('call-1'),
+          name: 'bash',
+          reason: 'interrupted',
+          interrupted: true,
+        },
+      ]),
+    })
+    pull.tick()
+    await settle()
+    expect(pull.runs).toEqual([])
+  })
+
+  it('does not rerun for a delivered pr-event that follows the last reply', async () => {
+    const prEvent: EventDraft = {
+      type: 'pr-event',
+      repo: 'github.com/owner/repo',
+      prNumber: 12,
+      kind: EPrEventKind.State,
+      url: 'https://github.com/owner/repo/pull/12',
+      eventId: 'evt-1',
+      notice: { id: 'pr-event:evt-1', stage: ENoticeStage.Delivered },
+    }
+    const pull = setup({
+      tail: tailOf([
+        { type: 'user-said', text: 'go' },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+        prEvent,
+      ]),
     })
     pull.tick()
     await settle()

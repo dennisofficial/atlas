@@ -1,4 +1,4 @@
-import { awaitsReply, type ThreadId } from '@dltech/atlas-core'
+import { awaitsPulledInput, type ThreadId } from '@dltech/atlas-core'
 import { SessionsClient } from '@dltech/atlas-harness'
 import { mirrorsThreadState } from '@dltech/atlas-wire'
 
@@ -104,7 +104,8 @@ export function bindServePull(args: {
       await hydrate(threadId)
       await app.log.refresh({ threadId })
       const events = await app.log.readOwn({ threadId })
-      if (awaitsReply(events) && !driver.busy()) driver.run({ resume: false, onlyIfIdle: true })
+      if (awaitsPulledInput(events) && !driver.busy())
+        driver.run({ resume: false, onlyIfIdle: true })
       // A message appended to a family (teammate) thread ticks the pod root's stream, not the
       // child's — the watch is root-scoped — so a tick sweeps the family for unanswered input.
       if (app.agents !== undefined && app.roster !== undefined) {
