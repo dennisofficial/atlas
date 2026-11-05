@@ -27,6 +27,12 @@ export const THREAD_CONTROLS = {
     options: Object.values(ETerminalConnection),
     default: ETerminalConnection.Connected,
   },
+  browser: {
+    type: 'select',
+    label: 'Preview runs in',
+    options: ['web', 'mac'],
+    default: 'web',
+  },
   detail: { type: 'boolean', label: 'Agent detail', default: false },
   queued: {
     type: 'range',

@@ -3,7 +3,9 @@
 import { Tabs, TabsContent } from '@dltech/atlas-ui/components/tabs'
 
 import { activeAgentCount } from '../data/agents-model'
-import { livePreviewCount, previewIdOf } from '../data/preview-ports'
+import { openPageCount } from '../data/preview-browser/browser-model'
+import { usePreviewBrowser } from '../data/preview-browser/use-preview-browser'
+import { previewIdOf } from '../data/preview-ports'
 import { useAgents } from '../data/use-agents'
 import type { PreviewsState } from '../data/use-previews'
 import { useSubscriptions } from '../data/use-subscriptions'
@@ -46,7 +48,8 @@ function TabBody(props: {
 }) {
   const { previews, onTabChange } = props
   const handleOpenPreview = (serviceId: string) => {
-    previews.select(previewIdOf(serviceId))
+    const port = previews.ports.find((candidate) => candidate.id === previewIdOf(serviceId))
+    if (port !== undefined) previews.openUrl(port.url)
     onTabChange(ERightTab.Preview)
   }
   if (props.tab === ERightTab.Details) {
@@ -76,7 +79,7 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
   const running = activeAgentCount(agents.agents)
   const subscriptions = useSubscriptions({ threadId, channel })
   const previews = usePreviewsContext()
-  const serving = livePreviewCount(previews.ports)
+  const previewTabs = openPageCount(usePreviewBrowser(threadId).state)
   const handleTabChange = (value: unknown) => {
     if (isRightTab(value)) onTabChange(value)
   }
@@ -88,7 +91,7 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
           className={tabBarClassName}
           counts={{
             [ERightTab.Details]: running,
-            [ERightTab.Preview]: serving,
+            [ERightTab.Preview]: previewTabs,
           }}
         />
         {Object.values(ERightTab).map((value) => (
