@@ -6,6 +6,7 @@ import { SandboxUnavailableError, systemTimers, type HostTimers } from '@dltech/
 import type { AgentHostConfig, ConfigSource } from '../../config/agent-host-config'
 import type { VercelCredentials } from '../../sandbox/constants'
 import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
+import { REWAKES_BEFORE_GIVING_UP } from '../rewaking-connector'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 
 const config: AgentHostConfig = {
@@ -78,6 +79,31 @@ describe('sandbox loss while held', () => {
     await until(() => sandbox.wakes >= 2)
     await runtime.stop()
     expect(sandbox.wakes).toBeGreaterThanOrEqual(2)
+  })
+
+  it('stops re-waking after three wakes whose daemon never answers, and wakes again on the next call', async () => {
+    const sandbox = new DeadUrlSandbox()
+    const runtime = await build(sandbox)({
+      sessionId: 's-rewake-cap',
+      threadId: toThreadId('t-rewake-cap'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    const outcome = await runtime.remoteCalls.ready().then(
+      () => 'resolved',
+      (error: unknown) => error,
+    )
+    expect(outcome).toBeInstanceOf(SandboxUnavailableError)
+    expect(String(outcome)).toContain(`after ${REWAKES_BEFORE_GIVING_UP} wakes`)
+    expect(sandbox.wakes).toBe(1 + REWAKES_BEFORE_GIVING_UP)
+
+    const retried = await runtime.remoteCalls.ready().then(
+      () => 'resolved',
+      (error: unknown) => error,
+    )
+    await runtime.stop()
+    expect(retried).toBeInstanceOf(SandboxUnavailableError)
+    expect(sandbox.wakes).toBe(1 + 2 * REWAKES_BEFORE_GIVING_UP)
   })
 
   it('gives up with SandboxUnavailableError after a bounded number of wakes', async () => {
