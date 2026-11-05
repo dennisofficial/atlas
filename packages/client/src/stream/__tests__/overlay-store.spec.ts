@@ -52,7 +52,7 @@ const run = (messages: readonly OverlayMessage[]) => {
   let state: OverlayState = EMPTY_OVERLAY_STATE
   const resnaps: boolean[] = []
   for (const message of messages) {
-    const result = applyOverlayMessage({ state, message })
+    const result = applyOverlayMessage({ state, message, cursorSeq: 0 })
     state = result.state
     resnaps.push(result.needsResnap)
   }
@@ -71,6 +71,7 @@ describe('applyOverlayMessage', () => {
     expect(textOf(state)).toBe('Hello')
     const replaced = applyOverlayMessage({
       state,
+      cursorSeq: 0,
       message: overlay({ key: key('run-1', 1), text: 'Hello wor' }),
     }).state
     expect(textOf(replaced)).toBe('Hello wor')
@@ -173,6 +174,7 @@ describe('applyOverlayMessage', () => {
     expect(textOf(state)).toBe('retry')
     const next = applyOverlayMessage({
       state,
+      cursorSeq: 0,
       message: overlay({ key: key('run-1', 3), text: 'three' }),
     }).state
     expect(textOf(next)).toBe('three')
@@ -217,6 +219,7 @@ describe('closeOverlayForEvents', () => {
     expect(closed.open).toBeUndefined()
     const late = applyOverlayMessage({
       state: closed,
+      cursorSeq: 0,
       message: delta({ key: key('run-1', 1), from: 3, text: 'lo' }),
     })
     expect(late.state.open).toBeUndefined()

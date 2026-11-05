@@ -46,12 +46,44 @@ const setup = () => {
 }
 
 describe('the session follower overlay', () => {
-  it('closes the overlay when the status leaves thinking at a position the cursor already reached', () => {
+  it('ignores a stale view read at the position the overlay opened at', () => {
     const { follower } = setup()
-    follower.handleMessage(statusView({ at: 0, state: ESessionStatus.Thinking }))
+    const step0 = mintEvents({ bodies: [userSaid('go'), reply(0)] })
+    follower.handleMessage(eventsMessage({ id: 's1', events: step0, live: true }))
     follower.handleMessage(overlayFor(1))
+    follower.handleMessage(statusView({ at: 2, state: ESessionStatus.RunningTool }))
+    expect(follower.getSnapshot().overlay?.ended).toBe(false)
+    follower.handleMessage({
+      type: 'delta',
+      id: 's1',
+      key: stepKey(1),
+      block: 'b0',
+      kind: EStreamBlockKind.Text,
+      from: 3,
+      text: 'lo',
+    })
+    expect(follower.getSnapshot().overlay?.blocks[0]?.text).toBe('Hello')
+  })
+
+  it('ends the overlay on a view read after the position it opened at', () => {
+    const { follower } = setup()
+    const step0 = mintEvents({ bodies: [userSaid('go'), reply(0)] })
+    follower.handleMessage(eventsMessage({ id: 's1', events: step0, live: true }))
+    follower.handleMessage(overlayFor(1))
+    follower.handleMessage(statusView({ at: 3, state: ESessionStatus.Idle }))
+    expect(follower.getSnapshot().overlay?.ended).toBe(true)
     expect(follower.getSnapshot().overlay?.blocks[0]?.text).toBe('Hel')
-    follower.handleMessage(statusView({ at: 0, state: ESessionStatus.RunningTool }))
+  })
+
+  it('keeps the opening position when the same step is re-sent', () => {
+    const { follower } = setup()
+    const step0 = mintEvents({ bodies: [userSaid('go'), reply(0)] })
+    follower.handleMessage(eventsMessage({ id: 's1', events: step0, live: true }))
+    follower.handleMessage(overlayFor(1))
+    const later = mintEvents({ bodies: [nudge, nudge], from: headOf(step0) })
+    follower.handleMessage(eventsMessage({ id: 's1', events: later, live: true }))
+    follower.handleMessage(overlayFor(1))
+    follower.handleMessage(statusView({ at: 4, state: ESessionStatus.Idle }))
     expect(follower.getSnapshot().overlay).toBeUndefined()
   })
 

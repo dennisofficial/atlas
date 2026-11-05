@@ -41,7 +41,8 @@ const delta = (params: { key: StreamStepKey; from: number; text: string }): Over
 
 const run = (messages: readonly OverlayMessage[]) => {
   let state: OverlayState = EMPTY_OVERLAY_STATE
-  for (const message of messages) state = applyOverlayMessage({ state, message }).state
+  for (const message of messages)
+    state = applyOverlayMessage({ state, message, cursorSeq: 0 }).state
   return { state }
 }
 
@@ -105,6 +106,7 @@ describe('an ended overlay settling by cursor', () => {
   it('drops late deltas of the ended step', () => {
     const late = applyOverlayMessage({
       state: ended(),
+      cursorSeq: 0,
       message: delta({ key: key('run-1', 1), from: 3, text: 'lo' }),
     })
     expect(textOf(late.state)).toBe('Hel')

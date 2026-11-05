@@ -6,7 +6,7 @@ import {
   applyOverlayMessage,
   closeOverlayForEvents,
   EMPTY_OVERLAY_STATE,
-  endOverlay,
+  endOverlayForView,
   type OpenOverlay,
   type OverlayState,
   settleOverlay,
@@ -133,7 +133,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     if (!acceptsView({ inner, at: message.at })) return
     const leavesThinking = message.value.state !== ESessionStatus.Thinking
     const ended = leavesThinking
-      ? endOverlay({ state: inner.overlay, settleAt: message.at })
+      ? endOverlayForView({ state: inner.overlay, at: message.at })
       : inner.overlay
     const overlay = settleOverlay({ state: ended, cursorSeq: inner.window.cursor?.seq ?? 0 })
     commit({ ...inner, status: message.value, overlay })
@@ -145,7 +145,11 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       { type: 'overlay' | 'delta' | 'overlay-clear' | 'frame' }
     >,
   ): void => {
-    const applied = applyOverlayMessage({ state: inner.overlay, message })
+    const applied = applyOverlayMessage({
+      state: inner.overlay,
+      message,
+      cursorSeq: inner.window.cursor?.seq ?? 0,
+    })
     if (applied.state === inner.overlay) return
     commit({ ...inner, overlay: applied.state })
     if (applied.needsResnap) args.onResnap()

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { EBlockKind } from '@dltech/atlas-core'
 import { EStreamBlockKind } from '@dltech/atlas-protocol'
 
-import { toStepId } from '../../channel'
+import { EStepEnd, toStepId } from '../../channel'
 import type { OpenOverlay } from '../../stream'
 import { assembleTranscript } from '../derive-transcript'
 import { overlayStepOf } from '../overlay-step'
@@ -14,6 +14,9 @@ const open: OpenOverlay = {
     { block: 'r0', kind: EStreamBlockKind.Reasoning, text: 'hmm' },
     { block: 't0', kind: EStreamBlockKind.Text, text: 'Hel' },
   ],
+  openedAt: 0,
+  ended: false,
+  settleAt: undefined,
 }
 
 describe('overlayStepOf', () => {
@@ -35,6 +38,10 @@ describe('overlayStepOf', () => {
         errorMessage: null,
       },
     ])
+  })
+
+  it('marks an ended overlay as a completed step', () => {
+    expect(overlayStepOf({ ...open, ended: true })[0]?.end).toBe(EStepEnd.Completed)
   })
 
   it('gives assembleTranscript a streaming reply and a thought', () => {

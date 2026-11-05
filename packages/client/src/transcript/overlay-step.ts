@@ -1,7 +1,7 @@
 import { EBlockKind } from '@dltech/atlas-core'
 import { EStreamBlockKind } from '@dltech/atlas-protocol'
 
-import { toStepId } from '../channel'
+import { EStepEnd, toStepId } from '../channel'
 import type { OpenOverlay, OverlayBlock } from '../stream'
 import type { InFlightStep, StepBlock } from './in-flight-steps'
 
@@ -28,7 +28,7 @@ export const overlayStepOf = (open: OpenOverlay | undefined): InFlightStep[] => 
       stepId: toStepId(`${runId}:${step}:${attempt}`),
       blocks: open.blocks.map(stepBlockOf),
       calls: [],
-      end: null,
+      end: open.ended ? EStepEnd.Completed : null,
       supersededBy: null,
       errorMessage: null,
     },
