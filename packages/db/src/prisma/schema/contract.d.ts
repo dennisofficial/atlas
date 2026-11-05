@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'f9d1545e96be8e862d435b7b8e1f6e87f907a2cec641ec26742b6c0e93726e5e'>;
+  StorageHashBase<'9865c08ee43a57502ce30d8b837cb2a0804e8ee760f59f39d85758b15b4121fb'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -464,6 +464,8 @@ export namespace Models {
     readonly [RelationKeys]?: 'user';
   };
   export type public_GithubCommitCheck = {
+    annotations: FieldOutputTypes['public']['GithubCommitCheck']['annotations'];
+    annotationsCount: FieldOutputTypes['public']['GithubCommitCheck']['annotationsCount'];
     appSlug: FieldOutputTypes['public']['GithubCommitCheck']['appSlug'];
     checkKey: FieldOutputTypes['public']['GithubCommitCheck']['checkKey'];
     detailsUrl: FieldOutputTypes['public']['GithubCommitCheck']['detailsUrl'];
@@ -2487,6 +2489,18 @@ type ContractBase = Omit<
             };
             readonly GithubCommitCheck: {
               columns: {
+                readonly annotations: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly annotationsCount: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly appSlug: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -7618,6 +7632,14 @@ type ContractBase = Omit<
           };
           readonly GithubCommitCheck: {
             readonly fields: {
+              readonly annotations: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly annotationsCount: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly appSlug: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -7680,6 +7702,8 @@ type ContractBase = Omit<
               readonly table: 'GithubCommitCheck';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly annotations: { readonly column: 'annotations' };
+                readonly annotationsCount: { readonly column: 'annotationsCount' };
                 readonly appSlug: { readonly column: 'appSlug' };
                 readonly checkKey: { readonly column: 'checkKey' };
                 readonly detailsUrl: { readonly column: 'detailsUrl' };

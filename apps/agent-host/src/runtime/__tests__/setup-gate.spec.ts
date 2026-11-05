@@ -14,7 +14,7 @@ import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { systemTimers } from '@dltech/atlas-host'
 import { z } from 'zod'
 
-import { apiFor, CollectingLog } from '../../__tests__/e2e-support'
+import { CollectingLog, sourceFor, unusedTokens } from '../../__tests__/e2e-support'
 import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 import { SetupGatedTool } from '../tools'
@@ -82,12 +82,11 @@ describe('the setup gate deadline', () => {
     const sandbox = new LocalSandboxProvider({ daemonSecret: 'gate-deadline-secret' })
     const log = new CollectingLog()
     try {
-      const api = {
-        ...apiFor(),
-        githubToken: () => new Promise<{ token: string | null }>(() => {}),
-      }
+      const github = { read: () => new Promise<string | null>(() => {}) }
       const factory = createSessionRuntimeFactory({
-        api,
+        config: sourceFor(),
+        tokens: unusedTokens(),
+        github,
         sandbox,
         daemonSecret: 'gate-deadline-secret',
         timers: { now: () => Date.now(), ...systemTimers },
@@ -117,10 +116,12 @@ describe('the setup gate deadline', () => {
 })
 
 describe('SessionRuntime.prepare', () => {
-  const runtimeWith = async (args: { githubToken: () => Promise<{ token: string | null }> }) => {
+  const runtimeWith = async (args: { githubToken: () => Promise<string | null> }) => {
     const sandbox = new LocalSandboxProvider({ daemonSecret: 'prepare-secret' })
     const factory = createSessionRuntimeFactory({
-      api: { ...apiFor(), githubToken: args.githubToken },
+      config: sourceFor(),
+      tokens: unusedTokens(),
+      github: { read: args.githubToken },
       sandbox,
       daemonSecret: 'prepare-secret',
       timers: { now: () => Date.now(), ...systemTimers },
@@ -138,7 +139,7 @@ describe('SessionRuntime.prepare', () => {
   }
 
   it('resolves ok once the workspace is ready and keeps answering ok', async () => {
-    const { runtime, sandbox } = await runtimeWith({ githubToken: async () => ({ token: null }) })
+    const { runtime, sandbox } = await runtimeWith({ githubToken: async () => null })
     try {
       expect(await runtime.prepare()).toEqual({ ok: true })
       expect(await runtime.prepare()).toEqual({ ok: true })
@@ -154,7 +155,7 @@ describe('SessionRuntime.prepare', () => {
       githubToken: async () => {
         attempts += 1
         if (attempts === 1) throw new Error('token endpoint down')
-        return { token: null }
+        return null
       },
     })
     try {

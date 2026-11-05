@@ -10,5 +10,6 @@ export enum EGithubCallSource {
   SigningKey = 'signing-key',
   DeviceFlow = 'device-flow',
   SubscriptionResolve = 'subscription-resolve',
+  CheckAnnotations = 'check-annotations',
   Unattributed = 'unattributed',
 }

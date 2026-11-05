@@ -262,6 +262,7 @@ export class GithubSubscriptionsService {
       owner: args.owner,
       repo: args.repo,
       number: prNumber,
+      withSuites: true,
     })
     if (fields.headRepoFullName !== null)
       fields.headRepoFullName = normalizedRepo(fields.headRepoFullName)

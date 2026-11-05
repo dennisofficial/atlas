@@ -6,6 +6,24 @@ export const FAILED_CHECK_LIMIT = 10
 
 export const FAILED_CHECK_TEXT_LIMIT = 1_000
 
+export const FAILED_CHECK_ANNOTATION_LIMIT = 3
+
+export const FAILED_CHECK_ANNOTATION_MESSAGE_LIMIT = 300
+
+export type PrFailedCheckAnnotation = {
+  path?: string | undefined
+  line?: number | undefined
+  message: string
+  title?: string | undefined
+}
+
+export const prFailedCheckAnnotationSchema = z.object({
+  path: z.string().optional(),
+  line: z.number().optional(),
+  message: z.string().min(1),
+  title: z.string().optional(),
+})
+
 export type PrFailedCheck = {
   name: string
   app?: string | undefined
@@ -13,6 +31,7 @@ export type PrFailedCheck = {
   checkRunId?: string | undefined
   title?: string | undefined
   summary?: string | undefined
+  annotations?: PrFailedCheckAnnotation[] | undefined
 }
 
 export const prFailedCheckSchema = z.object({
@@ -22,6 +41,7 @@ export const prFailedCheckSchema = z.object({
   checkRunId: z.string().optional(),
   title: z.string().optional(),
   summary: z.string().optional(),
+  annotations: z.array(prFailedCheckAnnotationSchema).optional(),
 })
 
 export const clipCheckText = (text: string | null | undefined): string | undefined => {

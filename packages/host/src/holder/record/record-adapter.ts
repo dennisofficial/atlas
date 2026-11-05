@@ -47,6 +47,7 @@ export type SessionRecordArgs = {
   remoteCalls: RemoteCalls
   daemonTools: ReadonlySet<string>
   blobSpillBytes?: number | undefined
+  preloaded?: RecordCache | undefined
   retryUntil?: (() => number) | undefined
   onLeaseLost?: ((error: LeaseLostError) => void) | undefined
   log?: LogPort | undefined
@@ -68,11 +69,9 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   }
 
   static async open(args: SessionRecordArgs): Promise<SessionRecord> {
-    const cache = await RecordCache.load({
-      plane: args.plane,
-      threadId: args.threadId,
-      ...(args.log === undefined ? {} : { log: args.log }),
-    })
+    const cache =
+      args.preloaded ??
+      (await RecordCache.load({ plane: args.plane, threadId: args.threadId, log: args.log }))
     void ackRecordedDaemonResults({
       cache,
       daemonTools: args.daemonTools,

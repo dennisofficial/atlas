@@ -8,7 +8,6 @@ import {
   createLoopRunner,
   logDriveFault,
   logReconcileFault,
-  openHeldRecord,
   settleAndCheckResume,
   startHeldTurn,
 } from './held-runner'
@@ -21,6 +20,7 @@ import { Reconciler } from './reconciler'
 import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
+import { TakeOver } from './held-takeover'
 import { LeaseRenewal } from './lease-renewal'
 
 export type { HeldSessionDeps }
@@ -49,6 +49,7 @@ export class HeldSession {
   private released = false
   private ended = false
   private resumePending = false
+  private takeOver: TakeOver | undefined
 
   constructor(deps: HeldSessionDeps) {
     this.deps = deps
@@ -84,7 +85,7 @@ export class HeldSession {
     this.reconciler?.request()
   }
 
-  run(args: { lease: Lease; threadId: ThreadId }): Promise<void> {
+  run(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<void> {
     this.leaseEpoch = args.lease.epoch
     const done = this.drive(args)
     this.done = done
@@ -110,7 +111,7 @@ export class HeldSession {
     await this.done
   }
 
-  private async drive(args: { lease: Lease; threadId: ThreadId }): Promise<void> {
+  private async drive(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<void> {
     const { lease, threadId } = args
     const deps = this.deps
     deps.bus.live({ sessionId: deps.sessionId, frame: statusFrame({ state: 'starting' }) })
@@ -118,20 +119,16 @@ export class HeldSession {
     this.renewal = renewal
     renewal.schedule()
     try {
-      const runtime = await deps.runtimeFor({
-        sessionId: deps.sessionId,
+      this.takeOver = new TakeOver(deps, args.claimMs ?? 0)
+      const { runtime, record } = await this.takeOver.open({
         threadId,
         epoch: lease.epoch,
         signal: this.lifetimeAbort.signal,
-      })
-      this.runtime = runtime
-      const record = await openHeldRecord({
-        deps,
-        runtime,
-        threadId,
-        epoch: lease.epoch,
         retryUntil: () => renewal.appendDeadline(this.drainDeadline),
         onLeaseLost: () => this.drop(),
+        onRuntime: (opened) => {
+          this.runtime = opened
+        },
       })
       this.record = record
       if (this.draining) record.markDraining()
@@ -212,10 +209,12 @@ export class HeldSession {
       case EHeldAction.Prepare: {
         const { runtime, record } = this
         if (runtime === undefined || record === undefined) return
+        this.takeOver?.firstStep()
         this.prepare.start({ runtime, record, threadId: args.threadId, inboxHead })
         return
       }
       case EHeldAction.StartTurn: {
+        this.takeOver?.firstStep()
         const resume = this.resumePending
         this.resumePending = false
         this.lastActivityAt = deps.timers.now()

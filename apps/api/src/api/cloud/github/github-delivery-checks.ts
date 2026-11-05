@@ -3,6 +3,7 @@ import { db, type Row, type Tx } from '@dltech/atlas-db'
 import { affectedPrsBySha } from './github-delivery-affected'
 import {
   type CommitCheckInput,
+  checkCountFieldsOf,
   checkRunInputOf,
   commitChecksTally,
   commitStatusInputOf,
@@ -14,6 +15,7 @@ import { normalizedRepo } from './github-pr-identity'
 import { stateFieldsOf } from './github-pr-state-fields'
 import type { GithubPrStateWriter, PrStateWrite } from './github-pr-state-writer'
 import { checkSuiteInputOf } from './github-check-suites'
+import { CheckAnnotationFetcher, type FetchAnnotations } from './github-check-annotations'
 import type {
   GithubCheckRunWebhookPayload,
   GithubCheckSuiteWebhookPayload,
@@ -21,12 +23,17 @@ import type {
 } from './github-webhook.types'
 
 export class GithubDeliveryChecks {
+  private readonly annotations: CheckAnnotationFetcher
+
   constructor(
     private readonly deps: {
       writer: GithubPrStateWriter
       restFill: (args: { repoFullName: string; prNumber: number }) => Promise<RestFill>
+      fetchAnnotations: FetchAnnotations
     },
-  ) {}
+  ) {
+    this.annotations = new CheckAnnotationFetcher(deps.fetchAnnotations)
+  }
 
   handleCheckRun(payload: GithubCheckRunWebhookPayload): Promise<void> {
     return this.ingest({
@@ -61,10 +68,11 @@ export class GithubDeliveryChecks {
   }): Promise<void> {
     const repoFullName = normalizedRepo(args.repoFullName)
     const { headSha } = args
+    const check = await this.annotations.attach({ repoFullName, headSha, check: args.check })
 
     const decided = await db.transaction(async (tx) => {
       await lockCommit({ tx, repoFullName, headSha })
-      await recordCommitChecks({ tx, repoFullName, headSha, checks: [args.check] })
+      await recordCommitChecks({ tx, repoFullName, headSha, checks: [check] })
       const affected = await affectedPrsBySha({ tx, repoFullName, sha: headSha })
       const tally = await commitChecksTally({ tx, repoFullName, headSha })
       const writes: PrStateWrite[] = []
@@ -107,7 +115,7 @@ export class GithubDeliveryChecks {
           rest.kind === 'filled'
             ? rest.checks === null
               ? rest.fields
-              : { ...rest.fields, ...countsOf(tally) }
+              : { ...rest.fields, ...checkCountFieldsOf(tally) }
             : withTally({ pr: await currentRow({ tx, repoFullName, prNumber }), tally })
         return this.deps.writer.writeState({ tx, repoFullName, prNumber, fields })
       })
@@ -146,15 +154,8 @@ async function awaitsSettleConfirmation(args: {
   return ledger?.settledAt == null
 }
 
-const countsOf = (tally: ChecksCount) => ({
-  checksRunning: tally.running,
-  checksPassed: tally.passed,
-  checksFailed: tally.failed,
-  checksIgnored: tally.ignored,
-})
-
 function withTally(args: { pr: Row<'GithubPrState'>; tally: ChecksCount }) {
-  return { ...stateFieldsOf(args.pr), ...countsOf(args.tally), updatedAt: new Date() }
+  return { ...stateFieldsOf(args.pr), ...checkCountFieldsOf(args.tally), updatedAt: new Date() }
 }
 
 function countsMatch(args: { tally: ChecksCount; pr: Row<'GithubPrState'> }): boolean {

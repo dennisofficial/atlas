@@ -1,8 +1,14 @@
-import { ECheckOutcome, FAILED_CHECK_LIMIT, latestAttempts } from '@dltech/atlas-core'
+import {
+  ECheckOutcome,
+  FAILED_CHECK_LIMIT,
+  latestAttempts,
+  prFailedCheckAnnotationSchema,
+} from '@dltech/atlas-core'
 import { db, type Tx } from '@dltech/atlas-db'
+import { z } from 'zod'
 import { RUN_KEY_PREFIX, SUITE_KEY_PREFIX } from './github-check-suites'
 import { normalizedRepo } from './github-pr-identity'
-import type { GithubPrFailedCheck } from './github-realtime.types'
+import type { GithubPrCheckAnnotation, GithubPrFailedCheck } from './github-realtime.types'
 
 type CheckRow = {
   checkKey: string
@@ -13,10 +19,22 @@ type CheckRow = {
   detailsUrl: string | null
   title: string | null
   summary: string | null
+  annotations?: unknown
   sourceUpdatedAt: Date
 }
 
 const present = (value: string | null): string | undefined => (value === null ? undefined : value)
+
+const annotationsOf = (value: unknown): GithubPrCheckAnnotation[] | undefined => {
+  const parsed = z.array(prFailedCheckAnnotationSchema).safeParse(value)
+  if (!parsed.success || parsed.data.length === 0) return undefined
+  return parsed.data.map((annotation) => ({
+    message: annotation.message,
+    ...(annotation.path === undefined ? {} : { path: annotation.path }),
+    ...(annotation.line === undefined ? {} : { line: annotation.line }),
+    ...(annotation.title === undefined ? {} : { title: annotation.title }),
+  }))
+}
 
 export function failedCheckOf(row: CheckRow): GithubPrFailedCheck {
   const runId = row.checkKey.startsWith(RUN_KEY_PREFIX)
@@ -27,6 +45,7 @@ export function failedCheckOf(row: CheckRow): GithubPrFailedCheck {
   const url = present(row.detailsUrl)
   const title = present(row.title)
   const summary = present(row.summary)
+  const annotations = annotationsOf(row.annotations)
   return {
     ...check,
     ...(app === undefined ? {} : { app }),
@@ -34,6 +53,7 @@ export function failedCheckOf(row: CheckRow): GithubPrFailedCheck {
     ...(runId === undefined ? {} : { checkRunId: runId }),
     ...(title === undefined ? {} : { title }),
     ...(summary === undefined ? {} : { summary }),
+    ...(annotations === undefined ? {} : { annotations }),
   }
 }
 
