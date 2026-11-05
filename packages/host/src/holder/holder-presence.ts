@@ -19,6 +19,7 @@ export class HolderPresence {
       log: LogPort | undefined
       onLost(hostId: number): void
       onRegistered(): void
+      onChanged?: (() => void) | undefined
     },
   ) {}
 
@@ -46,6 +47,7 @@ export class HolderPresence {
     if (hostId !== this.hostId) return
     this.hostId = undefined
     this.args.onLost(hostId)
+    this.args.onChanged?.()
     if (this.stopped) return
     void this.reregister()
   }
@@ -57,6 +59,7 @@ export class HolderPresence {
       this.hostId = hostId
       this.failures = 0
       this.args.onRegistered()
+      this.args.onChanged?.()
     } catch (error) {
       this.args.log?.error({
         source: 'holder.presence',

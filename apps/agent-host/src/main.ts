@@ -18,6 +18,8 @@ import { SecretCipher } from './config/secret-cipher'
 import { AgentHostEnvError, readAgentHostEnv } from './config/env'
 import { databaseUrlWithTls } from './config/database-url'
 import { createPgHostPresence } from './presence/pg-host-presence'
+import { startHostWatch, type HostWatch } from './presence/pg-host-watch'
+import { wakeOrphans } from './presence/wake-orphans'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 
 class JsonLog extends LogPort {
@@ -61,6 +63,7 @@ const main = async (): Promise<void> => {
   presence.onLost((hostId) => {
     log.error({ source: 'presence', message: 'presence lost', data: { hostId } })
   })
+  let watch: HostWatch | undefined
   const holder = composeAgentHost({
     env,
     plane,
@@ -71,8 +74,19 @@ const main = async (): Promise<void> => {
     github,
     presence,
     log,
+    onHostIdChanged: () => watch?.recompute(),
   })
   await holder.start()
+  watch = startHostWatch({
+    url: databaseUrlWithTls(env.databaseDirectUrl),
+    selfId: () => holder.hostId(),
+    plane,
+    onHostChange: (listener) => wakes.onHostChange(listener),
+    log,
+  })
+  await wakeOrphans({ plane, log }).catch((error: unknown) => {
+    log.error({ source: 'main', message: 'start-up orphan scan failed', ...logFieldsOf({ error }) })
+  })
   log.info({ source: 'main', message: 'agent-host started' })
 
   let shuttingDown = false
@@ -81,6 +95,7 @@ const main = async (): Promise<void> => {
     shuttingDown = true
     log.info({ source: 'main', message: 'draining' })
     await holder.drain({ deadline: Date.now() + 270_000 })
+    await watch?.close()
     await presence.close()
     await wakes.close()
     await liveFrames.close()

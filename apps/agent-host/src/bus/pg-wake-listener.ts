@@ -1,11 +1,12 @@
 import pg from 'pg'
 
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
-import { PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
+import { PG_HOST_CHANGE_CHANNEL, PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
 
 export type PgWakeListener = {
   onWake(listener: (sessionId: string) => void): () => void
   onResync(listener: () => void): () => void
+  onHostChange(listener: () => void): () => void
   close(): Promise<void>
 }
 
@@ -31,6 +32,7 @@ export const startPgWakeListener = (args: {
 }): PgWakeListener => {
   const wakeListeners = new Set<(sessionId: string) => void>()
   const resyncListeners = new Set<() => void>()
+  const hostChangeListeners = new Set<() => void>()
   let closed = false
   let scheduled = false
   let attempt = 0
@@ -72,7 +74,7 @@ export const startPgWakeListener = (args: {
     next.on('end', () => void drop(next))
     try {
       await next.connect()
-      await next.query(`LISTEN ${PG_WAKE_CHANNEL}`)
+      await next.query(`LISTEN ${PG_WAKE_CHANNEL}; LISTEN ${PG_HOST_CHANGE_CHANNEL}`)
     } catch (error) {
       if (!closed) {
         logError('wake listener connect failed', error)
@@ -86,10 +88,15 @@ export const startPgWakeListener = (args: {
     }
     attempt = 0
     next.on('notification', (message: WakeNotification) => {
+      if (message.channel === PG_HOST_CHANGE_CHANNEL) {
+        for (const listener of [...hostChangeListeners]) listener()
+        return
+      }
       if (message.channel !== PG_WAKE_CHANNEL || message.payload === undefined) return
       for (const listener of [...wakeListeners]) listener(message.payload)
     })
     for (const listener of [...resyncListeners]) listener()
+    for (const listener of [...hostChangeListeners]) listener()
   }
 
   void connect()
@@ -106,6 +113,13 @@ export const startPgWakeListener = (args: {
       resyncListeners.add(listener)
       return () => {
         resyncListeners.delete(listener)
+      }
+    },
+
+    onHostChange(listener) {
+      hostChangeListeners.add(listener)
+      return () => {
+        hostChangeListeners.delete(listener)
       }
     },
 

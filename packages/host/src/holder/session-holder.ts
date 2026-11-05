@@ -19,6 +19,7 @@ export type SessionHolderArgs = {
   appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
   log?: LogPort | undefined
+  onHostIdChanged?: (() => void) | undefined
 }
 
 const RESYNC_RETRY_BASE_MS = 250
@@ -57,6 +58,7 @@ export class SessionHolder {
       log: args.log,
       onLost: (hostId) => this.handlePresenceLost(hostId),
       onRegistered: () => void this.onResync(),
+      onChanged: args.onHostIdChanged,
     })
     this.plane = args.plane
     this.bus = args.bus
@@ -103,6 +105,10 @@ export class SessionHolder {
         }),
       ),
     )
+  }
+
+  hostId(): number | undefined {
+    return this.presence.current()
   }
 
   heldIds(): readonly string[] {

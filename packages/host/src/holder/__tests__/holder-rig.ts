@@ -59,6 +59,7 @@ export const makeRig = async (args: {
   beforeRuntime?: (() => Promise<void>) | undefined
   beforeRegister?: (() => Promise<void>) | undefined
   log?: LogPort | undefined
+  onHostIdChanged?: (() => void) | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store =
@@ -105,6 +106,7 @@ export const makeRig = async (args: {
     ...(args.appendRetryMs === undefined ? {} : { appendRetryMs: args.appendRetryMs }),
     idleMinutes: args.idleMinutes ?? 30,
     ...(args.log === undefined ? {} : { log: args.log }),
+    onHostIdChanged: args.onHostIdChanged,
   })
 
   return {
