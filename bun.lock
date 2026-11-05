@@ -185,6 +185,7 @@
       "name": "@dltech/atlas-preview-worker",
       "version": "0.1.0",
       "devDependencies": {
+        "@dotenvx/dotenvx": "^1.71.0",
         "@types/bun": "latest",
       },
     },
