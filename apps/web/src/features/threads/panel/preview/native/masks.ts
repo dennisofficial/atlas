@@ -1,9 +1,13 @@
-export const OVERLAY_MASKS = [
+import { CLIP_SELECTOR } from './clip'
+
+export const OVERLAY_SELECTORS = [
   '[data-slot=dropdown-menu-content]',
   '[data-slot=popover-content]',
   '[data-slot=tooltip-content]',
   '[data-slot=dialog-content]',
 ].join(',')
+
+export const OVERLAY_MASKS = `${OVERLAY_SELECTORS},${CLIP_SELECTOR}`
 
 export const SHEET_MASK = '[data-slot=sheet-content]'
 
@@ -18,4 +22,13 @@ type MaskTarget = Pick<
 export function syncSheetMask(args: { webview: MaskTarget; inSheet: boolean }): void {
   if (args.inSheet) args.webview.removeMaskSelector(SHEET_MASK)
   else args.webview.addMaskSelector(SHEET_MASK)
+}
+
+export function createMaskSync(sync: () => void): (signature: string) => void {
+  let last = ''
+  return (signature) => {
+    if (signature === last) return
+    last = signature
+    sync()
+  }
 }

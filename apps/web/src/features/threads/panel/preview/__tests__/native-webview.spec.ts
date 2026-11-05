@@ -39,6 +39,7 @@ class FakeWebview implements NativeWebview {
   toggleHidden = (hidden: boolean) => void this.calls.push(`hidden ${hidden}`)
   addMaskSelector = (selector: string) => void this.calls.push(`mask+ ${selector}`)
   removeMaskSelector = (selector: string) => void this.calls.push(`mask- ${selector}`)
+  syncDimensions = (force?: boolean) => void this.calls.push(`sync ${force === true}`)
   fire = (name: ENativeEvent, detail: unknown) => {
     for (const listener of this.listeners.get(name) ?? []) listener({ detail })
   }
