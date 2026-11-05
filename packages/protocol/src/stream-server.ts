@@ -90,6 +90,7 @@ export const streamServerMessageSchema = z.discriminatedUnion('type', [
     id: idSchema.optional(),
     code: z.enum(EStreamErrorCode),
   }),
+  z.strictObject({ type: z.literal('closing'), code: z.number().int().min(1000).max(4999) }),
   z.strictObject({
     type: z.literal('going-away'),
     reconnectAfterMs: z.number().int().min(0),

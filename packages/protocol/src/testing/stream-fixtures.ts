@@ -88,6 +88,7 @@ export const streamServerFixtures = {
   upsert: { type: 'upsert', id: 'sub-2', row: sessionRowFixture },
   remove: { type: 'remove', id: 'sub-2', sessionId: 'session-1' },
   error: { type: 'error', id: 'sub-1', code: EStreamErrorCode.NotFound },
+  closing: { type: 'closing', code: 4401 },
   goingAway: { type: 'going-away', reconnectAfterMs: 2_500 },
   pong: { type: 'pong' },
 } satisfies Record<string, StreamServerMessage>

@@ -115,6 +115,7 @@ export class StreamConnection {
 
   close(code: number): void {
     if (this.phase === EPhase.Closed) return
+    this.send({ type: 'closing', code })
     this.clearTimers()
     this.phase = EPhase.Closed
     this.socket.close(code)
