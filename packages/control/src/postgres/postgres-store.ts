@@ -1,6 +1,6 @@
 import { and, isUniqueViolation, retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
 import { GENESIS_HASH, type Hash, type InboxEntry, type Lease } from '@dltech/atlas-core'
-import { PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
+import { PG_PRESENCE_LOCK_NAMESPACE, PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
 
 import {
   ControlStorePort,
@@ -281,6 +281,19 @@ class PostgresTx implements ControlTx {
         .returnsRow({ sent: 'pg/text@1' })
         .build(),
     )
+  }
+
+  async hostPresent(hostId: number): Promise<boolean> {
+    const [row] = await this.tx.query(
+      this.tx.raw.sql`SELECT EXISTS (
+        SELECT 1 FROM pg_locks
+        WHERE locktype = 'advisory' AND granted AND mode = 'ExclusiveLock'
+          AND classid = ${PG_PRESENCE_LOCK_NAMESPACE}::oid AND objid = ${hostId}::oid AND objsubid = 2
+      )::text AS "present"`
+        .returnsRow({ present: 'pg/text@1' })
+        .build(),
+    )
+    return row?.present === 'true'
   }
 }
 

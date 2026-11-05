@@ -1,0 +1,43 @@
+[
+  {
+    "id": "table.V2Host",
+    "label": "Create table \"V2Host\"",
+    "summary": "Creates table \"V2Host\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Host"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2Host\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Host\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2Host\"",
+        "sql": "CREATE TABLE \"v2\".\"V2Host\" (\n  \"id\" SERIAL NOT NULL,\n  \"label\" text NOT NULL,\n  \"startedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2Host\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Host\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  }
+]

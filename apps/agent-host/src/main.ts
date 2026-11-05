@@ -1,3 +1,5 @@
+import { hostname } from 'node:os'
+
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
@@ -15,6 +17,7 @@ import { GithubTokenReader } from './tokens/github-token-reader'
 import { SecretCipher } from './config/secret-cipher'
 import { AgentHostEnvError, readAgentHostEnv } from './config/env'
 import { databaseUrlWithTls } from './config/database-url'
+import { createPgHostPresence } from './presence/pg-host-presence'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 
 class JsonLog extends LogPort {
@@ -51,6 +54,16 @@ const main = async (): Promise<void> => {
     cipher,
   })
   const holder = composeAgentHost({ env, plane, bus, sandbox, config, tokens, github, log })
+  const presence = createPgHostPresence({
+    url: databaseUrlWithTls(env.databaseDirectUrl),
+    label: `${hostname()}-${process.pid}`,
+    log,
+  })
+  presence.onLost((hostId) => {
+    log.error({ source: 'presence', message: 'presence lost', data: { hostId } })
+  })
+  const hostId = await presence.register()
+  log.info({ source: 'presence', message: 'presence registered', data: { hostId } })
   await holder.start()
   log.info({ source: 'main', message: 'agent-host started' })
 
@@ -60,6 +73,7 @@ const main = async (): Promise<void> => {
     shuttingDown = true
     log.info({ source: 'main', message: 'draining' })
     await holder.drain({ deadline: Date.now() + 270_000 })
+    await presence.close()
     await wakes.close()
     await liveFrames.close()
     await pool.end()

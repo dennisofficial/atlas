@@ -1,6 +1,7 @@
 export { describeControlPlaneBlobs } from './conformance-blobs'
 export { describeControlPlaneClaims } from './conformance-claims'
 export { describeControlPlaneConformance } from './conformance'
+export { describeControlPlanePresence, type PresenceParams } from './conformance-presence'
 export { describeControlPlaneSessions } from './conformance-sessions'
 export { describeControlPlaneWakes } from './conformance-wakes'
 export type { ConformanceParams } from './conformance'

@@ -33,6 +33,7 @@ export { DaemonProcessPort, DEFAULT_SANDBOX_COMMANDS } from './calls/ports/proce
 export { SessionHolder, type SessionHolderArgs } from './holder/session-holder'
 export {
   type HostBus,
+  type HostPresence,
   type HostTimers,
   type PrepareResult,
   type SessionRuntime,

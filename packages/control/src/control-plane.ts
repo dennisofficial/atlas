@@ -238,6 +238,10 @@ export class ControlPlane {
     })
   }
 
+  async hostPresent(params: { hostId: number }): Promise<boolean> {
+    return this.store.transact((tx) => tx.hostPresent(params.hostId))
+  }
+
   private async requireThread(params: { tx: ControlTx; threadId: string }): Promise<ThreadRow> {
     const row = await params.tx.readThread(params.threadId)
     if (row === undefined) throw new UnknownThreadError(params.threadId)

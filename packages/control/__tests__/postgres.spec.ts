@@ -2,12 +2,13 @@ import { afterAll, beforeAll } from 'bun:test'
 import pg from 'pg'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
+import { PG_PRESENCE_LOCK_NAMESPACE, PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
 
 import {
   describeControlPlaneBlobs,
   describeControlPlaneClaims,
   describeControlPlaneConformance,
+  describeControlPlanePresence,
   describeControlPlaneSessions,
   describeControlPlaneWakes,
 } from '../src/testing/conformance'
@@ -51,3 +52,29 @@ describeControlPlaneSessions(conformanceParams)
 describeControlPlaneClaims(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
+
+const lockClients: pg.Client[] = []
+
+afterAll(async () => {
+  for (const client of lockClients.splice(0)) await client.end().catch(() => undefined)
+})
+
+const holdLock = async (args: { hostId: number; fn: string }): Promise<() => Promise<void>> => {
+  const client = new pg.Client(testDb().url)
+  lockClients.push(client)
+  await client.connect()
+  await client.query(`SELECT ${args.fn}($1, $2)`, [PG_PRESENCE_LOCK_NAMESPACE, args.hostId])
+  return () => client.end()
+}
+
+let lastHostId = 0
+
+describeControlPlanePresence({
+  ...conformanceParams,
+  nextHostId: async () => {
+    lastHostId += 1
+    return lastHostId
+  },
+  holdPresence: (hostId) => holdLock({ hostId, fn: 'pg_advisory_lock' }),
+  holdShared: (hostId) => holdLock({ hostId, fn: 'pg_advisory_lock_shared' }),
+})

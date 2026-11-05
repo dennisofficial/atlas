@@ -27,9 +27,12 @@ class MemoryTx implements ControlTx {
   private readonly state: State
   private readonly clock: () => string
 
-  constructor(params: { state: State; clock: () => string }) {
+  private readonly presentHosts: ReadonlySet<number>
+
+  constructor(params: { state: State; clock: () => string; presentHosts: ReadonlySet<number> }) {
     this.state = params.state
     this.clock = params.clock
+    this.presentHosts = params.presentHosts
   }
 
   async now(): Promise<string> {
@@ -266,12 +269,18 @@ class MemoryTx implements ControlTx {
   async notifyWake(sessionId: string): Promise<void> {
     this.state.notifications.push(sessionId)
   }
+
+  async hostPresent(hostId: number): Promise<boolean> {
+    return this.presentHosts.has(hostId)
+  }
 }
 
 export class InMemoryControlStore extends ControlStorePort {
   private readonly clock: () => string
   private state: State = emptyState()
   private tail: Promise<unknown> = Promise.resolve()
+  private readonly presentHosts = new Set<number>()
+  private lastHostId = 0
 
   constructor(params: { clock?: (() => string) | undefined } = {}) {
     super()
@@ -281,13 +290,28 @@ export class InMemoryControlStore extends ControlStorePort {
   transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
     const run = async (): Promise<T> => {
       const working = cloneState(this.state)
-      const result = await work(new MemoryTx({ state: working, clock: this.clock }))
+      const result = await work(
+        new MemoryTx({ state: working, clock: this.clock, presentHosts: this.presentHosts }),
+      )
       this.state = working
       return result
     }
     const next = this.tail.then(run, run)
     this.tail = next.catch(() => undefined)
     return next
+  }
+
+  nextHostId(): number {
+    this.lastHostId += 1
+    return this.lastHostId
+  }
+
+  markHostPresent(hostId: number): void {
+    this.presentHosts.add(hostId)
+  }
+
+  markHostAbsent(hostId: number): void {
+    this.presentHosts.delete(hostId)
   }
 
   wakeCount(sessionId: string): number {
