@@ -212,7 +212,7 @@ export async function runTrackedTurn(
         model: deps.model,
         tools: deps.tools(),
         onChunk: deps.onChunk,
-        stream,
+        streamer: stream,
         assembled,
         signal: abortSignal,
         retry: stepRetryDeps({
