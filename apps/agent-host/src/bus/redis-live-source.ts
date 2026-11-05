@@ -24,8 +24,12 @@ export const createRedisLiveSource = (args: {
   let readyBefore = false
   let closing: Promise<void> | undefined
 
-  const logError = (message: string, error: unknown): void => {
-    args.log?.error({ source: 'bus.live', message, ...logFieldsOf({ error }) })
+  const logError = (failure: { message: string; error: unknown }): void => {
+    args.log?.error({
+      source: 'bus.live',
+      message: failure.message,
+      ...logFieldsOf({ error: failure.error }),
+    })
   }
 
   const handleReconnected = async (): Promise<void> => {
@@ -33,14 +37,18 @@ export const createRedisLiveSource = (args: {
     for (const listener of [...gapListeners]) listener()
   }
 
-  subscriber.on('error', (error: unknown) => logError('redis live subscriber error', error))
-  reader.on('error', (error: unknown) => logError('redis live reader error', error))
+  subscriber.on('error', (error: unknown) =>
+    logError({ message: 'redis live subscriber error', error }),
+  )
+  reader.on('error', (error: unknown) => logError({ message: 'redis live reader error', error }))
   subscriber.on('ready', () => {
     if (!readyBefore) {
       readyBefore = true
       return
     }
-    handleReconnected().catch((error: unknown) => logError('redis live resubscribe failed', error))
+    handleReconnected().catch((error: unknown) =>
+      logError({ message: 'redis live resubscribe failed', error }),
+    )
   })
   subscriber.on('message', (channel: string, raw: string) => {
     if (!channel.startsWith(CHANNEL_PREFIX)) return

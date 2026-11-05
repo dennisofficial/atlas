@@ -61,6 +61,7 @@ describe('live overlay', () => {
   beforeEach(async () => {
     live = new FakeLiveSource()
     rig = new FollowRig({ live })
+    rig.store.markHostPresent(1)
     await rig.seed({ events: 1 })
   })
 
@@ -129,6 +130,7 @@ describe('live overlay', () => {
       for (let duringRead = 0; joinAt + duringRead <= producer.length; duringRead += 1) {
         const local = new FakeLiveSource()
         const localRig = new FollowRig({ live: local })
+        localRig.store.markHostPresent(1)
         await localRig.seed({ events: 1 })
         for (const frame of producer.slice(0, joinAt)) local.publish({ sessionId: SESSION, frame })
         local.afterCapture = () => {
@@ -256,7 +258,6 @@ describe('live overlay', () => {
   })
 
   it('clears with holder-lost when the status view loses its holder', async () => {
-    rig.store.markHostPresent(1)
     publish({ type: 'step-start', key: KEY })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()

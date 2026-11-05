@@ -37,7 +37,7 @@ export class StatusViews {
       read: StatusReader
       timers: HostTimers
       log: LogPort | undefined
-      onHolderLost?: (sessionId: string) => void
+      onLiveness?: (args: { sessionId: string; live: boolean; readSince: number }) => void
     },
   ) {}
 
@@ -126,14 +126,14 @@ export class StatusViews {
     const { sessionId, entry } = args
     entry.running = true
     entry.dirty = false
-    entry.lastRunAt = this.args.timers.now()
+    const readSince = this.args.timers.now()
+    entry.lastRunAt = readSince
     try {
       const read = await this.args.read({ sessionId, threadId: entry.threadId })
       if (this.entries.get(sessionId) !== entry) return
-      const wasLive = entry.last?.value.lease.live === true
       entry.last = read
       for (const watcher of [...entry.watchers.keys()]) this.deliver({ watcher, entry, read })
-      if (wasLive && !read.value.lease.live) this.args.onHolderLost?.(sessionId)
+      this.args.onLiveness?.({ sessionId, live: read.value.lease.live, readSince })
     } catch (error) {
       this.args.log?.error({
         source: 'stream',

@@ -13,13 +13,16 @@ export const createFollowSubscriptions = (
   args: FollowDeps & { feed: ChangeFeed; live?: LiveSource | undefined },
 ): FollowSubscriptions => {
   const { plane, timers, log } = args
-  const overlay = args.live === undefined ? undefined : new LiveOverlay({ source: args.live, log })
+  const overlay =
+    args.live === undefined
+      ? undefined
+      : new LiveOverlay({ source: args.live, now: () => timers.now(), log })
   const statusViews = new StatusViews({
     read: ({ sessionId, threadId }) =>
       readSessionStatus({ plane, sessionId, threadId, now: new Date(timers.now()).toISOString() }),
     timers,
     log,
-    onHolderLost: (sessionId) => overlay?.holderLost(sessionId),
+    onLiveness: (liveness) => overlay?.liveness(liveness),
   })
   const bySession = new Map<string, Set<FollowTarget>>()
   const index: SubscriptionIndex = {

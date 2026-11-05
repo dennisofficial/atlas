@@ -2,12 +2,16 @@ import type { StreamStepKey } from '@dltech/atlas-protocol'
 
 const MAX_REMEMBERED_RUNS = 16
 
-export const sameStep = (a: StreamStepKey, b: StreamStepKey): boolean =>
-  a.runId === b.runId && a.step === b.step && a.attempt === b.attempt
+export const sameStep = (args: { left: StreamStepKey; right: StreamStepKey }): boolean =>
+  args.left.runId === args.right.runId &&
+  args.left.step === args.right.step &&
+  args.left.attempt === args.right.attempt
 
-export const isAfter = (args: { candidate: StreamStepKey; current: StreamStepKey }): boolean => {
+export const isLaterInRun = (args: {
+  candidate: StreamStepKey
+  current: StreamStepKey
+}): boolean => {
   const { candidate, current } = args
-  if (candidate.runId !== current.runId) return true
   if (candidate.step !== current.step) return candidate.step > current.step
   return candidate.attempt > current.attempt
 }
@@ -21,22 +25,28 @@ export class RetiredSteps {
     const retired = this.runs.get(key.runId)
     if (retired === undefined) return false
     if (retired === ALL) return true
-    return !isAfter({ candidate: key, current: retired })
+    return !isLaterInRun({ candidate: key, current: retired })
   }
 
   retire(key: StreamStepKey): void {
     const retired = this.runs.get(key.runId)
     if (retired === ALL) return
-    if (retired !== undefined && !isAfter({ candidate: key, current: retired })) return
+    if (retired !== undefined && !isLaterInRun({ candidate: key, current: retired })) return
     this.remember({ runId: key.runId, value: key })
   }
 
-  retireBefore(args: { previous: StreamStepKey; next: StreamStepKey }): void {
-    if (args.previous.runId === args.next.runId) {
-      this.retire(args.previous)
+  retireRun(runId: string): void {
+    this.remember({ runId, value: ALL })
+  }
+
+  retireSuperseded(args: { stale: StreamStepKey; latest: StreamStepKey }): void {
+    const { stale, latest } = args
+    if (sameStep({ left: stale, right: latest })) return
+    if (stale.runId !== latest.runId) {
+      this.retireRun(stale.runId)
       return
     }
-    this.remember({ runId: args.previous.runId, value: ALL })
+    if (!isLaterInRun({ candidate: stale, current: latest })) this.retire(stale)
   }
 
   private remember(args: { runId: string; value: StreamStepKey | typeof ALL }): void {

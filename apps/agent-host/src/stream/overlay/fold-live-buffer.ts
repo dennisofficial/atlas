@@ -45,11 +45,11 @@ export const foldLiveBuffer = (raw: string | null): FoldedStep | undefined => {
       continue
     }
     if (step === undefined) continue
-    if (frame.type === 'step-end' && sameStep(frame.key, step.key)) {
+    if (frame.type === 'step-end' && sameStep({ left: frame.key, right: step.key })) {
       step.end = frame.reason
       continue
     }
-    if (frame.type !== 'delta' || !sameStep(frame.key, step.key)) continue
+    if (frame.type !== 'delta' || !sameStep({ left: frame.key, right: step.key })) continue
     const block = step.blocks.get(frame.block) ?? { block: frame.block, kind: frame.kind, text: '' }
     block.text = appendAt({ text: block.text, from: frame.from, chunk: frame.text })
     step.blocks.set(frame.block, block)

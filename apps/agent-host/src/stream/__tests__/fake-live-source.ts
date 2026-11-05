@@ -7,6 +7,7 @@ export class FakeLiveSource implements LiveSource {
   readonly subscribed = new Set<string>()
   beforeRead: (() => void | Promise<void>) | undefined
   afterCapture: (() => void | Promise<void>) | undefined
+  reads = 0
   private readonly frameListeners = new Set<(args: { sessionId: string; raw: string }) => void>()
   private readonly gapListeners = new Set<() => void>()
 
@@ -37,6 +38,7 @@ export class FakeLiveSource implements LiveSource {
   }
 
   async readBuffer(sessionId: string): Promise<string | null> {
+    this.reads += 1
     await this.beforeRead?.()
     const captured = this.buffers.get(sessionId) ?? null
     await this.afterCapture?.()
