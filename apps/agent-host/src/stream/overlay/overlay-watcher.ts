@@ -1,3 +1,4 @@
+import type { HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import {
   EStreamClearReason,
@@ -8,14 +9,18 @@ import {
 
 import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
 import { foldLiveBuffer, type FoldedStep } from './fold-live-buffer'
-import { ClosedSteps, isStepFrame, sameStep } from './step-frames'
+import { ClosedSteps, isStepFrame, sameStep, type StepFrame } from './step-frames'
 
 export const OVERLAY_QUEUE_BYTES = 256 * 1024
 export const MAX_JOIN_READS = 4
+export const JOIN_RETRY_BASE_MS = 250
+export const JOIN_RETRY_MAX_MS = 5_000
 
 type OpenStep = { key: StreamStepKey; have: Map<string, number> }
 
 export type QueuedFrame = { frame: LiveFrame; size: number }
+
+type Pending = { frame: StepFrame; size: number; seq: number }
 
 type JoinRead = { ok: true; folded: FoldedStep | undefined } | { ok: false }
 
@@ -24,6 +29,7 @@ export type OverlayWatcherArgs = {
   send(message: StreamServerMessage): void
   bufferedAmount(): number
   readBuffer(): Promise<string | null>
+  timers: HostTimers
   log: LogPort | undefined
 }
 
@@ -35,13 +41,16 @@ export class OverlayWatcher {
   private readonly closed = new ClosedSteps()
   private open: OpenStep | undefined
   private shown: StreamStepKey | undefined
-  private queue: QueuedFrame[] | undefined = []
+  private queue: Pending[] | undefined = []
   private queuedBytes = 0
+  private nextSeq = 0
   private rejoin = false
   private forced = false
   private live = true
   private stale = false
   private stopped = false
+  private retries = 0
+  private retryTimer: unknown
 
   constructor(private readonly args: OverlayWatcherArgs) {}
 
@@ -68,24 +77,35 @@ export class OverlayWatcher {
   stop(): void {
     this.stopped = true
     this.queue = undefined
+    if (this.retryTimer !== undefined) this.args.timers.clearTimeout(this.retryTimer)
+    this.retryTimer = undefined
   }
 
   handleFrame(item: QueuedFrame): void {
     if (this.stopped) return
-    if (this.queue !== undefined) {
-      this.enqueue(item)
-      return
-    }
     if (this.stale && !this.overloaded()) {
       this.stale = false
-      this.forced = true
-      this.requestJoin(item)
+      this.resync()
+    }
+    const { frame } = item
+    if (!isStepFrame(frame)) {
+      this.emit({ type: 'frame', id: this.args.id, frame })
       return
     }
-    this.apply(item)
+    if (this.queue !== undefined) {
+      this.enqueue(this.stamped({ frame, size: item.size }))
+      return
+    }
+    this.apply(this.stamped({ frame, size: item.size }))
   }
 
-  private requestJoin(trigger: QueuedFrame | undefined): void {
+  private stamped(args: { frame: StepFrame; size: number }): Pending {
+    const seq = this.nextSeq
+    this.nextSeq += 1
+    return { ...args, seq }
+  }
+
+  private requestJoin(trigger: Pending | undefined): void {
     if (this.queue !== undefined) {
       this.rejoin = true
       if (trigger !== undefined) this.enqueue(trigger)
@@ -97,7 +117,7 @@ export class OverlayWatcher {
     void this.join()
   }
 
-  private enqueue(item: QueuedFrame): void {
+  private enqueue(item: Pending): void {
     if (this.queue === undefined) return
     if (this.queuedBytes + item.size > OVERLAY_QUEUE_BYTES) {
       this.queue = []
@@ -110,12 +130,8 @@ export class OverlayWatcher {
     this.queuedBytes += item.size
   }
 
-  private apply(item: QueuedFrame): void {
+  private apply(item: Pending): void {
     const { frame } = item
-    if (!isStepFrame(frame)) {
-      this.emit({ type: 'frame', id: this.args.id, frame })
-      return
-    }
     if (!this.live || this.closed.has(frame.key)) return
     const open = this.open
     if (open === undefined || !sameStep({ left: open.key, right: frame.key })) {
@@ -142,30 +158,48 @@ export class OverlayWatcher {
 
   private async join(): Promise<void> {
     let read: JoinRead = { ok: false }
-    let mark = 0
+    let boundary = this.nextSeq
     for (let reads = 1; ; reads += 1) {
       this.rejoin = false
-      mark = this.queue?.length ?? 0
+      boundary = this.nextSeq
       read = await this.readSnapshot()
       if (this.stopped) return
-      if (!read.ok) break
-      if (!this.rejoin) break
-      if (reads >= MAX_JOIN_READS) break
+      if (!read.ok || !this.rejoin || reads >= MAX_JOIN_READS) break
+    }
+    if (!read.ok) {
+      this.scheduleRetry()
+      return
     }
     const items = this.queue ?? []
-    this.queue = undefined
-    const covered = read.ok ? items.slice(0, mark) : []
-    if (read.ok) this.applySnapshot({ folded: read.folded, covered })
+    const after = items.filter((item) => item.seq >= boundary)
+    this.applySnapshot({
+      folded: read.folded,
+      covered: items.filter((item) => item.seq < boundary),
+    })
     this.forced = false
-    for (const item of covered) {
-      if (!isStepFrame(item.frame))
-        this.emit({ type: 'frame', id: this.args.id, frame: item.frame })
+    if (this.rejoin) {
+      this.queue = after
+      this.queuedBytes = after.reduce((sum, item) => sum + item.size, 0)
+      this.scheduleRetry()
+      return
     }
-    for (const item of read.ok ? items.slice(mark) : items) {
+    this.retries = 0
+    this.queue = undefined
+    for (const item of after) {
       if (this.stopped) return
       if (this.queue !== undefined) this.enqueue(item)
       else this.apply(item)
     }
+  }
+
+  private scheduleRetry(): void {
+    if (this.retryTimer !== undefined || this.stopped) return
+    const delay = Math.min(JOIN_RETRY_MAX_MS, JOIN_RETRY_BASE_MS * 2 ** this.retries)
+    this.retries += 1
+    this.retryTimer = this.args.timers.setTimeout(() => {
+      this.retryTimer = undefined
+      if (!this.stopped) void this.join()
+    }, delay)
   }
 
   private async readSnapshot(): Promise<JoinRead> {
@@ -183,13 +217,13 @@ export class OverlayWatcher {
 
   private applySnapshot(args: {
     folded: FoldedStep | undefined
-    covered: readonly QueuedFrame[]
+    covered: readonly Pending[]
   }): void {
     const { folded } = args
     const superseded = (key: StreamStepKey): boolean =>
       folded === undefined || !sameStep({ left: key, right: folded.key })
     for (const { frame } of args.covered) {
-      if (isStepFrame(frame) && superseded(frame.key)) this.closed.add(frame.key)
+      if (superseded(frame.key)) this.closed.add(frame.key)
     }
     const open = this.open
     if (open !== undefined && superseded(open.key)) this.closed.add(open.key)

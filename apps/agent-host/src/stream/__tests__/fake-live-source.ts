@@ -8,6 +8,7 @@ export class FakeLiveSource implements LiveSource {
   beforeRead: (() => void | Promise<void>) | undefined
   afterCapture: (() => void | Promise<void>) | undefined
   reads = 0
+  failReads = 0
   private readonly frameListeners = new Set<(args: { sessionId: string; raw: string }) => void>()
   private readonly gapListeners = new Set<() => void>()
 
@@ -39,6 +40,10 @@ export class FakeLiveSource implements LiveSource {
 
   async readBuffer(sessionId: string): Promise<string | null> {
     this.reads += 1
+    if (this.failReads > 0) {
+      this.failReads -= 1
+      throw new Error('read refused')
+    }
     await this.beforeRead?.()
     const captured = this.buffers.get(sessionId) ?? null
     await this.afterCapture?.()

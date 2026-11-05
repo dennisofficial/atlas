@@ -13,6 +13,7 @@ import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
 import { STATUS_COALESCE_MS } from '../status-views'
 import { FakeLiveSource } from './fake-live-source'
 import { FollowRig, SESSION } from './follow-rig'
+import { ClientOverlay } from './overlay-client'
 
 const KEY: StreamStepKey = { runId: 'run-1', step: 0, attempt: 0 }
 
@@ -30,29 +31,6 @@ const delta = (args: {
   from: args.from,
   text: args.text,
 })
-
-class ClientOverlay {
-  blocks = new Map<string, string>()
-  key: StreamStepKey | undefined
-  gaps = 0
-
-  apply(message: StreamServerMessage): void {
-    if (message.type === 'overlay') {
-      this.key = message.key
-      this.blocks = new Map(message.blocks.map((block) => [block.block, block.text]))
-      return
-    }
-    if (message.type === 'overlay-clear') {
-      this.key = undefined
-      this.blocks.clear()
-      return
-    }
-    if (message.type !== 'delta') return
-    const have = this.blocks.get(message.block) ?? ''
-    if (message.from !== have.length) this.gaps += 1
-    this.blocks.set(message.block, have + message.text)
-  }
-}
 
 describe('live overlay', () => {
   let live: FakeLiveSource

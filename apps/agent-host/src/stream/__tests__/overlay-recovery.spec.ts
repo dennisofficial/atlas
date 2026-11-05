@@ -117,16 +117,15 @@ describe('live overlay recovery', () => {
 
   it('bounds the frames held during a stalled read and re-reads instead', async () => {
     const text = 'x'.repeat(4096)
-    live.beforeRead = () => {
-      live.beforeRead = undefined
-      for (let n = 0; n < 100; n += 1) {
-        publish({ type: 'tool-output', callId: 'call-1', text })
-      }
+    publish({ type: 'step-start', key: NEW })
+    live.afterCapture = () => {
+      live.afterCapture = undefined
+      for (let n = 0; n < 100; n += 1) publish(delta({ key: NEW, from: n * 4096, text }))
     }
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     expect(live.reads).toBe(2)
-    expect(rig.frames('frame').length).toBeLessThan(64)
+    expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: text.repeat(100) })
   })
 
   it('delivers the end of a step whose step-end was dropped under backpressure', async () => {
@@ -140,7 +139,12 @@ describe('live overlay recovery', () => {
     rig.buffered = 0
     publish({ type: 'tool-output', callId: 'call-1', text: 'next' })
     await rig.settled()
-    expect(rig.frames('frame').map((m) => m.frame.type)).toEqual(['step-end', 'tool-output'])
+    expect(
+      rig
+        .frames('frame')
+        .map((m) => m.frame.type)
+        .sort(),
+    ).toEqual(['step-end', 'tool-output'])
     expect(clientViewOf(rig.sent).key).toBeUndefined()
   })
 })

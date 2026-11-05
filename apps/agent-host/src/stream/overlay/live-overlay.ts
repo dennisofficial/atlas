@@ -1,3 +1,4 @@
+import type { HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import { liveFrameSchema, type StreamServerMessage } from '@dltech/atlas-protocol'
 
@@ -25,6 +26,7 @@ export class LiveOverlay {
   constructor(
     private readonly args: {
       source: LiveSource
+      timers: HostTimers
       log: LogPort | undefined
       onFrameWhileDead?: (sessionId: string) => void
     },
@@ -41,6 +43,7 @@ export class LiveOverlay {
       send: (message) => target.send(message),
       bufferedAmount: () => target.bufferedAmount(),
       readBuffer: () => this.args.source.readBuffer(target.sessionId),
+      timers: this.args.timers,
       log: this.args.log,
     })
     watcher.setLive(entry.live)

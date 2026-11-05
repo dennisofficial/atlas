@@ -18,3 +18,26 @@ export const clientViewOf = (sent: readonly StreamServerMessage[]): ClientView =
   }
   return view
 }
+
+export class ClientOverlay {
+  blocks = new Map<string, string>()
+  key: StreamStepKey | undefined
+  gaps = 0
+
+  apply(message: StreamServerMessage): void {
+    if (message.type === 'overlay') {
+      this.key = message.key
+      this.blocks = new Map(message.blocks.map((block) => [block.block, block.text]))
+      return
+    }
+    if (message.type === 'overlay-clear') {
+      this.key = undefined
+      this.blocks.clear()
+      return
+    }
+    if (message.type !== 'delta') return
+    const have = this.blocks.get(message.block) ?? ''
+    if (message.from !== have.length) this.gaps += 1
+    this.blocks.set(message.block, have + message.text)
+  }
+}

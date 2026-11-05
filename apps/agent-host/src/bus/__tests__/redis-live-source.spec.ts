@@ -5,6 +5,7 @@ import { Redis } from 'ioredis'
 import { EStreamBlockKind, type StreamServerMessage } from '@dltech/atlas-protocol'
 
 import { LiveOverlay } from '../../stream/overlay/live-overlay'
+import { systemHostTimers } from '../../stream/system-timers'
 import { until } from '../../stream/__tests__/test-client'
 import { createRedisLiveFrames, type RedisLiveFrames } from '../redis-live-frames'
 import { createRedisLiveSource } from '../redis-live-source'
@@ -29,7 +30,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
     const source = createRedisLiveSource({ url })
     producers.push(producer)
     sources.push(source)
-    const overlay = new LiveOverlay({ source, log: undefined })
+    const overlay = new LiveOverlay({ source, timers: systemHostTimers, log: undefined })
     const sent: StreamServerMessage[] = []
     overlay.add({ id: 'sub-1', sessionId, send: (m) => sent.push(m), bufferedAmount: () => 0 })
     const delta = (args: { from: number; text: string }) =>

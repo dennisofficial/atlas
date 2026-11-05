@@ -8,7 +8,7 @@ import {
   type StreamStepKey,
 } from '@dltech/atlas-protocol'
 
-import { MAX_JOIN_READS } from '../overlay/overlay-watcher'
+import { JOIN_RETRY_BASE_MS, MAX_JOIN_READS } from '../overlay/overlay-watcher'
 import { STATUS_COALESCE_MS } from '../status-views'
 import { FakeLiveSource } from './fake-live-source'
 import { FollowRig, SESSION } from './follow-rig'
@@ -116,14 +116,15 @@ describe('live overlay ordering and liveness', () => {
 
   it('measures the join queue in utf-8 bytes', async () => {
     const text = '字'.repeat(4096)
-    live.beforeRead = () => {
-      live.beforeRead = undefined
-      for (let n = 0; n < 60; n += 1) publish({ type: 'tool-output', callId: 'call-1', text })
+    publish({ type: 'step-start', key: NEW })
+    live.afterCapture = () => {
+      live.afterCapture = undefined
+      for (let n = 0; n < 60; n += 1) publish(delta({ key: NEW, from: n * 4096, text }))
     }
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     expect(live.reads).toBe(2)
-    expect(rig.frames('frame').length).toBeLessThan(30)
+    expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: text.repeat(60) })
   })
 
   it('bounds the reads of one join when resnaps keep arriving', async () => {
@@ -133,5 +134,82 @@ describe('live overlay ordering and liveness', () => {
     await rig.settled()
     live.beforeRead = undefined
     expect(live.reads).toBe(MAX_JOIN_READS)
+  })
+
+  it('keeps a step that starts after the read boundary when the last capped read overflows', async () => {
+    publish({ type: 'step-start', key: OLD })
+    publish(delta({ key: OLD, from: 0, text: 'a' }))
+    const session = rig.open()
+    let reads = 0
+    let from = 1
+    live.beforeRead = async () => {
+      reads += 1
+      if (reads >= MAX_JOIN_READS) return
+      for (let n = 0; n < 20; n += 1) {
+        publish(delta({ key: OLD, from, text: 'b' }))
+        from += 1
+      }
+      await session.handle({ type: 'resnap', id: 'sub-1' })
+    }
+    live.afterCapture = () => {
+      if (reads !== MAX_JOIN_READS) return
+      live.afterCapture = undefined
+      const big = 'x'.repeat(4096)
+      for (let n = 0; n < 70; n += 1) {
+        publish(delta({ key: OLD, from, text: big }))
+        from += big.length
+      }
+      publish({ type: 'step-start', key: NEW })
+      publish(delta({ key: NEW, from: 0, text: 'NEW' }))
+    }
+    await rig.subscribe({ session })
+    await rig.settled()
+    live.beforeRead = undefined
+    rig.timers.advance(JOIN_RETRY_BASE_MS)
+    await rig.settled()
+    publish(delta({ key: NEW, from: 3, text: '!' }))
+    await rig.settled()
+    expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: 'NEW!' })
+  })
+
+  it('backs off instead of re-reading in a loop while the buffer read keeps failing', async () => {
+    publish({ type: 'step-start', key: NEW })
+    live.failReads = 2
+    live.beforeRead = () => {
+      live.beforeRead = undefined
+      publish(delta({ key: NEW, from: 0, text: 'abc' }))
+    }
+    await rig.subscribe({ session: rig.open() })
+    await rig.settled()
+    expect(live.reads).toBe(1)
+    rig.timers.advance(JOIN_RETRY_BASE_MS)
+    await rig.settled()
+    expect(live.reads).toBe(2)
+    rig.timers.advance(JOIN_RETRY_BASE_MS * 2)
+    await rig.settled()
+    expect(live.reads).toBe(3)
+    expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: 'abc' })
+  })
+
+  it('re-reads after an overflow on the last capped read even when no frame follows', async () => {
+    publish({ type: 'step-start', key: OLD })
+    publish(delta({ key: OLD, from: 0, text: 'a' }))
+    const session = rig.open()
+    let reads = 0
+    live.beforeRead = async () => {
+      reads += 1
+      if (reads < MAX_JOIN_READS) await session.handle({ type: 'resnap', id: 'sub-1' })
+    }
+    live.afterCapture = () => {
+      if (reads !== MAX_JOIN_READS) return
+      live.afterCapture = undefined
+      publish(delta({ key: OLD, from: 1, text: 'y'.repeat(300 * 1024) }))
+    }
+    await rig.subscribe({ session })
+    await rig.settled()
+    live.beforeRead = undefined
+    rig.timers.advance(JOIN_RETRY_BASE_MS)
+    await rig.settled()
+    expect(clientViewOf(rig.sent).text).toHaveLength(1 + 300 * 1024)
   })
 })

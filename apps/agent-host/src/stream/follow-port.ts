@@ -18,6 +18,7 @@ export const createFollowSubscriptions = (
       ? undefined
       : new LiveOverlay({
           source: args.live,
+          timers,
           log,
           onFrameWhileDead: (sessionId) => statusViews.recheck(sessionId),
         })
