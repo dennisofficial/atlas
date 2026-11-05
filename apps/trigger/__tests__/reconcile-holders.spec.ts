@@ -7,16 +7,18 @@ import { reconcileHolders } from '../src/reconcile/reconcile-holders'
 
 const SESSION = 'session-1'
 const THREAD = 'thread-1'
-const HOLDER = 'pod-a'
+const HOLDER_HOST = 9001
 const T0 = '2026-11-02T12:00:00.000Z'
 
-const after = (params: { iso: string; offsetMs: number }): string =>
-  new Date(Date.parse(params.iso) + params.offsetMs).toISOString()
-
-const makePlane = (): { plane: ControlPlane; setNow: (iso: string) => void } => {
+const makePlane = (): {
+  plane: ControlPlane
+  store: InMemoryControlStore
+  setNow: (iso: string) => void
+} => {
   let now = T0
-  const plane = new ControlPlane({ store: new InMemoryControlStore(), clock: () => now })
-  return { plane, setNow: (iso) => (now = iso) }
+  const store = new InMemoryControlStore()
+  const plane = new ControlPlane({ store, clock: () => now })
+  return { plane, store, setNow: (iso) => (now = iso) }
 }
 
 const seedSession = async (plane: ControlPlane): Promise<void> => {
@@ -30,21 +32,23 @@ const seedSession = async (plane: ControlPlane): Promise<void> => {
 
 describe('reconcileHolders', () => {
   it('wakes a session with an unconsumed post and no lease', async () => {
-    const { plane } = makePlane()
+    const { plane, store } = makePlane()
     await seedSession(plane)
     await plane.post({ sessionId: SESSION, kind: 'user', payload: '"hi"' })
 
     const result = await reconcileHolders({ plane, limit: 100 })
 
     expect(result).toEqual({ woken: 1, failed: 0 })
-    const claimed = await plane.claim({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
+    store.markHostPresent(HOLDER_HOST)
+    const claimed = await plane.claim({ sessionId: SESSION, hostId: HOLDER_HOST })
     expect(claimed.ok).toBe(true)
   })
 
   it('does not wake a session with a live holder', async () => {
-    const { plane } = makePlane()
+    const { plane, store } = makePlane()
     await seedSession(plane)
-    await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
+    store.markHostPresent(HOLDER_HOST)
+    await plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
 
     const wake = mock(async (_params: { sessionIds: readonly string[] }) => {})
     const result = await reconcileHolders({
@@ -56,11 +60,12 @@ describe('reconcileHolders', () => {
     expect(wake).not.toHaveBeenCalled()
   })
 
-  it('wakes a session whose holder lease expired', async () => {
-    const { plane, setNow } = makePlane()
+  it('wakes a session whose holder host is absent', async () => {
+    const { plane, store } = makePlane()
     await seedSession(plane)
-    await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 1_000 })
-    setNow(after({ iso: T0, offsetMs: 1_000 }))
+    store.markHostPresent(HOLDER_HOST)
+    await plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
+    store.markHostAbsent(HOLDER_HOST)
 
     const wake = mock(async (_params: { sessionIds: readonly string[] }) => {})
     const result = await reconcileHolders({

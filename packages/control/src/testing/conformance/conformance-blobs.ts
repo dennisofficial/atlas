@@ -4,7 +4,7 @@ import { spillBody, toCallId, type V2Body } from '@dltech/atlas-core'
 import type { ConformanceParams } from './conformance'
 import {
   createSessionParams,
-  HOLDER,
+  HOLDER_HOST,
   makeHarness,
   mint,
   said,
@@ -65,12 +65,7 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       expect(won.ok).toBe(true)
       if (!won.ok) throw new Error('unreachable')
       const second = mint({ bodies: [body as V2Body], epoch, from: won.head })
-      const outcome = await harness.plane.append({
-        threadId: THREAD,
-        epoch,
-        events: second,
-        blobs,
-      })
+      const outcome = await harness.plane.append({ threadId: THREAD, epoch, events: second, blobs })
       expect(outcome.ok).toBe(true)
     })
 
@@ -138,7 +133,10 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       const { body, blobs } = spillOnce()
       const blob = blobs[0]
       if (blob === undefined) throw new Error('expected a spill')
-      const events = mint({ bodies: [body as V2Body, said(`stolen hash: ${blob.hash}`)], epoch })
+      const events = mint({
+        bodies: [body as V2Body, said(`stolen hash: ${blob.hash}`)],
+        epoch,
+      })
       const outcome = await harness.plane.append({ threadId: THREAD, epoch, events, blobs })
       expect(outcome.ok).toBe(true)
       expect(await harness.plane.blobReferencedBy({ sessionId: SESSION, hash: blob.hash })).toBe(
@@ -147,11 +145,7 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       await harness.plane.createSession(
         createSessionParams({ sessionId: 'attacker', mainThreadId: 'attacker-thread' }),
       )
-      const attack = await harness.plane.grant({
-        sessionId: 'attacker',
-        holderId: HOLDER,
-        ttlMs: 60_000,
-      })
+      const attack = await harness.plane.grant({ sessionId: 'attacker', hostId: HOLDER_HOST })
       const planted = await harness.plane.append({
         threadId: 'attacker-thread',
         epoch: attack.epoch,

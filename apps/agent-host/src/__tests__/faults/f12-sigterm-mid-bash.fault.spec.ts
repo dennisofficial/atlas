@@ -65,7 +65,7 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
     const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
     const hostA = await rig.spawnHost({
-      holderId: 'host-a',
+      label: 'host-a',
       daemonUrl: daemon.url,
       knobs: { drainMs: 500 },
       scripts: {
@@ -77,7 +77,7 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
         ],
       },
     })
-    await rig.claim({ sessionId, holderId: 'host-a' })
+    await rig.claim({ sessionId, label: 'host-a' })
     await rig.waitForSeq({
       threadId,
       want: (rows) => rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
@@ -86,25 +86,23 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
     await waitForFile({ path: startedFile })
 
     const hostB = await rig.spawnHost({
-      holderId: 'host-b',
+      label: 'host-b',
       daemonUrl: daemon.url,
       scripts: { [sessionId]: [{ text: 'host b finished' }] },
     })
-    await waitForLog({ logs: hostB.logs, includes: 'started holderId=host-b' })
+    await waitForLog({ logs: hostB.logs, includes: 'label=host-b' })
 
     const before = await readEvents({ plane: rig.plane, threadId })
     expect(before.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)
     const leaseBefore = await rig.plane.currentLease({ sessionId })
     const epochBefore = leaseBefore.lease.epoch
-    const ttlDeadline = Date.parse(leaseBefore.lease.renewedAt) + leaseBefore.lease.ttlMs
 
     hostA.kill('SIGTERM')
     await hostA.exited
 
-    await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+    await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
 
     const leaseAfter = await rig.plane.currentLease({ sessionId })
-    expect(Date.parse(leaseAfter.lease.renewedAt)).toBeLessThan(ttlDeadline)
     expect(leaseAfter.lease.epoch).toBeGreaterThan(epochBefore)
 
     writeFileSync(gateFifo, 'go\n')
@@ -140,7 +138,7 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
     expect(runs).toEqual(['run'])
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(lease.lease.holderId).toBe('host-b')
+    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
     expectRecordConsistent(events, lease.lease.epoch)
   }, 60_000)
 })

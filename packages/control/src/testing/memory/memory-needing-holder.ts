@@ -1,19 +1,19 @@
 import { actionableInboxIds } from '@dltech/atlas-core'
 
-import { leaseLiveAt } from './memory-helpers'
 import { activeFailureOf, hasPrepareHistory, type State } from './memory-state'
 
 export const sessionsNeedingHolderIn = (params: {
   state: State
-  now: string
+  presentHosts: ReadonlySet<number>
   limit: number
 }): string[] => {
   const { state } = params
   return [...state.sessions.values()]
     .filter((row) => {
       const lease = state.leases.get(row.sessionId)
-      if (leaseLiveAt({ lease, now: params.now })) return false
-      if (lease !== undefined && lease.holderId !== null) return true
+      if (lease !== undefined && lease.holderHostId !== null) {
+        return !params.presentHosts.has(lease.holderHostId)
+      }
       if (lease?.wantsHolder === true) return true
       const events = state.events.get(row.mainThreadId) ?? []
       const unconsumed = (state.inbox.get(row.sessionId) ?? []).filter(

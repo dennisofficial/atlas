@@ -36,24 +36,6 @@ afterAll(async () => {
 
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 150))
 
-const conformanceParams = {
-  name: 'postgres',
-  makeStore: () => new PostgresControlStore(testDb().db),
-  reset: async () => {
-    wakeCounts.clear()
-  },
-  wakes: async (sessionId: string) => {
-    await settle()
-    return wakeCounts.get(sessionId) ?? 0
-  },
-}
-
-describeControlPlaneConformance(conformanceParams)
-describeControlPlaneSessions(conformanceParams)
-describeControlPlaneClaims(conformanceParams)
-describeControlPlaneBlobs(conformanceParams)
-describeControlPlaneWakes(conformanceParams)
-
 const lockClients: pg.Client[] = []
 
 afterAll(async () => {
@@ -74,13 +56,31 @@ const holdLock = async (args: {
 
 let lastHostId = 0
 
-describeControlPlanePresence({
-  ...conformanceParams,
+const conformanceParams = {
+  name: 'postgres',
+  makeStore: () => new PostgresControlStore(testDb().db),
+  reset: async () => {
+    wakeCounts.clear()
+  },
+  wakes: async (sessionId: string) => {
+    await settle()
+    return wakeCounts.get(sessionId) ?? 0
+  },
   nextHostId: async () => {
     lastHostId += 1
     return lastHostId
   },
-  holdPresence: (hostId) => holdLock({ hostId, fn: 'pg_advisory_lock' }),
+  holdPresence: (hostId: number) => holdLock({ hostId, fn: 'pg_advisory_lock' }),
+}
+
+describeControlPlaneConformance(conformanceParams)
+describeControlPlaneSessions(conformanceParams)
+describeControlPlaneClaims(conformanceParams)
+describeControlPlaneBlobs(conformanceParams)
+describeControlPlaneWakes(conformanceParams)
+
+describeControlPlanePresence({
+  ...conformanceParams,
   holdShared: (hostId) => holdLock({ hostId, fn: 'pg_advisory_lock_shared' }),
 })
 

@@ -21,7 +21,7 @@ describe('acceptAppend', () => {
         const prefix = before === 0 ? [] : mint({ count: before })
         const head = before === 0 ? genesis : headAfter(prefix)
         const events = mint({ count: n, from: head })
-        const result = acceptAppend({ head, lease: lease(), now: NOW, epoch: 3, events })
+        const result = acceptAppend({ head, lease: lease(), epoch: 3, events })
         expect(result.ok).toBe(true)
         if (!result.ok) return
         expect(result.hashes).toEqual(events.map(chainHash))
@@ -37,7 +37,6 @@ describe('acceptAppend', () => {
     const accepted = acceptAppend({
       head: head465,
       lease: lease(),
-      now: NOW,
       epoch: 3,
       events: first,
     })
@@ -48,7 +47,6 @@ describe('acceptAppend', () => {
     const refused = acceptAppend({
       head: accepted.head,
       lease: lease(),
-      now: NOW,
       epoch: 3,
       events: second,
     })
@@ -61,9 +59,9 @@ describe('acceptAppend', () => {
         fc.integer({ min: 0, max: 10 }).filter((e) => e !== 3),
         (epoch) => {
           const events = mint({ count: 2, epoch })
-          const stale = acceptAppend({ head: genesis, lease: lease(), now: NOW, epoch, events })
+          const stale = acceptAppend({ head: genesis, lease: lease(), epoch, events })
           expect(stale).toEqual({ ok: false, refusal: { kind: 'stale-epoch', current: 3 } })
-          const mixed = acceptAppend({ head: genesis, lease: lease(), now: NOW, epoch: 3, events })
+          const mixed = acceptAppend({ head: genesis, lease: lease(), epoch: 3, events })
           expect(mixed).toEqual({ ok: false, refusal: { kind: 'stale-epoch', current: 3 } })
         },
       ),
@@ -73,45 +71,25 @@ describe('acceptAppend', () => {
   it('refuses a lease with no holder as stale-epoch', () => {
     const result = acceptAppend({
       head: genesis,
-      lease: lease({ holderId: null }),
-      now: NOW,
+      lease: lease({ holderHostId: null }),
       epoch: 3,
       events: mint({ count: 1 }),
     })
     expect(result).toEqual({ ok: false, refusal: { kind: 'stale-epoch', current: 3 } })
   })
 
-  it('refuses an expired lease', () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 0, max: 1_000_000 }), (extra) => {
-        const later = new Date(Date.parse(NOW) + 30_000 + extra).toISOString()
-        const result = acceptAppend({
-          head: genesis,
-          lease: lease(),
-          now: later,
-          epoch: 3,
-          events: mint({ count: 1 }),
-        })
-        expect(result).toEqual({ ok: false, refusal: { kind: 'lease-expired' } })
-      }),
-    )
-  })
-
-  it('checks epoch before liveness, liveness before contiguity, contiguity before chain', () => {
-    const expiredNow = '2027-01-01T00:00:00.000Z'
+  it('checks epoch before contiguity, contiguity before chain', () => {
     const stale = mint({ count: 1, epoch: 2 })
-    expect(
-      acceptAppend({ head: genesis, lease: lease(), now: expiredNow, epoch: 2, events: stale }),
-    ).toEqual({ ok: false, refusal: { kind: 'stale-epoch', current: 3 } })
+    expect(acceptAppend({ head: genesis, lease: lease(), epoch: 2, events: stale })).toEqual({
+      ok: false,
+      refusal: { kind: 'stale-epoch', current: 3 },
+    })
     const gap = mint({ count: 2 }).slice(1)
-    expect(
-      acceptAppend({ head: genesis, lease: lease(), now: expiredNow, epoch: 3, events: gap }),
-    ).toEqual({ ok: false, refusal: { kind: 'lease-expired' } })
     const gapAndBadHash = gap.map(
       (e) => ({ ...e, prevHash: GENESIS_HASH.replace(/0/, '1') }) as V2Event,
     )
     expect(
-      acceptAppend({ head: genesis, lease: lease(), now: NOW, epoch: 3, events: gapAndBadHash }),
+      acceptAppend({ head: genesis, lease: lease(), epoch: 3, events: gapAndBadHash }),
     ).toEqual({ ok: false, refusal: { kind: 'seq-mismatch', expected: 1 } })
   })
 
@@ -124,7 +102,6 @@ describe('acceptAppend', () => {
         const result = acceptAppend({
           head: genesis,
           lease: lease(),
-          now: NOW,
           epoch: 3,
           events: holed,
         })
@@ -144,7 +121,6 @@ describe('acceptAppend', () => {
         const result = acceptAppend({
           head: genesis,
           lease: lease(),
-          now: NOW,
           epoch: 3,
           events: tampered,
         })
@@ -158,12 +134,12 @@ describe('acceptAppend', () => {
       count: 1,
       from: { seq: 0, hash: chainHash(mint({ count: 1 })[0] as V2Event) },
     })
-    const result = acceptAppend({ head: genesis, lease: lease(), now: NOW, epoch: 3, events })
+    const result = acceptAppend({ head: genesis, lease: lease(), epoch: 3, events })
     expect(result).toEqual({ ok: false, refusal: { kind: 'hash-mismatch', atSeq: 1 } })
   })
 
   it('refuses an empty batch as malformed', () => {
-    const result = acceptAppend({ head: genesis, lease: lease(), now: NOW, epoch: 3, events: [] })
+    const result = acceptAppend({ head: genesis, lease: lease(), epoch: 3, events: [] })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.refusal.kind).toBe('malformed')
   })

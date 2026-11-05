@@ -12,7 +12,7 @@ import type { ControlStorePort } from '../../port'
 
 export const SESSION = 'session-1'
 export const THREAD = 'thread-1'
-export const HOLDER = 'pod-a'
+export const HOLDER_HOST = 9001
 export const USER = 'user-1'
 export const PROJECT = 'project-1'
 export const T0 = '2026-11-02T12:00:00.000Z'
@@ -32,7 +32,7 @@ export async function seedGranted(harness: Harness): Promise<number> {
     projectId: PROJECT,
     mainThreadId: THREAD,
   })
-  const lease = await harness.plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
+  const lease = await harness.plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
   return lease.epoch
 }
 

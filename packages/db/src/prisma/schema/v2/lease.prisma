@@ -1,12 +1,10 @@
 // use prisma-8
 namespace v2 {
   model V2Lease {
-    sessionId String                @id
-    epoch     Int
-    holderId  String?
-    renewedAt   TimestamptzJsDate(3)
-    ttlMs       Int
-    wantsHolder Boolean               @default(false)
-    session   V2Session             @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    sessionId    String   @id
+    epoch        Int
+    holderHostId Int?
+    wantsHolder  Boolean  @default(false)
+    session      V2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   }
 }

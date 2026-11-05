@@ -49,7 +49,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
       const bash2 = `echo run >> ${runs2File}; echo second-done`
 
       const hostA = await rig.spawnHost({
-        holderId: 'host-a',
+        label: 'host-a',
         daemonUrl: daemon.url,
         scripts: {
           [sessionId]: [
@@ -67,7 +67,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
           ],
         },
       })
-      await rig.claim({ sessionId, holderId: 'host-a' })
+      await rig.claim({ sessionId, label: 'host-a' })
       await waitForFile({ path: startedFile })
       await releaseFifo({ path: gateFifo })
 
@@ -110,7 +110,7 @@ describe.skipIf(REDIS_URL === undefined || process.env.ATLAS_FAULT_TESTS !== '1'
       expect(readFileSync(runs2File, 'utf8').trim().split('\n')).toEqual(['run'])
 
       const lease = await rig.plane.currentLease({ sessionId })
-      expect(lease.lease.holderId).toBe('host-a')
+      expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-a')
       expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
     }, 60_000)
   },

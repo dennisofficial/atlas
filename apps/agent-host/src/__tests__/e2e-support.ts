@@ -5,9 +5,10 @@ import { join } from 'node:path'
 import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 import type { Lease } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
-import type { HostBus } from '@dltech/atlas-host'
+import type { HostBus, HostPresence } from '@dltech/atlas-host'
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
+import { createPgHostPresence } from '../presence/pg-host-presence'
 import { RandomIds } from '../runtime/random-ids'
 import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 
@@ -90,8 +91,26 @@ export class CollectingLog extends LogPort {
   }
 }
 
+export type TestPresence = HostPresence & { hostId(): number }
+
+export const makePresence = (args: { url: string; label: string }): TestPresence => {
+  const inner = createPgHostPresence(args)
+  let registered: number | undefined
+  return {
+    ...inner,
+    register: async () => {
+      registered = await inner.register()
+      return registered
+    },
+    hostId: () => {
+      if (registered === undefined) throw new Error(`host ${args.label} has not registered`)
+      return registered
+    },
+  }
+}
+
 export const makeHolder = (args: {
-  holderId: string
+  presence: HostPresence
   plane: ControlPlane
   bus: InMemoryBus
   sandbox: LocalSandboxProvider
@@ -102,7 +121,7 @@ export const makeHolder = (args: {
 }): SessionHolder => {
   const timers = { now: () => Date.now(), ...systemTimers }
   return new SessionHolder({
-    holderId: args.holderId,
+    presence: args.presence,
     plane: args.plane,
     bus: args.bus,
     timers,
@@ -118,9 +137,6 @@ export const makeHolder = (args: {
     }),
     ids: new RandomIds(),
     maxSessions: 25,
-    ttlMs: 30_000,
-    renewEveryMs: 5_000,
-    fenceMarginMs: 5_000,
     idleMinutes: 30,
     ...(args.log === undefined ? {} : { log: args.log }),
   })
@@ -173,16 +189,16 @@ export const isDoneResult = (row: ReadEvent): boolean => {
 export const waitForLease = async (args: {
   plane: ControlPlane
   sessionId: string
-  holderId: string
+  hostId: number
   timeoutMs?: number | undefined
 }): Promise<Lease> => {
   const deadline = Date.now() + (args.timeoutMs ?? 30_000)
   for (;;) {
     const current = await args.plane.currentLease({ sessionId: args.sessionId })
-    if (current.live && current.lease.holderId === args.holderId) return current.lease
+    if (current.live && current.lease.holderHostId === args.hostId) return current.lease
     if (Date.now() > deadline) {
       throw new Error(
-        `timed out waiting for ${args.holderId} to hold ${args.sessionId}: ${JSON.stringify(current)}`,
+        `timed out waiting for host ${args.hostId} to hold ${args.sessionId}: ${JSON.stringify(current)}`,
       )
     }
     await new Promise((resolve) => setTimeout(resolve, 100))

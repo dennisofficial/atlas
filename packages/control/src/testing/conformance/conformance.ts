@@ -7,11 +7,10 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 
-import { LeaseConflictError } from '../../errors'
 import type { ControlStorePort } from '../../port'
 import {
   appendBodies,
-  HOLDER,
+  HOLDER_HOST,
   makeHarness,
   mint,
   readAll,
@@ -28,6 +27,8 @@ export type ConformanceParams = {
   makeStore: () => ControlStorePort
   reset: () => Promise<void>
   wakes: (sessionId: string) => Promise<number>
+  nextHostId: () => Promise<number>
+  holdPresence: (hostId: number) => Promise<() => Promise<void>>
 }
 
 const consumed = (inboxId: number): V2Body => ({ type: 'input-consumed', inboxId })
@@ -80,7 +81,7 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
 
     it('refuses a write at a stale epoch after the lease moves', async () => {
       const events = mint({ bodies: [said('x')], epoch })
-      await harness.plane.grant({ sessionId: SESSION, holderId: 'pod-b', ttlMs: 60_000 })
+      await harness.plane.grant({ sessionId: SESSION, hostId: 9002 })
       const outcome = await harness.plane.append({ threadId: THREAD, epoch, events })
       expect(outcome).toMatchObject({
         ok: false,
@@ -97,26 +98,9 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       expect(outcome).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch', current: 0 } })
     })
 
-    it('refuses an expired lease using the injected clock', async () => {
-      harness.setNow('2026-11-02T12:02:00.000Z')
-      const events = mint({ bodies: [said('x')], epoch })
-      const outcome = await harness.plane.append({ threadId: THREAD, epoch, events })
-      expect(outcome).toMatchObject({ ok: false, refusal: { kind: 'lease-expired' } })
-      const current = await harness.plane.currentLease({ sessionId: SESSION })
-      expect(current.live).toBe(false)
-    })
-
-    it('renew extends liveness and rejects the wrong holder', async () => {
-      const wrong = await harness.plane.renew({ sessionId: SESSION, holderId: 'nope', epoch })
-      expect(wrong).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch' } })
-      harness.setNow('2026-11-02T12:00:30.000Z')
-      expect((await harness.plane.renew({ sessionId: SESSION, holderId: HOLDER, epoch })).ok).toBe(
-        true,
-      )
-      harness.setNow('2026-11-02T12:01:20.000Z')
-      expect((await harness.plane.currentLease({ sessionId: SESSION })).live).toBe(true)
+    it('revoke clears the holder and records wantsHolder', async () => {
       const revoked = await harness.plane.revoke({ sessionId: SESSION, wantsHolder: false })
-      expect(revoked).toMatchObject({ epoch: epoch + 1, holderId: null, wantsHolder: false })
+      expect(revoked).toMatchObject({ epoch: epoch + 1, holderHostId: null, wantsHolder: false })
     })
 
     it('revoke with an expected epoch refuses a stale epoch and leaves the lease untouched', async () => {
@@ -128,9 +112,9 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       expect(stale).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch', current: epoch } })
       const current = await harness.plane.currentLease({ sessionId: SESSION })
       expect(current.lease.epoch).toBe(epoch)
-      expect(current.lease.holderId).toBe(HOLDER)
+      expect(current.lease.holderHostId).toBe(HOLDER_HOST)
       const right = await harness.plane.revoke({ sessionId: SESSION, wantsHolder: true, epoch })
-      expect(right).toMatchObject({ ok: true, lease: { epoch: epoch + 1, holderId: null } })
+      expect(right).toMatchObject({ ok: true, lease: { epoch: epoch + 1, holderHostId: null } })
     })
 
     it('refuses a tampered or skipped event with hash-mismatch', async () => {
@@ -278,27 +262,6 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
         maxBytes: (canonicalBytes[0] as number) + (canonicalBytes[1] as number),
       })
       expect(both.events).toEqual(events)
-    })
-
-    it('concurrent first grants on one session fail only with LeaseConflictError', async () => {
-      for (let round = 0; round < 5; round += 1) {
-        const sessionId = `race-${round}`
-        await harness.plane.createSession(
-          createSessionParams({ sessionId, mainThreadId: `race-thread-${round}` }),
-        )
-        const settled = await Promise.allSettled(
-          Array.from({ length: 8 }, (_, i) =>
-            harness.plane.grant({ sessionId, holderId: `pod-${i}`, ttlMs: 60_000 }),
-          ),
-        )
-        const won = settled.filter((r) => r.status === 'fulfilled')
-        expect(won.length).toBeGreaterThanOrEqual(1)
-        for (const r of settled) {
-          if (r.status === 'rejected') expect(r.reason).toBeInstanceOf(LeaseConflictError)
-        }
-        const current = await harness.plane.currentLease({ sessionId })
-        expect(current.lease.epoch).toBe(won.length)
-      }
     })
 
     it('concurrent appends at the same seq accept exactly one', async () => {

@@ -15,6 +15,7 @@ const leaseExpiry = 31_000
 
 const crashA = async (a: HolderRig): Promise<void> => {
   a.holder.discard()
+  a.presence.lose()
   await a.flush()
 }
 
@@ -33,8 +34,8 @@ const hasInterruptedResult = async (rig: HolderRig, needle: string): Promise<boo
 const claimWith = async (a: HolderRig, script: readonly { text: string }[]): Promise<HolderRig> => {
   a.clock.advance(leaseExpiry)
   const b = await makeRig({
-    holderId: 'holder-b',
     plane: a.plane,
+    store: a.store,
     bus: a.bus,
     clock: a.clock,
     daemon: a.daemon,
@@ -49,7 +50,7 @@ const claimWith = async (a: HolderRig, script: readonly { text: string }[]): Pro
 
 describe('SessionHolder crash (F11/F13/F14)', () => {
   it('a crashed holder leaves the lease to expire; B claims and collects the exec once', async () => {
-    const a = await makeRig({ holderId: 'holder-a', script: longExecScript })
+    const a = await makeRig({ script: longExecScript })
     await seedSession(a)
     await a.holder.start()
     await a.post('long exec')
@@ -75,7 +76,7 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
   }, 15_000)
 
   it('a dispatched call the daemon never ran is run exactly once by B', async () => {
-    const a = await makeRig({ holderId: 'holder-a', script: longExecScript })
+    const a = await makeRig({ script: longExecScript })
     await seedSession(a)
     await a.holder.start()
     await a.post('dispatched but never run')
@@ -104,7 +105,7 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
       },
       { text: 'after restart' },
     ] as const
-    const a = await makeRig({ holderId: 'holder-a', script: stillRunning })
+    const a = await makeRig({ script: stillRunning })
     await seedSession(a)
     await a.holder.start()
     await a.post('exec then restart')

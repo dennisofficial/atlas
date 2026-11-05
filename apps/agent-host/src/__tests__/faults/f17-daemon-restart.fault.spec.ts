@@ -60,7 +60,7 @@ describe.skipIf(REDIS_URL === undefined)('F17 kill the daemon mid bash and resta
 
     daemon.proxy.set({ latencyMs: 2_000 })
     const hostA = await rig.spawnHost({
-      holderId: 'host-a',
+      label: 'host-a',
       daemonUrl: daemon.url,
       scripts: {
         [sessionId]: [
@@ -72,7 +72,7 @@ describe.skipIf(REDIS_URL === undefined)('F17 kill the daemon mid bash and resta
         ],
       },
     })
-    await rig.claim({ sessionId, holderId: 'host-a', timeoutMs: 30_000 })
+    await rig.claim({ sessionId, label: 'host-a', timeoutMs: 30_000 })
 
     await rig.waitForSeq({
       threadId,

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
 import { consume, takeBack, type InboxEntry } from '../inbox'
-import { grant, isLive, renew, revoke } from '../lease'
+import { claim, grant, revoke, revokeIfEpoch } from '../lease'
 import { NOW, lease } from './support'
 
 const entry = (consumedSeq: number | null): InboxEntry => ({
@@ -51,76 +51,72 @@ describe('inbox moves', () => {
 })
 
 describe('lease moves', () => {
-  it('grant bumps the epoch, installs the holder and clears wantsHolder', () => {
+  it('grant bumps the epoch, installs the host and clears wantsHolder', () => {
     fc.assert(
-      fc.property(
-        fc.nat(1000),
-        fc.string({ minLength: 1 }),
-        fc.integer({ min: 1, max: 1e6 }),
-        fc.boolean(),
-        (epoch, holderId, ttlMs, wantsHolder) => {
-          const next = grant({ lease: lease({ epoch, wantsHolder }), holderId, ttlMs, now: NOW })
-          expect(next).toMatchObject({
-            epoch: epoch + 1,
-            holderId,
-            ttlMs,
-            renewedAt: NOW,
-            wantsHolder: false,
-          })
-          expect(isLive({ lease: next, now: NOW })).toBe(true)
-        },
-      ),
+      fc.property(fc.nat(1000), fc.nat(1000), fc.boolean(), (epoch, hostId, wantsHolder) => {
+        const next = grant({ lease: lease({ epoch, wantsHolder }), hostId })
+        expect(next).toMatchObject({
+          epoch: epoch + 1,
+          holderHostId: hostId,
+          wantsHolder: false,
+        })
+      }),
     )
   })
 
-  it('revoke bumps the epoch, clears the holder and records wantsHolder, never live', () => {
-    const drained = revoke({ lease: lease(), wantsHolder: true, now: NOW })
+  it('revoke bumps the epoch, clears the holder and records wantsHolder', () => {
+    const drained = revoke({ lease: lease(), wantsHolder: true })
     expect(drained.epoch).toBe(4)
-    expect(drained.holderId).toBeNull()
+    expect(drained.holderHostId).toBeNull()
     expect(drained.wantsHolder).toBe(true)
-    expect(isLive({ lease: drained, now: NOW })).toBe(false)
-    const released = revoke({ lease: lease({ wantsHolder: true }), wantsHolder: false, now: NOW })
+    const released = revoke({ lease: lease({ wantsHolder: true }), wantsHolder: false })
     expect(released.wantsHolder).toBe(false)
   })
 
-  it('isLive flips exactly at renewedAt + ttlMs', () => {
-    const l = lease({ ttlMs: 1000 })
-    const at = (ms: number): string => new Date(Date.parse(NOW) + ms).toISOString()
-    expect(isLive({ lease: l, now: at(999) })).toBe(true)
-    expect(isLive({ lease: l, now: at(1000) })).toBe(false)
-  })
-
-  it('renew extends a live lease for the holder at the current epoch', () => {
-    const later = new Date(Date.parse(NOW) + 10_000).toISOString()
-    expect(renew({ lease: lease(), holderId: 'pod-a', epoch: 3, now: later })).toEqual({
-      ok: true,
-      lease: lease({ renewedAt: later }),
-    })
-  })
-
-  it('renew refuses a wrong epoch or holder as stale-epoch', () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 9 }).filter((e) => e !== 3),
-        (epoch) => {
-          expect(renew({ lease: lease(), holderId: 'pod-a', epoch, now: NOW })).toEqual({
-            ok: false,
-            refusal: { kind: 'stale-epoch', current: 3 },
-          })
-        },
-      ),
-    )
-    expect(renew({ lease: lease(), holderId: 'pod-b', epoch: 3, now: NOW })).toEqual({
+  it('revokeIfEpoch refuses a wrong epoch as stale-epoch', () => {
+    expect(revokeIfEpoch({ lease: lease(), wantsHolder: false, epoch: 2 })).toEqual({
       ok: false,
       refusal: { kind: 'stale-epoch', current: 3 },
     })
+    expect(revokeIfEpoch({ lease: lease(), wantsHolder: false, epoch: 3 })).toMatchObject({
+      ok: true,
+      lease: { epoch: 4, holderHostId: null },
+    })
   })
 
-  it('renew refuses an expired lease', () => {
-    const later = new Date(Date.parse(NOW) + 30_000).toISOString()
-    expect(renew({ lease: lease(), holderId: 'pod-a', epoch: 3, now: later })).toEqual({
+  it('claim refuses while the holder host is present', () => {
+    expect(claim({ lease: lease(), hostId: 9, holderPresent: true, selfPresent: true })).toEqual({
       ok: false,
-      refusal: { kind: 'lease-expired' },
+      refusal: { kind: 'held', epoch: 3 },
     })
+  })
+
+  it('claim takes over once the holder host is absent', () => {
+    expect(claim({ lease: lease(), hostId: 9, holderPresent: false, selfPresent: true })).toEqual({
+      ok: true,
+      lease: lease({ epoch: 4, holderHostId: 9 }),
+    })
+  })
+
+  it('claim grants an unheld lease whatever holderPresent says', () => {
+    const unheld = lease({ holderHostId: null })
+    expect(
+      claim({ lease: unheld, hostId: 9, holderPresent: true, selfPresent: true }),
+    ).toMatchObject({ ok: true, lease: { epoch: 4, holderHostId: 9 } })
+  })
+
+  it('claim refuses a claimer that is not present', () => {
+    expect(claim({ lease: lease(), hostId: 9, holderPresent: false, selfPresent: false })).toEqual({
+      ok: false,
+      refusal: { kind: 'not-present' },
+    })
+    expect(
+      claim({
+        lease: lease({ holderHostId: null }),
+        hostId: 9,
+        holderPresent: false,
+        selfPresent: false,
+      }),
+    ).toEqual({ ok: false, refusal: { kind: 'not-present' } })
   })
 })

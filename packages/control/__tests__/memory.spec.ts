@@ -17,6 +17,11 @@ const conformanceParams = {
     store = new InMemoryControlStore()
   },
   wakes: async (sessionId: string) => store.wakeCount(sessionId),
+  nextHostId: async () => store.nextHostId(),
+  holdPresence: async (hostId: number) => {
+    store.markHostPresent(hostId)
+    return async () => store.markHostAbsent(hostId)
+  },
 }
 
 describeControlPlaneConformance(conformanceParams)
@@ -27,10 +32,5 @@ describeControlPlaneWakes(conformanceParams)
 
 describeControlPlanePresence({
   ...conformanceParams,
-  nextHostId: async () => store.nextHostId(),
-  holdPresence: async (hostId) => {
-    store.markHostPresent(hostId)
-    return async () => store.markHostAbsent(hostId)
-  },
   holdShared: async () => async () => undefined,
 })

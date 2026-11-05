@@ -22,6 +22,7 @@ import {
   CollectingLog,
   E2E_SECRET,
   makeInMemoryBus,
+  makePresence,
   noGithub,
   unusedTokens,
   waitForSeq,
@@ -116,7 +117,7 @@ describe('branches-observed e2e', () => {
     const timers = { now: () => Date.now(), ...systemTimers }
     const log = new CollectingLog()
     const holder = new SessionHolder({
-      holderId: 'host-branches',
+      presence: makePresence({ url: testDb().url, label: 'host-branches' }),
       plane,
       bus,
       timers,
@@ -134,9 +135,6 @@ describe('branches-observed e2e', () => {
       log,
       ids: new RandomIds(),
       maxSessions: 25,
-      ttlMs: 30_000,
-      renewEveryMs: 5_000,
-      fenceMarginMs: 5_000,
       idleMinutes: 30,
     })
     await holder.start()

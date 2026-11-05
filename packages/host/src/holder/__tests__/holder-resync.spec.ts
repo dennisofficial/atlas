@@ -34,7 +34,7 @@ const otherWriterCommits = async (
 
 describe('SessionHolder F8 resync', () => {
   it('a seq-mismatch beyond one page reloads every page before the head moves', async () => {
-    const rig = await makeRig({ holderId: 'holder-a', script: [{ text: 'recovered' }] })
+    const rig = await makeRig({ script: [{ text: 'recovered' }] })
     await seedSession(rig)
     await rig.holder.start()
     await rig.post('hello')
@@ -69,13 +69,9 @@ describe('SessionHolder F8 resync', () => {
   }, 30_000)
 
   it('recovery ignores a call hidden by a history-rewound', async () => {
-    const rig = await makeRig({ holderId: 'holder-a', script: [{ text: 'fresh' }] })
+    const rig = await makeRig({ script: [{ text: 'fresh' }] })
     await seedSession(rig)
-    const seededLease = await rig.plane.grant({
-      sessionId: SESSION,
-      holderId: 'holder-seed',
-      ttlMs: 300_000,
-    })
+    const seededLease = await rig.plane.grant({ sessionId: SESSION, hostId: 9001 })
 
     const dispatched = chainEvents({
       threadId: THREAD_ID,

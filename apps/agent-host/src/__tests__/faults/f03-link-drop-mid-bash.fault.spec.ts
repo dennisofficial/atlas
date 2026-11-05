@@ -75,7 +75,7 @@ describe.skipIf(REDIS_URL === undefined)('F3 daemon link dropped mid-bash, back 
     ].join('; ')
 
     const hostA = await rig.spawnHost({
-      holderId: 'host-a',
+      label: 'host-a',
       daemonUrl: daemon.url,
       knobs: { toolOutputFile: tapFile },
       scripts: {
@@ -89,7 +89,7 @@ describe.skipIf(REDIS_URL === undefined)('F3 daemon link dropped mid-bash, back 
         ],
       },
     })
-    await rig.claim({ sessionId, holderId: 'host-a' })
+    await rig.claim({ sessionId, label: 'host-a' })
     await rig.waitForSeq({
       threadId,
       want: (rows) => rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
@@ -133,7 +133,7 @@ describe.skipIf(REDIS_URL === undefined)('F3 daemon link dropped mid-bash, back 
     expect(runs).toEqual(['run'])
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(lease.lease.holderId).toBe('host-a')
+    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-a')
     expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
   }, 60_000)
 })

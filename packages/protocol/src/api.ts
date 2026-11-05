@@ -79,7 +79,7 @@ export const sessionBlobOutputSchema = z.strictObject({
 
 export const sessionLeaseSchema = z.strictObject({
   epoch: z.number().int().min(0),
-  holderId: z.string().nullable(),
+  holderHostId: z.number().int().nullable(),
   live: z.boolean(),
 })
 

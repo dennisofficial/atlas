@@ -8,7 +8,7 @@ import { makeRig, seedSession, SESSION, THREAD } from './holder-rig'
 
 describe('SessionRecord duplicate dispatch', () => {
   it('a re-dispatched tool-dispatched is dropped and marks the recorded bootId', async () => {
-    const rig = await makeRig({ holderId: 'holder-a' })
+    const rig = await makeRig({})
     await seedSession(rig)
     await rig.holder.start()
     await rig.post('start the runtime')

@@ -26,7 +26,7 @@ const readStored = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2E
 
 describe('SessionRecord blob spill', () => {
   it('spills a 10 MB tool output to a blob and resolves it for the model', async () => {
-    const rig = await makeRig({ holderId: 'holder-a' })
+    const rig = await makeRig({})
     await seedSession(rig)
     await rig.holder.start()
     await postAndRun(rig, 'hello')
@@ -76,7 +76,7 @@ describe('SessionRecord blob spill', () => {
   }, 30_000)
 
   it('replays a spilled fact-recorded value on the same and a fresh record', async () => {
-    const rig = await makeRig({ holderId: 'holder-facts' })
+    const rig = await makeRig({})
     await seedSession(rig)
     await rig.holder.start()
     await postAndRun(rig, 'hello')

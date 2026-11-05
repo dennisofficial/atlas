@@ -33,7 +33,7 @@ describe.skipIf(!enabled)('postgres scale (ATLAS_SCALE_TESTS=1)', () => {
       projectId: 'project-1',
       mainThreadId: THREAD,
     })
-    const { epoch } = await plane.grant({ sessionId: SESSION, holderId: 'pod', ttlMs: 3_600_000 })
+    const { epoch } = await plane.grant({ sessionId: SESSION, hostId: 1 })
 
     const timedAppend = async (): Promise<number> => {
       const head = await plane.head({ threadId: THREAD })

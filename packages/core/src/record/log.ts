@@ -1,10 +1,9 @@
 import { chainHash, type LogHead } from './chain'
 import type { Hash, V2Event } from './event'
-import { isLive, type Lease } from './lease'
+import type { Lease } from './lease'
 
 export type AppendRefusal =
   | { kind: 'stale-epoch'; current: number }
-  | { kind: 'lease-expired' }
   | { kind: 'seq-mismatch'; expected: number }
   | { kind: 'hash-mismatch'; atSeq: number }
   | { kind: 'malformed'; atSeq: number; issue: string }
@@ -18,17 +17,15 @@ const refuse = (refusal: AppendRefusal): AppendResult => ({ ok: false, refusal }
 export function acceptAppend(params: {
   head: LogHead
   lease: Lease
-  now: string
   epoch: number
   events: readonly V2Event[]
 }): AppendResult {
   const { head, lease, events } = params
   const fenced =
-    lease.holderId !== null &&
+    lease.holderHostId !== null &&
     params.epoch === lease.epoch &&
     events.every((event) => event.epoch === lease.epoch)
   if (!fenced) return refuse({ kind: 'stale-epoch', current: lease.epoch })
-  if (!isLive({ lease, now: params.now })) return refuse({ kind: 'lease-expired' })
   if (events.length === 0) {
     return refuse({ kind: 'malformed', atSeq: head.seq + 1, issue: 'empty batch' })
   }

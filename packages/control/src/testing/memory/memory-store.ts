@@ -73,8 +73,12 @@ class MemoryTx implements ControlTx {
       .map(({ nextInboxId: _nextInboxId, ...session }) => ({ ...session }))
   }
 
-  async sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]> {
-    return sessionsNeedingHolderIn({ state: this.state, ...params })
+  async sessionsNeedingHolder(params: { limit: number }): Promise<string[]> {
+    return sessionsNeedingHolderIn({
+      state: this.state,
+      presentHosts: this.presentHosts,
+      ...params,
+    })
   }
 
   async createThread(params: {
@@ -171,6 +175,10 @@ class MemoryTx implements ControlTx {
   }
 
   async lockLease(sessionId: string): Promise<Lease | undefined> {
+    return this.readLease(sessionId)
+  }
+
+  async shareLease(sessionId: string): Promise<Lease | undefined> {
     return this.readLease(sessionId)
   }
 

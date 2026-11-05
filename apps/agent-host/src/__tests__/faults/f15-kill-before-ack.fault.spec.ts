@@ -56,7 +56,7 @@ describe.skipIf(REDIS_URL === undefined)(
       const bash = `echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
       const hostA = await rig.spawnHost({
-        holderId: 'host-a',
+        label: 'host-a',
         daemonUrl: daemon.url,
         scripts: {
           [sessionId]: [
@@ -69,7 +69,7 @@ describe.skipIf(REDIS_URL === undefined)(
           ],
         },
       })
-      await rig.claim({ sessionId, holderId: 'host-a' })
+      await rig.claim({ sessionId, label: 'host-a' })
       const dispatched = await rig.waitForSeq({
         threadId,
         want: (rows) =>
@@ -106,11 +106,11 @@ describe.skipIf(REDIS_URL === undefined)(
       daemon.proxy.clear()
 
       const hostB = await rig.spawnHost({
-        holderId: 'host-b',
+        label: 'host-b',
         daemonUrl: daemon.url,
         scripts: { [sessionId]: [{ text: 'host b finished' }] },
       })
-      await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+      await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
 
       const events = await rig
         .waitForSeq({
@@ -143,7 +143,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const lease = await rig.plane.currentLease({ sessionId })
-      expect(lease.lease.holderId).toBe('host-b')
+      expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
       expectEpochsOrdered(events, lease.lease.epoch)
     }, 60_000)
   },

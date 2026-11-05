@@ -6,6 +6,7 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { RandomIds } from '../runtime/random-ids'
 import { SessionHolder, systemTimers } from '@dltech/atlas-host'
+import { createPgHostPresence } from '../presence/pg-host-presence'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
@@ -99,7 +100,7 @@ const testTokens = () => ({
 })
 
 const main = async (): Promise<void> => {
-  const holderId = requireEnv('HOLDER_ID')
+  const holderLabel = requireEnv('HOLDER_ID')
   const daemonSecret = requireEnv('DAEMON_SECRET')
   const daemonUrl = requireEnv('DAEMON_URL')
   const workspace = requireEnv('WORKSPACE_DIR')
@@ -119,8 +120,21 @@ const main = async (): Promise<void> => {
   const bus = createHostBus({ wakes, liveFrames })
   const timers = { now: () => Date.now(), ...systemTimers }
   const sandbox = new FixedEndpointSandboxProvider({ url: daemonUrl, daemonSecret })
+  const pgPresence = createPgHostPresence({
+    url: requireEnv('DATABASE_DIRECT_URL'),
+    label: holderLabel,
+    log,
+  })
+  let hostId = -1
+  const presence = {
+    ...pgPresence,
+    register: async () => {
+      hostId = await pgPresence.register()
+      return hostId
+    },
+  }
   const holder = new SessionHolder({
-    holderId,
+    presence,
     plane,
     bus,
     timers,
@@ -139,14 +153,12 @@ const main = async (): Promise<void> => {
     }),
     ids: new RandomIds(),
     maxSessions: 25,
-    ttlMs: numberEnv('TTL_MS', 3_000),
-    renewEveryMs: numberEnv('RENEW_MS', 500),
-    fenceMarginMs: numberEnv('FENCE_MS', 1_000),
+    appendRetryMs: numberEnv('APPEND_RETRY_MS', 2_500),
     idleMinutes: 30,
     log,
   })
   await holder.start()
-  log.info({ source: 'host-process', message: `started holderId=${holderId}` })
+  log.info({ source: 'host-process', message: `started hostId=${hostId} label=${holderLabel}` })
 
   let shuttingDown = false
   const shutdown = async (): Promise<void> => {
@@ -154,6 +166,7 @@ const main = async (): Promise<void> => {
     shuttingDown = true
     log.info({ source: 'host-process', message: 'draining' })
     await holder.drain({ deadline: Date.now() + numberEnv('DRAIN_MS', 270_000) })
+    await pgPresence.close()
     await wakes.close()
     await liveFrames.close()
     await pool.end()

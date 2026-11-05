@@ -1,8 +1,5 @@
-import { hostname } from 'node:os'
-import { randomUUID } from 'node:crypto'
-
 import { RandomIds } from './runtime/random-ids'
-import { SessionHolder } from '@dltech/atlas-host'
+import { SessionHolder, type HostPresence } from '@dltech/atlas-host'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
@@ -24,13 +21,13 @@ export type ComposeAgentHostArgs = {
   github: Pick<GithubTokenReader, 'read'>
   timers?: HostTimers | undefined
   log?: LogPort | undefined
-  holderId?: string | undefined
+  presence: HostPresence
 }
 
 export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   const timers = args.timers ?? { now: () => Date.now(), ...systemTimers }
   return new SessionHolder({
-    holderId: args.holderId ?? `${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`,
+    presence: args.presence,
     plane: args.plane,
     bus: args.bus,
     timers,

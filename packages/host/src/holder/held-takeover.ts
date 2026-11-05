@@ -30,7 +30,7 @@ export class TakeOver {
     threadId: ThreadId
     epoch: number
     signal: AbortSignal
-    retryUntil(): number
+    drainDeadline(): number | undefined
     onLeaseLost(): void
     onRuntime(runtime: SessionRuntime): void
   }): Promise<{ runtime: SessionRuntime; record: SessionRecord }> {
@@ -66,7 +66,8 @@ export class TakeOver {
       timers: deps.timers,
       remoteCalls: runtime.remoteCalls,
       daemonTools: runtime.daemonTools,
-      retryUntil: args.retryUntil,
+      appendRetryMs: deps.appendRetryMs,
+      drainDeadline: args.drainDeadline,
       nowIso: () => new Date(deps.timers.now()).toISOString(),
       onLeaseLost: args.onLeaseLost,
       preloaded: cache,

@@ -15,24 +15,16 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import type { RemoteCalls } from '../../calls/remote-calls'
 import type { HostTimers } from '../ports'
+import { LeaseLostError } from './lease-lost-error'
 import { RecordCache } from './record-cache'
+import { appendRetryDeadline } from './retry-deadline'
 import { spillForAppend } from './record-spill'
 import { abortedOnHandoff, inboxIdOf, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
 import { ackDaemonScope, ackRecordedDaemonResults, prepareDraft, resyncHead } from './record-commit'
 
-export { RecordCorruptionError }
+export { LeaseLostError, RecordCorruptionError }
 export type { AppendBody }
-
-export class LeaseLostError extends Error {
-  constructor(
-    message: string,
-    readonly refusal: string,
-  ) {
-    super(message)
-    this.name = 'LeaseLostError'
-  }
-}
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -48,7 +40,8 @@ export type SessionRecordArgs = {
   daemonTools: ReadonlySet<string>
   blobSpillBytes?: number | undefined
   preloaded?: RecordCache | undefined
-  retryUntil?: (() => number) | undefined
+  appendRetryMs?: number | undefined
+  drainDeadline?: (() => number | undefined) | undefined
   onLeaseLost?: ((error: LeaseLostError) => void) | undefined
   log?: LogPort | undefined
   nowIso(): string
@@ -194,11 +187,13 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     ackDaemon?: { callId: string; name: string; runId: RunId } | undefined
   }): Promise<void> {
     let delayMs = 100
+    let failingSince: number | undefined
     for (;;) {
       if (this.fenced) {
         throw new LeaseLostError('the holder self-fenced; no append is attempted', 'self-fenced')
       }
-      if (this.retryExhausted()) {
+      const deadline = failingSince === undefined ? undefined : this.retryDeadline(failingSince)
+      if (deadline !== undefined && this.args.timers.now() >= deadline) {
         this.lost(new LeaseLostError('the record store never answered in time', 'retry-exhausted'))
       }
       const outcome = await this.tryAppend({
@@ -218,14 +213,18 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
         }
         return
       }
-      await this.sleep(delayMs)
+      failingSince ??= this.args.timers.now()
+      await this.sleep({ ms: delayMs, until: this.retryDeadline(failingSince) })
       delayMs = Math.min(delayMs * 2, 2_000)
     }
   }
 
-  private retryExhausted(): boolean {
-    const until = this.args.retryUntil
-    return until !== undefined && this.args.timers.now() >= until()
+  private retryDeadline(failingSince: number): number {
+    return appendRetryDeadline({
+      failingSince,
+      appendRetryMs: this.args.appendRetryMs,
+      drainDeadline: this.args.drainDeadline?.(),
+    })
   }
 
   private async tryAppend(args: {
@@ -250,7 +249,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       return 'committed'
     }
     const refusal = outcome.refusal
-    if (refusal.kind === 'stale-epoch' || refusal.kind === 'lease-expired') {
+    if (refusal.kind === 'stale-epoch') {
       this.lost(new LeaseLostError(`the lease was lost: ${refusal.kind}`, refusal.kind))
     }
     if (refusal.kind !== 'seq-mismatch') {
@@ -264,8 +263,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   }
 
   private replyLost(args: { events: V2Event[] }): boolean {
-    const first = args.events[0]
-    if (first === undefined) return false
+    if (args.events.length === 0) return false
     return args.events.every(
       (event) => this.cache.committedHashAtSeq(event.seq) === chainHash(event),
     )
@@ -280,13 +278,9 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     throw lost
   }
 
-  private async sleep(ms: number): Promise<void> {
-    const jittered = ms * (0.5 + this.args.timers.random())
-    const until = this.args.retryUntil?.()
-    const capped =
-      until === undefined
-        ? jittered
-        : Math.min(jittered, Math.max(0, until - this.args.timers.now()))
+  private async sleep(args: { ms: number; until: number }): Promise<void> {
+    const jittered = args.ms * (0.5 + this.args.timers.random())
+    const capped = Math.min(jittered, Math.max(0, args.until - this.args.timers.now()))
     await new Promise<void>((resolve) => {
       this.wakeSleep = resolve
       this.args.timers.setTimeout(() => {

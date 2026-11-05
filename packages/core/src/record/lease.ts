@@ -1,65 +1,42 @@
 export type Lease = {
   sessionId: string
   epoch: number
-  holderId: string | null
-  renewedAt: string
-  ttlMs: number
+  holderHostId: number | null
   wantsHolder: boolean
 }
 
-export type LeaseRefusal = { kind: 'stale-epoch'; current: number } | { kind: 'lease-expired' }
+export type LeaseRefusal = { kind: 'stale-epoch'; current: number }
 
 export type RevokeResult = { ok: true; lease: Lease } | { ok: false; refusal: LeaseRefusal }
 
-export type ClaimResult =
-  | { ok: true; lease: Lease }
-  | { ok: false; refusal: { kind: 'held'; epoch: number } }
+export type ClaimRefusal = { kind: 'held'; epoch: number } | { kind: 'not-present' }
+
+export type ClaimResult = { ok: true; lease: Lease } | { ok: false; refusal: ClaimRefusal }
 
 export function claim(params: {
   lease: Lease
-  holderId: string
-  ttlMs: number
-  now: string
+  hostId: number
+  holderPresent: boolean
+  selfPresent: boolean
 }): ClaimResult {
-  if (isLive({ lease: params.lease, now: params.now })) {
+  if (params.lease.holderHostId !== null && params.holderPresent) {
     return { ok: false, refusal: { kind: 'held', epoch: params.lease.epoch } }
   }
-  return {
-    ok: true,
-    lease: grant({
-      lease: params.lease,
-      holderId: params.holderId,
-      ttlMs: params.ttlMs,
-      now: params.now,
-    }),
-  }
+  if (!params.selfPresent) return { ok: false, refusal: { kind: 'not-present' } }
+  return { ok: true, lease: grant({ lease: params.lease, hostId: params.hostId }) }
 }
 
-export type LeaseResult = { ok: true; lease: Lease } | { ok: false; refusal: LeaseRefusal }
-
-export const isLive = (params: { lease: Lease; now: string }): boolean =>
-  params.lease.holderId !== null &&
-  Date.parse(params.now) < Date.parse(params.lease.renewedAt) + params.lease.ttlMs
-
-export const grant = (params: {
-  lease: Lease
-  holderId: string
-  ttlMs: number
-  now: string
-}): Lease => ({
+export const grant = (params: { lease: Lease; hostId: number }): Lease => ({
   ...params.lease,
   epoch: params.lease.epoch + 1,
-  holderId: params.holderId,
-  renewedAt: params.now,
-  ttlMs: params.ttlMs,
+  holderHostId: params.hostId,
   wantsHolder: false,
 })
 
-export const revoke = (params: { lease: Lease; wantsHolder: boolean; now: string }): Lease => ({
+export const revoke = (params: { lease: Lease; wantsHolder: boolean }): Lease => ({
   ...params.lease,
   epoch: params.lease.epoch + 1,
-  holderId: null,
-  renewedAt: params.now,
+  holderHostId: null,
   wantsHolder: params.wantsHolder,
 })
 
@@ -67,27 +44,12 @@ export const revokeIfEpoch = (params: {
   lease: Lease
   wantsHolder: boolean
   epoch: number
-  now: string
 }): RevokeResult => {
   if (params.epoch !== params.lease.epoch) {
     return { ok: false, refusal: { kind: 'stale-epoch', current: params.lease.epoch } }
   }
   return {
     ok: true,
-    lease: revoke({ lease: params.lease, wantsHolder: params.wantsHolder, now: params.now }),
+    lease: revoke({ lease: params.lease, wantsHolder: params.wantsHolder }),
   }
-}
-
-export function renew(params: {
-  lease: Lease
-  holderId: string
-  epoch: number
-  now: string
-}): LeaseResult {
-  const { lease } = params
-  if (params.epoch !== lease.epoch || lease.holderId !== params.holderId) {
-    return { ok: false, refusal: { kind: 'stale-epoch', current: lease.epoch } }
-  }
-  if (!isLive({ lease, now: params.now })) return { ok: false, refusal: { kind: 'lease-expired' } }
-  return { ok: true, lease: { ...lease, renewedAt: params.now } }
 }

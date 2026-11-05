@@ -45,7 +45,7 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
     const gated = `touch ${startedFile}; echo two >> ${runsFile}; cat ${gateFifo}; echo done`
 
     const hostA = await rig.spawnHost({
-      holderId: 'host-a',
+      label: 'host-a',
       daemonUrl: daemon.url,
       scripts: {
         [sessionId]: [
@@ -63,10 +63,10 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
         ],
       },
     })
-    await rig.claim({ sessionId, holderId: 'host-a', timeoutMs: 30_000 })
+    await rig.claim({ sessionId, label: 'host-a', timeoutMs: 30_000 })
     await waitForFile({ path: startedFile, timeoutMs: 30_000 })
     const hostB = await rig.spawnHost({
-      holderId: 'host-b',
+      label: 'host-b',
       daemonUrl: daemon.url,
       scripts: { [sessionId]: [{ text: 'host b finished' }] },
     })
@@ -79,19 +79,19 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
     expect(beforeKill.some((row) => callIdOf(row) === 'c1' && isDoneResult(row))).toBe(true)
 
     const preKill = await rig.plane.currentLease({ sessionId })
-    expect(preKill.lease.holderId).toBe('host-a')
+    expect(await rig.labelOf(preKill.lease.holderHostId)).toBe('host-a')
 
     hostA.kill('SIGKILL')
     hostB.kill('SIGKILL')
     await Promise.all([hostA.exited, hostB.exited])
 
     const hostC = await rig.spawnHost({
-      holderId: 'host-c',
+      label: 'host-c',
       daemonUrl: daemon.url,
       scripts: { [sessionId]: [{ text: 'host c resumed' }] },
     })
     const hostD = await rig.spawnHost({
-      holderId: 'host-d',
+      label: 'host-d',
       daemonUrl: daemon.url,
       scripts: { [sessionId]: [{ text: 'host d resumed' }] },
     })
@@ -101,12 +101,8 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
       for (;;) {
         await rig.wake(sessionId).catch(() => undefined)
         const lease = await rig.plane.currentLease({ sessionId })
-        if (
-          lease.live &&
-          (lease.lease.holderId === 'host-c' || lease.lease.holderId === 'host-d')
-        ) {
-          return lease.lease.holderId
-        }
+        const label = lease.live ? await rig.labelOf(lease.lease.holderHostId) : undefined
+        if (label === 'host-c' || label === 'host-d') return label
         if (Date.now() > deadline) throw new Error('no fresh host claimed the session')
         await new Promise((resolve) => setTimeout(resolve, 250))
       }
@@ -160,7 +156,7 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
     expectOneResultPerDispatch(events)
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(lease.lease.holderId).toBe(claimed)
+    expect(await rig.labelOf(lease.lease.holderHostId)).toBe(claimed)
     expect(lease.lease.epoch).toBeGreaterThan(preKill.lease.epoch)
     expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
   }, 90_000)

@@ -33,7 +33,7 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
     const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
     const hostA = await rig.spawnHost({
-      holderId: 'host-a',
+      label: 'host-a',
       daemonUrl: daemon.url,
       scripts: {
         [sessionId]: [
@@ -44,7 +44,7 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
         ],
       },
     })
-    await rig.claim({ sessionId, holderId: 'host-a' })
+    await rig.claim({ sessionId, label: 'host-a' })
     await rig.waitForSeq({
       threadId,
       want: (rows) => rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
@@ -59,11 +59,11 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
     await hostA.exited
 
     const hostB = await rig.spawnHost({
-      holderId: 'host-b',
+      label: 'host-b',
       daemonUrl: daemon.url,
       scripts: { [sessionId]: [{ text: 'host b finished' }] },
     })
-    await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+    await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
 
     writeFileSync(gateFifo, 'go\n')
 
@@ -94,6 +94,6 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
     expect(runs).toEqual(['run'])
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(lease.lease.holderId).toBe('host-b')
+    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
   }, 60_000)
 })

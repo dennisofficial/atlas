@@ -74,9 +74,7 @@ describe('v2 namespace client', () => {
     await db.orm.v2.V2Lease.create({
       sessionId: 'ses_1',
       epoch: 1,
-      holderId: null,
-      renewedAt: NOW,
-      ttlMs: 1000,
+      holderHostId: null,
       wantsHolder: false,
     })
     await db.orm.v2.V2Event.create({

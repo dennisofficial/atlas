@@ -56,7 +56,6 @@ const notBeforeOf = (fact: V2Event): number => {
 describe('holder retry deadlines', () => {
   it('a handoff shorter than the backoff revokes and wakes; B waits out the deadline', async () => {
     const a = await makeRig({
-      holderId: 'holder-a',
       script: [{ throws: new Error('transient boom') }],
     })
     await seedSession(a)
@@ -73,8 +72,8 @@ describe('holder retry deadlines', () => {
     expect(notBeforeMs).toBeGreaterThan(a.clock.now())
 
     const b = await makeRig({
-      holderId: 'holder-b',
       plane: a.plane,
+      store: a.store,
       bus: a.bus,
       clock: a.clock,
       daemon: a.daemon,
@@ -94,7 +93,7 @@ describe('holder retry deadlines', () => {
     const claimed = await flushUntil({ check: () => b.holder.heldIds().length === 1 })
     expect(claimed).toBe(true)
     const lease = await b.plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderId).toBe('holder-b')
+    expect(lease.lease.holderHostId).toBe(b.hostId())
     expect(lease.lease.epoch).toBeGreaterThan(1)
 
     const modelB = scriptedModelOf(b)

@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { ControlPlane } from '../../control-plane'
-import { createSessionParams, HOLDER, mint, PROJECT, SESSION, T0, THREAD, USER } from './support'
+import {
+  createSessionParams,
+  HOLDER_HOST,
+  mint,
+  PROJECT,
+  SESSION,
+  T0,
+  THREAD,
+  USER,
+} from './support'
 import type { ConformanceParams } from './conformance'
 
 const after = (params: { iso: string; offsetMs: number }): string =>
@@ -20,11 +29,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
     })
 
     const markPrepared = async (args: { sessionId: string; threadId: string }): Promise<void> => {
-      const { epoch } = await plane.grant({
-        sessionId: args.sessionId,
-        holderId: HOLDER,
-        ttlMs: 60_000,
-      })
+      const { epoch } = await plane.grant({ sessionId: args.sessionId, hostId: HOLDER_HOST })
       const head = await plane.head({ threadId: args.threadId })
       const outcome = await plane.append({
         threadId: args.threadId,
@@ -70,10 +75,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         mainThreadId: THREAD,
         createdAt: T0,
       })
-      expect(await plane.head({ threadId: THREAD })).toEqual({
-        seq: 0,
-        hash: expect.any(String),
-      })
+      expect(await plane.head({ threadId: THREAD })).toEqual({ seq: 0, hash: expect.any(String) })
       expect(await plane.readSession({ sessionId: 'unknown' })).toBeUndefined()
     })
 
@@ -123,42 +125,46 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
 
     it('returns only sessions that need a holder, in creation order, limited', async () => {
       await seedSession({ sessionId: 'idle-released', offsetMs: 1000 })
-      await plane.grant({ sessionId: 'idle-released', holderId: HOLDER, ttlMs: 60_000 })
+      await plane.grant({ sessionId: 'idle-released', hostId: HOLDER_HOST })
       await plane.revoke({ sessionId: 'idle-released', wantsHolder: false })
 
       await seedSession({ sessionId: 'never-leased-posted', offsetMs: 2000 })
       await plane.post({ sessionId: 'never-leased-posted', kind: 'user', payload: '"hi"' })
 
-      await seedSession({ sessionId: 'expired-holder', offsetMs: 3000 })
-      await plane.grant({ sessionId: 'expired-holder', holderId: HOLDER, ttlMs: 1_000 })
+      await seedSession({ sessionId: 'absent-holder', offsetMs: 3000 })
+      await plane.grant({ sessionId: 'absent-holder', hostId: HOLDER_HOST })
 
       await seedSession({ sessionId: 'live-holder', offsetMs: 4000 })
-      await plane.grant({ sessionId: 'live-holder', holderId: HOLDER, ttlMs: 60_000 })
+      const liveHost = await params.nextHostId()
+      const releaseLive = await params.holdPresence(liveHost)
+      await plane.grant({ sessionId: 'live-holder', hostId: liveHost })
 
       await seedSession({ sessionId: 'drain-revoked', offsetMs: 5000 })
-      await plane.grant({ sessionId: 'drain-revoked', holderId: HOLDER, ttlMs: 60_000 })
+      await plane.grant({ sessionId: 'drain-revoked', hostId: HOLDER_HOST })
       await plane.revoke({ sessionId: 'drain-revoked', wantsHolder: true })
 
       await seedSession({ sessionId: 'granted-again', offsetMs: 6000 })
       await plane.revoke({ sessionId: 'granted-again', wantsHolder: true })
-      await plane.grant({ sessionId: 'granted-again', holderId: HOLDER, ttlMs: 60_000 })
+      await plane.grant({ sessionId: 'granted-again', hostId: liveHost })
 
       const needing = await plane.sessionsNeedingHolder({ limit: 100 })
-      expect(needing).toEqual(['never-leased-posted', 'expired-holder', 'drain-revoked'])
+      expect(needing).toEqual(['never-leased-posted', 'absent-holder', 'drain-revoked'])
       expect(await plane.sessionsNeedingHolder({ limit: 2 })).toEqual([
         'never-leased-posted',
-        'expired-holder',
+        'absent-holder',
       ])
       expect(await plane.sessionsNeedingHolder({ limit: 5000 })).toEqual(needing)
+      await releaseLive()
     })
 
-    it('needs a holder at exactly renewedAt + ttlMs, but not one ms before', async () => {
+    it('needing-holder lists a held session whose host is absent, not one whose host is present', async () => {
       await seedSession({ sessionId: SESSION, offsetMs: 0 })
-      await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
-      setNow(after({ iso: T0, offsetMs: 60_000 }))
-      expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([SESSION])
-      setNow(after({ iso: T0, offsetMs: 59_999 }))
+      const hostId = await params.nextHostId()
+      const release = await params.holdPresence(hostId)
+      await plane.grant({ sessionId: SESSION, hostId })
       expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([])
+      await release()
+      expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([SESSION])
     })
 
     it('lists a never-leased session with an empty inbox until its workspace is prepared', async () => {
@@ -181,7 +187,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
 
     it('stops listing a session once it has turns, even without a prepare event', async () => {
       await seedSession({ sessionId: SESSION, offsetMs: 0, prepared: false })
-      const { epoch } = await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
+      const { epoch } = await plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
       const outcome = await plane.append({
         threadId: `t-${SESSION}`,
         epoch,
@@ -199,7 +205,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
     it('excludes a session whose only inbox entry is consumed', async () => {
       setNow(T0)
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
-      const { epoch } = await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
+      const { epoch } = await plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
       const { inboxId } = await plane.post({ sessionId: SESSION, kind: 'user', payload: '"a"' })
       const outcome = await plane.append({
         threadId: THREAD,
@@ -218,7 +224,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       setNow(T0)
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
       await plane.post({ sessionId: SESSION, kind: 'message', payload: '"a"' })
-      const { epoch } = await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
+      const { epoch } = await plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
       const outcome = await plane.append({
         threadId: THREAD,
         epoch,
@@ -236,7 +242,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
 
     it('returns a session posted to after an idle release, but not before', async () => {
       await seedSession({ sessionId: SESSION, offsetMs: 0 })
-      await plane.grant({ sessionId: SESSION, holderId: HOLDER, ttlMs: 60_000 })
+      await plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
       await plane.revoke({ sessionId: SESSION, wantsHolder: false })
       expect(await plane.sessionsNeedingHolder({ limit: 10 })).toEqual([])
       await plane.post({ sessionId: SESSION, kind: 'user', payload: '"later"' })

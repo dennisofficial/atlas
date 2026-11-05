@@ -1,6 +1,10 @@
 import { toThreadId, type ModelPort } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
+import {
+  createMemoryHostPresence,
+  type MemoryHostPresence,
+} from '../../testing/memory-host-presence'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
@@ -18,6 +22,9 @@ export const THREAD_ID = toThreadId(THREAD)
 
 export type HolderRig = {
   plane: ControlPlane
+  store: InMemoryControlStore
+  presence: MemoryHostPresence
+  hostId(): number
   bus: FakeBus
   clock: FakeClock
   wakeCount(sessionId: string): number
@@ -35,16 +42,14 @@ export type HolderRig = {
 }
 
 export const makeRig = async (args: {
-  holderId?: string | undefined
   script?: readonly ScriptedModelStep[] | undefined
   daemon?: InMemoryDaemon | undefined
   clock?: FakeClock | undefined
   bus?: FakeBus | undefined
   plane?: ControlPlane | undefined
+  store?: InMemoryControlStore | undefined
   maxSessions?: number | undefined
-  ttlMs?: number | undefined
-  renewEveryMs?: number | undefined
-  fenceMarginMs?: number | undefined
+  appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   model?: (() => ModelPort) | undefined
@@ -55,7 +60,17 @@ export const makeRig = async (args: {
   log?: LogPort | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
-  const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
+  const store =
+    args.store ?? new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
+  const memoryPresence = createMemoryHostPresence({ store })
+  let registered: number | undefined
+  const presence = {
+    ...memoryPresence,
+    register: async () => {
+      registered = await memoryPresence.register()
+      return registered
+    },
+  }
   const plane = args.plane ?? new ControlPlane({ store })
   const bus = args.bus ?? new FakeBus()
   const ids = new SequentialIds()
@@ -78,22 +93,26 @@ export const makeRig = async (args: {
   })
 
   const holder = new SessionHolder({
-    holderId: args.holderId ?? 'holder-a',
+    presence,
     plane,
     bus,
     timers: clock,
     runtimes: runtimeFor,
     ids,
     maxSessions: args.maxSessions ?? 4,
-    ttlMs: args.ttlMs ?? 30_000,
-    renewEveryMs: args.renewEveryMs ?? 5_000,
-    fenceMarginMs: args.fenceMarginMs ?? 5_000,
+    ...(args.appendRetryMs === undefined ? {} : { appendRetryMs: args.appendRetryMs }),
     idleMinutes: args.idleMinutes ?? 30,
     ...(args.log === undefined ? {} : { log: args.log }),
   })
 
   return {
     plane,
+    store,
+    presence: memoryPresence,
+    hostId: () => {
+      if (registered === undefined) throw new Error('the rig holder has not started')
+      return registered
+    },
     bus,
     clock,
     wakeCount: (sessionId) => store.wakeCount(sessionId),

@@ -56,18 +56,18 @@ describe.skipIf(REDIS_URL === undefined)(
       const streamed = 'once upon a midnight dreary '.repeat(20)
 
       const hostA = await rig.spawnHost({
-        holderId: 'host-a',
+        label: 'host-a',
         daemonUrl: daemon.url,
         firstChunkFile: chunkFile,
         scripts: { [sessionId]: [{ text: streamed, streamMs: 30_000 }] },
       })
-      await rig.claim({ sessionId, holderId: 'host-a' })
+      await rig.claim({ sessionId, label: 'host-a' })
       await waitForFile({ path: chunkFile })
 
       const before = await readEvents({ plane: rig.plane, threadId })
       expect(before.some((row) => row.type === 'assistant-said')).toBe(false)
       const leaseBefore = await rig.plane.currentLease({ sessionId })
-      expect(leaseBefore.lease.holderId).toBe('host-a')
+      expect(await rig.labelOf(leaseBefore.lease.holderHostId)).toBe('host-a')
 
       const killedAt = Date.now()
       hostA.kill('SIGKILL')
@@ -82,11 +82,11 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(status.state).toBe(ESessionStatus.Resuming)
 
       const hostB = await rig.spawnHost({
-        holderId: 'host-b',
+        label: 'host-b',
         daemonUrl: daemon.url,
         scripts: { [sessionId]: [{ text: 'host b finished' }] },
       })
-      await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+      await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
       const resumeMs = Date.now() - killedAt
       expect(resumeMs).toBeLessThan(9_000)
 
@@ -113,7 +113,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(textOfAssistantSaid(said[0] as ReadEvent)).toContain('host b finished')
 
       const lease = await rig.plane.currentLease({ sessionId })
-      expect(lease.lease.holderId).toBe('host-b')
+      expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
       expectEpochsOrdered(events, lease.lease.epoch)
 
       hostB.kill('SIGKILL')
@@ -128,12 +128,12 @@ describe.skipIf(REDIS_URL === undefined)(
       const streamed = 'while i nodded nearly napping '.repeat(20)
 
       const hostA = await rig.spawnHost({
-        holderId: 'host-a',
+        label: 'host-a',
         daemonUrl: daemon.url,
         knobs: { drainMs: 800 },
         scripts: { [sessionId]: [{ text: streamed, streamMs: 15_000, gateFile }] },
       })
-      await rig.claim({ sessionId, holderId: 'host-a' })
+      await rig.claim({ sessionId, label: 'host-a' })
 
       writeFileSync(gateFile, 'open\n')
       await sleep(800)
@@ -141,7 +141,7 @@ describe.skipIf(REDIS_URL === undefined)(
       const before = await readEvents({ plane: rig.plane, threadId })
       expect(before.some((row) => row.type === 'assistant-said')).toBe(false)
       const leaseBefore = await rig.plane.currentLease({ sessionId })
-      expect(leaseBefore.lease.holderId).toBe('host-a')
+      expect(await rig.labelOf(leaseBefore.lease.holderHostId)).toBe('host-a')
 
       hostA.kill('SIGTERM')
       await hostA.exited
@@ -156,11 +156,11 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(partialText.length).toBeLessThan(streamed.length)
 
       const hostB = await rig.spawnHost({
-        holderId: 'host-b',
+        label: 'host-b',
         daemonUrl: daemon.url,
         scripts: { [sessionId]: [{ text: 'host b finished' }] },
       })
-      await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+      await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
 
       await rig
         .waitForSeq({
@@ -181,7 +181,7 @@ describe.skipIf(REDIS_URL === undefined)(
 
       const events = await readEvents({ plane: rig.plane, threadId })
       const lease = await rig.plane.currentLease({ sessionId })
-      expect(lease.lease.holderId).toBe('host-b')
+      expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
       expectEpochsOrdered(events, lease.lease.epoch)
     }, 60_000)
   },

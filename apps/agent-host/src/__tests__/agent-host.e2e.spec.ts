@@ -13,6 +13,7 @@ import {
   E2E_SECRET,
   isDoneResult,
   makeHolder,
+  makePresence,
   makeInMemoryBus,
   readAllEvents,
   waitForLease,
@@ -64,8 +65,9 @@ describe('agent-host e2e', () => {
   it('claims a woken session, runs the scripted tools, and records their results', async () => {
     const sessionId = 'e2e-session-1'
     const mainThreadId = await newSession({ sessionId, text: 'run the tools' })
+    const presence = makePresence({ url: testDb().url, label: 'host-a' })
     const holder = makeHolder({
-      holderId: 'host-a',
+      presence,
       plane,
       bus,
       sandbox,
@@ -135,8 +137,9 @@ describe('agent-host e2e', () => {
 
     const logA = new CollectingLog()
     const logB = new CollectingLog()
+    const presenceA = makePresence({ url: testDb().url, label: 'host-a' })
     const hostA = makeHolder({
-      holderId: 'host-a',
+      presence: presenceA,
       plane,
       bus,
       sandbox,
@@ -146,15 +149,16 @@ describe('agent-host e2e', () => {
     await hostA.start()
 
     await bus.wake(sessionId)
-    const leaseA = await waitForLease({ plane, sessionId, holderId: 'host-a' })
+    const leaseA = await waitForLease({ plane, sessionId, hostId: presenceA.hostId() })
     await waitForSeq({
       plane,
       threadId: mainThreadId,
       want: (rows) => rows.some((row) => row.type === 'tool-dispatched'),
     })
 
+    const presenceB = makePresence({ url: testDb().url, label: 'host-b' })
     const hostB = makeHolder({
-      holderId: 'host-b',
+      presence: presenceB,
       plane,
       bus,
       sandbox,
@@ -179,7 +183,7 @@ describe('agent-host e2e', () => {
       )
     })
     const leaseB = await plane.currentLease({ sessionId })
-    expect(leaseB.lease.holderId).toBe('host-b')
+    expect(leaseB.lease.holderHostId).toBe(presenceB.hostId())
     expect(leaseB.lease.epoch).toBeGreaterThan(leaseA.epoch)
     const dispatches = events.filter((row) => row.type === 'tool-dispatched')
     const results = events.filter((row) => row.type === 'tool-result')

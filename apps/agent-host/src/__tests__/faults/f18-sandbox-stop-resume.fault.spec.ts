@@ -47,7 +47,7 @@ describe.skipIf(REDIS_URL === undefined)(
       const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
       const hostA = await rig.spawnHost({
-        holderId: 'host-a',
+        label: 'host-a',
         daemonUrl: daemon.url,
         scripts: {
           [sessionId]: [
@@ -61,7 +61,7 @@ describe.skipIf(REDIS_URL === undefined)(
           ],
         },
       })
-      await rig.claim({ sessionId, holderId: 'host-a', timeoutMs: 30_000 })
+      await rig.claim({ sessionId, label: 'host-a', timeoutMs: 30_000 })
       await waitForFile({ path: startedFile, timeoutMs: 30_000 })
 
       const midTurn = await readEvents({ plane: rig.plane, threadId })
@@ -117,7 +117,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const lease = await rig.plane.currentLease({ sessionId })
-      expect(lease.lease.holderId).toBe('host-a')
+      expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-a')
       expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
     }, 90_000)
   },

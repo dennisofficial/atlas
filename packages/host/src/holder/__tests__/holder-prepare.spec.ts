@@ -17,7 +17,7 @@ const gate = (): Gate => {
 
 const seedLog = async (args: { rig: Awaited<ReturnType<typeof makeRig>>; bodies: V2Body[] }) => {
   const { rig } = args
-  const { epoch } = await rig.plane.grant({ sessionId: SESSION, holderId: 'seed', ttlMs: 1_000 })
+  const { epoch } = await rig.plane.grant({ sessionId: SESSION, hostId: 9001 })
   const outcome = await rig.plane.append({
     threadId: THREAD_ID,
     epoch,
@@ -165,7 +165,7 @@ describe('SessionHolder prepare', () => {
   })
 
   it('releases an idle session whose only message is covered by the failure, without polling', async () => {
-    const rig = await makeRig({ idleMinutes: 1, ttlMs: 300_000 })
+    const rig = await makeRig({ idleMinutes: 1 })
     await seedSession(rig)
     await rig.post('hello')
     await seedLog({

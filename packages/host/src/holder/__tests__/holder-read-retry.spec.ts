@@ -39,10 +39,9 @@ const makeClockedRig = async (args: {
   clock: FakeClock
 }> => {
   const clock = new FakeClock()
-  const plane = new ControlPlane({
-    store: new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() }),
-  })
-  const rig = await makeRig({ holderId: 'holder-a', clock, plane, script: args.script })
+  const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
+  const plane = new ControlPlane({ store })
+  const rig = await makeRig({ clock, plane, store, script: args.script })
   return { rig, plane, clock }
 }
 

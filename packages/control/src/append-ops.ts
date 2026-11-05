@@ -12,7 +12,6 @@ import { decodeVisibility, encodeVisibility, toStoredEvent } from './stored-even
 export const appendIn = async (params: {
   tx: ControlTx
   leases: LeaseOps
-  nowIn(tx: ControlTx): Promise<string>
   threadId: string
   epoch: number
   events: readonly unknown[]
@@ -22,26 +21,15 @@ export const appendIn = async (params: {
   const row = await tx.lockThread(params.threadId)
   if (row === undefined) throw new UnknownThreadError(params.threadId)
   const head: LogHead = { seq: row.headSeq, hash: row.headHash }
-  const refuse = (refusal: ControlRefusal): AppendOutcome => ({
-    ok: false,
-    refusal,
-    head,
-  })
-  const now = await params.nowIn(tx)
-  const lease = await params.leases.leaseOf({ tx, sessionId: row.sessionId, now })
+  const refuse = (refusal: ControlRefusal): AppendOutcome => ({ ok: false, refusal, head })
+  const lease = await params.leases.sharedLeaseOf({ tx, sessionId: row.sessionId })
   const parsed = parseAppendEvents({
     threadId: params.threadId,
     nextSeq: head.seq + 1,
     raw: params.events,
   })
   if (!parsed.ok) return refuse(parsed.refusal)
-  const accepted = acceptAppend({
-    head,
-    lease,
-    now,
-    epoch: params.epoch,
-    events: parsed.events,
-  })
+  const accepted = acceptAppend({ head, lease, epoch: params.epoch, events: parsed.events })
   if (!accepted.ok) return refuse(accepted.refusal)
 
   const blobs = params.blobs ?? []

@@ -2,20 +2,19 @@ import { toThreadId, type IdPort, type Lease } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { HostBus, HostTimers, SessionRuntimeFactory } from './ports'
+import type { HostBus, HostPresence, HostTimers, SessionRuntimeFactory } from './ports'
 import { HeldSession, type HeldSessionDeps } from './held-session'
+import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
 
 export type SessionHolderArgs = {
-  holderId: string
+  presence: HostPresence
   plane: ControlPlane
   bus: HostBus
   timers: HostTimers
   runtimes: SessionRuntimeFactory
   ids: IdPort
   maxSessions: number
-  ttlMs?: number | undefined
-  renewEveryMs?: number | undefined
-  fenceMarginMs?: number | undefined
+  appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
   log?: LogPort | undefined
 }
@@ -24,23 +23,20 @@ const RESYNC_RETRY_BASE_MS = 250
 const RESYNC_RETRY_CAP_MS = 5_000
 
 const DEFAULTS = {
-  ttlMs: 30_000,
-  renewEveryMs: 5_000,
-  fenceMarginMs: 5_000,
+  appendRetryMs: DEFAULT_APPEND_RETRY_MS,
   idleMinutes: 30,
 } as const
 
 export class SessionHolder {
-  private readonly holderId: string
+  private readonly presence: HostPresence
+  private hostId: number | undefined
   private readonly plane: ControlPlane
   private readonly bus: HostBus
   private readonly timers: HostTimers
   private readonly runtimes: SessionRuntimeFactory
   private readonly ids: IdPort
   private readonly maxSessions: number
-  private readonly ttlMs: number
-  private readonly renewEveryMs: number
-  private readonly fenceMarginMs: number
+  private readonly appendRetryMs: number
   private readonly idleMinutes: number
   private readonly log: LogPort | undefined
 
@@ -53,21 +49,20 @@ export class SessionHolder {
   private draining = false
 
   constructor(args: SessionHolderArgs) {
-    this.holderId = args.holderId
+    this.presence = args.presence
     this.plane = args.plane
     this.bus = args.bus
     this.timers = args.timers
     this.runtimes = args.runtimes
     this.ids = args.ids
     this.maxSessions = args.maxSessions
-    this.ttlMs = args.ttlMs ?? DEFAULTS.ttlMs
-    this.renewEveryMs = args.renewEveryMs ?? DEFAULTS.renewEveryMs
-    this.fenceMarginMs = args.fenceMarginMs ?? DEFAULTS.fenceMarginMs
+    this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.log = args.log
   }
 
   async start(): Promise<void> {
+    this.hostId = await this.presence.register()
     this.unsubWake = this.bus.onWake((sessionId) => {
       this.onWake(sessionId)
     })
@@ -162,11 +157,8 @@ export class SessionHolder {
   private async claimAndHold(sessionId: string): Promise<void> {
     try {
       const claimStartedAt = this.timers.now()
-      const claim = await this.plane.claim({
-        sessionId,
-        holderId: this.holderId,
-        ttlMs: this.ttlMs,
-      })
+      if (this.hostId === undefined) return
+      const claim = await this.plane.claim({ sessionId, hostId: this.hostId })
       if (!claim.ok) return
       if (this.draining) {
         await this.plane
@@ -223,14 +215,11 @@ export class SessionHolder {
   private deps(args: { sessionId: string; onDrop?: (() => void) | undefined }): HeldSessionDeps {
     return {
       sessionId: args.sessionId,
-      holderId: this.holderId,
       plane: this.plane,
       bus: this.bus,
       timers: this.timers,
       ids: this.ids,
-      ttlMs: this.ttlMs,
-      renewEveryMs: this.renewEveryMs,
-      fenceMarginMs: this.fenceMarginMs,
+      appendRetryMs: this.appendRetryMs,
       idleMinutes: this.idleMinutes,
       runtimeFor: this.runtimes,
       ...(args.onDrop === undefined ? {} : { onDrop: args.onDrop }),

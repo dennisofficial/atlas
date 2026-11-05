@@ -24,9 +24,9 @@ class FakeProjectAccess extends ProjectAccess {
 
 describe('SessionsService', () => {
   const setup = () => {
-    const plane = new ControlPlane({
-      store: new InMemoryControlStore({ clock: () => NOW }),
-    })
+    const store = new InMemoryControlStore({ clock: () => NOW })
+    store.markHostPresent(9001)
+    const plane = new ControlPlane({ store })
     const service = new SessionsService(plane, new FakeProjectAccess())
     return { plane, service }
   }
@@ -89,8 +89,7 @@ describe('SessionsService', () => {
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     const seeded = await plane.grant({
       sessionId: created.sessionId,
-      holderId: 'host-0',
-      ttlMs: 30_000,
+      hostId: 9000,
     })
     const prepared = await plane.append({
       threadId: created.mainThreadId,
@@ -113,8 +112,7 @@ describe('SessionsService', () => {
 
     const granted = await plane.grant({
       sessionId: created.sessionId,
-      holderId: 'host-1',
-      ttlMs: 30_000,
+      hostId: 9001,
     })
     const bodies: V2Body[] = [
       { type: 'input-consumed', inboxId: 1 },
@@ -136,7 +134,7 @@ describe('SessionsService', () => {
 
     const thinking = await service.status({ userId: 'user-a', sessionId: created.sessionId })
     expect(thinking.state).toBe(ESessionStatus.Thinking)
-    expect(thinking.lease).toEqual({ epoch: granted.epoch, holderId: 'host-1', live: true })
+    expect(thinking.lease).toEqual({ epoch: granted.epoch, holderHostId: 9001, live: true })
 
     const events = await service.events({ userId: 'user-a', sessionId: created.sessionId })
     expect(events.events).toHaveLength(3)
@@ -148,8 +146,7 @@ describe('SessionsService', () => {
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     const granted = await plane.grant({
       sessionId: created.sessionId,
-      holderId: 'host-1',
-      ttlMs: 30_000,
+      hostId: 9001,
     })
     const bodies: V2Body[] = [
       ...Array.from({ length: 1000 }, (): V2Body => ({ type: 'user-said', text: 'filler' })),
@@ -176,8 +173,7 @@ describe('SessionsService', () => {
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     const granted = await plane.grant({
       sessionId: created.sessionId,
-      holderId: 'host-1',
-      ttlMs: 30_000,
+      hostId: 9001,
     })
     const bodies: V2Body[] = Array.from({ length: 20 }, (_, i) => ({
       type: 'user-said',
@@ -219,8 +215,7 @@ describe('SessionsService', () => {
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     const granted = await plane.grant({
       sessionId: created.sessionId,
-      holderId: 'host-1',
-      ttlMs: 30_000,
+      hostId: 9001,
     })
     const appended = await plane.append({
       threadId: created.mainThreadId,
@@ -267,8 +262,7 @@ describe('SessionsService', () => {
     }
     const granted = await plane.grant({
       sessionId: created.sessionId,
-      holderId: 'host-1',
-      ttlMs: 30_000,
+      hostId: 9001,
     })
     const appended = await plane.append({
       threadId: created.mainThreadId,

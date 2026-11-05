@@ -21,7 +21,6 @@ import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
 import { TakeOver } from './held-takeover'
-import { LeaseRenewal } from './lease-renewal'
 
 export type { HeldSessionDeps }
 
@@ -39,7 +38,6 @@ export class HeldSession {
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
   private branches: BranchObserver | undefined
-  private renewal: LeaseRenewal | undefined
   private reconciler: Reconciler | undefined
   private finishDrive: (() => void) | undefined
   private readonly idle: IdleDeadline
@@ -115,16 +113,13 @@ export class HeldSession {
     const { lease, threadId } = args
     const deps = this.deps
     deps.bus.live({ sessionId: deps.sessionId, frame: statusFrame({ state: 'starting' }) })
-    const renewal = new LeaseRenewal(deps, { epoch: lease.epoch, onLost: () => this.drop() })
-    this.renewal = renewal
-    renewal.schedule()
     try {
       this.takeOver = new TakeOver(deps, args.claimMs ?? 0)
       const { runtime, record } = await this.takeOver.open({
         threadId,
         epoch: lease.epoch,
         signal: this.lifetimeAbort.signal,
-        retryUntil: () => renewal.appendDeadline(this.drainDeadline),
+        drainDeadline: () => this.drainDeadline,
         onLeaseLost: () => this.drop(),
         onRuntime: (opened) => {
           this.runtime = opened
@@ -283,7 +278,6 @@ export class HeldSession {
   }
 
   private async teardown(): Promise<void> {
-    this.renewal?.stop()
     this.branches?.stop()
     await teardownHeldSession({
       deps: this.deps,

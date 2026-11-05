@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'90a3934f5cbc3a945710f8efd4dea6beaa9df0440ddd84f4888e89b711a00e4d'>;
+  StorageHashBase<'f35adc786c78bd210a084bb4842db0ff8a17a5d01ac78ff2cbac99e9cd3fe642'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1123,10 +1123,8 @@ export namespace Models {
   };
   export type v2_V2Lease = {
     epoch: FieldOutputTypes['v2']['V2Lease']['epoch'];
-    holderId: FieldOutputTypes['v2']['V2Lease']['holderId'];
-    renewedAt: FieldOutputTypes['v2']['V2Lease']['renewedAt'];
+    holderHostId: FieldOutputTypes['v2']['V2Lease']['holderHostId'];
     sessionId: FieldOutputTypes['v2']['V2Lease']['sessionId'];
-    ttlMs: FieldOutputTypes['v2']['V2Lease']['ttlMs'];
     wantsHolder: FieldOutputTypes['v2']['V2Lease']['wantsHolder'];
     session: v2_V2Session;
     readonly [RelationKeys]?: 'session';
@@ -6230,28 +6228,15 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
-                readonly holderId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                readonly holderHostId: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly renewedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly sessionId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly ttlMs: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
                   readonly nullable: false;
                   readonly many: false;
                 };
@@ -11493,25 +11478,13 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
-              readonly holderId: {
+              readonly holderHostId: {
                 readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly renewedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
               readonly sessionId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly ttlMs: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
               readonly wantsHolder: {
                 readonly nullable: false;
@@ -11537,10 +11510,8 @@ type ContractBase = Omit<
               readonly namespaceId: 'v2';
               readonly fields: {
                 readonly epoch: { readonly column: 'epoch' };
-                readonly holderId: { readonly column: 'holderId' };
-                readonly renewedAt: { readonly column: 'renewedAt' };
+                readonly holderHostId: { readonly column: 'holderHostId' };
                 readonly sessionId: { readonly column: 'sessionId' };
-                readonly ttlMs: { readonly column: 'ttlMs' };
                 readonly wantsHolder: { readonly column: 'wantsHolder' };
               };
             };

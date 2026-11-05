@@ -6,7 +6,7 @@ import { SessionRecord } from '../record/record-adapter'
 
 describe('SessionHolder OnceLedger', () => {
   it('a retry deadline recorded by A is read back by B', async () => {
-    const a = await makeRig({ holderId: 'holder-a' })
+    const a = await makeRig({})
     await seedSession(a)
     await a.holder.start()
     await postAndRun(a, 'hello')
@@ -47,8 +47,8 @@ describe('SessionHolder OnceLedger', () => {
     await drain
 
     const b = await makeRig({
-      holderId: 'holder-b',
       plane: a.plane,
+      store: a.store,
       bus: a.bus,
       clock: a.clock,
       daemon: a.daemon,

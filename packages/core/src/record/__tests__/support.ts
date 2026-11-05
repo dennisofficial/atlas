@@ -11,9 +11,7 @@ export const NOW = '2026-11-02T12:00:00.000Z'
 export const lease = (overrides: Partial<Lease> = {}): Lease => ({
   sessionId: 'session-1',
   epoch: 3,
-  holderId: 'pod-a',
-  renewedAt: NOW,
-  ttlMs: 30_000,
+  holderHostId: 7,
   wantsHolder: false,
   ...overrides,
 })

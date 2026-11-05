@@ -53,7 +53,6 @@ const main = async (): Promise<void> => {
     store: new OauthConnectionStore(createDb(pool)),
     cipher,
   })
-  const holder = composeAgentHost({ env, plane, bus, sandbox, config, tokens, github, log })
   const presence = createPgHostPresence({
     url: databaseUrlWithTls(env.databaseDirectUrl),
     label: `${hostname()}-${process.pid}`,
@@ -62,8 +61,17 @@ const main = async (): Promise<void> => {
   presence.onLost((hostId) => {
     log.error({ source: 'presence', message: 'presence lost', data: { hostId } })
   })
-  const hostId = await presence.register()
-  log.info({ source: 'presence', message: 'presence registered', data: { hostId } })
+  const holder = composeAgentHost({
+    env,
+    plane,
+    bus,
+    sandbox,
+    config,
+    tokens,
+    github,
+    presence,
+    log,
+  })
   await holder.start()
   log.info({ source: 'main', message: 'agent-host started' })
 

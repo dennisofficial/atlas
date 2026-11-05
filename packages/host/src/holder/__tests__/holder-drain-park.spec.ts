@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { flushUntil, makeRig, seedSession, SESSION, type HolderRig } from './holder-rig'
 
 const idleRig = async (): Promise<HolderRig> => {
-  const a = await makeRig({ holderId: 'holder-a' })
+  const a = await makeRig({})
   await seedSession(a)
   await a.holder.start()
   await a.post('hello')
@@ -17,8 +17,8 @@ const idleRig = async (): Promise<HolderRig> => {
 
 const makeB = (a: HolderRig): Promise<HolderRig> =>
   makeRig({
-    holderId: 'holder-b',
     plane: a.plane,
+    store: a.store,
     bus: a.bus,
     clock: a.clock,
     daemon: a.daemon,
@@ -36,7 +36,7 @@ describe('SessionHolder drain of an idle session', () => {
     await a.flush()
 
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
-    expect(lease.holderId).toBeNull()
+    expect(lease.holderHostId).toBeNull()
     expect(lease.wantsHolder).toBe(false)
     expect(a.wakeCount(SESSION)).toBe(wakesBefore)
     expect(b.holder.heldIds().length).toBe(0)

@@ -21,7 +21,7 @@ import type {
 } from '@dltech/atlas-protocol'
 import { ProjectAccess } from './project-access'
 
-export type LeaseView = { epoch: number; holderId: string | null; live: boolean }
+export type LeaseView = { epoch: number; holderHostId: number | null; live: boolean }
 
 const STATUS_EVENT_LIMIT = 1000
 const EVENTS_DEFAULT_MAX_BYTES = 2_000_000
@@ -174,7 +174,7 @@ export class SessionsService {
       state: current.state,
       ...(current.reason === undefined ? {} : { reason: current.reason }),
       ...(current.since === undefined ? {} : { since: current.since }),
-      lease: { epoch: lease.epoch, holderId: lease.holderId, live },
+      lease: { epoch: lease.epoch, holderHostId: lease.holderHostId, live },
     }
   }
 

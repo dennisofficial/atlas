@@ -31,7 +31,7 @@ describe.skipIf(REDIS_URL === undefined)('F13 SIGKILL between tool-dispatched an
 
     daemon.proxy.set({ latencyMs: 2_000 })
     const hostA = await rig.spawnHost({
-      holderId: 'host-a',
+      label: 'host-a',
       daemonUrl: daemon.url,
       scripts: {
         [sessionId]: [
@@ -42,7 +42,7 @@ describe.skipIf(REDIS_URL === undefined)('F13 SIGKILL between tool-dispatched an
         ],
       },
     })
-    await rig.claim({ sessionId, holderId: 'host-a', timeoutMs: 30_000 })
+    await rig.claim({ sessionId, label: 'host-a', timeoutMs: 30_000 })
     await rig
       .waitForSeq({
         threadId,
@@ -68,11 +68,11 @@ describe.skipIf(REDIS_URL === undefined)('F13 SIGKILL between tool-dispatched an
     daemon.proxy.clear()
 
     const hostB = await rig.spawnHost({
-      holderId: 'host-b',
+      label: 'host-b',
       daemonUrl: daemon.url,
       scripts: { [sessionId]: [{ text: 'host b finished' }] },
     })
-    await rig.claim({ sessionId, holderId: 'host-b', timeoutMs: 20_000 })
+    await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
 
     const events = await rig
       .waitForSeq({
@@ -101,6 +101,6 @@ describe.skipIf(REDIS_URL === undefined)('F13 SIGKILL between tool-dispatched an
     expect(runs).toEqual(['run'])
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(lease.lease.holderId).toBe('host-b')
+    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
   }, 60_000)
 })

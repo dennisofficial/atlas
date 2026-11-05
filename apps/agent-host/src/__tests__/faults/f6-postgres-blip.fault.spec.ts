@@ -29,7 +29,7 @@ describe.skipIf(REDIS_URL === undefined)(
       await rig.stop()
     })
 
-    it('retries appends and renewals inside the TTL and completes on the same lease', async () => {
+    it('retries appends inside the retry budget and completes on the same lease', async () => {
       const sessionId = 'fault-f6-1'
       const threadId = await rig.newSession({ sessionId, text: 'gated bash' })
       const daemon = await rig.spawnDaemonFor({ sessionId })
@@ -40,7 +40,7 @@ describe.skipIf(REDIS_URL === undefined)(
       const bash = `touch ${startedFile}; echo run >> ${runsFile}; cat ${gateFifo}; echo done`
 
       const hostA = await rig.spawnHost({
-        holderId: 'host-a',
+        label: 'host-a',
         daemonUrl: daemon.url,
         scripts: {
           [sessionId]: [
@@ -53,7 +53,7 @@ describe.skipIf(REDIS_URL === undefined)(
           ],
         },
       })
-      await rig.claim({ sessionId, holderId: 'host-a' })
+      await rig.claim({ sessionId, label: 'host-a' })
       await rig.waitForSeq({
         threadId,
         want: (rows) =>
@@ -62,7 +62,7 @@ describe.skipIf(REDIS_URL === undefined)(
       })
       await waitForFile({ path: startedFile })
       const leaseBefore = await rig.plane.currentLease({ sessionId })
-      expect(leaseBefore.lease.holderId).toBe('host-a')
+      expect(await rig.labelOf(leaseBefore.lease.holderHostId)).toBe('host-a')
 
       rig.dbProxy.set({ refuse: true })
       writeFileSync(gateFifo, 'go\n')
@@ -104,14 +104,9 @@ describe.skipIf(REDIS_URL === undefined)(
       const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
       expect(runs).toEqual(['run'])
 
-      const renewFailures = hostA
-        .logs()
-        .filter((line) => line.includes('renewing') && line.includes('failed'))
-      expect(renewFailures.length).toBeGreaterThan(0)
-
       const leaseAfter = await rig.plane.currentLease({ sessionId })
       expect(leaseAfter.live).toBe(true)
-      expect(leaseAfter.lease.holderId).toBe('host-a')
+      expect(await rig.labelOf(leaseAfter.lease.holderHostId)).toBe('host-a')
       expect(leaseAfter.lease.epoch).toBe(leaseBefore.lease.epoch)
 
       const epochs = events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
