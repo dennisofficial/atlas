@@ -22,7 +22,7 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 ## Current state
 
-_Updated at the end of every slice. Last update: 2026-11-04._
+_Updated at the end of every slice. Last update: 2026-11-05._
 - **Done:** slice 0 (design). Decision 0018 accepted, 0019 (package map) proposed; D6 storage verified (Prisma 8
   `namespace v2`); research censuses refreshed to `a0bf4110`.
 - **Done:** slice 1, record core ([spec](slices/01-record-core.md)). Pure rules in
@@ -69,9 +69,16 @@ _Updated at the end of every slice. Last update: 2026-11-04._
     3.0 s (claim and config), the model ran while the sandbox resumed, its first bash call waited
     2.8 s for the daemon and took 0.23 s, and the reply came 8.9 s after posting. The first parked
     measurement, 9.0 s to `user-said`, had exposed a turn waiting for the sandbox (#1841).
-  - **Left:** the live exit tests 8 (append p99), 9 (hog) and 10 (20k events), and the starred fault
-    rows on Render. F9 is now "Redis down: unaffected", since no wake path uses Redis. Continue from
-    [handoffs/slice-4.md](handoffs/slice-4.md).
+  - **Live exit tests (2026-11-05, production, two Render instances):**
+    [research/slice-3/live-exit-tests.md](research/slice-3/live-exit-tests.md). Pass: 8 (append p99 237 ms),
+    10 (claim 118 ms and first step 2.7 s at 20k events), F10, F11, F19, F21, and a deploy mid-turn with a
+    stream client (going-away, close 1001, resume by cursor, no gap or duplicate). Under the hog the daemon
+    answered in ≤ 1 ms and a stop landed in about 220 ms.
+  - **Left before the slice is done:** an OOM kill shows only as `Exit code: 1` (test 9); a SIGTERM drain
+    exits 1 after 5 s without handing off (F12); a sandbox stopped under a live holder is never re-woken and
+    the interrupted call re-runs (F18); keep-alive never renews a sandbox; status stays `thinking` after the
+    reply when a record-only event follows. Fix them, then rerun 9, F12 and F18 live. F9 is now "Redis down:
+    unaffected", since no wake path uses Redis. Continue from [handoffs/slice-4.md](handoffs/slice-4.md).
 - **Decided 2026-11-04, slice 3:** wakes move from Redis pub/sub to Postgres `LISTEN`/`NOTIFY`
   ([0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md) amended); the agent host polls nothing,
   and one reactive reconcile loop per held session replaces the inbox, stop and idle polls; a session is
