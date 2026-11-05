@@ -1,8 +1,8 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it, vi } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prEventRows } from '../../../../test/github-seed'
 import { localObservations } from './github-observation.fixture'
-import { stubGlobal } from '@dltech/bun-test-shims'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -63,6 +63,8 @@ describe('GithubSubscriptionsService subscribe catch-up', () => {
     vi.useRealTimers()
     await ensureUsers('usr_1')
   })
+
+  afterEach(() => unstubAllGlobals())
 
   it('announces the current settled verdict once on first subscribe', async () => {
     const service = serviceWith({})
