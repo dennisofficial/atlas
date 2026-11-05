@@ -8,6 +8,7 @@ import {
   SandboxUnavailableError,
   callLostAcrossBoot,
 } from './errors'
+import { scopeDispatchedBootId } from './call-scope'
 import { DaemonLink } from './link'
 import {
   failedResult,
@@ -109,6 +110,7 @@ export class RemoteCallsState {
     onOutput?: ((bytes: Uint8Array) => void) | undefined
     dispatchedBootId?: string | undefined
   }): Promise<CallResult> {
+    const dispatchedBootId = args.dispatchedBootId ?? scopeDispatchedBootId()
     if (this.fenced) throw new FencedError(`session ${this.args.sessionId} lost its lease`)
     if (this.availability !== null) throw this.availability
     if (this.closed) {
@@ -147,7 +149,7 @@ export class RemoteCallsState {
     if (
       callLostAcrossBoot({
         op: call.op.op,
-        dispatchedBootId: args.dispatchedBootId,
+        dispatchedBootId,
         currentBootId: this.linkBootId,
       })
     ) {

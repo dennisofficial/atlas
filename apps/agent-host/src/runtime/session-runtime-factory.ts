@@ -6,8 +6,6 @@ import {
   DaemonFileSystemPort,
   DaemonProcessPort,
   RemoteCalls,
-  SandboxUnavailableError,
-  webSocketConnector,
   type HostTimers,
   type PrepareResult,
   type SessionRuntimeFactory,
@@ -22,7 +20,8 @@ import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { ConfigSource } from '../config/agent-host-config'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { WORKSPACE_PATH } from '../sandbox/constants'
-import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
+import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
+import { rewakingConnector } from './rewaking-connector'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
 import { daemonToolsOf } from './tools'
@@ -69,7 +68,9 @@ export const createSessionRuntimeFactory = (
       teamId: config.vercel.teamId,
       projectId: config.vercel.projectId,
     }
-    const endpoint = args.sandbox.wake({ sessionId, credentials, signal })
+    const wake = (): Promise<DaemonEndpoint> =>
+      args.sandbox.wake({ sessionId, credentials, signal })
+    const endpoint = wake()
     endpoint.catch((error: unknown) => {
       args.log?.error({
         source: 'runtime.wake',
@@ -80,14 +81,7 @@ export const createSessionRuntimeFactory = (
     const calls = new RemoteCalls({
       sessionId,
       token: daemonToken({ secret: args.daemonSecret, sandboxName: sandboxNameOf(sessionId) }),
-      connector: async () => {
-        try {
-          return webSocketConnector({ url: (await endpoint).url })
-        } catch (error) {
-          const reason = error instanceof Error ? error.message : String(error)
-          throw new SandboxUnavailableError(`sandbox wake for ${sessionId} failed: ${reason}`)
-        }
-      },
+      connector: rewakingConnector({ sessionId, first: endpoint, wake, signal }),
       timers: args.timers,
       onFenced: () => {},
       ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),

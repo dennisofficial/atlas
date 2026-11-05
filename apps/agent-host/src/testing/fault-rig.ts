@@ -63,6 +63,7 @@ export type FaultRig = {
     label: string
     daemonUrl: string
     daemonUrls?: Record<string, string>
+    daemonUrlFile?: string
     scripts: Record<string, ScriptedModelStep[]>
     knobs?: HostKnobs
     dbProxy?: 'shared' | 'own'
@@ -199,6 +200,7 @@ export const startRig = async (args: {
       label,
       daemonUrl,
       daemonUrls,
+      daemonUrlFile,
       scripts,
       knobs,
       dbProxy: dbProxyMode,
@@ -249,6 +251,7 @@ export const startRig = async (args: {
             label,
             daemonUrl: ownDaemon?.url ?? daemonUrl,
             daemonUrls,
+            daemonUrlFile,
             scriptFile,
             workspace,
             knobs,

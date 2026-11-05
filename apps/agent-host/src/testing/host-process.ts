@@ -131,6 +131,7 @@ const main = async (): Promise<void> => {
     url: daemonUrl,
     daemonSecret,
     urls: daemonUrls(),
+    urlFile: process.env.DAEMON_URL_FILE,
   })
   const pgPresence = createPgHostPresence({
     url: requireEnv('PRESENCE_DATABASE_URL'),
