@@ -20,7 +20,6 @@
         "@ai-sdk/anthropic": "^4.0.87",
         "@ai-sdk/provider": "4.0.33",
         "@dltech/atlas-agent": "workspace:*",
-        "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
@@ -180,6 +179,13 @@
         "@types/bun": "latest",
         "@types/react": "~19.3.0",
         "typescript": "~6.0.3",
+      },
+    },
+    "apps/preview-worker": {
+      "name": "@dltech/atlas-preview-worker",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/bun": "latest",
       },
     },
     "apps/prototype": {
@@ -1110,6 +1116,8 @@
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
 
     "@dltech/atlas-observability": ["@dltech/atlas-observability@workspace:packages/observability"],
+
+    "@dltech/atlas-preview-worker": ["@dltech/atlas-preview-worker@workspace:apps/preview-worker"],
 
     "@dltech/atlas-protocol": ["@dltech/atlas-protocol@workspace:packages/protocol"],
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { EPreviewStatus } from '@dltech/atlas-ui/ai/preview-frame'
+import { EPreviewStatus } from '@dltech/atlas-ui/ai/preview-browser'
 import { EServiceStatus, type RosterWire, type ServiceSnapshotWire } from '@dltech/atlas-wire/web'
 
 import { livePreviewCount, previewPortsOf } from '../preview-ports'

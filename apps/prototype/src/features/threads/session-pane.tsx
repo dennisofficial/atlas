@@ -37,7 +37,6 @@ export interface SessionPaneProps {
   initialDetailId?: string
   initialQueue: QueuedMessageEntry[]
   initialTerminalConnection?: ETerminalConnection
-  initialPreviewId?: string
   pod?: PodPanelState
   renderTranscript?: (api: { onOpenFile: (path: string) => void }) => ReactNode
   composer?: ReactNode
@@ -53,7 +52,6 @@ export function SessionPane({
   initialDetailId,
   initialQueue,
   initialTerminalConnection,
-  initialPreviewId,
   pod,
   renderTranscript,
   composer,
@@ -136,7 +134,6 @@ export function SessionPane({
             expanded={expanded}
             onExpandedChange={setExpanded}
             initialTerminalConnection={initialTerminalConnection}
-            initialPreviewId={initialPreviewId}
             pod={pod}
             agents={panelAgents}
             teammates={teammateRowsOf(teammates)}

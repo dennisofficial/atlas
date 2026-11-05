@@ -21,7 +21,6 @@ export interface SessionViewProps {
   initialDetailId?: string
   initialQueue?: QueuedMessageEntry[]
   initialTerminalConnection?: ETerminalConnection
-  initialPreviewId?: string
   header?: Pick<SessionHeaderProps, 'title' | 'detail' | 'badgeLabel'>
   pod?: PodPanelState
   renderTranscript?: (api: { onOpenFile: (path: string) => void }) => ReactNode
@@ -35,7 +34,6 @@ export function SessionView({
   initialDetailId,
   initialQueue = [],
   initialTerminalConnection,
-  initialPreviewId,
   header,
   pod,
   renderTranscript,
@@ -66,7 +64,6 @@ export function SessionView({
         initialDetailId={initialDetailId}
         initialQueue={teammate ? [] : initialQueue}
         initialTerminalConnection={initialTerminalConnection}
-        initialPreviewId={initialPreviewId}
         pod={pod}
         renderTranscript={renderTranscript}
         composer={composer}

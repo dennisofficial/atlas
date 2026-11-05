@@ -2,7 +2,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
-import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
+import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import type { DeclaredServicesViewWire } from '@dltech/atlas-wire/web'
 
 import type { DeclaredServicesData } from '../../data/use-declared-services'

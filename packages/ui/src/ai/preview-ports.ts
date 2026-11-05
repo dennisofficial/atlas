@@ -18,13 +18,3 @@ export const PREVIEW_STATUS_LABEL: Record<EPreviewStatus, string> = {
   [EPreviewStatus.Starting]: 'Starting',
   [EPreviewStatus.Stopped]: 'Stopped',
 }
-
-export function selectedPortOf({
-  ports,
-  selectedId,
-}: {
-  ports: PreviewPort[]
-  selectedId?: string
-}): PreviewPort | undefined {
-  return ports.find((port) => port.id === selectedId) ?? ports[0]
-}

@@ -1,10 +1,7 @@
 import type { ERightTab } from './right-tab'
 
-export type RememberedPreview = { id: string; src: string | undefined }
-
 export type ThreadPanelMemory = {
   tab?: ERightTab
-  preview?: RememberedPreview
   openFolders?: string[]
 }
 

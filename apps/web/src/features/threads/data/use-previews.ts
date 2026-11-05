@@ -1,31 +1,24 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 
-import { selectedPortOf, type PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
+import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
-import {
-  recallThreadPanel,
-  rememberThreadPanel,
-  type RememberedPreview,
-} from '../panel/thread-panel-memory'
-import { previewPortsOf, type PreviewLinkRoute } from './preview-ports'
+import { openUrlIn } from './preview-browser/open-in-browser'
+import { usePreviewBrowser } from './preview-browser/use-preview-browser'
+import { previewPortsOf } from './preview-ports'
 import type { RosterChannel } from './roster-source'
 import { useRoster } from './use-roster'
 
 export type PreviewsState = {
   ports: PreviewPort[]
-  selectedId: string | undefined
-  src: string | undefined
-  select: (id: string) => void
-  openUrl: (route: PreviewLinkRoute) => void
+  loaded: boolean
+  openUrl: (url: string) => void
 }
 
 export const EMPTY_PREVIEWS: PreviewsState = {
   ports: [],
-  selectedId: undefined,
-  src: undefined,
-  select: () => undefined,
+  loaded: false,
   openUrl: () => undefined,
 }
 
@@ -36,18 +29,10 @@ export function usePreviews(args: {
   const { channel, threadId } = args
   const roster = useRoster(channel)
   const ports = useMemo(() => previewPortsOf(roster), [roster])
-  const [chosen, setChosen] = useState<RememberedPreview | undefined>(
-    () => recallThreadPanel(threadId).preview,
-  )
-  useEffect(() => {
-    if (chosen !== undefined) rememberThreadPanel({ threadId, patch: { preview: chosen } })
-  }, [threadId, chosen])
-  const selectedId = selectedPortOf({ ports, selectedId: chosen?.id })?.id
-  const select = useCallback((id: string) => setChosen({ id, src: undefined }), [])
+  const { update } = usePreviewBrowser(threadId)
   const openUrl = useCallback(
-    (route: PreviewLinkRoute) => setChosen({ id: route.portId, src: route.url }),
-    [],
+    (url: string) => update(({ state, now }) => openUrlIn({ state, url, now })),
+    [update],
   )
-  const src = chosen?.id === selectedId ? chosen?.src : undefined
-  return { ports, selectedId, src, select, openUrl }
+  return { ports, loaded: roster !== null, openUrl }
 }

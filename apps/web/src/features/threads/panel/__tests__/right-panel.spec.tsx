@@ -85,8 +85,8 @@ describe('RightPanel', () => {
     expect(html).toContain('Resume pod')
   })
 
-  it('shows the empty state on the Preview tab when nothing is exposed', () => {
-    expect(render({ tab: ERightTab.Preview })).toContain('Nothing to preview')
+  it('opens the Preview tab on a new tab when nothing is exposed', () => {
+    expect(render({ tab: ERightTab.Preview })).toContain('No ports are exposed yet.')
   })
 })
 

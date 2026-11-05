@@ -19,7 +19,7 @@ export function TranscriptMarkdown(props: Omit<MessageResponseProps, 'onLinkClic
       const route = previewLinkRouteOf({ href, ports, click: event })
       if (route === null) return
       event.preventDefault()
-      openUrl(route)
+      openUrl(route.url)
     },
     [],
   )

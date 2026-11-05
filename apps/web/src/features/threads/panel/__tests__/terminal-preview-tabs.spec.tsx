@@ -62,9 +62,12 @@ describe('TerminalTab', () => {
 })
 
 describe('PreviewTab', () => {
-  it('shows the empty state when nothing is exposed', () => {
-    const data = { ports: [], selectedId: undefined, select: () => undefined }
+  it('opens on a new tab listing no ports when nothing is exposed', () => {
+    const data = { ports: [], loaded: true, openUrl: () => undefined }
     const html = render({ pod: null, body: <PreviewTab data={data} /> })
-    expect(html).toContain('Nothing to preview')
+    expect(html).toContain('aria-label="Preview tabs"')
+    expect(html).toContain('New tab')
+    expect(html).toContain('No ports are exposed yet.')
+    expect(html).not.toContain('<iframe')
   })
 })
