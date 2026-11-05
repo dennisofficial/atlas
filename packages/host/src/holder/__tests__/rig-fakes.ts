@@ -44,6 +44,10 @@ export class FakeClock implements HostTimers {
     this.current = target
   }
 
+  pendingCount(): number {
+    return this.timers.size
+  }
+
   pendingWithin(ms: number): boolean {
     return [...this.timers.values()].some((timer) => timer.at <= this.current + ms)
   }

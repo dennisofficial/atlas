@@ -13,6 +13,7 @@ export type HostBus = {
 export type HostPresence = {
   register(): Promise<number>
   onLost(listener: (hostId: number) => void): () => void
+  abandon(hostId: number): Promise<void>
   close(): Promise<void>
 }
 

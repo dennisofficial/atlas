@@ -96,7 +96,7 @@ export class HeldSession {
 
   discard(): void {
     this.beginDrain()
-    this.drop()
+    this.loseLease()
   }
 
   async handoff(args: { deadline: number }): Promise<void> {
@@ -124,12 +124,13 @@ export class HeldSession {
         epoch: lease.epoch,
         signal: this.lifetimeAbort.signal,
         drainDeadline: () => this.drainDeadline,
-        onLeaseLost: () => this.drop(),
+        onLeaseLost: () => this.loseLease(),
         onRuntime: (opened) => {
           this.runtime = opened
         },
       })
       this.record = record
+      if (this.lostOwnership) return record.fence()
       if (this.draining) record.markDraining()
 
       const { runner, branches } = wireHeldLoop({
@@ -257,12 +258,12 @@ export class HeldSession {
       epoch: this.leaseEpoch,
       end: () => end(runtime),
       record,
-      drop: () => this.drop(),
+      drop: () => this.loseLease(),
       finish: () => this.finish(),
     })
   }
 
-  private drop(): void {
+  loseLease(): void {
     if (this.lostOwnership) return
     this.lostOwnership = true
     this.branches?.stop()

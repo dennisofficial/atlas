@@ -43,6 +43,7 @@ export type SessionRecordArgs = {
   appendRetryMs?: number | undefined
   drainDeadline?: (() => number | undefined) | undefined
   onLeaseLost?: ((error: LeaseLostError) => void) | undefined
+  onAppendExhausted?: (() => void) | undefined
   log?: LogPort | undefined
   nowIso(): string
 }
@@ -278,6 +279,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       this.args.log?.warn({ source: 'holder.append', message: 'append retry exhausted' })
     }
     this.args.onLeaseLost?.(lost)
+    if (lost.refusal === 'retry-exhausted') this.args.onAppendExhausted?.()
     throw lost
   }
 

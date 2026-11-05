@@ -44,28 +44,19 @@ describe('SessionHolder releases what it cannot run', () => {
       check: async () => (await a.events()).some((event) => event.type === 'assistant-said'),
     })
     expect(answered).toBe(true)
+    await a.flush()
 
-    a.presence.lose()
-    a.clock.advance(6_000)
-    const b = await makeRig({
-      plane: a.plane,
-      store: a.store,
-      bus: a.bus,
-      clock: a.clock,
-      daemon: a.daemon,
-      idleMinutes: 30,
-    })
-    await b.holder.start()
-    await a.bus.wake(SESSION)
-    expect(await flushUntil({ check: () => b.holder.heldIds().length === 1 })).toBe(true)
+    const thief = a.store.nextHostId()
+    a.store.markHostPresent(thief)
+    await a.plane.grant({ sessionId: SESSION, hostId: thief })
     const successor = await a.plane.currentLease({ sessionId: SESSION })
 
-    a.clock.advance(7_000)
+    a.clock.advance(13_000)
     expect(await flushUntil({ check: () => a.holder.heldIds().length === 0 })).toBe(true)
     await a.flush()
 
     const after = await a.plane.currentLease({ sessionId: SESSION })
     expect(after.lease.epoch).toBe(successor.lease.epoch)
-    expect(after.lease.holderHostId).toBe(b.hostId())
+    expect(after.lease.holderHostId).toBe(thief)
   })
 })

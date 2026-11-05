@@ -68,6 +68,21 @@ export function describeHostPresence(target: HostPresenceTarget): void {
       expect(await plane.hostPresent({ hostId: second })).toBe(true)
     })
 
+    it('abandon fires onLost once, frees the lock and a later register is present', async () => {
+      const { presence, plane } = open()
+      const lost: number[] = []
+      presence.onLost((hostId) => lost.push(hostId))
+      const hostId = await presence.register()
+      await presence.abandon(hostId)
+      await presence.abandon(hostId)
+      await settle()
+      expect(lost).toEqual([hostId])
+      expect(await plane.hostPresent({ hostId })).toBe(false)
+      const next = await presence.register()
+      expect(next).not.toBe(hostId)
+      expect(await plane.hostPresent({ hostId: next })).toBe(true)
+    })
+
     it('close removes presence without firing onLost', async () => {
       const { presence, plane } = open()
       const lost: number[] = []

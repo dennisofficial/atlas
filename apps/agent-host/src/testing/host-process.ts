@@ -133,6 +133,7 @@ const main = async (): Promise<void> => {
       return hostId
     },
   }
+  const generations = new Map<string, number>()
   const holder = new SessionHolder({
     presence,
     plane,
@@ -145,8 +146,12 @@ const main = async (): Promise<void> => {
       sandbox,
       daemonSecret,
       timers,
-      modelFor: ({ sessionId }) =>
-        withFirstChunkMarker(new ScriptedModel(scripts[sessionId] ?? [], undefined, existsSync)),
+      modelFor: ({ sessionId }) => {
+        const generation = (generations.get(sessionId) ?? 0) + 1
+        generations.set(sessionId, generation)
+        const script = scripts[`${sessionId}@${generation}`] ?? scripts[sessionId] ?? []
+        return withFirstChunkMarker(new ScriptedModel(script, undefined, existsSync))
+      },
       launchDirectory: workspace,
       log,
       pingMs: numberEnv('PING_MS', 10_000),
