@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import pg from 'pg'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
+import { PG_HOST_CHANGE_CHANNEL, PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
 
 import { startPgWakeListener, type PgWakeListener } from '../pg-wake-listener'
 
@@ -90,8 +90,12 @@ describe('pg wake listener', () => {
     })
     listeners.push(listener)
     let resyncs = 0
+    let hostChanges = 0
     listener.onResync(() => {
       resyncs += 1
+    })
+    listener.onHostChange(() => {
+      hostChanges += 1
     })
 
     const first = created[0]
@@ -101,6 +105,40 @@ describe('pg wake listener', () => {
     expect(await waitFor({ check: () => created.length === 2 })).toBe(true)
     expect(first.ended).toBe(true)
     expect(await waitFor({ check: () => resyncs === 1 })).toBe(true)
+    expect(hostChanges).toBe(1)
+  }, 30_000)
+
+  it('host change notifications reach onHostChange and a connect fires it once', async () => {
+    const listener = startPgWakeListener({ url: testDb().url })
+    listeners.push(listener)
+    let changes = 0
+    const wakes: string[] = []
+    listener.onHostChange(() => {
+      changes += 1
+    })
+    listener.onWake((sessionId) => wakes.push(sessionId))
+
+    const sender = await notifier()
+    expect(await waitFor({ check: () => changes === 1 })).toBe(true)
+
+    await sender.query(`SELECT pg_notify('${PG_HOST_CHANGE_CHANNEL}', '7')`)
+    expect(await waitFor({ check: () => changes === 2 })).toBe(true)
+    expect(wakes).toEqual([])
+  }, 30_000)
+
+  it('an unsubscribed host change handler is not called again', async () => {
+    const listener = startPgWakeListener({ url: testDb().url })
+    listeners.push(listener)
+    let changes = 0
+    const off = listener.onHostChange(() => {
+      changes += 1
+    })
+    const sender = await notifier()
+    expect(await waitFor({ check: () => changes === 1 })).toBe(true)
+    off()
+    await sender.query(`SELECT pg_notify('${PG_HOST_CHANGE_CHANNEL}', '7')`)
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(changes).toBe(1)
   }, 30_000)
 
   it('killing the listener backend reconnects and emits resync', async () => {

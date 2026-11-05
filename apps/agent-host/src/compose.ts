@@ -22,6 +22,7 @@ export type ComposeAgentHostArgs = {
   timers?: HostTimers | undefined
   log?: LogPort | undefined
   presence: HostPresence
+  onHostIdChanged?: (() => void) | undefined
 }
 
 export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
@@ -42,6 +43,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     }),
     ids: new RandomIds(),
     maxSessions: args.env.maxSessions,
+    onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })
 }

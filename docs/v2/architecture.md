@@ -157,8 +157,15 @@ wake, not a stream the pod holds open:
 - A notification is lost while the connection is down, so every (re)connect emits a resync: the host
   claims `sessionsNeedingHolder` and every held session re-reads its inbox. The recovery is an event, not
   a timer.
-- `reconcile-holders` (trigger.dev, every minute) is the crash net only. A crashed holder emits no event,
-  so the task lists sessions that need a holder and notifies for them through `ControlPlane.wake`.
+- A crashed holder emits no event, so hosts watch each other in a ring. Each host orders the live
+  `V2Host` ids, picks its successor (the next id above its own, wrapping to the lowest) and blocks one
+  dedicated direct connection in `pg_advisory_lock_shared` on that successor's presence lock. The wait
+  returns when the successor's connection dies. The watcher then deletes the successor's `V2Host` row,
+  notifies `atlas_host_change`, wakes every session `sessionsNeedingHolder` returns, and retargets to the
+  next successor; a dead successor's successor returns at once, so the ring keeps walking. Any
+  `atlas_host_change`, a host re-registering under a new id, or a (re)connect of the LISTEN connection
+  recomputes the successor. A host also runs the same scan once at start-up, which covers an empty fleet
+  and a single host. No timer or scheduled job is involved.
 - Redis carries live frames only (token deltas, tool output). Nothing durable and no wake depends on it,
   so an outage costs live streaming and nothing else.
 
