@@ -10,6 +10,11 @@ export enum EFinishReason {
   Other = 'other',
 }
 
+export enum EStepEndReason {
+  Finished = 'finished',
+  Aborted = 'aborted',
+}
+
 export type ModelUsage = {
   inputTokens: number
   outputTokens: number

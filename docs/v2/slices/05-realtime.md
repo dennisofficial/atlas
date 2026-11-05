@@ -342,6 +342,14 @@ v1 peak of 23 concurrent sessions, under 700 commands/s if every one streamed at
 not. Whether the Redis plan tolerates this is open question 3; the cadence is one constant, set from a
 measurement in PR 4a.
 
+_Measured in PR 4a_ (`apps/agent-host/src/bus/__tests__/live-delta-measurement.spec.ts`, local Redis): a
+20 KiB answer streamed as 1,951 chunks of 5-20 characters, 2 ms apart (4.1 s), produced 44 frames per step
+(42 `delta`, plus `step-start` and `step-end`), 10.7 frames/s and 45 Redis commands/s per streaming
+step. Counted by `total_commands_processed`, a frame costs four commands (`MULTI`, `APPEND` or `SET`,
+`PUBLISH`, `EXEC`) plus an `EXPIRE` at most once a second, not three. At 23 concurrent streaming sessions
+that is about 1,050 commands/s, above the 700 estimated above, so the open-question 3 plan check should
+use 45 commands/s per step.
+
 **Who holds the in-progress text.** Redis, written by the producer, not any stream node: a node
 that has never seen the session (a client reconnected to another instance, or a first open mid-step)
 has nothing else to ask, and the agent host has no inbound address (0021: no client-to-agent-host

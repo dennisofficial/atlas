@@ -116,3 +116,17 @@ export async function recordedWaitMs(args: {
   })
   return Math.max(0, Date.parse(recorded.notBefore) - args.now())
 }
+
+/**
+ * A clock jump cannot abort the caller's signal, so the backoff sleeps on a signal linked to
+ * both: the jump cuts the sleep short, and a caller abort during the backoff still settles it.
+ */
+export function interruptibleSleep(args: {
+  ms: number
+  callerSignal: AbortSignal
+  jumpSignal: AbortSignal
+  sleep: (args: { ms: number; signal: AbortSignal }) => Promise<void>
+}): Promise<void> {
+  if (args.jumpSignal.aborted) return args.sleep({ ms: args.ms, signal: args.callerSignal })
+  return args.sleep({ ms: args.ms, signal: AbortSignal.any([args.callerSignal, args.jumpSignal]) })
+}

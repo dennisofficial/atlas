@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EStepEndReason } from '@dltech/atlas-core'
+
 import {
   PG_CHANGE_CHANNEL,
   PG_HOST_CHANGE_CHANNEL,
   PG_PRESENCE_LOCK_NAMESPACE,
   PG_WAKE_CHANNEL,
+  liveFrameSchema,
+  type LiveFrame,
   sessionChangeSchema,
+  sessionLiveBufferKey,
   sessionLiveChannel,
 } from '../bus'
+import { EStreamBlockKind } from '../stream-constants'
 
 describe('bus names', () => {
   it('names the postgres wake channel', () => {
@@ -56,5 +62,39 @@ describe('bus names', () => {
       headSeq: Number.MAX_SAFE_INTEGER,
     })
     expect(Buffer.byteLength(payload)).toBeLessThan(1_000)
+  })
+
+  it('names a per-session live buffer key', () => {
+    expect(sessionLiveBufferKey('session-1')).toBe('atlas:session-live-buf:session-1')
+  })
+})
+
+describe('step live frames', () => {
+  const key = { runId: 'run-1', step: 3, attempt: 0 }
+
+  it('parses step-start, delta and step-end', () => {
+    expect(liveFrameSchema.parse({ type: 'step-start', key })).toEqual({ type: 'step-start', key })
+    const delta: LiveFrame = {
+      type: 'delta',
+      key,
+      block: 'b1',
+      kind: EStreamBlockKind.Reasoning,
+      from: 4,
+      text: 'hi',
+    }
+    expect(liveFrameSchema.parse(delta)).toEqual(delta)
+    const end: LiveFrame = { type: 'step-end', key, reason: EStepEndReason.Aborted }
+    expect(liveFrameSchema.parse(end)).toEqual(end)
+  })
+
+  it('rejects a bad kind, a bad reason, a negative offset, a bad key and unknown keys', () => {
+    const delta = { type: 'delta', key, block: 'b1', kind: 'text', from: 0, text: '' }
+    expect(liveFrameSchema.safeParse({ ...delta, kind: 'tool' }).success).toBe(false)
+    expect(liveFrameSchema.safeParse({ ...delta, from: -1 }).success).toBe(false)
+    expect(liveFrameSchema.safeParse({ ...delta, extra: 1 }).success).toBe(false)
+    expect(liveFrameSchema.safeParse({ type: 'step-end', key, reason: 'done' }).success).toBe(false)
+    expect(liveFrameSchema.safeParse({ type: 'step-start', key: { runId: 'r' } }).success).toBe(
+      false,
+    )
   })
 })

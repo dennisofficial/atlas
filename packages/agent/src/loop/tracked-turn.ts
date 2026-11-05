@@ -18,6 +18,8 @@ import { watchStepLoop } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
 import { appendPending } from './pending-intake'
 import { takeModelStepWithRetry } from './retrying-step'
+import { stepRetryDeps } from './step-retry-deps'
+import { stepStreamerFor } from './streamed-chunks'
 import type { TurnSpendTally } from '../ledger/record-turn-spend'
 import { appendShellCompletionNudge } from './shell-completion'
 import { draftsFor, interruptedDrafts } from './step-drafts'
@@ -203,23 +205,22 @@ export async function runTrackedTurn(
     const assembled = prepared.assembled
     position.previous = assembled
 
+    const streamer = stepStreamerFor({ output: deps.streamOutput, runId, step: stepBase })
+
     const stepOnce = () =>
       takeModelStepWithRetry({
         model: deps.model,
         tools: deps.tools(),
         onChunk: deps.onChunk,
+        streamer,
         assembled,
         signal: abortSignal,
-        retry:
-          deps.onceLedger === undefined
-            ? deps.retry
-            : {
-                ...deps.retry,
-                ledger: {
-                  onceLedger: deps.onceLedger,
-                  stepKey: `retry:${threadId}:s${stepBase}`,
-                },
-              },
+        retry: stepRetryDeps({
+          retry: deps.retry,
+          onceLedger: deps.onceLedger,
+          threadId,
+          stepBase,
+        }),
         normalizeFailure: deps.normalizeFailure,
         prepare: prepareAttempt,
       })
