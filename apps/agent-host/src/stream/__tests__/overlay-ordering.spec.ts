@@ -53,10 +53,10 @@ describe('live overlay ordering and liveness', () => {
   it('keeps the newer run when its step-start was lost and a gap lands during the join', async () => {
     live.beforeRead = () => {
       live.beforeRead = undefined
-      publish({ type: 'step-start', key: OLD })
+      publish({ type: 'step-start', key: OLD, afterSeq: 0 })
       publish(delta({ key: OLD, from: 0, text: 'OLD' }))
       publish({ type: 'step-end', key: OLD, reason: EStepEndReason.Finished })
-      publish({ type: 'step-start', key: NEW }, false)
+      publish({ type: 'step-start', key: NEW, afterSeq: 0 }, false)
       publish(delta({ key: NEW, from: 0, text: 'NEW' }))
       live.gap()
     }
@@ -74,7 +74,7 @@ describe('live overlay ordering and liveness', () => {
     await rig.settled()
     expect(rig.frames('view').at(-1)?.value.lease.live).toBe(false)
     rig.store.markHostPresent(1)
-    publish({ type: 'step-start', key: NEW }, false)
+    publish({ type: 'step-start', key: NEW, afterSeq: 0 }, false)
     publish(delta({ key: NEW, from: 0, text: 'abc' }), false)
     await session.handle({ type: 'resnap', id: 'sub-1' })
     await rig.settled()
@@ -87,7 +87,7 @@ describe('live overlay ordering and liveness', () => {
   })
 
   it('clears on a not-live read even when the last delta arrived in the same millisecond', async () => {
-    publish({ type: 'step-start', key: OLD })
+    publish({ type: 'step-start', key: OLD, afterSeq: 0 })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     rig.timers.advance(STATUS_COALESCE_MS)
@@ -105,7 +105,7 @@ describe('live overlay ordering and liveness', () => {
     await rig.settled()
     const reads = rig.statusReads
     const bufferReads = live.reads
-    publish({ type: 'step-start', key: NEW })
+    publish({ type: 'step-start', key: NEW, afterSeq: 0 })
     publish(delta({ key: NEW, from: 0, text: 'abc' }))
     await rig.settled()
     expect(live.reads).toBe(bufferReads)
@@ -116,7 +116,7 @@ describe('live overlay ordering and liveness', () => {
 
   it('measures the join queue in utf-8 bytes', async () => {
     const text = '字'.repeat(4096)
-    publish({ type: 'step-start', key: NEW })
+    publish({ type: 'step-start', key: NEW, afterSeq: 0 })
     live.afterCapture = () => {
       live.afterCapture = undefined
       for (let n = 0; n < 60; n += 1) publish(delta({ key: NEW, from: n * 4096, text }))
@@ -137,7 +137,7 @@ describe('live overlay ordering and liveness', () => {
   })
 
   it('keeps a step that starts after the read boundary when the last capped read overflows', async () => {
-    publish({ type: 'step-start', key: OLD })
+    publish({ type: 'step-start', key: OLD, afterSeq: 0 })
     publish(delta({ key: OLD, from: 0, text: 'a' }))
     const session = rig.open()
     let reads = 0
@@ -159,7 +159,7 @@ describe('live overlay ordering and liveness', () => {
         publish(delta({ key: OLD, from, text: big }))
         from += big.length
       }
-      publish({ type: 'step-start', key: NEW })
+      publish({ type: 'step-start', key: NEW, afterSeq: 0 })
       publish(delta({ key: NEW, from: 0, text: 'NEW' }))
     }
     await rig.subscribe({ session })
@@ -173,7 +173,7 @@ describe('live overlay ordering and liveness', () => {
   })
 
   it('backs off instead of re-reading in a loop while the buffer read keeps failing', async () => {
-    publish({ type: 'step-start', key: NEW })
+    publish({ type: 'step-start', key: NEW, afterSeq: 0 })
     live.failReads = 2
     live.beforeRead = () => {
       live.beforeRead = undefined
@@ -192,7 +192,7 @@ describe('live overlay ordering and liveness', () => {
   })
 
   it('re-reads after an overflow on the last capped read even when no frame follows', async () => {
-    publish({ type: 'step-start', key: OLD })
+    publish({ type: 'step-start', key: OLD, afterSeq: 0 })
     publish(delta({ key: OLD, from: 0, text: 'a' }))
     const session = rig.open()
     let reads = 0

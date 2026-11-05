@@ -248,7 +248,13 @@ export class OverlayWatcher {
       sameLengths({ left: open.have, right: have })
     this.open = { key: folded.key, have }
     if (unchanged) return
-    this.emit({ type: 'overlay', id: this.args.id, key: folded.key, blocks: folded.blocks })
+    this.emit({
+      type: 'overlay',
+      id: this.args.id,
+      key: folded.key,
+      afterSeq: folded.afterSeq,
+      blocks: folded.blocks,
+    })
   }
 
   private closeShown(args: { folded: FoldedStep | undefined; reason: EStreamClearReason }): void {

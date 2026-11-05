@@ -47,10 +47,10 @@ describe('live overlay recovery', () => {
   it('keeps the newer run when an older run is queued behind the snapshot', async () => {
     live.beforeRead = () => {
       live.beforeRead = undefined
-      publish({ type: 'step-start', key: OLD })
+      publish({ type: 'step-start', key: OLD, afterSeq: 0 })
       publish(delta({ key: OLD, from: 0, text: 'OLD' }))
       publish({ type: 'step-end', key: OLD, reason: EStepEndReason.Finished })
-      publish({ type: 'step-start', key: NEW })
+      publish({ type: 'step-start', key: NEW, afterSeq: 0 })
       publish(delta({ key: NEW, from: 0, text: 'NEW' }))
     }
     await rig.subscribe({ session: rig.open() })
@@ -62,14 +62,14 @@ describe('live overlay recovery', () => {
   })
 
   it('keeps the newer run when a resync lands during the join', async () => {
-    publish({ type: 'step-start', key: OLD })
+    publish({ type: 'step-start', key: OLD, afterSeq: 0 })
     publish(delta({ key: OLD, from: 0, text: 'OLD' }))
     const session = rig.open()
     live.beforeRead = async () => {
       live.beforeRead = undefined
       await session.handle({ type: 'resnap', id: 'sub-1' })
       publish({ type: 'step-end', key: OLD, reason: EStepEndReason.Finished })
-      publish({ type: 'step-start', key: NEW })
+      publish({ type: 'step-start', key: NEW, afterSeq: 0 })
       publish(delta({ key: NEW, from: 0, text: 'NEW' }))
     }
     await rig.subscribe({ session })
@@ -80,7 +80,7 @@ describe('live overlay recovery', () => {
 
   it('clears a dead holder overlay for a subscriber that joins after the holder died', async () => {
     rig.store.markHostAbsent(1)
-    publish({ type: 'step-start', key: OLD })
+    publish({ type: 'step-start', key: OLD, afterSeq: 0 })
     publish(delta({ key: OLD, from: 0, text: 'dead' }))
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
@@ -88,7 +88,7 @@ describe('live overlay recovery', () => {
   })
 
   it('does not open a dead holder step for a subscriber whose first read was in flight', async () => {
-    publish({ type: 'step-start', key: OLD })
+    publish({ type: 'step-start', key: OLD, afterSeq: 0 })
     publish(delta({ key: OLD, from: 0, text: 'abc' }))
     const session = rig.open()
     await rig.subscribe({ session })
@@ -117,7 +117,7 @@ describe('live overlay recovery', () => {
 
   it('bounds the frames held during a stalled read and re-reads instead', async () => {
     const text = 'x'.repeat(4096)
-    publish({ type: 'step-start', key: NEW })
+    publish({ type: 'step-start', key: NEW, afterSeq: 0 })
     live.afterCapture = () => {
       live.afterCapture = undefined
       for (let n = 0; n < 100; n += 1) publish(delta({ key: NEW, from: n * 4096, text }))
@@ -129,7 +129,7 @@ describe('live overlay recovery', () => {
   })
 
   it('delivers the end of a step whose step-end was dropped under backpressure', async () => {
-    publish({ type: 'step-start', key: OLD })
+    publish({ type: 'step-start', key: OLD, afterSeq: 0 })
     publish(delta({ key: OLD, from: 0, text: 'abc' }))
     await rig.subscribe({ session: rig.open() })
     await rig.settled()

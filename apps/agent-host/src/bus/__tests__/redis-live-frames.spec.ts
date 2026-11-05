@@ -88,7 +88,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
     it('appends each frame to the buffer key in publish order and sets an expiry', async () => {
       const sessionId = `session-buf-${Date.now()}`
       const frames: LiveFrame[] = [
-        { type: 'step-start', key },
+        { type: 'step-start', key, afterSeq: 0 },
         delta({ from: 0, text: 'He' }),
         delta({ from: 2, text: 'llo' }),
         { type: 'step-end', key, reason: EStepEndReason.Finished },
@@ -107,14 +107,14 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
       const { reader } = await publishAll({
         sessionId,
         frames: [
-          { type: 'step-start', key },
+          { type: 'step-start', key, afterSeq: 0 },
           delta({ from: 0, text: 'old' }),
           { type: 'step-end', key, reason: EStepEndReason.Finished },
-          { type: 'step-start', key: next },
+          { type: 'step-start', key: next, afterSeq: 0 },
         ],
       })
       expect(linesOf(await reader.get(sessionLiveBufferKey(sessionId)))).toEqual([
-        { type: 'step-start', key: next },
+        { type: 'step-start', key: next, afterSeq: 0 },
       ])
       expect(await reader.ttl(sessionLiveBufferKey(sessionId))).toBeGreaterThan(0)
     }, 15_000)
@@ -135,7 +135,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
     const key = { runId: 'run-evict', step: 0, attempt: 0 }
     for (let n = 0; n < 50; n += 1) {
       const sessionId = `session-evict-${n}`
-      publisher.live({ sessionId, frame: { type: 'step-start', key } })
+      publisher.live({ sessionId, frame: { type: 'step-start', key, afterSeq: 0 } })
       publisher.live({
         sessionId,
         frame: { type: 'step-end', key, reason: EStepEndReason.Finished },

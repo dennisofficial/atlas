@@ -19,14 +19,10 @@ const calledDraft = ({ call, ordinal }: { call: ModelToolCall; ordinal: number }
 
 export type StepDraftsArgs = {
   result: ModelStepResult
-  step: number
   model?: { traits?: () => ModelTraits } | undefined
 }
 
-const readingOf = ({
-  result,
-  model,
-}: Pick<StepDraftsArgs, 'result' | 'model'>): StepReading | undefined => {
+const readingOf = ({ result, model }: StepDraftsArgs): StepReading | undefined => {
   if (result.usage === undefined) return undefined
   const contextWindow = model === undefined ? 0 : contextWindowOf(model)
   if (contextWindow <= 0) return result.usage
@@ -54,7 +50,6 @@ export function draftsFor(step: StepDraftsArgs): EventDraft[] {
     drafts.push({
       type: 'assistant-said',
       parts: result.parts,
-      step: step.step,
       ...(result.ranFast === true ? { fast: true } : {}),
     })
 
@@ -69,12 +64,7 @@ export function interruptedDrafts(step: StepDraftsArgs): EventDraft[] {
   const { result } = step
   const drafts: EventDraft[] = []
   if (result.parts.length > 0)
-    drafts.push({
-      type: 'assistant-said',
-      parts: result.parts,
-      step: step.step,
-      interrupted: true,
-    })
+    drafts.push({ type: 'assistant-said', parts: result.parts, interrupted: true })
 
   result.toolCalls.forEach((call, ordinal) => {
     drafts.push(calledDraft({ call, ordinal }))

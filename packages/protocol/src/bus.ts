@@ -27,7 +27,11 @@ export const liveFrameSchema = z.discriminatedUnion('type', [
     delayMs: z.number().min(0),
   }),
   z.strictObject({ type: z.literal('status'), state: z.string().min(1) }),
-  z.strictObject({ type: z.literal('step-start'), key: streamStepKeySchema }),
+  z.strictObject({
+    type: z.literal('step-start'),
+    key: streamStepKeySchema,
+    afterSeq: z.number().int().min(0),
+  }),
   z.strictObject({
     type: z.literal('delta'),
     key: streamStepKeySchema,

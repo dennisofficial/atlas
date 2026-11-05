@@ -55,6 +55,7 @@ export const streamServerMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('overlay'),
     id: idSchema,
     key: streamStepKeySchema,
+    afterSeq: z.number().int().min(0),
     blocks: z.array(
       z.strictObject({
         block: z.string().min(1),

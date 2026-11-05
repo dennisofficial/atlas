@@ -29,7 +29,13 @@ const kindOf = (type: string): EStreamBlockKind | undefined => {
 export class LiveStepBuffer {
   private step: ActiveStep | undefined
 
-  constructor(private readonly args: { timers: HostTimers; emit: (frame: LiveFrame) => void }) {}
+  constructor(
+    private readonly args: {
+      timers: HostTimers
+      emit: (frame: LiveFrame) => void
+      headSeq: () => number
+    },
+  ) {}
 
   push(event: StepStreamEvent): void {
     if (event.type === 'step-start') {
@@ -55,7 +61,7 @@ export class LiveStepBuffer {
       lastFlushAt: undefined,
       timer: undefined,
     }
-    this.args.emit({ type: 'step-start', key })
+    this.args.emit({ type: 'step-start', key, afterSeq: this.args.headSeq() })
   }
 
   private close(args: { key: StepKey; reason: EStepEndReason }): void {

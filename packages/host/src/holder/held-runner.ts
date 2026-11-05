@@ -136,7 +136,7 @@ export const createLoopRunner = (args: {
       new HookedToolDispatcher({ registry: runtime.tools, hooks: new HookChain({}) }),
     ),
     intake,
-    output: args.turns.liveOutput(),
+    output: args.turns.liveOutput({ headSeq: () => record.eventCache().currentHead().seq }),
     detachTool: (tool) => args.isModelOnlyDrain() && runtime.daemonTools.has(tool),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,

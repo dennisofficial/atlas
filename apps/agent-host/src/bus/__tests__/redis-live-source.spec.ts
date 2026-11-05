@@ -52,7 +52,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
   it('joins mid-step with the text so far and follows the rest', async () => {
     const sessionId = `join-${Date.now()}`
     const { producer, delta, text, sent } = setup(sessionId)
-    producer.live({ sessionId, frame: { type: 'step-start', key: KEY } })
+    producer.live({ sessionId, frame: { type: 'step-start', key: KEY, afterSeq: 0 } })
     delta({ from: 0, text: 'Hello' })
     await until(() => sent.some((m) => m.type === 'overlay'), 'the first overlay')
     delta({ from: 5, text: ', world' })
@@ -62,7 +62,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
   it('re-snapshots every watcher after its subscriber connection is killed', async () => {
     const sessionId = `gap-${Date.now()}`
     const { producer, delta, text, sent } = setup(sessionId)
-    producer.live({ sessionId, frame: { type: 'step-start', key: KEY } })
+    producer.live({ sessionId, frame: { type: 'step-start', key: KEY, afterSeq: 0 } })
     delta({ from: 0, text: 'abc' })
     await until(() => text() === 'abc', 'the first text')
     const overlays = sent.filter((m) => m.type === 'overlay').length

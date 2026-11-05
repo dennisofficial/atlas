@@ -56,10 +56,11 @@ export class HeldTurns {
     }
   }
 
-  liveOutput(): AgentOutput {
+  liveOutput(args: { headSeq: () => number }): AgentOutput {
     const deps = this.deps
     const steps = new LiveStepBuffer({
       timers: deps.timers,
+      headSeq: args.headSeq,
       emit: (frame) => deps.bus.live({ sessionId: deps.sessionId, frame }),
     })
     return {
