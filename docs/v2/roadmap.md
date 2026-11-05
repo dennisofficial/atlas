@@ -65,8 +65,10 @@ _Updated at the end of every slice. Last update: 2026-11-04._
     prepared 26 s (sandbox and daemon about 6 s, clone and `bun install` about 20 s). Then a warm
     wake: the first message reached `user-said` in 66 ms, a bash call took 65 ms, and the reply came
     3.4 s after posting. Before prepare-before-first-turn, a cold first turn took 3438 ms to
-    `user-said` and 19.9 s in total. Parked wake: `TBD (measuring)`. The first parked measurement,
-    9.0 s, exposed a turn that waited for the sandbox (#1841); it is fixed and not yet re-measured.
+    `user-said` and 19.9 s in total. Parked wake (sandbox parked, no holder): post to `user-said`
+    3.0 s (claim and config), the model ran while the sandbox resumed, its first bash call waited
+    2.8 s for the daemon and took 0.23 s, and the reply came 8.9 s after posting. The first parked
+    measurement, 9.0 s to `user-said`, had exposed a turn waiting for the sandbox (#1841).
   - **Left:** the live exit tests 8 (append p99), 9 (hog) and 10 (20k events), and the starred fault
     rows on Render. F9 is now "Redis down: unaffected", since no wake path uses Redis. Continue from
     [handoffs/slice-4.md](handoffs/slice-4.md).

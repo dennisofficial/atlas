@@ -20,10 +20,9 @@ in about 20 s run when `ATLAS_FAULT_TESTS=1`, which the nightly sets.
 - **The starred fault rows on Render with a real sandbox:** F10, F11, F12, F18, F19 and F21.
 - **F9 is rewritten:** the spec row still says "wake by reconcile"; it now reads "Redis down: unaffected",
   because no wake path uses Redis. Edit the spec row when the live rows run.
-- **Parked-session numbers.** The roadmap holds a `TBD (measuring)` placeholder. The first measurement (9.0 s
-  from post to `user-said`) found a turn waiting for the sandbox; #1841 fixed it. Re-measure on a session
-  created after #1833, once it idles out. The session used for the first measurement predates #1833, so its
-  setup never succeeded; do not reuse it.
+- **Parked-session numbers (measured 2026-11-05).** Post to `user-said` 3.0 s on a parked session with no
+  holder, most of it claim and config; the model starts while the sandbox resumes and the first tool waits for
+  the daemon (2.8 s here). Shortening claim-to-first-turn is the next latency target.
 - Delivery step 4 of the spec is not finished: run the live tests above, then flip the roadmap row to Done.
 
 ## Known follow-ups
