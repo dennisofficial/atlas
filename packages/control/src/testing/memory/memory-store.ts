@@ -1,8 +1,9 @@
 import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
+import type { SessionChange } from '@dltech/atlas-protocol'
 
+import type { ChangeFeed } from '../../change-feed'
 import {
   ControlStorePort,
-  SeqConflictError,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
@@ -12,21 +13,36 @@ import {
   type ThreadRow,
   type ControlSessionRow,
 } from '../../port'
+import { MemoryChangeFeed } from './memory-change-feed'
+import {
+  allocateInboxIdIn,
+  deleteInboxEntryIn,
+  insertInboxEntryIn,
+  markInboxConsumedIn,
+  readInboxEntriesIn,
+  readInboxEntryIn,
+} from './memory-inbox'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
-import { bisectAfter } from './memory-helpers'
+import { insertEventsIn, readEventsIn } from './memory-events'
 import { sessionsNeedingHolderIn } from './memory-needing-holder'
 import { cloneState, emptyState, refKey, type State } from './memory-state'
 
 class MemoryTx implements ControlTx {
   private readonly state: State
   private readonly clock: () => string
-
   private readonly presentHosts: ReadonlySet<number>
+  private readonly pending: SessionChange[]
 
-  constructor(params: { state: State; clock: () => string; presentHosts: ReadonlySet<number> }) {
+  constructor(params: {
+    state: State
+    clock: () => string
+    presentHosts: ReadonlySet<number>
+    pending: SessionChange[]
+  }) {
     this.state = params.state
     this.clock = params.clock
     this.presentHosts = params.presentHosts
+    this.pending = params.pending
   }
 
   async now(): Promise<string> {
@@ -123,15 +139,7 @@ class MemoryTx implements ControlTx {
   }
 
   async insertEvents(rows: readonly StoredEvent[]): Promise<void> {
-    for (const row of rows) {
-      const log = this.state.events.get(row.threadId)
-      const last = log?.[log.length - 1]
-      if (log === undefined || this.state.eventIds.has(row.id) || (last && last.seq >= row.seq)) {
-        throw new SeqConflictError()
-      }
-      log.push(row)
-      this.state.eventIds.add(row.id)
-    }
+    insertEventsIn({ state: this.state, rows })
   }
 
   async insertBlobs(rows: readonly BlobWrite[]): Promise<void> {
@@ -155,18 +163,7 @@ class MemoryTx implements ControlTx {
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {
-    const log = this.state.events.get(params.threadId) ?? []
-    const out: StoredEvent[] = []
-    for (
-      let index = bisectAfter({ rows: log, afterSeq: params.afterSeq });
-      index < log.length;
-      index += 1
-    ) {
-      const row = log[index] as StoredEvent
-      if (row.seq > params.throughSeq || out.length >= params.limit) break
-      if (params.onlyTypes === undefined || params.onlyTypes.includes(row.type)) out.push(row)
-    }
-    return out
+    return readEventsIn({ state: this.state, ...params })
   }
 
   async readLease(sessionId: string): Promise<Lease | undefined> {
@@ -193,22 +190,15 @@ class MemoryTx implements ControlTx {
   }
 
   async allocateInboxId(sessionId: string): Promise<number> {
-    const session = this.state.sessions.get(sessionId)
-    if (session === undefined) throw new Error('unknown session')
-    const id = session.nextInboxId
-    session.nextInboxId += 1
-    return id
+    return allocateInboxIdIn({ state: this.state, sessionId })
   }
 
   async insertInboxEntry(entry: InboxEntry): Promise<void> {
-    const list = this.state.inbox.get(entry.sessionId) ?? []
-    list.push({ ...entry })
-    this.state.inbox.set(entry.sessionId, list)
+    insertInboxEntryIn({ state: this.state, entry })
   }
 
   async readInboxEntry(params: { sessionId: string; inboxId: number }) {
-    const found = this.state.inbox.get(params.sessionId)?.find((e) => e.inboxId === params.inboxId)
-    return found === undefined ? undefined : { ...found }
+    return readInboxEntryIn({ state: this.state, ...params })
   }
 
   async markInboxConsumed(params: {
@@ -216,19 +206,11 @@ class MemoryTx implements ControlTx {
     inboxId: number
     seq: number
   }): Promise<boolean> {
-    const found = this.state.inbox.get(params.sessionId)?.find((e) => e.inboxId === params.inboxId)
-    if (found === undefined || found.consumedSeq !== null) return false
-    found.consumedSeq = params.seq
-    return true
+    return markInboxConsumedIn({ state: this.state, ...params })
   }
 
   async deleteInboxEntry(params: { sessionId: string; inboxId: number }): Promise<boolean> {
-    const list = this.state.inbox.get(params.sessionId) ?? []
-    const index = list.findIndex((e) => e.inboxId === params.inboxId)
-    const found = list[index]
-    if (found === undefined || found.consumedSeq !== null) return false
-    list.splice(index, 1)
-    return true
+    return deleteInboxEntryIn({ state: this.state, ...params })
   }
 
   async readInboxEntries(params: {
@@ -237,16 +219,15 @@ class MemoryTx implements ControlTx {
     limit: number
     excludeKind?: string | undefined
   }) {
-    return (this.state.inbox.get(params.sessionId) ?? [])
-      .filter((e) => e.inboxId > params.afterId && e.consumedSeq === null)
-      .filter((e) => e.kind !== params.excludeKind)
-      .sort((a, b) => a.inboxId - b.inboxId)
-      .slice(0, params.limit)
-      .map((e) => ({ ...e }))
+    return readInboxEntriesIn({ state: this.state, ...params })
   }
 
   async notifyWake(sessionId: string): Promise<void> {
     this.state.notifications.push(sessionId)
+  }
+
+  async announce(change: SessionChange): Promise<void> {
+    this.pending.push({ ...change })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {
@@ -254,12 +235,13 @@ class MemoryTx implements ControlTx {
   }
 }
 
-export class InMemoryControlStore extends ControlStorePort {
+export class InMemoryControlStore extends ControlStorePort implements ChangeFeed {
   private readonly clock: () => string
   private state: State = emptyState()
   private tail: Promise<unknown> = Promise.resolve()
   private readonly presentHosts = new Set<number>()
   private lastHostId = 0
+  private readonly feed = new MemoryChangeFeed()
 
   constructor(params: { clock?: (() => string) | undefined } = {}) {
     super()
@@ -269,10 +251,17 @@ export class InMemoryControlStore extends ControlStorePort {
   transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
     const run = async (): Promise<T> => {
       const working = cloneState(this.state)
+      const pending: SessionChange[] = []
       const result = await work(
-        new MemoryTx({ state: working, clock: this.clock, presentHosts: this.presentHosts }),
+        new MemoryTx({
+          state: working,
+          clock: this.clock,
+          presentHosts: this.presentHosts,
+          pending,
+        }),
       )
       this.state = working
+      this.feed.publish(pending)
       return result
     }
     const next = this.tail.then(run, run)
@@ -295,5 +284,17 @@ export class InMemoryControlStore extends ControlStorePort {
 
   wakeCount(sessionId: string): number {
     return this.state.notifications.filter((id) => id === sessionId).length
+  }
+
+  onChange(listener: (change: SessionChange) => void): () => void {
+    return this.feed.onChange(listener)
+  }
+
+  onGap(listener: () => void): () => void {
+    return this.feed.onGap(listener)
+  }
+
+  changesOf(sessionId: string): SessionChange[] {
+    return this.feed.changesOf(sessionId)
   }
 }

@@ -68,5 +68,10 @@ export const appendIn = async (params: {
     visibility: encodeVisibility(visibility),
   })
   if (!swapped) throw new SeqConflictError()
+  await tx.announce({
+    sessionId: row.sessionId,
+    threadId: params.threadId,
+    headSeq: accepted.head.seq,
+  })
   return { ok: true, head: accepted.head }
 }

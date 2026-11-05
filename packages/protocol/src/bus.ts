@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 export const PG_WAKE_CHANNEL = 'atlas_session_wake'
 
+export const PG_CHANGE_CHANNEL = 'atlas_session_changed'
+
 export const PG_HOST_CHANGE_CHANNEL = 'atlas_host_change'
 
 export const PG_PRESENCE_LOCK_NAMESPACE = 1095060563
@@ -21,3 +23,11 @@ export const liveFrameSchema = z.discriminatedUnion('type', [
 ])
 
 export type LiveFrame = z.infer<typeof liveFrameSchema>
+
+export const sessionChangeSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  threadId: z.string().min(1).optional(),
+  headSeq: z.number().int().min(0).optional(),
+})
+
+export type SessionChange = z.infer<typeof sessionChangeSchema>

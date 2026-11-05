@@ -115,6 +115,16 @@ flowchart LR
   database-wide lock during commit, serializing notifying commits. At 15 appends/s that is
   irrelevant; PR 1 records commit latency with and without the announcement at 100 appends/s so the
   number is on file, not assumed.
+
+  Measured by `packages/control/__tests__/notify-commit-cost.bench.ts` (`ATLAS_BENCH=1`): 100
+  appends/s for 10 s across 20 sessions, local Postgres 17 on the pod (tmpfs).
+
+  | variant          | appends | p50 (ms) | p99 (ms) |
+  | ---------------- | ------- | -------- | -------- |
+  | without announce | 1000    | 3.45     | 7.71     |
+  | with announce    | 1000    | 3.54     | 6.05     |
+
+  The announcement is within run-to-run noise at this rate.
 - A `LISTEN` session must never hold a transaction open, or the notification queue (8 GB) fills
   and notifying commits start failing. The listener connection runs no queries.
 - Every node receives every notification. At 15/s × 150 B × N nodes this is negligible. Beyond

@@ -21,6 +21,7 @@ export const postIn = async (params: {
     consumedSeq: null,
   })
   await params.tx.notifyWake(params.sessionId)
+  await params.tx.announce({ sessionId: params.sessionId })
   return { inboxId }
 }
 
@@ -35,5 +36,7 @@ export const takeBackIn = async (params: {
   const move = takeBack(entry)
   if (!move.ok) return move
   const deleted = await params.tx.deleteInboxEntry(key)
-  return deleted ? { ok: true } : { ok: false, refusal: { kind: 'already-consumed' } }
+  if (!deleted) return { ok: false, refusal: { kind: 'already-consumed' } }
+  await params.tx.announce({ sessionId: params.sessionId })
+  return { ok: true }
 }

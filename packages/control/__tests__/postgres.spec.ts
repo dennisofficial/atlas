@@ -2,10 +2,17 @@ import { afterAll, beforeAll, expect, it } from 'bun:test'
 import pg from 'pg'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { PG_PRESENCE_LOCK_NAMESPACE, PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
+import {
+  PG_CHANGE_CHANNEL,
+  PG_PRESENCE_LOCK_NAMESPACE,
+  PG_WAKE_CHANNEL,
+  sessionChangeSchema,
+  type SessionChange,
+} from '@dltech/atlas-protocol'
 
 import {
   describeControlPlaneBlobs,
+  describeControlPlaneChanges,
   describeControlPlaneClaims,
   describeControlPlaneConformance,
   describeControlPlanePresence,
@@ -18,16 +25,23 @@ import { PostgresControlStore } from '../src/postgres'
 const testDb = useTestDatabase()
 
 const wakeCounts = new Map<string, number>()
+const changeLog = new Map<string, SessionChange[]>()
 let listener: pg.Client | undefined
 
 beforeAll(async () => {
   listener = new pg.Client(testDb().url)
   listener.on('notification', (message) => {
-    if (message.channel !== PG_WAKE_CHANNEL || message.payload === undefined) return
+    if (message.payload === undefined) return
+    if (message.channel === PG_CHANGE_CHANNEL) {
+      const change = sessionChangeSchema.parse(JSON.parse(message.payload))
+      changeLog.set(change.sessionId, [...(changeLog.get(change.sessionId) ?? []), change])
+      return
+    }
+    if (message.channel !== PG_WAKE_CHANNEL) return
     wakeCounts.set(message.payload, (wakeCounts.get(message.payload) ?? 0) + 1)
   })
   await listener.connect()
-  await listener.query(`LISTEN ${PG_WAKE_CHANNEL}`)
+  await listener.query(`LISTEN ${PG_WAKE_CHANNEL}; LISTEN ${PG_CHANGE_CHANNEL}`)
 })
 
 afterAll(async () => {
@@ -61,10 +75,15 @@ const conformanceParams = {
   makeStore: () => new PostgresControlStore(testDb().db),
   reset: async () => {
     wakeCounts.clear()
+    changeLog.clear()
   },
   wakes: async (sessionId: string) => {
     await settle()
     return wakeCounts.get(sessionId) ?? 0
+  },
+  changes: async (sessionId: string) => {
+    await settle()
+    return changeLog.get(sessionId) ?? []
   },
   nextHostId: async () => {
     lastHostId += 1
@@ -78,6 +97,7 @@ describeControlPlaneSessions(conformanceParams)
 describeControlPlaneClaims(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
+describeControlPlaneChanges(conformanceParams)
 
 describeControlPlanePresence({
   ...conformanceParams,

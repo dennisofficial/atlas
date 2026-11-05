@@ -1,6 +1,6 @@
 import { and, isUniqueViolation, retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
 import { GENESIS_HASH, type Hash, type InboxEntry, type Lease } from '@dltech/atlas-core'
-import { PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
+import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
   ControlStorePort,
@@ -21,6 +21,8 @@ import {
   insertBlobRows,
   readBlobRow,
 } from './postgres-blobs'
+import { writeLeaseIn } from './postgres-leases'
+import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn } from './postgres-presence'
 import { sessionsNeedingHolderIn } from './postgres-needing-holder'
 import { iso, toInbox, toSessionRow, toThreadRow } from './postgres-rows'
@@ -196,28 +198,7 @@ class PostgresTx implements ControlTx {
   }
 
   async writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean> {
-    const { lease } = params
-    const existing = await this.tx.orm.v2.V2Lease.first({ sessionId: lease.sessionId })
-    const data = {
-      epoch: lease.epoch,
-      holderHostId: lease.holderHostId,
-      wantsHolder: lease.wantsHolder,
-    }
-    if (existing === null) {
-      if (params.expectedEpoch !== 0) return false
-      try {
-        await this.tx.orm.v2.V2Lease.create({ sessionId: lease.sessionId, ...data })
-      } catch (error) {
-        if (isUniqueViolation(error)) return false
-        throw error
-      }
-      return true
-    }
-    const changed = await this.tx.orm.v2.V2Lease.where({
-      sessionId: lease.sessionId,
-      epoch: params.expectedEpoch,
-    }).updateAndCount(data)
-    return changed === 1
+    return writeLeaseIn({ tx: this.tx, ...params })
   }
 
   async allocateInboxId(sessionId: string): Promise<number> {
@@ -277,11 +258,11 @@ class PostgresTx implements ControlTx {
   }
 
   async notifyWake(sessionId: string): Promise<void> {
-    await this.tx.query(
-      this.tx.raw.sql`SELECT (pg_notify(${PG_WAKE_CHANNEL}, ${sessionId}) IS NULL)::text AS "sent"`
-        .returnsRow({ sent: 'pg/text@1' })
-        .build(),
-    )
+    await notifyWakeIn({ tx: this.tx, sessionId })
+  }
+
+  async announce(change: SessionChange): Promise<void> {
+    await announceIn({ tx: this.tx, change })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

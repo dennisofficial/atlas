@@ -1,6 +1,7 @@
 import { InMemoryControlStore } from '../src/testing/memory'
 import {
   describeControlPlaneBlobs,
+  describeControlPlaneChanges,
   describeControlPlaneClaims,
   describeControlPlaneConformance,
   describeControlPlanePresence,
@@ -17,6 +18,7 @@ const conformanceParams = {
     store = new InMemoryControlStore()
   },
   wakes: async (sessionId: string) => store.wakeCount(sessionId),
+  changes: async (sessionId: string) => store.changesOf(sessionId),
   nextHostId: async () => store.nextHostId(),
   holdPresence: async (hostId: number) => {
     store.markHostPresent(hostId)
@@ -29,6 +31,7 @@ describeControlPlaneSessions(conformanceParams)
 describeControlPlaneClaims(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
+describeControlPlaneChanges(conformanceParams)
 
 describeControlPlanePresence({
   ...conformanceParams,

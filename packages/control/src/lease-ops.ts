@@ -60,6 +60,7 @@ export class LeaseOps {
         expectedEpoch: lease.epoch,
       })
       if (!written) throw new LeaseConflictError(params.sessionId)
+      await tx.announce({ sessionId: params.sessionId })
       return result
     })
   }
@@ -117,6 +118,7 @@ export class LeaseOps {
         expectedEpoch: lease.epoch,
       })
       if (!written) throw new LeaseConflictError(params.sessionId)
+      await tx.announce({ sessionId: params.sessionId })
       if (params.wakeOnWrite === true) await tx.notifyWake(params.sessionId)
       return result
     })
