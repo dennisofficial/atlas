@@ -20,7 +20,11 @@ export class FollowSession implements SubscriptionSession {
   ) {}
 
   handle(message: StreamSubscriptionMessage): void | Promise<void> {
-    if (message.type === 'resnap') return
+    if (message.type === 'resnap') {
+      const subscription = this.subscriptions.get(message.id)
+      if (subscription !== undefined) this.index.resnap(subscription)
+      return
+    }
     if (message.type === 'unsubscribe') {
       this.subscriptions.get(message.id)?.stop()
       return

@@ -3,6 +3,7 @@ import {
   EStreamErrorCode,
   STREAM_PAGE_EVENTS,
   type SessionChange,
+  type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
@@ -28,7 +29,7 @@ export type FollowSubscriptionArgs = {
 export class FollowSubscription implements FollowTarget {
   readonly id: string
   readonly sessionId: string
-  private threadId: string | undefined
+  private thread: string | undefined
   private cursor: number | undefined
   private dirty = false
   private pumping = false
@@ -55,12 +56,25 @@ export class FollowSubscription implements FollowTarget {
         this.stop()
         return
       }
-      this.threadId = session.mainThreadId
+      this.thread = session.mainThreadId
       this.args.index.add(this)
       this.markDirty()
     } catch (error) {
       this.fail(error)
     }
+  }
+
+  get threadId(): string | undefined {
+    return this.thread
+  }
+
+  send(message: StreamServerMessage): void {
+    if (this.stopped) return
+    this.args.connection.send(message)
+  }
+
+  bufferedAmount(): number {
+    return this.args.connection.bufferedAmount()
   }
 
   handleChange(change: SessionChange): void {
