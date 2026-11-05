@@ -74,6 +74,8 @@ export const makeRuntimeFactory = (args: {
   prepare?: (() => Promise<PrepareResult>) | undefined
   model?: (() => ModelPort) | undefined
   connectGate?: Promise<void> | undefined
+  runtimeGate?: Promise<void> | undefined
+  beforeRuntime?: (() => Promise<void>) | undefined
 }): ((params: {
   sessionId: string
   threadId: ThreadId
@@ -81,6 +83,8 @@ export const makeRuntimeFactory = (args: {
   signal: AbortSignal
 }) => Promise<SessionRuntime>) => {
   return async ({ sessionId, epoch }) => {
+    await args.beforeRuntime?.()
+    await args.runtimeGate
     const model = args.model?.() ?? new ScriptedModel(args.script.current)
     const calls = new RemoteCalls({
       sessionId,

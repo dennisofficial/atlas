@@ -7,6 +7,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { AgentHostApi } from './config/agent-host-api'
+import type { ConfigSource } from './config/agent-host-config'
 import type { AgentHostEnv } from './config/env'
 import type { SandboxProvider } from './sandbox/sandbox-provider'
 import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
@@ -17,7 +18,8 @@ export type ComposeAgentHostArgs = {
   plane: ControlPlane
   bus: HostBus
   sandbox: SandboxProvider
-  api: AgentHostApi
+  config: ConfigSource
+  api: Pick<AgentHostApi, 'githubToken' | 'modelAccessToken'>
   timers?: HostTimers | undefined
   log?: LogPort | undefined
   holderId?: string | undefined
@@ -31,6 +33,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     bus: args.bus,
     timers,
     runtimes: createSessionRuntimeFactory({
+      config: args.config,
       api: args.api,
       sandbox: args.sandbox,
       daemonSecret: args.env.daemonSecret,

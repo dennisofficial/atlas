@@ -9,7 +9,6 @@ import { AgentHostRouter } from './agent-host.router'
 import { AgentHostService } from './agent-host.service'
 
 export const agentHost = {
-  config: vi.fn(),
   modelAccessToken: vi.fn(),
   githubToken: vi.fn(),
 }

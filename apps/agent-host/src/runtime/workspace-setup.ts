@@ -6,7 +6,7 @@ import {
   type RemoteCalls,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
-import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
+import type { WorkspaceConfig } from '../config/agent-host-config'
 
 import { materialize, run } from './workspace-clone'
 import {
@@ -21,8 +21,6 @@ import {
 } from './workspace-state'
 
 export { MATERIALIZED_SENTINEL, SETUP_SENTINEL, WORKSPACE_STATE_DIR } from './workspace-state'
-
-type WorkspaceConfig = AgentHostConfigOutput['workspace']
 
 const SETUP_TIMEOUT_MS = 10 * 60_000
 

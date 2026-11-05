@@ -14,7 +14,7 @@ import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { systemTimers } from '@dltech/atlas-host'
 import { z } from 'zod'
 
-import { apiFor, CollectingLog } from '../../__tests__/e2e-support'
+import { CollectingLog, sourceFor, unusedApi } from '../../__tests__/e2e-support'
 import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 import { SetupGatedTool } from '../tools'
@@ -83,10 +83,11 @@ describe('the setup gate deadline', () => {
     const log = new CollectingLog()
     try {
       const api = {
-        ...apiFor(),
+        ...unusedApi(),
         githubToken: () => new Promise<{ token: string | null }>(() => {}),
       }
       const factory = createSessionRuntimeFactory({
+        config: sourceFor(),
         api,
         sandbox,
         daemonSecret: 'gate-deadline-secret',
@@ -120,7 +121,8 @@ describe('SessionRuntime.prepare', () => {
   const runtimeWith = async (args: { githubToken: () => Promise<{ token: string | null }> }) => {
     const sandbox = new LocalSandboxProvider({ daemonSecret: 'prepare-secret' })
     const factory = createSessionRuntimeFactory({
-      api: { ...apiFor(), githubToken: args.githubToken },
+      config: sourceFor(),
+      api: { ...unusedApi(), githubToken: args.githubToken },
       sandbox,
       daemonSecret: 'prepare-secret',
       timers: { now: () => Date.now(), ...systemTimers },

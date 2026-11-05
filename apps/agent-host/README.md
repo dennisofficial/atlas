@@ -18,6 +18,7 @@ The private keys are in `.env.keys` (git-ignored, an Atlas Cloud project file mo
 | `REDIS_URL`               | yes      | —                                                    |
 | `AGENT_HOST_TOKEN`        | yes      | —                                                    |
 | `DAEMON_SECRET`           | yes      | —                                                    |
+| `SECRETS_ENCRYPTION_KEY`  | yes      | —                                                    |
 | `ATLAS_API_ORIGIN`        | yes      | —                                                    |
 | `AGENT_HOST_MAX_SESSIONS` | no       | 25                                                   |
 | `ATLAS_SANDBOX_IMAGE`     | no       | `atlas-sandbox:latest`                               |

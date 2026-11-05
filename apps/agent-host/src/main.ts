@@ -8,6 +8,8 @@ import { startPgWakeListener } from './bus/pg-wake-listener'
 import { createRedisLiveFrames } from './bus/redis-live-frames'
 import { composeAgentHost } from './compose'
 import { createAgentHostApi } from './config/agent-host-api'
+import { ConfigReader } from './config/config-reader'
+import { SecretCipher } from './config/secret-cipher'
 import { AgentHostEnvError, readAgentHostEnv } from './config/env'
 import { databaseUrlWithTls } from './config/database-url'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
@@ -41,7 +43,11 @@ const main = async (): Promise<void> => {
     cloudUrl: env.apiOrigin,
     log: (line) => console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line })),
   })
-  const holder = composeAgentHost({ env, plane, bus, sandbox, api, log })
+  const config = new ConfigReader({
+    db: createDb(pool),
+    cipher: new SecretCipher(env.secretsEncryptionKey),
+  })
+  const holder = composeAgentHost({ env, plane, bus, sandbox, config, api, log })
   await holder.start()
   log.info({ source: 'main', message: 'agent-host started' })
 

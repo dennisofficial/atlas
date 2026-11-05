@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path'
 
 import type { ProcessPort } from '@dltech/atlas-core'
-import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
+import type { WorkspaceConfig } from '../config/agent-host-config'
 import { githubCloneUrlOf } from '../sandbox/constants'
 
 import {
@@ -14,8 +14,6 @@ import {
   type Deps,
   type Sentinels,
 } from './workspace-state'
-
-type WorkspaceConfig = AgentHostConfigOutput['workspace']
 
 const STAGING_DIR = '.atlas-workspace-staging'
 const CLONE_TIMEOUT_MS = 10 * 60_000

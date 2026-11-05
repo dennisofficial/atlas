@@ -5,9 +5,9 @@ import {
   type Credential,
   type CredentialRequest,
 } from '@dltech/atlas-core'
-import type { AgentHostConfigOutput } from '@dltech/atlas-protocol'
 
 import type { AgentHostApi } from './agent-host-api'
+import type { ModelConfig } from './agent-host-config'
 
 export class CredentialsUnavailableError extends Error {
   constructor(public readonly gap: string) {
@@ -16,7 +16,7 @@ export class CredentialsUnavailableError extends Error {
   }
 }
 
-type ModelBlock = AgentHostConfigOutput['model']
+type ModelBlock = ModelConfig
 type Configured = Extract<ModelBlock, { configured: true }>
 
 type OauthLease = { accessToken: string; refreshAfterMs: number }

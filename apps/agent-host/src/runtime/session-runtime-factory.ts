@@ -18,6 +18,7 @@ import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { createAnthropicOauthModel } from '../model/anthropic-oauth'
 import { normalizeProviderFailure } from '../model/failure'
 import type { AgentHostApi } from '../config/agent-host-api'
+import type { ConfigSource } from '../config/agent-host-config'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
@@ -38,7 +39,8 @@ const KEEP_ALIVE_WINDOW_MS = 45 * 60_000
 const SETUP_DEADLINE_MS = 15 * 60_000
 
 export type SessionRuntimeFactoryArgs = {
-  api: AgentHostApi
+  config: ConfigSource
+  api: Pick<AgentHostApi, 'githubToken' | 'modelAccessToken'>
   sandbox: SandboxProvider
   daemonSecret: string
   timers: HostTimers
@@ -56,7 +58,7 @@ export const createSessionRuntimeFactory = (
 ): SessionRuntimeFactory => {
   const launchDirectory = args.launchDirectory ?? WORKSPACE_PATH
   return async ({ sessionId, epoch, signal }) => {
-    const config = await args.api.config({ sessionId })
+    const config = await args.config.read({ sessionId })
     if (config.vercel.configured === false) {
       throw new SandboxNotConfiguredError(config.vercel.gap)
     }

@@ -13,6 +13,7 @@ import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
 import type { AgentHostApi } from '../config/agent-host-api'
+import type { ConfigSource } from '../config/agent-host-config'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 
@@ -81,24 +82,18 @@ class JsonLog extends LogPort {
   }
 }
 
-const testApi = (): AgentHostApi => ({
-  config: async () => ({
+const testSource = (): ConfigSource => ({
+  read: async () => ({
     userId: 'user-1',
     projectId: 'proj-1',
     model: { configured: false, gap: 'scripted model in test' },
     vercel: { configured: true, token: '', teamId: '', projectId: '' },
-    config: {
-      settings: {},
-      secrets: [],
-      harnessSecrets: [],
-      mcpServers: [],
-      fileMounts: [],
-      provenance: {},
-    },
     workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
-    revision: 'rev-1',
-    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    skills: [],
   }),
+})
+
+const testApi = (): AgentHostApi => ({
   modelAccessToken: async () => {
     throw new Error('unused')
   },
@@ -132,6 +127,7 @@ const main = async (): Promise<void> => {
     bus,
     timers,
     runtimes: createSessionRuntimeFactory({
+      config: testSource(),
       api: testApi(),
       sandbox,
       daemonSecret,
