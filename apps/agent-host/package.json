@@ -32,6 +32,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@dltech/atlas-client": "workspace:*",
     "@dltech/atlas-daemon": "workspace:*",
     "@types/bun": "latest"
   }
