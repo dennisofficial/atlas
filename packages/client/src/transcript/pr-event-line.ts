@@ -2,6 +2,7 @@ import {
   EPrEventKind,
   EPrReviewState,
   EPrVerdict,
+  failedCheckConclusionLabel,
   reviewCommentPlace,
   stripHtmlComments,
   type EventOfType,
@@ -53,7 +54,10 @@ const reviewCommentLine = (event: PrEvent): string => {
 const FAILED_NAMES_SHOWN = 3
 
 const failedNames = (event: PrEvent): string | undefined => {
-  const names = (event.failedChecks ?? []).map((check) => check.name)
+  const names = (event.failedChecks ?? []).map((check) => {
+    const label = failedCheckConclusionLabel(check)
+    return label === undefined ? check.name : `${check.name} (${label})`
+  })
   if (names.length === 0) return undefined
   const shown = names.slice(0, FAILED_NAMES_SHOWN).join(', ')
   const more = names.length - FAILED_NAMES_SHOWN

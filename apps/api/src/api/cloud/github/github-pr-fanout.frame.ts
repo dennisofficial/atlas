@@ -47,6 +47,7 @@ const failedCheckSchema = z.object({
   app: z.string().exactOptional(),
   url: z.string().exactOptional(),
   checkRunId: z.string().exactOptional(),
+  conclusion: z.string().exactOptional(),
   title: z.string().exactOptional(),
   summary: z.string().exactOptional(),
   annotations: z.array(checkAnnotationSchema).exactOptional(),

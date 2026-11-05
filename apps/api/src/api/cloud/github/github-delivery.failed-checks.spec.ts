@@ -106,6 +106,16 @@ describe('failedChecksOfRows', () => {
     ])
   })
 
+  it('carries the GitHub conclusion of a failed run', () => {
+    const checks = failedChecksOfRows([
+      row({ checkKey: 'run:4', name: 'mac-app-rehearsal', conclusion: 'cancelled' }),
+    ])
+
+    expect(checks).toEqual([
+      { name: 'mac-app-rehearsal', checkRunId: '4', conclusion: 'cancelled' },
+    ])
+  })
+
   it('caps the list at ten checks in name order', () => {
     const rows = Array.from({ length: 12 }, (_, index) =>
       row({ checkKey: `run:${index}`, name: `job-${String(index).padStart(2, '0')}` }),

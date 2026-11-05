@@ -15,6 +15,7 @@ type CheckRow = {
   name: string | null
   startedAt: string | null
   outcome: string
+  conclusion?: string | null
   appSlug: string | null
   detailsUrl: string | null
   title: string | null
@@ -43,6 +44,7 @@ export function failedCheckOf(row: CheckRow): GithubPrFailedCheck {
   const check: GithubPrFailedCheck = { name: row.name ?? row.checkKey }
   const app = present(row.appSlug)
   const url = present(row.detailsUrl)
+  const conclusion = present(row.conclusion ?? null)
   const title = present(row.title)
   const summary = present(row.summary)
   const annotations = annotationsOf(row.annotations)
@@ -51,6 +53,7 @@ export function failedCheckOf(row: CheckRow): GithubPrFailedCheck {
     ...(app === undefined ? {} : { app }),
     ...(url === undefined ? {} : { url }),
     ...(runId === undefined ? {} : { checkRunId: runId }),
+    ...(conclusion === undefined ? {} : { conclusion }),
     ...(title === undefined ? {} : { title }),
     ...(summary === undefined ? {} : { summary }),
     ...(annotations === undefined ? {} : { annotations }),

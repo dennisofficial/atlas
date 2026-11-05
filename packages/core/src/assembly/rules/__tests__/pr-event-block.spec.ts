@@ -315,6 +315,55 @@ describe('naming the checks behind a failed verdict', () => {
     )
   })
 
+  it('marks a cancelled check and offers no log command for a job that never ran', () => {
+    const block = failed({
+      settled: true,
+      repo: 'github.com/owner/repo',
+      failedChecks: [
+        {
+          name: 'mac-app-rehearsal',
+          app: 'github-actions',
+          checkRunId: '7',
+          conclusion: 'cancelled',
+          annotations: [
+            { path: '.github', message: 'The job was not acquired by Runner of type hosted' },
+          ],
+        },
+      ],
+    })
+
+    expect(block).toContain(
+      [
+        '- mac-app-rehearsal (github-actions) [cancelled]',
+        '    .github The job was not acquired by Runner of type hosted',
+      ].join('\n'),
+    )
+    expect(block).not.toContain('logs:')
+  })
+
+  it('marks a timed-out check and keeps its log command', () => {
+    const block = failed({
+      settled: true,
+      repo: 'github.com/owner/repo',
+      failedChecks: [
+        { name: 'test', app: 'github-actions', checkRunId: '8', conclusion: 'timed_out' },
+      ],
+    })
+
+    expect(block).toContain('- test (github-actions) [timed out]')
+    expect(block).toContain('    logs: gh run view --job 8 --log-failed -R owner/repo')
+  })
+
+  it('adds no marker for a plain failure', () => {
+    const block = failed({
+      settled: true,
+      failedChecks: [{ name: 'lint', conclusion: 'failure' }],
+    })
+
+    expect(block).toContain('- lint\n')
+    expect(block).not.toContain('[')
+  })
+
   it('offers no log command for a check outside GitHub Actions', () => {
     const block = failed({ settled: true, failedChecks: [{ name: 'vercel', checkRunId: '9' }] })
 

@@ -30,6 +30,17 @@ describe('a failed verdict line', () => {
     ).toBe('PR #794: typecheck, vercel failed, CI still running')
   })
 
+  it('says when a failed check was cancelled rather than failing', () => {
+    expect(
+      prEventLine(
+        verdict({
+          settled: true,
+          failedChecks: [{ name: 'mac-app-rehearsal', conclusion: 'cancelled' }, { name: 'ci' }],
+        }),
+      ),
+    ).toBe('PR #794: CI finished, mac-app-rehearsal (cancelled), ci failed')
+  })
+
   it('names the failed checks once CI finishes', () => {
     expect(prEventLine(verdict({ settled: true, failedChecks: named('lint') }))).toBe(
       'PR #794: CI finished, lint failed',

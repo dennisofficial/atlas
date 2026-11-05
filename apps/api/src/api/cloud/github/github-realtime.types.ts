@@ -25,6 +25,7 @@ export type GithubPrFailedCheck = {
   app?: string
   url?: string
   checkRunId?: string
+  conclusion?: string
   title?: string
   summary?: string
   annotations?: GithubPrCheckAnnotation[]

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'f35adc786c78bd210a084bb4842db0ff8a17a5d01ac78ff2cbac99e9cd3fe642'>;
+  StorageHashBase<'9151e8e7aba5a6a6267bfe81b5db0755f855090aa4292499b46b36b113aa4599'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -468,6 +468,7 @@ export namespace Models {
     annotationsCount: FieldOutputTypes['public']['GithubCommitCheck']['annotationsCount'];
     appSlug: FieldOutputTypes['public']['GithubCommitCheck']['appSlug'];
     checkKey: FieldOutputTypes['public']['GithubCommitCheck']['checkKey'];
+    conclusion: FieldOutputTypes['public']['GithubCommitCheck']['conclusion'];
     detailsUrl: FieldOutputTypes['public']['GithubCommitCheck']['detailsUrl'];
     headSha: FieldOutputTypes['public']['GithubCommitCheck']['headSha'];
     name: FieldOutputTypes['public']['GithubCommitCheck']['name'];
@@ -2516,6 +2517,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly conclusion: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly detailsUrl: {
@@ -7672,6 +7679,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly conclusion: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly detailsUrl: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -7730,6 +7741,7 @@ type ContractBase = Omit<
                 readonly annotationsCount: { readonly column: 'annotationsCount' };
                 readonly appSlug: { readonly column: 'appSlug' };
                 readonly checkKey: { readonly column: 'checkKey' };
+                readonly conclusion: { readonly column: 'conclusion' };
                 readonly detailsUrl: { readonly column: 'detailsUrl' };
                 readonly headSha: { readonly column: 'headSha' };
                 readonly name: { readonly column: 'name' };
