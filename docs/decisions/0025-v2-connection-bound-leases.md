@@ -24,8 +24,9 @@ Measured in the production spike on 2026-11-05 (PlanetScale, direct port 5432):
 - A holder SIGKILLed while holding `pg_advisory_lock` frees it for another connection in
   **106–107 ms**: the OS closes the socket and the server releases the session's locks.
 - A machine death or partition is not covered by that. Server keepalives default to 7200/75/9 s
-  (about 2 h). A connection can `SET tcp_keepalives_idle=5, tcp_keepalives_interval=2,
-  tcp_keepalives_count=3` for about 11 s.
+  (about 2 h). The spike assumed a connection could `SET tcp_keepalives_idle=5,
+  tcp_keepalives_interval=2, tcp_keepalives_count=3` for about 11 s; the build measurement below
+  shows that PlanetScale's proxy frees a partitioned holder after about 60 s whatever these are set to.
 - `max_connections` is 50 and `max_locks_per_transaction` is 64, so the shared lock table holds about
   3,200 locks for the whole cluster. Dennis's peak is 23 active sessions in a minute.
 
@@ -63,8 +64,7 @@ one per session.**
 **D3. The lock connection is direct, dedicated and short-lived.**
 - It uses `DATABASE_DIRECT_URL`, as the wake listener does. A session-level lock behind PgBouncer's
   transaction mode would outlive the client that took it, so a pooler URL is refused at startup.
-- It sets `tcp_keepalives_idle=5`, `tcp_keepalives_interval=2`, `tcp_keepalives_count=3`, and
-  `statement_timeout=0`, `idle_session_timeout=0` and `idle_in_transaction_session_timeout=0` for the
+- It sets `statement_timeout=0`, `idle_session_timeout=0` and `idle_in_transaction_session_timeout=0` for the
   connection. The client opens it with `keepAlive: true`.
 - A lock connection that errors or ends is not repaired in place. The host stops appending, pauses every
   loop, ends its pool connections' use of the old identity, and registers a **new** host id. Its
@@ -156,16 +156,16 @@ survives both. The lock's job is to say when a claim is allowed.
   (0021), so a host that cannot append cannot start work.
 - A sandbox daemon refuses a stale epoch at hello (`StaleEpoch`,
   `packages/protocol/src/engine/daemon-engine.ts`).
-- Server keepalives free a dead host's lock in about 11 s, and the next claim bumps the epoch.
+- PlanetScale's proxy frees a partitioned host's lock in about 60 s, and the next claim bumps the epoch.
 
 ## Failure cases
 
 | Case                             | What happens                                                                                                                                                                                                                                                                                                                                                                                                       |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Holder process SIGKILL           | The OS closes the socket, the server frees the presence lock in about 0.1 s, the successor's waiter returns, its sessions are woken and claimed.                                                                                                                                                                                                                                                                   |
-| Machine death or partition       | The server's keepalives free the lock in about 11 s; same path. The zombie, if it comes back, is refused by epoch.                                                                                                                                                                                                                                                                                                 |
+| Machine death or partition       | PlanetScale's proxy frees the lock in about 60 s; same path. The zombie, if it comes back, is refused by epoch.                                                                                                                                                                                                                                                                                                 |
 | Lock connection dead, pool alive | The host sees `error`/`end` at once, or the next append is refused. It stops, registers a new id and reclaims. Another host may claim first; the epoch refuses the old holder.                                                                                                                                                                                                                                     |
-| Lock connection alive, pool dead | Appends fail on transport past their deadline; the host closes its lock connection (D3). Peers claim within the keepalive window at most.                                                                                                                                                                                                                                                                          |
+| Lock connection alive, pool dead | Appends fail on transport past their deadline; the host closes its lock connection (D3). Peers claim within the proxy's ~60 s window at most.                                                                                                                                                                                                                                                                          |
 | Two hosts race a claim           | The lease row lock orders them. The second sees the first's presence lock granted and gets `held`.                                                                                                                                                                                                                                                                                                                 |
 | Deploy drain                     | Unchanged: revoke the sessions that have work with `pg_notify`, release the idle ones, close the lock connection last.                                                                                                                                                                                                                                                                                             |
 | PlanetScale failover             | Every connection drops and the new primary has no advisory locks. Each host reads that as lock loss, registers a new id, and reclaims its sessions at the next epoch. The `V2Host` rows of the old ids are deleted by the first waiter that finds them free. Epoch fencing is as durable as the database; if an old primary stayed writable the design would have no protection, and neither would the TTL design. |
@@ -175,10 +175,16 @@ survives both. The lock's job is to say when a claim is allowed.
 
 ## Consequences
 
-- **Measure first.** Two facts are assumed from the spike or from documentation and must be checked in
-  the first build PR against the real PlanetScale role: that `SET tcp_keepalives_*` is permitted, and
-  that `idle_session_timeout` is off for it. A role that reaps idle sessions would kill the lock
-  connection every few minutes.
+- **Measured on the real PlanetScale role (2026-11-05, Postgres 18.6, from an Atlas pod).** The role may
+  set the keepalive and timeout GUCs; `idle_session_timeout` defaults to 0, and a lock connection idle for
+  12 minutes stayed up. A SIGKILLed holder freed its lock for a blocked shared waiter in 5–7 ms (three
+  runs). An `iptables` drop of the holder's traffic in both directions freed it in 60.1–60.4 s (three runs
+  with keepalives set, one without): the client's socket ends at PlanetScale's proxy, which drops its
+  backend after about 60 s, so server keepalives are not set. Through the pooler (port 6432)
+  `inet_server_port()` is NULL and direct (5432) returns 5432, which is how a pooler URL is refused.
+  Machine death therefore costs about 60 s, not the 11 s the operator accepted on 2026-11-05; that
+  delta was put back to the operator the same day. No host-side probe timer is added. If 60 s proves too
+  slow, the alternative is a host probing its successor, which brings back an application timer.
 - Removed: `LeaseRenewal`, `ttlMs`, `renewEveryMs`, `fenceMarginMs`, the `lease-expired` refusal,
   `renew`, the `reconcile-holders` task and its spec, the expiry arithmetic in
   `sessionsNeedingHolder`.
@@ -186,11 +192,11 @@ survives both. The lock's job is to say when a claim is allowed.
   `appendDeadline`'s retry limit (it is a retry deadline on an append, not a timer).
 - Connections per host: the pool, plus three. The lock table holds one lock per host and one shared
   lock per watcher, briefly. The 3,200-lock ceiling no longer bounds sessions.
-- A kernel keepalive probe on three connections per host is transport, not application, activity.
-  Application code starts no timer to look for work or to prove liveness.
+- The client sockets use kernel keepalive (`keepAlive: true`), which is transport, not application,
+  activity. Application code starts no timer to look for work or to prove liveness.
 - A lock connection blip costs every session on that host an in-flight model stream and a claim. The
   alternative, re-taking the same key and re-checking epochs in place, saves that, but the old backend
-  can still hold the key for up to 11 s after the client sees the error, so the host would have to wait
+  can still hold the key for up to about 60 s after the client sees the error, so the host would have to wait
   for it. It is not taken.
 - Clients that read lease liveness (status, `currentLease`) read `pg_locks` on the primary. A replica
   shows its own locks, so these reads never go to one.
