@@ -4,15 +4,12 @@ import { Button } from '#components/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '#components/dropdown-menu'
-import { EStageFit } from './preview-browser-types'
 import {
   EViewportKind,
   FULL_PARAM,
@@ -29,27 +26,24 @@ import {
 export function deviceSummaryOf({
   viewport,
   fit,
-  stageFit,
 }: {
   viewport: Viewport
   fit: ViewportFit
-  stageFit: EStageFit
 }): string {
   if (viewport.kind === EViewportKind.Full) return ''
   const size = `${viewport.width}×${viewport.height}`
-  if (stageFit === EStageFit.Scroll || fit.scale >= 1) return size
+  if (fit.scale >= 1) return size
   return `${size} · ${formatZoom(fit.scale)}`
 }
 
 export interface PreviewDeviceMenuProps {
   viewport: Viewport
   fit: ViewportFit
-  stageFit: EStageFit
   onChange: (viewport: Viewport) => void
 }
 
-export function PreviewDeviceMenu({ viewport, fit, stageFit, onChange }: PreviewDeviceMenuProps) {
-  const summary = deviceSummaryOf({ viewport, fit, stageFit })
+export function PreviewDeviceMenu({ viewport, fit, onChange }: PreviewDeviceMenuProps) {
+  const summary = deviceSummaryOf({ viewport, fit })
   const handleValueChange = (value: string) => onChange(parseViewportParam(value))
   const handleRotate = () => onChange(rotateViewport(viewport))
   return (
@@ -84,16 +78,6 @@ export function PreviewDeviceMenu({ viewport, fit, stageFit, onChange }: Preview
           <RotateCwSquareIcon />
           Rotate
         </DropdownMenuItem>
-        {stageFit === EStageFit.Scroll ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>
-                Sizes wider than the panel scroll instead of shrinking
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-          </>
-        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )

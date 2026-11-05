@@ -1,9 +1,5 @@
-import {
-  reconciled,
-  updateTab,
-  type BrowserState,
-} from '../../../data/preview-browser/browser-model'
-import { parseWebUrl } from '../../../data/preview-browser/web-url'
+import { reconciled, updateTab, type BrowserState } from '../../data/preview-browser/browser-model'
+import { parseWebUrl } from '../../data/preview-browser/web-url'
 
 export function reportedState(args: {
   state: BrowserState

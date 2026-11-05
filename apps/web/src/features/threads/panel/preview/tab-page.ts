@@ -14,20 +14,14 @@ export enum ETabPage {
 
 export type TabPage =
   | { kind: ETabPage.NewTab | ETabPage.Loading | ETabPage.External }
-  | { kind: ETabPage.Offline; port: PreviewPort }
-  | { kind: ETabPage.Frame; port?: PreviewPort }
+  | { kind: ETabPage.Offline | ETabPage.Frame; port: PreviewPort }
 
-export function tabPageOf(args: {
-  url: string
-  ports: PreviewPort[]
-  loaded: boolean
-  allowExternal?: boolean
-}): TabPage {
-  const { url, ports, loaded, allowExternal = false } = args
+export function tabPageOf(args: { url: string; ports: PreviewPort[]; loaded: boolean }): TabPage {
+  const { url, ports, loaded } = args
   if (url === NEW_TAB_URL) return { kind: ETabPage.NewTab }
   if (!loaded) return { kind: ETabPage.Loading }
   const port = previewPortForUrl({ url, ports })
-  if (port === null) return allowExternal ? { kind: ETabPage.Frame } : { kind: ETabPage.External }
+  if (port === null) return { kind: ETabPage.External }
   if (port.status !== EPreviewStatus.Live) return { kind: ETabPage.Offline, port }
   return { kind: ETabPage.Frame, port }
 }

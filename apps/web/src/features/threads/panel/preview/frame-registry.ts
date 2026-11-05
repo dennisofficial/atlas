@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
+import { EPreviewGate } from '@/features/desktop/use-preview-origins'
+
 import { liveKeyOf } from '../../data/preview-browser/live-tabs'
 
 export type VisibleSlot = { threadId: string; tabId: string; element: HTMLElement }
@@ -7,13 +9,13 @@ export type VisibleSlot = { threadId: string; tabId: string; element: HTMLElemen
 export type FrameRegistry = {
   visible: VisibleSlot | undefined
   opened: ReadonlySet<string>
-  reloads: Readonly<Record<string, number>>
+  gate: EPreviewGate
 }
 
 export const EMPTY_REGISTRY: FrameRegistry = {
   visible: undefined,
   opened: new Set(),
-  reloads: {},
+  gate: EPreviewGate.Ready,
 }
 
 export const slotKeyOf = (slot: VisibleSlot): string =>
@@ -39,9 +41,8 @@ export function unloaded(args: { registry: FrameRegistry; key: string }): FrameR
   return { ...registry, opened }
 }
 
-export function reloadedFrame(args: { registry: FrameRegistry; key: string }): FrameRegistry {
-  const { registry, key } = args
-  return { ...registry, reloads: { ...registry.reloads, [key]: (registry.reloads[key] ?? 0) + 1 } }
+export function withGate(args: { registry: FrameRegistry; gate: EPreviewGate }): FrameRegistry {
+  return args.registry.gate === args.gate ? args.registry : { ...args.registry, gate: args.gate }
 }
 
 let current = EMPTY_REGISTRY

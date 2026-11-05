@@ -3,13 +3,13 @@
 import type { ReactNode } from 'react'
 
 import { PreviewDeviceMenu } from './internal/preview-device-menu'
-import { EStageFit, type PreviewBrowserTab } from './internal/preview-browser-types'
+import type { PreviewBrowserTab } from './internal/preview-browser-types'
 import { PreviewStage, useStageSize } from './internal/preview-stage'
 import { PreviewTabStrip } from './internal/preview-tab-strip'
 import { PreviewToolbar } from './internal/preview-toolbar'
 import { availableSpace, fitViewport, type Viewport } from './internal/viewport'
 
-export { EStageFit, type PreviewBrowserTab } from './internal/preview-browser-types'
+export type { PreviewBrowserTab } from './internal/preview-browser-types'
 export { EPreviewStatus, PREVIEW_STATUS_LABEL, type PreviewPort } from './preview-ports'
 export {
   EViewportKind,
@@ -44,7 +44,6 @@ export interface PreviewBrowserProps {
   onAddress: (input: string) => void
   viewport: Viewport
   onViewportChange: (viewport: Viewport) => void
-  stageFit: EStageFit
   children: ReactNode
 }
 
@@ -64,7 +63,6 @@ export function PreviewBrowser({
   onAddress,
   viewport,
   onViewportChange,
-  stageFit,
   children,
 }: PreviewBrowserProps) {
   const stage = useStageSize()
@@ -91,16 +89,9 @@ export function PreviewBrowser({
         onForward={onForward}
         onReload={onReload}
         onAddress={onAddress}
-        deviceMenu={
-          <PreviewDeviceMenu
-            viewport={viewport}
-            fit={fit}
-            stageFit={stageFit}
-            onChange={onViewportChange}
-          />
-        }
+        deviceMenu={<PreviewDeviceMenu viewport={viewport} fit={fit} onChange={onViewportChange} />}
       />
-      <PreviewStage stageRef={stage.ref} viewport={viewport} fit={fit} stageFit={stageFit}>
+      <PreviewStage stageRef={stage.ref} viewport={viewport} fit={fit}>
         {children}
       </PreviewStage>
     </div>

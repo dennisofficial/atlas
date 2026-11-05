@@ -11,14 +11,9 @@ import {
   updateTab,
   type BrowserState,
 } from '../../../data/preview-browser/browser-model'
-import {
-  EMPTY_REGISTRY,
-  hidden,
-  reloadedFrame,
-  shown,
-  slotKeyOf,
-  unloaded,
-} from '../frame-registry'
+import { EPreviewGate } from '@/features/desktop/use-preview-origins'
+
+import { EMPTY_REGISTRY, hidden, shown, slotKeyOf, unloaded, withGate } from '../frame-registry'
 import { framesOf } from '../frames-of'
 import { FRAME_Z, placementFrom, SHEET_FRAME_Z } from '../placement'
 import { ETabPage, tabPageOf } from '../tab-page'
@@ -70,12 +65,17 @@ describe('frame registry', () => {
     expect(hidden({ registry: second, element: first.visible!.element })).toBe(second)
   })
 
-  it('unloads and reloads by key', () => {
+  it('unloads by key', () => {
     const slot = { threadId: 't1', tabId: 'tab-1', element: element() }
     const opened = shown({ registry: EMPTY_REGISTRY, slot })
     expect(unloaded({ registry: opened, key: slotKeyOf(slot) }).opened.size).toBe(0)
-    const once = reloadedFrame({ registry: opened, key: slotKeyOf(slot) })
-    expect(reloadedFrame({ registry: once, key: slotKeyOf(slot) }).reloads[slotKeyOf(slot)]).toBe(2)
+  })
+
+  it('records the desktop gate and keeps the registry when it is unchanged', () => {
+    expect(withGate({ registry: EMPTY_REGISTRY, gate: EPreviewGate.Ready })).toBe(EMPTY_REGISTRY)
+    expect(withGate({ registry: EMPTY_REGISTRY, gate: EPreviewGate.Failed }).gate).toBe(
+      EPreviewGate.Failed,
+    )
   })
 })
 
@@ -184,8 +184,5 @@ describe('tabPageOf', () => {
     expect(tabPageOf({ url: 'https://github.com/', ports, loaded: true }).kind).toBe(
       ETabPage.External,
     )
-    expect(
-      tabPageOf({ url: 'https://github.com/', ports, loaded: true, allowExternal: true }).kind,
-    ).toBe(ETabPage.Frame)
   })
 })
