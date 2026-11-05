@@ -41,6 +41,12 @@ export {
   type StatusState,
   statusFrame,
 } from './holder/ports'
+export {
+  LIVE_FLUSH_BYTES,
+  LIVE_FLUSH_MS,
+  LIVE_STEP_CAP_BYTES,
+  LiveStepBuffer,
+} from './holder/live-step-buffer'
 export { InboxIntake, INBOX_KIND_STOP } from './holder/inbox-intake'
 export {
   LeaseLostError,

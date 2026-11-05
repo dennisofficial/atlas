@@ -1,4 +1,8 @@
+import { EStepEndReason } from '@dltech/atlas-core'
 import { z } from 'zod'
+
+import { EStreamBlockKind } from './stream-constants'
+import { streamStepKeySchema } from './stream-step-key'
 
 export const PG_WAKE_CHANNEL = 'atlas_session_wake'
 
@@ -10,6 +14,9 @@ export const PG_PRESENCE_LOCK_NAMESPACE = 1095060563
 
 export const sessionLiveChannel = (sessionId: string): string => `atlas:session-live:${sessionId}`
 
+export const sessionLiveBufferKey = (sessionId: string): string =>
+  `atlas:session-live-buf:${sessionId}`
+
 export const liveFrameSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('tool-output'), callId: z.string().min(1), text: z.string() }),
   z.strictObject({
@@ -20,6 +27,20 @@ export const liveFrameSchema = z.discriminatedUnion('type', [
     delayMs: z.number().min(0),
   }),
   z.strictObject({ type: z.literal('status'), state: z.string().min(1) }),
+  z.strictObject({ type: z.literal('step-start'), key: streamStepKeySchema }),
+  z.strictObject({
+    type: z.literal('delta'),
+    key: streamStepKeySchema,
+    block: z.string().min(1),
+    kind: z.enum(EStreamBlockKind),
+    from: z.number().int().min(0),
+    text: z.string(),
+  }),
+  z.strictObject({
+    type: z.literal('step-end'),
+    key: streamStepKeySchema,
+    reason: z.enum(EStepEndReason),
+  }),
 ])
 
 export type LiveFrame = z.infer<typeof liveFrameSchema>

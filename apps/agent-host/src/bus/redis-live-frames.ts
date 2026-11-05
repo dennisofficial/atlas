@@ -1,10 +1,19 @@
 import { Redis } from 'ioredis'
 
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
-import { liveFrameSchema, sessionLiveChannel, type LiveFrame } from '@dltech/atlas-protocol'
+import {
+  liveFrameSchema,
+  sessionLiveBufferKey,
+  sessionLiveChannel,
+  type LiveFrame,
+} from '@dltech/atlas-protocol'
+
+export const LIVE_BUFFER_TTL_SECONDS = 600
+export const LIVE_BUFFER_EXPIRE_EVERY_MS = 1_000
 
 export type RedisLiveFrames = {
   live(args: { sessionId: string; frame: LiveFrame }): void
+  trackedSessions(): number
   close(): Promise<void>
 }
 
@@ -28,6 +37,27 @@ export const createRedisLiveFrames = (args: {
   })
 
   let closing: Promise<void> | undefined
+  const expiredAt = new Map<string, number>()
+
+  const publishStepFrame = (args: { sessionId: string; frame: LiveFrame }): Promise<unknown> => {
+    const { sessionId, frame } = args
+    const json = JSON.stringify(frame)
+    const bufferKey = sessionLiveBufferKey(sessionId)
+    const line = `${json}\n`
+    const multi = publisher.multi()
+    if (frame.type === 'step-start') multi.set(bufferKey, line)
+    else multi.append(bufferKey, line)
+    multi.publish(sessionLiveChannel(sessionId), json)
+    const now = Date.now()
+    const ended = frame.type === 'step-end'
+    const due = now - (expiredAt.get(sessionId) ?? 0) >= LIVE_BUFFER_EXPIRE_EVERY_MS
+    if (frame.type === 'step-start' || ended || due) {
+      multi.expire(bufferKey, LIVE_BUFFER_TTL_SECONDS)
+      if (ended) expiredAt.delete(sessionId)
+      else expiredAt.set(sessionId, now)
+    }
+    return multi.exec()
+  }
 
   return {
     live({ sessionId, frame }) {
@@ -40,15 +70,22 @@ export const createRedisLiveFrames = (args: {
         })
         return
       }
-      publisher
-        .publish(sessionLiveChannel(sessionId), JSON.stringify(result.data))
-        .catch((error: unknown) => {
-          args.log?.error({
-            source: 'bus.live',
-            message: `publishing a live frame for ${sessionId} failed`,
-            ...logFieldsOf({ error }),
-          })
+      const { data } = result
+      const sent =
+        data.type === 'step-start' || data.type === 'delta' || data.type === 'step-end'
+          ? publishStepFrame({ sessionId, frame: data })
+          : publisher.publish(sessionLiveChannel(sessionId), JSON.stringify(data))
+      sent.catch((error: unknown) => {
+        args.log?.error({
+          source: 'bus.live',
+          message: `publishing a live frame for ${sessionId} failed`,
+          ...logFieldsOf({ error }),
         })
+      })
+    },
+
+    trackedSessions() {
+      return expiredAt.size
     },
 
     async close() {

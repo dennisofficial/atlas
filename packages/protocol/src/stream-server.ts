@@ -10,14 +10,11 @@ import {
   EStreamResetReason,
   STREAM_PROTOCOL_VERSION,
 } from './stream-constants'
+import { streamStepKeySchema } from './stream-step-key'
 
 const idSchema = z.string().min(1)
 
-export const streamStepKeySchema = z.strictObject({
-  runId: z.string().min(1),
-  step: z.number().int().min(0),
-  attempt: z.number().int().min(0),
-})
+export { streamStepKeySchema }
 
 export const streamSessionRowSchema = z.strictObject({
   sessionId: z.string().min(1),

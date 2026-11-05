@@ -6,6 +6,7 @@ import {
 } from '@dltech/atlas-agent'
 import type { ThreadId } from '@dltech/atlas-core'
 
+import { LiveStepBuffer } from './live-step-buffer'
 import { statusFrame } from './ports'
 import type { HeldSessionDeps } from './held-session-deps'
 
@@ -57,8 +58,16 @@ export class HeldTurns {
 
   liveOutput(): AgentOutput {
     const deps = this.deps
+    const steps = new LiveStepBuffer({
+      timers: deps.timers,
+      emit: (frame) => deps.bus.live({ sessionId: deps.sessionId, frame }),
+    })
     return {
       emit: (event) => {
+        if (event.type === 'step-start' || event.type === 'chunk' || event.type === 'step-end') {
+          steps.push(event)
+          return
+        }
         if (event.type === 'tool-output') {
           deps.bus.live({
             sessionId: deps.sessionId,

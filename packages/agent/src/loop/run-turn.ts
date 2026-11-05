@@ -89,6 +89,7 @@ export class LoopTurnRunner extends TurnRunner {
       tools,
       countTokens,
       onChunk: deps.onChunk,
+      streamOutput: deps.output,
       onContext:
         deps.output === undefined
           ? undefined

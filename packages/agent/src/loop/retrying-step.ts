@@ -19,7 +19,9 @@ import { blockedErrorOf, type ModelAdmissionBlockedError } from '../model/admiss
 import { causeChainOf } from '../model/cause-chain'
 import type { NormalizeFailure } from '../model/run-failure'
 import { takeModelStep, type SteppedTurn } from './model-step'
+import type { StepStreamer } from './streamed-chunks'
 import {
+  interruptibleSleep,
   recordedWaitMs,
   settleRecordedDeadline,
   sleepUnlessAborted,
@@ -53,20 +55,6 @@ export type RetryDeps = {
   failover?: (() => boolean) | undefined
   now?: (() => number) | undefined
   ledger?: RetryLedgerRef | undefined
-}
-
-/**
- * A clock jump cannot abort the caller's signal, so the backoff sleeps on a signal linked to
- * both: the jump cuts the sleep short, and a caller abort during the backoff still settles it.
- */
-function interruptibleSleep(args: {
-  ms: number
-  callerSignal: AbortSignal
-  jumpSignal: AbortSignal
-  sleep: (args: { ms: number; signal: AbortSignal }) => Promise<void>
-}): Promise<void> {
-  if (args.jumpSignal.aborted) return args.sleep({ ms: args.ms, signal: args.callerSignal })
-  return args.sleep({ ms: args.ms, signal: AbortSignal.any([args.callerSignal, args.jumpSignal]) })
 }
 
 type StepAttempt =
@@ -132,6 +120,7 @@ export async function takeModelStepWithRetry(args: {
   model: ModelPort
   tools: readonly ToolDeclaration[]
   onChunk: ChunkFilter | undefined
+  streamer?: StepStreamer | undefined
   assembled: Assembled
   signal: AbortSignal
   retry?: RetryDeps | undefined
@@ -180,13 +169,18 @@ export async function takeModelStepWithRetry(args: {
     }
 
     for (;;) {
-      const attempt = await attemptModelStep({
-        model: args.model,
-        tools: args.tools,
-        onChunk: args.onChunk,
-        assembled,
-        signal: args.signal,
-      })
+      const run = (onChunk: ChunkFilter | undefined) =>
+        attemptModelStep({
+          model: args.model,
+          tools: args.tools,
+          onChunk,
+          assembled,
+          signal: args.signal,
+        })
+      const attempt =
+        args.streamer === undefined
+          ? await run(args.onChunk)
+          : await args.streamer.attempt({ filter: args.onChunk, signal: args.signal, run })
 
       if (attempt.ok) return attempt.stepped
 
