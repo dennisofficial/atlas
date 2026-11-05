@@ -13,6 +13,7 @@ import {
   freshBrowser,
   navigated,
   openTab,
+  reconciled,
   steppedBack,
   steppedForward,
   updateTab,
@@ -140,5 +141,62 @@ describe('browser-model', () => {
     const tab = freshBrowser({ now: 1 }).tabs[0]!
     const viewport = { kind: EViewportKind.Fixed, width: 390, height: 844 } as const
     expect(withViewport({ tab, viewport }).viewport).toEqual(viewport)
+  })
+
+  it('bumps load when atlas navigates or steps, never when the page reports', () => {
+    let tab = freshBrowser({ now: 1 }).tabs[0]!
+    expect(tab.load).toEqual({ url: NEW_TAB_URL, seq: 0 })
+    tab = navigated({ tab, url: A })
+    expect(tab.load).toEqual({ url: A, seq: 1 })
+    tab = navigated({ tab, url: B })
+    tab = steppedBack(tab)
+    expect(tab.load).toEqual({ url: A, seq: 3 })
+    tab = steppedForward(tab)
+    expect(tab.load).toEqual({ url: B, seq: 4 })
+    expect(navigated({ tab, url: B }).load.seq).toBe(4)
+  })
+})
+
+describe('reconciled', () => {
+  const at = (urls: string[], index: number) => {
+    let tab = freshBrowser({ now: 1 }).tabs[0]!
+    for (const url of urls) tab = navigated({ tab, url })
+    for (let step = urls.length - index; step > 0; step -= 1) tab = steppedBack(tab)
+    return tab
+  }
+
+  it('ignores the url the tab is already on, even if only normalised differently', () => {
+    const tab = at([A, B], 2)
+    expect(reconciled({ tab, url: B })).toBe(tab)
+    expect(reconciled({ tab, url: 'https://3000-abcdefghij.byatlas.dev/b#' })).toBe(tab)
+  })
+
+  it('steps back or forward when the url is the neighbouring entry', () => {
+    const tab = at([A, B, C], 2)
+    expect(reconciled({ tab, url: A }).index).toBe(1)
+    expect(reconciled({ tab, url: C }).index).toBe(3)
+  })
+
+  it('pushes anything else and truncates forward history', () => {
+    const tab = at([A, B, C], 1)
+    const next = reconciled({ tab, url: 'https://x.test/' })
+    expect(next.history).toEqual([NEW_TAB_URL, A, 'https://x.test/'])
+    expect(next.index).toBe(2)
+  })
+
+  it('never touches load', () => {
+    const tab = at([A, B, C], 2)
+    for (const url of [A, C, 'https://x.test/']) {
+      expect(reconciled({ tab, url }).load).toBe(tab.load)
+    }
+  })
+
+  it('caps history like navigated does', () => {
+    let tab = freshBrowser({ now: 1 }).tabs[0]!
+    for (let step = 0; step < MAX_HISTORY + 5; step += 1) {
+      tab = reconciled({ tab, url: `https://x.test/${step}` })
+    }
+    expect(tab.history).toHaveLength(MAX_HISTORY)
+    expect(tab.index).toBe(MAX_HISTORY - 1)
   })
 })

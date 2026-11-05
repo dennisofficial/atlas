@@ -1,6 +1,13 @@
 import { z } from 'zod'
 
-import { EViewportKind, MAX_HISTORY, freshBrowser, type BrowserState } from './browser-model'
+import {
+  EViewportKind,
+  MAX_HISTORY,
+  NEW_TAB_URL,
+  freshBrowser,
+  type BrowserState,
+  type BrowserTab,
+} from './browser-model'
 
 export const BROWSER_STORAGE_PREFIX = 'atlas.preview-browser.v1.'
 
@@ -20,6 +27,7 @@ const tabSchema = z
     id: z.string().min(1),
     history: z.array(z.string()).min(1).max(MAX_HISTORY),
     index: z.number().int().min(0),
+    load: z.object({ url: z.string(), seq: z.number().int().min(0) }).optional(),
     viewport: viewportSchema,
     lastUsedAt: z.number(),
   })
@@ -36,6 +44,11 @@ const stateSchema = z
     (state) => state.activeId === undefined || state.tabs.some((tab) => tab.id === state.activeId),
   )
 
+const restoredTab = (tab: z.output<typeof tabSchema>): BrowserTab => ({
+  ...tab,
+  load: { url: tab.history[tab.index] ?? NEW_TAB_URL, seq: tab.load?.seq ?? 0 },
+})
+
 export function parseBrowserState(args: { raw: string | null; now: number }): BrowserState {
   const { raw, now } = args
   if (raw === null) return freshBrowser({ now })
@@ -43,7 +56,7 @@ export function parseBrowserState(args: { raw: string | null; now: number }): Br
     const parsed = stateSchema.safeParse(JSON.parse(raw))
     if (!parsed.success) return freshBrowser({ now })
     const { tabs, activeId, nextId } = parsed.data
-    return { tabs, activeId, nextId }
+    return { tabs: tabs.map(restoredTab), activeId, nextId }
   } catch {
     return freshBrowser({ now })
   }

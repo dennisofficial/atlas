@@ -7,6 +7,7 @@ import {
   navigated,
   NEW_TAB_URL,
   openTab,
+  reconciled,
   updateTab,
   type BrowserState,
 } from '../../../data/preview-browser/browser-model'
@@ -122,6 +123,26 @@ describe('framesOf', () => {
   })
 })
 
+describe('framesOf load', () => {
+  it('carries the load the frame must show, not the reported current url', () => {
+    const base = browserOn({ urls: [URL_A], now: 1 })
+    const states = {
+      t1: updateTab({
+        state: base,
+        id: 'tab-1',
+        change: (tab) => reconciled({ tab, url: URL_B }),
+      }),
+    }
+    const registry = shown({
+      registry: EMPTY_REGISTRY,
+      slot: { threadId: 't1', tabId: 'tab-1', element: element() },
+    })
+    const [frame] = framesOf({ states, registry })
+    expect(frame?.url).toBe(URL_B)
+    expect(frame?.load).toEqual({ url: URL_A, seq: 1 })
+  })
+})
+
 describe('placementFrom', () => {
   it('scales the frame by the slot transform and lifts it above a sheet', () => {
     const placement = placementFrom({
@@ -163,5 +184,8 @@ describe('tabPageOf', () => {
     expect(tabPageOf({ url: 'https://github.com/', ports, loaded: true }).kind).toBe(
       ETabPage.External,
     )
+    expect(
+      tabPageOf({ url: 'https://github.com/', ports, loaded: true, allowExternal: true }).kind,
+    ).toBe(ETabPage.Frame)
   })
 })

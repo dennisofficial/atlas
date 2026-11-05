@@ -151,4 +151,22 @@ describe('browser-store', () => {
     guarded.update({ threadId: 't1', change: ({ state, now }) => openTab({ state, now }) })
     expect(guarded.read('t1').tabs).toHaveLength(2)
   })
+
+  it('derives load from the current url for tabs persisted before load existed, and keeps a stored one', () => {
+    const legacy = {
+      id: 'a',
+      history: ['x', 'y'],
+      index: 1,
+      viewport: { kind: 'full' },
+      lastUsedAt: 1,
+    }
+    const raw = JSON.stringify({
+      tabs: [legacy, { ...legacy, id: 'b', load: { url: 'x', seq: 4 } }],
+      activeId: 'a',
+      nextId: 3,
+    })
+    const [first, second] = parseBrowserState({ raw, now: 7 }).tabs
+    expect(first?.load).toEqual({ url: 'y', seq: 0 })
+    expect(second?.load).toEqual({ url: 'y', seq: 4 })
+  })
 })
