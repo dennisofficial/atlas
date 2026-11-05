@@ -118,6 +118,26 @@ export async function recordCommitChecksLocked(args: {
   })
 }
 
+export async function recordCheckCounts(args: {
+  repoFullName: string
+  headSha: string
+  checks: readonly CommitCheckInput[]
+}): Promise<ReturnType<typeof checkCountFieldsOf>> {
+  const tally = await db.transaction(async (tx) => {
+    await lockCommit({ tx, ...args })
+    await recordCommitChecks({ tx, ...args })
+    return commitChecksTally({ tx, repoFullName: args.repoFullName, headSha: args.headSha })
+  })
+  return checkCountFieldsOf(tally)
+}
+
+export const checkCountFieldsOf = (tally: ChecksCount) => ({
+  checksRunning: tally.running,
+  checksPassed: tally.passed,
+  checksFailed: tally.failed,
+  checksIgnored: tally.ignored,
+})
+
 export async function recordCommitChecks(args: {
   tx: Tx
   repoFullName: string
