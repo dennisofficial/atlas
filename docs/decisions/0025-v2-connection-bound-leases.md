@@ -1,4 +1,4 @@
-# 0023. v2 leases are held by the host's Postgres connection, not renewed
+# 0025. v2 leases are held by the host's Postgres connection, not renewed
 
 Proposed 2026-11-05; accepted when the operator merges the PR that adds it. Replaces the TTL and
 renewal mechanics of P4 and R4 in [architecture §13](../v2/architecture.md) and amends

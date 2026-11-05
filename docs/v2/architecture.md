@@ -452,7 +452,7 @@ is not an in-memory timer: it is a recorded deadline (0021).
   or failed with a retry pending. An idle, prepared session is released without a wake. The next message
   wakes it through `NOTIFY`, so a deploy no longer wakes every sandbox and restarts every idle clock.
 
-**Connection-bound leases (proposed in [0023](../decisions/0023-v2-connection-bound-leases.md)).** Renewal
+**Connection-bound leases (proposed in [0025](../decisions/0025-v2-connection-bound-leases.md)).** Renewal
 and the reconcile task exist because liveness is something the control plane has to infer from a clock.
 Postgres already knows when a connection is gone, so the proposal makes that the liveness signal and
 removes every timer that proves or looks for it.
@@ -491,12 +491,12 @@ flowchart LR
 The `pg_locks` read scales with every lock in the cluster, so it stays off the append path. Connections
 per host are the pool plus three (`LISTEN`, lock, one waiter), independent of fleet size; one waiter per
 peer would need N(N−1) backends against a limit of 50. What the lock connection must survive, and what
-the host does for each case, is the failure table in 0023.
+the host does for each case, is the failure table in [0025](../decisions/0025-v2-connection-bound-leases.md).
 
-**Build plan** (each a reviewable PR; none starts before the operator accepts 0023):
+**Build plan** (each a reviewable PR; none starts before the operator accepts 0025):
 1. **Verify on PlanetScale.** A test-only script against the real role: `SET tcp_keepalives_*` is allowed,
    no idle-session reaping, a killed connection frees the lock, a transaction-mode URL is detectable.
-   Amend 0023 with the numbers.
+   Amend 0025 with the numbers.
 2. **Presence.** `V2Host` table, a `HostPresence` port with Postgres and in-memory implementations
    (conformance spec shared), the lock connection with `error`/`end` handling and the pooler refusal.
 3. **Lease row and fence.** Drop `renewedAt`/`ttlMs`, add `holderHostId`; `claim` and `acceptAppend` in `core`
