@@ -1,47 +1,25 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
-
 import { NEW_TAB_URL } from '../browser-model'
 import { titleOf } from '../tab-title'
 
-const PORTS: PreviewPort[] = [
-  {
-    id: 'service:web',
-    port: 3000,
-    label: 'Web',
-    url: 'https://3000-abcdefghij.byatlas.dev/',
-    status: EPreviewStatus.Live,
-  },
-]
+const ROOT = 'https://3000-abcdefghij.byatlas.dev/'
 
 describe('titleOf', () => {
   it('titles the new tab page', () => {
-    expect(titleOf({ url: NEW_TAB_URL, ports: PORTS })).toBe('New tab')
+    expect(titleOf({ url: NEW_TAB_URL, title: 'ignored' })).toBe('New tab')
   })
 
-  it('uses the port label for a preview origin root', () => {
-    expect(titleOf({ url: 'https://3000-abcdefghij.byatlas.dev/', ports: PORTS })).toBe('Web')
-    expect(titleOf({ url: 'https://3000-abcdefghij.byatlas.dev', ports: PORTS })).toBe('Web')
+  it("prefers the page's own title", () => {
+    expect(titleOf({ url: `${ROOT}cart`, title: 'Checkout' })).toBe('Checkout')
   })
 
-  it('appends the pathname below the root', () => {
-    expect(titleOf({ url: 'https://3000-abcdefghij.byatlas.dev/pricing?x=1', ports: PORTS })).toBe(
-      'Web/pricing',
-    )
-  })
-
-  it('uses the host for external urls', () => {
-    expect(titleOf({ url: 'https://example.com/a', ports: PORTS })).toBe('example.com')
-  })
-
-  it('falls back to the host for a preview host with no known port', () => {
-    expect(titleOf({ url: 'https://3000-abcdefghij.byatlas.dev/', ports: [] })).toBe(
-      '3000-abcdefghij.byatlas.dev',
-    )
+  it('falls back to the path, or the host at the root, before the page reports a title', () => {
+    expect(titleOf({ url: `${ROOT}pricing?x=1`, title: undefined })).toBe('/pricing')
+    expect(titleOf({ url: ROOT, title: undefined })).toBe('3000-abcdefghij.byatlas.dev')
   })
 
   it('returns unparseable input unchanged', () => {
-    expect(titleOf({ url: 'not a url', ports: PORTS })).toBe('not a url')
+    expect(titleOf({ url: 'not a url', title: undefined })).toBe('not a url')
   })
 })

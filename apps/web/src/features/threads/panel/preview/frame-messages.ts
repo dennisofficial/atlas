@@ -11,7 +11,7 @@ const frameLocationSchema = z.object({
 
 export type FrameLocation = { url: string; title: string }
 
-export type FrameReport = { key: string; url: string }
+export type FrameReport = { key: string; url: string; title: string }
 
 export function parseFrameMessage(data: unknown): FrameLocation | null {
   const parsed = frameLocationSchema.safeParse(data)
@@ -37,5 +37,5 @@ export function frameReportOf(args: {
   if (key === undefined) return null
   const location = parseFrameMessage(data)
   if (location === null || originOf(location.url) !== origin) return null
-  return { key, url: location.url }
+  return { key, url: location.url, title: location.title }
 }

@@ -16,7 +16,7 @@ const readStorage = (): Storage | undefined => {
 let held: ReturnType<typeof createBrowserStore> | undefined
 
 const storeOf = () => {
-  held ??= createBrowserStore({ storage: readStorage(), now: Date.now })
+  held ??= createBrowserStore({ storage: readStorage() })
   return held
 }
 
@@ -25,7 +25,7 @@ export const updatePreviewBrowser = (args: { threadId: string; change: BrowserCh
 
 const subscribe = (listener: () => void) => storeOf().subscribe(listener)
 
-const SERVER_STATE: BrowserState = freshBrowser({ now: 0 })
+const SERVER_STATE: BrowserState = freshBrowser()
 const SERVER_ALL: Record<string, BrowserState> = {}
 
 export function usePreviewBrowser(threadId: string) {

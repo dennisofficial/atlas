@@ -22,7 +22,8 @@ export function useFrameReports(): (frame: FrameSpec) => (iframe: HTMLIFrameElem
       if (report === null || target === undefined) return
       updatePreviewBrowser({
         threadId: target.threadId,
-        change: ({ state }) => reportedState({ state, tabId: target.tabId, url: report.url }),
+        change: ({ state }) =>
+          reportedState({ state, tabId: target.tabId, url: report.url, title: report.title }),
       })
     }
     window.addEventListener('message', handleMessage)

@@ -4,11 +4,13 @@ import { useEffect, useLayoutEffect } from 'react'
 
 import { applyDesktopAttributes } from './desktop-attributes'
 import { DESKTOP_DRAG_ATTRIBUTE, DESKTOP_DRAG_CSS } from './desktop-drag-css'
+import { useDesktopNavigation } from './use-desktop-navigation'
 import { handleDocumentDoubleClick, postTitlebarDoubleClick } from './titlebar-double-click'
 import { useIsDesktop } from './use-is-desktop'
 
 export function DesktopChrome() {
   const desktop = useIsDesktop()
+  useDesktopNavigation(desktop)
   useLayoutEffect(() => {
     applyDesktopAttributes({ root: document.documentElement, host: window })
   }, [])

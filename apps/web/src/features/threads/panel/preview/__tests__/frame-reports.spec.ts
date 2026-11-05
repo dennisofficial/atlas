@@ -27,6 +27,7 @@ describe('frameReportOf', () => {
     expect(frameReportOf({ origin: ORIGIN, source: mine, data: location(B), windows })).toEqual({
       key: 't1:tab-1',
       url: B,
+      title: 'Page',
     })
     expect(frameReportOf({ origin: ORIGIN, source: other, data: location(B), windows })?.key).toBe(
       't1:tab-2',
@@ -54,29 +55,37 @@ describe('frameReportOf', () => {
 describe('reportedState', () => {
   const stateOn = (): BrowserState =>
     updateTab({
-      state: freshBrowser({ now: 1 }),
+      state: freshBrowser(),
       id: 'tab-1',
-      change: (tab) => navigated({ tab, url: A }),
+      change: (tab) => navigated({ tab, url: A, title: 'A' }),
     })
 
   it('records a reported url in history without bumping load', () => {
     const state = stateOn()
-    const tab = reportedState({ state, tabId: 'tab-1', url: B }).tabs[0]!
+    const tab = reportedState({ state, tabId: 'tab-1', url: B, title: 'B' }).tabs[0]!
     expect(tab.history.at(-1)).toBe(B)
     expect(tab.load).toBe(state.tabs[0]!.load)
   })
 
   it('steps back when the frame reports the previous entry', () => {
-    const forward = reportedState({ state: stateOn(), tabId: 'tab-1', url: B })
-    const back = reportedState({ state: forward, tabId: 'tab-1', url: A }).tabs[0]!
+    const forward = reportedState({ state: stateOn(), tabId: 'tab-1', url: B, title: 'B' })
+    const back = reportedState({ state: forward, tabId: 'tab-1', url: A, title: 'A' }).tabs[0]!
     expect(back.index).toBe(back.history.indexOf(A))
     expect(back.history.at(-1)).toBe(B)
   })
 
+  it('records the page title, also when only the title changed', () => {
+    const forward = reportedState({ state: stateOn(), tabId: 'tab-1', url: B, title: 'B' })
+    expect(forward.tabs[0]?.title).toBe('B')
+    const retitled = reportedState({ state: forward, tabId: 'tab-1', url: B, title: 'Cart' })
+    expect(retitled.tabs[0]?.title).toBe('Cart')
+    expect(reportedState({ state: retitled, tabId: 'tab-1', url: B, title: 'Cart' })).toBe(retitled)
+  })
+
   it('returns the same state for the current url, a non-web url or an unknown tab', () => {
     const state = stateOn()
-    expect(reportedState({ state, tabId: 'tab-1', url: A })).toBe(state)
-    expect(reportedState({ state, tabId: 'tab-1', url: 'about:blank' })).toBe(state)
-    expect(reportedState({ state, tabId: 'nope', url: B })).toBe(state)
+    expect(reportedState({ state, tabId: 'tab-1', url: A, title: '' })).toBe(state)
+    expect(reportedState({ state, tabId: 'tab-1', url: 'about:blank', title: '' })).toBe(state)
+    expect(reportedState({ state, tabId: 'nope', url: B, title: 'B' })).toBe(state)
   })
 })

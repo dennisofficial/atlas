@@ -16,7 +16,7 @@ export type BrowserTab = {
   index: number
   load: FrameLoad
   viewport: Viewport
-  lastUsedAt: number
+  title: string | undefined
 }
 
 export type BrowserState = {
@@ -27,20 +27,17 @@ export type BrowserState = {
 
 const FULL_VIEWPORT: Viewport = { kind: EViewportKind.Full }
 
-const tabOf = (args: { id: number; url: string; now: number }): BrowserTab => ({
+const tabOf = (args: { id: number; url: string }): BrowserTab => ({
   id: `tab-${args.id}`,
   history: [args.url],
   index: 0,
   load: { url: args.url, seq: 0 },
   viewport: FULL_VIEWPORT,
-  lastUsedAt: args.now,
+  title: undefined,
 })
 
-export const freshBrowser = (args: { now: number }): BrowserState =>
-  openTab({
-    state: { tabs: [], activeId: undefined, nextId: 1 },
-    now: args.now,
-  })
+export const freshBrowser = (): BrowserState =>
+  openTab({ state: { tabs: [], activeId: undefined, nextId: 1 } })
 
 export function currentUrlOf(tab: BrowserTab): string {
   return tab.history[tab.index] ?? NEW_TAB_URL
@@ -54,9 +51,9 @@ export function activeTabOf(state: BrowserState): BrowserTab | undefined {
   return state.tabs.find((tab) => tab.id === state.activeId)
 }
 
-export function openTab(args: { state: BrowserState; url?: string; now: number }): BrowserState {
-  const { state, url = NEW_TAB_URL, now } = args
-  const tab = tabOf({ id: state.nextId, url, now })
+export function openTab(args: { state: BrowserState; url?: string }): BrowserState {
+  const { state, url = NEW_TAB_URL } = args
+  const tab = tabOf({ id: state.nextId, url })
   const at = state.tabs.findIndex((candidate) => candidate.id === state.activeId)
   const tabs = [...state.tabs]
   tabs.splice(at < 0 ? tabs.length : at + 1, 0, tab)
@@ -72,11 +69,10 @@ export function closeTab(args: { state: BrowserState; id: string }): BrowserStat
   return { ...state, tabs, activeId: (tabs[at] ?? tabs[at - 1])?.id }
 }
 
-export function activateTab(args: { state: BrowserState; id: string; now: number }): BrowserState {
-  const { state, id, now } = args
-  if (!state.tabs.some((tab) => tab.id === id)) return state
-  const tabs = state.tabs.map((tab) => (tab.id === id ? { ...tab, lastUsedAt: now } : tab))
-  return { ...state, tabs, activeId: id }
+export function activateTab(args: { state: BrowserState; id: string }): BrowserState {
+  const { state, id } = args
+  if (state.activeId === id || !state.tabs.some((tab) => tab.id === id)) return state
+  return { ...state, activeId: id }
 }
 
 export function updateTab(args: {
@@ -109,14 +105,15 @@ const pushed = (args: { tab: BrowserTab; url: string }): BrowserTab => {
 const reloadedTo = (args: { tab: BrowserTab; index: number }): BrowserTab => {
   const { tab, index } = args
   const url = tab.history[index] ?? NEW_TAB_URL
-  return { ...tab, index, load: { url, seq: tab.load.seq + 1 } }
+  const title = index === tab.index ? tab.title : undefined
+  return { ...tab, index, title, load: { url, seq: tab.load.seq + 1 } }
 }
 
 export function navigated(args: { tab: BrowserTab; url: string }): BrowserTab {
   const { tab, url } = args
   if (currentUrlOf(tab) === url) return tab
   const next = pushed({ tab, url })
-  return { ...next, load: { url, seq: tab.load.seq + 1 } }
+  return { ...next, title: undefined, load: { url, seq: tab.load.seq + 1 } }
 }
 
 export function reconciled(args: { tab: BrowserTab; url: string }): BrowserTab {
@@ -136,6 +133,12 @@ export const steppedBack = (tab: BrowserTab): BrowserTab =>
 
 export const steppedForward = (tab: BrowserTab): BrowserTab =>
   canGoForward(tab) ? reloadedTo({ tab, index: tab.index + 1 }) : tab
+
+export function titled(args: { tab: BrowserTab; title: string }): BrowserTab {
+  const { tab } = args
+  const title = args.title.trim() === '' ? undefined : args.title.trim()
+  return tab.title === title ? tab : { ...tab, title }
+}
 
 export const withViewport = (args: { tab: BrowserTab; viewport: Viewport }): BrowserTab => ({
   ...args.tab,

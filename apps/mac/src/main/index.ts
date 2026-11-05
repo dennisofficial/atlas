@@ -13,6 +13,7 @@ import { runLogged, writeLog } from './crash-log'
 import { type IExternalLinkRouter, routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
 import { deepLinkTargetOf, openUrlOf } from './deep-link'
+import { navigateScript } from './in-app-navigation'
 import { readDoubleClickAction, runTitlebarAction } from './titlebar-action'
 
 const earlyLinks: string[] = []
@@ -91,7 +92,8 @@ await runLogged(async () => {
 
   ApplicationMenu.on('application-menu-clicked', (event: unknown) => {
     const action = (event as { data?: { action?: string } }).data?.action
-    if (action === EMenuAction.Settings) win.webview.loadURL(`${host.url}/settings`)
+    if (action === EMenuAction.Settings)
+      win.webview.executeJavascript(navigateScript('/settings') ?? '')
     if (action === EMenuAction.CheckForUpdates)
       void runCheckForUpdates({ state: updateState }).catch((error: unknown) =>
         writeLog({ label: 'check-for-updates', error }),

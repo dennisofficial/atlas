@@ -20,15 +20,13 @@ class FakeStorage {
 
 const URL_A = 'https://3000-abcdefghij.byatlas.dev/'
 
-const storeOn = (storage: FakeStorage | undefined, clock = { value: 100 }) =>
-  createBrowserStore({ storage, now: () => clock.value })
+const storeOn = (storage: FakeStorage | undefined) => createBrowserStore({ storage })
 
 describe('browser-store', () => {
-  it('seeds a fresh thread with one new tab stamped by the injected clock', () => {
+  it('seeds a fresh thread with one new tab', () => {
     const state = storeOn(new FakeStorage()).read('t1')
     expect(state.tabs).toHaveLength(1)
     expect(currentUrlOf(activeTabOf(state)!)).toBe(NEW_TAB_URL)
-    expect(state.tabs[0]?.lastUsedAt).toBe(100)
   })
 
   it('round-trips through storage and survives a new store', () => {
@@ -36,13 +34,14 @@ describe('browser-store', () => {
     const store = storeOn(storage)
     store.update({
       threadId: 't1',
-      change: ({ state, now }) => {
-        const opened = openTab({ state, url: URL_A, now })
+      change: ({ state }) => {
+        const opened = openTab({ state, url: URL_A })
         return updateTab({
           state: opened,
           id: opened.activeId!,
           change: (tab) => ({
             ...navigated({ tab, url: `${URL_A}x` }),
+            title: 'Checkout',
             viewport: { kind: EViewportKind.Fixed, width: 390, height: 844 },
           }),
         })
@@ -50,7 +49,7 @@ describe('browser-store', () => {
     })
     expect(storage.items.has(storageKeyOf('t1'))).toBe(true)
     expect(storageKeyOf('t1')).toBe('atlas.preview-browser.v1.t1')
-    const reloaded = storeOn(storage, { value: 999 }).read('t1')
+    const reloaded = storeOn(storage).read('t1')
     expect(reloaded).toEqual(store.read('t1'))
     expect(reloaded.tabs).toHaveLength(2)
     expect(activeTabOf(reloaded)?.viewport).toEqual({
@@ -63,7 +62,7 @@ describe('browser-store', () => {
   it('isolates threads', () => {
     const storage = new FakeStorage()
     const store = storeOn(storage)
-    store.update({ threadId: 't1', change: ({ state, now }) => openTab({ state, now }) })
+    store.update({ threadId: 't1', change: ({ state }) => openTab({ state }) })
     expect(store.read('t1').tabs).toHaveLength(2)
     expect(store.read('t2').tabs).toHaveLength(1)
     expect(Object.keys(store.readAll()).sort()).toEqual(['t1', 't2'])
@@ -77,10 +76,10 @@ describe('browser-store', () => {
     })
     store.update({ threadId: 't1', change: ({ state }) => state })
     expect(calls).toBe(0)
-    store.update({ threadId: 't1', change: ({ state, now }) => openTab({ state, now }) })
+    store.update({ threadId: 't1', change: ({ state }) => openTab({ state }) })
     expect(calls).toBe(1)
     stop()
-    store.update({ threadId: 't1', change: ({ state, now }) => openTab({ state, now }) })
+    store.update({ threadId: 't1', change: ({ state }) => openTab({ state }) })
     expect(calls).toBe(1)
   })
 
@@ -89,7 +88,7 @@ describe('browser-store', () => {
     store.read('t1')
     const before = store.readAll()
     expect(store.readAll()).toBe(before)
-    store.update({ threadId: 't1', change: ({ state, now }) => openTab({ state, now }) })
+    store.update({ threadId: 't1', change: ({ state }) => openTab({ state }) })
     expect(store.readAll()).not.toBe(before)
   })
 
@@ -106,7 +105,6 @@ describe('browser-store', () => {
             history: ['x'],
             index: 5,
             viewport: { kind: 'full' },
-            lastUsedAt: 1,
           },
         ],
         activeId: 'a',
@@ -123,21 +121,21 @@ describe('browser-store', () => {
 
   it('rejects an activeId that names no tab', () => {
     const raw = JSON.stringify({
-      tabs: [{ id: 'a', history: ['x'], index: 0, viewport: { kind: 'full' }, lastUsedAt: 1 }],
+      tabs: [{ id: 'a', history: ['x'], index: 0, viewport: { kind: 'full' } }],
       activeId: 'zzz',
       nextId: 2,
     })
-    expect(parseBrowserState({ raw, now: 7 }).tabs[0]?.id).toBe('tab-1')
+    expect(parseBrowserState(raw).tabs[0]?.id).toBe('tab-1')
   })
 
   it('accepts a valid stored state with no active tab', () => {
     const raw = JSON.stringify({ tabs: [], nextId: 4 })
-    expect(parseBrowserState({ raw, now: 7 })).toEqual({ tabs: [], nextId: 4 })
+    expect(parseBrowserState(raw)).toEqual({ tabs: [], nextId: 4 })
   })
 
   it('works without storage and when storage throws', () => {
     const store = storeOn(undefined)
-    store.update({ threadId: 't1', change: ({ state, now }) => openTab({ state, now }) })
+    store.update({ threadId: 't1', change: ({ state }) => openTab({ state }) })
     expect(store.read('t1').tabs).toHaveLength(2)
     const throwing = {
       getItem: () => {
@@ -147,8 +145,8 @@ describe('browser-store', () => {
         throw new Error('full')
       },
     }
-    const guarded = createBrowserStore({ storage: throwing, now: () => 1 })
-    guarded.update({ threadId: 't1', change: ({ state, now }) => openTab({ state, now }) })
+    const guarded = createBrowserStore({ storage: throwing })
+    guarded.update({ threadId: 't1', change: ({ state }) => openTab({ state }) })
     expect(guarded.read('t1').tabs).toHaveLength(2)
   })
 
@@ -158,14 +156,13 @@ describe('browser-store', () => {
       history: ['x', 'y'],
       index: 1,
       viewport: { kind: 'full' },
-      lastUsedAt: 1,
     }
     const raw = JSON.stringify({
       tabs: [legacy, { ...legacy, id: 'b', load: { url: 'x', seq: 4 } }],
       activeId: 'a',
       nextId: 3,
     })
-    const [first, second] = parseBrowserState({ raw, now: 7 }).tabs
+    const [first, second] = parseBrowserState(raw).tabs
     expect(first?.load).toEqual({ url: 'y', seq: 0 })
     expect(second?.load).toEqual({ url: 'y', seq: 4 })
   })
