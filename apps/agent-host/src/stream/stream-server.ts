@@ -14,6 +14,7 @@ import {
   STREAM_SOCKET_MAX_PAYLOAD_BYTES,
 } from './stream-limits'
 import { unimplementedSubscriptions, type SubscriptionPort } from './subscription-port'
+import { systemHostTimers } from './system-timers'
 import { createUserSlots } from './user-slots'
 
 export type StreamServer = {
@@ -30,13 +31,6 @@ export type StreamServerArgs = {
   subscriptions?: SubscriptionPort
   timers?: HostTimers
   log?: LogPort
-}
-
-const systemHostTimers: HostTimers = {
-  now: () => Date.now(),
-  setTimeout: (handler, ms) => setTimeout(handler, ms),
-  clearTimeout: (timer) => clearTimeout(timer as Parameters<typeof clearTimeout>[0]),
-  random: () => Math.random(),
 }
 
 const isUpgrade = (request: Request): boolean =>

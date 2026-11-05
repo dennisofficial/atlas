@@ -9,16 +9,27 @@ export type StreamSubscriptionMessage = Extract<
   { type: 'subscribe' | 'unsubscribe' | 'resnap' }
 >
 
+export type SubscriptionConnection = {
+  userId: string
+  send(message: StreamServerMessage): void
+  bufferedAmount(): number
+  close(code: number): void
+}
+
+export type SubscriptionSession = {
+  handle(message: StreamSubscriptionMessage): void | Promise<void>
+  close(): void
+}
+
 export type SubscriptionPort = {
-  handle(args: {
-    userId: string
-    message: StreamSubscriptionMessage
-    send: (message: StreamServerMessage) => void
-  }): void | Promise<void>
+  open(connection: SubscriptionConnection): SubscriptionSession
 }
 
 export const unimplementedSubscriptions: SubscriptionPort = {
-  handle: ({ message, send }) => {
-    send({ type: 'error', id: message.id, code: EStreamErrorCode.Internal })
-  },
+  open: (connection) => ({
+    handle: (message) => {
+      connection.send({ type: 'error', id: message.id, code: EStreamErrorCode.Internal })
+    },
+    close: () => undefined,
+  }),
 }
