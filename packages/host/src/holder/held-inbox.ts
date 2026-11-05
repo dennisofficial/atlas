@@ -5,6 +5,8 @@ import {
   type PrepareFailure,
 } from '@dltech/atlas-core'
 
+import { INBOX_KIND_REPAIR_DIAGRAM } from '@dltech/atlas-protocol'
+
 import type { HeldSessionDeps } from './held-session-deps'
 
 const INBOX_PAGE_LIMIT = 100
@@ -34,3 +36,7 @@ export const actionableEntries = (args: {
 }
 
 export const isStop = (entry: InboxEntry): boolean => entry.kind === INBOX_KIND_STOP
+
+export const isRepair = (entry: InboxEntry): boolean => entry.kind === INBOX_KIND_REPAIR_DIAGRAM
+
+export const wakesTurn = (entry: InboxEntry): boolean => !isStop(entry) && !isRepair(entry)

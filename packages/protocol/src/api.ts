@@ -16,6 +16,16 @@ export const sessionPostInputSchema = z.strictObject({
   text: z.string().min(1).max(1_000_000),
 })
 
+export const MAX_REPAIR_SOURCE_CHARS = 200_000
+export const MAX_REPAIR_ERROR_CHARS = 20_000
+
+export const sessionRepairDiagramInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  messageId: z.string().min(1),
+  source: z.string().min(1).max(MAX_REPAIR_SOURCE_CHARS),
+  error: z.string().max(MAX_REPAIR_ERROR_CHARS),
+})
+
 export const sessionEventsInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   afterSeq: z.number().int().min(0).optional(),
@@ -37,6 +47,7 @@ export const sessionStatusInputSchema = z.strictObject({
 export type SessionCreateInput = z.infer<typeof sessionCreateInputSchema>
 export type SessionListInput = z.infer<typeof sessionListInputSchema>
 export type SessionPostInput = z.infer<typeof sessionPostInputSchema>
+export type SessionRepairDiagramInput = z.infer<typeof sessionRepairDiagramInputSchema>
 export type SessionEventsInput = z.infer<typeof sessionEventsInputSchema>
 export type SessionBlobInput = z.infer<typeof sessionBlobInputSchema>
 export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
@@ -46,6 +57,16 @@ export const inboxMessageSchema = z.strictObject({ text: z.string().min(1) })
 export type InboxMessage = z.infer<typeof inboxMessageSchema>
 
 export const INBOX_KIND_MESSAGE = 'message'
+
+export const inboxRepairDiagramSchema = z.strictObject({
+  messageId: z.string().min(1),
+  source: z.string().min(1).max(MAX_REPAIR_SOURCE_CHARS),
+  error: z.string().max(MAX_REPAIR_ERROR_CHARS),
+})
+
+export type InboxRepairDiagram = z.infer<typeof inboxRepairDiagramSchema>
+
+export const INBOX_KIND_REPAIR_DIAGRAM = 'repair-diagram'
 
 export const sessionCreateOutputSchema = z.strictObject({
   sessionId: z.string().min(1),

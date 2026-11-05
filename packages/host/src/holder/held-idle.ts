@@ -9,7 +9,7 @@ import {
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import type { SessionRuntime } from './ports'
-import { actionableEntries, isStop, readFullInbox } from './held-inbox'
+import { actionableEntries, readFullInbox, wakesTurn } from './held-inbox'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -45,7 +45,7 @@ const drainNeedsHolder = async (args: {
     const workspace = workspaceStateOf({
       events,
       preparing: false,
-      pendingMessageIds: entries.filter((entry) => !isStop(entry)).map((entry) => entry.inboxId),
+      pendingMessageIds: entries.filter(wakesTurn).map((entry) => entry.inboxId),
     })
     return drainWantsHolder({
       turn: args.turnRunning ? 'running' : 'idle',

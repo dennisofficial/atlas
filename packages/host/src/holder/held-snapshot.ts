@@ -7,7 +7,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { idleReleaseDue } from './held-idle'
-import { actionableEntries, isStop, readFullInbox } from './held-inbox'
+import { actionableEntries, isStop, readFullInbox, wakesTurn } from './held-inbox'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
 
@@ -27,10 +27,10 @@ export const readHeldAction = async (args: {
   const workspace = workspaceStateOf({
     events: args.events,
     preparing: args.preparing,
-    pendingMessageIds: entries.filter((entry) => !isStop(entry)).map((entry) => entry.inboxId),
+    pendingMessageIds: entries.filter(wakesTurn).map((entry) => entry.inboxId),
   })
   const actionable = actionableEntries({ entries, failure: workspace.failure })
-  const messagePending = actionable.some((entry) => !isStop(entry))
+  const messagePending = actionable.some(wakesTurn)
   const action = decideHeldAction({
     draining: args.draining,
     turn: args.turnRunning ? 'running' : 'idle',

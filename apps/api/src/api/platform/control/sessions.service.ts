@@ -3,7 +3,12 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { ControlPlane, readSessionStatus, STATUS_EVENT_LIMIT } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import { canonicalEvent, type V2Event } from '@dltech/atlas-core'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+import {
+  INBOX_KIND_MESSAGE,
+  INBOX_KIND_REPAIR_DIAGRAM,
+  inboxMessageSchema,
+  inboxRepairDiagramSchema,
+} from '@dltech/atlas-protocol'
 import type {
   SessionBlobOutput,
   SessionEventsOutput,
@@ -80,6 +85,29 @@ export class SessionsService {
     const { inboxId } = await this.plane.post({
       sessionId: args.sessionId,
       kind: INBOX_KIND_MESSAGE,
+      payload,
+    })
+    return { inboxId }
+  }
+
+  async repairDiagram(args: {
+    userId: string
+    sessionId: string
+    messageId: string
+    source: string
+    error: string
+  }) {
+    await this.requireOwnedSession(args)
+    const payload = JSON.stringify(
+      inboxRepairDiagramSchema.parse({
+        messageId: args.messageId,
+        source: args.source,
+        error: args.error,
+      }),
+    )
+    const { inboxId } = await this.plane.post({
+      sessionId: args.sessionId,
+      kind: INBOX_KIND_REPAIR_DIAGRAM,
       payload,
     })
     return { inboxId }

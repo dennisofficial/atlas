@@ -64,6 +64,25 @@ describe('SessionsRouter', () => {
     expect(sessions.list).toHaveBeenCalledWith({ userId: 'user-b' })
   })
 
+  it('posts a repair for a signed-in user and validates its input', async () => {
+    sessions.repairDiagram.mockResolvedValue({ inboxId: 4 })
+    const repair = (token: string | undefined, body: object) => {
+      const sent = request(app.getHttpServer()).post('/v1/trpc/sessions.repairDiagram')
+      return (token === undefined ? sent : sent.set(as(token))).send(body)
+    }
+    const input = { sessionId: 's1', messageId: 'm1', source: 'graph TD', error: 'bad' }
+
+    expect((await repair(undefined, input)).status).toBe(401)
+    const response = await repair('session-a', input)
+    expect(response.status).toBe(200)
+    expect(response.body.result.data).toEqual({ inboxId: 4 })
+    expect(sessions.repairDiagram).toHaveBeenCalledWith({ userId: 'user-a', ...input })
+
+    expect((await repair('session-a', { ...input, source: '' })).status).toBe(400)
+    expect((await repair('session-a', { sessionId: 's1' })).status).toBe(400)
+    expect(sessions.repairDiagram).toHaveBeenCalledTimes(1)
+  })
+
   it('validates the input', async () => {
     expect((await create('session-a', {})).status).toBe(400)
     expect((await create('session-a', { projectId: '' })).status).toBe(400)

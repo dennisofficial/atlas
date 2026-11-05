@@ -59,6 +59,31 @@ describe('SessionsService', () => {
     expect(events.events).toEqual([])
   })
 
+  it('posts a repair-diagram inbox entry for the owner and refuses another user', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const repair = {
+      sessionId: created.sessionId,
+      messageId: 'evt-1',
+      source: 'graph TD; A-->B',
+      error: 'Parse error',
+    }
+
+    const posted = await service.repairDiagram({ userId: 'user-a', ...repair })
+    expect(posted.inboxId).toBe(1)
+    const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })
+    expect(inbox[0]?.kind).toBe('repair-diagram')
+    expect(JSON.parse(inbox[0]?.payload ?? '')).toEqual({
+      messageId: 'evt-1',
+      source: 'graph TD; A-->B',
+      error: 'Parse error',
+    })
+
+    await expect(service.repairDiagram({ userId: 'user-b', ...repair })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
+  })
+
   it('refuses a non-owned or unknown session with NOT_FOUND', async () => {
     const { service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })

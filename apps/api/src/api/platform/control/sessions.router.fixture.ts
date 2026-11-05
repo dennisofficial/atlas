@@ -13,6 +13,7 @@ export const sessions = {
   create: vi.fn(),
   list: vi.fn(),
   post: vi.fn(),
+  repairDiagram: vi.fn(),
   events: vi.fn(),
   blob: vi.fn(),
   status: vi.fn(),
