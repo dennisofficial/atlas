@@ -10,7 +10,8 @@ import {
   startHeldTurn,
   wireHeldLoop,
 } from './held-runner'
-import { releaseIdleAndRewake, teardownHeldSession } from './held-idle'
+import { teardownHeldSession } from './held-idle'
+import { HeldRelease } from './held-release'
 import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
 import { IdleDeadline } from './idle-deadline'
@@ -40,11 +41,12 @@ export class HeldSession {
   private reconciler: Reconciler | undefined
   private finishDrive: (() => void) | undefined
   private readonly idle: IdleDeadline
+  private readonly release: HeldRelease
   private leaseEpoch = 0
   private drainModelOnly = false
   private lostOwnership = false
-  private released = false
   private failedToStart = false
+  private faulted = false
   private ended = false
   private resumePending = false
   private takeOver: TakeOver | undefined
@@ -59,9 +61,15 @@ export class HeldSession {
       abandoned: () => this.draining || this.ended,
       onSettled: ({ failed }) => {
         this.lastActivityAt = deps.timers.now()
-        if (failed) void this.releaseIdle((runtime) => runtime.stop())
+        if (failed) void this.release.run((runtime) => runtime.stop())
         else this.reconciler?.request()
       },
+    })
+    this.release = new HeldRelease({
+      deps,
+      onRetryDue: () => this.reconciler?.request(),
+      target: () => ({ runtime: this.runtime, record: this.record, epoch: this.leaseEpoch }),
+      drop: () => this.loseLease(),
     })
     this.idle = new IdleDeadline({
       timers: deps.timers,
@@ -71,7 +79,7 @@ export class HeldSession {
   }
 
   get startFailed(): boolean {
-    return this.failedToStart
+    return this.failedToStart || this.faulted
   }
 
   notifyWake(): void {
@@ -180,7 +188,7 @@ export class HeldSession {
       resumePending: this.resumePending,
       lastActivityAt: this.lastActivityAt,
       runtime: this.runtime,
-      released: this.released,
+      released: this.release.released,
       events: this.record?.eventCache().all() ?? [],
       preparing: this.prepare.running,
     })
@@ -218,7 +226,7 @@ export class HeldSession {
         return
       }
       case EHeldAction.Release: {
-        await this.releaseIdle((runtime) => runtime.release())
+        await this.release.run((runtime) => runtime.release())
         return
       }
       case EHeldAction.Wait: {
@@ -244,22 +252,8 @@ export class HeldSession {
         if (this.draining || this.lostOwnership) return
         void this.branches?.refresh().catch((error) => logDriveFault({ deps: this.deps, error }))
       },
-      onFault: () => this.finish(),
+      onFault: () => this.finish({ faulted: true }),
       onSettled: () => this.reconciler?.request(),
-    })
-  }
-
-  private async releaseIdle(end: (runtime: SessionRuntime) => Promise<void>): Promise<void> {
-    if (this.runtime === undefined || this.released) return
-    this.released = true
-    const { runtime, record } = this
-    await releaseIdleAndRewake({
-      deps: this.deps,
-      epoch: this.leaseEpoch,
-      end: () => end(runtime),
-      record,
-      drop: () => this.loseLease(),
-      finish: () => this.finish(),
     })
   }
 
@@ -275,10 +269,12 @@ export class HeldSession {
     this.finish()
   }
 
-  private finish(): void {
+  private finish(args?: { faulted: boolean }): void {
     if (this.ended) return
     this.ended = true
+    this.faulted = args?.faulted ?? false
     this.idle.disarm()
+    this.release.cancel()
     this.reconciler?.stop()
     this.finishDrive?.()
   }
@@ -292,7 +288,7 @@ export class HeldSession {
       turnRunning: this.turns.turnRunning,
       draining: this.draining,
       lostOwnership: this.lostOwnership,
-      released: this.released,
+      released: this.release.released,
       failedToStart: this.failedToStart,
       epoch: this.leaseEpoch,
     })

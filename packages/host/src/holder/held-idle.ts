@@ -59,7 +59,7 @@ const drainNeedsHolder = async (args: {
   }
 }
 
-const revokeOnDrain = async (args: {
+const revokeAndRewake = async (args: {
   deps: HeldSessionDeps
   record: SessionRecord | undefined
   turnRunning: boolean
@@ -100,13 +100,28 @@ export const teardownHeldSession = async (args: {
   if (runtime === undefined) return
   if (args.draining) {
     await runtime.stop()
-    if (!args.lostOwnership) await revokeOnDrain(args).catch(() => undefined)
+    if (!args.lostOwnership) await revokeAndRewake(args).catch(() => undefined)
     return
   }
-  if (!args.released) runtime.remoteCalls.close()
+  if (args.released) return
+  if (args.lostOwnership) {
+    runtime.remoteCalls.close()
+    return
+  }
+  await runtime.stop().catch((error) => logSettleFault({ deps, error, what: 'stopping' }))
+  if (args.failedToStart) return
+  await revokeAndRewake(args).catch((error) => logSettleFault({ deps, error, what: 'revoking' }))
 }
 
-type IdleReleaseOutcome = 'released' | 'superseded' | 'failed'
+const logSettleFault = (args: { deps: HeldSessionDeps; error: unknown; what: string }): void => {
+  args.deps.log?.error({
+    source: 'holder.settle',
+    message: `${args.what} ${args.deps.sessionId} after its loop ended failed`,
+    ...logFieldsOf({ error: args.error }),
+  })
+}
+
+export type IdleReleaseOutcome = 'released' | 'superseded' | 'failed'
 
 export const releaseIdleSession = async (args: {
   deps: HeldSessionDeps
@@ -152,22 +167,22 @@ export const releaseIdleAndRewake = async (args: {
   end(): Promise<void>
   record: SessionRecord | undefined
   drop(): void
-  finish(): void
-}): Promise<void> => {
+}): Promise<IdleReleaseOutcome> => {
   const { deps } = args
+  const outcome = await releaseIdleSession({ deps, epoch: args.epoch, end: args.end })
+  if (outcome === 'failed') return outcome
   try {
-    const outcome = await releaseIdleSession({ deps, epoch: args.epoch, end: args.end })
-    if (outcome === 'superseded') return
+    if (outcome === 'superseded') return outcome
     const maybePending = await lateInputMaybePending({
       deps,
       failure: activeFailure(args.record?.eventCache().all() ?? []),
     })
     args.drop()
-    if (!maybePending) return
+    if (!maybePending) return outcome
     deps.onDrop?.()
     await deps.plane.wake({ sessionIds: [deps.sessionId] }).catch(() => undefined)
+    return outcome
   } finally {
     args.drop()
-    args.finish()
   }
 }
