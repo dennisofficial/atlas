@@ -34,6 +34,7 @@ export function PreviewFrameLayer() {
         if (element !== null) wrappers.current.set(frame.key, element)
         return () => void wrappers.current.delete(frame.key)
       }}
+      inert={frame.key !== visibleKey}
       className={cn(
         'fixed top-0 left-0',
         frame.key !== visibleKey && 'invisible pointer-events-none',

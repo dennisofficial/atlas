@@ -6,8 +6,6 @@ import { Suspense, type CSSProperties, type ReactNode } from 'react'
 import { SidebarInset, SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 import { TooltipProvider } from '@dltech/atlas-ui/components/tooltip'
 
-import { PreviewFrameLayer } from '@/features/threads/panel/preview/preview-frame-layer'
-
 import { activeNavOf, activeThreadIdOf } from './active-route'
 import { AppSidebar } from './app-sidebar'
 import { AtlasMark } from './atlas-mark'
@@ -40,7 +38,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           {shellBarOf(pathname) === EShellBar.Global ? <ShellMobileBar /> : null}
           {children}
         </SidebarInset>
-        <PreviewFrameLayer />
       </SidebarProvider>
     </TooltipProvider>
   )

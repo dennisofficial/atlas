@@ -41,7 +41,7 @@ const chromeTabOf = (args: { tab: BrowserTab; ports: PreviewPort[] }): PreviewBr
   const url = currentUrlOf(args.tab)
   return {
     id: args.tab.id,
-    title: titleOf({ url, ports: args.ports }),
+    title: titleOf({ url, title: args.tab.title }),
     url,
     status: previewPortForUrl({ url, ports: args.ports })?.status,
   }
@@ -52,7 +52,7 @@ export function PreviewTab({ data }: { data: PreviewsState }) {
   const { state, update } = usePreviewBrowser(threadId)
   const { ports, loaded } = data
   const tab = activeTabOf(state)
-  const handleOpen = () => update(({ state: held, now }) => openTab({ state: held, now }))
+  const handleOpen = () => update(({ state: held }) => openTab({ state: held }))
 
   if (tab === undefined) {
     return (
@@ -87,7 +87,7 @@ export function PreviewTab({ data }: { data: PreviewsState }) {
     <PreviewBrowser
       tabs={state.tabs.map((held) => chromeTabOf({ tab: held, ports }))}
       activeId={tab.id}
-      onActivate={(id) => update(({ state: held, now }) => activateTab({ state: held, id, now }))}
+      onActivate={(id) => update(({ state: held }) => activateTab({ state: held, id }))}
       onClose={(id) => update(({ state: held }) => closeTab({ state: held, id }))}
       onOpen={handleOpen}
       address={url === NEW_TAB_URL ? '' : url}

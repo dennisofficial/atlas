@@ -29,7 +29,7 @@ const tabSchema = z
     index: z.number().int().min(0),
     load: z.object({ url: z.string(), seq: z.number().int().min(0) }).optional(),
     viewport: viewportSchema,
-    lastUsedAt: z.number(),
+    title: z.string().optional(),
   })
   .refine((tab) => tab.index < tab.history.length)
 
@@ -47,18 +47,18 @@ const stateSchema = z
 const restoredTab = (tab: z.output<typeof tabSchema>): BrowserTab => ({
   ...tab,
   load: { url: tab.history[tab.index] ?? NEW_TAB_URL, seq: tab.load?.seq ?? 0 },
+  title: tab.title,
 })
 
-export function parseBrowserState(args: { raw: string | null; now: number }): BrowserState {
-  const { raw, now } = args
-  if (raw === null) return freshBrowser({ now })
+export function parseBrowserState(raw: string | null): BrowserState {
+  if (raw === null) return freshBrowser()
   try {
     const parsed = stateSchema.safeParse(JSON.parse(raw))
-    if (!parsed.success) return freshBrowser({ now })
+    if (!parsed.success) return freshBrowser()
     const { tabs, activeId, nextId } = parsed.data
     return { tabs: tabs.map(restoredTab), activeId, nextId }
   } catch {
-    return freshBrowser({ now })
+    return freshBrowser()
   }
 }
 

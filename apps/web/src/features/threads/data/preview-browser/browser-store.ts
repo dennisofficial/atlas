@@ -1,7 +1,7 @@
 import { parseBrowserState, serializeBrowserState, storageKeyOf } from './browser-persistence'
 import type { BrowserState } from './browser-model'
 
-export type BrowserChange = (context: { state: BrowserState; now: number }) => BrowserState
+export type BrowserChange = (context: { state: BrowserState }) => BrowserState
 
 export type BrowserStore = {
   read: (threadId: string) => BrowserState
@@ -12,11 +12,10 @@ export type BrowserStore = {
 
 type StoreDeps = {
   storage: Pick<Storage, 'getItem' | 'setItem'> | undefined
-  now: () => number
 }
 
 export function createBrowserStore(deps: StoreDeps): BrowserStore {
-  const { storage, now } = deps
+  const { storage } = deps
   const states = new Map<string, BrowserState>()
   const listeners = new Set<() => void>()
   let snapshot: Record<string, BrowserState> = {}
@@ -26,7 +25,7 @@ export function createBrowserStore(deps: StoreDeps): BrowserStore {
     try {
       raw = storage?.getItem(storageKeyOf(threadId)) ?? null
     } catch {}
-    return parseBrowserState({ raw, now: now() })
+    return parseBrowserState(raw)
   }
 
   const read = (threadId: string): BrowserState => {
@@ -46,7 +45,7 @@ export function createBrowserStore(deps: StoreDeps): BrowserStore {
 
   const update: BrowserStore['update'] = ({ threadId, change }) => {
     const current = read(threadId)
-    const next = change({ state: current, now: now() })
+    const next = change({ state: current })
     if (next === current) return
     states.set(threadId, next)
     snapshot = { ...snapshot, [threadId]: next }

@@ -31,7 +31,7 @@ export function usePreviews(args: {
   const ports = useMemo(() => previewPortsOf(roster), [roster])
   const { update } = usePreviewBrowser(threadId)
   const openUrl = useCallback(
-    (url: string) => update(({ state, now }) => openUrlIn({ state, url, now })),
+    (url: string) => update(({ state }) => openUrlIn({ state, url })),
     [update],
   )
   return { ports, loaded: roster !== null, openUrl }

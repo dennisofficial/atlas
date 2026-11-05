@@ -23,14 +23,14 @@ const URL_B = 'https://6006-abcdefghij.byatlas.dev/'
 
 const element = (): HTMLElement => ({}) as HTMLElement
 
-const browserOn = (args: { urls: string[]; now: number }): BrowserState => {
-  let state = freshBrowser({ now: args.now })
+const browserOn = (args: { urls: string[] }): BrowserState => {
+  let state = freshBrowser()
   state = updateTab({
     state,
     id: 'tab-1',
     change: (tab) => navigated({ tab, url: args.urls[0] ?? NEW_TAB_URL }),
   })
-  for (const url of args.urls.slice(1)) state = openTab({ state, url, now: args.now })
+  for (const url of args.urls.slice(1)) state = openTab({ state, url })
   return state
 }
 
@@ -82,8 +82,8 @@ describe('frame registry', () => {
 describe('framesOf', () => {
   it('keeps frames for opened web tabs across threads, in a stable key order', () => {
     const states = {
-      t2: browserOn({ urls: [URL_B], now: 2 }),
-      t1: browserOn({ urls: [URL_A, URL_B], now: 1 }),
+      t2: browserOn({ urls: [URL_B] }),
+      t1: browserOn({ urls: [URL_A, URL_B] }),
     }
     let registry = EMPTY_REGISTRY
     for (const [threadId, tabId] of [
@@ -101,7 +101,7 @@ describe('framesOf', () => {
   })
 
   it('never loads a tab that was not opened or is on the new-tab page', () => {
-    const states = { t1: freshBrowser({ now: 1 }), t2: browserOn({ urls: [URL_A], now: 1 }) }
+    const states = { t1: freshBrowser(), t2: browserOn({ urls: [URL_A] }) }
     const registry = shown({
       registry: EMPTY_REGISTRY,
       slot: { threadId: 't1', tabId: 'tab-1', element: element() },
@@ -109,23 +109,22 @@ describe('framesOf', () => {
     expect(framesOf({ states, registry })).toEqual([])
   })
 
-  it('drops the least recently used frames past the cap but keeps the visible tab', () => {
-    const states = {
-      old: browserOn({ urls: [URL_A], now: 1 }),
-      recent: browserOn({ urls: [URL_B], now: 9 }),
+  it('keeps every opened tab alive however many sessions hold one', () => {
+    const states: Record<string, BrowserState> = {}
+    let registry = EMPTY_REGISTRY
+    for (let at = 10; at < 40; at += 1) {
+      states[`t${at}`] = browserOn({ urls: [URL_A, URL_B] })
+      for (const tabId of ['tab-1', 'tab-2']) {
+        registry = shown({ registry, slot: { threadId: `t${at}`, tabId, element: element() } })
+      }
     }
-    let registry = shown({
-      registry: EMPTY_REGISTRY,
-      slot: { threadId: 'recent', tabId: 'tab-1', element: element() },
-    })
-    registry = shown({ registry, slot: { threadId: 'old', tabId: 'tab-1', element: element() } })
-    expect(framesOf({ states, registry, cap: 1 }).map((frame) => frame.key)).toEqual(['old:tab-1'])
+    expect(framesOf({ states, registry })).toHaveLength(60)
   })
 })
 
 describe('framesOf load', () => {
   it('carries the load the frame must show, not the reported current url', () => {
-    const base = browserOn({ urls: [URL_A], now: 1 })
+    const base = browserOn({ urls: [URL_A] })
     const states = {
       t1: updateTab({
         state: base,
