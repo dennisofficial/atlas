@@ -25,6 +25,7 @@ import { createPgStreamAuth } from './stream/pg-stream-auth'
 import { createFollowSubscriptions } from './stream/follow-port'
 import { systemHostTimers } from './stream/system-timers'
 import { startStreamServer } from './stream/stream-server'
+import { createGracefulShutdown } from './shutdown/graceful-shutdown'
 import { wakeOrphans } from './presence/wake-orphans'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 
@@ -113,30 +114,22 @@ const main = async (): Promise<void> => {
   log.info({ source: 'main', message: 'stream listening', data: { port: stream.port } })
   log.info({ source: 'main', message: 'agent-host started' })
 
-  let shuttingDown = false
-  const shutdown = async (): Promise<void> => {
-    if (shuttingDown) process.exit(1)
-    shuttingDown = true
-    log.info({ source: 'main', message: 'draining' })
-    await stream.drain({})
-    await holder.drain({ deadline: Date.now() + 270_000 })
-    await watch?.close()
-    await presence.close()
-    await wakes.close()
-    await liveFrames.close()
-    await stream.stop()
-    follow.close()
-    await liveSource.close()
-    await changeFeed.close()
-    await pool.end()
-    process.exit(0)
-  }
-  const handleSignal = (): void => {
-    shutdown().catch((error: unknown) => {
-      log.error({ source: 'main', message: 'shutdown failed', ...logFieldsOf({ error }) })
-      process.exit(1)
-    })
-  }
+  const handleSignal = createGracefulShutdown({
+    drain: async () => {
+      await Promise.all([stream.drain({}), holder.drain({ deadline: Date.now() + 270_000 })])
+      await watch?.close()
+      await presence.close()
+      await wakes.close()
+      await liveFrames.close()
+      await stream.stop()
+      follow.close()
+      await liveSource.close()
+      await changeFeed.close()
+      await pool.end()
+    },
+    exit: (code) => process.exit(code),
+    log,
+  })
   process.on('SIGTERM', handleSignal)
   process.on('SIGINT', handleSignal)
 }

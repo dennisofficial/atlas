@@ -10,7 +10,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test --timeout 30000",
-    "start": "dotenvx run --strict -f .env.production.enc -- bun src/main.ts",
+    "start": "bun --preload ./src/config/load-production-env.ts src/main.ts",
     "dev": "dotenvx run --strict -f .env.local.enc -fk .env.keys -- bun --watch src/main.ts"
   },
   "dependencies": {
