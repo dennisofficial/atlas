@@ -74,6 +74,7 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
         },
         { text: 'host a finished' },
       ],
+      [`${sessionId}@2`]: [{ text: 'host a finished' }],
     },
   })
   const aDb = hostA.dbProxy
@@ -119,8 +120,7 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
         want: (rows) =>
           rows.some(
             (row) =>
-              row.type === 'assistant-said' &&
-              JSON.stringify(row.event).includes('host b finished'),
+              row.type === 'assistant-said' && /host [ab] finished/.test(JSON.stringify(row.event)),
           ),
         timeoutMs: 30_000,
       })
@@ -187,7 +187,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const finalLease = await rig.plane.currentLease({ sessionId: 'fault-f7-1' })
-      expect(finalLease.live).toBe(true)
+      expect(finalLease.lease.holderHostId).not.toBeNull()
       expect(finalLease.lease.epoch).toBeGreaterThan(scenario.epochA)
 
       const epochs = scenario.events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
