@@ -14,6 +14,7 @@ import {
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
+import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'
 
@@ -39,6 +40,7 @@ describe('SessionsService blob reads', () => {
       new FakeProjectAccess(),
       new NoSessionTitler(),
       new NoBackgroundWork(),
+      new FakeMediaRegistry(),
     )
     return { plane, service }
   }
