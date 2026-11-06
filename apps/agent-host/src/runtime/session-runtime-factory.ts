@@ -18,6 +18,8 @@ import {
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
+import type { MediaSigner } from '../media/media-signer'
+import { signerUrls } from '../media/media-urls'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { createAnthropicOauthModel } from '../model/anthropic-oauth'
 import { anthropicThinkingOptionsOf } from '../model/anthropic-thinking'
@@ -60,6 +62,7 @@ export type SessionRuntimeFactoryArgs = {
   setupDeadlineMs?: number | undefined
   log?: LogPort | undefined
   pingMs?: number | undefined
+  media?: MediaSigner | undefined
 }
 
 const fallbackModelId = 'claude-sonnet-4-5'
@@ -196,6 +199,10 @@ export const createSessionRuntimeFactory = (
                 modelId,
                 providerOptions: anthropicThinkingOptionsOf(modelId),
               }),
+              mediaUrls:
+                args.media === undefined
+                  ? undefined
+                  : signerUrls({ signer: args.media, userId: config.userId }),
             })
           : args.modelFor({ sessionId })
     } catch (error) {

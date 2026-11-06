@@ -7,6 +7,7 @@ import type { ModelTokenService } from './tokens/model-token-service'
 import type { GithubTokenReader } from './tokens/github-token-reader'
 import type { ConfigSource } from './config/agent-host-config'
 import type { AgentHostEnv } from './config/env'
+import type { MediaSigner } from './media/media-signer'
 import type { SandboxProvider } from './sandbox/sandbox-provider'
 import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { SessionNotFoundError } from './config/config-reader'
@@ -31,6 +32,7 @@ export type ComposeAgentHostArgs = {
   github: Pick<GithubTokenReader, 'read'>
   timers?: HostTimers | undefined
   log?: LogPort | undefined
+  media?: MediaSigner | undefined
   presence: HostPresence
   onHostIdChanged?: (() => void) | undefined
 }
@@ -49,6 +51,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       sandbox: args.sandbox,
       daemonSecret: args.env.daemonSecret,
       timers,
+      media: args.media,
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
     ids: new RandomIds(),

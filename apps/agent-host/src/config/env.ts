@@ -15,6 +15,7 @@ export type AgentHostEnv = {
   secretsEncryptionKey: string
   apiOrigin: string
   vercelOauth: { clientId: string; clientSecret: string } | null
+  mediaBlobToken: string | null
   maxSessions: number
   drainMs: number
   sandboxImage: string
@@ -103,6 +104,7 @@ export const readAgentHostEnv = (
     secretsEncryptionKey: secretsEncryptionKey as string,
     apiOrigin: apiOrigin as string,
     vercelOauth: vercelOauthOf(env),
+    mediaBlobToken: take(env, 'BLOB_READ_WRITE_TOKEN') ?? null,
     maxSessions: parseMaxSessions(take(env, 'AGENT_HOST_MAX_SESSIONS')),
     drainMs: parseDrainMs(take(env, 'AGENT_HOST_DRAIN_MS')),
     sandboxImage: take(env, 'ATLAS_SANDBOX_IMAGE') ?? DEFAULT_SANDBOX_IMAGE,

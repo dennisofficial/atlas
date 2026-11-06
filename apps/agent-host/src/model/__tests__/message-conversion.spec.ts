@@ -395,4 +395,91 @@ describe('toModelMessage with a media part', () => {
       ],
     })
   })
+
+  describe('with signed urls', () => {
+    const url = 'https://blob.fake/a?sig=1'
+    const mediaUrls = new Map([[media.hash, url]])
+
+    it('sends a user media part as a url file part', () => {
+      const message: UserMessage = {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'what is this?' },
+          { type: 'media', media, source: '/tmp/shot.png' },
+        ],
+      }
+
+      expect(toModelMessages([message], { mediaUrls })).toEqual([
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'what is this?' },
+            {
+              type: 'file',
+              data: { type: 'url', url: new URL(url) },
+              mediaType: 'image/png',
+            },
+          ],
+        },
+      ])
+    })
+
+    it('sends a tool-result media part as a url file part', () => {
+      const message: ToolMessage = {
+        role: 'tool',
+        content: [
+          {
+            type: 'tool-result',
+            toolCallId: 'call-1',
+            toolName: 'read',
+            output: { type: 'content', value: [{ type: 'media', media }] },
+          },
+        ],
+      }
+
+      expect(toModelMessages([message], { mediaUrls })).toEqual([
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result',
+              toolCallId: 'call-1',
+              toolName: 'read',
+              output: {
+                type: 'content',
+                value: [
+                  {
+                    type: 'file',
+                    data: { type: 'url', url: new URL(url) },
+                    mediaType: 'image/png',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ])
+    })
+
+    it('keeps the text line for a hash the map does not hold', () => {
+      const message: UserMessage = {
+        role: 'user',
+        content: [{ type: 'media', media }],
+      }
+
+      expect(toModelMessages([message], { mediaUrls: new Map() })).toEqual(
+        toModelMessages([message]),
+      )
+      expect(toModelMessages([message])).toEqual([
+        {
+          role: 'user',
+          content: [{ type: 'text', text: `[image ${'a'.repeat(64)} · 640×480]` }],
+        },
+      ])
+    })
+
+    it('leaves a text-only prompt unchanged', () => {
+      expect(toModelMessages([userSaid], { mediaUrls })).toEqual(toModelMessages([userSaid]))
+    })
+  })
 })
