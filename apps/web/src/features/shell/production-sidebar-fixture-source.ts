@@ -51,6 +51,7 @@ function fixtureThreadsOf(sessions: readonly WireSessionNode[]): WireThread[] {
 function fixtureFramesOf(args: {
   sessions: readonly WireSessionNode[]
   failed: boolean
+  version: number
 }): StateFrame[] {
   return fixtureThreadsOf(args.sessions).flatMap((thread) =>
     (thread.pullRequests ?? []).map((pr) => {
@@ -70,6 +71,7 @@ function fixtureFramesOf(args: {
           checksPassed: changing ? 3 : 4,
           checksFailed: (changing && args.failed) || conflicts ? 1 : 0,
           mergeable: !conflicts,
+          version: args.version,
           updatedAt,
         },
       }
@@ -81,6 +83,7 @@ export function createFixtureSource(sessions: readonly WireSessionNode[]) {
   let failed = false
   let unavailable = false
   let nextId = 0
+  let version = 0
   const channels = new Map<number, Channel>()
   const diagnostics = new Set<() => void>()
   let snapshot: FixtureObservationSnapshot = {
@@ -111,7 +114,8 @@ export function createFixtureSource(sessions: readonly WireSessionNode[]) {
   const emitStates = (channel: Channel) => {
     const observed = new Set(channel.observe.map(pullRequestKeyOf))
     let sent = 0
-    for (const frame of fixtureFramesOf({ sessions, failed })) {
+    version += 1
+    for (const frame of fixtureFramesOf({ sessions, failed, version })) {
       if (
         !observed.has(
           pullRequestKeyOf({ repo: frame.state.repoFullName, number: frame.state.prNumber }),

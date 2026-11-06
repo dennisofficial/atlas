@@ -16,6 +16,7 @@ const state = (over: Partial<SubscriptionPrState> = {}): SubscriptionPrState => 
   checksPassed: 2,
   checksFailed: 0,
   mergeable: null,
+  version: 1,
   updatedAt: '2026-09-28T00:00:00.000Z',
   ...over,
 })

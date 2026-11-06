@@ -28,6 +28,7 @@ const STATE: GithubPrStateDto = {
   checksFailed: 0,
   checksIgnored: 0,
   mergeable: true,
+  version: 1,
   updatedAt: '2026-09-28T00:00:00.000Z',
 }
 
@@ -70,9 +71,9 @@ describe('GithubPrFanoutService over a bus', () => {
     const received: GithubPrStateDto[] = []
     fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
 
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 1 } })
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 2 } })
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 3 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 2, checksRunning: 1 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 3, checksRunning: 2 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 4, checksRunning: 3 } })
     await advanceTimersByTimeAsync(1_100)
 
     expect(bus.published).toHaveLength(2)

@@ -26,11 +26,15 @@ describe('GithubPrStreamRouter.states', () => {
     const acquire = spyOn(observations, 'acquire').mockRejectedValue(new Error('Redis unavailable'))
     const { controller, seen, finished } = open(router)
     await waitFor(() => expect(seen).toEqual([HEARTBEAT, stateFrame()]))
-    fanout.push({ userIds: ['usr_1'], state: { ...STATE, checksPassed: 4 } })
+    fanout.push({ userIds: ['usr_1'], state: { ...STATE, version: 2, checksPassed: 4 } })
     await waitFor(() => expect(seen).toHaveLength(3))
     controller.abort()
     await finished
-    expect(seen).toEqual([HEARTBEAT, stateFrame(), stateFrame({ ...STATE, checksPassed: 4 })])
+    expect(seen).toEqual([
+      HEARTBEAT,
+      stateFrame(),
+      stateFrame({ ...STATE, version: 2, checksPassed: 4 }),
+    ])
     expect(acquire).not.toHaveBeenCalled()
   })
 
@@ -39,12 +43,16 @@ describe('GithubPrStreamRouter.states', () => {
     const { controller, seen, finished } = open(router)
 
     await waitFor(() => expect(seen).toHaveLength(2))
-    fanout.push({ userIds: ['usr_1'], state: { ...STATE, checksFailed: 1 } })
+    fanout.push({ userIds: ['usr_1'], state: { ...STATE, version: 2, checksFailed: 1 } })
     await waitFor(() => expect(seen).toHaveLength(3))
     controller.abort()
     await finished
 
-    expect(seen).toEqual([HEARTBEAT, stateFrame(), stateFrame({ ...STATE, checksFailed: 1 })])
+    expect(seen).toEqual([
+      HEARTBEAT,
+      stateFrame(),
+      stateFrame({ ...STATE, version: 2, checksFailed: 1 }),
+    ])
   })
 
   it('never reads or acks the mailbox, and ignores mailbox events', async () => {

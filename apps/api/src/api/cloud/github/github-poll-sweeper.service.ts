@@ -11,7 +11,7 @@ import { GithubObservationStore } from './github-observation.store'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { deliverPrTransitions } from './github-pr-transition-push'
-import { readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
+import { nextVersionOf, readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
 import { refreshGithubQueue } from './github-refresh-queue'
 import {
   GithubHttpBudgetUnavailable,
@@ -148,9 +148,10 @@ export class GithubPollSweeperService {
           repoFullName,
           prNumber: args.prNumber,
           ...normalizedFields,
+          version: nextVersionOf(priorRow),
           updatedAt: new Date(),
         },
-        update: { ...normalizedFields, updatedAt: new Date() },
+        update: { ...normalizedFields, version: nextVersionOf(priorRow), updatedAt: new Date() },
       })
       const subscribers = await tx.orm.public.GithubSubscription.where(
         subscriberWhereOf({

@@ -20,6 +20,7 @@ const apiState = (over: Partial<GithubPrState> = {}): GithubPrState => ({
   checksPassed: 5,
   checksFailed: 2,
   mergeable: true,
+  version: 1,
   updatedAt: '2026-10-29T00:00:00.000Z',
   ...over,
 })

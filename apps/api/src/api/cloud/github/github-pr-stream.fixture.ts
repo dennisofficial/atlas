@@ -23,6 +23,7 @@ export const STATE: GithubPrStateDto = {
   checksFailed: 0,
   checksIgnored: 0,
   mergeable: true,
+  version: 1,
   updatedAt: '2026-09-28T00:00:00.000Z',
 }
 

@@ -89,6 +89,7 @@ describe('ThreadList live PR state', () => {
             checksPassed: 3,
             checksFailed: 0,
             mergeable: false,
+            version: 1,
             updatedAt: '',
           },
         }),

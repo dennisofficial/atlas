@@ -27,6 +27,7 @@ const STATE: GithubPrStateDto = {
   checksFailed: 0,
   checksIgnored: 0,
   mergeable: true,
+  version: 1,
   updatedAt: '2026-09-28T00:00:00.000Z',
 }
 
@@ -38,6 +39,22 @@ function fanoutWith(): { fanout: GithubPrFanoutService; drain: DrainStateService
 describe('GithubPrFanoutService', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
+
+  it('never replaces a newer state with a lower or equal version', async () => {
+    const { fanout } = fanoutWith()
+    const received: GithubPrStateDto[] = []
+    fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
+
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 2, checksPassed: 2 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 3, checksPassed: 3 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 1, checksPassed: 1 } })
+    await advanceTimersByTimeAsync(1_100)
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 3, checksPassed: 9 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 2, checksPassed: 8 } })
+    await advanceTimersByTimeAsync(1_100)
+
+    expect(received.map((state) => state.version)).toEqual([2, 3])
+  })
 
   it('delivers a push to every open stream of the addressed users', async () => {
     const { fanout } = fanoutWith()
@@ -59,12 +76,12 @@ describe('GithubPrFanoutService', () => {
     const received: GithubPrStateDto[] = []
     fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
 
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 1 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 2, checksRunning: 1 } })
     expect(received).toHaveLength(1)
     expect(received[0]?.checksRunning).toBe(1)
 
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 2 } })
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 3 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 3, checksRunning: 2 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 4, checksRunning: 3 } })
     await advanceTimersByTimeAsync(1_100)
 
     expect(received).toHaveLength(2)
@@ -76,9 +93,12 @@ describe('GithubPrFanoutService', () => {
     const received: GithubPrStateDto[] = []
     fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
 
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 1 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 2, checksRunning: 1 } })
     await advanceTimersByTimeAsync(1_100)
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 0, checksPassed: 4 } })
+    fanout.push({
+      userIds: ['usr_a'],
+      state: { ...STATE, version: 3, checksRunning: 0, checksPassed: 4 },
+    })
 
     expect(received).toHaveLength(2)
     expect(received[1]?.checksPassed).toBe(4)
@@ -166,8 +186,8 @@ describe('GithubPrFanoutService', () => {
     })
     fanout.openStream({ userId: 'usr_b', handler: () => {} })
 
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 1 } })
-    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 2 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 2, checksRunning: 1 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, version: 3, checksRunning: 2 } })
     fanout.closeAll()
     await advanceTimersByTimeAsync(1_100)
 

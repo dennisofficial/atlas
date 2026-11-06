@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'9151e8e7aba5a6a6267bfe81b5db0755f855090aa4292499b46b36b113aa4599'>;
+  StorageHashBase<'0b57a2d5716c39ad7c93b2986be3c39df495f56d87664a41cdb974c6cbe50f2d'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -543,6 +543,7 @@ export namespace Models {
     title: FieldOutputTypes['public']['GithubPrState']['title'];
     updatedAt: FieldOutputTypes['public']['GithubPrState']['updatedAt'];
     url: FieldOutputTypes['public']['GithubPrState']['url'];
+    version: FieldOutputTypes['public']['GithubPrState']['version'];
     readonly [RelationKeys]?: never;
   };
   export type public_GithubRepoHook = {
@@ -3012,6 +3013,16 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly version: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
                   readonly many: false;
                 };
               };
@@ -8108,6 +8119,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly version: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
             };
             readonly relations: Record<string, never>;
             readonly storage: {
@@ -8128,6 +8143,7 @@ type ContractBase = Omit<
                 readonly title: { readonly column: 'title' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly url: { readonly column: 'url' };
+                readonly version: { readonly column: 'version' };
               };
             };
           };

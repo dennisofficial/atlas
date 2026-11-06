@@ -23,6 +23,7 @@ const state = (overrides: Partial<SubscriptionPrState> = {}): SubscriptionPrStat
   checksPassed: 0,
   checksFailed: 0,
   mergeable: null,
+  version: 1,
   updatedAt: '2026-10-15T02:00:00Z',
   ...overrides,
 })

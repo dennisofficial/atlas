@@ -74,10 +74,14 @@ export interface GithubPrStateDto {
   checksFailed: number
   checksIgnored: number
   mergeable: boolean | null
+  version: number
   updatedAt: string
 }
 
-export type GithubPrStateFields = Omit<GithubPrStateDto, 'repoFullName' | 'prNumber' | 'updatedAt'>
+export type GithubPrStateFields = Omit<
+  GithubPrStateDto,
+  'repoFullName' | 'prNumber' | 'updatedAt' | 'version'
+>
 
 export type GithubPrStateRecord = GithubPrStateFields & {
   updatedAt: Date

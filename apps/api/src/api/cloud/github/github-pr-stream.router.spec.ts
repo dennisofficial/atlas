@@ -61,12 +61,16 @@ describe('GithubPrStreamRouter.stream', () => {
     )
 
     await waitFor(() => expect(seen).toHaveLength(2))
-    fanout.push({ userIds: ['usr_1'], state: { ...STATE, checksPassed: 4 } })
+    fanout.push({ userIds: ['usr_1'], state: { ...STATE, version: 2, checksPassed: 4 } })
     await waitFor(() => expect(seen).toHaveLength(3))
     controller.abort()
     await finished
 
-    expect(seen).toEqual([HEARTBEAT, stateFrame(), stateFrame({ ...STATE, checksPassed: 4 })])
+    expect(seen).toEqual([
+      HEARTBEAT,
+      stateFrame(),
+      stateFrame({ ...STATE, version: 2, checksPassed: 4 }),
+    ])
   })
 
   it('completes the stream when the drain closes the fanout', async () => {
