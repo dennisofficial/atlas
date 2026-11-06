@@ -38,9 +38,11 @@ const sessionRowFixture = {
   sessionId: 'session-1',
   projectId: 'project-1',
   title: 'Fix the build',
-  status: ESessionStatus.Thinking,
-  lastEventAt: '2026-11-05T10:00:00.000Z',
-  headSeq: 540,
+  naming: false,
+  mainThreadId: 'thread-1',
+  createdAt: '2026-11-05T09:00:00.000Z',
+  updatedAt: '2026-11-05T10:00:00.000Z',
+  archivedAt: null,
 }
 
 export const streamServerFixtures = {

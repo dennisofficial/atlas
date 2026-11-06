@@ -40,6 +40,9 @@ export class FollowRig {
   private head: LogHead = { seq: 0, hash: GENESIS_HASH }
 
   statusReads = 0
+  digestReads = 0
+  digestFailure: Error | undefined
+  private readonly gapListeners = new Set<() => void>()
 
   constructor(args: { live?: LiveSource } = {}) {
     const plane: FollowPlane = {
@@ -56,12 +59,23 @@ export class FollowRig {
         return this.plane.readStatusSnapshot(params)
       },
       readBlob: (params) => this.plane.readBlob(params),
+      listSessionDigests: (params) => {
+        this.digestReads += 1
+        if (this.digestFailure !== undefined) return Promise.reject(this.digestFailure)
+        return this.plane.listSessionDigests(params)
+      },
     }
     this.follow = createFollowSubscriptions({
       plane,
       timers: this.timers,
       log: undefined,
-      feed: this.store,
+      feed: {
+        onChange: (listener) => this.store.onChange(listener),
+        onGap: (listener) => {
+          this.gapListeners.add(listener)
+          return () => this.gapListeners.delete(listener)
+        },
+      },
       live: args.live,
     })
   }
@@ -139,6 +153,10 @@ export class FollowRig {
 
   seqs(): number[] {
     return this.frames('events').flatMap((frame) => frame.events.map((event) => Number(event.seq)))
+  }
+
+  emitGap(): void {
+    for (const listener of [...this.gapListeners]) listener()
   }
 
   async settled(): Promise<void> {

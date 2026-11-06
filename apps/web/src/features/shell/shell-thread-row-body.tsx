@@ -1,6 +1,5 @@
 import { Archive, ArchiveRestore, CircleCheck, Pin, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
-import type { MouseEvent } from 'react'
 
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { cn } from '@dltech/atlas-ui/lib/utils'
@@ -32,6 +31,7 @@ export interface ThreadRowBodyProps {
   parent?: WireThread | undefined
   collapsed?: boolean
   v2?: boolean
+  listedNaming?: boolean
 }
 
 export function ThreadRowBody({
@@ -43,6 +43,7 @@ export function ThreadRowBody({
   parent,
   collapsed = false,
   v2 = false,
+  listedNaming = false,
 }: ThreadRowBodyProps) {
   const { onToggleArchive } = useThreadActions()
   const { density } = useSidebarDensity()
@@ -73,6 +74,7 @@ export function ThreadRowBody({
   const unread = isUnread({ thread, active })
   const naming = rowNamingOf({
     listedTitle: thread.title ?? null,
+    listedNaming,
     published: useThreadNaming(thread.id),
   })
   const handleArchive = () => onToggleArchive(thread)

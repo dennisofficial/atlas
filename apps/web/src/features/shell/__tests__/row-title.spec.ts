@@ -28,4 +28,28 @@ describe('rowNamingOf', () => {
       naming: false,
     })
   })
+
+  it('shows naming from the listed flag when nothing is published', () => {
+    expect(rowNamingOf({ listedTitle: null, listedNaming: true, published: null })).toEqual({
+      title: null,
+      naming: true,
+    })
+  })
+
+  it('lets the published state win over the listed flag', () => {
+    expect(
+      rowNamingOf({
+        listedTitle: null,
+        listedNaming: true,
+        published: { title: null, naming: false },
+      }),
+    ).toEqual({ title: null, naming: false })
+  })
+
+  it('never shows naming once a title exists', () => {
+    expect(rowNamingOf({ listedTitle: 'Done', listedNaming: true, published: null })).toEqual({
+      title: 'Done',
+      naming: false,
+    })
+  })
 })

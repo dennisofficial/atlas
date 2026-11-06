@@ -3,9 +3,11 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
+import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
 
+import { useV2Sessions } from '@/features/shell/use-v2-sessions'
 import { EHeaderState, STATE_LABEL } from '@/features/threads/data/header-model'
 import { messageOf } from '@/features/threads/data/use-send'
 import { EMPTY_DETAILS } from '@/features/threads/panel/details/details-input'
@@ -60,7 +62,15 @@ const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary
   [EHeaderState.Idle]: 'secondary',
 }
 
-function SessionHeader({ state }: { state: EHeaderState }) {
+function SessionHeader({
+  state,
+  title,
+  naming,
+}: {
+  state: EHeaderState
+  title: string | null
+  naming: boolean
+}) {
   return (
     <header
       data-chrome="titlebar"
@@ -68,7 +78,9 @@ function SessionHeader({ state }: { state: EHeaderState }) {
     >
       <div className="flex min-w-0 items-center gap-2">
         <SidebarTrigger aria-label="Open navigation" />
-        <h1 className="min-w-0 truncate text-sm font-medium">Session</h1>
+        <h1 className="min-w-0 truncate text-sm font-medium">
+          <NamingTitle title={title} naming={naming} fallback="Session" />
+        </h1>
         <Badge variant="outline">v2</Badge>
       </div>
       <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
@@ -82,6 +94,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     connection: sessionStream,
     cache: sessionCache(),
   })
+  const listed = useV2Sessions().find((session) => session.sessionId === sessionId)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const working = isSessionWorking(snapshot.status)
@@ -125,7 +138,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   return (
     <ThreadPanelProvider value={panel}>
       <div className="flex min-h-0 flex-1 flex-col">
-        <SessionHeader state={headerStateOfSession(snapshot.status)} />
+        <SessionHeader
+          state={headerStateOfSession(snapshot.status)}
+          title={listed?.title ?? null}
+          naming={listed?.naming ?? false}
+        />
         <div className="min-h-0 flex-1">
           <ThreadTranscript
             items={view.items}

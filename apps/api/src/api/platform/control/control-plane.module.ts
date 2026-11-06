@@ -2,6 +2,7 @@ import { Module, type Provider } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
+import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { DbProjectAccess, ProjectAccess } from './project-access'
 import { SessionsRouter } from './sessions.router'
 import { SessionsService } from './sessions.service'
@@ -15,6 +16,7 @@ export const controlPlaneProvider: Provider = {
   providers: [
     controlPlaneProvider,
     { provide: ProjectAccess, useClass: DbProjectAccess },
+    backgroundWorkProvider(),
     SessionsService,
     SessionsRouter,
   ],

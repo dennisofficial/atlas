@@ -10,17 +10,24 @@ export const sessionDigestsIn = async (
 ): Promise<ControlSessionDigest[]> => {
   const anyProject = params.projectId === undefined
   const projectId = params.projectId ?? ''
+  const anySession = params.sessionId === undefined
+  const sessionId = params.sessionId ?? ''
   const rows = await params.tx.query(
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
-        (SELECT left(i."payload"::jsonb ->> 'text', ${FIRST_MESSAGE_CHARS}) FROM "v2"."V2InboxEntry" i
-          WHERE i."sessionId" = s."id" AND i."kind" = 'message'
-          ORDER BY i."inboxId" ASC LIMIT 1) AS "firstMessageText"
+        first."text" AS "firstMessageText", first."postedAt" AS "firstMessageAt"
       FROM "v2"."V2Session" s
+      LEFT JOIN LATERAL (
+        SELECT left(i."payload"::jsonb ->> 'text', ${FIRST_MESSAGE_CHARS}) AS "text", i."postedAt"
+          FROM "v2"."V2InboxEntry" i
+          WHERE i."sessionId" = s."id" AND i."kind" = 'message'
+          ORDER BY i."inboxId" ASC LIMIT 1
+      ) first ON true
       WHERE s."userId" = ${params.userId}
         AND (${anyProject}::boolean OR s."projectId" = ${projectId})
+        AND (${anySession}::boolean OR s."id" = ${sessionId})
       ORDER BY s."createdAt" DESC
       LIMIT ${params.limit}`
       .returnsRow({
@@ -33,6 +40,7 @@ export const sessionDigestsIn = async (
         archivedAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
         lastEventAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
         firstMessageText: { codecId: 'pg/text@1', nullable: true },
+        firstMessageAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
       })
       .build(),
   )
@@ -46,5 +54,6 @@ export const sessionDigestsIn = async (
     archivedAt: row.archivedAt === null ? null : iso(row.archivedAt),
     lastEventAt: row.lastEventAt === null ? null : iso(row.lastEventAt),
     firstMessageText: row.firstMessageText,
+    firstMessageAt: row.firstMessageAt === null ? null : iso(row.firstMessageAt),
   }))
 }

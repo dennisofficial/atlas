@@ -68,6 +68,7 @@ export const sessionSummarySchema = z.strictObject({
   sessionId: z.string().min(1),
   projectId: z.string().min(1),
   title: z.string().nullable(),
+  naming: z.boolean(),
   mainThreadId: z.string().min(1),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),

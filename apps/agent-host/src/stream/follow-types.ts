@@ -5,7 +5,11 @@ import type { SessionChange, StreamServerMessage } from '@dltech/atlas-protocol'
 
 import type { SubscriptionConnection } from './subscription-port'
 
-export type FollowPlane = Pick<ControlPlane, 'readSession' | 'head' | 'readEvents'> & StatusPlane
+export type FollowPlane = Pick<
+  ControlPlane,
+  'readSession' | 'head' | 'readEvents' | 'listSessionDigests'
+> &
+  StatusPlane
 
 export type FollowDeps = {
   plane: FollowPlane

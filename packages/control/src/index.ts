@@ -14,6 +14,12 @@ export type {
 } from './port'
 export type { BlobRow, BlobWrite } from './port'
 export { readSessionStatus, STATUS_EVENT_LIMIT } from './session-status'
+export {
+  FALLBACK_TITLE_CHARS,
+  fallbackTitleOf,
+  NAMING_WINDOW_MS,
+  sessionSummaryOf,
+} from './session-summary'
 export type { SessionStatusRead, StatusPlane } from './session-status'
 export { RecordCorruptError } from './refusal'
 export type { AppendOutcome, BlobRefusal, ControlRefusal } from './refusal'

@@ -23,7 +23,7 @@ export function v2RowOf(summary: V2SessionSummary): ShellSessionNode {
     repo: null,
     projectId: summary.projectId,
   }
-  return { id: summary.sessionId, mainThread, teammates: [], v2: true }
+  return { id: summary.sessionId, mainThread, teammates: [], v2: true, naming: summary.naming }
 }
 
 export function v2SessionIdsOf(

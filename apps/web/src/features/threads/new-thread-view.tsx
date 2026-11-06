@@ -21,7 +21,7 @@ import { useCloudQuery } from '@/lib/use-cloud-query'
 import { useNewThreadCommands } from './commands/use-new-thread-commands'
 import { createThreadBodyOf } from './data/create-thread'
 import { createFieldsOf, defaultSelectionOf, type ModelSelection } from './data/model-selection'
-import { PROJECTS_KEY, SHELL_THREADS_KEY, V2_SESSIONS_KEY } from '@/lib/cloud-keys'
+import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
 import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 
 import { createThread, fetchProjects } from './data/threads-api'
@@ -155,7 +155,6 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         attachments: images.images.length + images.uploads.length,
       })
       drafts.handleSent(text)
-      void invalidateCloud([V2_SESSIONS_KEY])
       router.push(`/sessions/${encodeURIComponent(sessionId)}`)
     } catch (failure) {
       toast.error(messageOf(failure))

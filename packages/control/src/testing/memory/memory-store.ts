@@ -100,6 +100,13 @@ class MemoryTx implements ControlTx {
     return true
   }
 
+  async setSessionTitleIfUntitled(params: { sessionId: string; title: string }): Promise<boolean> {
+    const row = this.state.sessions.get(params.sessionId)
+    if (row === undefined || row.title !== null) return false
+    row.title = params.title
+    return true
+  }
+
   async listSessions(params: {
     userId: string
     projectId?: string | undefined

@@ -47,8 +47,9 @@ export function useThreadNaming(threadId: string): ThreadNaming | null {
 
 export function rowNamingOf(args: {
   listedTitle: string | null
+  listedNaming?: boolean
   published: ThreadNaming | null
 }): ThreadNaming {
   const title = args.published?.title ?? args.listedTitle
-  return { title, naming: title === null && (args.published?.naming ?? false) }
+  return { title, naming: title === null && (args.published?.naming ?? args.listedNaming ?? false) }
 }

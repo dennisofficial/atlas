@@ -3,8 +3,6 @@ import { useCallback, useMemo } from 'react'
 
 import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
 
-import { V2_SESSIONS_KEY } from '@/lib/cloud-keys'
-import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 import { LoadFailed } from '@/features/settings/data/shared/query-gate'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
@@ -26,7 +24,6 @@ export function ShellSidebarContent({
   activeThreadId: string | null
 }) {
   const router = useRouter()
-  const invalidateCloud = useInvalidateCloud()
   const v2Ids = useMemo(() => v2SessionIdsOf(query.data), [query.data])
   const handleArchived = useCallback(
     (threadId: string) => {
@@ -40,12 +37,9 @@ export function ShellSidebarContent({
     [activeThreadId, router, v2Ids],
   )
   const archive = useCallback(
-    async (args: Parameters<typeof archiveThread>[0]) => {
-      const v2 = v2Ids.has(args.threadId)
-      await archiveThread({ ...args, v2 })
-      if (v2) await invalidateCloud([V2_SESSIONS_KEY])
-    },
-    [v2Ids, invalidateCloud],
+    (args: Parameters<typeof archiveThread>[0]) =>
+      archiveThread({ ...args, v2: v2Ids.has(args.threadId) }),
+    [v2Ids],
   )
   const teammateIds = useMemo(() => {
     const ids = new Set<string>()

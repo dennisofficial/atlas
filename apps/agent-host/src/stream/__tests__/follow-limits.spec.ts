@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import {
   EStreamClose,
   EStreamErrorCode,
-  EStreamSubscribeKind,
   STREAM_MAX_SESSION_SUBSCRIPTIONS,
 } from '@dltech/atlas-protocol'
 
@@ -52,13 +51,6 @@ describe('follow limits', () => {
     expect(rig.frames('error')).toEqual([
       { type: 'error', id: 'sub-1', code: EStreamErrorCode.BadFrame },
     ])
-  })
-
-  it('answers internal to a sessions subscription and ignores resnap', async () => {
-    const session = rig.open()
-    await session.handle({ type: 'subscribe', id: 'list', kind: EStreamSubscribeKind.Sessions })
-    await session.handle({ type: 'resnap', id: 'list' })
-    expect(rig.sent).toEqual([{ type: 'error', id: 'list', code: EStreamErrorCode.Internal }])
   })
 
   it('pauses reads above the high-water mark, closes 4408 after 30 s, and releases its timer', async () => {

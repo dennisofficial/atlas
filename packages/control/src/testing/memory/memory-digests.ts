@@ -13,12 +13,16 @@ const textOf = (payload: string): string | null => {
   }
 }
 
-const firstMessageTextOf = (params: { state: State; sessionId: string }): string | null => {
+const firstMessageOf = (params: {
+  state: State
+  sessionId: string
+}): { firstMessageText: string | null; firstMessageAt: string | null } => {
   const first = params.state.inbox
     .get(params.sessionId)
     ?.filter((entry) => entry.kind === 'message')
     .sort((a, b) => a.inboxId - b.inboxId)[0]
-  return first === undefined ? null : textOf(first.payload)
+  if (first === undefined) return { firstMessageText: null, firstMessageAt: null }
+  return { firstMessageText: textOf(first.payload), firstMessageAt: first.postedAt }
 }
 
 export const sessionDigestsIn = (
@@ -27,10 +31,11 @@ export const sessionDigestsIn = (
   [...params.state.sessions.values()]
     .filter((row) => row.userId === params.userId)
     .filter((row) => params.projectId === undefined || row.projectId === params.projectId)
+    .filter((row) => params.sessionId === undefined || row.sessionId === params.sessionId)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, params.limit)
     .map(({ nextInboxId: _nextInboxId, ...session }) => ({
       ...session,
       lastEventAt: params.state.events.get(session.mainThreadId)?.at(-1)?.at ?? null,
-      firstMessageText: firstMessageTextOf({ state: params.state, sessionId: session.sessionId }),
+      ...firstMessageOf({ state: params.state, sessionId: session.sessionId }),
     }))

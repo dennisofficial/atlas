@@ -14,12 +14,14 @@ export type ControlSessionRow = {
 export type SessionListParams = {
   userId: string
   projectId?: string | undefined
+  sessionId?: string | undefined
   limit: number
 }
 
 export type ControlSessionDigest = ControlSessionRow & {
   lastEventAt: string | null
   firstMessageText: string | null
+  firstMessageAt: string | null
 }
 
 export type ThreadRow = {
@@ -77,6 +79,7 @@ export interface ControlTx {
   }): Promise<void>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>
+  setSessionTitleIfUntitled(params: { sessionId: string; title: string }): Promise<boolean>
   listSessions(params: {
     userId: string
     projectId?: string | undefined

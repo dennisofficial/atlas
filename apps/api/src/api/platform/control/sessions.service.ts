@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import { Injectable, Logger, NotFoundException } from '@nestjs/common'
-import { ControlPlane, readSessionStatus, STATUS_EVENT_LIMIT } from '@dltech/atlas-control'
-import type { ControlSessionDigest, ControlSessionRow } from '@dltech/atlas-control'
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import {
+  ControlPlane,
+  fallbackTitleOf,
+  readSessionStatus,
+  sessionSummaryOf,
+  STATUS_EVENT_LIMIT,
+} from '@dltech/atlas-control'
+import type { ControlSessionRow } from '@dltech/atlas-control'
 import { canonicalEvent, type V2Event } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { EWithdrawRefusal } from '@dltech/atlas-protocol'
@@ -13,6 +19,8 @@ import type {
   SessionStatusOutput,
   SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
+import { BackgroundWork } from '../../../_core/ports/background-work'
+import { SessionTitler } from '../../../_core/ports/session-titler'
 import { ProjectAccess } from './project-access'
 
 export type LeaseView = { epoch: number; holderHostId: number | null; live: boolean }
@@ -20,25 +28,6 @@ export type LeaseView = { epoch: number; holderHostId: number | null; live: bool
 const EVENTS_DEFAULT_MAX_BYTES = 2_000_000
 const EVENTS_HARD_CEILING_BYTES = 3_500_000
 const BLOB_READ_DEFAULT_LENGTH = 1_000_000
-
-const TITLE_MAX_CHARS = 80
-
-const titleOf = (row: ControlSessionDigest): string | null => {
-  if (row.title !== null) return row.title
-  const flat = row.firstMessageText?.replace(/\s+/g, ' ').trim() ?? ''
-  if (flat.length === 0) return null
-  return flat.length <= TITLE_MAX_CHARS ? flat : `${flat.slice(0, TITLE_MAX_CHARS - 1).trimEnd()}…`
-}
-
-const toSummary = (row: ControlSessionDigest) => ({
-  sessionId: row.sessionId,
-  projectId: row.projectId,
-  title: titleOf(row),
-  mainThreadId: row.mainThreadId,
-  createdAt: row.createdAt,
-  updatedAt: row.lastEventAt ?? row.createdAt,
-  archivedAt: row.archivedAt,
-})
 
 const toPageEvent = (event: V2Event): Record<string, unknown> => {
   const bytes = Buffer.byteLength(canonicalEvent(event), 'utf8')
@@ -51,8 +40,10 @@ export class SessionsService {
   private readonly logger = new Logger(SessionsService.name)
 
   constructor(
-    private readonly plane: ControlPlane,
-    private readonly projects: ProjectAccess,
+    @Inject(ControlPlane) private readonly plane: ControlPlane,
+    @Inject(ProjectAccess) private readonly projects: ProjectAccess,
+    @Inject(SessionTitler) private readonly titler: SessionTitler,
+    @Inject(BackgroundWork) private readonly background: BackgroundWork,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -85,18 +76,50 @@ export class SessionsService {
       projectId: args.projectId,
       limit: args.limit ?? 100,
     })
-    return { sessions: sessions.map(toSummary) }
+    const now = Date.now()
+    return { sessions: sessions.map((digest) => sessionSummaryOf({ digest, now })) }
   }
 
   async post(args: { userId: string; sessionId: string; text: string }) {
-    await this.requireOwnedSession(args)
+    const session = await this.requireOwnedSession(args)
     const payload = JSON.stringify(inboxMessageSchema.parse({ text: args.text }))
     const { inboxId } = await this.plane.post({
       sessionId: args.sessionId,
       kind: INBOX_KIND_MESSAGE,
       payload,
     })
+    if (inboxId === 1 && session.title === null) {
+      this.background.keepAlive(
+        this.nameSession({
+          userId: args.userId,
+          sessionId: args.sessionId,
+          projectId: session.projectId,
+          text: args.text,
+        }),
+      )
+    }
     return { inboxId }
+  }
+
+  private async nameSession(args: {
+    userId: string
+    sessionId: string
+    projectId: string
+    text: string
+  }): Promise<void> {
+    try {
+      const generated = await this.titler
+        .nameOf({ userId: args.userId, projectId: args.projectId, text: args.text })
+        .catch((failure: unknown) => {
+          this.logger.warn(`naming ${args.sessionId} failed: ${String(failure)}`)
+          return null
+        })
+      const title = generated ?? fallbackTitleOf(args.text)
+      if (title === null) return
+      await this.plane.titleUntitledSession({ sessionId: args.sessionId, title })
+    } catch (failure) {
+      this.logger.warn(`storing the name of ${args.sessionId} failed: ${String(failure)}`)
+    }
   }
 
   async withdraw(args: {
