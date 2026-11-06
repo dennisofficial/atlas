@@ -7,6 +7,18 @@ import { EPreviewGate, usePreviewOrigins } from '@/features/desktop/use-preview-
 import { changeRegistry, withGate } from './frame-registry'
 import type { FrameSpec } from './frames-of'
 
+export function allowedAfter(args: {
+  held: ReadonlySet<string>
+  gate: EPreviewGate
+  urls: readonly string[]
+}): ReadonlySet<string> {
+  const { held, gate, urls } = args
+  if (gate !== EPreviewGate.Ready) return held
+  const confirmed = previewOriginsOf(urls)
+  const unchanged = confirmed.length === held.size && confirmed.every((origin) => held.has(origin))
+  return unchanged ? held : new Set(confirmed)
+}
+
 export function useAllowedFrames(frames: FrameSpec[]): (frame: FrameSpec) => boolean {
   const desktop = useIsDesktop()
   const urls = useMemo(() => frames.map((frame) => frame.load.url), [frames])
@@ -14,11 +26,7 @@ export function useAllowedFrames(frames: FrameSpec[]): (frame: FrameSpec) => boo
   const [allowed, setAllowed] = useState<ReadonlySet<string>>(new Set())
   useEffect(() => {
     changeRegistry((registry) => withGate({ registry, gate }))
-    if (gate !== EPreviewGate.Ready) return
-    setAllowed((held) => {
-      const origins = previewOriginsOf(urls)
-      return origins.every((origin) => held.has(origin)) ? held : new Set([...held, ...origins])
-    })
+    setAllowed((held) => allowedAfter({ held, gate, urls }))
   }, [gate, urls])
   return (frame) =>
     !desktop || previewOriginsOf([frame.load.url]).every((origin) => allowed.has(origin))
