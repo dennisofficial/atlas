@@ -15,13 +15,20 @@ import {
 } from './connection-machine'
 import { memorySessionCache, type SessionCache } from './session-cache'
 import { createSessionFollower, ESessionConnection, type SessionFollower } from './session-follower'
-import type { StreamScheduler, StreamSocket, StreamSocketFactory } from './stream-ports'
+import {
+  browserNetworkSignal,
+  type StreamNetworkSignal,
+  type StreamScheduler,
+  type StreamSocket,
+  type StreamSocketFactory,
+} from './stream-ports'
 
 export type StreamConnectionArgs = {
   url: string
   getToken(): Promise<string>
   socket: StreamSocketFactory
   scheduler: StreamScheduler
+  networkSignal?: StreamNetworkSignal | undefined
 }
 
 export type FollowedSession = SessionFollower & { close(): void }
@@ -41,6 +48,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
   let socket: StreamSocket | undefined
   let generation = 0
   let nextId = 0
+  let unsubscribeNetwork: (() => void) | undefined
   const timers = new Map<EConnectionTimer, unknown>()
   const followed = new Map<string, Followed>()
 
@@ -153,6 +161,17 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     else deliver(effect.message)
   }
 
+  const watchNetwork = (phase: EStreamConnectionState): void => {
+    if (phase === EStreamConnectionState.Closed) {
+      unsubscribeNetwork?.()
+      unsubscribeNetwork = undefined
+      return
+    }
+    unsubscribeNetwork ??= (args.networkSignal ?? browserNetworkSignal)(() =>
+      dispatch({ type: 'network-online' }),
+    )
+  }
+
   const dispatch = (input: ConnectionInput): void => {
     const before = machine.phase
     const step = reduceConnection({
@@ -164,6 +183,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     machine = step.state
     if (machine.phase !== before) {
       for (const entry of followed.values()) entry.follower.setConnection(machine.phase)
+      watchNetwork(machine.phase)
     }
     for (const effect of step.effects) run(effect)
   }

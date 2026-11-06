@@ -11,42 +11,9 @@ import {
   EStreamClosedReason,
   EStreamConnectionState,
   initialConnectionState,
-  reduceConnection,
   SILENCE_LIMIT_MS,
-  type ConnectionInput,
-  type ConnectionState,
 } from '../connection-machine'
-
-const step = (params: {
-  state: ConnectionState
-  input: ConnectionInput
-  now?: number
-  random?: number
-}) =>
-  reduceConnection({
-    state: params.state,
-    input: params.input,
-    now: params.now ?? 0,
-    random: params.random ?? 0.5,
-  })
-
-const frame = (message: StreamServerMessage): ConnectionInput => ({
-  type: 'message',
-  data: JSON.stringify(message),
-})
-
-const READY: StreamServerMessage = { type: 'ready', v: STREAM_PROTOCOL_VERSION, connectionId: 'c1' }
-
-const openState = (now = 0): ConnectionState => {
-  let state = step({ state: initialConnectionState(), input: { type: 'connect' } }).state
-  state = step({ state, input: { type: 'socket-opened', token: 't' }, now }).state
-  return step({ state, input: frame(READY), now }).state
-}
-
-const scheduledDelay = (effects: readonly { type: string; ms?: number; timer?: string }[]) =>
-  effects.find(
-    (effect) => effect.type === 'schedule' && effect.timer === EConnectionTimer.Reconnect,
-  )?.ms
+import { frame, handshakeTimer, openState, READY, scheduledDelay, step } from './machine-support'
 
 describe('backoffDelayMs', () => {
   it('doubles from 500ms and caps at 15s at full jitter', () => {
@@ -66,7 +33,7 @@ describe('the connection machine', () => {
   it('opens a socket on connect and sends hello once the socket opens', () => {
     const connecting = step({ state: initialConnectionState(), input: { type: 'connect' } })
     expect(connecting.state.phase).toBe(EStreamConnectionState.Connecting)
-    expect(connecting.effects).toEqual([{ type: 'openSocket' }])
+    expect(connecting.effects).toEqual([{ type: 'openSocket' }, handshakeTimer])
 
     const opened = step({ state: connecting.state, input: { type: 'socket-opened', token: 'tok' } })
     expect(opened.state.phase).toBe(EStreamConnectionState.Authenticating)
@@ -98,7 +65,7 @@ describe('the connection machine', () => {
         state: dropped.state,
         input: { type: 'timer-fired', timer: EConnectionTimer.Reconnect },
       })
-      expect(retried.effects).toEqual([{ type: 'openSocket' }])
+      expect(retried.effects).toEqual([{ type: 'openSocket' }, handshakeTimer])
       state = step({ state: retried.state, input: { type: 'socket-opened', token: 't' } }).state
     }
     expect(delays).toEqual([500, 1000, 2000])
@@ -140,7 +107,7 @@ describe('the connection machine', () => {
     const again = step({ state: closed.state, input: { type: 'connect' } })
     expect(again.state.phase).toBe(EStreamConnectionState.Connecting)
     expect(again.state.reason).toBeUndefined()
-    expect(again.effects).toEqual([{ type: 'openSocket' }])
+    expect(again.effects).toEqual([{ type: 'openSocket' }, handshakeTimer])
   })
 
   it('backs off for exactly reconnectAfterMs after going-away', () => {

@@ -2,63 +2,31 @@ import {
   EStreamClose,
   parseServerMessage,
   STREAM_PROTOCOL_VERSION,
-  type StreamClientMessage,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
-export const SILENCE_LIMIT_MS = 45_000
+import {
+  BACKOFF_BASE_MS,
+  BACKOFF_CAP_MS,
+  type ConnectionEffect,
+  type ConnectionInput,
+  type ConnectionState,
+  type ConnectionStep,
+  EConnectionTimer,
+  EStreamClosedReason,
+  EStreamConnectionState,
+  HANDSHAKE_LIMIT_MS,
+  SILENCE_LIMIT_MS,
+} from './connection-types'
 
-const BACKOFF_BASE_MS = 500
+export * from './connection-types'
 
-const BACKOFF_CAP_MS = 15_000
-
-export enum EStreamConnectionState {
-  Connecting = 'connecting',
-  Authenticating = 'authenticating',
-  Open = 'open',
-  Backoff = 'backoff',
-  Closed = 'closed',
+type ReduceArgs = {
+  state: ConnectionState
+  input: ConnectionInput
+  now: number
+  random: number
 }
-
-export enum EStreamClosedReason {
-  Unauthenticated = 'unauthenticated',
-  Requested = 'requested',
-}
-
-export enum EConnectionTimer {
-  Reconnect = 'reconnect',
-  Silence = 'silence',
-}
-
-export type ConnectionState = {
-  phase: EStreamConnectionState
-  attempt: number
-  lastFrameAt: number
-  reason: EStreamClosedReason | undefined
-  closingCode: number | undefined
-  reconnectAfterMs: number | undefined
-}
-
-export type ConnectionInput =
-  | { type: 'connect' }
-  | { type: 'socket-opened'; token: string }
-  | { type: 'token-failed' }
-  | { type: 'message'; data: string }
-  | { type: 'socket-closed'; code: number }
-  | { type: 'timer-fired'; timer: EConnectionTimer }
-  | { type: 'close-requested' }
-
-export type ConnectionEffect =
-  | { type: 'openSocket' }
-  | { type: 'closeSocket' }
-  | { type: 'send'; message: StreamClientMessage }
-  | { type: 'schedule'; timer: EConnectionTimer; ms: number }
-  | { type: 'cancel'; timer: EConnectionTimer }
-  | { type: 'deliver'; message: StreamServerMessage }
-
-export type ConnectionStep = { state: ConnectionState; effects: ConnectionEffect[] }
-
-type ReduceArgs = { state: ConnectionState; input: ConnectionInput; now: number; random: number }
 
 export const initialConnectionState = (): ConnectionState => ({
   phase: EStreamConnectionState.Closed,
@@ -72,7 +40,24 @@ export const initialConnectionState = (): ConnectionState => ({
 export const backoffDelayMs = (args: { attempt: number; random: number }): number =>
   Math.floor(Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS * 2 ** args.attempt) * args.random)
 
-const stay = (state: ConnectionState): ConnectionStep => ({ state, effects: [] })
+const stay = (state: ConnectionState): ConnectionStep => ({
+  state,
+  effects: [],
+})
+
+const startHandshake: ConnectionEffect[] = [
+  { type: 'openSocket' },
+  {
+    type: 'schedule',
+    timer: EConnectionTimer.Handshake,
+    ms: HANDSHAKE_LIMIT_MS,
+  },
+]
+
+const cancelHandshake: ConnectionEffect = {
+  type: 'cancel',
+  timer: EConnectionTimer.Handshake,
+}
 
 const hasSocket = (state: ConnectionState): boolean =>
   state.phase === EStreamConnectionState.Connecting ||
@@ -110,14 +95,19 @@ const toClosed = (args: {
     closingCode: undefined,
     reconnectAfterMs: undefined,
   },
-  effects: [{ type: 'cancel', timer: EConnectionTimer.Silence }],
+  effects: [{ type: 'cancel', timer: EConnectionTimer.Silence }, cancelHandshake],
 })
 
 const connect = (state: ConnectionState): ConnectionStep => {
   if (state.phase !== EStreamConnectionState.Closed) return stay(state)
   return {
-    state: { ...state, phase: EStreamConnectionState.Connecting, attempt: 0, reason: undefined },
-    effects: [{ type: 'openSocket' }],
+    state: {
+      ...state,
+      phase: EStreamConnectionState.Connecting,
+      attempt: 0,
+      reason: undefined,
+    },
+    effects: startHandshake,
   }
 }
 
@@ -128,7 +118,11 @@ const socketOpened = (args: { state: ConnectionState; token: string }): Connecti
     effects: [
       {
         type: 'send',
-        message: { type: 'hello', v: STREAM_PROTOCOL_VERSION, token: args.token },
+        message: {
+          type: 'hello',
+          v: STREAM_PROTOCOL_VERSION,
+          token: args.token,
+        },
       },
     ],
   }
@@ -144,7 +138,7 @@ const socketClosed = (args: { state: ConnectionState; code: number; random: numb
   return toBackoff({
     state,
     random: args.random,
-    effects: [{ type: 'cancel', timer: EConnectionTimer.Silence }],
+    effects: [{ type: 'cancel', timer: EConnectionTimer.Silence }, cancelHandshake],
   })
 }
 
@@ -153,8 +147,14 @@ const handleReady = (args: {
   message: StreamServerMessage
   now: number
 }) => ({
-  state: { ...args.state, phase: EStreamConnectionState.Open, attempt: 0, lastFrameAt: args.now },
+  state: {
+    ...args.state,
+    phase: EStreamConnectionState.Open,
+    attempt: 0,
+    lastFrameAt: args.now,
+  },
   effects: [
+    cancelHandshake,
     { type: 'schedule', timer: EConnectionTimer.Silence, ms: SILENCE_LIMIT_MS },
     { type: 'deliver', message: args.message },
   ] satisfies ConnectionEffect[],
@@ -187,22 +187,51 @@ const receive = (args: { state: ConnectionState; data: string; now: number }): C
   return { state: seen, effects: [{ type: 'deliver', message }] }
 }
 
+const isAuthenticating = (state: ConnectionState): boolean =>
+  state.phase === EStreamConnectionState.Authenticating
+
+const networkOnline = (state: ConnectionState): ConnectionStep => {
+  if (state.phase !== EStreamConnectionState.Backoff) return stay(state)
+  return {
+    state: { ...state, phase: EStreamConnectionState.Connecting, attempt: 0 },
+    effects: [{ type: 'cancel', timer: EConnectionTimer.Reconnect }, ...startHandshake],
+  }
+}
+
 const timerFired = (args: ReduceArgs & { timer: EConnectionTimer }): ConnectionStep => {
   const { state, now, timer } = args
   if (timer === EConnectionTimer.Reconnect) {
     if (state.phase !== EStreamConnectionState.Backoff) return stay(state)
     return {
       state: { ...state, phase: EStreamConnectionState.Connecting },
-      effects: [{ type: 'openSocket' }],
+      effects: startHandshake,
     }
+  }
+  if (timer === EConnectionTimer.Handshake) {
+    if (state.phase !== EStreamConnectionState.Connecting && !isAuthenticating(state)) {
+      return stay(state)
+    }
+    return toBackoff({
+      state,
+      random: args.random,
+      effects: [{ type: 'closeSocket' }],
+    })
   }
   if (state.phase !== EStreamConnectionState.Open) return stay(state)
   const silentFor = now - state.lastFrameAt
   if (silentFor < SILENCE_LIMIT_MS) {
-    const effect = { type: 'schedule', timer, ms: SILENCE_LIMIT_MS - silentFor } as const
+    const effect = {
+      type: 'schedule',
+      timer,
+      ms: SILENCE_LIMIT_MS - silentFor,
+    } as const
     return { state, effects: [effect] }
   }
-  return toBackoff({ state, random: args.random, effects: [{ type: 'closeSocket' }] })
+  return toBackoff({
+    state,
+    random: args.random,
+    effects: [{ type: 'closeSocket' }],
+  })
 }
 
 const closeRequested = (state: ConnectionState): ConnectionStep => {
@@ -227,7 +256,11 @@ export const reduceConnection = (args: ReduceArgs): ConnectionStep => {
       return socketOpened({ state, token: input.token })
     case 'token-failed':
       if (state.phase !== EStreamConnectionState.Connecting) return stay(state)
-      return toBackoff({ state, random, effects: [{ type: 'closeSocket' }] })
+      return toBackoff({
+        state,
+        random,
+        effects: [{ type: 'closeSocket' }, cancelHandshake],
+      })
     case 'message':
       return receive({ state, data: input.data, now })
     case 'socket-closed':
@@ -236,5 +269,7 @@ export const reduceConnection = (args: ReduceArgs): ConnectionStep => {
       return timerFired({ ...args, timer: input.timer })
     case 'close-requested':
       return closeRequested(state)
+    case 'network-online':
+      return networkOnline(state)
   }
 }
