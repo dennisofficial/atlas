@@ -7,6 +7,7 @@ import {
   type V2Event,
   type VisibilityState,
 } from '@dltech/atlas-core'
+import type { ZodError } from 'zod'
 
 export const WINDOW_LIMIT = 3_000
 
@@ -32,16 +33,36 @@ const wireHashOf = (raw: unknown): string => chainHash(raw as V2Event)
 
 type Parsed = { event: V2Event; raw: unknown }
 
-const freshEventsOf = (args: { raw: readonly unknown[]; after: number }): Parsed[] => {
+export type UnreadableEvent = { seq: number | undefined; issue: string }
+
+export type PageOutcome = { window: SessionWindow; unreadable: UnreadableEvent | undefined }
+
+const seqOfRaw = (raw: unknown): number | undefined => {
+  if (typeof raw !== 'object' || raw === null || !('seq' in raw)) return undefined
+  return typeof raw.seq === 'number' ? raw.seq : undefined
+}
+
+const issueOf = (error: ZodError): string => {
+  const issue = error.issues[0]
+  if (issue === undefined) return 'unreadable event'
+  return `${issue.path.join('.') || '(root)'}: ${issue.message}`
+}
+
+const freshEventsOf = (args: {
+  raw: readonly unknown[]
+  after: number
+}): { fresh: Parsed[]; unreadable: UnreadableEvent | undefined } => {
   const fresh: Parsed[] = []
   for (const raw of args.raw) {
     const parsed = v2EventSchema.safeParse(raw)
-    if (!parsed.success) continue
+    if (!parsed.success) {
+      return { fresh, unreadable: { seq: seqOfRaw(raw), issue: issueOf(parsed.error) } }
+    }
     const last = fresh[fresh.length - 1]
     const floor = last === undefined ? args.after : last.event.seq
     if (parsed.data.seq > floor) fresh.push({ event: parsed.data, raw })
   }
-  return fresh
+  return { fresh, unreadable: undefined }
 }
 
 const cursorAfter = (args: { page: EventsPage; last: Parsed }): SessionCursor => {
@@ -50,11 +71,17 @@ const cursorAfter = (args: { page: EventsPage; last: Parsed }): SessionCursor =>
   return { seq: last.event.seq, hash: wireHashOf(last.raw) }
 }
 
-export const applyPage = (args: { window: SessionWindow; page: EventsPage }): SessionWindow => {
+export const applyPageOutcome = (args: {
+  window: SessionWindow
+  page: EventsPage
+}): PageOutcome => {
   const { window, page } = args
-  const fresh = freshEventsOf({ raw: page.events, after: window.cursor?.seq ?? 0 })
+  const { fresh, unreadable } = freshEventsOf({
+    raw: page.events,
+    after: window.cursor?.seq ?? 0,
+  })
   const last = fresh[fresh.length - 1]
-  if (last === undefined) return window
+  if (last === undefined) return { window, unreadable }
   const visibility = fresh.reduce(
     (state, { event }) => stepVisibility(state, event),
     window.visibility,
@@ -62,5 +89,8 @@ export const applyPage = (args: { window: SessionWindow; page: EventsPage }): Se
   const events = [...window.events, ...fresh.map(({ event }) => event)]
     .filter((event) => isVisible(visibility, event))
     .slice(-WINDOW_LIMIT)
-  return { events, visibility, cursor: cursorAfter({ page, last }) }
+  return { window: { events, visibility, cursor: cursorAfter({ page, last }) }, unreadable }
 }
+
+export const applyPage = (args: { window: SessionWindow; page: EventsPage }): SessionWindow =>
+  applyPageOutcome(args).window

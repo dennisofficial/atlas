@@ -4,6 +4,7 @@ import fc from 'fast-check'
 
 import {
   applyPage,
+  applyPageOutcome,
   EMPTY_WINDOW,
   resetWindow,
   WINDOW_LIMIT,
@@ -41,11 +42,25 @@ describe('applyPage', () => {
     expect(second.cursor).toEqual(headOf(events))
   })
 
-  it('skips an event it cannot parse without stopping the page', () => {
+  it('stops at the first event it cannot parse and keeps the cursor on the last good one', () => {
     const events = mintUserEvents({ count: 3 })
     const raw = [{ ...events[0] }, { seq: 2, type: 'from-the-future' }, { ...events[2] }]
-    const window = applyPage({ window: EMPTY_WINDOW, page: { events: raw, head: headOf(events) } })
-    expect(seqsOf(window)).toEqual([1, 3])
+    const outcome = applyPageOutcome({
+      window: EMPTY_WINDOW,
+      page: { events: raw, head: headOf(events) },
+    })
+    expect(seqsOf(outcome.window)).toEqual([1])
+    expect(outcome.window.cursor).toEqual(headOf(events.slice(0, 1)))
+    expect(outcome.unreadable?.seq).toBe(2)
+    expect(outcome.unreadable?.issue).toBeString()
+  })
+
+  it('reports nothing unreadable for a clean page', () => {
+    const outcome = applyPageOutcome({
+      window: EMPTY_WINDOW,
+      page: page(mintUserEvents({ count: 2 })),
+    })
+    expect(outcome.unreadable).toBeUndefined()
   })
 
   it('keeps the cursor on an empty page', () => {

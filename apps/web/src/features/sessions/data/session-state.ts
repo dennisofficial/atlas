@@ -23,6 +23,7 @@ const CONNECTION_LINE: Record<ESessionConnection, string | null> = {
   [ESessionConnection.CatchingUp]: 'Catching up…',
   [ESessionConnection.Reconnecting]: 'Reconnecting…',
   [ESessionConnection.Offline]: 'Offline — reload to reconnect',
+  [ESessionConnection.Outdated]: 'Atlas was updated. Reload to see this session.',
 }
 
 const ERROR_LINE: Record<EStreamErrorCode, string> = {

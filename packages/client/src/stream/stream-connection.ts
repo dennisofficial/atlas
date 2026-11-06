@@ -14,7 +14,7 @@ import {
   type ConnectionState,
 } from './connection-machine'
 import { memorySessionCache, type SessionCache } from './session-cache'
-import { createSessionFollower, type SessionFollower } from './session-follower'
+import { createSessionFollower, ESessionConnection, type SessionFollower } from './session-follower'
 import type { StreamScheduler, StreamSocket, StreamSocketFactory } from './stream-ports'
 
 export type StreamConnectionArgs = {
@@ -117,6 +117,15 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     timers.delete(timer)
   }
 
+  const stopFollowing = (entry: Followed): boolean => {
+    if (followed.get(entry.id) !== entry) return false
+    followed.delete(entry.id)
+    if (machine.phase === EStreamConnectionState.Open) {
+      sendMessage({ type: 'unsubscribe', id: entry.id })
+    }
+    return true
+  }
+
   const deliver = (message: StreamServerMessage): void => {
     if (message.type === 'ready') {
       for (const entry of followed.values()) {
@@ -126,7 +135,11 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
       return
     }
     if (!('id' in message) || message.id === undefined) return
-    followed.get(message.id)?.follower.handleMessage(message)
+    const entry = followed.get(message.id)
+    if (entry === undefined) return
+    entry.follower.handleMessage(message)
+    if (entry.follower.getSnapshot().connection === ESessionConnection.Outdated)
+      stopFollowing(entry)
   }
 
   const run = (effect: ConnectionEffect): void => {
@@ -173,11 +186,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     }
     return {
       ...follower,
-      close: () => {
-        if (followed.delete(id) && machine.phase === EStreamConnectionState.Open) {
-          sendMessage({ type: 'unsubscribe', id })
-        }
-      },
+      close: () => void stopFollowing(entry),
     }
   }
 
