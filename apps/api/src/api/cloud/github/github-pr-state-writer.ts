@@ -6,7 +6,7 @@ import { GithubObservationStore } from './github-observation.store'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
+import { nextVersionOf, readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
 import { deliverPrTransitions } from './github-pr-transition-push'
 import { branchRoutingOf, dtoOf, subscriberWhereOf } from './github-delivery-routing'
 import type { GithubPrStateRecord } from './github-realtime.types'
@@ -52,10 +52,11 @@ export class GithubPrStateWriter {
     const prior = priorRow === null ? null : snapshotOfLocked(priorRow)
     const headBranch = fields.headBranch ?? priorRow?.headBranch
     const headRepoFullName = fields.headRepoFullName ?? priorRow?.headRepoFullName ?? null
+    const version = nextVersionOf(priorRow)
     const row = await tx.orm.public.GithubPrState.upsert({
       conflictOn: { repoFullName, prNumber: args.prNumber },
-      create: { repoFullName, prNumber: args.prNumber, ...fields },
-      update: fields,
+      create: { repoFullName, prNumber: args.prNumber, ...fields, version },
+      update: { ...fields, version },
     })
 
     const subscribers = await tx.orm.public.GithubSubscription.where(

@@ -129,10 +129,10 @@ describe('githubPrs.stream over a real http server', () => {
     const { frames } = subscribe({ token: SANDBOX_TOKEN })
 
     await waitFor(() => expect(frames).toEqual([HEARTBEAT, stateFrame()]))
-    fanout.push({ userIds: ['usr_1'], state: { ...STATE, checksPassed: 4 } })
+    fanout.push({ userIds: ['usr_1'], state: { ...STATE, version: 2, checksPassed: 4 } })
     await waitFor(() => expect(frames).toHaveLength(3))
 
-    expect(frames[2]).toEqual(stateFrame({ ...STATE, checksPassed: 4 }))
+    expect(frames[2]).toEqual(stateFrame({ ...STATE, version: 2, checksPassed: 4 }))
   })
 
   it('answers 401 to a bad token', async () => {

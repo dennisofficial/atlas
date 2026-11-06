@@ -43,6 +43,7 @@ export class GithubPrFanoutService implements OnModuleDestroy {
   private readonly logger = new Logger(GithubPrFanoutService.name)
   private readonly streams = new Map<string, Set<OpenStream>>()
   private readonly pending = new Map<string, PendingPush>()
+  private readonly lastSent = new Map<string, number>()
   private readonly timers = new Map<string, NodeJS.Timeout>()
   private readonly pendingEvents = new Map<string, PendingEventPush>()
   private readonly eventTimers = new Map<string, NodeJS.Timeout>()
@@ -105,6 +106,7 @@ export class GithubPrFanoutService implements OnModuleDestroy {
     for (const timer of this.timers.values()) clearTimeout(timer)
     this.timers.clear()
     this.pending.clear()
+    this.lastSent.clear()
     for (const timer of this.eventTimers.values()) clearTimeout(timer)
     this.eventTimers.clear()
     this.pendingEvents.clear()
@@ -123,6 +125,8 @@ export class GithubPrFanoutService implements OnModuleDestroy {
 
   push(args: { userIds: readonly string[]; state: GithubPrStateDto }): void {
     const key = `${args.state.repoFullName}#${args.state.prNumber}`
+    const sent = this.lastSent.get(key)
+    if (sent !== undefined && args.state.version <= sent) return
     const held = this.pending.get(key)
 
     if (held === undefined) {
@@ -132,6 +136,7 @@ export class GithubPrFanoutService implements OnModuleDestroy {
       return
     }
 
+    if (args.state.version <= held.state.version) return
     this.pending.set(key, { state: args.state, userIds: args.userIds, dirty: true })
   }
 
@@ -220,6 +225,7 @@ export class GithubPrFanoutService implements OnModuleDestroy {
   }
 
   private flushState(args: { userIds: readonly string[]; state: GithubPrStateDto }): void {
+    this.lastSent.set(`${args.state.repoFullName}#${args.state.prNumber}`, args.state.version)
     this.dispatch({
       frame: { kind: EPrFrameKind.State, userIds: args.userIds, payload: args.state },
     })

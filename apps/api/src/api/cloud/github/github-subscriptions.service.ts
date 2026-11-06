@@ -15,7 +15,7 @@ import type {
 } from './github-realtime.types'
 import { GithubObservationStore } from './github-observation.store'
 import { deliverPrTransitions } from './github-pr-transition-push'
-import { readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
+import { nextVersionOf, readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { withGithubRequestBudget } from './github-request-budget'
 import { normalizedRepo } from './github-pr-identity'
@@ -274,9 +274,10 @@ export class GithubSubscriptionsService {
           repoFullName: args.repoFullName,
           prNumber,
           ...fields,
+          version: nextVersionOf(priorRow),
           updatedAt: new Date(),
         },
-        update: { ...fields, updatedAt: new Date() },
+        update: { ...fields, version: nextVersionOf(priorRow), updatedAt: new Date() },
       })
       await deliverPrTransitions({
         writes: { mailbox: this.mailbox, repoFullName: args.repoFullName, prNumber, url: row.url },

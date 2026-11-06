@@ -33,6 +33,7 @@ const liveSubscribeBody = {
     checksPassed: 2,
     checksFailed: 0,
     mergeable: null,
+    version: 1,
     updatedAt: '2026-09-29T20:00:00.000Z',
   },
 }

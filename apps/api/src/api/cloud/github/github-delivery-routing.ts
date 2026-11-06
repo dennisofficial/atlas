@@ -99,6 +99,7 @@ export function dtoOf(row: Row<'GithubPrState'>): GithubPrStateDto {
     checksFailed: row.checksFailed,
     checksIgnored: row.checksIgnored,
     mergeable: row.mergeable,
+    version: row.version,
     updatedAt: row.updatedAt.toISOString(),
   }
 }

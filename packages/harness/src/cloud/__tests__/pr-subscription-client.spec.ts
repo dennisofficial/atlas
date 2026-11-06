@@ -24,6 +24,7 @@ const liveSubscribeBody = {
     checksPassed: 1,
     checksFailed: 0,
     mergeable: null,
+    version: 1,
     updatedAt: '2026-09-28T20:00:00.000Z',
   },
 }

@@ -80,6 +80,7 @@ describe('sidebar PR state context', () => {
           checksPassed,
           checksFailed: 0,
           mergeable: true,
+          version: checksPassed,
           updatedAt: '',
         },
       })

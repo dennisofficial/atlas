@@ -25,6 +25,7 @@ const STATE = {
   checksPassed: 0,
   checksFailed: 0,
   mergeable: null,
+  version: 1,
   updatedAt: '2026-10-08T00:00:00Z',
 }
 

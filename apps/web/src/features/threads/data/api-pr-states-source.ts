@@ -38,6 +38,7 @@ const visible = () => typeof document === 'undefined' || document.visibilityStat
 
 function createSource(subscribe: ApiPrStatesSubscribe) {
   const byKey = new Map<string, PrStateWire>()
+  const versions = new Map<string, number>()
   const consumers = new Set<Consumer>()
   let states: readonly PrStateWire[] = []
   let targets: readonly PrObservationTarget[] = []
@@ -113,7 +114,11 @@ function createSource(subscribe: ApiPrStatesSubscribe) {
       if (frame.type !== EGithubPrStatesFrame.PrState) return
       const state = prStateWireOfApi(frame.state)
       if (state === undefined) return
-      byKey.set(pullRequestKeyOf(state), state)
+      const key = pullRequestKeyOf(state)
+      const held = versions.get(key)
+      if (held !== undefined && frame.state.version <= held) return
+      versions.set(key, frame.state.version)
+      byKey.set(key, state)
       states = [...byKey.values()]
       for (const consumer of consumers) consumer.onStates(states)
     }

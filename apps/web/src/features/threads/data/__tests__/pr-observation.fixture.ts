@@ -42,6 +42,7 @@ export const observationFrameOf = (checksPassed: number): GithubPrStatesFrame =>
     checksPassed,
     checksFailed: 0,
     mergeable: true,
+    version: checksPassed,
     updatedAt: '',
   },
 })

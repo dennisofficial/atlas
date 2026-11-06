@@ -19,6 +19,11 @@ export type LockedPrState = {
   checksFailed: number
   checksIgnored: number
   mergeable: boolean | null
+  version: number
+}
+
+export function nextVersionOf(prior: { version: number } | null): number {
+  return (prior?.version ?? 0) + 1
 }
 
 export function verdictEventKeyOf(args: {
@@ -72,6 +77,7 @@ export async function readPrStateForUpdate(args: {
       'checksFailed',
       'checksIgnored',
       'mergeable',
+      'version',
     )
       .where((f, fns) =>
         fns.and(fns.eq(f.repoFullName, args.repoFullName), fns.eq(f.prNumber, args.prNumber)),

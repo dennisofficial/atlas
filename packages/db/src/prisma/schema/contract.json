@@ -2747,6 +2747,13 @@
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
+              },
+              "version": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
               }
             },
             "relations": {},
@@ -2793,6 +2800,9 @@
                 },
                 "url": {
                   "column": "url"
+                },
+                "version": {
+                  "column": "version"
                 }
               },
               "namespaceId": "public",
@@ -10441,6 +10451,15 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "version": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
                 }
               },
               "foreignKeys": [],
@@ -14565,7 +14584,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "9151e8e7aba5a6a6267bfe81b5db0755f855090aa4292499b46b36b113aa4599"
+    "storageHash": "0b57a2d5716c39ad7c93b2986be3c39df495f56d87664a41cdb974c6cbe50f2d"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

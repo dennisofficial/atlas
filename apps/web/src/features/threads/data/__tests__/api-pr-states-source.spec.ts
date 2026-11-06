@@ -4,7 +4,15 @@ import { EGithubPrStatesFrame, type PrStateWire } from '@dltech/atlas-wire/web'
 
 import { subscribeApiPrStates, type ApiPrStatesSubscribe } from '../api-pr-states-source'
 
-function frameOf({ checksPassed, repo = 'o/r' }: { checksPassed: number; repo?: string }) {
+function frameOf({
+  checksPassed,
+  repo = 'o/r',
+  version = checksPassed,
+}: {
+  checksPassed: number
+  repo?: string
+  version?: number
+}) {
   return {
     type: EGithubPrStatesFrame.PrState as const,
     state: {
@@ -19,6 +27,7 @@ function frameOf({ checksPassed, repo = 'o/r' }: { checksPassed: number; repo?: 
       checksPassed,
       checksFailed: 0,
       mergeable: null,
+      version,
       updatedAt: '',
     },
   }
@@ -57,6 +66,21 @@ describe('subscribeApiPrStates', () => {
       [2, 3],
     ])
     expect(rig.subscriptions[0]?.stops).toBe(1)
+  })
+
+  it('ignores a frame whose version is not newer than the held one for that PR', () => {
+    const rig = sourceRig()
+    const seen: (readonly PrStateWire[])[] = []
+    const stop = subscribeApiPrStates({
+      subscribe: rig.subscribe,
+      onStates: (states) => seen.push(states),
+    })
+    rig.push()?.onData(frameOf({ checksPassed: 5, version: 2 }))
+    rig.push()?.onData(frameOf({ checksPassed: 1, version: 1 }))
+    rig.push()?.onData(frameOf({ checksPassed: 7, version: 2, repo: 'github.com/O/R' }))
+    rig.push()?.onData(frameOf({ checksPassed: 6, version: 3 }))
+    stop()
+    expect(seen.map((states) => states.map((state) => state.checksPassed))).toEqual([[5], [6]])
   })
 
   it('shares one connection, replays the cache, and broadcasts while any consumer remains', () => {
