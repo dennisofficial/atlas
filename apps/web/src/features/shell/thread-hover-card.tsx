@@ -18,11 +18,13 @@ export function ThreadHoverCard({
   className,
   children,
   actions,
+  indicator,
   ...details
 }: ThreadDetailsProps & {
   className?: string
   children: ReactNode
   actions?: ReactNode
+  indicator?: ReactNode
 }) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -69,21 +71,31 @@ export function ThreadHoverCard({
           }
         >
           {children}
-          <div className="absolute top-1 right-1 flex items-center opacity-0 pointer-events-none group-hover/thread:opacity-100 group-hover/thread:pointer-events-auto group-focus-within/thread:opacity-100 group-focus-within/thread:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto group-data-[collapsible=icon]:hidden">
-            {actions}
-            <PopoverTrigger
-              ref={detailsButton}
-              aria-label="Thread details"
-              aria-controls={detailsId}
-              render={
-                <button
-                  type="button"
-                  className="flex size-6 shrink-0 pointer-fine:hidden items-center justify-center rounded-md text-muted-foreground outline-hidden hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-                />
-              }
-            >
-              <Info className="size-3.5" />
-            </PopoverTrigger>
+          <div
+            data-row-trailing
+            className="relative z-10 col-start-2 row-start-1 self-start pt-1 group-data-[collapsible=icon]:hidden"
+          >
+            {indicator ? (
+              <div className="flex h-6 items-center group-hover/thread:hidden group-focus-within/thread:hidden group-data-popup-open/thread:hidden pointer-coarse:hidden">
+                {indicator}
+              </div>
+            ) : null}
+            <div className="hidden h-6 items-center group-hover/thread:flex group-focus-within/thread:flex group-data-popup-open/thread:flex pointer-coarse:flex">
+              {actions ? <div className="flex items-center pr-1">{actions}</div> : null}
+              <PopoverTrigger
+                ref={detailsButton}
+                aria-label="Thread details"
+                aria-controls={detailsId}
+                render={
+                  <button
+                    type="button"
+                    className="mr-1 flex size-6 shrink-0 pointer-fine:hidden items-center justify-center rounded-md text-muted-foreground outline-hidden hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                  />
+                }
+              >
+                <Info className="size-3.5" />
+              </PopoverTrigger>
+            </div>
           </div>
         </HoverCardTrigger>
         <HoverCardContent
