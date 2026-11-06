@@ -20,6 +20,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { createAnthropicOauthModel } from '../model/anthropic-oauth'
+import { anthropicThinkingOptionsOf } from '../model/anthropic-thinking'
 import { normalizeProviderFailure } from '../model/failure'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
@@ -180,6 +181,7 @@ export const createSessionRuntimeFactory = (
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
     let model: ModelPort
+    const modelId = config.model.configured === true ? config.model.modelId : fallbackModelId
     try {
       model =
         args.modelFor === undefined
@@ -190,7 +192,8 @@ export const createSessionRuntimeFactory = (
                   model: config.model,
                   tokens: args.tokens,
                 }),
-                modelId: config.model.configured === true ? config.model.modelId : fallbackModelId,
+                modelId,
+                providerOptions: anthropicThinkingOptionsOf(modelId),
               }),
             })
           : args.modelFor({ sessionId })

@@ -22,6 +22,7 @@
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-db": "workspace:*",
     "@dltech/atlas-host": "workspace:*",
+    "@dltech/atlas-models": "workspace:*",
     "@dltech/atlas-observability": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dotenvx/dotenvx": "^1.71.0",
