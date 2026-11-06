@@ -72,8 +72,7 @@ const isSignalDocument = (value: unknown): value is SignalDocument =>
   'removeEventListener' in value
 
 const globalDocument = (): SignalDocument | undefined => {
-  if (!('document' in globalThis)) return undefined
-  const candidate: unknown = globalThis.document
+  const candidate: unknown = Reflect.get(globalThis, 'document')
   return isSignalDocument(candidate) ? candidate : undefined
 }
 
