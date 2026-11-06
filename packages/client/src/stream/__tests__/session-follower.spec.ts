@@ -2,13 +2,14 @@ import { describe, expect, it } from 'bun:test'
 import { ESessionStatus } from '@dltech/atlas-core'
 import {
   EStreamBlockKind,
+  EStreamErrorCode,
   EStreamResetReason,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from '../connection-machine'
 import { memorySessionCache, type SessionCache } from '../session-cache'
-import { createSessionFollower, ESessionConnection } from '../session-follower'
+import { createSessionFollower, ESessionConnection, HYDRATE_TIMEOUT_MS } from '../session-follower'
 import { EMPTY_WINDOW, applyPage } from '../session-window'
 import { createFakeScheduler, eventsMessage, headOf, mintUserEvents, settle } from './support'
 
@@ -205,5 +206,75 @@ describe('the session follower', () => {
     clock.advance(1000)
     await settle()
     expect(saved).toEqual([1, 3])
+  })
+  describe('when the cache stays silent', () => {
+    const hangingCache = (): SessionCache & { answer(): void } => {
+      const saved = applyPage({
+        window: EMPTY_WINDOW,
+        page: {
+          events: mintUserEvents({ count: 2 }).map((event) => ({ ...event })),
+          head: headOf(mintUserEvents({ count: 2 })),
+        },
+      })
+      let answer: () => void = () => undefined
+      return {
+        load: () =>
+          new Promise((resolve) => {
+            answer = () => resolve(saved)
+          }),
+        save: () => Promise.resolve(),
+        answer: () => answer(),
+      }
+    }
+
+    it('settles hydrated after the timeout', async () => {
+      const cache = hangingCache()
+      const { follower, clock } = setup(cache)
+      let done = false
+      void follower.hydrated.then(() => void (done = true))
+      clock.advance(HYDRATE_TIMEOUT_MS - 1)
+      await settle()
+      expect(done).toBe(false)
+      clock.advance(1)
+      await settle()
+      expect(done).toBe(true)
+    })
+
+    it('ignores a cache window that arrives after the timeout', async () => {
+      const cache = hangingCache()
+      const { follower, clock } = setup(cache)
+      clock.advance(HYDRATE_TIMEOUT_MS)
+      await follower.hydrated
+      cache.answer()
+      await settle()
+      expect(follower.getSnapshot().events).toEqual([])
+      expect(follower.cursor()).toBeUndefined()
+    })
+
+    it('leaves no timer behind once the cache answers', async () => {
+      const { follower, clock } = setup()
+      await follower.hydrated
+      expect(clock.pendingCount()).toBe(0)
+    })
+
+    it('leaves no timer behind when the cache fails', async () => {
+      const failing: SessionCache = {
+        load: () => Promise.reject(new Error('disk')),
+        save: () => Promise.resolve(),
+      }
+      const { follower, clock } = setup(failing)
+      await follower.hydrated
+      expect(clock.pendingCount()).toBe(0)
+    })
+  })
+
+  it('keeps an error frame in the snapshot until the next events page', () => {
+    const { follower } = setup()
+    follower.handleMessage({ type: 'error', id: 's1', code: EStreamErrorCode.Internal })
+    expect(follower.getSnapshot().error).toBe(EStreamErrorCode.Internal)
+    follower.handleMessage(
+      eventsMessage({ id: 's1', events: mintUserEvents({ count: 1 }), live: true }),
+    )
+    expect(follower.getSnapshot().error).toBeUndefined()
   })
 })

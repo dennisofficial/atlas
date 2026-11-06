@@ -1,4 +1,5 @@
 import { ESessionStatus } from '@dltech/atlas-core'
+import { EStreamErrorCode } from '@dltech/atlas-protocol'
 import { ESessionConnection, type SessionSnapshot } from '@dltech/atlas-client/stream'
 
 import { EHeaderState } from '@/features/threads/data/header-model'
@@ -24,6 +25,16 @@ const CONNECTION_LINE: Record<ESessionConnection, string | null> = {
   [ESessionConnection.Offline]: 'Offline — reload to reconnect',
 }
 
+const ERROR_LINE: Record<EStreamErrorCode, string> = {
+  [EStreamErrorCode.NotFound]: 'Session not found',
+  [EStreamErrorCode.ForbiddenLimit]: 'Too many open sessions',
+  [EStreamErrorCode.BadFrame]: 'Stream error — reload',
+  [EStreamErrorCode.Internal]: 'Stream error — reload',
+}
+
+const errorLineOf = (error: SessionSnapshot['error']): string | null =>
+  error === undefined ? null : ERROR_LINE[error]
+
 const statusLineOf = (status: Status): string | null => {
   if (status?.state === ESessionStatus.SetupFailed) {
     return status.reason === undefined ? 'Setup failed' : `Setup failed: ${status.reason}`
@@ -33,8 +44,11 @@ const statusLineOf = (status: Status): string | null => {
 }
 
 export const sessionStateLineOf = (
-  snapshot: Pick<SessionSnapshot, 'status' | 'connection'>,
-): string | null => statusLineOf(snapshot.status) ?? CONNECTION_LINE[snapshot.connection]
+  snapshot: Pick<SessionSnapshot, 'status' | 'connection' | 'error'>,
+): string | null =>
+  statusLineOf(snapshot.status) ??
+  errorLineOf(snapshot.error) ??
+  CONNECTION_LINE[snapshot.connection]
 
 export const headerStateOfSession = (status: Status): EHeaderState => {
   if (status === undefined) return EHeaderState.Idle

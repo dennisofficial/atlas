@@ -1,5 +1,9 @@
 import { ESessionStatus, type V2Event } from '@dltech/atlas-core'
-import type { SessionStatusOutput, StreamServerMessage } from '@dltech/atlas-protocol'
+import type {
+  EStreamErrorCode,
+  SessionStatusOutput,
+  StreamServerMessage,
+} from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from './connection-machine'
 import {
@@ -21,6 +25,8 @@ import type { StreamScheduler } from './stream-ports'
 
 const SAVE_INTERVAL_MS = 1_000
 
+export const HYDRATE_TIMEOUT_MS = 2_000
+
 export enum ESessionConnection {
   Live = 'live',
   CatchingUp = 'catching-up',
@@ -34,6 +40,7 @@ export type SessionSnapshot = {
   status: SessionStatusOutput | undefined
   overlay: OpenOverlay | undefined
   connection: ESessionConnection
+  error: EStreamErrorCode | undefined
 }
 
 export type SessionFollower = {
@@ -59,6 +66,7 @@ type Inner = {
   status: SessionStatusOutput | undefined
   phase: EStreamConnectionState
   live: boolean
+  error: EStreamErrorCode | undefined
 }
 
 const connectionOf = (inner: Pick<Inner, 'phase' | 'live'>): ESessionConnection => {
@@ -73,6 +81,7 @@ const snapshotOf = (inner: Inner): SessionSnapshot => ({
   status: inner.status,
   overlay: inner.overlay.open,
   connection: connectionOf(inner),
+  error: inner.error,
 })
 
 const acceptsView = (args: { inner: Inner; at: number }): boolean =>
@@ -86,6 +95,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     status: undefined,
     phase: EStreamConnectionState.Connecting,
     live: false,
+    error: undefined,
   }
   let snapshot = snapshotOf(inner)
   const listeners = new Set<() => void>()
@@ -120,7 +130,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       page: { events: message.events, head: message.head },
     })
     const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
-    commit({ ...inner, window, overlay, live: message.live })
+    commit({ ...inner, window, overlay, live: message.live, error: undefined })
     saveThrottled()
   }
 
@@ -148,6 +158,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   const handleMessage = (message: StreamServerMessage): void => {
     if (message.type === 'events') handleEvents(message)
     else if (message.type === 'view') handleView(message)
+    else if (message.type === 'error') commit({ ...inner, error: message.code })
     else if (message.type === 'reset') {
       commit({ ...inner, window: resetWindow(), status: undefined, live: false })
     } else if (
@@ -160,13 +171,24 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     }
   }
 
-  const hydrated = cache
-    .load(sessionId)
-    .then((window) => {
-      if (window === undefined || inner.window.cursor !== undefined) return
-      commit({ ...inner, window })
-    })
-    .catch(() => undefined)
+  const hydrated = new Promise<void>((resolve) => {
+    let settled = false
+    const settle = (): boolean => {
+      if (settled) return false
+      settled = true
+      scheduler.clearTimeout(timer)
+      resolve()
+      return true
+    }
+    const timer = scheduler.setTimeout(settle, HYDRATE_TIMEOUT_MS)
+    cache
+      .load(sessionId)
+      .then((window) => {
+        if (!settle() || window === undefined || inner.window.cursor !== undefined) return
+        commit({ ...inner, window })
+      })
+      .catch(() => void settle())
+  })
 
   return {
     getSnapshot: () => snapshot,

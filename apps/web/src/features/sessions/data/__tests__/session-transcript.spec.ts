@@ -33,6 +33,7 @@ const snapshotOf = (params: Partial<SessionSnapshot>): SessionSnapshot => ({
   status: undefined,
   overlay: undefined,
   connection: ESessionConnection.Live,
+  error: undefined,
   ...params,
 })
 

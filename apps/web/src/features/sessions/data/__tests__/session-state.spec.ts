@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ESessionStatus } from '@dltech/atlas-core'
+import { EStreamErrorCode } from '@dltech/atlas-protocol'
 import { ESessionConnection, type SessionSnapshot } from '@dltech/atlas-client/stream'
 
 import { EHeaderState } from '@/features/threads/data/header-model'
@@ -13,7 +14,8 @@ const snapshotOf = (params: {
   state?: ESessionStatus | undefined
   reason?: string
   connection?: ESessionConnection
-}): Pick<SessionSnapshot, 'status' | 'connection'> => ({
+  error?: EStreamErrorCode
+}): Pick<SessionSnapshot, 'status' | 'connection' | 'error'> => ({
   status:
     params.state === undefined
       ? undefined
@@ -23,6 +25,7 @@ const snapshotOf = (params: {
           ...(params.reason === undefined ? {} : { reason: params.reason }),
         },
   connection: params.connection ?? ESessionConnection.Live,
+  error: params.error,
 })
 
 describe('isSessionWorking', () => {
@@ -91,6 +94,36 @@ describe('sessionStateLineOf', () => {
           state: ESessionStatus.SetupFailed,
           reason: 'x',
           connection: ESessionConnection.Reconnecting,
+        }),
+      ),
+    ).toBe('Setup failed: x')
+  })
+})
+
+describe('sessionStateLineOf with a stream error', () => {
+  it('names each error code', () => {
+    const lineOf = (error: EStreamErrorCode) => sessionStateLineOf(snapshotOf({ error }))
+    expect(lineOf(EStreamErrorCode.NotFound)).toBe('Session not found')
+    expect(lineOf(EStreamErrorCode.ForbiddenLimit)).toBe('Too many open sessions')
+    expect(lineOf(EStreamErrorCode.Internal)).toBe('Stream error — reload')
+    expect(lineOf(EStreamErrorCode.BadFrame)).toBe('Stream error — reload')
+  })
+
+  it('puts the error ahead of the connection but behind a session problem', () => {
+    expect(
+      sessionStateLineOf(
+        snapshotOf({
+          error: EStreamErrorCode.NotFound,
+          connection: ESessionConnection.CatchingUp,
+        }),
+      ),
+    ).toBe('Session not found')
+    expect(
+      sessionStateLineOf(
+        snapshotOf({
+          state: ESessionStatus.SetupFailed,
+          reason: 'x',
+          error: EStreamErrorCode.NotFound,
         }),
       ),
     ).toBe('Setup failed: x')
