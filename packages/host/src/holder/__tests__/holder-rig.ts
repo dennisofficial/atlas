@@ -59,6 +59,7 @@ export const makeRig = async (args: {
   runtimeGate?: Promise<void> | undefined
   beforeRuntime?: (() => Promise<void>) | undefined
   beforeRegister?: (() => Promise<void>) | undefined
+  isPermanentStartError?: ((error: unknown) => boolean) | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
 }): Promise<HolderRig> => {
@@ -107,6 +108,9 @@ export const makeRig = async (args: {
     ...(args.appendRetryMs === undefined ? {} : { appendRetryMs: args.appendRetryMs }),
     idleMinutes: args.idleMinutes ?? 30,
     sweepMs: args.sweepMs ?? 0,
+    ...(args.isPermanentStartError === undefined
+      ? {}
+      : { isPermanentStartError: args.isPermanentStartError }),
     ...(args.log === undefined ? {} : { log: args.log }),
     onHostIdChanged: args.onHostIdChanged,
   })

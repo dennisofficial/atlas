@@ -17,16 +17,24 @@ export const sessionsNeedingHolderIn = async (params: {
           AND (l."holderHostId" IS NOT NULL OR l."wantsHolder"
             OR EXISTS (SELECT 1 FROM "v2"."V2InboxEntry" i
               WHERE i."sessionId" = s."id" AND i."consumedSeq" IS NULL
-                AND (i."kind" = 'stop' OR i."inboxId" > COALESCE((
+                AND (i."kind" = 'stop' OR i."inboxId" > GREATEST(COALESCE((
                   SELECT (f."canonical"::jsonb ->> 'inboxHead')::int FROM "v2"."V2Event" f
                   WHERE f."threadId" = s."mainThreadId" AND f."type" = 'workspace-prepare-failed'
                     AND NOT EXISTS (SELECT 1 FROM "v2"."V2Event" p
                       WHERE p."threadId" = s."mainThreadId"
                         AND p."type" IN ('workspace-prepared', 'user-said'))
-                  ORDER BY f."seq" DESC LIMIT 1), 0)))
+                  ORDER BY f."seq" DESC LIMIT 1), 0), COALESCE((
+                  SELECT (g."canonical"::jsonb ->> 'inboxHead')::int FROM "v2"."V2Event" g
+                  WHERE g."threadId" = s."mainThreadId" AND g."type" = 'session-start-failed'
+                    AND NOT EXISTS (SELECT 1 FROM "v2"."V2Event" q
+                      WHERE q."threadId" = s."mainThreadId" AND q."seq" > g."seq"
+                        AND q."type" IN ('user-said', 'assistant-said', 'workspace-prepared',
+                          'workspace-prepare-failed', 'run-failed'))
+                  ORDER BY g."seq" DESC LIMIT 1), 0))))
             OR NOT EXISTS (SELECT 1 FROM "v2"."V2Event" e
               WHERE e."threadId" = s."mainThreadId"
-                AND e."type" IN ('workspace-prepared', 'user-said', 'workspace-prepare-failed')))
+                AND e."type" IN ('workspace-prepared', 'user-said', 'workspace-prepare-failed',
+                  'session-start-failed')))
         ORDER BY s."createdAt" ASC, s."id" ASC
         LIMIT ${params.limit}`
       .returnsRow({ id: 'pg/text@1' })

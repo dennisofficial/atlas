@@ -20,6 +20,7 @@ const PREPARE_HISTORY_TYPES: ReadonlySet<string> = new Set([
   'workspace-prepared',
   'user-said',
   'workspace-prepare-failed',
+  'session-start-failed',
 ])
 
 export const refKey = (params: { sessionId: string; hash: string }): string =>
@@ -52,11 +53,36 @@ export const cloneState = (state: State): State => ({
 export const hasPrepareHistory = (log: readonly StoredEvent[]): boolean =>
   log.some((event) => PREPARE_HISTORY_TYPES.has(event.type))
 
-export const activeFailureOf = (log: readonly StoredEvent[]): { inboxHead: number } | undefined => {
+const inboxHeadOf = (event: StoredEvent): number =>
+  (JSON.parse(event.canonical) as { inboxHead: number }).inboxHead
+
+const START_FAILURE_ENDERS: ReadonlySet<string> = new Set([
+  'user-said',
+  'assistant-said',
+  'workspace-prepared',
+  'workspace-prepare-failed',
+  'run-failed',
+])
+
+const activePrepareFailureOf = (log: readonly StoredEvent[]): number | undefined => {
   if (log.some((event) => event.type === 'workspace-prepared' || event.type === 'user-said')) {
     return undefined
   }
   const failed = log.findLast((event) => event.type === 'workspace-prepare-failed')
+  return failed === undefined ? undefined : inboxHeadOf(failed)
+}
+
+const activeStartFailureOf = (log: readonly StoredEvent[]): number | undefined => {
+  const index = log.findLastIndex((event) => event.type === 'session-start-failed')
+  const failed = log[index]
   if (failed === undefined) return undefined
-  return { inboxHead: (JSON.parse(failed.canonical) as { inboxHead: number }).inboxHead }
+  if (log.slice(index + 1).some((event) => START_FAILURE_ENDERS.has(event.type))) return undefined
+  return inboxHeadOf(failed)
+}
+
+export const activeFailureOf = (log: readonly StoredEvent[]): { inboxHead: number } | undefined => {
+  const heads = [activePrepareFailureOf(log), activeStartFailureOf(log)].filter(
+    (head): head is number => head !== undefined,
+  )
+  return heads.length === 0 ? undefined : { inboxHead: Math.max(...heads) }
 }
