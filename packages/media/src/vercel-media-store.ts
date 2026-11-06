@@ -1,4 +1,4 @@
-import { BlobNotFoundError, del, head, issueSignedToken, presignUrl } from '@vercel/blob'
+import { BlobNotFoundError, del, get, head, issueSignedToken, presignUrl } from '@vercel/blob'
 
 import { MediaStore, type ReadDelegation } from './media-store'
 
@@ -71,6 +71,16 @@ export class VercelMediaStore extends MediaStore {
       if (error instanceof BlobNotFoundError) return null
       throw error
     }
+  }
+
+  async read(args: { pathname: string }): Promise<Uint8Array | null> {
+    const found = await get(args.pathname, {
+      access: 'private',
+      token: this.token,
+      useCache: false,
+    })
+    if (found === null || found.statusCode !== 200) return null
+    return new Uint8Array(await new Response(found.stream).arrayBuffer())
   }
 
   async delete(args: { pathnames: string[] }): Promise<void> {

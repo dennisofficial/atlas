@@ -1,6 +1,8 @@
 import { ESessionStatus } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
+
 export const sessionCreateInputSchema = z.strictObject({
   projectId: z.string().min(1),
   title: z.string().optional(),
@@ -11,10 +13,16 @@ export const sessionListInputSchema = z.strictObject({
   limit: z.number().int().min(1).max(100).optional(),
 })
 
-export const sessionPostInputSchema = z.strictObject({
-  sessionId: z.string().min(1),
-  text: z.string().min(1).max(1_000_000),
-})
+export const sessionPostInputSchema = z
+  .strictObject({
+    sessionId: z.string().min(1),
+    text: z.string().max(1_000_000),
+    media: sessionPostMediaListSchema.optional(),
+  })
+  .refine(
+    (input) => input.text.trim().length > 0 || (input.media?.length ?? 0) > 0,
+    'a message needs text or an image',
+  )
 
 export const sessionEventsInputSchema = z.strictObject({
   sessionId: z.string().min(1),
@@ -53,7 +61,10 @@ export type SessionWithdrawInput = z.infer<typeof sessionWithdrawInputSchema>
 export type SessionArchiveInput = z.infer<typeof sessionArchiveInputSchema>
 export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
 
-export const inboxMessageSchema = z.strictObject({ text: z.string().min(1) })
+export const inboxMessageSchema = z.strictObject({
+  text: z.string(),
+  media: z.array(inboxMediaSchema).optional(),
+})
 
 export type InboxMessage = z.infer<typeof inboxMessageSchema>
 

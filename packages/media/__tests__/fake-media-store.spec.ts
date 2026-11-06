@@ -28,4 +28,13 @@ describe('FakeMediaStore', () => {
     await store.delete({ pathnames: ['media/u/h'] })
     expect(await store.head({ pathname: 'media/u/h' })).toBeNull()
   })
+
+  it('reads the bytes it was given and nothing after a delete', async () => {
+    const store = new FakeMediaStore()
+    store.put({ pathname: 'media/u/h', bytes: new Uint8Array([1, 2, 3]) })
+    expect(await store.read({ pathname: 'media/u/h' })).toEqual(new Uint8Array([1, 2, 3]))
+    expect(await store.head({ pathname: 'media/u/h' })).toEqual({ size: 3 })
+    await store.delete({ pathnames: ['media/u/h'] })
+    expect(await store.read({ pathname: 'media/u/h' })).toBeNull()
+  })
 })

@@ -21,5 +21,7 @@ export abstract class MediaStore {
 
   abstract head(args: { pathname: string }): Promise<{ size: number } | null>
 
+  abstract read(args: { pathname: string }): Promise<Uint8Array | null>
+
   abstract delete(args: { pathnames: string[] }): Promise<void>
 }

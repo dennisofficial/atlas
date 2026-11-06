@@ -4,6 +4,7 @@ import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import { ProjectAccess } from './project-access'
+import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 
 class FakeProjectAccess extends ProjectAccess {
@@ -41,7 +42,13 @@ const setup = () => {
   const plane = new ControlPlane({ store })
   const titler = new FakeTitler()
   const background = new CollectingBackgroundWork()
-  const service = new SessionsService(plane, new FakeProjectAccess(), titler, background)
+  const service = new SessionsService(
+    plane,
+    new FakeProjectAccess(),
+    titler,
+    background,
+    new FakeMediaRegistry(),
+  )
   return { service, titler, background }
 }
 
