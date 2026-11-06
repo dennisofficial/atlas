@@ -1,5 +1,6 @@
 import { EWaitEpisodeKind } from '../model-recovery/waiting'
 import type { V2Event } from './event'
+import { activeStartFailure } from './start-failure'
 import { isWorkspacePrepared, lastPrepareFailure } from './workspace'
 
 export enum ESessionStatus {
@@ -28,6 +29,7 @@ const TURN_ENDING_TYPES: ReadonlySet<V2Event['type']> = new Set([
   'run-failure-dismissed',
   'workspace-prepared',
   'workspace-prepare-failed',
+  'session-start-failed',
 ])
 
 const isTurnEnding = (event: V2Event): boolean =>
@@ -93,6 +95,12 @@ export function sessionStatusOf(params: {
 }): SessionStatus {
   const { events, live } = params
   const nowMs = Date.parse(params.now)
+
+  const startFailure = activeStartFailure(events)
+  if (startFailure !== undefined) {
+    if (params.messageAfterFailure === true) return { state: ESessionStatus.Sent }
+    return { state: ESessionStatus.Failed, reason: startFailure.reason, since: startFailure.at }
+  }
 
   const workspace =
     params.messageAfterFailure === undefined
