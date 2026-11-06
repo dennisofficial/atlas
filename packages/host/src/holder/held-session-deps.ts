@@ -14,6 +14,5 @@ export type HeldSessionDeps = {
   idleMinutes: number
   runtimeFor: SessionRuntimeFactory
   onDrop?: (() => void) | undefined
-  onAppendExhausted?: (() => void) | undefined
   log?: LogPort | undefined
 }

@@ -111,9 +111,8 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
     expect(whileDown.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(
       false,
     )
-    await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
-
     aDb.clear()
+    await rig.claim({ sessionId, label: 'host-b', timeoutMs: 45_000 })
 
     await rig
       .waitForSeq({

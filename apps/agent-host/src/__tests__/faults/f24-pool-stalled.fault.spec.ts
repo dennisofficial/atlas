@@ -36,7 +36,7 @@ describe.skipIf(REDIS_URL === undefined)('F24 stalled pool, healthy presence', (
     await rig.stop()
   })
 
-  it('the holder abandons its presence after the append budget and the ring hands the session over', async () => {
+  it('the holder ends only the stalled session after the append budget and the sweep hands it over', async () => {
     const sessionId = 'fault-f24-1'
     const gated = await prepareGated({ rig, sessionId })
     const threadId = await rig.newSession({ sessionId, text: 'one gated command' })
@@ -70,11 +70,10 @@ describe.skipIf(REDIS_URL === undefined)('F24 stalled pool, healthy presence', (
     bDb.set({ blackhole: true })
     await releaseFifo({ path: gated.gateFifo })
     await waitForLog({ host: hostB, text: 'append retry exhausted', timeoutMs: 30_000 })
-    await waitForLog({ host: hostB, text: 'was lost; dropping', timeoutMs: 5_000 })
-    await rig.waitHeldBy({ sessionId, label: 'host-a', timeoutMs: 10_000 })
+    bDb.clear()
+    await rig.waitHeldBy({ sessionId, label: 'host-a', timeoutMs: 45_000 })
     expect((await rig.plane.currentLease({ sessionId })).lease.epoch).toBe(before.lease.epoch + 1)
 
-    bDb.clear()
     await rig.waitForSeq({
       threadId,
       want: (rows) =>

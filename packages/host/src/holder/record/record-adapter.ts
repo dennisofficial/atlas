@@ -9,7 +9,12 @@ import {
   type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
-import type { AppendOutcome, ControlPlane } from '@dltech/atlas-control'
+import {
+  RecordCorruptError,
+  UnknownThreadError,
+  type AppendOutcome,
+  type ControlPlane,
+} from '@dltech/atlas-control'
 import type { AgentRecordPort, ModelContextPort } from '@dltech/atlas-agent'
 import type { LogPort } from '@dltech/atlas-observability'
 
@@ -43,7 +48,6 @@ export type SessionRecordArgs = {
   appendRetryMs?: number | undefined
   drainDeadline?: (() => number | undefined) | undefined
   onLeaseLost?: ((error: LeaseLostError) => void) | undefined
-  onAppendExhausted?: (() => void) | undefined
   log?: LogPort | undefined
   nowIso(): string
 }
@@ -242,7 +246,10 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
         events: args.events,
         blobs: args.blobs,
       })
-    } catch {
+    } catch (error) {
+      if (error instanceof UnknownThreadError || error instanceof RecordCorruptError) {
+        throw new RecordCorruptionError(`append failed permanently: ${messageOf(error)}`)
+      }
       return 'retry'
     }
     if (outcome.ok) {
@@ -279,7 +286,6 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       this.args.log?.warn({ source: 'holder.append', message: 'append retry exhausted' })
     }
     this.args.onLeaseLost?.(lost)
-    if (lost.refusal === 'retry-exhausted') this.args.onAppendExhausted?.()
     throw lost
   }
 

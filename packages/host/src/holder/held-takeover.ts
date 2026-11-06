@@ -70,7 +70,6 @@ export class TakeOver {
       drainDeadline: args.drainDeadline,
       nowIso: () => new Date(deps.timers.now()).toISOString(),
       onLeaseLost: args.onLeaseLost,
-      onAppendExhausted: deps.onAppendExhausted,
       preloaded: cache,
       ...(deps.log === undefined ? {} : { log: deps.log }),
     })

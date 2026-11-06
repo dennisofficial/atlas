@@ -30,22 +30,15 @@ describe('SessionHolder append retry deadline', () => {
       throw new Error('store unreachable')
     }) as typeof plane.append
     const oldEpoch = (await plane.currentLease({ sessionId: SESSION })).lease.epoch
-    const abandoned: number[] = []
-    const originalAbandon = a.presence.abandon.bind(a.presence)
-    a.presence.abandon = async (hostId) => {
-      abandoned.push(hostId)
-      plane.append = originalAppend
-      await originalAbandon(hostId)
-    }
-
     const seqBefore = (await a.events()).length
     const gaveUp = await flushUntil({
-      check: () => abandoned.length > 0,
+      check: () => !a.holder.heldIds().includes(SESSION),
       clock: a.clock,
       advanceMs: 500,
       attempts: 3000,
     })
     expect(gaveUp).toBe(true)
+    plane.append = originalAppend
     a.clock.advance(10_000)
     await a.flush()
     const landed = (await a.events()).filter((event) => event.epoch === oldEpoch)
