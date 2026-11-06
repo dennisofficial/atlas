@@ -162,4 +162,14 @@ describe('the client SDK following a session over a real stream', () => {
     expect(session.getSnapshot().cursor).toEqual(head)
     expect(hashChecksAt).toEqual([2])
   }, 30_000)
+
+  it('pushes a rename and an archive to a followed session list', async () => {
+    const list = connect().followSessions()
+    await until(() => list.getSnapshot()?.length === 1, 'the list snapshot')
+    expect(list.getSnapshot()?.[0]).toMatchObject({ sessionId: SESSION, title: null })
+    await plane.titleUntitledSession({ sessionId: SESSION, title: 'Pushed List' })
+    await until(() => list.getSnapshot()?.[0]?.title === 'Pushed List', 'the renamed row')
+    await plane.setSessionArchived({ sessionId: SESSION, archivedAt: AT })
+    await until(() => list.getSnapshot()?.[0]?.archivedAt === AT, 'the archived row')
+  }, 20_000)
 })
