@@ -27,6 +27,7 @@ import { writeLeaseIn } from './postgres-leases'
 import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn } from './postgres-presence'
 import { sessionDigestsIn } from './postgres-digests'
+import { setSessionArchivedIn, setSessionTitleIfUntitledIn } from './postgres-session-writes'
 import { sessionsNeedingHolderIn } from './postgres-needing-holder'
 import { claimNeedingIn } from './postgres-claim-next'
 import { toInbox, toLease, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
@@ -83,14 +84,12 @@ class PostgresTx implements ControlTx {
     return row === null ? undefined : toSessionRow(row)
   }
 
-  async setSessionArchived(params: {
-    sessionId: string
-    archivedAt: string | null
-  }): Promise<boolean> {
-    const changed = await this.tx.orm.v2.V2Session.where({ id: params.sessionId }).updateAndCount({
-      archivedAt: params.archivedAt === null ? null : new Date(params.archivedAt),
-    })
-    return changed === 1
+  async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
+    return setSessionArchivedIn({ tx: this.tx, ...params })
+  }
+
+  async setSessionTitleIfUntitled(params: { sessionId: string; title: string }) {
+    return setSessionTitleIfUntitledIn({ tx: this.tx, ...params })
   }
 
   async listSessions(params: {

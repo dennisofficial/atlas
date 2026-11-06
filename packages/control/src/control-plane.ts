@@ -24,6 +24,7 @@ import {
 } from './port'
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { AppendAbort, type AppendOutcome } from './refusal'
+import { archiveIn, titleUntitledIn } from './session-ops'
 import { readStatusSnapshotIn, type StatusSnapshot } from './status-snapshot'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 
@@ -84,15 +85,12 @@ export class ControlPlane {
     return this.store.transact((tx) => tx.readSession(params))
   }
 
-  async setSessionArchived(params: {
-    sessionId: string
-    archivedAt: string | null
-  }): Promise<void> {
-    await this.store.transact(async (tx) => {
-      if (!(await tx.setSessionArchived(params))) {
-        throw new Error(`unknown session ${params.sessionId}`)
-      }
-    })
+  async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
+    await this.store.transact((tx) => archiveIn({ tx, ...params }))
+  }
+
+  async titleUntitledSession(params: { sessionId: string; title: string }): Promise<boolean> {
+    return this.store.transact((tx) => titleUntitledIn({ tx, ...params }))
   }
 
   async listSessions(params: {

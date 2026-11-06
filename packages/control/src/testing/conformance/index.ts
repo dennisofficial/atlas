@@ -7,3 +7,4 @@ export { describeControlPlanePresence, type PresenceParams } from './conformance
 export { describeControlPlaneSessions } from './conformance-sessions'
 export { describeControlPlaneWakes } from './conformance-wakes'
 export type { ConformanceParams } from './conformance'
+export { describeControlPlaneSessionTitles } from './conformance-session-titles'

@@ -1,7 +1,6 @@
-import { ESessionStatus } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { sessionEventsOutputSchema, sessionStatusOutputSchema } from './api'
+import { sessionEventsOutputSchema, sessionStatusOutputSchema, sessionSummarySchema } from './api'
 import { liveFrameSchema } from './bus'
 import {
   EStreamBlockKind,
@@ -16,14 +15,7 @@ const idSchema = z.string().min(1)
 
 export { streamStepKeySchema }
 
-export const streamSessionRowSchema = z.strictObject({
-  sessionId: z.string().min(1),
-  projectId: z.string().min(1),
-  title: z.string().nullable(),
-  status: z.enum(ESessionStatus),
-  lastEventAt: z.string().min(1),
-  headSeq: z.number().int().min(0),
-})
+export const streamSessionRowSchema = sessionSummarySchema
 
 export const streamServerMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({

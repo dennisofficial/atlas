@@ -18,6 +18,7 @@ import {
   describeControlPlaneConformance,
   describeControlPlanePresence,
   describeControlPlaneSessions,
+  describeControlPlaneSessionTitles,
   describeControlPlaneWakes,
 } from '../src/testing/conformance'
 import { ControlPlane } from '../src/control-plane'
@@ -95,6 +96,7 @@ const conformanceParams = {
 
 describeControlPlaneConformance(conformanceParams)
 describeControlPlaneSessions(conformanceParams)
+describeControlPlaneSessionTitles(conformanceParams)
 describeControlPlaneClaims(conformanceParams)
 describeControlPlaneClaimNext(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
