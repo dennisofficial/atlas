@@ -7,14 +7,13 @@ import {
   type V2EventType,
 } from '@dltech/atlas-core'
 
-import { appendIn } from './append-ops'
+import { appendIn, appendRefusalOf } from './append-ops'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
 import { postIn, takeBackIn, type TakeBackResult } from './inbox-ops'
 import { LeaseOps } from './lease-ops'
 import {
   ControlStorePort,
-  SeqConflictError,
   type BlobRow,
   type BlobWrite,
   type ControlTx,
@@ -24,8 +23,8 @@ import {
   type SessionListParams,
 } from './port'
 import { readEventsIn, type ReadEventsPage } from './read-events'
-import { AppendAbort, type AppendOutcome } from './refusal'
-import { archiveIn, titleUntitledIn } from './session-ops'
+import type { AppendOutcome } from './refusal'
+import { archiveIn, claimNextIn, createSessionIn, titleUntitledIn, wakeIn } from './session-ops'
 import { readStatusSnapshotIn, type StatusSnapshot } from './status-snapshot'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 
@@ -43,10 +42,10 @@ export type { StatusSnapshot } from './status-snapshot'
 
 const clampLimit = (limit: number): number => Math.max(1, Math.min(limit, MAX_READ_LIMIT))
 
-const headOf = (row: ThreadRow): LogHead => ({
-  seq: row.headSeq,
-  hash: row.headHash,
-})
+const clampSessionLimit = (limit: number): number =>
+  Math.max(1, Math.min(limit, MAX_SESSION_LIST_LIMIT))
+
+const headOf = (row: ThreadRow): LogHead => ({ seq: row.headSeq, hash: row.headHash })
 
 export class ControlPlane {
   private readonly store: ControlStorePort
@@ -70,22 +69,9 @@ export class ControlPlane {
     title?: string | undefined
     mainThreadId: string
   }): Promise<void> {
-    await this.store.transact(async (tx) => {
-      const at = await this.nowIn(tx)
-      await tx.createSession({ ...params, at })
-      await tx.createThread({
-        threadId: params.mainThreadId,
-        sessionId: params.sessionId,
-        visibility: EMPTY_VISIBILITY_TEXT,
-        at,
-      })
-      await tx.notifyWake(params.sessionId)
-      await tx.announce({
-        sessionId: params.sessionId,
-        threadId: params.mainThreadId,
-        headSeq: 0,
-      })
-    })
+    await this.store.transact(async (tx) =>
+      createSessionIn({ tx, ...params, at: await this.nowIn(tx) }),
+    )
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
@@ -109,40 +95,30 @@ export class ControlPlane {
     projectId?: string | undefined
     limit: number
   }): Promise<ControlSessionRow[]> {
-    return this.store.transact((tx) =>
-      tx.listSessions({
-        ...params,
-        limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
-      }),
-    )
+    const limit = clampSessionLimit(params.limit)
+    return this.store.transact((tx) => tx.listSessions({ ...params, limit }))
   }
 
   async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
-    return this.store.transact((tx) =>
-      tx.listSessionDigests({
-        ...params,
-        limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
-      }),
-    )
+    const limit = clampSessionLimit(params.limit)
+    return this.store.transact((tx) => tx.listSessionDigests({ ...params, limit }))
   }
 
   async sessionsNeedingHolder(params: { limit: number }): Promise<string[]> {
-    return this.store.transact((tx) =>
-      tx.sessionsNeedingHolder({ limit: clampLimit(params.limit) }),
-    )
+    const limit = clampLimit(params.limit)
+    return this.store.transact((tx) => tx.sessionsNeedingHolder({ limit }))
   }
 
   async claimNext(params: { hostId: number; limit: number }): Promise<Lease[]> {
     if (params.limit <= 0) return []
-    return this.store.transact(async (tx) => {
-      const claimed = await tx.claimNeeding({
+    return this.store.transact(async (tx) =>
+      claimNextIn({
+        tx,
         hostId: params.hostId,
         now: await this.nowIn(tx),
         limit: clampLimit(params.limit),
-      })
-      for (const lease of claimed) await tx.announce({ sessionId: lease.sessionId })
-      return claimed
-    })
+      }),
+    )
   }
 
   async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
@@ -177,16 +153,10 @@ export class ControlPlane {
     try {
       return await this.store.transact((tx) => appendIn({ tx, leases: this.leases, ...params }))
     } catch (error) {
-      if (error instanceof AppendAbort) {
-        return { ok: false, refusal: error.refusal, head: error.head }
-      }
-      if (!(error instanceof SeqConflictError)) throw error
-      const head = await this.head({ threadId: params.threadId })
-      return {
-        ok: false,
-        refusal: { kind: 'seq-mismatch', expected: head.seq + 1 },
-        head,
-      }
+      return appendRefusalOf({
+        error,
+        currentHead: () => this.head({ threadId: params.threadId }),
+      })
     }
   }
 
@@ -313,12 +283,7 @@ export class ControlPlane {
   }
 
   async wake(params: { sessionIds: readonly string[] }): Promise<void> {
-    await this.store.transact(async (tx) => {
-      for (const sessionId of params.sessionIds) {
-        await tx.notifyWake(sessionId)
-        await tx.announce({ sessionId })
-      }
-    })
+    await this.store.transact((tx) => wakeIn({ tx, ...params }))
   }
 
   async hostPresent(params: { hostId: number }): Promise<boolean> {

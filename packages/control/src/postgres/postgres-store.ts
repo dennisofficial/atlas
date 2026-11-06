@@ -34,7 +34,16 @@ import {
 } from './postgres-session-writes'
 import { sessionsNeedingHolderIn } from './postgres-needing-holder'
 import { claimNeedingIn } from './postgres-claim-next'
-import { toInbox, toLease, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
+import { toLease, toStoredEvent, toThreadRow } from './postgres-rows'
+import { createSessionIn, listSessionsIn, readSessionIn } from './postgres-sessions'
+import {
+  allocateInboxIdIn,
+  deleteInboxEntryIn,
+  insertInboxEntryIn,
+  markInboxConsumedIn,
+  readInboxEntriesIn,
+  readInboxEntryIn,
+} from './postgres-inbox'
 
 class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
@@ -63,35 +72,15 @@ class PostgresTx implements ControlTx {
     mainThreadId: string
     at: string
   }): Promise<void> {
-    await this.tx.orm.v2.V2Session.create({
-      id: params.sessionId,
-      userId: params.userId,
-      projectId: params.projectId,
-      title: params.title ?? null,
-      titledFromInboxId: null,
-      mainThreadId: params.mainThreadId,
-      nextInboxId: 1,
-      createdAt: new Date(params.at),
-      archivedAt: null,
-    })
-    await this.tx.orm.v2.V2Lease.create({
-      sessionId: params.sessionId,
-      epoch: 0,
-      holderHostId: null,
-      wantsHolder: false,
-      attempts: 0,
-      retryAfter: null,
-    })
+    await createSessionIn({ tx: this.tx, ...params })
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
-    const row = await this.tx.orm.v2.V2Session.first({ id: params.sessionId })
-    return row === null ? undefined : toSessionRow(row)
+    return readSessionIn({ tx: this.tx, sessionId: params.sessionId, lock: false })
   }
 
   async lockSession(sessionId: string): Promise<ControlSessionRow | undefined> {
-    const row = await this.tx.orm.v2.V2Session.where({ id: sessionId }).forNoKeyUpdate().first()
-    return row === null ? undefined : toSessionRow(row)
+    return readSessionIn({ tx: this.tx, sessionId, lock: true })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
@@ -115,15 +104,7 @@ class PostgresTx implements ControlTx {
     projectId?: string | undefined
     limit: number
   }): Promise<ControlSessionRow[]> {
-    const where =
-      params.projectId === undefined
-        ? { userId: params.userId }
-        : { userId: params.userId, projectId: params.projectId }
-    const rows = await this.tx.orm.v2.V2Session.where(where)
-      .orderBy((s) => s.createdAt.desc())
-      .limit(params.limit)
-      .all()
-    return rows.map((row) => toSessionRow(row))
+    return listSessionsIn({ tx: this.tx, ...params })
   }
 
   async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
@@ -256,42 +237,23 @@ class PostgresTx implements ControlTx {
   }
 
   async allocateInboxId(sessionId: string): Promise<number> {
-    const session = await this.tx.orm.v2.V2Session.where({ id: sessionId }).forNoKeyUpdate().first()
-    if (session === null) throw new Error(`unknown session ${sessionId}`)
-    await this.tx.orm.v2.V2Session.where({ id: sessionId }).updateAndCount({
-      nextInboxId: session.nextInboxId + 1,
-    })
-    return session.nextInboxId
+    return allocateInboxIdIn({ tx: this.tx, sessionId })
   }
 
   async insertInboxEntry(entry: InboxEntry): Promise<void> {
-    await this.tx.orm.v2.V2InboxEntry.create({
-      ...entry,
-      postedAt: new Date(entry.postedAt),
-    })
+    await insertInboxEntryIn({ tx: this.tx, entry })
   }
 
   async readInboxEntry(params: { sessionId: string; inboxId: number }) {
-    const row = await this.tx.orm.v2.V2InboxEntry.first(params)
-    return row === null ? undefined : toInbox(row)
+    return readInboxEntryIn({ tx: this.tx, ...params })
   }
 
-  async markInboxConsumed(params: {
-    sessionId: string
-    inboxId: number
-    seq: number
-  }): Promise<boolean> {
-    const changed = await this.tx.orm.v2.V2InboxEntry.where((e) =>
-      and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId), e.consumedSeq.isNull()),
-    ).updateAndCount({ consumedSeq: params.seq })
-    return changed === 1
+  async markInboxConsumed(params: { sessionId: string; inboxId: number; seq: number }) {
+    return markInboxConsumedIn({ tx: this.tx, ...params })
   }
 
   async deleteInboxEntry(params: { sessionId: string; inboxId: number }): Promise<boolean> {
-    const changed = await this.tx.orm.v2.V2InboxEntry.where((e) =>
-      and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId), e.consumedSeq.isNull()),
-    ).deleteAndCount()
-    return changed === 1
+    return deleteInboxEntryIn({ tx: this.tx, ...params })
   }
 
   async readInboxEntries(params: {
@@ -300,18 +262,7 @@ class PostgresTx implements ControlTx {
     limit: number
     excludeKind?: string | undefined
   }) {
-    const rows = await this.tx.orm.v2.V2InboxEntry.where((e) =>
-      and(
-        e.sessionId.eq(params.sessionId),
-        e.inboxId.gt(params.afterId),
-        e.consumedSeq.isNull(),
-        ...(params.excludeKind === undefined ? [] : [e.kind.neq(params.excludeKind)]),
-      ),
-    )
-      .orderBy((e) => e.inboxId.asc())
-      .limit(params.limit)
-      .all()
-    return rows.map(toInbox)
+    return readInboxEntriesIn({ tx: this.tx, ...params })
   }
 
   async notifyWake(sessionId: string): Promise<void> {

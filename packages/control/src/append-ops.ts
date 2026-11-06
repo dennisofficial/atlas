@@ -6,7 +6,7 @@ import { UnknownThreadError } from './errors'
 import type { LeaseOps } from './lease-ops'
 import { parseAppendEvents } from './parse-append'
 import { SeqConflictError, type BlobWrite, type ControlTx, type StoredEvent } from './port'
-import type { AppendOutcome, ControlRefusal } from './refusal'
+import { AppendAbort, type AppendOutcome, type ControlRefusal } from './refusal'
 import { decodeVisibility, encodeVisibility, toStoredEvent } from './stored-event'
 
 export const appendIn = async (params: {
@@ -74,4 +74,15 @@ export const appendIn = async (params: {
     headSeq: accepted.head.seq,
   })
   return { ok: true, head: accepted.head }
+}
+
+export const appendRefusalOf = async (params: {
+  error: unknown
+  currentHead: () => Promise<LogHead>
+}): Promise<AppendOutcome> => {
+  const { error } = params
+  if (error instanceof AppendAbort) return { ok: false, refusal: error.refusal, head: error.head }
+  if (!(error instanceof SeqConflictError)) throw error
+  const head = await params.currentHead()
+  return { ok: false, refusal: { kind: 'seq-mismatch', expected: head.seq + 1 }, head }
 }
