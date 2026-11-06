@@ -73,6 +73,7 @@ export const saysMissingAuthHeader = (providerMessage: string | undefined): bool
 export const isUpstreamFailureMessage = (providerMessage: string | undefined): boolean =>
   providerMessage?.trim().toLowerCase() === UPSTREAM_FAILURE_MESSAGE
 
+// Anthropic reports the hard monthly spend cap only as prose on a 429 or 400 (observed 2026-11-01, no machine-readable code).
 export function isMonthlySpendLimit(args: {
   providerId: string | undefined
   providerType: string | undefined

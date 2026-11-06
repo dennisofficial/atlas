@@ -19,6 +19,7 @@ import {
 
 import { normalizeProviderFailure } from './failure'
 import { attachProvenance } from './failure-provenance'
+import { requireFinish } from './stream-ended-without-finish'
 
 export type AdmittedModelArgs = {
   model: LanguageModelV4
@@ -81,7 +82,7 @@ export function admittedModel(args: AdmittedModelArgs): LanguageModelV4 {
     signal: AbortSignal | undefined
   }): ReadableStream<LanguageModelV4StreamPart> => {
     const { permit, signal } = observing
-    const reader = observing.stream.getReader()
+    const reader = requireFinish({ stream: observing.stream, signal }).getReader()
     let settled = false
     let promoted = false
     let finished = false
