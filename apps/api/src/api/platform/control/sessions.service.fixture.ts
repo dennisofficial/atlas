@@ -2,6 +2,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
+import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'
 
@@ -21,11 +22,13 @@ export const setupSessionsService = () => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
   const plane = new ControlPlane({ store })
+  const registry = new FakeMediaRegistry()
   const service = new SessionsService(
     plane,
     new FakeProjectAccess(),
     new NoSessionTitler(),
     new NoBackgroundWork(),
+    registry,
   )
-  return { plane, service }
+  return { plane, service, registry }
 }

@@ -1,4 +1,4 @@
-import { EInputConsumed, isWorkspacePrepared, type InboxEntry } from '@dltech/atlas-core'
+import { EInputConsumed, type InboxEntry } from '@dltech/atlas-core'
 
 import { INBOX_KIND_STOP } from './inbox-intake'
 import type { SessionRecord } from './record/record-adapter'
@@ -22,7 +22,7 @@ export const consumeStops = async (args: {
       drafts: [{ type: 'input-consumed', inboxId: params.inboxId, consumed: params.consumed }],
     })
   }
-  const prepared = isWorkspacePrepared(record.eventCache().all())
+  const prepared = record.eventCache().bookkeeping().workspace().prepared
   const stopHead = Math.max(0, ...args.entries.filter(isStopEntry).map((entry) => entry.inboxId))
   for (const entry of args.entries) {
     const covered = !prepared && entry.inboxId < stopHead

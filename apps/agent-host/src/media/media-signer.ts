@@ -49,6 +49,10 @@ export class MediaSigner {
     })
   }
 
+  async exists(args: { userId: string; hash: string }): Promise<boolean> {
+    return (await this.store.head({ pathname: mediaPathname(args) })) !== null
+  }
+
   private async adopt(windowStart: number): Promise<void> {
     const existing = await this.windows.find(windowStart)
     if (existing === null) await this.issue(windowStart)

@@ -31,6 +31,7 @@
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-db": "workspace:*",
     "@dltech/atlas-harness": "workspace:*",
+    "@dltech/atlas-media": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "@dotenvx/dotenvx": "^1.71.0",

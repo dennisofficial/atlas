@@ -8,6 +8,7 @@ import {
   resolveBody,
   stepVisibility,
   toLoopEvent,
+  type Event,
   type LogHead,
   type ThreadId,
   type V2Event,
@@ -16,6 +17,9 @@ import {
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
+
+import { RecordBookkeeping } from './record-bookkeeping'
+import { firstIndexAfter, itemAtSeq } from './seq-index'
 
 const BLOB_FETCH_CONCURRENCY = 8
 
@@ -32,9 +36,16 @@ const revealsHidden = (args: { state: VisibilityState; event: V2Event }): boolea
   return args.state.spans.some((span) => span.createdAt > event.toSeq)
 }
 
+const editsHistory = (event: V2Event): boolean =>
+  event.type === 'history-rewound' || event.type === 'history-summarised'
+
 export class RecordCache {
   private events: V2Event[] = []
   private visibility: VisibilityState = EMPTY_VISIBILITY
+  private book = new RecordBookkeeping()
+  private loopSources: V2Event[] = []
+  private loopEvents: Event[] = []
+  private loopEventsHandedOut = false
   private revealed = false
   private readonly blobValues = new Map<string, unknown>()
   private fetchedBlobBytes = 0
@@ -76,10 +87,22 @@ export class RecordCache {
       if (page.next === undefined) break
       afterSeq = page.next
     }
+    this.rebuild(events)
+    if (head.seq >= this.head.seq) this.head = head
+  }
+
+  private rebuild(events: V2Event[]): void {
     this.events = events
     this.visibility = events.reduce(stepVisibility, EMPTY_VISIBILITY)
     this.revealed = false
-    if (head.seq >= this.head.seq) this.head = head
+    this.book = new RecordBookkeeping()
+    this.loopSources = []
+    this.loopEvents = []
+    this.loopEventsHandedOut = false
+    for (const event of events) {
+      this.book.step(this.resolvedEvent(event))
+      if (isVisible(this.visibility, event)) this.addLoopEvent(event)
+    }
   }
 
   async refillIfRevealed(): Promise<void> {
@@ -119,20 +142,21 @@ export class RecordCache {
     return this.head
   }
 
-  all(): readonly V2Event[] {
-    return this.events
+  bookkeeping(): RecordBookkeeping {
+    return this.book
   }
 
-  resolvedAll(): readonly V2Event[] {
-    return this.events.map((event) => this.resolvedEvent(event))
+  eventsAfter(seq: number): V2Event[] {
+    return this.events.slice(firstIndexAfter({ items: this.events, seq }))
   }
 
-  visibleLoopEvents() {
-    return this.events.flatMap((event) => {
-      if (!isVisible(this.visibility, event)) return []
-      const loop = toLoopEvent({ event: this.resolvedEvent(event) })
-      return loop === undefined ? [] : [loop]
-    })
+  visibleLoopEvents(): Event[] {
+    this.loopEventsHandedOut = true
+    return this.loopEvents
+  }
+
+  loopEventsAfter(seq: number): Event[] {
+    return this.loopEvents.slice(firstIndexAfter({ items: this.loopEvents, seq }))
   }
 
   extend(args: {
@@ -140,14 +164,41 @@ export class RecordCache {
     head: LogHead
     resolved?: ReadonlyMap<string, unknown> | undefined
   }): void {
+    for (const [hash, value] of args.resolved ?? []) this.blobValues.set(hash, value)
     for (const event of args.events) {
       if (revealsHidden({ state: this.visibility, event })) this.revealed = true
       this.visibility = stepVisibility(this.visibility, event)
       this.events.push(event)
+      this.book.step(this.resolvedEvent(event))
+      if (editsHistory(event)) this.dropHiddenLoopEvents()
+      if (isVisible(this.visibility, event)) this.addLoopEvent(event)
     }
     this.head = args.head
-    if (args.resolved === undefined) return
-    for (const [hash, value] of args.resolved) this.blobValues.set(hash, value)
+  }
+
+  private addLoopEvent(event: V2Event): void {
+    const loop = toLoopEvent({ event: this.resolvedEvent(event) })
+    if (loop === undefined) return
+    if (this.loopEventsHandedOut) {
+      this.loopEvents = this.loopEvents.slice()
+      this.loopEventsHandedOut = false
+    }
+    this.loopSources.push(event)
+    this.loopEvents.push(loop)
+  }
+
+  private dropHiddenLoopEvents(): void {
+    const sources: V2Event[] = []
+    const loops: Event[] = []
+    for (const [index, source] of this.loopSources.entries()) {
+      const loop = this.loopEvents[index]
+      if (loop === undefined || !isVisible(this.visibility, source)) continue
+      sources.push(source)
+      loops.push(loop)
+    }
+    this.loopSources = sources
+    this.loopEvents = loops
+    this.loopEventsHandedOut = false
   }
 
   replaceHead(head: LogHead): void {
@@ -155,15 +206,7 @@ export class RecordCache {
   }
 
   committedHashAtSeq(seq: number): string | undefined {
-    const event = this.events.find((candidate) => candidate.seq === seq)
+    const event = itemAtSeq({ items: this.events, seq })
     return event === undefined ? undefined : chainHash(event)
-  }
-
-  findDispatched(callId: string): { bootId?: string | undefined } | undefined {
-    const hit = this.events.findLast(
-      (event) => event.type === 'tool-dispatched' && event.callId === callId,
-    )
-    if (hit === undefined || hit.type !== 'tool-dispatched') return undefined
-    return { bootId: hit.bootId }
   }
 }

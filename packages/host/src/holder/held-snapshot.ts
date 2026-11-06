@@ -1,9 +1,10 @@
 import {
+  NO_WORKSPACE_RECORD,
   decideHeldAction,
-  workspaceStateOf,
+  workspaceStateFrom,
   type EHeldAction,
   type InboxEntry,
-  type V2Event,
+  type WorkspaceRecord,
 } from '@dltech/atlas-core'
 
 import { idleReleaseDue } from './held-idle'
@@ -19,7 +20,7 @@ export const readHeldAction = async (args: {
   resumePending: boolean
   lastActivityAt: number
   runtime: SessionRuntime | undefined
-  events: readonly V2Event[]
+  workspace: WorkspaceRecord | undefined
   preparing: boolean
 }): Promise<{
   entries: InboxEntry[]
@@ -29,8 +30,8 @@ export const readHeldAction = async (args: {
 }> => {
   const { deps } = args
   const entries = await readFullInbox(deps)
-  const workspace = workspaceStateOf({
-    events: args.events,
+  const workspace = workspaceStateFrom({
+    record: args.workspace ?? NO_WORKSPACE_RECORD,
     preparing: args.preparing,
     pendingMessageIds: entries.filter((entry) => !isStop(entry)).map((entry) => entry.inboxId),
   })

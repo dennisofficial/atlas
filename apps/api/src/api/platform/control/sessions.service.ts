@@ -9,7 +9,11 @@ import {
 } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import { canonicalEvent, type V2Event } from '@dltech/atlas-core'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+import {
+  INBOX_KIND_MESSAGE,
+  inboxMessageSchema,
+  type SessionPostMedia,
+} from '@dltech/atlas-protocol'
 import { EWithdrawRefusal } from '@dltech/atlas-protocol'
 import type {
   SessionArchiveOutput,
@@ -21,6 +25,8 @@ import type {
 } from '@dltech/atlas-protocol'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
+import { attachedMedia } from './media-attachments'
+import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
 
 export type LeaseView = {
@@ -48,6 +54,7 @@ export class SessionsService {
     @Inject(ProjectAccess) private readonly projects: ProjectAccess,
     @Inject(SessionTitler) private readonly titler: SessionTitler,
     @Inject(BackgroundWork) private readonly background: BackgroundWork,
+    @Inject(MediaRegistry) private readonly media: MediaRegistry,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -89,15 +96,27 @@ export class SessionsService {
     }
   }
 
-  async post(args: { userId: string; sessionId: string; text: string }) {
+  async post(args: {
+    userId: string
+    sessionId: string
+    text: string
+    media?: readonly SessionPostMedia[] | undefined
+  }) {
     const session = await this.requireOwnedSession(args)
-    const payload = JSON.stringify(inboxMessageSchema.parse({ text: args.text }))
+    const media = await attachedMedia({
+      registry: this.media,
+      userId: args.userId,
+      media: args.media ?? [],
+    })
+    const payload = JSON.stringify(
+      inboxMessageSchema.parse({ text: args.text, ...(media.length === 0 ? {} : { media }) }),
+    )
     const { inboxId } = await this.plane.post({
       sessionId: args.sessionId,
       kind: INBOX_KIND_MESSAGE,
       payload,
     })
-    if (session.title === null) {
+    if (session.title === null && args.text.trim().length > 0) {
       this.background.keepAlive(
         this.nameSession({
           userId: args.userId,
@@ -241,7 +260,7 @@ export class SessionsService {
     return value
   }
 
-  private async requireOwnedSession(args: {
+  async requireOwnedSession(args: {
     userId: string
     sessionId: string
   }): Promise<ControlSessionRow> {

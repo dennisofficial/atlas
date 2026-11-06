@@ -21,6 +21,9 @@ import {
   sessionCreateInputSchema,
   sessionEventsInputSchema,
   sessionListInputSchema,
+  inboxMessageSchema,
+  mediaPresignInputSchema,
+  mediaPresignOutputSchema,
   sessionPostInputSchema,
   sessionStatusInputSchema,
   type DaemonFrame,
@@ -213,5 +216,66 @@ describe('session API inputs', () => {
     expect(sessionEventsInputSchema.safeParse({ sessionId: 's-1', limit: 1001 }).success).toBe(
       false,
     )
+  })
+})
+
+describe('session post with images', () => {
+  const hash = 'a'.repeat(64)
+  const post = (extra: object) => sessionPostInputSchema.safeParse({ sessionId: 's-1', ...extra })
+
+  it('accepts text only, media only, and both', () => {
+    expect(post({ text: 'hi' }).success).toBe(true)
+    expect(post({ text: '', media: [{ hash }] }).success).toBe(true)
+    expect(post({ text: ' ', media: [{ hash, source: 'a.png' }] }).success).toBe(true)
+    expect(post({ text: 'hi', media: [{ hash }] }).success).toBe(true)
+  })
+
+  it('rejects neither, too many images, a bad hash and unknown keys', () => {
+    expect(post({ text: '' }).success).toBe(false)
+    expect(post({ text: ' ', media: [] }).success).toBe(false)
+    expect(post({ text: 'hi', media: Array.from({ length: 21 }, () => ({ hash })) }).success).toBe(
+      false,
+    )
+    expect(post({ text: 'hi', media: Array.from({ length: 20 }, () => ({ hash })) }).success).toBe(
+      true,
+    )
+    expect(post({ text: 'hi', media: [{ hash: 'ABC' }] }).success).toBe(false)
+    expect(post({ text: 'hi', media: [{ hash, extra: 1 }] }).success).toBe(false)
+  })
+
+  it('still parses an inbox payload written before images existed', () => {
+    expect(inboxMessageSchema.parse({ text: 'old' })).toEqual({ text: 'old' })
+  })
+
+  it('shapes the presign contract', () => {
+    expect(
+      mediaPresignInputSchema.safeParse({
+        hash,
+        size: 10,
+        mediaType: 'image/svg+xml',
+      }).success,
+    ).toBe(false)
+    expect(
+      mediaPresignInputSchema.safeParse({
+        hash,
+        size: 10,
+        mediaType: 'image/png',
+      }).success,
+    ).toBe(true)
+    const media = {
+      hash,
+      mediaType: 'image/png',
+      size: 10,
+      width: 1,
+      height: 1,
+    }
+    expect(mediaPresignOutputSchema.safeParse({ exists: true, media }).success).toBe(true)
+    expect(
+      mediaPresignOutputSchema.safeParse({
+        exists: false,
+        uploadUrl: 'https://blob.example/x',
+        validUntil: 1,
+      }).success,
+    ).toBe(true)
   })
 })

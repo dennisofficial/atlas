@@ -65,7 +65,7 @@ describe('SessionHolder F8 resync', () => {
     expect(readCalls.length).toBeGreaterThan(1)
     expect(readCalls[0]).toBe(4)
     expect(cache.currentHead().seq).toBe(storeHead.seq)
-    expect(cache.all().length).toBe(storeHead.seq)
+    expect(cache.eventsAfter(0).length).toBe(storeHead.seq)
   }, 30_000)
 
   it('recovery ignores a call hidden by a history-rewound', async () => {

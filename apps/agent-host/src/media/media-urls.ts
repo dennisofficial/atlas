@@ -4,6 +4,7 @@ import type { MediaSigner } from './media-signer'
 
 export type MediaUrlSource = {
   urlsFor(hashes: readonly string[]): Promise<ReadonlyMap<string, string>>
+  missingOf(hashes: readonly string[]): Promise<string[]>
 }
 
 const hashesIn = (parts: readonly { type: string }[]): string[] =>
@@ -31,5 +32,11 @@ export const signerUrls = (args: { signer: MediaSigner; userId: string }): Media
       ),
     )
     return new Map(entries)
+  },
+  async missingOf(hashes) {
+    const present = await Promise.all(
+      hashes.map((hash) => args.signer.exists({ userId: args.userId, hash })),
+    )
+    return hashes.filter((_, index) => present[index] === false)
   },
 })

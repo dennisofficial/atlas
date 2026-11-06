@@ -64,4 +64,28 @@ describe('InboxIntake', () => {
     expect(second.drafts).toEqual(first.drafts)
     expect(second.drafts).toHaveLength(2)
   })
+
+  it('drafts a message that carries stored images with its media', async () => {
+    const media = [
+      {
+        media: {
+          hash: 'a'.repeat(64),
+          mediaType: 'image/png' as const,
+          size: 10,
+          width: 2,
+          height: 3,
+        },
+        source: 'shot.png',
+      },
+    ]
+    const withMedia = {
+      ...entry(5),
+      payload: JSON.stringify({ text: '', media }),
+    } as InboxEntry
+    const drain = await intakeOver(async () => [withMedia]).prepare()
+    expect(drain.wakesTurn).toBe(true)
+    expect(drain.drafts).toEqual([
+      { type: 'user-said', text: '', media, requestId: 'inbox:5', inboxId: 5 },
+    ])
+  })
 })

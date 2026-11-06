@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { chainEvents, toRunId, toThreadId, type BranchesObserved } from '@dltech/atlas-core'
+import { toRunId, toThreadId, type BranchesObserved } from '@dltech/atlas-core'
 import { defineOp, type DaemonGroupFactory } from '@dltech/atlas-protocol/engine'
 import { ECallStatus, type BranchSet } from '@dltech/atlas-protocol'
 import {
@@ -84,14 +84,7 @@ const fakeRecord = (): BranchRecorder & { appended: BranchesObserved[] } => {
     append: async ({ body }) => {
       appended.push(body)
     },
-    events: () =>
-      chainEvents({
-        threadId,
-        runId: toRunId('run-1'),
-        epoch: 1,
-        at: '2026-11-04T00:00:00.000Z',
-        bodies: appended,
-      }),
+    lastObservation: (repo) => appended.findLast((body) => body.repo === repo),
   }
 }
 

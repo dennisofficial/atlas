@@ -5,8 +5,10 @@ import { BotIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
 
 import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
 import { DiffViewer } from '@dltech/atlas-ui/ai/diff-viewer'
-import { CodeBlock, CodeBlockContent } from '@dltech/atlas-ui/components/code-block'
+import { CodeBlock, CodeBlockContent, CodeBlockLine } from '@dltech/atlas-ui/components/code-block'
 import { Trace } from '@dltech/atlas-ui/components/trace'
+import { useHighlightedCode } from '@dltech/atlas-ui/hooks/use-highlighted-code'
+import { languageOfPath } from '@dltech/atlas-ui/lib/language-of-path'
 
 import { EEditBody, EToolFamily, type EditBody, type ToolCallItem } from '../data/transcript-items'
 
@@ -21,17 +23,30 @@ const OPENABLE_STATES: readonly EToolState[] = [EToolState.Running, EToolState.D
 const isOpenableEdit = (call: ToolCallItem): call is ToolCallItem & { path: string } =>
   call.kind === EToolKind.Edit && call.path !== undefined && OPENABLE_STATES.includes(call.state)
 
-function EditBodyView({ body, label }: { body: EditBody; label: string }) {
-  if (body.kind === EEditBody.Diff) {
-    return <DiffViewer path={label} lines={body.lines} added={body.added} removed={body.removed} />
-  }
+function DictatedContent({
+  body,
+  path,
+}: {
+  body: Extract<EditBody, { kind: EEditBody.Content }>
+  path: string
+}) {
+  const lines = useHighlightedCode(body.text, languageOfPath(path) ?? '')
   return (
     <CodeBlock size="sm">
       <CodeBlockContent lineNumbers startLine={body.firstLine} className="max-h-64">
-        {body.text}
+        {lines.map((line, index) => (
+          <CodeBlockLine key={index}>{line}</CodeBlockLine>
+        ))}
       </CodeBlockContent>
     </CodeBlock>
   )
+}
+
+function EditBodyView({ body, label, path }: { body: EditBody; label: string; path: string }) {
+  if (body.kind === EEditBody.Diff) {
+    return <DiffViewer path={label} lines={body.lines} added={body.added} removed={body.removed} />
+  }
+  return <DictatedContent body={body} path={path} />
 }
 
 function EditLine({
@@ -68,7 +83,9 @@ function EditToolRow({
   return (
     <Trace>
       <EditLine call={call} onOpenChanges={onOpenChanges} />
-      {call.change === undefined ? null : <EditBodyView body={call.change} label={call.label} />}
+      {call.change === undefined ? null : (
+        <EditBodyView body={call.change} label={call.label} path={call.path} />
+      )}
     </Trace>
   )
 }
