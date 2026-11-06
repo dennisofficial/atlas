@@ -7,7 +7,7 @@ export const RESUME_NUDGE =
 
 const RESUME_LIFETIME_STEPS = 1
 
-const APPROVAL_WAITING =
+export const APPROVAL_WAITING =
   'an approval is waiting for an answer, so answer it rather than resuming past it'
 
 export enum EResume {
@@ -23,7 +23,7 @@ export type ResumePlan =
   | { kind: EResume.Blocked; reason: string }
   | { kind: EResume.Nothing }
 
-const carriesInterruption = (event: Event): boolean =>
+export const carriesInterruption = (event: Event): boolean =>
   (event.type === 'assistant-said' ||
     event.type === 'tool-result' ||
     event.type === 'tool-denied') &&
@@ -57,12 +57,16 @@ export function resumePlan(events: readonly Event[]): ResumePlan {
 const wantsNudge = (plan: ResumePlan): boolean =>
   plan.kind === EResume.Nudge || (plan.kind === EResume.Continue && plan.nudge)
 
-export function resumeDrafts(events: readonly Event[]): readonly EventDraft[] {
-  if (!wantsNudge(resumePlan(events))) return []
+export function nudgeDraftsFor(plan: ResumePlan): readonly EventDraft[] {
+  if (!wantsNudge(plan)) return []
   return [{ type: 'nudge', text: RESUME_NUDGE, lifetimeSteps: RESUME_LIFETIME_STEPS }]
 }
 
-export const isResumable = (events: readonly Event[]): boolean => {
-  const kind = resumePlan(events).kind
-  return kind === EResume.Continue || kind === EResume.Nudge
-}
+export const isResumablePlan = (plan: ResumePlan): boolean =>
+  plan.kind === EResume.Continue || plan.kind === EResume.Nudge
+
+export const resumeDrafts = (events: readonly Event[]): readonly EventDraft[] =>
+  nudgeDraftsFor(resumePlan(events))
+
+export const isResumable = (events: readonly Event[]): boolean =>
+  isResumablePlan(resumePlan(events))
