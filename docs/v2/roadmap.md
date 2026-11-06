@@ -109,6 +109,9 @@ _Updated at the end of every slice. Last update: 2026-11-05._
   [slices/summarise-at-message.md](slices/summarise-at-message.md) (summarise up to a
   message as an inbox command; decided 2026-11-03: prefix only, a rewind may undo a summary, and a
   refused inbox command appends `input-refused{inboxId, reason}`).
+- **Design added 2026-11-06:** [slices/holder-checkpoints.md](slices/holder-checkpoints.md)
+  (architecture §12 L3 for the agent host: per-step loop and holder state as checkpoints advanced on
+  append, rebuilt only on history edits; follows #1956).
 - **Scale target:** ~20k events per thread, from production data (architecture §12). Earlier 1M
   figures were a hypothetical stress size; whole-log work is removed only where that is trivial.
 - **Open:** browsing the files of a parked sandbox (a workspace mirror kept by the control plane) is
