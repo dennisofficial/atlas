@@ -1,4 +1,4 @@
-import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
+import type { InboxEntry, Lease } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import type { ChangeFeed } from '../../change-feed'
@@ -15,7 +15,6 @@ import {
   type ControlSessionRow,
   type SessionListParams,
 } from '../../port'
-import { MemoryChangeFeed } from './memory-change-feed'
 import {
   allocateInboxIdIn,
   deleteInboxEntryIn,
@@ -27,9 +26,16 @@ import {
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
-import { leasesHeldByIn } from './memory-leases'
+import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
+import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
 import { sessionDigestsIn } from './memory-digests'
-import { sessionsNeedingHolderIn } from './memory-needing-holder'
+import {
+  listSessionsIn,
+  readSessionIn,
+  setSessionArchivedIn,
+  setSessionTitleIfUntitledIn,
+} from './memory-sessions'
+import { MemoryTestControls } from './memory-test-controls'
 import { cloneState, emptyState, refKey, type State } from './memory-state'
 
 class MemoryTx implements ControlTx {
@@ -84,27 +90,18 @@ class MemoryTx implements ControlTx {
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
-    const row = this.state.sessions.get(params.sessionId)
-    if (row === undefined) return undefined
-    const { nextInboxId: _nextInboxId, ...session } = row
-    return { ...session }
+    return readSessionIn({ state: this.state, ...params })
   }
 
   async setSessionArchived(params: {
     sessionId: string
     archivedAt: string | null
   }): Promise<boolean> {
-    const row = this.state.sessions.get(params.sessionId)
-    if (row === undefined) return false
-    row.archivedAt = params.archivedAt
-    return true
+    return setSessionArchivedIn({ state: this.state, ...params })
   }
 
   async setSessionTitleIfUntitled(params: { sessionId: string; title: string }): Promise<boolean> {
-    const row = this.state.sessions.get(params.sessionId)
-    if (row === undefined || row.title !== null) return false
-    row.title = params.title
-    return true
+    return setSessionTitleIfUntitledIn({ state: this.state, ...params })
   }
 
   async listSessions(params: {
@@ -112,24 +109,11 @@ class MemoryTx implements ControlTx {
     projectId?: string | undefined
     limit: number
   }): Promise<ControlSessionRow[]> {
-    return [...this.state.sessions.values()]
-      .filter((row) => row.userId === params.userId)
-      .filter((row) => params.projectId === undefined || row.projectId === params.projectId)
-      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-      .slice(0, params.limit)
-      .map(({ nextInboxId: _nextInboxId, ...session }) => ({ ...session }))
+    return listSessionsIn({ state: this.state, ...params })
   }
 
   async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
     return sessionDigestsIn({ state: this.state, ...params })
-  }
-
-  async sessionsNeedingHolder(params: { limit: number }): Promise<string[]> {
-    return sessionsNeedingHolderIn({
-      state: this.state,
-      presentHosts: this.presentHosts,
-      ...params,
-    })
   }
 
   async createThread(params: {
@@ -137,16 +121,7 @@ class MemoryTx implements ControlTx {
     sessionId: string
     visibility: string
   }): Promise<void> {
-    if (this.state.threads.has(params.threadId)) throw new Error('thread exists')
-    if (!this.state.sessions.has(params.sessionId)) throw new Error('unknown session')
-    this.state.threads.set(params.threadId, {
-      threadId: params.threadId,
-      sessionId: params.sessionId,
-      headSeq: 0,
-      headHash: GENESIS_HASH,
-      visibility: params.visibility,
-    })
-    this.state.events.set(params.threadId, [])
+    createThreadIn({ state: this.state, ...params })
   }
 
   async useSnapshot(): Promise<void> {}
@@ -156,8 +131,7 @@ class MemoryTx implements ControlTx {
   }
 
   async readThread(threadId: string): Promise<ThreadRow | undefined> {
-    const row = this.state.threads.get(threadId)
-    return row === undefined ? undefined : { ...row }
+    return readThreadIn({ state: this.state, threadId })
   }
 
   async writeThreadHead(params: {
@@ -167,12 +141,7 @@ class MemoryTx implements ControlTx {
     headHash: ThreadRow['headHash']
     visibility: string
   }): Promise<boolean> {
-    const row = this.state.threads.get(params.threadId)
-    if (row === undefined || row.headSeq !== params.expectedHeadSeq) return false
-    row.headSeq = params.headSeq
-    row.headHash = params.headHash
-    row.visibility = params.visibility
-    return true
+    return writeThreadHeadIn({ state: this.state, ...params })
   }
 
   async insertEvents(rows: readonly StoredEvent[]): Promise<void> {
@@ -221,13 +190,7 @@ class MemoryTx implements ControlTx {
   }
 
   async writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean> {
-    const current = this.state.leases.get(params.lease.sessionId)
-    if (!this.state.sessions.has(params.lease.sessionId)) return false
-    const epoch = current?.epoch ?? 0
-    if (epoch !== params.expectedEpoch) return false
-    if (current === undefined && params.expectedEpoch !== 0) return false
-    this.state.leases.set(params.lease.sessionId, { ...params.lease })
-    return true
+    return writeLeaseIn({ state: this.state, ...params })
   }
 
   async claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<Lease[]> {
@@ -284,9 +247,7 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
   private readonly clock: () => string
   private state: State = emptyState()
   private tail: Promise<unknown> = Promise.resolve()
-  private readonly presentHosts = new Set<number>()
-  private lastHostId = 0
-  private readonly feed = new MemoryChangeFeed()
+  private readonly controls = new MemoryTestControls(() => this.state)
 
   constructor(params: { clock?: (() => string) | undefined } = {}) {
     super()
@@ -301,12 +262,12 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
         new MemoryTx({
           state: working,
           clock: this.clock,
-          presentHosts: this.presentHosts,
+          presentHosts: this.controls.presentHosts,
           pending,
         }),
       )
       this.state = working
-      this.feed.publish(pending)
+      this.controls.feed.publish(pending)
       return result
     }
     const next = this.tail.then(run, run)
@@ -315,31 +276,30 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
   }
 
   nextHostId(): number {
-    this.lastHostId += 1
-    return this.lastHostId
+    return this.controls.nextHostId()
   }
 
   markHostPresent(hostId: number): void {
-    this.presentHosts.add(hostId)
+    this.controls.presentHosts.add(hostId)
   }
 
   markHostAbsent(hostId: number): void {
-    this.presentHosts.delete(hostId)
+    this.controls.presentHosts.delete(hostId)
   }
 
   wakeCount(sessionId: string): number {
-    return this.state.notifications.filter((id) => id === sessionId).length
+    return this.controls.wakeCount(sessionId)
   }
 
   onChange(listener: (change: SessionChange) => void): () => void {
-    return this.feed.onChange(listener)
+    return this.controls.onChange(listener)
   }
 
   onGap(listener: () => void): () => void {
-    return this.feed.onGap(listener)
+    return this.controls.onGap(listener)
   }
 
   changesOf(sessionId: string): SessionChange[] {
-    return this.feed.changesOf(sessionId)
+    return this.controls.changesOf(sessionId)
   }
 }

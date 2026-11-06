@@ -1,5 +1,4 @@
 import {
-  type ClaimResult,
   type InboxEntry,
   type Lease,
   type LogHead,
@@ -113,12 +112,6 @@ export class ControlPlane {
         ...params,
         limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
       }),
-    )
-  }
-
-  async sessionsNeedingHolder(params: { limit: number }): Promise<string[]> {
-    return this.store.transact((tx) =>
-      tx.sessionsNeedingHolder({ limit: clampLimit(params.limit) }),
     )
   }
 
@@ -255,10 +248,6 @@ export class ControlPlane {
 
   async grant(params: { sessionId: string; hostId: number }): Promise<Lease> {
     return this.leases.grant(params)
-  }
-
-  async claim(params: { sessionId: string; hostId: number }): Promise<ClaimResult> {
-    return this.leases.claimLease(params)
   }
 
   revoke(params: {

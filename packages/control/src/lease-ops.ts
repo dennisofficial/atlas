@@ -1,12 +1,4 @@
-import {
-  claim,
-  grant,
-  revoke,
-  revokeIfEpoch,
-  type ClaimResult,
-  type Lease,
-  type RevokeResult,
-} from '@dltech/atlas-core'
+import { grant, revoke, revokeIfEpoch, type Lease, type RevokeResult } from '@dltech/atlas-core'
 
 import { LeaseConflictError } from './errors'
 import type { ControlStorePort, ControlTx } from './port'
@@ -41,30 +33,6 @@ export class LeaseOps {
     })
     if (!result.ok) throw new LeaseConflictError(params.sessionId)
     return result.lease
-  }
-
-  async claimLease(params: { sessionId: string; hostId: number }): Promise<ClaimResult> {
-    return this.store.transact(async (tx) => {
-      const lease =
-        (await tx.lockLease(params.sessionId)) ?? initialLease({ sessionId: params.sessionId })
-      const holderPresent =
-        lease.holderHostId !== null && (await tx.hostPresent(lease.holderHostId))
-      const selfPresent = await tx.hostPresent(params.hostId)
-      const result = claim({
-        lease,
-        hostId: params.hostId,
-        holderPresent,
-        selfPresent,
-      })
-      if (!result.ok) return result
-      const written = await tx.writeLease({
-        lease: result.lease,
-        expectedEpoch: lease.epoch,
-      })
-      if (!written) throw new LeaseConflictError(params.sessionId)
-      await tx.announce({ sessionId: params.sessionId })
-      return result
-    })
   }
 
   async revokeIfEpoch(params: {

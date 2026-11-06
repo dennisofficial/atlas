@@ -2,7 +2,7 @@ import { actionableInboxIds } from '@dltech/atlas-core'
 
 import { activeFailureOf, hasPrepareHistory, type State } from './memory-state'
 
-export const sessionsNeedingHolderIn = (params: {
+export const claimableSessionIdsIn = (params: {
   state: State
   presentHosts: ReadonlySet<number>
   limit: number

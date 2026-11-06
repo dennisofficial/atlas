@@ -86,7 +86,6 @@ export interface ControlTx {
     limit: number
   }): Promise<ControlSessionRow[]>
   listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]>
-  sessionsNeedingHolder(params: { limit: number }): Promise<string[]>
   createThread(params: {
     threadId: string
     sessionId: string

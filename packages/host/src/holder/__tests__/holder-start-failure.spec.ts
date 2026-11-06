@@ -66,7 +66,9 @@ describe('SessionHolder start failures', () => {
     const { lease } = await rig.plane.currentLease({ sessionId: SESSION })
     expect(lease.holderHostId).toBeNull()
     expect(lease.wantsHolder).toBe(false)
-    expect(await rig.plane.sessionsNeedingHolder({ limit: 10 })).toEqual([])
+    const probe = rig.store.nextHostId()
+    rig.store.markHostPresent(probe)
+    expect(await rig.plane.claimNext({ hostId: probe, limit: 10 })).toEqual([])
 
     const epoch = lease.epoch
     rig.clock.advance(5 * 60_000)

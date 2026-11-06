@@ -8,7 +8,6 @@ import { RandomIds } from '../runtime/random-ids'
 import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 import { createPgHostPresence } from '../presence/pg-host-presence'
 import { startHostWatch, type HostWatch } from '../presence/pg-host-watch'
-import { wakeOrphans } from '../presence/wake-orphans'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
@@ -183,16 +182,9 @@ const main = async (): Promise<void> => {
     watch = startHostWatch({
       url: requireEnv('PRESENCE_DATABASE_URL'),
       selfId: () => holder.hostId(),
-      plane,
+      ring: () => holder.ring(),
       onHostChange: (listener) => wakes.onHostChange(listener),
       log,
-    })
-    await wakeOrphans({ plane, log }).catch((error: unknown) => {
-      log.error({
-        source: 'host-process',
-        message: 'start-up orphan scan failed',
-        ...logFieldsOf({ error }),
-      })
     })
   }
   log.info({ source: 'host-process', message: `started hostId=${hostId} label=${holderLabel}` })

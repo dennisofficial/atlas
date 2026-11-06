@@ -65,8 +65,7 @@ describe('SessionHolder sweep', () => {
     await rig.holder.start()
     await rig.flush()
     await seedSession(rig)
-    const claim = await rig.plane.claim({ sessionId: SESSION, hostId: rig.hostId() })
-    expect(claim.ok).toBe(true)
+    const granted = await rig.plane.grant({ sessionId: SESSION, hostId: rig.hostId() })
     await rig.post('hello')
     await rig.flush()
     expect(rig.holder.heldIds()).toEqual([])
@@ -74,7 +73,7 @@ describe('SessionHolder sweep', () => {
     const saw = await flushUntil({ check: answered(rig), attempts: 100 })
     expect(saw).toBe(true)
     const lease = await rig.plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.epoch).toBeGreaterThan(claim.ok ? claim.lease.epoch : 0)
+    expect(lease.lease.epoch).toBeGreaterThan(granted.epoch)
   })
 
   it('stops sweeping after drain', async () => {

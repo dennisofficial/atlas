@@ -29,12 +29,6 @@ const holdPresence = async (hostId: number): Promise<void> => {
   await client.query('SELECT pg_advisory_lock($1, $2)', [PG_PRESENCE_LOCK_NAMESPACE, hostId])
 }
 
-const pending = (promise: Promise<unknown>): Promise<boolean> =>
-  Promise.race([
-    promise.then(() => false),
-    new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 400)),
-  ])
-
 class GatedStore extends PostgresControlStore {
   onLeaseShared: (() => Promise<void>) | undefined
 
@@ -56,7 +50,7 @@ class GatedStore extends PostgresControlStore {
   }
 }
 
-it('postgres: an in-flight append holds the lease FOR SHARE, so a claim waits and the next append is stale-epoch', async () => {
+it('postgres: an in-flight append holds the lease FOR SHARE, so claimNext skips the row and the next append is stale-epoch', async () => {
   const { db } = testDb()
   const plane = new ControlPlane({ store: new PostgresControlStore(db) })
   const gated = new GatedStore(db)
@@ -80,13 +74,12 @@ it('postgres: an in-flight append holds the lease FOR SHARE, so a claim waits an
   })
   await isShared
 
-  const claiming = plane.claim({ sessionId: SESSION, hostId: 102 })
-  expect(await pending(claiming)).toBe(true)
+  expect(await plane.claimNext({ hostId: 102, limit: 5 })).toEqual([])
 
   release()
   expect(await appending).toMatchObject({ ok: true })
-  const claimed = await claiming
-  expect(claimed).toMatchObject({ ok: true, lease: { epoch: epoch + 1, holderHostId: 102 } })
+  const claimed = await plane.claimNext({ hostId: 102, limit: 5 })
+  expect(claimed).toMatchObject([{ epoch: epoch + 1, holderHostId: 102 }])
 
   gated.onLeaseShared = undefined
   const head = await plane.head({ threadId: THREAD })

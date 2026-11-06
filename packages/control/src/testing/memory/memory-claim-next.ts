@@ -1,6 +1,6 @@
 import { claimGrant, type Lease } from '@dltech/atlas-core'
 
-import { sessionsNeedingHolderIn } from './memory-needing-holder'
+import { claimableSessionIdsIn } from './memory-claim-candidates'
 import type { State } from './memory-state'
 
 export const claimNeedingIn = (params: {
@@ -13,7 +13,7 @@ export const claimNeedingIn = (params: {
   if (!params.presentHosts.has(params.hostId)) return []
   const now = Date.parse(params.now)
   const claimed: Lease[] = []
-  const needing = sessionsNeedingHolderIn({
+  const needing = claimableSessionIdsIn({
     state: params.state,
     presentHosts: params.presentHosts,
     limit: Number.POSITIVE_INFINITY,

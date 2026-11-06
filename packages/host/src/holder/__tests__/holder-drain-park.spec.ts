@@ -42,7 +42,9 @@ describe('SessionHolder drain of an idle session', () => {
     expect(a.wakeCount(SESSION)).toBe(wakesBefore)
     expect(b.holder.heldIds().length).toBe(0)
     expect(b.runtimes.length).toBe(0)
-    expect(await a.plane.sessionsNeedingHolder({ limit: 10 })).toEqual([])
+    const probe = a.store.nextHostId()
+    a.store.markHostPresent(probe)
+    expect(await a.plane.claimNext({ hostId: probe, limit: 10 })).toEqual([])
   }, 15_000)
 
   it('a message after the drain wakes the next holder, which claims it', async () => {
