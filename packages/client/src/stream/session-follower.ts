@@ -15,7 +15,7 @@ import {
 } from './overlay-store'
 import type { SessionCache } from './session-cache'
 import {
-  applyPage,
+  applyPageOutcome,
   EMPTY_WINDOW,
   resetWindow,
   type SessionCursor,
@@ -32,6 +32,7 @@ export enum ESessionConnection {
   CatchingUp = 'catching-up',
   Reconnecting = 'reconnecting',
   Offline = 'offline',
+  Outdated = 'outdated',
 }
 
 export type SessionSnapshot = {
@@ -67,9 +68,11 @@ type Inner = {
   phase: EStreamConnectionState
   live: boolean
   error: EStreamErrorCode | undefined
+  outdated: boolean
 }
 
-const connectionOf = (inner: Pick<Inner, 'phase' | 'live'>): ESessionConnection => {
+const connectionOf = (inner: Pick<Inner, 'phase' | 'live' | 'outdated'>): ESessionConnection => {
+  if (inner.outdated) return ESessionConnection.Outdated
   if (inner.phase === EStreamConnectionState.Closed) return ESessionConnection.Offline
   if (inner.phase !== EStreamConnectionState.Open) return ESessionConnection.Reconnecting
   return inner.live ? ESessionConnection.Live : ESessionConnection.CatchingUp
@@ -96,6 +99,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     phase: EStreamConnectionState.Connecting,
     live: false,
     error: undefined,
+    outdated: false,
   }
   let snapshot = snapshotOf(inner)
   const listeners = new Set<() => void>()
@@ -125,11 +129,19 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   }
 
   const handleEvents = (message: Extract<StreamServerMessage, { type: 'events' }>): void => {
-    const window = applyPage({
+    const { window, unreadable } = applyPageOutcome({
       window: inner.window,
       page: { events: message.events, head: message.head },
     })
     const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
+    if (unreadable !== undefined) {
+      console.warn(
+        `session ${sessionId}: stopping at an event this client cannot read (seq ${unreadable.seq ?? 'unknown'}): ${unreadable.issue}`,
+      )
+      commit({ ...inner, window, overlay, live: false, error: undefined, outdated: true })
+      saveThrottled()
+      return
+    }
     commit({ ...inner, window, overlay, live: message.live, error: undefined })
     saveThrottled()
   }
@@ -156,6 +168,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   }
 
   const handleMessage = (message: StreamServerMessage): void => {
+    if (inner.outdated) return
     if (message.type === 'events') handleEvents(message)
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'error') commit({ ...inner, error: message.code })
