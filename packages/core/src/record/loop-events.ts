@@ -11,6 +11,7 @@ const RECORD_ONLY_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
   'branches-observed',
   'workspace-prepared',
   'workspace-prepare-failed',
+  'session-start-failed',
 ])
 
 const SURVIVOR_TYPES: ReadonlySet<string> = new Set<string>(KEPT_THROUGH_COMPACTION)

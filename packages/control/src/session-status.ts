@@ -1,5 +1,6 @@
 import {
   activeFailure,
+  activeStartFailure,
   blobValueOf,
   INBOX_KIND_STOP,
   isBlobRef,
@@ -51,7 +52,7 @@ export const readSessionStatus = async (args: {
     plane.currentLease({ sessionId }),
   ])
   const events = await resolveFactRefs({ plane, events: page.events })
-  const failure = activeFailure(events)
+  const failure = activeStartFailure(events) ?? activeFailure(events)
   const messageAfterFailure =
     failure !== undefined &&
     (await plane.hasMessageAfter({

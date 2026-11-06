@@ -12,11 +12,13 @@ import {
   USER,
 } from './support'
 import type { ConformanceParams } from './conformance'
+import { describeControlPlaneStartFailures } from './conformance-start-failure'
 
 const after = (params: { iso: string; offsetMs: number }): string =>
   new Date(Date.parse(params.iso) + params.offsetMs).toISOString()
 
 export function describeControlPlaneSessions(params: ConformanceParams): void {
+  describeControlPlaneStartFailures(params)
   describe(`ControlPlane sessions (${params.name})`, () => {
     let plane: ControlPlane
     let setNow: (iso: string) => void

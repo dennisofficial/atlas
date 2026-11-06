@@ -89,12 +89,17 @@ export const teardownHeldSession = async (args: {
   lostOwnership: boolean
   released: boolean
   failedToStart: boolean
+  gaveUpStarting: boolean
   epoch: number
 }): Promise<void> => {
   const { runtime, deps } = args
   if (args.failedToStart) {
     await deps.plane
-      .revoke({ sessionId: deps.sessionId, wantsHolder: true, epoch: args.epoch })
+      .revoke({
+        sessionId: deps.sessionId,
+        wantsHolder: !args.gaveUpStarting,
+        epoch: args.epoch,
+      })
       .catch(() => undefined)
   }
   if (runtime === undefined) return
