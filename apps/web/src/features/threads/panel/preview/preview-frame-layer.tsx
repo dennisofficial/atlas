@@ -11,7 +11,29 @@ import { useSlotTracking } from './placement'
 import { useAllowedFrames } from './use-allowed-frames'
 import { useFrameReports } from './use-frame-reports'
 
-const FRAME_SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-popups allow-modals'
+const FRAME_SANDBOX = [
+  'allow-scripts',
+  'allow-same-origin',
+  'allow-forms',
+  'allow-modals',
+  'allow-popups',
+  'allow-popups-to-escape-sandbox',
+  'allow-downloads',
+  'allow-storage-access-by-user-activation',
+  'allow-pointer-lock',
+  'allow-presentation',
+].join(' ')
+
+const FRAME_ALLOW = [
+  'clipboard-read',
+  'clipboard-write',
+  'fullscreen',
+  'camera',
+  'microphone',
+  'geolocation',
+  'display-capture',
+  'web-share',
+].join('; ')
 
 export function PreviewFrameLayer() {
   const registry = useFrameRegistry()
@@ -47,6 +69,7 @@ export function PreviewFrameLayer() {
         title="Preview"
         className="size-full border-0 bg-background"
         sandbox={FRAME_SANDBOX}
+        allow={FRAME_ALLOW}
       />
     </div>
   ))
