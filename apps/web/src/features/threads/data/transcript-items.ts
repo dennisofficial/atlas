@@ -18,6 +18,7 @@ import {
   type DiagramRepairsByMessage,
   type Event,
   type SaidImage,
+  type SaidMedia,
   type SaidUpload,
 } from '@dltech/atlas-core'
 
@@ -54,6 +55,7 @@ export type TranscriptItem = Timed &
         text: string
         images?: readonly SaidImage[]
         uploads?: readonly SaidUpload[]
+        media?: readonly SaidMedia[]
       }
     | {
         kind: ETranscriptKind.Agent
@@ -83,7 +85,8 @@ export type ThreadTranscriptView = {
 function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
   const images = entry.images.length > 0 ? { images: entry.images } : {}
   const uploads = (entry.uploads ?? []).length > 0 ? { uploads: entry.uploads } : {}
-  const attached = 'images' in images || 'uploads' in uploads
+  const media = entry.media.length > 0 ? { media: entry.media } : {}
+  const attached = 'images' in images || 'uploads' in uploads || 'media' in media
   if (!attached && entry.text.trim().length === 0) return null
   return {
     kind: ETranscriptKind.User,
@@ -91,6 +94,7 @@ function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
     text: entry.text,
     ...images,
     ...uploads,
+    ...media,
   }
 }
 

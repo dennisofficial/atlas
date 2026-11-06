@@ -24,6 +24,7 @@ export function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntr
       files: [...new Set([...open.files, ...entry.files])],
       images: [...open.images, ...entry.images],
       uploads: [...(open.uploads ?? []), ...(entry.uploads ?? [])],
+      media: [...open.media, ...entry.media],
     }
   }
 
