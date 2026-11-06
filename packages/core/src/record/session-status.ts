@@ -1,4 +1,5 @@
 import { EWaitEpisodeKind } from '../model-recovery/waiting'
+import { EFinishReason } from '../stream/chunk'
 import { EInputConsumed, type RecordBody, type V2Event } from './event'
 import { retryDeadlineAfter } from './retry-scheduled'
 import { activeStartFailure } from './start-failure'
@@ -31,9 +32,11 @@ const TURN_ENDING_TYPES: ReadonlySet<V2Event['type']> = new Set([
   'session-start-failed',
 ])
 
+const endsTurn = (event: Extract<V2Event, { type: 'assistant-said' }>): boolean =>
+  event.aborted !== 'handoff' && event.finish !== EFinishReason.ToolCalls
+
 const isTurnEnding = (event: V2Event): boolean =>
-  TURN_ENDING_TYPES.has(event.type) ||
-  (event.type === 'assistant-said' && event.aborted !== 'handoff')
+  TURN_ENDING_TYPES.has(event.type) || (event.type === 'assistant-said' && endsTurn(event))
 
 const TURN_NEUTRAL_TYPES: ReadonlySet<V2Event['type']> = new Set<RecordBody['type']>([
   'branches-observed',

@@ -50,6 +50,7 @@ export function draftsFor(step: StepDraftsArgs): EventDraft[] {
     drafts.push({
       type: 'assistant-said',
       parts: result.parts,
+      finish: result.finishReason,
       ...(result.ranFast === true ? { fast: true } : {}),
     })
 

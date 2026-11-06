@@ -18,6 +18,22 @@ const result = (change: Partial<ModelStepResult>): ModelStepResult => ({
 
 const stepOf = (change: Partial<ModelStepResult>) => ({ result: result(change) })
 
+describe('the finish reason a draft carries', () => {
+  it('rides on the reply so readers never look ahead to see a turn continue', () => {
+    const parts = [{ type: 'text' as const, text: 'hi' }]
+    const calling = draftsFor(
+      stepOf({ parts, toolCalls: [call], finishReason: EFinishReason.ToolCalls }),
+    )
+    expect(calling[0]).toMatchObject({ type: 'assistant-said', finish: EFinishReason.ToolCalls })
+    expect(draftsFor(stepOf({ parts }))[0]).toMatchObject({ finish: EFinishReason.Stop })
+  })
+
+  it('is left off an interrupted reply, which ends the turn', () => {
+    const drafts = interruptedDrafts(stepOf({ parts: [{ type: 'text', text: 'hi' }] }))
+    expect(drafts[0]).not.toHaveProperty('finish')
+  })
+})
+
 describe('the step usage a draft carries', () => {
   it('rides on the reply when the step spoke', () => {
     const drafts = draftsFor(stepOf({ parts: [{ type: 'text', text: 'hi' }], toolCalls: [call] }))
