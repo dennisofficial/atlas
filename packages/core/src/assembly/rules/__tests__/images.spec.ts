@@ -60,11 +60,13 @@ const partsOf = (assembled: Assembled): readonly string[] =>
   assembled.messages.flatMap((entry) =>
     entry.message.content.flatMap((part) => {
       if (part.type === 'image') return ['image']
+      if (part.type === 'media') return ['media']
       if (part.type === 'text') return [part.text]
       if (part.type === 'tool-result' && part.output.type === 'content') {
         return part.output.value.map((inner) => {
           if (inner.type === 'image') return 'image'
           if (inner.type === 'file') return 'file'
+          if (inner.type === 'media') return 'media'
           return inner.text
         })
       }

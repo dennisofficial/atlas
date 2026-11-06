@@ -19,6 +19,7 @@ import {
   assistantPartSchema,
   saidFileSchema,
   saidImageSchema,
+  saidMediaSchema,
   saidUploadSchema,
   stepUsageSchema,
   toolResultPartSchema,
@@ -69,6 +70,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     images: z.array(saidImageSchema).optional(),
     files: z.array(saidFileSchema).optional(),
     uploads: z.array(saidUploadSchema).optional(),
+    media: z.array(saidMediaSchema).optional(),
   }),
   z.object({
     type: z.literal('assistant-said'),

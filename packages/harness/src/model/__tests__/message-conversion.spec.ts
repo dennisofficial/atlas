@@ -422,3 +422,54 @@ describe('toModelMessages tool call ids', () => {
     expect(ids).toEqual(['bash_16', 'bash_16_', 'bash_16_'])
   })
 })
+
+describe('toModelMessage with a media part', () => {
+  const media = {
+    hash: 'a'.repeat(64),
+    mediaType: 'image/png',
+    size: 10,
+    width: 640,
+    height: 480,
+  } as const
+
+  it('names a user media part by its source, as the text line', () => {
+    const message: UserMessage = {
+      role: 'user',
+      content: [{ type: 'media', media, source: '/tmp/shot.png' }],
+    }
+
+    expect(toModelMessage(message)).toEqual({
+      role: 'user',
+      content: [{ type: 'text', text: '[image /tmp/shot.png · 640×480]' }],
+    })
+  })
+
+  it('falls back to the hash when the media part has no source, in a tool result too', () => {
+    const message: ToolMessage = {
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'call-1',
+          toolName: 'read',
+          output: { type: 'content', value: [{ type: 'media', media }] },
+        },
+      ],
+    }
+
+    expect(toModelMessage(message)).toEqual({
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'call-1',
+          toolName: 'read',
+          output: {
+            type: 'content',
+            value: [{ type: 'text', text: `[image ${'a'.repeat(64)} · 640×480]` }],
+          },
+        },
+      ],
+    })
+  })
+})

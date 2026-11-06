@@ -11,9 +11,10 @@ import { imagePathLine, inlinable } from '../../images/attached'
 import type {
   FilePart,
   ImagePart,
-  TextPart,
+  MediaPart,
   ToolCallPart,
   ToolResultPart,
+  UserContentPart,
 } from '../../message/parts'
 import { basenameOf } from '../../policy/classifier/path-set'
 import { shellEventContextsOf } from '../../shells/lifecycle'
@@ -37,7 +38,7 @@ import type { UploadPlacement } from '../../uploads/placement'
 import { endingsToldByKill } from './shell-kill-coverage'
 
 type OpenMessage =
-  | { role: 'user'; content: (TextPart | ImagePart | FilePart)[] }
+  | { role: 'user'; content: UserContentPart[] }
   | { role: 'assistant'; content: (AssistantPart | ToolCallPart)[] }
   | { role: 'tool'; content: ToolResultPart[] }
 
@@ -135,8 +136,8 @@ function saidContent({
 }: {
   event: EventOfType<'user-said'>
   placements: ReadonlyMap<string, UploadPlacement> | undefined
-}): (TextPart | ImagePart | FilePart)[] {
-  const shown: (ImagePart | FilePart)[] = []
+}): UserContentPart[] {
+  const shown: (ImagePart | FilePart | MediaPart)[] = []
   const named: string[] = []
 
   for (const image of event.images ?? []) {
@@ -163,6 +164,10 @@ function saidContent({
       filename: file.filename ?? basenameOf({ path: file.path }),
       source: file.path,
     })
+  }
+
+  for (const said of event.media ?? []) {
+    shown.push({ type: 'media', media: said.media, source: said.source })
   }
 
   const said = [event.text, ...named].join('\n')

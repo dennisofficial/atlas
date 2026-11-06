@@ -2,7 +2,7 @@ import { z, type ZodType } from 'zod'
 
 import { EWorktreeExit } from '../events/body'
 import type { CallId, ThreadId } from '../events/ids'
-import type { FilePart, ImagePart, TextPart } from '../message/parts'
+import type { UserContentPart } from '../message/parts'
 import type { CapturedFileChange } from '../quality/change'
 import type { QualityCoverageDiagnostic } from '../quality/policy'
 import type { EDeed, DeedTarget } from '../policy/classifier/deed'
@@ -73,7 +73,7 @@ export type ToolCall = {
   threadId: ThreadId
 }
 
-export type ModelPart = TextPart | ImagePart | FilePart
+export type ModelPart = UserContentPart
 
 export type ToolOutcome =
   | {

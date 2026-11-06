@@ -1,4 +1,5 @@
 import type { JsonValue } from '../json/value'
+import type { MediaRef } from '../media/media-ref'
 import type { ProviderOptions } from '../provider'
 
 export type TextPart = { type: 'text'; text: string; providerOptions?: ProviderOptions | undefined }
@@ -28,6 +29,15 @@ export type FilePart = {
   providerOptions?: ProviderOptions | undefined
 }
 
+export type MediaPart = {
+  type: 'media'
+  media: MediaRef
+  source?: string | undefined
+  providerOptions?: ProviderOptions | undefined
+}
+
+export type UserContentPart = TextPart | ImagePart | FilePart | MediaPart
+
 export type ToolCallPart = {
   type: 'tool-call'
   toolCallId: string
@@ -41,7 +51,7 @@ export type ToolResultOutput =
   | { type: 'json'; value: JsonValue }
   | { type: 'error-text'; value: string }
   | { type: 'error-json'; value: JsonValue }
-  | { type: 'content'; value: readonly (TextPart | ImagePart | FilePart)[] }
+  | { type: 'content'; value: readonly UserContentPart[] }
 
 export type ToolResultPart = {
   type: 'tool-result'
@@ -55,6 +65,7 @@ export type MessagePart =
   | TextPart
   | ImagePart
   | FilePart
+  | MediaPart
   | ReasoningPart
   | ToolCallPart
   | ToolResultPart
