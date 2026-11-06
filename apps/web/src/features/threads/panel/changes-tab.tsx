@@ -21,6 +21,7 @@ import { ETabSubject } from './changes/offline-copy'
 import { TabFailed, TabOffline } from './changes/tab-states'
 import { ChangesLoading } from './changes/tab-skeletons'
 import { useThreadPanel } from './thread-panel-context'
+import { recallThreadPanel, rememberThreadPanel } from './thread-panel-memory'
 
 const ICON = <GitCompareIcon />
 
@@ -51,10 +52,23 @@ function useFocusedPath(args: {
 }
 
 function ChangesBody(props: { channel: GitChangesChannel }) {
-  const { working, changesPath } = useThreadPanel()
-  const [scope, setScope] = useState(EChangeScope.All)
-  const [expanded, setExpanded] = useState<string[]>([])
-  const [collapsedFolders, setCollapsedFolders] = useState<string[]>([])
+  const { threadId, working, changesPath } = useThreadPanel()
+  const [remembered] = useState(() => recallThreadPanel(threadId))
+  const [scope, setScope] = useState(remembered.changesScope ?? EChangeScope.All)
+  const [expanded, setExpanded] = useState(remembered.changesExpanded ?? [])
+  const [collapsedFolders, setCollapsedFolders] = useState(remembered.changesCollapsed ?? [])
+  useEffect(
+    () =>
+      rememberThreadPanel({
+        threadId,
+        patch: {
+          changesScope: scope,
+          changesExpanded: expanded,
+          changesCollapsed: collapsedFolders,
+        },
+      }),
+    [threadId, scope, expanded, collapsedFolders],
+  )
   const { layout, setLayout } = useChangesLayout()
   const [scrollTarget, setScrollTarget] = useState<string | undefined>(undefined)
   const root = useRef<HTMLDivElement>(null)

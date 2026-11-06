@@ -17,12 +17,13 @@ import { TabFailed, TabOffline } from './changes/tab-states'
 import { FilesLoading } from './changes/tab-skeletons'
 import { FileSearchBody } from './file-search-panel'
 import { useThreadPanel } from './thread-panel-context'
+import { recallThreadPanel, rememberThreadPanel } from './thread-panel-memory'
 
 const ICON = <FolderTreeIcon />
 
 function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
   const { threadId, working, openFile } = useThreadPanel()
-  const [selected, setSelected] = useState<string | undefined>(undefined)
+  const [selected, setSelected] = useState(() => recallThreadPanel(threadId).selectedFile)
   const turnEnds = useTurnEndCount(working)
   const {
     view: tree,
@@ -55,6 +56,7 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
 
   const handleSelect = (path: string) => {
     setSelected(path)
+    rememberThreadPanel({ threadId, patch: { selectedFile: path } })
     openFile(path)
   }
 

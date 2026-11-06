@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import Electrobun, { ApplicationMenu, BrowserWindow, PATHS, Updater, Utils } from 'electrobun/main'
 import { createDesktopHost } from '../host'
+import { startOnStablePort } from '../host/stable-port'
 import { defaultDesktopHome, podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
 import { EMenuAction, installApplicationMenu } from './menu'
@@ -13,7 +14,7 @@ import { runLogged, writeLog } from './crash-log'
 import { type IExternalLinkRouter, routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
 import { deepLinkTargetOf, openUrlOf } from './deep-link'
-import { navigateScript } from './in-app-navigation'
+import { navigateScript, RELOAD_SCRIPT } from './in-app-navigation'
 import { readDoubleClickAction, runTitlebarAction } from './titlebar-action'
 
 const earlyLinks: string[] = []
@@ -38,24 +39,31 @@ await runLogged(async () => {
   const doubleClickAction = await readDoubleClickAction()
   const windowRef: { current?: BrowserWindow } = {}
   const linksRef: { current?: IExternalLinkRouter } = {}
-  const host = createDesktopHost({
-    webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
-    secret,
-    pods: podConfig,
-    app: { version: localInfo.version, channel: localInfo.channel },
-    auth: { home: defaultDesktopHome(), openExternal: (url) => Utils.openExternal(url) },
-    updates: {
-      status: updateState.status,
-      restart: () => restartToPrepared({ updater: Updater, state: updateState }),
-    },
-    window: {
-      titlebarDoubleClick: () => {
-        if (windowRef.current)
-          runTitlebarAction({ win: windowRef.current, action: doubleClickAction })
+  const home = defaultDesktopHome()
+  const startHost = (port: number) =>
+    createDesktopHost({
+      port,
+      webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
+      secret,
+      pods: podConfig,
+      app: { version: localInfo.version, channel: localInfo.channel },
+      auth: { home, openExternal: (url) => Utils.openExternal(url) },
+      updates: {
+        status: updateState.status,
+        restart: () => restartToPrepared({ updater: Updater, state: updateState }),
       },
-      setPreviewOrigins: (origins) => linksRef.current?.setFrameOrigins(origins),
-    },
-  })
+      window: {
+        titlebarDoubleClick: () => {
+          if (windowRef.current)
+            runTitlebarAction({
+              win: windowRef.current,
+              action: doubleClickAction,
+            })
+        },
+        setPreviewOrigins: (origins) => linksRef.current?.setFrameOrigins(origins),
+      },
+    })
+  const host = startOnStablePort({ home, start: startHost })
 
   const win = new BrowserWindow({
     title: 'Atlas',
@@ -98,7 +106,7 @@ await runLogged(async () => {
       void runCheckForUpdates({ state: updateState }).catch((error: unknown) =>
         writeLog({ label: 'check-for-updates', error }),
       )
-    if (action === EMenuAction.Reload) win.webview.loadURL(win.webview.url ?? host.url)
+    if (action === EMenuAction.Reload) win.webview.executeJavascript(RELOAD_SCRIPT)
     if (action === EMenuAction.ToggleDevTools) win.webview.toggleDevTools()
   })
 

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
 import { ERightTab } from '../right-tab'
+import { THREAD_PANELS_KEY } from '../thread-panel-memory'
 import { type RightPanelState, useRightPanel } from '../use-right-panel'
 
 beforeAll(() => {
@@ -145,6 +146,37 @@ describe('useRightPanel', () => {
     await a.unmount()
     const b = await mount('sized-b')
     expect(b().layout).toBeUndefined()
+  })
+
+  it('writes the tab and open views to localStorage so a reload restores them', async () => {
+    const first = await mount('reloaded')
+    await act(async () => first().setTab(ERightTab.Files))
+    await act(async () => first().openAgent('agent-7'))
+    await act(async () => first().setTab(ERightTab.Files))
+    await act(async () => first().openFile('src/a.ts'))
+    await first.unmount()
+    const stored = JSON.parse(window.localStorage.getItem(THREAD_PANELS_KEY) ?? '{}')
+    expect(stored.reloaded).toMatchObject({
+      tab: ERightTab.Files,
+      agentId: 'agent-7',
+      filePath: 'src/a.ts',
+    })
+    const again = await mount('reloaded')
+    expect(again().tab).toBe(ERightTab.Files)
+    expect(again().agentId).toBe('agent-7')
+    expect(again().filePath).toBe('src/a.ts')
+  })
+
+  it('restores an open context file and forgets it once closed', async () => {
+    const first = await mount('context')
+    await act(async () => first().openContextFile('plans/a.md'))
+    await first.unmount()
+    const again = await mount('context')
+    expect(again().contextPath).toBe('plans/a.md')
+    await act(async () => again().closeContextFile())
+    await again.unmount()
+    const closed = await mount('context')
+    expect(closed().contextPath).toBeUndefined()
   })
 
   it('openChanges leaves the file view', async () => {
