@@ -130,6 +130,8 @@ describe('callback host', () => {
     expect(page).toContain(
       'window.location.href = "atlas://preview-callback/api/auth/callback/google?code=c&state=%22%3C%2Fscript%3E"',
     )
+    expect(page).toContain('You can close this tab.')
+    expect(page).toContain('window.close()')
     expect(seen).toHaveLength(0)
   })
 
