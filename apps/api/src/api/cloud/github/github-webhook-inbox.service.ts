@@ -18,9 +18,7 @@ export function retryDelayMs(attempts: number): number {
  * GitHub's `x-github-delivery` id, so a redelivery after a crash between writes is a no-op instead
  * of a duplicate, and "did GitHub even send it?" is answerable from the database. Processing
  * failures are recorded on the row and answered 200 — GitHub must not retry-storm — and the
- * scheduled reconcile pass retries what never processed. Each row carries a lease so the inline
- * handler and the reconcile never process one delivery at once, and a failed row backs off
- * exponentially until it is dead after MAX_ATTEMPTS.
+ * scheduled reconcile pass retries what never processed.
  */
 @Injectable()
 export class GithubWebhookInboxService {
