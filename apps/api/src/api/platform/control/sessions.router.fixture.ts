@@ -14,6 +14,7 @@ export const sessions = {
   list: vi.fn(),
   post: vi.fn(),
   withdraw: vi.fn(),
+  archive: vi.fn(),
   events: vi.fn(),
   blob: vi.fn(),
   status: vi.fn(),

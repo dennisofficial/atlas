@@ -45,7 +45,7 @@ describe('sidebar row action layout', () => {
     }
   })
 
-  it('renders no archive action for a row without actions', () => {
+  it('gives a v2 row the archive action without reserved padding', () => {
     const html = render(
       v2RowOf({
         sessionId: 'v2-a',
@@ -56,7 +56,7 @@ describe('sidebar row action layout', () => {
         updatedAt: agoIso(2),
       }),
     )
-    expect(html).not.toContain('Archive thread')
+    expect(html).toContain('Archive thread')
     expect(html).not.toContain('pr-12')
   })
 })

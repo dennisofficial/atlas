@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'4ee46c5fd44c6032a6b2da39abbe149828438e06f5b1f9adf3b3ada3e7fe7c36'>;
+  StorageHashBase<'85dcc4452034cec7ee4a5b09cd1df11f5ee71c719c5db3a0fc0a9b32ac445c66'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1136,6 +1136,7 @@ export namespace Models {
     readonly [RelationKeys]?: 'session';
   };
   export type v2_V2Session = {
+    archivedAt: FieldOutputTypes['v2']['V2Session']['archivedAt'];
     createdAt: FieldOutputTypes['v2']['V2Session']['createdAt'];
     id: FieldOutputTypes['v2']['V2Session']['id'];
     mainThreadId: FieldOutputTypes['v2']['V2Session']['mainThreadId'];
@@ -6325,6 +6326,13 @@ type ContractBase = Omit<
             };
             readonly V2Session: {
               columns: {
+                readonly archivedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -11614,6 +11622,14 @@ type ContractBase = Omit<
           };
           readonly V2Session: {
             readonly fields: {
+              readonly archivedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -11681,6 +11697,7 @@ type ContractBase = Omit<
               readonly table: 'V2Session';
               readonly namespaceId: 'v2';
               readonly fields: {
+                readonly archivedAt: { readonly column: 'archivedAt' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly id: { readonly column: 'id' };
                 readonly mainThreadId: { readonly column: 'mainThreadId' };

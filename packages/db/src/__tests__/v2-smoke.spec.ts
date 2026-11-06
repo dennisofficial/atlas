@@ -12,6 +12,7 @@ const sessionRow = () => ({
   mainThreadId: 'thr_1',
   nextInboxId: 1,
   createdAt: NOW,
+  archivedAt: null,
 })
 
 describe('v2 namespace client', () => {

@@ -40,6 +40,20 @@ describe('archive runner dispatch', () => {
     )
   })
 
+  it('sends v2 sessions to sessions.archive with the archive flag', async () => {
+    const calls = fakeFetch(() => trpcOk({ archivedAt: null }))
+    for (const archived of [true, false]) {
+      await archiveThread({ threadId: 'v2-a', archived, runner: ERunner.Local, v2: true })
+    }
+    expect(calls).toEqual(
+      [true, false].map((archived) => ({
+        url: mutationUrl('sessions.archive'),
+        method: 'POST',
+        body: { sessionId: 'v2-a', archived },
+      })),
+    )
+  })
+
   it('propagates a local missing-ID failure rather than falling back to cloud', async () => {
     const calls = fakeFetch(() => Response.json({ code: 'not-found' }, { status: 404 }))
     await expect(

@@ -65,12 +65,23 @@ class PostgresTx implements ControlTx {
       mainThreadId: params.mainThreadId,
       nextInboxId: 1,
       createdAt: new Date(params.at),
+      archivedAt: null,
     })
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     const row = await this.tx.orm.v2.V2Session.first({ id: params.sessionId })
     return row === null ? undefined : toSessionRow(row)
+  }
+
+  async setSessionArchived(params: {
+    sessionId: string
+    archivedAt: string | null
+  }): Promise<boolean> {
+    const changed = await this.tx.orm.v2.V2Session.where({ id: params.sessionId }).updateAndCount({
+      archivedAt: params.archivedAt === null ? null : new Date(params.archivedAt),
+    })
+    return changed === 1
   }
 
   async listSessions(params: {

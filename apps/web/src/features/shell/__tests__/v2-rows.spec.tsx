@@ -7,7 +7,13 @@ import { searchHrefOf, searchItemsOf } from '../search-items'
 import { ThreadRow } from '../shell-thread-row'
 import { partitionThreads } from '../thread-partition'
 import { ThreadActionsContext } from '../thread-actions-context'
-import { v2RowOf, v2SessionHref, withV2Sessions, type V2SessionSummary } from '../v2-rows'
+import {
+  v2RowOf,
+  v2SessionHref,
+  v2SessionIdsOf,
+  withV2Sessions,
+  type V2SessionSummary,
+} from '../v2-rows'
 import { agoIso, NOW, projectOf, sessionOf, threadOf } from './fixtures'
 
 const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary => ({
@@ -17,6 +23,7 @@ const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary =>
   mainThreadId: 'thr-a',
   createdAt: agoIso(5),
   updatedAt: agoIso(2),
+  archivedAt: null,
   ...overrides,
 })
 
@@ -41,6 +48,25 @@ describe('v2RowOf', () => {
       projectId: 'p1',
     })
     expect(row.teammates).toEqual([])
+  })
+
+  it('carries the archive stamp so the row lands in the Archived bucket', () => {
+    const stamp = agoIso(1)
+    const row = v2RowOf(summary({ archivedAt: stamp }))
+    expect(row.mainThread.archivedAt).toBe(stamp)
+    const merged = withV2Sessions({
+      entries: entries(),
+      sessions: [summary({ archivedAt: stamp })],
+    })
+    const partition = partitionThreads({ entries: merged, now: NOW })
+    expect(partition.archived[0]?.sessions.map((s) => s.id)).toEqual(['v2-a'])
+    expect(v2RowOf(summary()).mainThread.archivedAt).toBeNull()
+  })
+
+  it('collects the ids of v2 rows only', () => {
+    const merged = withV2Sessions({ entries: entries(), sessions: [summary()] })
+    expect([...v2SessionIdsOf(merged)]).toEqual(['v2-a'])
+    expect(v2SessionIdsOf(undefined).size).toBe(0)
   })
 
   it('leaves the title unset when the session has none', () => {
@@ -102,13 +128,15 @@ const render = (session: ReturnType<typeof v2RowOf>, activeId: string | null = n
   )
 
 describe('ThreadRow for a v2 session', () => {
-  it('shows the v2 tag, links to the session and hides v1-only actions', () => {
+  it('shows the v2 tag, links to the session and offers archive and unarchive', () => {
     const html = render(v2RowOf(summary()))
     expect(html).toContain('href="/sessions/v2-a"')
     expect(html).toContain('data-engine-tag="v2"')
     expect(html).toContain('Fix login')
-    expect(html).not.toContain('Archive thread')
+    expect(html).toContain('Archive thread')
     expect(html).not.toContain('Pinned')
+    const archived = render(v2RowOf(summary({ archivedAt: agoIso(1) })))
+    expect(archived).toContain('Unarchive thread')
   })
 
   it('marks the row current when it is the active session', () => {

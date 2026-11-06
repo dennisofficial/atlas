@@ -6,6 +6,7 @@ import { canonicalEvent, type V2Event } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { EWithdrawRefusal } from '@dltech/atlas-protocol'
 import type {
+  SessionArchiveOutput,
   SessionBlobOutput,
   SessionEventsOutput,
   SessionListOutput,
@@ -36,6 +37,7 @@ const toSummary = (row: ControlSessionDigest) => ({
   mainThreadId: row.mainThreadId,
   createdAt: row.createdAt,
   updatedAt: row.lastEventAt ?? row.createdAt,
+  archivedAt: row.archivedAt,
 })
 
 const toPageEvent = (event: V2Event): Record<string, unknown> => {
@@ -122,6 +124,17 @@ export class SessionsService {
           ? EWithdrawRefusal.AlreadyConsumed
           : EWithdrawRefusal.Unknown,
     }
+  }
+
+  async archive(args: {
+    userId: string
+    sessionId: string
+    archived: boolean
+  }): Promise<SessionArchiveOutput> {
+    await this.requireOwnedSession(args)
+    const archivedAt = args.archived ? new Date().toISOString() : null
+    await this.plane.setSessionArchived({ sessionId: args.sessionId, archivedAt })
+    return { archivedAt }
   }
 
   async events(args: {

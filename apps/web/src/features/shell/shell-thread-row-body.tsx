@@ -94,21 +94,19 @@ export function ThreadRowBody({
       collapsed={collapsed}
       states={states}
       actions={
-        v2 ? undefined : (
-          <RowAction label={archiveLabel} onClick={handleArchive}>
-            {teammate ? (
-              archived ? (
-                <RotateCcw />
-              ) : (
-                <CircleCheck />
-              )
-            ) : archived ? (
-              <ArchiveRestore />
+        <RowAction label={archiveLabel} onClick={handleArchive}>
+          {teammate ? (
+            archived ? (
+              <RotateCcw />
             ) : (
-              <Archive />
-            )}
-          </RowAction>
-        )
+              <CircleCheck />
+            )
+          ) : archived ? (
+            <ArchiveRestore />
+          ) : (
+            <Archive />
+          )}
+        </RowAction>
       }
       indicator={
         pinned ? (

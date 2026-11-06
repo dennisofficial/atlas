@@ -35,6 +35,11 @@ export const sessionWithdrawInputSchema = z.strictObject({
   inboxId: z.number().int().min(1),
 })
 
+export const sessionArchiveInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  archived: z.boolean(),
+})
+
 export const sessionStatusInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
@@ -45,6 +50,7 @@ export type SessionPostInput = z.infer<typeof sessionPostInputSchema>
 export type SessionEventsInput = z.infer<typeof sessionEventsInputSchema>
 export type SessionBlobInput = z.infer<typeof sessionBlobInputSchema>
 export type SessionWithdrawInput = z.infer<typeof sessionWithdrawInputSchema>
+export type SessionArchiveInput = z.infer<typeof sessionArchiveInputSchema>
 export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
 
 export const inboxMessageSchema = z.strictObject({ text: z.string().min(1) })
@@ -65,6 +71,7 @@ export const sessionSummarySchema = z.strictObject({
   mainThreadId: z.string().min(1),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
+  archivedAt: z.string().nullable(),
 })
 
 export const sessionListOutputSchema = z.strictObject({
@@ -111,6 +118,8 @@ export const sessionWithdrawOutputSchema = z.discriminatedUnion('ok', [
   }),
 ])
 
+export const sessionArchiveOutputSchema = z.strictObject({ archivedAt: z.string().nullable() })
+
 export const sessionStatusOutputSchema = z.strictObject({
   state: z.enum(ESessionStatus),
   reason: z.string().optional(),
@@ -128,4 +137,5 @@ export type SessionBlobOutput = z.infer<typeof sessionBlobOutputSchema>
 export type SessionLeaseView = z.infer<typeof sessionLeaseSchema>
 export type SessionQueuedMessage = z.infer<typeof sessionQueuedMessageSchema>
 export type SessionWithdrawOutput = z.infer<typeof sessionWithdrawOutputSchema>
+export type SessionArchiveOutput = z.infer<typeof sessionArchiveOutputSchema>
 export type SessionStatusOutput = z.infer<typeof sessionStatusOutputSchema>

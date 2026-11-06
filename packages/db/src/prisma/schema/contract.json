@@ -8206,6 +8206,16 @@
           },
           "V2Session": {
             "fields": {
+              "archivedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -8309,6 +8319,9 @@
             },
             "storage": {
               "fields": {
+                "archivedAt": {
+                  "column": "archivedAt"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -14530,6 +14543,14 @@
             },
             "V2Session": {
               "columns": {
+                "archivedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -14669,7 +14690,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "4ee46c5fd44c6032a6b2da39abbe149828438e06f5b1f9adf3b3ada3e7fe7c36"
+    "storageHash": "85dcc4452034cec7ee4a5b09cd1df11f5ee71c719c5db3a0fc0a9b32ac445c66"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

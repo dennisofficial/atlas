@@ -1,6 +1,8 @@
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { TRPCError } from '@trpc/server'
 import {
+  sessionArchiveInputSchema,
+  sessionArchiveOutputSchema,
   sessionBlobInputSchema,
   sessionBlobOutputSchema,
   sessionCreateInputSchema,
@@ -15,6 +17,8 @@ import {
   sessionStatusOutputSchema,
   sessionWithdrawInputSchema,
   sessionWithdrawOutputSchema,
+  type SessionArchiveInput,
+  type SessionArchiveOutput,
   type SessionBlobInput,
   type SessionBlobOutput,
   type SessionCreateInput,
@@ -68,6 +72,14 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionWithdrawOutput> {
     return this.sessions.withdraw({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Mutation({ input: sessionArchiveInputSchema, output: sessionArchiveOutputSchema })
+  archive(
+    @Input() input: SessionArchiveInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionArchiveOutput> {
+    return this.sessions.archive({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionEventsInputSchema, output: sessionEventsOutputSchema })
