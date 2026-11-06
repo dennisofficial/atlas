@@ -23,7 +23,11 @@ import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import { ProjectAccess } from './project-access'
 
-export type LeaseView = { epoch: number; holderHostId: number | null; live: boolean }
+export type LeaseView = {
+  epoch: number
+  holderHostId: number | null
+  live: boolean
+}
 
 const EVENTS_DEFAULT_MAX_BYTES = 2_000_000
 const EVENTS_HARD_CEILING_BYTES = 3_500_000
@@ -53,7 +57,10 @@ export class SessionsService {
   }
 
   async create(args: { userId: string; projectId: string; title?: string | undefined }) {
-    await this.accessibleProjectId({ userId: args.userId, projectId: args.projectId })
+    await this.accessibleProjectId({
+      userId: args.userId,
+      projectId: args.projectId,
+    })
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
     await this.plane.createSession({
@@ -77,7 +84,9 @@ export class SessionsService {
       limit: args.limit ?? 100,
     })
     const now = Date.now()
-    return { sessions: sessions.map((digest) => sessionSummaryOf({ digest, now })) }
+    return {
+      sessions: sessions.map((digest) => sessionSummaryOf({ digest, now })),
+    }
   }
 
   async post(args: { userId: string; sessionId: string; text: string }) {
@@ -88,13 +97,14 @@ export class SessionsService {
       kind: INBOX_KIND_MESSAGE,
       payload,
     })
-    if (inboxId === 1 && session.title === null) {
+    if (session.title === null) {
       this.background.keepAlive(
         this.nameSession({
           userId: args.userId,
           sessionId: args.sessionId,
           projectId: session.projectId,
           text: args.text,
+          inboxId,
         }),
       )
     }
@@ -106,17 +116,26 @@ export class SessionsService {
     sessionId: string
     projectId: string
     text: string
+    inboxId: number
   }): Promise<void> {
     try {
       const generated = await this.titler
-        .nameOf({ userId: args.userId, projectId: args.projectId, text: args.text })
+        .nameOf({
+          userId: args.userId,
+          projectId: args.projectId,
+          text: args.text,
+        })
         .catch((failure: unknown) => {
           this.logger.warn(`naming ${args.sessionId} failed: ${String(failure)}`)
           return null
         })
       const title = generated ?? fallbackTitleOf(args.text)
       if (title === null) return
-      await this.plane.titleUntitledSession({ sessionId: args.sessionId, title })
+      await this.plane.titleUntitledSession({
+        sessionId: args.sessionId,
+        title,
+        fromInboxId: args.inboxId,
+      })
     } catch (failure) {
       this.logger.warn(`storing the name of ${args.sessionId} failed: ${String(failure)}`)
     }
@@ -156,7 +175,10 @@ export class SessionsService {
   }): Promise<SessionArchiveOutput> {
     await this.requireOwnedSession(args)
     const archivedAt = args.archived ? new Date().toISOString() : null
-    await this.plane.setSessionArchived({ sessionId: args.sessionId, archivedAt })
+    await this.plane.setSessionArchived({
+      sessionId: args.sessionId,
+      archivedAt,
+    })
     return { archivedAt }
   }
 
@@ -201,7 +223,11 @@ export class SessionsService {
       length: args.length ?? BLOB_READ_DEFAULT_LENGTH,
     })
     if (blob === undefined) throw new NotFoundException('blob not found')
-    return { size: blob.size, offset, bytes: Buffer.from(blob.bytes).toString('base64') }
+    return {
+      size: blob.size,
+      offset,
+      bytes: Buffer.from(blob.bytes).toString('base64'),
+    }
   }
 
   async status(args: { userId: string; sessionId: string }): Promise<SessionStatusOutput> {

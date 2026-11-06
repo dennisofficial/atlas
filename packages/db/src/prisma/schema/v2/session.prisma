@@ -4,7 +4,8 @@ namespace v2 {
     id           String                @id
     userId       String
     projectId    String
-    title        String?
+    title             String?
+    titledFromInboxId Int?
     mainThreadId String
     nextInboxId  Int
     createdAt    TimestamptzJsDate(3)

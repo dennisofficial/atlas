@@ -1,0 +1,54 @@
+[
+  {
+    "id": "column.v2.V2Session.titledFromInboxId",
+    "label": "Add column \"titledFromInboxId\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "titledFromInboxId",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"titledFromInboxId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "titledFromInboxId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"titledFromInboxId\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"titledFromInboxId\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"titledFromInboxId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "titledFromInboxId"
+        ]
+      },
+      {
+        "description": "verify column \"titledFromInboxId\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "titledFromInboxId",
+          "integer"
+        ]
+      }
+    ]
+  }
+]

@@ -55,9 +55,16 @@ describe('SessionsService naming', () => {
     const { service, titler, background } = setup()
     let answer: (title: string) => void = () => undefined
     titler.next = () => new Promise((resolve) => (answer = resolve))
-    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+    })
 
-    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'fix the build' })
+    await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'fix the build',
+    })
 
     const during = await titleOf({ service, sessionId: created.sessionId })
     expect(during?.title).toBeNull()
@@ -75,9 +82,16 @@ describe('SessionsService naming', () => {
   it('stores the fallback title when the titler answers nothing', async () => {
     const { service, background } = setup()
     const text = `${'word '.repeat(40)}end`
-    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+    })
 
-    await service.post({ userId: 'user-a', sessionId: created.sessionId, text })
+    await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text,
+    })
     await background.settle()
 
     const after = await titleOf({ service, sessionId: created.sessionId })
@@ -90,9 +104,16 @@ describe('SessionsService naming', () => {
     titler.next = async () => {
       throw new Error('provider down')
     }
-    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+    })
 
-    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'hello world' })
+    await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'hello world',
+    })
     await background.settle()
 
     const after = await titleOf({ service, sessionId: created.sessionId })
@@ -103,7 +124,10 @@ describe('SessionsService naming', () => {
   it('does not wait for naming before the post returns', async () => {
     const { service, titler } = setup()
     titler.next = () => new Promise(() => undefined)
-    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+    })
 
     const posted = await service.post({
       userId: 'user-a',
@@ -117,16 +141,85 @@ describe('SessionsService naming', () => {
   it('never renames on a second post', async () => {
     const { service, titler, background } = setup()
     titler.next = async () => 'First Name'
-    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+    })
 
-    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'first' })
+    await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'first',
+    })
     await background.settle()
     titler.next = async () => 'Second Name'
-    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'second' })
+    await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'second',
+    })
     await background.settle()
 
     expect((await titleOf({ service, sessionId: created.sessionId }))?.title).toBe('First Name')
     expect(titler.calls).toHaveLength(1)
+  })
+
+  it('renames from the resent message after the titled one is withdrawn', async () => {
+    const { service, titler, background } = setup()
+    titler.next = async () => 'First Name'
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+    })
+    const first = await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'a',
+    })
+    await background.settle()
+
+    await service.withdraw({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      inboxId: first.inboxId,
+    })
+    expect((await titleOf({ service, sessionId: created.sessionId }))?.title).toBeNull()
+
+    titler.next = async () => 'Second Name'
+    await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'b',
+    })
+    await background.settle()
+
+    expect((await titleOf({ service, sessionId: created.sessionId }))?.title).toBe('Second Name')
+    expect(titler.calls.map((call) => call.text)).toEqual(['a', 'b'])
+  })
+
+  it('drops a name that lands after its message was withdrawn', async () => {
+    const { service, titler, background } = setup()
+    let answer: (title: string) => void = () => undefined
+    titler.next = () => new Promise((resolve) => (answer = resolve))
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+    })
+    const posted = await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'a',
+    })
+
+    await service.withdraw({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      inboxId: posted.inboxId,
+    })
+    answer('Stale Name')
+    await background.settle()
+
+    expect((await titleOf({ service, sessionId: created.sessionId }))?.title).toBeNull()
   })
 
   it('never names a session created with a title', async () => {
@@ -137,7 +230,11 @@ describe('SessionsService naming', () => {
       title: 'Kept',
     })
 
-    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'ignored' })
+    await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'ignored',
+    })
     await background.settle()
 
     expect((await titleOf({ service, sessionId: created.sessionId }))?.title).toBe('Kept')

@@ -32,7 +32,10 @@ import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 export const MAX_READ_LIMIT = 1000
 export const MAX_SESSION_LIST_LIMIT = 100
 
-export type ControlPlaneParams = { store: ControlStorePort; clock?: (() => string) | undefined }
+export type ControlPlaneParams = {
+  store: ControlStorePort
+  clock?: (() => string) | undefined
+}
 
 export type { ReadEventsPage } from './read-events'
 export type { TakeBackResult } from './inbox-ops'
@@ -40,7 +43,10 @@ export type { StatusSnapshot } from './status-snapshot'
 
 const clampLimit = (limit: number): number => Math.max(1, Math.min(limit, MAX_READ_LIMIT))
 
-const headOf = (row: ThreadRow): LogHead => ({ seq: row.headSeq, hash: row.headHash })
+const headOf = (row: ThreadRow): LogHead => ({
+  seq: row.headSeq,
+  hash: row.headHash,
+})
 
 export class ControlPlane {
   private readonly store: ControlStorePort
@@ -90,7 +96,11 @@ export class ControlPlane {
     await this.store.transact((tx) => archiveIn({ tx, ...params }))
   }
 
-  async titleUntitledSession(params: { sessionId: string; title: string }): Promise<boolean> {
+  async titleUntitledSession(params: {
+    sessionId: string
+    title: string
+    fromInboxId?: number | undefined
+  }): Promise<boolean> {
     return this.store.transact((tx) => titleUntitledIn({ tx, ...params }))
   }
 
@@ -137,13 +147,20 @@ export class ControlPlane {
 
   async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
     return this.store.transact((tx) =>
-      tx.leasesHeldBy({ hostId: params.hostId, limit: clampLimit(params.limit) }),
+      tx.leasesHeldBy({
+        hostId: params.hostId,
+        limit: clampLimit(params.limit),
+      }),
     )
   }
 
   async createThread(params: { threadId: string; sessionId: string }): Promise<void> {
     await this.store.transact(async (tx) =>
-      tx.createThread({ ...params, visibility: EMPTY_VISIBILITY_TEXT, at: await this.nowIn(tx) }),
+      tx.createThread({
+        ...params,
+        visibility: EMPTY_VISIBILITY_TEXT,
+        at: await this.nowIn(tx),
+      }),
     )
   }
 
@@ -165,7 +182,11 @@ export class ControlPlane {
       }
       if (!(error instanceof SeqConflictError)) throw error
       const head = await this.head({ threadId: params.threadId })
-      return { ok: false, refusal: { kind: 'seq-mismatch', expected: head.seq + 1 }, head }
+      return {
+        ok: false,
+        refusal: { kind: 'seq-mismatch', expected: head.seq + 1 },
+        head,
+      }
     }
   }
 

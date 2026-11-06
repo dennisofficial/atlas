@@ -30,7 +30,7 @@ import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn } from './memory-leases'
 import { sessionDigestsIn } from './memory-digests'
 import { sessionsNeedingHolderIn } from './memory-needing-holder'
-import { cloneState, emptyState, refKey, type State } from './memory-state'
+import { cloneState, emptyState, refKey, sessionRowOf, type State } from './memory-state'
 
 class MemoryTx implements ControlTx {
   private readonly state: State
@@ -72,6 +72,7 @@ class MemoryTx implements ControlTx {
       createdAt: params.at,
       archivedAt: null,
       nextInboxId: 1,
+      titledFromInboxId: null,
     })
     this.state.leases.set(params.sessionId, {
       sessionId: params.sessionId,
@@ -85,9 +86,11 @@ class MemoryTx implements ControlTx {
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     const row = this.state.sessions.get(params.sessionId)
-    if (row === undefined) return undefined
-    const { nextInboxId: _nextInboxId, ...session } = row
-    return { ...session }
+    return row === undefined ? undefined : sessionRowOf(row)
+  }
+
+  async lockSession(sessionId: string): Promise<ControlSessionRow | undefined> {
+    return this.readSession({ sessionId })
   }
 
   async setSessionArchived(params: {
@@ -100,10 +103,23 @@ class MemoryTx implements ControlTx {
     return true
   }
 
-  async setSessionTitleIfUntitled(params: { sessionId: string; title: string }): Promise<boolean> {
+  async setSessionTitleIfUntitled(params: {
+    sessionId: string
+    title: string
+    fromInboxId: number | null
+  }): Promise<boolean> {
     const row = this.state.sessions.get(params.sessionId)
     if (row === undefined || row.title !== null) return false
     row.title = params.title
+    row.titledFromInboxId = params.fromInboxId
+    return true
+  }
+
+  async clearTitleFrom(params: { sessionId: string; inboxId: number }): Promise<boolean> {
+    const row = this.state.sessions.get(params.sessionId)
+    if (row === undefined || row.titledFromInboxId !== params.inboxId) return false
+    row.title = null
+    row.titledFromInboxId = null
     return true
   }
 
@@ -117,7 +133,7 @@ class MemoryTx implements ControlTx {
       .filter((row) => params.projectId === undefined || row.projectId === params.projectId)
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
       .slice(0, params.limit)
-      .map(({ nextInboxId: _nextInboxId, ...session }) => ({ ...session }))
+      .map(sessionRowOf)
   }
 
   async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
@@ -231,7 +247,11 @@ class MemoryTx implements ControlTx {
   }
 
   async claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<Lease[]> {
-    return claimNeedingIn({ state: this.state, presentHosts: this.presentHosts, ...params })
+    return claimNeedingIn({
+      state: this.state,
+      presentHosts: this.presentHosts,
+      ...params,
+    })
   }
 
   async allocateInboxId(sessionId: string): Promise<number> {

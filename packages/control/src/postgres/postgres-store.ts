@@ -27,7 +27,11 @@ import { writeLeaseIn } from './postgres-leases'
 import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn } from './postgres-presence'
 import { sessionDigestsIn } from './postgres-digests'
-import { setSessionArchivedIn, setSessionTitleIfUntitledIn } from './postgres-session-writes'
+import {
+  clearTitleFromIn,
+  setSessionArchivedIn,
+  setSessionTitleIfUntitledIn,
+} from './postgres-session-writes'
 import { sessionsNeedingHolderIn } from './postgres-needing-holder'
 import { claimNeedingIn } from './postgres-claim-next'
 import { toInbox, toLease, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
@@ -64,6 +68,7 @@ class PostgresTx implements ControlTx {
       userId: params.userId,
       projectId: params.projectId,
       title: params.title ?? null,
+      titledFromInboxId: null,
       mainThreadId: params.mainThreadId,
       nextInboxId: 1,
       createdAt: new Date(params.at),
@@ -84,12 +89,25 @@ class PostgresTx implements ControlTx {
     return row === null ? undefined : toSessionRow(row)
   }
 
+  async lockSession(sessionId: string): Promise<ControlSessionRow | undefined> {
+    const row = await this.tx.orm.v2.V2Session.where({ id: sessionId }).forNoKeyUpdate().first()
+    return row === null ? undefined : toSessionRow(row)
+  }
+
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
     return setSessionArchivedIn({ tx: this.tx, ...params })
   }
 
-  async setSessionTitleIfUntitled(params: { sessionId: string; title: string }) {
+  async setSessionTitleIfUntitled(params: {
+    sessionId: string
+    title: string
+    fromInboxId: number | null
+  }) {
     return setSessionTitleIfUntitledIn({ tx: this.tx, ...params })
+  }
+
+  async clearTitleFrom(params: { sessionId: string; inboxId: number }) {
+    return clearTitleFromIn({ tx: this.tx, ...params })
   }
 
   async listSessions(params: {
@@ -210,7 +228,9 @@ class PostgresTx implements ControlTx {
   }
 
   async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
-    const rows = await this.tx.orm.v2.V2Lease.where({ holderHostId: params.hostId })
+    const rows = await this.tx.orm.v2.V2Lease.where({
+      holderHostId: params.hostId,
+    })
       .orderBy((l) => l.sessionId.asc())
       .limit(params.limit)
       .all()
@@ -245,7 +265,10 @@ class PostgresTx implements ControlTx {
   }
 
   async insertInboxEntry(entry: InboxEntry): Promise<void> {
-    await this.tx.orm.v2.V2InboxEntry.create({ ...entry, postedAt: new Date(entry.postedAt) })
+    await this.tx.orm.v2.V2InboxEntry.create({
+      ...entry,
+      postedAt: new Date(entry.postedAt),
+    })
   }
 
   async readInboxEntry(params: { sessionId: string; inboxId: number }) {

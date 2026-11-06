@@ -2,7 +2,15 @@ import type { InboxEntry, Lease } from '@dltech/atlas-core'
 
 import type { BlobRow, ControlSessionRow, StoredEvent, ThreadRow } from '../../port'
 
-export type SessionRow = ControlSessionRow & { nextInboxId: number }
+export type SessionRow = ControlSessionRow & {
+  nextInboxId: number
+  titledFromInboxId: number | null
+}
+
+export const sessionRowOf = (row: SessionRow): ControlSessionRow => {
+  const { nextInboxId: _nextInboxId, titledFromInboxId: _titledFrom, ...session } = row
+  return { ...session }
+}
 
 export type State = {
   sessions: Map<string, SessionRow>

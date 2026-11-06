@@ -8436,6 +8436,13 @@
                   "kind": "scalar"
                 }
               },
+              "titledFromInboxId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "userId": {
                 "nullable": false,
                 "type": {
@@ -8514,6 +8521,9 @@
                 },
                 "title": {
                   "column": "title"
+                },
+                "titledFromInboxId": {
+                  "column": "titledFromInboxId"
                 },
                 "userId": {
                   "column": "userId"
@@ -14876,6 +14886,11 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "titledFromInboxId": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "userId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -14982,7 +14997,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "367f086b8ddb99bd89844b81e34832f7646b1c9538a860aa325459c59b3f3d84"
+    "storageHash": "88da44e40f871a45304a595208c1647379c125fc649092756d0091e8c48dc658"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

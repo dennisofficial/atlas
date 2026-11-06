@@ -78,8 +78,14 @@ export interface ControlTx {
     at: string
   }): Promise<void>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
+  lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>
-  setSessionTitleIfUntitled(params: { sessionId: string; title: string }): Promise<boolean>
+  setSessionTitleIfUntitled(params: {
+    sessionId: string
+    title: string
+    fromInboxId: number | null
+  }): Promise<boolean>
+  clearTitleFrom(params: { sessionId: string; inboxId: number }): Promise<boolean>
   listSessions(params: {
     userId: string
     projectId?: string | undefined
