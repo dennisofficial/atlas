@@ -1,62 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { ControlPlane, fallbackTitleOf } from '@dltech/atlas-control'
-import { InMemoryControlStore } from '@dltech/atlas-control/testing'
-import { BackgroundWork } from '../../../_core/ports/background-work'
-import { SessionTitler } from '../../../_core/ports/session-titler'
-import { ProjectAccess } from './project-access'
-import { FakeMediaRegistry } from './media-registry.fake'
-import { SessionsService } from './sessions.service'
-
-class FakeProjectAccess extends ProjectAccess {
-  async ownerOf(args: { projectId: string }): Promise<string | undefined> {
-    return args.projectId === 'proj-a' ? 'user-a' : undefined
-  }
-}
-
-class FakeTitler extends SessionTitler {
-  readonly calls: { userId: string; projectId: string; text: string }[] = []
-  next: () => Promise<string | null> = async () => null
-
-  async nameOf(args: { userId: string; projectId: string; text: string }) {
-    this.calls.push(args)
-    return this.next()
-  }
-}
-
-class CollectingBackgroundWork extends BackgroundWork {
-  readonly work: Promise<unknown>[] = []
-
-  keepAlive(work: Promise<unknown>): void {
-    this.work.push(work)
-  }
-
-  settle(): Promise<unknown> {
-    return Promise.all(this.work)
-  }
-}
-
-const liveClock = () => new Date().toISOString()
-
-const setup = () => {
-  const store = new InMemoryControlStore({ clock: liveClock })
-  const plane = new ControlPlane({ store })
-  const titler = new FakeTitler()
-  const background = new CollectingBackgroundWork()
-  const service = new SessionsService(
-    plane,
-    new FakeProjectAccess(),
-    titler,
-    background,
-    new FakeMediaRegistry(),
-  )
-  return { service, titler, background }
-}
+import { fallbackTitleOf } from '@dltech/atlas-control'
+import type { SessionsService } from './sessions.service'
+import { listedSession, setupNaming as setup } from './sessions.naming.fixture'
 
 describe('SessionsService naming', () => {
-  const titleOf = async (args: { service: SessionsService; sessionId: string }) => {
-    const listed = await args.service.list({ userId: 'user-a' })
-    return listed.sessions.find((session) => session.sessionId === args.sessionId)
-  }
+  const titleOf = (args: { service: SessionsService; sessionId: string }) => listedSession(args)
 
   it('lists the session as naming right after the first post and titles it once the titler answers', async () => {
     const { service, titler, background } = setup()

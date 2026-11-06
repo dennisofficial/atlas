@@ -46,7 +46,7 @@ export class ThreadTitlingService extends SessionTitler {
     super()
   }
 
-  nameOf(args: { userId: string; projectId: string; text: string }): Promise<string | null> {
+  nameOf(args: TitleSource & { projectId: string }): Promise<string | null> {
     return this.generate(args)
   }
 

@@ -1,3 +1,4 @@
+import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
@@ -23,12 +24,14 @@ export const setupSessionsService = () => {
   store.markHostPresent(9001)
   const plane = new ControlPlane({ store })
   const registry = new FakeMediaRegistry()
+  const mediaStore = new FakeMediaStore()
   const service = new SessionsService(
     plane,
     new FakeProjectAccess(),
     new NoSessionTitler(),
     new NoBackgroundWork(),
     registry,
+    mediaStore,
   )
-  return { plane, service, registry }
+  return { plane, service, registry, mediaStore }
 }

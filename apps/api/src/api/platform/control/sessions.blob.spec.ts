@@ -1,3 +1,4 @@
+import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { describe, expect, it } from 'bun:test'
 import { NotFoundException } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
@@ -41,6 +42,7 @@ describe('SessionsService blob reads', () => {
       new NoSessionTitler(),
       new NoBackgroundWork(),
       new FakeMediaRegistry(),
+      new FakeMediaStore(),
     )
     return { plane, service }
   }

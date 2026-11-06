@@ -1,6 +1,5 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 import { encodePng, mediaPathname } from '@dltech/atlas-core'
-import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { MediaService } from './media.service'
 import { sha256Hex } from './media-validation'
 import { setupSessionsService } from './sessions.service.fixture'
@@ -18,9 +17,9 @@ export const pngBytes = (args: { width: number; height: number; shade?: number }
 
 export const setupMedia = () => {
   const sessions = setupSessionsService()
-  const store = new FakeMediaStore()
+  const store = sessions.mediaStore
   const service = new MediaService(store, sessions.registry, sessions.service)
-  const { service: sessionsService, ...rest } = sessions
+  const { service: sessionsService, mediaStore: _mediaStore, ...rest } = sessions
   const upload = (args: { userId: string; bytes: Uint8Array; hash?: string }) => {
     const hash = args.hash ?? sha256Hex(args.bytes)
     const pathname = mediaPathname({ userId: args.userId, hash })

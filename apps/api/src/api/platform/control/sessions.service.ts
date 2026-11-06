@@ -25,7 +25,8 @@ import type {
 } from '@dltech/atlas-protocol'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
-import { attachedMedia } from './media-attachments'
+import { MediaStore } from '@dltech/atlas-media'
+import { attachedMedia, imagesForNaming, type AttachedMedia } from './media-attachments'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
 
@@ -55,6 +56,7 @@ export class SessionsService {
     @Inject(SessionTitler) private readonly titler: SessionTitler,
     @Inject(BackgroundWork) private readonly background: BackgroundWork,
     @Inject(MediaRegistry) private readonly media: MediaRegistry,
+    @Inject(MediaStore) private readonly mediaStore: MediaStore,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -116,13 +118,14 @@ export class SessionsService {
       kind: INBOX_KIND_MESSAGE,
       payload,
     })
-    if (session.title === null && args.text.trim().length > 0) {
+    if (session.title === null) {
       this.background.keepAlive(
         this.nameSession({
           userId: args.userId,
           sessionId: args.sessionId,
           projectId: session.projectId,
           text: args.text,
+          media,
           inboxId,
         }),
       )
@@ -135,14 +138,21 @@ export class SessionsService {
     sessionId: string
     projectId: string
     text: string
+    media: readonly AttachedMedia[]
     inboxId: number
   }): Promise<void> {
     try {
+      const images = await imagesForNaming({
+        store: this.mediaStore,
+        userId: args.userId,
+        media: args.media,
+      })
       const generated = await this.titler
         .nameOf({
           userId: args.userId,
           projectId: args.projectId,
           text: args.text,
+          ...(images.length === 0 ? {} : { images }),
         })
         .catch((failure: unknown) => {
           this.logger.warn(`naming ${args.sessionId} failed: ${String(failure)}`)
