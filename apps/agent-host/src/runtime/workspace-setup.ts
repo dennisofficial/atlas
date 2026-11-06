@@ -1,4 +1,5 @@
 import {
+  EWorkspaceRepoState,
   EWorkspaceStep,
   EWorkspaceStepOutcome,
   EWorkspaceStepState,
@@ -16,6 +17,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { WorkspaceConfig } from '../config/agent-host-config'
 
 import { materialize, run } from './workspace-clone'
+import { RepoProgress, repoNamesOf } from './workspace-repos'
 import {
   checkSentinels,
   fail,
@@ -30,6 +32,7 @@ import {
 export { MATERIALIZED_SENTINEL, SETUP_SENTINEL, WORKSPACE_STATE_DIR } from './workspace-state'
 
 const SETUP_TIMEOUT_MS = 10 * 60_000
+const SETUP_OUTPUT_TAIL_CHARS = 16_000
 
 const runSetupOnce = async (args: {
   deps: Deps
@@ -37,27 +40,30 @@ const runSetupOnce = async (args: {
   launchDirectory: string
   sentinels: Sentinels
   scrub: (text: string) => string
-}): Promise<void> => {
+  onOutput?: ((text: string) => void) | undefined
+}): Promise<string> => {
   const { deps, setupScript, launchDirectory } = args
-  if (setupScript.trim() === '') return
+  if (setupScript.trim() === '') return ''
   const outcome = await run({
     processes: deps.processes,
     cmd: ['sh', '-c', setupScript],
     cwd: launchDirectory,
     timeoutMs: SETUP_TIMEOUT_MS,
     signal: deps.signal,
+    onOutput: (text) => args.onOutput?.(args.scrub(text)),
   })
+  const output = args.scrub(outcome.output)
   if (!outcome.ok) {
-    const detail = args.scrub(outcome.output)
-    report({ deps, message: 'workspace setup script failed', detail })
-    fail({ deps, message: 'workspace setup script failed', detail })
-    return
+    report({ deps, message: 'workspace setup script failed', detail: output })
+    fail({ deps, message: 'workspace setup script failed', detail: output })
+    return output
   }
   await writeSentinel({
     deps,
     path: args.sentinels.setupRan,
     message: 'setup sentinel write failed; setup is not done',
   })
+  return output
 }
 
 const resultOf = (failures: readonly string[]): PrepareResult =>
@@ -77,6 +83,7 @@ export const ensureWorkspace = async (args: {
   signal?: AbortSignal | undefined
   log?: LogPort | undefined
   onStep?: ((step: WorkspaceStepReport) => void) | undefined
+  onOutput?: ((text: string) => void) | undefined
 }): Promise<PrepareResult> => {
   const failures: string[] = []
   const deps: Deps = {
@@ -100,14 +107,20 @@ export const ensureWorkspace = async (args: {
       body: () => checkSentinels({ deps, sentinels }),
     })
     args.signal?.throwIfAborted()
+    const progress = new RepoProgress({
+      names: repoNamesOf(workspace),
+      emit: (repos) =>
+        onStep?.({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started, repos }),
+    })
     if (state.materialized) {
       onStep?.({
         step: EWorkspaceStep.Clone,
         state: EWorkspaceStepState.Done,
         outcome: EWorkspaceStepOutcome.Skipped,
+        repos: progress.snapshot().map((entry) => ({ ...entry, state: EWorkspaceRepoState.Done })),
       })
     } else {
-      onStep?.({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started })
+      progress.start()
       const materialized = await runInCallScope({
         scopeKey: phases[1] ?? 'setup:clone',
         body: () =>
@@ -118,6 +131,7 @@ export const ensureWorkspace = async (args: {
             launchDirectory,
             stateDir,
             sentinels,
+            progress,
             scrub,
           }),
       })
@@ -127,10 +141,15 @@ export const ensureWorkspace = async (args: {
           step: EWorkspaceStep.Clone,
           state: EWorkspaceStepState.Failed,
           reason: result.ok ? 'clone failed' : result.reason,
+          repos: progress.snapshot(),
         })
         return result
       }
-      onStep?.({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Done })
+      onStep?.({
+        step: EWorkspaceStep.Clone,
+        state: EWorkspaceStepState.Done,
+        repos: progress.snapshot(),
+      })
     }
     args.signal?.throwIfAborted()
     if (state.setupRan || workspace.setupScript.trim() === '') {
@@ -140,8 +159,9 @@ export const ensureWorkspace = async (args: {
         outcome: EWorkspaceStepOutcome.Skipped,
       })
     } else {
-      onStep?.({ step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Started })
-      await runInCallScope({
+      const command = workspace.setupScript
+      onStep?.({ step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Started, command })
+      const output = await runInCallScope({
         scopeKey: phases[2] ?? 'setup:setup',
         body: () =>
           runSetupOnce({
@@ -150,16 +170,19 @@ export const ensureWorkspace = async (args: {
             launchDirectory,
             sentinels,
             scrub,
+            onOutput: args.onOutput,
           }),
       })
       const result = resultOf(failures)
+      const recorded = { command, output: output.slice(-SETUP_OUTPUT_TAIL_CHARS) }
       onStep?.(
         result.ok
-          ? { step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Done }
+          ? { step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Done, ...recorded }
           : {
               step: EWorkspaceStep.Setup,
               state: EWorkspaceStepState.Failed,
               reason: result.reason,
+              ...recorded,
             },
       )
       return result

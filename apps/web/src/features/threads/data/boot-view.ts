@@ -73,6 +73,8 @@ export type BootStepView = {
   state: EBootStepState
   detail?: string
   children?: BootStepChild[]
+  command?: string
+  output?: string
 }
 
 export type BootView = {

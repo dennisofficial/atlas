@@ -89,8 +89,13 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     [snapshot.events, snapshot.overlay],
   )
   const boot = useMemo(
-    () => sessionBootViewOf({ events: snapshot.events, status: snapshot.status }),
-    [snapshot.events, snapshot.status],
+    () =>
+      sessionBootViewOf({
+        events: snapshot.events,
+        status: snapshot.status,
+        setupOutput: snapshot.setupOutput,
+      }),
+    [snapshot.events, snapshot.status, snapshot.setupOutput],
   )
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
   const stateLine = sessionStateLineOf(snapshot)

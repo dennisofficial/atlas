@@ -9,6 +9,7 @@ export class PrepareSteps {
   private listener: PrepareStepReporter | undefined
   private pending: WorkspaceStepReport[] = []
   private open: EWorkspaceStep | undefined
+  private outputListener: ((text: string) => void) | undefined
 
   report(step: WorkspaceStepReport): void {
     this.open = step.state === EWorkspaceStepState.Started ? step.step : undefined
@@ -22,6 +23,14 @@ export class PrepareSteps {
   failOpen(reason: string): void {
     if (this.open === undefined) return
     this.report({ step: this.open, state: EWorkspaceStepState.Failed, reason })
+  }
+
+  output(text: string): void {
+    this.outputListener?.(text)
+  }
+
+  subscribeOutput(listener: (text: string) => void): void {
+    this.outputListener = listener
   }
 
   subscribe(listener: PrepareStepReporter): void {
