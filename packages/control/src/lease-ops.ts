@@ -71,6 +71,7 @@ export class LeaseOps {
     sessionId: string
     wantsHolder: boolean
     epoch: number
+    resetRetry?: boolean | undefined
   }): Promise<RevokeResult> {
     return this.mutateLease({
       sessionId: params.sessionId,
@@ -80,17 +81,26 @@ export class LeaseOps {
           lease,
           wantsHolder: params.wantsHolder,
           epoch: params.epoch,
+          resetRetry: params.resetRetry,
         }),
     })
   }
 
-  async revoke(params: { sessionId: string; wantsHolder: boolean }): Promise<Lease> {
+  async revoke(params: {
+    sessionId: string
+    wantsHolder: boolean
+    resetRetry?: boolean | undefined
+  }): Promise<Lease> {
     const result = await this.mutateLease({
       sessionId: params.sessionId,
       wakeOnWrite: params.wantsHolder,
       decide: (lease) => ({
         ok: true,
-        lease: revoke({ lease, wantsHolder: params.wantsHolder }),
+        lease: revoke({
+          lease,
+          wantsHolder: params.wantsHolder,
+          resetRetry: params.resetRetry,
+        }),
       }),
     })
     if (!result.ok) throw new LeaseConflictError(params.sessionId)

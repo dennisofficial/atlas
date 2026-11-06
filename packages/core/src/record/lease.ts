@@ -47,23 +47,43 @@ export const claimGrant = (params: { lease: Lease; hostId: number; now: string }
   }
 }
 
-export const revoke = (params: { lease: Lease; wantsHolder: boolean }): Lease => ({
+export const MAX_START_ATTEMPTS = 5
+
+export const startVerdict = (params: {
+  attempts: number
+  permanent: boolean
+}): { permanent: boolean; giveUp: boolean } => ({
+  permanent: params.permanent,
+  giveUp: params.permanent || params.attempts >= MAX_START_ATTEMPTS,
+})
+
+export const revoke = (params: {
+  lease: Lease
+  wantsHolder: boolean
+  resetRetry?: boolean | undefined
+}): Lease => ({
   ...params.lease,
   epoch: params.lease.epoch + 1,
   holderHostId: null,
   wantsHolder: params.wantsHolder,
+  ...(params.resetRetry === true ? { attempts: 0, retryAfter: null } : {}),
 })
 
 export const revokeIfEpoch = (params: {
   lease: Lease
   wantsHolder: boolean
   epoch: number
+  resetRetry?: boolean | undefined
 }): RevokeResult => {
   if (params.epoch !== params.lease.epoch) {
     return { ok: false, refusal: { kind: 'stale-epoch', current: params.lease.epoch } }
   }
   return {
     ok: true,
-    lease: revoke({ lease: params.lease, wantsHolder: params.wantsHolder }),
+    lease: revoke({
+      lease: params.lease,
+      wantsHolder: params.wantsHolder,
+      resetRetry: params.resetRetry,
+    }),
   }
 }

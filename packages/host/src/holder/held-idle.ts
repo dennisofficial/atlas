@@ -72,6 +72,7 @@ const revokeAndRewake = async (args: {
     sessionId: deps.sessionId,
     wantsHolder,
     epoch: args.epoch,
+    resetRetry: true,
   })
   if (wantsHolder) return
   const maybePending = await lateInputMaybePending({
@@ -100,6 +101,7 @@ export const teardownHeldSession = async (args: {
         sessionId: deps.sessionId,
         wantsHolder: !args.gaveUpStarting,
         epoch: args.epoch,
+        resetRetry: args.gaveUpStarting,
       })
       .catch(() => undefined)
   }
@@ -143,6 +145,7 @@ export const releaseIdleSession = async (args: {
       sessionId: deps.sessionId,
       wantsHolder: false,
       epoch: args.epoch,
+      resetRetry: true,
     })
     return revoked.ok ? 'released' : 'superseded'
   } catch (error) {
