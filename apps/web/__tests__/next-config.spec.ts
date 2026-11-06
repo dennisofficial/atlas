@@ -19,13 +19,14 @@ afterEach(() => {
 })
 
 describe('next.config', () => {
-  it('transpiles the atlas api-router, client, core, harness, models, ui and wire workspace packages', () => {
+  it('transpiles the atlas api-router, client, core, harness, models, protocol, ui and wire workspace packages', () => {
     expect(nextConfig.transpilePackages).toEqual([
       '@dltech/atlas-api-router',
       '@dltech/atlas-client',
       '@dltech/atlas-core',
       '@dltech/atlas-harness',
       '@dltech/atlas-models',
+      '@dltech/atlas-protocol',
       '@dltech/atlas-ui',
       '@dltech/atlas-wire',
     ])

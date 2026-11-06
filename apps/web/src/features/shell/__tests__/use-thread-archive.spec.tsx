@@ -1,10 +1,13 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
+import * as realSonner from 'sonner'
 
 import { ERunner } from '@dltech/atlas-core'
 import { sessionOf, threadOf as fixtureThread } from './fixtures'
 import type { WireThread } from '@dltech/atlas-wire/web'
+
+const realSonnerExports = { ...realSonner }
 
 const setThreadArchived = mock(async (_args: { threadId: string; archived: boolean }) => {})
 
@@ -29,6 +32,7 @@ beforeAll(() => {
 })
 
 afterAll(async () => {
+  mock.module('sonner', () => realSonnerExports)
   await GlobalRegistrator.unregister()
 })
 

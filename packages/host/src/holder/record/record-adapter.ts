@@ -1,4 +1,5 @@
 import {
+  EInputConsumed,
   chainEvents,
   chainHash,
   toLoopEvent,
@@ -149,7 +150,8 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       if (draft === undefined) continue
       const bodies: V2Body[] = []
       const inboxId = inboxIdOf(draft)
-      if (inboxId !== undefined) bodies.push({ type: 'input-consumed', inboxId })
+      if (inboxId !== undefined)
+        bodies.push({ type: 'input-consumed', inboxId, consumed: EInputConsumed.Message })
       const spilled = spillForAppend({
         body: toRecordBody(draft),
         thresholdBytes: this.args.blobSpillBytes ?? BLOB_SPILL_BYTES,

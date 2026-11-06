@@ -1,7 +1,7 @@
 import { EHeldAction, type Lease, type ThreadId } from '@dltech/atlas-core'
 import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
-import { statusFrame, type SessionRuntime } from './ports'
+import { fireLive, statusFrame, type SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
 import {
   logDriveFault,
@@ -21,6 +21,7 @@ import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
 import { TakeOver } from './held-takeover'
+import { giveUpStarting } from './start-failure-record'
 
 export type { HeldSessionDeps }
 
@@ -46,6 +47,7 @@ export class HeldSession {
   private drainModelOnly = false
   private lostOwnership = false
   private failedToStart = false
+  private gaveUpStarting = false
   private faulted = false
   private ended = false
   private resumePending = false
@@ -79,7 +81,7 @@ export class HeldSession {
   }
 
   get startFailed(): boolean {
-    return this.failedToStart || this.faulted
+    return (this.failedToStart && !this.gaveUpStarting) || this.faulted
   }
 
   notifyWake(): void {
@@ -124,7 +126,11 @@ export class HeldSession {
   private async drive(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<void> {
     const { lease, threadId } = args
     const deps = this.deps
-    deps.bus.live({ sessionId: deps.sessionId, frame: statusFrame({ state: 'starting' }) })
+    fireLive({
+      bus: deps.bus,
+      sessionId: deps.sessionId,
+      frame: statusFrame({ state: 'starting' }),
+    })
     try {
       this.takeOver = new TakeOver(deps, args.claimMs ?? 0)
       const { runtime, record } = await this.takeOver.open({
@@ -167,9 +173,10 @@ export class HeldSession {
         await completion
       }
     } catch (error) {
-      logDriveFault({ deps: this.deps, error })
+      logDriveFault({ deps, error })
       if (!this.lostOwnership && !this.draining && this.reconciler === undefined) {
         this.failedToStart = true
+        this.gaveUpStarting = await giveUpStarting({ deps, threadId, epoch: lease.epoch, error })
       }
     } finally {
       await this.teardown()
@@ -290,6 +297,7 @@ export class HeldSession {
       lostOwnership: this.lostOwnership,
       released: this.release.released,
       failedToStart: this.failedToStart,
+      gaveUpStarting: this.gaveUpStarting,
       epoch: this.leaseEpoch,
     })
   }

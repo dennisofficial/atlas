@@ -81,13 +81,17 @@ const fakeApi = (args: { alwaysDivergent: boolean }) => {
 
 const podLog = async (args: { podHasY: boolean }) => {
   const store = scratchTranscriptStore({ prefix: 'incident' })
-  const append = (draft: object) =>
-    store.log.append({ threadId, runId: toRunId('run-pod'), drafts: [draft as never] })
-  for (let seq = 1; seq < FORK_SEQ; seq += 1) {
-    await append({ type: 'user-said', text: `message ${seq}`, requestId: `req-${seq}` })
-  }
-  await append({ type: 'user-said', text: 'Lets see whats going on here', requestId: 'X' })
-  if (args.podHasY) await append({ type: 'user-said', text: 'hmr?', requestId: 'Y' })
+  const said = (args: { text: string; requestId: string }) => ({
+    type: 'user-said' as const,
+    text: args.text,
+    requestId: args.requestId,
+  })
+  const drafts = Array.from({ length: FORK_SEQ - 1 }, (_, index) =>
+    said({ text: `message ${index + 1}`, requestId: `req-${index + 1}` }),
+  )
+  drafts.push(said({ text: 'Lets see whats going on here', requestId: 'X' }))
+  if (args.podHasY) drafts.push(said({ text: 'hmr?', requestId: 'Y' }))
+  await store.log.append({ threadId, runId: toRunId('run-pod'), drafts })
   return store
 }
 

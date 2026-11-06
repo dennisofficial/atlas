@@ -80,7 +80,7 @@ const tapToolOutput = (liveFrames: ReturnType<typeof createRedisLiveFrames>): vo
   const live = liveFrames.live.bind(liveFrames)
   liveFrames.live = (args) => {
     if (args.frame.type === 'tool-output') appendFileSync(path, args.frame.text)
-    live(args)
+    return live(args)
   }
 }
 

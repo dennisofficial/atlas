@@ -6,7 +6,7 @@ import { ERunFailureKind } from '../../events/run-failure'
 import { EModelWaitCause, EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EProviderFailureKind } from '../../models/provider-failure'
 import { chainEvents } from '../chain-events'
-import type { Hash, V2Body, V2Event } from '../event'
+import { EInputConsumed, type Hash, type V2Body, type V2Event } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
 
 const NOW = '2026-11-03T12:00:00.000Z'
@@ -67,7 +67,12 @@ const branchesObserved = (): V2Event => ({
   worktrees: [],
 })
 
-const inputConsumed = (): V2Event => ({ ...envelope(), type: 'input-consumed', inboxId: 7 })
+const inputConsumed = (consumed: EInputConsumed = EInputConsumed.Stop): V2Event => ({
+  ...envelope(),
+  type: 'input-consumed',
+  inboxId: 7,
+  consumed,
+})
 
 const otherFact = (): V2Event => ({
   ...envelope(),
@@ -328,6 +333,30 @@ describe('sessionStatusOf record-only events after the turn', () => {
       live: true,
     })
     expect(result.state).toBe(ESessionStatus.RunningTool)
+  })
+
+  it('stays thinking when a malformed inbox entry is discarded after a tool result', () => {
+    const result = status({
+      events: [userSaid(), toolDispatched(), toolResult(), inputConsumed(EInputConsumed.Discarded)],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Thinking)
+  })
+
+  it('stays running-tool when an entry is discarded while a tool runs', () => {
+    const result = status({
+      events: [userSaid(), toolDispatched(), inputConsumed(EInputConsumed.Discarded)],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.RunningTool)
+  })
+
+  it('reports idle when an explicit stop is consumed while a tool runs', () => {
+    const result = status({
+      events: [userSaid(), toolDispatched(), inputConsumed(EInputConsumed.Stop)],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Idle)
   })
 
   it('starts a new turn when a message is consumed with its user-said', () => {

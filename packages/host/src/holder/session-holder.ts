@@ -23,6 +23,7 @@ export type SessionHolderArgs = {
   appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
   sweepMs?: number | undefined
+  isPermanentStartError?: ((error: unknown) => boolean) | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
 }
@@ -43,6 +44,7 @@ export class SessionHolder {
   private readonly maxSessions: number
   private readonly appendRetryMs: number
   private readonly idleMinutes: number
+  private readonly isPermanentStartError: (error: unknown) => boolean
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
@@ -71,6 +73,7 @@ export class SessionHolder {
     this.maxSessions = args.maxSessions
     this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
+    this.isPermanentStartError = args.isPermanentStartError ?? (() => false)
     this.log = args.log
     this.resyncRetry = new ResyncRetry({
       timers: args.timers,
@@ -288,6 +291,11 @@ export class SessionHolder {
       appendRetryMs: this.appendRetryMs,
       idleMinutes: this.idleMinutes,
       runtimeFor: this.runtimes,
+      judgeStartFailure: (error) =>
+        this.startBackoff.judge({
+          sessionId: args.sessionId,
+          permanent: this.isPermanentStartError(error),
+        }),
       ...(args.onDrop === undefined ? {} : { onDrop: args.onDrop }),
       log: this.log,
     }
