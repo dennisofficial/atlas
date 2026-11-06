@@ -32,9 +32,10 @@ export function checkSuiteInputOf(suite: CheckSuiteShape): CommitCheckInput {
 }
 
 export async function runnerAppSlugs(args: { tx: Tx; repoFullName: string }): Promise<Set<string>> {
+  const repo = normalizedRepo(args.repoFullName)
   const rows = await args.tx.query(
     args.tx.raw
-      .sql`SELECT DISTINCT "appSlug" FROM "GithubCommitCheck" WHERE "repoFullName" = ${normalizedRepo(args.repoFullName)} AND "checkKey" LIKE 'run:%' AND "appSlug" IS NOT NULL`
+      .sql`SELECT "appSlug" FROM "GithubCommitCheck" WHERE "repoFullName" = ${repo} AND "checkKey" LIKE 'run:%' AND "appSlug" IS NOT NULL GROUP BY "appSlug" HAVING 2 * count(DISTINCT "headSha") >= (SELECT count(DISTINCT "headSha") FROM "GithubCommitCheck" WHERE "repoFullName" = ${repo} AND "checkKey" LIKE 'run:%')`
       .returnsRow({ appSlug: 'pg/text@1' })
       .build(),
   )

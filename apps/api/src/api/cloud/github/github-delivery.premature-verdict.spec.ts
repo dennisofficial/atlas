@@ -152,6 +152,34 @@ describe('premature CI verdicts', () => {
     expect(await verdicts()).toHaveLength(1)
   })
 
+  it('ignores the queued suite of an app that created runs on only a few heads', async () => {
+    const seedRun = (args: { headSha: string; id: number; appSlug: string }) =>
+      db.orm.public.GithubCommitCheck.create({
+        repoFullName: 'compai/app',
+        headSha: args.headSha,
+        checkKey: `run:${args.id}`,
+        name: 'build',
+        outcome: 'passed',
+        sourceUpdatedAt: new Date('2026-11-01T00:00:00Z'),
+        appSlug: args.appSlug,
+      })
+    for (const n of [1, 2, 3])
+      await seedRun({ headSha: `older${n}`, id: 900 + n, appSlug: 'github-actions' })
+    await seedRun({ headSha: 'older1', id: 950, appSlug: 'vercel' })
+    const { service } = await setupTrackedPr(
+      restReading([
+        { id: 1, status: 'completed', app: ACTIONS },
+        { id: 2, status: 'queued', app: { slug: 'vercel' } },
+      ]) as never,
+    )
+
+    await service.handle({ event: 'check_run', payload: runPayload({ id: 11 }) })
+
+    const emitted = await verdicts()
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]).toMatchObject({ payload: { verdict: 'green', settled: true } })
+  })
+
   it('announces green, failed, green across re-runs with distinct keys, and replays quietly', async () => {
     const { service } = await setupTrackedPr(restReading([]) as never)
     const at = (minute: number) => ({
