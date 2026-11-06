@@ -1,3 +1,4 @@
+import { CallInterruptedError } from '@dltech/atlas-core'
 import {
   CallFailureError,
   ECallStatus,
@@ -8,7 +9,7 @@ import {
 } from '@dltech/atlas-protocol'
 import { ECallFailure } from '@dltech/atlas-protocol'
 
-import { markInterrupted, nextKey, scopeDispatchedBootId } from '../call-scope'
+import { nextKey, scopeDispatchedBootId } from '../call-scope'
 import type { RemoteCalls } from '../remote-calls'
 
 const FAILURE_ERRNOS: Readonly<Partial<Record<ECallFailure, string>>> = {
@@ -24,7 +25,9 @@ const FAILURE_ERRNOS: Readonly<Partial<Record<ECallFailure, string>>> = {
 export const throwFailure = (
   result: Extract<CallResult, { status: ECallStatus.Failed }>,
 ): never => {
-  if (result.error.code === ECallFailure.Interrupted) markInterrupted()
+  if (result.error.code === ECallFailure.Interrupted) {
+    throw new CallInterruptedError(result.error.message)
+  }
   const errno = FAILURE_ERRNOS[result.error.code]
   if (errno !== undefined) {
     throw Object.assign(new Error(`${errno}: ${result.error.message}`), { code: errno })

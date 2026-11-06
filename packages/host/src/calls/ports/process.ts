@@ -1,13 +1,21 @@
 import {
-  EProcessTermination,
+  CallInterruptedError,
+  EProcessOutcome,
   ProcessPort,
   type ProcessHandle,
+  type ProcessOutcome,
   type SpawnCommand,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { ECallFailure, ECallStatus, EExecOutcome, type ExecResult } from '@dltech/atlas-protocol'
+import {
+  callFailureOf,
+  ECallFailure,
+  ECallStatus,
+  EExecOutcome,
+  type ExecResult,
+} from '@dltech/atlas-protocol'
 
-import { markInterrupted, nextKey } from '../call-scope'
+import { nextKey } from '../call-scope'
 import type { RemoteCalls } from '../remote-calls'
 
 export const DEFAULT_SANDBOX_COMMANDS: Readonly<Record<string, string>> = {
@@ -18,12 +26,30 @@ export const DEFAULT_SANDBOX_COMMANDS: Readonly<Record<string, string>> = {
 
 const OOM_KILLED_EXIT_CODE = 137
 
-const exitCodeOf = (result: ExecResult): number => {
-  if (result.exitCode !== null) return result.exitCode
-  if (result.outcome === EExecOutcome.OomKilled) return OOM_KILLED_EXIT_CODE
-  if (result.outcome === EExecOutcome.Cancelled) return 130
-  if (result.outcome === EExecOutcome.TimedOut) return 124
-  return 1
+const exitedOutcomeOf = (result: ExecResult): ProcessOutcome => {
+  if (result.outcome === EExecOutcome.OomKilled) return { kind: EProcessOutcome.OomKilled }
+  if (result.exitCode !== null) return { kind: EProcessOutcome.Exited, code: result.exitCode }
+  if (result.outcome === EExecOutcome.Cancelled) return { kind: EProcessOutcome.Exited, code: 130 }
+  if (result.outcome === EExecOutcome.TimedOut) return { kind: EProcessOutcome.Exited, code: 124 }
+  return {
+    kind: EProcessOutcome.Failed,
+    code: ECallFailure.Internal,
+    message: `the command ended without an exit code (${result.outcome})`,
+  }
+}
+
+const failedOutcomeOf = (failure: { code: string; message: string }): ProcessOutcome =>
+  failure.code === ECallFailure.Interrupted
+    ? { kind: EProcessOutcome.Interrupted }
+    : { kind: EProcessOutcome.Failed, code: failure.code, message: failure.message }
+
+const exitCodeOf = (outcome: ProcessOutcome): number => {
+  if (outcome.kind === EProcessOutcome.Exited) return outcome.code
+  if (outcome.kind === EProcessOutcome.OomKilled) return OOM_KILLED_EXIT_CODE
+  if (outcome.kind === EProcessOutcome.Interrupted) {
+    throw new CallInterruptedError('the command was interrupted before it finished')
+  }
+  throw new Error(outcome.message)
 }
 
 const definedEnv = (env: Record<string, string | undefined>): Record<string, string> => {
@@ -52,8 +78,7 @@ export class DaemonProcessPort extends ProcessPort {
       Uint8Array
     >()
     const writer = output.writable.getWriter()
-    let oomKilled = false
-    const exited = this.args.calls
+    const outcome: Promise<ProcessOutcome> = this.args.calls
       .invoke({
         key,
         op: {
@@ -65,29 +90,25 @@ export class DaemonProcessPort extends ProcessPort {
         signal: controller.signal,
         onOutput: (bytes) => void writer.write(bytes),
       })
-      .then((result) => {
-        if (result.status === ECallStatus.Failed) {
-          if (result.error.code === ECallFailure.Interrupted) markInterrupted()
-          return 1
-        }
-        const executed = result.value as ExecResult
-        oomKilled = executed.outcome === EExecOutcome.OomKilled
-        return exitCodeOf(executed)
-      })
-      .catch(() => 1)
+      .then((result) =>
+        result.status === ECallStatus.Failed
+          ? failedOutcomeOf(result.error)
+          : exitedOutcomeOf(result.value as ExecResult),
+      )
+      .catch((error: unknown) => failedOutcomeOf(callFailureOf(error)))
       .finally(() => {
         void writer.close().catch(() => undefined)
         output = null
       })
+    const exited = outcome.then(exitCodeOf)
     exited.catch(() => undefined)
-    const terminatedBy = exited.then(() => (oomKilled ? EProcessTermination.OomKilled : undefined))
     return {
       get stdout() {
         return output === null ? new ReadableStream<Uint8Array>() : output.readable
       },
       stderr: new ReadableStream<Uint8Array>({ start: (sink) => sink.close() }),
       exited,
-      terminatedBy,
+      outcome,
       terminate: () => controller.abort(),
     }
   }

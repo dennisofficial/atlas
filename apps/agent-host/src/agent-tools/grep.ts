@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   AgentFileSystemPort,
+  CallInterruptedError,
   EContentAccess,
   EPathForm,
   EPathPresence,
@@ -15,6 +16,7 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
+import { nullUnlessInterrupted } from './interrupted'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 import { runPosixGrep } from './grep-fallback'
 import {
@@ -172,7 +174,9 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     const searchPath = resolved.path
 
     if (rawPath !== undefined) {
-      const target = await this.files.stat({ path: searchPath, threadId }).catch(() => null)
+      const target = await this.files
+        .stat({ path: searchPath, threadId })
+        .catch(nullUnlessInterrupted)
       if (target === null) {
         return {
           ok: false,
@@ -236,6 +240,7 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
         }
       }
     } catch (error) {
+      if (error instanceof CallInterruptedError) throw error
       return { ok: false, reason: `could not run ${searcher?.name ?? 'grep'}: ${messageOf(error)}` }
     }
 

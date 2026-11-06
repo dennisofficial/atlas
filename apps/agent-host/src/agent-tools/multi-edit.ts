@@ -12,6 +12,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { nullUnlessInterrupted } from './interrupted'
 import { writeFileAtomically } from './atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from './write-guard'
 import { captureText, makeChange } from './capture-text'
@@ -85,7 +86,7 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
           }
         }
 
-        const stats = await this.files.stat({ path, threadId }).catch(() => null)
+        const stats = await this.files.stat({ path, threadId }).catch(nullUnlessInterrupted)
         if (stats === null) return { ok: false, reason: `File does not exist: ${path}` }
         if (!stats.isFile()) return { ok: false, reason: `${path} is not a regular file.` }
 

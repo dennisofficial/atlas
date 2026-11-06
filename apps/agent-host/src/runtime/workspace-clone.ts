@@ -1,6 +1,6 @@
 import { dirname, join } from 'node:path'
 
-import type { ProcessPort } from '@dltech/atlas-core'
+import { EProcessOutcome, outcomeOf, type ProcessPort } from '@dltech/atlas-core'
 import type { WorkspaceConfig } from '../config/agent-host-config'
 import { githubCloneUrlOf } from '../sandbox/constants'
 
@@ -49,11 +49,14 @@ export const run = async (args: {
   const handle = args.processes.spawn({ cmd: args.cmd, cwd: args.cwd })
   const timer = setTimeout(() => handle.terminate(), args.timeoutMs)
   try {
-    const [output, exitCode] = await Promise.all([
+    const [output, outcome] = await Promise.all([
       new Response(handle.stdout).text(),
-      handle.exited,
+      outcomeOf(handle),
     ])
-    return { ok: exitCode === 0, output }
+    if (outcome.kind === EProcessOutcome.Failed) {
+      return { ok: false, output: `${output}${outcome.message}` }
+    }
+    return { ok: outcome.kind === EProcessOutcome.Exited && outcome.code === 0, output }
   } finally {
     clearTimeout(timer)
   }

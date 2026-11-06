@@ -7,17 +7,29 @@ export type SpawnCommand = {
   readonly threadId?: ThreadId | undefined
 }
 
-export enum EProcessTermination {
+export enum EProcessOutcome {
+  Exited = 'exited',
+  Failed = 'failed',
   OomKilled = 'oom-killed',
+  Interrupted = 'interrupted',
 }
+
+export type ProcessOutcome =
+  | { readonly kind: EProcessOutcome.Exited; readonly code: number }
+  | { readonly kind: EProcessOutcome.Failed; readonly code: string; readonly message: string }
+  | { readonly kind: EProcessOutcome.OomKilled }
+  | { readonly kind: EProcessOutcome.Interrupted }
 
 export type ProcessHandle = {
   readonly stdout: ReadableStream<Uint8Array>
   readonly stderr: ReadableStream<Uint8Array>
   readonly exited: Promise<number>
-  readonly terminatedBy?: Promise<EProcessTermination | undefined>
+  readonly outcome?: Promise<ProcessOutcome>
   terminate(): void
 }
+
+export const outcomeOf = (handle: ProcessHandle): Promise<ProcessOutcome> =>
+  handle.outcome ?? handle.exited.then((code) => ({ kind: EProcessOutcome.Exited, code }))
 
 export type PortExposure = {
   readonly containerPort: number

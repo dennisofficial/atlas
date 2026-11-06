@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EProcessTermination } from '@dltech/atlas-core'
+import { EProcessOutcome } from '@dltech/atlas-core'
 import { ECallStatus, EExecOutcome, type CallResult } from '@dltech/atlas-protocol'
 
 import { DaemonProcessPort } from '../..'
@@ -18,17 +18,17 @@ const spawnWith = (result: CallResult) =>
   })
 
 describe('DaemonProcessPort termination', () => {
-  it('reports an oom-killed command as 137 with the oom termination', async () => {
+  it('reports an oom-killed command as 137 with the oom outcome', async () => {
     const handle = spawnWith(execResult({ exitCode: null, outcome: EExecOutcome.OomKilled }))
 
     expect(await handle.exited).toBe(137)
-    expect(await handle.terminatedBy).toBe(EProcessTermination.OomKilled)
+    expect(await handle.outcome).toEqual({ kind: EProcessOutcome.OomKilled })
   })
 
-  it('reports no termination for a command that exited on its own', async () => {
+  it('reports the exit code for a command that exited on its own', async () => {
     const handle = spawnWith(execResult({ exitCode: 3, outcome: EExecOutcome.Exited }))
 
     expect(await handle.exited).toBe(3)
-    expect(await handle.terminatedBy).toBeUndefined()
+    expect(await handle.outcome).toEqual({ kind: EProcessOutcome.Exited, code: 3 })
   })
 })

@@ -1,4 +1,5 @@
 import {
+  CallInterruptedError,
   EBeforeToolDecision,
   hookOutcomeDrafts,
   resolveBeforeTool,
@@ -252,6 +253,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
         ...(args.captureFileChanges ? { captureFileChanges: true } : {}),
       })
     } catch (error) {
+      if (error instanceof CallInterruptedError) throw error
       this.logPort?.error({
         source: 'tools.dispatch',
         message: `the ${args.call.name} tool threw`,

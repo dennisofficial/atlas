@@ -4,6 +4,8 @@ import {
   EContentAccess,
   EPathForm,
   EPathPresence,
+  CallInterruptedError,
+  EProcessOutcome,
   EToolEffect,
   FileSystemPort,
   ProcessPort,
@@ -208,6 +210,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         ...(onOutput === undefined ? {} : { onOutput }),
       })
     } catch (error) {
+      if (error instanceof CallInterruptedError) throw error
       return { ok: false, reason: `the command could not be read back: ${messageOf(error)}` }
     } finally {
       clearTimeout(deadline)
@@ -221,6 +224,15 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       }
     }
 
+    if (read.outcome.kind === EProcessOutcome.Failed) {
+      return {
+        ok: false,
+        reason: `the command could not be run to completion (${read.outcome.code}): ${read.outcome.message}`,
+      }
+    }
+
+    const oomKilled = read.outcome.kind === EProcessOutcome.OomKilled
+    const exitCode = read.outcome.kind === EProcessOutcome.Exited ? read.outcome.code : 137
     const merged = mergeStreams({ stdout: read.stdout, stderr: read.stderr })
 
     return {
@@ -228,18 +240,18 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       output: {
         command,
         description: input.description,
-        exitCode: read.exitCode,
+        exitCode,
         stdout: render(read.stdout),
         stderr: render(read.stderr),
         truncated: merged.truncated,
         timedOut,
-        ...(read.oomKilled ? { oomKilled: true } : {}),
+        ...(oomKilled ? { oomKilled: true } : {}),
       },
       modelText: renderModelText({
         merged: merged.text,
-        exitCode: read.exitCode,
+        exitCode,
         timedOut,
-        oomKilled: read.oomKilled,
+        oomKilled,
         timeoutMs: timeout,
         maximumTimeoutMs: MAXIMUM_TIMEOUT_MS,
       }),
