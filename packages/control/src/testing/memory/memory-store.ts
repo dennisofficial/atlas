@@ -26,6 +26,7 @@ import {
 } from './memory-inbox'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { insertEventsIn, readEventsIn } from './memory-events'
+import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn } from './memory-leases'
 import { sessionDigestsIn } from './memory-digests'
 import { sessionsNeedingHolderIn } from './memory-needing-holder'
@@ -71,6 +72,14 @@ class MemoryTx implements ControlTx {
       createdAt: params.at,
       archivedAt: null,
       nextInboxId: 1,
+    })
+    this.state.leases.set(params.sessionId, {
+      sessionId: params.sessionId,
+      epoch: 0,
+      holderHostId: null,
+      wantsHolder: false,
+      attempts: 0,
+      retryAfter: null,
     })
   }
 
@@ -212,6 +221,10 @@ class MemoryTx implements ControlTx {
     if (current === undefined && params.expectedEpoch !== 0) return false
     this.state.leases.set(params.lease.sessionId, { ...params.lease })
     return true
+  }
+
+  async claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<Lease[]> {
+    return claimNeedingIn({ state: this.state, presentHosts: this.presentHosts, ...params })
   }
 
   async allocateInboxId(sessionId: string): Promise<number> {

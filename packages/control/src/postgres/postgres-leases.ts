@@ -12,6 +12,8 @@ export const writeLeaseIn = async (params: {
     epoch: lease.epoch,
     holderHostId: lease.holderHostId,
     wantsHolder: lease.wantsHolder,
+    attempts: lease.attempts,
+    retryAfter: lease.retryAfter === null ? null : new Date(lease.retryAfter),
   }
   if (existing === null) {
     if (params.expectedEpoch !== 0) return false

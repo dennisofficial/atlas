@@ -16,6 +16,8 @@ export const initialLease = (params: { sessionId: string }): Lease => ({
   epoch: 0,
   holderHostId: null,
   wantsHolder: false,
+  attempts: 0,
+  retryAfter: null,
 })
 
 export class LeaseOps {

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'85dcc4452034cec7ee4a5b09cd1df11f5ee71c719c5db3a0fc0a9b32ac445c66'>;
+  StorageHashBase<'bf1d58bab3431546539e67391d6ef29bb0b5ce7ea1d5de89aa41ab17d18f31f4'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1128,8 +1128,10 @@ export namespace Models {
     readonly [RelationKeys]?: 'session';
   };
   export type v2_V2Lease = {
+    attempts: FieldOutputTypes['v2']['V2Lease']['attempts'];
     epoch: FieldOutputTypes['v2']['V2Lease']['epoch'];
     holderHostId: FieldOutputTypes['v2']['V2Lease']['holderHostId'];
+    retryAfter: FieldOutputTypes['v2']['V2Lease']['retryAfter'];
     sessionId: FieldOutputTypes['v2']['V2Lease']['sessionId'];
     wantsHolder: FieldOutputTypes['v2']['V2Lease']['wantsHolder'];
     session: v2_V2Session;
@@ -6277,6 +6279,16 @@ type ContractBase = Omit<
             };
             readonly V2Lease: {
               columns: {
+                readonly attempts: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
                 readonly epoch: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
@@ -6287,6 +6299,13 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly retryAfter: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly sessionId: {
@@ -11578,6 +11597,10 @@ type ContractBase = Omit<
           };
           readonly V2Lease: {
             readonly fields: {
+              readonly attempts: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly epoch: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
@@ -11585,6 +11608,14 @@ type ContractBase = Omit<
               readonly holderHostId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly retryAfter: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly sessionId: {
                 readonly nullable: false;
@@ -11613,8 +11644,10 @@ type ContractBase = Omit<
               readonly table: 'V2Lease';
               readonly namespaceId: 'v2';
               readonly fields: {
+                readonly attempts: { readonly column: 'attempts' };
                 readonly epoch: { readonly column: 'epoch' };
                 readonly holderHostId: { readonly column: 'holderHostId' };
+                readonly retryAfter: { readonly column: 'retryAfter' };
                 readonly sessionId: { readonly column: 'sessionId' };
                 readonly wantsHolder: { readonly column: 'wantsHolder' };
               };
