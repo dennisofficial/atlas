@@ -6,6 +6,7 @@ import { ERunFailureKind } from '../../events/run-failure'
 import { EModelWaitCause, EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EProviderFailureKind } from '../../models/provider-failure'
 import { ERetryReason } from '../../models/retry'
+import { EFinishReason } from '../../stream/chunk'
 import { chainEvents } from '../chain-events'
 import { EInputConsumed, type Hash, type V2Body, type V2Event } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
@@ -37,11 +38,12 @@ const envelope = (): Pick<
 
 const userSaid = (): V2Event => ({ ...envelope(), type: 'user-said', text: 'hi' })
 
-const assistantSaid = (args: { aborted?: 'handoff' } = {}): V2Event => ({
+const assistantSaid = (args: { aborted?: 'handoff'; finish?: EFinishReason } = {}): V2Event => ({
   ...envelope(),
   type: 'assistant-said',
   parts: [],
   aborted: args.aborted,
+  finish: args.finish,
 })
 
 const toolDispatched = (args: { name?: string } = {}): V2Event => ({
@@ -286,6 +288,34 @@ describe('sessionStatusOf', () => {
   it('reports thinking after a handoff-aborted assistant message under a live lease', () => {
     const result = status({ events: [assistantSaid({ aborted: 'handoff' })], live: true })
     expect(result.state).toBe(ESessionStatus.Thinking)
+  })
+})
+
+describe('sessionStatusOf a step finish reason', () => {
+  it('keeps the turn open when the step ended in tool calls', () => {
+    const events = [userSaid(), assistantSaid({ finish: EFinishReason.ToolCalls })]
+    expect(status({ events, live: true })).toEqual({ state: ESessionStatus.Thinking, since: NOW })
+    expect(status({ events, live: false })).toEqual({ state: ESessionStatus.Resuming, since: NOW })
+  })
+
+  it('ends the turn when the step stopped', () => {
+    const events = [userSaid(), assistantSaid({ finish: EFinishReason.Stop })]
+    expect(status({ events, live: true })).toEqual({ state: ESessionStatus.Idle, since: NOW })
+  })
+
+  it('ends the turn for a row recorded before finish existed', () => {
+    const events = [userSaid(), assistantSaid()]
+    expect(status({ events, live: false })).toEqual({ state: ESessionStatus.Idle, since: NOW })
+  })
+
+  it('stays thinking through the tool round that follows', () => {
+    const events = [
+      userSaid(),
+      assistantSaid({ finish: EFinishReason.ToolCalls }),
+      toolDispatched(),
+      toolResult(),
+    ]
+    expect(status({ events, live: true }).state).toBe(ESessionStatus.Thinking)
   })
 })
 

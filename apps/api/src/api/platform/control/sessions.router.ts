@@ -13,6 +13,8 @@ import {
   sessionPostOutputSchema,
   sessionStatusInputSchema,
   sessionStatusOutputSchema,
+  sessionWithdrawInputSchema,
+  sessionWithdrawOutputSchema,
   type SessionBlobInput,
   type SessionBlobOutput,
   type SessionCreateInput,
@@ -25,6 +27,8 @@ import {
   type SessionPostOutput,
   type SessionStatusInput,
   type SessionStatusOutput,
+  type SessionWithdrawInput,
+  type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { SessionsService } from './sessions.service'
@@ -56,6 +60,14 @@ export class SessionsRouter {
   @Mutation({ input: sessionPostInputSchema, output: sessionPostOutputSchema })
   post(@Input() input: SessionPostInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionPostOutput> {
     return this.sessions.post({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Mutation({ input: sessionWithdrawInputSchema, output: sessionWithdrawOutputSchema })
+  withdraw(
+    @Input() input: SessionWithdrawInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionWithdrawOutput> {
+    return this.sessions.withdraw({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionEventsInputSchema, output: sessionEventsOutputSchema })

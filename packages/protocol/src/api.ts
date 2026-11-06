@@ -30,6 +30,11 @@ export const sessionBlobInputSchema = z.strictObject({
   length: z.number().int().min(1).max(2_000_000).optional(),
 })
 
+export const sessionWithdrawInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  inboxId: z.number().int().min(1),
+})
+
 export const sessionStatusInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
@@ -39,6 +44,7 @@ export type SessionListInput = z.infer<typeof sessionListInputSchema>
 export type SessionPostInput = z.infer<typeof sessionPostInputSchema>
 export type SessionEventsInput = z.infer<typeof sessionEventsInputSchema>
 export type SessionBlobInput = z.infer<typeof sessionBlobInputSchema>
+export type SessionWithdrawInput = z.infer<typeof sessionWithdrawInputSchema>
 export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
 
 export const inboxMessageSchema = z.strictObject({ text: z.string().min(1) })
@@ -83,11 +89,33 @@ export const sessionLeaseSchema = z.strictObject({
   live: z.boolean(),
 })
 
+export const QUEUED_MESSAGES_LIMIT = 20
+
+export const sessionQueuedMessageSchema = z.strictObject({
+  inboxId: z.number().int().min(1),
+  text: z.string(),
+  postedAt: z.string().min(1),
+})
+
+export const EWithdrawRefusal = {
+  AlreadyConsumed: 'already-consumed',
+  Unknown: 'unknown',
+} as const
+
+export const sessionWithdrawOutputSchema = z.discriminatedUnion('ok', [
+  z.strictObject({ ok: z.literal(true) }),
+  z.strictObject({
+    ok: z.literal(false),
+    reason: z.enum([EWithdrawRefusal.AlreadyConsumed, EWithdrawRefusal.Unknown]),
+  }),
+])
+
 export const sessionStatusOutputSchema = z.strictObject({
   state: z.enum(ESessionStatus),
   reason: z.string().optional(),
   since: z.string().optional(),
   lease: sessionLeaseSchema,
+  queued: z.array(sessionQueuedMessageSchema).optional(),
 })
 
 export type SessionCreateOutput = z.infer<typeof sessionCreateOutputSchema>
@@ -97,4 +125,6 @@ export type SessionPostOutput = z.infer<typeof sessionPostOutputSchema>
 export type SessionEventsOutput = z.infer<typeof sessionEventsOutputSchema>
 export type SessionBlobOutput = z.infer<typeof sessionBlobOutputSchema>
 export type SessionLeaseView = z.infer<typeof sessionLeaseSchema>
+export type SessionQueuedMessage = z.infer<typeof sessionQueuedMessageSchema>
+export type SessionWithdrawOutput = z.infer<typeof sessionWithdrawOutputSchema>
 export type SessionStatusOutput = z.infer<typeof sessionStatusOutputSchema>

@@ -1,9 +1,25 @@
 import { describe, expect, it } from 'bun:test'
 
-import { v2EventSchema } from '../event'
-import { mint } from './support'
+import { EFinishReason } from '../../stream/chunk'
+import { chainHash } from '../chain'
+import { chainEvents } from '../chain-events'
+import { v2EventSchema, type V2Event } from '../event'
+import { mint, NOW, runId, threadId } from './support'
 
 describe('v2EventSchema', () => {
+  it('keeps the step finish reason through parsing so the chain hash is unchanged', () => {
+    const [event] = chainEvents({
+      threadId,
+      runId,
+      epoch: 3,
+      at: NOW,
+      bodies: [{ type: 'assistant-said', parts: [], finish: EFinishReason.ToolCalls }],
+    })
+    const parsed = v2EventSchema.parse(JSON.parse(JSON.stringify(event)))
+    expect(parsed).toMatchObject({ finish: EFinishReason.ToolCalls })
+    expect(chainHash(parsed)).toBe(chainHash(event as V2Event))
+  })
+
   it('accepts a minted v1 body event and a record body event', () => {
     const [plain] = mint({ count: 1 })
     expect(v2EventSchema.safeParse(plain).success).toBe(true)

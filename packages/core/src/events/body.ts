@@ -5,7 +5,7 @@ import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EServiceStatus } from '../services/status'
 import type { EModelWaitCause, WaitEpisodeRef, WaitingForModel } from '../model-recovery/waiting'
 import type { EKilledBy } from '../shells/status'
-import type { ModelUsage } from '../stream/chunk'
+import type { EFinishReason, ModelUsage } from '../stream/chunk'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
 import type { NoticeStamp } from './notice-stage'
@@ -127,6 +127,7 @@ export type EventBody =
       placeholder?: EAssistantPlaceholder | undefined
       aborted?: 'handoff' | undefined
       fast?: true | undefined
+      finish?: EFinishReason | undefined
       usage?: StepReading | undefined
     }
   | {

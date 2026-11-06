@@ -21,7 +21,9 @@ import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from './da
 import { sessionCache, sessionStream } from './data/session-stream'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionTranscriptOf } from './data/session-transcript'
+import { useQueuedDock } from './data/use-queued-dock'
 import { useSessionStream } from './data/use-session-stream'
+import { QueuedDock } from './queued-dock'
 
 const noop = () => undefined
 
@@ -92,6 +94,13 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   )
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
   const stateLine = sessionStateLineOf(snapshot)
+  const queuedDock = useQueuedDock({
+    sessionId,
+    queued: snapshot.status?.queued,
+    events: snapshot.events,
+    draft,
+    onDraftChange: setDraft,
+  })
 
   const handleSubmit = async (text: string) => {
     if (text.trim().length === 0) return
@@ -129,6 +138,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               {stateLine}
             </p>
           )}
+          <QueuedDock dock={queuedDock} />
           <ThreadComposer
             value={draft}
             onValueChange={setDraft}

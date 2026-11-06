@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { diagramRepairedSchema } from '../diagrams/diagram-body'
 import { EExecutionLocation } from '../execution/location'
+import { EFinishReason } from '../stream/chunk'
 import { ETldrStatus } from '../tldr/status'
 import {
   EAssistantPlaceholder,
@@ -76,6 +77,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     placeholder: z.enum(EAssistantPlaceholder).optional(),
     aborted: z.literal('handoff').optional(),
     fast: z.literal(true).optional(),
+    finish: z.enum(EFinishReason).optional(),
     usage: stepUsageSchema.optional(),
   }),
   // Zod 4 requires a z.unknown() key to be present, where Zod 3 inferred it optional. A tool call or

@@ -2,6 +2,7 @@ import {
   activeFailure,
   activeStartFailure,
   INBOX_KIND_STOP,
+  type InboxEntry,
   type Lease,
   type LogHead,
   type V2Event,
@@ -16,10 +17,13 @@ export type StatusSnapshot = {
   head: LogHead
   events: V2Event[]
   unconsumedInbox: boolean
+  pendingInbox: InboxEntry[]
   messageAfterFailure: boolean
   lease: Lease
   live: boolean
 }
+
+export const PENDING_INBOX_READ_LIMIT = 100
 
 export const readStatusSnapshotIn = async (params: {
   tx: ControlTx
@@ -39,7 +43,11 @@ export const readStatusSnapshotIn = async (params: {
     limit: params.eventLimit,
     visible: true,
   })
-  const unconsumed = await tx.readInboxEntries({ sessionId, afterId: 0, limit: 1 })
+  const pending = await tx.readInboxEntries({
+    sessionId,
+    afterId: 0,
+    limit: PENDING_INBOX_READ_LIMIT,
+  })
   const { lease, live } = await params.leases.currentLeaseIn({ tx, sessionId })
   const failure = activeStartFailure(page.events) ?? activeFailure(page.events)
   const messageAfterFailure =
@@ -55,7 +63,8 @@ export const readStatusSnapshotIn = async (params: {
   return {
     head: { seq: row.headSeq, hash: row.headHash },
     events: page.events,
-    unconsumedInbox: unconsumed.length > 0,
+    unconsumedInbox: pending.length > 0,
+    pendingInbox: pending,
     messageAfterFailure,
     lease,
     live,
