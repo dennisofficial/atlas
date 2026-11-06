@@ -85,7 +85,7 @@ export type ThreadTranscriptView = {
 function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
   const images = entry.images.length > 0 ? { images: entry.images } : {}
   const uploads = (entry.uploads ?? []).length > 0 ? { uploads: entry.uploads } : {}
-  const media = entry.media.length > 0 ? { media: entry.media } : {}
+  const media = (entry.media ?? []).length > 0 ? { media: entry.media } : {}
   const attached = 'images' in images || 'uploads' in uploads || 'media' in media
   if (!attached && entry.text.trim().length === 0) return null
   return {

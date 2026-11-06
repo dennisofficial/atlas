@@ -52,7 +52,7 @@ export type OperatorSaidEntry = {
   files: readonly string[]
   images: readonly SaidImage[]
   uploads?: readonly SaidUpload[] | undefined
-  media: readonly SaidMedia[]
+  media?: readonly SaidMedia[] | undefined
 }
 
 export type ModelSaidEntry = {

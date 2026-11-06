@@ -35,6 +35,6 @@ describe('operator media', () => {
       { type: 'user-said', text: 'two', media: [media(HASH_B)] },
     ])
     const [entry] = fromTheOperator(deriveTranscript({ events, signals: [] }))
-    expect(entry?.media.map((item) => item.media.hash)).toEqual([HASH_A, HASH_B])
+    expect(entry?.media?.map((item) => item.media.hash)).toEqual([HASH_A, HASH_B])
   })
 })
