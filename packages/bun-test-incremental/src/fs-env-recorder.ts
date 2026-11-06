@@ -44,7 +44,7 @@ function installFs(context: RecorderContext) {
 function installSpawn(context: RecorderContext) {
   const spawns = createSpawnClassifier({
     repoRoot: context.repoRoot,
-    recordFile: (path) => context.current()?.paths[EPathSink.Files].add(path),
+    recordFile: (path) => context.current()?.observe({ path, sink: EPathSink.Files }),
   })
   const marking = (fn: Fn) =>
     function (this: unknown, ...args: unknown[]) {
@@ -84,7 +84,7 @@ function installSpawn(context: RecorderContext) {
   if (typeof bunFile === 'function') {
     bun.file = function (this: unknown, ...args: unknown[]) {
       const path = toRepoPath({ target: args[0], repoRoot: context.repoRoot })
-      if (path) context.current()?.paths[EPathSink.Files].add(path)
+      if (path) context.current()?.observe({ path, sink: EPathSink.Files })
       return bunFile.apply(this, args)
     }
   }

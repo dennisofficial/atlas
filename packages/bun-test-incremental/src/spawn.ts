@@ -10,9 +10,9 @@
  * Runtime reads inside a child script stay invisible; the nightly full run guards that gap.
  */
 import fs from 'node:fs'
-import { basename, dirname, isAbsolute, resolve } from 'node:path'
+import { basename, isAbsolute, resolve } from 'node:path'
+import { traceImports } from './import-graph'
 
-const readSource = fs.readFileSync.bind(fs)
 const realpathSync = fs.realpathSync.bind(fs)
 
 const NO_FILESYSTEM = new Set([
@@ -28,13 +28,6 @@ const NO_FILESYSTEM = new Set([
 ])
 const SCRIPT_RUNNERS = new Set(['bun', 'node'])
 const SCRIPT = /\.[cm]?[jt]sx?$/
-
-type BunGraphApi = {
-  Transpiler: new (options: {
-    loader: 'ts' | 'tsx' | 'js' | 'jsx'
-  }) => { scanImports(code: string): Array<{ path: string }> }
-  resolveSync(specifier: string, from: string): string
-}
 
 export type SpawnVerdict = { command: string; uncacheable: boolean }
 
@@ -80,55 +73,6 @@ export function createSpawnClassifier(params: {
       .map((token) => (isAbsolute(token) ? token : resolve(cwd, token)))
       .filter(insideRepo)
 
-  const scriptGraph = (entry: string, api: BunGraphApi): string[] | undefined => {
-    const transpilers = new Map<string, InstanceType<BunGraphApi['Transpiler']>>()
-    const transpilerFor = (file: string) => {
-      const loader = file.endsWith('.tsx')
-        ? 'tsx'
-        : file.endsWith('.jsx')
-          ? 'jsx'
-          : /\.[cm]?ts$/.test(file)
-            ? 'ts'
-            : 'js'
-      let transpiler = transpilers.get(loader)
-      if (!transpiler) {
-        transpiler = new api.Transpiler({ loader })
-        transpilers.set(loader, transpiler)
-      }
-      return transpiler
-    }
-    const seen = new Set<string>()
-    const stack = [entry]
-    while (stack.length > 0) {
-      const file = stack.pop() as string
-      if (seen.has(file)) continue
-      seen.add(file)
-      if (!SCRIPT.test(file)) continue
-      let code: string
-      try {
-        code = readSource(file, 'utf8')
-      } catch {
-        return undefined
-      }
-      let imports: Array<{ path: string }>
-      try {
-        imports = transpilerFor(file).scanImports(code)
-      } catch {
-        return undefined
-      }
-      for (const { path } of imports) {
-        let resolved: string
-        try {
-          resolved = realpath(api.resolveSync(path, dirname(file)))
-        } catch {
-          continue
-        }
-        if (insideRepo(resolved) && !resolved.includes('/node_modules/')) stack.push(resolved)
-      }
-    }
-    return [...seen]
-  }
-
   const classify = (args: unknown[]): SpawnVerdict => {
     try {
       return classifyOrThrow(args)
@@ -145,11 +89,10 @@ export function createSpawnClassifier(params: {
     const named = repoPathsIn(argv.slice(1), cwd).filter((path) => !path.includes('/node_modules/'))
     if (named.length === 0 && !insideRepo(cwd)) return { command, uncacheable: false }
     const script = named.find((path) => SCRIPT.test(path))
-    const api = (globalThis as { Bun?: Partial<BunGraphApi> }).Bun
-    if (SCRIPT_RUNNERS.has(program) && script && api?.Transpiler && api.resolveSync) {
-      const graph = scriptGraph(realpath(script), api as BunGraphApi)
-      if (graph) {
-        for (const file of graph) recordFile(file)
+    if (SCRIPT_RUNNERS.has(program) && script && repoRoot) {
+      const graph = traceImports({ entry: realpath(script), repoRoot })
+      if (!graph.failure) {
+        for (const file of graph.files) recordFile(file)
         return { command, uncacheable: false }
       }
     }

@@ -1,3 +1,5 @@
+import type { DependencyKey } from './fingerprint'
+
 export enum EMode {
   Run = 'run',
   Force = 'force',
@@ -45,7 +47,9 @@ export class FileRecord {
   readonly env = new Set<string>()
   readonly pending = new Set<PendingOp>()
   readonly spawned: string[] = []
+  readonly inputHashes = new Map<DependencyKey, string>()
   readonly loadedAt = Date.now()
+  onRead: ((op: PendingOp) => void) | undefined
   uncacheable: string | undefined
   failure: string | undefined
   opened = 0
@@ -57,6 +61,11 @@ export class FileRecord {
     readonly absolute: string,
     readonly imports: string[],
   ) {}
+
+  observe(op: PendingOp) {
+    this.onRead?.(op)
+    this.paths[op.sink].add(op.path)
+  }
 
   markUncacheable(reason: string) {
     this.uncacheable ??= reason

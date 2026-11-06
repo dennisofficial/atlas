@@ -56,7 +56,7 @@ function preloadInputs(params: { repoRoot: string; projectRoot: string }) {
   return entries
     .filter((entry): entry is string => typeof entry === 'string')
     .map((entry) => resolve(projectRoot, entry))
-    .flatMap((entry) => traceImports({ entry, repoRoot }))
+    .flatMap((entry) => traceImports({ entry, repoRoot }).files)
 }
 
 export function computeGlobalKey(params: {

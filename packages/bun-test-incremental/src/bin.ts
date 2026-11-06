@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { PRELOAD_PATH } from '../index'
 import { loadConfig } from './config'
+import { hasFilterFlag, PARTIAL_ENV } from './partial-run'
 import { ResultStore } from './store'
 import { EMode } from './types'
 
@@ -18,7 +19,11 @@ if (mode === undefined) {
   process.exit(2)
 }
 
-const env = { ...process.env, BUN_TEST_INCREMENTAL: mode }
+const env = {
+  ...process.env,
+  BUN_TEST_INCREMENTAL: mode,
+  [PARTIAL_ENV]: hasFilterFlag(testArgs) ? '1' : '0',
+}
 const config = loadConfig({ env, cwd: process.cwd() })
 if (config && mode === EMode.Clear && testArgs.length === 0) {
   ResultStore.clear(config.cacheDir)

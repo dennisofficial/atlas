@@ -58,6 +58,7 @@ function track(params: {
   const settle = (ok: boolean) => {
     if (record.pending.delete(op)) record.paths[ok ? sink : EPathSink.Stats].add(path)
   }
+  record.onRead?.(op)
   record.pending.add(op)
   if (mode === 'callback') {
     let index = args.length - 1
