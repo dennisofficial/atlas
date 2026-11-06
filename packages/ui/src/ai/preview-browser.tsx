@@ -35,6 +35,7 @@ export interface PreviewBrowserProps {
   onClose: (id: string) => void
   onOpen: () => void
   address: string
+  loading?: boolean
   canGoBack: boolean
   canGoForward: boolean
   canReload: boolean
@@ -54,6 +55,7 @@ export function PreviewBrowser({
   onClose,
   onOpen,
   address,
+  loading = false,
   canGoBack,
   canGoForward,
   canReload,
@@ -82,6 +84,7 @@ export function PreviewBrowser({
       <PreviewToolbar
         activeId={activeId}
         address={address}
+        loading={loading}
         canGoBack={canGoBack}
         canGoForward={canGoForward}
         canReload={canReload}

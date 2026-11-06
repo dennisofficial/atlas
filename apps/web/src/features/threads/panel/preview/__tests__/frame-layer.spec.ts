@@ -13,7 +13,15 @@ import {
 } from '../../../data/preview-browser/browser-model'
 import { EPreviewGate } from '@/features/desktop/use-preview-origins'
 
-import { EMPTY_REGISTRY, hidden, shown, slotKeyOf, unloaded, withGate } from '../frame-registry'
+import {
+  EMPTY_REGISTRY,
+  hidden,
+  shown,
+  slotKeyOf,
+  unloaded,
+  withGate,
+  withLoading,
+} from '../frame-registry'
 import { framesOf } from '../frames-of'
 import { FRAME_Z, placementFrom, SHEET_FRAME_Z } from '../placement'
 import { ETabPage, tabPageOf } from '../tab-page'
@@ -69,6 +77,14 @@ describe('frame registry', () => {
     const slot = { threadId: 't1', tabId: 'tab-1', element: element() }
     const opened = shown({ registry: EMPTY_REGISTRY, slot })
     expect(unloaded({ registry: opened, key: slotKeyOf(slot) }).opened.size).toBe(0)
+  })
+
+  it('marks and clears a loading frame, keeping the registry when nothing changes', () => {
+    const loading = withLoading({ registry: EMPTY_REGISTRY, key: 't1:tab-1', loading: true })
+    expect(loading.loading.has('t1:tab-1')).toBe(true)
+    expect(withLoading({ registry: loading, key: 't1:tab-1', loading: true })).toBe(loading)
+    expect(withLoading({ registry: loading, key: 't1:tab-1', loading: false }).loading.size).toBe(0)
+    expect(withLoading({ registry: EMPTY_REGISTRY, key: 'x', loading: false })).toBe(EMPTY_REGISTRY)
   })
 
   it('records the desktop gate and keeps the registry when it is unchanged', () => {

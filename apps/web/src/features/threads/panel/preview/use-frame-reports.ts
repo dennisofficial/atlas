@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { updatePreviewBrowser } from '../../data/preview-browser/use-preview-browser'
-import { frameReportOf } from './frame-messages'
+import { EFrameMessage, frameReportOf } from './frame-messages'
+import { changeRegistry, withLoading } from './frame-registry'
 import type { FrameSpec } from './frames-of'
 import { reportedState } from './report-navigation'
 
@@ -20,10 +21,15 @@ export function useFrameReports(): (frame: FrameSpec) => (iframe: HTMLIFrameElem
       })
       const target = report === null ? undefined : held.current.get(report.key)
       if (report === null || target === undefined) return
+      const { message } = report
+      if (message.kind === EFrameMessage.Loading) {
+        changeRegistry((registry) => withLoading({ registry, key: report.key, loading: true }))
+        return
+      }
       updatePreviewBrowser({
         threadId: target.threadId,
         change: ({ state }) =>
-          reportedState({ state, tabId: target.tabId, url: report.url, title: report.title }),
+          reportedState({ state, tabId: target.tabId, url: message.url, title: message.title }),
       })
     }
     window.addEventListener('message', handleMessage)

@@ -5,4 +5,5 @@ export interface PreviewBrowserTab {
   title: string
   url: string
   status?: EPreviewStatus
+  loading?: boolean
 }

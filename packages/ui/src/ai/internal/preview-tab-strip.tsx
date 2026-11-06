@@ -5,10 +5,12 @@ import { Button } from '#components/button'
 import { cn } from '#lib/utils'
 import { PreviewStatusDot } from './preview-status-dot'
 import type { PreviewBrowserTab } from './preview-browser-types'
+import { InlineSpinner } from './status-dot'
 
 const MIDDLE_BUTTON = 1
 
 function TabFavicon({ tab }: { tab: PreviewBrowserTab }) {
+  if (tab.loading) return <InlineSpinner />
   if (tab.status) return <PreviewStatusDot status={tab.status} />
   return <GlobeIcon aria-hidden className="size-3.5 shrink-0" />
 }

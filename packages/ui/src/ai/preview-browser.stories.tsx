@@ -108,6 +108,13 @@ const TABLET: Viewport = { kind: EViewportKind.Fixed, width: 768, height: 1024 }
 
 export const ScaledDevice: Story = { args: { viewport: TABLET } }
 
+export const Loading: Story = {
+  args: {
+    loading: true,
+    tabs: [{ ...TABS[0]!, loading: true }, ...TABS.slice(1)],
+  },
+}
+
 export const NewTab: Story = {
   args: {
     activeId: 't3',

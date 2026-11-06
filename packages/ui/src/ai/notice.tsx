@@ -9,7 +9,7 @@ export interface NoticeProps {
 
 export function Notice({ icon, title, description, action }: NoticeProps) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+    <div className="flex h-full flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
       <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground [&_svg]:size-4">
         {icon}
       </div>

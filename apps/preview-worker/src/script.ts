@@ -1,6 +1,7 @@
 import { ATLAS_WEB_ORIGIN_PATTERNS } from './origins'
 
 export const LOCATION_KIND = 'atlas-preview:location'
+export const LOADING_KIND = 'atlas-preview:loading'
 export const COMMAND_KIND = 'atlas-preview:command'
 
 const ORIGIN_SOURCES = JSON.stringify(ATLAS_WEB_ORIGIN_PATTERNS.map((pattern) => pattern.source))
@@ -30,6 +31,9 @@ export const SCRIPT_SOURCE = `(function () {
   w.addEventListener('DOMContentLoaded', report);
   w.addEventListener('popstate', report);
   w.addEventListener('hashchange', report);
+  w.addEventListener('beforeunload', function () {
+    w.parent.postMessage({ kind: '${LOADING_KIND}' }, '*');
+  });
   var head = w.document.head;
   if (head && w.MutationObserver) {
     new w.MutationObserver(report).observe(head, { childList: true, subtree: true, characterData: true });

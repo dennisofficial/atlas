@@ -48,9 +48,22 @@ function AddressBar({ address, onSubmit }: AddressBarProps) {
   )
 }
 
+function LoadingBar() {
+  return (
+    <div
+      role="progressbar"
+      aria-label="Loading page"
+      className="pointer-events-none absolute inset-x-0 -bottom-px h-0.5 overflow-hidden"
+    >
+      <div className="h-full w-1/3 animate-[preview-loading_1.2s_ease-in-out_infinite] bg-primary motion-reduce:w-full motion-reduce:animate-pulse" />
+    </div>
+  )
+}
+
 export interface PreviewToolbarProps {
   activeId?: string
   address: string
+  loading: boolean
   canGoBack: boolean
   canGoForward: boolean
   canReload: boolean
@@ -64,6 +77,7 @@ export interface PreviewToolbarProps {
 export function PreviewToolbar({
   activeId,
   address,
+  loading,
   canGoBack,
   canGoForward,
   canReload,
@@ -74,7 +88,7 @@ export function PreviewToolbar({
   deviceMenu,
 }: PreviewToolbarProps) {
   return (
-    <div className="flex h-10 shrink-0 items-center gap-0.5 border-b px-1.5">
+    <div className="relative flex h-10 shrink-0 items-center gap-0.5 border-b px-1.5">
       <Button
         variant="ghost"
         size="icon-sm"
@@ -115,6 +129,7 @@ export function PreviewToolbar({
           <ExternalLinkIcon />
         </Button>
       )}
+      {loading ? <LoadingBar /> : null}
     </div>
   )
 }
