@@ -45,7 +45,11 @@ async function mountApp() {
     updatePreviewBrowser({
       threadId,
       change: ({ state }) =>
-        updateTab({ state, id: 'tab-1', change: (tab) => navigated({ tab, url: URL_A }) }),
+        updateTab({
+          state,
+          id: 'tab-1',
+          change: (tab) => navigated({ tab, url: URL_A }),
+        }),
     })
   }
 
@@ -110,5 +114,29 @@ describe('returning to a session', () => {
     const visible = wrappers().filter((wrapper) => !wrapper?.hasAttribute('inert'))
     expect(visible).toHaveLength(1)
     expect(visible[0]?.querySelector('iframe')).toBe(first)
+  })
+})
+
+describe('preview frame permissions', () => {
+  it('lets the page download, pop out, use the clipboard and go fullscreen but not navigate Atlas', async () => {
+    const { host, show } = await mountApp()
+    await show({ threadId: 't1', loaded: true })
+    const iframe = host.querySelector('iframe')
+    const sandbox = (iframe?.getAttribute('sandbox') ?? '').split(' ')
+    const allow = (iframe?.getAttribute('allow') ?? '').split('; ')
+
+    expect(sandbox).toEqual(
+      expect.arrayContaining([
+        'allow-scripts',
+        'allow-same-origin',
+        'allow-downloads',
+        'allow-popups-to-escape-sandbox',
+        'allow-storage-access-by-user-activation',
+      ]),
+    )
+    expect(sandbox.some((token) => token.startsWith('allow-top-navigation'))).toBe(false)
+    expect(allow).toEqual(
+      expect.arrayContaining(['clipboard-write', 'fullscreen', 'camera', 'microphone']),
+    )
   })
 })
