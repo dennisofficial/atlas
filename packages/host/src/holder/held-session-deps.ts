@@ -17,6 +17,5 @@ export type HeldSessionDeps = {
   runtimeFor: SessionRuntimeFactory
   judgeStartFailure?: ((error: unknown) => StartVerdict) | undefined
   onDrop?: (() => void) | undefined
-  onAppendExhausted?: (() => void) | undefined
   log?: LogPort | undefined
 }

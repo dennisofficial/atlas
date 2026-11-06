@@ -253,7 +253,6 @@ export class SessionHolder {
     const session = new HeldSession(
       this.deps({
         sessionId: args.sessionId,
-        hostId: args.hostId,
         onDrop: () => {
           if (this.held.get(args.sessionId) === session) this.held.delete(args.sessionId)
         },
@@ -282,11 +281,7 @@ export class SessionHolder {
     )
   }
 
-  private deps(args: {
-    sessionId: string
-    hostId: number
-    onDrop?: (() => void) | undefined
-  }): HeldSessionDeps {
+  private deps(args: { sessionId: string; onDrop?: (() => void) | undefined }): HeldSessionDeps {
     return {
       sessionId: args.sessionId,
       plane: this.plane,
@@ -302,9 +297,6 @@ export class SessionHolder {
           permanent: this.isPermanentStartError(error),
         }),
       ...(args.onDrop === undefined ? {} : { onDrop: args.onDrop }),
-      onAppendExhausted: () => {
-        this.presence.abandon(args.hostId).catch(() => undefined)
-      },
       log: this.log,
     }
   }

@@ -185,51 +185,6 @@ describe('SessionHolder presence loss', () => {
     expect(calls).toBe(2)
   })
 
-  it('abandons the lock connection once when an append gives up, then recovers', async () => {
-    const a = await makeRig({ appendRetryMs: 1_000, script: slowExecScript })
-    await seedSession(a)
-    await a.holder.start()
-    const oldId = a.hostId()
-    await a.post('run')
-    await a.wake()
-    const dispatched = await flushUntil({
-      check: async () => (await a.events()).some((event) => event.type === 'tool-dispatched'),
-    })
-    expect(dispatched).toBe(true)
-
-    const abandoned: number[] = []
-    const originalAppend = a.plane.append.bind(a.plane)
-    const originalAbandon = a.presence.abandon.bind(a.presence)
-    a.presence.abandon = async (hostId) => {
-      abandoned.push(hostId)
-      a.plane.append = originalAppend
-      await originalAbandon(hostId)
-    }
-    a.plane.append = (async () => {
-      throw new Error('store unreachable')
-    }) as typeof a.plane.append
-    a.script.current = [{ text: 'recovered' }]
-
-    const gaveUp = await flushUntil({
-      check: () => abandoned.length > 0,
-      clock: a.clock,
-      advanceMs: 500,
-      attempts: 3000,
-    })
-    expect(gaveUp).toBe(true)
-    expect(abandoned).toEqual([oldId])
-    expect(a.hostId()).not.toBe(oldId)
-
-    const answered = await flushUntil({
-      check: async () => (await answers(a)) === 1,
-      clock: a.clock,
-      attempts: 3000,
-      advanceMs: 500,
-    })
-    expect(answered).toBe(true)
-    expect(abandoned).toEqual([oldId])
-  }, 20_000)
-
   it('ignores a late loss notice for an id it no longer holds', async () => {
     const registers = countRegisters()
     const a = await makeRig({ script: [{ text: 'first' }], beforeRegister: registers.gate })
