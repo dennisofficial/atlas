@@ -226,12 +226,13 @@ export function transcriptViewOf(args: {
   live: readonly InFlightStep[]
   outputs?: ReadonlyMap<CallId, string>
   reveal?: RevealGate | null
+  thinking?: EThinkingVisibility
 }): ThreadTranscriptView {
   const model = assembleTranscript({
     durable: args.durable.entries,
     live: args.live,
     outputs: args.outputs,
-    thinking: EThinkingVisibility.Stream,
+    thinking: args.thinking ?? EThinkingVisibility.Stream,
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
   })
   const { stamps, fast: fastEvents, repairs } = args.durable

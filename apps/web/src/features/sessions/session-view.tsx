@@ -22,6 +22,7 @@ import { sessionCache, sessionStream } from './data/session-stream'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionTranscriptOf } from './data/session-transcript'
 import { useQueuedDock } from './data/use-queued-dock'
+import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionStream } from './data/use-session-stream'
 import { QueuedDock } from './queued-dock'
 
@@ -84,9 +85,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const working = isSessionWorking(snapshot.status)
+  const reveal = useSessionReveal(snapshot)
   const view = useMemo(
-    () => sessionTranscriptOf({ events: snapshot.events, overlay: snapshot.overlay }),
-    [snapshot.events, snapshot.overlay],
+    () => sessionTranscriptOf({ events: snapshot.events, overlay: snapshot.overlay, reveal }),
+    [snapshot.events, snapshot.overlay, reveal],
   )
   const boot = useMemo(
     () => sessionBootViewOf({ events: snapshot.events, status: snapshot.status }),
