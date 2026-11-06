@@ -1,5 +1,6 @@
 import type { AgentFileSystemPort, ThreadId } from '@dltech/atlas-core'
 
+import { nullUnlessInterrupted } from './interrupted'
 import { withPathLock } from './path-lock'
 import { FileReadStatePort } from './read-state'
 import { movedSince } from './staleness'
@@ -69,7 +70,7 @@ export class VerifyingWriteGuard extends FileWriteGuardPort {
     const view = this.seen.viewOf({ threadId, path })
     if (view === undefined) return false
 
-    const stats = await this.files.stat({ path, threadId }).catch(() => null)
+    const stats = await this.files.stat({ path, threadId }).catch(nullUnlessInterrupted)
     if (stats === null || !stats.isFile()) return false
 
     return await movedSince({ view, stats, path, files: this.files, threadId })

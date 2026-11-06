@@ -1,6 +1,9 @@
 import {
-  EProcessTermination,
+  CallInterruptedError,
+  EProcessOutcome,
+  outcomeOf,
   type ProcessHandle,
+  type ProcessOutcome,
   type ProcessPort,
   type ThreadId,
   type ToolOutputChunk,
@@ -29,8 +32,7 @@ export type Drain = { stop: () => void; done: Promise<void> }
 export type ShellOutput = {
   stdout: Tail
   stderr: Tail
-  exitCode: number
-  oomKilled: boolean
+  outcome: Exclude<ProcessOutcome, { kind: EProcessOutcome.Interrupted }>
 }
 
 export const messageOf = (error: unknown): string =>
@@ -149,13 +151,15 @@ export async function readShell(args: {
     onChunk: tapFor('stderr'),
   })
 
-  const exitCode = await args.shell.exited
-  const oomKilled = (await args.shell.terminatedBy) === EProcessTermination.OomKilled
+  const outcome = await outcomeOf(args.shell)
   await withinReadGrace(Promise.all([stdout.done, stderr.done]))
   stdout.stop()
   stderr.stop()
 
-  return { stdout: stdout.tail(), stderr: stderr.tail(), exitCode, oomKilled }
+  if (outcome.kind === EProcessOutcome.Interrupted) {
+    throw new CallInterruptedError('the command was interrupted before it finished')
+  }
+  return { stdout: stdout.tail(), stderr: stderr.tail(), outcome }
 }
 
 export function render(tail: Tail): string {

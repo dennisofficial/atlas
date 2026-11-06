@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   AgentFileSystemPort,
+  CallInterruptedError,
   EContentAccess,
   EPathForm,
   EPathPresence,
@@ -15,8 +16,10 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
+import { nullUnlessInterrupted } from './interrupted'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 import { runPosixGrep } from './grep-fallback'
+import { runSearcher } from './grep-run'
 import {
   messageOf,
   ripgrepBinaryOf,
@@ -172,7 +175,9 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     const searchPath = resolved.path
 
     if (rawPath !== undefined) {
-      const target = await this.files.stat({ path: searchPath, threadId }).catch(() => null)
+      const target = await this.files
+        .stat({ path: searchPath, threadId })
+        .catch(nullUnlessInterrupted)
       if (target === null) {
         return {
           ok: false,
@@ -199,43 +204,37 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     let stdout: string
     let stderr: string
     let exitCode: number
+    const runPosix = () =>
+      runPosixGrep({
+        pattern,
+        searchPath,
+        cwd: projectDirectory,
+        include: glob,
+        excludeSegments: [
+          ...VERSION_CONTROL_DIRECTORIES,
+          ...DIRECTORIES_RIPGREP_SKIPS_BY_GITIGNORE,
+        ],
+        caseInsensitive: caseInsensitive ?? false,
+        context,
+        signal,
+        processes: this.processes,
+        files: this.files,
+        threadId,
+      })
     try {
-      if (searcher === null) {
-        ;({ stdout, stderr, exitCode } = await runPosixGrep({
-          pattern,
-          searchPath,
-          cwd: projectDirectory,
-          include: glob,
-          excludeSegments: [
-            ...VERSION_CONTROL_DIRECTORIES,
-            ...DIRECTORIES_RIPGREP_SKIPS_BY_GITIGNORE,
-          ],
-          caseInsensitive: caseInsensitive ?? false,
-          context,
-          signal,
-          processes: this.processes,
-          files: this.files,
-          threadId,
-        }))
-      } else {
-        const search = this.processes.spawn({
-          cmd: [...searcher.command],
-          cwd: projectDirectory,
-          threadId,
-        })
-        const handleAbort = (): void => search.terminate()
-        signal.addEventListener('abort', handleAbort, { once: true })
-        try {
-          ;[stdout, stderr, exitCode] = await Promise.all([
-            new Response(search.stdout).text(),
-            new Response(search.stderr).text(),
-            search.exited,
-          ])
-        } finally {
-          signal.removeEventListener('abort', handleAbort)
-        }
-      }
+      const ran =
+        searcher === null
+          ? await runPosix()
+          : ((await runSearcher({
+              searcher,
+              processes: this.processes,
+              cwd: projectDirectory,
+              signal,
+              threadId,
+            })) ?? (await runPosix()))
+      ;({ stdout, stderr, exitCode } = ran)
     } catch (error) {
+      if (error instanceof CallInterruptedError) throw error
       return { ok: false, reason: `could not run ${searcher?.name ?? 'grep'}: ${messageOf(error)}` }
     }
 

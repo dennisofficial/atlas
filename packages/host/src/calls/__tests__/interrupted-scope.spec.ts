@@ -55,7 +55,7 @@ const toolResultOf = (drafts: readonly EventDraft[]) =>
   drafts.find((draft) => draft.type === 'tool-result')
 
 describe('ScopedToolDispatcher across a daemon restart (F17)', () => {
-  it('rewrites the tool-result draft as interrupted when the restart kills the exec mid-call', async () => {
+  it('builds an interrupted tool-result draft when the restart kills the exec mid-call', async () => {
     const daemon = await createInMemoryDaemon({
       version: 'test',
       sandboxName: SANDBOX,

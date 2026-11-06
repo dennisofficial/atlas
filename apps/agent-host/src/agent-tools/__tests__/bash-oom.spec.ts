@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  EProcessTermination,
+  EProcessOutcome,
   ProcessPort,
   toThreadId,
   type ProcessHandle,
@@ -21,7 +21,7 @@ class OomProcessPort extends ProcessPort {
       stdout: new ReadableStream<Uint8Array>({ start: (sink) => sink.close() }),
       stderr: new ReadableStream<Uint8Array>({ start: (sink) => sink.close() }),
       exited: Promise.resolve(137),
-      terminatedBy: Promise.resolve(EProcessTermination.OomKilled),
+      outcome: Promise.resolve({ kind: EProcessOutcome.OomKilled }),
       terminate: () => undefined,
     }
   }

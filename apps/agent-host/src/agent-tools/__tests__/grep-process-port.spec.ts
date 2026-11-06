@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  EProcessOutcome,
   toThreadId,
   type FileSystemPort,
   type ProcessHandle,
@@ -9,6 +10,8 @@ import {
   type ThreadId,
   type ToolOutcome,
 } from '@dltech/atlas-core'
+
+import { ECallFailure } from '@dltech/atlas-protocol'
 
 import { GrepTool } from '../grep'
 
@@ -180,4 +183,36 @@ describe('GrepTool over a ProcessPort', () => {
     expect(processes.spawned[0]?.threadId).toBe(toThreadId('thread-1'))
     expect(processes.probed[0]?.threadId).toBe(toThreadId('thread-1'))
   })
+
+  it('falls back to POSIX grep when the named ripgrep cannot be spawned', async () => {
+    const processes = new MissingRipgrepProcesses()
+
+    const outcome = await searchWith(processes, fakeFiles(['/work/a.ts']))
+
+    expect(outcome.ok).toBe(true)
+    expect(processes.spawned.map((command) => command.cmd[0])).toEqual(['rg', 'grep'])
+  })
 })
+
+class MissingRipgrepProcesses extends FakeProcesses {
+  constructor() {
+    super('rg')
+  }
+
+  override spawn(args: SpawnCommand): ProcessHandle {
+    if (args.cmd[0] !== 'rg') return super.spawn(args)
+    this.spawned.push(args)
+    const failure = new Error('Executable not found in $PATH: "rg"')
+    return {
+      stdout: streamOf(''),
+      stderr: streamOf(''),
+      exited: Promise.reject(failure),
+      outcome: Promise.resolve({
+        kind: EProcessOutcome.Failed,
+        code: ECallFailure.SpawnFailed,
+        message: failure.message,
+      }),
+      terminate: () => undefined,
+    }
+  }
+}

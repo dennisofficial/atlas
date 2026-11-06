@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { ToolDispatcher, type DispatchArgs, type DispatchableCall } from '@dltech/atlas-agent'
-import type { EventDraft } from '@dltech/atlas-core'
+import { CallInterruptedError, type EventDraft } from '@dltech/atlas-core'
 import { callKeySchema } from '@dltech/atlas-protocol'
 
 import { interruptedMessage } from './errors'
@@ -12,7 +12,6 @@ type CallScope = {
   scopeKey: string
   next: number
   dispatchedBootId?: string | undefined
-  interrupted?: boolean | undefined
 }
 
 const storage = new AsyncLocalStorage<CallScope>()
@@ -30,11 +29,6 @@ export const markDispatched = (args: { bootId: string }): void => {
 }
 
 export const scopeDispatchedBootId = (): string | undefined => storage.getStore()?.dispatchedBootId
-
-export const markInterrupted = (): void => {
-  const scope = storage.getStore()
-  if (scope !== undefined) scope.interrupted = true
-}
 
 export const runInCallScope = <T>(args: { scopeKey: string; body(): T }): T =>
   storage.run({ scopeKey: args.scopeKey, next: 0 }, args.body)
@@ -58,19 +52,20 @@ export class ScopedToolDispatcher extends ToolDispatcher {
       next: 0,
     }
     return storage.run(scope, async () => {
-      const drafts = await this.inner.dispatch(args)
-      if (scope.interrupted !== true) return drafts
-      return drafts.map((draft) => {
-        if (draft.type !== 'tool-result' || draft.callId !== args.call.callId) return draft
-        return {
-          ...draft,
+      try {
+        return await this.inner.dispatch(args)
+      } catch (error) {
+        if (!(error instanceof CallInterruptedError)) throw error
+        const interrupted: EventDraft = {
+          type: 'tool-result',
+          callId: args.call.callId,
+          name: args.call.name,
           output: undefined,
-          modelText: undefined,
-          modelParts: undefined,
           error: { message: interruptedMessage(args.call.name) },
           interrupted: true,
         }
-      })
+        return [interrupted]
+      }
     })
   }
 }

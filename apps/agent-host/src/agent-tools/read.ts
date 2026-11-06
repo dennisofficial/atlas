@@ -16,6 +16,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { nullUnlessInterrupted } from './interrupted'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 import { missingPathReason } from './missing-path'
 import { readFile } from './read-file'
@@ -196,7 +197,7 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     if (!resolved.ok) return { ok: false, reason: resolved.reason }
     const path = resolved.path
     const { offset, limit } = input
-    const stats = await this.files.stat({ path, threadId }).catch(() => null)
+    const stats = await this.files.stat({ path, threadId }).catch(nullUnlessInterrupted)
     if (stats === null) {
       return {
         ok: false,

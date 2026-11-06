@@ -13,6 +13,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { nullUnlessInterrupted } from './interrupted'
 import { writeFileAtomically } from './atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from './write-guard'
 import { captureText, captureUnavailableFault, makeChange } from './capture-text'
@@ -194,7 +195,7 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
       threadId,
       path,
       write: async (): Promise<ToolOutcome> => {
-        const stats = await this.files.stat({ path, threadId }).catch(() => null)
+        const stats = await this.files.stat({ path, threadId }).catch(nullUnlessInterrupted)
         if (stats !== null && !stats.isFile()) {
           return { ok: false, reason: `${path} is not a regular file.` }
         }
@@ -204,7 +205,9 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
           let createFault: QualityCoverageDiagnostic | null = null
           let capturedBefore: string | null = existing
           if (capture && existing !== null) {
-            const read = await this.files.readTextForEdit({ path, threadId }).catch(() => null)
+            const read = await this.files
+              .readTextForEdit({ path, threadId })
+              .catch(nullUnlessInterrupted)
             if (read === null) {
               createFault = captureUnavailableFault({
                 path,

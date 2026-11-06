@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   AgentFileSystemPort,
+  CallInterruptedError,
   EContentAccess,
   EPathForm,
   EPathPresence,
@@ -13,6 +14,7 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
+import { nullUnlessInterrupted } from './interrupted'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 
 const RESULT_LIMIT = 100
@@ -43,7 +45,7 @@ async function modifiedAt(args: {
 }): Promise<number> {
   const stats = await args.files
     .stat({ path: args.path, threadId: args.threadId })
-    .catch(() => null)
+    .catch(nullUnlessInterrupted)
   return stats?.mtimeMs ?? 0
 }
 
@@ -105,6 +107,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     try {
       matches = await this.files.glob({ pattern, cwd: from, signal, threadId })
     } catch (error) {
+      if (error instanceof CallInterruptedError) throw error
       return { ok: false, reason: `could not scan ${from} for "${pattern}": ${messageOf(error)}` }
     }
 
