@@ -49,6 +49,8 @@ export const claimGrant = (params: { lease: Lease; hostId: number; now: string }
 
 export const MAX_START_ATTEMPTS = 5
 
+export const crashLooped = (lease: Lease): boolean => lease.attempts > MAX_START_ATTEMPTS
+
 export const startVerdict = (params: {
   attempts: number
   permanent: boolean

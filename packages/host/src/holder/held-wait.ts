@@ -36,7 +36,7 @@ export const consumeStops = async (args: {
 
 export const raceDeadline = (args: {
   deps: HeldSessionDeps
-  done: Promise<void>
+  done: Promise<unknown>
   deadlineMs: number
 }): Promise<'done' | 'late'> => {
   const late = new Promise<'late'>((resolve) => {

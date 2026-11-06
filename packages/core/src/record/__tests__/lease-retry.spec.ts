@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MAX_START_ATTEMPTS, revoke, revokeIfEpoch, startVerdict } from '../lease'
+import { crashLooped, MAX_START_ATTEMPTS, revoke, revokeIfEpoch, startVerdict } from '../lease'
 import { lease } from './support'
 
 const RETRY_AT = '2026-11-02T12:00:08.000Z'
@@ -27,6 +27,13 @@ describe('startVerdict', () => {
       permanent: true,
       giveUp: true,
     })
+  })
+})
+
+describe('crashLooped', () => {
+  it('is true from the sixth claim without a clean settle', () => {
+    expect(crashLooped(lease({ attempts: MAX_START_ATTEMPTS }))).toBe(false)
+    expect(crashLooped(lease({ attempts: MAX_START_ATTEMPTS + 1 }))).toBe(true)
   })
 })
 

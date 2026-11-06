@@ -13,6 +13,7 @@ export type ClaimLoopArgs = {
   claimNext(args: { hostId: number; limit: number }): Promise<Lease[]>
   hold(args: { hostId: number; lease: Lease; claimMs: number }): Promise<void>
   onTick(): Promise<void>
+  settlePending(): Promise<void>
   log: LogPort | undefined
 }
 
@@ -85,6 +86,7 @@ export class ClaimLoop {
   private async runOnce(): Promise<void> {
     const hostId = this.args.hostId()
     if (this.args.draining() || hostId === undefined) return
+    await this.args.settlePending()
     if (this.auditDue) {
       this.auditDue = false
       await this.args.onTick()
