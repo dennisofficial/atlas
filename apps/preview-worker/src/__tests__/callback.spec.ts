@@ -101,7 +101,7 @@ describe('callback host', () => {
     expect(result.status).toBe(302)
     expect(result.headers.get('location')).toBe(google)
     expect(result.headers.getSetCookie()).toEqual([
-      'atlas-preview=desktop; Domain=byatlas.dev; Path=/; Secure; HttpOnly; SameSite=None',
+      'atlas-preview=desktop; Domain=byatlas.dev; Path=/; Secure; HttpOnly; SameSite=None; Max-Age=600',
     ])
   })
 
