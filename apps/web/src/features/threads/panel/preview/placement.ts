@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 export const FRAME_Z = 10
 export const SHEET_FRAME_Z = 51
 const SHEET_CONTENT = '[data-slot="sheet-content"]'
+const DEVICE_FRAME = '[data-slot="preview-stage-device"]'
 
 export type Placement = {
   left: number
@@ -10,6 +11,7 @@ export type Placement = {
   width: number
   height: number
   scale: number
+  radius: number
   zIndex: number
 }
 
@@ -17,16 +19,25 @@ export function placementFrom(args: {
   rect: { left: number; top: number; width: number }
   layout: { width: number; height: number }
   inSheet: boolean
+  deviceRadius: number
 }): Placement {
-  const { rect, layout, inSheet } = args
+  const { rect, layout, inSheet, deviceRadius } = args
+  const scale = layout.width > 0 ? rect.width / layout.width : 1
   return {
     left: rect.left,
     top: rect.top,
     width: layout.width,
     height: layout.height,
-    scale: layout.width > 0 ? rect.width / layout.width : 1,
+    scale,
+    radius: scale > 0 ? deviceRadius / scale : deviceRadius,
     zIndex: inSheet ? SHEET_FRAME_Z : FRAME_Z,
   }
+}
+
+function deviceRadiusOf(slot: HTMLElement): number {
+  const device = slot.closest(DEVICE_FRAME)
+  if (device === null) return 0
+  return Number.parseFloat(getComputedStyle(device).borderTopLeftRadius) || 0
 }
 
 const placementOf = (slot: HTMLElement): Placement =>
@@ -34,6 +45,7 @@ const placementOf = (slot: HTMLElement): Placement =>
     rect: slot.getBoundingClientRect(),
     layout: { width: slot.offsetWidth, height: slot.offsetHeight },
     inSheet: slot.closest(SHEET_CONTENT) !== null,
+    deviceRadius: deviceRadiusOf(slot),
   })
 
 function applyPlacement(args: { frame: HTMLElement; placement: Placement }): void {
@@ -45,6 +57,7 @@ function applyPlacement(args: { frame: HTMLElement; placement: Placement }): voi
     height: `${placement.height}px`,
     transform: `scale(${placement.scale})`,
     transformOrigin: 'top left',
+    borderRadius: `${placement.radius}px`,
     zIndex: String(placement.zIndex),
   })
 }

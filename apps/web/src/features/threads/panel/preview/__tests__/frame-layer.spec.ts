@@ -148,6 +148,7 @@ describe('placementFrom', () => {
       rect: { left: 10, top: 20, width: 187.5 },
       layout: { width: 375, height: 667 },
       inSheet: false,
+      deviceRadius: 6,
     })
     expect(placement).toEqual({
       left: 10,
@@ -155,14 +156,17 @@ describe('placementFrom', () => {
       width: 375,
       height: 667,
       scale: 0.5,
+      radius: 12,
       zIndex: FRAME_Z,
     })
     const inSheet = placementFrom({
       rect: { left: 0, top: 0, width: 0 },
       layout: { width: 0, height: 0 },
       inSheet: true,
+      deviceRadius: 0,
     })
     expect(inSheet.scale).toBe(1)
+    expect(inSheet.radius).toBe(0)
     expect(inSheet.zIndex).toBe(SHEET_FRAME_Z)
   })
 })
