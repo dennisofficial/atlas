@@ -114,6 +114,7 @@ export const createLoopRunner = (args: {
   record: SessionRecord
   turns: HeldTurns
   threadId: ThreadId
+  epoch: number
   isModelOnlyDrain(): boolean
 }): LoopTurnRunner => {
   const { deps, runtime, record, threadId } = args
@@ -136,7 +137,10 @@ export const createLoopRunner = (args: {
       new HookedToolDispatcher({ registry: runtime.tools, hooks: new HookChain({}) }),
     ),
     intake,
-    output: args.turns.liveOutput({ headSeq: () => record.eventCache().currentHead().seq }),
+    output: args.turns.liveOutput({
+      headSeq: () => record.eventCache().currentHead().seq,
+      epoch: args.epoch,
+    }),
     detachTool: (tool) => args.isModelOnlyDrain() && runtime.daemonTools.has(tool),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
@@ -157,6 +161,7 @@ export const wireHeldLoop = (args: {
   turns: HeldTurns
   threadId: ThreadId
   signal: AbortSignal
+  epoch: number
   isModelOnlyDrain(): boolean
 }): { runner: LoopTurnRunner; branches: BranchObserver } => {
   const runner = createLoopRunner(args)

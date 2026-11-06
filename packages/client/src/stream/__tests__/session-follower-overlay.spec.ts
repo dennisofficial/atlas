@@ -117,7 +117,12 @@ describe('the session follower overlay', () => {
     follower.handleMessage({
       type: 'frame',
       id: 's1',
-      frame: { type: 'step-end', key: stepKey, reason: EStepEndReason.Finished },
+      frame: {
+        type: 'step-end',
+        key: stepKey,
+        reason: EStepEndReason.Finished,
+        at: { epoch: 1, n: 0 },
+      },
     })
     expect(follower.getSnapshot().overlay?.ended).toBe(true)
     expect(textOf()).toBe('Hel')

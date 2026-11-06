@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'bun:test'
+import { afterAll, describe, it } from 'bun:test'
 
 import { Redis } from 'ioredis'
 
@@ -12,6 +12,10 @@ import { createRedisLiveSource } from '../redis-live-source'
 import type { LiveSource } from '../../stream/live-source'
 
 const url = process.env.ATLAS_TEST_REDIS_URL ?? 'redis://127.0.0.1:55442'
+const stampSeq = (): (() => { epoch: number; n: number }) => {
+  let n = 0
+  return () => ({ epoch: 1, n: n++ })
+}
 const KEY = { runId: 'run-1', step: 0, attempt: 0 }
 
 describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live source', () => {
@@ -33,10 +37,18 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
     const overlay = new LiveOverlay({ source, timers: systemHostTimers, log: undefined })
     const sent: StreamServerMessage[] = []
     overlay.add({ id: 'sub-1', sessionId, send: (m) => sent.push(m), bufferedAmount: () => 0 })
+    const stamp = stampSeq()
     const delta = (args: { from: number; text: string }) =>
       producer.live({
         sessionId,
-        frame: { type: 'delta', key: KEY, block: 'b1', kind: EStreamBlockKind.Text, ...args },
+        frame: {
+          type: 'delta',
+          key: KEY,
+          block: 'b1',
+          kind: EStreamBlockKind.Text,
+          at: stamp(),
+          ...args,
+        },
       })
     const text = (): string => {
       let out = ''
@@ -46,13 +58,16 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
       }
       return out
     }
-    return { producer, overlay, sent, delta, text }
+    return { producer, overlay, sent, delta, text, stamp }
   }
 
   it('joins mid-step with the text so far and follows the rest', async () => {
     const sessionId = `join-${Date.now()}`
-    const { producer, delta, text, sent } = setup(sessionId)
-    producer.live({ sessionId, frame: { type: 'step-start', key: KEY, afterSeq: 0 } })
+    const { producer, delta, text, sent, stamp } = setup(sessionId)
+    producer.live({
+      sessionId,
+      frame: { type: 'step-start', key: KEY, afterSeq: 0, at: stamp() },
+    })
     delta({ from: 0, text: 'Hello' })
     await until(() => sent.some((m) => m.type === 'overlay'), 'the first overlay')
     delta({ from: 5, text: ', world' })
@@ -61,8 +76,11 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
 
   it('re-snapshots every watcher after its subscriber connection is killed', async () => {
     const sessionId = `gap-${Date.now()}`
-    const { producer, delta, text, sent } = setup(sessionId)
-    producer.live({ sessionId, frame: { type: 'step-start', key: KEY, afterSeq: 0 } })
+    const { producer, delta, text, sent, stamp } = setup(sessionId)
+    producer.live({
+      sessionId,
+      frame: { type: 'step-start', key: KEY, afterSeq: 0, at: stamp() },
+    })
     delta({ from: 0, text: 'abc' })
     await until(() => text() === 'abc', 'the first text')
     const overlays = sent.filter((m) => m.type === 'overlay').length

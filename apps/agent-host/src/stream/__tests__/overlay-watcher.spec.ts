@@ -1,17 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { EStepEndReason } from '@dltech/atlas-core'
-import {
-  EStreamBlockKind,
-  EStreamClearReason,
-  type LiveFrame,
-  type StreamServerMessage,
-  type StreamStepKey,
-} from '@dltech/atlas-protocol'
+import { EStreamBlockKind, EStreamClearReason, type StreamStepKey } from '@dltech/atlas-protocol'
 
 import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
 import { STATUS_COALESCE_MS } from '../status-views'
-import { FakeLiveSource } from './fake-live-source'
+import { FakeLiveSource, type TestFrame } from './fake-live-source'
 import { FollowRig, SESSION } from './follow-rig'
 import { ClientOverlay } from './overlay-client'
 
@@ -23,7 +17,7 @@ const delta = (args: {
   block?: string
   key?: StreamStepKey
   kind?: EStreamBlockKind
-}): LiveFrame => ({
+}): TestFrame => ({
   type: 'delta',
   key: args.key ?? KEY,
   block: args.block ?? 'b1',
@@ -47,7 +41,7 @@ describe('live overlay', () => {
     rig.dispose()
   })
 
-  const publish = (frame: LiveFrame): void => live.publish({ sessionId: SESSION, frame })
+  const publish = (frame: TestFrame): void => live.publish({ sessionId: SESSION, frame })
   const overlayMessages = () =>
     rig.sent.filter((m) => ['overlay', 'delta', 'overlay-clear', 'frame'].includes(m.type))
   const client = (): ClientOverlay => {
@@ -90,7 +84,7 @@ describe('live overlay', () => {
   })
 
   it('a publisher racing the join yields the producer text with no gap and no duplicate', async () => {
-    const producer: LiveFrame[] = [{ type: 'step-start', key: KEY, afterSeq: 0 }]
+    const producer: TestFrame[] = [{ type: 'step-start', key: KEY, afterSeq: 0 }]
     const texts = ['The ', 'quick ', 'brown ', 'fox ', 'jumps ', 'over ', 'the ', 'dog']
     const thoughts = ['hm', 'mm', ' ok']
     const offsets = { b1: 0, r1: 0 }
@@ -181,7 +175,7 @@ describe('live overlay', () => {
     await rig.settled()
     publish({ type: 'step-end', key: KEY, reason: EStepEndReason.Finished })
     publish(delta({ from: 0, text: 'stale' }))
-    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
+    publish({ type: 'step-start', key: KEY, afterSeq: 0, at: { epoch: 1, n: 0 } })
     await rig.settled()
     expect(rig.frames('frame').map((m) => m.frame.type)).toEqual(['step-end'])
     expect(rig.frames('delta')).toEqual([])

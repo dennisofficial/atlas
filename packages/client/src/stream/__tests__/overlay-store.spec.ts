@@ -46,7 +46,12 @@ const delta = (params: { key: StreamStepKey; from: number; text: string }): Over
 const stepEnd = (stepKey: StreamStepKey): OverlayMessage => ({
   type: 'frame',
   id: 's1',
-  frame: { type: 'step-end', key: stepKey, reason: EStepEndReason.Finished },
+  frame: {
+    type: 'step-end',
+    key: stepKey,
+    reason: EStepEndReason.Finished,
+    at: { epoch: 1, n: 0 },
+  },
 })
 
 const run = (messages: readonly OverlayMessage[]) => {

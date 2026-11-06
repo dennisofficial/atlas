@@ -154,6 +154,7 @@ export class HeldSession {
         turns: this.turns,
         threadId,
         signal: this.lifetimeAbort.signal,
+        epoch: lease.epoch,
         isModelOnlyDrain: () => this.drainModelOnly,
       })
       this.branches = branches

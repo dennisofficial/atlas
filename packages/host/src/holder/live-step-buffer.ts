@@ -1,6 +1,6 @@
 import type { StepKey, StepStreamEvent } from '@dltech/atlas-agent'
 import type { EStepEndReason } from '@dltech/atlas-core'
-import { EStreamBlockKind, type LiveFrame } from '@dltech/atlas-protocol'
+import { EStreamBlockKind, type FrameStamp, type LiveFrame } from '@dltech/atlas-protocol'
 
 import type { HostTimers } from './ports'
 
@@ -28,14 +28,20 @@ const kindOf = (type: string): EStreamBlockKind | undefined => {
   return undefined
 }
 
+type Without<F> = F extends unknown ? Omit<F, 'at'> : never
+
+type Unstamped = Without<Extract<LiveFrame, { at: FrameStamp }>>
+
 export class LiveStepBuffer {
   private step: ActiveStep | undefined
+  private n = 0
 
   constructor(
     private readonly args: {
       timers: HostTimers
       emit: (frame: LiveFrame) => Promise<void>
       headSeq: () => number
+      epoch: number
     },
   ) {}
 
@@ -69,15 +75,23 @@ export class LiveStepBuffer {
     this.send({ step, frame: { type: 'step-start', key, afterSeq: step.afterSeq } })
   }
 
+  private stamp(frame: Unstamped): LiveFrame {
+    const at = { epoch: this.args.epoch, n: this.n }
+    this.n += 1
+    return { ...frame, at }
+  }
+
   private close(args: { key: StepKey; reason: EStepEndReason }): void {
     if (this.step !== undefined) this.flush(this.step)
     this.drop()
-    this.args.emit({ type: 'step-end', key: args.key, reason: args.reason }).catch(() => undefined)
+    this.args
+      .emit(this.stamp({ type: 'step-end', key: args.key, reason: args.reason }))
+      .catch(() => undefined)
   }
 
-  private send(args: { step: ActiveStep; frame: LiveFrame }): void {
+  private send(args: { step: ActiveStep; frame: Unstamped }): void {
     const { step, frame } = args
-    this.args.emit(frame).catch(() => this.markResync(step))
+    this.args.emit(this.stamp(frame)).catch(() => this.markResync(step))
   }
 
   private markResync(step: ActiveStep): void {
