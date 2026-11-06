@@ -13,6 +13,7 @@ import {
 import {
   describeControlPlaneBlobs,
   describeControlPlaneChanges,
+  describeControlPlaneClaimNext,
   describeControlPlaneClaims,
   describeControlPlaneConformance,
   describeControlPlanePresence,
@@ -95,6 +96,7 @@ const conformanceParams = {
 describeControlPlaneConformance(conformanceParams)
 describeControlPlaneSessions(conformanceParams)
 describeControlPlaneClaims(conformanceParams)
+describeControlPlaneClaimNext(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
 describeControlPlaneChanges(conformanceParams)

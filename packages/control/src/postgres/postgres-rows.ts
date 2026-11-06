@@ -1,8 +1,24 @@
-import type { Hash, InboxEntry } from '@dltech/atlas-core'
+import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
 
 import type { ControlSessionRow, StoredEvent, ThreadRow } from '../port'
 
 export const iso = (value: Date): string => value.toISOString()
+
+export const toLease = (row: {
+  sessionId: string
+  epoch: number
+  holderHostId: number | null
+  wantsHolder: boolean
+  attempts: number
+  retryAfter: Date | null
+}): Lease => ({
+  sessionId: row.sessionId,
+  epoch: row.epoch,
+  holderHostId: row.holderHostId,
+  wantsHolder: row.wantsHolder,
+  attempts: row.attempts,
+  retryAfter: row.retryAfter === null ? null : iso(row.retryAfter),
+})
 
 export const toInbox = (row: {
   sessionId: string

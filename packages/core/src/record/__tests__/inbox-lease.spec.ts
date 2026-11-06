@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
 import { consume, takeBack, type InboxEntry } from '../inbox'
-import { claim, grant, revoke, revokeIfEpoch } from '../lease'
+import { claim, claimGrant, grant, retryDelayMs, revoke, revokeIfEpoch } from '../lease'
 import { NOW, lease } from './support'
 
 const entry = (consumedSeq: number | null): InboxEntry => ({
@@ -118,5 +118,41 @@ describe('lease moves', () => {
         selfPresent: false,
       }),
     ).toEqual({ ok: false, refusal: { kind: 'not-present' } })
+  })
+})
+
+describe('claimGrant', () => {
+  it('bumps the epoch, installs the host, counts the claim and schedules the retry', () => {
+    const now = '2026-11-06T12:00:00.000Z'
+    const next = claimGrant({
+      lease: lease({ holderHostId: null, wantsHolder: true, attempts: 2 }),
+      hostId: 9,
+      now,
+    })
+    expect(next).toEqual(
+      lease({
+        epoch: 4,
+        holderHostId: 9,
+        wantsHolder: false,
+        attempts: 3,
+        retryAfter: '2026-11-06T12:00:04.000Z',
+      }),
+    )
+  })
+
+  it('grant leaves the retry columns as they are', () => {
+    const retryAfter = '2026-11-06T12:00:04.000Z'
+    expect(grant({ lease: lease({ attempts: 2, retryAfter }), hostId: 9 })).toMatchObject({
+      attempts: 2,
+      retryAfter,
+    })
+  })
+})
+
+describe('retryDelayMs', () => {
+  it('doubles from one second and caps at thirty', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 20].map((attempts) => retryDelayMs(attempts))).toEqual([
+      1000, 2000, 4000, 8000, 16000, 30000, 30000, 30000,
+    ])
   })
 })

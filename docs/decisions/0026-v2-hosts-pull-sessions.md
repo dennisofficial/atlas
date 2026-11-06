@@ -1,6 +1,6 @@
 # 0026. v2 hosts pull sessions from the database; a held session is a scope that always settles
 
-Proposed 2026-11-05. Amends [0025](0025-v2-connection-bound-leases.md) (the wake path and the ring scan
+Accepted 2026-11-06 (proposed 2026-11-05). Amends [0025](0025-v2-connection-bound-leases.md) (the wake path and the ring scan
 become doorbells, not the source of work) and the held-session loop in
 [architecture §13](../v2/architecture.md). The epoch, the fence and connection-bound presence are
 unchanged.
@@ -37,26 +37,31 @@ plus the retry gate in D3). A host claims with one statement-level operation,
 `plane.claimNext({ hostId, limit })`, that selects needing sessions with
 `FOR UPDATE OF l SKIP LOCKED`, writes `epoch + 1, holderHostId = self, wantsHolder = false` on each, and
 returns the leases. `limit` is the host's free slots, so a full host asks for nothing and nothing is
-refused. Two hosts claiming at once never block each other or take the same session. The lease row is
-created with the session (today it is created lazily by the first claim, `initialLease`,
-`packages/control/src/lease-ops.ts:14`) so there is always a row to lock.
+refused. Two hosts claiming at once never block each other or take the same session. The claiming host's
+own presence is checked in the same transaction; an absent host claims nothing. The lease row is
+created with the session, not lazily by the first claim, so there is always a row to lock; `claimNext`
+inner-joins it. There is no backfill: v2 is experimental, and a session that predates the row is never
+claimed.
 
 **D2. Notifications are doorbells.** Each host runs one claim loop: `claimNext`, hold what it returns,
 sleep until a doorbell or the next tick (20 s ± 20 %, the interval Dennis approved for #1903). A
-`pg_notify`, a `LISTEN` reconnect, the ring waiter returning, and a held session ending all ring the
-doorbell. A lost doorbell costs at most one tick of latency, never a stuck session. The per-session
+`pg_notify`, a `LISTEN` reconnect, the ring waiter returning, and a held session ending (settle rings
+the host's own doorbell) all ring the doorbell. Rings coalesce: one `claimNext` in flight and one
+queued, and post → claim latency is measured. The late-input re-wake in `held-idle.ts` is deleted. A lost doorbell costs at most one tick of latency, never a stuck session. The per-session
 `claim(sessionId)` path and `onWake` for unheld sessions are deleted; a wake for a session the host
 already holds still requests that session's reconciler (that is a held session reading its own inbox, not
 claiming).
 
 **D3. Retry state lives on the lease row.** Two columns, `attempts int` and `retryAfter timestamptz null`.
-A start failure or a faulted loop increments `attempts` and sets `retryAfter = now + min(1 s · 2^attempts,
-30 s)` in the same write that releases the lease; `claimNext` skips rows whose `retryAfter` is in the
-future. A clean settle resets both. At the bound (5 for start failures, matching #1908; N for faults,
-slice 6's crash-loop quarantine) the host appends the visible failure event and writes `wantsHolder =
-false`, and the existing `inboxHead` rule makes the next message the retry. Every host honours the
-backoff, it survives restarts, and the quarantine stops being a separate mechanism. `StartBackoff` is
-deleted.
+`attempts` counts claims, not reported failures: `claimNext` writes `attempts = attempts + 1` and
+`retryAfter = now + min(1 s · 2^(attempts - 1), 30 s)` (`retryDelayMs`, `packages/core/src/record/lease.ts`)
+in the claiming write, and skips rows whose `retryAfter` is in the future. A host crash therefore counts,
+and crash-loop quarantine (slice 6) needs no separate mechanism. A clean settle resets both. At the bound
+(5 for start failures, matching #1908; N for faults) the write that records the visible failure event
+also resets `attempts` and writes `wantsHolder = false`, and the existing `inboxHead` rule makes the next
+message the retry with fresh tries. The host that writes a `retryAfter` sets a doorbell timer for it, so
+the session is retried without waiting for a tick. Every host honours the backoff and it survives
+restarts. `StartBackoff` is deleted.
 
 **D4. A held session is one scope.** `SessionHolder` runs each claimed lease through one function:
 

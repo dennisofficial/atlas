@@ -13,6 +13,8 @@ export const lease = (overrides: Partial<Lease> = {}): Lease => ({
   epoch: 3,
   holderHostId: 7,
   wantsHolder: false,
+  attempts: 0,
+  retryAfter: null,
   ...overrides,
 })
 

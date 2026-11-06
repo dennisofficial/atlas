@@ -3,6 +3,8 @@ export type Lease = {
   epoch: number
   holderHostId: number | null
   wantsHolder: boolean
+  attempts: number
+  retryAfter: string | null
 }
 
 export type LeaseRefusal = { kind: 'stale-epoch'; current: number }
@@ -32,6 +34,18 @@ export const grant = (params: { lease: Lease; hostId: number }): Lease => ({
   holderHostId: params.hostId,
   wantsHolder: false,
 })
+
+export const retryDelayMs = (attempts: number): number =>
+  Math.min(1000 * 2 ** (attempts - 1), 30000)
+
+export const claimGrant = (params: { lease: Lease; hostId: number; now: string }): Lease => {
+  const attempts = params.lease.attempts + 1
+  return {
+    ...grant({ lease: params.lease, hostId: params.hostId }),
+    attempts,
+    retryAfter: new Date(Date.parse(params.now) + retryDelayMs(attempts)).toISOString(),
+  }
+}
 
 export const revoke = (params: { lease: Lease; wantsHolder: boolean }): Lease => ({
   ...params.lease,

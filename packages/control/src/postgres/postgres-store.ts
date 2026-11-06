@@ -28,7 +28,8 @@ import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn } from './postgres-presence'
 import { sessionDigestsIn } from './postgres-digests'
 import { sessionsNeedingHolderIn } from './postgres-needing-holder'
-import { toInbox, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
+import { claimNeedingIn } from './postgres-claim-next'
+import { toInbox, toLease, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
 
 class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
@@ -66,6 +67,14 @@ class PostgresTx implements ControlTx {
       nextInboxId: 1,
       createdAt: new Date(params.at),
       archivedAt: null,
+    })
+    await this.tx.orm.v2.V2Lease.create({
+      sessionId: params.sessionId,
+      epoch: 0,
+      holderHostId: null,
+      wantsHolder: false,
+      attempts: 0,
+      retryAfter: null,
     })
   }
 
@@ -197,7 +206,8 @@ class PostgresTx implements ControlTx {
   }
 
   async readLease(sessionId: string): Promise<Lease | undefined> {
-    return (await this.tx.orm.v2.V2Lease.first({ sessionId })) ?? undefined
+    const row = await this.tx.orm.v2.V2Lease.first({ sessionId })
+    return row === null ? undefined : toLease(row)
   }
 
   async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
@@ -205,17 +215,21 @@ class PostgresTx implements ControlTx {
       .orderBy((l) => l.sessionId.asc())
       .limit(params.limit)
       .all()
-    return rows.map((row) => ({ ...row }))
+    return rows.map(toLease)
   }
 
   async lockLease(sessionId: string): Promise<Lease | undefined> {
     const row = await this.tx.orm.v2.V2Lease.where({ sessionId }).forNoKeyUpdate().first()
-    return row ?? undefined
+    return row === null ? undefined : toLease(row)
   }
 
   async shareLease(sessionId: string): Promise<Lease | undefined> {
     const row = await this.tx.orm.v2.V2Lease.where({ sessionId }).forShare().first()
-    return row ?? undefined
+    return row === null ? undefined : toLease(row)
+  }
+
+  async claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<Lease[]> {
+    return claimNeedingIn({ tx: this.tx, ...params })
   }
 
   async writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean> {
