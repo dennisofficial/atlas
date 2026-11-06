@@ -1,0 +1,84 @@
+[
+  {
+    "id": "table.Media",
+    "label": "Create table \"Media\"",
+    "summary": "Creates table \"Media\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "Media"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Media\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"Media\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Media\"",
+        "sql": "CREATE TABLE \"v2\".\"Media\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"hash\" text NOT NULL,\n  \"height\" int4 NOT NULL,\n  \"mediaType\" text NOT NULL,\n  \"size\" int4 NOT NULL,\n  \"userId\" text NOT NULL,\n  \"width\" int4 NOT NULL,\n  PRIMARY KEY (\"userId\", \"hash\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Media\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"Media\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.MediaSigningWindow",
+    "label": "Create table \"MediaSigningWindow\"",
+    "summary": "Creates table \"MediaSigningWindow\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "MediaSigningWindow"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"MediaSigningWindow\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"MediaSigningWindow\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"MediaSigningWindow\"",
+        "sql": "CREATE TABLE \"v2\".\"MediaSigningWindow\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"sealed\" text NOT NULL,\n  \"validUntil\" timestamptz(3) NOT NULL,\n  \"windowStart\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"windowStart\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"MediaSigningWindow\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"MediaSigningWindow\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  }
+]

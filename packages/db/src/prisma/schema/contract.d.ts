@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'bf1d58bab3431546539e67391d6ef29bb0b5ce7ea1d5de89aa41ab17d18f31f4'>;
+  StorageHashBase<'367f086b8ddb99bd89844b81e34832f7646b1c9538a860aa325459c59b3f3d84'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1085,6 +1085,23 @@ export namespace Models {
     value: FieldOutputTypes['public']['Verification']['value'];
     readonly [RelationKeys]?: never;
   };
+  export type v2_Media = {
+    createdAt: FieldOutputTypes['v2']['Media']['createdAt'];
+    hash: FieldOutputTypes['v2']['Media']['hash'];
+    height: FieldOutputTypes['v2']['Media']['height'];
+    mediaType: FieldOutputTypes['v2']['Media']['mediaType'];
+    size: FieldOutputTypes['v2']['Media']['size'];
+    userId: FieldOutputTypes['v2']['Media']['userId'];
+    width: FieldOutputTypes['v2']['Media']['width'];
+    readonly [RelationKeys]?: never;
+  };
+  export type v2_MediaSigningWindow = {
+    createdAt: FieldOutputTypes['v2']['MediaSigningWindow']['createdAt'];
+    sealed: FieldOutputTypes['v2']['MediaSigningWindow']['sealed'];
+    validUntil: FieldOutputTypes['v2']['MediaSigningWindow']['validUntil'];
+    windowStart: FieldOutputTypes['v2']['MediaSigningWindow']['windowStart'];
+    readonly [RelationKeys]?: never;
+  };
   export type v2_V2Blob = {
     bytes: FieldOutputTypes['v2']['V2Blob']['bytes'];
     createdAt: FieldOutputTypes['v2']['V2Blob']['createdAt'];
@@ -1218,6 +1235,8 @@ export declare const models: {
     Verification: Models.public_Verification;
   };
   v2: {
+    Media: Models.v2_Media;
+    MediaSigningWindow: Models.v2_MediaSigningWindow;
     V2Blob: Models.v2_V2Blob;
     V2BlobRef: Models.v2_V2BlobRef;
     V2Event: Models.v2_V2Event;
@@ -6034,6 +6053,94 @@ type ContractBase = Omit<
         readonly kind: 'postgres-schema';
         readonly entries: {
           readonly table: {
+            readonly Media: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly hash: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly height: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly mediaType: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly size: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly width: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['userId', 'hash'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
+            readonly MediaSigningWindow: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly sealed: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly validUntil: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly windowStart: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['windowStart'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
             readonly V2Blob: {
               columns: {
                 readonly bytes: {
@@ -6574,6 +6681,11 @@ type ContractBase = Omit<
       readonly model: 'McpOauthPending';
     };
     readonly McpServer: { readonly namespace: 'public' & NamespaceId; readonly model: 'McpServer' };
+    readonly Media: { readonly namespace: 'v2' & NamespaceId; readonly model: 'Media' };
+    readonly MediaSigningWindow: {
+      readonly namespace: 'v2' & NamespaceId;
+      readonly model: 'MediaSigningWindow';
+    };
     readonly Memory: { readonly namespace: 'public' & NamespaceId; readonly model: 'Memory' };
     readonly OauthConnection: {
       readonly namespace: 'public' & NamespaceId;
@@ -11376,6 +11488,99 @@ type ContractBase = Omit<
       };
       readonly v2: {
         readonly models: {
+          readonly Media: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly hash: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly height: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly mediaType: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly size: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly width: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'Media';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly hash: { readonly column: 'hash' };
+                readonly height: { readonly column: 'height' };
+                readonly mediaType: { readonly column: 'mediaType' };
+                readonly size: { readonly column: 'size' };
+                readonly userId: { readonly column: 'userId' };
+                readonly width: { readonly column: 'width' };
+              };
+            };
+          };
+          readonly MediaSigningWindow: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly sealed: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly validUntil: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly windowStart: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'MediaSigningWindow';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly sealed: { readonly column: 'sealed' };
+                readonly validUntil: { readonly column: 'validUntil' };
+                readonly windowStart: { readonly column: 'windowStart' };
+              };
+            };
+          };
           readonly V2Blob: {
             readonly fields: {
               readonly bytes: {

@@ -24,6 +24,7 @@
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
         "@dltech/atlas-host": "workspace:*",
+        "@dltech/atlas-media": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
@@ -515,6 +516,17 @@
         "@dltech/atlas-daemon": "workspace:*",
         "@types/bun": "latest",
         "@vscode/ripgrep": "^1.18.0",
+      },
+    },
+    "packages/media": {
+      "name": "@dltech/atlas-media",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
+        "@vercel/blob": "2.8.2",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
       },
     },
     "packages/models": {
@@ -1087,6 +1099,8 @@
     "@dltech/atlas-host": ["@dltech/atlas-host@workspace:packages/host"],
 
     "@dltech/atlas-mac": ["@dltech/atlas-mac@workspace:apps/mac"],
+
+    "@dltech/atlas-media": ["@dltech/atlas-media@workspace:packages/media"],
 
     "@dltech/atlas-mobile": ["@dltech/atlas-mobile@workspace:apps/mobile"],
 
