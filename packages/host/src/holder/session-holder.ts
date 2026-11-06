@@ -1,4 +1,11 @@
-import { startVerdict, toThreadId, type IdPort, type Lease } from '@dltech/atlas-core'
+import {
+  EHeldOutcome,
+  startVerdict,
+  toThreadId,
+  type HeldOutcome,
+  type IdPort,
+  type Lease,
+} from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
@@ -7,6 +14,8 @@ import { ClaimLoop } from './claim-loop'
 import { HeldSession, type HeldSessionDeps } from './held-session'
 import { HolderPresence } from './holder-presence'
 import { auditOwnLeases } from './own-lease-audit'
+import { runHeld } from './run-held'
+import { LeaseSettler } from './settle'
 import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
 
 export type SessionHolderArgs = {
@@ -50,6 +59,8 @@ export class SessionHolder {
   private unsubWake: (() => void) | undefined
   private unsubResync: (() => void) | undefined
   private readonly loop: ClaimLoop
+  private readonly settler: LeaseSettler
+  private readonly running = new Set<Promise<void>>()
   private draining = false
 
   constructor(args: SessionHolderArgs) {
@@ -71,6 +82,13 @@ export class SessionHolder {
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.isPermanentStartError = args.isPermanentStartError ?? (() => false)
     this.log = args.log
+    this.settler = new LeaseSettler({
+      plane: args.plane,
+      timers: args.timers,
+      log: args.log,
+      ring: () => this.loop.ring(),
+      ringAt: (isoTime) => this.loop.ringAt(isoTime),
+    })
     this.loop = new ClaimLoop({
       timers: args.timers,
       tickMs: args.sweepMs ?? DEFAULTS.sweepMs,
@@ -80,6 +98,7 @@ export class SessionHolder {
       claimNext: (claim) => this.plane.claimNext(claim),
       hold: (lease) => this.hold(lease),
       onTick: () => this.handleTick(),
+      settlePending: () => this.settler.retryPending(),
       log: args.log,
     })
   }
@@ -109,6 +128,7 @@ export class SessionHolder {
         }),
       ),
     )
+    await Promise.all([...this.running])
   }
 
   private stopTriggers(): void {
@@ -140,6 +160,7 @@ export class SessionHolder {
     })
     const sessions = [...this.held.values()]
     this.held.clear()
+    this.settler.clear()
     this.lostRetries = [...this.retryAt.values()]
     this.retryAt.clear()
     for (const session of sessions) session.loseLease()
@@ -174,7 +195,8 @@ export class SessionHolder {
     await auditOwnLeases({
       plane: this.plane,
       hostId,
-      isRunning: (sessionId) => this.held.has(sessionId),
+      isRunning: (sessionId) => this.held.has(sessionId) || this.settler.has(sessionId),
+      settle: (args) => this.settler.settle(args),
       log: this.log,
     })
   }
@@ -186,53 +208,38 @@ export class SessionHolder {
         ? undefined
         : await this.plane.readSession({ sessionId: lease.sessionId })
     if (row === undefined || this.draining || this.superseded(args.hostId)) {
-      await this.plane
-        .revoke({
-          sessionId: lease.sessionId,
-          wantsHolder: true,
-          epoch: lease.epoch,
-          resetRetry: true,
-        })
-        .catch(() => undefined)
+      await this.settler.settle({
+        lease,
+        outcome: { kind: EHeldOutcome.Drained, needsHolder: true },
+      })
       return
     }
-    const session = new HeldSession(
-      this.deps({
-        lease,
-        onDrop: () => {
-          if (this.held.get(lease.sessionId) === session) this.held.delete(lease.sessionId)
-          this.retryAt.delete(lease.sessionId)
-        },
-      }),
-    )
+    const session = new HeldSession(this.deps({ lease }))
     this.held.set(lease.sessionId, session)
     this.retryAt.set(lease.sessionId, lease.retryAfter)
-    const done = session.run({
+    const finished = this.runAndSettle({
+      session,
       lease,
       threadId: toThreadId(row.mainThreadId),
       claimMs: args.claimMs,
-    })
-    done.then(
-      () => {
-        if (this.held.get(lease.sessionId) === session) this.held.delete(lease.sessionId)
-        this.retryAt.delete(lease.sessionId)
-        if (session.startFailed && !this.draining) this.loop.ringAt(lease.retryAfter)
-        this.loop.ring()
-      },
-      (error) => {
-        this.log?.error({
-          source: 'holder.session',
-          message: `the drive of ${lease.sessionId} rejected past its guard`,
-          ...logFieldsOf({ error }),
-        })
-        if (this.held.get(lease.sessionId) === session) this.held.delete(lease.sessionId)
-        this.retryAt.delete(lease.sessionId)
-        this.loop.ring()
-      },
-    )
+    }).finally(() => this.running.delete(finished))
+    this.running.add(finished)
   }
 
-  private deps(args: { lease: Lease; onDrop?: (() => void) | undefined }): HeldSessionDeps {
+  private async runAndSettle(args: {
+    session: HeldSession
+    lease: Lease
+    threadId: ReturnType<typeof toThreadId>
+    claimMs: number
+  }): Promise<void> {
+    const { session, lease } = args
+    const outcome: HeldOutcome = await runHeld({ ...args, log: this.log })
+    if (this.held.get(lease.sessionId) === session) this.held.delete(lease.sessionId)
+    this.retryAt.delete(lease.sessionId)
+    await this.settler.settle({ lease, outcome })
+  }
+
+  private deps(args: { lease: Lease }): HeldSessionDeps {
     return {
       sessionId: args.lease.sessionId,
       plane: this.plane,
@@ -247,7 +254,6 @@ export class SessionHolder {
           attempts: args.lease.attempts,
           permanent: this.isPermanentStartError(error),
         }),
-      ...(args.onDrop === undefined ? {} : { onDrop: args.onDrop }),
       log: this.log,
     }
   }

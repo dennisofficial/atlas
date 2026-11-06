@@ -26,7 +26,7 @@ describe('SessionHolder idle release (F15)', () => {
     expect(rig.runtimes[0]?.released).toBe(false)
   }, 15_000)
 
-  it('input posted during the release re-wakes the session after revoke', async () => {
+  it('input posted during the release is claimed again without a wake', async () => {
     const rig = await makeRig({
       idleMinutes: 0.2,
     })
@@ -41,30 +41,26 @@ describe('SessionHolder idle release (F15)', () => {
     expect(saw).toBe(true)
 
     const originalRevoke = rig.plane.revoke.bind(rig.plane)
+    let wakesAfterPost = -1
     rig.plane.revoke = (async (params: Parameters<typeof rig.plane.revoke>[0]) => {
       await rig.post('late arrival')
+      wakesAfterPost = rig.wakeCount(SESSION)
       return originalRevoke(params)
     }) as typeof rig.plane.revoke
 
-    const wakesBefore = rig.wakeCount(SESSION)
     rig.clock.advance(13_000)
-    const released = await flushUntil({
-      check: () => rig.runtimes[0]?.released === true,
-      attempts: 100,
-    })
-    expect(released).toBe(true)
-    expect(rig.wakeCount(SESSION)).toBeGreaterThan(wakesBefore)
-    await rig.bus.wake(SESSION)
     const reclaimed = await flushUntil({
       check: async () =>
         (await rig.events()).filter((event) => event.type === 'user-said').length === 2,
       attempts: 100,
     })
     expect(reclaimed).toBe(true)
+    expect(rig.runtimes[0]?.released).toBe(true)
+    expect(rig.wakeCount(SESSION)).toBe(wakesAfterPost)
     expect(rig.holder.heldIds().length).toBe(1)
   }, 15_000)
 
-  it('a failing late read still ends the session, sends a wake and arms no timer', async () => {
+  it('a failing read after the release still ends the session and hands it back for a holder', async () => {
     const rig = await makeRig({
       idleMinutes: 0.2,
     })
@@ -79,19 +75,19 @@ describe('SessionHolder idle release (F15)', () => {
     expect(saw).toBe(true)
 
     const original = rig.plane.readInbox.bind(rig.plane)
+    let failing = true
     rig.plane.readInbox = (async (params: Parameters<typeof rig.plane.readInbox>[0]) => {
-      if (rig.runtimes[0]?.released === true) throw new Error('late read down')
+      if (failing && rig.runtimes[0]?.released === true) throw new Error('late read down')
       return original(params)
     }) as typeof rig.plane.readInbox
 
-    const wakesBefore = rig.wakeCount(SESSION)
     rig.clock.advance(13_000)
     const ended = await flushUntil({
-      check: () => rig.holder.heldIds().length === 0,
+      check: async () => (await rig.plane.currentLease({ sessionId: SESSION })).lease.epoch > 1,
       attempts: 100,
     })
     expect(ended).toBe(true)
-    expect(rig.wakeCount(SESSION)).toBeGreaterThan(wakesBefore)
-    expect(rig.clock.pendingWithin(Number.MAX_SAFE_INTEGER)).toBe(false)
+    failing = false
+    expect(await flushUntil({ check: () => rig.runtimes.length === 2, attempts: 100 })).toBe(true)
   }, 15_000)
 })

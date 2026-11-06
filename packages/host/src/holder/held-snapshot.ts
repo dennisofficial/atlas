@@ -19,7 +19,6 @@ export const readHeldAction = async (args: {
   resumePending: boolean
   lastActivityAt: number
   runtime: SessionRuntime | undefined
-  released: boolean
   events: readonly V2Event[]
   preparing: boolean
 }): Promise<{
@@ -42,7 +41,6 @@ export const readHeldAction = async (args: {
     turnRunning: args.turnRunning,
     lastActivityAt: args.lastActivityAt,
     runtime: args.runtime,
-    released: args.released,
     pendingInput: messagePending,
   }
   const quiet = idleReleaseDue({ ...idleArgs, runningShells: 0 })

@@ -48,7 +48,7 @@ const notBeforeOf = (fact: Extract<V2Event, { type: 'retry-scheduled' }>): numbe
   Date.parse(fact.notBefore)
 
 describe('holder retry deadlines', () => {
-  it('a handoff shorter than the backoff revokes and wakes; B waits out the deadline', async () => {
+  it('a handoff shorter than the backoff revokes; B waits out the deadline', async () => {
     const a = await makeRig({
       script: [{ throws: new Error('transient boom') }],
     })
@@ -71,20 +71,22 @@ describe('holder retry deadlines', () => {
       bus: a.bus,
       clock: a.clock,
       daemon: a.daemon,
+      sweepMs: 300,
       script: [{ text: 'b answer' }],
     })
     await b.holder.start()
 
-    const wakesBefore = a.wakeCount(SESSION)
     const drain = a.holder.drain({ deadline: a.clock.now() + 100 })
     a.clock.advance(200)
     await drain
 
     expect((await a.events()).some((event) => event.type === 'run-failed')).toBe(false)
-    expect(a.wakeCount(SESSION)).toBeGreaterThan(wakesBefore)
-    await a.bus.wake(SESSION)
 
-    const claimed = await flushUntil({ check: () => b.holder.heldIds().length === 1 })
+    const claimed = await flushUntil({
+      check: () => b.holder.heldIds().length === 1,
+      clock: a.clock,
+      advanceMs: 100,
+    })
     expect(claimed).toBe(true)
     const lease = await b.plane.currentLease({ sessionId: SESSION })
     expect(lease.lease.holderHostId).toBe(b.hostId())

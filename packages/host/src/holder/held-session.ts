@@ -1,4 +1,11 @@
-import { EHeldAction, type Lease, type ThreadId } from '@dltech/atlas-core'
+import {
+  crashLooped,
+  EHeldAction,
+  EHeldOutcome,
+  type HeldOutcome,
+  type Lease,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
 import type { SessionRuntime } from './ports'
@@ -10,8 +17,7 @@ import {
   startHeldTurn,
   wireHeldLoop,
 } from './held-runner'
-import { teardownHeldSession } from './held-idle'
-import { HeldRelease } from './held-release'
+import { teardownHeld } from './held-teardown'
 import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
 import { IdleDeadline } from './idle-deadline'
@@ -21,7 +27,7 @@ import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
 import { TakeOver } from './held-takeover'
-import { giveUpStarting } from './start-failure-record'
+import { quarantineOutcome, startFailureOutcome } from './start-failure-record'
 
 export type { HeldSessionDeps }
 
@@ -34,7 +40,7 @@ export class HeldSession {
   private readonly prepare: HeldPrepare
   private draining = false
   private drainDeadline: number | undefined
-  private done: Promise<void> | undefined
+  private done: Promise<HeldOutcome> | undefined
   private lastActivityAt: number
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
@@ -42,14 +48,10 @@ export class HeldSession {
   private reconciler: Reconciler | undefined
   private finishDrive: (() => void) | undefined
   private readonly idle: IdleDeadline
-  private readonly release: HeldRelease
   private leaseEpoch = 0
   private drainModelOnly = false
-  private lostOwnership = false
-  private failedToStart = false
-  private gaveUpStarting = false
-  private faulted = false
-  private ended = false
+  private outcome: EHeldOutcome | undefined
+  private released = false
   private resumePending = false
   private takeOver: TakeOver | undefined
 
@@ -60,18 +62,12 @@ export class HeldSession {
     this.turns = new HeldTurns(deps)
     this.prepare = new HeldPrepare({
       deps,
-      abandoned: () => this.draining || this.ended,
+      abandoned: () => this.draining || this.outcome !== undefined,
       onSettled: ({ failed }) => {
         this.lastActivityAt = deps.timers.now()
-        if (failed) void this.release.run((runtime) => runtime.stop())
+        if (failed) this.finish(EHeldOutcome.Idle)
         else this.reconciler?.request()
       },
-    })
-    this.release = new HeldRelease({
-      deps,
-      onRetryDue: () => this.reconciler?.request(),
-      target: () => ({ runtime: this.runtime, record: this.record, epoch: this.leaseEpoch }),
-      drop: () => this.loseLease(),
     })
     this.idle = new IdleDeadline({
       timers: deps.timers,
@@ -80,12 +76,8 @@ export class HeldSession {
     })
   }
 
-  get startFailed(): boolean {
-    return (this.failedToStart && !this.gaveUpStarting) || this.faulted
-  }
-
   notifyWake(): void {
-    if (this.draining || this.lostOwnership) return
+    if (this.draining || this.outcome !== undefined) return
     this.reconciler?.request()
   }
 
@@ -97,7 +89,7 @@ export class HeldSession {
     this.reconciler?.request()
   }
 
-  run(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<void> {
+  run(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<HeldOutcome> {
     this.leaseEpoch = args.lease.epoch
     const done = this.drive(args)
     this.done = done
@@ -123,65 +115,84 @@ export class HeldSession {
     await this.done
   }
 
-  private async drive(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<void> {
-    const { lease, threadId } = args
-    const deps = this.deps
+  private async drive(args: {
+    lease: Lease
+    threadId: ThreadId
+    claimMs?: number
+  }): Promise<HeldOutcome> {
     try {
-      this.takeOver = new TakeOver(deps, args.claimMs ?? 0)
-      const { runtime, record } = await this.takeOver.open({
-        threadId,
-        epoch: lease.epoch,
-        signal: this.lifetimeAbort.signal,
-        drainDeadline: () => this.drainDeadline,
-        onLeaseLost: () => this.loseLease(),
-        onRuntime: (opened) => {
-          this.runtime = opened
-        },
-      })
-      this.record = record
-      if (this.lostOwnership) return record.fence()
-      if (this.draining) record.markDraining()
-      const { runner, branches } = wireHeldLoop({
-        deps,
-        runtime,
-        record,
-        turns: this.turns,
-        threadId,
-        signal: this.lifetimeAbort.signal,
-        epoch: lease.epoch,
-        isModelOnlyDrain: () => this.drainModelOnly,
-      })
-      this.branches = branches
-      this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })
-      const completion = new Promise<void>((resolve) => {
-        this.finishDrive = resolve
-      })
-      if (!this.ended) {
-        const reconciler = new Reconciler({
-          timers: deps.timers,
-          step: () => this.step({ runner, threadId }),
-          onError: (error) => logReconcileFault({ deps, error }),
-        })
-        this.reconciler = reconciler
-        reconciler.request()
-        await completion
-      }
+      await this.scope(args)
     } catch (error) {
-      logDriveFault({ deps, error })
-      if (!this.lostOwnership && !this.draining && this.reconciler === undefined) {
-        this.failedToStart = true
-        this.gaveUpStarting = await giveUpStarting({ deps, threadId, epoch: lease.epoch, error })
-      }
-    } finally {
-      await this.teardown()
+      logDriveFault({ deps: this.deps, error })
+      if (this.outcome === undefined) await this.settleFault({ ...args, error })
     }
+    this.branches?.stop()
+    return teardownHeld({
+      deps: this.deps,
+      runtime: this.runtime,
+      record: this.record,
+      turnRunning: this.turns.turnRunning,
+      kind: this.outcome ?? EHeldOutcome.Faulted,
+      released: this.released,
+    })
+  }
+
+  private async settleFault(args: {
+    error: unknown
+    lease: Lease
+    threadId: ThreadId
+  }): Promise<void> {
+    if (this.reconciler !== undefined || this.draining) return this.finish(EHeldOutcome.Faulted)
+    this.finish(await startFailureOutcome({ deps: this.deps, ...args }))
+  }
+
+  private async scope(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<void> {
+    const { lease, threadId } = args
+    const { deps } = this
+    if (crashLooped(lease)) return this.finish(await quarantineOutcome({ deps, lease, threadId }))
+    this.takeOver = new TakeOver(deps, args.claimMs ?? 0)
+    const { runtime, record } = await this.takeOver.open({
+      threadId,
+      epoch: lease.epoch,
+      signal: this.lifetimeAbort.signal,
+      drainDeadline: () => this.drainDeadline,
+      onLeaseLost: () => this.loseLease(),
+      onRuntime: (opened) => {
+        this.runtime = opened
+      },
+    })
+    this.record = record
+    if (this.lifetimeAbort.signal.aborted) return record.fence()
+    if (this.draining) record.markDraining()
+    const { runner, branches } = wireHeldLoop({
+      deps,
+      runtime,
+      record,
+      turns: this.turns,
+      threadId,
+      signal: this.lifetimeAbort.signal,
+      epoch: lease.epoch,
+      isModelOnlyDrain: () => this.drainModelOnly,
+    })
+    this.branches = branches
+    this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })
+    const completion = new Promise<void>((resolve) => (this.finishDrive = resolve))
+    if (this.outcome !== undefined) return
+    const reconciler = new Reconciler({
+      timers: deps.timers,
+      step: () => this.step({ runner, threadId }),
+      onError: (error) => logReconcileFault({ deps, error }),
+    })
+    this.reconciler = reconciler
+    reconciler.request()
+    await completion
   }
 
   private async step(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
-    if (this.ended) return
+    if (this.outcome !== undefined) return
     const deps = this.deps
     const turnRunning = this.turns.turnRunning
-    if (this.draining) return turnRunning ? undefined : this.finish()
+    if (this.draining) return turnRunning ? undefined : this.finish(EHeldOutcome.Drained)
     const { entries, action, inboxHead, shellsRunning } = await readHeldAction({
       deps,
       draining: this.draining,
@@ -189,7 +200,6 @@ export class HeldSession {
       resumePending: this.resumePending,
       lastActivityAt: this.lastActivityAt,
       runtime: this.runtime,
-      released: this.release.released,
       events: this.record?.eventCache().all() ?? [],
       preparing: this.prepare.running,
     })
@@ -228,7 +238,7 @@ export class HeldSession {
         return
       }
       case EHeldAction.Release: {
-        await this.release.run((runtime) => runtime.release())
+        await this.releaseIdle()
         return
       }
       case EHeldAction.Wait: {
@@ -251,50 +261,40 @@ export class HeldSession {
         this.lastActivityAt = this.deps.timers.now()
       },
       refreshBranches: () => {
-        if (this.draining || this.lostOwnership) return
+        if (this.draining || this.outcome !== undefined) return
         void this.branches?.refresh().catch((error) => logDriveFault({ deps: this.deps, error }))
       },
-      onFault: () => this.finish({ faulted: true }),
+      onFault: () => this.finish(EHeldOutcome.Faulted),
       onSettled: () => this.reconciler?.request(),
     })
   }
 
   loseLease(): void {
-    if (this.lostOwnership) return
-    this.lostOwnership = true
+    if (this.lifetimeAbort.signal.aborted) return
     this.branches?.stop()
     this.record?.fence()
     this.runtime?.remoteCalls.handoff()
     this.turns.abort()
     this.lifetimeAbort.abort()
     this.runtime?.remoteCalls.close()
-    this.finish()
+    this.finish(EHeldOutcome.Fenced)
   }
 
-  private finish(args?: { faulted: boolean }): void {
-    if (this.ended) return
-    this.ended = true
-    this.faulted = args?.faulted ?? false
+  private async releaseIdle(): Promise<void> {
+    const { runtime } = this
+    if (runtime === undefined) return
+    const current = await this.deps.plane.currentLease({ sessionId: this.sessionId })
+    if (current.lease.epoch !== this.leaseEpoch) return this.loseLease()
+    await runtime.release()
+    this.released = true
+    this.finish(EHeldOutcome.Idle)
+  }
+
+  private finish(kind: EHeldOutcome): void {
+    if (this.outcome !== undefined) return
+    this.outcome = kind
     this.idle.disarm()
-    this.release.cancel()
     this.reconciler?.stop()
     this.finishDrive?.()
-  }
-
-  private async teardown(): Promise<void> {
-    this.branches?.stop()
-    await teardownHeldSession({
-      deps: this.deps,
-      runtime: this.runtime,
-      record: this.record,
-      turnRunning: this.turns.turnRunning,
-      draining: this.draining,
-      lostOwnership: this.lostOwnership,
-      released: this.release.released,
-      failedToStart: this.failedToStart,
-      gaveUpStarting: this.gaveUpStarting,
-      faulted: this.faulted,
-      epoch: this.leaseEpoch,
-    })
   }
 }

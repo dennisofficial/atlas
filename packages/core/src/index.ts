@@ -278,6 +278,7 @@ export * from './execution/location'
 export * from './execution/runner'
 export * from './execution/placement'
 export * from './execution/held-session-decision'
+export * from './execution/held-outcome'
 export * from './execution/lifecycle'
 export * from './execution/deadline-renewal'
 

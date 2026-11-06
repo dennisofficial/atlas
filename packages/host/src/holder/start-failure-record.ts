@@ -1,4 +1,4 @@
-import { chainEvents, type ThreadId } from '@dltech/atlas-core'
+import { chainEvents, EHeldOutcome, type Lease, type ThreadId } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { readFullInbox } from './held-inbox'
@@ -7,15 +7,14 @@ import type { HeldSessionDeps } from './held-session-deps'
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-export const giveUpStarting = async (args: {
+export const recordStartFailure = async (args: {
   deps: HeldSessionDeps
   threadId: ThreadId
   epoch: number
-  error: unknown
+  reason: string
+  permanent: boolean
 }): Promise<boolean> => {
   const { deps } = args
-  const verdict = deps.judgeStartFailure?.(args.error)
-  if (verdict === undefined || !verdict.giveUp) return false
   try {
     const entries = await readFullInbox(deps)
     const events = chainEvents({
@@ -27,9 +26,9 @@ export const giveUpStarting = async (args: {
       bodies: [
         {
           type: 'session-start-failed',
-          reason: messageOf(args.error),
+          reason: args.reason,
           inboxHead: Math.max(0, ...entries.map((entry) => entry.inboxId)),
-          permanent: verdict.permanent,
+          permanent: args.permanent,
         },
       ],
     })
@@ -47,4 +46,51 @@ export const giveUpStarting = async (args: {
     })
     return false
   }
+}
+
+export const giveUpStarting = async (args: {
+  deps: HeldSessionDeps
+  threadId: ThreadId
+  epoch: number
+  error: unknown
+}): Promise<boolean> => {
+  const verdict = args.deps.judgeStartFailure?.(args.error)
+  if (verdict === undefined || !verdict.giveUp) return false
+  return recordStartFailure({
+    deps: args.deps,
+    threadId: args.threadId,
+    epoch: args.epoch,
+    reason: messageOf(args.error),
+    permanent: verdict.permanent,
+  })
+}
+
+export const startFailureOutcome = async (args: {
+  deps: HeldSessionDeps
+  threadId: ThreadId
+  lease: Lease
+  error: unknown
+}): Promise<EHeldOutcome> => {
+  const gaveUp = await giveUpStarting({
+    deps: args.deps,
+    threadId: args.threadId,
+    epoch: args.lease.epoch,
+    error: args.error,
+  })
+  return gaveUp ? EHeldOutcome.GaveUp : EHeldOutcome.StartFailed
+}
+
+export const quarantineOutcome = async (args: {
+  deps: HeldSessionDeps
+  threadId: ThreadId
+  lease: Lease
+}): Promise<EHeldOutcome> => {
+  const recorded = await recordStartFailure({
+    deps: args.deps,
+    threadId: args.threadId,
+    epoch: args.lease.epoch,
+    reason: `this session stopped its host ${args.lease.attempts - 1} times in a row`,
+    permanent: false,
+  })
+  return recorded ? EHeldOutcome.GaveUp : EHeldOutcome.StartFailed
 }
