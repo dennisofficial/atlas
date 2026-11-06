@@ -599,3 +599,39 @@ release rule. The stream service ships dark until PR 7.
    ([0025](../../decisions/0025-v2-connection-bound-leases.md)).
 5. **Architecture §5:** SSE is replaced by this WebSocket (0024).
 6. **Session list:** ships now with title and `lastEventAt`; status follows slice 4.
+
+## 10. Startup, queue and turn status (2026-11-06)
+
+Goal: a v2 session never shows a blank page. Startup is a live, durable timeline, the first message
+waits as a queued card that can be withdrawn, and tool groups stop collapsing mid-turn. Four slices
+carry it, each its own PR.
+
+Decisions:
+- The log says what happened. A step's finish reason is recorded on `assistant-said`, and clients
+  never infer the end of a turn by looking ahead.
+- Startup progress is a real, durable log event per prepare step, rendered like v1's sandbox boot
+  card.
+- The first message is a queued inbox entry, not a transcript row, until the host consumes it.
+- Editing a queued message withdraws it (atomic, refused once consumed) back into the composer,
+  then an ordinary resend goes to the back of the queue. There is no held state and no
+  reinsertion.
+- Withdrawn text never replaces composer text. The composer holds the withdrawn text, a blank
+  line, then the existing draft, with the cursor at the end.
+- Warming starts on submit for now. A parked reserve sandbox on a "new session" visit is a future
+  step.
+- Queued entries reach clients inside the existing status view value (`queued`) rather than a new
+  view, because status is already recomputed on every inbox post and take-back.
+
+Slices:
+1. Step finish: `assistant-said` carries the step finish reason, so status stops reading idle
+   mid-turn.
+2. Startup progress: durable prepare-step events and a live startup card on the v2 page.
+3. Queued and withdraw: queued messages shown from the inbox, withdrawn back into the composer.
+4. Client robustness: the follower stops waiting on the browser cache after `HYDRATE_TIMEOUT_MS`
+   (2 seconds) and subscribes without it, and a stream `error` frame shows in the snapshot until
+   the next events page. The web state line names `not-found`, `forbidden-limit` and the rest.
+   The server stops a subscription after `internal`, and the connection has no per-subscription
+   resubscribe, so the line asks for a reload instead of promising a retry.
+
+Out of scope: the streaming burst, which has its own investigation, and the session list, which
+stays in PR 6 of section 8.

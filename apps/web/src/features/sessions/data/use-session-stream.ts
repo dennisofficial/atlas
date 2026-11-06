@@ -16,6 +16,7 @@ const NOT_FOLLOWING: SessionSnapshot = {
   status: undefined,
   overlay: undefined,
   connection: ESessionConnection.Reconnecting,
+  error: undefined,
 }
 
 const notFollowingSnapshot = (): SessionSnapshot => NOT_FOLLOWING
