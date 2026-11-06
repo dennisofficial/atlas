@@ -11,18 +11,10 @@ import { prEventFailed, prEventLine } from './pr-event-line'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
 import { shellMatchedLine, shellStillRunningEntryLine } from './shell-lines'
-import type { ShellEndingFilter } from './shell-ending-filter'
 import { EAuthor, EEntryKind, type TranscriptEntry } from './transcript-model'
 
-export function noticeEntriesOf(args: {
-  event: Event
-  shellFilter: ShellEndingFilter
-}): TranscriptEntry[] | null {
-  const { event, shellFilter } = args
-
+export function noticeEntriesOf(event: Event): TranscriptEntry[] | null {
   if (event.type === 'background-shell-ended') {
-    if (shellFilter.isRedundantEnding(event)) return []
-    shellFilter.noteShellEnding(event)
     return [
       {
         kind: EEntryKind.BackgroundShellEnded,

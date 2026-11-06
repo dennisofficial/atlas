@@ -3,13 +3,8 @@ import { describe, expect, it } from 'bun:test'
 import type { Event, EventEnvelope } from '../../events/envelope'
 import { toEventId, toRunId, toThreadId } from '../../events/ids'
 import { EKilledBy, EShellStatus } from '../status'
-import {
-  EShellLifecycleState,
-  endedShellKeysOf,
-  lostShellsOf,
-  openShellIdsOf,
-  shellsLifecycle,
-} from '../lifecycle'
+import { ELifecycleState } from '../../lifecycle/lifecycle'
+import { endedShellKeysOf, lostShellsOf, openShellIdsOf, shellsLifecycle } from '../lifecycle'
 
 const threadId = toThreadId('thread-lifecycle')
 
@@ -69,12 +64,12 @@ describe('shellsLifecycle', () => {
 
     const lifecycles = shellsLifecycle(events)
     expect(lifecycles).toHaveLength(1)
-    expect(lifecycles[0]?.state).toBe(EShellLifecycleState.Settled)
+    expect(lifecycles[0]?.state).toBe(ELifecycleState.Settled)
   })
 
   it('marks a start with no end lost', () => {
     const events = [started({ shellId: 'bash_1', command: 'bun test', bootId: 'boot-1' })]
-    expect(shellsLifecycle(events)[0]?.state).toBe(EShellLifecycleState.Lost)
+    expect(shellsLifecycle(events)[0]?.state).toBe(ELifecycleState.Lost)
   })
 
   it('never lets a recycled id under a new boot settle a start from an old boot', () => {
@@ -86,9 +81,9 @@ describe('shellsLifecycle', () => {
 
     const lifecycles = shellsLifecycle(events)
     expect(lifecycles).toHaveLength(2)
-    expect(lifecycles[0]?.state).toBe(EShellLifecycleState.Lost)
+    expect(lifecycles[0]?.state).toBe(ELifecycleState.Lost)
     expect(lifecycles[0]?.bootId).toBe('boot-1')
-    expect(lifecycles[1]?.state).toBe(EShellLifecycleState.Settled)
+    expect(lifecycles[1]?.state).toBe(ELifecycleState.Settled)
     expect(lifecycles[1]?.bootId).toBe('boot-2')
   })
 
@@ -100,9 +95,9 @@ describe('shellsLifecycle', () => {
     ]
 
     const lifecycles = shellsLifecycle(events)
-    expect(lifecycles[0]?.state).toBe(EShellLifecycleState.Settled)
+    expect(lifecycles[0]?.state).toBe(ELifecycleState.Settled)
     expect(lifecycles[0]?.command).toBe('first')
-    expect(lifecycles[1]?.state).toBe(EShellLifecycleState.Lost)
+    expect(lifecycles[1]?.state).toBe(ELifecycleState.Lost)
     expect(lifecycles[1]?.command).toBe('second')
   })
 
@@ -112,7 +107,7 @@ describe('shellsLifecycle', () => {
       ended({ shellId: 'bash_1', command: 'bun test' }),
     ]
 
-    expect(shellsLifecycle(events)[0]?.state).toBe(EShellLifecycleState.Settled)
+    expect(shellsLifecycle(events)[0]?.state).toBe(ELifecycleState.Settled)
   })
 
   it('ignores an end with no matching open start', () => {

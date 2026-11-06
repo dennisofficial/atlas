@@ -98,18 +98,29 @@ const KEPT_LINES: { [TType in KeptLineType]: (args: KeptLineArgs<TType>) => stri
   'directory-changed': ({ event }) => `Atlas moved the project directory to ${event.path}`,
 }
 
-type AnyLine = (args: { event: Event; limit: number }) => string | undefined
+type LineType = SummarisedType | KeptLineType
 
-const LINES = { ...SUMMARISED_LINES, ...KEPT_LINES } as unknown as Partial<
-  Record<Event['type'], AnyLine>
->
+type LinedEvents = { [TType in LineType]: EventOfType<TType> }
+
+type LineTable = {
+  [TType in LineType]: (args: { event: LinedEvents[TType]; limit: number }) => string | undefined
+}
+
+const LINES: LineTable = { ...SUMMARISED_LINES, ...KEPT_LINES }
+
+const isLined = (event: Event): event is LinedEvents[LineType] => Object.hasOwn(LINES, event.type)
+
+function render<TType extends LineType>(args: {
+  type: TType
+  event: LinedEvents[TType]
+  limit: number
+}): string | undefined {
+  return LINES[args.type]({ event: args.event, limit: args.limit })
+}
 
 function lineOf(event: Event, payloadLimit: number): string | undefined {
-  if (!reachesModel(event)) return undefined
-
-  const render = LINES[event.type]
-  if (render === undefined) return undefined
-  return render({ event, limit: payloadLimit })
+  if (!reachesModel(event) || !isLined(event)) return undefined
+  return render({ type: event.type, event, limit: payloadLimit })
 }
 
 function saidLine(event: EventOfType<'user-said'>, limit: number): string {

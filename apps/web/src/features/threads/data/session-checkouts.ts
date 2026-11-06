@@ -1,4 +1,3 @@
-import { displayedThreadTitle } from '@dltech/atlas-core'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
 import { currentBranchOf, isOutsideGit } from './header-model'
@@ -37,7 +36,7 @@ export function checkoutOf(
 }
 
 export function threadLabelOf(thread: WireThread): string {
-  return thread.title ? displayedThreadTitle(thread.title) : UNTITLED
+  return thread.title || UNTITLED
 }
 
 export function sessionCheckoutsOf(args: {

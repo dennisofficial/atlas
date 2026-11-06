@@ -46,7 +46,7 @@ describe('currentContextEvents', () => {
     expect(idsOf([...currentContextEvents(events)])).toEqual(['event-1', 'event-2'])
   })
 
-  it('treats the same file reloaded at a moved path as one entry, the relocation case', () => {
+  it('keeps the same file loaded under a different path as two entries', () => {
     const events = log([
       loaded({
         slot: EContextSlot.ProjectInstructions,
@@ -61,27 +61,25 @@ describe('currentContextEvents', () => {
       }),
     ])
 
-    const current = [...currentContextEvents(events)]
-
-    expect(idsOf(current)).toEqual(['event-3'])
-    expect(current[0]).toMatchObject({ key: '/atlas/workspaces/comp-v2/CLAUDE.md' })
+    expect(idsOf([...currentContextEvents(events)])).toEqual(['event-1', 'event-3'])
+    expect([...supersededContextIds(events)]).toEqual([])
   })
 
-  it('supersedes the moved-path original even when the reload is byte-identical', () => {
+  it('keeps identical package-level files in different directories apart', () => {
     const events = log([
       loaded({
-        slot: EContextSlot.ProjectInstructions,
-        key: '/repo/CLAUDE.md',
-        content: 'same bytes',
+        slot: EContextSlot.NestedInstructions,
+        key: '/repo/apps/api/AGENTS.md',
+        content: 'shared rules',
       }),
       loaded({
-        slot: EContextSlot.ProjectInstructions,
-        key: '/moved/CLAUDE.md',
-        content: 'same bytes',
+        slot: EContextSlot.NestedInstructions,
+        key: '/repo/apps/app/AGENTS.md',
+        content: 'shared rules',
       }),
     ])
 
-    expect([...supersededContextIds(events)]).toEqual(['event-1'])
+    expect(idsOf([...currentContextEvents(events)])).toEqual(['event-1', 'event-2'])
   })
 
   it('keeps two same-named files with different content both current, the monorepo case', () => {
@@ -138,19 +136,17 @@ describe('currentContextEvents', () => {
     expect([...currentContextEvents(events)]).toEqual([])
   })
 
-  it('never replays a move-era relocation injection — nothing records the slot anymore', () => {
+  it('treats a session-slot execution-location injection like any other entry', () => {
     const events = log([
       loaded({
         slot: 'session',
         key: 'execution-location',
-        content:
-          'Your environment is now cloud. Your project directory is /atlas/workspaces/repo. Your files and Git staging state were transferred without committing or merging them.',
+        content: 'Your environment is now cloud.',
       }),
       { type: 'user-said', text: 'keep it going' },
     ])
 
-    expect([...currentContextEvents(events)]).toEqual([])
-    expect([...supersededContextIds(events)]).toEqual(['event-1'])
+    expect(idsOf([...currentContextEvents(events)])).toEqual(['event-1'])
   })
 
   it('keeps a session-slot injection under any other key', () => {
