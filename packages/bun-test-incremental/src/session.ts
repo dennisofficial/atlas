@@ -3,12 +3,13 @@ import { dirname, join, relative } from 'node:path'
 import { plugin } from 'bun'
 import { afterAll } from 'bun:test'
 import { installBunTestWrap, installTimerGuards } from './bun-test-wrap'
-import { Hasher } from './fingerprint'
+import { type DependencyKey, Hasher } from './fingerprint'
 import { installRecorder } from './fs-env-recorder'
 import { computeGlobalKey } from './global-key'
 import { type IncrementalConfig } from './config'
 import { loaderFor, traceImports } from './import-graph'
-import { buildEntry } from './record'
+import { isPartialRun } from './partial-run'
+import { buildEntry, dependencyKeys, readKeys, snapshotInputs } from './record'
 import { countMiss, emptyStats, report } from './stats'
 import { ResultStore } from './store'
 import { isTracking, untracked } from './tracking'
@@ -19,19 +20,12 @@ const registerAfterAll = afterAll
 const PLUGIN_DIR = join(dirname(import.meta.dir))
 const EVALUATED = Symbol.for('@dltech/bun-test-incremental/evaluated')
 const SPEC = /[._](test|spec)\.[cm]?[jt]sx?$/
-const PARTIAL_RUN = /^(-t|--test-name-pattern|--only)(=|$)/
 
 const stub = (name: string) =>
   `import { test } from 'bun:test';\ntest.skip(${JSON.stringify(name)}, () => {});\n`
 
 const epilogue = (path: string) =>
   `\n;globalThis[Symbol.for(${JSON.stringify(EVALUATED.description)})]?.(${JSON.stringify(path)});\n`
-
-// Bun.argv omits bun's own flags (`-t`, `--only`), so the real command line comes from ps.
-function commandLine() {
-  const ps = Bun.spawnSync(['ps', '-o', 'args=', '-p', String(process.pid)])
-  return ps.stdout.toString().trim().split(/\s+/)
-}
 
 function realPath(path: string) {
   try {
@@ -63,7 +57,7 @@ export function startSession(config: IncrementalConfig) {
   const slug = project.replace(/[^\w.-]+/g, '-')
   const store = new ResultStore(join(cacheDir, slug, globalKey))
   const workDir = join(cacheDir, 'work', slug)
-  const partialRun = commandLine().some((arg) => PARTIAL_RUN.test(arg))
+  const partialRun = isPartialRun({ env: process.env })
   const startedAt = Date.now()
   const stats = emptyStats()
   const records = new Map<string, FileRecord>()
@@ -145,11 +139,17 @@ export function startSession(config: IncrementalConfig) {
         loader: 'js' as const,
       }
     }
-    const imports = traceImports({ entry: path, repoRoot })
-    const record = new FileRecord(path, imports)
+    const traced = traceImports({ entry: path, repoRoot })
+    const record = new FileRecord(path, traced.files)
+    if (traced.failure) record.markUncacheable(traced.failure)
     for (const earlier of records.values()) {
       if (sharesImport({ left: earlier, right: record })) record.inheritLoadPhase(earlier)
     }
+    const snapshot = new Hasher(repoRoot)
+    const capture = (keys: DependencyKey[]) =>
+      untracked(() => snapshotInputs({ file: record, keys, hasher: snapshot }))
+    capture(dependencyKeys({ file: record, repoRoot }))
+    record.onRead = (op) => capture(readKeys({ op, repoRoot }))
     records.set(path, record)
     const source = readFileSync(path, 'utf8')
     return { contents: source + epilogue(path), loader: loaderFor(path) }

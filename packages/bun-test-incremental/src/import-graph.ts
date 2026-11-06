@@ -1,10 +1,8 @@
 import { readFileSync, realpathSync } from 'node:fs'
-import { dirname } from 'node:path'
-import { init, parse } from 'es-module-lexer'
+import { dirname, relative } from 'node:path'
 
 // Bun's native ESM loader has no user hook from a preload, so dependencies are
-// traced statically. Dynamic `import()` with a non-literal specifier and
-// `require()` calls are not followed.
+// traced statically. Dynamic `import()` with a non-literal specifier is not followed.
 const SCRIPT = /\.[cm]?[jt]sx?$/
 const OPAQUE = /^(node|bun):/
 const readFile = readFileSync
@@ -12,11 +10,18 @@ const realpath = realpathSync
 
 type Loader = 'ts' | 'tsx' | 'js' | 'jsx'
 
-const transpilers = new Map<Loader, Bun.Transpiler>()
-const directImports = new Map<string, string[]>()
-const ready = init
+interface DirectImports {
+  imports: string[]
+  failure: string | undefined
+}
 
-export const initLexer = () => ready
+export interface TracedImports {
+  files: string[]
+  failure: string | undefined
+}
+
+const transpilers = new Map<Loader, Bun.Transpiler>()
+const directImports = new Map<string, DirectImports>()
 
 export const isScript = (path: string) => SCRIPT.test(path)
 
@@ -26,13 +31,13 @@ export function loaderFor(path: string): Loader {
   return /\.[cm]?ts$/.test(path) ? 'ts' : 'js'
 }
 
-function transpile(code: string, loader: Loader) {
+function transpilerFor(loader: Loader) {
   let transpiler = transpilers.get(loader)
   if (!transpiler) {
     transpiler = new Bun.Transpiler({ loader })
     transpilers.set(loader, transpiler)
   }
-  return transpiler.transformSync(code)
+  return transpiler
 }
 
 function isLocal(params: { path: string; repoRoot: string }) {
@@ -51,33 +56,45 @@ function resolveImport(params: { specifier: string; from: string; repoRoot: stri
   }
 }
 
-function importsOf(params: { file: string; repoRoot: string }) {
+function scanFile(params: { file: string; repoRoot: string }): DirectImports {
   const { file, repoRoot } = params
-  const known = directImports.get(file)
-  if (known) return known
-  const resolved = new Set<string>()
   try {
-    const code = transpile(readFile(file, 'utf8'), loaderFor(file))
-    for (const entry of parse(code)[0]) {
-      if (entry.n === undefined) continue
-      const target = resolveImport({ specifier: entry.n, from: file, repoRoot })
+    const scanned = transpilerFor(loaderFor(file)).scanImports(readFile(file, 'utf8'))
+    const resolved = new Set<string>()
+    for (const { path: specifier } of scanned) {
+      const target = resolveImport({ specifier, from: file, repoRoot })
       if (target) resolved.add(target)
     }
-  } catch {}
-  const result = [...resolved]
-  directImports.set(file, result)
-  return result
+    return { imports: [...resolved], failure: undefined }
+  } catch {
+    return {
+      imports: [],
+      failure: `could not trace imports of ${relative(repoRoot, file)}`,
+    }
+  }
 }
 
-export function traceImports(params: { entry: string; repoRoot: string }): string[] {
+function importsOf(params: { file: string; repoRoot: string }) {
+  const known = directImports.get(params.file)
+  if (known) return known
+  const scanned = scanFile(params)
+  directImports.set(params.file, scanned)
+  return scanned
+}
+
+export function traceImports(params: { entry: string; repoRoot: string }): TracedImports {
   const { entry, repoRoot } = params
   const seen = new Set<string>()
   const stack = [entry]
+  let failure: string | undefined
   while (stack.length > 0) {
     const file = stack.pop()
     if (file === undefined || seen.has(file)) continue
     seen.add(file)
-    if (isScript(file)) stack.push(...importsOf({ file, repoRoot }))
+    if (!isScript(file)) continue
+    const direct = importsOf({ file, repoRoot })
+    failure ??= direct.failure
+    stack.push(...direct.imports)
   }
-  return [...seen]
+  return { files: [...seen], failure }
 }

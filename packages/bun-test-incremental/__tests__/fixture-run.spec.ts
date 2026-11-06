@@ -26,7 +26,7 @@ class Fixture {
     }
   }
 
-  run(mode: string, args: string[] = []) {
+  run(mode: string, args: string[] = [], extraEnv: Record<string, string> = {}) {
     const summary = join(this.root, 'summary.json')
     const result = Bun.spawnSync(['bun', 'test', '--preload', PRELOAD_PATH, ...args], {
       cwd: this.root,
@@ -36,6 +36,7 @@ class Fixture {
         BUN_TEST_INCREMENTAL_REPO_ROOT: this.root,
         BUN_TEST_INCREMENTAL_CACHE_DIR: join(this.root, '.cache'),
         BUN_TEST_INCREMENTAL_SUMMARY: summary,
+        ...extraEnv,
       },
     })
     const parsed = JSON.parse(readFileSync(summary, 'utf8'))
@@ -170,6 +171,39 @@ describe('incremental pass cache', () => {
     const fixture = abc()
     fixture.write({ 'src/b.ts': 'export const b = 2' })
     expect(fixture.run('1', ['-t', 'a']).recorded).toBe(0)
+  })
+
+  test('BUN_TEST_INCREMENTAL_PARTIAL marks the run partial so nothing is cached', () => {
+    const fixture = abc()
+    fixture.write({ 'src/b.ts': 'export const b = 2' })
+    expect(fixture.run('1', [], { BUN_TEST_INCREMENTAL_PARTIAL: '1' }).recorded).toBe(0)
+    expect(fixture.run('1').recorded).toBe(3)
+  })
+
+  test('a spec with an import that cannot be traced is never cached', () => {
+    const fixture = new Fixture({
+      'src/lazy.ts': "export const load = () => import('./broken')",
+      'src/broken.ts': 'const = ;',
+      '__tests__/lazy.spec.ts':
+        "import { expect, test } from 'bun:test'\nimport { load } from '../src/lazy'\ntest('lazy', () => { expect(load).toBeFunction() })\n",
+    })
+    const cold = fixture.run('1')
+    expect(cold.exitCode).toBe(0)
+    expect(cold.recorded).toBe(0)
+    expect(cold.output).toContain('could not trace imports of src/broken.ts')
+    expect(fixture.run('1').executed).toEqual(['__tests__/lazy.spec.ts'])
+  })
+
+  test('an input edited during the run with its mtime preserved is not cached', () => {
+    const fixture = new Fixture({
+      'src/dep.ts': 'export const dep = 1',
+      '__tests__/edit.spec.ts':
+        "import { expect, test } from 'bun:test'\nimport { statSync, utimesSync, writeFileSync } from 'node:fs'\nimport { dep } from '../src/dep'\ntest('edit', () => {\n  const path = `${import.meta.dir}/../src/dep.ts`\n  const { atime, mtime } = statSync(path)\n  writeFileSync(path, 'export const dep = 2')\n  utimesSync(path, atime, mtime)\n  expect(dep).toBe(1)\n})\n",
+    })
+    const cold = fixture.run('1')
+    expect(cold.exitCode).toBe(0)
+    expect(cold.recorded).toBe(0)
+    expect(cold.output).toContain('an input changed during the run')
   })
 
   test('it.each rows that are functions reach the test body untouched', () => {
