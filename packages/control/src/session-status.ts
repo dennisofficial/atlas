@@ -1,5 +1,17 @@
-import { blobValueOf, isBlobRef, sessionStatusOf, type V2Event } from '@dltech/atlas-core'
-import type { SessionStatusOutput } from '@dltech/atlas-protocol'
+import {
+  blobValueOf,
+  isBlobRef,
+  sessionStatusOf,
+  type InboxEntry,
+  type V2Event,
+} from '@dltech/atlas-core'
+import {
+  INBOX_KIND_MESSAGE,
+  inboxMessageSchema,
+  QUEUED_MESSAGES_LIMIT,
+  type SessionQueuedMessage,
+  type SessionStatusOutput,
+} from '@dltech/atlas-protocol'
 
 import type { ControlPlane } from './control-plane'
 
@@ -22,6 +34,24 @@ const resolveFactRefs = (args: {
     }),
   )
 
+const queuedOf = (inbox: readonly InboxEntry[]): SessionQueuedMessage[] =>
+  inbox
+    .filter((entry) => entry.kind === INBOX_KIND_MESSAGE)
+    .flatMap((entry) => {
+      const parsed = inboxMessageSchema.safeParse(safeJson(entry.payload))
+      if (!parsed.success) return []
+      return [{ inboxId: entry.inboxId, text: parsed.data.text, postedAt: entry.postedAt }]
+    })
+    .slice(0, QUEUED_MESSAGES_LIMIT)
+
+const safeJson = (payload: string): unknown => {
+  try {
+    return JSON.parse(payload)
+  } catch {
+    return undefined
+  }
+}
+
 export const readSessionStatus = async (args: {
   plane: StatusPlane
   sessionId: string
@@ -43,6 +73,7 @@ export const readSessionStatus = async (args: {
     messageAfterFailure: snapshot.messageAfterFailure,
     now: args.now,
   })
+  const queued = queuedOf(snapshot.pendingInbox)
   const lastSeq = events[events.length - 1]?.seq ?? 0
   return {
     at: Math.max(head.seq, lastSeq),
@@ -51,6 +82,7 @@ export const readSessionStatus = async (args: {
       ...(current.reason === undefined ? {} : { reason: current.reason }),
       ...(current.since === undefined ? {} : { since: current.since }),
       lease: { epoch: lease.epoch, holderHostId: lease.holderHostId, live },
+      ...(queued.length === 0 ? {} : { queued }),
     },
   }
 }
