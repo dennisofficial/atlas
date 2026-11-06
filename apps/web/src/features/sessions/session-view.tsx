@@ -19,6 +19,7 @@ import { ThreadTranscript } from '@/features/threads/thread-transcript'
 import { sessionsApi } from './data/sessions-api'
 import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from './data/session-state'
 import { sessionCache, sessionStream } from './data/session-stream'
+import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionTranscriptOf } from './data/session-transcript'
 import { useSessionStream } from './data/use-session-stream'
 
@@ -85,6 +86,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     () => sessionTranscriptOf({ events: snapshot.events, overlay: snapshot.overlay }),
     [snapshot.events, snapshot.overlay],
   )
+  const boot = useMemo(
+    () => sessionBootViewOf({ events: snapshot.events, status: snapshot.status }),
+    [snapshot.events, snapshot.status],
+  )
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
   const stateLine = sessionStateLineOf(snapshot)
 
@@ -115,6 +120,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             onRetryBoot={noop}
             rewind={null}
             summarise={null}
+            boot={boot}
           />
         </div>
         <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">

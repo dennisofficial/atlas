@@ -10,7 +10,7 @@ import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protoco
 
 import type { LogPort } from '@dltech/atlas-observability'
 
-import type { PrepareResult } from '../ports'
+import type { PrepareResult, PrepareStepReporter } from '../ports'
 import { SessionHolder } from '../session-holder'
 import { FakeBus, FakeClock, flushUntil, SANDBOX, SECRET, SESSION, THREAD } from './rig-fakes'
 import { makeRuntimeFactory, type RigRuntime, type ScriptRef } from './rig-runtime'
@@ -54,7 +54,7 @@ export const makeRig = async (args: {
   sweepMs?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   model?: (() => ModelPort) | undefined
-  prepare?: (() => Promise<PrepareResult>) | undefined
+  prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
   beforeRuntime?: (() => Promise<void>) | undefined

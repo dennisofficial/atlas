@@ -40,6 +40,7 @@ const TURN_NEUTRAL_TYPES: ReadonlySet<V2Event['type']> = new Set<RecordBody['typ
   'fact-recorded',
   'retry-scheduled',
   'input-consumed',
+  'workspace-step',
 ])
 
 const isTurnNeutral = (event: V2Event): boolean => TURN_NEUTRAL_TYPES.has(event.type)

@@ -1,4 +1,9 @@
-import { defaultPipeline, type ModelPort } from '@dltech/atlas-core'
+import {
+  defaultPipeline,
+  EWorkspaceStep,
+  EWorkspaceStepState,
+  type ModelPort,
+} from '@dltech/atlas-core'
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import {
@@ -8,6 +13,7 @@ import {
   RemoteCalls,
   type HostTimers,
   type PrepareResult,
+  type PrepareStepReporter,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
@@ -22,6 +28,7 @@ import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
 import { abortable } from './abortable'
+import { PrepareSteps } from './prepare-steps'
 import { rewakingConnector } from './rewaking-connector'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
@@ -71,7 +78,13 @@ export const createSessionRuntimeFactory = (
     }
     const wake = (): Promise<DaemonEndpoint> =>
       args.sandbox.wake({ sessionId, credentials, signal })
+    const steps = new PrepareSteps()
+    steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })
     const endpoint = wake()
+    endpoint.then(
+      () => steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Done }),
+      (error: unknown) => steps.failOpen(error instanceof Error ? error.message : String(error)),
+    )
     endpoint.catch((error: unknown) => {
       args.log?.error({
         source: 'runtime.wake',
@@ -97,6 +110,7 @@ export const createSessionRuntimeFactory = (
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
         .then(async () => {
+          steps.report({ step: EWorkspaceStep.Daemon, state: EWorkspaceStepState.Done })
           const token = await abortable(args.github.read({ userId: config.userId }), signal)
           return ensureWorkspace({
             calls,
@@ -107,10 +121,12 @@ export const createSessionRuntimeFactory = (
             launchDirectory,
             sandboxName: sandboxNameOf(sessionId),
             signal,
+            onStep: (step) => steps.report(step),
             ...(args.log === undefined ? {} : { log: args.log }),
           })
         })
         .catch((error: unknown): PrepareResult => {
+          steps.failOpen(error instanceof Error ? error.message : String(error))
           args.log?.error({
             source: 'runtime.workspace-setup',
             message: `workspace setup for ${sessionId} failed`,
@@ -131,6 +147,7 @@ export const createSessionRuntimeFactory = (
             message: `workspace setup for ${sessionId} did not finish within ${deadlineMs}ms`,
           })
           controller.abort(new Error(`workspace setup did not finish within ${deadlineMs}ms`))
+          steps.failOpen(`workspace setup did not finish within ${deadlineMs}ms`)
           resolve({ ok: false, reason: `workspace setup did not finish within ${deadlineMs}ms` })
         }, deadlineMs)
       })
@@ -141,7 +158,8 @@ export const createSessionRuntimeFactory = (
       })
     }
     let current = start(Promise.resolve())
-    const prepare = (): Promise<PrepareResult> => {
+    const prepare = (onStep?: PrepareStepReporter): Promise<PrepareResult> => {
+      if (onStep !== undefined) steps.subscribe(onStep)
       const previous = failedAttempt
       if (previous === undefined) return current
       failedAttempt = undefined

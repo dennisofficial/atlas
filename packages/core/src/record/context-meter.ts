@@ -33,6 +33,7 @@ const tokensOf = (event: V2Event): number => {
     event.type === 'branches-observed' ||
     event.type === 'workspace-prepared' ||
     event.type === 'workspace-prepare-failed' ||
+    event.type === 'workspace-step' ||
     event.type === 'session-start-failed'
   )
     return 0

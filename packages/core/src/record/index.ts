@@ -1,6 +1,7 @@
 export * from './blobs'
 export * from './branches'
 export * from './workspace'
+export * from './workspace-steps'
 export * from './start-failure'
 export * from './retry-scheduled'
 export * from './canonical'

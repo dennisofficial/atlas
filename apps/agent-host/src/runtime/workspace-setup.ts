@@ -1,4 +1,11 @@
-import type { FileSystemPort, ProcessPort } from '@dltech/atlas-core'
+import {
+  EWorkspaceStep,
+  EWorkspaceStepOutcome,
+  EWorkspaceStepState,
+  type FileSystemPort,
+  type ProcessPort,
+  type WorkspaceStepReport,
+} from '@dltech/atlas-core'
 import {
   runInCallScope,
   scopeKeyOf,
@@ -69,6 +76,7 @@ export const ensureWorkspace = async (args: {
   sandboxName: string
   signal?: AbortSignal | undefined
   log?: LogPort | undefined
+  onStep?: ((step: WorkspaceStepReport) => void) | undefined
 }): Promise<PrepareResult> => {
   const failures: string[] = []
   const deps: Deps = {
@@ -78,7 +86,7 @@ export const ensureWorkspace = async (args: {
     signal: args.signal,
     ...(args.log === undefined ? {} : { log: args.log }),
   }
-  const { workspace, launchDirectory, githubToken } = args
+  const { workspace, launchDirectory, githubToken, onStep } = args
   const stateDir = stateDirOf(launchDirectory)
   const sentinels = sentinelsOf(stateDir)
   const scrub = (text: string): string =>
@@ -92,7 +100,14 @@ export const ensureWorkspace = async (args: {
       body: () => checkSentinels({ deps, sentinels }),
     })
     args.signal?.throwIfAborted()
-    if (!state.materialized) {
+    if (state.materialized) {
+      onStep?.({
+        step: EWorkspaceStep.Clone,
+        state: EWorkspaceStepState.Done,
+        outcome: EWorkspaceStepOutcome.Skipped,
+      })
+    } else {
+      onStep?.({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started })
       const materialized = await runInCallScope({
         scopeKey: phases[1] ?? 'setup:clone',
         body: () =>
@@ -106,10 +121,26 @@ export const ensureWorkspace = async (args: {
             scrub,
           }),
       })
-      if (!materialized) return resultOf(failures)
+      if (!materialized) {
+        const result = resultOf(failures)
+        onStep?.({
+          step: EWorkspaceStep.Clone,
+          state: EWorkspaceStepState.Failed,
+          reason: result.ok ? 'clone failed' : result.reason,
+        })
+        return result
+      }
+      onStep?.({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Done })
     }
     args.signal?.throwIfAborted()
-    if (!state.setupRan) {
+    if (state.setupRan || workspace.setupScript.trim() === '') {
+      onStep?.({
+        step: EWorkspaceStep.Setup,
+        state: EWorkspaceStepState.Done,
+        outcome: EWorkspaceStepOutcome.Skipped,
+      })
+    } else {
+      onStep?.({ step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Started })
       await runInCallScope({
         scopeKey: phases[2] ?? 'setup:setup',
         body: () =>
@@ -121,6 +152,17 @@ export const ensureWorkspace = async (args: {
             scrub,
           }),
       })
+      const result = resultOf(failures)
+      onStep?.(
+        result.ok
+          ? { step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Done }
+          : {
+              step: EWorkspaceStep.Setup,
+              state: EWorkspaceStepState.Failed,
+              reason: result.reason,
+            },
+      )
+      return result
     }
     return resultOf(failures)
   } catch (error) {

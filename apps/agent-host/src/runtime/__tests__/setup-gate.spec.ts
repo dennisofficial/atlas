@@ -9,6 +9,7 @@ import {
   toThreadId,
   type ToolInvocation,
   type ToolOutcome,
+  type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { systemTimers } from '@dltech/atlas-host'
@@ -163,6 +164,21 @@ describe('SessionRuntime.prepare', () => {
       expect(failed).toEqual({ ok: false, reason: 'token endpoint down' })
       expect(await runtime.prepare()).toEqual({ ok: true })
       expect(attempts).toBe(2)
+      await runtime.stop()
+    } finally {
+      await sandbox.stopAll()
+    }
+  }, 60_000)
+
+  it('reports sandbox, daemon, clone and setup steps in order', async () => {
+    const { runtime, sandbox } = await runtimeWith({ githubToken: async () => null })
+    try {
+      const seen: WorkspaceStepReport[] = []
+      expect(await runtime.prepare((step) => seen.push(step))).toEqual({ ok: true })
+      const labels = seen.map((step) => `${step.step}:${step.state}`)
+      expect(labels.slice(0, 3)).toEqual(['sandbox:started', 'sandbox:done', 'daemon:done'])
+      expect(labels.some((label) => label.startsWith('clone:'))).toBe(true)
+      expect(labels.at(-1)?.startsWith('setup:')).toBe(true)
       await runtime.stop()
     } finally {
       await sandbox.stopAll()

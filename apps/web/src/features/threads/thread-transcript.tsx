@@ -80,6 +80,7 @@ export function ThreadTranscript({
   onRetryBoot,
   rewind,
   summarise,
+  boot: sessionBoot,
 }: {
   items: readonly TranscriptRow[]
   failureCard: RunFailureCardProps | null
@@ -89,6 +90,7 @@ export function ThreadTranscript({
   onRetryBoot: () => void
   rewind: TranscriptRewind | null
   summarise: TranscriptSummarise | null
+  boot?: BootView | null
 }) {
   const { user } = useSessionUser()
   const now = useNow(working || anySpawnRunning(items))
@@ -110,6 +112,11 @@ export function ThreadTranscript({
   const lastUserTurnId = turns.findLast((turn) => turn.kind === ETurnKind.User)?.id ?? null
   return (
     <Chat jumpKey={lastUserTurnId}>
+      {sessionBoot === undefined || sessionBoot === null ? null : (
+        <ChatItem id="session-boot">
+          <TickingSandboxBoot view={sessionBoot} />
+        </ChatItem>
+      )}
       {bootAfter(-1)}
       {turns.flatMap((turn, index) => [
         <ChatItem key={turn.id} id={turn.id}>
