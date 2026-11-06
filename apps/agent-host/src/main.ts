@@ -116,7 +116,7 @@ const main = async (): Promise<void> => {
 
   const handleSignal = createGracefulShutdown({
     drain: async () => {
-      await Promise.all([stream.drain({}), holder.drain({ deadline: Date.now() + 270_000 })])
+      await Promise.all([stream.drain({}), holder.drain({ deadline: Date.now() + env.drainMs })])
       await watch?.close()
       await presence.close()
       await wakes.close()

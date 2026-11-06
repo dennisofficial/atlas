@@ -59,6 +59,10 @@ export class FollowSession implements SubscriptionSession {
     return subscription.begin()
   }
 
+  drain(): void {
+    for (const subscription of [...this.subscriptions.values()]) subscription.handleDrain()
+  }
+
   close(): void {
     for (const subscription of [...this.subscriptions.values()]) subscription.stop()
     this.subscriptions.clear()

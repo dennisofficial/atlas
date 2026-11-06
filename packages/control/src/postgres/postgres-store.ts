@@ -40,6 +40,12 @@ class PostgresTx implements ControlTx {
     return row.at.toISOString()
   }
 
+  async useSnapshot(): Promise<void> {
+    await this.tx.execute(
+      this.tx.raw.sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`.affectedCount().build(),
+    )
+  }
+
   async createSession(params: {
     sessionId: string
     userId: string

@@ -15,6 +15,7 @@ export type Deps = {
   processes: ProcessPort
   files: FileSystemPort
   log?: LogPort | undefined
+  signal?: AbortSignal | undefined
   failures?: string[] | undefined
 }
 

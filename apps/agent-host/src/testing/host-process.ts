@@ -17,6 +17,7 @@ import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
 import type { ConfigSource } from '../config/agent-host-config'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
+import { DEFAULT_DRAIN_MS } from '../config/env'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 
 const requireEnv = (name: string): string => {
@@ -201,7 +202,9 @@ const main = async (): Promise<void> => {
     if (shuttingDown) process.exit(1)
     shuttingDown = true
     log.info({ source: 'host-process', message: 'draining' })
-    await holder.drain({ deadline: Date.now() + numberEnv('DRAIN_MS', 270_000) })
+    await holder.drain({
+      deadline: Date.now() + numberEnv('AGENT_HOST_DRAIN_MS', DEFAULT_DRAIN_MS),
+    })
     await watch?.close()
     await pgPresence.close()
     await wakes.close()

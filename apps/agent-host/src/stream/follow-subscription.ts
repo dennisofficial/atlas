@@ -8,7 +8,6 @@ import {
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import {
-  FOLLOW_DRAIN_POLL_MS,
   FOLLOW_HIGH_WATER_BYTES,
   FOLLOW_PAGE_BYTES,
   FOLLOW_SLOW_CONSUMER_MS,
@@ -35,7 +34,6 @@ export class FollowSubscription implements FollowTarget {
   private pumping = false
   private stopped = false
   private announcedLive = false
-  private drainTimer: unknown
   private wakeDrain: (() => void) | undefined
 
   constructor(private readonly args: FollowSubscriptionArgs) {
@@ -81,6 +79,12 @@ export class FollowSubscription implements FollowTarget {
     if (change.threadId !== this.threadId || change.headSeq === undefined) return
     if (this.cursor !== undefined && change.headSeq <= this.cursor) return
     this.markDirty()
+  }
+
+  handleDrain(): void {
+    if (this.stopped) return
+    this.releaseDrainWait()
+    this.args.index.drained(this)
   }
 
   markDirty(): void {
@@ -164,28 +168,25 @@ export class FollowSubscription implements FollowTarget {
 
   private async awaitDrained(): Promise<boolean> {
     const { connection, deps } = this.args
-    const waitStart = deps.timers.now()
-    while (connection.bufferedAmount() >= FOLLOW_HIGH_WATER_BYTES) {
-      if (this.stopped) return false
-      if (deps.timers.now() - waitStart >= FOLLOW_SLOW_CONSUMER_MS) {
-        connection.close(EStreamClose.SlowConsumer)
-        this.stop()
-        return false
+    if (connection.bufferedAmount() < FOLLOW_HIGH_WATER_BYTES) return !this.stopped
+    const slowTimer = deps.timers.setTimeout(() => {
+      connection.close(EStreamClose.SlowConsumer)
+      this.stop()
+    }, FOLLOW_SLOW_CONSUMER_MS)
+    try {
+      while (connection.bufferedAmount() >= FOLLOW_HIGH_WATER_BYTES) {
+        if (this.stopped) return false
+        await new Promise<void>((resolve) => {
+          this.wakeDrain = resolve
+        })
       }
-      await new Promise<void>((resolve) => {
-        this.wakeDrain = resolve
-        this.drainTimer = deps.timers.setTimeout(
-          () => this.releaseDrainWait(),
-          FOLLOW_DRAIN_POLL_MS,
-        )
-      })
+    } finally {
+      deps.timers.clearTimeout(slowTimer)
     }
     return !this.stopped
   }
 
   private releaseDrainWait(): void {
-    if (this.drainTimer !== undefined) this.args.deps.timers.clearTimeout(this.drainTimer)
-    this.drainTimer = undefined
     const wake = this.wakeDrain
     this.wakeDrain = undefined
     wake?.()

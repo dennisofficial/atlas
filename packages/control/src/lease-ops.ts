@@ -95,12 +95,18 @@ export class LeaseOps {
     return result.lease
   }
 
+  async currentLeaseIn(params: {
+    tx: ControlTx
+    sessionId: string
+  }): Promise<{ lease: Lease; live: boolean }> {
+    const { tx } = params
+    const lease = (await tx.readLease(params.sessionId)) ?? initialLease(params)
+    const live = lease.holderHostId !== null && (await tx.hostPresent(lease.holderHostId))
+    return { lease, live }
+  }
+
   async currentLease(params: { sessionId: string }): Promise<{ lease: Lease; live: boolean }> {
-    return this.store.transact(async (tx) => {
-      const lease = (await tx.readLease(params.sessionId)) ?? initialLease(params)
-      const live = lease.holderHostId !== null && (await tx.hostPresent(lease.holderHostId))
-      return { lease, live }
-    })
+    return this.store.transact((tx) => this.currentLeaseIn({ tx, ...params }))
   }
 
   private async mutateLease(params: {

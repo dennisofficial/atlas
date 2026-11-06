@@ -45,9 +45,13 @@ export const run = async (args: {
   cmd: readonly string[]
   cwd: string
   timeoutMs: number
+  signal?: AbortSignal | undefined
 }): Promise<RunOutcome> => {
   const handle = args.processes.spawn({ cmd: args.cmd, cwd: args.cwd })
-  const timer = setTimeout(() => handle.terminate(), args.timeoutMs)
+  const terminate = (): void => handle.terminate()
+  const timer = setTimeout(terminate, args.timeoutMs)
+  args.signal?.addEventListener('abort', terminate, { once: true })
+  if (args.signal?.aborted === true) terminate()
   try {
     const [output, exitCode] = await Promise.all([
       new Response(handle.stdout).text(),
@@ -56,6 +60,7 @@ export const run = async (args: {
     return { ok: exitCode === 0, output }
   } finally {
     clearTimeout(timer)
+    args.signal?.removeEventListener('abort', terminate)
   }
 }
 
@@ -113,6 +118,7 @@ const clonePrimary = async (args: {
     ],
     cwd: staging,
     timeoutMs: CLONE_TIMEOUT_MS,
+    signal: deps.signal,
   })
   if (!cloned.ok) {
     const detail = args.scrub(cloned.output)
@@ -152,6 +158,7 @@ const cloneAdditional = async (args: {
       ],
       cwd: dirname(args.launchDirectory),
       timeoutMs: CLONE_TIMEOUT_MS,
+      signal: args.deps.signal,
     })
     if (!cloned.ok) {
       const detail = args.scrub(cloned.output)

@@ -46,6 +46,7 @@ export const createFollowSubscriptions = (
       overlay?.remove(subscription)
     },
     resnap: (subscription) => overlay?.resnap(subscription),
+    drained: (subscription) => overlay?.drained(subscription),
   }
   const offChange = args.feed.onChange((change) => {
     for (const target of [...(bySession.get(change.sessionId) ?? [])]) target.handleChange(change)

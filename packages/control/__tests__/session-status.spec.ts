@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { chainEvents, ESessionStatus, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
 
 import { ControlPlane, readSessionStatus } from '../src'
+import type { ControlTx } from '../src/port'
 import { InMemoryControlStore } from '../src/testing/memory'
 
 const NOW = '2026-11-05T12:00:00.000Z'
@@ -109,5 +110,90 @@ describe('readSessionStatus', () => {
     })
     await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"b"}' })
     expect((await read()).value.state).toBe(ESessionStatus.Sent)
+  })
+})
+
+class ReorderingStore extends InMemoryControlStore {
+  private transactions = 0
+  private injecting = false
+  private release: (() => void) | undefined
+  private readonly released = new Promise<void>((resolve) => {
+    this.release = resolve
+  })
+  private plan: { deferred: number; after: number; commit: () => Promise<void> } | undefined
+
+  arm(plan: { deferred: number; after: number; commit: () => Promise<void> }): void {
+    this.transactions = 0
+    this.plan = plan
+  }
+
+  override async transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
+    if (this.injecting) return super.transact(work)
+    this.transactions += 1
+    const index = this.transactions
+    const { plan } = this
+    if (plan === undefined) return super.transact(work)
+    if (index === plan.deferred) await this.released
+    const result = await super.transact(work)
+    if (index === plan.after) {
+      this.injecting = true
+      await plan.commit()
+      this.injecting = false
+      this.release?.()
+    }
+    return result
+  }
+}
+
+describe('readSessionStatus under a concurrent consume', () => {
+  it('never reports Sent at the sequence of the log that consumed the entry', async () => {
+    const store = new ReorderingStore({ clock: () => NOW })
+    const plane = new ControlPlane({ store })
+    await plane.createSession({
+      sessionId: SESSION,
+      userId: 'user-a',
+      projectId: 'project-a',
+      mainThreadId: THREAD,
+    })
+    const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
+    const append = async (bodies: V2Body[]) => {
+      const outcome = await plane.append({
+        threadId: THREAD,
+        epoch: lease.epoch,
+        events: chainEvents({
+          threadId: toThreadId(THREAD),
+          runId: toRunId('run-1'),
+          epoch: lease.epoch,
+          at: NOW,
+          bodies,
+          from: await plane.head({ threadId: THREAD }),
+        }),
+      })
+      if (!outcome.ok) throw new Error('append refused')
+    }
+    await append([{ type: 'workspace-prepared' }])
+    const posted = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: '{"text":"hi"}',
+    })
+    store.arm({
+      deferred: 2,
+      after: 3,
+      commit: () =>
+        append([
+          { type: 'input-consumed', inboxId: posted.inboxId },
+          { type: 'user-said', text: 'hi', requestId: `inbox:${posted.inboxId}` },
+        ]),
+    })
+
+    const status = await readSessionStatus({
+      plane,
+      sessionId: SESSION,
+      threadId: THREAD,
+      now: NOW,
+    })
+
+    expect(status.value.state === ESessionStatus.Sent && status.at > 1).toBe(false)
   })
 })

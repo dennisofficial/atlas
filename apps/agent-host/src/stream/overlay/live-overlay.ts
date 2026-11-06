@@ -70,6 +70,10 @@ export class LiveOverlay {
     this.sessions.get(target.sessionId)?.watchers.get(target)?.resync()
   }
 
+  drained(target: OverlayTarget): void {
+    this.sessions.get(target.sessionId)?.watchers.get(target)?.handleDrain()
+  }
+
   liveness(args: { sessionId: string; live: boolean }): void {
     const entry = this.sessions.get(args.sessionId)
     if (entry === undefined) return

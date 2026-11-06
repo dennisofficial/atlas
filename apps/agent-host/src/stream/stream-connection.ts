@@ -98,6 +98,10 @@ export class StreamConnection {
     this.route(decoded.message)
   }
 
+  handleDrain(): void {
+    this.session?.drain()
+  }
+
   handleClose(): void {
     this.clearTimers()
     this.phase = EPhase.Closed

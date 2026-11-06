@@ -38,6 +38,7 @@ const runSetupOnce = async (args: {
     cmd: ['sh', '-c', setupScript],
     cwd: launchDirectory,
     timeoutMs: SETUP_TIMEOUT_MS,
+    signal: deps.signal,
   })
   if (!outcome.ok) {
     const detail = args.scrub(outcome.output)
@@ -66,6 +67,7 @@ export const ensureWorkspace = async (args: {
   githubToken: string | null
   launchDirectory: string
   sandboxName: string
+  signal?: AbortSignal | undefined
   log?: LogPort | undefined
 }): Promise<PrepareResult> => {
   const failures: string[] = []
@@ -73,6 +75,7 @@ export const ensureWorkspace = async (args: {
     processes: args.processes,
     files: args.files,
     failures,
+    signal: args.signal,
     ...(args.log === undefined ? {} : { log: args.log }),
   }
   const { workspace, launchDirectory, githubToken } = args
@@ -88,6 +91,7 @@ export const ensureWorkspace = async (args: {
       scopeKey: phases[0] ?? 'setup:check',
       body: () => checkSentinels({ deps, sentinels }),
     })
+    args.signal?.throwIfAborted()
     if (!state.materialized) {
       const materialized = await runInCallScope({
         scopeKey: phases[1] ?? 'setup:clone',
@@ -104,6 +108,7 @@ export const ensureWorkspace = async (args: {
       })
       if (!materialized) return resultOf(failures)
     }
+    args.signal?.throwIfAborted()
     if (!state.setupRan) {
       await runInCallScope({
         scopeKey: phases[2] ?? 'setup:setup',

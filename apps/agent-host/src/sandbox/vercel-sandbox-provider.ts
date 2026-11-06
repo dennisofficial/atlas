@@ -8,7 +8,7 @@ import {
   type VercelCredentials,
 } from './constants'
 import { mountWithRetries } from './vercel-mount'
-import { liveSdk, renewSessionDeadline, routedUrlWithRetries, type VercelSdk } from './vercel-sdk'
+import { liveSdk, renewSessionDeadline, routedUrlOf, type VercelSdk } from './vercel-sdk'
 
 import { launchDaemon, type DaemonBundle } from './daemon-launch'
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox-provider'
@@ -59,7 +59,15 @@ export class VercelSandboxProvider extends SandboxProvider {
       sandboxName,
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })
-    const routed = await routedUrlWithRetries(sandbox)
+    const routed = await routedUrlOf({
+      sandbox,
+      refetch: () =>
+        this.sdk.get({
+          ...args.credentials,
+          name: sandboxName,
+          signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+        }),
+    })
     return {
       url: routed.replace(/^https:/, 'wss:'),
       token,
