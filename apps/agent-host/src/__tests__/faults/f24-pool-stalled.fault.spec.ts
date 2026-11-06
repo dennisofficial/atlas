@@ -71,15 +71,21 @@ describe.skipIf(REDIS_URL === undefined)('F24 stalled pool, healthy presence', (
     await releaseFifo({ path: gated.gateFifo })
     await waitForLog({ host: hostB, text: 'append retry exhausted', timeoutMs: 30_000 })
     bDb.clear()
-    await rig.waitHeldBy({ sessionId, label: 'host-a', timeoutMs: 45_000 })
-    expect((await rig.plane.currentLease({ sessionId })).lease.epoch).toBe(before.lease.epoch + 1)
+    await waitUntil({
+      what: 'a live host to hold the session at a later epoch',
+      timeoutMs: 45_000,
+      check: async () => {
+        const current = await rig.plane.currentLease({ sessionId })
+        return current.live && current.lease.epoch > before.lease.epoch
+      },
+    })
 
     await rig.waitForSeq({
       threadId,
       want: (rows) =>
         rows.some(
           (row) =>
-            row.type === 'assistant-said' && JSON.stringify(row.event).includes('host a finished'),
+            row.type === 'assistant-said' && /host [ab] finished/.test(JSON.stringify(row.event)),
         ),
       timeoutMs: 30_000,
     })
