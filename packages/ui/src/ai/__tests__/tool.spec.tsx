@@ -14,7 +14,7 @@ describe('Tool', () => {
       toolTitle({ kind: EToolKind.Shell, state, label: 'pnpm test' })
 
     expect(title(EToolState.Running)).toBe('Running pnpm test')
-    expect(title(EToolState.Done)).toBe('Ran pnpm test')
+    expect(title(EToolState.Done)).toBe('pnpm test')
     expect(title(EToolState.Error)).toBe('Failed to run pnpm test')
     expect(title(EToolState.Denied)).toBe('Denied pnpm test')
     expect(title(EToolState.AwaitingApproval)).toBe('Run pnpm test?')
@@ -37,7 +37,7 @@ describe('Tool', () => {
   it('renders a done line as a collapsible', () => {
     const html = render(EToolState.Done)
 
-    expect(html).toContain('Ran git status --short')
+    expect(html).toContain('git status --short')
     expect(html).toContain('trace-collapsible-trigger')
     expect(html).not.toContain(' data-status="')
   })
@@ -73,7 +73,7 @@ describe('Tool', () => {
     const html = render(EToolState.Done, { title: 'Spawned vault audit' })
 
     expect(html).toContain('Spawned vault audit')
-    expect(html).not.toContain('Ran git status --short')
+    expect(html).not.toContain('git status --short')
   })
 
   it('shows the title override on an approval prompt', () => {
