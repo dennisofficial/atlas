@@ -6,6 +6,7 @@ import { seedThread, seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
+import { PgRefreshLock } from '../src/_lib/refresh-lock/pg-refresh-lock'
 import { OauthConnectionsService } from '../src/api/platform/oauth-connections/oauth-connections.service'
 import { OauthClock } from '../src/api/platform/oauth-connections/oauth-connections.types'
 import { HttpOauthIssuer } from '../src/api/platform/oauth-connections/oauth-issuer'
@@ -19,9 +20,6 @@ class OffsetClock implements OauthClock {
   offsetMs = 0
   now(): number {
     return Date.now() + this.offsetMs
-  }
-  sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 }
 
@@ -39,6 +37,7 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
         cipher,
         new HttpOauthIssuer(),
         clock,
+        new PgRefreshLock(),
       ),
   )
   const database = useTestDatabase()

@@ -1,6 +1,7 @@
 import { MCP_OAUTH_CALLBACK_PATH } from '@dltech/atlas-wire'
 import { Module } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { RefreshLockModule } from '../../../_lib/refresh-lock/refresh-lock.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { McpOauthAccessService } from './mcp-oauth-access.service'
 import { McpOauthCallbackController } from './mcp-oauth-callback.controller'
@@ -10,7 +11,7 @@ import { McpOauthClock, McpOauthConfig, McpOauthFetcher, McpOauthStore } from '.
 import { PrismaMcpOauthStore } from './prisma-mcp-oauth.store'
 
 @Module({
-  imports: [SessionsModule],
+  imports: [SessionsModule, RefreshLockModule],
   controllers: [McpOauthCallbackController],
   providers: [
     McpOauthService,
@@ -19,10 +20,7 @@ import { PrismaMcpOauthStore } from './prisma-mcp-oauth.store'
     { provide: McpOauthStore, useClass: PrismaMcpOauthStore },
     {
       provide: McpOauthClock,
-      useValue: {
-        now: () => Date.now(),
-        sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
-      },
+      useValue: { now: () => Date.now() },
     },
     {
       provide: McpOauthFetcher,

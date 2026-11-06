@@ -7,8 +7,6 @@ export const MAX_REFRESH_SKEW_MS = 5 * 60_000
 export const SKEW_FRACTION = 0.1
 export const USABLE_MARGIN_MS = 15_000
 export const STALE_ATTEMPT_MS = 30_000
-export const WAIT_BUDGET_MS = 12_000
-export const WAIT_POLL_MS = 200
 
 export const newAttemptId = (): string => randomBytes(16).toString('hex')
 
@@ -30,9 +28,5 @@ export const isUsable = (args: { tokens: StoredTokens; nowMs: number }): boolean
 export class SystemOauthClock implements OauthClock {
   now(): number {
     return Date.now()
-  }
-
-  sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 }

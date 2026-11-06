@@ -10,6 +10,7 @@ import {
   type UploadConnectionDraft,
 } from '@dltech/atlas-wire'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { RefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import {
   EConnectionStatus,
   OauthClock,
@@ -21,15 +22,11 @@ import {
 import type { AccessTokenDto, ConnectionRow, StoredTokens } from './oauth-connections.types'
 import {
   STALE_ATTEMPT_MS,
-  WAIT_BUDGET_MS,
-  WAIT_POLL_MS,
   isDue,
   isUsable,
   newAttemptId,
   refreshAfterMs,
 } from './oauth-refresh-policy'
-
-const MAX_PASSES = 6
 
 const reauthorizationRequired = (): ConflictException =>
   new ConflictException('this connection needs a fresh login before it can issue tokens')
@@ -41,6 +38,7 @@ export class OauthConnectionsService {
     private readonly cipher: SecretCipherService,
     private readonly issuer: OauthIssuer,
     private readonly clock: OauthClock,
+    private readonly lock: RefreshLock,
   ) {}
 
   async upload(args: {
@@ -119,23 +117,50 @@ export class OauthConnectionsService {
     sandboxId?: string
     rejectedAccessToken?: string
   }): Promise<AccessTokenDto> {
-    for (let pass = 0; pass < MAX_PASSES; pass += 1) {
-      const row = await this.authorizedRow(args)
-      if (row.status !== EConnectionStatus.Active) throw reauthorizationRequired()
-      const tokens = this.unseal(row.sealedTokens)
-      const rejected = args.rejectedAccessToken === tokens.accessToken
-      if (!rejected && !isDue({ tokens, nowMs: this.clock.now() })) {
-        return this.toDto({ tokens, row })
-      }
-      if (row.refreshAttempt !== null) {
-        const outcome = await this.awaitAttempt({ row, tokens, rejected })
-        if (outcome !== undefined) return outcome
-        continue
-      }
-      const attempted = await this.refreshOnce({ row, tokens, rejected })
-      if (attempted !== undefined) return attempted
+    const row = await this.authorizedRow(args)
+    if (row.status !== EConnectionStatus.Active) throw reauthorizationRequired()
+    const tokens = this.unseal(row.sealedTokens)
+    const rejected = args.rejectedAccessToken === tokens.accessToken
+    if (!rejected && !isDue({ tokens, nowMs: this.clock.now() })) return this.toDto({ tokens, row })
+    return this.lock.run({
+      key: `oauth-connection-refresh:${args.connectionId}`,
+      work: () => this.refreshLocked(args),
+    })
+  }
+
+  private async refreshLocked(args: {
+    userId: string
+    connectionId: string
+    sandboxId?: string
+    rejectedAccessToken?: string
+  }): Promise<AccessTokenDto> {
+    const row = await this.authorizedRow(args)
+    if (row.status !== EConnectionStatus.Active) throw reauthorizationRequired()
+    const tokens = this.unseal(row.sealedTokens)
+    const rejected = args.rejectedAccessToken === tokens.accessToken
+    if (!rejected && !isDue({ tokens, nowMs: this.clock.now() })) return this.toDto({ tokens, row })
+    if (row.refreshAttempt !== null) return this.uncertainAttempt({ row, tokens, rejected })
+    const attempted = await this.refreshOnce({ row, tokens, rejected })
+    if (attempted !== undefined) return attempted
+    return this.afterLostFence(args)
+  }
+
+  private async afterLostFence(args: {
+    userId: string
+    connectionId: string
+    sandboxId?: string
+    rejectedAccessToken?: string
+  }): Promise<AccessTokenDto> {
+    const row = await this.authorizedRow(args)
+    if (row.status !== EConnectionStatus.Active) throw reauthorizationRequired()
+    const tokens = this.unseal(row.sealedTokens)
+    if (
+      args.rejectedAccessToken !== tokens.accessToken &&
+      !isDue({ tokens, nowMs: this.clock.now() })
+    ) {
+      return this.toDto({ tokens, row })
     }
-    throw new ServiceUnavailableException('the connection is busy; retry shortly')
+    throw new ServiceUnavailableException('the connection changed during refresh; retry shortly')
   }
 
   async assignSandbox(args: {
@@ -171,24 +196,18 @@ export class OauthConnectionsService {
     return row
   }
 
-  private async awaitAttempt(args: {
+  private uncertainAttempt(args: {
     row: ConnectionRow
     tokens: StoredTokens
     rejected: boolean
-  }): Promise<AccessTokenDto | undefined> {
+  }): AccessTokenDto {
     const startedMs = args.row.refreshStartedAt?.getTime() ?? 0
-    if (this.clock.now() - startedMs > STALE_ATTEMPT_MS) {
-      return this.cachedOrThrow({ ...args, unavailable: reauthorizationRequired() })
-    }
-    const deadline = this.clock.now() + WAIT_BUDGET_MS
-    while (this.clock.now() < deadline) {
-      await this.clock.sleep(WAIT_POLL_MS)
-      const current = await this.store.find({ id: args.row.id })
-      if (current === null || current.refreshAttempt !== args.row.refreshAttempt) return undefined
-    }
+    const stale = this.clock.now() - startedMs > STALE_ATTEMPT_MS
     return this.cachedOrThrow({
       ...args,
-      unavailable: new ServiceUnavailableException('a refresh is still in flight; retry shortly'),
+      unavailable: stale
+        ? reauthorizationRequired()
+        : new ServiceUnavailableException('a refresh is still in flight; retry shortly'),
     })
   }
 

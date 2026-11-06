@@ -86,7 +86,6 @@ export abstract class OauthIssuer {
 
 export abstract class OauthClock {
   abstract now(): number
-  abstract sleep(ms: number): Promise<void>
 }
 
 export class OauthRejectedError extends Error {}

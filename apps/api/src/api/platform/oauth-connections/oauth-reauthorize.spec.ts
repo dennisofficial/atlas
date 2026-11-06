@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { InProcessRefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import { FakeClock, FakeIssuer, FakeStore, grantOf } from './oauth-connections.fakes'
 import { OauthConnectionsService } from './oauth-connections.service'
 import { EOauthProvider } from '@dltech/atlas-wire'
@@ -43,6 +44,7 @@ describe('OauthConnectionsService reauthorize', () => {
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
       issuer,
       clock,
+      new InProcessRefreshLock(),
     )
     await service.upload({ userId: OWNER, connectionId: CONNECTION, draft: login('first') })
   })

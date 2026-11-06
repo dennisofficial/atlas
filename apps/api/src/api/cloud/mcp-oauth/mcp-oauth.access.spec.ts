@@ -167,16 +167,17 @@ describe('McpOauthAccessService.accessToken', () => {
     expect(result).toMatchObject({ accessToken: 'access-r1' })
   })
 
-  it('waits on a live claim instead of refreshing', async () => {
+  it('takes over a leftover claim of any age because the lock proves no refresh is running', async () => {
     const env = build()
     const server = await seedGrant(env, { expiresAt: new Date(START - 1).toISOString() })
     refreshHandler(env)
     const row = env.store.servers.get(server.id)
     if (row === undefined) throw new Error('no server')
-    row.oauthRefreshAttempt = 'live-attempt'
+    row.oauthRefreshAttempt = 'dead-attempt'
     row.oauthRefreshStartedAt = new Date(START)
-    await expect(env.access.accessToken(accessArgs(server))).rejects.toThrow()
-    expect(env.fetcher.callsTo(`${AUTH}/token`)).toHaveLength(0)
+    const result = await env.access.accessToken(accessArgs(server))
+    expect(result).toMatchObject({ accessToken: 'access-r1' })
+    expect(env.fetcher.callsTo(`${AUTH}/token`)).toHaveLength(1)
   })
 })
 

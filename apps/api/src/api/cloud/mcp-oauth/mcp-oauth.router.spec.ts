@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { EMcpServerSource } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { InProcessRefreshLock, RefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
@@ -88,6 +89,7 @@ describe('McpOauthRouter authorization', () => {
       { provide: McpOauthClock, useValue: new FakeMcpClock(Date.now()) },
       { provide: McpOauthFetcher, useValue: fetcher },
       { provide: McpOauthConfig, useValue: TEST_CONFIG },
+      { provide: RefreshLock, useValue: new InProcessRefreshLock() },
       { provide: SecretCipherService, useValue: cipher },
       { provide: SESSION_VERIFIER, useValue: sessionVerifier(SESSIONS) },
       {

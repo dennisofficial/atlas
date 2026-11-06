@@ -9,6 +9,7 @@ import {
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { InProcessRefreshLock, RefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../sandboxes/token-principal'
 import { SessionOrSandboxMiddleware } from '../sessions/session-or-sandbox.middleware'
@@ -73,6 +74,7 @@ export const oauthProviders = (args: {
   { provide: OauthConnectionStore, useValue: args.store },
   { provide: OauthIssuer, useValue: new FakeIssuer() },
   { provide: OauthClock, useValue: new FakeClock(START) },
+  { provide: RefreshLock, useValue: new InProcessRefreshLock() },
   {
     provide: SecretCipherService,
     useValue: new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),

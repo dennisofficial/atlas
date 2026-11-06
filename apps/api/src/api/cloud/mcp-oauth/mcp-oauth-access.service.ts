@@ -9,6 +9,7 @@ import { Injectable } from '@nestjs/common'
 import { TRPCError } from '@trpc/server'
 import { randomBytes } from 'node:crypto'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { RefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import { normalizeServerUrl, sealJson, unsealJson } from './mcp-oauth-seal'
 import { guardedFetch } from './mcp-oauth-ssrf'
 import {
@@ -22,10 +23,6 @@ import { sealedGrantSchema } from './mcp-oauth.types'
 import type { SealedGrant, ServerGrantRow } from './mcp-oauth.types'
 
 const FRESH_MARGIN_MS = 60_000
-const WAIT_BUDGET_MS = 10_000
-const WAIT_POLL_MS = 200
-const STALE_ATTEMPT_MS = 30_000
-const MAX_PASSES = 6
 const REJECTING_STATUSES = [400, 401]
 
 const needsAuth: McpOauthAccessResult = {
@@ -40,6 +37,7 @@ export class McpOauthAccessService {
     private readonly clock: McpOauthClock,
     private readonly fetcher: McpOauthFetcher,
     private readonly config: McpOauthConfig,
+    private readonly lock: RefreshLock,
   ) {}
 
   async accessToken(args: {
@@ -52,45 +50,65 @@ export class McpOauthAccessService {
   }): Promise<McpOauthAccessResult> {
     const url = normalizeServerUrl(args.url)
     const row = await this.resolveRow({ ...args, url })
+    const grant = row === null ? null : this.activeGrant({ row, url })
+    if (row === null || grant === null) return needsAuth
+    if (!this.isRejected({ grant, args }) && this.isFresh(grant.tokens)) {
+      return this.granted(grant.tokens)
+    }
+    return this.lock.run({
+      key: `mcp-oauth-refresh:${row.id}`,
+      work: () => this.refreshLocked({ id: row.id, url, rejected: args.rejectedAccessToken }),
+    })
+  }
+
+  private activeGrant(args: { row: ServerGrantRow; url: string }): SealedGrant | null {
+    const { row } = args
     if (
-      row === null ||
       row.oauthStatus !== EGrantRowStatus.Active ||
-      row.oauthServerUrl !== url ||
+      row.oauthServerUrl !== args.url ||
       row.oauthSealed === null
     ) {
-      return needsAuth
+      return null
     }
-    for (let pass = 0; pass < MAX_PASSES; pass += 1) {
-      const current = await this.store.findServer({ id: row.id })
-      if (
-        current === null ||
-        current.oauthStatus !== EGrantRowStatus.Active ||
-        current.oauthServerUrl !== url ||
-        current.oauthSealed === null
-      ) {
-        return needsAuth
-      }
-      const grant = unsealJson({
-        cipher: this.cipher,
-        sealed: current.oauthSealed,
-        schema: sealedGrantSchema,
-      })
-      const rejected = args.rejectedAccessToken === grant.tokens.accessToken
-      if (!rejected && this.isFresh(grant.tokens)) return this.granted(grant.tokens)
+    return unsealJson({ cipher: this.cipher, sealed: row.oauthSealed, schema: sealedGrantSchema })
+  }
 
-      const attemptRunning =
-        current.oauthRefreshAttempt !== null &&
-        this.clock.now() - (current.oauthRefreshStartedAt?.getTime() ?? 0) < STALE_ATTEMPT_MS
-      if (attemptRunning) {
-        await this.awaitAttempt(current)
-        continue
-      }
-      const outcome = await this.refreshOnce({ row: current, grant })
-      if (outcome !== undefined) return outcome
+  private isRejected(args: {
+    grant: SealedGrant
+    args: { rejectedAccessToken?: string | undefined }
+  }): boolean {
+    return args.args.rejectedAccessToken === args.grant.tokens.accessToken
+  }
+
+  private async refreshLocked(args: {
+    id: string
+    url: string
+    rejected: string | undefined
+  }): Promise<McpOauthAccessResult> {
+    const current = await this.store.findServer({ id: args.id })
+    const grant = current === null ? null : this.activeGrant({ row: current, url: args.url })
+    if (current === null || grant === null) return needsAuth
+    const rejected = args.rejected === grant.tokens.accessToken
+    if (!rejected && this.isFresh(grant.tokens)) return this.granted(grant.tokens)
+    const outcome = await this.refreshOnce({ row: current, grant })
+    if (outcome !== undefined) return outcome
+    return this.afterLostFence(args)
+  }
+
+  private async afterLostFence(args: {
+    id: string
+    url: string
+    rejected: string | undefined
+  }): Promise<McpOauthAccessResult> {
+    const current = await this.store.findServer({ id: args.id })
+    const grant = current === null ? null : this.activeGrant({ row: current, url: args.url })
+    if (grant === null) return needsAuth
+    if (args.rejected !== grant.tokens.accessToken && this.isFresh(grant.tokens)) {
+      return this.granted(grant.tokens)
     }
     throw new TRPCError({
       code: 'INTERNAL_SERVER_ERROR',
-      message: 'the grant is busy; retry shortly',
+      message: 'the grant changed during refresh; retry shortly',
     })
   }
 
@@ -160,16 +178,6 @@ export class McpOauthAccessService {
     }
   }
 
-  private async awaitAttempt(row: ServerGrantRow): Promise<void> {
-    const deadline = this.clock.now() + WAIT_BUDGET_MS
-    while (this.clock.now() < deadline) {
-      await this.clock.sleep(WAIT_POLL_MS)
-      const current = await this.store.findServer({ id: row.id })
-      if (current === null || current.oauthGeneration !== row.oauthGeneration) return
-      if (current.oauthRefreshAttempt !== row.oauthRefreshAttempt) return
-    }
-  }
-
   private async refreshOnce(args: {
     row: ServerGrantRow
     grant: SealedGrant
@@ -181,7 +189,6 @@ export class McpOauthAccessService {
       generation: args.row.oauthGeneration,
       attemptId,
       startedAt: new Date(nowMs),
-      staleBefore: new Date(nowMs - STALE_ATTEMPT_MS),
     })
     if (!claimed) return undefined
     const fence = {

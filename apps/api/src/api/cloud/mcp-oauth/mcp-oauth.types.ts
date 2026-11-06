@@ -104,7 +104,6 @@ export abstract class McpOauthStore {
     generation: number
     attemptId: string
     startedAt: Date
-    staleBefore: Date
   }): Promise<boolean>
   abstract complete(args: AttemptFence & { sealed: string }): Promise<boolean>
   abstract release(args: AttemptFence): Promise<boolean>
@@ -115,7 +114,6 @@ export abstract class McpOauthStore {
 
 export abstract class McpOauthClock {
   abstract now(): number
-  abstract sleep(ms: number): Promise<void>
 }
 
 export abstract class McpOauthFetcher {

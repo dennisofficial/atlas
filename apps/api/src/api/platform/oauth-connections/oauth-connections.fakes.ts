@@ -138,20 +138,10 @@ export class FakeStore implements OauthConnectionStore {
 }
 
 export class FakeClock implements OauthClock {
-  sleeps = 0
-  onSleep: () => void = () => undefined
-
   constructor(public current: number) {}
 
   now(): number {
     return this.current
-  }
-
-  async sleep(ms: number): Promise<void> {
-    this.current += ms
-    this.sleeps += 1
-    this.onSleep()
-    await Promise.resolve()
   }
 }
 
