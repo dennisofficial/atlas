@@ -21,6 +21,7 @@ import { ThreadHoverCard } from './thread-hover-card'
 import { latestThreadPullRequestOf, threadPullRequestsOf } from './thread-pull-requests'
 import { CompactWorkIcon, ThreadWorkSummary } from './thread-pr-presentation'
 import { isUnread, isWorking, threadStatusOf } from './thread-status'
+import { v2SessionHref } from './v2-rows'
 
 export interface ThreadRowBodyProps {
   thread: WireThread
@@ -30,6 +31,7 @@ export interface ThreadRowBodyProps {
   teammateParents?: ReadonlyMap<string, WireThread>
   parent?: WireThread | undefined
   collapsed?: boolean
+  v2?: boolean
 }
 
 export function ThreadRowBody({
@@ -40,6 +42,7 @@ export function ThreadRowBody({
   teammateParents,
   parent,
   collapsed = false,
+  v2 = false,
 }: ThreadRowBodyProps) {
   const { onToggleArchive } = useThreadActions()
   const { density } = useSidebarDensity()
@@ -79,19 +82,21 @@ export function ThreadRowBody({
       collapsed={collapsed}
       states={states}
       actions={
-        <RowAction label={archiveLabel} onClick={handleArchive}>
-          {teammate ? (
-            archived ? (
-              <RotateCcw />
+        v2 ? undefined : (
+          <RowAction label={archiveLabel} onClick={handleArchive}>
+            {teammate ? (
+              archived ? (
+                <RotateCcw />
+              ) : (
+                <CircleCheck />
+              )
+            ) : archived ? (
+              <ArchiveRestore />
             ) : (
-              <CircleCheck />
-            )
-          ) : archived ? (
-            <ArchiveRestore />
-          ) : (
-            <Archive />
-          )}
-        </RowAction>
+              <Archive />
+            )}
+          </RowAction>
+        )
       }
       className={cn(
         'group/thread @container relative flex min-w-0 w-full items-start rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent',
@@ -100,7 +105,7 @@ export function ThreadRowBody({
     >
       <Link
         ref={observationRef}
-        href={`/threads/${encodeURIComponent(thread.id)}`}
+        href={v2 ? v2SessionHref(thread.id) : `/threads/${encodeURIComponent(thread.id)}`}
         aria-current={active ? 'page' : undefined}
         data-density={density}
         className={cn(
@@ -122,6 +127,14 @@ export function ThreadRowBody({
               className={cn('flex-1', isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}
             />
           </span>
+          {v2 ? (
+            <span
+              data-engine-tag="v2"
+              className="shrink-0 rounded-sm border px-1 font-mono text-[10px] leading-4 text-muted-foreground group-data-[collapsible=icon]:hidden"
+            >
+              v2
+            </span>
+          ) : null}
           {thread.runner === 'local' ? (
             <span className="group-data-[collapsible=icon]:hidden">
               <LocalPodIcon />

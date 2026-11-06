@@ -2,6 +2,7 @@ import { UNTITLED } from '@/features/threads/data/untitled'
 
 import { mainThreadsOf, projectNameOf, type ProjectThreads } from './thread-partition'
 import { threadStatusOf, type EThreadStatus } from './thread-status'
+import { v2SessionHref } from './v2-rows'
 
 export enum ESearchKind {
   Thread = 'thread',
@@ -15,6 +16,7 @@ export type SearchItem =
       label: string
       projectName: string
       status: EThreadStatus
+      v2?: true
     }
   | { kind: ESearchKind.Project; id: string; label: string }
 
@@ -28,14 +30,17 @@ export function searchItemsOf(entries: readonly ProjectThreads[]): {
     if (project !== null) {
       projects.push({ kind: ESearchKind.Project, id: project.id, label: project.name })
     }
-    for (const thread of mainThreadsOf(sessions)) {
-      threads.push({
-        kind: ESearchKind.Thread,
-        id: thread.id,
-        label: thread.title ?? UNTITLED,
-        projectName: projectNameOf(project),
-        status: threadStatusOf(thread),
-      })
+    for (const session of sessions) {
+      for (const thread of mainThreadsOf([session])) {
+        threads.push({
+          kind: ESearchKind.Thread,
+          id: thread.id,
+          label: thread.title ?? UNTITLED,
+          projectName: projectNameOf(project),
+          status: threadStatusOf(thread),
+          ...(session.v2 === true ? { v2: true as const } : {}),
+        })
+      }
     }
   }
   return { threads, projects }
@@ -43,7 +48,9 @@ export function searchItemsOf(entries: readonly ProjectThreads[]): {
 
 export const searchHrefOf = (item: SearchItem): string =>
   item.kind === ESearchKind.Thread
-    ? `/threads/${encodeURIComponent(item.id)}`
+    ? item.v2 === true
+      ? v2SessionHref(item.id)
+      : `/threads/${encodeURIComponent(item.id)}`
     : `/threads/new?project=${encodeURIComponent(item.id)}`
 
 export const searchScoreOf = (args: { search: string; keywords: readonly string[] }): number => {

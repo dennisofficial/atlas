@@ -13,9 +13,11 @@ export enum EThreadBucket {
 export const NO_PROJECT_KEY = '__no-project__'
 export const NO_PROJECT_NAME = 'No project'
 
+export type ShellSessionNode = SessionNode & { v2?: true }
+
 export interface ProjectThreads {
   project: Project | null
-  sessions: SessionNode[]
+  sessions: ShellSessionNode[]
 }
 
 export const projectKeyOf = (project: Project | null): string => project?.id ?? NO_PROJECT_KEY

@@ -27,10 +27,11 @@ import { useShellEntries } from './use-shell-entries'
 
 export interface AppSidebarProps {
   activeThreadId: string | null
+  activeSessionId?: string | null
   activeNav: EAppNav
 }
 
-export function AppSidebar({ activeThreadId, activeNav }: AppSidebarProps) {
+export function AppSidebar({ activeThreadId, activeSessionId = null, activeNav }: AppSidebarProps) {
   const query = useShellEntries(activeThreadId)
   const { user } = useSessionUser()
   const [searchOpen, setSearchOpen] = useState(false)
@@ -46,7 +47,7 @@ export function AppSidebar({ activeThreadId, activeNav }: AppSidebarProps) {
       <Sidebar collapsible="icon">
         <ShellTopBar onSearch={handleOpenSearch} />
         <SidebarContent className="group-data-[collapsible=icon]:hidden">
-          <ShellSidebarContent query={query} activeThreadId={activeThreadId} />
+          <ShellSidebarContent query={query} activeThreadId={activeThreadId ?? activeSessionId} />
         </SidebarContent>
         <SidebarFooter variant="bordered" className="group-data-[collapsible=icon]:mt-auto">
           <div className="group-data-[collapsible=icon]:hidden empty:hidden">

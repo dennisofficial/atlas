@@ -11,7 +11,9 @@ import {
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
+  type ControlSessionDigest,
   type ControlSessionRow,
+  type SessionListParams,
 } from '../../port'
 import { MemoryChangeFeed } from './memory-change-feed'
 import {
@@ -25,6 +27,7 @@ import {
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { leasesHeldByIn } from './memory-leases'
+import { sessionDigestsIn } from './memory-digests'
 import { sessionsNeedingHolderIn } from './memory-needing-holder'
 import { cloneState, emptyState, refKey, type State } from './memory-state'
 
@@ -88,6 +91,10 @@ class MemoryTx implements ControlTx {
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
       .slice(0, params.limit)
       .map(({ nextInboxId: _nextInboxId, ...session }) => ({ ...session }))
+  }
+
+  async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
+    return sessionDigestsIn({ state: this.state, ...params })
   }
 
   async sessionsNeedingHolder(params: { limit: number }): Promise<string[]> {

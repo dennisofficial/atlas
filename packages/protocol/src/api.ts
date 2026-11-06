@@ -64,6 +64,7 @@ export const sessionSummarySchema = z.strictObject({
   title: z.string().nullable(),
   mainThreadId: z.string().min(1),
   createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
 })
 
 export const sessionListOutputSchema = z.strictObject({

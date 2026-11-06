@@ -10,6 +10,17 @@ export type ControlSessionRow = {
   createdAt: string
 }
 
+export type SessionListParams = {
+  userId: string
+  projectId?: string | undefined
+  limit: number
+}
+
+export type ControlSessionDigest = ControlSessionRow & {
+  lastEventAt: string | null
+  firstMessageText: string | null
+}
+
 export type ThreadRow = {
   threadId: string
   sessionId: string
@@ -69,6 +80,7 @@ export interface ControlTx {
     projectId?: string | undefined
     limit: number
   }): Promise<ControlSessionRow[]>
+  listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]>
   sessionsNeedingHolder(params: { limit: number }): Promise<string[]>
   createThread(params: {
     threadId: string
