@@ -9,6 +9,7 @@ export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
     { label: 'Other thread', path: '/threads/thr-snapshots' },
     { label: 'Teammate', path: '/threads/tm-gutter-tokens' },
   ],
+  '/sessions/[sessionId]': [{ label: 'v2 session', path: '/sessions/thr-ui-rebase' }],
   '/projects/[projectId]/settings/overview': [
     { label: 'atlas', path: '/projects/atlas/settings/overview' },
     { label: 'rs-crm', path: '/projects/rs-crm/settings/overview' },
