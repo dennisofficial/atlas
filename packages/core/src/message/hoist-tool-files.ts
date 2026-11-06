@@ -1,11 +1,13 @@
 import type { Message, ToolMessage, UserMessage } from './message'
-import type { FilePart, ImagePart, TextPart, ToolResultPart } from './parts'
+import type { FilePart, ImagePart, MediaPart, TextPart, ToolResultPart } from './parts'
+
+type Attachment = ImagePart | FilePart | MediaPart
 
 const PLACEHOLDER_TEXT = 'the attachment is in the next message'
 
-const anchorFor = (parts: readonly (ImagePart | FilePart)[]): string => {
+const anchorFor = (parts: readonly Attachment[]): string => {
   const sources = parts.flatMap((part) => (part.source === undefined ? [] : [part.source]))
-  const imageCount = parts.filter((part) => part.type === 'image').length
+  const imageCount = parts.filter((part) => part.type !== 'file').length
   const fileCount = parts.length - imageCount
   const label =
     fileCount === 0
@@ -23,12 +25,13 @@ const anchorFor = (parts: readonly (ImagePart | FilePart)[]): string => {
 
 function splitPart(part: ToolResultPart): {
   kept: ToolResultPart
-  files: (ImagePart | FilePart)[]
+  files: Attachment[]
 } {
   if (part.output.type !== 'content') return { kept: part, files: [] }
 
   const files = part.output.value.filter(
-    (inner): inner is ImagePart | FilePart => inner.type === 'image' || inner.type === 'file',
+    (inner): inner is Attachment =>
+      inner.type === 'image' || inner.type === 'file' || inner.type === 'media',
   )
   if (files.length === 0) return { kept: part, files: [] }
 

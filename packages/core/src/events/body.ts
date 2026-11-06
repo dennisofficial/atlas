@@ -1,6 +1,7 @@
 import type { DiagramRepairedBody } from '../diagrams/diagram-body'
 import type { EExecutionLocation } from '../execution/location'
-import type { FilePart, ImagePart, ReasoningPart, TextPart } from '../message/parts'
+import type { MediaRef } from '../media/media-ref'
+import type { ReasoningPart, TextPart, UserContentPart } from '../message/parts'
 import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EServiceStatus } from '../services/status'
 import type { EModelWaitCause, WaitEpisodeRef, WaitingForModel } from '../model-recovery/waiting'
@@ -101,6 +102,11 @@ export type SaidFile = {
   filename?: string | undefined
 }
 
+export type SaidMedia = {
+  media: MediaRef
+  source?: string | undefined
+}
+
 export type SaidUpload = {
   uploadId: string
   pathname: string
@@ -119,6 +125,7 @@ export type EventBody =
       images?: readonly SaidImage[] | undefined
       files?: readonly SaidFile[] | undefined
       uploads?: readonly SaidUpload[] | undefined
+      media?: readonly SaidMedia[] | undefined
     }
   | {
       type: 'assistant-said'
@@ -145,7 +152,7 @@ export type EventBody =
       name: string
       output?: unknown
       modelText?: string | undefined
-      modelParts?: readonly (TextPart | ImagePart | FilePart)[] | undefined
+      modelParts?: readonly UserContentPart[] | undefined
       error?: { message: string } | undefined
       interrupted?: boolean | undefined
       qualityReviews?: readonly CodeQualityReviewedBody[] | undefined

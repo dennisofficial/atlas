@@ -1,15 +1,18 @@
 import type { AssistantContent, ModelMessage, ToolResultPart as ModelToolResultPart } from 'ai'
 
-import type {
-  AssistantMessage,
-  FilePart,
-  ImagePart,
-  Message,
-  ReasoningPart,
-  TextPart,
-  ToolCallPart,
-  ToolResultOutput,
-  ToolResultPart,
+import {
+  imagePathLine,
+  type AssistantMessage,
+  type FilePart,
+  type ImagePart,
+  type MediaPart,
+  type Message,
+  type ReasoningPart,
+  type TextPart,
+  type ToolCallPart,
+  type ToolResultOutput,
+  type ToolResultPart,
+  type UserContentPart,
 } from '@dltech/atlas-core'
 
 import { carriedProviderOptions } from './provider-options'
@@ -41,6 +44,15 @@ const toModelToolCallPart = (part: ToolCallPart) => ({
   ...carriedProviderOptions(part.providerOptions),
 })
 
+const toModelMediaText = (part: MediaPart) => ({
+  type: 'text' as const,
+  text: imagePathLine({
+    path: part.source ?? part.media.hash,
+    width: part.media.width,
+    height: part.media.height,
+  }),
+})
+
 const toModelToolResultOutput = (output: ToolResultOutput): ModelToolResultOutput => {
   if (output.type !== 'content') return output
 
@@ -49,14 +61,16 @@ const toModelToolResultOutput = (output: ToolResultOutput): ModelToolResultOutpu
     value: output.value.map((part) =>
       part.type === 'text'
         ? { type: 'text' as const, text: part.text }
-        : {
-            type: 'file' as const,
-            data: { type: 'data' as const, data: part.data },
-            mediaType: part.mediaType,
-            ...(part.type === 'file' && part.filename !== undefined
-              ? { filename: part.filename }
-              : {}),
-          },
+        : part.type === 'media'
+          ? toModelMediaText(part)
+          : {
+              type: 'file' as const,
+              data: { type: 'data' as const, data: part.data },
+              mediaType: part.mediaType,
+              ...(part.type === 'file' && part.filename !== undefined
+                ? { filename: part.filename }
+                : {}),
+            },
     ),
   }
 }
@@ -84,7 +98,8 @@ const toModelFilePart = (part: FilePart) => ({
   ...carriedProviderOptions(part.providerOptions),
 })
 
-const toModelUserPart = (part: TextPart | ImagePart | FilePart) => {
+const toModelUserPart = (part: UserContentPart) => {
+  if (part.type === 'media') return toModelMediaText(part)
   if (part.type === 'image') return toModelImagePart(part)
   if (part.type === 'file') return toModelFilePart(part)
   return toModelTextPart(part)

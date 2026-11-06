@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { mediaRefSchema } from '../media/media-ref'
 import type { ProviderOptions } from '../provider'
 import { MAX_UPLOAD_BYTES } from '../uploads/limits'
 
@@ -49,6 +50,12 @@ export const toolResultPartSchema = z.discriminatedUnion('type', [
     source: z.string().optional(),
     providerOptions: providerOptionsSchema.optional(),
   }),
+  z.object({
+    type: z.literal('media'),
+    media: mediaRefSchema,
+    source: z.string().optional(),
+    providerOptions: providerOptionsSchema.optional(),
+  }),
 ])
 
 export const saidImageSchema = z.object({
@@ -57,6 +64,11 @@ export const saidImageSchema = z.object({
   data: z.string(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
+})
+
+export const saidMediaSchema = z.object({
+  media: mediaRefSchema,
+  source: z.string().optional(),
 })
 
 export const saidFileSchema = z.object({

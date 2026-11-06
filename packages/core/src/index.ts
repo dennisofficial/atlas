@@ -67,6 +67,7 @@ export * from './record'
 export * from './message/hoist-tool-files'
 export * from './message/message'
 export * from './message/parts'
+export * from './media/media-ref'
 
 export * from './files/native'
 export * from './files/fuzzy-path-match'
