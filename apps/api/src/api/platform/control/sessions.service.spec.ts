@@ -59,6 +59,50 @@ describe('SessionsService', () => {
     expect(events.events).toEqual([])
   })
 
+  it('titles an untitled session from its first message and reports the last event time', async () => {
+    const { plane, service } = setup()
+    const long = `${'word '.repeat(40)}end`
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const titled = await service.create({ userId: 'user-a', projectId: 'proj-a', title: 'Kept' })
+    await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: `  hello\n  world `,
+    })
+    await service.post({ userId: 'user-a', sessionId: titled.sessionId, text: 'ignored' })
+
+    const before = await service.list({ userId: 'user-a' })
+    const byId = new Map(before.sessions.map((session) => [session.sessionId, session]))
+    expect(byId.get(created.sessionId)?.title).toBe('hello world')
+    expect(byId.get(titled.sessionId)?.title).toBe('Kept')
+    expect(byId.get(created.sessionId)?.updatedAt).toBe(NOW)
+
+    const lease = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
+    await plane.append({
+      threadId: created.mainThreadId,
+      epoch: lease.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-1'),
+        epoch: lease.epoch,
+        at: '2026-11-03T13:00:00.000Z',
+        bodies: [{ type: 'workspace-prepared' }],
+      }),
+    })
+    const after = await service.list({ userId: 'user-a' })
+    expect(after.sessions.find((s) => s.sessionId === created.sessionId)?.updatedAt).toBe(
+      '2026-11-03T13:00:00.000Z',
+    )
+
+    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: long })
+    const truncated = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    await service.post({ userId: 'user-a', sessionId: truncated.sessionId, text: long })
+    const listed = await service.list({ userId: 'user-a' })
+    const title = listed.sessions.find((s) => s.sessionId === truncated.sessionId)?.title
+    expect(title?.length).toBe(80)
+    expect(title?.endsWith('…')).toBe(true)
+  })
+
   it('refuses a non-owned or unknown session with NOT_FOUND', async () => {
     const { service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })

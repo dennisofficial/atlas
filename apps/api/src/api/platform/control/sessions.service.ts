@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { ControlPlane, readSessionStatus, STATUS_EVENT_LIMIT } from '@dltech/atlas-control'
-import type { ControlSessionRow } from '@dltech/atlas-control'
+import type { ControlSessionDigest, ControlSessionRow } from '@dltech/atlas-control'
 import { canonicalEvent, type V2Event } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { EWithdrawRefusal } from '@dltech/atlas-protocol'
@@ -20,12 +20,22 @@ const EVENTS_DEFAULT_MAX_BYTES = 2_000_000
 const EVENTS_HARD_CEILING_BYTES = 3_500_000
 const BLOB_READ_DEFAULT_LENGTH = 1_000_000
 
-const toSummary = (row: ControlSessionRow) => ({
+const TITLE_MAX_CHARS = 80
+
+const titleOf = (row: ControlSessionDigest): string | null => {
+  if (row.title !== null) return row.title
+  const flat = row.firstMessageText?.replace(/\s+/g, ' ').trim() ?? ''
+  if (flat.length === 0) return null
+  return flat.length <= TITLE_MAX_CHARS ? flat : `${flat.slice(0, TITLE_MAX_CHARS - 1).trimEnd()}…`
+}
+
+const toSummary = (row: ControlSessionDigest) => ({
   sessionId: row.sessionId,
   projectId: row.projectId,
-  title: row.title,
+  title: titleOf(row),
   mainThreadId: row.mainThreadId,
   createdAt: row.createdAt,
+  updatedAt: row.lastEventAt ?? row.createdAt,
 })
 
 const toPageEvent = (event: V2Event): Record<string, unknown> => {
@@ -68,7 +78,7 @@ export class SessionsService {
     projectId?: string | undefined
     limit?: number | undefined
   }): Promise<SessionListOutput> {
-    const sessions = await this.plane.listSessions({
+    const sessions = await this.plane.listSessionDigests({
       userId: args.userId,
       projectId: args.projectId,
       limit: args.limit ?? 100,

@@ -12,7 +12,9 @@ import {
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
+  type ControlSessionDigest,
   type ControlSessionRow,
+  type SessionListParams,
 } from '../port'
 import {
   blobHashesPresent,
@@ -24,8 +26,9 @@ import {
 import { writeLeaseIn } from './postgres-leases'
 import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn } from './postgres-presence'
+import { sessionDigestsIn } from './postgres-digests'
 import { sessionsNeedingHolderIn } from './postgres-needing-holder'
-import { iso, toInbox, toSessionRow, toThreadRow } from './postgres-rows'
+import { iso, toInbox, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
 
 class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
@@ -84,6 +87,10 @@ class PostgresTx implements ControlTx {
       .limit(params.limit)
       .all()
     return rows.map((row) => toSessionRow(row))
+  }
+
+  async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
+    return sessionDigestsIn({ tx: this.tx, ...params })
   }
 
   async sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]> {
@@ -175,18 +182,7 @@ class PostgresTx implements ControlTx {
       .orderBy((e) => e.seq.asc())
       .limit(params.limit)
       .all()
-    return rows.map((row) => ({
-      threadId: row.threadId,
-      seq: row.seq,
-      id: row.id,
-      epoch: row.epoch,
-      type: row.type,
-      runId: row.runId,
-      at: iso(row.at),
-      prevHash: row.prevHash as Hash,
-      hash: row.hash as Hash,
-      canonical: row.canonical,
-    }))
+    return rows.map(toStoredEvent)
   }
 
   async readLease(sessionId: string): Promise<Lease | undefined> {

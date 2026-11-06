@@ -18,7 +18,9 @@ import {
   type BlobWrite,
   type ControlTx,
   type ThreadRow,
+  type ControlSessionDigest,
   type ControlSessionRow,
+  type SessionListParams,
 } from './port'
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { AppendAbort, type AppendOutcome } from './refusal'
@@ -89,6 +91,15 @@ export class ControlPlane {
   }): Promise<ControlSessionRow[]> {
     return this.store.transact((tx) =>
       tx.listSessions({
+        ...params,
+        limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
+      }),
+    )
+  }
+
+  async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
+    return this.store.transact((tx) =>
+      tx.listSessionDigests({
         ...params,
         limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
       }),

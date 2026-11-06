@@ -109,6 +109,22 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       expect(filtered[0]?.title).toBeNull()
     })
 
+    it('digests each session with its last event time and first posted message', async () => {
+      await seedSession({ sessionId: 's-a', offsetMs: 0, prepared: false })
+      await seedSession({ sessionId: 's-b', offsetMs: 1000 })
+      await plane.post({ sessionId: 's-a', kind: 'message', payload: '{"text":"first"}' })
+      await plane.post({ sessionId: 's-a', kind: 'message', payload: '{"text":"second"}' })
+      await plane.post({ sessionId: 's-a', kind: 'stop', payload: '{}' })
+      const digests = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(digests.map((row) => row.sessionId)).toEqual(['s-b', 's-a'])
+      expect(digests[0]?.lastEventAt).toBe(T0)
+      expect(digests[0]?.firstMessageText).toBeNull()
+      expect(digests[1]?.lastEventAt).toBeNull()
+      expect(digests[1]?.firstMessageText).toBe('first')
+      const scoped = await plane.listSessionDigests({ userId: USER, projectId: 'nope', limit: 10 })
+      expect(scoped).toEqual([])
+    })
+
     it('clamps the session list to 100', async () => {
       for (let index = 0; index < 101; index += 1) {
         setNow(after({ iso: T0, offsetMs: index }))

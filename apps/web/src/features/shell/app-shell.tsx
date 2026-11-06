@@ -6,7 +6,7 @@ import { Suspense, type CSSProperties, type ReactNode } from 'react'
 import { SidebarInset, SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 import { TooltipProvider } from '@dltech/atlas-ui/components/tooltip'
 
-import { activeNavOf, activeThreadIdOf } from './active-route'
+import { activeNavOf, activeSessionIdOf, activeThreadIdOf } from './active-route'
 import { AppSidebar } from './app-sidebar'
 import { AtlasMark } from './atlas-mark'
 import { CloseSidebarOnNavigate } from './close-sidebar-on-navigate'
@@ -33,7 +33,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Suspense fallback={null}>
           <RememberReturnPath />
         </Suspense>
-        <AppSidebar activeThreadId={activeThreadIdOf(pathname)} activeNav={activeNavOf(pathname)} />
+        <AppSidebar
+          activeThreadId={activeThreadIdOf(pathname)}
+          activeSessionId={activeSessionIdOf(pathname)}
+          activeNav={activeNavOf(pathname)}
+        />
         <SidebarInset className="h-svh min-h-0 overflow-hidden">
           {shellBarOf(pathname) === EShellBar.Global ? <ShellMobileBar /> : null}
           {children}
