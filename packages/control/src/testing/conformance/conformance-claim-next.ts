@@ -50,7 +50,7 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
     it('takes a fresh session once', async () => {
       await newSession('fresh')
       const hostId = await present()
-      const first = await harness.plane.claimNext({ hostId, limit: 5 })
+      const first = (await harness.plane.claimNext({ hostId, limit: 5 })).leases
       expect(first).toEqual([
         {
           sessionId: 'fresh',
@@ -61,7 +61,7 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
           retryAfter: after({ from: T0, ms: SECOND }),
         },
       ])
-      expect(await harness.plane.claimNext({ hostId, limit: 5 })).toEqual([])
+      expect((await harness.plane.claimNext({ hostId, limit: 5 })).leases).toEqual([])
       const current = await harness.plane.currentLease({ sessionId: 'fresh' })
       expect(current).toMatchObject({ live: true, lease: { epoch: 1, holderHostId: hostId } })
       await releaseAll()
@@ -72,7 +72,7 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
       const owner = await present()
       const other = await present()
       await harness.plane.grant({ sessionId: 'held', hostId: owner })
-      expect(await harness.plane.claimNext({ hostId: other, limit: 5 })).toEqual([])
+      expect((await harness.plane.claimNext({ hostId: other, limit: 5 })).leases).toEqual([])
       expect((await harness.plane.currentLease({ sessionId: 'held' })).lease.holderHostId).toBe(
         owner,
       )
@@ -85,9 +85,9 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
       const releaseGone = await params.holdPresence(gone)
       await harness.plane.grant({ sessionId: 'orphan', hostId: gone })
       const hostId = await present()
-      expect(await harness.plane.claimNext({ hostId, limit: 5 })).toEqual([])
+      expect((await harness.plane.claimNext({ hostId, limit: 5 })).leases).toEqual([])
       await releaseGone()
-      const taken = await harness.plane.claimNext({ hostId, limit: 5 })
+      const taken = (await harness.plane.claimNext({ hostId, limit: 5 })).leases
       expect(taken).toMatchObject([{ sessionId: 'orphan', epoch: 2, holderHostId: hostId }])
       await releaseAll()
     })
@@ -96,16 +96,16 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
       await newSession('retry')
       const first = await params.nextHostId()
       const releaseFirst = await params.holdPresence(first)
-      const [claimed] = await harness.plane.claimNext({ hostId: first, limit: 1 })
+      const [claimed] = (await harness.plane.claimNext({ hostId: first, limit: 1 })).leases
       expect(claimed).toMatchObject({ attempts: 1, retryAfter: after({ from: T0, ms: SECOND }) })
       await harness.plane.revoke({ sessionId: 'retry', wantsHolder: true })
       const second = await present()
-      expect(await harness.plane.claimNext({ hostId: second, limit: 1 })).toEqual([])
+      expect((await harness.plane.claimNext({ hostId: second, limit: 1 })).leases).toEqual([])
       harness.setNow(after({ from: T0, ms: SECOND - 1 }))
-      expect(await harness.plane.claimNext({ hostId: second, limit: 1 })).toEqual([])
+      expect((await harness.plane.claimNext({ hostId: second, limit: 1 })).leases).toEqual([])
       const retryAt = after({ from: T0, ms: SECOND })
       harness.setNow(retryAt)
-      const retried = await harness.plane.claimNext({ hostId: second, limit: 1 })
+      const retried = (await harness.plane.claimNext({ hostId: second, limit: 1 })).leases
       expect(retried).toMatchObject([
         {
           sessionId: 'retry',
@@ -119,10 +119,41 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
       await releaseAll()
     })
 
+    it('reports the earliest future retryAfter of a gated session and claims it once the clock passes', async () => {
+      await newSession('gated')
+      const first = await params.nextHostId()
+      const releaseFirst = await params.holdPresence(first)
+      await harness.plane.claimNext({ hostId: first, limit: 1 })
+      await harness.plane.revoke({ sessionId: 'gated', wantsHolder: true })
+      const second = await present()
+      const retryAt = after({ from: T0, ms: SECOND })
+      expect(await harness.plane.claimNext({ hostId: second, limit: 1 })).toEqual({
+        leases: [],
+        nextRetryAt: retryAt,
+      })
+      harness.setNow(retryAt)
+      const claimed = await harness.plane.claimNext({ hostId: second, limit: 1 })
+      expect(claimed.leases).toMatchObject([{ sessionId: 'gated', holderHostId: second }])
+      expect(claimed.nextRetryAt).toBeNull()
+      await releaseFirst()
+      await releaseAll()
+    })
+
+    it('reports no retry time when nothing needing a holder is gated', async () => {
+      await newSession('free')
+      const hostId = await present()
+      expect((await harness.plane.claimNext({ hostId, limit: 5 })).nextRetryAt).toBeNull()
+      expect(await harness.plane.claimNext({ hostId, limit: 5 })).toEqual({
+        leases: [],
+        nextRetryAt: null,
+      })
+      await releaseAll()
+    })
+
     it('revoke keeps the retry state unless resetRetry is set', async () => {
       await newSession('keep')
       const hostId = await present()
-      const [claimed] = await harness.plane.claimNext({ hostId, limit: 1 })
+      const [claimed] = (await harness.plane.claimNext({ hostId, limit: 1 })).leases
       const kept = await harness.plane.revoke({
         sessionId: 'keep',
         wantsHolder: true,
@@ -138,7 +169,7 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
     it('revoke with resetRetry clears attempts and retryAfter so the next claim is immediate', async () => {
       await newSession('reset')
       const hostId = await present()
-      const [claimed] = await harness.plane.claimNext({ hostId, limit: 1 })
+      const [claimed] = (await harness.plane.claimNext({ hostId, limit: 1 })).leases
       const reset = await harness.plane.revoke({
         sessionId: 'reset',
         wantsHolder: true,
@@ -146,7 +177,7 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
         resetRetry: true,
       })
       expect(reset).toMatchObject({ ok: true, lease: { attempts: 0, retryAfter: null } })
-      const again = await harness.plane.claimNext({ hostId, limit: 1 })
+      const again = (await harness.plane.claimNext({ hostId, limit: 1 })).leases
       expect(again).toMatchObject([{ sessionId: 'reset', epoch: 3, attempts: 1 }])
       await releaseAll()
     })
@@ -154,7 +185,7 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
     it('a stale-epoch revoke with resetRetry changes nothing', async () => {
       await newSession('stale')
       const hostId = await present()
-      const [claimed] = await harness.plane.claimNext({ hostId, limit: 1 })
+      const [claimed] = (await harness.plane.claimNext({ hostId, limit: 1 })).leases
       const stale = await harness.plane.revoke({
         sessionId: 'stale',
         wantsHolder: true,
@@ -185,7 +216,7 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
     it('claims nothing for a host that is not present', async () => {
       await newSession('absent-self')
       const absent = await params.nextHostId()
-      expect(await harness.plane.claimNext({ hostId: absent, limit: 5 })).toEqual([])
+      expect((await harness.plane.claimNext({ hostId: absent, limit: 5 })).leases).toEqual([])
       expect((await harness.plane.currentLease({ sessionId: 'absent-self' })).lease).toMatchObject({
         epoch: 0,
         attempts: 0,
@@ -196,8 +227,8 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
     it('returns nothing for a limit of zero or less', async () => {
       await newSession('zero')
       const hostId = await present()
-      expect(await harness.plane.claimNext({ hostId, limit: 0 })).toEqual([])
-      expect(await harness.plane.claimNext({ hostId, limit: -3 })).toEqual([])
+      expect((await harness.plane.claimNext({ hostId, limit: 0 })).leases).toEqual([])
+      expect((await harness.plane.claimNext({ hostId, limit: -3 })).leases).toEqual([])
       expect((await harness.plane.currentLease({ sessionId: 'zero' })).lease.epoch).toBe(0)
       await releaseAll()
     })
@@ -208,9 +239,9 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
         await newSession(sessionId)
       }
       const hostId = await present()
-      const taken = await harness.plane.claimNext({ hostId, limit: 2 })
+      const taken = (await harness.plane.claimNext({ hostId, limit: 2 })).leases
       expect(taken.map((lease) => lease.sessionId)).toEqual(['limit-a', 'limit-b'])
-      const rest = await harness.plane.claimNext({ hostId, limit: 2 })
+      const rest = (await harness.plane.claimNext({ hostId, limit: 2 })).leases
       expect(rest.map((lease) => lease.sessionId)).toEqual(['limit-c'])
       await releaseAll()
     })

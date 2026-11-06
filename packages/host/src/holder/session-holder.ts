@@ -142,6 +142,10 @@ export class SessionHolder {
     return this.presence.current()
   }
 
+  ring(): void {
+    this.loop.ring()
+  }
+
   heldIds(): readonly string[] {
     return [...this.held.keys()]
   }

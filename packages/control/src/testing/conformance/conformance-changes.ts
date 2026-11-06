@@ -167,7 +167,7 @@ export function describeControlPlaneChanges(params: ConformanceParams): void {
       expect(landed).toEqual([{ sessionId: SESSION }])
     })
 
-    it('a winning claim announces once and a refused claim announces nothing', async () => {
+    it('a winning claimNext announces once and a losing one announces nothing', async () => {
       await harness.plane.createSession(
         createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }),
       )
@@ -175,15 +175,16 @@ export function describeControlPlaneChanges(params: ConformanceParams): void {
       const second = await present()
       const won = await announced({
         work: async () => {
-          const result = await harness.plane.claim({ sessionId: SESSION, hostId: first.hostId })
-          expect(result.ok).toBe(true)
+          const claimed = (await harness.plane.claimNext({ hostId: first.hostId, limit: 5 })).leases
+          expect(claimed).toHaveLength(1)
         },
       })
       expect(won).toEqual([{ sessionId: SESSION }])
       const refused = await announced({
         work: async () => {
-          const result = await harness.plane.claim({ sessionId: SESSION, hostId: second.hostId })
-          expect(result.ok).toBe(false)
+          const claimed = (await harness.plane.claimNext({ hostId: second.hostId, limit: 5 }))
+            .leases
+          expect(claimed).toEqual([])
         },
       })
       expect(refused).toEqual([])

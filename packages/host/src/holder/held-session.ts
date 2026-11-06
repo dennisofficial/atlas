@@ -200,7 +200,7 @@ export class HeldSession {
       resumePending: this.resumePending,
       lastActivityAt: this.lastActivityAt,
       runtime: this.runtime,
-      events: this.record?.eventCache().all() ?? [],
+      workspace: this.record?.eventCache().bookkeeping().workspace(),
       preparing: this.prepare.running,
     })
     if (shellsRunning) this.lastActivityAt = deps.timers.now()

@@ -90,9 +90,9 @@ describe('SessionHolder claim', () => {
     let claimed = 0
     const originalClaimNext = a.plane.claimNext.bind(a.plane)
     a.plane.claimNext = async (params) => {
-      const leases = await originalClaimNext(params)
-      claimed += leases.length
-      return leases
+      const batch = await originalClaimNext(params)
+      claimed += batch.leases.length
+      return batch
     }
 
     await a.post('one')

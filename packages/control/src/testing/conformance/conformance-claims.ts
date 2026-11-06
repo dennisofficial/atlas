@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { LeaseConflictError } from '../../errors'
-import { createSessionParams, HOLDER_HOST, makeHarness, type Harness } from './support'
+import { createSessionParams, HOLDER_HOST, makeHarness, T0, type Harness } from './support'
 import type { ConformanceParams } from './conformance'
 
 export function describeControlPlaneClaims(params: ConformanceParams): void {
@@ -30,51 +30,34 @@ export function describeControlPlaneClaims(params: ConformanceParams): void {
       for (const release of releases.splice(0)) await release()
     }
 
-    it('claim takes a fresh session and refuses while the holder is present', async () => {
+    it('claimNext gives a fresh session to one of two present hosts and the other gets nothing', async () => {
       const sessionId = 'claim-live'
       await newSession(sessionId)
       const first = await present()
       const second = await present()
-      const won = await harness.plane.claim({ sessionId, hostId: first })
-      expect(won.ok).toBe(true)
-      if (won.ok) expect(won.lease).toMatchObject({ epoch: 1, holderHostId: first })
-      const refused = await harness.plane.claim({ sessionId, hostId: second })
-      expect(refused).toEqual({ ok: false, refusal: { kind: 'held', epoch: 1 } })
+      const won = (await harness.plane.claimNext({ hostId: first, limit: 5 })).leases
+      expect(won).toMatchObject([{ sessionId, epoch: 1, holderHostId: first }])
+      expect((await harness.plane.claimNext({ hostId: second, limit: 5 })).leases).toEqual([])
       await releaseAll()
     })
 
-    it('claim refuses while the holder is present and takes over once it is absent', async () => {
+    it('claimNext skips a held session and takes it over once the holder is absent', async () => {
       const sessionId = 'claim-takeover'
       await newSession(sessionId)
       const oldHost = await params.nextHostId()
       const releaseOld = await params.holdPresence(oldHost)
       await harness.plane.grant({ sessionId, hostId: oldHost })
       const newHost = await present()
-      expect(await harness.plane.claim({ sessionId, hostId: newHost })).toEqual({
-        ok: false,
-        refusal: { kind: 'held', epoch: 1 },
-      })
+      expect((await harness.plane.claimNext({ hostId: newHost, limit: 5 })).leases).toEqual([])
       await releaseOld()
-      const won = await harness.plane.claim({ sessionId, hostId: newHost })
-      expect(won.ok).toBe(true)
-      if (won.ok) expect(won.lease).toMatchObject({ epoch: 2, holderHostId: newHost })
+      const won = (await harness.plane.claimNext({ hostId: newHost, limit: 5 })).leases
+      expect(won).toMatchObject([{ sessionId, epoch: 2, holderHostId: newHost }])
       const revoked = await harness.plane.revoke({ sessionId, wantsHolder: true })
       expect(revoked.epoch).toBe(3)
-      const again = await harness.plane.claim({ sessionId, hostId: newHost })
-      expect(again.ok).toBe(true)
-      if (again.ok) expect(again.lease.epoch).toBe(4)
+      harness.setNow(new Date(Date.parse(T0) + 2000).toISOString())
+      const again = (await harness.plane.claimNext({ hostId: newHost, limit: 5 })).leases
+      expect(again).toMatchObject([{ sessionId, epoch: 4 }])
       await releaseAll()
-    })
-
-    it('a claimer that is not present is refused', async () => {
-      const sessionId = 'claim-absent'
-      await newSession(sessionId)
-      const absent = await params.nextHostId()
-      expect(await harness.plane.claim({ sessionId, hostId: absent })).toEqual({
-        ok: false,
-        refusal: { kind: 'not-present' },
-      })
-      expect((await harness.plane.currentLease({ sessionId })).lease.epoch).toBe(0)
     })
 
     it('currentLease.live follows presence', async () => {
@@ -122,9 +105,9 @@ export function describeControlPlaneClaims(params: ConformanceParams): void {
         await newSession(sessionId)
       }
       for (const sessionId of ['held-c', 'held-a', 'held-b']) {
-        await harness.plane.claim({ sessionId, hostId: mine })
+        await harness.plane.grant({ sessionId, hostId: mine })
       }
-      await harness.plane.claim({ sessionId: 'held-other', hostId: other })
+      await harness.plane.grant({ sessionId: 'held-other', hostId: other })
       const all = await harness.plane.leasesHeldBy({ hostId: mine, limit: 100 })
       expect(all.map((lease) => lease.sessionId)).toEqual(['held-a', 'held-b', 'held-c'])
       expect(all.every((lease) => lease.holderHostId === mine)).toBe(true)
@@ -134,22 +117,18 @@ export function describeControlPlaneClaims(params: ConformanceParams): void {
       await releaseAll()
     })
 
-    it('eight concurrent claims produce exactly one winner', async () => {
+    it('eight concurrent claimNext calls produce exactly one winner', async () => {
       for (let round = 0; round < 5; round += 1) {
         const sessionId = `claim-race-${round}`
         await newSession(sessionId)
         const hosts = await Promise.all(Array.from({ length: 8 }, present))
-        const settled = await Promise.allSettled(
-          hosts.map((hostId) => harness.plane.claim({ sessionId, hostId })),
+        const settled = await Promise.all(
+          hosts.map((hostId) => harness.plane.claimNext({ hostId, limit: 5 })),
         )
-        const won = settled.filter((r) => r.status === 'fulfilled' && r.value.ok)
-        expect(won.length).toBe(1)
-        for (const r of settled) {
-          if (r.status === 'rejected') expect(r.reason).toBeInstanceOf(LeaseConflictError)
-          if (r.status === 'fulfilled' && !r.value.ok) {
-            expect(r.value.refusal).toEqual({ kind: 'held', epoch: 1 })
-          }
-        }
+        const won = settled
+          .flatMap((batch) => batch.leases)
+          .filter((lease) => lease.sessionId === sessionId)
+        expect(won).toHaveLength(1)
         const current = await harness.plane.currentLease({ sessionId })
         expect(current.lease.epoch).toBe(1)
         expect(current.live).toBe(true)

@@ -3,7 +3,13 @@ import { MediaStore, type ReadDelegation } from '../media-store'
 export class FakeMediaStore extends MediaStore {
   issued = 0
   readonly blobs = new Map<string, number>()
+  readonly contents = new Map<string, Uint8Array>()
   readonly deleted: string[] = []
+
+  put(args: { pathname: string; bytes: Uint8Array }): void {
+    this.blobs.set(args.pathname, args.bytes.byteLength)
+    this.contents.set(args.pathname, args.bytes)
+  }
 
   async issueReadDelegation(args: { validUntil: number }): Promise<ReadDelegation> {
     this.issued += 1
@@ -35,9 +41,14 @@ export class FakeMediaStore extends MediaStore {
     return size === undefined ? null : { size }
   }
 
+  async read(args: { pathname: string }): Promise<Uint8Array | null> {
+    return this.contents.get(args.pathname) ?? null
+  }
+
   async delete(args: { pathnames: string[] }): Promise<void> {
     for (const pathname of args.pathnames) {
       this.blobs.delete(pathname)
+      this.contents.delete(pathname)
       this.deleted.push(pathname)
     }
   }

@@ -1,6 +1,8 @@
 import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
+export type ClaimedBatch = { leases: Lease[]; nextRetryAt: string | null }
+
 export type ControlSessionRow = {
   sessionId: string
   userId: string
@@ -86,7 +88,6 @@ export interface ControlTx {
     limit: number
   }): Promise<ControlSessionRow[]>
   listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]>
-  sessionsNeedingHolder(params: { limit: number }): Promise<string[]>
   createThread(params: {
     threadId: string
     sessionId: string
@@ -114,7 +115,7 @@ export interface ControlTx {
   lockLease(sessionId: string): Promise<Lease | undefined>
   shareLease(sessionId: string): Promise<Lease | undefined>
   writeLease(params: { lease: Lease; expectedEpoch: number }): Promise<boolean>
-  claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<Lease[]>
+  claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<ClaimedBatch>
   allocateInboxId(sessionId: string): Promise<number>
   insertInboxEntry(entry: InboxEntry): Promise<void>
   readInboxEntry(params: { sessionId: string; inboxId: number }): Promise<InboxEntry | undefined>

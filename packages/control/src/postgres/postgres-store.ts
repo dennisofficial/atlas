@@ -8,6 +8,7 @@ import {
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
+  type ClaimedBatch,
   type ControlTx,
   type ReadEventsParams,
   type StoredEvent,
@@ -28,9 +29,16 @@ import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn } from './postgres-presence'
 import { sessionDigestsIn } from './postgres-digests'
 import { setSessionArchivedIn, setSessionTitleIfUntitledIn } from './postgres-session-writes'
-import { sessionsNeedingHolderIn } from './postgres-needing-holder'
 import { claimNeedingIn } from './postgres-claim-next'
-import { toInbox, toLease, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
+import {
+  allocateInboxIdIn,
+  deleteInboxEntryIn,
+  insertInboxEntryIn,
+  markInboxConsumedIn,
+  readInboxEntriesIn,
+  readInboxEntryIn,
+} from './postgres-inbox'
+import { toLease, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
 
 class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
@@ -110,10 +118,6 @@ class PostgresTx implements ControlTx {
 
   async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
     return sessionDigestsIn({ tx: this.tx, ...params })
-  }
-
-  async sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]> {
-    return sessionsNeedingHolderIn({ tx: this.tx, ...params })
   }
 
   async createThread(params: {
@@ -227,7 +231,11 @@ class PostgresTx implements ControlTx {
     return row === null ? undefined : toLease(row)
   }
 
-  async claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<Lease[]> {
+  async claimNeeding(params: {
+    hostId: number
+    now: string
+    limit: number
+  }): Promise<ClaimedBatch> {
     return claimNeedingIn({ tx: this.tx, ...params })
   }
 
@@ -236,21 +244,15 @@ class PostgresTx implements ControlTx {
   }
 
   async allocateInboxId(sessionId: string): Promise<number> {
-    const session = await this.tx.orm.v2.V2Session.where({ id: sessionId }).forNoKeyUpdate().first()
-    if (session === null) throw new Error(`unknown session ${sessionId}`)
-    await this.tx.orm.v2.V2Session.where({ id: sessionId }).updateAndCount({
-      nextInboxId: session.nextInboxId + 1,
-    })
-    return session.nextInboxId
+    return allocateInboxIdIn({ tx: this.tx, sessionId })
   }
 
   async insertInboxEntry(entry: InboxEntry): Promise<void> {
-    await this.tx.orm.v2.V2InboxEntry.create({ ...entry, postedAt: new Date(entry.postedAt) })
+    await insertInboxEntryIn({ tx: this.tx, entry })
   }
 
   async readInboxEntry(params: { sessionId: string; inboxId: number }) {
-    const row = await this.tx.orm.v2.V2InboxEntry.first(params)
-    return row === null ? undefined : toInbox(row)
+    return readInboxEntryIn({ tx: this.tx, ...params })
   }
 
   async markInboxConsumed(params: {
@@ -258,17 +260,11 @@ class PostgresTx implements ControlTx {
     inboxId: number
     seq: number
   }): Promise<boolean> {
-    const changed = await this.tx.orm.v2.V2InboxEntry.where((e) =>
-      and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId), e.consumedSeq.isNull()),
-    ).updateAndCount({ consumedSeq: params.seq })
-    return changed === 1
+    return markInboxConsumedIn({ tx: this.tx, ...params })
   }
 
   async deleteInboxEntry(params: { sessionId: string; inboxId: number }): Promise<boolean> {
-    const changed = await this.tx.orm.v2.V2InboxEntry.where((e) =>
-      and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId), e.consumedSeq.isNull()),
-    ).deleteAndCount()
-    return changed === 1
+    return deleteInboxEntryIn({ tx: this.tx, ...params })
   }
 
   async readInboxEntries(params: {
@@ -277,18 +273,7 @@ class PostgresTx implements ControlTx {
     limit: number
     excludeKind?: string | undefined
   }) {
-    const rows = await this.tx.orm.v2.V2InboxEntry.where((e) =>
-      and(
-        e.sessionId.eq(params.sessionId),
-        e.inboxId.gt(params.afterId),
-        e.consumedSeq.isNull(),
-        ...(params.excludeKind === undefined ? [] : [e.kind.neq(params.excludeKind)]),
-      ),
-    )
-      .orderBy((e) => e.inboxId.asc())
-      .limit(params.limit)
-      .all()
-    return rows.map(toInbox)
+    return readInboxEntriesIn({ tx: this.tx, ...params })
   }
 
   async notifyWake(sessionId: string): Promise<void> {

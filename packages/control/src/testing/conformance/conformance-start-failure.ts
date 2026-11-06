@@ -1,19 +1,23 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import type { V2Body } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
 import { createSessionParams, HOLDER_HOST, mint, SESSION, T0, THREAD } from './support'
 import type { ConformanceParams } from './conformance'
+import { freshHosts } from './conformance-fresh-hosts'
 
 export function describeControlPlaneStartFailures(params: ConformanceParams): void {
   describe(`ControlPlane start failures (${params.name})`, () => {
     let plane: ControlPlane
+    const hosts = freshHosts(params)
 
     beforeEach(async () => {
       await params.reset()
       plane = new ControlPlane({ store: params.makeStore(), clock: () => T0 })
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
     })
+
+    afterEach(() => hosts.releaseAll())
 
     const appendAs = async (args: { bodies: V2Body[]; wantsHolder: boolean }): Promise<void> => {
       const { epoch } = await plane.grant({
@@ -53,21 +57,21 @@ export function describeControlPlaneStartFailures(params: ConformanceParams): vo
         payload: kind === 'stop' ? '{}' : '"m"',
       })
 
-    const needing = (): Promise<string[]> => plane.sessionsNeedingHolder({ limit: 10 })
+    const claimable = (): Promise<string[]> => hosts.claimedByFreshHost({ plane, limit: 100 })
 
-    it('does not list a start-failed session until a newer message arrives', async () => {
+    it('does not claim a start-failed session until a newer message arrives', async () => {
       await appendAs({
         bodies: [{ type: 'workspace-prepared' }],
         wantsHolder: false,
       })
       await post('message')
       await failStart(1)
-      expect(await needing()).toEqual([])
+      expect(await claimable()).toEqual([])
       await post('message')
-      expect(await needing()).toEqual([SESSION])
+      expect(await claimable()).toEqual([SESSION])
     })
 
-    it('lists a start-failed session again for a stop', async () => {
+    it('claims a start-failed session again for a stop', async () => {
       await appendAs({
         bodies: [{ type: 'workspace-prepared' }],
         wantsHolder: false,
@@ -75,7 +79,7 @@ export function describeControlPlaneStartFailures(params: ConformanceParams): vo
       await post('message')
       await failStart(1)
       await post('stop')
-      expect(await needing()).toEqual([SESSION])
+      expect(await claimable()).toEqual([SESSION])
     })
 
     it('treats a failure ended by a later turn as no failure', async () => {
@@ -89,7 +93,7 @@ export function describeControlPlaneStartFailures(params: ConformanceParams): vo
         wantsHolder: false,
       })
       await post('message')
-      expect(await needing()).toEqual([SESSION])
+      expect(await claimable()).toEqual([SESSION])
     })
   })
 }

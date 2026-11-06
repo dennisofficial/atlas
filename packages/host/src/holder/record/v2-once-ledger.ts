@@ -1,17 +1,10 @@
 import { OnceLedger } from '@dltech/atlas-agent'
-import type { RunId, ScheduledRetry, ThreadId, V2Event } from '@dltech/atlas-core'
+import type { RunId, ScheduledRetry, ThreadId } from '@dltech/atlas-core'
 
 import type { RecordCache } from './record-cache'
 import type { SessionRecord } from './record-adapter'
 
 type Inflight = { promise: Promise<unknown> }
-
-const retryOf = (event: Extract<V2Event, { type: 'retry-scheduled' }>): ScheduledRetry => ({
-  key: event.key,
-  notBefore: event.notBefore,
-  attempt: event.attempt,
-  reason: event.reason,
-})
 
 export class V2OnceLedger extends OnceLedger {
   private readonly inflight = new Map<string, Inflight>()
@@ -29,7 +22,7 @@ export class V2OnceLedger extends OnceLedger {
   }
 
   async once<T>(args: { key: string; decide: () => Promise<T> }): Promise<T> {
-    const recorded = this.lookup(args.key)
+    const recorded = this.args.cache.bookkeeping().fact(args.key)
     if (recorded.found) return recorded.value as T
     const shared = this.shared(args)
     return (await shared.promise) as T
@@ -65,7 +58,7 @@ export class V2OnceLedger extends OnceLedger {
     key: string
     decide: () => Promise<Omit<ScheduledRetry, 'key'>>
   }): Promise<ScheduledRetry> {
-    const recorded = this.lookupRetry(args.key)
+    const recorded = this.args.cache.bookkeeping().retry(args.key)
     if (recorded !== undefined) return recorded
     const running = this.inflightRetries.get(args.key)
     if (running !== undefined) return running
@@ -77,13 +70,7 @@ export class V2OnceLedger extends OnceLedger {
   }
 
   recallRetries(args: { prefix: string }): Promise<readonly ScheduledRetry[]> {
-    const matches: ScheduledRetry[] = []
-    for (const event of this.args.cache.resolvedAll()) {
-      if (event.type === 'retry-scheduled' && event.key.startsWith(args.prefix)) {
-        matches.push(retryOf(event))
-      }
-    }
-    return Promise.resolve(matches)
+    return Promise.resolve(this.args.cache.bookkeeping().retriesWithPrefix(args.prefix))
   }
 
   private async decideAndRecordRetry(args: {
@@ -100,29 +87,7 @@ export class V2OnceLedger extends OnceLedger {
     return retry
   }
 
-  private lookupRetry(key: string): ScheduledRetry | undefined {
-    for (const event of this.args.cache.resolvedAll()) {
-      if (event.type === 'retry-scheduled' && event.key === key) return retryOf(event)
-    }
-    return undefined
-  }
-
   recall(args: { prefix: string }): Promise<readonly { key: string; value: unknown }[]> {
-    const matches: { key: string; value: unknown }[] = []
-    for (const event of this.args.cache.resolvedAll()) {
-      if (event.type === 'fact-recorded' && event.key.startsWith(args.prefix)) {
-        matches.push({ key: event.key, value: event.value })
-      }
-    }
-    return Promise.resolve(matches)
-  }
-
-  private lookup(key: string): { found: true; value: unknown } | { found: false } {
-    for (const event of this.args.cache.resolvedAll()) {
-      if (event.type === 'fact-recorded' && event.key === key) {
-        return { found: true, value: event.value }
-      }
-    }
-    return { found: false }
+    return Promise.resolve(this.args.cache.bookkeeping().factsWithPrefix(args.prefix))
   }
 }

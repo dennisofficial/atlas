@@ -153,15 +153,14 @@ wake, not a stream the pod holds open:
   notification only on commit, so a rolled-back write wakes nobody.
 - Each agent host `LISTEN`s on one direct Postgres connection (`DATABASE_DIRECT_URL`; PgBouncer's
   transaction mode cannot `LISTEN`). A wake for a held session re-runs that session's loop; a wake for an
-  unheld one tries to claim it.
+  unheld one rings the host's claim loop.
 - A notification is lost while the connection is down, so every (re)connect emits a resync: the host
-  claims `sessionsNeedingHolder` and every held session re-reads its inbox. The recovery is an event, not
-  a timer.
+  rings its claim loop and every held session re-reads its inbox. A lost doorbell costs at most one tick.
 - A crashed holder emits no event, so hosts watch each other in a ring. Each host orders the live
   `V2Host` ids, picks its successor (the next id above its own, wrapping to the lowest) and blocks one
   dedicated direct connection in `pg_advisory_lock_shared` on that successor's presence lock. The wait
   returns when the successor's connection dies. The watcher then deletes the successor's `V2Host` row,
-  notifies `atlas_host_change`, wakes every session `sessionsNeedingHolder` returns, and retargets to the
+  notifies `atlas_host_change`, rings its own claim loop, and retargets to the
   next successor; a dead successor's successor returns at once, so the ring keeps walking. Any
   `atlas_host_change`, a host re-registering under a new id, or a (re)connect of the LISTEN connection
   recomputes the successor. A host also runs the same scan once at start-up, which covers an empty fleet
@@ -427,9 +426,16 @@ these are the parts of Kubernetes' design that fit:
 Not adopted: running Kubernetes itself. Vercel Sandbox is the runtime; v2 copies the control
 patterns, not the platform.
 
-**The held-session loop, as built in slice 3.** An agent host runs one reactive loop per session it holds
-(`packages/host/src/holder`). Wakes, a resync, a settled turn, a prepare result, the idle deadline and a
-failed read all call `Reconciler.request()`. It runs one step at a time and coalesces requests that arrive
+**The held-session loop, as built ([0026](../decisions/0026-v2-hosts-pull-sessions.md)).** Each agent host runs
+one claim loop (`packages/host/src/holder`). A doorbell (a wake, a resync, a dead peer found by the host
+watch, a settled session, a due `retryAfter`) or a 20 s ± 20 % tick runs `claimNext` with `limit` = free
+slots; rings coalesce into one call in flight and one queued. The database is the work queue: `claimNext`
+is the only way a host takes a session, and the "needs a holder" predicate lives once, inside the claim.
+Each claimed lease runs through `runHeld` and then `settle`, the only place a lease is released. A settle
+that fails is retried by the loop before it claims more. Retry state (`attempts`, `retryAfter`) lives on
+the lease row, so every host honours the backoff and it survives a restart.
+
+Inside `runHeld`, a session's reconciler runs one step at a time and coalesces requests that arrive
 meanwhile. A step is three moves:
 1. Snapshot: read the inbox once, fold the log into the workspace state, and note whether a turn runs, a
    stop is pending, a message is pending and the idle deadline has passed.
@@ -437,10 +443,9 @@ meanwhile. A step is three moves:
    turn, consume a stop, prepare the workspace, start a turn, release, or wait.
 3. Act, then wait for the next event.
 
-Nothing in the loop looks for work on a timer. The timers that remain each guard something other than
-work: lease renewal and the self-fence (liveness), the daemon ping, one idle-release deadline armed only
-while idle, the backoff after a failed read, and the handoff deadline during a drain. Model retry backoff
-is not an in-memory timer: it is a recorded deadline (0021).
+The timers that remain each guard something other than finding work: the claim loop's tick, the daemon
+ping, one idle-release deadline armed only while idle, and the handoff deadline during a drain. Model retry
+backoff is not an in-memory timer: it is a recorded deadline (0021).
 
 **Session lifecycle.**
 - **New session: prepare, then the first turn.** Creating a session wakes a host, which claims the lease,
@@ -475,8 +480,8 @@ removes every timer that proves or looks for it.
   new host id and reclaims through the normal path. Postgres has already freed the old lock.
 - **Death is an event.** Each host keeps one connection blocked in
   `pg_advisory_lock_shared(PRESENCE, successor)`, where the successor is the next host id in a ring. It
-  returns when the successor's connection dies; the waker then runs one scan for sessions whose holder is
-  not present and `NOTIFY`s them. A start-up scan covers an empty fleet.
+  returns when the successor's connection dies; the waker then rings its own host's claim loop, whose
+  `claimNext` takes sessions whose holder is not present. The start-up ring covers an empty fleet.
 
 ```mermaid
 flowchart LR
@@ -511,8 +516,8 @@ the host does for each case, is the failure table in [0025](../decisions/0025-v2
    and `renew`. A race spec: append against a concurrent claim.
 4. **Host.** Delete `LeaseRenewal` and its timers; lock-connection loss fences every held session and
    re-registers; an append transport failure past its deadline closes the lock connection.
-5. **Watch ring.** The waiter, successor recompute on `atlas_host_change`, the global scan on start and on
-   wake, and `sessionsNeedingHolder` on presence. Delete `reconcile-holders` and its trigger task.
+5. **Watch ring.** The waiter, successor recompute on `atlas_host_change`, the claim loop's ring on start and on
+   wake, and `claimNext` on presence. Delete `reconcile-holders` and its trigger task.
 6. **Fault rig.** Cases for SIGKILL, `pg_terminate_backend` of the lock connection, a stalled pool with a
    live lock connection, a partition (`iptables` drop, the proxy frees the lock in about 60 s), a primary restart, and
    three hosts dying in sequence around the ring.

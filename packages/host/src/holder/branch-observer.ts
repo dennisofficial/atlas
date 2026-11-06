@@ -1,10 +1,9 @@
 import {
-  branchesChanged,
+  observationChanged,
   type BranchObservation,
   type BranchesObserved,
   type RunId,
   type ThreadId,
-  type V2Event,
 } from '@dltech/atlas-core'
 import type { BranchSet } from '@dltech/atlas-protocol'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
@@ -15,7 +14,7 @@ const REFRESH_TIMEOUT_MS = 10_000
 
 export type BranchRecorder = {
   append(args: { threadId: ThreadId; runId: RunId; body: BranchesObserved }): Promise<unknown>
-  events(): readonly V2Event[]
+  lastObservation(repo: string): BranchObservation | undefined
 }
 
 export type BranchObserverArgs = {
@@ -133,7 +132,8 @@ export class BranchObserver {
   private async observe(set: BranchSet): Promise<void> {
     if (this.isStopped) return
     const observation = observationOf(set)
-    if (!branchesChanged({ events: this.args.record.events(), set: observation })) return
+    const last = this.args.record.lastObservation(observation.repo)
+    if (!observationChanged({ last, set: observation })) return
     await this.args.record.append({
       threadId: this.args.threadId,
       runId: this.args.runId(),
