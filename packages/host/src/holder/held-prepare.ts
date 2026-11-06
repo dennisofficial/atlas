@@ -2,7 +2,7 @@ import type { RunId, ThreadId } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import type { HeldSessionDeps } from './held-session-deps'
-import { statusFrame, type PrepareResult, type SessionRuntime } from './ports'
+import { fireLive, statusFrame, type PrepareResult, type SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
 export class HeldPrepare {
@@ -30,7 +30,11 @@ export class HeldPrepare {
     this.active = true
     const { deps } = this.args
     let failed = false
-    deps.bus.live({ sessionId: deps.sessionId, frame: statusFrame({ state: 'preparing' }) })
+    fireLive({
+      bus: deps.bus,
+      sessionId: deps.sessionId,
+      frame: statusFrame({ state: 'preparing' }),
+    })
     void args.runtime
       .prepare()
       .catch((error): PrepareResult => {
@@ -77,6 +81,6 @@ export class HeldPrepare {
         } as const)
     await args.record.append({ threadId: args.threadId, runId, drafts: [body] })
     const state = result.ok ? 'idle' : 'setup-failed'
-    deps.bus.live({ sessionId: deps.sessionId, frame: statusFrame({ state }) })
+    fireLive({ bus: deps.bus, sessionId: deps.sessionId, frame: statusFrame({ state }) })
   }
 }

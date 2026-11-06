@@ -8,14 +8,16 @@ export const LIVE_FLUSH_MS = 100
 export const LIVE_FLUSH_BYTES = 4 * 1024
 export const LIVE_STEP_CAP_BYTES = 512 * 1024
 
-type Block = { kind: EStreamBlockKind; sent: number; pending: string }
+type Block = { kind: EStreamBlockKind; sent: number; text: string }
 
 type ActiveStep = {
   key: StepKey
+  afterSeq: number
   blocks: Map<string, Block>
   pendingBytes: number
   acceptedBytes: number
   capped: boolean
+  resync: boolean
   lastFlushAt: number | undefined
   timer: unknown
 }
@@ -32,7 +34,7 @@ export class LiveStepBuffer {
   constructor(
     private readonly args: {
       timers: HostTimers
-      emit: (frame: LiveFrame) => void
+      emit: (frame: LiveFrame) => Promise<void>
       headSeq: () => number
     },
   ) {}
@@ -52,22 +54,40 @@ export class LiveStepBuffer {
   private open(key: StepKey): void {
     if (this.step !== undefined) this.flush(this.step)
     this.drop()
-    this.step = {
+    const step: ActiveStep = {
       key,
+      afterSeq: this.args.headSeq(),
       blocks: new Map(),
       pendingBytes: 0,
       acceptedBytes: 0,
       capped: false,
+      resync: false,
       lastFlushAt: undefined,
       timer: undefined,
     }
-    this.args.emit({ type: 'step-start', key, afterSeq: this.args.headSeq() })
+    this.step = step
+    this.send({ step, frame: { type: 'step-start', key, afterSeq: step.afterSeq } })
   }
 
   private close(args: { key: StepKey; reason: EStepEndReason }): void {
     if (this.step !== undefined) this.flush(this.step)
     this.drop()
-    this.args.emit({ type: 'step-end', key: args.key, reason: args.reason })
+    this.args.emit({ type: 'step-end', key: args.key, reason: args.reason }).catch(() => undefined)
+  }
+
+  private send(args: { step: ActiveStep; frame: LiveFrame }): void {
+    const { step, frame } = args
+    this.args.emit(frame).catch(() => this.markResync(step))
+  }
+
+  private markResync(step: ActiveStep): void {
+    if (this.step !== step) return
+    step.resync = true
+    if (step.timer !== undefined) return
+    step.timer = this.args.timers.setTimeout(() => {
+      step.timer = undefined
+      this.flush(step)
+    }, LIVE_FLUSH_MS)
   }
 
   private drop(): void {
@@ -89,8 +109,8 @@ export class LiveStepBuffer {
     }
     step.acceptedBytes += bytes
     step.pendingBytes += bytes
-    const block = step.blocks.get(id) ?? { kind, sent: 0, pending: '' }
-    block.pending += text
+    const block = step.blocks.get(id) ?? { kind, sent: 0, text: '' }
+    block.text += text
     step.blocks.set(id, block)
     this.schedule(step)
   }
@@ -115,18 +135,29 @@ export class LiveStepBuffer {
       this.args.timers.clearTimeout(step.timer)
       step.timer = undefined
     }
-    for (const [block, state] of step.blocks) {
-      if (state.pending.length === 0) continue
-      this.args.emit({
-        type: 'delta',
-        key: step.key,
-        block,
-        kind: state.kind,
-        from: state.sent,
-        text: state.pending,
+    const resync = step.resync
+    if (resync) {
+      step.resync = false
+      this.send({
+        step,
+        frame: { type: 'step-start', key: step.key, afterSeq: step.afterSeq },
       })
-      state.sent += state.pending.length
-      state.pending = ''
+    }
+    for (const [block, state] of step.blocks) {
+      const from = resync ? 0 : state.sent
+      if (state.text.length === from) continue
+      this.send({
+        step,
+        frame: {
+          type: 'delta',
+          key: step.key,
+          block,
+          kind: state.kind,
+          from,
+          text: state.text.slice(from),
+        },
+      })
+      state.sent = state.text.length
     }
     step.pendingBytes = 0
     step.lastFlushAt = this.args.timers.now()

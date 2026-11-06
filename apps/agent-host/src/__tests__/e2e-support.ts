@@ -46,7 +46,7 @@ export const makeInMemoryBus = (): InMemoryBus => {
       wakes.push(sessionId)
       for (const listener of [...listeners]) listener(sessionId)
     },
-    live({ sessionId, frame }) {
+    async live({ sessionId, frame }) {
       lives.push({ sessionId, frame })
     },
     reset() {

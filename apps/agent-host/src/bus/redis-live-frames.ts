@@ -12,7 +12,7 @@ export const LIVE_BUFFER_TTL_SECONDS = 600
 export const LIVE_BUFFER_EXPIRE_EVERY_MS = 1_000
 
 export type RedisLiveFrames = {
-  live(args: { sessionId: string; frame: LiveFrame }): void
+  live(args: { sessionId: string; frame: LiveFrame }): Promise<void>
   trackedSessions(): number
   close(): Promise<void>
 }
@@ -60,7 +60,7 @@ export const createRedisLiveFrames = (args: {
   }
 
   return {
-    live({ sessionId, frame }) {
+    async live({ sessionId, frame }) {
       const result = liveFrameSchema.safeParse(frame)
       if (!result.success) {
         args.log?.error({
@@ -75,12 +75,13 @@ export const createRedisLiveFrames = (args: {
         data.type === 'step-start' || data.type === 'delta' || data.type === 'step-end'
           ? publishStepFrame({ sessionId, frame: data })
           : publisher.publish(sessionLiveChannel(sessionId), JSON.stringify(data))
-      sent.catch((error: unknown) => {
+      await sent.catch((error: unknown) => {
         args.log?.error({
           source: 'bus.live',
           message: `publishing a live frame for ${sessionId} failed`,
           ...logFieldsOf({ error }),
         })
+        throw error
       })
     },
 

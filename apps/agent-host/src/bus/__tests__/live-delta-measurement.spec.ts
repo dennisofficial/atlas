@@ -49,7 +49,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('live delta meas
       headSeq: () => 0,
       emit: (frame) => {
         frames.push(frame)
-        publisher.live({ sessionId, frame })
+        return publisher.live({ sessionId, frame })
       },
     })
     const key = { runId: 'run-measure', step: 0, attempt: 0 }

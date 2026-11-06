@@ -82,7 +82,7 @@ export class FakeBus implements HostBus {
     for (const listener of [...this.listeners]) listener(sessionId)
   }
 
-  live(args: { sessionId: string; frame: LiveFrame }): void {
+  async live(args: { sessionId: string; frame: LiveFrame }): Promise<void> {
     this.frames.push({ ...args })
   }
 

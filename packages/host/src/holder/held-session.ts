@@ -1,7 +1,7 @@
 import { EHeldAction, type Lease, type ThreadId } from '@dltech/atlas-core'
 import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
-import { statusFrame, type SessionRuntime } from './ports'
+import { fireLive, statusFrame, type SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
 import {
   logDriveFault,
@@ -126,7 +126,11 @@ export class HeldSession {
   private async drive(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<void> {
     const { lease, threadId } = args
     const deps = this.deps
-    deps.bus.live({ sessionId: deps.sessionId, frame: statusFrame({ state: 'starting' }) })
+    fireLive({
+      bus: deps.bus,
+      sessionId: deps.sessionId,
+      frame: statusFrame({ state: 'starting' }),
+    })
     try {
       this.takeOver = new TakeOver(deps, args.claimMs ?? 0)
       const { runtime, record } = await this.takeOver.open({
