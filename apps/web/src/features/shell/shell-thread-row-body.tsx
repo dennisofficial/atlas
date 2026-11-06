@@ -49,11 +49,23 @@ export function ThreadRowBody({
   const states = useSidebarPrStates()
   const compact = density === ESidebarDensity.Compact
   const family = useThreadFamily()
-  const entries = threadPullRequestsOf({ thread, teammates, collapsed, states, family })
+  const entries = threadPullRequestsOf({
+    thread,
+    teammates,
+    collapsed,
+    states,
+    family,
+  })
   const latest = latestThreadPullRequestOf(entries)
   const observationRef = useSidebarPrObservation(
     thread.runner !== 'local' && latest
-      ? [{ repo: latest.repo, number: latest.number, priority: EPrObservationPriority.Inline }]
+      ? [
+          {
+            repo: latest.repo,
+            number: latest.number,
+            priority: EPrObservationPriority.Inline,
+          },
+        ]
       : [],
   )
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
@@ -98,8 +110,17 @@ export function ThreadRowBody({
           </RowAction>
         )
       }
+      indicator={
+        pinned ? (
+          <Pin
+            role="img"
+            aria-label="Pinned"
+            className="mr-1 size-3 shrink-0 text-muted-foreground"
+          />
+        ) : null
+      }
       className={cn(
-        'group/thread @container relative flex min-w-0 w-full items-start rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent',
+        'group/thread @container relative grid min-w-0 w-full grid-cols-[minmax(0,1fr)_auto] items-start rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent',
         active && 'bg-sidebar-accent',
       )}
     >
@@ -109,11 +130,14 @@ export function ThreadRowBody({
         aria-current={active ? 'page' : undefined}
         data-density={density}
         className={cn(
-          'block min-w-0 flex-1 rounded-md px-2 group-hover/thread:[&_[data-thread-line=primary]]:pr-12 group-focus-within/thread:[&_[data-thread-line=primary]]:pr-12 pointer-coarse:[&_[data-thread-line=primary]]:pr-12 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:overflow-hidden',
+          'col-span-2 col-start-1 row-start-1 grid min-w-0 grid-cols-subgrid rounded-md text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:overflow-hidden',
           compact ? 'py-2' : 'py-1.5',
         )}
       >
-        <span data-thread-line="primary" className="flex min-w-0 items-center gap-2">
+        <span
+          data-thread-line="primary"
+          className="col-start-1 flex min-w-0 items-center gap-2 px-2"
+        >
           <ThreadStatusIcon status={threadStatusOf(thread)} unread={unread} />
           {compact ? (
             <span className="group-data-[collapsible=icon]:hidden">
@@ -144,7 +168,7 @@ export function ThreadRowBody({
         {!compact ? (
           <span
             data-thread-line="secondary"
-            className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
+            className="col-span-2 mt-1 flex min-w-0 items-center gap-1.5 px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
           >
             <ThreadWorkSummary entries={entries} branch={currentBranchOf(thread)} />
             <time dateTime={thread.updatedAt} className="ml-auto shrink-0 font-mono">
@@ -153,15 +177,6 @@ export function ThreadRowBody({
           </span>
         ) : null}
       </Link>
-      <div className="flex shrink-0 items-center pt-1 group-data-[collapsible=icon]:hidden">
-        {pinned ? (
-          <Pin
-            role="img"
-            aria-label="Pinned"
-            className="mr-1 size-3 shrink-0 text-muted-foreground group-hover/thread:hidden group-focus-within/thread:hidden group-data-popup-open/thread:hidden"
-          />
-        ) : null}
-      </div>
     </ThreadHoverCard>
   )
 }
