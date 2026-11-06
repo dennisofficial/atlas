@@ -1,4 +1,4 @@
-import type { LogHead, V2Event } from '@dltech/atlas-core'
+import type { LogHead, V2Event, V2EventType } from '@dltech/atlas-core'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import { markDispatched, scopeKeyOf } from '../../calls/call-scope'
@@ -93,6 +93,7 @@ export const resyncHead = async (
         afterSeq: number
         limit: number
         visible: boolean
+        hiddenTypes?: readonly V2EventType[] | undefined
       }): Promise<{ events: V2Event[]; next?: number | undefined }>
     }
     threadId: string
@@ -121,6 +122,7 @@ export const resyncHead = async (
     }
     if (target.seq <= lastSeq) {
       cache.replaceHead(target)
+      await cache.refillIfRevealed()
       return
     }
   }

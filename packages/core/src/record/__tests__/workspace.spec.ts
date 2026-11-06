@@ -47,7 +47,7 @@ describe('workspace events', () => {
     const events = log([prepared, failed(1)])
     for (const event of events) {
       expect(isRecordOnly(event)).toBe(true)
-      expect(toLoopEvent({ event, log: events })).toBeUndefined()
+      expect(toLoopEvent({ event })).toBeUndefined()
     }
   })
 })

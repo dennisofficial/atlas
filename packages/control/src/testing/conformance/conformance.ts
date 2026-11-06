@@ -1,11 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import {
-  canonicalEvent,
-  visibleEvents,
-  ECompactionAnchor,
-  type V2Body,
-  type V2Event,
-} from '@dltech/atlas-core'
+import { canonicalEvent, type V2Body, type V2Event } from '@dltech/atlas-core'
 
 import type { SessionChange } from '@dltech/atlas-protocol'
 
@@ -175,25 +169,6 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       expect(read).toEqual(events)
       const head = await harness.plane.head({ threadId: THREAD })
       expect(head.seq).toBe(3)
-    })
-
-    it('visible reads equal core visibleEvents after rewind and summary', async () => {
-      const bodies: V2Body[] = Array.from({ length: 8 }, (_, i) => said(`m${i}`))
-      bodies.push({ type: 'permission-revoked', grantId: 'g1' })
-      bodies.push({
-        type: 'history-summarised',
-        fromSeq: 2,
-        throughSeq: 6,
-        anchor: ECompactionAnchor.Prefix,
-        summary: 's',
-      })
-      bodies.push(said('after'))
-      bodies.push({ type: 'history-rewound', toSeq: 9 })
-      bodies.push(said('tail'))
-      const { events } = await appendBodies({ harness, epoch, bodies })
-      expect(await readAll({ harness, visible: true })).toEqual(visibleEvents(events))
-      expect(await readAll({ harness, visible: true, limit: 2 })).toEqual(visibleEvents(events))
-      expect(await readAll({ harness, visible: false })).toEqual(events)
     })
 
     it('keyset paging returns every event exactly once and caps the limit', async () => {

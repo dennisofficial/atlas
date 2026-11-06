@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { V2Event, V2EventType, VisibleSegment } from '@dltech/atlas-core'
 import { visibleSegments } from '@dltech/atlas-core'
 
 import type { ControlTx, StoredEvent, ThreadRow } from './port'
@@ -21,23 +21,68 @@ const boundRowsByBytes = (
   return { kept, stoppedEarly: false }
 }
 
+export const withHiddenTypes = (params: {
+  visible: readonly VisibleSegment[]
+  fromSeq: number
+  throughSeq: number
+  types: readonly V2EventType[]
+}): VisibleSegment[] => {
+  const segments: VisibleSegment[] = []
+  let next = params.fromSeq
+  for (const segment of params.visible) {
+    if (segment.fromSeq > next) {
+      segments.push({
+        fromSeq: next,
+        throughSeq: segment.fromSeq - 1,
+        onlyTypes: [...params.types],
+      })
+    }
+    segments.push(
+      segment.onlyTypes === undefined
+        ? segment
+        : { ...segment, onlyTypes: [...new Set([...segment.onlyTypes, ...params.types])] },
+    )
+    next = segment.throughSeq + 1
+  }
+  if (next <= params.throughSeq) {
+    segments.push({ fromSeq: next, throughSeq: params.throughSeq, onlyTypes: [...params.types] })
+  }
+  return segments
+}
+
+const segmentsOf = (params: {
+  row: ThreadRow
+  fromSeq: number
+  visible: boolean
+  hiddenTypes: readonly V2EventType[] | undefined
+}): VisibleSegment[] => {
+  const { row, fromSeq } = params
+  if (!params.visible) return [{ fromSeq, throughSeq: row.headSeq }]
+  const visible = visibleSegments({
+    state: decodeVisibility(row.visibility),
+    fromSeq,
+    throughSeq: row.headSeq,
+  })
+  if (params.hiddenTypes === undefined) return visible
+  return withHiddenTypes({ visible, fromSeq, throughSeq: row.headSeq, types: params.hiddenTypes })
+}
+
 export const readEventsIn = async (params: {
   tx: ControlTx
   row: ThreadRow
   afterSeq: number
   limit: number
   visible: boolean
+  hiddenTypes?: readonly V2EventType[] | undefined
   maxBytes?: number | undefined
 }): Promise<ReadEventsPage> => {
   const { tx, row } = params
-  const fromSeq = params.afterSeq + 1
-  const segments = params.visible
-    ? visibleSegments({
-        state: decodeVisibility(row.visibility),
-        fromSeq,
-        throughSeq: row.headSeq,
-      })
-    : [{ fromSeq, throughSeq: row.headSeq }]
+  const segments = segmentsOf({
+    row,
+    fromSeq: params.afterSeq + 1,
+    visible: params.visible,
+    hiddenTypes: params.hiddenTypes,
+  })
   const rows: StoredEvent[] = []
   for (const segment of segments) {
     if (rows.length >= params.limit) break
@@ -46,7 +91,7 @@ export const readEventsIn = async (params: {
       afterSeq: segment.fromSeq - 1,
       throughSeq: segment.throughSeq,
       limit: params.limit - rows.length,
-      onlyTypes: 'onlyTypes' in segment ? segment.onlyTypes : undefined,
+      onlyTypes: segment.onlyTypes,
     })
     rows.push(...batch)
   }
