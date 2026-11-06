@@ -49,7 +49,7 @@ describe('PushDevicesRouter', () => {
                   : req.headers.authorization === 'Bearer s2'
                     ? 'usr-2'
                     : null
-              return userId === null ? null : { userId, sessionId: 'x', email: '' }
+              return userId === null ? null : { userId, sessionId: `auth-${userId}`, email: '' }
             },
           },
         },
@@ -69,6 +69,26 @@ describe('PushDevicesRouter', () => {
     expect(rows[0]?.token).toBe(TOKEN)
     expect(rows[0]?.platform).toBe('ios')
     expect(rows[0]?.lastSeenAt).toBeInstanceOf(Date)
+  })
+
+  it('stores the auth session that registered the device', async () => {
+    await request(app.getHttpServer())
+      .post('/v1/trpc/pushDevices.register')
+      .set(as('s1'))
+      .send({ token: TOKEN, platform: 'ios' })
+    expect((await devicesOf('usr-1'))[0]?.authSessionId).toBe('auth-usr-1')
+  })
+
+  it('links a re-registered token to the new caller session', async () => {
+    await request(app.getHttpServer())
+      .post('/v1/trpc/pushDevices.register')
+      .set(as('s1'))
+      .send({ token: TOKEN, platform: 'ios' })
+    await request(app.getHttpServer())
+      .post('/v1/trpc/pushDevices.register')
+      .set(as('s2'))
+      .send({ token: TOKEN, platform: 'ios' })
+    expect((await devicesOf('usr-2'))[0]?.authSessionId).toBe('auth-usr-2')
   })
 
   it('reassigns the token when a second caller registers it', async () => {

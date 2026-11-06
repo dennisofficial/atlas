@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'41eb9776117c6b638bf351597741640c89954131da999dbe999dd15e05a5d04d'>;
+  StorageHashBase<'4ee46c5fd44c6032a6b2da39abbe149828438e06f5b1f9adf3b3ada3e7fe7c36'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -771,6 +771,7 @@ export namespace Models {
     readonly [RelationKeys]?: 'user';
   };
   export type public_PushDevice = {
+    authSessionId: FieldOutputTypes['public']['PushDevice']['authSessionId'];
     createdAt: FieldOutputTypes['public']['PushDevice']['createdAt'];
     id: FieldOutputTypes['public']['PushDevice']['id'];
     lastSeenAt: FieldOutputTypes['public']['PushDevice']['lastSeenAt'];
@@ -4536,6 +4537,12 @@ type ContractBase = Omit<
             };
             readonly PushDevice: {
               columns: {
+                readonly authSessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -4588,6 +4595,11 @@ type ContractBase = Omit<
                 { readonly columns: readonly ['token']; readonly name: 'PushDevice_token_key' },
               ];
               indexes: readonly [
+                {
+                  readonly name: 'PushDevice_authSessionId_idx';
+                  readonly columns: readonly ['authSessionId'];
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'PushDevice_userId_idx';
                   readonly columns: readonly ['userId'];
@@ -9510,6 +9522,10 @@ type ContractBase = Omit<
           };
           readonly PushDevice: {
             readonly fields: {
+              readonly authSessionId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -9566,6 +9582,7 @@ type ContractBase = Omit<
               readonly table: 'PushDevice';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly authSessionId: { readonly column: 'authSessionId' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly id: { readonly column: 'id' };
                 readonly lastSeenAt: { readonly column: 'lastSeenAt' };

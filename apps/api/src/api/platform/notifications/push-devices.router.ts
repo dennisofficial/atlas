@@ -36,11 +36,13 @@ export class PushDevicesRouter {
         platform: input.platform,
         lastSeenAt: new Date(),
         userId: ctx.auth.userId,
+        authSessionId: ctx.auth.sessionId,
       })
       return { id: device.id }
     }
     const device = await db.orm.public.PushDevice.where({ token: input.token }).update({
       userId: ctx.auth.userId,
+      authSessionId: ctx.auth.sessionId,
       platform: input.platform,
       lastSeenAt: new Date(),
     })
