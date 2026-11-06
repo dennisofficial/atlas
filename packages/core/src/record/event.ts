@@ -5,6 +5,7 @@ import { eventIdSchema, runIdSchema, threadIdSchema } from '../events/ids'
 import type { EventId, RunId, ThreadId } from '../events/ids'
 import { eventBodySchema } from '../events/schema'
 import { branchesObservedSchema, type BranchesObserved } from './branches'
+import { sessionStartFailedSchema, type SessionStartFailed } from './start-failure'
 import {
   workspacePrepareFailedSchema,
   workspacePreparedSchema,
@@ -40,6 +41,7 @@ export type RecordBody =
   | BranchesObserved
   | WorkspacePrepared
   | WorkspacePrepareFailed
+  | SessionStartFailed
 
 export type V2Body = Exclude<EventBody, { type: 'history-compacted' }> | RecordBody
 
@@ -91,6 +93,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
   branchesObservedSchema,
   workspacePreparedSchema,
   workspacePrepareFailedSchema,
+  sessionStartFailedSchema,
 ])
 
 const RECORD_TYPES: readonly string[] = [
@@ -101,6 +104,7 @@ const RECORD_TYPES: readonly string[] = [
   'branches-observed',
   'workspace-prepared',
   'workspace-prepare-failed',
+  'session-start-failed',
 ]
 
 const typeOf = (raw: unknown): unknown =>

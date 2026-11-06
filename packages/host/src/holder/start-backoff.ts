@@ -1,7 +1,10 @@
+import type { StartVerdict } from './held-session-deps'
 import type { HostTimers } from './ports'
 
 const START_RETRY_BASE_MS = 1_000
 const START_RETRY_CAP_MS = 30_000
+
+const MAX_START_ATTEMPTS = 5
 
 export class StartBackoff {
   private readonly failures = new Map<string, number>()
@@ -11,6 +14,11 @@ export class StartBackoff {
 
   waiting(sessionId: string): boolean {
     return this.pending.has(sessionId)
+  }
+
+  judge(args: { sessionId: string; permanent: boolean }): StartVerdict {
+    const attempts = (this.failures.get(args.sessionId) ?? 0) + 1
+    return { permanent: args.permanent, giveUp: args.permanent || attempts >= MAX_START_ATTEMPTS }
   }
 
   failed(sessionId: string): void {

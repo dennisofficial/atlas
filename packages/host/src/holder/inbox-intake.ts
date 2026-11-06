@@ -68,10 +68,6 @@ export class InboxIntake implements AgentIntake {
   }
 
   private async fetch(args: { afterId: number }): Promise<InboxEntry[]> {
-    return this.readStrict(args).catch(() => [])
-  }
-
-  private async readStrict(args: { afterId: number }): Promise<InboxEntry[]> {
     try {
       return await this.args.plane.readInbox({
         sessionId: this.args.sessionId,

@@ -86,4 +86,28 @@ describe('readSessionStatus', () => {
     expect(status.at).toBe(1002)
     expect(status.value.state).toBe(ESessionStatus.Idle)
   })
+
+  it('reads a start failure as failed with its reason until a newer message arrives', async () => {
+    const { plane, append, read } = await setup()
+    const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
+    await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
+    const first = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"a"}' })
+    await append({
+      epoch: lease.epoch,
+      bodies: [
+        {
+          type: 'session-start-failed',
+          reason: 'sandbox is not configured',
+          inboxHead: first.inboxId,
+          permanent: true,
+        },
+      ],
+    })
+    expect((await read()).value).toMatchObject({
+      state: ESessionStatus.Failed,
+      reason: 'sandbox is not configured',
+    })
+    await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"b"}' })
+    expect((await read()).value.state).toBe(ESessionStatus.Sent)
+  })
 })
