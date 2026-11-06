@@ -7,7 +7,7 @@ import {
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { LiveStepBuffer } from './live-step-buffer'
-import { statusFrame } from './ports'
+import { fireLive, statusFrame } from './ports'
 import type { HeldSessionDeps } from './held-session-deps'
 
 const TURN_EXITED = new Set<ETurnStatus>([ETurnStatus.Failed, ETurnStatus.Interrupted])
@@ -31,7 +31,8 @@ export class HeldTurns {
   }): Promise<void> {
     this.turnAbort = new AbortController()
     this.turnRunning = true
-    this.deps.bus.live({
+    fireLive({
+      bus: this.deps.bus,
       sessionId: this.deps.sessionId,
       frame: statusFrame({ state: 'thinking' }),
     })
@@ -51,7 +52,11 @@ export class HeldTurns {
     } finally {
       this.turnRunning = false
       this.turnAbort = undefined
-      this.deps.bus.live({ sessionId: this.deps.sessionId, frame: statusFrame({ state: 'idle' }) })
+      fireLive({
+        bus: this.deps.bus,
+        sessionId: this.deps.sessionId,
+        frame: statusFrame({ state: 'idle' }),
+      })
       args.onActivity()
     }
   }
@@ -70,7 +75,8 @@ export class HeldTurns {
           return
         }
         if (event.type === 'tool-output') {
-          deps.bus.live({
+          fireLive({
+            bus: deps.bus,
             sessionId: deps.sessionId,
             frame: {
               type: 'tool-output',
@@ -81,7 +87,8 @@ export class HeldTurns {
           return
         }
         if (event.type === 'retrying') {
-          deps.bus.live({
+          fireLive({
+            bus: deps.bus,
             sessionId: deps.sessionId,
             frame: {
               type: 'retrying',

@@ -34,7 +34,9 @@ describe('LiveStepBuffer', () => {
     head = 7
     buffer = new LiveStepBuffer({
       timers: clock,
-      emit: (frame) => frames.push(frame),
+      emit: async (frame) => {
+        frames.push(frame)
+      },
       headSeq: () => head,
     })
     buffer.push({ type: 'step-start', key })
@@ -156,5 +158,95 @@ describe('LiveStepBuffer', () => {
     expect(old.map((frame) => frame.text).join('')).toBe('AB')
     expect(deltas().filter((frame) => frame.key.step === 1)).toEqual([])
     expect(frames.at(-1)).toEqual({ type: 'step-start', key: next, afterSeq: head })
+  })
+
+  describe('when a publish fails', () => {
+    let delivered: LiveFrame[]
+    let failNext: number
+
+    const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+    const readerText = () => {
+      const blocks = new Map<string, string>()
+      for (const frame of delivered) {
+        if (frame.type === 'step-start') blocks.clear()
+        if (frame.type !== 'delta') continue
+        const have = blocks.get(frame.block) ?? ''
+        if (frame.from > have.length) continue
+        blocks.set(frame.block, have + frame.text.slice(have.length - frame.from))
+      }
+      return blocks.get('b1')
+    }
+
+    beforeEach(() => {
+      delivered = []
+      failNext = 0
+      frames = []
+      buffer = new LiveStepBuffer({
+        timers: clock,
+        emit: async (frame) => {
+          frames.push(frame)
+          if (failNext > 0) {
+            failNext -= 1
+            throw new Error('redis down')
+          }
+          delivered.push(frame)
+        },
+        headSeq: () => head,
+      })
+      buffer.push({ type: 'step-start', key })
+    })
+
+    it('re-sends step-start with the original afterSeq and the full text from 0', async () => {
+      text({ id: 'b1', text: 'He' })
+      await flushMicrotasks()
+      failNext = 1
+      clock.advance(LIVE_FLUSH_MS)
+      text({ id: 'b1', text: 'llo' })
+      await flushMicrotasks()
+      head = 99
+      text({ id: 'b1', text: ' wor' })
+      clock.advance(LIVE_FLUSH_MS)
+      await flushMicrotasks()
+      clock.advance(LIVE_FLUSH_MS)
+      await flushMicrotasks()
+      const tail = frames.slice(-2)
+      expect(tail[0]).toEqual({ type: 'step-start', key, afterSeq: 7 })
+      expect(tail[1]).toEqual({
+        type: 'delta',
+        key,
+        block: 'b1',
+        kind: EStreamBlockKind.Text,
+        from: 0,
+        text: 'Hello wor',
+      })
+      expect(readerText()).toBe('Hello wor')
+    })
+
+    it('keeps resyncing until a publish lands', async () => {
+      failNext = 1
+      text({ id: 'b1', text: 'ab' })
+      await flushMicrotasks()
+      failNext = 2
+      clock.advance(LIVE_FLUSH_MS)
+      await flushMicrotasks()
+      clock.advance(LIVE_FLUSH_MS)
+      await flushMicrotasks()
+      clock.advance(LIVE_FLUSH_MS)
+      await flushMicrotasks()
+      expect(readerText()).toBe('ab')
+    })
+
+    it('ignores a failure for a step that is no longer current', async () => {
+      failNext = 1
+      text({ id: 'b1', text: 'ab' })
+      buffer.push({ type: 'step-end', key, reason: EStepEndReason.Finished })
+      await flushMicrotasks()
+      const before = frames.length
+      clock.advance(LIVE_FLUSH_MS * 5)
+      await flushMicrotasks()
+      expect(frames.length).toBe(before)
+      expect(clock.pendingCount()).toBe(0)
+    })
   })
 })

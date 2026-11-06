@@ -144,3 +144,23 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
     expect(publisher.trackedSessions()).toBe(0)
   }, 15_000)
 })
+
+describe('redis live frames without a server', () => {
+  const key = { runId: 'run-1', step: 0, attempt: 0 }
+
+  it('rejects live() when the step-frame publish fails', async () => {
+    const frames = createRedisLiveFrames({ url: 'redis://127.0.0.1:1' })
+    await expect(
+      frames.live({ sessionId: 'session-down', frame: { type: 'step-start', key, afterSeq: 0 } }),
+    ).rejects.toBeDefined()
+    await frames.close()
+  }, 15_000)
+
+  it('rejects live() when a plain publish fails', async () => {
+    const frames = createRedisLiveFrames({ url: 'redis://127.0.0.1:1' })
+    await expect(
+      frames.live({ sessionId: 'session-down', frame: { type: 'status', state: 'thinking' } }),
+    ).rejects.toBeDefined()
+    await frames.close()
+  }, 15_000)
+})
