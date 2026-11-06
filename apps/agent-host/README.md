@@ -11,19 +11,20 @@ The private keys are in `.env.keys` (git-ignored, an Atlas Cloud project file mo
 `dotenvx set KEY value -f .env.<tier>.enc -fk .env.keys` in every tier.
 
 
-| Var                       | Required | Default                                              |
-| ------------------------- | -------- | ---------------------------------------------------- |
-| `DATABASE_URL`            | yes      | —                                                    |
-| `DATABASE_DIRECT_URL`     | yes      | —                                                    |
-| `REDIS_URL`               | yes      | —                                                    |
-| `DAEMON_SECRET`           | yes      | —                                                    |
-| `SECRETS_ENCRYPTION_KEY`  | yes      | —                                                    |
-| `ATLAS_API_ORIGIN`        | yes      | —                                                    |
-| `AGENT_HOST_MAX_SESSIONS` | no       | 25                                                   |
-| `ATLAS_SANDBOX_IMAGE`     | no       | `atlas-sandbox:latest`                               |
-| `ATLAS_DAEMON_BUNDLE`     | no       | `apps/daemon/bin/daemon.js` relative to this package |
-| `PORT`                    | no       | 10000 (Render sets it)                               |
-| `TRUSTED_ORIGINS`         | no       | empty: any Origin; else a comma list                 |
+| Var                       | Required | Default                                                         |
+| ------------------------- | -------- | --------------------------------------------------------------- |
+| `DATABASE_URL`            | yes      | —                                                               |
+| `DATABASE_DIRECT_URL`     | yes      | —                                                               |
+| `REDIS_URL`               | yes      | —                                                               |
+| `DAEMON_SECRET`           | yes      | —                                                               |
+| `SECRETS_ENCRYPTION_KEY`  | yes      | —                                                               |
+| `ATLAS_API_ORIGIN`        | yes      | —                                                               |
+| `AGENT_HOST_MAX_SESSIONS` | no       | 25                                                              |
+| `AGENT_HOST_DRAIN_MS`     | no       | 270000 (shutdown handoff budget; keep below the platform grace) |
+| `ATLAS_SANDBOX_IMAGE`     | no       | `atlas-sandbox:latest`                                          |
+| `ATLAS_DAEMON_BUNDLE`     | no       | `apps/daemon/bin/daemon.js` relative to this package            |
+| `PORT`                    | no       | 10000 (Render sets it)                                          |
+| `TRUSTED_ORIGINS`         | no       | empty: any Origin; else a comma list                            |
 
 Missing required vars exit 78 with the names on stderr.
 

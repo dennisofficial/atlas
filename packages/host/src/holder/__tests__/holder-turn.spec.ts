@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { chainHash, type V2Event } from '@dltech/atlas-core'
 import { toThreadId } from '@dltech/atlas-core'
 
-import { flushUntil, makeRig, postAndRun, seedSession, SESSION, THREAD_ID } from './holder-rig'
+import { flushUntil, makeRig, postAndRun, seedSession, THREAD_ID } from './holder-rig'
 
 const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>) => {
   const events: V2Event[] = []
@@ -54,10 +54,6 @@ describe('SessionHolder turn', () => {
     if (said?.type !== 'user-said') throw new Error('expected user-said')
     expect(said.requestId).toBe(`inbox:${posted.inboxId}`)
     expect(types).toContain('assistant-said')
-
-    expect(rig.bus.statuses(SESSION)).toContain('starting')
-    expect(rig.bus.statuses(SESSION)).toContain('thinking')
-    expect(rig.bus.statuses(SESSION)).toContain('idle')
   })
 
   it('a daemon tool call dispatches with bootId, records a result, and acks the scope', async () => {

@@ -17,6 +17,7 @@ export type SubscriptionIndex = {
   add(subscription: FollowTarget): void
   remove(subscription: FollowTarget): void
   resnap(subscription: FollowTarget): void
+  drained(subscription: FollowTarget): void
 }
 
 export type FollowTarget = {

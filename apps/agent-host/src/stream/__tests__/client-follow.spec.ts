@@ -93,10 +93,8 @@ describe('the client SDK following a session over a real stream', () => {
           if (!params.visible && params.limit === 1) hashChecksAt.push(params.afterSeq + 1)
           return reading.readEvents(params)
         },
-        readInbox: (params) => reading.readInbox(params),
-        currentLease: (params) => reading.currentLease(params),
+        readStatusSnapshot: (params) => reading.readStatusSnapshot(params),
         readBlob: (params) => reading.readBlob(params),
-        hasMessageAfter: (params) => reading.hasMessageAfter(params),
       },
       feed,
       timers: systemHostTimers,

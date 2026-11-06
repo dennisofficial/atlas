@@ -91,6 +91,7 @@ export const startStreamServer = (args: StreamServerArgs): StreamServer => {
         open.add(connection)
       },
       message: (socket, raw) => socket.data.connection?.handleMessage(raw),
+      drain: (socket) => socket.data.connection?.handleDrain(),
       close: (socket) => socket.data.connection?.handleClose(),
     },
   })

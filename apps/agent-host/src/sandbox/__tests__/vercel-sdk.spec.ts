@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import type { Sandbox } from '@vercel/sandbox'
 
-import { renewSessionDeadline } from '../vercel-sdk'
+import { renewSessionDeadline, routedUrlOf } from '../vercel-sdk'
 
 const NOW = 1_000_000
 
@@ -46,5 +46,58 @@ describe('renewSessionDeadline', () => {
 
     await expect(renew(sandbox, NOW + 60_000)).rejects.toThrow('is stopped')
     expect(extended).toEqual([])
+  })
+})
+
+describe('routedUrlOf', () => {
+  const sandboxWith = (url: string | undefined) =>
+    ({
+      name: 'atlas-v2-abc',
+      domain: () => {
+        if (url === undefined) throw new Error('no route for port 3000')
+        return url
+      },
+    }) as unknown as Sandbox
+
+  it('returns the known route without fetching the sandbox again', async () => {
+    let fetched = 0
+    const url = await routedUrlOf({
+      sandbox: sandboxWith('https://route.vercel.run'),
+      refetch: async () => {
+        fetched += 1
+        return sandboxWith(undefined)
+      },
+    })
+    expect(url).toBe('https://route.vercel.run')
+    expect(fetched).toBe(0)
+  })
+
+  it('reads the route from a freshly fetched sandbox once, without sleeping', async () => {
+    let fetched = 0
+    const started = Date.now()
+    const url = await routedUrlOf({
+      sandbox: sandboxWith(undefined),
+      refetch: async () => {
+        fetched += 1
+        return sandboxWith('https://fresh.vercel.run')
+      },
+    })
+    expect(url).toBe('https://fresh.vercel.run')
+    expect(fetched).toBe(1)
+    expect(Date.now() - started).toBeLessThan(500)
+  })
+
+  it('fails with the cause when the fresh sandbox has no route either', async () => {
+    let fetched = 0
+    await expect(
+      routedUrlOf({
+        sandbox: sandboxWith(undefined),
+        refetch: async () => {
+          fetched += 1
+          return sandboxWith(undefined)
+        },
+      }),
+    ).rejects.toThrow('has no route for port')
+    expect(fetched).toBe(1)
   })
 })

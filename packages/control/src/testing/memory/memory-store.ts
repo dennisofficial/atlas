@@ -115,6 +115,8 @@ class MemoryTx implements ControlTx {
     this.state.events.set(params.threadId, [])
   }
 
+  async useSnapshot(): Promise<void> {}
+
   async lockThread(threadId: string): Promise<ThreadRow | undefined> {
     return this.readThread(threadId)
   }

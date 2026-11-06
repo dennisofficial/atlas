@@ -21,6 +21,7 @@ describe('readAgentHostEnv', () => {
     expect(env.apiOrigin).toBe('https://api.byatlas.io')
     expect(env.vercelOauth).toBeNull()
     expect(env.maxSessions).toBe(25)
+    expect(env.drainMs).toBe(270_000)
     expect(env.sandboxImage).toBe('atlas-sandbox:latest')
     expect(env.daemonBundlePath.endsWith('apps/daemon/bin/daemon.js')).toBe(true)
   })
@@ -40,12 +41,23 @@ describe('readAgentHostEnv', () => {
     const env = readAgentHostEnv({
       ...complete,
       AGENT_HOST_MAX_SESSIONS: '7',
+      AGENT_HOST_DRAIN_MS: '90000',
       ATLAS_SANDBOX_IMAGE: 'ghcr.io/x/atlas-sandbox:sha-abc',
       ATLAS_DAEMON_BUNDLE: '/tmp/daemon.js',
     })
     expect(env.maxSessions).toBe(7)
+    expect(env.drainMs).toBe(90_000)
     expect(env.sandboxImage).toBe('ghcr.io/x/atlas-sandbox:sha-abc')
     expect(env.daemonBundlePath).toBe('/tmp/daemon.js')
+  })
+
+  it('rejects a drain budget that is not a positive integer', () => {
+    expect(() => readAgentHostEnv({ ...complete, AGENT_HOST_DRAIN_MS: '0' })).toThrow(
+      AgentHostEnvError,
+    )
+    expect(() => readAgentHostEnv({ ...complete, AGENT_HOST_DRAIN_MS: 'soon' })).toThrow(
+      AgentHostEnvError,
+    )
   })
 
   it('lists every missing required var', () => {

@@ -2,9 +2,6 @@ import { Sandbox } from '@vercel/sandbox'
 
 import { SANDBOX_QUICK_TIMEOUT_MS, SANDBOX_SERVE_PORT } from './constants'
 
-const ROUTE_RETRY_ATTEMPTS = 3
-const ROUTE_RETRY_DELAY_MS = 1_000
-
 export type VercelSdk = {
   getOrCreate: (params: Parameters<typeof Sandbox.getOrCreate>[0]) => Promise<Sandbox>
   get: (params: Parameters<typeof Sandbox.get>[0]) => Promise<Sandbox>
@@ -27,7 +24,7 @@ export const liveSdk: VercelSdk = {
   get: (params) => Sandbox.get({ ...params, fetch: gzipOnlyFetch }),
 }
 
-const routedUrlOf = (sandbox: Sandbox): string | undefined => {
+const routeOf = (sandbox: Sandbox): string | undefined => {
   try {
     return sandbox.domain(SANDBOX_SERVE_PORT)
   } catch {
@@ -35,16 +32,17 @@ const routedUrlOf = (sandbox: Sandbox): string | undefined => {
   }
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
-export const routedUrlWithRetries = async (sandbox: Sandbox): Promise<string> => {
-  for (let attempt = 1; attempt <= ROUTE_RETRY_ATTEMPTS; attempt += 1) {
-    const url = routedUrlOf(sandbox)
-    if (url !== undefined) return url
-    if (attempt < ROUTE_RETRY_ATTEMPTS) await sleep(ROUTE_RETRY_DELAY_MS)
-  }
+export const routedUrlOf = async (args: {
+  sandbox: Sandbox
+  refetch: () => Promise<Sandbox>
+}): Promise<string> => {
+  const known = routeOf(args.sandbox)
+  if (known !== undefined) return known
+  const fresh = await args.refetch()
+  const refreshed = routeOf(fresh)
+  if (refreshed !== undefined) return refreshed
   throw new Error(
-    `sandbox ${sandbox.name} has no route for port ${SANDBOX_SERVE_PORT} after ${ROUTE_RETRY_ATTEMPTS} attempts`,
+    `sandbox ${fresh.name} has no route for port ${SANDBOX_SERVE_PORT}; it was not requested in ports or the sandbox was recreated without it`,
   )
 }
 

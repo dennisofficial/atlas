@@ -85,12 +85,6 @@ export class FakeBus implements HostBus {
   async live(args: { sessionId: string; frame: LiveFrame }): Promise<void> {
     this.frames.push({ ...args })
   }
-
-  statuses(sessionId: string): readonly string[] {
-    return this.frames
-      .filter((entry) => entry.sessionId === sessionId && entry.frame.type === 'status')
-      .map((entry) => (entry.frame as { state: string }).state)
-  }
 }
 
 export const flushUntil = async (args: {

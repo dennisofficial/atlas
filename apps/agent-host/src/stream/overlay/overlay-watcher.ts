@@ -57,6 +57,12 @@ export class OverlayWatcher {
     this.requestJoin(undefined)
   }
 
+  handleDrain(): void {
+    if (this.stopped || !this.stale || this.overloaded()) return
+    this.stale = false
+    this.resync()
+  }
+
   setLive(live: boolean): void {
     if (this.stopped || live === this.live) return
     this.live = live
@@ -77,15 +83,9 @@ export class OverlayWatcher {
 
   handleFrame(item: QueuedFrame): void {
     if (this.stopped) return
-    if (this.stale && !this.overloaded()) {
-      this.stale = false
-      this.resync()
-    }
+    this.handleDrain()
     const { frame } = item
-    if (!isStepFrame(frame)) {
-      this.emit({ type: 'frame', id: this.args.id, frame })
-      return
-    }
+    if (!isStepFrame(frame)) return this.emit({ type: 'frame', id: this.args.id, frame })
     if (this.order.isStale(frame.at)) return
     if (this.queue !== undefined) {
       this.enqueue({ frame, size: item.size })

@@ -46,19 +46,16 @@ export class FollowRig {
       readSession: (params) => this.plane.readSession(params),
       head: (params) => this.plane.head(params),
       readEvents: async (params) => {
-        if (params.visible) {
-          this.statusReads += 1
-          return this.plane.readEvents(params)
-        }
         this.reads += 1
         const page = await this.plane.readEvents(params)
         await this.onRead?.()
         return page
       },
-      readInbox: (params) => this.plane.readInbox(params),
-      currentLease: (params) => this.plane.currentLease(params),
+      readStatusSnapshot: (params) => {
+        this.statusReads += 1
+        return this.plane.readStatusSnapshot(params)
+      },
       readBlob: (params) => this.plane.readBlob(params),
-      hasMessageAfter: (params) => this.plane.hasMessageAfter(params),
     }
     this.follow = createFollowSubscriptions({
       plane,

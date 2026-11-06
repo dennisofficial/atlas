@@ -37,17 +37,23 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
     listener.on('message', (_channel: string, message: string) => {
       received.push(JSON.parse(message) as LiveFrame)
     })
-    frames.live({ sessionId: 'session-b', frame: { type: 'status', state: 'thinking' } })
+    frames.live({
+      sessionId: 'session-b',
+      frame: { type: 'tool-output', callId: 'call-1', text: 'ok' },
+    })
     const deadline = Date.now() + 5_000
     while (received.length === 0 && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
-    expect(received[0]).toEqual({ type: 'status', state: 'thinking' })
+    expect(received[0]).toEqual({ type: 'tool-output', callId: 'call-1', text: 'ok' })
   }, 15_000)
 
   it('closes a live client and tolerates a second close', async () => {
     const frames = createRedisLiveFrames({ url })
-    frames.live({ sessionId: 'session-close', frame: { type: 'status', state: 'thinking' } })
+    frames.live({
+      sessionId: 'session-close',
+      frame: { type: 'tool-output', callId: 'call-1', text: 'ok' },
+    })
     await expect(frames.close()).resolves.toBeUndefined()
     await expect(frames.close()).resolves.toBeUndefined()
   }, 15_000)
@@ -125,7 +131,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
       const sessionId = `session-plain-${Date.now()}`
       const { reader } = await publishAll({
         sessionId,
-        frames: [{ type: 'status', state: 'thinking' }],
+        frames: [{ type: 'tool-output', callId: 'call-1', text: 'ok' }],
       })
       expect(await reader.exists(sessionLiveBufferKey(sessionId))).toBe(0)
     }, 15_000)
@@ -164,7 +170,10 @@ describe('redis live frames without a server', () => {
   it('rejects live() when a plain publish fails', async () => {
     const frames = createRedisLiveFrames({ url: 'redis://127.0.0.1:1' })
     await expect(
-      frames.live({ sessionId: 'session-down', frame: { type: 'status', state: 'thinking' } }),
+      frames.live({
+        sessionId: 'session-down',
+        frame: { type: 'tool-output', callId: 'call-1', text: 'ok' },
+      }),
     ).rejects.toBeDefined()
     await frames.close()
   }, 15_000)

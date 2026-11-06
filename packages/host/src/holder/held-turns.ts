@@ -7,7 +7,7 @@ import {
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { LiveStepBuffer } from './live-step-buffer'
-import { fireLive, statusFrame } from './ports'
+import { fireLive } from './ports'
 import type { HeldSessionDeps } from './held-session-deps'
 
 const TURN_EXITED = new Set<ETurnStatus>([ETurnStatus.Failed, ETurnStatus.Interrupted])
@@ -31,11 +31,6 @@ export class HeldTurns {
   }): Promise<void> {
     this.turnAbort = new AbortController()
     this.turnRunning = true
-    fireLive({
-      bus: this.deps.bus,
-      sessionId: this.deps.sessionId,
-      frame: statusFrame({ state: 'thinking' }),
-    })
     try {
       const outcome = args.resume
         ? await args.runner.resume({
@@ -52,11 +47,6 @@ export class HeldTurns {
     } finally {
       this.turnRunning = false
       this.turnAbort = undefined
-      fireLive({
-        bus: this.deps.bus,
-        sessionId: this.deps.sessionId,
-        frame: statusFrame({ state: 'idle' }),
-      })
       args.onActivity()
     }
   }

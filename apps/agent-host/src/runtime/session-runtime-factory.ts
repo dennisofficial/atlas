@@ -21,6 +21,7 @@ import type { ConfigSource } from '../config/agent-host-config'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
+import { abortable } from './abortable'
 import { rewakingConnector } from './rewaking-connector'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
@@ -93,11 +94,10 @@ export const createSessionRuntimeFactory = (
     const processes = new DaemonProcessPort({ calls })
     const files = new DaemonFileSystemPort({ calls })
     const agentFiles = new DaemonAgentFileSystemPort({ calls })
-    const attempt = (): Promise<PrepareResult> =>
-      calls
-        .ready()
+    const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
+      abortable(calls.ready(), signal)
         .then(async () => {
-          const token = await args.github.read({ userId: config.userId })
+          const token = await abortable(args.github.read({ userId: config.userId }), signal)
           return ensureWorkspace({
             calls,
             processes,
@@ -106,6 +106,7 @@ export const createSessionRuntimeFactory = (
             githubToken: token,
             launchDirectory,
             sandboxName: sandboxNameOf(sessionId),
+            signal,
             ...(args.log === undefined ? {} : { log: args.log }),
           })
         })
@@ -118,8 +119,10 @@ export const createSessionRuntimeFactory = (
           return { ok: false, reason: error instanceof Error ? error.message : String(error) }
         })
     const deadlineMs = args.setupDeadlineMs ?? SETUP_DEADLINE_MS
-    let failed = false
-    const start = (): Promise<PrepareResult> => {
+    let failedAttempt: Promise<PrepareResult> | undefined
+    const start = (previous: Promise<unknown>): Promise<PrepareResult> => {
+      const controller = new AbortController()
+      const running = previous.then(() => attempt(controller.signal))
       let deadline: unknown
       const expired = new Promise<PrepareResult>((resolve) => {
         deadline = args.timers.setTimeout(() => {
@@ -127,18 +130,22 @@ export const createSessionRuntimeFactory = (
             source: 'runtime.workspace-setup',
             message: `workspace setup for ${sessionId} did not finish within ${deadlineMs}ms`,
           })
+          controller.abort(new Error(`workspace setup did not finish within ${deadlineMs}ms`))
           resolve({ ok: false, reason: `workspace setup did not finish within ${deadlineMs}ms` })
         }, deadlineMs)
       })
-      return Promise.race([attempt(), expired]).then((result) => {
+      return Promise.race([running, expired]).then((outcome) => {
         args.timers.clearTimeout(deadline)
-        failed = !result.ok
-        return result
+        if (!outcome.ok) failedAttempt = running
+        return outcome
       })
     }
-    let current = start()
+    let current = start(Promise.resolve())
     const prepare = (): Promise<PrepareResult> => {
-      if (failed) current = start()
+      const previous = failedAttempt
+      if (previous === undefined) return current
+      failedAttempt = undefined
+      current = start(previous)
       return current
     }
     const gate = current.then(() => undefined)

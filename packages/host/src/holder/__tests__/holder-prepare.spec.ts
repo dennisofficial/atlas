@@ -48,8 +48,6 @@ describe('SessionHolder prepare', () => {
     await rig.flush()
 
     expect(await typesOf(rig)).toEqual([])
-    expect(rig.bus.statuses(SESSION)).toContain('preparing')
-    expect(rig.bus.statuses(SESSION)).not.toContain('thinking')
 
     pending.settle({ ok: true })
     const answered = await flushUntil({
@@ -70,7 +68,6 @@ describe('SessionHolder prepare', () => {
       check: async () => (await typesOf(rig)).includes('workspace-prepared'),
     })
     expect(prepared).toBe(true)
-    expect(rig.bus.statuses(SESSION)).toContain('idle')
     expect(await typesOf(rig)).toEqual(['workspace-prepared'])
   })
 
@@ -86,8 +83,6 @@ describe('SessionHolder prepare', () => {
     expect(failed).toBe(true)
     await rig.flush()
     expect(await typesOf(rig)).toEqual(['workspace-prepare-failed'])
-    expect(rig.bus.statuses(SESSION)).toContain('setup-failed')
-    expect(rig.bus.statuses(SESSION)).not.toContain('thinking')
     const events = await rig.plane.readEvents({
       threadId: THREAD_ID,
       afterSeq: 0,
@@ -241,7 +236,6 @@ describe('SessionHolder prepare', () => {
     const types = await typesOf(rig)
     expect(types).not.toContain('user-said')
     expect(types).not.toContain('assistant-said')
-    expect(rig.bus.statuses(SESSION)).not.toContain('thinking')
     expect(await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })).toEqual([])
   })
 })

@@ -54,6 +54,7 @@ export class SeqConflictError extends Error {
 
 export interface ControlTx {
   now(): Promise<string>
+  useSnapshot(): Promise<void>
   createSession(params: {
     sessionId: string
     userId: string

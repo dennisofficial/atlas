@@ -18,6 +18,7 @@ export type SubscriptionConnection = {
 
 export type SubscriptionSession = {
   handle(message: StreamSubscriptionMessage): void | Promise<void>
+  drain(): void
   close(): void
 }
 
@@ -30,6 +31,7 @@ export const unimplementedSubscriptions: SubscriptionPort = {
     handle: (message) => {
       connection.send({ type: 'error', id: message.id, code: EStreamErrorCode.Internal })
     },
+    drain: () => undefined,
     close: () => undefined,
   }),
 }

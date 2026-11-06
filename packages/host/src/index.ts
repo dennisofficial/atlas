@@ -31,15 +31,13 @@ export { DaemonAgentFileSystemPort } from './calls/ports/agent-filesystem'
 export { DaemonFileSystemPort } from './calls/ports/filesystem'
 export { DaemonProcessPort, DEFAULT_SANDBOX_COMMANDS } from './calls/ports/process'
 export { SessionHolder, type SessionHolderArgs } from './holder/session-holder'
-export {
-  type HostBus,
-  type HostPresence,
-  type HostTimers,
-  type PrepareResult,
-  type SessionRuntime,
-  type SessionRuntimeFactory,
-  type StatusState,
-  statusFrame,
+export type {
+  HostBus,
+  HostPresence,
+  HostTimers,
+  PrepareResult,
+  SessionRuntime,
+  SessionRuntimeFactory,
 } from './holder/ports'
 export {
   LIVE_FLUSH_BYTES,

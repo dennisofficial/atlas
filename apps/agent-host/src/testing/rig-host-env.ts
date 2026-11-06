@@ -33,7 +33,7 @@ export const hostEnv = (args: {
     PING_MS: String(knobs?.pingMs ?? 10_000),
     ...(args.daemonUrls === undefined ? {} : { DAEMON_URLS: JSON.stringify(args.daemonUrls) }),
     ...(args.daemonUrlFile === undefined ? {} : { DAEMON_URL_FILE: args.daemonUrlFile }),
-    ...(knobs?.drainMs === undefined ? {} : { DRAIN_MS: String(knobs.drainMs) }),
+    ...(knobs?.drainMs === undefined ? {} : { AGENT_HOST_DRAIN_MS: String(knobs.drainMs) }),
     ...(knobs?.noRing === true ? { NO_RING: '1' } : {}),
     ...(knobs?.poolMax === undefined ? {} : { DATABASE_POOL_MAX: String(knobs.poolMax) }),
     ...(knobs?.maxSessions === undefined ? {} : { MAX_SESSIONS: String(knobs.maxSessions) }),

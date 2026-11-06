@@ -52,10 +52,3 @@ export type SessionRuntimeFactory = (args: {
   epoch: number
   signal: AbortSignal
 }) => Promise<SessionRuntime>
-
-export type StatusState = 'starting' | 'preparing' | 'setup-failed' | 'thinking' | 'idle'
-
-export const statusFrame = (args: { state: StatusState }): LiveFrame => ({
-  type: 'status',
-  state: args.state,
-})

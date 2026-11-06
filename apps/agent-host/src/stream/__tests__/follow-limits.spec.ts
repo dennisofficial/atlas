@@ -7,7 +7,7 @@ import {
   STREAM_MAX_SESSION_SUBSCRIPTIONS,
 } from '@dltech/atlas-protocol'
 
-import { FOLLOW_DRAIN_POLL_MS, FOLLOW_SLOW_CONSUMER_MS } from '../follow-limits'
+import { FOLLOW_SLOW_CONSUMER_MS } from '../follow-limits'
 import { FollowRig } from './follow-rig'
 
 describe('follow limits', () => {
@@ -66,11 +66,8 @@ describe('follow limits', () => {
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     expect(rig.reads).toBe(0)
-    for (let elapsed = 0; elapsed < FOLLOW_SLOW_CONSUMER_MS + FOLLOW_DRAIN_POLL_MS; ) {
-      rig.timers.advance(FOLLOW_DRAIN_POLL_MS)
-      elapsed += FOLLOW_DRAIN_POLL_MS
-      await Bun.sleep(1)
-    }
+    rig.timers.advance(FOLLOW_SLOW_CONSUMER_MS)
+    await Bun.sleep(1)
     expect(rig.reads).toBe(0)
     expect(rig.closedWith).toEqual([EStreamClose.SlowConsumer])
     expect(rig.timers.pendingCount()).toBe(0)
@@ -78,14 +75,26 @@ describe('follow limits', () => {
 
   it('resumes reading once the socket drains', async () => {
     rig.buffered = 2_000_000
-    await rig.subscribe({ session: rig.open() })
+    const session = rig.open()
+    await rig.subscribe({ session })
     await rig.settled()
     rig.timers.advance(1_000)
     await Bun.sleep(1)
     expect(rig.reads).toBe(0)
     rig.buffered = 0
-    rig.timers.advance(FOLLOW_DRAIN_POLL_MS)
+    session.drain()
     await rig.untilSeq(3)
     expect(rig.closedWith).toEqual([])
+  })
+
+  it('waits for the socket to drain without polling it', async () => {
+    rig.buffered = 2_000_000
+    await rig.subscribe({ session: rig.open() })
+    await rig.settled()
+    rig.buffered = 0
+    rig.timers.advance(FOLLOW_SLOW_CONSUMER_MS - 1)
+    await Bun.sleep(1)
+    expect(rig.reads).toBe(0)
+    expect(rig.timers.pendingCount()).toBe(1)
   })
 })

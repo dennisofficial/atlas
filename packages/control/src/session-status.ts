@@ -1,22 +1,11 @@
-import {
-  activeFailure,
-  activeStartFailure,
-  blobValueOf,
-  INBOX_KIND_STOP,
-  isBlobRef,
-  sessionStatusOf,
-  type V2Event,
-} from '@dltech/atlas-core'
+import { blobValueOf, isBlobRef, sessionStatusOf, type V2Event } from '@dltech/atlas-core'
 import type { SessionStatusOutput } from '@dltech/atlas-protocol'
 
 import type { ControlPlane } from './control-plane'
 
 export const STATUS_EVENT_LIMIT = 1000
 
-export type StatusPlane = Pick<
-  ControlPlane,
-  'head' | 'readEvents' | 'readInbox' | 'currentLease' | 'readBlob' | 'hasMessageAfter'
->
+export type StatusPlane = Pick<ControlPlane, 'readStatusSnapshot' | 'readBlob'>
 
 export type SessionStatusRead = { at: number; value: SessionStatusOutput }
 
@@ -40,31 +29,18 @@ export const readSessionStatus = async (args: {
   now: string
 }): Promise<SessionStatusRead> => {
   const { plane, sessionId, threadId } = args
-  const head = await plane.head({ threadId })
-  const [page, unconsumed, { lease, live }] = await Promise.all([
-    plane.readEvents({
-      threadId,
-      afterSeq: Math.max(0, head.seq - STATUS_EVENT_LIMIT),
-      limit: STATUS_EVENT_LIMIT,
-      visible: true,
-    }),
-    plane.readInbox({ sessionId, afterId: 0, limit: 1 }).then((entries) => entries.length > 0),
-    plane.currentLease({ sessionId }),
-  ])
-  const events = await resolveFactRefs({ plane, events: page.events })
-  const failure = activeStartFailure(events) ?? activeFailure(events)
-  const messageAfterFailure =
-    failure !== undefined &&
-    (await plane.hasMessageAfter({
-      sessionId,
-      afterId: failure.inboxHead,
-      excludeKind: INBOX_KIND_STOP,
-    }))
+  const snapshot = await plane.readStatusSnapshot({
+    sessionId,
+    threadId,
+    eventLimit: STATUS_EVENT_LIMIT,
+  })
+  const events = await resolveFactRefs({ plane, events: snapshot.events })
+  const { head, lease, live } = snapshot
   const current = sessionStatusOf({
     events,
     live,
-    unconsumedInbox: unconsumed,
-    messageAfterFailure,
+    unconsumedInbox: snapshot.unconsumedInbox,
+    messageAfterFailure: snapshot.messageAfterFailure,
     now: args.now,
   })
   const lastSeq = events[events.length - 1]?.seq ?? 0

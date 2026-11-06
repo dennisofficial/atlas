@@ -262,6 +262,20 @@ describe('live overlay', () => {
     expect(rig.frames('overlay').at(-1)?.blocks[0]?.text).toBe('abcdefghi')
   })
 
+  it('resyncs a stale overlay when the socket drains, without waiting for another frame', async () => {
+    publish({ type: 'step-start', key: KEY, afterSeq: 0 })
+    const session = rig.open()
+    await rig.subscribe({ session })
+    await rig.settled()
+    rig.buffered = FOLLOW_HIGH_WATER_BYTES
+    publish(delta({ from: 0, text: 'abc' }))
+    await rig.settled()
+    rig.buffered = 0
+    session.drain()
+    await rig.settled()
+    expect(rig.frames('overlay').at(-1)?.blocks[0]?.text).toBe('abc')
+  })
+
   it('stops reading frames for a session once its last subscriber leaves', async () => {
     const session = rig.open()
     await rig.subscribe({ session })
