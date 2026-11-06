@@ -52,7 +52,7 @@ export function installApplicationMenu(): void {
       submenu: [
         { role: 'minimize', accelerator: 'Command+M' },
         { role: 'zoom' },
-        { role: 'close', accelerator: 'Command+W' },
+        { role: 'close' },
       ],
     },
   ])
