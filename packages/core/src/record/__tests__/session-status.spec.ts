@@ -5,6 +5,7 @@ import { toCallId, toEventId, toRunId, toThreadId } from '../../events/ids'
 import { ERunFailureKind } from '../../events/run-failure'
 import { EModelWaitCause, EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EProviderFailureKind } from '../../models/provider-failure'
+import { ERetryReason } from '../../models/retry'
 import { chainEvents } from '../chain-events'
 import { EInputConsumed, type Hash, type V2Body, type V2Event } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
@@ -94,6 +95,15 @@ const dismissFailure = (failure: V2Event): V2Event => ({
 })
 
 const retry = (args: { notBefore: string }): V2Event => ({
+  ...envelope(),
+  type: 'retry-scheduled',
+  key: 'retry:t:s0:1',
+  notBefore: args.notBefore,
+  attempt: 1,
+  reason: ERetryReason.Network,
+})
+
+const retryLikeFact = (args: { notBefore: string }): V2Event => ({
   ...envelope(),
   type: 'fact-recorded',
   key: 'retry:model',
@@ -186,7 +196,7 @@ describe('sessionStatusOf', () => {
     expect(result.state).toBe(ESessionStatus.Thinking)
   })
 
-  it('reports waiting-to-retry on a retry fact with a future deadline', () => {
+  it('reports waiting-to-retry on a retry-scheduled event with a future deadline', () => {
     const result = status({
       events: [userSaid(), retry({ notBefore: '2026-11-03T12:00:12.000Z' })],
       live: true,
@@ -196,7 +206,7 @@ describe('sessionStatusOf', () => {
     expect(result.since).toBe(NOW)
   })
 
-  it('ignores a retry fact whose deadline has passed', () => {
+  it('ignores a retry-scheduled event whose deadline has passed', () => {
     const result = status({
       events: [userSaid(), retry({ notBefore: '2026-11-03T11:00:00.000Z' })],
       live: true,
@@ -204,19 +214,20 @@ describe('sessionStatusOf', () => {
     expect(result.state).toBe(ESessionStatus.Thinking)
   })
 
-  it('ignores a retry fact whose value is an unresolved blob ref', () => {
-    const refFact: V2Event = {
-      ...envelope(),
-      type: 'fact-recorded',
-      key: 'retry:model',
-      kind: 'retry',
-      value: { $blob: { hash: 'b'.repeat(64), size: 100, preview: '{}' } },
-    }
+  it('does not count a fact-recorded with a retry-like key and a future deadline', () => {
     const result = status({
-      events: [userSaid(), refFact],
+      events: [userSaid(), retryLikeFact({ notBefore: '2026-11-03T12:00:12.000Z' })],
       live: true,
     })
     expect(result.state).toBe(ESessionStatus.Thinking)
+  })
+
+  it('keeps a retry-scheduled event neutral so it does not open or end a turn', () => {
+    const result = status({
+      events: [userSaid(), assistantSaid(), retry({ notBefore: '2026-11-03T12:00:12.000Z' })],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Idle)
   })
 
   it('reports waiting-for-credentials on an open credential wait', () => {

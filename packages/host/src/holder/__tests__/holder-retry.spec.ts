@@ -40,18 +40,12 @@ const fullEvents = async (rig: {
 
 const retryFacts = (events: readonly V2Event[]) =>
   events.filter(
-    (event): event is Extract<V2Event, { type: 'fact-recorded' }> =>
-      event.type === 'fact-recorded' && event.key.startsWith('retry:'),
+    (event): event is Extract<V2Event, { type: 'retry-scheduled' }> =>
+      event.type === 'retry-scheduled',
   )
 
-const notBeforeOf = (fact: V2Event): number => {
-  if (fact.type !== 'fact-recorded') throw new Error('not a fact')
-  const value = fact.value
-  if (typeof value !== 'object' || value === null || !('notBefore' in value)) {
-    throw new Error('retry fact without notBefore')
-  }
-  return Date.parse(String(value.notBefore))
-}
+const notBeforeOf = (fact: Extract<V2Event, { type: 'retry-scheduled' }>): number =>
+  Date.parse(fact.notBefore)
 
 describe('holder retry deadlines', () => {
   it('a handoff shorter than the backoff revokes and wakes; B waits out the deadline', async () => {

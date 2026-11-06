@@ -25,14 +25,10 @@ export type InboxIntakeArgs = {
 }
 
 export class InboxIntake implements AgentIntake {
-  private afterId = 0
-
   constructor(private readonly args: InboxIntakeArgs) {}
 
   async prepare(): Promise<PendingDrain> {
-    const entries = await this.fetch({ afterId: this.afterId })
-    const last = entries[entries.length - 1]
-    if (last !== undefined) this.afterId = last.inboxId
+    const entries = await this.fetch()
     const drafts: EventDraft[] = []
     let wakesTurn = false
     for (const entry of entries) {
@@ -47,6 +43,7 @@ export class InboxIntake implements AgentIntake {
           type: 'user-said',
           text: parsed.data.text,
           requestId: `inbox:${entry.inboxId}`,
+          inboxId: entry.inboxId,
         })
         wakesTurn = true
         continue
@@ -70,11 +67,11 @@ export class InboxIntake implements AgentIntake {
     })
   }
 
-  private async fetch(args: { afterId: number }): Promise<InboxEntry[]> {
+  private async fetch(): Promise<InboxEntry[]> {
     try {
       return await this.args.plane.readInbox({
         sessionId: this.args.sessionId,
-        afterId: args.afterId,
+        afterId: 0,
         limit: 100,
       })
     } catch (error) {

@@ -15,7 +15,7 @@ const entry = (inboxId: number): InboxEntry =>
     consumedSeq: null,
   }) as InboxEntry
 
-const intakeOver = (readInbox: () => Promise<InboxEntry[]>) =>
+const intakeOver = (readInbox: (args: { afterId: number }) => Promise<InboxEntry[]>) =>
   new InboxIntake({
     plane: { readInbox } as unknown as ControlPlane,
     sessionId: 'session-1',
@@ -43,5 +43,25 @@ describe('InboxIntake', () => {
     const drain = await intake.prepare()
     expect(drain.wakesTurn).toBe(true)
     expect(drain.drafts).toHaveLength(1)
+  })
+
+  it('tags each drafted message with its inbox id', async () => {
+    const drain = await intakeOver(async () => [entry(4)]).prepare()
+    expect(drain.drafts).toEqual([
+      { type: 'user-said', text: 'm4', requestId: 'inbox:4', inboxId: 4 },
+    ])
+  })
+
+  it('offers an entry again on the next prepare when its append never consumed it', async () => {
+    const afterIds: number[] = []
+    const intake = intakeOver(async ({ afterId }) => {
+      afterIds.push(afterId)
+      return [entry(1), entry(2)]
+    })
+    const first = await intake.prepare()
+    const second = await intake.prepare()
+    expect(afterIds).toEqual([0, 0])
+    expect(second.drafts).toEqual(first.drafts)
+    expect(second.drafts).toHaveLength(2)
   })
 })

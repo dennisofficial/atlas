@@ -29,6 +29,7 @@ const tokensOf = (event: V2Event): number => {
     event.type === 'history-rewound' ||
     event.type === 'input-consumed' ||
     event.type === 'fact-recorded' ||
+    event.type === 'retry-scheduled' ||
     event.type === 'branches-observed' ||
     event.type === 'workspace-prepared' ||
     event.type === 'workspace-prepare-failed' ||

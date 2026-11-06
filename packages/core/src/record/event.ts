@@ -5,6 +5,7 @@ import { eventIdSchema, runIdSchema, threadIdSchema } from '../events/ids'
 import type { EventId, RunId, ThreadId } from '../events/ids'
 import { eventBodySchema } from '../events/schema'
 import { branchesObservedSchema, type BranchesObserved } from './branches'
+import { retryScheduledSchema, type RetryScheduled } from './retry-scheduled'
 import { sessionStartFailedSchema, type SessionStartFailed } from './start-failure'
 import {
   workspacePrepareFailedSchema,
@@ -44,6 +45,7 @@ export type RecordBody =
     }
   | { type: 'input-consumed'; inboxId: number; consumed?: EInputConsumed | undefined }
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
+  | RetryScheduled
   | BranchesObserved
   | WorkspacePrepared
   | WorkspacePrepareFailed
@@ -100,6 +102,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     kind: z.string().min(1),
     value: z.unknown().optional(),
   }),
+  retryScheduledSchema,
   branchesObservedSchema,
   workspacePreparedSchema,
   workspacePrepareFailedSchema,
@@ -111,6 +114,7 @@ const RECORD_TYPE_TABLE = {
   'history-summarised': true,
   'input-consumed': true,
   'fact-recorded': true,
+  'retry-scheduled': true,
   'branches-observed': true,
   'workspace-prepared': true,
   'workspace-prepare-failed': true,

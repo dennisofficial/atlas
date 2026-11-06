@@ -31,6 +31,7 @@ const transcriptEventOf = (event: V2Event): Event | null => {
     case 'history-rewound':
     case 'input-consumed':
     case 'fact-recorded':
+    case 'retry-scheduled':
     case 'branches-observed':
     case 'workspace-prepared':
     case 'workspace-prepare-failed':

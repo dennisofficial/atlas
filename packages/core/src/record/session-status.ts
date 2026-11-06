@@ -1,5 +1,6 @@
 import { EWaitEpisodeKind } from '../model-recovery/waiting'
 import { EInputConsumed, type RecordBody, type V2Event } from './event'
+import { retryDeadlineAfter } from './retry-scheduled'
 import { activeStartFailure } from './start-failure'
 import { isWorkspacePrepared, lastPrepareFailure } from './workspace'
 
@@ -22,8 +23,6 @@ export type SessionStatus = {
   since?: string | undefined
 }
 
-const RETRY_KEY_PREFIX = 'retry:'
-
 const TURN_ENDING_TYPES: ReadonlySet<V2Event['type']> = new Set([
   'run-failed',
   'run-failure-dismissed',
@@ -39,6 +38,7 @@ const isTurnEnding = (event: V2Event): boolean =>
 const TURN_NEUTRAL_TYPES: ReadonlySet<V2Event['type']> = new Set<RecordBody['type']>([
   'branches-observed',
   'fact-recorded',
+  'retry-scheduled',
   'input-consumed',
 ])
 
@@ -51,16 +51,6 @@ const stopConsumedAfterTurn = (events: readonly V2Event[]): boolean => {
   return events
     .slice(turnIndex + 1)
     .some((event) => event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop)
-}
-
-const retryDeadlineOf = (params: { event: V2Event; nowMs: number }): string | undefined => {
-  const { event, nowMs } = params
-  if (event.type !== 'fact-recorded' || !event.key.startsWith(RETRY_KEY_PREFIX)) return undefined
-  const value = event.value
-  if (typeof value !== 'object' || value === null || !('notBefore' in value)) return undefined
-  const notBefore = String(value.notBefore)
-  const parsed = Date.parse(notBefore)
-  return Number.isFinite(parsed) && parsed > nowMs ? notBefore : undefined
 }
 
 const unfinishedRunFailed = (
@@ -139,7 +129,7 @@ export function sessionStatusOf(params: {
     }
 
     for (let index = events.length - 1; index >= 0; index -= 1) {
-      const notBefore = retryDeadlineOf({ event: events[index] as V2Event, nowMs })
+      const notBefore = retryDeadlineAfter({ event: events[index] as V2Event, nowMs })
       if (notBefore === undefined) continue
       return {
         state: ESessionStatus.WaitingToRetry,
