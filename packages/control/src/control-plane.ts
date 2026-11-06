@@ -4,6 +4,7 @@ import {
   type Lease,
   type LogHead,
   type RevokeResult,
+  type V2EventType,
 } from '@dltech/atlas-core'
 
 import { appendIn } from './append-ops'
@@ -162,6 +163,7 @@ export class ControlPlane {
     afterSeq: number
     limit: number
     visible: boolean
+    hiddenTypes?: readonly V2EventType[] | undefined
     maxBytes?: number | undefined
   }): Promise<ReadEventsPage> {
     const limit = clampLimit(params.limit)
@@ -173,6 +175,7 @@ export class ControlPlane {
         afterSeq: params.afterSeq,
         limit,
         visible: params.visible,
+        hiddenTypes: params.hiddenTypes,
         maxBytes: params.maxBytes,
       })
     })

@@ -5,6 +5,7 @@ import {
   type LogHead,
   type V2Body,
   type V2Event,
+  type V2EventType,
 } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
@@ -85,7 +86,12 @@ export async function appendBodies(params: {
   return { events, head: outcome.head }
 }
 
-export async function readAll(params: { harness: Harness; visible: boolean; limit?: number }) {
+export async function readAll(params: {
+  harness: Harness
+  visible: boolean
+  limit?: number
+  hiddenTypes?: readonly V2EventType[]
+}) {
   const out: V2Event[] = []
   let afterSeq = 0
   for (;;) {
@@ -94,6 +100,7 @@ export async function readAll(params: { harness: Harness; visible: boolean; limi
       afterSeq,
       limit: params.limit ?? 1000,
       visible: params.visible,
+      hiddenTypes: params.hiddenTypes,
     })
     out.push(...page.events)
     if (page.next === undefined) return out

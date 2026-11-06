@@ -179,7 +179,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
           : {}),
       })
       for (const event of events) {
-        const loop = toLoopEvent({ event: this.cache.resolvedEvent(event), log: this.cache.all() })
+        const loop = toLoopEvent({ event: this.cache.resolvedEvent(event) })
         if (loop !== undefined) committed.push(loop)
       }
     }
@@ -218,6 +218,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
             ...(this.args.log === undefined ? {} : { log: this.args.log }),
           })
         }
+        await this.cache.refillIfRevealed()
         return
       }
       failingSince ??= this.args.timers.now()
