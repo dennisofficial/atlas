@@ -121,6 +121,9 @@ describe('GithubDeliveryService budget-refused fills', () => {
     expect(row?.processingError).toContain('deferred')
 
     refuse = false
+    await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-1' }).updateAndCount({
+      nextAttemptAt: new Date(Date.now() - 1000),
+    })
     await inbox.handleReconcile({
       process: (entry) => service.handle({ ...entry, replay: true }),
     })

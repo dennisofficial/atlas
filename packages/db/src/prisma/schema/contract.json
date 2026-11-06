@@ -3072,6 +3072,16 @@
                   "kind": "scalar"
                 }
               },
+              "deadAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "deliveryId": {
                 "nullable": false,
                 "type": {
@@ -3084,6 +3094,26 @@
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
+                }
+              },
+              "leaseUntil": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "nextAttemptAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "payload": {
@@ -3127,11 +3157,20 @@
                 "attempts": {
                   "column": "attempts"
                 },
+                "deadAt": {
+                  "column": "deadAt"
+                },
                 "deliveryId": {
                   "column": "deliveryId"
                 },
                 "event": {
                   "column": "event"
+                },
+                "leaseUntil": {
+                  "column": "leaseUntil"
+                },
+                "nextAttemptAt": {
+                  "column": "nextAttemptAt"
                 },
                 "payload": {
                   "column": "payload"
@@ -10754,6 +10793,14 @@
                   },
                   "nullable": false
                 },
+                "deadAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "deliveryId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -10763,6 +10810,22 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "leaseUntil": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "nextAttemptAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "payload": {
                   "codecId": "pg/jsonb@1",
@@ -14584,7 +14647,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "0b57a2d5716c39ad7c93b2986be3c39df495f56d87664a41cdb974c6cbe50f2d"
+    "storageHash": "41eb9776117c6b638bf351597741640c89954131da999dbe999dd15e05a5d04d"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",
