@@ -39,6 +39,9 @@ export type { StatusSnapshot } from './status-snapshot'
 
 const clampLimit = (limit: number): number => Math.max(1, Math.min(limit, MAX_READ_LIMIT))
 
+const clampSessionLimit = (limit: number): number =>
+  Math.max(1, Math.min(limit, MAX_SESSION_LIST_LIMIT))
+
 const headOf = (row: ThreadRow): LogHead => ({ seq: row.headSeq, hash: row.headHash })
 
 export class ControlPlane {
@@ -99,19 +102,13 @@ export class ControlPlane {
     limit: number
   }): Promise<ControlSessionRow[]> {
     return this.store.transact((tx) =>
-      tx.listSessions({
-        ...params,
-        limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
-      }),
+      tx.listSessions({ ...params, limit: clampSessionLimit(params.limit) }),
     )
   }
 
   async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
     return this.store.transact((tx) =>
-      tx.listSessionDigests({
-        ...params,
-        limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
-      }),
+      tx.listSessionDigests({ ...params, limit: clampSessionLimit(params.limit) }),
     )
   }
 
