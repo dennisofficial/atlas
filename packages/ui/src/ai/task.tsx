@@ -1,5 +1,5 @@
 import { Trace } from '#components/trace'
-import { EToolKind, TOOL_KINDS } from './internal/kinds'
+import { EToolKind, TOOL_KINDS, withVerb } from './internal/kinds'
 import { EStepStatus, Step, StepLine, StepLink, traceStatusOf } from './internal/step'
 
 export { EStepStatus, EToolKind }
@@ -23,7 +23,7 @@ export function stepTitle(step: TaskStep): string {
   const verbs = TOOL_KINDS[step.kind]
   if (step.status === EStepStatus.Running) return `${verbs.running} ${step.label}`
   if (step.status === EStepStatus.Error) return `${verbs.error} ${step.label}`
-  return `${verbs.done} ${step.label}`
+  return withVerb({ verb: verbs.done, label: step.label })
 }
 
 function TaskStepLine({ step }: { step: TaskStep }) {

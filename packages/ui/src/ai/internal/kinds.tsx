@@ -25,12 +25,15 @@ export interface ToolKindAppearance {
   error: string
 }
 
+export const withVerb = ({ verb, label }: { verb: string; label: string }): string =>
+  verb === '' ? label : `${verb} ${label}`
+
 export const TOOL_KINDS: Record<EToolKind, ToolKindAppearance> = {
   [EToolKind.Shell]: {
     icon: TerminalIcon,
     ask: 'Run',
     running: 'Running',
-    done: 'Ran',
+    done: '',
     error: 'Failed to run',
   },
   [EToolKind.Read]: {
