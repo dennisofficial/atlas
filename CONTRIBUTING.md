@@ -45,7 +45,8 @@ the package.
 3. Conventional commits: `<type>(<scope>): <description>`, imperative, lowercase. The PR title
    sizes the release — `feat` cuts a minor, anything else a patch — so reserve `feat` for new
    capabilities, not tweaks. No `Co-Authored-By` or generated-with trailers.
-4. Open a PR. CI runs typecheck, the test suite, and a real binary build; all must be green.
+4. Open a PR and fill in `.github/pull_request_template.md`, checklist included. CI runs
+   typecheck, the test suite, and a real binary build; all must be green.
    Keep PRs small enough to review in one sitting.
 
 ## The rules that bite

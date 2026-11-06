@@ -72,6 +72,9 @@ should enforce a dependency rule.
 
 - Branch `<you>/<slug>` from `origin/main`, open a PR, and `gh pr merge --squash` once CI is green.
   Keep PRs reviewable in one sitting. Never force-push or `--no-verify`.
+- The PR body follows `.github/pull_request_template.md`. `gh pr create --body` skips the template,
+  so copy it, fill in every section, keep every checklist line and tick or mark it N/A as it says,
+  then pass it with `--body-file`.
 - Conventional commits, imperative and lowercase: `<type>(<scope>): <description>`. The PR title
   sizes the release: `feat` cuts a minor, anything else a patch. Reserve `feat` for something a
   user can do today that they couldn't yesterday; polish and restyles are `fix` or `refactor`.
