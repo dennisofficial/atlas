@@ -45,6 +45,7 @@ export type SessionRuntime = {
   watchedRepos(): Promise<readonly string[]>
   runningShells(): Promise<number>
   prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
+  subscribePrepareOutput?(listener: (text: string) => void): void
   stop(): Promise<void>
   release(): Promise<void>
 }

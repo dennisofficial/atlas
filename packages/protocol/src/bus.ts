@@ -17,6 +17,14 @@ export const sessionLiveChannel = (sessionId: string): string => `atlas:session-
 export const sessionLiveBufferKey = (sessionId: string): string =>
   `atlas:session-live-buf:${sessionId}`
 
+const SETUP_OUTPUT_CALL_PREFIX = 'setup:'
+
+export const setupOutputCallId = (sessionId: string): string =>
+  `${SETUP_OUTPUT_CALL_PREFIX}${sessionId}`
+
+export const isSetupOutputCallId = (callId: string): boolean =>
+  callId.startsWith(SETUP_OUTPUT_CALL_PREFIX)
+
 export const frameStampSchema = z.strictObject({
   epoch: z.number().int().min(0),
   n: z.number().int().min(0),

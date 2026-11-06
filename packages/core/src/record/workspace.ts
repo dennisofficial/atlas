@@ -30,13 +30,30 @@ export enum EWorkspaceStepOutcome {
   Skipped = 'skipped',
 }
 
+export enum EWorkspaceRepoState {
+  Pending = 'pending',
+  Cloning = 'cloning',
+  Done = 'done',
+  Failed = 'failed',
+}
+
+export const workspaceStepRepoSchema = z.object({
+  repo: z.string(),
+  state: z.enum(EWorkspaceRepoState),
+})
+
 export const workspaceStepSchema = z.object({
   type: z.literal('workspace-step'),
   step: z.enum(EWorkspaceStep),
   state: z.enum(EWorkspaceStepState),
   outcome: z.enum(EWorkspaceStepOutcome).optional(),
   reason: z.string().optional(),
+  repos: z.array(workspaceStepRepoSchema).optional(),
+  command: z.string().optional(),
+  output: z.string().optional(),
 })
+
+export type WorkspaceStepRepo = z.infer<typeof workspaceStepRepoSchema>
 
 export type WorkspaceStep = z.infer<typeof workspaceStepSchema>
 export type WorkspaceStepReport = Omit<WorkspaceStep, 'type'>

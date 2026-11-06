@@ -18,6 +18,8 @@ export function sandboxBootPropsOf(view: BootView) {
       label: step.label,
       state: UI_STATE[step.state],
       ...(step.detail === undefined ? {} : { detail: step.detail }),
+      ...(step.command === undefined ? {} : { command: step.command }),
+      ...(step.output === undefined ? {} : { output: step.output }),
       ...(step.children === undefined
         ? {}
         : {

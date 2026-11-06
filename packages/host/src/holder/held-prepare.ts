@@ -1,8 +1,9 @@
 import type { RunId, ThreadId, WorkspaceStepReport } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
+import { setupOutputCallId } from '@dltech/atlas-protocol'
 
 import type { HeldSessionDeps } from './held-session-deps'
-import type { PrepareResult, SessionRuntime } from './ports'
+import { fireLive, type PrepareResult, type SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
 export class HeldPrepare {
@@ -35,6 +36,13 @@ export class HeldPrepare {
     const onStep = (step: WorkspaceStepReport): void => {
       steps = steps.then(() => this.recordStep({ ...args, runId, step }))
     }
+    args.runtime.subscribePrepareOutput?.((text) =>
+      fireLive({
+        bus: deps.bus,
+        sessionId: deps.sessionId,
+        frame: { type: 'tool-output', callId: setupOutputCallId(deps.sessionId), text },
+      }),
+    )
     void args.runtime
       .prepare(onStep)
       .catch((error): PrepareResult => {

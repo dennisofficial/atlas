@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   chainEvents,
+  EWorkspaceRepoState,
   EWorkspaceStep,
   EWorkspaceStepOutcome,
   EWorkspaceStepState,
@@ -35,7 +36,7 @@ const statusOf = (state: ESessionStatus, reason?: string): SessionSnapshot['stat
 const step = (
   name: EWorkspaceStep,
   state: EWorkspaceStepState,
-  extra: { outcome?: EWorkspaceStepOutcome; reason?: string } = {},
+  extra: Partial<Omit<Extract<V2Body, { type: 'workspace-step' }>, 'type' | 'step' | 'state'>> = {},
 ): V2Body => ({ type: 'workspace-step', step: name, state, ...extra })
 
 const statesOf = (view: ReturnType<typeof sessionBootViewOf>) => view?.steps.map((s) => s.state)
@@ -121,5 +122,64 @@ describe('sessionBootViewOf', () => {
     })
     expect(view?.steps[1]?.state).toBe(EBootStepState.Error)
     expect(view?.error).toBe('boom')
+  })
+})
+
+describe('sessionBootViewOf detail', () => {
+  it('lists a single repo as a clone child with its state', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Started, {
+          repos: [{ repo: 'acme/app', state: EWorkspaceRepoState.Cloning }],
+        }),
+      ]),
+      status: statusOf(ESessionStatus.Preparing),
+    })
+    expect(view?.steps[2]?.children).toEqual([
+      { id: 'acme/app', label: 'app', state: EBootStepState.Running },
+    ])
+  })
+
+  it('shows every repo with its own state', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Failed, {
+          reason: 'nope',
+          repos: [
+            { repo: 'acme/app', state: EWorkspaceRepoState.Done },
+            { repo: 'acme/lib', state: EWorkspaceRepoState.Failed },
+          ],
+        }),
+      ]),
+      status: statusOf(ESessionStatus.SetupFailed, 'nope'),
+    })
+    expect(view?.steps[2]?.children?.map((child) => child.state)).toEqual([
+      EBootStepState.Done,
+      EBootStepState.Error,
+    ])
+  })
+
+  it('shows the setup command with live output while running', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Started, { command: 'bun i' }),
+      ]),
+      status: statusOf(ESessionStatus.Preparing),
+      setupOutput: 'resolving\n',
+    })
+    expect(view?.steps[3]).toMatchObject({ command: 'bun i', output: 'resolving\n' })
+  })
+
+  it('shows the recorded output tail on a reopened session', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Done, { command: 'bun i', output: 'ok\n' }),
+        { type: 'workspace-prepared' },
+      ]),
+      status: statusOf(ESessionStatus.Idle),
+    })
+    expect(view?.steps[3]).toMatchObject({ command: 'bun i', output: 'ok\n' })
   })
 })

@@ -3,6 +3,8 @@ import {
   ERunFailureKind,
   ESessionStatus,
   EStepEndReason,
+  EWorkspaceStep,
+  EWorkspaceStepState,
   toCallId,
   type V2Body,
 } from '@dltech/atlas-core'
@@ -129,5 +131,48 @@ describe('the session follower overlay', () => {
     const own = mintEvents({ bodies: [reply], from: headOf(before) })
     follower.handleMessage(eventsMessage({ id: 's1', events: own, live: true }))
     expect(follower.getSnapshot().overlay).toBeUndefined()
+  })
+})
+
+describe('the session follower setup output', () => {
+  const output = (text: string): StreamServerMessage => ({
+    type: 'frame',
+    id: 's1',
+    frame: { type: 'tool-output', callId: 'setup:session-1', text },
+  })
+
+  const setupDone = (): V2Body => ({
+    type: 'workspace-step',
+    step: EWorkspaceStep.Setup,
+    state: EWorkspaceStepState.Done,
+  })
+
+  it('accumulates setup output frames and ignores other tool output', () => {
+    const { follower } = setup()
+    follower.handleMessage(output('a\n'))
+    follower.handleMessage(output('b\n'))
+    follower.handleMessage({
+      type: 'frame',
+      id: 's1',
+      frame: { type: 'tool-output', callId: 'call-1', text: 'other' },
+    })
+    expect(follower.getSnapshot().setupOutput).toBe('a\nb\n')
+  })
+
+  it('resets once the setup step settles in the log', () => {
+    const { follower } = setup()
+    follower.handleMessage(output('a\n'))
+    const events = mintEvents({ bodies: [setupDone()] })
+    follower.handleMessage(eventsMessage({ id: 's1', events, live: true }))
+    expect(follower.getSnapshot().setupOutput).toBe('')
+  })
+
+  it('keeps only a bounded tail', () => {
+    const { follower } = setup()
+    follower.handleMessage(output('x'.repeat(20_000)))
+    follower.handleMessage(output('end'))
+    const text = follower.getSnapshot().setupOutput ?? ''
+    expect(text.length).toBe(16_000)
+    expect(text.endsWith('end')).toBe(true)
   })
 })

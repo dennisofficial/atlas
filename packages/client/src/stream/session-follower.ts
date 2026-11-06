@@ -1,8 +1,14 @@
-import { ESessionStatus, type V2Event } from '@dltech/atlas-core'
-import type {
-  EStreamErrorCode,
-  SessionStatusOutput,
-  StreamServerMessage,
+import {
+  ESessionStatus,
+  EWorkspaceStep,
+  EWorkspaceStepState,
+  type V2Event,
+} from '@dltech/atlas-core'
+import {
+  isSetupOutputCallId,
+  type EStreamErrorCode,
+  type SessionStatusOutput,
+  type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from './connection-machine'
@@ -25,6 +31,8 @@ import type { StreamScheduler } from './stream-ports'
 
 const SAVE_INTERVAL_MS = 1_000
 
+const SETUP_OUTPUT_TAIL_CHARS = 16_000
+
 export const HYDRATE_TIMEOUT_MS = 2_000
 
 export enum ESessionConnection {
@@ -40,6 +48,7 @@ export type SessionSnapshot = {
   cursor: SessionCursor | undefined
   status: SessionStatusOutput | undefined
   overlay: OpenOverlay | undefined
+  setupOutput?: string | undefined
   connection: ESessionConnection
   error: EStreamErrorCode | undefined
 }
@@ -65,6 +74,7 @@ type Inner = {
   window: SessionWindow
   overlay: OverlayState
   status: SessionStatusOutput | undefined
+  setupOutput: string
   phase: EStreamConnectionState
   live: boolean
   error: EStreamErrorCode | undefined
@@ -83,9 +93,18 @@ const snapshotOf = (inner: Inner): SessionSnapshot => ({
   cursor: inner.window.cursor,
   status: inner.status,
   overlay: inner.overlay.open,
+  setupOutput: inner.setupOutput,
   connection: connectionOf(inner),
   error: inner.error,
 })
+
+const settlesSetup = (events: readonly Record<string, unknown>[]): boolean =>
+  events.some(
+    (event) =>
+      event.type === 'workspace-step' &&
+      event.step === EWorkspaceStep.Setup &&
+      event.state !== EWorkspaceStepState.Started,
+  )
 
 const acceptsView = (args: { inner: Inner; at: number }): boolean =>
   args.at >= (args.inner.window.cursor?.seq ?? 0)
@@ -96,6 +115,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     window: EMPTY_WINDOW,
     overlay: EMPTY_OVERLAY_STATE,
     status: undefined,
+    setupOutput: '',
     phase: EStreamConnectionState.Connecting,
     live: false,
     error: undefined,
@@ -142,8 +162,19 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       saveThrottled()
       return
     }
-    commit({ ...inner, window, overlay, live: message.live, error: undefined })
+    commit({
+      ...inner,
+      window,
+      overlay,
+      setupOutput: settlesSetup(message.events) ? '' : inner.setupOutput,
+      live: message.live,
+      error: undefined,
+    })
     saveThrottled()
+  }
+
+  const handleSetupOutput = (text: string): void => {
+    commit({ ...inner, setupOutput: (inner.setupOutput + text).slice(-SETUP_OUTPUT_TAIL_CHARS) })
   }
 
   const handleView = (message: Extract<StreamServerMessage, { type: 'view' }>): void => {
@@ -173,7 +204,13 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'error') commit({ ...inner, error: message.code })
     else if (message.type === 'reset') {
-      commit({ ...inner, window: resetWindow(), status: undefined, live: false })
+      commit({ ...inner, window: resetWindow(), status: undefined, setupOutput: '', live: false })
+    } else if (
+      message.type === 'frame' &&
+      message.frame.type === 'tool-output' &&
+      isSetupOutputCallId(message.frame.callId)
+    ) {
+      handleSetupOutput(message.frame.text)
     } else if (
       message.type === 'overlay' ||
       message.type === 'delta' ||

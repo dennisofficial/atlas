@@ -124,6 +124,7 @@ export const createSessionRuntimeFactory = (
             sandboxName: sandboxNameOf(sessionId),
             signal,
             onStep: (step) => steps.report(step),
+            onOutput: (text) => steps.output(text),
             ...(args.log === undefined ? {} : { log: args.log }),
           })
         })
@@ -237,6 +238,7 @@ export const createSessionRuntimeFactory = (
       watchedRepos: () => gitWatch.watchedRepos(),
       runningShells: () => countRunningShells({ calls }),
       prepare,
+      subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),
       stop: async () => {
         stopKeepAlive()
         calls.close()

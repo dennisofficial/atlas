@@ -73,6 +73,7 @@ export const makeRuntimeFactory = (args: {
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
+  subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
   model?: (() => ModelPort) | undefined
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
@@ -123,6 +124,9 @@ export const makeRuntimeFactory = (args: {
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
       runningShells: args.runningShells ?? (async () => 0),
       prepare: (onStep) => (args.prepare ?? (async () => ({ ok: true as const })))(onStep),
+      ...(args.subscribePrepareOutput === undefined
+        ? {}
+        : { subscribePrepareOutput: args.subscribePrepareOutput }),
       stopped: false,
       released: false,
       stop: async () => {

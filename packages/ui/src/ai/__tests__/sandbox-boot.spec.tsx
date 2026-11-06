@@ -135,3 +135,22 @@ describe('SandboxBoot', () => {
     expect(render({ steps: steps([Done]) })).not.toContain('sandbox-boot-children')
   })
 })
+
+describe('SandboxBoot command step', () => {
+  it('renders the command and its output under the step', () => {
+    const html = render({
+      steps: [
+        {
+          id: 'setup',
+          label: 'Running setup script',
+          state: Running,
+          command: 'bun install',
+          output: 'resolving deps',
+        },
+      ],
+    })
+    expect(html).toContain('sandbox-boot-terminal')
+    expect(html).toContain('$ bun install')
+    expect(html).toContain('resolving deps')
+  })
+})

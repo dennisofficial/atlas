@@ -56,6 +56,7 @@ export const makeRig = async (args: {
   runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
+  subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
   beforeRuntime?: (() => Promise<void>) | undefined
@@ -94,6 +95,7 @@ export const makeRig = async (args: {
     runningShells: args.runningShells,
     model: args.model,
     prepare: args.prepare,
+    subscribePrepareOutput: args.subscribePrepareOutput,
     connectGate: args.connectGate,
     runtimeGate: args.runtimeGate,
     beforeRuntime: args.beforeRuntime,

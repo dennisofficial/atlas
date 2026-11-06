@@ -3,6 +3,7 @@
 import { RotateCcwIcon } from 'lucide-react'
 
 import { Button } from '#components/button'
+import { CodeBlock, CodeBlockContent } from '#components/code-block'
 import { Trace } from '#components/trace'
 import { EStepStatus, Step, StatusIcon, StepLine, traceStatusOf } from './internal/step'
 
@@ -26,6 +27,8 @@ export interface SandboxBootStep {
   state: EBootStepState
   detail?: string
   children?: SandboxBootChild[]
+  command?: string
+  output?: string
 }
 
 export interface SandboxBootProps {
@@ -98,7 +101,28 @@ function BootLine({ step }: { step: SandboxBootChild }) {
   )
 }
 
+function BootTerminal({ command, output }: { command: string; output?: string }) {
+  const text = output === undefined || output === '' ? `$ ${command}` : `$ ${command}\n${output}`
+  return (
+    <div data-slot="sandbox-boot-terminal" className="pl-6">
+      <CodeBlock size="sm">
+        <CodeBlockContent wrap className="max-h-64">
+          {text}
+        </CodeBlockContent>
+      </CodeBlock>
+    </div>
+  )
+}
+
 function BootStepLine({ step }: { step: SandboxBootStep }) {
+  if (step.command !== undefined) {
+    return (
+      <div className="flex flex-col gap-1">
+        <BootLine step={step} />
+        <BootTerminal command={step.command} output={step.output} />
+      </div>
+    )
+  }
   if (step.children === undefined || step.children.length === 0) return <BootLine step={step} />
   return (
     <div className="flex flex-col gap-1">
