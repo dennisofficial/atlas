@@ -1,6 +1,6 @@
 import { ModelStreamError, StreamStallError } from '@dltech/atlas-agent'
 import { getErrorMessage, type LanguageModelV4 } from '@ai-sdk/provider'
-import { stepCountIs, streamText, type LanguageModel } from 'ai'
+import { InvalidResponseDataError, stepCountIs, streamText, type LanguageModel } from 'ai'
 
 import {
   carriesToolResultImages,
@@ -21,6 +21,7 @@ import {
 import { createPartAccumulator } from './accumulator'
 import { toCoreChunk } from './chunk-conversion'
 import { reportsFastSpeed } from './fast-speed'
+import { requireFinish, StreamEndedWithoutFinish } from './stream-ended-without-finish'
 import { toInstructions } from './instructions'
 import { providerIdentityOf } from './provider-identity'
 import { toModelMessages } from './message-conversion'
@@ -73,11 +74,19 @@ function withResponseDeadline(args: { model: LanguageModelV4; ttfbMs: number }):
       }),
     )
 
-    return Promise.race([answered, unanswered]).finally(() => clearTimeout(timer))
+    const guarded = answered.then((result) => ({
+      ...result,
+      stream: requireFinish({ stream: result.stream, signal: options.abortSignal }),
+    }))
+
+    return Promise.race([guarded, unanswered]).finally(() => clearTimeout(timer))
   }
 
   return proxyDoStream(args.model, doStream)
 }
+
+const isTruncationReport = (error: unknown): boolean =>
+  InvalidResponseDataError.isInstance(error) && error.data === undefined
 
 export async function runModelStream(args: {
   model: LanguageModel
@@ -129,6 +138,8 @@ export async function runModelStream(args: {
 
       if (part.type === 'error') {
         if (part.error instanceof StreamStallError) throw part.error
+        if (part.error instanceof StreamEndedWithoutFinish) throw part.error
+        if (isTruncationReport(part.error)) throw new StreamEndedWithoutFinish()
         throw new ModelStreamError({ message: getErrorMessage(part.error), cause: part.error })
       }
     }

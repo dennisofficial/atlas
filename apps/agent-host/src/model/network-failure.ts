@@ -1,4 +1,4 @@
-import { droppedByMessageHeuristic } from './dropped-by-message'
+import { StreamEndedWithoutFinish } from './stream-ended-without-finish'
 
 const NETWORK_CODES: ReadonlySet<string> = new Set([
   'ECONNRESET',
@@ -11,7 +11,6 @@ const NETWORK_CODES: ReadonlySet<string> = new Set([
 
 const UNDICI_PREFIX = 'UND_ERR_'
 const NETWORK_NAMES: ReadonlySet<string> = new Set(['TimeoutError', 'AbortError'])
-const FETCH_FAILED = 'fetch failed'
 const MAX_CHAIN_DEPTH = 8
 
 const codeOf = (error: unknown): string | undefined => {
@@ -28,15 +27,14 @@ const isNetworkCode = (code: string): boolean =>
 const isNetworkLink = (error: unknown): boolean => {
   const code = codeOf(error)
   if (code !== undefined && isNetworkCode(code)) return true
-  if (!(error instanceof Error)) return false
-  if (NETWORK_NAMES.has(error.name)) return true
-  return error instanceof TypeError && error.message === FETCH_FAILED
+  if (error instanceof StreamEndedWithoutFinish) return true
+  return error instanceof Error && NETWORK_NAMES.has(error.name)
 }
 
 export function networkFailureOf(error: unknown): boolean {
   let link: unknown = error
   for (let depth = 0; depth < MAX_CHAIN_DEPTH && link !== undefined; depth += 1) {
-    if (isNetworkLink(link) || droppedByMessageHeuristic(link)) return true
+    if (isNetworkLink(link)) return true
     link = causeOf(link)
   }
   return false

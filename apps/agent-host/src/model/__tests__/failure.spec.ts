@@ -57,18 +57,41 @@ describe('normalizing whatever the provider threw', () => {
     )
   })
 
-  it.each([
-    'fetch failed',
-    'socket hang up',
-    'terminated',
-    'read ECONNRESET',
-    'connect ETIMEDOUT 1.2.3.4:443',
-    'Connection closed.',
-  ])('reads %p as a dropped connection, which has no status', (message) => {
-    const failure = normalized(new Error(message))
+  const withCode = (code: string, message: string): Error =>
+    Object.assign(new Error(message), { code })
 
-    expect(failure).toMatchObject(transient(EProviderFailureKind.Network))
-    expect(failure.statusCode).toBeUndefined()
+  it.each(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE', 'ENOTFOUND', 'UND_ERR_SOCKET'])(
+    'reads code %p as a dropped connection, which has no status',
+    (code) => {
+      const failure = normalized(withCode(code, 'whatever the runtime worded it'))
+
+      expect(failure).toMatchObject(transient(EProviderFailureKind.Network))
+      expect(failure.statusCode).toBeUndefined()
+    },
+  )
+
+  it('reads the code on the cause of a fetch failure', () => {
+    const error = new TypeError('fetch failed', { cause: withCode('UND_ERR_SOCKET', 'closed') })
+
+    expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Network))
+  })
+
+  it.each(['fetch failed', 'socket hang up', 'terminated', 'Connection closed.'])(
+    'does not read the bare message %p as a dropped connection',
+    (message) => {
+      expect(normalized(new Error(message))).toMatchObject(never(EProviderFailureKind.Other))
+    },
+  )
+
+  it('does not retry a 400 whose message says the session was terminated', () => {
+    const error = new APICallError({
+      message: 'session terminated by the user',
+      url: 'https://api.anthropic.com/v1/messages',
+      requestBodyValues: {},
+      statusCode: 400,
+    })
+
+    expect(normalized(error).retry).toBe(EProviderRetry.Never)
   })
 
   it('takes the status off a mid-stream provider error', () => {
@@ -84,32 +107,6 @@ describe('normalizing whatever the provider threw', () => {
     const error = new StreamProviderError({ message: 'try again', isRetryable: true })
 
     expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Network))
-  })
-
-  it("reads litellm's dropped upstream connection as transient", () => {
-    const error = new StreamProviderError({
-      message: 'litellm.APIConnectionError: APIConnectionError: UpstreamError - Connection closed.',
-    })
-
-    expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Network))
-  })
-
-  it('refuses a mid-stream provider error with no status, no flag, and an unrecognised message', () => {
-    expect(
-      normalized(new StreamProviderError({ message: 'billing hard limit reached' })),
-    ).toMatchObject(never(EProviderFailureKind.Other))
-  })
-
-  it('reads a stream that ended without a finish reason as a dropped connection', () => {
-    const error = new InvalidResponseDataError({
-      data: undefined,
-      message: 'Response stream ended without a finish reason.',
-    })
-
-    expect(normalized(error)).toMatchObject(transient(EProviderFailureKind.Network))
-    expect(normalized(new ModelStreamError({ message: 'x', cause: error }))).toMatchObject(
-      transient(EProviderFailureKind.Network),
-    )
   })
 
   it('refuses invalid response data that is not a truncated stream', () => {

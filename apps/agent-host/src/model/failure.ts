@@ -21,21 +21,6 @@ import { networkFailureOf } from './network-failure'
 import { providerErrorOf, providerMessageOf } from './provider-error'
 import { retryAtOf } from './provider-reset'
 
-const DROPPED_CONNECTION = [
-  'fetch failed',
-  'socket hang up',
-  'terminated',
-  'network request failed',
-  'connection closed',
-  'econnreset',
-  'econnrefused',
-  'etimedout',
-  'epipe',
-  'enotfound',
-  'und_err_socket',
-  'without a finish reason',
-]
-
 const GENERIC_INVALID_REQUEST: ReadonlySet<string> = new Set([
   'invalid_request_error',
   'invalid_request',
@@ -59,12 +44,6 @@ const isProviderError = (link: unknown): link is ProviderError =>
 
 const unwrapped = (error: unknown): unknown =>
   error instanceof ModelStreamError && error.cause !== undefined ? unwrapped(error.cause) : error
-
-const looksLikeDroppedConnection = (error: unknown): boolean => {
-  if (!(error instanceof Error)) return false
-  const lowered = error.message.toLowerCase()
-  return DROPPED_CONNECTION.some((needle) => lowered.includes(needle))
-}
 
 const responseHeadersOf = (error: ProviderError): Record<string, string> | undefined =>
   APICallError.isInstance(error) ? error.responseHeaders : undefined
@@ -139,8 +118,7 @@ export function normalizeProviderFailure(args: {
     stalled: chain.some((link) => link instanceof StreamStallError),
     transport:
       credential.transport === true ||
-      (!namesGenericInvalidRequest(providerError) &&
-        (networkFailureOf(args.cause) || looksLikeDroppedConnection(root))),
+      (!namesGenericInvalidRequest(providerError) && networkFailureOf(args.cause)),
   }
 
   const normalized = classifyProviderFailure({ evidence })
