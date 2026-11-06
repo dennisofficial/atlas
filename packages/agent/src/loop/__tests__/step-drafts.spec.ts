@@ -28,6 +28,12 @@ describe('the finish reason a draft carries', () => {
     expect(draftsFor(stepOf({ parts }))[0]).toMatchObject({ finish: EFinishReason.Stop })
   })
 
+  it('says other when the provider reported tool calls but the step made none, so the turn ends', () => {
+    const parts = [{ type: 'text' as const, text: 'hi' }]
+    const drafts = draftsFor(stepOf({ parts, finishReason: EFinishReason.ToolCalls }))
+    expect(drafts[0]).toMatchObject({ type: 'assistant-said', finish: EFinishReason.Other })
+  })
+
   it('is left off an interrupted reply, which ends the turn', () => {
     const drafts = interruptedDrafts(stepOf({ parts: [{ type: 'text', text: 'hi' }] }))
     expect(drafts[0]).not.toHaveProperty('finish')
