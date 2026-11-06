@@ -72,6 +72,33 @@ describe('readSessionStatus', () => {
     expect((await read()).value.state).toBe(ESessionStatus.Sent)
   })
 
+  it('lists pending message entries oldest first and drops withdrawn and consumed ones', async () => {
+    const { plane, append, read } = await setup()
+    const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
+    await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
+    const a = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"a"}' })
+    const b = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"b"}' })
+    await plane.post({ sessionId: SESSION, kind: 'stop', payload: '{}' })
+    await plane.post({ sessionId: SESSION, kind: 'message', payload: 'not json' })
+    const c = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"c"}' })
+
+    const listed = (await read()).value.queued
+    expect(listed?.map(({ inboxId, text }) => [inboxId, text])).toEqual([
+      [a.inboxId, 'a'],
+      [b.inboxId, 'b'],
+      [c.inboxId, 'c'],
+    ])
+    expect(listed?.[0]?.postedAt).toBe(NOW)
+
+    await plane.takeBack({ sessionId: SESSION, inboxId: b.inboxId })
+    expect((await read()).value.queued?.map((entry) => entry.text)).toEqual(['a', 'c'])
+  })
+
+  it('omits queued when nothing is pending', async () => {
+    const { read } = await setup()
+    expect((await read()).value.queued).toBeUndefined()
+  })
+
   it('folds only the tail of a log longer than one read', async () => {
     const { plane, append, read } = await setup()
     const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })

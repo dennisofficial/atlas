@@ -10,7 +10,7 @@ import {
   toThreadId,
   type V2Body,
 } from '@dltech/atlas-core'
-import { inboxMessageSchema } from '@dltech/atlas-protocol'
+import { EWithdrawRefusal, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'
 
@@ -74,6 +74,62 @@ describe('SessionsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
     await expect(
       service.status({ userId: 'user-b', sessionId: created.sessionId }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+  })
+
+  it('withdraws a pending message for the owner and removes it from status', async () => {
+    const { service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const { inboxId } = await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'hi',
+    })
+    const before = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(before.queued?.map((entry) => entry.text)).toEqual(['hi'])
+
+    expect(
+      await service.withdraw({ userId: 'user-a', sessionId: created.sessionId, inboxId }),
+    ).toEqual({ ok: true })
+    const after = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(after.queued).toBeUndefined()
+  })
+
+  it('refuses to withdraw a consumed entry', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const { inboxId } = await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'hi',
+    })
+    const lease = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
+    const consumed = await plane.append({
+      threadId: created.mainThreadId,
+      epoch: lease.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-1'),
+        epoch: lease.epoch,
+        at: NOW,
+        bodies: [{ type: 'input-consumed', inboxId }],
+      }),
+    })
+    expect(consumed.ok).toBe(true)
+
+    expect(
+      await service.withdraw({ userId: 'user-a', sessionId: created.sessionId, inboxId }),
+    ).toEqual({ ok: false, reason: EWithdrawRefusal.AlreadyConsumed })
+  })
+
+  it('answers unknown for a missing entry and refuses non-owners', async () => {
+    const { service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    expect(
+      await service.withdraw({ userId: 'user-a', sessionId: created.sessionId, inboxId: 99 }),
+    ).toEqual({ ok: false, reason: EWithdrawRefusal.Unknown })
+    await expect(
+      service.withdraw({ userId: 'user-b', sessionId: created.sessionId, inboxId: 1 }),
     ).rejects.toBeInstanceOf(NotFoundException)
   })
 

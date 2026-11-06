@@ -191,6 +191,13 @@ export class ControlPlane {
     return this.store.transact((tx) => takeBackIn({ tx, ...params }))
   }
 
+  async readInboxEntry(params: {
+    sessionId: string
+    inboxId: number
+  }): Promise<InboxEntry | undefined> {
+    return this.store.transact((tx) => tx.readInboxEntry(params))
+  }
+
   async readInbox(params: {
     sessionId: string
     afterId: number

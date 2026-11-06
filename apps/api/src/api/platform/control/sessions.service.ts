@@ -4,11 +4,13 @@ import { ControlPlane, readSessionStatus, STATUS_EVENT_LIMIT } from '@dltech/atl
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import { canonicalEvent, type V2Event } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+import { EWithdrawRefusal } from '@dltech/atlas-protocol'
 import type {
   SessionBlobOutput,
   SessionEventsOutput,
   SessionListOutput,
   SessionStatusOutput,
+  SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 import { ProjectAccess } from './project-access'
 
@@ -83,6 +85,33 @@ export class SessionsService {
       payload,
     })
     return { inboxId }
+  }
+
+  async withdraw(args: {
+    userId: string
+    sessionId: string
+    inboxId: number
+  }): Promise<SessionWithdrawOutput> {
+    await this.requireOwnedSession(args)
+    const entry = await this.plane.readInboxEntry({
+      sessionId: args.sessionId,
+      inboxId: args.inboxId,
+    })
+    if (entry === undefined || entry.kind !== INBOX_KIND_MESSAGE) {
+      return { ok: false, reason: EWithdrawRefusal.Unknown }
+    }
+    const result = await this.plane.takeBack({
+      sessionId: args.sessionId,
+      inboxId: args.inboxId,
+    })
+    if (result.ok) return { ok: true }
+    return {
+      ok: false,
+      reason:
+        result.refusal.kind === 'already-consumed'
+          ? EWithdrawRefusal.AlreadyConsumed
+          : EWithdrawRefusal.Unknown,
+    }
   }
 
   async events(args: {

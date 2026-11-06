@@ -64,6 +64,26 @@ describe('SessionsRouter', () => {
     expect(sessions.list).toHaveBeenCalledWith({ userId: 'user-b' })
   })
 
+  it('withdraws a queued message for the signed-in user and validates the input', async () => {
+    sessions.withdraw.mockResolvedValue({ ok: true })
+    const withdraw = (token: string | undefined, body: object) => {
+      const sent = request(app.getHttpServer()).post('/v1/trpc/sessions.withdraw')
+      return (token === undefined ? sent : sent.set(as(token))).send(body)
+    }
+
+    expect((await withdraw(undefined, { sessionId: 's1', inboxId: 2 })).status).toBe(401)
+    const ok = await withdraw('session-a', { sessionId: 's1', inboxId: 2 })
+    expect(ok.status).toBe(200)
+    expect(ok.body.result.data).toEqual({ ok: true })
+    expect(sessions.withdraw).toHaveBeenCalledWith({
+      userId: 'user-a',
+      sessionId: 's1',
+      inboxId: 2,
+    })
+    expect((await withdraw('session-a', { sessionId: 's1', inboxId: 0 })).status).toBe(400)
+    expect((await withdraw('session-a', { sessionId: 's1' })).status).toBe(400)
+  })
+
   it('validates the input', async () => {
     expect((await create('session-a', {})).status).toBe(400)
     expect((await create('session-a', { projectId: '' })).status).toBe(400)
