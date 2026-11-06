@@ -53,7 +53,6 @@ export class ThreadSignalsService implements OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     this.closeAll()
-    await this.changeRunner.changesSettled()
     await this.bus.close()
   }
 

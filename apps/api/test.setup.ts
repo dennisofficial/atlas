@@ -1,3 +1,6 @@
+import { beforeEach } from 'bun:test'
+import { settleAllThreadChanges } from './src/api/platform/sessions/thread-changes-pending'
+
 process.env.APP_TIER = 'local'
 process.env.PORT = '3400'
 process.env.DATABASE_URL = 'postgresql://atlas:atlas@localhost:5433/atlas'
@@ -13,3 +16,5 @@ process.env.RESEND_API_KEY = 're_test_fixture_not_a_real_key'
 process.env.CLOUDFLARE_API_TOKEN = 'cfat_test_fixture_not_a_real_token'
 process.env.CLOUDFLARE_ACCOUNT_ID = 'test-cloudflare-account-id'
 process.env.CLOUDFLARE_ZONE_ID = 'test-cloudflare-zone-id'
+
+beforeEach(settleAllThreadChanges)

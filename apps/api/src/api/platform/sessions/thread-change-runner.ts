@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common'
 import type { BackgroundWork } from '../../../_core/ports/background-work'
+import { trackThreadChange } from './thread-changes-pending'
 import { bumpAndEnrichThread } from './thread-changed'
 import type { ThreadChangedSignal } from './thread-signal.bus'
 
@@ -21,6 +22,7 @@ export class ThreadChangeRunner {
     const entry = { dirty: false, done: Promise.resolve() }
     this.changing.set(args.threadId, entry)
     entry.done = this.runChanges({ threadId: args.threadId, entry, publish: args.publish })
+    trackThreadChange(entry.done)
     args.background.keepAlive(entry.done)
   }
 
