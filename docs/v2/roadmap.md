@@ -45,6 +45,12 @@ _Updated at the end of every slice. Last update: 2026-11-05._
   jobs and schedules run on trigger.dev in their own `apps/trigger` (own deploy, keys and trigger.dev
   project; contracts in `packages/jobs`), never as timers in the agent host. Built when v2 first needs
   a job, after the reconciler. v1's `apps/api/src/trigger/` takes fixes only and retires at slice 10.
+- **Proposed 2026-11-05: [0026](../decisions/0026-v2-hosts-pull-sessions.md), hosts pull sessions.** The
+  self-healing fixes #1899, #1903, #1904 and #1908 (from the [recovery audit](research/slice-3/recovery-audit.md))
+  are merged; 0026 removes the causes the #1903 sweep repairs: a `SKIP LOCKED` claim loop replaces push wakes,
+  retry state moves onto the lease row, and a held session becomes one scope that always settles its lease.
+  Four PRs; handoff: [handoffs/claim-loop.md](handoffs/claim-loop.md). Audit steps 4–7 (edge deadlines, a
+  progress watchdog, crash-loop quarantine, the invariant in the fault rig) follow, alongside slice 4.
 - **Done: slice 3, the agent host and the sandbox daemon (0021).** Spec:
   [slices/03-agent-host.md](slices/03-agent-host.md); PRs #1735 to #1846. Render Virginia → Vercel `iad1`
   RTT was measured first ([research/d8/rtt-render.md](research/d8/rtt-render.md): 5–20 ms p50 per tool
