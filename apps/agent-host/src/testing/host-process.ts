@@ -19,6 +19,7 @@ import type { ConfigSource } from '../config/agent-host-config'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { DEFAULT_DRAIN_MS } from '../config/env'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
+import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
 
 const requireEnv = (name: string): string => {
   const value = process.env[name]
@@ -121,8 +122,10 @@ const main = async (): Promise<void> => {
   const pool = createPool(requireEnv('DATABASE_URL'), {
     queryTimeoutMs: numberEnv('DB_QUERY_TIMEOUT_MS', 10_000),
   })
-  const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
+  const realPlane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
   const log = new JsonLog()
+  const fault = hostFaultOf(process.env.FAULT)
+  const plane = faultedPlane({ plane: realPlane, fault, log })
   const liveFrames = createRedisLiveFrames({ url: requireEnv('REDIS_URL'), log })
   tapToolOutput(liveFrames)
   const wakes = startPgWakeListener({ url: requireEnv('DATABASE_DIRECT_URL'), log })
@@ -134,6 +137,7 @@ const main = async (): Promise<void> => {
     urls: daemonUrls(),
     urlFile: process.env.DAEMON_URL_FILE,
   })
+  faultSandbox({ sandbox, fault, log })
   const pgPresence = createPgHostPresence({
     url: requireEnv('PRESENCE_DATABASE_URL'),
     label: holderLabel,
@@ -174,7 +178,8 @@ const main = async (): Promise<void> => {
     ids: new RandomIds(),
     maxSessions: numberEnv('MAX_SESSIONS', 25),
     appendRetryMs: numberEnv('APPEND_RETRY_MS', 2_500),
-    idleMinutes: 30,
+    idleMinutes: numberEnv('IDLE_MINUTES', 30),
+    sweepMs: numberEnv('SWEEP_MS', 20_000),
     log,
     onHostIdChanged: () => watch?.recompute(),
   })
