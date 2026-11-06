@@ -74,7 +74,7 @@ export function AgentTranscriptBody(props: {
       {turns.length === 0 ? (
         <ChatItem id="brief">
           <UserMessage>
-            <MessageResponse>{fallback.brief}</MessageResponse>
+            <MessageResponse breaks>{fallback.brief}</MessageResponse>
           </UserMessage>
         </ChatItem>
       ) : null}
