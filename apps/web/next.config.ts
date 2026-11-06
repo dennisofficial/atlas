@@ -3,6 +3,7 @@ import { execSync } from 'node:child_process'
 import type { NextConfig } from 'next'
 
 import { resolveApiOrigin } from './src/lib/api-origin'
+import { resolveStreamUrl } from './src/lib/stream-url'
 
 const ATLAS_PREVIEW_ORIGINS = ['*.byatlas.dev']
 
@@ -37,6 +38,7 @@ const sharedConfig: NextConfig = {
   env: {
     ATLAS_WEB_COMMIT: webCommit,
     ATLAS_WEB_VERSION: process.env.ATLAS_VERSION ?? '',
+    ATLAS_STREAM_URL: resolveStreamUrl(process.env),
   },
   transpilePackages: [
     '@dltech/atlas-api-router',
@@ -44,6 +46,7 @@ const sharedConfig: NextConfig = {
     '@dltech/atlas-core',
     '@dltech/atlas-harness',
     '@dltech/atlas-models',
+    '@dltech/atlas-protocol',
     '@dltech/atlas-ui',
     '@dltech/atlas-wire',
   ],

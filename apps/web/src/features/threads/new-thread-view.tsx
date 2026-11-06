@@ -10,6 +10,9 @@ import type { Project, SaidImageWire } from '@dltech/atlas-wire/web'
 import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-local-thread'
 import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
 import { useDesktop } from '@/features/desktop/use-desktop'
+import { createSessionWithMessage } from '@/features/sessions/data/create-session'
+import { sessionsApi } from '@/features/sessions/data/sessions-api'
+import { EEngine, EngineToggle } from '@/features/sessions/engine-toggle'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { NewThreadSkeleton } from '@/features/projects/project-skeletons'
 import { createdThreads } from '@/features/shell/created-threads'
@@ -61,6 +64,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const [creating, setCreating] = useState(false)
   const desktop = useDesktop()
   const [runner, setRunner] = useState(ERunnerChoice.Cloud)
+  const [engine, setEngine] = useState(EEngine.V1)
   const attempt = useRef<{
     text: string
     images: SaidImageWire[]
@@ -71,6 +75,8 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const projectId = selected === undefined ? (preselectedId ?? projects[0]?.id ?? null) : selected
   const local =
     desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
+  const onThisMac = desktop.present && runner === ERunnerChoice.ThisMac
+  const v2 = engine === EEngine.V2 && !onThisMac
 
   const clearDraft = useCallback(() => setDraft(''), [])
   const commands = useNewThreadCommands({ projectId, clearDraft })
@@ -83,6 +89,10 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       return
     }
     if (!images.checkSendable()) return
+    if (v2) {
+      await handleSubmitV2(text)
+      return
+    }
     const held = images.images
     const uploads = images.uploads
     const sendId =
@@ -131,6 +141,27 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     }
   }
 
+  const handleSubmitV2 = async (text: string) => {
+    if (projectId === null) {
+      toast.error('Pick a project for a v2 session')
+      return
+    }
+    setCreating(true)
+    try {
+      const sessionId = await createSessionWithMessage({
+        api: sessionsApi,
+        projectId,
+        text,
+        attachments: images.images.length + images.uploads.length,
+      })
+      drafts.handleSent(text)
+      router.push(`/sessions/${encodeURIComponent(sessionId)}`)
+    } catch (failure) {
+      toast.error(messageOf(failure))
+      setCreating(false)
+    }
+  }
+
   return (
     <ThreadComposer
       value={draft}
@@ -142,6 +173,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       placeholder="Describe a task for Atlas…"
     >
       <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
+      {onThisMac ? null : <EngineToggle value={engine} onValueChange={setEngine} />}
       <ModelPickerControls
         picker={picker}
         selection={selection}
