@@ -53,7 +53,7 @@ function PreviewFrame(props: {
       ref={reportsFrom(frame)}
       src={frame.load.url}
       title="Preview"
-      className="size-full border-0 bg-background"
+      className="size-full border-0 bg-white"
       sandbox={FRAME_SANDBOX}
       allow={FRAME_ALLOW}
       onLoad={() => markLoading({ key: frame.key, loading: false })}
