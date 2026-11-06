@@ -55,6 +55,16 @@ export const branchesChanged = (args: {
   const last = args.events.findLast(
     (event) => event.type === 'branches-observed' && event.repo === args.set.repo,
   )
-  if (last === undefined || last.type !== 'branches-observed') return true
-  return canonicalObservation(last) !== canonicalObservation(args.set)
+  return observationChanged({
+    last: last?.type === 'branches-observed' ? last : undefined,
+    set: args.set,
+  })
+}
+
+export const observationChanged = (args: {
+  last: BranchObservation | undefined
+  set: BranchObservation
+}): boolean => {
+  if (args.last === undefined) return true
+  return canonicalObservation(args.last) !== canonicalObservation(args.set)
 }
