@@ -64,8 +64,21 @@ export const networkSignalOf =
     }
   }
 
+const isSignalDocument = (value: unknown): value is SignalDocument =>
+  typeof value === 'object' &&
+  value !== null &&
+  'visibilityState' in value &&
+  'addEventListener' in value &&
+  'removeEventListener' in value
+
+const globalDocument = (): SignalDocument | undefined => {
+  if (!('document' in globalThis)) return undefined
+  const candidate: unknown = globalThis.document
+  return isSignalDocument(candidate) ? candidate : undefined
+}
+
 export const browserNetworkSignal: StreamNetworkSignal = (handleSignal) =>
   networkSignalOf({
     win: typeof globalThis.addEventListener === 'function' ? globalThis : undefined,
-    doc: typeof document === 'undefined' ? undefined : document,
+    doc: globalDocument(),
   })(handleSignal)
