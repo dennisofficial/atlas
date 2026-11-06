@@ -26,6 +26,12 @@ export type RecordEnvelope = {
   prevHash: Hash
 }
 
+export enum EInputConsumed {
+  Message = 'message',
+  Stop = 'stop',
+  Discarded = 'discarded',
+}
+
 export type RecordBody =
   | { type: 'history-rewound'; toSeq: number }
   | {
@@ -35,7 +41,7 @@ export type RecordBody =
       anchor: ECompactionAnchor
       summary: string
     }
-  | { type: 'input-consumed'; inboxId: number }
+  | { type: 'input-consumed'; inboxId: number; consumed?: EInputConsumed | undefined }
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
   | BranchesObserved
   | WorkspacePrepared
@@ -81,7 +87,11 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     anchor: z.enum(ECompactionAnchor),
     summary: z.string(),
   }),
-  z.object({ type: z.literal('input-consumed'), inboxId: z.number().int().min(1) }),
+  z.object({
+    type: z.literal('input-consumed'),
+    inboxId: z.number().int().min(1),
+    consumed: z.enum(EInputConsumed).optional(),
+  }),
   z.object({
     type: z.literal('fact-recorded'),
     key: z.string().min(1),
@@ -93,15 +103,19 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
   workspacePrepareFailedSchema,
 ])
 
-const RECORD_TYPES: readonly string[] = [
-  'history-rewound',
-  'history-summarised',
-  'input-consumed',
-  'fact-recorded',
-  'branches-observed',
-  'workspace-prepared',
-  'workspace-prepare-failed',
-]
+const RECORD_TYPE_TABLE = {
+  'history-rewound': true,
+  'history-summarised': true,
+  'input-consumed': true,
+  'fact-recorded': true,
+  'branches-observed': true,
+  'workspace-prepared': true,
+  'workspace-prepare-failed': true,
+} satisfies Record<RecordBody['type'], true>
+
+export const RECORD_ONLY_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>(
+  Object.keys(RECORD_TYPE_TABLE) as RecordBody['type'][],
+)
 
 const typeOf = (raw: unknown): unknown =>
   typeof raw === 'object' && raw !== null && 'type' in raw ? raw.type : undefined
@@ -109,7 +123,7 @@ const typeOf = (raw: unknown): unknown =>
 const bodySchemaFor = (raw: unknown): z.ZodType<V2Body> => {
   const type = typeOf(raw)
   if (type === 'history-compacted') return z.never()
-  if (typeof type === 'string' && RECORD_TYPES.includes(type)) return recordBodySchema
+  if (typeof type === 'string' && Object.hasOwn(RECORD_TYPE_TABLE, type)) return recordBodySchema
   return eventBodySchema as z.ZodType<V2Body>
 }
 

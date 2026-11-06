@@ -1,5 +1,5 @@
 import { EWaitEpisodeKind } from '../model-recovery/waiting'
-import type { V2Event } from './event'
+import { EInputConsumed, type RecordBody, type V2Event } from './event'
 import { isWorkspacePrepared, lastPrepareFailure } from './workspace'
 
 export enum ESessionStatus {
@@ -34,7 +34,7 @@ const isTurnEnding = (event: V2Event): boolean =>
   TURN_ENDING_TYPES.has(event.type) ||
   (event.type === 'assistant-said' && event.aborted !== 'handoff')
 
-const TURN_NEUTRAL_TYPES: ReadonlySet<V2Event['type']> = new Set([
+const TURN_NEUTRAL_TYPES: ReadonlySet<V2Event['type']> = new Set<RecordBody['type']>([
   'branches-observed',
   'fact-recorded',
   'input-consumed',
@@ -46,7 +46,9 @@ const lastEventOf = (events: readonly V2Event[]): V2Event | undefined => events[
 
 const stopConsumedAfterTurn = (events: readonly V2Event[]): boolean => {
   const turnIndex = events.findLastIndex((event) => !isTurnNeutral(event))
-  return events.slice(turnIndex + 1).some((event) => event.type === 'input-consumed')
+  return events
+    .slice(turnIndex + 1)
+    .some((event) => event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop)
 }
 
 const retryDeadlineOf = (params: { event: V2Event; nowMs: number }): string | undefined => {
