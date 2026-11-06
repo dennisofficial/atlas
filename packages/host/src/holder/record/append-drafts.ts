@@ -7,8 +7,6 @@ export class RecordCorruptionError extends Error {
   }
 }
 
-const INBOX_PREFIX = 'inbox:'
-
 export type AppendBody = EventDraft | RecordBody
 
 export const toRecordBody = (draft: AppendBody): V2Body => {
@@ -19,10 +17,9 @@ export const toRecordBody = (draft: AppendBody): V2Body => {
 }
 
 export const inboxIdOf = (draft: AppendBody): number | undefined => {
-  if (draft.type !== 'user-said' || draft.requestId === undefined) return undefined
-  if (!draft.requestId.startsWith(INBOX_PREFIX)) return undefined
-  const id = Number(draft.requestId.slice(INBOX_PREFIX.length))
-  return Number.isInteger(id) && id >= 1 ? id : undefined
+  if (draft.type !== 'user-said') return undefined
+  const id = draft.inboxId
+  return id !== undefined && Number.isInteger(id) && id >= 1 ? id : undefined
 }
 
 export const abortedOnHandoff = (draft: AppendBody, draining: boolean): AppendBody => {

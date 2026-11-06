@@ -66,11 +66,13 @@ describe('retry deadlines through OnceLedger', () => {
     const outcome = await rig.runner.resume({ threadId: THREAD })
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
-    const facts = await ledger.recall({ prefix: `retry:${THREAD}:s0:` })
-    expect(facts).toEqual([
+    const retries = await ledger.recallRetries({ prefix: `retry:${THREAD}:s0:` })
+    expect(retries).toEqual([
       {
         key: `retry:${THREAD}:s0:1`,
-        value: { notBefore: new Date(nowMs + 500).toISOString(), reason: ERetryReason.Network },
+        notBefore: new Date(nowMs + 500).toISOString(),
+        attempt: 1,
+        reason: ERetryReason.Network,
       },
     ])
     expect(sleeps).toEqual([500])
@@ -105,7 +107,9 @@ describe('retry deadlines through OnceLedger', () => {
     const first = rigOf({ script: [{ text: 'unused' }] })
     await seedMessage(first)
     const key = `retry:${THREAD}:s0:1`
-    ledger.record(key, {
+    ledger.recordRetry({
+      key,
+      attempt: 1,
       notBefore: new Date(nowMs + 400).toISOString(),
       reason: ERetryReason.Network,
     })
@@ -127,7 +131,7 @@ describe('retry deadlines through OnceLedger', () => {
       { attempt: 1, maxAttempts: 5, delayMs: 400, reason: ERetryReason.Network },
     ])
     expect(second.model.requests).toHaveLength(1)
-    expect(ledger.keys()).toEqual([key])
+    expect(ledger.retryKeys()).toEqual([key])
   })
 
   it('does not sleep when the recorded notBefore has passed', async () => {
@@ -135,7 +139,9 @@ describe('retry deadlines through OnceLedger', () => {
     const nowMs = 3_000_000
     const first = rigOf({ script: [{ text: 'unused' }] })
     await seedMessage(first)
-    ledger.record(`retry:${THREAD}:s0:1`, {
+    ledger.recordRetry({
+      key: `retry:${THREAD}:s0:1`,
+      attempt: 1,
       notBefore: new Date(nowMs - 1_000).toISOString(),
       reason: ERetryReason.Network,
     })
@@ -160,7 +166,9 @@ describe('retry deadlines through OnceLedger', () => {
     const nowMs = 3_500_000
     const first = rigOf({ script: [{ text: 'unused' }] })
     await seedMessage(first)
-    ledger.record(`retry:${THREAD}:s0:4`, {
+    ledger.recordRetry({
+      key: `retry:${THREAD}:s0:4`,
+      attempt: 4,
       notBefore: new Date(nowMs - 1_000).toISOString(),
       reason: ERetryReason.Network,
     })
@@ -209,7 +217,9 @@ describe('retry deadlines through OnceLedger', () => {
     const nowMs = 6_000_000
     const first = rigOf({ script: [{ text: 'unused' }] })
     await seedMessage(first)
-    ledger.record(`retry:${THREAD}:s0:1`, {
+    ledger.recordRetry({
+      key: `retry:${THREAD}:s0:1`,
+      attempt: 1,
       notBefore: new Date(nowMs + 60_000).toISOString(),
       reason: ERetryReason.Network,
     })
@@ -283,7 +293,7 @@ describe('retry deadlines through OnceLedger', () => {
 
     expect(outcomeA.status).toBe(ETurnStatus.HandoffPaused)
     expect(runFailedEvents(a)).toHaveLength(0)
-    expect(ledger.keys()).toEqual([`retry:${THREAD}:s0:1`, `retry:${THREAD}:s0:2`])
+    expect(ledger.retryKeys()).toEqual([`retry:${THREAD}:s0:1`, `retry:${THREAD}:s0:2`])
 
     nowMs = t0 + 400
     const sleepsB: number[] = []
@@ -304,7 +314,7 @@ describe('retry deadlines through OnceLedger', () => {
       { attempt: 2, maxAttempts: 5, delayMs: 600, reason: ERetryReason.Network },
     ])
     expect(b.model.requests).toHaveLength(1)
-    expect(ledger.keys()).toEqual([`retry:${THREAD}:s0:1`, `retry:${THREAD}:s0:2`])
+    expect(ledger.retryKeys()).toEqual([`retry:${THREAD}:s0:1`, `retry:${THREAD}:s0:2`])
   })
 
   it('without a ledger nothing is recorded and the backoff is unchanged', async () => {

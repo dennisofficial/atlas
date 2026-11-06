@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ERetryReason } from '@dltech/atlas-core'
+
 import { flushUntil, makeRig, postAndRun, seedSession, SESSION, THREAD_ID } from './holder-rig'
 import { V2OnceLedger } from '../record/v2-once-ledger'
 import { SessionRecord } from '../record/record-adapter'
@@ -33,14 +35,14 @@ describe('SessionHolder OnceLedger', () => {
       threadId: THREAD_ID,
       runId: () => a.ids.nextRunId(),
     })
-    const notBefore = a.clock.now() + 60_000
-    const first = await ledgerA.once({
+    const notBefore = new Date(a.clock.now() + 60_000).toISOString()
+    const first = await ledgerA.scheduleRetry({
       key: 'retry:model',
-      decide: () => Promise.resolve(notBefore),
+      decide: () => Promise.resolve({ notBefore, attempt: 1, reason: ERetryReason.Network }),
     })
-    expect(first).toBe(notBefore)
-    const factEvents = (await a.events()).filter((event) => event.type === 'fact-recorded')
-    expect(factEvents.length).toBe(1)
+    expect(first.notBefore).toBe(notBefore)
+    const scheduled = (await a.events()).filter((event) => event.type === 'retry-scheduled')
+    expect(scheduled.length).toBe(1)
 
     const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
     a.clock.advance(1_100)
@@ -78,15 +80,15 @@ describe('SessionHolder OnceLedger', () => {
       runId: () => b.ids.nextRunId(),
     })
     let decided = 0
-    const readBack = await ledgerB.once({
+    const readBack = await ledgerB.scheduleRetry({
       key: 'retry:model',
       decide: () => {
         decided += 1
-        return Promise.resolve(-1)
+        return Promise.resolve({ notBefore: 'x', attempt: 9, reason: ERetryReason.Network })
       },
     })
     expect(decided).toBe(0)
-    expect(readBack).toBe(notBefore)
-    expect((await a.events()).filter((event) => event.type === 'fact-recorded').length).toBe(1)
+    expect(readBack.notBefore).toBe(notBefore)
+    expect((await a.events()).filter((event) => event.type === 'retry-scheduled').length).toBe(1)
   }, 15_000)
 })
