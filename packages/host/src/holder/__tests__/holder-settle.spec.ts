@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 
-import { flushUntil, makeRig, seedSession, SESSION, type HolderRig } from './holder-rig'
+import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 class CollectingLog extends LogPort {
   readonly entries: LogEntry[] = []
@@ -172,5 +172,48 @@ describe('SessionHolder settle', () => {
     expect(answered).toBe(true)
     expect(wakesAfterPost).toBeGreaterThan(0)
     expect(rig.wakeCount(SESSION)).toBe(wakesAfterPost)
+  }, 20_000)
+
+  it('releases the lease by a revoke at the held epoch when appends give up on a failing store', async () => {
+    const log = new CollectingLog()
+    const rig = await makeRig({
+      appendRetryMs: 1_000,
+      sweepMs: 1_000_000,
+      idleMinutes: 30,
+      log,
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.post('hello')
+    await rig.wake()
+    expect(await advanceUntil(rig, async () => (await answers(rig)) === 1)).toBe(true)
+    const held = await leaseOf(rig)
+
+    const append = rig.plane.append.bind(rig.plane)
+    const revoke = rig.plane.revoke.bind(rig.plane)
+    let failing = true
+    const revokedAt: number[] = []
+    rig.plane.append = (async (params: Parameters<typeof append>[0]) => {
+      if (failing && params.threadId === THREAD_ID) throw new Error('store unreachable')
+      return append(params)
+    }) as typeof rig.plane.append
+    rig.plane.revoke = (async (params: Parameters<typeof revoke>[0]) => {
+      revokedAt.push(params.epoch)
+      failing = false
+      return revoke(params)
+    }) as typeof rig.plane.revoke
+
+    await rig.post('poison')
+    await rig.wake()
+    expect(await advanceUntil(rig, () => revokedAt.length > 0)).toBe(true)
+    expect(revokedAt).toEqual([held.epoch])
+    await rig.flush()
+    expect(
+      log.entries.filter((entry) => entry.severity === 'error' && entry.message.includes('bug')),
+    ).toEqual([])
+
+    await rig.post('later')
+    await rig.wake()
+    expect(await advanceUntil(rig, async () => (await answers(rig)) >= 2)).toBe(true)
   }, 20_000)
 })

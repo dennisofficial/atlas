@@ -2,6 +2,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
+import type { LeaseLostError } from './record/lease-lost-error'
 import { SessionRecord } from './record/record-adapter'
 import { RecordCache } from './record/record-cache'
 
@@ -31,7 +32,7 @@ export class TakeOver {
     epoch: number
     signal: AbortSignal
     drainDeadline(): number | undefined
-    onLeaseLost(): void
+    onLeaseLost(error: LeaseLostError): void
     onRuntime(runtime: SessionRuntime): void
   }): Promise<{ runtime: SessionRuntime; record: SessionRecord }> {
     const { deps } = this
