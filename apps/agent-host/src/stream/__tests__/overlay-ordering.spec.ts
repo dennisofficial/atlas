@@ -1,23 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { EStepEndReason } from '@dltech/atlas-core'
-import {
-  EStreamBlockKind,
-  EStreamClearReason,
-  type LiveFrame,
-  type StreamStepKey,
-} from '@dltech/atlas-protocol'
+import { EStreamBlockKind, EStreamClearReason, type StreamStepKey } from '@dltech/atlas-protocol'
 
-import { JOIN_RETRY_BASE_MS, MAX_JOIN_READS } from '../overlay/overlay-watcher'
+import { JOIN_RETRY_BASE_MS } from '../overlay/overlay-watcher'
 import { STATUS_COALESCE_MS } from '../status-views'
-import { FakeLiveSource } from './fake-live-source'
+import { FakeLiveSource, type TestFrame } from './fake-live-source'
 import { FollowRig, SESSION } from './follow-rig'
 import { clientViewOf } from './overlay-client'
 
 const OLD: StreamStepKey = { runId: 'run-a', step: 0, attempt: 0 }
 const NEW: StreamStepKey = { runId: 'run-b', step: 0, attempt: 0 }
 
-const delta = (args: { key: StreamStepKey; from: number; text: string }): LiveFrame => ({
+const delta = (args: { key: StreamStepKey; from: number; text: string }): TestFrame => ({
   type: 'delta',
   key: args.key,
   block: 'b1',
@@ -41,7 +36,7 @@ describe('live overlay ordering and liveness', () => {
     rig.dispose()
   })
 
-  const publish = (frame: LiveFrame, deliver = true): void =>
+  const publish = (frame: TestFrame, deliver = true): void =>
     live.publish({ sessionId: SESSION, frame, deliver })
 
   const recheckStatus = async (): Promise<void> => {
@@ -127,49 +122,40 @@ describe('live overlay ordering and liveness', () => {
     expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: text.repeat(60) })
   })
 
-  it('bounds the reads of one join when resnaps keep arriving', async () => {
-    const session = rig.open()
-    live.beforeRead = () => session.handle({ type: 'resnap', id: 'sub-1' })
-    await rig.subscribe({ session })
+  it('joins after one read with no retry timer while live frames keep arriving', async () => {
+    publish({ type: 'step-start', key: NEW, afterSeq: 0 })
+    let from = 0
+    const arrive = (): void => {
+      publish(delta({ key: NEW, from, text: 'ab' }))
+      from += 2
+    }
+    arrive()
+    live.beforeRead = arrive
+    live.afterCapture = arrive
+    await rig.subscribe({ session: rig.open() })
     await rig.settled()
-    live.beforeRead = undefined
-    expect(live.reads).toBe(MAX_JOIN_READS)
+    expect(live.reads).toBe(1)
+    expect(rig.timers.pendingCount()).toBe(0)
+    expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: 'ab'.repeat(3) })
   })
 
-  it('keeps a step that starts after the read boundary when the last capped read overflows', async () => {
-    publish({ type: 'step-start', key: OLD, afterSeq: 0 })
-    publish(delta({ key: OLD, from: 0, text: 'a' }))
-    const session = rig.open()
-    let reads = 0
-    let from = 1
-    live.beforeRead = async () => {
-      reads += 1
-      if (reads >= MAX_JOIN_READS) return
-      for (let n = 0; n < 20; n += 1) {
-        publish(delta({ key: OLD, from, text: 'b' }))
-        from += 1
-      }
-      await session.handle({ type: 'resnap', id: 'sub-1' })
+  it('ignores a late delta of a step closed more than 64 steps earlier', async () => {
+    await rig.subscribe({ session: rig.open() })
+    await rig.settled()
+    for (let step = 0; step < 70; step += 1) {
+      const key = { runId: 'run-a', step, attempt: 0 }
+      publish({ type: 'step-start', key, afterSeq: 0 })
+      publish(delta({ key, from: 0, text: 'x' }))
+      publish({ type: 'step-end', key, reason: EStepEndReason.Finished })
+      await rig.settled()
     }
-    live.afterCapture = () => {
-      if (reads !== MAX_JOIN_READS) return
-      live.afterCapture = undefined
-      const big = 'x'.repeat(4096)
-      for (let n = 0; n < 70; n += 1) {
-        publish(delta({ key: OLD, from, text: big }))
-        from += big.length
-      }
-      publish({ type: 'step-start', key: NEW, afterSeq: 0 })
-      publish(delta({ key: NEW, from: 0, text: 'NEW' }))
-    }
-    await rig.subscribe({ session })
+    const before = rig.sent.length
+    const reads = live.reads
+    const first = { runId: 'run-a', step: 0, attempt: 0 }
+    publish({ ...delta({ key: first, from: 1, text: 'late' }), at: { epoch: 1, n: 1 } }, true)
     await rig.settled()
-    live.beforeRead = undefined
-    rig.timers.advance(JOIN_RETRY_BASE_MS)
-    await rig.settled()
-    publish(delta({ key: NEW, from: 3, text: '!' }))
-    await rig.settled()
-    expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: 'NEW!' })
+    expect(rig.sent.length).toBe(before)
+    expect(live.reads).toBe(reads)
   })
 
   it('backs off instead of re-reading in a loop while the buffer read keeps failing', async () => {
@@ -189,27 +175,5 @@ describe('live overlay ordering and liveness', () => {
     await rig.settled()
     expect(live.reads).toBe(3)
     expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: 'abc' })
-  })
-
-  it('re-reads after an overflow on the last capped read even when no frame follows', async () => {
-    publish({ type: 'step-start', key: OLD, afterSeq: 0 })
-    publish(delta({ key: OLD, from: 0, text: 'a' }))
-    const session = rig.open()
-    let reads = 0
-    live.beforeRead = async () => {
-      reads += 1
-      if (reads < MAX_JOIN_READS) await session.handle({ type: 'resnap', id: 'sub-1' })
-    }
-    live.afterCapture = () => {
-      if (reads !== MAX_JOIN_READS) return
-      live.afterCapture = undefined
-      publish(delta({ key: OLD, from: 1, text: 'y'.repeat(300 * 1024) }))
-    }
-    await rig.subscribe({ session })
-    await rig.settled()
-    live.beforeRead = undefined
-    rig.timers.advance(JOIN_RETRY_BASE_MS)
-    await rig.settled()
-    expect(clientViewOf(rig.sent).text).toHaveLength(1 + 300 * 1024)
   })
 })

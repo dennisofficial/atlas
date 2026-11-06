@@ -1,24 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { EStepEndReason } from '@dltech/atlas-core'
-import {
-  EStreamBlockKind,
-  EStreamClearReason,
-  type LiveFrame,
-  type StreamServerMessage,
-  type StreamStepKey,
-} from '@dltech/atlas-protocol'
+import { EStreamBlockKind, type StreamStepKey } from '@dltech/atlas-protocol'
 
 import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
 import { STATUS_COALESCE_MS } from '../status-views'
-import { FakeLiveSource } from './fake-live-source'
+import { FakeLiveSource, type TestFrame } from './fake-live-source'
 import { clientViewOf } from './overlay-client'
 import { FollowRig, SESSION } from './follow-rig'
 
 const OLD: StreamStepKey = { runId: 'run-a', step: 0, attempt: 0 }
 const NEW: StreamStepKey = { runId: 'run-b', step: 0, attempt: 0 }
 
-const delta = (args: { key: StreamStepKey; from: number; text: string }): LiveFrame => ({
+const delta = (args: { key: StreamStepKey; from: number; text: string }): TestFrame => ({
   type: 'delta',
   key: args.key,
   block: 'b1',
@@ -42,7 +36,7 @@ describe('live overlay recovery', () => {
     rig.dispose()
   })
 
-  const publish = (frame: LiveFrame): void => live.publish({ sessionId: SESSION, frame })
+  const publish = (frame: TestFrame): void => live.publish({ sessionId: SESSION, frame })
 
   it('keeps the newer run when an older run is queued behind the snapshot', async () => {
     live.beforeRead = () => {
@@ -74,7 +68,7 @@ describe('live overlay recovery', () => {
     }
     await rig.subscribe({ session })
     await rig.settled()
-    expect(live.reads).toBe(2)
+    expect(live.reads).toBe(1)
     expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: 'NEW' })
   })
 

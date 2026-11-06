@@ -1,11 +1,13 @@
 import type { EStepEndReason } from '@dltech/atlas-core'
 import {
   liveFrameSchema,
+  type FrameStamp,
   type EStreamBlockKind,
   type LiveFrame,
   type StreamStepKey,
 } from '@dltech/atlas-protocol'
 
+import { laterStamp } from './frame-order'
 import { sameStep } from './step-frames'
 
 export type OverlayBlock = { block: string; kind: EStreamBlockKind; text: string }
@@ -15,6 +17,7 @@ export type FoldedStep = {
   afterSeq: number
   blocks: OverlayBlock[]
   end: EStepEndReason | undefined
+  through: FrameStamp
 }
 
 const frameOf = (line: string): LiveFrame | undefined => {
@@ -40,6 +43,7 @@ export const foldLiveBuffer = (raw: string | null): FoldedStep | undefined => {
         afterSeq: number
         blocks: Map<string, OverlayBlock>
         end?: EStepEndReason
+        through: FrameStamp
       }
     | undefined
   for (const line of raw.split('\n')) {
@@ -47,17 +51,19 @@ export const foldLiveBuffer = (raw: string | null): FoldedStep | undefined => {
     const frame = frameOf(line)
     if (frame === undefined) continue
     if (frame.type === 'step-start') {
-      step = { key: frame.key, afterSeq: frame.afterSeq, blocks: new Map() }
+      step = { key: frame.key, afterSeq: frame.afterSeq, blocks: new Map(), through: frame.at }
       continue
     }
     if (step === undefined) continue
     if (frame.type === 'step-end' && sameStep({ left: frame.key, right: step.key })) {
       step.end = frame.reason
+      step.through = laterStamp({ left: step.through, right: frame.at }) ?? step.through
       continue
     }
     if (frame.type !== 'delta' || !sameStep({ left: frame.key, right: step.key })) continue
     const block = step.blocks.get(frame.block) ?? { block: frame.block, kind: frame.kind, text: '' }
     block.text = appendAt({ text: block.text, from: frame.from, chunk: frame.text })
+    step.through = laterStamp({ left: step.through, right: frame.at }) ?? step.through
     step.blocks.set(frame.block, block)
   }
   if (step === undefined) return undefined
@@ -66,5 +72,6 @@ export const foldLiveBuffer = (raw: string | null): FoldedStep | undefined => {
     afterSeq: step.afterSeq,
     blocks: [...step.blocks.values()],
     end: step.end,
+    through: step.through,
   }
 }

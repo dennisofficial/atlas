@@ -12,6 +12,7 @@ import {
 import { FakeClock } from './rig-fakes'
 
 const key = { runId: 'run-1', step: 0, attempt: 0 }
+const EPOCH = 3
 
 describe('LiveStepBuffer', () => {
   let clock: FakeClock
@@ -38,17 +39,18 @@ describe('LiveStepBuffer', () => {
         frames.push(frame)
       },
       headSeq: () => head,
+      epoch: EPOCH,
     })
     buffer.push({ type: 'step-start', key })
   })
 
   it('emits step-start itself', () => {
-    expect(frames).toEqual([{ type: 'step-start', key, afterSeq: 7 }])
+    expect(frames).toMatchObject([{ type: 'step-start', key, afterSeq: 7 }])
   })
 
   it('flushes the first delta of a step at once', () => {
     text({ id: 'b1', text: 'He' })
-    expect(deltas()).toEqual([
+    expect(deltas()).toMatchObject([
       { type: 'delta', key, block: 'b1', kind: EStreamBlockKind.Text, from: 0, text: 'He' },
     ])
   })
@@ -92,7 +94,7 @@ describe('LiveStepBuffer', () => {
     text({ id: 'b1', text: 'He' })
     text({ id: 'b1', text: 'llo' })
     buffer.push({ type: 'step-end', key, reason: EStepEndReason.Finished })
-    expect(frames.slice(-2)).toEqual([
+    expect(frames.slice(-2)).toMatchObject([
       { type: 'delta', key, block: 'b1', kind: EStreamBlockKind.Text, from: 2, text: 'llo' },
       { type: 'step-end', key, reason: EStepEndReason.Finished },
     ])
@@ -117,7 +119,7 @@ describe('LiveStepBuffer', () => {
     const next = { runId: 'run-1', step: 0, attempt: 1 }
     buffer.push({ type: 'step-start', key: next })
     buffer.push({ type: 'chunk', key: next, chunk: { type: 'text-delta', id: 'b1', text: 'xy' } })
-    expect(deltas().at(-1)).toEqual({
+    expect(deltas().at(-1)).toMatchObject({
       type: 'delta',
       key: next,
       block: 'b1',
@@ -157,7 +159,7 @@ describe('LiveStepBuffer', () => {
     const old = deltas().filter((frame) => frame.key.step === 0)
     expect(old.map((frame) => frame.text).join('')).toBe('AB')
     expect(deltas().filter((frame) => frame.key.step === 1)).toEqual([])
-    expect(frames.at(-1)).toEqual({ type: 'step-start', key: next, afterSeq: head })
+    expect(frames.at(-1)).toMatchObject({ type: 'step-start', key: next, afterSeq: head })
   })
 
   describe('when a publish fails', () => {
@@ -193,6 +195,7 @@ describe('LiveStepBuffer', () => {
           delivered.push(frame)
         },
         headSeq: () => head,
+        epoch: EPOCH,
       })
       buffer.push({ type: 'step-start', key })
     })
@@ -211,8 +214,8 @@ describe('LiveStepBuffer', () => {
       clock.advance(LIVE_FLUSH_MS)
       await flushMicrotasks()
       const tail = frames.slice(-2)
-      expect(tail[0]).toEqual({ type: 'step-start', key, afterSeq: 7 })
-      expect(tail[1]).toEqual({
+      expect(tail[0]).toMatchObject({ type: 'step-start', key, afterSeq: 7 })
+      expect(tail[1]).toMatchObject({
         type: 'delta',
         key,
         block: 'b1',
@@ -248,5 +251,44 @@ describe('LiveStepBuffer', () => {
       expect(frames.length).toBe(before)
       expect(clock.pendingCount()).toBe(0)
     })
+  })
+
+  it('stamps every step frame with the epoch and a strictly increasing n', async () => {
+    text({ id: 'b1', text: 'He' })
+    clock.advance(LIVE_FLUSH_MS)
+    text({ id: 'b1', text: 'llo' })
+    buffer.push({ type: 'step-end', key, reason: EStepEndReason.Finished })
+    const stamps = frames.flatMap((frame) => ('at' in frame ? [frame.at] : []))
+    expect(stamps.length).toBeGreaterThanOrEqual(4)
+    expect(stamps.every((at) => at.epoch === EPOCH)).toBe(true)
+    expect(stamps.map((at) => at.n)).toEqual(stamps.map((_, n) => n))
+  })
+
+  it('stamps the resync re-emit after the frames that failed', async () => {
+    const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0))
+    const failing: LiveFrame[] = []
+    let fail = false
+    const local = new LiveStepBuffer({
+      timers: clock,
+      epoch: EPOCH,
+      headSeq: () => head,
+      emit: async (frame) => {
+        failing.push(frame)
+        if (fail) throw new Error('redis down')
+      },
+    })
+    local.push({ type: 'step-start', key })
+    local.push({ type: 'chunk', key, chunk: { type: 'text-delta', id: 'b1', text: 'ab' } })
+    fail = true
+    clock.advance(LIVE_FLUSH_MS)
+    local.push({ type: 'chunk', key, chunk: { type: 'text-delta', id: 'b1', text: 'cd' } })
+    await flushMicrotasks()
+    fail = false
+    clock.advance(LIVE_FLUSH_MS)
+    await flushMicrotasks()
+    local.push({ type: 'step-end', key, reason: EStepEndReason.Finished })
+    const stamps = failing.flatMap((frame) => ('at' in frame ? [frame.at.n] : []))
+    expect(stamps).toEqual(stamps.map((_, n) => n))
+    expect(failing.some((frame) => frame.type === 'step-start' && frame.at.n > 0)).toBe(true)
   })
 })

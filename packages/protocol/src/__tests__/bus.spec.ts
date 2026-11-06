@@ -7,6 +7,7 @@ import {
   PG_HOST_CHANGE_CHANNEL,
   PG_PRESENCE_LOCK_NAMESPACE,
   PG_WAKE_CHANNEL,
+  compareFrameStamp,
   liveFrameSchema,
   type LiveFrame,
   sessionChangeSchema,
@@ -73,11 +74,8 @@ describe('step live frames', () => {
   const key = { runId: 'run-1', step: 3, attempt: 0 }
 
   it('parses step-start, delta and step-end', () => {
-    expect(liveFrameSchema.parse({ type: 'step-start', key, afterSeq: 4 })).toEqual({
-      type: 'step-start',
-      key,
-      afterSeq: 4,
-    })
+    const start: LiveFrame = { type: 'step-start', key, afterSeq: 4, at: { epoch: 2, n: 0 } }
+    expect(liveFrameSchema.parse(start)).toEqual(start)
     const delta: LiveFrame = {
       type: 'delta',
       key,
@@ -85,20 +83,50 @@ describe('step live frames', () => {
       kind: EStreamBlockKind.Reasoning,
       from: 4,
       text: 'hi',
+      at: { epoch: 2, n: 1 },
     }
     expect(liveFrameSchema.parse(delta)).toEqual(delta)
-    const end: LiveFrame = { type: 'step-end', key, reason: EStepEndReason.Aborted }
+    const end: LiveFrame = {
+      type: 'step-end',
+      key,
+      reason: EStepEndReason.Aborted,
+      at: { epoch: 2, n: 2 },
+    }
     expect(liveFrameSchema.parse(end)).toEqual(end)
   })
 
   it('rejects a bad kind, a bad reason, a negative offset, a bad key and unknown keys', () => {
-    const delta = { type: 'delta', key, block: 'b1', kind: 'text', from: 0, text: '' }
+    const delta = {
+      type: 'delta',
+      key,
+      block: 'b1',
+      kind: 'text',
+      from: 0,
+      text: '',
+      at: { epoch: 0, n: 0 },
+    }
     expect(liveFrameSchema.safeParse({ ...delta, kind: 'tool' }).success).toBe(false)
     expect(liveFrameSchema.safeParse({ ...delta, from: -1 }).success).toBe(false)
     expect(liveFrameSchema.safeParse({ ...delta, extra: 1 }).success).toBe(false)
+    expect(liveFrameSchema.safeParse({ ...delta, at: undefined }).success).toBe(false)
+    expect(liveFrameSchema.safeParse({ ...delta, at: { epoch: 0, n: -1 } }).success).toBe(false)
     expect(liveFrameSchema.safeParse({ type: 'step-end', key, reason: 'done' }).success).toBe(false)
     expect(liveFrameSchema.safeParse({ type: 'step-start', key: { runId: 'r' } }).success).toBe(
       false,
     )
+  })
+})
+
+describe('compareFrameStamp', () => {
+  it('orders by epoch first, then n', () => {
+    const cmp = (left: [number, number], right: [number, number]): number =>
+      compareFrameStamp({
+        left: { epoch: left[0], n: left[1] },
+        right: { epoch: right[0], n: right[1] },
+      })
+    expect(cmp([1, 99], [2, 0])).toBeLessThan(0)
+    expect(cmp([2, 0], [1, 99])).toBeGreaterThan(0)
+    expect(cmp([2, 3], [2, 4])).toBeLessThan(0)
+    expect(cmp([2, 3], [2, 3])).toBe(0)
   })
 })

@@ -17,6 +17,16 @@ export const sessionLiveChannel = (sessionId: string): string => `atlas:session-
 export const sessionLiveBufferKey = (sessionId: string): string =>
   `atlas:session-live-buf:${sessionId}`
 
+export const frameStampSchema = z.strictObject({
+  epoch: z.number().int().min(0),
+  n: z.number().int().min(0),
+})
+
+export type FrameStamp = z.infer<typeof frameStampSchema>
+
+export const compareFrameStamp = (args: { left: FrameStamp; right: FrameStamp }): number =>
+  args.left.epoch - args.right.epoch || args.left.n - args.right.n
+
 export const liveFrameSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('tool-output'), callId: z.string().min(1), text: z.string() }),
   z.strictObject({
@@ -31,6 +41,7 @@ export const liveFrameSchema = z.discriminatedUnion('type', [
     type: z.literal('step-start'),
     key: streamStepKeySchema,
     afterSeq: z.number().int().min(0),
+    at: frameStampSchema,
   }),
   z.strictObject({
     type: z.literal('delta'),
@@ -39,11 +50,13 @@ export const liveFrameSchema = z.discriminatedUnion('type', [
     kind: z.enum(EStreamBlockKind),
     from: z.number().int().min(0),
     text: z.string(),
+    at: frameStampSchema,
   }),
   z.strictObject({
     type: z.literal('step-end'),
     key: streamStepKeySchema,
     reason: z.enum(EStepEndReason),
+    at: frameStampSchema,
   }),
 ])
 

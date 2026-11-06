@@ -47,6 +47,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('live delta meas
     const buffer = new LiveStepBuffer({
       timers: { now: () => Date.now(), ...systemTimers },
       headSeq: () => 0,
+      epoch: 1,
       emit: (frame) => {
         frames.push(frame)
         return publisher.live({ sessionId, frame })
