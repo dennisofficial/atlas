@@ -4,6 +4,7 @@ import { act } from 'react'
 
 import { EAgentStatus } from '@dltech/atlas-core'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
+import { loadHighlighter } from '@dltech/atlas-ui/lib/highlighter'
 
 import {
   EEditBody,
@@ -16,9 +17,10 @@ import { EMPTY_DETAILS } from '../../panel/details/details-input'
 import { ReportNotice, SpawnCard } from '../transcript-agents'
 import { ToolRow } from '../transcript-tool-row'
 
-beforeAll(() => {
+beforeAll(async () => {
   GlobalRegistrator.register()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  await loadHighlighter('typescript')
 })
 
 afterAll(async () => {
@@ -56,9 +58,10 @@ const mount = async (args: { panel: ThreadPanelValue; element: React.ReactElemen
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
-  await act(async () =>
-    root.render(<ThreadPanelProvider value={args.panel}>{args.element}</ThreadPanelProvider>),
-  )
+  await act(async () => {
+    root.render(<ThreadPanelProvider value={args.panel}>{args.element}</ThreadPanelProvider>)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
 }
 
 const click = (element: Element | null | undefined) =>
@@ -141,6 +144,34 @@ describe('ToolRow', () => {
     expect(document.body.textContent).toContain('const a = 1')
     await click(document.querySelector('button[aria-label^="Open"]'))
     expect(openChanges).toHaveBeenCalledWith('/repo/src/a.ts')
+  })
+
+  it('highlights dictated content by the language of its path', async () => {
+    await mount({
+      panel: panelOf({}),
+      element: (
+        <ToolRow
+          onOpenChanges={() => undefined}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Edit,
+            state: EToolState.Running,
+            label: 'src/a.ts',
+            path: '/repo/src/a.ts',
+            change: {
+              kind: EEditBody.Content,
+              text: 'export const a = 1\nconst b = ',
+              firstLine: 1,
+              total: 2,
+            },
+          }}
+        />
+      ),
+    })
+    const lines = document.querySelectorAll('[data-slot="code-block-line"]')
+    expect(lines).toHaveLength(2)
+    expect(lines[0]?.innerHTML).toContain('--shiki-dark')
+    expect(lines[1]?.textContent).toContain('const b =')
   })
 
   it('renders the diff of a settled edit', async () => {
