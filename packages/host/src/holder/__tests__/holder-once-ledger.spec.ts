@@ -56,6 +56,7 @@ describe('SessionHolder OnceLedger', () => {
       daemon: a.daemon,
       script: [{ text: 'b turn' }],
     })
+    await a.post('after drain')
     await b.holder.start()
     await a.bus.wake(SESSION)
     const claimed = await flushUntil({ check: () => b.holder.heldIds().length === 1 })

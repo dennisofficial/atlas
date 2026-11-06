@@ -81,16 +81,18 @@ describe('SessionHolder claim', () => {
     expect(a.runtimes.length).toBe(1)
   })
 
-  it('maxSessions=1 with two concurrent wakes issues exactly one claim', async () => {
+  it('maxSessions=1 with two concurrent wakes holds exactly one session', async () => {
     const a = await makeRig({ maxSessions: 1 })
-    await seedSession(a)
     await a.holder.start()
+    await a.flush()
+    await seedSession(a)
 
-    let claimCalls = 0
-    const originalClaim = a.plane.claim.bind(a.plane)
-    a.plane.claim = async (params) => {
-      claimCalls += 1
-      return originalClaim(params)
+    let claimed = 0
+    const originalClaimNext = a.plane.claimNext.bind(a.plane)
+    a.plane.claimNext = async (params) => {
+      const leases = await originalClaimNext(params)
+      claimed += leases.length
+      return leases
     }
 
     await a.post('one')
@@ -101,7 +103,7 @@ describe('SessionHolder claim', () => {
       check: async () => (await a.events()).some((e) => e.type === 'assistant-said'),
     })
     expect(saw).toBe(true)
-    expect(claimCalls).toBe(1)
+    expect(claimed).toBe(1)
     expect(a.runtimes.length).toBe(1)
   })
 

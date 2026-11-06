@@ -141,7 +141,6 @@ export class HeldSession {
       this.record = record
       if (this.lostOwnership) return record.fence()
       if (this.draining) record.markDraining()
-
       const { runner, branches } = wireHeldLoop({
         deps,
         runtime,
@@ -154,7 +153,6 @@ export class HeldSession {
       })
       this.branches = branches
       this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })
-
       const completion = new Promise<void>((resolve) => {
         this.finishDrive = resolve
       })
@@ -295,6 +293,7 @@ export class HeldSession {
       released: this.release.released,
       failedToStart: this.failedToStart,
       gaveUpStarting: this.gaveUpStarting,
+      faulted: this.faulted,
       epoch: this.leaseEpoch,
     })
   }

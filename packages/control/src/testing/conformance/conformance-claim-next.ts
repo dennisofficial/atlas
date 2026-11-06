@@ -119,6 +119,69 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
       await releaseAll()
     })
 
+    it('revoke keeps the retry state unless resetRetry is set', async () => {
+      await newSession('keep')
+      const hostId = await present()
+      const [claimed] = await harness.plane.claimNext({ hostId, limit: 1 })
+      const kept = await harness.plane.revoke({
+        sessionId: 'keep',
+        wantsHolder: true,
+        epoch: claimed?.epoch ?? -1,
+      })
+      expect(kept).toMatchObject({
+        ok: true,
+        lease: { attempts: 1, retryAfter: after({ from: T0, ms: SECOND }) },
+      })
+      await releaseAll()
+    })
+
+    it('revoke with resetRetry clears attempts and retryAfter so the next claim is immediate', async () => {
+      await newSession('reset')
+      const hostId = await present()
+      const [claimed] = await harness.plane.claimNext({ hostId, limit: 1 })
+      const reset = await harness.plane.revoke({
+        sessionId: 'reset',
+        wantsHolder: true,
+        epoch: claimed?.epoch ?? -1,
+        resetRetry: true,
+      })
+      expect(reset).toMatchObject({ ok: true, lease: { attempts: 0, retryAfter: null } })
+      const again = await harness.plane.claimNext({ hostId, limit: 1 })
+      expect(again).toMatchObject([{ sessionId: 'reset', epoch: 3, attempts: 1 }])
+      await releaseAll()
+    })
+
+    it('a stale-epoch revoke with resetRetry changes nothing', async () => {
+      await newSession('stale')
+      const hostId = await present()
+      const [claimed] = await harness.plane.claimNext({ hostId, limit: 1 })
+      const stale = await harness.plane.revoke({
+        sessionId: 'stale',
+        wantsHolder: true,
+        epoch: (claimed?.epoch ?? 0) + 1,
+        resetRetry: true,
+      })
+      expect(stale).toEqual({ ok: false, refusal: { kind: 'stale-epoch', current: 1 } })
+      expect((await harness.plane.currentLease({ sessionId: 'stale' })).lease).toMatchObject({
+        attempts: 1,
+        holderHostId: hostId,
+      })
+      await releaseAll()
+    })
+
+    it('an unguarded revoke with resetRetry clears the retry state', async () => {
+      await newSession('unguarded')
+      const hostId = await present()
+      await harness.plane.claimNext({ hostId, limit: 1 })
+      const lease = await harness.plane.revoke({
+        sessionId: 'unguarded',
+        wantsHolder: false,
+        resetRetry: true,
+      })
+      expect(lease).toMatchObject({ attempts: 0, retryAfter: null, holderHostId: null })
+      await releaseAll()
+    })
+
     it('claims nothing for a host that is not present', async () => {
       await newSession('absent-self')
       const absent = await params.nextHostId()

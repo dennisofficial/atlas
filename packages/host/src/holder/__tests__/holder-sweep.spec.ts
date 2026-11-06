@@ -10,8 +10,9 @@ const answered = (rig: Awaited<ReturnType<typeof makeRig>>) => async (): Promise
 describe('SessionHolder sweep', () => {
   it('answers a message whose wake was lost within one sweep', async () => {
     const rig = await makeRig({ sweepMs: SWEEP_MS })
-    await seedSession(rig)
     await rig.holder.start()
+    await rig.flush()
+    await seedSession(rig)
     await rig.post('hello')
     await rig.flush()
     expect(await answered(rig)()).toBe(false)
@@ -61,8 +62,9 @@ describe('SessionHolder sweep', () => {
 
   it('revokes a lease this host holds without running and then serves the session', async () => {
     const rig = await makeRig({ sweepMs: SWEEP_MS })
-    await seedSession(rig)
     await rig.holder.start()
+    await rig.flush()
+    await seedSession(rig)
     const claim = await rig.plane.claim({ sessionId: SESSION, hostId: rig.hostId() })
     expect(claim.ok).toBe(true)
     await rig.post('hello')
