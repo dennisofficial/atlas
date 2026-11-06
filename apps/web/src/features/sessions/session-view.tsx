@@ -180,6 +180,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             onSubmit={(text) => void handleSubmit(text)}
             sending={sending || attachments.uploading}
             {...attachments.composerProps}
+            sendsAttachmentsAlone
             working={working}
             placeholder="Message Atlas…"
           />

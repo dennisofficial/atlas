@@ -49,6 +49,7 @@ export interface PromptInputProps {
   onAttachFiles?: (files: File[]) => void
   accept?: string
   onRemoveAttachment?: (id: string) => void
+  sendsAttachmentsAlone?: boolean
   textareaRef?: Ref<HTMLTextAreaElement>
   onTextareaKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   textareaAria?: Pick<
@@ -115,6 +116,7 @@ export function PromptInput({
   onAttachFiles,
   accept,
   onRemoveAttachment,
+  sendsAttachmentsAlone = false,
   textareaRef,
   onTextareaKeyDown,
   textareaAria,
@@ -125,9 +127,9 @@ export function PromptInput({
   const formRef = useRef<HTMLFormElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const text = value ?? draft
-  const attached = attachments.some(
-    (attachment) => attachment.status === EPromptAttachmentStatus.Ready,
-  )
+  const attached =
+    sendsAttachmentsAlone &&
+    attachments.some((attachment) => attachment.status === EPromptAttachmentStatus.Ready)
   const sendable = canSend({ text, busy, sending, queueWhileBusy, attached })
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {

@@ -69,10 +69,21 @@ describe('PromptInput', () => {
     expect(canSend({ text: '', busy: true, attached: true })).toBe(false)
   })
 
-  it('enables send for blank text only when an attachment is ready', () => {
+  it('does not send a ready attachment alone by default', () => {
+    const html = renderToStaticMarkup(
+      <PromptInput
+        attachments={[{ id: '1', name: 'a.png', status: EPromptAttachmentStatus.Ready }]}
+      />,
+    )
+    const send = html.match(/<button[^>]*aria-label="Send"[^>]*>/)?.[0] ?? ''
+
+    expect(send).toContain(' disabled=""')
+  })
+
+  it('sends a ready attachment alone only when opted in', () => {
     const sendOf = (status: EPromptAttachmentStatus) =>
       renderToStaticMarkup(
-        <PromptInput attachments={[{ id: '1', name: 'a.png', status }]} />,
+        <PromptInput sendsAttachmentsAlone attachments={[{ id: '1', name: 'a.png', status }]} />,
       ).match(/<button[^>]*aria-label="Send"[^>]*>/)?.[0] ?? ''
 
     expect(sendOf(EPromptAttachmentStatus.Ready)).not.toContain(' disabled=""')
