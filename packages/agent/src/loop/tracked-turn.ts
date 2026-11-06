@@ -1,12 +1,11 @@
 import {
-  awaitsReply,
+  awaitsReplyOf,
   callIdsIn,
   dedupeCallIds,
   EMPTY_STEP_RAW_RETRIES,
-  pendingCalls,
-  projectDirectoryOf,
+  pendingCallsOf,
+  projectDirectoryOfState,
   retriableEmptyStep,
-  rowsOwnedBy,
   type ThreadId,
   type RunId,
 } from '@dltech/atlas-core'
@@ -14,19 +13,19 @@ import {
 import { ESpan, spanWith } from '@dltech/atlas-observability'
 
 import { guardRepeatLoop } from './loop-guard'
-import { watchStepLoop } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
 import { appendPending } from './pending-intake'
 import { takeModelStepWithRetry } from './retrying-step'
 import { stepRetryDeps } from './step-retry-deps'
 import { stepStreamerFor } from './streamed-chunks'
 import type { TurnSpendTally } from '../ledger/record-turn-spend'
-import { appendShellCompletionNudge } from './shell-completion'
-import { draftsFor, interruptedDrafts } from './step-drafts'
+import { recordAbandonedStep, watchTurnStep } from './turn-step-helpers'
+import { draftsFor } from './step-drafts'
 import { prepareStepAssembly, stepPrepareDepsOf, preparedFailureMessage } from './step-prepare'
-import { idleOrSwallowed, unsettledCall } from './swallowed-outcome'
+import { idleOrSwallowed } from './swallowed-outcome'
 import { waitingIfBlocked } from './waiting-outcome'
-import { committedSinceLastMessage, messageArrivedSince, settlePendingCall } from './turn-position'
+import { messageArrivedAfter, settlePendingCall } from './turn-position'
+import { committedSinceLastPrompt, swallowedSince, tailForLoopGuard } from './turn-reads'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { closeQuietStep } from './close-quiet-step'
 import { openPosition } from './turn-position-state'
@@ -58,13 +57,13 @@ export async function runTrackedTurn(
   const interrupted = async (): Promise<TurnOutcome> => ({
     status: ETurnStatus.Interrupted,
     runId,
-    committed: committedSinceLastMessage(
-      rowsOwnedBy({ events: await record.composedEvents({ threadId }), threadId }),
-    ),
+    committed: await committedSinceLastPrompt({ record, threadId }),
   })
 
-  const projectDirectory = projectDirectoryOf({
-    events: await record.composedEvents({ threadId }),
+  const opened = await record.loopState({ threadId })
+  const turnStartSeq = opened.lastSeq ?? 0
+  const projectDirectory = projectDirectoryOfState({
+    state: opened,
     launchDirectory: deps.launchDirectory,
   })
 
@@ -78,10 +77,11 @@ export async function runTrackedTurn(
     if (pause?.paused === true) return { status: ETurnStatus.HandoffPaused, runId }
 
     const beforeDrain = await record.composedEvents({ threadId })
-    const ownedBeforeDrain = rowsOwnedBy({ events: beforeDrain, threadId })
+    const before = await record.loopState({ threadId })
+    const pendingBeforeDrain = pendingCallsOf(before)[0]
 
     const settled = await settlePendingCall({
-      owned: ownedBeforeDrain,
+      pending: pendingBeforeDrain,
       threadId,
       settlePending: deps.settlePending,
       settleAttempted: position.settleAttempted,
@@ -94,7 +94,7 @@ export async function runTrackedTurn(
     }
     if (settled.kind === 'interrupted') return interrupted()
     if (settled.kind === 'settled') {
-      position.settleAttempted = pendingCalls(ownedBeforeDrain)[0]?.callId
+      position.settleAttempted = pendingBeforeDrain?.callId
       continue
     }
 
@@ -109,12 +109,12 @@ export async function runTrackedTurn(
       if (abortSignal.aborted) return interrupted()
       throw intake.cause
     }
-    const events =
-      intake.drained || intake.wakesTurn ? await record.composedEvents({ threadId }) : beforeDrain
-    const owned = rowsOwnedBy({ events, threadId })
+    const changed = intake.drained || intake.wakesTurn
+    const events = changed ? await record.composedEvents({ threadId }) : beforeDrain
+    const state = changed ? await record.loopState({ threadId }) : before
 
     const guarded = await guardRepeatLoop({
-      events: owned,
+      events: await tailForLoopGuard({ deps, threadId, state }),
       threadId,
       tools: deps.tools,
       projectDirectory,
@@ -132,36 +132,29 @@ export async function runTrackedTurn(
     }
 
     if (
-      !awaitsReply(owned) &&
-      !messageArrivedSince({ events: owned, seenThrough: position.seenThrough })
+      !awaitsReplyOf(state) &&
+      !(await messageArrivedAfter({ record, threadId, seenThrough: position.seenThrough }))
     ) {
       return idleOrSwallowed({
-        swallowed: unsettledCall({ committed: position.committedCalls, owned }),
+        swallowed: await swallowedSince({
+          record,
+          threadId,
+          turnStartSeq,
+          committed: position.committedCalls,
+        }),
         runId,
       })
     }
 
-    const watched = await watchStepLoop({
-      watchLoop: deps.watchLoop,
-      events: owned,
-      threadId,
-      runId,
-      signal: abortSignal,
-      record,
-      applyLoopCut: deps.applyLoopCut,
-      onLoopWatch: deps.onLoopWatch,
-      onLoopWatchCut: deps.onLoopWatchCut,
-      onLoopStop: deps.onLoopStop,
-      state: position.watch,
-    })
+    const watched = await watchTurnStep({ deps, position, threadId, runId, signal: abortSignal })
     if (watched.kind === 'stop') return { status: ETurnStatus.Idle, runId }
     if (watched.kind === 'rewind') {
       position.resetAssembly()
       continue
     }
 
-    position.seenThrough = owned.at(-1)?.seq
-    const stepBase = owned.findLast((event) => event.type === 'assistant-said')?.seq ?? 0
+    position.seenThrough = state.lastSeq
+    const stepBase = state.lastAssistant?.seq ?? 0
     let preparedThrough = position.seenThrough
 
     const prepareAttempt = async () => {
@@ -173,8 +166,7 @@ export async function runTrackedTurn(
         signal: abortSignal,
       })
       if (!retryIntake.ok) throw retryIntake.cause
-      const latest = await record.composedEvents({ threadId })
-      preparedThrough = rowsOwnedBy({ events: latest, threadId }).at(-1)?.seq
+      preparedThrough = (await record.loopState({ threadId })).lastSeq
       const prepared = await prepareStepAssembly(preparedAssembly, {
         threadId,
         events: (await deps.modelContext.read({ threadId })).events,
@@ -256,15 +248,12 @@ export async function runTrackedTurn(
     await deps.waitState?.admitted({ threadId })
 
     if (abortSignal.aborted) {
-      const abandoned = dedupeCallIds({
-        drafts: interruptedDrafts({ result: stepped.result, model: deps.model }),
-        taken: callIdsIn(events),
-      })
-      if (abandoned.length > 0) await record.append({ threadId, runId, drafts: abandoned })
-      await appendShellCompletionNudge({
-        record,
+      await recordAbandonedStep({
+        deps,
         threadId,
         runId,
+        result: stepped.result,
+        events,
         seenThrough: position.seenThrough,
       })
       return interrupted()

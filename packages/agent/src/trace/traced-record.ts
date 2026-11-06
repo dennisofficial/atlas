@@ -1,4 +1,4 @@
-import type { Event, ThreadId } from '@dltech/atlas-core'
+import type { Event, LoopState, ThreadId } from '@dltech/atlas-core'
 import { ESpan, type TracePort } from '@dltech/atlas-observability'
 
 import { AgentRecordPort } from '../record/agent-record.port'
@@ -21,12 +21,20 @@ export class TracedRecord extends AgentRecordPort {
     })
   }
 
-  ownEvents(args: { threadId: ThreadId; afterSeq?: number }): Promise<Event[]> {
+  ownEvents(args: { threadId: ThreadId; afterSeq?: number | undefined }): Promise<Event[]> {
     return this.read({ threadId: args.threadId, run: () => this.inner.ownEvents(args) })
   }
 
   composedEvents(args: { threadId: ThreadId }): Promise<Event[]> {
     return this.read({ threadId: args.threadId, run: () => this.inner.composedEvents(args) })
+  }
+
+  loopState(args: { threadId: ThreadId }): Promise<LoopState> {
+    return this.trace.span({
+      name: ESpan.RecordRead,
+      fields: { threadId: args.threadId },
+      run: () => this.inner.loopState(args),
+    })
   }
 
   private read(args: { threadId: ThreadId; run: () => Promise<Event[]> }): Promise<Event[]> {

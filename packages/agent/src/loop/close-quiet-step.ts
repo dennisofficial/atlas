@@ -5,7 +5,7 @@ import { appendShellCompletionNudge } from './shell-completion'
 import type { TrackedTurnDeps } from './tracked-turn-deps'
 import { nudgeSilentStep } from './turn-faults'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
-import { messageArrivedSince } from './turn-position'
+import { messageArrivedAfter } from './turn-position'
 import type { TurnPosition } from './turn-position-state'
 
 export type QuietStep = { kind: 'continue' } | { kind: 'done'; outcome: TurnOutcome }
@@ -30,8 +30,7 @@ export async function closeQuietStep({
   interrupted: () => Promise<TurnOutcome>
 }): Promise<QuietStep> {
   const { record, ids } = deps
-  const latest = await record.composedEvents({ threadId })
-  if (messageArrivedSince({ events: latest, seenThrough: position.seenThrough })) {
+  if (await messageArrivedAfter({ record, threadId, seenThrough: position.seenThrough })) {
     await appendShellCompletionNudge({ record, threadId, runId, seenThrough: position.seenThrough })
     position.silentSteps = 0
     position.silentRetries = 0

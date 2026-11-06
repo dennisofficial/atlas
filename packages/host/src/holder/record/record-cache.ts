@@ -4,12 +4,16 @@ import {
   blobRefsOf,
   blobValueOf,
   chainHash,
+  initialLoopState,
   isVisible,
+  loopStateOf,
+  stepLoopState,
   resolveBody,
   stepVisibility,
   toLoopEvent,
   type Event,
   type LogHead,
+  type LoopState,
   type ThreadId,
   type V2Event,
   type V2EventType,
@@ -46,6 +50,7 @@ export class RecordCache {
   private loopSources: V2Event[] = []
   private loopEvents: Event[] = []
   private loopEventsHandedOut = false
+  private state: LoopState = initialLoopState()
   private revealed = false
   private readonly blobValues = new Map<string, unknown>()
   private fetchedBlobBytes = 0
@@ -99,6 +104,7 @@ export class RecordCache {
     this.loopSources = []
     this.loopEvents = []
     this.loopEventsHandedOut = false
+    this.state = initialLoopState()
     for (const event of events) {
       this.book.step(this.resolvedEvent(event))
       if (isVisible(this.visibility, event)) this.addLoopEvent(event)
@@ -155,6 +161,10 @@ export class RecordCache {
     return this.loopEvents
   }
 
+  loopState(): LoopState {
+    return this.state
+  }
+
   loopEventsAfter(seq: number): Event[] {
     return this.loopEvents.slice(firstIndexAfter({ items: this.loopEvents, seq }))
   }
@@ -185,6 +195,7 @@ export class RecordCache {
     }
     this.loopSources.push(event)
     this.loopEvents.push(loop)
+    this.state = stepLoopState(this.state, loop)
   }
 
   private dropHiddenLoopEvents(): void {
@@ -199,6 +210,7 @@ export class RecordCache {
     this.loopSources = sources
     this.loopEvents = loops
     this.loopEventsHandedOut = false
+    this.state = loopStateOf({ events: loops })
   }
 
   replaceHead(head: LogHead): void {

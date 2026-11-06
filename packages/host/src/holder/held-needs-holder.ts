@@ -1,7 +1,8 @@
 import {
   NO_WORKSPACE_RECORD,
   drainWantsHolder,
-  isResumable,
+  initialLoopState,
+  isResumableOf,
   workspaceStateFrom,
 } from '@dltech/atlas-core'
 
@@ -24,7 +25,7 @@ export const drainNeedsHolder = async (args: {
     })
     return drainWantsHolder({
       turn: args.turnRunning ? 'running' : 'idle',
-      resumable: isResumable(cache?.visibleLoopEvents() ?? []),
+      resumable: isResumableOf(cache?.loopState() ?? initialLoopState()),
       messagePending: actionableEntries({ entries, failure: workspace.failure }).length > 0,
       workspace: workspace.state,
       retryPending: workspace.retryPending,

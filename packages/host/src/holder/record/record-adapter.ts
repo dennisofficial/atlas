@@ -5,6 +5,7 @@ import {
   toLoopEvent,
   type BlobPayload,
   type Event,
+  type LoopState,
   type RunId,
   type ThreadId,
   type V2Body,
@@ -97,13 +98,17 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return this.cache
   }
 
-  async ownEvents(args: { threadId: ThreadId; afterSeq?: number }): Promise<Event[]> {
+  async ownEvents(args: { threadId: ThreadId; afterSeq?: number | undefined }): Promise<Event[]> {
     if (args.afterSeq === undefined) return this.cache.visibleLoopEvents()
     return this.cache.loopEventsAfter(args.afterSeq)
   }
 
   async composedEvents(_args: { threadId: ThreadId }): Promise<Event[]> {
     return this.cache.visibleLoopEvents()
+  }
+
+  async loopState(_args: { threadId: ThreadId }): Promise<LoopState> {
+    return this.cache.loopState()
   }
 
   async read(_args: { threadId: ThreadId }): Promise<{ events: readonly Event[] }> {
