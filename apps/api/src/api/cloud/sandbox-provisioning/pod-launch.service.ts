@@ -10,6 +10,7 @@ import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
+import { wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { failureText } from '../github/github-sandbox-wake-boot'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
@@ -176,6 +177,7 @@ export class PodLaunchService {
     const podSessionId = await podSessionOf({ reader: db, threadId })
     const existing = await db.orm.public.CloudSandbox.first({ sessionId: podSessionId })
     if (existing === null) throw new NotFoundException('this thread has no pod to roll over')
+    if (wakeClaimActive(existing)) return { dispatched: false }
     const claim = await this.claim({ thread, existing })
     if (claim === null) return { dispatched: false }
     await this.signals.podChanged({ threadId })
