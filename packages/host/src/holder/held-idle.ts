@@ -20,13 +20,14 @@ export const idleReleaseDue = (args: {
   runtime: SessionRuntime | undefined
   released: boolean
   pendingInput: boolean
+  runningShells: number
 }): boolean => {
   if (args.turnRunning || args.released || args.runtime === undefined) return false
   return serveIdleDue({
     lastActivityAt: args.lastActivityAt,
     turnRunning: args.turnRunning,
     childrenSettling: false,
-    runningShells: 0,
+    runningShells: args.runningShells,
     runningServices: 0,
     pendingInput: args.pendingInput,
     idleMinutes: args.deps.idleMinutes,

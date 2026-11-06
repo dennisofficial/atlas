@@ -184,7 +184,7 @@ export class HeldSession {
     const deps = this.deps
     const turnRunning = this.turns.turnRunning
     if (this.draining) return turnRunning ? undefined : this.finish()
-    const { entries, action, inboxHead } = await readHeldAction({
+    const { entries, action, inboxHead, shellsRunning } = await readHeldAction({
       deps,
       draining: this.draining,
       turnRunning,
@@ -195,6 +195,7 @@ export class HeldSession {
       events: this.record?.eventCache().all() ?? [],
       preparing: this.prepare.running,
     })
+    if (shellsRunning) this.lastActivityAt = deps.timers.now()
     switch (action) {
       case EHeldAction.AbortTurn: {
         this.turns.abort('stop')
