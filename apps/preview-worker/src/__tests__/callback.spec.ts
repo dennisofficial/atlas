@@ -5,6 +5,8 @@ import { handlePreviewRequest } from '../worker'
 const PREVIEW = '3000-abcdefghij.byatlas.dev'
 const CALLBACK = 'https://callback.byatlas.dev'
 const PREVIEW_COOKIE = `atlas-preview=${PREVIEW}; Domain=byatlas.dev; Path=/; Secure; HttpOnly; SameSite=None`
+const CONSUMED_COOKIE =
+  'atlas-preview=; Domain=byatlas.dev; Path=/; Secure; HttpOnly; SameSite=None; Max-Age=0'
 
 async function run(args: { url: string; init?: RequestInit; response?: () => Response }) {
   const seen: Request[] = []
@@ -81,6 +83,7 @@ describe('callback host', () => {
       `https://${PREVIEW}/api/auth/callback/google?code=c&state=s%2F1`,
     )
     expect(result.headers.get('cache-control')).toBe('no-store')
+    expect(result.headers.getSetCookie()).toEqual([CONSUMED_COOKIE])
     expect(seen).toHaveLength(0)
   })
 
@@ -132,6 +135,7 @@ describe('callback host', () => {
     )
     expect(page).toContain('You can close this tab.')
     expect(page).toContain('window.close()')
+    expect(result.headers.getSetCookie()).toEqual([CONSUMED_COOKIE])
     expect(seen).toHaveLength(0)
   })
 

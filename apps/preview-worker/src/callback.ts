@@ -26,6 +26,8 @@ export function previewCookie(target: string): string {
 const desktopCookie = (): string =>
   `${previewCookie(DESKTOP_TARGET)}; Max-Age=${DESKTOP_SIGN_IN_WINDOW_SECONDS}`
 
+const consumedCookie = (): string => `${previewCookie('')}; Max-Age=0`
+
 function redirectsToCallback(value: string): boolean {
   if (!URL.canParse(value)) return false
   const url = new URL(value)
@@ -69,7 +71,11 @@ function handleDesktopCallback(args: { request: Request; url: URL }): Response {
   const { request, url } = args
   if (request.method !== 'GET') return textResponse(DESKTOP_POST_MESSAGE)
   return new Response(handoffPage(`${DESKTOP_CALLBACK_LINK}${url.pathname}${url.search}`), {
-    headers: { 'content-type': 'text/html; charset=utf-8', ...NO_STORE },
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'set-cookie': consumedCookie(),
+      ...NO_STORE,
+    },
   })
 }
 
@@ -81,6 +87,10 @@ export function handleCallbackRequest(request: Request): Response {
   if (target === DESKTOP_TARGET) return handleDesktopCallback({ request, url })
   return new Response(null, {
     status: TEMPORARY_REDIRECT_STATUS,
-    headers: { location: `https://${target}${url.pathname}${url.search}`, ...NO_STORE },
+    headers: {
+      location: `https://${target}${url.pathname}${url.search}`,
+      'set-cookie': consumedCookie(),
+      ...NO_STORE,
+    },
   })
 }
