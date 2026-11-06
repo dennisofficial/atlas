@@ -1,3 +1,5 @@
+import type { IPendingRevokeStorage } from './revoke-queue'
+
 export interface ITokenStore {
   load: () => Promise<string | undefined>
   save: (token: string) => Promise<void>
@@ -6,6 +8,7 @@ export interface ITokenStore {
 
 const tokenKey = 'atlas.bearer'
 const pendingKey = 'atlas.pending-auth'
+const pendingRevokeKey = 'atlas.pending-revoke'
 
 type WebStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
@@ -31,6 +34,19 @@ export const pendingAuthStorage = (storage?: WebStorage) => {
     },
     clear: () => {
       store().removeItem(pendingKey)
+    },
+  }
+}
+
+export const createPendingRevokeStorage = (storage?: WebStorage): IPendingRevokeStorage => {
+  const store = (): WebStorage => storage ?? localStorage
+  return {
+    load: async () => store().getItem(pendingRevokeKey) ?? undefined,
+    save: async (value) => {
+      store().setItem(pendingRevokeKey, value)
+    },
+    clear: async () => {
+      store().removeItem(pendingRevokeKey)
     },
   }
 }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { createTokenStore, pendingAuthStorage } from '../token-store.web'
+import {
+  createPendingRevokeStorage,
+  createTokenStore,
+  pendingAuthStorage,
+} from '../token-store.web'
 
 const createMemoryStorage = () => {
   const entries = new Map<string, string>()
@@ -45,5 +49,16 @@ describe('pending auth storage', () => {
     expect(storage.load()).toBe('{"verifier":"v"}')
     storage.clear()
     expect(storage.load()).toBeUndefined()
+  })
+})
+
+describe('pending revoke storage', () => {
+  it('round-trips and clears the pending value', async () => {
+    const storage = createPendingRevokeStorage(createMemoryStorage())
+    expect(await storage.load()).toBeUndefined()
+    await storage.save('["bearer-1"]')
+    expect(await storage.load()).toBe('["bearer-1"]')
+    await storage.clear()
+    expect(await storage.load()).toBeUndefined()
   })
 })

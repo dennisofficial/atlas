@@ -110,6 +110,26 @@ describe('the stream connection', () => {
     expect(follower.getSnapshot().connection).toBe(ESessionConnection.CatchingUp)
   })
 
+  it('stops following a session whose page holds an event this client cannot read', async () => {
+    const { connection, clock, sockets } = setup()
+    const follower = connection.follow({ sessionId: 'session-1' })
+    const first = await bringUp({ sockets, index: 0 })
+    const events = mintUserEvents({ count: 3 })
+    const raw = [{ ...events[0] }, { seq: 2, type: 'from-the-future' }, { ...events[2] }]
+    first.receive({ type: 'events', id: 's1', events: raw, head: headOf(events), live: true })
+    const snapshot = follower.getSnapshot()
+    expect(snapshot.connection).toBe(ESessionConnection.Outdated)
+    expect(snapshot.events.map((event) => event.seq)).toEqual([1])
+    expect(snapshot.cursor).toEqual(headOf(events.slice(0, 1)))
+    expect(first.sent.at(-1)).toEqual({ type: 'unsubscribe', id: 's1' })
+
+    first.drop(1006)
+    clock.advance(500)
+    const second = await bringUp({ sockets, index: 1 })
+    expect(second.sent.map((message) => message.type)).toEqual(['hello'])
+    expect(follower.getSnapshot().connection).toBe(ESessionConnection.Outdated)
+  })
+
   it('does not reconnect after a closing 4401 even when the socket closes with 1005', async () => {
     const { connection, clock, sockets, tokens } = setup()
     const follower = connection.follow({ sessionId: 'session-1' })

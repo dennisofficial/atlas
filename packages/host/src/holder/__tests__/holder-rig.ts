@@ -53,6 +53,7 @@ export const makeRig = async (args: {
   idleMinutes?: number | undefined
   sweepMs?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
+  runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   connectGate?: Promise<void> | undefined
@@ -90,6 +91,7 @@ export const makeRig = async (args: {
     script,
     runtimes,
     watchedRepos: args.watchedRepos,
+    runningShells: args.runningShells,
     model: args.model,
     prepare: args.prepare,
     connectGate: args.connectGate,

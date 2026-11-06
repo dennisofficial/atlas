@@ -126,6 +126,44 @@ describe('the session follower', () => {
     expect(seen()).toBe(ESessionConnection.CatchingUp)
   })
 
+  it('goes outdated on an unreadable event and ignores every message after it', () => {
+    const { follower, resnaps } = setup()
+    const warned: unknown[][] = []
+    const original = console.warn
+    console.warn = (...args: unknown[]) => void warned.push(args)
+    try {
+      follower.setConnection(EStreamConnectionState.Open)
+      const events = mintUserEvents({ count: 3 })
+      const raw = [{ ...events[0] }, { seq: 2, type: 'from-the-future' }, { ...events[2] }]
+      follower.handleMessage({
+        type: 'events',
+        id: 's1',
+        events: raw,
+        head: headOf(events),
+        live: true,
+      })
+      follower.handleMessage({
+        type: 'events',
+        id: 's1',
+        events: [{ seq: 9, type: 'also-unknown' }],
+        head: headOf(events),
+        live: true,
+      })
+      follower.handleMessage(eventsMessage({ id: 's1', events: events.slice(0, 1), live: true }))
+      follower.setConnection(EStreamConnectionState.Backoff)
+      follower.setConnection(EStreamConnectionState.Open)
+      const snapshot = follower.getSnapshot()
+      expect(snapshot.connection).toBe(ESessionConnection.Outdated)
+      expect(snapshot.events.map((event) => event.seq)).toEqual([1])
+      expect(snapshot.cursor?.seq).toBe(1)
+      expect(warned).toHaveLength(1)
+      expect(String(warned[0]?.[0])).toContain('2')
+      expect(resnaps).toEqual([])
+    } finally {
+      console.warn = original
+    }
+  })
+
   it('goes back to catching up and drops the open overlay when it resubscribes', () => {
     const { follower } = setup()
     const key = { runId: 'run-1', step: 1, attempt: 0 }

@@ -70,6 +70,9 @@ describe('sessionStateLineOf', () => {
     expect(sessionStateLineOf(snapshotOf({ connection: ESessionConnection.Offline }))).toBe(
       'Offline — reload to reconnect',
     )
+    expect(sessionStateLineOf(snapshotOf({ connection: ESessionConnection.Outdated }))).toBe(
+      'Atlas was updated. Reload to see this session.',
+    )
   })
 
   it('gives the setup failure with its reason', () => {

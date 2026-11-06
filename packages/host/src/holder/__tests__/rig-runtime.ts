@@ -71,6 +71,7 @@ export const makeRuntimeFactory = (args: {
   script: ScriptRef
   runtimes: RigRuntime[]
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
+  runningShells?: (() => Promise<number>) | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   model?: (() => ModelPort) | undefined
   connectGate?: Promise<void> | undefined
@@ -120,6 +121,7 @@ export const makeRuntimeFactory = (args: {
       launchDirectory: '/w',
       watched: [],
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
+      runningShells: args.runningShells ?? (async () => 0),
       prepare: (onStep) => (args.prepare ?? (async () => ({ ok: true as const })))(onStep),
       stopped: false,
       released: false,

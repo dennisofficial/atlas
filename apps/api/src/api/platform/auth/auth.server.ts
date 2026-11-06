@@ -1,6 +1,7 @@
 import { sharedPool } from '@dltech/atlas-db'
 import { createEmailSender } from '../../../_lib/email/email-sender'
 import { createAuthEmailHooks } from './auth-email-hooks'
+import { deletePushDevicesOfSession } from './auth-session-hooks'
 import { sessionStorageFromEnv } from './auth-session-storage'
 import { betterAuth } from 'better-auth'
 import { bearer, deviceAuthorization } from 'better-auth/plugins'
@@ -81,6 +82,7 @@ export const auth = betterAuth({
       : { apple: { clientId: appleBundleIdentifier, appBundleIdentifier: appleBundleIdentifier } }),
   },
   trustedOrigins,
+  databaseHooks: { session: { delete: { after: deletePushDevicesOfSession } } },
   plugins: [
     bearer(),
     deviceAuthorization({

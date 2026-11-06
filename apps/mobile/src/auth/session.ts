@@ -37,12 +37,17 @@ export const revokeSession = async ({
   apiOrigin: string
   token: string
   fetchFn?: typeof fetch
-}): Promise<void> => {
-  await fetchFn(`${apiOrigin}/api/auth/sign-out`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: '{}',
-  }).catch(() => undefined)
+}): Promise<boolean> => {
+  try {
+    const response = await fetchFn(`${apiOrigin}/api/auth/sign-out`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: '{}',
+    })
+    return response.ok || response.status === 401
+  } catch {
+    return false
+  }
 }
 
 const signInErrorSchema = z.object({ message: z.string() })
