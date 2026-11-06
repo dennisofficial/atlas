@@ -22,6 +22,7 @@ import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
 import { abortable } from './abortable'
+import { countRunningShells } from './running-shells'
 import { rewakingConnector } from './rewaking-connector'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
@@ -213,6 +214,7 @@ export const createSessionRuntimeFactory = (
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,
       watchedRepos: () => gitWatch.watchedRepos(),
+      runningShells: () => countRunningShells({ calls }),
       prepare,
       stop: async () => {
         stopKeepAlive()

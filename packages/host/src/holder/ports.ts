@@ -41,6 +41,7 @@ export type SessionRuntime = {
   normalizeFailure: NormalizeFailure
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>
+  runningShells(): Promise<number>
   prepare(): Promise<PrepareResult>
   stop(): Promise<void>
   release(): Promise<void>
