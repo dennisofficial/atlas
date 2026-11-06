@@ -38,6 +38,16 @@ describe('MessageResponse on a real model reply', () => {
     expect(html).not.toContain('$E = mc^2$')
   })
 
+  it('joins single newlines by default and breaks them when asked', () => {
+    const source = 'First line\nSecond line\n\nNew paragraph'
+    const joined = render(source)
+    const broken = renderToStaticMarkup(<MessageResponse breaks>{source}</MessageResponse>)
+
+    expect(joined).not.toContain('<br')
+    expect(broken.split('<br').length - 1).toBe(1)
+    expect(broken.split('<p').length - 1).toBe(2)
+  })
+
   it('turns emoji shortcodes into emoji', () => {
     expect(render('Shortcode :rocket: here')).toContain('Shortcode 🚀 here')
   })

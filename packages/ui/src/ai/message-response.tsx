@@ -7,6 +7,7 @@ import type { ComponentProps } from 'react'
 import { createMathPlugin } from '@streamdown/math'
 import { mermaid } from '@streamdown/mermaid'
 import { cn } from 'cn'
+import remarkBreaks from 'remark-breaks'
 import remarkGemoji from 'remark-gemoji'
 import { defaultRemarkPlugins, Streamdown } from 'streamdown'
 
@@ -29,6 +30,7 @@ import { useDiagramWheelDamping } from './internal/mermaid-wheel'
 export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
   onLinkClick?: MarkdownLinkClick
   onRepairDiagram?: RepairDiagram
+  breaks?: boolean
 }
 
 const plugins = {
@@ -41,6 +43,7 @@ const remarkPlugins = [
   remarkGithubAlerts,
   remarkLiteralHtml,
 ]
+const remarkPluginsWithBreaks = [...remarkPlugins, remarkBreaks]
 const allowedTags = { blockquote: ['cite', 'dataAlert'] }
 const remendOptions = { handlers: [starRuleHandler] }
 const linkSafety = { enabled: false }
@@ -55,6 +58,7 @@ export const MessageResponse = memo(
     components,
     onLinkClick,
     onRepairDiagram,
+    breaks = false,
     ...props
   }: MessageResponseProps) {
     const merged = useMemo(() => ({ ...markdownComponents, ...components }), [components])
@@ -73,7 +77,7 @@ export const MessageResponse = memo(
             linkSafety={linkSafety}
             mermaid={messageMermaidOptions}
             plugins={plugins}
-            remarkPlugins={remarkPlugins}
+            remarkPlugins={breaks ? remarkPluginsWithBreaks : remarkPlugins}
             remend={remendOptions}
             {...props}
           />
@@ -84,6 +88,7 @@ export const MessageResponse = memo(
   (previous, next) =>
     previous.children === next.children &&
     previous.isAnimating === next.isAnimating &&
+    previous.breaks === next.breaks &&
     previous.onLinkClick === next.onLinkClick &&
     previous.onRepairDiagram === next.onRepairDiagram,
 )

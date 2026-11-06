@@ -254,7 +254,7 @@ function TurnViewBody({
           })}
         >
           {turn.item.text.trim().length === 0 ? undefined : (
-            <TranscriptMarkdown>{turn.item.text}</TranscriptMarkdown>
+            <TranscriptMarkdown breaks>{turn.item.text}</TranscriptMarkdown>
           )}
         </UserMessage>
       )
