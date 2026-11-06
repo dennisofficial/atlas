@@ -1,8 +1,15 @@
 import { dirname, join } from 'node:path'
 
-import { EProcessOutcome, outcomeOf, type ProcessPort } from '@dltech/atlas-core'
+import {
+  EProcessOutcome,
+  EWorkspaceRepoState,
+  outcomeOf,
+  type ProcessPort,
+} from '@dltech/atlas-core'
 import type { WorkspaceConfig } from '../config/agent-host-config'
 import { githubCloneUrlOf } from '../sandbox/constants'
+
+import { repoOfRemoteUrl, type RepoProgress } from './workspace-repos'
 
 import {
   additionalSentinelOf,
@@ -40,12 +47,34 @@ const branchFlagsOf = (branch: string | null): string[] =>
 const additionalRepoDirOf = (args: { cwd: string; repo: string }): string =>
   join(dirname(args.cwd), args.repo.split('/')[1] ?? args.repo)
 
+const readOutput = async (args: {
+  stream: ReadableStream<Uint8Array>
+  onOutput?: ((text: string) => void) | undefined
+}): Promise<string> => {
+  const decoder = new TextDecoder()
+  const reader = args.stream.getReader()
+  let output = ''
+  const take = (text: string): void => {
+    if (text === '') return
+    output += text
+    args.onOutput?.(text)
+  }
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    take(decoder.decode(value, { stream: true }))
+  }
+  take(decoder.decode())
+  return output
+}
+
 export const run = async (args: {
   processes: ProcessPort
   cmd: readonly string[]
   cwd: string
   timeoutMs: number
   signal?: AbortSignal | undefined
+  onOutput?: ((text: string) => void) | undefined
 }): Promise<RunOutcome> => {
   const handle = args.processes.spawn({ cmd: args.cmd, cwd: args.cwd })
   const terminate = (): void => handle.terminate()
@@ -54,7 +83,7 @@ export const run = async (args: {
   if (args.signal?.aborted === true) terminate()
   try {
     const [output, outcome] = await Promise.all([
-      new Response(handle.stdout).text(),
+      readOutput({ stream: handle.stdout, onOutput: args.onOutput }),
       outcomeOf(handle),
     ])
     if (outcome.kind === EProcessOutcome.Failed) {
@@ -139,12 +168,17 @@ const cloneAdditional = async (args: {
   credentialFlags: readonly string[]
   launchDirectory: string
   stateDir: string
+  progress: RepoProgress
   scrub: (text: string) => string
 }): Promise<boolean> => {
   let allCloned = true
   for (const { repo, branch } of args.repos) {
     const marker = additionalSentinelOf({ stateDir: args.stateDir, repo })
-    if (await exists({ files: args.deps.files, path: marker })) continue
+    if (await exists({ files: args.deps.files, path: marker })) {
+      args.progress.set({ repo, state: EWorkspaceRepoState.Done })
+      continue
+    }
+    args.progress.set({ repo, state: EWorkspaceRepoState.Cloning })
     const target = additionalRepoDirOf({ cwd: args.launchDirectory, repo })
     await args.deps.files.removeFile({ path: target })
     const cloned = await run({
@@ -168,6 +202,7 @@ const cloneAdditional = async (args: {
       report({ deps: args.deps, message: `additional repo ${repo} clone failed`, detail })
       fail({ deps: args.deps, message: `additional repo ${repo} clone failed`, detail })
       await args.deps.files.removeFile({ path: target }).catch(() => undefined)
+      args.progress.set({ repo, state: EWorkspaceRepoState.Failed })
       allCloned = false
       continue
     }
@@ -175,6 +210,10 @@ const cloneAdditional = async (args: {
       deps: args.deps,
       path: marker,
       message: `additional repo ${repo} marker write failed; setup is not done`,
+    })
+    args.progress.set({
+      repo,
+      state: marked ? EWorkspaceRepoState.Done : EWorkspaceRepoState.Failed,
     })
     allCloned = allCloned && marked
   }
@@ -188,9 +227,10 @@ export const materialize = async (args: {
   launchDirectory: string
   stateDir: string
   sentinels: Sentinels
+  progress: RepoProgress
   scrub: (text: string) => string
 }): Promise<boolean> => {
-  const { deps, workspace, launchDirectory, stateDir, githubToken } = args
+  const { deps, workspace, launchDirectory, stateDir, githubToken, progress } = args
   const wantsToken =
     githubToken !== null && (workspace.remoteUrl !== null || workspace.additionalRepos.length > 0)
   const tokenPath = wantsToken ? join(stateDir, TOKEN_FILE) : null
@@ -202,7 +242,11 @@ export const materialize = async (args: {
     }
     if (workspace.remoteUrl === null) {
       await deps.files.mkdir({ path: launchDirectory })
-    } else if (!(await exists({ files: deps.files, path: args.sentinels.primary }))) {
+    } else if (await exists({ files: deps.files, path: args.sentinels.primary })) {
+      progress.set({ repo: repoOfRemoteUrl(workspace.remoteUrl), state: EWorkspaceRepoState.Done })
+    } else {
+      const primary = repoOfRemoteUrl(workspace.remoteUrl)
+      progress.set({ repo: primary, state: EWorkspaceRepoState.Cloning })
       const cloned = await clonePrimary({
         deps,
         remoteUrl: workspace.remoteUrl,
@@ -212,11 +256,16 @@ export const materialize = async (args: {
         launchDirectory,
         scrub: args.scrub,
       })
-      if (!cloned) return false
-      const marked = await writeSentinel({
-        deps,
-        path: args.sentinels.primary,
-        message: 'primary clone marker write failed; setup is not done',
+      const marked =
+        cloned &&
+        (await writeSentinel({
+          deps,
+          path: args.sentinels.primary,
+          message: 'primary clone marker write failed; setup is not done',
+        }))
+      progress.set({
+        repo: primary,
+        state: marked ? EWorkspaceRepoState.Done : EWorkspaceRepoState.Failed,
       })
       if (!marked) return false
     }
@@ -226,6 +275,7 @@ export const materialize = async (args: {
       credentialFlags,
       launchDirectory,
       stateDir,
+      progress,
       scrub: args.scrub,
     })
     if (!additionalCloned) return false

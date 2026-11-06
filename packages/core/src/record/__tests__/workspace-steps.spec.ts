@@ -6,6 +6,7 @@ import { isRecordOnly, toLoopEvent } from '../loop-events'
 import { contextMeterOf } from '../context-meter'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
 import {
+  EWorkspaceRepoState,
   EWorkspaceStep,
   EWorkspaceStepOutcome,
   EWorkspaceStepState,
@@ -19,7 +20,7 @@ const log = (bodies: V2Body[]) => chainEvents({ threadId, runId, epoch: 1, at: N
 const step = (
   name: EWorkspaceStep,
   state: EWorkspaceStepState,
-  extra: { outcome?: EWorkspaceStepOutcome; reason?: string } = {},
+  extra: Partial<Omit<Extract<V2Body, { type: 'workspace-step' }>, 'type' | 'step' | 'state'>> = {},
 ): V2Body => ({ type: 'workspace-step', step: name, state, ...extra })
 
 describe('workspace-step event', () => {
@@ -95,5 +96,37 @@ describe('status while steps are recorded', () => {
       now: NOW,
     })
     expect(status.state).toBe(ESessionStatus.Idle)
+  })
+})
+
+describe('workspace-step detail', () => {
+  it('round-trips repos, command and output through the schema', () => {
+    const events = log([
+      step(EWorkspaceStep.Clone, EWorkspaceStepState.Started, {
+        repos: [{ repo: 'acme/app', state: EWorkspaceRepoState.Pending }],
+      }),
+      step(EWorkspaceStep.Setup, EWorkspaceStepState.Done, { command: 'bun i', output: 'ok' }),
+    ])
+    expect(events.map((event) => v2EventSchema.parse(event))).toMatchObject([
+      { repos: [{ repo: 'acme/app', state: 'pending' }] },
+      { command: 'bun i', output: 'ok' },
+    ])
+  })
+
+  it('folds the latest repo list and keeps the setup command from the started event', () => {
+    const folded = workspaceStepsOf(
+      log([
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Started, {
+          repos: [{ repo: 'acme/app', state: EWorkspaceRepoState.Cloning }],
+        }),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Done, {
+          repos: [{ repo: 'acme/app', state: EWorkspaceRepoState.Done }],
+        }),
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Started, { command: 'bun i' }),
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Failed, { reason: 'x', output: 'bad' }),
+      ]),
+    )
+    expect(folded.clone?.repos).toEqual([{ repo: 'acme/app', state: EWorkspaceRepoState.Done }])
+    expect(folded.setup).toMatchObject({ command: 'bun i', output: 'bad' })
   })
 })

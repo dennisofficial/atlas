@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EWorkspaceStep, EWorkspaceStepState } from '@dltech/atlas-core'
+import { setupOutputCallId } from '@dltech/atlas-protocol'
 
-import { flushUntil, makeRig, seedSession, THREAD_ID } from './holder-rig'
+import { flushUntil, makeRig, SESSION, seedSession, THREAD_ID } from './holder-rig'
 
 const typesOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<string[]> =>
   (await rig.events()).map((event) => event.type)
@@ -60,5 +61,29 @@ describe('SessionHolder prepare steps', () => {
       check: async () => (await typesOf(rig)).includes('workspace-prepare-failed'),
     })
     expect(await typesOf(rig)).toEqual(['workspace-step', 'workspace-prepare-failed'])
+  })
+})
+
+describe('SessionHolder setup output', () => {
+  it('forwards runtime prepare output as setup tool-output live frames', async () => {
+    let emit: (text: string) => void = () => {}
+    const rig = await makeRig({
+      subscribePrepareOutput: (listener) => {
+        emit = listener
+      },
+      prepare: async () => {
+        emit('installing\n')
+        return { ok: true }
+      },
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.wake()
+    await flushUntil({ check: async () => (await typesOf(rig)).includes('workspace-prepared') })
+    expect(rig.bus.frames.map((entry) => entry.frame)).toContainEqual({
+      type: 'tool-output',
+      callId: setupOutputCallId(SESSION),
+      text: 'installing\n',
+    })
   })
 })
