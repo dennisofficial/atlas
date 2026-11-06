@@ -1,5 +1,5 @@
 import {
-  resumeDrafts,
+  resumeDraftsOf,
   unexpandedSkillDrafts,
   type EventDraft,
   type IdPort,
@@ -16,12 +16,17 @@ export async function appendResumeDrafts(args: {
   threadId: ThreadId
   expandContext?: ExpandContext | undefined
 }): Promise<readonly EventDraft[]> {
-  const events = await args.record.composedEvents({ threadId: args.threadId })
+  const { threadId } = args
+  const state = await args.record.loopState({ threadId })
   const expand = args.expandContext
-  const drafts = [
-    ...(expand === undefined ? [] : unexpandedSkillDrafts({ events, expand })),
-    ...resumeDrafts(events),
-  ]
+  const unanswered =
+    expand === undefined
+      ? []
+      : unexpandedSkillDrafts({
+          events: await args.record.ownEvents({ threadId, afterSeq: state.lastAssistant?.seq }),
+          expand,
+        })
+  const drafts = [...unanswered, ...resumeDraftsOf(state)]
   if (drafts.length === 0) return drafts
 
   await args.record.append({ threadId: args.threadId, runId: args.ids.nextRunId(), drafts })

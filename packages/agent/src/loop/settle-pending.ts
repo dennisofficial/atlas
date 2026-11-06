@@ -1,12 +1,11 @@
 import {
   isConcurrencySafeCall,
   partitionToolCalls,
-  pendingCalls,
-  rowsOwnedBy,
+  pendingCallsOf,
   activeWorktreeAfter,
-  activeWorktreeOf,
+  activeWorktreeOfState,
   homeDirectoryAfter,
-  homeDirectoryOf,
+  homeDirectoryOfState,
   type ActiveWorktree,
   type ThreadId,
   type CallId,
@@ -74,14 +73,14 @@ export function createSettlePending(deps: {
 
   return async ({ threadId, signal }) => {
     const events = await deps.record.composedEvents({ threadId })
-    const owned = rowsOwnedBy({ events, threadId })
+    const state = await deps.record.loopState({ threadId })
 
-    const calls = [...pendingCalls(owned)].sort((left, right) => left.ordinal - right.ordinal)
+    const calls = [...pendingCallsOf(state)].sort((left, right) => left.ordinal - right.ordinal)
 
     const runs = partitionToolCalls({ calls, isSafe })
 
-    let activeWorktree: ActiveWorktree | undefined = activeWorktreeOf(events)
-    let homeDirectory = homeDirectoryOf({ events, launchDirectory: deps.launchDirectory })
+    let activeWorktree: ActiveWorktree | undefined = activeWorktreeOfState(state)
+    let homeDirectory = homeDirectoryOfState({ state, launchDirectory: deps.launchDirectory })
 
     for (const [index, run] of runs.entries()) {
       if (signal.aborted) return {}

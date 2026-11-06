@@ -1,4 +1,9 @@
-import { rowsOwnedBy, shellCompletionNudge, type RunId, type ThreadId } from '@dltech/atlas-core'
+import {
+  awaitsReplyOf,
+  shellCompletionNudgeFrom,
+  type RunId,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import type { AgentRecordPort } from '../record/agent-record.port'
 
@@ -8,11 +13,21 @@ export async function appendShellCompletionNudge(args: {
   runId: RunId
   seenThrough: number | undefined
 }): Promise<void> {
-  const events = rowsOwnedBy({
-    events: await args.record.composedEvents({ threadId: args.threadId }),
-    threadId: args.threadId,
+  const { record, threadId, seenThrough } = args
+  if (seenThrough === undefined) return
+  const state = await record.loopState({ threadId })
+  if (awaitsReplyOf(state)) return
+  const lastAssistantSeq = state.lastAssistant?.seq
+  const tail = await record.ownEvents({
+    threadId,
+    afterSeq: Math.min(seenThrough, lastAssistantSeq ?? 0),
   })
-  const nudge = shellCompletionNudge({ events, seenThrough: args.seenThrough })
+  const nudge = shellCompletionNudgeFrom({
+    awaitingReply: false,
+    lastAssistantSeq,
+    tail,
+    seenThrough,
+  })
   if (nudge === undefined) return
-  await args.record.append({ threadId: args.threadId, runId: args.runId, drafts: [nudge] })
+  await record.append({ threadId, runId: args.runId, drafts: [nudge] })
 }

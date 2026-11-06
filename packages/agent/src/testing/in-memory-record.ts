@@ -1,4 +1,11 @@
-import { toEventId, type Event, type IdPort, type ThreadId } from '@dltech/atlas-core'
+import {
+  loopStateOf,
+  rowsOwnedBy,
+  toEventId,
+  type Event,
+  type IdPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { AgentRecordPort, ModelContextPort } from '../record/agent-record.port'
 
@@ -50,6 +57,9 @@ export class InMemoryAgentRecord extends AgentRecordPort {
   composedEvents: AgentRecordPort['composedEvents'] = async ({ threadId }) => [
     ...this.eventsOf(threadId),
   ]
+
+  loopState: AgentRecordPort['loopState'] = async ({ threadId }) =>
+    loopStateOf({ events: rowsOwnedBy({ events: this.eventsOf(threadId), threadId }) })
 }
 
 export class InMemoryModelContext extends ModelContextPort {
