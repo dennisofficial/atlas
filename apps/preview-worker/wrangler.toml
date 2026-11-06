@@ -6,4 +6,5 @@ workers_dev = false
 
 routes = [
   { pattern = "*.byatlas.dev/*", zone_name = "byatlas.dev" },
+  { pattern = "callback.byatlas.dev", custom_domain = true },
 ]

@@ -13,8 +13,9 @@ import { DESKTOP_PRELOAD } from './preload'
 import { runLogged, writeLog } from './crash-log'
 import { type IExternalLinkRouter, routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
-import { deepLinkTargetOf, openUrlOf } from './deep-link'
-import { navigateScript, RELOAD_SCRIPT } from './in-app-navigation'
+import { deepLinkTargetOf, openUrlOf, previewCallbackPathOf } from './deep-link'
+import { externalUrlOf } from './external-links'
+import { navigateScript, previewCallbackScript, RELOAD_SCRIPT } from './in-app-navigation'
 import { readDoubleClickAction, runTitlebarAction } from './titlebar-action'
 
 const earlyLinks: string[] = []
@@ -76,12 +77,21 @@ await runLogged(async () => {
   windowRef.current = win
 
   syncFullscreen({ win })
+  const focusWindow = () => {
+    if (win.isMinimized()) win.unminimize()
+    win.activate()
+  }
   deepLinkRef.open = (link) => {
+    const callbackPath = previewCallbackPathOf(link)
+    if (callbackPath !== null) {
+      win.webview.executeJavascript(previewCallbackScript(callbackPath) ?? '')
+      focusWindow()
+      return
+    }
     const target = deepLinkTargetOf({ link, hostUrl: host.url, secret })
     if (target === null) return
     win.webview.loadURL(target)
-    if (win.isMinimized()) win.unminimize()
-    win.activate()
+    focusWindow()
   }
   for (const link of earlyLinks.splice(0)) deepLinkRef.open(link)
   linksRef.current = routeExternalLinks({
@@ -89,7 +99,7 @@ await runLogged(async () => {
     onNewWindow: (handler) =>
       void Electrobun.events.on(`new-window-open-${win.webview.id}`, handler),
     hostOrigin: new URL(host.url).origin,
-    openExternal: (url) => Utils.openExternal(url),
+    openExternal: (url) => Utils.openExternal(externalUrlOf(url)),
   })
 
   installApplicationMenu()

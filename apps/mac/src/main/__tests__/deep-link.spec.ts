@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { DESKTOP_URL_SCHEME } from '@dltech/atlas-wire/web'
 
 import { sessionLandingOf } from '../../host/guard'
-import { deepLinkTargetOf, inAppPathOf, openUrlOf } from '../deep-link'
+import { deepLinkTargetOf, inAppPathOf, openUrlOf, previewCallbackPathOf } from '../deep-link'
 
 const HOST = 'http://127.0.0.1:41234'
 
@@ -27,6 +27,20 @@ describe('inAppPathOf', () => {
     expect(inAppPathOf('atlas://elsewhere/settings')).toBeNull()
     expect(inAppPathOf('atlas://open//evil.example/x')).toBeNull()
     expect(inAppPathOf('not a url')).toBeNull()
+  })
+})
+
+describe('previewCallbackPathOf', () => {
+  it('keeps the callback path and query of atlas://preview-callback links', () => {
+    expect(
+      previewCallbackPathOf('atlas://preview-callback/api/auth/callback/google?code=c&state=s'),
+    ).toBe('/api/auth/callback/google?code=c&state=s')
+  })
+
+  it('refuses open links and protocol-relative paths', () => {
+    expect(previewCallbackPathOf('atlas://open/settings')).toBeNull()
+    expect(previewCallbackPathOf('atlas://preview-callback//evil.example/x')).toBeNull()
+    expect(inAppPathOf('atlas://preview-callback/x')).toBeNull()
   })
 })
 

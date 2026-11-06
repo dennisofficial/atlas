@@ -1,3 +1,7 @@
+import { previewCallbackStartOf } from '@dltech/atlas-wire/web'
+
+export const externalUrlOf = (url: string): string => previewCallbackStartOf(url) ?? url
+
 export enum ENavigationTarget {
   InApp = 'in-app',
   External = 'external',

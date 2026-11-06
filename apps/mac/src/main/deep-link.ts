@@ -1,13 +1,23 @@
-import { DESKTOP_OPEN_HOST, DESKTOP_URL_SCHEME } from '@dltech/atlas-wire/web'
+import {
+  DESKTOP_OPEN_HOST,
+  DESKTOP_PREVIEW_CALLBACK_HOST,
+  DESKTOP_URL_SCHEME,
+} from '@dltech/atlas-wire/web'
 
-export function inAppPathOf(link: string): string | null {
-  if (!URL.canParse(link)) return null
-  const parsed = new URL(link)
-  if (parsed.protocol !== `${DESKTOP_URL_SCHEME}:` || parsed.host !== DESKTOP_OPEN_HOST) return null
+function pathOfLink(args: { link: string; host: string }): string | null {
+  if (!URL.canParse(args.link)) return null
+  const parsed = new URL(args.link)
+  if (parsed.protocol !== `${DESKTOP_URL_SCHEME}:` || parsed.host !== args.host) return null
   const path = parsed.pathname === '' ? '/' : parsed.pathname
   if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return null
   return `${path}${parsed.search}`
 }
+
+export const inAppPathOf = (link: string): string | null =>
+  pathOfLink({ link, host: DESKTOP_OPEN_HOST })
+
+export const previewCallbackPathOf = (link: string): string | null =>
+  pathOfLink({ link, host: DESKTOP_PREVIEW_CALLBACK_HOST })
 
 export function deepLinkTargetOf(args: {
   link: string

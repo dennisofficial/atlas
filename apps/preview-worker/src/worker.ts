@@ -1,3 +1,4 @@
+import { CALLBACK_HOST, handleCallbackRequest, previewCookie } from './callback'
 import { rewriteResponseHeaders } from './headers'
 import { isPreviewHost } from './origins'
 import { SCRIPT_TAG, scriptHash } from './script'
@@ -9,6 +10,10 @@ const SWITCHING_PROTOCOLS_STATUS = 101
 
 function isWebSocketUpgrade(request: Request): boolean {
   return request.headers.get('upgrade')?.toLowerCase() === 'websocket'
+}
+
+function isFramed(request: Request): boolean {
+  return request.headers.get('sec-fetch-dest') === 'iframe'
 }
 
 function isHtml(response: Response): boolean {
@@ -36,6 +41,7 @@ export async function handlePreviewRequest(args: {
 }): Promise<Response> {
   const { request, upstream } = args
   const hostname = URL.canParse(request.url) ? new URL(request.url).hostname : ''
+  if (hostname === CALLBACK_HOST) return handleCallbackRequest(request)
   if (!isPreviewHost(hostname)) return new Response('Not found', { status: NOT_FOUND_STATUS })
   const response = await upstream(request)
   if (isWebSocketUpgrade(request) || response.status === SWITCHING_PROTOCOLS_STATUS) return response
@@ -45,6 +51,7 @@ export async function handlePreviewRequest(args: {
     scriptHash: html ? await scriptHash() : null,
     dropContentLength: html,
   })
+  if (html && !isFramed(request)) headers.append('set-cookie', previewCookie(hostname))
   const rewritten = new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
