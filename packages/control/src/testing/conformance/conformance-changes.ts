@@ -175,14 +175,15 @@ export function describeControlPlaneChanges(params: ConformanceParams): void {
       const second = await present()
       const won = await announced({
         work: async () => {
-          const claimed = await harness.plane.claimNext({ hostId: first.hostId, limit: 5 })
+          const claimed = (await harness.plane.claimNext({ hostId: first.hostId, limit: 5 })).leases
           expect(claimed).toHaveLength(1)
         },
       })
       expect(won).toEqual([{ sessionId: SESSION }])
       const refused = await announced({
         work: async () => {
-          const claimed = await harness.plane.claimNext({ hostId: second.hostId, limit: 5 })
+          const claimed = (await harness.plane.claimNext({ hostId: second.hostId, limit: 5 }))
+            .leases
           expect(claimed).toEqual([])
         },
       })

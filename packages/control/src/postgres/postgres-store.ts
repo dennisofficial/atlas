@@ -8,6 +8,7 @@ import {
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
+  type ClaimedBatch,
   type ControlTx,
   type ReadEventsParams,
   type StoredEvent,
@@ -230,7 +231,11 @@ class PostgresTx implements ControlTx {
     return row === null ? undefined : toLease(row)
   }
 
-  async claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<Lease[]> {
+  async claimNeeding(params: {
+    hostId: number
+    now: string
+    limit: number
+  }): Promise<ClaimedBatch> {
     return claimNeedingIn({ tx: this.tx, ...params })
   }
 

@@ -52,7 +52,7 @@ it('postgres: two hosts calling claimNext concurrently never claim a session twi
       bounded(plane.claimNext({ hostId: hostA, limit: PER_CALL })),
       bounded(plane.claimNext({ hostId: hostB, limit: PER_CALL })),
     ])
-    for (const lease of [...fromA, ...fromB]) {
+    for (const lease of [...fromA.leases, ...fromB.leases]) {
       claimed.set(lease.sessionId, (claimed.get(lease.sessionId) ?? 0) + 1)
     }
   }
@@ -64,5 +64,5 @@ it('postgres: two hosts calling claimNext concurrently never claim a session twi
     expect(lease.holderHostId === hostA || lease.holderHostId === hostB).toBe(true)
   }
   const rest = await plane.claimNext({ hostId: hostA, limit: SESSIONS })
-  expect(claimed.size + rest.length).toBe(SESSIONS)
+  expect(claimed.size + rest.leases.length).toBe(SESSIONS)
 }, 120_000)

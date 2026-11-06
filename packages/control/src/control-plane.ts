@@ -15,6 +15,7 @@ import {
   ControlStorePort,
   SeqConflictError,
   type BlobRow,
+  type ClaimedBatch,
   type BlobWrite,
   type ControlTx,
   type ThreadRow,
@@ -112,15 +113,15 @@ export class ControlPlane {
     )
   }
 
-  async claimNext(params: { hostId: number; limit: number }): Promise<Lease[]> {
-    if (params.limit <= 0) return []
+  async claimNext(params: { hostId: number; limit: number }): Promise<ClaimedBatch> {
+    if (params.limit <= 0) return { leases: [], nextRetryAt: null }
     return this.store.transact(async (tx) => {
       const claimed = await tx.claimNeeding({
         hostId: params.hostId,
         now: await this.nowIn(tx),
         limit: clampLimit(params.limit),
       })
-      for (const lease of claimed) await tx.announce({ sessionId: lease.sessionId })
+      for (const lease of claimed.leases) await tx.announce({ sessionId: lease.sessionId })
       return claimed
     })
   }

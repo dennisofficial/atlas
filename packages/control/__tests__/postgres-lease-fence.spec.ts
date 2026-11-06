@@ -74,11 +74,11 @@ it('postgres: an in-flight append holds the lease FOR SHARE, so claimNext skips 
   })
   await isShared
 
-  expect(await plane.claimNext({ hostId: 102, limit: 5 })).toEqual([])
+  expect((await plane.claimNext({ hostId: 102, limit: 5 })).leases).toEqual([])
 
   release()
   expect(await appending).toMatchObject({ ok: true })
-  const claimed = await plane.claimNext({ hostId: 102, limit: 5 })
+  const claimed = (await plane.claimNext({ hostId: 102, limit: 5 })).leases
   expect(claimed).toMatchObject([{ epoch: epoch + 1, holderHostId: 102 }])
 
   gated.onLeaseShared = undefined

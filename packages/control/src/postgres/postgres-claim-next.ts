@@ -1,7 +1,9 @@
 import type { Tx } from '@dltech/atlas-db'
 import { claimGrant, type Lease } from '@dltech/atlas-core'
 
-import { claimableSessionIdsIn } from './postgres-claim-candidates'
+import type { ClaimedBatch } from '../port'
+
+import { claimableSessionIdsIn, nextRetryAtIn } from './postgres-claim-candidates'
 import { writeLeaseIn } from './postgres-leases'
 import { hostPresentIn } from './postgres-presence'
 import { toLease } from './postgres-rows'
@@ -11,9 +13,10 @@ export const claimNeedingIn = async (params: {
   hostId: number
   now: string
   limit: number
-}): Promise<Lease[]> => {
+}): Promise<ClaimedBatch> => {
   const { tx } = params
-  if (!(await hostPresentIn({ tx, hostId: params.hostId }))) return []
+  if (!(await hostPresentIn({ tx, hostId: params.hostId })))
+    return { leases: [], nextRetryAt: null }
   const sessionIds = await claimableSessionIdsIn({ tx, now: params.now, limit: params.limit })
   const claimed: Lease[] = []
   for (const sessionId of sessionIds) {
@@ -24,5 +27,5 @@ export const claimNeedingIn = async (params: {
     if (!(await writeLeaseIn({ tx, lease: next, expectedEpoch: current.epoch }))) continue
     claimed.push(next)
   }
-  return claimed
+  return { leases: claimed, nextRetryAt: await nextRetryAtIn({ tx, now: params.now }) }
 }

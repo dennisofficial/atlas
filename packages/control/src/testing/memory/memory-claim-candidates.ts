@@ -1,12 +1,8 @@
-import { actionableInboxIds } from '@dltech/atlas-core'
+import { actionableInboxIds, type Lease } from '@dltech/atlas-core'
 
 import { activeFailureOf, hasPrepareHistory, type State } from './memory-state'
 
-export const claimableSessionIdsIn = (params: {
-  state: State
-  presentHosts: ReadonlySet<number>
-  limit: number
-}): string[] => {
+const needingHolderIn = (params: { state: State; presentHosts: ReadonlySet<number> }): Lease[] => {
   const { state } = params
   return [...state.sessions.values()]
     .filter((row) => {
@@ -29,6 +25,32 @@ export const claimableSessionIdsIn = (params: {
       (a, b) =>
         Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.sessionId.localeCompare(b.sessionId),
     )
-    .slice(0, params.limit)
-    .map((row) => row.sessionId)
+    .flatMap((row) => {
+      const lease = state.leases.get(row.sessionId)
+      return lease === undefined ? [] : [lease]
+    })
+}
+
+export const claimableLeasesIn = (params: {
+  state: State
+  presentHosts: ReadonlySet<number>
+  now: string
+}): Lease[] => {
+  const now = Date.parse(params.now)
+  return needingHolderIn(params).filter(
+    (lease) => lease.retryAfter === null || Date.parse(lease.retryAfter) <= now,
+  )
+}
+
+export const nextRetryAtIn = (params: {
+  state: State
+  presentHosts: ReadonlySet<number>
+  now: string
+}): string | null => {
+  const now = Date.parse(params.now)
+  const gated = needingHolderIn(params)
+    .flatMap((lease) => (lease.retryAfter === null ? [] : [lease.retryAfter]))
+    .filter((retryAfter) => Date.parse(retryAfter) > now)
+    .sort((a, b) => Date.parse(a) - Date.parse(b))
+  return gated[0] ?? null
 }

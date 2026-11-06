@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { retryDelayMs } from '@dltech/atlas-core'
+
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const SWEEP_MS = 20_000
@@ -199,5 +201,40 @@ describe('SessionHolder start backoff on the lease row', () => {
     expect(answeredAgain).toBe(true)
     expect((await typesOf(a)).filter((type) => type === 'session-start-failed')).toHaveLength(1)
     expect(THREAD_ID).toBeDefined()
+  })
+
+  it('a peer takes a crashed holder session as soon as its backoff ends, with no tick due', async () => {
+    const rig = await makeRig({ sweepMs: 600_000 })
+    await rig.holder.start()
+    await rig.flush()
+    await seedSession(rig)
+    await rig.flush()
+    const crashed = rig.store.nextHostId()
+    rig.store.markHostPresent(crashed)
+    rig.holder.discard()
+    const { leases } = await rig.plane.claimNext({ hostId: crashed, limit: 1 })
+    expect(leases).toMatchObject([{ sessionId: SESSION, attempts: 1 }])
+    rig.store.markHostAbsent(crashed)
+
+    const b = await makeRig({
+      plane: rig.plane,
+      store: rig.store,
+      bus: rig.bus,
+      clock: rig.clock,
+      daemon: rig.daemon,
+      sweepMs: 600_000,
+      script: [{ text: 'b says hi' }],
+    })
+    await b.holder.start()
+    await b.flush()
+    b.holder.ring()
+    await b.flush()
+    expect(b.holder.heldIds()).toEqual([])
+
+    rig.clock.advance(retryDelayMs(1) - 1)
+    await b.flush()
+    expect(b.holder.heldIds()).toEqual([])
+    rig.clock.advance(1)
+    expect(await flushUntil({ check: async () => b.holder.heldIds().length === 1 })).toBe(true)
   })
 })

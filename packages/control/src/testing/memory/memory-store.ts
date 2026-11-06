@@ -7,6 +7,7 @@ import {
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
+  type ClaimedBatch,
   type ControlTx,
   type ReadEventsParams,
   type StoredEvent,
@@ -176,7 +177,11 @@ class MemoryTx implements ControlTx {
     return writeLeaseIn({ state: this.state, ...params })
   }
 
-  async claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<Lease[]> {
+  async claimNeeding(params: {
+    hostId: number
+    now: string
+    limit: number
+  }): Promise<ClaimedBatch> {
     return claimNeedingIn({ state: this.state, presentHosts: this.presentHosts, ...params })
   }
 

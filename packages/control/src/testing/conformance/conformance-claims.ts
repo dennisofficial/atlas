@@ -35,9 +35,9 @@ export function describeControlPlaneClaims(params: ConformanceParams): void {
       await newSession(sessionId)
       const first = await present()
       const second = await present()
-      const won = await harness.plane.claimNext({ hostId: first, limit: 5 })
+      const won = (await harness.plane.claimNext({ hostId: first, limit: 5 })).leases
       expect(won).toMatchObject([{ sessionId, epoch: 1, holderHostId: first }])
-      expect(await harness.plane.claimNext({ hostId: second, limit: 5 })).toEqual([])
+      expect((await harness.plane.claimNext({ hostId: second, limit: 5 })).leases).toEqual([])
       await releaseAll()
     })
 
@@ -48,14 +48,14 @@ export function describeControlPlaneClaims(params: ConformanceParams): void {
       const releaseOld = await params.holdPresence(oldHost)
       await harness.plane.grant({ sessionId, hostId: oldHost })
       const newHost = await present()
-      expect(await harness.plane.claimNext({ hostId: newHost, limit: 5 })).toEqual([])
+      expect((await harness.plane.claimNext({ hostId: newHost, limit: 5 })).leases).toEqual([])
       await releaseOld()
-      const won = await harness.plane.claimNext({ hostId: newHost, limit: 5 })
+      const won = (await harness.plane.claimNext({ hostId: newHost, limit: 5 })).leases
       expect(won).toMatchObject([{ sessionId, epoch: 2, holderHostId: newHost }])
       const revoked = await harness.plane.revoke({ sessionId, wantsHolder: true })
       expect(revoked.epoch).toBe(3)
       harness.setNow(new Date(Date.parse(T0) + 2000).toISOString())
-      const again = await harness.plane.claimNext({ hostId: newHost, limit: 5 })
+      const again = (await harness.plane.claimNext({ hostId: newHost, limit: 5 })).leases
       expect(again).toMatchObject([{ sessionId, epoch: 4 }])
       await releaseAll()
     })
@@ -125,7 +125,9 @@ export function describeControlPlaneClaims(params: ConformanceParams): void {
         const settled = await Promise.all(
           hosts.map((hostId) => harness.plane.claimNext({ hostId, limit: 5 })),
         )
-        const won = settled.flat().filter((lease) => lease.sessionId === sessionId)
+        const won = settled
+          .flatMap((batch) => batch.leases)
+          .filter((lease) => lease.sessionId === sessionId)
         expect(won).toHaveLength(1)
         const current = await harness.plane.currentLease({ sessionId })
         expect(current.lease.epoch).toBe(1)

@@ -13,7 +13,7 @@ export const freshHosts = (params: ConformanceParams): FreshHosts => {
       const hostId = await params.nextHostId()
       releases.push(await params.holdPresence(hostId))
       const claimed = await args.plane.claimNext({ hostId, limit: args.limit })
-      return claimed.map((lease) => lease.sessionId)
+      return claimed.leases.map((lease) => lease.sessionId)
     },
     async releaseAll() {
       for (const release of releases.splice(0)) await release()
