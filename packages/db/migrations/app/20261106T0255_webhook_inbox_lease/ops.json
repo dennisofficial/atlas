@@ -1,0 +1,158 @@
+[
+  {
+    "id": "column.public.GithubWebhookInbox.deadAt",
+    "label": "Add column \"deadAt\" to \"GithubWebhookInbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "deadAt",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"deadAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "deadAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"deadAt\"",
+        "sql": "ALTER TABLE \"public\".\"GithubWebhookInbox\" ADD COLUMN \"deadAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"deadAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "deadAt"
+        ]
+      },
+      {
+        "description": "verify column \"deadAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "deadAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubWebhookInbox.leaseUntil",
+    "label": "Add column \"leaseUntil\" to \"GithubWebhookInbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "leaseUntil",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"leaseUntil\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "leaseUntil"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"leaseUntil\"",
+        "sql": "ALTER TABLE \"public\".\"GithubWebhookInbox\" ADD COLUMN \"leaseUntil\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"leaseUntil\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "leaseUntil"
+        ]
+      },
+      {
+        "description": "verify column \"leaseUntil\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "leaseUntil",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubWebhookInbox.nextAttemptAt",
+    "label": "Add column \"nextAttemptAt\" to \"GithubWebhookInbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "nextAttemptAt",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"nextAttemptAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "nextAttemptAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"nextAttemptAt\"",
+        "sql": "ALTER TABLE \"public\".\"GithubWebhookInbox\" ADD COLUMN \"nextAttemptAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"nextAttemptAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "nextAttemptAt"
+        ]
+      },
+      {
+        "description": "verify column \"nextAttemptAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "nextAttemptAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  }
+]

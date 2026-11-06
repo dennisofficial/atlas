@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'0b57a2d5716c39ad7c93b2986be3c39df495f56d87664a41cdb974c6cbe50f2d'>;
+  StorageHashBase<'41eb9776117c6b638bf351597741640c89954131da999dbe999dd15e05a5d04d'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -574,8 +574,11 @@ export namespace Models {
   };
   export type public_GithubWebhookInbox = {
     attempts: FieldOutputTypes['public']['GithubWebhookInbox']['attempts'];
+    deadAt: FieldOutputTypes['public']['GithubWebhookInbox']['deadAt'];
     deliveryId: FieldOutputTypes['public']['GithubWebhookInbox']['deliveryId'];
     event: FieldOutputTypes['public']['GithubWebhookInbox']['event'];
+    leaseUntil: FieldOutputTypes['public']['GithubWebhookInbox']['leaseUntil'];
+    nextAttemptAt: FieldOutputTypes['public']['GithubWebhookInbox']['nextAttemptAt'];
     payload: FieldOutputTypes['public']['GithubWebhookInbox']['payload'];
     processedAt: FieldOutputTypes['public']['GithubWebhookInbox']['processedAt'];
     processingError: FieldOutputTypes['public']['GithubWebhookInbox']['processingError'];
@@ -3259,6 +3262,13 @@ type ContractBase = Omit<
                   };
                   readonly many: false;
                 };
+                readonly deadAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly deliveryId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -3269,6 +3279,20 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly leaseUntil: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly nextAttemptAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly payload: {
@@ -8309,6 +8333,14 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly deadAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly deliveryId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -8316,6 +8348,22 @@ type ContractBase = Omit<
               readonly event: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly leaseUntil: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly nextAttemptAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly payload: {
                 readonly nullable: false;
@@ -8348,8 +8396,11 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly attempts: { readonly column: 'attempts' };
+                readonly deadAt: { readonly column: 'deadAt' };
                 readonly deliveryId: { readonly column: 'deliveryId' };
                 readonly event: { readonly column: 'event' };
+                readonly leaseUntil: { readonly column: 'leaseUntil' };
+                readonly nextAttemptAt: { readonly column: 'nextAttemptAt' };
                 readonly payload: { readonly column: 'payload' };
                 readonly processedAt: { readonly column: 'processedAt' };
                 readonly processingError: { readonly column: 'processingError' };

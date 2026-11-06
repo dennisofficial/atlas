@@ -7,6 +7,9 @@ model GithubWebhookInbox {
   processedAt     TimestamptzJsDate(3)?
   processingError String?
   attempts        Int                    @default(0)
+  leaseUntil      TimestamptzJsDate(3)?
+  nextAttemptAt   TimestamptzJsDate(3)?
+  deadAt          TimestamptzJsDate(3)?
 
   @@index([processedAt], map: "GithubWebhookInbox_processedAt_idx")
 }
