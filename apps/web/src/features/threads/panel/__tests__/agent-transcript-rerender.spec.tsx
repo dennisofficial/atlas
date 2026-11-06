@@ -5,6 +5,7 @@ import { act } from 'react'
 import { EAgentDisplay } from '@dltech/atlas-ui/ai/agent-status'
 import type { AgentsPanelAgent } from '@dltech/atlas-ui/ai/agents-panel'
 import * as realMessage from '@dltech/atlas-ui/ai/message'
+import * as realMessageResponse from '@dltech/atlas-ui/ai/message-response'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import { installVirtuaViewport } from '../../__tests__/virtua-viewport'
@@ -12,6 +13,7 @@ import { installVirtuaViewport } from '../../__tests__/virtua-viewport'
 const renders = { agent: 0 }
 const realAgent = realMessage.AgentMessage
 const realExports = { ...realMessage }
+const realResponseExports = { ...realMessageResponse }
 
 mock.module('@dltech/atlas-ui/ai/message', () => ({
   ...realExports,
@@ -35,6 +37,8 @@ beforeAll(() => {
 })
 
 afterAll(async () => {
+  mock.module('@dltech/atlas-ui/ai/message', () => realExports)
+  mock.module('@dltech/atlas-ui/ai/message-response', () => realResponseExports)
   restoreViewport()
   await GlobalRegistrator.unregister()
 })

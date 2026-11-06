@@ -3,11 +3,13 @@ import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 
 import * as realMessage from '@dltech/atlas-ui/ai/message'
+import * as realMessageResponse from '@dltech/atlas-ui/ai/message-response'
 
 const renders = { user: 0, agent: 0 }
 const realUser = realMessage.UserMessage
 const realAgent = realMessage.AgentMessage
 const realExports = { ...realMessage }
+const realResponseExports = { ...realMessageResponse }
 
 mock.module('@dltech/atlas-ui/ai/message', () => ({
   ...realExports,
@@ -44,6 +46,8 @@ beforeAll(() => {
 })
 
 afterAll(async () => {
+  mock.module('@dltech/atlas-ui/ai/message', () => realExports)
+  mock.module('@dltech/atlas-ui/ai/message-response', () => realResponseExports)
   restoreViewport()
   await GlobalRegistrator.unregister()
 })
