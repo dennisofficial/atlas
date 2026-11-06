@@ -97,3 +97,11 @@ describe('signerUrls', () => {
     expect(store.issued).toBe(1)
   })
 })
+
+describe('signerUrls missingOf', () => {
+  it('names only the hashes whose blob is gone', async () => {
+    const { store, urls } = setup()
+    store.blobs.set(`media/u1/${'a'.repeat(64)}`, 10)
+    expect(await urls.missingOf(['a'.repeat(64), 'b'.repeat(64)])).toEqual(['b'.repeat(64)])
+  })
+})

@@ -86,6 +86,7 @@ describe('AiSdkModelPort media urls', () => {
         asked.push([...hashes])
         return new Map([[media.hash, 'https://blob.fake/d?sig=1']])
       },
+      missingOf: async () => [],
     }
 
     const content = await run(source)

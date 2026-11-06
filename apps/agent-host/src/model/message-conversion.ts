@@ -46,7 +46,13 @@ const toModelToolCallPart = (part: ToolCallPart) => ({
 
 export type MediaUrls = ReadonlyMap<string, string>
 
+export type MissingMedia = ReadonlySet<string>
+
+type MediaSend = { mediaUrls: MediaUrls; missingMedia: MissingMedia }
+
 const NO_MEDIA_URLS: MediaUrls = new Map()
+
+const NO_MISSING_MEDIA: MissingMedia = new Set()
 
 const toModelMediaText = (part: MediaPart) => ({
   type: 'text' as const,
@@ -63,17 +69,23 @@ const toModelMediaUrlPart = ({ part, url }: { part: MediaPart; url: string }) =>
   mediaType: part.media.mediaType,
 })
 
-const toModelMediaPart = ({ part, mediaUrls }: { part: MediaPart; mediaUrls: MediaUrls }) => {
-  const url = mediaUrls.get(part.media.hash)
+const toModelMissingMediaText = (part: MediaPart) => ({
+  type: 'text' as const,
+  text: `[image unavailable: ${part.source ?? part.media.hash}]`,
+})
+
+const toModelMediaPart = ({ part, media }: { part: MediaPart; media: MediaSend }) => {
+  if (media.missingMedia.has(part.media.hash)) return toModelMissingMediaText(part)
+  const url = media.mediaUrls.get(part.media.hash)
   return url === undefined ? toModelMediaText(part) : toModelMediaUrlPart({ part, url })
 }
 
 const toModelToolResultOutput = ({
   output,
-  mediaUrls,
+  media,
 }: {
   output: ToolResultOutput
-  mediaUrls: MediaUrls
+  media: MediaSend
 }): ModelToolResultOutput => {
   if (output.type !== 'content') return output
 
@@ -83,7 +95,7 @@ const toModelToolResultOutput = ({
       part.type === 'text'
         ? { type: 'text' as const, text: part.text }
         : part.type === 'media'
-          ? toModelMediaPart({ part, mediaUrls })
+          ? toModelMediaPart({ part, media })
           : {
               type: 'file' as const,
               data: { type: 'data' as const, data: part.data },
@@ -96,17 +108,11 @@ const toModelToolResultOutput = ({
   }
 }
 
-const toModelToolResultPart = ({
-  part,
-  mediaUrls,
-}: {
-  part: ToolResultPart
-  mediaUrls: MediaUrls
-}) => ({
+const toModelToolResultPart = ({ part, media }: { part: ToolResultPart; media: MediaSend }) => ({
   type: 'tool-result' as const,
   toolCallId: part.toolCallId,
   toolName: part.toolName,
-  output: toModelToolResultOutput({ output: part.output, mediaUrls }),
+  output: toModelToolResultOutput({ output: part.output, media }),
   ...carriedProviderOptions(part.providerOptions),
 })
 
@@ -125,14 +131,11 @@ const toModelFilePart = (part: FilePart) => ({
   ...carriedProviderOptions(part.providerOptions),
 })
 
-const toModelUserPart = ({ part, mediaUrls }: { part: UserContentPart; mediaUrls: MediaUrls }) => {
+const toModelUserPart = ({ part, media }: { part: UserContentPart; media: MediaSend }) => {
   if (part.type === 'media') {
-    const url = mediaUrls.get(part.media.hash)
-    if (url === undefined) return toModelMediaText(part)
-    return {
-      ...toModelMediaUrlPart({ part, url }),
-      ...carriedProviderOptions(part.providerOptions),
-    }
+    const converted = toModelMediaPart({ part, media })
+    if (converted.type === 'text') return converted
+    return { ...converted, ...carriedProviderOptions(part.providerOptions) }
   }
   if (part.type === 'image') return toModelImagePart(part)
   if (part.type === 'file') return toModelFilePart(part)
@@ -145,14 +148,19 @@ const toModelAssistantPart = (part: CoreAssistantPart): ModelAssistantPart => {
   return toModelToolCallPart(part)
 }
 
-export function toModelMessage(
-  message: Message,
-  { mediaUrls = NO_MEDIA_URLS }: { mediaUrls?: MediaUrls } = {},
-): ModelMessage {
+export type MediaSendOptions = { mediaUrls?: MediaUrls; missingMedia?: MissingMedia }
+
+const mediaSendOf = (options: MediaSendOptions): MediaSend => ({
+  mediaUrls: options.mediaUrls ?? NO_MEDIA_URLS,
+  missingMedia: options.missingMedia ?? NO_MISSING_MEDIA,
+})
+
+export function toModelMessage(message: Message, options: MediaSendOptions = {}): ModelMessage {
+  const media = mediaSendOf(options)
   if (message.role === 'user') {
     return {
       role: 'user',
-      content: message.content.map((part) => toModelUserPart({ part, mediaUrls })),
+      content: message.content.map((part) => toModelUserPart({ part, media })),
       ...carriedProviderOptions(message.providerOptions),
     }
   }
@@ -160,7 +168,7 @@ export function toModelMessage(
   if (message.role === 'tool') {
     return {
       role: 'tool',
-      content: message.content.map((part) => toModelToolResultPart({ part, mediaUrls })),
+      content: message.content.map((part) => toModelToolResultPart({ part, media })),
       ...carriedProviderOptions(message.providerOptions),
     }
   }
@@ -174,6 +182,6 @@ export function toModelMessage(
 
 export const toModelMessages = (
   messages: readonly Message[],
-  { mediaUrls = NO_MEDIA_URLS }: { mediaUrls?: MediaUrls } = {},
+  options: MediaSendOptions = {},
 ): ModelMessage[] =>
-  sanitizeToolCallIds(messages.map((message) => toModelMessage(message, { mediaUrls })))
+  sanitizeToolCallIds(messages.map((message) => toModelMessage(message, options)))

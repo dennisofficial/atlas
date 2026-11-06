@@ -8,7 +8,6 @@ import {
   hoistToolResultFiles,
   ModelPort,
   type Assembled,
-  type Chunk,
   type ChunkFilter,
   type ModelCard,
   type ModelStepResult,
@@ -25,7 +24,8 @@ import { requireFinish, StreamEndedWithoutFinish } from './stream-ended-without-
 import { toInstructions } from './instructions'
 import { providerIdentityOf } from './provider-identity'
 import { mediaHashesOf, type MediaUrlSource } from '../media/media-urls'
-import { toModelMessages } from './message-conversion'
+import { toModelMessages, type MissingMedia } from './message-conversion'
+import { isMediaUnavailable } from './media-unavailable'
 import { toProviderPrompt } from './provider-prompt'
 import { toToolSet } from './tool-set'
 
@@ -97,6 +97,7 @@ export async function runModelStream(args: {
   onChunk?: ChunkFilter
   streamTimeout?: StreamTimeout | undefined
   mediaUrls?: ReadonlyMap<string, string> | undefined
+  missingMedia?: MissingMedia | undefined
 }): Promise<ModelStepResult> {
   const instructions = toInstructions(args.prompt.instructions)
 
@@ -111,6 +112,7 @@ export async function runModelStream(args: {
     ...(instructions.length > 0 ? { instructions } : {}),
     messages: toModelMessages(args.prompt.messages, {
       ...(args.mediaUrls === undefined ? {} : { mediaUrls: args.mediaUrls }),
+      ...(args.missingMedia === undefined ? {} : { missingMedia: args.missingMedia }),
     }),
     tools: toToolSet(args.tools),
     stopWhen: stepCountIs(1),
@@ -172,6 +174,7 @@ export class AiSdkModelPort extends ModelPort {
   private readonly declaredIdentity: ProviderIdentity | undefined
   private readonly card: ModelCardSource | undefined
   private readonly mediaUrls: MediaUrlSource | undefined
+  private readonly missingMedia = new Set<string>()
 
   constructor(args: AiSdkModelPortArgs) {
     super()
@@ -206,14 +209,34 @@ export class AiSdkModelPort extends ModelPort {
     onChunk?: ChunkFilter
   }): Promise<ModelStepResult> {
     const { prompt, mediaUrls } = await this.promptFor({ assembled })
-    return runModelStream({
-      model: this.model,
-      prompt,
-      mediaUrls,
-      tools,
-      signal,
-      ...(onChunk === undefined ? {} : { onChunk }),
-    })
+    const run = () =>
+      runModelStream({
+        model: this.model,
+        prompt,
+        mediaUrls,
+        missingMedia: this.missingMedia,
+        tools,
+        signal,
+        ...(onChunk === undefined ? {} : { onChunk }),
+      })
+    try {
+      return await run()
+    } catch (error) {
+      if (!(await this.droppedMissingMedia({ error, hashes: [...mediaUrls.keys()] }))) throw error
+      return await run()
+    }
+  }
+
+  private async droppedMissingMedia(args: {
+    error: unknown
+    hashes: readonly string[]
+  }): Promise<boolean> {
+    if (this.mediaUrls === undefined || !isMediaUnavailable(args.error)) return false
+    const live = args.hashes.filter((hash) => !this.missingMedia.has(hash))
+    if (live.length === 0) return false
+    const missing = await this.mediaUrls.missingOf(live)
+    for (const hash of missing) this.missingMedia.add(hash)
+    return missing.length > 0
   }
 
   private async promptFor({ assembled }: { assembled: Assembled }): Promise<{
@@ -224,7 +247,8 @@ export class AiSdkModelPort extends ModelPort {
     const prompt = carriesToolResultImages(cardOf(this.card))
       ? provided
       : { ...provided, messages: hoistToolResultFiles({ messages: provided.messages }) }
-    const mediaUrls = (await this.mediaUrls?.urlsFor(mediaHashesOf(prompt.messages))) ?? new Map()
+    const wanted = mediaHashesOf(prompt.messages).filter((hash) => !this.missingMedia.has(hash))
+    const mediaUrls = (await this.mediaUrls?.urlsFor(wanted)) ?? new Map()
     return { prompt, mediaUrls }
   }
 }

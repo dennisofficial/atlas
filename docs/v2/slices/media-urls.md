@@ -148,10 +148,11 @@ that (operator, 2026-11-06).
   spike shows codex fetches.
 - A missing blob (deleted out of band) must not wedge a session. The provider answers 400
   "Unable to download" / "Upstream status code: 403". The host classifies that as
-  `media-unavailable`, `head`s each referenced hash, and drops the missing ones from the session's
-  media set (in memory, plus a `fact-recorded` so a new holder knows). Missing media assemble as
-  `[image unavailable: <source>]`, and the step retries once. Any other cause fails the step as
-  today.
+  `media-unavailable` (`apps/agent-host/src/model/media-unavailable.ts`, which also covers a failed
+  host-side download), `head`s each referenced hash, and drops the missing ones for the rest of the
+  session runtime. Missing media are sent as `[image unavailable: <source>]`, and the step retries
+  once. Any other cause, or a refusal while every blob is present, fails the step as today. A new
+  holder rediscovers a missing blob with one refused request; no event records it (built in A4).
 
 ## Slices
 
