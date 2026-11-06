@@ -92,6 +92,24 @@ describe('SessionHolder prepare', () => {
     expect(events.events[0]).toMatchObject({ reason: 'clone failed', inboxHead: 1 })
   })
 
+  it('still records a failure when the prepare itself throws', async () => {
+    const rig = await makeRig({
+      prepare: async () => {
+        throw new Error('sandbox could not be created')
+      },
+    })
+    await seedSession(rig)
+    await rig.post('hello')
+    await rig.holder.start()
+    await rig.wake()
+    const failed = await flushUntil({
+      check: async () => (await typesOf(rig)).includes('workspace-prepare-failed'),
+    })
+    expect(failed).toBe(true)
+    await rig.flush()
+    expect(await typesOf(rig)).toEqual(['workspace-prepare-failed'])
+  })
+
   it('retries the prepare on the next message and then runs the turn', async () => {
     let attempts = 0
     const rig = await makeRig({

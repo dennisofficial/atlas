@@ -89,6 +89,23 @@ token, and serve runs `cloudflared` in the pod (`apps/serve/src/api-port-exposer
 `apps/api/src/api/platform/sandboxes/preview-tunnel.service.ts`). The URL shows on the TUI sidebar
 pill and the web preview list like any other exposure.
 
+OAuth providers need one fixed callback URL, so the preview worker also answers
+`https://callback.byatlas.dev`. Every top-level HTML page it serves sets an `atlas-preview=<host>` cookie
+on `byatlas.dev`, and a request to the callback host is answered with a 307 to that preview, path and
+query intact (`apps/preview-worker/src/callback.ts`). The app registers
+`https://callback.byatlas.dev/<its callback path>` with the provider and uses it as its redirect URI.
+The cookie is per browser and the last preview opened wins, so two previews signing in at once in the
+same browser can cross.
+
+The Mac app keeps sign-in inside its embedded preview. When the preview navigates to a provider whose
+`redirect_uri` is on the callback host, the app opens `callback.byatlas.dev/__atlas/start?to=<provider
+url>` in the system browser instead (`packages/wire/src/web/preview-callback-wire.ts`). That sets the
+cookie to `desktop` and forwards to the provider, and the callback then answers with a page that opens
+`atlas://preview-callback/<path+query>`. The app opens that path in a new tab of the preview last shown,
+where the app's own sign-in cookies live (`apps/web/src/features/threads/panel/preview/use-preview-callback.ts`).
+Providers that POST their callback (Apple's `form_post`) can't be handed back this way. Atlas web in a
+plain browser still needs the preview opened in its own tab.
+
 Serve installs the same way on both. A release build downloads the serve binary matching the
 client's version and checks its SHA-256 (`packages/wire/src/sandbox-serve-install.ts`). A dev
 build uploads a locally built binary instead (`packages/harness/src/cloud/local-pod/serve-install.ts`,

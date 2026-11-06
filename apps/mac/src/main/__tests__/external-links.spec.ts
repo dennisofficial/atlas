@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   decideNavigation,
   ENavigationTarget,
+  externalUrlOf,
   navigationRulesFor,
   navigationUrlOf,
 } from '../external-links'
@@ -24,6 +25,18 @@ describe('decideNavigation', () => {
       'not a url',
     ])
       expect(decide(url)).toBe(ENavigationTarget.External)
+  })
+})
+
+describe('externalUrlOf', () => {
+  test('routes a preview sign-in through the callback start so it returns to the app', () => {
+    const google = `https://accounts.google.com/auth?redirect_uri=${encodeURIComponent('https://callback.byatlas.dev/cb')}`
+    const start = new URL(externalUrlOf(google))
+    expect(`${start.origin}${start.pathname}`).toBe('https://callback.byatlas.dev/__atlas/start')
+    expect(start.searchParams.get('to')).toBe(google)
+  })
+  test('leaves every other link as it is', () => {
+    expect(externalUrlOf('https://github.com/o/r')).toBe('https://github.com/o/r')
   })
 })
 

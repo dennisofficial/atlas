@@ -89,12 +89,14 @@ function fieldsOf(entry: TranscriptEntry): NoticeFields | null {
     case EEntryKind.OperatorInput:
     case EEntryKind.HistoryCompacted:
       return { title: entry.text, body: '', tone: ENoticeTone.Quiet }
-    case EEntryKind.SandboxNotice:
+    case EEntryKind.SandboxNotice: {
+      const [title = '', ...rest] = entry.text.split('\n\n')
       return {
-        title: entry.text,
-        body: '',
+        title,
+        body: rest.join('\n\n'),
         tone: entry.failed ? ENoticeTone.Attention : ENoticeTone.Quiet,
       }
+    }
     case EEntryKind.SystemContext:
       return {
         title: entry.text,

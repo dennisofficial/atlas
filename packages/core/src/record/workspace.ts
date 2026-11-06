@@ -3,7 +3,10 @@ import { z } from 'zod'
 import type { V2Event } from './event'
 import { INBOX_KIND_STOP, type InboxEntry } from './inbox'
 
-export const workspacePreparedSchema = z.object({ type: z.literal('workspace-prepared') })
+export const workspacePreparedSchema = z.object({
+  type: z.literal('workspace-prepared'),
+  warnings: z.array(z.string()).optional(),
+})
 
 export const workspacePrepareFailedSchema = z.object({
   type: z.literal('workspace-prepare-failed'),

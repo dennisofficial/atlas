@@ -5,6 +5,7 @@ import { setupOutputCallId } from '@dltech/atlas-protocol'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive, type PrepareResult, type SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
+import { setupWarningText } from './setup-warning'
 
 export class HeldPrepare {
   private active = false
@@ -102,13 +103,27 @@ export class HeldPrepare {
   }): Promise<void> {
     if (this.args.abandoned()) return
     const { result, runId } = args
-    const body = result.ok
-      ? ({ type: 'workspace-prepared' } as const)
-      : ({
-          type: 'workspace-prepare-failed',
-          reason: result.reason,
-          inboxHead: args.inboxHead,
-        } as const)
-    await args.record.append({ threadId: args.threadId, runId, drafts: [body] })
+    if (!result.ok) {
+      await args.record.append({
+        threadId: args.threadId,
+        runId,
+        drafts: [
+          { type: 'workspace-prepare-failed', reason: result.reason, inboxHead: args.inboxHead },
+        ],
+      })
+      return
+    }
+    const warnings = result.warnings ?? []
+    await args.record.append({
+      threadId: args.threadId,
+      runId,
+      drafts:
+        warnings.length === 0
+          ? [{ type: 'workspace-prepared' }]
+          : [
+              { type: 'sandbox-setup-reported', text: setupWarningText(warnings), failed: true },
+              { type: 'workspace-prepared', warnings: [...warnings] },
+            ],
+    })
   }
 }

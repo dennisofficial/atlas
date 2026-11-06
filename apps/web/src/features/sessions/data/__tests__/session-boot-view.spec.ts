@@ -115,6 +115,47 @@ describe('sessionBootViewOf', () => {
     expect(view?.error).toBe('clone failed')
   })
 
+  it('keeps a failed clone red while the session carries on, and leaves setup pending', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Failed, { reason: 'clone failed' }),
+        { type: 'workspace-prepared', warnings: ['clone failed'] },
+      ]),
+      status: statusOf(ESessionStatus.Idle),
+    })
+    expect(statesOf(view)).toEqual([
+      EBootStepState.Done,
+      EBootStepState.Done,
+      EBootStepState.Error,
+      EBootStepState.Pending,
+    ])
+    expect(view?.error).toBe('clone failed')
+  })
+
+  it('keeps a failed setup script red with its output while the session carries on', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Failed, {
+          reason: 'setup failed',
+          command: 'bun install',
+          output: 'boom',
+        }),
+        { type: 'workspace-prepared', warnings: ['setup failed'] },
+      ]),
+      status: statusOf(ESessionStatus.Idle),
+    })
+    expect(view?.steps.at(-1)).toMatchObject({
+      state: EBootStepState.Error,
+      command: 'bun install',
+      output: 'boom',
+    })
+  })
+
   it('marks the first unfinished step failed when no step recorded the failure', () => {
     const view = sessionBootViewOf({
       events: eventsOf([step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done)]),

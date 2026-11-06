@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -85,42 +85,20 @@ describe('agent-host prepares a new session before its first turn', () => {
     holder.discard()
   }, 90_000)
 
-  it('records a failed setup without a turn, then retries on the next message', async () => {
+  it('continues past a failed setup script, tells the model, and answers the first message', async () => {
     const sessionId = 'prepare-e2e-2'
     const mainThreadId = await newSession({ sessionId, text: 'first' })
     const root = mkdtempSync(join(tmpdir(), 'atlas-prepare-e2e-'))
-    const marker = join(root, 'fixed')
     const holder = makeHolder({
       presence: makePresence({ url: testDb().url, label: 'host-b' }),
       plane,
       bus,
       sandbox,
       scripts: { [sessionId]: [{ text: 'recovered' }] },
-      setupScript: `test -f ${marker} || { echo missing-marker >&2; exit 1; }`,
+      setupScript: 'echo missing-marker >&2; exit 1',
       launchDirectory: join(root, 'workspace'),
     })
     await holder.start()
-    await bus.wake(sessionId)
-
-    const failed = await waitForSeq({
-      plane,
-      threadId: mainThreadId,
-      want: (rows) => rows.some((row) => row.type === 'workspace-prepare-failed'),
-      timeoutMs: 60_000,
-    })
-    const failure = failed.find((row) => row.type === 'workspace-prepare-failed')
-    expect(failure).toBeDefined()
-    expect(String((failure?.event as { reason?: string } | undefined)?.reason)).toContain(
-      'missing-marker',
-    )
-    expect(typesOf(failed)).not.toContain('user-said')
-
-    writeFileSync(marker, 'ok')
-    await plane.post({
-      sessionId,
-      kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: 'second' }),
-    })
     await bus.wake(sessionId)
 
     const events = await waitForSeq({
@@ -130,10 +108,51 @@ describe('agent-host prepares a new session before its first turn', () => {
       timeoutMs: 60_000,
     })
     const types = typesOf(events)
-    expect(types.indexOf('workspace-prepare-failed')).toBeLessThan(
+    expect(types).not.toContain('workspace-prepare-failed')
+    const reported = events.find((row) => row.type === 'sandbox-setup-reported')
+    expect(reported?.event).toMatchObject({ failed: true })
+    expect(String((reported?.event as { text?: string } | undefined)?.text)).toContain(
+      'missing-marker',
+    )
+    const prepared = events.find((row) => row.type === 'workspace-prepared')
+    expect(prepared?.event).toMatchObject({ warnings: [expect.stringContaining('missing-marker')] })
+    expect(types.indexOf('sandbox-setup-reported')).toBeLessThan(
       types.indexOf('workspace-prepared'),
     )
     expect(types.indexOf('workspace-prepared')).toBeLessThan(types.indexOf('user-said'))
+    expect(types.indexOf('user-said')).toBeLessThan(types.indexOf('assistant-said'))
+    expect(types.filter((type) => type === 'user-said')).toHaveLength(1)
     holder.discard()
   }, 90_000)
+
+  it('still blocks and records a failure when the sandbox cannot be created', async () => {
+    const sessionId = 'prepare-e2e-3'
+    const mainThreadId = await newSession({ sessionId, text: 'first' })
+    const broken = new (class extends LocalSandboxProvider {
+      override async wake(): Promise<never> {
+        throw new Error('sandbox-create-marker')
+      }
+    })({ daemonSecret: E2E_SECRET })
+    const holder = makeHolder({
+      presence: makePresence({ url: testDb().url, label: 'host-c' }),
+      plane,
+      bus,
+      sandbox: broken,
+      scripts: { [sessionId]: [{ text: 'never' }] },
+      launchDirectory: join(mkdtempSync(join(tmpdir(), 'atlas-prepare-e2e-')), 'workspace'),
+    })
+    await holder.start()
+    await bus.wake(sessionId)
+
+    const events = await waitForSeq({
+      plane,
+      threadId: mainThreadId,
+      want: (rows) => rows.some((row) => row.type === 'workspace-prepare-failed'),
+      timeoutMs: 30_000,
+    })
+    const types = typesOf(events)
+    expect(types).not.toContain('workspace-prepared')
+    expect(types).not.toContain('user-said')
+    holder.discard()
+  }, 60_000)
 })

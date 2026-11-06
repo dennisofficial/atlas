@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { CodeBlock, CodeBlockContent } from '#components/code-block'
 import { Trace } from '#components/trace'
 import { Confirmation, EConfirmationState, type ConfirmationProps } from './confirmation'
-import { EToolKind, TOOL_KINDS } from './internal/kinds'
+import { EToolKind, TOOL_KINDS, withVerb } from './internal/kinds'
 import { Step } from './internal/step'
 
 export { EToolKind }
@@ -43,7 +43,7 @@ export function toolTitle({ kind, state, label }: ToolTitleInput): string {
   if (state === EToolState.Error) return `${verbs.error} ${label}`
   if (state === EToolState.Denied) return `Denied ${label}`
   if (state === EToolState.AwaitingApproval) return `${verbs.ask} ${label}?`
-  return `${verbs.done} ${label}`
+  return withVerb({ verb: verbs.done, label })
 }
 
 const STEP_STATUS = {

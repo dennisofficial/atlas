@@ -16,14 +16,14 @@ export type Deps = {
   files: FileSystemPort
   log?: LogPort | undefined
   signal?: AbortSignal | undefined
-  failures?: string[] | undefined
+  warnings?: string[] | undefined
 }
 
-const FAILURE_TAIL_CHARS = 1000
+const WARNING_TAIL_CHARS = 2000
 
 export const fail = (args: { deps: Deps; message: string; detail?: string | undefined }): void => {
-  const tail = (args.detail ?? '').trim().slice(-FAILURE_TAIL_CHARS)
-  args.deps.failures?.push(tail === '' ? args.message : `${args.message}: ${tail}`)
+  const tail = (args.detail ?? '').trim().slice(-WARNING_TAIL_CHARS)
+  args.deps.warnings?.push(tail === '' ? args.message : `${args.message}: ${tail}`)
 }
 
 export const stateDirOf = (launchDirectory: string): string =>

@@ -166,7 +166,7 @@ describe('Terminal', () => {
 
     expect(title(true)).toBe('Running bun test')
     expect(title(false, 1)).toBe('bun test exited with code 1')
-    expect(title(false, 0)).toBe('Ran bun test')
+    expect(title(false, 0)).toBe('bun test')
   })
 
   it('flags non-zero exits as errors', () => {

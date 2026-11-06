@@ -10,6 +10,7 @@ import { framesOf, type FrameSpec } from './frames-of'
 import { useSlotTracking } from './placement'
 import { useAllowedFrames } from './use-allowed-frames'
 import { useFrameReports } from './use-frame-reports'
+import { usePreviewCallback } from './use-preview-callback'
 
 const FRAME_SANDBOX = [
   'allow-scripts',
@@ -52,7 +53,7 @@ function PreviewFrame(props: {
       ref={reportsFrom(frame)}
       src={frame.load.url}
       title="Preview"
-      className="size-full border-0 bg-background"
+      className="size-full border-0 bg-white"
       sandbox={FRAME_SANDBOX}
       allow={FRAME_ALLOW}
       onLoad={() => markLoading({ key: frame.key, loading: false })}
@@ -73,6 +74,7 @@ export function PreviewFrameLayer() {
     [visibleKey],
   )
   useSlotTracking({ slot: registry.visible?.element, frameOf })
+  usePreviewCallback(registry.visible)
 
   return frames.filter(isAllowed).map((frame) => (
     <div

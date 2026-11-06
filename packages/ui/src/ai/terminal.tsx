@@ -24,7 +24,7 @@ export function terminalTitle({ command, running, exitCode }: TitleInput): strin
   if (exitCode !== undefined && exitCode !== 0) {
     return `${command} exited with code ${exitCode}`
   }
-  return `Ran ${command}`
+  return command
 }
 
 export function Terminal({
