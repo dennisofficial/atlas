@@ -13,7 +13,7 @@ import { clockTimeOf, spanMsOf } from '../data/clock-time'
 import type { RepairDiagramAction } from '../data/diagram-repair'
 import { messageImagesOf } from '../data/message-images'
 import { useMediaThumbs } from '../data/use-media-thumbs'
-import { useThreadPanel } from '../panel/thread-panel-context'
+import { useOptionalThreadPanel } from '../panel/thread-panel-context'
 import { isSameItem } from '../data/same-item'
 import { isSameTurn } from '../data/same-turn'
 import { eventIdOf } from '../data/transcript-items'
@@ -226,9 +226,9 @@ function TurnViewBody({
   actions: TranscriptActions
 }) {
   const { rewind } = actions
-  const { threadId } = useThreadPanel()
+  const panel = useOptionalThreadPanel()
   const thumbs = useMediaThumbs({
-    sessionId: threadId,
+    sessionId: panel?.threadId,
     media: turn.kind === ETurnKind.User ? turn.item.media : undefined,
   })
   switch (turn.kind) {

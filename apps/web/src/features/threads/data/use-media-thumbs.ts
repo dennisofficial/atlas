@@ -15,7 +15,7 @@ const mediaUrls = createMediaUrlCache({
 })
 
 export function useMediaThumbs(args: {
-  sessionId: string
+  sessionId: string | undefined
   media: readonly SaidMedia[] | undefined
 }): readonly MessageImage[] {
   const { sessionId } = args
@@ -23,6 +23,7 @@ export function useMediaThumbs(args: {
   const [urls, setUrls] = useState<ReadonlyMap<string, string>>(new Map())
 
   useEffect(() => {
+    if (sessionId === undefined) return
     let cancelled = false
     for (const item of media) {
       const { hash } = item.media
@@ -39,7 +40,7 @@ export function useMediaThumbs(args: {
   }, [sessionId, media])
 
   return useMemo(() => {
-    if (media.length === 0) return NO_THUMBS
+    if (sessionId === undefined || media.length === 0) return NO_THUMBS
     return media.flatMap((item, index) => {
       const src = urls.get(item.media.hash)
       if (src === undefined) return []
