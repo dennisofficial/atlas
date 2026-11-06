@@ -41,6 +41,34 @@ const putRaw = (args: { factory: IDBFactory; key: string; value: unknown }): Pro
     }
   })
 
+const abortingWrites = (inner: IDBFactory): IDBFactory =>
+  ({
+    open: (name: string, version?: number) => {
+      const request = inner.open(name, version)
+      request.addEventListener('success', () => {
+        const db = request.result
+        const transaction = db.transaction.bind(db)
+        db.transaction = ((stores: string, mode?: IDBTransactionMode) => {
+          const tx = transaction(stores, mode)
+          if (mode !== 'readwrite') return tx
+          const objectStore = tx.objectStore.bind(tx)
+          tx.objectStore = (storeName: string) => {
+            const store = objectStore(storeName)
+            const put = store.put.bind(store)
+            store.put = (value: unknown, key?: IDBValidKey) => {
+              const pending = put(value, key)
+              tx.abort()
+              return pending
+            }
+            return store
+          }
+          return tx
+        }) as IDBDatabase['transaction']
+      })
+      return request
+    },
+  }) as unknown as IDBFactory
+
 describe('createIndexedDbSessionCache', () => {
   it('loads what it saved', async () => {
     const cache = createIndexedDbSessionCache({ factory: new IDBFactory(), now: clock() })
@@ -89,6 +117,40 @@ describe('createIndexedDbSessionCache', () => {
     const cache = createIndexedDbSessionCache({ factory, now: clock() })
 
     expect(await cache.load('s1')).toBeUndefined()
+  })
+
+  it('loads a window without visibility as nothing', async () => {
+    const factory = new IDBFactory()
+    const { visibility: _visibility, ...partial } = windowAt(3)
+    await putRaw({ factory, key: 's1', value: { version: 1, savedAt: 1, window: partial } })
+    const cache = createIndexedDbSessionCache({ factory, now: clock() })
+
+    expect(await cache.load('s1')).toBeUndefined()
+  })
+
+  it('loads a window holding a malformed event as nothing', async () => {
+    const factory = new IDBFactory()
+    const window = { ...windowAt(3), events: [{ type: 'user-said' }] }
+    await putRaw({ factory, key: 's1', value: { version: 1, savedAt: 1, window } })
+    const cache = createIndexedDbSessionCache({ factory, now: clock() })
+
+    expect(await cache.load('s1')).toBeUndefined()
+  })
+
+  it('swallows an aborted write without an unhandled rejection', async () => {
+    const unhandled: unknown[] = []
+    const record = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', record)
+    const cache = createIndexedDbSessionCache({
+      factory: abortingWrites(new IDBFactory()),
+      now: clock(),
+    })
+
+    await cache.save({ sessionId: 's1', window: windowAt(1) })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    process.off('unhandledRejection', record)
+
+    expect(unhandled).toEqual([])
   })
 
   it('never throws when the database cannot open', async () => {

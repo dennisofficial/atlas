@@ -1,3 +1,4 @@
+import { v2EventSchema } from '@dltech/atlas-core'
 import type { SessionCache, SessionWindow } from '@dltech/atlas-client/stream'
 
 export const SESSION_CACHE_DB = 'atlas-stream'
@@ -9,17 +10,34 @@ const RECORD_VERSION = 1
 
 type CachedWindow = { version: number; savedAt: number; window: SessionWindow }
 
-const isCachedWindow = (value: unknown): value is CachedWindow => {
-  if (typeof value !== 'object' || value === null) return false
-  const record = value as Partial<CachedWindow>
-  return (
-    record.version === RECORD_VERSION &&
-    typeof record.savedAt === 'number' &&
-    typeof record.window === 'object' &&
-    record.window !== null &&
-    Array.isArray(record.window.events)
-  )
-}
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const isCursor = (value: unknown): boolean =>
+  value === undefined ||
+  (isRecord(value) && typeof value.seq === 'number' && typeof value.hash === 'string')
+
+const isSpan = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.createdAt === 'number' &&
+  typeof value.fromSeq === 'number' &&
+  typeof value.throughSeq === 'number' &&
+  typeof value.keepSurvivors === 'boolean'
+
+const isWindow = (value: unknown): value is SessionWindow =>
+  isRecord(value) &&
+  Array.isArray(value.events) &&
+  value.events.every((event) => v2EventSchema.safeParse(event).success) &&
+  isRecord(value.visibility) &&
+  Array.isArray(value.visibility.spans) &&
+  value.visibility.spans.every(isSpan) &&
+  isCursor(value.cursor)
+
+const isCachedWindow = (value: unknown): value is CachedWindow =>
+  isRecord(value) &&
+  value.version === RECORD_VERSION &&
+  typeof value.savedAt === 'number' &&
+  isWindow(value.window)
 
 const requestDone = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -47,7 +65,8 @@ const openDatabase = (factory: IDBFactory): Promise<IDBDatabase> =>
     request.onblocked = () => reject(new Error('session cache blocked'))
   })
 
-const savedAtOf = (value: unknown): number => (isCachedWindow(value) ? value.savedAt : 0)
+const savedAtOf = (value: unknown): number =>
+  isRecord(value) && typeof value.savedAt === 'number' ? value.savedAt : 0
 
 const evictOldest = async (store: IDBObjectStore): Promise<void> => {
   const [keys, values] = await Promise.all([
@@ -104,6 +123,7 @@ export function createIndexedDbSessionCache(args: {
         use: async (db) => {
           const tx = db.transaction(SESSION_CACHE_STORE, 'readwrite')
           const done = transactionDone(tx)
+          done.catch(() => undefined)
           const store = tx.objectStore(SESSION_CACHE_STORE)
           const record: CachedWindow = { version: RECORD_VERSION, savedAt: now(), window }
           await requestDone(store.put(record, sessionId))

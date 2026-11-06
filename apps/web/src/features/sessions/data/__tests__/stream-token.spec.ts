@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, mock } from 'bun:test'
 
 import { AuthApiError } from '@/lib/auth-api'
 
-import { fetchStreamToken } from '../stream-token'
+import { fetchStreamToken, SIGNED_OUT_CODE } from '../stream-token'
 
 const originalFetch = globalThis.fetch
 
@@ -27,7 +27,7 @@ describe('fetchStreamToken', () => {
   it('throws when there is no session', async () => {
     respond(null)
 
-    await expect(fetchStreamToken()).rejects.toBeInstanceOf(AuthApiError)
+    await expect(fetchStreamToken()).rejects.toMatchObject({ code: SIGNED_OUT_CODE })
   })
 
   it('throws when the session carries no token', async () => {
@@ -39,7 +39,7 @@ describe('fetchStreamToken', () => {
   it('throws when the session check is refused', async () => {
     respond({ message: 'nope' }, 401)
 
-    await expect(fetchStreamToken()).rejects.toBeInstanceOf(AuthApiError)
+    await expect(fetchStreamToken()).rejects.toMatchObject({ code: SIGNED_OUT_CODE })
   })
 
   it('throws when Atlas Cloud is unreachable', async () => {
@@ -47,6 +47,8 @@ describe('fetchStreamToken', () => {
       throw new TypeError('network down')
     }) as unknown as typeof fetch
 
-    await expect(fetchStreamToken()).rejects.toBeInstanceOf(AuthApiError)
+    const failure = await fetchStreamToken().catch((caught: unknown) => caught)
+    expect(failure).toBeInstanceOf(AuthApiError)
+    expect(failure).not.toMatchObject({ code: SIGNED_OUT_CODE })
   })
 })
