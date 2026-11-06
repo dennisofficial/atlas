@@ -84,23 +84,24 @@ unlock. Clean stop deletes the `V2Host` row and closes the lock connection.
   `pg_advisory_lock_shared(PRESENCE_NAMESPACE, successorId)`, where the successor is the next
   registered host, wrapping. Shared mode lets any number of watchers wake together instead of one at a
   time.
-- A host alone in the ring has no successor and starts no waiter; only the start-up scan covers it.
+- A host alone in the ring has no successor and starts no waiter; only its start-up claim covers it.
 - The waiter holds nothing else, so it cannot take part in a lock cycle. It sets `statement_timeout=0`
   and `lock_timeout=0`.
 - When the wait returns, the peer's connection is gone. The waiter releases the lock, deletes the
-  successor's `V2Host` row, runs the global scan (below), sends one `pg_notify` per session found, and
-  re-targets its new successor. The scan is global rather than the dead host's sessions only, so a
-  waker that dies half-way leaves nothing behind that its own watcher's scan will not find. The
-  ordinary claim race, bounded by each host's `maxSessions`, places the sessions. If the next host is
-  also dead, the wait returns at once and the ring keeps walking.
+  successor's `V2Host` row, rings its own host's claim loop, and re-targets its new successor. There is no
+  per-session `pg_notify` and no scan in the watch: `claimNext` selects every session whose holder is not
+  present, so a waker that dies half-way leaves nothing behind. The ordinary claim race, bounded by each
+  host's free slots, places the sessions. If the next host is also dead, the wait returns at once and the
+  ring keeps walking. See [0026](0026-v2-hosts-pull-sessions.md).
 - A host joining or leaving sends `pg_notify` on `atlas_host_change`; every host recomputes its successor.
   A waiter whose connection drops reconnects, and the first thing the new wait does is return at once if
   the peer died in the gap.
-- On start a host runs one global scan, "sessions needing a holder whose holder is not present". That
-  covers a fleet that was entirely down, a single-host fleet, and any session whose predecessor died
-  with it.
-- This replaces `reconcile-holders` and the ttl arithmetic in `sessionsNeedingHolder`. The query stays,
-  with `NOT present(holderHostId)` in place of the expiry test.
+- On start a host's claim loop rings once, and its first `claimNext` takes sessions whose holder is not
+  present. That covers a fleet that was entirely down, a single-host fleet, and any session whose
+  predecessor died with it.
+- This replaces `reconcile-holders` and the ttl arithmetic in the needing-holder query. The predicate
+  stays, with `NOT present(holderHostId)` in place of the expiry test, and now lives only inside
+  `claimNext` ([0026](0026-v2-hosts-pull-sessions.md)).
 
 ## Why
 
@@ -170,7 +171,7 @@ survives both. The lock's job is to say when a claim is allowed.
 | Deploy drain                     | Unchanged: revoke the sessions that have work with `pg_notify`, release the idle ones, close the lock connection last.                                                                                                                                                                                                                                                                                             |
 | PlanetScale failover             | Every connection drops and the new primary has no advisory locks. Each host reads that as lock loss, registers a new id, and reclaims its sessions at the next epoch. The `V2Host` rows of the old ids are deleted by the first waiter that finds them free. Epoch fencing is as durable as the database; if an old primary stayed writable the design would have no protection, and neither would the TTL design. |
 | PgBouncer (transaction mode)     | Refused at startup for the lock connection. Waiter connections follow the same rule. The API's pooled URL is unaffected.                                                                                                                                                                                                                                                                                           |
-| Every host down, then one starts | The start-up scan lists sessions whose holder is not present.                                                                                                                                                                                                                                                                                                                                                      |
+| Every host down, then one starts | The start-up claim takes sessions whose holder is not present.                                                                                                                                                                                                                                                                                                                                                     |
 | Waiter connection drops          | It reconnects and waits again; a death in the gap makes the wait return at once.                                                                                                                                                                                                                                                                                                                                   |
 
 ## Consequences

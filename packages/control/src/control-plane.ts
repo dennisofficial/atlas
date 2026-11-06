@@ -1,5 +1,4 @@
 import {
-  type ClaimResult,
   type InboxEntry,
   type Lease,
   type LogHead,
@@ -16,6 +15,7 @@ import {
   ControlStorePort,
   SeqConflictError,
   type BlobRow,
+  type ClaimedBatch,
   type BlobWrite,
   type ControlTx,
   type ThreadRow,
@@ -39,6 +39,9 @@ export type { TakeBackResult } from './inbox-ops'
 export type { StatusSnapshot } from './status-snapshot'
 
 const clampLimit = (limit: number): number => Math.max(1, Math.min(limit, MAX_READ_LIMIT))
+
+const clampSessionLimit = (limit: number): number =>
+  Math.max(1, Math.min(limit, MAX_SESSION_LIST_LIMIT))
 
 const headOf = (row: ThreadRow): LogHead => ({ seq: row.headSeq, hash: row.headHash })
 
@@ -100,37 +103,25 @@ export class ControlPlane {
     limit: number
   }): Promise<ControlSessionRow[]> {
     return this.store.transact((tx) =>
-      tx.listSessions({
-        ...params,
-        limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
-      }),
+      tx.listSessions({ ...params, limit: clampSessionLimit(params.limit) }),
     )
   }
 
   async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
     return this.store.transact((tx) =>
-      tx.listSessionDigests({
-        ...params,
-        limit: Math.max(1, Math.min(params.limit, MAX_SESSION_LIST_LIMIT)),
-      }),
+      tx.listSessionDigests({ ...params, limit: clampSessionLimit(params.limit) }),
     )
   }
 
-  async sessionsNeedingHolder(params: { limit: number }): Promise<string[]> {
-    return this.store.transact((tx) =>
-      tx.sessionsNeedingHolder({ limit: clampLimit(params.limit) }),
-    )
-  }
-
-  async claimNext(params: { hostId: number; limit: number }): Promise<Lease[]> {
-    if (params.limit <= 0) return []
+  async claimNext(params: { hostId: number; limit: number }): Promise<ClaimedBatch> {
+    if (params.limit <= 0) return { leases: [], nextRetryAt: null }
     return this.store.transact(async (tx) => {
       const claimed = await tx.claimNeeding({
         hostId: params.hostId,
         now: await this.nowIn(tx),
         limit: clampLimit(params.limit),
       })
-      for (const lease of claimed) await tx.announce({ sessionId: lease.sessionId })
+      for (const lease of claimed.leases) await tx.announce({ sessionId: lease.sessionId })
       return claimed
     })
   }
@@ -255,10 +246,6 @@ export class ControlPlane {
 
   async grant(params: { sessionId: string; hostId: number }): Promise<Lease> {
     return this.leases.grant(params)
-  }
-
-  async claim(params: { sessionId: string; hostId: number }): Promise<ClaimResult> {
-    return this.leases.claimLease(params)
   }
 
   revoke(params: {

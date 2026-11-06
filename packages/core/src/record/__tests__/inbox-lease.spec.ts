@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
 import { consume, takeBack, type InboxEntry } from '../inbox'
-import { claim, claimGrant, grant, retryDelayMs, revoke, revokeIfEpoch } from '../lease'
+import { claimGrant, grant, retryDelayMs, revoke, revokeIfEpoch } from '../lease'
 import { NOW, lease } from './support'
 
 const entry = (consumedSeq: number | null): InboxEntry => ({
@@ -82,42 +82,6 @@ describe('lease moves', () => {
       ok: true,
       lease: { epoch: 4, holderHostId: null },
     })
-  })
-
-  it('claim refuses while the holder host is present', () => {
-    expect(claim({ lease: lease(), hostId: 9, holderPresent: true, selfPresent: true })).toEqual({
-      ok: false,
-      refusal: { kind: 'held', epoch: 3 },
-    })
-  })
-
-  it('claim takes over once the holder host is absent', () => {
-    expect(claim({ lease: lease(), hostId: 9, holderPresent: false, selfPresent: true })).toEqual({
-      ok: true,
-      lease: lease({ epoch: 4, holderHostId: 9 }),
-    })
-  })
-
-  it('claim grants an unheld lease whatever holderPresent says', () => {
-    const unheld = lease({ holderHostId: null })
-    expect(
-      claim({ lease: unheld, hostId: 9, holderPresent: true, selfPresent: true }),
-    ).toMatchObject({ ok: true, lease: { epoch: 4, holderHostId: 9 } })
-  })
-
-  it('claim refuses a claimer that is not present', () => {
-    expect(claim({ lease: lease(), hostId: 9, holderPresent: false, selfPresent: false })).toEqual({
-      ok: false,
-      refusal: { kind: 'not-present' },
-    })
-    expect(
-      claim({
-        lease: lease({ holderHostId: null }),
-        hostId: 9,
-        holderPresent: false,
-        selfPresent: false,
-      }),
-    ).toEqual({ ok: false, refusal: { kind: 'not-present' } })
   })
 })
 

@@ -71,52 +71,40 @@ const makeFleet = (args: { peers: number[]; notifyFails?: boolean; endGate?: Pro
   return { clients, createClient, waitingNow, maxWaiting: () => maxWaiting }
 }
 
-const countingPlane = (scanGate?: Promise<void>) => {
-  let scans = 0
-  let inFlight = 0
-  let maxInFlight = 0
+const countingRing = () => {
+  let rings = 0
   return {
-    scans: () => scans,
-    maxInFlight: () => maxInFlight,
-    plane: {
-      sessionsNeedingHolder: async () => {
-        inFlight += 1
-        maxInFlight = Math.max(maxInFlight, inFlight)
-        if (scans === 0 && scanGate !== undefined) await scanGate
-        scans += 1
-        inFlight -= 1
-        return []
-      },
-      wake: async () => undefined,
+    rings: () => rings,
+    ring: () => {
+      rings += 1
     },
   }
 }
 
 describe('pg host watch races', () => {
-  it('a death whose reap fails half-way is still scanned', async () => {
+  it('a death whose reap fails half-way still rings', async () => {
     const fleet = makeFleet({ peers: [2], notifyFails: true })
-    const counter = countingPlane()
+    const counter = countingRing()
     const watch = startHostWatch({
       url: 'postgres://unused',
       selfId: () => 1,
-      plane: counter.plane,
+      ring: counter.ring,
       onHostChange: () => () => undefined,
       createClient: fleet.createClient,
     })
     await until(() => fleet.waitingNow() === 1)
     fleet.clients[0]?.die()
-    await until(() => counter.scans() === 1)
+    await until(() => counter.rings() === 1)
     await watch.close()
   })
 
-  it('scans never overlap and every death is scanned, even with recomputes in between', async () => {
-    const scanGate = gate()
+  it('every death rings once, even with recomputes in between', async () => {
     const fleet = makeFleet({ peers: [2, 3] })
-    const counter = countingPlane(scanGate.wait)
+    const counter = countingRing()
     const watch = startHostWatch({
       url: 'postgres://unused',
       selfId: () => 1,
-      plane: counter.plane,
+      ring: counter.ring,
       onHostChange: () => () => undefined,
       createClient: fleet.createClient,
     })
@@ -126,23 +114,21 @@ describe('pg host watch races', () => {
     watch.recompute()
     watch.recompute()
     await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(fleet.waitingNow()).toBe(0)
-    scanGate.open()
     await until(() => fleet.waitingNow() === 1)
+    expect(counter.rings()).toBe(1)
     fleet.clients.find((c) => c.waiting)?.die()
-    await until(() => counter.scans() === 2)
-    expect(counter.maxInFlight()).toBe(1)
+    await until(() => counter.rings() === 2)
     await watch.close()
   })
 
   it('overlapping recomputes never leave two waiters, and close awaits the teardown', async () => {
     const endGate = gate()
     const fleet = makeFleet({ peers: [2], endGate: endGate.wait })
-    const counter = countingPlane()
+    const counter = countingRing()
     const watch = startHostWatch({
       url: 'postgres://unused',
       selfId: () => 1,
-      plane: counter.plane,
+      ring: counter.ring,
       onHostChange: () => () => undefined,
       createClient: fleet.createClient,
     })

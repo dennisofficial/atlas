@@ -1,11 +1,9 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import pg from 'pg'
 
-import { ControlPlane } from '@dltech/atlas-control'
-import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { HostPresence } from '@dltech/atlas-host'
-import { PG_PRESENCE_LOCK_NAMESPACE, PG_WAKE_CHANNEL } from '@dltech/atlas-protocol'
+import { PG_PRESENCE_LOCK_NAMESPACE } from '@dltech/atlas-protocol'
 
 import { startPgWakeListener, type PgWakeListener } from '../../bus/pg-wake-listener'
 import { createPgHostPresence } from '../pg-host-presence'
@@ -31,19 +29,16 @@ describe('pg host watch', () => {
   const watches: HostWatch[] = []
   const listeners: PgWakeListener[] = []
   const clients: pg.Client[] = []
-  const wakes: string[] = []
+  let rings = 0
 
   afterEach(async () => {
     for (const watch of watches.splice(0)) await watch.close()
     for (const listener of listeners.splice(0)) await listener.close()
     for (const presence of presences.splice(0)) await presence.close()
     for (const client of clients.splice(0)) await client.end().catch(() => undefined)
-    wakes.length = 0
+    rings = 0
     shared = undefined
   })
-
-  const plane = (): ControlPlane =>
-    new ControlPlane({ store: new PostgresControlStore(testDb().db) })
 
   let shared: pg.Client | undefined
 
@@ -54,19 +49,6 @@ describe('pg host watch', () => {
     await client.connect()
     shared = client
     return client
-  }
-
-  const spyClient = async (): Promise<pg.Client> => {
-    const client = new pg.Client(testDb().url)
-    clients.push(client)
-    await client.connect()
-    return client
-  }
-
-  const wakeSpy = async (): Promise<void> => {
-    const client = await spyClient()
-    await client.query(`LISTEN ${PG_WAKE_CHANNEL}`)
-    client.on('notification', (message) => wakes.push(message.payload ?? ''))
   }
 
   const host = async (label: string): Promise<{ id: number; presence: HostPresence }> => {
@@ -81,24 +63,13 @@ describe('pg host watch', () => {
     const watch = startHostWatch({
       url: testDb().url,
       selfId: args.selfId,
-      plane: plane(),
+      ring: () => {
+        rings += 1
+      },
       onHostChange: (handler) => listener.onHostChange(handler),
     })
     watches.push(watch)
     return watch
-  }
-
-  const leaseTo = async (args: { sessionId: string; hostId: number }): Promise<void> => {
-    const control = plane()
-    await control.createSession({
-      sessionId: args.sessionId,
-      userId: 'user-1',
-      projectId: 'project-1',
-      mainThreadId: `thread-${args.sessionId}`,
-    })
-    await control.grant({ sessionId: args.sessionId, hostId: args.hostId })
-    await control.post({ sessionId: args.sessionId, kind: 'message', payload: '{"text":"hi"}' })
-    await settle(200)
   }
 
   const kill = async (hostId: number): Promise<void> => {
@@ -129,82 +100,72 @@ describe('pg host watch', () => {
 
   const armed = (count: number) => waitFor({ check: async () => (await watchers()) === count })
 
-  it('wakes the sessions of a peer whose presence died and deletes its row', async () => {
-    await wakeSpy()
+  it('rings the claim loop when a peer presence dies and deletes its row', async () => {
     const a = await host('a')
     const b = await host('b')
     startWatch({ selfId: () => a.id })
-    await leaseTo({ sessionId: 'on-b', hostId: b.id })
     expect(await armed(1)).toBe(true)
-    wakes.length = 0
+    rings = 0
 
     await kill(b.id)
 
-    expect(await waitFor({ check: () => wakes.includes('on-b') })).toBe(true)
+    expect(await waitFor({ check: () => rings >= 1 })).toBe(true)
     expect(await hostRows()).toEqual([a.id])
     expect(await armed(0)).toBe(true)
   }, 30_000)
 
   it('walks the ring: B dies, then C, and the watch ends with no successor', async () => {
-    await wakeSpy()
     const a = await host('a')
     const b = await host('b')
     const c = await host('c')
     startWatch({ selfId: () => a.id })
-    await leaseTo({ sessionId: 'on-b', hostId: b.id })
-    await leaseTo({ sessionId: 'on-c', hostId: c.id })
     expect(await armed(1)).toBe(true)
-    wakes.length = 0
+    rings = 0
 
     await kill(b.id)
     expect(await waitFor({ check: async () => !(await hostRows()).includes(b.id) })).toBe(true)
-    expect(await waitFor({ check: () => wakes.includes('on-b') })).toBe(true)
+    expect(await waitFor({ check: () => rings >= 1 })).toBe(true)
     expect(await armed(1)).toBe(true)
-    wakes.length = 0
+    rings = 0
 
     await kill(c.id)
-    expect(await waitFor({ check: () => wakes.includes('on-c') })).toBe(true)
+    expect(await waitFor({ check: () => rings >= 1 })).toBe(true)
     expect(await hostRows()).toEqual([a.id])
     expect(await armed(0)).toBe(true)
   }, 30_000)
 
   it('wraps to the lowest id when nothing is above itself', async () => {
-    await wakeSpy()
     const a = await host('a')
     await host('b')
     const c = await host('c')
     startWatch({ selfId: () => c.id })
-    await leaseTo({ sessionId: 'on-a', hostId: a.id })
     expect(await armed(1)).toBe(true)
-    wakes.length = 0
+    rings = 0
 
     await kill(a.id)
 
-    expect(await waitFor({ check: () => wakes.includes('on-a') })).toBe(true)
+    expect(await waitFor({ check: () => rings >= 1 })).toBe(true)
     expect(await hostRows()).not.toContain(a.id)
   }, 30_000)
 
   it('retargets when a host joins above it and leaves one waiter', async () => {
-    await wakeSpy()
     await host('a')
     const b = await host('b')
     startWatch({ selfId: () => b.id })
     expect(await armed(1)).toBe(true)
 
     const c = await host('c')
-    await leaseTo({ sessionId: 'on-c', hostId: c.id })
     await settle(500)
     expect(await armed(1)).toBe(true)
-    wakes.length = 0
+    rings = 0
 
     await kill(c.id)
 
-    expect(await waitFor({ check: () => wakes.includes('on-c') })).toBe(true)
+    expect(await waitFor({ check: () => rings >= 1 })).toBe(true)
     expect(await hostRows()).not.toContain(c.id)
   }, 30_000)
 
   it('a changed self id retargets and the old successor is no longer watched', async () => {
-    await wakeSpy()
     const a = await host('a')
     const b = await host('b')
     const c = await host('c')
@@ -234,13 +195,11 @@ describe('pg host watch', () => {
   }, 30_000)
 
   it('reconnects after the waiter connection is killed and still notices a death', async () => {
-    await wakeSpy()
     const a = await host('a')
     const b = await host('b')
     startWatch({ selfId: () => a.id })
-    await leaseTo({ sessionId: 'on-b', hostId: b.id })
     expect(await armed(1)).toBe(true)
-    wakes.length = 0
+    rings = 0
 
     const killer = await sql()
     await killer.query(
@@ -251,7 +210,7 @@ describe('pg host watch', () => {
     expect(await armed(1)).toBe(true)
 
     await kill(b.id)
-    expect(await waitFor({ check: () => wakes.includes('on-b') })).toBe(true)
+    expect(await waitFor({ check: () => rings >= 1 })).toBe(true)
   }, 30_000)
 
   it('starts no waiter for a lone host', async () => {

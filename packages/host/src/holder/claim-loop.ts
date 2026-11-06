@@ -4,13 +4,17 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import { HolderSweep } from './holder-sweep'
 import type { HostTimers } from './ports'
 
+export type ClaimBatch = { leases: Lease[]; nextRetryAt: string | null }
+
+const MIN_DUE_DELAY_MS = 50
+
 export type ClaimLoopArgs = {
   timers: HostTimers
   tickMs: number
   hostId(): number | undefined
   draining(): boolean
   freeSlots(): number
-  claimNext(args: { hostId: number; limit: number }): Promise<Lease[]>
+  claimNext(args: { hostId: number; limit: number }): Promise<ClaimBatch>
   hold(args: { hostId: number; lease: Lease; claimMs: number }): Promise<void>
   onTick(): Promise<void>
   settlePending(): Promise<void>
@@ -20,7 +24,7 @@ export type ClaimLoopArgs = {
 export class ClaimLoop {
   private readonly args: ClaimLoopArgs
   private readonly sweep: HolderSweep
-  private readonly dueTimers = new Set<unknown>()
+  private due: { at: number; timer: unknown } | undefined
   private running = false
   private queued = false
   private auditDue = false
@@ -48,8 +52,7 @@ export class ClaimLoop {
     this.stopped = true
     this.queued = false
     this.sweep.stop()
-    for (const timer of this.dueTimers) this.args.timers.clearTimeout(timer)
-    this.dueTimers.clear()
+    this.clearDue()
   }
 
   ring(): void {
@@ -64,12 +67,21 @@ export class ClaimLoop {
 
   ringAt(isoTime: string | null): void {
     if (isoTime === null || this.stopped) return
-    const delay = Math.max(0, Date.parse(isoTime) - this.args.timers.now())
+    const at = Date.parse(isoTime)
+    if (this.due !== undefined && this.due.at <= at) return
+    this.clearDue()
+    const delay = Math.max(MIN_DUE_DELAY_MS, at - this.args.timers.now())
     const timer = this.args.timers.setTimeout(() => {
-      this.dueTimers.delete(timer)
+      this.due = undefined
       this.ring()
     }, delay)
-    this.dueTimers.add(timer)
+    this.due = { at, timer }
+  }
+
+  private clearDue(): void {
+    if (this.due === undefined) return
+    this.args.timers.clearTimeout(this.due.timer)
+    this.due = undefined
   }
 
   private async runQueued(): Promise<void> {
@@ -94,9 +106,9 @@ export class ClaimLoop {
     const limit = this.args.freeSlots()
     if (limit <= 0) return
     const startedAt = this.args.timers.now()
-    let leases: Lease[]
+    let batch: ClaimBatch
     try {
-      leases = await this.args.claimNext({ hostId, limit })
+      batch = await this.args.claimNext({ hostId, limit })
     } catch (error) {
       this.args.log?.error({
         source: 'holder.claim',
@@ -105,6 +117,8 @@ export class ClaimLoop {
       })
       return
     }
+    const { leases } = batch
+    this.ringAt(batch.nextRetryAt)
     const claimMs = this.args.timers.now() - startedAt
     for (const lease of leases) await this.holdOne({ hostId, lease, claimMs })
     if (leases.length === limit) this.queued = true
