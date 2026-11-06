@@ -190,7 +190,7 @@ describe('ensureWorkspace', () => {
     calls.close()
   }, 60_000)
 
-  it('reports a failing setup script with its output tail and no sentinel', async () => {
+  it('warns about a failing setup script with its command and output tail, and writes no sentinel', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-badsetup-'))
     const launchDirectory = join(root, 'workspace')
     const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-bad' })
@@ -207,16 +207,17 @@ describe('ensureWorkspace', () => {
       },
       launchDirectory,
     })
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.reason).toContain('workspace setup script failed')
-      expect(result.reason).toContain('boom-marker')
-    }
+    expect(result.ok).toBe(true)
+    const warnings = result.ok ? (result.warnings ?? []) : []
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('workspace setup script failed')
+    expect(warnings[0]).toContain('exit 3')
+    expect(warnings[0]).toContain('boom-marker')
     expect(existsSync(join(root, WORKSPACE_STATE_DIR, SETUP_SENTINEL))).toBe(false)
     calls.close()
   }, 60_000)
 
-  it('reports a failing clone without the github token and retries it next time', async () => {
+  it('warns about a failing clone without the github token and retries it next time', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-badclone-'))
     const launchDirectory = join(root, 'workspace')
     const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-clone' })
@@ -235,11 +236,10 @@ describe('ensureWorkspace', () => {
       githubToken: TOKEN,
       launchDirectory,
     })
-    expect(failed.ok).toBe(false)
-    if (!failed.ok) {
-      expect(failed.reason).toContain('workspace clone failed')
-      expect(failed.reason).not.toContain(TOKEN)
-    }
+    expect(failed.ok).toBe(true)
+    const warnings = failed.ok ? (failed.warnings ?? []) : []
+    expect(warnings.join('\n')).toContain('workspace clone failed')
+    expect(warnings.join('\n')).not.toContain(TOKEN)
     const remoteUrl = makeRemote(root)
     const retried = await setupFor({
       sessionId: 'setup-session-clone',
@@ -256,7 +256,7 @@ describe('ensureWorkspace', () => {
     calls.close()
   }, 60_000)
 
-  it('does not report ok or mark the workspace materialized after a failed additional clone', async () => {
+  it('warns and does not mark the workspace materialized after a failed additional clone', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-extra-'))
     const launchDirectory = join(root, 'workspace')
     const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-extra' })
@@ -277,13 +277,15 @@ describe('ensureWorkspace', () => {
       })
 
     const failed = await run()
-    expect(failed.ok).toBe(false)
+    expect(failed.ok && (failed.warnings ?? []).length > 0).toBe(true)
     expect(existsSync(join(root, WORKSPACE_STATE_DIR, MATERIALIZED_SENTINEL))).toBe(false)
     writeFileSync(join(launchDirectory, 'marker.txt'), 'primary stays\n')
 
     const retried = await run()
-    expect(retried.ok).toBe(false)
-    if (!retried.ok) expect(retried.reason).toContain('additional repo nobody/missing-extra')
+    expect(retried.ok).toBe(true)
+    if (retried.ok) {
+      expect((retried.warnings ?? []).join('\n')).toContain('additional repo nobody/missing-extra')
+    }
     expect(readFileSync(join(launchDirectory, 'marker.txt'), 'utf8')).toBe('primary stays\n')
     expect(existsSync(join(root, WORKSPACE_STATE_DIR, MATERIALIZED_SENTINEL))).toBe(false)
     calls.close()

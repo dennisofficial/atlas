@@ -73,13 +73,13 @@ const stateOf = (args: {
 }): EBootStepState => {
   const { recorded, phase } = args
   if (recorded?.state === EWorkspaceStepState.Done) return EBootStepState.Done
-  if (recorded?.state === EWorkspaceStepState.Failed && phase === 'failed') {
-    return EBootStepState.Error
-  }
+  if (recorded?.state === EWorkspaceStepState.Failed) return EBootStepState.Error
   if (recorded?.state === EWorkspaceStepState.Started) {
     return phase === 'live' ? EBootStepState.Running : EBootStepState.Error
   }
-  if (phase === 'settled') return EBootStepState.Done
+  if (phase === 'settled') {
+    return args.previousDone ? EBootStepState.Done : EBootStepState.Pending
+  }
   return phase === 'live' && args.previousDone ? EBootStepState.Running : EBootStepState.Pending
 }
 

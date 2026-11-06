@@ -456,6 +456,15 @@ describe('sessionStatusOf workspace preparation', () => {
     expect(tracked({ bodies, pending: [1] }).state).toBe(ESessionStatus.Sent)
   })
 
+  it('is idle, not failed, after a prepare that finished with warnings', () => {
+    const bodies: V2Body[] = [
+      { type: 'sandbox-setup-reported', text: 'clone failed', failed: true },
+      { type: 'workspace-prepared', warnings: ['clone failed'] },
+    ]
+    expect(tracked({ bodies }).state).toBe(ESessionStatus.Idle)
+    expect(tracked({ bodies, pending: [1] }).state).toBe(ESessionStatus.Sent)
+  })
+
   it('treats a session with turns but no prepare event as prepared', () => {
     const bodies: V2Body[] = [{ type: 'user-said', text: 'hi' }]
     expect(tracked({ bodies }).state).toBe(ESessionStatus.Thinking)

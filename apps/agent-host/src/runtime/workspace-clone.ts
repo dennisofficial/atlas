@@ -115,11 +115,9 @@ const moveStagedClone = async (args: {
     await deps.files.rename({ from: staging, to: launchDirectory })
     return true
   }
-  report({
-    deps,
-    message: 'workspace is not empty and has no materialized sentinel; leaving it untouched',
-    detail: launchDirectory,
-  })
+  const message = 'workspace is not empty and has no materialized sentinel; leaving it untouched'
+  report({ deps, message, detail: launchDirectory })
+  fail({ deps, message: `workspace clone skipped: ${message}`, detail: launchDirectory })
   await deps.files.removeFile({ path: staging }).catch(() => undefined)
   return false
 }

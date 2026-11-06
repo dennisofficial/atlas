@@ -43,6 +43,22 @@ describe('noticeItemOf', () => {
     })
   })
 
+  it('keeps the first line of a sandbox notice as the title and the rest as the body', () => {
+    const entry: TranscriptEntry = {
+      kind: EEntryKind.SandboxNotice,
+      author: EAuthor.Model,
+      key: 'evt_3',
+      text: 'Workspace setup did not finish cleanly.\n\nworkspace setup script failed: boom',
+      failed: true,
+    }
+
+    expect(noticeItemOf(entry)).toMatchObject({
+      title: 'Workspace setup did not finish cleanly.',
+      body: 'workspace setup script failed: boom',
+      tone: ENoticeTone.Attention,
+    })
+  })
+
   it('prefixes a system notice and keeps it quiet', () => {
     const entry: TranscriptEntry = {
       kind: EEntryKind.SystemNotice,

@@ -9,6 +9,7 @@ import {
   workspaceStateOf,
 } from '../workspace'
 import { isRecordOnly, toLoopEvent } from '../loop-events'
+import { decideHeldAction, EHeldAction } from '../../execution/held-session-decision'
 import { NOW, runId, threadId } from './support'
 
 const log = (bodies: V2Body[]) => chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
@@ -112,5 +113,31 @@ describe('actionableInboxIds', () => {
   it('drops messages up to the failure head and keeps stops and newer messages', () => {
     expect(actionableInboxIds({ entries, failure: { inboxHead: 1 } })).toEqual([2, 3])
     expect(actionableInboxIds({ entries, failure: { inboxHead: 3 } })).toEqual([2])
+  })
+})
+
+describe('a prepare that finished with warnings', () => {
+  const warned: V2Body = { type: 'workspace-prepared', warnings: ['workspace clone failed: nope'] }
+
+  it('round-trips the warnings through the v2 event schema', () => {
+    const [event] = log([warned])
+    expect(v2EventSchema.parse(event)).toMatchObject({ warnings: ['workspace clone failed: nope'] })
+  })
+
+  it('is prepared, and a pending message starts a turn', () => {
+    const result = state({ bodies: [warned], pending: [1] })
+    expect(result.state).toBe(EWorkspaceState.Prepared)
+    expect(result.failure).toBeUndefined()
+    expect(
+      decideHeldAction({
+        draining: false,
+        turn: 'idle',
+        stopPending: false,
+        messagePending: true,
+        idleDue: false,
+        workspace: result.state,
+        retryPending: result.retryPending,
+      }),
+    ).toBe(EHeldAction.StartTurn)
   })
 })

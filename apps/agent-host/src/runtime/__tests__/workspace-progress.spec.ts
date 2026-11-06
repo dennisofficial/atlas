@@ -78,7 +78,7 @@ describe('workspace clone progress', () => {
       remoteUrl: 'https://github.com/acme/app',
       additionalRepos: [{ repo: 'acme/lib' }],
     })
-    expect(result.ok).toBe(false)
+    expect(result.ok).toBe(true)
     const failed = steps.at(-1)
     expect(failed?.state).toBe(EWorkspaceStepState.Failed)
     expect(reposOf(failed)).toEqual([
@@ -115,7 +115,7 @@ describe('workspace setup output', () => {
       exitCodeOf: () => 2,
     })
     const { result, steps } = await prepare({ processes, remoteUrl: null, setupScript: 'exit 2' })
-    expect(result.ok).toBe(false)
+    expect(result).toMatchObject({ ok: true, warnings: [expect.stringContaining('boom')] })
     expect(steps.at(-1)).toMatchObject({
       state: EWorkspaceStepState.Failed,
       command: 'exit 2',
@@ -128,5 +128,42 @@ describe('workspace setup output', () => {
     const { steps } = await prepare({ processes, remoteUrl: null, setupScript: 'noisy' })
     expect(steps.at(-1)?.output?.length).toBe(16_000)
     expect(steps.at(-1)?.output?.endsWith('tail')).toBe(true)
+  })
+})
+
+describe('workspace steps that fail without blocking', () => {
+  it('skips the setup script and says so when the clone failed', async () => {
+    const processes = new RecordingProcessPort({
+      exitCodeOf: (call) => (call.cmd[0] === 'git' ? 1 : 0),
+    })
+    const { result, steps } = await prepare({
+      processes,
+      remoteUrl: 'https://github.com/acme/app',
+      setupScript: 'bun install',
+    })
+    expect(result.ok).toBe(true)
+    const warnings = result.ok ? (result.warnings ?? []) : []
+    expect(warnings.join('\n')).toContain('workspace clone failed')
+    expect(warnings.join('\n')).toContain('setup script was skipped')
+    expect(processes.spawned.some((call) => call.cmd[0] === 'sh')).toBe(false)
+    expect(steps.some((step) => step.step === EWorkspaceStep.Setup)).toBe(false)
+  })
+
+  it('still fails the prepare when the sandbox cannot be reached', async () => {
+    const result = await ensureWorkspace({
+      calls: { ackScope: () => Promise.resolve() },
+      processes: new RecordingProcessPort(),
+      files: new (class extends StubFileSystemPort {
+        override mkdir(): Promise<void> {
+          return Promise.reject(new Error('daemon unreachable'))
+        }
+      })(),
+      workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
+      githubToken: null,
+      launchDirectory: '/workspace/repo',
+      sandboxName: 'sandbox-down',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toContain('daemon unreachable')
   })
 })
