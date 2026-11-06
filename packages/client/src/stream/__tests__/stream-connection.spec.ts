@@ -167,7 +167,7 @@ describe('the stream connection', () => {
     clock.advance(45_000)
     expect(socket.closedWith).toHaveLength(1)
     expect(connection.state()).toBe(EStreamConnectionState.Backoff)
-    clock.advance(15_000)
+    clock.advance(500)
     expect(sockets).toHaveLength(2)
   })
 

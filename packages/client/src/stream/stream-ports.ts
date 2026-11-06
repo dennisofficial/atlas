@@ -41,3 +41,31 @@ export const systemStreamScheduler: StreamScheduler = {
   clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
   random: () => Math.random(),
 }
+
+export type StreamNetworkSignal = (handleSignal: () => void) => () => void
+
+type SignalWindow = Pick<EventTarget, 'addEventListener' | 'removeEventListener'>
+
+type SignalDocument = SignalWindow & { readonly visibilityState: string }
+
+export const networkSignalOf =
+  (args: { win: SignalWindow | undefined; doc: SignalDocument | undefined }): StreamNetworkSignal =>
+  (handleSignal) => {
+    const { win, doc } = args
+    if (win === undefined || doc === undefined) return () => {}
+    const handleVisibility = (): void => {
+      if (doc.visibilityState === 'visible') handleSignal()
+    }
+    win.addEventListener('online', handleSignal)
+    doc.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      win.removeEventListener('online', handleSignal)
+      doc.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }
+
+export const browserNetworkSignal: StreamNetworkSignal = (handleSignal) =>
+  networkSignalOf({
+    win: typeof globalThis.addEventListener === 'function' ? globalThis : undefined,
+    doc: typeof document === 'undefined' ? undefined : document,
+  })(handleSignal)
