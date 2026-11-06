@@ -6,7 +6,7 @@ import {
   updateTab,
   type BrowserState,
 } from '../../../data/preview-browser/browser-model'
-import { frameReportOf } from '../frame-messages'
+import { EFrameMessage, frameReportOf } from '../frame-messages'
 import { reportedState } from '../report-navigation'
 
 const ORIGIN = 'https://3000-abcdefghij.byatlas.dev'
@@ -26,12 +26,20 @@ describe('frameReportOf', () => {
   it('routes a location to the frame whose window sent it', () => {
     expect(frameReportOf({ origin: ORIGIN, source: mine, data: location(B), windows })).toEqual({
       key: 't1:tab-1',
-      url: B,
-      title: 'Page',
+      message: { kind: EFrameMessage.Location, url: B, title: 'Page' },
     })
     expect(frameReportOf({ origin: ORIGIN, source: other, data: location(B), windows })?.key).toBe(
       't1:tab-2',
     )
+  })
+
+  it('routes a loading signal without a url to the sending frame', () => {
+    const data = { kind: 'atlas-preview:loading' }
+    expect(frameReportOf({ origin: ORIGIN, source: other, data, windows })).toEqual({
+      key: 't1:tab-2',
+      message: { kind: EFrameMessage.Loading },
+    })
+    expect(frameReportOf({ origin: 'https://evil.com', source: other, data, windows })).toBeNull()
   })
 
   it('drops messages from unknown windows, foreign origins or with a mismatched url', () => {

@@ -9,12 +9,14 @@ export type VisibleSlot = { threadId: string; tabId: string; element: HTMLElemen
 export type FrameRegistry = {
   visible: VisibleSlot | undefined
   opened: ReadonlySet<string>
+  loading: ReadonlySet<string>
   gate: EPreviewGate
 }
 
 export const EMPTY_REGISTRY: FrameRegistry = {
   visible: undefined,
   opened: new Set(),
+  loading: new Set(),
   gate: EPreviewGate.Ready,
 }
 
@@ -39,6 +41,19 @@ export function unloaded(args: { registry: FrameRegistry; key: string }): FrameR
   const opened = new Set(registry.opened)
   opened.delete(key)
   return { ...registry, opened }
+}
+
+export function withLoading(args: {
+  registry: FrameRegistry
+  key: string
+  loading: boolean
+}): FrameRegistry {
+  const { registry, key, loading } = args
+  if (registry.loading.has(key) === loading) return registry
+  const next = new Set(registry.loading)
+  if (loading) next.add(key)
+  else next.delete(key)
+  return { ...registry, loading: next }
 }
 
 export function withGate(args: { registry: FrameRegistry; gate: EPreviewGate }): FrameRegistry {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { isPreviewOrigin, parseFrameMessage } from '../frame-messages'
+import { EFrameMessage, isPreviewOrigin, parseFrameMessage } from '../frame-messages'
 
 describe('parseFrameMessage', () => {
   it('parses a location message', () => {
@@ -11,15 +11,26 @@ describe('parseFrameMessage', () => {
         title: 'Hi',
         extra: 1,
       }),
-    ).toEqual({ url: 'https://3000-abcdefghij.byatlas.dev/x', title: 'Hi' })
+    ).toEqual({
+      kind: EFrameMessage.Location,
+      url: 'https://3000-abcdefghij.byatlas.dev/x',
+      title: 'Hi',
+    })
   })
 
   it('accepts an empty title', () => {
     expect(
       parseFrameMessage({ kind: 'atlas-preview:location', url: 'https://a.b/', title: '' }),
     ).toEqual({
+      kind: EFrameMessage.Location,
       url: 'https://a.b/',
       title: '',
+    })
+  })
+
+  it('parses a loading message', () => {
+    expect(parseFrameMessage({ kind: 'atlas-preview:loading' })).toEqual({
+      kind: EFrameMessage.Loading,
     })
   })
 

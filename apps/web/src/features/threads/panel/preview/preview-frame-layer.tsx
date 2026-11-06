@@ -1,12 +1,12 @@
 'use client'
 
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { useAllPreviewBrowsers } from '../../data/preview-browser/use-preview-browser'
-import { slotKeyOf, useFrameRegistry } from './frame-registry'
-import { framesOf } from './frames-of'
+import { changeRegistry, slotKeyOf, useFrameRegistry, withLoading } from './frame-registry'
+import { framesOf, type FrameSpec } from './frames-of'
 import { useSlotTracking } from './placement'
 import { useAllowedFrames } from './use-allowed-frames'
 import { useFrameReports } from './use-frame-reports'
@@ -35,6 +35,31 @@ const FRAME_ALLOW = [
   'web-share',
 ].join('; ')
 
+const markLoading = (args: { key: string; loading: boolean }) =>
+  changeRegistry((registry) => withLoading({ registry, ...args }))
+
+function PreviewFrame(props: {
+  frame: FrameSpec
+  reportsFrom: ReturnType<typeof useFrameReports>
+}) {
+  const { frame, reportsFrom } = props
+  useLayoutEffect(() => {
+    markLoading({ key: frame.key, loading: true })
+    return () => markLoading({ key: frame.key, loading: false })
+  }, [frame.key])
+  return (
+    <iframe
+      ref={reportsFrom(frame)}
+      src={frame.load.url}
+      title="Preview"
+      className="size-full border-0 bg-background"
+      sandbox={FRAME_SANDBOX}
+      allow={FRAME_ALLOW}
+      onLoad={() => markLoading({ key: frame.key, loading: false })}
+    />
+  )
+}
+
 export function PreviewFrameLayer() {
   const registry = useFrameRegistry()
   const states = useAllPreviewBrowsers()
@@ -62,15 +87,7 @@ export function PreviewFrameLayer() {
         frame.key !== visibleKey && 'invisible pointer-events-none',
       )}
     >
-      <iframe
-        key={frame.load.seq}
-        ref={reportsFrom(frame)}
-        src={frame.load.url}
-        title="Preview"
-        className="size-full border-0 bg-background"
-        sandbox={FRAME_SANDBOX}
-        allow={FRAME_ALLOW}
-      />
+      <PreviewFrame key={frame.load.seq} frame={frame} reportsFrom={reportsFrom} />
     </div>
   ))
 }

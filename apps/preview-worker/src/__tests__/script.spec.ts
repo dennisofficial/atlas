@@ -57,6 +57,12 @@ describe('injected script', () => {
     expect(posted).toHaveLength(2)
   })
 
+  it('tells the parent a navigation started when the page unloads', () => {
+    const { emit, posted } = boot({ framed: true })
+    emit('beforeunload')
+    expect(posted).toEqual([{ kind: 'atlas-preview:loading' }])
+  })
+
   it('obeys commands only from the parent with an Atlas origin', () => {
     const { parent, emit, calls } = boot({ framed: true })
     const command = (command: string) => ({ kind: 'atlas-preview:command', command })

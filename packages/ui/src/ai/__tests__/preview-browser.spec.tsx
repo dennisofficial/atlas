@@ -98,6 +98,16 @@ describe('PreviewBrowser', () => {
     }
   })
 
+  it('shows the loading bar and a tab spinner only while loading', () => {
+    expect(render()).not.toContain('role="progressbar"')
+    const loading = render({
+      loading: true,
+      tabs: [{ ...TABS[0]!, loading: true }, TABS[1]!],
+    })
+    expect(loading).toContain('role="progressbar"')
+    expect(loading).toContain('data-slot="spinner"')
+  })
+
   it('scales the device box to fit the stage', () => {
     const html = render({ viewport: TABLET })
     expect(html).toContain('width:768px;height:1024px;transform:scale(')
