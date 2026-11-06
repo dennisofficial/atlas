@@ -1,18 +1,7 @@
 import { KEPT_THROUGH_COMPACTION } from '../compaction/disposition'
 import type { Event, EventOfType } from '../events/envelope'
-import type { V2Event, V2EventType } from './event'
+import { RECORD_ONLY_TYPES, type V2Event } from './event'
 import { visibleEvents } from './visibility'
-
-const RECORD_ONLY_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
-  'history-rewound',
-  'history-summarised',
-  'input-consumed',
-  'fact-recorded',
-  'branches-observed',
-  'workspace-prepared',
-  'workspace-prepare-failed',
-  'session-start-failed',
-])
 
 const SURVIVOR_TYPES: ReadonlySet<string> = new Set<string>(KEPT_THROUGH_COMPACTION)
 

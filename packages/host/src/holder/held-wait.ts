@@ -1,4 +1,4 @@
-import { isWorkspacePrepared, type InboxEntry } from '@dltech/atlas-core'
+import { EInputConsumed, isWorkspacePrepared, type InboxEntry } from '@dltech/atlas-core'
 
 import { INBOX_KIND_STOP } from './inbox-intake'
 import type { SessionRecord } from './record/record-adapter'
@@ -14,19 +14,23 @@ export const consumeStops = async (args: {
 }): Promise<void> => {
   const { deps, record } = args
   if (record === undefined) return
-  const consume = async (inboxId: number): Promise<void> => {
+  const consume = async (params: { inboxId: number; consumed: EInputConsumed }): Promise<void> => {
     args.onActivity()
     await record.append({
       threadId: record.threadId,
       runId: deps.ids.nextRunId(),
-      drafts: [{ type: 'input-consumed', inboxId }],
+      drafts: [{ type: 'input-consumed', inboxId: params.inboxId, consumed: params.consumed }],
     })
   }
   const prepared = isWorkspacePrepared(record.eventCache().all())
   const stopHead = Math.max(0, ...args.entries.filter(isStopEntry).map((entry) => entry.inboxId))
   for (const entry of args.entries) {
     const covered = !prepared && entry.inboxId < stopHead
-    if (entry.kind === INBOX_KIND_STOP || covered) await consume(entry.inboxId)
+    if (entry.kind === INBOX_KIND_STOP) {
+      await consume({ inboxId: entry.inboxId, consumed: EInputConsumed.Stop })
+    } else if (covered) {
+      await consume({ inboxId: entry.inboxId, consumed: EInputConsumed.Discarded })
+    }
   }
 }
 

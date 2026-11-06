@@ -1,4 +1,5 @@
 import {
+  EInputConsumed,
   INBOX_KIND_STOP,
   type EventDraft,
   type InboxEntry,
@@ -63,7 +64,9 @@ export class InboxIntake implements AgentIntake {
     await this.args.record.append({
       threadId: this.args.threadId,
       runId: this.args.runId(),
-      drafts: [{ type: 'input-consumed', inboxId: entry.inboxId }],
+      drafts: [
+        { type: 'input-consumed', inboxId: entry.inboxId, consumed: EInputConsumed.Discarded },
+      ],
     })
   }
 
