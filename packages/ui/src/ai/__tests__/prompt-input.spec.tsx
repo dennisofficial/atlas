@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { PromptInput, canSend } from '../prompt-input'
+import { EPromptAttachmentStatus, PromptInput, canSend } from '../prompt-input'
 
 describe('PromptInput', () => {
   it('disables send when the field is empty', () => {
@@ -60,6 +60,35 @@ describe('PromptInput', () => {
     expect(canSend({ text: 'go', busy: true, queueWhileBusy: true })).toBe(true)
     expect(canSend({ text: '  ', busy: true, queueWhileBusy: true })).toBe(false)
     expect(canSend({ text: 'go', busy: true, queueWhileBusy: false })).toBe(false)
+  })
+
+  it('canSend lets an attachment stand in for text, but not while sending or blocked', () => {
+    expect(canSend({ text: '', busy: false, attached: true })).toBe(true)
+    expect(canSend({ text: '  ', busy: false, attached: false })).toBe(false)
+    expect(canSend({ text: '', busy: false, attached: true, sending: true })).toBe(false)
+    expect(canSend({ text: '', busy: true, attached: true })).toBe(false)
+  })
+
+  it('does not send a ready attachment alone by default', () => {
+    const html = renderToStaticMarkup(
+      <PromptInput
+        attachments={[{ id: '1', name: 'a.png', status: EPromptAttachmentStatus.Ready }]}
+      />,
+    )
+    const send = html.match(/<button[^>]*aria-label="Send"[^>]*>/)?.[0] ?? ''
+
+    expect(send).toContain(' disabled=""')
+  })
+
+  it('sends a ready attachment alone only when opted in', () => {
+    const sendOf = (status: EPromptAttachmentStatus) =>
+      renderToStaticMarkup(
+        <PromptInput sendsAttachmentsAlone attachments={[{ id: '1', name: 'a.png', status }]} />,
+      ).match(/<button[^>]*aria-label="Send"[^>]*>/)?.[0] ?? ''
+
+    expect(sendOf(EPromptAttachmentStatus.Ready)).not.toContain(' disabled=""')
+    expect(sendOf(EPromptAttachmentStatus.Uploading)).toContain(' disabled=""')
+    expect(sendOf(EPromptAttachmentStatus.Failed)).toContain(' disabled=""')
   })
 
   it('canSend never allows a send while sending', () => {

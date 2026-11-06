@@ -12,6 +12,8 @@ import { formatElapsed } from '@dltech/atlas-client/transcript'
 import { clockTimeOf, spanMsOf } from '../data/clock-time'
 import type { RepairDiagramAction } from '../data/diagram-repair'
 import { messageImagesOf } from '../data/message-images'
+import { useMediaThumbs } from '../data/use-media-thumbs'
+import { useOptionalThreadPanel } from '../panel/thread-panel-context'
 import { isSameItem } from '../data/same-item'
 import { isSameTurn } from '../data/same-turn'
 import { eventIdOf } from '../data/transcript-items'
@@ -224,16 +226,24 @@ function TurnViewBody({
   actions: TranscriptActions
 }) {
   const { rewind } = actions
+  const panel = useOptionalThreadPanel()
+  const thumbs = useMediaThumbs({
+    sessionId: panel?.threadId,
+    media: turn.kind === ETurnKind.User ? turn.item.media : undefined,
+  })
   switch (turn.kind) {
     case ETurnKind.User:
       return (
         <UserMessage
           author={userName}
           timestamp={clockTimeOf(turn.item.at)}
-          images={messageImagesOf({
-            id: turn.item.id,
-            images: turn.item.images,
-          })}
+          images={[
+            ...messageImagesOf({
+              id: turn.item.id,
+              images: turn.item.images,
+            }),
+            ...thumbs,
+          ]}
           copyText={turn.item.text}
           attachments={(turn.item.uploads ?? []).map((upload) => ({
             id: upload.uploadId,

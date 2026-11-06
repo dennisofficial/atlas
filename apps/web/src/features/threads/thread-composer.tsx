@@ -22,7 +22,10 @@ export function ThreadComposer({
   commandSpecs = NO_SPECS,
   children,
   ...attach
-}: Pick<PromptInputProps, 'attachments' | 'onAttachFiles' | 'onRemoveAttachment'> & {
+}: Pick<
+  PromptInputProps,
+  'attachments' | 'onAttachFiles' | 'onRemoveAttachment' | 'sendsAttachmentsAlone'
+> & {
   value: string
   onValueChange: (value: string) => void
   onSubmit: (text: string) => void

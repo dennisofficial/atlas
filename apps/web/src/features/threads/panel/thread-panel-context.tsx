@@ -36,6 +36,8 @@ const ThreadPanelContext = createContext<ThreadPanelValue | null>(null)
 
 export const ThreadPanelProvider = ThreadPanelContext.Provider
 
+export const useOptionalThreadPanel = (): ThreadPanelValue | null => useContext(ThreadPanelContext)
+
 export function useThreadPanel(): ThreadPanelValue {
   const value = useContext(ThreadPanelContext)
   if (value === null) throw new Error('useThreadPanel must be used inside a ThreadPanelProvider')

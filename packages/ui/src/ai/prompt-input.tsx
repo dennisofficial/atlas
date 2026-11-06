@@ -23,9 +23,16 @@ import {
 import { Spinner } from '#components/spinner'
 import { useIsMobile } from '#hooks/use-mobile'
 
-import { type PromptAttachment, PromptAttachmentChip } from './prompt-attachment-chip'
+import {
+  EPromptAttachmentStatus,
+  type PromptAttachment,
+  PromptAttachmentChip,
+} from './prompt-attachment-chip'
 
-export { EPromptAttachmentStatus, type PromptAttachment } from './prompt-attachment-chip'
+export {
+  EPromptAttachmentStatus,
+  type PromptAttachment,
+} from './prompt-attachment-chip'
 
 export interface PromptInputProps {
   value?: string
@@ -42,6 +49,7 @@ export interface PromptInputProps {
   onAttachFiles?: (files: File[]) => void
   accept?: string
   onRemoveAttachment?: (id: string) => void
+  sendsAttachmentsAlone?: boolean
   textareaRef?: Ref<HTMLTextAreaElement>
   onTextareaKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   textareaAria?: Pick<
@@ -60,6 +68,7 @@ interface SendInput {
   busy: boolean
   sending?: boolean
   queueWhileBusy?: boolean
+  attached?: boolean
 }
 
 export function canSend({
@@ -67,10 +76,11 @@ export function canSend({
   busy,
   sending = false,
   queueWhileBusy = false,
+  attached = false,
 }: SendInput): boolean {
   if (sending) return false
   if (busy && !queueWhileBusy) return false
-  return text.trim().length > 0
+  return attached || text.trim().length > 0
 }
 
 const pastedFiles = (data: DataTransfer): File[] => {
@@ -106,6 +116,7 @@ export function PromptInput({
   onAttachFiles,
   accept,
   onRemoveAttachment,
+  sendsAttachmentsAlone = false,
   textareaRef,
   onTextareaKeyDown,
   textareaAria,
@@ -116,7 +127,10 @@ export function PromptInput({
   const formRef = useRef<HTMLFormElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const text = value ?? draft
-  const sendable = canSend({ text, busy, sending, queueWhileBusy })
+  const attached =
+    sendsAttachmentsAlone &&
+    attachments.some((attachment) => attachment.status === EPromptAttachmentStatus.Ready)
+  const sendable = canSend({ text, busy, sending, queueWhileBusy, attached })
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setDraft(event.target.value)
