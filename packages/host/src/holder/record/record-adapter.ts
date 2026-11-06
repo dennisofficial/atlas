@@ -98,9 +98,8 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   }
 
   async ownEvents(args: { threadId: ThreadId; afterSeq?: number }): Promise<Event[]> {
-    const events = this.cache.visibleLoopEvents()
-    if (args.afterSeq === undefined) return events
-    return events.filter((event) => event.seq > (args.afterSeq ?? 0))
+    if (args.afterSeq === undefined) return this.cache.visibleLoopEvents()
+    return this.cache.loopEventsAfter(args.afterSeq)
   }
 
   async composedEvents(_args: { threadId: ThreadId }): Promise<Event[]> {

@@ -35,14 +35,9 @@ export const ackRecordedDaemonResults = async (args: {
   remoteCalls: RemoteCalls
   log?: LogPort | undefined
 }): Promise<void> => {
-  const events = [...args.cache.all()]
-  let lastUserSaidSeq = 0
-  for (const event of events) {
-    if (event.type === 'user-said') lastUserSaidSeq = event.seq
-  }
+  const events = args.cache.eventsAfter(args.cache.bookkeeping().lastUserSaidSeq())
   const dispatched = new Map<string, { runId: string; name: string }>()
   for (const event of events) {
-    if (event.seq <= lastUserSaidSeq) continue
     if (event.type === 'tool-dispatched') {
       dispatched.set(event.callId, { runId: event.runId, name: event.name })
       continue
@@ -67,7 +62,7 @@ export const prepareDraft = async (
   draft: AppendBody,
 ): Promise<AppendBody | undefined> => {
   if (draft.type !== 'tool-dispatched') return draft
-  const recorded = args.cache.findDispatched(draft.callId)
+  const recorded = args.cache.bookkeeping().findDispatched(draft.callId)
   if (recorded !== undefined) {
     if (recorded.bootId !== undefined && recorded.bootId !== null) {
       markDispatched({ bootId: recorded.bootId })

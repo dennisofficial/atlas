@@ -97,7 +97,7 @@ export const createBranchObserver = (args: {
     record: {
       append: ({ threadId: to, runId, body }) =>
         record.append({ threadId: to, runId, drafts: [body] }),
-      events: () => record.eventCache().all(),
+      lastObservation: (repo) => record.eventCache().bookkeeping().lastObservation(repo),
     },
     remoteCalls: runtime.remoteCalls,
     threadId,

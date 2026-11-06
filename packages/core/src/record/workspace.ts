@@ -98,15 +98,41 @@ export const actionableInboxIds = (args: {
     )
     .map((entry) => entry.inboxId)
 
+export type WorkspaceRecord = { prepared: boolean; failure: PrepareFailure | undefined }
+
+export const NO_WORKSPACE_RECORD: WorkspaceRecord = { prepared: false, failure: undefined }
+
+export type WorkspaceStateView = {
+  state: EWorkspaceState
+  retryPending: boolean
+  failure: PrepareFailure | undefined
+}
+
+export const workspaceRecordOf = (events: readonly V2Event[]): WorkspaceRecord => ({
+  prepared: isWorkspacePrepared(events),
+  failure: lastPrepareFailure(events),
+})
+
 export const workspaceStateOf = (args: {
   events: readonly V2Event[]
   preparing: boolean
   pendingMessageIds: readonly number[]
-}): { state: EWorkspaceState; retryPending: boolean; failure: PrepareFailure | undefined } => {
-  if (isWorkspacePrepared(args.events)) {
+}): WorkspaceStateView =>
+  workspaceStateFrom({
+    record: workspaceRecordOf(args.events),
+    preparing: args.preparing,
+    pendingMessageIds: args.pendingMessageIds,
+  })
+
+export const workspaceStateFrom = (args: {
+  record: WorkspaceRecord
+  preparing: boolean
+  pendingMessageIds: readonly number[]
+}): WorkspaceStateView => {
+  if (args.record.prepared) {
     return { state: EWorkspaceState.Prepared, retryPending: false, failure: undefined }
   }
-  const failure = lastPrepareFailure(args.events)
+  const failure = args.record.failure
   if (args.preparing) return { state: EWorkspaceState.Preparing, retryPending: false, failure }
   if (failure === undefined) {
     return { state: EWorkspaceState.Unprepared, retryPending: false, failure }

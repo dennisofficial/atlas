@@ -89,7 +89,7 @@ describe('RecordCache', () => {
 
     const cache = await RecordCache.load({ plane, threadId: THREAD })
 
-    expect(cache.all().map((event) => event.type)).toEqual([
+    expect(cache.eventsAfter(0).map((event) => event.type)).toEqual([
       'user-said',
       'tool-dispatched',
       'fact-recorded',
@@ -97,7 +97,7 @@ describe('RecordCache', () => {
       'assistant-said',
       'history-summarised',
     ])
-    expect(cache.findDispatched('call-1')).toEqual({ bootId: undefined })
+    expect(cache.bookkeeping().findDispatched('call-1')).toEqual({ bootId: undefined })
     expect(textsOf(cache)).toEqual([
       'now the lexer',
       expect.stringContaining('lexer built'),
@@ -149,11 +149,11 @@ describe('RecordCache', () => {
 
     const cache = await RecordCache.load({ plane, threadId: THREAD })
 
-    const types = cache.all().map((event) => event.type)
-    const coveredRows = cache.all().filter((event) => event.seq <= covered)
+    const types = cache.eventsAfter(0).map((event) => event.type)
+    const coveredRows = cache.eventsAfter(0).filter((event) => event.seq <= covered)
     expect(coveredRows.every((event) => event.type !== 'assistant-said')).toBe(true)
     expect(types.filter((type) => type === 'fact-recorded').length).toBe(total / 100)
-    expect(cache.all().length).toBeLessThan(total * 0.6)
+    expect(cache.eventsAfter(0).length).toBeLessThan(total * 0.6)
     expect(cache.visibleLoopEvents().length).toBe(total - covered - 10 + 1)
   }, 60_000)
 
