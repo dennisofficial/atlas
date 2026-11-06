@@ -29,7 +29,9 @@ export type HostTimers = {
   random(): number
 }
 
-export type PrepareResult = { ok: true } | { ok: false; reason: string }
+export type PrepareResult =
+  | { ok: true; warnings?: readonly string[] | undefined }
+  | { ok: false; reason: string }
 
 export type PrepareStepReporter = (step: WorkspaceStepReport) => void
 

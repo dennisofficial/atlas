@@ -72,11 +72,47 @@ describe('run', () => {
   })
 })
 
+const DEADLINE_MS = 300
+
+const manualDeadline = () => {
+  const pending = new Map<unknown, () => void>()
+  const timers = {
+    now: () => Date.now(),
+    random: systemTimers.random,
+    setTimeout: (handler: () => void, ms: number): unknown => {
+      if (ms !== DEADLINE_MS) return systemTimers.setTimeout(handler, ms)
+      const handle = {}
+      pending.set(handle, handler)
+      return handle
+    },
+    clearTimeout: (handle: unknown): void => {
+      if (pending.delete(handle)) return
+      systemTimers.clearTimeout(handle)
+    },
+  }
+  const expire = (): void => {
+    const [entry] = [...pending]
+    if (entry === undefined) throw new Error('no deadline is armed')
+    pending.delete(entry[0])
+    entry[1]()
+  }
+  return { timers, expire }
+}
+
+const until = async (check: () => boolean): Promise<void> => {
+  const stop = Date.now() + 20_000
+  while (!check()) {
+    if (Date.now() > stop) throw new Error('timed out waiting for the attempt to read the token')
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+}
+
 describe('SessionRuntime.prepare after the setup deadline', () => {
   it('aborts the attempt at the deadline and starts the next one only after it settled', async () => {
     const sandbox = new LocalSandboxProvider({ daemonSecret: 'abort-secret' })
     const log = new CollectingLog()
     const reads: string[] = []
+    const deadline = manualDeadline()
     try {
       const factory = createSessionRuntimeFactory({
         config: sourceFor(),
@@ -89,10 +125,10 @@ describe('SessionRuntime.prepare after the setup deadline', () => {
         },
         sandbox,
         daemonSecret: 'abort-secret',
-        timers: { now: () => Date.now(), ...systemTimers },
+        timers: deadline.timers,
         modelFor: () => new ScriptedModel([]),
         launchDirectory: mkdtempSync(join(tmpdir(), 'atlas-abort-')),
-        setupDeadlineMs: 300,
+        setupDeadlineMs: DEADLINE_MS,
         log,
       })
       const runtime = await factory({
@@ -103,6 +139,8 @@ describe('SessionRuntime.prepare after the setup deadline', () => {
       })
       const first = runtime.prepare()
       expect(runtime.prepare()).toBe(first)
+      await until(() => reads.length === 1)
+      deadline.expire()
       const failed = await first
       expect(failed).toEqual({
         ok: false,
@@ -111,6 +149,8 @@ describe('SessionRuntime.prepare after the setup deadline', () => {
       expect(reads).toEqual(['read'])
       const second = runtime.prepare()
       expect(second).not.toBe(first)
+      await until(() => reads.length === 2)
+      deadline.expire()
       expect(await second).toEqual({
         ok: false,
         reason: 'workspace setup did not finish within 300ms',
