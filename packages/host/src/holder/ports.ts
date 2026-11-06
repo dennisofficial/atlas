@@ -1,4 +1,4 @@
-import type { AssemblyPipeline, ModelPort, ThreadId } from '@dltech/atlas-core'
+import type { AssemblyPipeline, ModelPort, ThreadId, WorkspaceStepReport } from '@dltech/atlas-core'
 import type { NormalizeFailure, ToolEffectResolver, ToolRegistry } from '@dltech/atlas-agent'
 import type { LiveFrame } from '@dltech/atlas-protocol'
 
@@ -31,6 +31,8 @@ export type HostTimers = {
 
 export type PrepareResult = { ok: true } | { ok: false; reason: string }
 
+export type PrepareStepReporter = (step: WorkspaceStepReport) => void
+
 export type SessionRuntime = {
   remoteCalls: RemoteCalls
   model: ModelPort
@@ -42,7 +44,7 @@ export type SessionRuntime = {
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>
   runningShells(): Promise<number>
-  prepare(): Promise<PrepareResult>
+  prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
   stop(): Promise<void>
   release(): Promise<void>
 }

@@ -10,8 +10,10 @@ import { sessionStartFailedSchema, type SessionStartFailed } from './start-failu
 import {
   workspacePrepareFailedSchema,
   workspacePreparedSchema,
+  workspaceStepSchema,
   type WorkspacePrepared,
   type WorkspacePrepareFailed,
+  type WorkspaceStep,
 } from './workspace'
 
 export type Hash = string & { readonly __brand: 'Hash' }
@@ -49,6 +51,7 @@ export type RecordBody =
   | BranchesObserved
   | WorkspacePrepared
   | WorkspacePrepareFailed
+  | WorkspaceStep
   | SessionStartFailed
 
 export type V2Body = Exclude<EventBody, { type: 'history-compacted' }> | RecordBody
@@ -106,6 +109,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
   branchesObservedSchema,
   workspacePreparedSchema,
   workspacePrepareFailedSchema,
+  workspaceStepSchema,
   sessionStartFailedSchema,
 ])
 
@@ -118,6 +122,7 @@ const RECORD_TYPE_TABLE = {
   'branches-observed': true,
   'workspace-prepared': true,
   'workspace-prepare-failed': true,
+  'workspace-step': true,
   'session-start-failed': true,
 } satisfies Record<RecordBody['type'], true>
 

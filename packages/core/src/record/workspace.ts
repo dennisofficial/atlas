@@ -11,6 +11,36 @@ export const workspacePrepareFailedSchema = z.object({
   inboxHead: z.number().int().min(0),
 })
 
+export enum EWorkspaceStep {
+  Sandbox = 'sandbox',
+  Daemon = 'daemon',
+  Clone = 'clone',
+  Setup = 'setup',
+}
+
+export enum EWorkspaceStepState {
+  Started = 'started',
+  Done = 'done',
+  Failed = 'failed',
+}
+
+export enum EWorkspaceStepOutcome {
+  Created = 'created',
+  Resumed = 'resumed',
+  Skipped = 'skipped',
+}
+
+export const workspaceStepSchema = z.object({
+  type: z.literal('workspace-step'),
+  step: z.enum(EWorkspaceStep),
+  state: z.enum(EWorkspaceStepState),
+  outcome: z.enum(EWorkspaceStepOutcome).optional(),
+  reason: z.string().optional(),
+})
+
+export type WorkspaceStep = z.infer<typeof workspaceStepSchema>
+export type WorkspaceStepReport = Omit<WorkspaceStep, 'type'>
+
 export type WorkspacePrepared = z.infer<typeof workspacePreparedSchema>
 export type WorkspacePrepareFailed = z.infer<typeof workspacePrepareFailedSchema>
 

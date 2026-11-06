@@ -77,8 +77,10 @@ describe('agent-host prepares a new session before its first turn', () => {
       timeoutMs: 60_000,
     })
     const types = typesOf(events)
-    expect(types.indexOf('workspace-prepared')).toBe(0)
-    expect(types.indexOf('workspace-prepared')).toBeLessThan(types.indexOf('user-said'))
+    const prepared = types.indexOf('workspace-prepared')
+    expect(prepared).toBeGreaterThan(0)
+    expect(types.slice(0, prepared).every((type) => type === 'workspace-step')).toBe(true)
+    expect(prepared).toBeLessThan(types.indexOf('user-said'))
     expect(existsSync(join(launchDirectory, 'prepared.txt'))).toBe(true)
     holder.discard()
   }, 90_000)

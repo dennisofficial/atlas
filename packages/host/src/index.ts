@@ -36,6 +36,7 @@ export type {
   HostPresence,
   HostTimers,
   PrepareResult,
+  PrepareStepReporter,
   SessionRuntime,
   SessionRuntimeFactory,
 } from './holder/ports'

@@ -21,7 +21,7 @@ import { inMemoryDaemonToken, type InMemoryDaemon } from '@dltech/atlas-protocol
 
 import { RemoteCalls } from '../../calls/remote-calls'
 import { scopeDispatchedBootId } from '../../calls/call-scope'
-import type { PrepareResult, SessionRuntime } from '../ports'
+import type { PrepareResult, PrepareStepReporter, SessionRuntime } from '../ports'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
 
 export type RigRuntime = SessionRuntime & {
@@ -72,7 +72,7 @@ export const makeRuntimeFactory = (args: {
   runtimes: RigRuntime[]
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
-  prepare?: (() => Promise<PrepareResult>) | undefined
+  prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   model?: (() => ModelPort) | undefined
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
@@ -122,7 +122,7 @@ export const makeRuntimeFactory = (args: {
       watched: [],
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
       runningShells: args.runningShells ?? (async () => 0),
-      prepare: args.prepare ?? (async () => ({ ok: true })),
+      prepare: (onStep) => (args.prepare ?? (async () => ({ ok: true as const })))(onStep),
       stopped: false,
       released: false,
       stop: async () => {

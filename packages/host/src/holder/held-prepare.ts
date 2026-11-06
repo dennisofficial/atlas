@@ -1,4 +1,4 @@
-import type { RunId, ThreadId } from '@dltech/atlas-core'
+import type { RunId, ThreadId, WorkspaceStepReport } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import type { HeldSessionDeps } from './held-session-deps'
@@ -29,9 +29,14 @@ export class HeldPrepare {
     if (this.active) return
     this.active = true
     const { deps } = this.args
+    const runId: RunId = deps.ids.nextRunId()
     let failed = false
+    let steps: Promise<void> = Promise.resolve()
+    const onStep = (step: WorkspaceStepReport): void => {
+      steps = steps.then(() => this.recordStep({ ...args, runId, step }))
+    }
     void args.runtime
-      .prepare()
+      .prepare(onStep)
       .catch((error): PrepareResult => {
         deps.log?.error({
           source: 'holder.prepare',
@@ -41,7 +46,8 @@ export class HeldPrepare {
         return { ok: false, reason: error instanceof Error ? error.message : String(error) }
       })
       .then(async (result) => {
-        await this.record({ ...args, result })
+        await steps
+        await this.record({ ...args, runId, result })
         failed = !result.ok
       })
       .catch((error) => {
@@ -57,16 +63,37 @@ export class HeldPrepare {
       })
   }
 
+  private async recordStep(args: {
+    record: SessionRecord
+    threadId: ThreadId
+    runId: RunId
+    step: WorkspaceStepReport
+  }): Promise<void> {
+    if (this.args.abandoned()) return
+    await args.record
+      .append({
+        threadId: args.threadId,
+        runId: args.runId,
+        drafts: [{ type: 'workspace-step', ...args.step }],
+      })
+      .catch((error) => {
+        this.args.deps.log?.error({
+          source: 'holder.prepare',
+          message: `recording a prepare step of ${this.args.deps.sessionId} failed`,
+          ...logFieldsOf({ error }),
+        })
+      })
+  }
+
   private async record(args: {
     record: SessionRecord
     threadId: ThreadId
+    runId: RunId
     inboxHead: number
     result: PrepareResult
   }): Promise<void> {
     if (this.args.abandoned()) return
-    const { deps } = this.args
-    const { result } = args
-    const runId: RunId = deps.ids.nextRunId()
+    const { result, runId } = args
     const body = result.ok
       ? ({ type: 'workspace-prepared' } as const)
       : ({

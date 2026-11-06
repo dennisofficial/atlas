@@ -35,6 +35,7 @@ const transcriptEventOf = (event: V2Event): Event | null => {
     case 'branches-observed':
     case 'workspace-prepared':
     case 'workspace-prepare-failed':
+    case 'workspace-step':
     case 'session-start-failed':
       return null
     case 'history-summarised':
