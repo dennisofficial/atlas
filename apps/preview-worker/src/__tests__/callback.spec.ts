@@ -27,6 +27,19 @@ describe('preview cookie', () => {
     expect(result.headers.getSetCookie()).toContain(PREVIEW_COOKIE)
   })
 
+  it('marks a top-level navigation that redirects straight to the provider', async () => {
+    const { result } = await run({
+      url: `https://${PREVIEW}/login`,
+      init: { headers: { 'sec-fetch-dest': 'document' } },
+      response: () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://accounts.google.com/o/oauth2/v2/auth' },
+        }),
+    })
+    expect(result.headers.getSetCookie()).toContain(PREVIEW_COOKIE)
+  })
+
   it('keeps it out of framed pages and non-HTML responses', async () => {
     const framed = await run({
       url: `https://${PREVIEW}/`,
