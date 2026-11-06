@@ -176,12 +176,27 @@ describe('tabPageOf', () => {
 
   it('maps a tab url to what the stage should show', () => {
     const ports = [live, stopped]
-    expect(tabPageOf({ url: NEW_TAB_URL, ports, loaded: false }).kind).toBe(ETabPage.NewTab)
-    expect(tabPageOf({ url: `${live.url}/x`, ports, loaded: false }).kind).toBe(ETabPage.Loading)
-    expect(tabPageOf({ url: `${live.url}/x`, ports, loaded: true }).kind).toBe(ETabPage.Frame)
-    expect(tabPageOf({ url: stopped.url, ports, loaded: true }).kind).toBe(ETabPage.Offline)
-    expect(tabPageOf({ url: 'https://github.com/', ports, loaded: true }).kind).toBe(
+    const held = false
+    expect(tabPageOf({ url: NEW_TAB_URL, ports, loaded: false, held }).kind).toBe(ETabPage.NewTab)
+    expect(tabPageOf({ url: `${live.url}/x`, ports, loaded: false, held }).kind).toBe(
+      ETabPage.Loading,
+    )
+    expect(tabPageOf({ url: `${live.url}/x`, ports, loaded: true, held }).kind).toBe(ETabPage.Frame)
+    expect(tabPageOf({ url: stopped.url, ports, loaded: true, held }).kind).toBe(ETabPage.Offline)
+    expect(tabPageOf({ url: 'https://github.com/', ports, loaded: true, held }).kind).toBe(
       ETabPage.External,
+    )
+  })
+
+  it('shows a frame that is still running while a returning session reconnects', () => {
+    const url = `${live.url}/x`
+    expect(tabPageOf({ url, ports: [], loaded: false, held: true }).kind).toBe(ETabPage.Held)
+    expect(tabPageOf({ url: NEW_TAB_URL, ports: [], loaded: false, held: true }).kind).toBe(
+      ETabPage.NewTab,
+    )
+    const ports = [live, stopped]
+    expect(tabPageOf({ url: stopped.url, ports, loaded: true, held: true }).kind).toBe(
+      ETabPage.Offline,
     )
   })
 })
