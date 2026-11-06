@@ -11,6 +11,7 @@ import {
 import { db, type Tx } from '@dltech/atlas-db'
 import {
   RUN_KEY_PREFIX,
+  runOrderOfKey,
   SUITE_KEY_PREFIX,
   countsAsPendingSuite,
   runnerAppSlugs,
@@ -210,16 +211,14 @@ export async function commitChecksTally(args: {
     )
     .map((row) => ({
       name: row.name,
-      startedAt: row.checkKey.startsWith('status:')
-        ? row.sourceUpdatedAt.toISOString()
-        : row.startedAt,
+      order: runOrderOfKey(row.checkKey),
       outcome: row.outcome as ECheckOutcome,
     }))
   const awaitsFirstRun =
     runners.size > 0 &&
     rows.length > 0 &&
     !rows.some((row) => row.checkKey.startsWith(RUN_KEY_PREFIX))
-  if (awaitsFirstRun) attempts.push({ name: null, startedAt: null, outcome: ECheckOutcome.Running })
+  if (awaitsFirstRun) attempts.push({ name: null, order: null, outcome: ECheckOutcome.Running })
   return checksTally(latestAttemptOutcomes(attempts))
 }
 

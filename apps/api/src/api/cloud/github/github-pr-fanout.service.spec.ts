@@ -263,4 +263,27 @@ describe('GithubPrFanoutService comment events', () => {
 
     expect(received.map((event) => event.payload.commentId)).toEqual(['1', '2'])
   })
+
+  it('delivers every event of the same kind inside the window', async () => {
+    const { fanout } = fanoutWith()
+    const received: string[] = []
+    fanout.openStream({
+      userId: 'usr_a',
+      handler: () => {},
+      eventHandler: (event) => received.push(event.id),
+    })
+    const verdict = (id: string, headSha: string): GithubPrEventDto => ({
+      ...EVENT,
+      id,
+      payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'green', headSha },
+    })
+
+    fanout.pushEvent({ userIds: ['usr_a'], event: verdict('evt_a', 'sha1') })
+    fanout.pushEvent({ userIds: ['usr_a'], event: verdict('evt_b', 'sha2') })
+    fanout.pushEvent({ userIds: ['usr_a'], event: verdict('evt_c', 'sha3') })
+
+    expect(received).toEqual(['evt_a', 'evt_b', 'evt_c'])
+    await advanceTimersByTimeAsync(1_100)
+    expect(received).toEqual(['evt_a', 'evt_b', 'evt_c'])
+  })
 })

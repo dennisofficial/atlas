@@ -133,15 +133,17 @@ export class GithubPrEventMailboxService {
   async acknowledge(args: { threadId: string; eventIds: readonly string[] }): Promise<number> {
     if (args.eventIds.length === 0) return 0
     const at = new Date()
-    const acked = await db.orm.public.GithubPrEventDelivery.where({ threadId: args.threadId })
-      .where((delivery) => delivery.eventId.in([...args.eventIds]))
-      .where({ ackedAt: null })
-      .updateAndCount({ ackedAt: at })
-    if (acked === 0) return 0
-    await db.orm.public.GithubPrEvent.where((event) =>
-      event.id.in([...args.eventIds]),
-    ).updateAndCount({ consumedAt: at })
-    return acked
+    return db.transaction(async (tx) => {
+      const acked = await tx.orm.public.GithubPrEventDelivery.where({ threadId: args.threadId })
+        .where((delivery) => delivery.eventId.in([...args.eventIds]))
+        .where({ ackedAt: null })
+        .updateAndCount({ ackedAt: at })
+      if (acked === 0) return 0
+      await tx.orm.public.GithubPrEvent.where((event) =>
+        event.id.in([...args.eventIds]),
+      ).updateAndCount({ consumedAt: at })
+      return acked
+    })
   }
 }
 

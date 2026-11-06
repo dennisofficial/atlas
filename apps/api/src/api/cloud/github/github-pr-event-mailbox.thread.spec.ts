@@ -30,6 +30,27 @@ describe('GithubPrEventMailboxService per-thread delivery', () => {
     await ensureUsers('usr-a')
   })
 
+  it('serves each event once when two replays race for the same thread', async () => {
+    const { mailbox } = serviceWith()
+    await seedSubscription({
+      userId: 'usr-a',
+      threadId: 'thr-1',
+      createdAt: new Date(Date.now() - 60_000),
+    })
+    for (const id of ['evt_1', 'evt_2', 'evt_3', 'evt_4']) {
+      await seedPrEvent({ id, userId: 'usr-a' })
+    }
+
+    const replays = await Promise.all(
+      Array.from({ length: 24 }, () =>
+        mailbox.replayForThread({ userId: 'usr-a', threadId: 'thr-1' }),
+      ),
+    )
+
+    const served = replays.flatMap((events) => events.map((event) => event.id)).sort()
+    expect(served).toEqual(['evt_1', 'evt_2', 'evt_3', 'evt_4'])
+  })
+
   it('drains the events a thread subscribed to and missed, once', async () => {
     const { mailbox } = serviceWith()
     await seedSubscription({

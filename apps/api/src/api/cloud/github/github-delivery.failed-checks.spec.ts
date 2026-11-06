@@ -89,6 +89,15 @@ describe('failedChecksOfRows', () => {
     expect(checks).toEqual([])
   })
 
+  it('counts only the rerun when a cancelled run and its rerun started in the same second', () => {
+    const checks = failedChecksOfRows([
+      row({ checkKey: 'run:200', conclusion: 'cancelled' }),
+      row({ checkKey: 'run:201', outcome: 'passed' }),
+    ])
+
+    expect(checks).toEqual([])
+  })
+
   it('ignores suites and names a status context by its context', () => {
     const checks = failedChecksOfRows([
       row({ checkKey: 'suite:3', name: 'suite:3' }),

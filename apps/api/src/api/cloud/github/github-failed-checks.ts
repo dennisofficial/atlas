@@ -6,7 +6,7 @@ import {
 } from '@dltech/atlas-core'
 import { db, type Tx } from '@dltech/atlas-db'
 import { z } from 'zod'
-import { RUN_KEY_PREFIX, SUITE_KEY_PREFIX } from './github-check-suites'
+import { RUN_KEY_PREFIX, runOrderOfKey, SUITE_KEY_PREFIX } from './github-check-suites'
 import { normalizedRepo } from './github-pr-identity'
 import type { GithubPrCheckAnnotation, GithubPrFailedCheck } from './github-realtime.types'
 
@@ -66,9 +66,7 @@ export function failedChecksOfRows(rows: readonly CheckRow[]): GithubPrFailedChe
     .map((row) => ({
       row,
       name: row.name,
-      startedAt: row.checkKey.startsWith('status:')
-        ? row.sourceUpdatedAt.toISOString()
-        : row.startedAt,
+      order: runOrderOfKey(row.checkKey),
       outcome: row.outcome as ECheckOutcome,
     }))
   return latestAttempts(attempts)

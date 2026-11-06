@@ -113,12 +113,19 @@ const outcomeOf = (entry: RollupEntry): ECheckOutcome => {
   return checkRunOutcomeOf({ status: entry.status, conclusion: entry.conclusion })
 }
 
+const orderOf = (startedAt: string | null): number | null => {
+  if (startedAt === null) return null
+  const time = Date.parse(startedAt)
+
+  return Number.isNaN(time) ? null : time
+}
+
 const attemptOf = (entry: RollupEntry): CheckAttempt => {
   if (!('status' in entry)) {
-    return { name: entry.context, startedAt: entry.startedAt, outcome: outcomeOf(entry) }
+    return { name: entry.context, order: orderOf(entry.startedAt), outcome: outcomeOf(entry) }
   }
 
-  return { name: entry.name, startedAt: entry.startedAt, outcome: outcomeOf(entry) }
+  return { name: entry.name, order: orderOf(entry.startedAt), outcome: outcomeOf(entry) }
 }
 
 const MERGEABLE: Record<string, boolean> = { MERGEABLE: true, CONFLICTING: false }
