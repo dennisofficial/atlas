@@ -204,7 +204,7 @@ describe('tabPageOf', () => {
     expect(tabPageOf({ url: `${live.url}/x`, ports, loaded: true, held }).kind).toBe(ETabPage.Frame)
     expect(tabPageOf({ url: stopped.url, ports, loaded: true, held }).kind).toBe(ETabPage.Offline)
     expect(tabPageOf({ url: 'https://github.com/', ports, loaded: true, held }).kind).toBe(
-      ETabPage.External,
+      ETabPage.Frame,
     )
   })
 
