@@ -88,6 +88,40 @@ const ALLOWED: AllowedOverride[] = [
     reason:
       'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
   },
+  {
+    file: 'features/threads/panel/details/github-section.tsx',
+    component: 'TableCell',
+    token: 'pt-2',
+    reason:
+      'the checkout label row needs extra top inset to separate it from the previous checkout, which the shared py-1 body cell does not give (#1704)',
+  },
+  {
+    file: 'features/shell/shell-teammate-folder.tsx',
+    component: 'SidebarMenuSub',
+    token: 'gap-0.5',
+    reason:
+      'teammate folder rows nest tighter than the default submenu rhythm so a folder reads as one group (#1717)',
+  },
+  {
+    file: 'features/shell/shell-teammate-folder.tsx',
+    component: 'SidebarMenuSub',
+    token: 'pr-0',
+    reason: 'teammate folder rows run to the sidebar edge for their trailing actions (#1717)',
+  },
+  {
+    file: 'features/shell/shell-teammate-folder.tsx',
+    component: 'SidebarMenuSub',
+    token: 'pl-2',
+    reason:
+      'teammate folder rows nest tighter than the default submenu rhythm so a folder reads as one group (#1717)',
+  },
+  {
+    file: 'features/desktop/update-card.tsx',
+    component: 'CardContent',
+    token: 'gap-2',
+    reason:
+      'the update card stacks its error line above the restart button and the card content has no stack gap of its own (#1671)',
+  },
 ]
 
 const WEB_SRC = join(import.meta.dir, '..')
