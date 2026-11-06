@@ -64,6 +64,7 @@ const revokeAndRewake = async (args: {
   deps: HeldSessionDeps
   record: SessionRecord | undefined
   turnRunning: boolean
+  faulted: boolean
   epoch: number
 }): Promise<void> => {
   const { deps } = args
@@ -72,7 +73,7 @@ const revokeAndRewake = async (args: {
     sessionId: deps.sessionId,
     wantsHolder,
     epoch: args.epoch,
-    resetRetry: true,
+    resetRetry: !args.faulted,
   })
   if (wantsHolder) return
   const maybePending = await lateInputMaybePending({
@@ -92,6 +93,7 @@ export const teardownHeldSession = async (args: {
   released: boolean
   failedToStart: boolean
   gaveUpStarting: boolean
+  faulted: boolean
   epoch: number
 }): Promise<void> => {
   const { runtime, deps } = args

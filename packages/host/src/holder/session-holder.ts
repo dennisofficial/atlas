@@ -45,6 +45,8 @@ export class SessionHolder {
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
+  private readonly retryAt = new Map<string, string | null>()
+  private lostRetries: (string | null)[] = []
   private unsubWake: (() => void) | undefined
   private unsubResync: (() => void) | undefined
   private readonly loop: ClaimLoop
@@ -56,7 +58,7 @@ export class SessionHolder {
       timers: args.timers,
       log: args.log,
       onLost: (hostId) => this.handlePresenceLost(hostId),
-      onRegistered: () => this.onResync(),
+      onRegistered: () => this.handleRegistered(),
       onChanged: args.onHostIdChanged,
     })
     this.plane = args.plane
@@ -138,6 +140,8 @@ export class SessionHolder {
     })
     const sessions = [...this.held.values()]
     this.held.clear()
+    this.lostRetries = [...this.retryAt.values()]
+    this.retryAt.clear()
     for (const session of sessions) session.loseLease()
   }
 
@@ -146,6 +150,11 @@ export class SessionHolder {
     const held = this.held.get(sessionId)
     if (held !== undefined) return held.notifyWake()
     this.loop.ring()
+  }
+
+  private handleRegistered(): void {
+    for (const retryAfter of this.lostRetries.splice(0)) this.loop.ringAt(retryAfter)
+    this.onResync()
   }
 
   private onResync(): void {
@@ -178,7 +187,12 @@ export class SessionHolder {
         : await this.plane.readSession({ sessionId: lease.sessionId })
     if (row === undefined || this.draining || this.superseded(args.hostId)) {
       await this.plane
-        .revoke({ sessionId: lease.sessionId, wantsHolder: true, epoch: lease.epoch })
+        .revoke({
+          sessionId: lease.sessionId,
+          wantsHolder: true,
+          epoch: lease.epoch,
+          resetRetry: true,
+        })
         .catch(() => undefined)
       return
     }
@@ -187,10 +201,12 @@ export class SessionHolder {
         lease,
         onDrop: () => {
           if (this.held.get(lease.sessionId) === session) this.held.delete(lease.sessionId)
+          this.retryAt.delete(lease.sessionId)
         },
       }),
     )
     this.held.set(lease.sessionId, session)
+    this.retryAt.set(lease.sessionId, lease.retryAfter)
     const done = session.run({
       lease,
       threadId: toThreadId(row.mainThreadId),
@@ -199,6 +215,7 @@ export class SessionHolder {
     done.then(
       () => {
         if (this.held.get(lease.sessionId) === session) this.held.delete(lease.sessionId)
+        this.retryAt.delete(lease.sessionId)
         if (session.startFailed && !this.draining) this.loop.ringAt(lease.retryAfter)
         this.loop.ring()
       },
@@ -209,6 +226,7 @@ export class SessionHolder {
           ...logFieldsOf({ error }),
         })
         if (this.held.get(lease.sessionId) === session) this.held.delete(lease.sessionId)
+        this.retryAt.delete(lease.sessionId)
         this.loop.ring()
       },
     )
