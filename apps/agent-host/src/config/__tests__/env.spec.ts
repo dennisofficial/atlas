@@ -20,6 +20,7 @@ describe('readAgentHostEnv', () => {
     expect(env.secretsEncryptionKey).toBe('k'.repeat(64))
     expect(env.apiOrigin).toBe('https://api.byatlas.io')
     expect(env.vercelOauth).toBeNull()
+    expect(env.mediaBlobToken).toBeNull()
     expect(env.maxSessions).toBe(25)
     expect(env.drainMs).toBe(270_000)
     expect(env.sandboxImage).toBe('atlas-sandbox:latest')
@@ -35,6 +36,13 @@ describe('readAgentHostEnv', () => {
         VERCEL_OAUTH_CLIENT_SECRET: 'sec',
       }).vercelOauth,
     ).toEqual({ clientId: 'cl', clientSecret: 'sec' })
+  })
+
+  it('reads the media blob token when it is set', () => {
+    expect(
+      readAgentHostEnv({ ...complete, BLOB_READ_WRITE_TOKEN: 'blob-token' }).mediaBlobToken,
+    ).toBe('blob-token')
+    expect(readAgentHostEnv({ ...complete, BLOB_READ_WRITE_TOKEN: '  ' }).mediaBlobToken).toBeNull()
   })
 
   it('honours the overrides', () => {

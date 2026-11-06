@@ -24,6 +24,7 @@ import { reportsFastSpeed } from './fast-speed'
 import { requireFinish, StreamEndedWithoutFinish } from './stream-ended-without-finish'
 import { toInstructions } from './instructions'
 import { providerIdentityOf } from './provider-identity'
+import { mediaHashesOf, type MediaUrlSource } from '../media/media-urls'
 import { toModelMessages } from './message-conversion'
 import { toProviderPrompt } from './provider-prompt'
 import { toToolSet } from './tool-set'
@@ -95,6 +96,7 @@ export async function runModelStream(args: {
   signal: AbortSignal
   onChunk?: ChunkFilter
   streamTimeout?: StreamTimeout | undefined
+  mediaUrls?: ReadonlyMap<string, string> | undefined
 }): Promise<ModelStepResult> {
   const instructions = toInstructions(args.prompt.instructions)
 
@@ -107,7 +109,9 @@ export async function runModelStream(args: {
   const stream = streamText({
     model,
     ...(instructions.length > 0 ? { instructions } : {}),
-    messages: toModelMessages(args.prompt.messages),
+    messages: toModelMessages(args.prompt.messages, {
+      ...(args.mediaUrls === undefined ? {} : { mediaUrls: args.mediaUrls }),
+    }),
     tools: toToolSet(args.tools),
     stopWhen: stepCountIs(1),
     abortSignal: args.signal,
@@ -160,18 +164,21 @@ export type AiSdkModelPortArgs = {
   model: LanguageModel
   identity?: ProviderIdentity | undefined
   card?: ModelCardSource | undefined
+  mediaUrls?: MediaUrlSource | undefined
 }
 
 export class AiSdkModelPort extends ModelPort {
   private readonly model: LanguageModel
   private readonly declaredIdentity: ProviderIdentity | undefined
   private readonly card: ModelCardSource | undefined
+  private readonly mediaUrls: MediaUrlSource | undefined
 
   constructor(args: AiSdkModelPortArgs) {
     super()
     this.model = args.model
     this.declaredIdentity = args.identity
     this.card = args.card
+    this.mediaUrls = args.mediaUrls
   }
 
   get identity(): ProviderIdentity {
@@ -198,20 +205,26 @@ export class AiSdkModelPort extends ModelPort {
     signal: AbortSignal
     onChunk?: ChunkFilter
   }): Promise<ModelStepResult> {
+    const { prompt, mediaUrls } = await this.promptFor({ assembled })
     return runModelStream({
       model: this.model,
-      prompt: await this.promptFor({ assembled }),
+      prompt,
+      mediaUrls,
       tools,
       signal,
       ...(onChunk === undefined ? {} : { onChunk }),
     })
   }
 
-  private async promptFor({ assembled }: { assembled: Assembled }): Promise<ProviderPrompt> {
-    const prompt = toProviderPrompt({ assembled, provider: this.identity })
-    const carried = carriesToolResultImages(cardOf(this.card))
-      ? prompt
-      : { ...prompt, messages: hoistToolResultFiles({ messages: prompt.messages }) }
-    return carried
+  private async promptFor({ assembled }: { assembled: Assembled }): Promise<{
+    prompt: ProviderPrompt
+    mediaUrls: ReadonlyMap<string, string>
+  }> {
+    const provided = toProviderPrompt({ assembled, provider: this.identity })
+    const prompt = carriesToolResultImages(cardOf(this.card))
+      ? provided
+      : { ...provided, messages: hoistToolResultFiles({ messages: provided.messages }) }
+    const mediaUrls = (await this.mediaUrls?.urlsFor(mediaHashesOf(prompt.messages))) ?? new Map()
+    return { prompt, mediaUrls }
   }
 }

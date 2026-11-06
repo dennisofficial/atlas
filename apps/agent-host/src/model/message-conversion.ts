@@ -44,6 +44,10 @@ const toModelToolCallPart = (part: ToolCallPart) => ({
   ...carriedProviderOptions(part.providerOptions),
 })
 
+export type MediaUrls = ReadonlyMap<string, string>
+
+const NO_MEDIA_URLS: MediaUrls = new Map()
+
 const toModelMediaText = (part: MediaPart) => ({
   type: 'text' as const,
   text: imagePathLine({
@@ -53,7 +57,24 @@ const toModelMediaText = (part: MediaPart) => ({
   }),
 })
 
-const toModelToolResultOutput = (output: ToolResultOutput): ModelToolResultOutput => {
+const toModelMediaUrlPart = ({ part, url }: { part: MediaPart; url: string }) => ({
+  type: 'file' as const,
+  data: { type: 'url' as const, url: new URL(url) },
+  mediaType: part.media.mediaType,
+})
+
+const toModelMediaPart = ({ part, mediaUrls }: { part: MediaPart; mediaUrls: MediaUrls }) => {
+  const url = mediaUrls.get(part.media.hash)
+  return url === undefined ? toModelMediaText(part) : toModelMediaUrlPart({ part, url })
+}
+
+const toModelToolResultOutput = ({
+  output,
+  mediaUrls,
+}: {
+  output: ToolResultOutput
+  mediaUrls: MediaUrls
+}): ModelToolResultOutput => {
   if (output.type !== 'content') return output
 
   return {
@@ -62,7 +83,7 @@ const toModelToolResultOutput = (output: ToolResultOutput): ModelToolResultOutpu
       part.type === 'text'
         ? { type: 'text' as const, text: part.text }
         : part.type === 'media'
-          ? toModelMediaText(part)
+          ? toModelMediaPart({ part, mediaUrls })
           : {
               type: 'file' as const,
               data: { type: 'data' as const, data: part.data },
@@ -75,11 +96,17 @@ const toModelToolResultOutput = (output: ToolResultOutput): ModelToolResultOutpu
   }
 }
 
-const toModelToolResultPart = (part: ToolResultPart) => ({
+const toModelToolResultPart = ({
+  part,
+  mediaUrls,
+}: {
+  part: ToolResultPart
+  mediaUrls: MediaUrls
+}) => ({
   type: 'tool-result' as const,
   toolCallId: part.toolCallId,
   toolName: part.toolName,
-  output: toModelToolResultOutput(part.output),
+  output: toModelToolResultOutput({ output: part.output, mediaUrls }),
   ...carriedProviderOptions(part.providerOptions),
 })
 
@@ -98,8 +125,15 @@ const toModelFilePart = (part: FilePart) => ({
   ...carriedProviderOptions(part.providerOptions),
 })
 
-const toModelUserPart = (part: UserContentPart) => {
-  if (part.type === 'media') return toModelMediaText(part)
+const toModelUserPart = ({ part, mediaUrls }: { part: UserContentPart; mediaUrls: MediaUrls }) => {
+  if (part.type === 'media') {
+    const url = mediaUrls.get(part.media.hash)
+    if (url === undefined) return toModelMediaText(part)
+    return {
+      ...toModelMediaUrlPart({ part, url }),
+      ...carriedProviderOptions(part.providerOptions),
+    }
+  }
   if (part.type === 'image') return toModelImagePart(part)
   if (part.type === 'file') return toModelFilePart(part)
   return toModelTextPart(part)
@@ -111,11 +145,14 @@ const toModelAssistantPart = (part: CoreAssistantPart): ModelAssistantPart => {
   return toModelToolCallPart(part)
 }
 
-export function toModelMessage(message: Message): ModelMessage {
+export function toModelMessage(
+  message: Message,
+  { mediaUrls = NO_MEDIA_URLS }: { mediaUrls?: MediaUrls } = {},
+): ModelMessage {
   if (message.role === 'user') {
     return {
       role: 'user',
-      content: message.content.map(toModelUserPart),
+      content: message.content.map((part) => toModelUserPart({ part, mediaUrls })),
       ...carriedProviderOptions(message.providerOptions),
     }
   }
@@ -123,7 +160,7 @@ export function toModelMessage(message: Message): ModelMessage {
   if (message.role === 'tool') {
     return {
       role: 'tool',
-      content: message.content.map(toModelToolResultPart),
+      content: message.content.map((part) => toModelToolResultPart({ part, mediaUrls })),
       ...carriedProviderOptions(message.providerOptions),
     }
   }
@@ -135,5 +172,8 @@ export function toModelMessage(message: Message): ModelMessage {
   }
 }
 
-export const toModelMessages = (messages: readonly Message[]): ModelMessage[] =>
-  sanitizeToolCallIds(messages.map(toModelMessage))
+export const toModelMessages = (
+  messages: readonly Message[],
+  { mediaUrls = NO_MEDIA_URLS }: { mediaUrls?: MediaUrls } = {},
+): ModelMessage[] =>
+  sanitizeToolCallIds(messages.map((message) => toModelMessage(message, { mediaUrls })))

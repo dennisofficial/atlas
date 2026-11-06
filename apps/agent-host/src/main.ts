@@ -10,12 +10,16 @@ import { startPgChangeFeed } from './bus/pg-change-feed'
 import { startPgWakeListener } from './bus/pg-wake-listener'
 import { createRedisLiveFrames } from './bus/redis-live-frames'
 import { createRedisLiveSource } from './bus/redis-live-source'
+import { VercelMediaStore } from '@dltech/atlas-media'
+
 import { composeAgentHost } from './compose'
 import { ConfigReader } from './config/config-reader'
 import { ModelTokenService } from './tokens/model-token-service'
 import { OauthConnectionStore } from './tokens/oauth-connection-store'
 import { VercelTokenRefresher } from './tokens/vercel-token-refresher'
 import { GithubTokenReader } from './tokens/github-token-reader'
+import { MediaSigner } from './media/media-signer'
+import { PgMediaSigningWindows } from './media/pg-media-signing-windows'
 import { SecretCipher } from './config/secret-cipher'
 import { AgentHostEnvError, readAgentHostEnv } from './config/env'
 import { databaseUrlWithTls } from './config/database-url'
@@ -62,6 +66,15 @@ const main = async (): Promise<void> => {
     store: new OauthConnectionStore(createDb(pool)),
     cipher,
   })
+  const media =
+    env.mediaBlobToken === null
+      ? undefined
+      : new MediaSigner({
+          store: new VercelMediaStore({ token: env.mediaBlobToken }),
+          windows: new PgMediaSigningWindows(createDb(pool)),
+          cipher,
+          now: () => Date.now(),
+        })
   const presence = createPgHostPresence({
     url: databaseUrlWithTls(env.databaseDirectUrl),
     label: `${hostname()}-${process.pid}`,
@@ -79,6 +92,7 @@ const main = async (): Promise<void> => {
     config,
     tokens,
     github,
+    media,
     presence,
     log,
     onHostIdChanged: () => watch?.recompute(),
