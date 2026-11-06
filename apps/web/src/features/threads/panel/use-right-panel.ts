@@ -27,8 +27,8 @@ export type RightPanelState = {
 }
 
 export function useRightPanel(threadId: string): RightPanelState {
-  const [tab, setTab] = useState(() => recallThreadPanel(threadId).tab ?? ERightTab.Details)
-  useEffect(() => rememberThreadPanel({ threadId, patch: { tab } }), [threadId, tab])
+  const [remembered] = useState(() => recallThreadPanel(threadId))
+  const [tab, setTab] = useState(remembered.tab ?? ERightTab.Details)
   const [layout] = useState(() => recallPaneLayout(threadId))
   const rememberLayout = useCallback(
     (next: PaneLayout) => rememberPaneLayout({ threadId, layout: next }),
@@ -36,11 +36,17 @@ export function useRightPanel(threadId: string): RightPanelState {
   )
   const [sheetOpen, setSheetOpen] = useState(false)
   const [changesPath, setChangesPath] = useState<string | undefined>(undefined)
-  const [agentId, setAgentId] = useState<string | undefined>(undefined)
-
-  const [contextPath, setContextPath] = useState<string | undefined>(undefined)
-
-  const [filePath, setFilePath] = useState<string | undefined>(undefined)
+  const [agentId, setAgentId] = useState(remembered.agentId)
+  const [contextPath, setContextPath] = useState(remembered.contextPath)
+  const [filePath, setFilePath] = useState(remembered.filePath)
+  useEffect(
+    () =>
+      rememberThreadPanel({
+        threadId,
+        patch: { tab, agentId, contextPath, filePath },
+      }),
+    [threadId, tab, agentId, contextPath, filePath],
+  )
 
   const openChanges = useCallback((path?: string) => {
     setChangesPath(path)
