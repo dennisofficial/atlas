@@ -67,7 +67,8 @@ export function PreviewTabBody(props: {
   const { threadId, tabId, url, page, ports, onNavigate } = props
   const { gate } = useFrameRegistry()
   const key = liveKeyOf({ threadId, tabId })
-  const framed = page.kind === ETabPage.Frame || page.kind === ETabPage.Loading
+  const framed =
+    page.kind === ETabPage.Frame || page.kind === ETabPage.Loading || page.kind === ETabPage.Held
   useEffect(() => {
     if (!framed) changeRegistry((registry) => unloaded({ registry, key }))
   }, [framed, key])

@@ -28,11 +28,13 @@ import {
   withViewport,
   type BrowserTab,
 } from '../data/preview-browser/browser-model'
+import { liveKeyOf } from '../data/preview-browser/live-tabs'
 import { resolveAddress } from '../data/preview-browser/resolve-address'
 import { titleOf } from '../data/preview-browser/tab-title'
 import { usePreviewBrowser } from '../data/preview-browser/use-preview-browser'
 import { previewPortForUrl } from '../data/preview-ports'
 import type { PreviewsState } from '../data/use-previews'
+import { useFrameRegistry } from './preview/frame-registry'
 import { PreviewTabBody } from './preview/preview-tab-body'
 import { ETabPage, tabPageOf } from './preview/tab-page'
 import { useThreadPanel } from './thread-panel-context'
@@ -50,6 +52,7 @@ const chromeTabOf = (args: { tab: BrowserTab; ports: PreviewPort[] }): PreviewBr
 export function PreviewTab({ data }: { data: PreviewsState }) {
   const { threadId } = useThreadPanel()
   const { state, update } = usePreviewBrowser(threadId)
+  const { opened } = useFrameRegistry()
   const { ports, loaded } = data
   const tab = activeTabOf(state)
   const handleOpen = () => update(({ state: held }) => openTab({ state: held }))
@@ -72,7 +75,8 @@ export function PreviewTab({ data }: { data: PreviewsState }) {
   }
 
   const url = currentUrlOf(tab)
-  const page = tabPageOf({ url, ports, loaded })
+  const held = opened.has(liveKeyOf({ threadId, tabId: tab.id }))
+  const page = tabPageOf({ url, ports, loaded, held })
   const change = (next: (held: BrowserTab) => BrowserTab) =>
     update(({ state: held }) => updateTab({ state: held, id: tab.id, change: next }))
   const handleNavigate = (target: string) => change((held) => navigated({ tab: held, url: target }))
@@ -93,7 +97,7 @@ export function PreviewTab({ data }: { data: PreviewsState }) {
       address={url === NEW_TAB_URL ? '' : url}
       canGoBack={canGoBack(tab)}
       canGoForward={canGoForward(tab)}
-      canReload={page.kind === ETabPage.Frame}
+      canReload={page.kind === ETabPage.Frame || page.kind === ETabPage.Held}
       onBack={() => change(steppedBack)}
       onForward={() => change(steppedForward)}
       onReload={() => change(reloaded)}
