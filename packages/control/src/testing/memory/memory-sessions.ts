@@ -48,3 +48,34 @@ export const listSessionsIn = (params: {
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, params.limit)
     .map(publicRow)
+
+export const createSessionIn = (params: {
+  state: State
+  sessionId: string
+  userId: string
+  projectId: string
+  title?: string | undefined
+  mainThreadId: string
+  at: string
+}): void => {
+  const { state } = params
+  if (state.sessions.has(params.sessionId)) throw new Error('session exists')
+  state.sessions.set(params.sessionId, {
+    sessionId: params.sessionId,
+    userId: params.userId,
+    projectId: params.projectId,
+    title: params.title ?? null,
+    mainThreadId: params.mainThreadId,
+    createdAt: params.at,
+    archivedAt: null,
+    nextInboxId: 1,
+  })
+  state.leases.set(params.sessionId, {
+    sessionId: params.sessionId,
+    epoch: 0,
+    holderHostId: null,
+    wantsHolder: false,
+    attempts: 0,
+    retryAfter: null,
+  })
+}

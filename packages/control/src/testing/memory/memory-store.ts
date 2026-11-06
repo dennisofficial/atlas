@@ -30,6 +30,7 @@ import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
 import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
 import { sessionDigestsIn } from './memory-digests'
 import {
+  createSessionIn,
   listSessionsIn,
   readSessionIn,
   setSessionArchivedIn,
@@ -68,25 +69,7 @@ class MemoryTx implements ControlTx {
     mainThreadId: string
     at: string
   }): Promise<void> {
-    if (this.state.sessions.has(params.sessionId)) throw new Error('session exists')
-    this.state.sessions.set(params.sessionId, {
-      sessionId: params.sessionId,
-      userId: params.userId,
-      projectId: params.projectId,
-      title: params.title ?? null,
-      mainThreadId: params.mainThreadId,
-      createdAt: params.at,
-      archivedAt: null,
-      nextInboxId: 1,
-    })
-    this.state.leases.set(params.sessionId, {
-      sessionId: params.sessionId,
-      epoch: 0,
-      holderHostId: null,
-      wantsHolder: false,
-      attempts: 0,
-      retryAfter: null,
-    })
+    createSessionIn({ state: this.state, ...params })
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
