@@ -7,6 +7,7 @@ import { EMcpOauthAccessOutcome, EMcpOauthBeginOutcome, EMcpServerSource } from 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
+import { PgRefreshLock } from '../src/_lib/refresh-lock/pg-refresh-lock'
 import { McpOauthService } from '../src/api/cloud/mcp-oauth/mcp-oauth.service'
 import {
   FakeMcpFetcher,
@@ -31,9 +32,6 @@ const SERVER_URL = 'https://mcp.example.com/mcp'
 class RealClock extends McpOauthClock {
   now() {
     return Date.now()
-  }
-  sleep(ms: number) {
-    return new Promise<void>((resolve) => setTimeout(resolve, ms))
   }
 }
 
@@ -72,6 +70,7 @@ describe('mcp oauth grants over real PostgreSQL', () => {
           new RealClock(),
           fetcher,
           config,
+          new PgRefreshLock(),
         ),
     )
 

@@ -5,6 +5,13 @@ export type SecondaryStorage = NonNullable<BetterAuthOptions['secondaryStorage']
 
 export const AUTH_STORAGE_PREFIX = 'auth:'
 
+const INCREMENT_WITH_TTL = `
+local value = redis.call('INCR', KEYS[1])
+if tonumber(ARGV[1]) > 0 and redis.call('TTL', KEYS[1]) < 0 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return value`
+
 type StorageLog = (message: string, cause: unknown) => void
 
 const logToConsole: StorageLog = (message, cause) => {
@@ -18,7 +25,7 @@ const logToConsole: StorageLog = (message, cause) => {
  * session left in Redis would stay valid until its TTL.
  */
 export function redisSessionStorage(args: {
-  redis: Pick<Redis, 'get' | 'getdel' | 'incr' | 'expire' | 'set' | 'del'>
+  redis: Pick<Redis, 'get' | 'getdel' | 'eval' | 'set' | 'del'>
   prefix?: string | undefined
   log?: StorageLog | undefined
 }): SecondaryStorage {
@@ -38,9 +45,7 @@ export function redisSessionStorage(args: {
     },
     getAndDelete: (key) => redis.getdel(keyOf(key)),
     increment: async (key, ttl) => {
-      const value = await redis.incr(keyOf(key))
-      if (value === 1 && ttl > 0) await redis.expire(keyOf(key), ttl)
-      return value
+      return Number(await redis.eval(INCREMENT_WITH_TTL, 1, keyOf(key), ttl))
     },
     set: async (key, value, ttl) => {
       try {
@@ -48,6 +53,7 @@ export function redisSessionStorage(args: {
         else await redis.set(keyOf(key), value)
       } catch (cause) {
         log('auth session storage write failed; Postgres still holds the session', cause)
+        await redis.del(keyOf(key)).catch(() => undefined)
       }
     },
     delete: async (key) => {

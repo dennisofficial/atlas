@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException, ServiceUnavailableException } fro
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { InProcessRefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import { FakeClock, FakeIssuer, FakeStore, grantOf } from './oauth-connections.fakes'
 import { OauthConnectionsService } from './oauth-connections.service'
 import { EOauthProvider } from '@dltech/atlas-wire'
@@ -18,10 +19,11 @@ describe('OauthConnectionsService', () => {
   let issuer: FakeIssuer
   let clock: FakeClock
   let cipher: SecretCipherService
+  let lock: InProcessRefreshLock
   let service: OauthConnectionsService
   let sibling: OauthConnectionsService
 
-  const build = () => new OauthConnectionsService(store, cipher, issuer, clock)
+  const build = () => new OauthConnectionsService(store, cipher, issuer, clock, lock)
   const upload = (args: { userId?: string; lifetimeMs?: number } = {}) =>
     service.upload({
       userId: args.userId ?? OWNER,
@@ -40,6 +42,7 @@ describe('OauthConnectionsService', () => {
     issuer = new FakeIssuer()
     clock = new FakeClock(START)
     cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
+    lock = new InProcessRefreshLock()
     service = build()
     sibling = build()
   })
@@ -80,12 +83,8 @@ describe('OauthConnectionsService', () => {
   it('exchanges once for many concurrent callers across two service instances', async () => {
     await upload()
     clock.current += HOUR
-    let release: () => void = () => undefined
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
     issuer.outcome = async (args) => {
-      await gate
+      await Bun.sleep(5)
       return {
         accessToken: 'access-new',
         refreshToken: 'refresh-new',
@@ -94,9 +93,6 @@ describe('OauthConnectionsService', () => {
     }
 
     const callerCount = 12
-    clock.onSleep = () => {
-      if (clock.sleeps >= callerCount - 1) release()
-    }
     const callers = Array.from({ length: callerCount }, (_, index) =>
       issue({ via: index % 2 === 0 ? service : sibling }),
     )

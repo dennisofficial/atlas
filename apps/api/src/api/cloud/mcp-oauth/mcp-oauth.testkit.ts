@@ -1,6 +1,7 @@
 import { EMcpServerSource } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { InProcessRefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import {
   AUTH,
   FakeMcpClock,
@@ -25,7 +26,14 @@ export const build = (config = TEST_CONFIG) => {
   const clock = new FakeMcpClock(START)
   const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
   const oauth = new McpOauthService(store, cipher, clock, fetcher, config)
-  const access = new McpOauthAccessService(store, cipher, clock, fetcher, config)
+  const access = new McpOauthAccessService(
+    store,
+    cipher,
+    clock,
+    fetcher,
+    config,
+    new InProcessRefreshLock(),
+  )
   installIssuer(fetcher)
   return { store, fetcher, clock, cipher, oauth, access }
 }

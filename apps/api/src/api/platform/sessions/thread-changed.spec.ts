@@ -162,6 +162,7 @@ describe('threadChanged', () => {
       threadId: 'thr-1',
       draft: { workspace: '/w' },
     })
+    await signals.changesSettled()
     expect(seen.length).toBeGreaterThanOrEqual(1)
     expect(seen.at(-1)?.thread.id).toBe('thr-1')
   })

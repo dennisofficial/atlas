@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { AccountsService } from '../accounts/accounts.service'
+import { InProcessRefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import { FakeClock, FakeIssuer, FakeStore } from '../oauth-connections/oauth-connections.fakes'
 import { OauthConnectionsService } from '../oauth-connections/oauth-connections.service'
 import type { ProviderHttp } from './provider-http'
@@ -61,6 +62,7 @@ describe('ProviderSignInService', () => {
       cipher,
       new FakeIssuer(),
       new FakeClock(START),
+      new InProcessRefreshLock(),
     )
     service = new ProviderSignInService(
       cipher,

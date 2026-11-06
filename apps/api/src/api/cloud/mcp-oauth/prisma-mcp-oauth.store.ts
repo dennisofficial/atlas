@@ -191,14 +191,12 @@ export class PrismaMcpOauthStore implements McpOauthStore {
     generation: number
     attemptId: string
     startedAt: Date
-    staleBefore: Date
   }): Promise<boolean> {
     const statement = db.raw.sql`UPDATE "McpServer"
       SET "oauthRefreshAttempt" = ${args.attemptId}, "oauthRefreshStartedAt" = ${args.startedAt.toISOString()}::timestamptz
       WHERE "id" = ${args.id}
         AND "oauthGeneration" = ${args.generation}
-        AND "oauthStatus" = ${EGrantRowStatus.Active}
-        AND ("oauthRefreshAttempt" IS NULL OR "oauthRefreshStartedAt" < ${args.staleBefore.toISOString()}::timestamptz)`
+        AND "oauthStatus" = ${EGrantRowStatus.Active}`
       .affectedCount()
       .build()
     const { affectedRows } = await db.execute(statement)

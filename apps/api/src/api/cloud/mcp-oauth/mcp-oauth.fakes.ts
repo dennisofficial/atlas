@@ -129,18 +129,10 @@ export class FakeMcpStore implements McpOauthStore {
       : undefined
   }
 
-  async claim(args: {
-    id: string
-    generation: number
-    attemptId: string
-    startedAt: Date
-    staleBefore: Date
-  }) {
+  async claim(args: { id: string; generation: number; attemptId: string; startedAt: Date }) {
     const row = this.servers.get(args.id)
     if (row === undefined || row.oauthGeneration !== args.generation) return false
     if (row.oauthStatus !== EGrantRowStatus.Active) return false
-    const stale = row.oauthRefreshStartedAt !== null && row.oauthRefreshStartedAt < args.staleBefore
-    if (row.oauthRefreshAttempt !== null && !stale) return false
     row.oauthRefreshAttempt = args.attemptId
     row.oauthRefreshStartedAt = args.startedAt
     return true
@@ -200,9 +192,6 @@ export class FakeMcpClock implements McpOauthClock {
   constructor(public current: number) {}
   now() {
     return this.current
-  }
-  async sleep(ms: number) {
-    this.current += ms
   }
 }
 

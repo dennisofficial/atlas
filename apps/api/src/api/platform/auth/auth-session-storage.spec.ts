@@ -4,12 +4,14 @@ import { redisSessionStorage } from './auth-session-storage'
 const fakeRedis = (args: { failing?: boolean } = {}) => {
   const values = new Map<string, string>()
   const ttls = new Map<string, number>()
+  const evals: { key: string; ttl: number }[] = []
   const guard = () => {
     if (args.failing === true) throw new Error('connection refused')
   }
   return {
     values,
     ttls,
+    evals,
     get: async (key: string) => {
       guard()
       return values.get(key) ?? null
@@ -20,15 +22,13 @@ const fakeRedis = (args: { failing?: boolean } = {}) => {
       values.delete(key)
       return value
     },
-    incr: async (key: string) => {
+    eval: async (_script: string, _keys: number, key: string, ttl: number) => {
       guard()
+      evals.push({ key, ttl })
       const next = Number(values.get(key) ?? '0') + 1
       values.set(key, String(next))
+      if (ttl > 0) ttls.set(key, ttl)
       return next
-    },
-    expire: async (key: string, seconds: number) => {
-      ttls.set(key, seconds)
-      return 1
     },
     set: async (key: string, value: string, _mode?: 'EX', seconds?: number) => {
       guard()
@@ -76,13 +76,34 @@ describe('redisSessionStorage', () => {
     await expect(Promise.resolve(storage.delete('token-1'))).rejects.toThrow('connection refused')
   })
 
-  it('expires a counter only when it is created', async () => {
+  it('increments and sets the ttl in one atomic command', async () => {
     const redis = fakeRedis()
     const storage = redisSessionStorage({ redis: redis as never, log: silent })
 
     expect(await storage.increment('window', 10)).toBe(1)
-    redis.ttls.delete('auth:window')
     expect(await storage.increment('window', 10)).toBe(2)
-    expect(redis.ttls.has('auth:window')).toBe(false)
+
+    expect(redis.evals).toEqual([
+      { key: 'auth:window', ttl: 10 },
+      { key: 'auth:window', ttl: 10 },
+    ])
+  })
+
+  it('drops the cached value when a write fails so a stale one is not served', async () => {
+    const redis = fakeRedis()
+    redis.values.set('auth:token-1', 'stale')
+    const storage = redisSessionStorage({
+      redis: {
+        ...redis,
+        set: async () => {
+          throw new Error('connection reset')
+        },
+      } as never,
+      log: silent,
+    })
+
+    await storage.set('token-1', 'fresh', 600)
+
+    expect(redis.values.has('auth:token-1')).toBe(false)
   })
 })

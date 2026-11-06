@@ -6,6 +6,7 @@ import { EMcpOauthAccessOutcome, EMcpOauthGrantStatus, EMcpServerSource } from '
 import { describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
+import { PgRefreshLock } from '../src/_lib/refresh-lock/pg-refresh-lock'
 import { McpOauthAccessService } from '../src/api/cloud/mcp-oauth/mcp-oauth-access.service'
 import { McpOauthService } from '../src/api/cloud/mcp-oauth/mcp-oauth.service'
 import { FakeMcpFetcher } from '../src/api/cloud/mcp-oauth/mcp-oauth.fakes'
@@ -22,9 +23,6 @@ const SERVER_URL = 'https://mcp.example.com/mcp'
 class RealClock extends McpOauthClock {
   now() {
     return Date.now()
-  }
-  sleep(ms: number) {
-    return new Promise<void>((resolve) => setTimeout(resolve, ms))
   }
 }
 
@@ -46,7 +44,14 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
     return {
       store,
       oauth: new McpOauthService(store, cipher, new RealClock(), fetcher, config),
-      access: new McpOauthAccessService(store, cipher, new RealClock(), fetcher, config),
+      access: new McpOauthAccessService(
+        store,
+        cipher,
+        new RealClock(),
+        fetcher,
+        config,
+        new PgRefreshLock(),
+      ),
       servers: new McpServersService(cipher),
     }
   }
@@ -161,10 +166,13 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
       generation: 0,
       attemptId: 'attempt-1',
       startedAt: new Date(),
-      staleBefore: new Date(Date.now() - 30_000),
     }
     expect(await store.claim(claimArgs)).toBe(true)
-    expect(await store.claim(claimArgs)).toBe(false)
+    expect(await store.claim({ ...claimArgs, attemptId: 'attempt-0' })).toBe(true)
+    expect(await store.complete({ id, attemptId: 'attempt-1', generation: 0, sealed: 'x' })).toBe(
+      false,
+    )
+    expect(await store.claim(claimArgs)).toBe(true)
     expect(await store.claim({ ...claimArgs, generation: 9 })).toBe(false)
 
     expect(
