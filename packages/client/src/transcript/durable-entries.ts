@@ -8,15 +8,9 @@ import {
 } from '@dltech/atlas-core'
 
 import { entriesOfAssistantEvent, saidWhileToolsWereOutstanding } from './assistant-entries'
-import {
-  contextLoadedWith,
-  contextRuns,
-  isRelocationMarker,
-  NOTHING_ATTACHED,
-} from './context-entries'
+import { contextLoadedWith, contextRuns, NOTHING_ATTACHED } from './context-entries'
 import { inOneBreath, locationChangedEntry } from './entry-folds'
 import { noticeEntriesOf } from './notice-entries'
-import { createShellEndingFilter } from './shell-ending-filter'
 import { attachmentsOf } from './tool-attachments'
 import { toolRuns, type ToolRun } from './tool-runs'
 import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './transcript-model'
@@ -47,8 +41,6 @@ export function durableEntries(args: {
   })
   const turns = turnsBySeq({ events, turns: args.turns ?? [] })
   const footers = new Map(latestTldrPerAnchor(events).map((footer) => [footer.throughSeq, footer]))
-
-  const shellFilter = createShellEndingFilter()
 
   const entriesOfEvent = (event: Event): TranscriptEntry[] => {
     if (event.type === 'user-said') {
@@ -104,7 +96,7 @@ export function durableEntries(args: {
       return run === undefined ? [] : [toolsRanEntry(run)]
     }
 
-    const notice = noticeEntriesOf({ event, shellFilter })
+    const notice = noticeEntriesOf(event)
     if (notice !== null) return notice
 
     if (event.type === 'history-compacted') {
@@ -120,7 +112,6 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'location-changed') {
-      if (isRelocationMarker(event)) return []
       return [locationChangedEntry({ key: event.id, to: event.to, cause: event.cause })]
     }
 
@@ -129,7 +120,6 @@ export function durableEntries(args: {
 
   const flat = (): TranscriptEntry[] =>
     events.flatMap((event): TranscriptEntry[] => {
-      shellFilter.noteToolResult(event)
       const entries = entriesOfEvent(event)
       const footer = footers.get(event.seq)
       const withFooter =

@@ -4,12 +4,6 @@ import { isNoticeArrival, noticeIdOf } from '../events/notice-stage'
 import type { Lifecycle, LifecycleKind } from '../lifecycle/lifecycle'
 import { endedKeysOf, ELifecycleState, lifecycleOf } from '../lifecycle/lifecycle'
 
-export enum EShellLifecycleState {
-  Open = ELifecycleState.Open,
-  Settled = ELifecycleState.Settled,
-  Lost = ELifecycleState.Lost,
-}
-
 type StartedShell = EventOfType<'background-shell-started'>
 type EndedShell = EventOfType<'background-shell-ended'>
 
@@ -31,7 +25,7 @@ export type ShellLifecycle = {
   description?: string | undefined
   bootId?: string | undefined
   started: StartedShell
-  state: EShellLifecycleState
+  state: ELifecycleState
   ending?: EndedShell | undefined
 }
 
@@ -41,7 +35,7 @@ const projectShell = (lifecycle: Lifecycle<StartedShell, EndedShell>): ShellLife
     shellId: started.shellId,
     command: started.command,
     started,
-    state: lifecycle.state as unknown as EShellLifecycleState,
+    state: lifecycle.state,
     ...(started.description === undefined ? {} : { description: started.description }),
     ...(started.bootId === undefined ? {} : { bootId: started.bootId }),
   }
@@ -54,7 +48,7 @@ export function shellsLifecycle(events: readonly Event[]): ShellLifecycle[] {
 }
 
 export const lostShellsOf = (events: readonly Event[]): ShellLifecycle[] =>
-  shellsLifecycle(events).filter((lifecycle) => lifecycle.state === EShellLifecycleState.Lost)
+  shellsLifecycle(events).filter((lifecycle) => lifecycle.state === ELifecycleState.Lost)
 
 export const endedShellKeysOf = (events: readonly Event[]): ReadonlySet<string> =>
   endedKeysOf(events, shellLifecycleKind)

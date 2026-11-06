@@ -4,8 +4,6 @@ const QUOTED_INTENT_CHARACTERS = 120
 
 const ELLIPSIS = '…'
 
-const LEGACY_TEAMMATE_TITLE = /^teammate "(.*)"$/
-
 function clippedIntent(intent: string): string {
   const single = intent.replace(/\s+/g, ' ').trim()
   return single.length <= QUOTED_INTENT_CHARACTERS
@@ -26,8 +24,4 @@ export function agentLabel(args: { agentType: string; intent: string }): string 
 export function childThreadTitle(args: { agentType: string; intent: string }): string {
   if (!isTeammateType(args.agentType)) return agentLabel(args)
   return clippedIntent(args.intent) || args.agentType
-}
-
-export function displayedThreadTitle(title: string): string {
-  return LEGACY_TEAMMATE_TITLE.exec(title)?.[1] ?? title
 }

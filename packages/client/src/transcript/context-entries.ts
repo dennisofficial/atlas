@@ -1,11 +1,4 @@
-import {
-  EContextSlot,
-  EExecutionLocation,
-  ELocationChangeCause,
-  type Event,
-  type EventId,
-  type EventOfType,
-} from '@dltech/atlas-core'
+import { EContextSlot, type Event, type EventId, type EventOfType } from '@dltech/atlas-core'
 
 import {
   EAuthor,
@@ -70,19 +63,6 @@ const slotLabelOf = (event: EventOfType<'context-loaded'>): string => {
   return event.slot.replaceAll('-', ' ')
 }
 
-// #1252 stopped recording relocation artifacts (a lift-era location-changed marker and a
-// session-slot context injection) for born-placed sessions; logs written before it still carry
-// them. The renderer drops them by shape — a move to or from the cloud means a relocation, since
-// genuine moves under born-placed stay between host and docker — while the read paths in core
-// (worktree anchors, rewind) keep folding the events themselves.
-export const isRelocationMarker = (event: EventOfType<'location-changed'>): boolean => {
-  if (event.cause === ELocationChangeCause.SandboxExpired) return false
-  return event.from === EExecutionLocation.Cloud || event.to === EExecutionLocation.Cloud
-}
-
-const isRelocationInjection = (event: EventOfType<'context-loaded'>): boolean =>
-  event.slot === 'session' && event.key === 'execution-location'
-
 const injectionsSummary = (items: readonly SystemContextItem[]): string =>
   items.length === 1 ? (items[0]?.label ?? '') : `${items.length} prompts`
 
@@ -112,7 +92,6 @@ export function contextRuns(args: {
       continue
     }
     if (args.isHidden(event.id)) continue
-    if (isRelocationInjection(event)) continue
 
     const item: SystemContextItem = {
       key: event.id,

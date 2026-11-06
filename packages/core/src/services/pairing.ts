@@ -16,8 +16,7 @@ export type ServiceLifecycle = Lifecycle<StartedService, EndedService>
  * How a service maps onto the log: `service-started` opens it, `service-ended` closes it, and the
  * serviceId identifies one instance within a boot. The bootId is the scope because svc ids restart
  * at svc_1 in every session, so a new process's end must never settle a previous process's open
- * start; events written before bootId existed carry none and share the empty scope, which is the
- * old id-only behaviour for exactly the old data it described.
+ * start.
  */
 export const serviceLifecycleKind: LifecycleKind<StartedService, EndedService> = {
   isStart(event): event is StartedService {

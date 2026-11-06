@@ -49,32 +49,85 @@ function applyPlacement(args: { frame: HTMLElement; placement: Placement }): voi
   })
 }
 
+const REMEASURE_EVENTS = ['scroll', 'resize', 'transitionend', 'animationend'] as const
+
+export type SlotEnvironment = {
+  observeResize: (args: { element: HTMLElement; onResize: () => void }) => () => void
+  listen: (args: { type: string; onEvent: () => void }) => () => void
+}
+
+export const browserSlotEnvironment: SlotEnvironment = {
+  observeResize: ({ element, onResize }) => {
+    const observer = new ResizeObserver(onResize)
+    observer.observe(element)
+    return () => observer.disconnect()
+  },
+  listen: ({ type, onEvent }) => {
+    window.addEventListener(type, onEvent, { capture: true, passive: true })
+    return () => window.removeEventListener(type, onEvent, { capture: true })
+  },
+}
+
+export type SlotTracker = { remeasure: () => void; stop: () => void }
+
+export function trackSlot(args: {
+  slot: HTMLElement
+  frameOf: () => HTMLElement | undefined
+  environment?: SlotEnvironment | undefined
+}): SlotTracker {
+  const { slot, frameOf, environment = browserSlotEnvironment } = args
+  let placed: HTMLElement | undefined
+  let placement: Placement | undefined
+
+  const remeasure = (): void => {
+    const frame = frameOf()
+    if (frame === undefined) return
+    const next = placementOf(slot)
+    if (frame === placed && placement !== undefined && samePlacement({ a: placement, b: next }))
+      return
+    applyPlacement({ frame, placement: next })
+    placed = frame
+    placement = next
+  }
+
+  const stops = [
+    environment.observeResize({ element: slot, onResize: remeasure }),
+    ...REMEASURE_EVENTS.map((type) => environment.listen({ type, onEvent: remeasure })),
+  ]
+  remeasure()
+
+  return {
+    remeasure,
+    stop: () => {
+      for (const stop of stops) stop()
+    },
+  }
+}
+
+const samePlacement = (args: { a: Placement; b: Placement }): boolean =>
+  args.a.left === args.b.left &&
+  args.a.top === args.b.top &&
+  args.a.width === args.b.width &&
+  args.a.height === args.b.height &&
+  args.a.scale === args.b.scale &&
+  args.a.zIndex === args.b.zIndex
+
 export function useSlotTracking(args: {
   slot: HTMLElement | undefined
   frameOf: () => HTMLElement | undefined
 }): void {
   const { slot, frameOf } = args
-  const latest = useRef(frameOf)
-  useEffect(() => {
-    latest.current = frameOf
-  }, [frameOf])
+  const tracker = useRef<SlotTracker | undefined>(undefined)
   useEffect(() => {
     if (slot === undefined) return
-    let handle = 0
-    let placed: HTMLElement | undefined
-    let signature = ''
-    const handleFrame = () => {
-      const frame = latest.current()
-      const placement = placementOf(slot)
-      const next = JSON.stringify(placement)
-      if (frame !== undefined && (frame !== placed || next !== signature)) {
-        applyPlacement({ frame, placement })
-        placed = frame
-        signature = next
-      }
-      handle = requestAnimationFrame(handleFrame)
+    const current = trackSlot({ slot, frameOf })
+    tracker.current = current
+    return () => {
+      current.stop()
+      tracker.current = undefined
     }
-    handleFrame()
-    return () => cancelAnimationFrame(handle)
-  }, [slot])
+  }, [slot, frameOf])
+  useEffect(() => {
+    tracker.current?.remeasure()
+  })
 }

@@ -5,7 +5,7 @@ import { EAgentStart } from '../../agents/start'
 import { fixtureThreadId, log } from '../../assembly/__tests__/log-fixture'
 import { ELifecycleState } from '../../lifecycle/lifecycle'
 import { servicesLifecycle } from '../../services/pairing'
-import { endedShellKeysOf, EShellLifecycleState, shellsLifecycle } from '../../shells/lifecycle'
+import { endedShellKeysOf, shellsLifecycle } from '../../shells/lifecycle'
 import type { EventDraft } from '../body'
 import { shellCompletionNudge } from '../shell-completion-nudge'
 import { liveOwnedUnits } from '../ownership'
@@ -56,8 +56,8 @@ describe('one ending recorded as an arrival and a delivery', () => {
     const events = log([shellStarted, shellStarted, arrived(shellEnded), delivered(shellEnded)])
 
     expect(shellsLifecycle(events).map((shell) => shell.state)).toEqual([
-      EShellLifecycleState.Settled,
-      EShellLifecycleState.Lost,
+      ELifecycleState.Settled,
+      ELifecycleState.Lost,
     ])
     expect(endedShellKeysOf(events).size).toBe(1)
   })
