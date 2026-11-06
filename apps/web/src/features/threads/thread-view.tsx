@@ -241,6 +241,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
             onTabChange={rightPanel.setTab}
             sheetOpen={rightPanel.sheetOpen}
             onSheetOpenChange={rightPanel.setSheetOpen}
+            layout={rightPanel.layout}
+            onLayoutChange={rightPanel.rememberLayout}
           >
             {error !== null && !loaded ? <ThreadLoadError error={error} /> : null}
             <ThreadMainSlot

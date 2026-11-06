@@ -130,6 +130,23 @@ describe('useRightPanel', () => {
     expect(b().tab).toBe(ERightTab.Details)
   })
 
+  it('restores the pane layout when the same thread mounts again', async () => {
+    const first = await mount('sized')
+    expect(first().layout).toBeUndefined()
+    await act(async () => first().rememberLayout({ transcript: 70, 'right-panel': 30 }))
+    await first.unmount()
+    const again = await mount('sized')
+    expect(again().layout).toEqual({ transcript: 70, 'right-panel': 30 })
+  })
+
+  it('keeps each thread on its own pane layout', async () => {
+    const a = await mount('sized-a')
+    await act(async () => a().rememberLayout({ transcript: 40, 'right-panel': 60 }))
+    await a.unmount()
+    const b = await mount('sized-b')
+    expect(b().layout).toBeUndefined()
+  })
+
   it('openChanges leaves the file view', async () => {
     const state = await mount()
     await act(async () => state().openFile('src/a.ts'))
