@@ -18,11 +18,22 @@ export function v2RowOf(summary: V2SessionSummary): ShellSessionNode {
     head: 0,
     createdAt: summary.createdAt,
     updatedAt: summary.updatedAt,
+    archivedAt: summary.archivedAt,
     workspace: null,
     repo: null,
     projectId: summary.projectId,
   }
   return { id: summary.sessionId, mainThread, teammates: [], v2: true }
+}
+
+export function v2SessionIdsOf(
+  entries: readonly ProjectThreads[] | undefined,
+): ReadonlySet<string> {
+  const ids = new Set<string>()
+  for (const { sessions } of entries ?? []) {
+    for (const session of sessions) if (isV2Session(session)) ids.add(session.id)
+  }
+  return ids
 }
 
 export function withV2Sessions(args: {

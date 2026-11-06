@@ -177,6 +177,35 @@ describe('SessionsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
   })
 
+  it('archives and unarchives a session for its owner and reports it in the list', async () => {
+    const { service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const archived = await service.archive({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      archived: true,
+    })
+    expect(archived.archivedAt).toEqual(expect.any(String))
+    const listed = await service.list({ userId: 'user-a' })
+    expect(listed.sessions[0]?.archivedAt).toBe(archived.archivedAt)
+    expect(
+      await service.archive({ userId: 'user-a', sessionId: created.sessionId, archived: false }),
+    ).toEqual({ archivedAt: null })
+    expect((await service.list({ userId: 'user-a' })).sessions[0]?.archivedAt).toBeNull()
+  })
+
+  it('refuses to archive a session the user does not own or that does not exist', async () => {
+    const { service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    await expect(
+      service.archive({ userId: 'user-b', sessionId: created.sessionId, archived: true }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(
+      service.archive({ userId: 'user-a', sessionId: 'missing', archived: true }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect((await service.list({ userId: 'user-a' })).sessions[0]?.archivedAt).toBeNull()
+  })
+
   it('refuses a project the user does not own', async () => {
     const { service } = setup()
     await expect(service.create({ userId: 'user-b', projectId: 'proj-a' })).rejects.toBeInstanceOf(

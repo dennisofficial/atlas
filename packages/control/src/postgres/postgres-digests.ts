@@ -12,7 +12,7 @@ export const sessionDigestsIn = async (
   const projectId = params.projectId ?? ''
   const rows = await params.tx.query(
     params.tx.raw
-      .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt",
+      .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
         (SELECT left(i."payload"::jsonb ->> 'text', ${FIRST_MESSAGE_CHARS}) FROM "v2"."V2InboxEntry" i
@@ -30,6 +30,7 @@ export const sessionDigestsIn = async (
         title: { codecId: 'pg/text@1', nullable: true },
         mainThreadId: 'pg/text@1',
         createdAt: 'pg/timestamptz-date@1',
+        archivedAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
         lastEventAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
         firstMessageText: { codecId: 'pg/text@1', nullable: true },
       })
@@ -42,6 +43,7 @@ export const sessionDigestsIn = async (
     title: row.title,
     mainThreadId: row.mainThreadId,
     createdAt: iso(row.createdAt),
+    archivedAt: row.archivedAt === null ? null : iso(row.archivedAt),
     lastEventAt: row.lastEventAt === null ? null : iso(row.lastEventAt),
     firstMessageText: row.firstMessageText,
   }))

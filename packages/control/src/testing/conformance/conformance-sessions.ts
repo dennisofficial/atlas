@@ -76,6 +76,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         title: 'First session',
         mainThreadId: THREAD,
         createdAt: T0,
+        archivedAt: null,
       })
       expect(await plane.head({ threadId: THREAD })).toEqual({ seq: 0, hash: expect.any(String) })
       expect(await plane.readSession({ sessionId: 'unknown' })).toBeUndefined()
@@ -123,6 +124,28 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       expect(digests[1]?.firstMessageText).toBe('first')
       const scoped = await plane.listSessionDigests({ userId: USER, projectId: 'nope', limit: 10 })
       expect(scoped).toEqual([])
+    })
+
+    it('archives and unarchives a session and digests carry the stamp', async () => {
+      await seedSession({ sessionId: 's-a', offsetMs: 0 })
+      await seedSession({ sessionId: 's-b', offsetMs: 1000 })
+      const stamp = after({ iso: T0, offsetMs: 5000 })
+      await plane.setSessionArchived({ sessionId: 's-a', archivedAt: stamp })
+      expect((await plane.readSession({ sessionId: 's-a' }))?.archivedAt).toBe(stamp)
+      const archived = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(archived.map((row) => [row.sessionId, row.archivedAt])).toEqual([
+        ['s-b', null],
+        ['s-a', stamp],
+      ])
+      await plane.setSessionArchived({ sessionId: 's-a', archivedAt: null })
+      const restored = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(restored.map((row) => row.archivedAt)).toEqual([null, null])
+    })
+
+    it('refuses to archive an unknown session', async () => {
+      await expect(plane.setSessionArchived({ sessionId: 'nope', archivedAt: T0 })).rejects.toThrow(
+        'unknown session nope',
+      )
     })
 
     it('clamps the session list to 100', async () => {

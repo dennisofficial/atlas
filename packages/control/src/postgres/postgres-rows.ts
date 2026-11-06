@@ -20,6 +20,7 @@ export const toSessionRow = (row: {
   title: string | null
   mainThreadId: string
   createdAt: Date
+  archivedAt: Date | null
 }): ControlSessionRow => ({
   sessionId: row.id,
   userId: row.userId,
@@ -27,6 +28,7 @@ export const toSessionRow = (row: {
   title: row.title,
   mainThreadId: row.mainThreadId,
   createdAt: iso(row.createdAt),
+  archivedAt: row.archivedAt === null ? null : iso(row.archivedAt),
 })
 
 export const toThreadRow = (row: {

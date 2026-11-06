@@ -84,6 +84,26 @@ describe('SessionsRouter', () => {
     expect((await withdraw('session-a', { sessionId: 's1' })).status).toBe(400)
   })
 
+  it('archives a session for the signed-in user and validates the input', async () => {
+    sessions.archive.mockResolvedValue({ archivedAt: null })
+    const archive = (token: string | undefined, body: object) => {
+      const sent = request(app.getHttpServer()).post('/v1/trpc/sessions.archive')
+      return (token === undefined ? sent : sent.set(as(token))).send(body)
+    }
+
+    expect((await archive(undefined, { sessionId: 's1', archived: true })).status).toBe(401)
+    const ok = await archive('session-a', { sessionId: 's1', archived: false })
+    expect(ok.status).toBe(200)
+    expect(ok.body.result.data).toEqual({ archivedAt: null })
+    expect(sessions.archive).toHaveBeenCalledWith({
+      userId: 'user-a',
+      sessionId: 's1',
+      archived: false,
+    })
+    expect((await archive('session-a', { sessionId: 's1' })).status).toBe(400)
+    expect((await archive('session-a', { sessionId: 's1', archived: 'yes' })).status).toBe(400)
+  })
+
   it('validates the input', async () => {
     expect((await create('session-a', {})).status).toBe(400)
     expect((await create('session-a', { projectId: '' })).status).toBe(400)

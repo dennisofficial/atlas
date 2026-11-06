@@ -3,6 +3,8 @@ import { useCallback, useMemo } from 'react'
 
 import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
 
+import { V2_SESSIONS_KEY } from '@/lib/cloud-keys'
+import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 import { LoadFailed } from '@/features/settings/data/shared/query-gate'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
@@ -14,6 +16,7 @@ import { ThreadList } from './shell-thread-list'
 import { ThreadActionsContext } from './thread-actions-context'
 import type { ProjectThreads } from './thread-partition'
 import { useThreadArchive } from './use-thread-archive'
+import { v2SessionHref, v2SessionIdsOf } from './v2-rows'
 
 export function ShellSidebarContent({
   query,
@@ -23,13 +26,26 @@ export function ShellSidebarContent({
   activeThreadId: string | null
 }) {
   const router = useRouter()
+  const invalidateCloud = useInvalidateCloud()
+  const v2Ids = useMemo(() => v2SessionIdsOf(query.data), [query.data])
   const handleArchived = useCallback(
     (threadId: string) => {
       if (threadId !== activeThreadId) return
       router.replace('/threads')
-      return () => router.push(`/threads/${encodeURIComponent(threadId)}`)
+      const href = v2Ids.has(threadId)
+        ? v2SessionHref(threadId)
+        : `/threads/${encodeURIComponent(threadId)}`
+      return () => router.push(href)
     },
-    [activeThreadId, router],
+    [activeThreadId, router, v2Ids],
+  )
+  const archive = useCallback(
+    async (args: Parameters<typeof archiveThread>[0]) => {
+      const v2 = v2Ids.has(args.threadId)
+      await archiveThread({ ...args, v2 })
+      if (v2) await invalidateCloud([V2_SESSIONS_KEY])
+    },
+    [v2Ids, invalidateCloud],
   )
   const teammateIds = useMemo(() => {
     const ids = new Set<string>()
@@ -50,7 +66,7 @@ export function ShellSidebarContent({
     reload: query.reload,
     onArchived: handleArchived,
     isTeammate,
-    archive: archiveThread,
+    archive,
   })
   const actions = useMemo(() => ({ onToggleArchive: handleToggleArchive }), [handleToggleArchive])
 

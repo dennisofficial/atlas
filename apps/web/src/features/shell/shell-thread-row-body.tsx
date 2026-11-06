@@ -82,21 +82,19 @@ export function ThreadRowBody({
       collapsed={collapsed}
       states={states}
       actions={
-        v2 ? undefined : (
-          <RowAction label={archiveLabel} onClick={handleArchive}>
-            {teammate ? (
-              archived ? (
-                <RotateCcw />
-              ) : (
-                <CircleCheck />
-              )
-            ) : archived ? (
-              <ArchiveRestore />
+        <RowAction label={archiveLabel} onClick={handleArchive}>
+          {teammate ? (
+            archived ? (
+              <RotateCcw />
             ) : (
-              <Archive />
-            )}
-          </RowAction>
-        )
+              <CircleCheck />
+            )
+          ) : archived ? (
+            <ArchiveRestore />
+          ) : (
+            <Archive />
+          )}
+        </RowAction>
       }
       className={cn(
         'group/thread @container relative flex min-w-0 w-full items-start rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent',

@@ -84,6 +84,17 @@ export class ControlPlane {
     return this.store.transact((tx) => tx.readSession(params))
   }
 
+  async setSessionArchived(params: {
+    sessionId: string
+    archivedAt: string | null
+  }): Promise<void> {
+    await this.store.transact(async (tx) => {
+      if (!(await tx.setSessionArchived(params))) {
+        throw new Error(`unknown session ${params.sessionId}`)
+      }
+    })
+  }
+
   async listSessions(params: {
     userId: string
     projectId?: string | undefined

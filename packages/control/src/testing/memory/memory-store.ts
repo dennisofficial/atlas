@@ -69,6 +69,7 @@ class MemoryTx implements ControlTx {
       title: params.title ?? null,
       mainThreadId: params.mainThreadId,
       createdAt: params.at,
+      archivedAt: null,
       nextInboxId: 1,
     })
   }
@@ -78,6 +79,16 @@ class MemoryTx implements ControlTx {
     if (row === undefined) return undefined
     const { nextInboxId: _nextInboxId, ...session } = row
     return { ...session }
+  }
+
+  async setSessionArchived(params: {
+    sessionId: string
+    archivedAt: string | null
+  }): Promise<boolean> {
+    const row = this.state.sessions.get(params.sessionId)
+    if (row === undefined) return false
+    row.archivedAt = params.archivedAt
+    return true
   }
 
   async listSessions(params: {
