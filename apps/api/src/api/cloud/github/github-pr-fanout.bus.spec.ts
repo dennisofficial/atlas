@@ -81,7 +81,7 @@ describe('GithubPrFanoutService over a bus', () => {
     expect(received).toHaveLength(0)
   })
 
-  it('publishes an event frame carrying the latest ackId of the coalesced window', async () => {
+  it('publishes every event frame with its own ackId', async () => {
     const { fanout, bus } = distributedFanout()
 
     fanout.pushEvent({ userIds: ['usr_a'], event: EVENT, ackId: 'row_1' })
@@ -92,9 +92,13 @@ describe('GithubPrFanoutService over a bus', () => {
     expect(bus.published.map((frame) => frame.kind)).toEqual([
       EPrFrameKind.Event,
       EPrFrameKind.Event,
+      EPrFrameKind.Event,
     ])
-    expect(bus.published[0]).toMatchObject({ ackId: 'row_1' })
-    expect(bus.published[1]).toMatchObject({ ackId: 'row_3', payload: { id: 'evt_3' } })
+    expect(bus.published.map((frame) => 'ackId' in frame && frame.ackId)).toEqual([
+      'row_1',
+      'row_2',
+      'row_3',
+    ])
   })
 
   it('subscribes once, lazily, on the first openStream', () => {

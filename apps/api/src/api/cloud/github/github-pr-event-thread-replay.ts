@@ -1,6 +1,7 @@
 import { db, type Row } from '@dltech/atlas-db'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { eventDtoOf, REPLAY_LEASE_MS } from './github-pr-event-mailbox.service'
+import { claimDeliveries } from './github-pr-event-claim'
 import { teammateThreadIds } from '../../platform/sessions/thread-subscriptions'
 import type { GithubPrEventDto } from './github-realtime.types'
 
@@ -13,8 +14,8 @@ type ThreadReplay = { threadId: string; events: GithubPrEventDto[] }
  * (eventId, threadId) per owning thread.
  *
  * Each event is leased by stamping its delivery row `leaseExpiresAt`; a leased row is not
- * re-served until the lease lapses, and the harness's ack (`ackedAt`) retires it outright. A row
- * another stream still leases is skipped, so a racing replay never double-serves.
+ * re-served until the lease lapses, and the harness's ack (`ackedAt`) retires it outright. The
+ * claim is one atomic upsert and the replay serves exactly the rows it returns.
  */
 export async function replayThreadEvents(args: {
   userId: string
@@ -71,40 +72,14 @@ async function replayLinked(args: {
   }
   if (candidates.length === 0) return []
 
-  const now = new Date()
-  const leaseUntil = new Date(now.getTime() + REPLAY_LEASE_MS)
-  const candidateIds = candidates.map((row) => row.id)
-
-  // Which of these rows are claimable right now: never delivered to this thread, or holding an
-  // expired lease with no ack. Reading the claimable set first keeps the returned rows exactly
-  // the ones this replay is about to serve, regardless of what other streams hold.
-  const existing = await db.orm.public.GithubPrEventDelivery.where({ threadId: args.threadId })
-    .where((delivery) => delivery.eventId.in(candidateIds))
-    .all()
-  const heldById = new Map(existing.map((row) => [row.eventId, row] as const))
-  const claimableIds = candidateIds.filter((id) => {
-    const held = heldById.get(id)
-    if (held === undefined) return true
-    if (held.ackedAt !== null) return false
-    return held.leaseExpiresAt === null || held.leaseExpiresAt < now
+  const claimed = await claimDeliveries({
+    threadId: args.threadId,
+    eventIds: candidates.map((row) => row.id),
+    leaseUntil: new Date(Date.now() + REPLAY_LEASE_MS),
   })
-  if (claimableIds.length === 0) return []
 
-  await db.orm.public.GithubPrEventDelivery.createAll(
-    claimableIds.map((eventId) => ({
-      eventId,
-      threadId: args.threadId,
-      leaseExpiresAt: leaseUntil,
-    })),
-    { onConflict: 'skip' },
-  )
-  await db.orm.public.GithubPrEventDelivery.where({ threadId: args.threadId })
-    .where((delivery) => delivery.eventId.in(claimableIds))
-    .updateAndCount({ leaseExpiresAt: leaseUntil })
-
-  const claimable = new Set(claimableIds)
   return candidates
-    .filter((row) => claimable.has(row.id))
+    .filter((row) => claimed.has(row.id))
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
     .map(eventDtoOf)
 }

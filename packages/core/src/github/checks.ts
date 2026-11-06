@@ -32,41 +32,38 @@ export function checksRollup(outcomes: readonly ECheckOutcome[]): EChecksState {
 
 export type CheckAttempt = {
   name: string | null
-  startedAt: string | null
+  order: number | null
   outcome: ECheckOutcome
 }
 
 /**
  * GitHub's merge box groups the rollup by check name and shows only the newest attempt: pushing
  * again cancels the in-flight run, and that cancelled entry stays in statusCheckRollup next to its
- * successful re-run. Keeping the latest attempt per name matches the box. An attempt without a
- * name or a timestamp cannot be ordered, and attempts tied on startedAt cannot be ranked, so those
- * all survive rather than being ordered by guesswork — the doubt resolves towards alarming.
+ * successful re-run. Keeping the latest attempt per name matches the box. `order` is the number
+ * GitHub assigned the attempt, so it ranks attempts a timestamp cannot separate. An attempt
+ * without a name or an order cannot be ranked and survives rather than being ordered by
+ * guesswork — the doubt resolves towards alarming.
  */
 export function latestAttemptOutcomes(attempts: readonly CheckAttempt[]): ECheckOutcome[] {
   return latestAttempts(attempts).map((attempt) => attempt.outcome)
 }
 
 export function latestAttempts<T extends CheckAttempt>(attempts: readonly T[]): T[] {
-  const byName = new Map<string, T[]>()
+  const newestByName = new Map<string, { attempt: T; order: number }>()
   const kept: T[] = []
 
   for (const attempt of attempts) {
-    if (attempt.name === null || attempt.startedAt === null) {
+    if (attempt.name === null || attempt.order === null) {
       kept.push(attempt)
       continue
     }
-    byName.set(attempt.name, [...(byName.get(attempt.name) ?? []), attempt])
+    const held = newestByName.get(attempt.name)
+    if (held === undefined || attempt.order >= held.order) {
+      newestByName.set(attempt.name, { attempt, order: attempt.order })
+    }
   }
 
-  for (const group of byName.values()) {
-    const newest = group.reduce((max, attempt) =>
-      (attempt.startedAt ?? '') > (max.startedAt ?? '') ? attempt : max,
-    )
-    kept.push(...group.filter((attempt) => attempt.startedAt === newest.startedAt))
-  }
-
-  return kept
+  return [...kept, ...[...newestByName.values()].map((entry) => entry.attempt)]
 }
 
 export function checksTally(outcomes: readonly ECheckOutcome[]): ChecksCount {

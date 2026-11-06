@@ -23,17 +23,11 @@ type EventDeliveredHandler = (args: {
 const COALESCE_WINDOW_MS = 1_000
 
 type PendingPush = { state: GithubPrStateDto; userIds: readonly string[]; dirty: boolean }
-type PendingEventPush = {
-  event: GithubPrEventDto
-  userIds: readonly string[]
-  dirty: boolean
-  ackId?: string | undefined
-}
 
 /**
- * Coalescing stays local: the first push for a PR flushes immediately, and pushes inside the
+ * State coalescing stays local: the first push for a PR flushes immediately, and pushes inside the
  * following one-second window collapse to the latest state, so a check_run storm emits at most
- * one follow-up frame. A flush publishes one frame on the bus and every instance's subscriber
+ * one follow-up frame. Events are a log, so every one is sent at once with its row id. A flush publishes one frame on the bus and every instance's subscriber
  * delivers it to the streams it holds, so a stream reaches events pushed on any instance. With
  * no bus configured the flush delivers directly. On drain every open stream is closed outright:
  * the client reconnects and re-reads state instead of a frame riding a dying process.
@@ -45,8 +39,6 @@ export class GithubPrFanoutService implements OnModuleDestroy {
   private readonly pending = new Map<string, PendingPush>()
   private readonly lastSent = new Map<string, number>()
   private readonly timers = new Map<string, NodeJS.Timeout>()
-  private readonly pendingEvents = new Map<string, PendingEventPush>()
-  private readonly eventTimers = new Map<string, NodeJS.Timeout>()
   private readonly deliveredHandlers = new Set<EventDeliveredHandler>()
   private subscribed = false
 
@@ -107,9 +99,6 @@ export class GithubPrFanoutService implements OnModuleDestroy {
     this.timers.clear()
     this.pending.clear()
     this.lastSent.clear()
-    for (const timer of this.eventTimers.values()) clearTimeout(timer)
-    this.eventTimers.clear()
-    this.pendingEvents.clear()
     this.subscribed = false
     void this.bus.close().catch((failure: unknown) => {
       this.logger.warn(`closing the pr frame subscriber failed: ${String(failure)}`)
@@ -140,33 +129,8 @@ export class GithubPrFanoutService implements OnModuleDestroy {
     this.pending.set(key, { state: args.state, userIds: args.userIds, dirty: true })
   }
 
-  /**
-   * Same coalescing shape as `push`, keyed per (repo, pr, kind, users, comment id): the first event flushes
-   * immediately, and a burst of the same kind inside the one-second window collapses to the
-   * latest — a re-push storm must not turn into an event storm.
-   */
   pushEvent(args: { userIds: readonly string[]; event: GithubPrEventDto; ackId?: string }): void {
-    const key = `${args.event.repoFullName}#${args.event.prNumber}#${args.event.kind}#${[...args.userIds].sort().join(',')}#${args.event.payload.commentId ?? ''}`
-    const held = this.pendingEvents.get(key)
-
-    if (held === undefined) {
-      this.pendingEvents.set(key, {
-        event: args.event,
-        userIds: args.userIds,
-        dirty: false,
-        ackId: args.ackId,
-      })
-      this.flushEvents(args)
-      this.openEventWindow({ key })
-      return
-    }
-
-    this.pendingEvents.set(key, {
-      event: args.event,
-      userIds: args.userIds,
-      dirty: true,
-      ackId: args.ackId,
-    })
+    this.flushEvents(args)
   }
 
   pushWake(args: { userIds: readonly string[]; threadId: string }): void {
@@ -177,24 +141,6 @@ export class GithubPrFanoutService implements OnModuleDestroy {
         payload: { threadId: args.threadId },
       },
     })
-  }
-
-  private openEventWindow(args: { key: string }): void {
-    const prior = this.eventTimers.get(args.key)
-    if (prior !== undefined) clearTimeout(prior)
-    const timer = setTimeout(() => {
-      this.eventTimers.delete(args.key)
-      const held = this.pendingEvents.get(args.key)
-      this.pendingEvents.delete(args.key)
-      if (held?.dirty) {
-        this.flushEvents({
-          userIds: held.userIds,
-          event: held.event,
-          ...(held.ackId === undefined ? {} : { ackId: held.ackId }),
-        })
-      }
-    }, COALESCE_WINDOW_MS)
-    this.eventTimers.set(args.key, timer)
   }
 
   private flushEvents(args: {

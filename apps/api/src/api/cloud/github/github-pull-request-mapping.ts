@@ -70,7 +70,7 @@ export function pullRequestCacheFieldsOf(args: {
   const attempts: CheckAttempt[] = [
     ...args.checkRuns.map((run) => ({
       name: run.name,
-      startedAt: run.started_at,
+      order: run.id,
       outcome: checkRunOutcomeOf({
         status: run.status,
         conclusion: run.conclusion,
@@ -78,7 +78,7 @@ export function pullRequestCacheFieldsOf(args: {
     })),
     ...[...latestByContext.values()].map((status) => ({
       name: status.context,
-      startedAt: status.created_at,
+      order: null,
       outcome: statusContextOutcomeOf(status.state),
     })),
   ]
