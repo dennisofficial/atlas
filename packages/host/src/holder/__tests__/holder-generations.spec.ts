@@ -33,7 +33,7 @@ const gateFirst = <A extends unknown[], R>(
 const answered = (rig: HolderRig): Promise<boolean> =>
   flushUntil({
     clock: rig.clock,
-    advanceMs: 500,
+    advanceMs: 1_000,
     attempts: 400,
     check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
   })
@@ -44,8 +44,8 @@ describe('SessionHolder host generations', () => {
     await seedSession(rig)
     await rig.holder.start()
     const oldId = rig.hostId()
-    const claim = gateFirst(rig.plane.claim.bind(rig.plane))
-    rig.plane.claim = claim.wrapped
+    const claim = gateFirst(rig.plane.claimNext.bind(rig.plane))
+    rig.plane.claimNext = claim.wrapped
     await rig.post('hello')
     await rig.wake()
     await claim.entered

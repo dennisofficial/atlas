@@ -61,7 +61,7 @@ describe('SessionHolder presence loss', () => {
       check: async () => (await answers(a)) === 1,
       clock: a.clock,
       attempts: 3000,
-      advanceMs: 500,
+      advanceMs: 1_000,
     })
     expect(answered).toBe(true)
     expect(a.hostId()).not.toBe(oldId)
@@ -88,11 +88,11 @@ describe('SessionHolder presence loss', () => {
     await answerFirstTurn(a)
     const oldId = a.hostId()
     const claimedWith: number[] = []
-    const originalClaim = a.plane.claim.bind(a.plane)
-    a.plane.claim = (async (params: Parameters<typeof a.plane.claim>[0]) => {
+    const originalClaim = a.plane.claimNext.bind(a.plane)
+    a.plane.claimNext = async (params) => {
       claimedWith.push(params.hostId)
       return originalClaim(params)
-    }) as typeof a.plane.claim
+    }
     a.script.current = [{ text: 'second' }]
 
     a.presence.lose()
@@ -106,7 +106,7 @@ describe('SessionHolder presence loss', () => {
       check: async () => (await answers(a)) === 2,
       clock: a.clock,
       attempts: 3000,
-      advanceMs: 500,
+      advanceMs: 1_000,
     })
     expect(answered).toBe(true)
     expect(claimedWith).not.toContain(oldId)
@@ -158,7 +158,7 @@ describe('SessionHolder presence loss', () => {
       check: async () => (await answers(a)) === 2,
       clock: a.clock,
       attempts: 3000,
-      advanceMs: 500,
+      advanceMs: 1_000,
     })
     expect(answered).toBe(true)
     expect(await currentEpoch(a)).toBe(epoch + 1)

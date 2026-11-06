@@ -1,21 +1,41 @@
 import {
+  EMPTY_VISIBILITY,
+  RECORD_ONLY_TYPES,
   blobRefsOf,
   blobValueOf,
   chainHash,
+  isVisible,
   resolveBody,
+  stepVisibility,
   toLoopEvent,
-  visibleEvents,
   type LogHead,
   type ThreadId,
   type V2Event,
+  type V2EventType,
+  type VisibilityState,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
 const BLOB_FETCH_CONCURRENCY = 8
 
+export const HOLDER_STATE_TYPES: readonly V2EventType[] = [
+  ...RECORD_ONLY_TYPES,
+  'tool-dispatched',
+  'user-said',
+  'agent-spawned',
+]
+
+const revealsHidden = (args: { state: VisibilityState; event: V2Event }): boolean => {
+  const { event } = args
+  if (event.type !== 'history-rewound') return false
+  return args.state.spans.some((span) => span.createdAt > event.toSeq)
+}
+
 export class RecordCache {
-  private readonly events: V2Event[] = []
+  private events: V2Event[] = []
+  private visibility: VisibilityState = EMPTY_VISIBILITY
+  private revealed = false
   private readonly blobValues = new Map<string, unknown>()
   private fetchedBlobBytes = 0
   private head: LogHead = { seq: 0, hash: '' as LogHead['hash'] }
@@ -28,20 +48,7 @@ export class RecordCache {
     log?: LogPort | undefined
   }): Promise<RecordCache> {
     const cache = new RecordCache(args)
-    cache.head = await args.plane.head({ threadId: args.threadId })
-    let afterSeq = 0
-    for (;;) {
-      const page = await args.plane.readEvents({
-        threadId: args.threadId,
-        afterSeq,
-        limit: 1000,
-        visible: false,
-      })
-      cache.events.push(...page.events)
-      await cache.resolveBlobsOf(page.events)
-      if (page.next === undefined) break
-      afterSeq = page.next
-    }
+    await cache.fill()
     if (cache.fetchedBlobBytes > 0) {
       args.log?.info({
         source: 'holder.record',
@@ -50,6 +57,33 @@ export class RecordCache {
       })
     }
     return cache
+  }
+
+  private async fill(): Promise<void> {
+    const events: V2Event[] = []
+    const head = await this.args.plane.head({ threadId: this.args.threadId })
+    let afterSeq = 0
+    for (;;) {
+      const page = await this.args.plane.readEvents({
+        threadId: this.args.threadId,
+        afterSeq,
+        limit: 1000,
+        visible: true,
+        hiddenTypes: HOLDER_STATE_TYPES,
+      })
+      events.push(...page.events)
+      await this.resolveBlobsOf(page.events)
+      if (page.next === undefined) break
+      afterSeq = page.next
+    }
+    this.events = events
+    this.visibility = events.reduce(stepVisibility, EMPTY_VISIBILITY)
+    this.revealed = false
+    if (head.seq >= this.head.seq) this.head = head
+  }
+
+  async refillIfRevealed(): Promise<void> {
+    if (this.revealed) await this.fill()
   }
 
   async resolveBlobsOf(events: readonly V2Event[]): Promise<void> {
@@ -94,15 +128,9 @@ export class RecordCache {
   }
 
   visibleLoopEvents() {
-    return visibleEvents(this.events).flatMap((event) => {
-      const loop = toLoopEvent({ event: this.resolvedEvent(event), log: this.events })
-      return loop === undefined ? [] : [loop]
-    })
-  }
-
-  loopEvents() {
     return this.events.flatMap((event) => {
-      const loop = toLoopEvent({ event: this.resolvedEvent(event), log: this.events })
+      if (!isVisible(this.visibility, event)) return []
+      const loop = toLoopEvent({ event: this.resolvedEvent(event) })
       return loop === undefined ? [] : [loop]
     })
   }
@@ -112,7 +140,11 @@ export class RecordCache {
     head: LogHead
     resolved?: ReadonlyMap<string, unknown> | undefined
   }): void {
-    this.events.push(...args.events)
+    for (const event of args.events) {
+      if (revealsHidden({ state: this.visibility, event })) this.revealed = true
+      this.visibility = stepVisibility(this.visibility, event)
+      this.events.push(event)
+    }
     this.head = args.head
     if (args.resolved === undefined) return
     for (const [hash, value] of args.resolved) this.blobValues.set(hash, value)

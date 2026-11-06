@@ -90,7 +90,7 @@ token, and serve runs `cloudflared` in the pod (`apps/serve/src/api-port-exposer
 pill and the web preview list like any other exposure.
 
 OAuth providers need one fixed callback URL, so the preview worker also answers
-`https://callback.byatlas.dev`. Every top-level HTML page it serves sets an `atlas-preview=<host>` cookie
+`https://callback.byatlas.dev`. Every top-level navigation it serves, a page or a redirect, sets an `atlas-preview=<host>` cookie
 on `byatlas.dev`, and a request to the callback host is answered with a 307 to that preview, path and
 query intact (`apps/preview-worker/src/callback.ts`). The app registers
 `https://callback.byatlas.dev/<its callback path>` with the provider and uses it as its redirect URI.

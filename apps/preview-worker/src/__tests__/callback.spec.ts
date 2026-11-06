@@ -5,6 +5,8 @@ import { handlePreviewRequest } from '../worker'
 const PREVIEW = '3000-abcdefghij.byatlas.dev'
 const CALLBACK = 'https://callback.byatlas.dev'
 const PREVIEW_COOKIE = `atlas-preview=${PREVIEW}; Domain=byatlas.dev; Path=/; Secure; HttpOnly; SameSite=None`
+const CONSUMED_COOKIE =
+  'atlas-preview=; Domain=byatlas.dev; Path=/; Secure; HttpOnly; SameSite=None; Max-Age=0'
 
 async function run(args: { url: string; init?: RequestInit; response?: () => Response }) {
   const seen: Request[] = []
@@ -24,6 +26,19 @@ const html = () =>
 describe('preview cookie', () => {
   it('marks the browser with the preview a top-level page came from', async () => {
     const { result } = await run({ url: `https://${PREVIEW}/login`, response: html })
+    expect(result.headers.getSetCookie()).toContain(PREVIEW_COOKIE)
+  })
+
+  it('marks a top-level navigation that redirects straight to the provider', async () => {
+    const { result } = await run({
+      url: `https://${PREVIEW}/login`,
+      init: { headers: { 'sec-fetch-dest': 'document' } },
+      response: () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://accounts.google.com/o/oauth2/v2/auth' },
+        }),
+    })
     expect(result.headers.getSetCookie()).toContain(PREVIEW_COOKIE)
   })
 
@@ -68,6 +83,7 @@ describe('callback host', () => {
       `https://${PREVIEW}/api/auth/callback/google?code=c&state=s%2F1`,
     )
     expect(result.headers.get('cache-control')).toBe('no-store')
+    expect(result.headers.getSetCookie()).toEqual([CONSUMED_COOKIE])
     expect(seen).toHaveLength(0)
   })
 
@@ -88,7 +104,7 @@ describe('callback host', () => {
     expect(result.status).toBe(302)
     expect(result.headers.get('location')).toBe(google)
     expect(result.headers.getSetCookie()).toEqual([
-      'atlas-preview=desktop; Domain=byatlas.dev; Path=/; Secure; HttpOnly; SameSite=None',
+      'atlas-preview=desktop; Domain=byatlas.dev; Path=/; Secure; HttpOnly; SameSite=None; Max-Age=600',
     ])
   })
 
@@ -117,6 +133,9 @@ describe('callback host', () => {
     expect(page).toContain(
       'window.location.href = "atlas://preview-callback/api/auth/callback/google?code=c&state=%22%3C%2Fscript%3E"',
     )
+    expect(page).toContain('You can close this tab.')
+    expect(page).toContain('window.close()')
+    expect(result.headers.getSetCookie()).toEqual([CONSUMED_COOKIE])
     expect(seen).toHaveLength(0)
   })
 

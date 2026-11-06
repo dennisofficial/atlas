@@ -1,0 +1,640 @@
+[
+  {
+    "step": "signed",
+    "codeWord": "KESTREL-6498",
+    "pathname": "spike/image-urls/7fc159c24f3f.png",
+    "bytes": 43725,
+    "shapeA": {
+      "host": "gtg6jbopili7yuqh.private.blob.vercel-storage.com",
+      "path": "/spike/image-urls/7fc159c24f3f.png",
+      "queryKeys": ["vercel-blob-delegation", "vercel-blob-signature"],
+      "length": 482
+    },
+    "sameUrlWhenResigned": false,
+    "podFetch": {
+      "status": 200,
+      "contentType": "image/png",
+      "location": null
+    }
+  },
+  {
+    "provider": "anthropic",
+    "step": "1 url A (cold)",
+    "ms": 976,
+    "answer": "KESTREL-6498",
+    "correct": true,
+    "usage": {
+      "inputTokens": {
+        "total": 21089,
+        "noCache": 3,
+        "cacheRead": 0,
+        "cacheWrite": 21086
+      },
+      "outputTokens": {
+        "total": 10
+      },
+      "raw": {
+        "input_tokens": 3,
+        "cache_creation_input_tokens": 21086,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 21086,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 10,
+        "service_tier": "standard",
+        "inference_geo": "not_available",
+        "speed": "standard"
+      }
+    }
+  },
+  {
+    "provider": "anthropic",
+    "step": "2 url A (repeat)",
+    "ms": 598,
+    "answer": "KESTREL-6498",
+    "correct": true,
+    "usage": {
+      "inputTokens": {
+        "total": 21089,
+        "noCache": 3,
+        "cacheRead": 21086,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 10
+      },
+      "raw": {
+        "input_tokens": 3,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21086,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 10,
+        "service_tier": "standard",
+        "inference_geo": "not_available",
+        "speed": "standard"
+      }
+    }
+  },
+  {
+    "provider": "anthropic",
+    "step": "3 url B (re-signed, same bytes)",
+    "ms": 1166,
+    "answer": "KESTREL-6498",
+    "correct": true,
+    "usage": {
+      "inputTokens": {
+        "total": 21089,
+        "noCache": 3,
+        "cacheRead": 21086,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 10
+      },
+      "raw": {
+        "input_tokens": 3,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21086,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 10,
+        "service_tier": "standard",
+        "inference_geo": "not_available",
+        "speed": "standard"
+      }
+    }
+  },
+  {
+    "provider": "anthropic",
+    "step": "4 base64 (same bytes)",
+    "ms": 1399,
+    "answer": "KESTREL-6498",
+    "correct": true,
+    "usage": {
+      "inputTokens": {
+        "total": 21089,
+        "noCache": 3,
+        "cacheRead": 21086,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 10
+      },
+      "raw": {
+        "input_tokens": 3,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21086,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 10,
+        "service_tier": "standard",
+        "inference_geo": "not_available",
+        "speed": "standard"
+      }
+    }
+  },
+  {
+    "provider": "anthropic",
+    "step": "5 url E (short-lived, valid)",
+    "ms": 893,
+    "answer": "KESTREL-6498",
+    "correct": true,
+    "usage": {
+      "inputTokens": {
+        "total": 21089,
+        "noCache": 3,
+        "cacheRead": 21086,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 10
+      },
+      "raw": {
+        "input_tokens": 3,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21086,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 10,
+        "service_tier": "standard",
+        "inference_geo": "not_available",
+        "speed": "standard"
+      }
+    }
+  },
+  {
+    "provider": "openai",
+    "step": "1 url A (cold)",
+    "ms": 1736,
+    "answer": "KESTREL",
+    "correct": false,
+    "usage": {
+      "inputTokens": {
+        "total": 19182,
+        "noCache": 19182,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 7,
+        "text": 7,
+        "reasoning": 0
+      },
+      "raw": {
+        "attribution": {
+          "items": {
+            "msg_063f09fa5a46d7c5016aee3805a56087d2ae041bc65450ef94": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 22,
+                  "output_tokens": 0
+                },
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 1142,
+                  "output_tokens": 0
+                }
+              ],
+              "input_tokens": 1164,
+              "output_tokens": 0
+            },
+            "msg_063f09fa5a46d7c5016aee38065a0087d293904e93cfcd5e36": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 2,
+                  "output_tokens": 7
+                }
+              ],
+              "input_tokens": 2,
+              "output_tokens": 7
+            }
+          },
+          "request_fields": {
+            "instructions": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "input_tokens": 18016,
+              "output_tokens": 0
+            }
+          }
+        },
+        "input_tokens": 19182,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 7,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 19189
+      }
+    }
+  },
+  {
+    "provider": "openai",
+    "step": "2 url A (repeat)",
+    "ms": 1803,
+    "answer": "KESTREL",
+    "correct": false,
+    "usage": {
+      "inputTokens": {
+        "total": 19182,
+        "noCache": 19182,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 7,
+        "text": 7,
+        "reasoning": 0
+      },
+      "raw": {
+        "attribution": {
+          "items": {
+            "msg_0752965687068c89016aee38074f9887d2862612f400059097": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 22,
+                  "output_tokens": 0
+                },
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 1142,
+                  "output_tokens": 0
+                }
+              ],
+              "input_tokens": 1164,
+              "output_tokens": 0
+            },
+            "msg_0752965687068c89016aee3808341c87d2b2503132291c954a": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 2,
+                  "output_tokens": 7
+                }
+              ],
+              "input_tokens": 2,
+              "output_tokens": 7
+            }
+          },
+          "request_fields": {
+            "instructions": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "input_tokens": 18016,
+              "output_tokens": 0
+            }
+          }
+        },
+        "input_tokens": 19182,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 7,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 19189
+      }
+    }
+  },
+  {
+    "provider": "openai",
+    "step": "3 url B (re-signed, same bytes)",
+    "ms": 2101,
+    "answer": "KESTREL",
+    "correct": false,
+    "usage": {
+      "inputTokens": {
+        "total": 19182,
+        "noCache": 19182,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 7,
+        "text": 7,
+        "reasoning": 0
+      },
+      "raw": {
+        "attribution": {
+          "items": {
+            "msg_0b03524ed879dec3016aee380932bc87d2b26c4d825e93699c": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 22,
+                  "output_tokens": 0
+                },
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 1142,
+                  "output_tokens": 0
+                }
+              ],
+              "input_tokens": 1164,
+              "output_tokens": 0
+            },
+            "msg_0b03524ed879dec3016aee380a407887d29a76dc6ff62b48ae": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 2,
+                  "output_tokens": 7
+                }
+              ],
+              "input_tokens": 2,
+              "output_tokens": 7
+            }
+          },
+          "request_fields": {
+            "instructions": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "input_tokens": 18016,
+              "output_tokens": 0
+            }
+          }
+        },
+        "input_tokens": 19182,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 7,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 19189
+      }
+    }
+  },
+  {
+    "provider": "openai",
+    "step": "4 base64 (same bytes)",
+    "ms": 2151,
+    "answer": "KESTREL",
+    "correct": false,
+    "usage": {
+      "inputTokens": {
+        "total": 19182,
+        "noCache": 19182,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 7,
+        "text": 7,
+        "reasoning": 0
+      },
+      "raw": {
+        "attribution": {
+          "items": {
+            "msg_0a526311d451c4b7016aee380b0a4c87d2ab8daad8425e15f1": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 22,
+                  "output_tokens": 0
+                },
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 1142,
+                  "output_tokens": 0
+                }
+              ],
+              "input_tokens": 1164,
+              "output_tokens": 0
+            },
+            "msg_0a526311d451c4b7016aee380c743087d2b7b7d7e3e4c99130": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 2,
+                  "output_tokens": 7
+                }
+              ],
+              "input_tokens": 2,
+              "output_tokens": 7
+            }
+          },
+          "request_fields": {
+            "instructions": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "input_tokens": 18016,
+              "output_tokens": 0
+            }
+          }
+        },
+        "input_tokens": 19182,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 7,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 19189
+      }
+    }
+  },
+  {
+    "provider": "openai",
+    "step": "5 url E (short-lived, valid)",
+    "ms": 1651,
+    "answer": "KESTREL",
+    "correct": false,
+    "usage": {
+      "inputTokens": {
+        "total": 19182,
+        "noCache": 19182,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 7,
+        "text": 7,
+        "reasoning": 0
+      },
+      "raw": {
+        "attribution": {
+          "items": {
+            "msg_0f55be7c682bd771016aee380d42ec87d2ad1055afc5be440f": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 22,
+                  "output_tokens": 0
+                },
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 1142,
+                  "output_tokens": 0
+                }
+              ],
+              "input_tokens": 1164,
+              "output_tokens": 0
+            },
+            "msg_0f55be7c682bd771016aee380e1fd487d2837d6f0a7b198da2": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "content": [
+                {
+                  "cache_write_tokens": 0,
+                  "cached_tokens": 0,
+                  "input_tokens": 2,
+                  "output_tokens": 7
+                }
+              ],
+              "input_tokens": 2,
+              "output_tokens": 7
+            }
+          },
+          "request_fields": {
+            "instructions": {
+              "cache_write_tokens": 0,
+              "cached_tokens": 0,
+              "input_tokens": 18016,
+              "output_tokens": 0
+            }
+          }
+        },
+        "input_tokens": 19182,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 7,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 19189
+      }
+    }
+  },
+  {
+    "step": "url E after expiry, pod fetch",
+    "podFetch": {
+      "status": 403,
+      "contentType": null,
+      "location": null
+    }
+  },
+  {
+    "provider": "anthropic",
+    "step": "6 url E (expired)",
+    "ms": 596,
+    "answer": "KESTREL-6498",
+    "correct": true,
+    "usage": {
+      "inputTokens": {
+        "total": 21089,
+        "noCache": 3,
+        "cacheRead": 21086,
+        "cacheWrite": 0
+      },
+      "outputTokens": {
+        "total": 10
+      },
+      "raw": {
+        "input_tokens": 3,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 21086,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 10,
+        "service_tier": "standard",
+        "inference_geo": "not_available",
+        "speed": "standard"
+      }
+    }
+  },
+  {
+    "provider": "openai",
+    "step": "6 url E (expired)",
+    "ms": 729,
+    "failed": true,
+    "status": 400,
+    "body": "{\n  \"error\": {\n    \"message\": \"Error while downloading file. Upstream status code: 403.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"url\",\n    \"code\": \"invalid_value\"\n  }\n}"
+  },
+  {
+    "provider": "anthropic",
+    "step": "7 url F (expired, never fetched)",
+    "ms": 382,
+    "failed": true,
+    "status": 400,
+    "body": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Unable to download the file. Please verify the URL and try again.\"},\"request_id\":\"req_011CgnJcF357YqzokkwMNHrF\"}"
+  },
+  {
+    "provider": "openai",
+    "step": "7 url F (expired, never fetched)",
+    "ms": 497,
+    "failed": true,
+    "status": 400,
+    "body": "{\n  \"error\": {\n    \"message\": \"Error while downloading file. Upstream status code: 403.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"url\",\n    \"code\": \"invalid_value\"\n  }\n}"
+  },
+  {
+    "provider": "anthropic",
+    "step": "8 url F (expired), no system prefix",
+    "ms": 371,
+    "failed": true,
+    "status": 400,
+    "body": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Unable to download the file. Please verify the URL and try again.\"},\"request_id\":\"req_011CgnJcJmK48PkdUTYn87JC\"}"
+  },
+  {
+    "step": "cleanup",
+    "deleted": "spike/image-urls/7fc159c24f3f.png"
+  }
+]

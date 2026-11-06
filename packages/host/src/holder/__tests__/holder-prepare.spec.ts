@@ -185,6 +185,7 @@ describe('SessionHolder prepare', () => {
       rig,
       bodies: [{ type: 'workspace-prepare-failed', reason: 'clone failed', inboxHead: 1 }],
     })
+    await rig.postStop()
     let reads = 0
     const readInbox = rig.plane.readInbox.bind(rig.plane)
     rig.plane.readInbox = ((params: Parameters<typeof rig.plane.readInbox>[0]) => {
@@ -202,7 +203,9 @@ describe('SessionHolder prepare', () => {
     expect(released).toBe(true)
     expect(rig.holder.heldIds()).toEqual([])
     expect(reads - readsAtStart).toBeLessThan(10)
-    expect(await typesOf(rig)).toEqual(['workspace-prepare-failed'])
+    expect((await typesOf(rig)).filter((type) => type !== 'input-consumed')).toEqual([
+      'workspace-prepare-failed',
+    ])
   })
 
   it('builds a fresh runtime, and so a new sandbox wake, when a newer message retries a failed prepare', async () => {

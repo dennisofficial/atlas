@@ -32,7 +32,7 @@ describe('workspace-step event', () => {
     ])
     expect(v2EventSchema.parse(events[0]).type).toBe('workspace-step')
     expect(isRecordOnly(events[0] as never)).toBe(true)
-    expect(toLoopEvent({ event: events[0] as never, log: events })).toBeUndefined()
+    expect(toLoopEvent({ event: events[0] as never })).toBeUndefined()
   })
 
   it('rejects an unknown step', () => {

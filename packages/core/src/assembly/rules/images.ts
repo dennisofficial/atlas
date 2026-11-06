@@ -6,7 +6,14 @@ import {
   type SupportedImageMediaType,
 } from '../../images/limits'
 import type { Message } from '../../message/message'
-import type { FilePart, ImagePart, TextPart, ToolResultPart } from '../../message/parts'
+import type {
+  FilePart,
+  ImagePart,
+  MediaPart,
+  TextPart,
+  ToolResultPart,
+  UserContentPart,
+} from '../../message/parts'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
 
@@ -19,7 +26,10 @@ import { defineRule, type Rule } from '../rule'
  */
 export const MAX_IMAGE_BLOCKS = 20
 
-type VisualPart = TextPart | ImagePart | FilePart
+type VisualPart = UserContentPart
+
+const isPicture = (part: VisualPart): part is ImagePart | FilePart | MediaPart =>
+  part.type === 'image' || part.type === 'file' || part.type === 'media'
 
 const describedSize = (part: ImagePart): string => {
   const size =
@@ -41,12 +51,20 @@ const describedFile = (part: FilePart): string => {
     : `${part.source} · ${part.mediaType}`
 }
 
-const withoutPixels = (part: ImagePart | FilePart): TextPart => ({
+const describedMedia = (part: MediaPart): string => {
+  const { mediaType, width, height } = part.media
+  const shape = `${mediaType} ${width}×${height}`
+  return part.source === undefined ? shape : `${part.source} · ${shape}`
+}
+
+const withoutPixels = (part: ImagePart | FilePart | MediaPart): TextPart => ({
   type: 'text',
   text:
     part.type === 'image'
       ? `[image dropped from context: ${described(part)}]`
-      : `[file dropped from context: ${describedFile(part)}]`,
+      : part.type === 'media'
+        ? `[image dropped from context: ${describedMedia(part)}]`
+        : `[file dropped from context: ${describedFile(part)}]`,
 })
 
 const withoutCorruptPixels = (part: ImagePart): TextPart => ({
@@ -66,7 +84,7 @@ const imageIsCorrupt = (part: ImagePart): boolean => {
 }
 
 const imagesInParts = (parts: readonly VisualPart[]): number =>
-  parts.reduce((count, part) => count + (part.type === 'image' || part.type === 'file' ? 1 : 0), 0)
+  parts.reduce((count, part) => count + (isPicture(part) ? 1 : 0), 0)
 
 const imagesInResult = (part: ToolResultPart): number =>
   part.output.type === 'content' ? imagesInParts(part.output.value) : 0
@@ -99,9 +117,7 @@ const downgradedParts = ({
   parts: readonly VisualPart[]
   budget: Downgrades
 }): readonly VisualPart[] =>
-  parts.map((part) =>
-    (part.type === 'image' || part.type === 'file') && budget.claim() ? withoutPixels(part) : part,
-  )
+  parts.map((part) => (isPicture(part) && budget.claim() ? withoutPixels(part) : part))
 
 function downgradedResult({
   part,

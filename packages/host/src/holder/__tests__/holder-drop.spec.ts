@@ -25,12 +25,6 @@ describe('SessionHolder drop releases the slot', () => {
       ],
     })
     await seedSession(a)
-    await a.plane.createSession({
-      sessionId: 'session-other',
-      userId: 'user-1',
-      projectId: 'project-1',
-      mainThreadId: 'thread-other',
-    })
     await a.holder.start()
     await a.post('long exec')
     await a.wake()
@@ -38,6 +32,12 @@ describe('SessionHolder drop releases the slot', () => {
       check: async () => (await a.events()).some((event) => event.type === 'tool-dispatched'),
     })
     expect(dispatched).toBe(true)
+    await a.plane.createSession({
+      sessionId: 'session-other',
+      userId: 'user-1',
+      projectId: 'project-1',
+      mainThreadId: 'thread-other',
+    })
 
     const thief = a.store.nextHostId()
     a.store.markHostPresent(thief)

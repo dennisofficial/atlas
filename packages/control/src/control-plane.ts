@@ -4,6 +4,7 @@ import {
   type Lease,
   type LogHead,
   type RevokeResult,
+  type V2EventType,
 } from '@dltech/atlas-core'
 
 import { appendIn } from './append-ops'
@@ -173,6 +174,7 @@ export class ControlPlane {
     afterSeq: number
     limit: number
     visible: boolean
+    hiddenTypes?: readonly V2EventType[] | undefined
     maxBytes?: number | undefined
   }): Promise<ReadEventsPage> {
     const limit = clampLimit(params.limit)
@@ -184,6 +186,7 @@ export class ControlPlane {
         afterSeq: params.afterSeq,
         limit,
         visible: params.visible,
+        hiddenTypes: params.hiddenTypes,
         maxBytes: params.maxBytes,
       })
     })
@@ -258,18 +261,29 @@ export class ControlPlane {
     return this.leases.claimLease(params)
   }
 
-  revoke(params: { sessionId: string; wantsHolder: boolean }): Promise<Lease>
-  revoke(params: { sessionId: string; wantsHolder: boolean; epoch: number }): Promise<RevokeResult>
+  revoke(params: {
+    sessionId: string
+    wantsHolder: boolean
+    resetRetry?: boolean | undefined
+  }): Promise<Lease>
+  revoke(params: {
+    sessionId: string
+    wantsHolder: boolean
+    epoch: number
+    resetRetry?: boolean | undefined
+  }): Promise<RevokeResult>
   async revoke(params: {
     sessionId: string
     wantsHolder: boolean
     epoch?: number | undefined
+    resetRetry?: boolean | undefined
   }): Promise<Lease | RevokeResult> {
     if (params.epoch === undefined) return this.leases.revoke(params)
     return this.leases.revokeIfEpoch({
       sessionId: params.sessionId,
       wantsHolder: params.wantsHolder,
       epoch: params.epoch,
+      resetRetry: params.resetRetry,
     })
   }
 
