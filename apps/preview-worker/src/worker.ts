@@ -12,8 +12,9 @@ function isWebSocketUpgrade(request: Request): boolean {
   return request.headers.get('upgrade')?.toLowerCase() === 'websocket'
 }
 
-function isFramed(request: Request): boolean {
-  return request.headers.get('sec-fetch-dest') === 'iframe'
+function isTopLevelNavigation(args: { request: Request; html: boolean }): boolean {
+  const destination = args.request.headers.get('sec-fetch-dest')
+  return destination === null ? args.html : destination === 'document'
 }
 
 function isHtml(response: Response): boolean {
@@ -51,7 +52,7 @@ export async function handlePreviewRequest(args: {
     scriptHash: html ? await scriptHash() : null,
     dropContentLength: html,
   })
-  if (html && !isFramed(request)) headers.append('set-cookie', previewCookie(hostname))
+  if (isTopLevelNavigation({ request, html })) headers.append('set-cookie', previewCookie(hostname))
   const rewritten = new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

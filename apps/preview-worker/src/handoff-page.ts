@@ -13,15 +13,16 @@ export function handoffPage(link: string): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Return to Atlas</title>
-<style>body{font:16px system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;color:#222}a{display:inline-block;margin-top:12px;padding:10px 18px;border-radius:8px;background:#222;color:#fff;text-decoration:none}</style>
+<title>Signed in</title>
+<style>body{font:16px system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;color:#222;text-align:center}h1{font-size:20px;font-weight:600;margin:0 0 6px}p{margin:0;color:#666}a{display:inline-block;margin-top:16px;color:#666;font-size:14px}</style>
 </head>
 <body>
 <main>
-<p>Signed in. Finishing in the Atlas app.</p>
-<a href="${escapeHtml(link)}">Return to Atlas</a>
+<h1>Signed in</h1>
+<p>You can close this tab.</p>
+<a href="${escapeHtml(link)}">Atlas didn't open? Return to Atlas</a>
 </main>
-<script>window.location.href = ${scriptString(link)}</script>
+<script>window.location.href = ${scriptString(link)}; setTimeout(function () { window.close() }, 500)</script>
 </body>
 </html>`
 }

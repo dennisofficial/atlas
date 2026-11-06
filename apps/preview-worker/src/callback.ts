@@ -12,6 +12,7 @@ const FOUND_STATUS = 302
 const TEMPORARY_REDIRECT_STATUS = 307
 const BAD_REQUEST_STATUS = 400
 const NO_STORE = { 'cache-control': 'no-store' }
+const DESKTOP_SIGN_IN_WINDOW_SECONDS = 600
 const NO_PREVIEW_MESSAGE =
   'No Atlas preview is waiting for this sign-in in this browser. Open the preview in this browser, then start the sign-in again.'
 const INVALID_START_MESSAGE = `This sign-in link does not return to ${CALLBACK_HOST}.`
@@ -21,6 +22,11 @@ const DESKTOP_POST_MESSAGE =
 export function previewCookie(target: string): string {
   return `${PREVIEW_COOKIE}=${target}; Domain=${PREVIEW_COOKIE_DOMAIN}; Path=/; Secure; HttpOnly; SameSite=None`
 }
+
+const desktopCookie = (): string =>
+  `${previewCookie(DESKTOP_TARGET)}; Max-Age=${DESKTOP_SIGN_IN_WINDOW_SECONDS}`
+
+const consumedCookie = (): string => `${previewCookie('')}; Max-Age=0`
 
 function redirectsToCallback(value: string): boolean {
   if (!URL.canParse(value)) return false
@@ -57,7 +63,7 @@ function handleStart(url: URL): Response {
   if (!redirectsToCallback(to)) return textResponse(INVALID_START_MESSAGE)
   return new Response(null, {
     status: FOUND_STATUS,
-    headers: { location: to, 'set-cookie': previewCookie(DESKTOP_TARGET), ...NO_STORE },
+    headers: { location: to, 'set-cookie': desktopCookie(), ...NO_STORE },
   })
 }
 
@@ -65,7 +71,11 @@ function handleDesktopCallback(args: { request: Request; url: URL }): Response {
   const { request, url } = args
   if (request.method !== 'GET') return textResponse(DESKTOP_POST_MESSAGE)
   return new Response(handoffPage(`${DESKTOP_CALLBACK_LINK}${url.pathname}${url.search}`), {
-    headers: { 'content-type': 'text/html; charset=utf-8', ...NO_STORE },
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'set-cookie': consumedCookie(),
+      ...NO_STORE,
+    },
   })
 }
 
@@ -77,6 +87,10 @@ export function handleCallbackRequest(request: Request): Response {
   if (target === DESKTOP_TARGET) return handleDesktopCallback({ request, url })
   return new Response(null, {
     status: TEMPORARY_REDIRECT_STATUS,
-    headers: { location: `https://${target}${url.pathname}${url.search}`, ...NO_STORE },
+    headers: {
+      location: `https://${target}${url.pathname}${url.search}`,
+      'set-cookie': consumedCookie(),
+      ...NO_STORE,
+    },
   })
 }
