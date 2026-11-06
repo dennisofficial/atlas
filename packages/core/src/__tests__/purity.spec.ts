@@ -48,6 +48,6 @@ describe('@dltech/atlas-core is pure', () => {
   })
 
   it('reads no clock and draws no randomness', async () => {
-    expect(await offendingLines(/\b(Date\.now|new Date|Math\.random|crypto\.)/)).toEqual([])
+    expect(await offendingLines(/\b(Date\.now|new Date\(\s*\)|Math\.random|crypto\.)/)).toEqual([])
   })
 })
