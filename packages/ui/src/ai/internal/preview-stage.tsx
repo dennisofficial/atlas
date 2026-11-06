@@ -5,6 +5,7 @@ import { EViewportKind, type Size, type Viewport, type ViewportFit } from './vie
 
 const DEVICE_FRAME = 'shrink-0 overflow-hidden rounded-md shadow-lg ring-1 ring-border'
 const CONTENT_SLOT = 'preview-stage-content'
+const DEVICE_SLOT = 'preview-stage-device'
 
 export function useStageSize() {
   const [element, setElement] = useState<HTMLDivElement | null>(null)
@@ -37,6 +38,7 @@ function StageBody({ viewport, fit, children }: StageBodyProps) {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <div
+        data-slot={DEVICE_SLOT}
         style={{ width: fit.width * fit.scale, height: fit.height * fit.scale }}
         className={DEVICE_FRAME}
       >

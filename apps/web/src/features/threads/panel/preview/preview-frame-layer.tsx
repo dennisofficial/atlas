@@ -36,7 +36,7 @@ export function PreviewFrameLayer() {
       }}
       inert={frame.key !== visibleKey}
       className={cn(
-        'fixed top-0 left-0',
+        'fixed top-0 left-0 overflow-hidden',
         frame.key !== visibleKey && 'invisible pointer-events-none',
       )}
     >
