@@ -46,6 +46,19 @@ describe('PodLaunchService.rollover', () => {
     expect(dispatch).toHaveBeenCalledTimes(1)
   })
 
+  it('reports a rollover as not dispatched while the previous rollover claim is still active', async () => {
+    await seedThread()
+    await seedProvisionedRow({ state: 'running', wakeClaim: new Date(0) })
+    const { pod, dispatch } = podLaunchWith()
+
+    const first = await pod.rollover({ threadId: 'thr-1', sessionId: 'ses-old' })
+    const second = await pod.rollover({ threadId: 'thr-1', sessionId: 'ses-old' })
+
+    expect(first).toEqual({ dispatched: true })
+    expect(second).toEqual({ dispatched: false })
+    expect(dispatch).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a thread without a pod row', async () => {
     await seedThread()
     const { pod } = podLaunchWith()
