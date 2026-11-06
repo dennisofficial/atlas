@@ -11,6 +11,8 @@ import {
   type V2Body,
 } from '@dltech/atlas-core'
 import { EWithdrawRefusal, inboxMessageSchema } from '@dltech/atlas-protocol'
+import { BackgroundWork } from '../../../_core/ports/background-work'
+import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'
 
@@ -22,12 +24,21 @@ class FakeProjectAccess extends ProjectAccess {
   }
 }
 
+class NoBackgroundWork extends BackgroundWork {
+  keepAlive(): void {}
+}
+
 describe('SessionsService', () => {
   const setup = () => {
     const store = new InMemoryControlStore({ clock: () => NOW })
     store.markHostPresent(9001)
     const plane = new ControlPlane({ store })
-    const service = new SessionsService(plane, new FakeProjectAccess())
+    const service = new SessionsService(
+      plane,
+      new FakeProjectAccess(),
+      new NoSessionTitler(),
+      new NoBackgroundWork(),
+    )
     return { plane, service }
   }
 
@@ -59,23 +70,10 @@ describe('SessionsService', () => {
     expect(events.events).toEqual([])
   })
 
-  it('titles an untitled session from its first message and reports the last event time', async () => {
+  it('reports the last event time of a session', async () => {
     const { plane, service } = setup()
-    const long = `${'word '.repeat(40)}end`
-    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
-    const titled = await service.create({ userId: 'user-a', projectId: 'proj-a', title: 'Kept' })
-    await service.post({
-      userId: 'user-a',
-      sessionId: created.sessionId,
-      text: `  hello\n  world `,
-    })
-    await service.post({ userId: 'user-a', sessionId: titled.sessionId, text: 'ignored' })
-
-    const before = await service.list({ userId: 'user-a' })
-    const byId = new Map(before.sessions.map((session) => [session.sessionId, session]))
-    expect(byId.get(created.sessionId)?.title).toBe('hello world')
-    expect(byId.get(titled.sessionId)?.title).toBe('Kept')
-    expect(byId.get(created.sessionId)?.updatedAt).toBe(NOW)
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a', title: 'Kept' })
+    expect((await service.list({ userId: 'user-a' })).sessions[0]?.updatedAt).toBe(NOW)
 
     const lease = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
     await plane.append({
@@ -90,17 +88,7 @@ describe('SessionsService', () => {
       }),
     })
     const after = await service.list({ userId: 'user-a' })
-    expect(after.sessions.find((s) => s.sessionId === created.sessionId)?.updatedAt).toBe(
-      '2026-11-03T13:00:00.000Z',
-    )
-
-    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: long })
-    const truncated = await service.create({ userId: 'user-a', projectId: 'proj-a' })
-    await service.post({ userId: 'user-a', sessionId: truncated.sessionId, text: long })
-    const listed = await service.list({ userId: 'user-a' })
-    const title = listed.sessions.find((s) => s.sessionId === truncated.sessionId)?.title
-    expect(title?.length).toBe(80)
-    expect(title?.endsWith('…')).toBe(true)
+    expect(after.sessions[0]?.updatedAt).toBe('2026-11-03T13:00:00.000Z')
   })
 
   it('refuses a non-owned or unknown session with NOT_FOUND', async () => {

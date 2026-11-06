@@ -17,6 +17,7 @@
   - [ ] Tests added and passing (`bun test` inside each touched package)
   - [ ] Feature logic lives below the surfaces; no client reimplements it
   - [ ] No comments, `as any`, `@ts-ignore` or `@ts-expect-error`, and no file over 300 lines
+  - [ ] No polling: state reaches clients by push (stream, subscription, LISTEN/NOTIFY), never a timer that re-fetches
 - [ ] Release
   - [ ] The PR title type sizes the release (`feat` only for something a user can do that they couldn't before)
   - [ ] Setup-breaking changes are called out above

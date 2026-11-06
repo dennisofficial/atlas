@@ -5,6 +5,7 @@ import {
   type SaidImage,
   type StandaloneTitler,
 } from '@dltech/atlas-harness/titling'
+import { SessionTitler } from '../../../_core/ports/session-titler'
 import { AccountsService } from '../../platform/accounts/accounts.service'
 import { OauthConnectionsService } from '../../platform/oauth-connections/oauth-connections.service'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
@@ -24,8 +25,15 @@ export type TitleFirstMessage = {
   images?: readonly SaidImage[] | undefined
 }
 
+type TitleSource = {
+  userId: string
+  projectId: string | null
+  text: string
+  images?: readonly SaidImage[] | undefined
+}
+
 @Injectable()
-export class ThreadTitlingService {
+export class ThreadTitlingService extends SessionTitler {
   private readonly log = new Logger(ThreadTitlingService.name)
 
   constructor(
@@ -34,7 +42,13 @@ export class ThreadTitlingService {
     private readonly oauth: OauthConnectionsService,
     private readonly signals: ThreadSignalsService,
     @Inject(TITLER_FACTORY) private readonly titlerFactory: TitlerFactory,
-  ) {}
+  ) {
+    super()
+  }
+
+  nameOf(args: { userId: string; projectId: string; text: string }): Promise<string | null> {
+    return this.generate(args)
+  }
 
   async titleFirstMessage(args: TitleFirstMessage): Promise<void> {
     try {
@@ -48,7 +62,7 @@ export class ThreadTitlingService {
     }
   }
 
-  private async generate(args: TitleFirstMessage): Promise<string | null> {
+  private async generate(args: TitleSource): Promise<string | null> {
     const [config, lease] = await Promise.all([
       this.config.resolveForPod({ userId: args.userId, projectId: args.projectId }),
       this.accounts.lease({ userId: args.userId }),

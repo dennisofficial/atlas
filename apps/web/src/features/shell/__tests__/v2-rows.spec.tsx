@@ -20,6 +20,7 @@ const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary =>
   sessionId: 'v2-a',
   projectId: 'p1',
   title: 'Fix login',
+  naming: false,
   mainThreadId: 'thr-a',
   createdAt: agoIso(5),
   updatedAt: agoIso(2),
@@ -37,6 +38,11 @@ const entries = () => [
 ]
 
 describe('v2RowOf', () => {
+  it('carries the naming flag onto the row', () => {
+    expect(v2RowOf(summary({ title: null, naming: true })).naming).toBe(true)
+    expect(v2RowOf(summary()).naming).toBe(false)
+  })
+
   it('maps a summary onto a tagged row keyed by the session id', () => {
     const row = v2RowOf(summary())
     expect(row.v2).toBe(true)

@@ -12,8 +12,14 @@ import {
   type V2Body,
 } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { BackgroundWork } from '../../../_core/ports/background-work'
+import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'
+
+class NoBackgroundWork extends BackgroundWork {
+  keepAlive(): void {}
+}
 
 const NOW = '2026-11-03T12:00:00.000Z'
 
@@ -28,7 +34,12 @@ describe('SessionsService blob reads', () => {
 
   const setup = () => {
     const plane = new ControlPlane({ store: new PostgresControlStore(testDb().db) })
-    const service = new SessionsService(plane, new FakeProjectAccess())
+    const service = new SessionsService(
+      plane,
+      new FakeProjectAccess(),
+      new NoSessionTitler(),
+      new NoBackgroundWork(),
+    )
     return { plane, service }
   }
 

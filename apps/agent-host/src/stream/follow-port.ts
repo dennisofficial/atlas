@@ -4,6 +4,7 @@ import { FollowSession } from './follow-session'
 import type { FollowDeps, FollowTarget, SubscriptionIndex } from './follow-types'
 import type { LiveSource } from './live-source'
 import { LiveOverlay } from './overlay/live-overlay'
+import { SessionsListIndex } from './sessions-list'
 import { StatusViews } from './status-views'
 import type { SubscriptionPort } from './subscription-port'
 
@@ -29,6 +30,7 @@ export const createFollowSubscriptions = (
     log,
     onLiveness: (liveness) => overlay?.liveness(liveness),
   })
+  const sessions = new SessionsListIndex({ plane, timers, log })
   const bySession = new Map<string, Set<FollowTarget>>()
   const index: SubscriptionIndex = {
     add: (subscription) => {
@@ -51,20 +53,23 @@ export const createFollowSubscriptions = (
   const offChange = args.feed.onChange((change) => {
     for (const target of [...(bySession.get(change.sessionId) ?? [])]) target.handleChange(change)
     statusViews.handleChange(change)
+    sessions.handleChange(change)
   })
   const offGap = args.feed.onGap(() => {
     for (const targets of [...bySession.values()]) {
       for (const target of [...targets]) target.markDirty()
     }
     statusViews.refreshAll()
+    sessions.handleGap()
   })
   const deps: FollowDeps = { plane, timers, log }
   return {
-    open: (connection) => new FollowSession(connection, deps, index),
+    open: (connection) => new FollowSession({ connection, deps, index, sessions }),
     close: () => {
       offChange()
       offGap()
       statusViews.close()
+      sessions.close()
       overlay?.close()
     },
   }

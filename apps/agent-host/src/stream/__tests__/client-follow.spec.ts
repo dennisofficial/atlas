@@ -95,6 +95,7 @@ describe('the client SDK following a session over a real stream', () => {
         },
         readStatusSnapshot: (params) => reading.readStatusSnapshot(params),
         readBlob: (params) => reading.readBlob(params),
+        listSessionDigests: (params) => reading.listSessionDigests(params),
       },
       feed,
       timers: systemHostTimers,
