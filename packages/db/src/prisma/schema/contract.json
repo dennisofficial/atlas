@@ -4961,6 +4961,13 @@
           },
           "PushDevice": {
             "fields": {
+              "authSessionId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -5040,6 +5047,9 @@
             },
             "storage": {
               "fields": {
+                "authSessionId": {
+                  "column": "authSessionId"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -12372,6 +12382,11 @@
             },
             "PushDevice": {
               "columns": {
+                "authSessionId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -12445,6 +12460,13 @@
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "authSessionId"
+                  ],
+                  "name": "PushDevice_authSessionId_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "userId"
@@ -14647,7 +14669,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "41eb9776117c6b638bf351597741640c89954131da999dbe999dd15e05a5d04d"
+    "storageHash": "4ee46c5fd44c6032a6b2da39abbe149828438e06f5b1f9adf3b3ada3e7fe7c36"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

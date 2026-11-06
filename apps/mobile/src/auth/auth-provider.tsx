@@ -1,6 +1,7 @@
 import { createApiClient, type ApiClient } from '@dltech/atlas-api-router'
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { AppState } from 'react-native'
 
 import { apiOrigin, webOrigin } from '../config'
 import { createPushApi } from '../push/push-api'
@@ -14,9 +15,10 @@ import {
   type IAuthSnapshot,
   type IAuthUser,
 } from './auth-reducer'
+import { retryPendingRevokes, revokeOrPersist } from './revoke-queue'
 import { fetchSession, revokeSession, signInWithPassword } from './session'
 import { EHandoffResult, runHandoffSignIn } from './sign-in-flow'
-import { createTokenStore } from './token-store'
+import { createPendingRevokeStorage, createTokenStore } from './token-store'
 
 export interface IAuthContextValue extends IAuthSnapshot {
   api: ApiClient | undefined
@@ -36,6 +38,8 @@ const messageOf = (outcome: { kind: EHandoffResult }): string => {
   return 'Sign-in was cancelled'
 }
 
+const revokeBearer = (token: string) => revokeSession({ apiOrigin, token })
+
 const completeSignIn = async ({
   token,
   store,
@@ -54,6 +58,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [snapshot, dispatch] = useReducer(authReducer, initialAuthSnapshot)
   const [appleSignInAvailable, setAppleSignInAvailable] = useState(false)
   const pushTokenRef = useRef<string | undefined>(undefined)
+  const pendingRevokes = useMemo(() => createPendingRevokeStorage(), [])
+
+  useEffect(() => {
+    const retry = () => {
+      void retryPendingRevokes({ storage: pendingRevokes, revoke: revokeBearer })
+    }
+    retry()
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') retry()
+    })
+    return () => subscription.remove()
+  }, [pendingRevokes])
 
   useEffect(() => {
     void isAppleSignInAvailable().then(setAppleSignInAvailable)
@@ -186,7 +202,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .unregister({ token: pushToken })
         .catch(() => undefined)
     }
-    await revokeSession({ apiOrigin, token: bearer })
+    await revokeOrPersist({ storage: pendingRevokes, revoke: revokeBearer, token: bearer })
   }
 
   const value: IAuthContextValue = {

@@ -1,14 +1,16 @@
 // use prisma-8
 model PushDevice {
-  id         String               @id @onCreate(cuid(2))
-  token      String
-  platform   String
-  createdAt  TimestamptzJsDate(3) @default(now())
-  updatedAt  TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
-  lastSeenAt TimestamptzJsDate(3)
-  userId     String
-  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id            String               @id @onCreate(cuid(2))
+  token         String
+  platform      String
+  createdAt     TimestamptzJsDate(3) @default(now())
+  updatedAt     TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  lastSeenAt    TimestamptzJsDate(3)
+  userId        String
+  authSessionId String?
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([token], map: "PushDevice_token_key")
   @@index([userId], map: "PushDevice_userId_idx")
+  @@index([authSessionId], map: "PushDevice_authSessionId_idx")
 }
