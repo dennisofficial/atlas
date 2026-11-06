@@ -1,5 +1,6 @@
 import {
   contextWindowOf,
+  EFinishReason,
   type EventDraft,
   type ModelStepResult,
   type ModelToolCall,
@@ -43,6 +44,11 @@ const withStepUsage = ({
   return [{ ...first, usage }, ...rest]
 }
 
+const finishOf = (result: ModelStepResult): EFinishReason =>
+  result.finishReason === EFinishReason.ToolCalls && result.toolCalls.length === 0
+    ? EFinishReason.Other
+    : result.finishReason
+
 export function draftsFor(step: StepDraftsArgs): EventDraft[] {
   const { result } = step
   const drafts: EventDraft[] = []
@@ -50,6 +56,7 @@ export function draftsFor(step: StepDraftsArgs): EventDraft[] {
     drafts.push({
       type: 'assistant-said',
       parts: result.parts,
+      finish: finishOf(result),
       ...(result.ranFast === true ? { fast: true } : {}),
     })
 
