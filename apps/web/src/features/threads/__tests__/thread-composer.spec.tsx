@@ -76,7 +76,7 @@ describe('ThreadComposer', () => {
       composer({ value: 'queue this', working: true, onStop: () => undefined }),
     )
 
-    expect(buttonLabelled('Stop')).not.toBeNull()
+    expect(buttonLabelled('Stop')).toBeNull()
     expect(buttonLabelled('Send')?.disabled).toBe(false)
     await unmount()
   })

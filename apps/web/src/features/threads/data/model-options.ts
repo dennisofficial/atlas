@@ -53,6 +53,13 @@ const efforts = new Map<string, EEffort>(Object.values(EEffort).map((effort) => 
 export const providerNameOf = (providerId: string): string =>
   PROVIDER_NAMES[providerId] ?? providerId
 
+const ANTHROPIC_LABEL_PREFIX = 'Claude '
+
+export const modelLabelOf = ({ providerId, label }: { providerId: string; label: string }) =>
+  providerId === ANTHROPIC_PROVIDER_ID && label.startsWith(ANTHROPIC_LABEL_PREFIX)
+    ? label.slice(ANTHROPIC_LABEL_PREFIX.length)
+    : label
+
 export function contextLabelOf(tokens: number): string {
   if (tokens >= MILLION) return `${Math.round(tokens / 100_000) / 10}M`
   return `${Math.round(tokens / 1000)}k`
@@ -92,7 +99,7 @@ function optionOf({
     ...imagesOf(card.imageTier),
     ...unavailableFields(unavailable),
     id: refKey(card.ref),
-    label: card.label,
+    label: modelLabelOf({ providerId: card.ref.providerId, label: card.label }),
     provider: providerNameOf(card.ref.providerId),
     context: contextLabelOf(card.contextWindow),
     contextTokens: card.contextWindow,
@@ -167,7 +174,7 @@ function optionOfEntry(args: {
     ...imagesOf(entry.imageTier),
     ...unavailableFields(args.unavailable),
     id: entry.id,
-    label: entry.label,
+    label: modelLabelOf({ providerId, label: entry.label }),
     provider: providerNameOf(providerId),
     context: contextLabelOf(entry.contextWindow),
     contextTokens: entry.contextWindow,

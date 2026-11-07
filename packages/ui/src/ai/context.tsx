@@ -44,7 +44,11 @@ export function Context({ used, limit, breakdown = [], trigger, className }: Con
         closeDelay={100}
         render={<Button variant="ghost" size="sm" className={cn('tabular-nums', className)} />}
       >
-        {trigger ?? `${percent}% context`}
+        {trigger ?? (
+          <>
+            {percent}%<span className="max-md:sr-only"> context</span>
+          </>
+        )}
       </HoverCardTrigger>
       <HoverCardContent className="flex w-64 flex-col gap-3">
         <div className="flex items-center justify-between gap-3 text-sm">
