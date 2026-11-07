@@ -1,4 +1,9 @@
-import { ESessionStatus, MAX_MESSAGE_UPLOADS, saidUploadSchema } from '@dltech/atlas-core'
+import {
+  EMeterBasis,
+  ESessionStatus,
+  MAX_MESSAGE_UPLOADS,
+  saidUploadSchema,
+} from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
@@ -84,6 +89,26 @@ export const sessionCreateOutputSchema = z.strictObject({
   mainThreadId: z.string().min(1),
 })
 
+export const sessionRowStatusSchema = z.strictObject({
+  state: z.enum(ESessionStatus),
+  reason: z.string().optional(),
+  since: z.string().optional(),
+})
+
+export const prChecksSchema = z.strictObject({
+  running: z.number().int().min(0),
+  passed: z.number().int().min(0),
+  failed: z.number().int().min(0),
+})
+
+export const sessionRowPullRequestSchema = z.strictObject({
+  repo: z.string().min(1),
+  number: z.number().int().min(1),
+  url: z.string().min(1),
+  state: z.string().nullable(),
+  checks: prChecksSchema.nullable(),
+})
+
 export const sessionSummarySchema = z.strictObject({
   sessionId: z.string().min(1),
   projectId: z.string().min(1),
@@ -93,6 +118,9 @@ export const sessionSummarySchema = z.strictObject({
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
   archivedAt: z.string().nullable(),
+  status: sessionRowStatusSchema.optional(),
+  primaryBranch: z.string().nullable().optional(),
+  pullRequest: sessionRowPullRequestSchema.nullable().optional(),
 })
 
 export const sessionListOutputSchema = z.strictObject({
@@ -151,6 +179,94 @@ export const sessionStatusOutputSchema = z.strictObject({
   queued: z.array(sessionQueuedMessageSchema).optional(),
 })
 
+export const sessionRetryInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+})
+
+export const sessionViewInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+})
+
+export const sessionRetryOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
+
+const tokenSpendShape = {
+  inputTokens: z.number().int().min(0),
+  outputTokens: z.number().int().min(0),
+  cacheReadTokens: z.number().int().min(0),
+  cacheWriteTokens: z.number().int().min(0),
+}
+
+export const sessionSpendRowSchema = z.strictObject({
+  providerId: z.string(),
+  modelId: z.string(),
+  ...tokenSpendShape,
+})
+
+export const sessionSpendTallySchema = z.strictObject({
+  ...tokenSpendShape,
+  uncachedInputTokens: z.number().int(),
+  costUsd: z.number().nullable(),
+})
+
+export const sessionContextMeterSchema = z.strictObject({
+  used: z.number().min(0),
+  window: z.number().nullable(),
+  basis: z.enum(EMeterBasis),
+  measuredThroughSeq: z.number().int().nullable(),
+  estimatedTokens: z.number().min(0),
+})
+
+export const sessionCheckoutsSchema = z.strictObject({
+  repos: z.array(
+    z.strictObject({
+      repo: z.string(),
+      base: z.string().nullable(),
+      head: z.string().nullable(),
+      branches: z.array(
+        z.strictObject({
+          name: z.string(),
+          sha: z.string(),
+          worktreePath: z.string().nullable(),
+        }),
+      ),
+    }),
+  ),
+  primary: z.strictObject({ repo: z.string(), branch: z.string() }).nullable(),
+})
+
+export const sessionPullRequestStateSchema = z.strictObject({
+  title: z.string(),
+  state: z.string(),
+  headSha: z.string(),
+  checks: prChecksSchema,
+  mergeable: z.boolean().nullable(),
+  updatedAt: z.string(),
+})
+
+export const sessionLinkedPullRequestSchema = z.strictObject({
+  repo: z.string().min(1),
+  number: z.number().int().min(1),
+  url: z.string().min(1),
+  branch: z.string(),
+  state: sessionPullRequestStateSchema.nullable(),
+})
+
+export const sessionViewOutputSchema = z.strictObject({
+  at: z.number().int().min(0),
+  status: sessionStatusOutputSchema,
+  context: sessionContextMeterSchema.nullable(),
+  spend: z.strictObject({
+    rows: z.array(sessionSpendRowSchema),
+    tally: sessionSpendTallySchema,
+  }),
+  checkouts: sessionCheckoutsSchema,
+  pullRequests: z.array(sessionLinkedPullRequestSchema),
+})
+
+export type SessionRetryInput = z.infer<typeof sessionRetryInputSchema>
+export type SessionRetryOutput = z.infer<typeof sessionRetryOutputSchema>
+export type SessionViewInput = z.infer<typeof sessionViewInputSchema>
+export type SessionViewOutput = z.infer<typeof sessionViewOutputSchema>
 export type SessionCreateOutput = z.infer<typeof sessionCreateOutputSchema>
 export type SessionSummary = z.infer<typeof sessionSummarySchema>
 export type SessionListOutput = z.infer<typeof sessionListOutputSchema>

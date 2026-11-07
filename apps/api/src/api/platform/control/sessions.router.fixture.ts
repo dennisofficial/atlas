@@ -18,6 +18,8 @@ export const sessions = {
   events: vi.fn(),
   blob: vi.fn(),
   status: vi.fn(),
+  retry: vi.fn(),
+  view: vi.fn(),
 }
 
 export const createSessionsApp = (): Promise<NestExpressApplication> =>
