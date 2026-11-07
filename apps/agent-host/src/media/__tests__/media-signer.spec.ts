@@ -86,4 +86,24 @@ describe('MediaSigner', () => {
     clock.now += SIGN_WINDOW_MS
     await expect(signer.urlOf(ref)).rejects.toThrow('ready()')
   })
+
+  it('signs an arbitrary pathname with the held delegation', async () => {
+    const { signer } = setup()
+    await signer.ready()
+    const url = await signer.urlOfPathname({ pathname: 'composer-uploads/u1/id/a.sh' })
+    expect(url).toContain('https://blob.fake/composer-uploads/u1/id/a.sh')
+    expect(url).toContain('delegation=delegation-1')
+  })
+
+  it('refuses to sign a pathname before ready', async () => {
+    const { signer } = setup()
+    await expect(signer.urlOfPathname({ pathname: 'x/y' })).rejects.toThrow('ready()')
+  })
+
+  it('reports the stored size of a pathname, null when absent', async () => {
+    const { store, signer } = setup()
+    store.put({ pathname: 'composer-uploads/u1/id/a.sh', bytes: new Uint8Array(7) })
+    expect(await signer.sizeOf({ pathname: 'composer-uploads/u1/id/a.sh' })).toBe(7)
+    expect(await signer.sizeOf({ pathname: 'composer-uploads/u1/id/none' })).toBeNull()
+  })
 })

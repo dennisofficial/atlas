@@ -1,5 +1,10 @@
 import type { AssemblyPipeline, ModelPort, ThreadId, WorkspaceStepReport } from '@dltech/atlas-core'
-import type { NormalizeFailure, ToolEffectResolver, ToolRegistry } from '@dltech/atlas-agent'
+import type {
+  NormalizeFailure,
+  SaidUploadsPort,
+  ToolEffectResolver,
+  ToolRegistry,
+} from '@dltech/atlas-agent'
 import type { LiveFrame } from '@dltech/atlas-protocol'
 
 import type { RemoteCalls } from '../calls/remote-calls'
@@ -42,6 +47,7 @@ export type SessionRuntime = {
   daemonTools: ReadonlySet<string>
   effectOf: ToolEffectResolver
   assembly: AssemblyPipeline
+  uploads?: SaidUploadsPort | undefined
   normalizeFailure: NormalizeFailure
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>
