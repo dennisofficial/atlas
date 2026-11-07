@@ -20,6 +20,14 @@ const fakeApi = (params: { postFails?: boolean } = {}) => {
 
 const HASH = 'a'.repeat(64)
 
+const UPLOAD = {
+  uploadId: '11111111-1111-4111-8111-111111111111',
+  pathname: 'composer-uploads/user-1/11111111-1111-4111-8111-111111111111/deploy.sh',
+  name: 'deploy.sh',
+  size: 12,
+  mediaType: 'application/x-sh',
+}
+
 describe('createSessionWithMessage', () => {
   it('creates the session, then posts the first message to it', async () => {
     const { api, calls } = fakeApi()
@@ -29,6 +37,7 @@ describe('createSessionWithMessage', () => {
       projectId: 'proj-1',
       text: 'hello',
       media: [],
+      uploads: [],
     })
 
     expect(sessionId).toBe('sess-1')
@@ -46,6 +55,7 @@ describe('createSessionWithMessage', () => {
       projectId: 'proj-1',
       text: '',
       media: [{ hash: HASH, source: 'shot.png' }],
+      uploads: [],
     })
 
     expect(calls[1]).toEqual([
@@ -54,11 +64,25 @@ describe('createSessionWithMessage', () => {
     ])
   })
 
+  it('posts the uploads with the first message', async () => {
+    const { api, calls } = fakeApi()
+
+    await createSessionWithMessage({
+      api,
+      projectId: 'proj-1',
+      text: 'run it',
+      media: [],
+      uploads: [UPLOAD],
+    })
+
+    expect(calls[1]).toEqual(['post', { sessionId: 'sess-1', text: 'run it', uploads: [UPLOAD] }])
+  })
+
   it('fails when the first message cannot be posted', async () => {
     const { api } = fakeApi({ postFails: true })
 
     await expect(
-      createSessionWithMessage({ api, projectId: 'proj-1', text: 'hello', media: [] }),
+      createSessionWithMessage({ api, projectId: 'proj-1', text: 'hello', media: [], uploads: [] }),
     ).rejects.toThrow('post refused')
   })
 })

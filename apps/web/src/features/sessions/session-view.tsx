@@ -15,6 +15,7 @@ import {
   ThreadPanelProvider,
   type ThreadPanelValue,
 } from '@/features/threads/panel/thread-panel-context'
+import { useComposerAttachments } from '@/features/threads/data/use-composer-attachments'
 import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
 
@@ -25,7 +26,7 @@ import { sessionCache, sessionStream } from './data/session-stream'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionTranscriptOf } from './data/session-transcript'
 import { useQueuedDock } from './data/use-queued-dock'
-import { useSessionMedia } from './data/use-session-media'
+import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionStream } from './data/use-session-stream'
 import { QueuedDock } from './queued-dock'
@@ -99,7 +100,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const listed = useV2Sessions().find((session) => session.sessionId === sessionId)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
-  const attachments = useSessionMedia()
+  const files = useComposerAttachments()
+  const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
   const reveal = useSessionReveal(snapshot)
   const view = useMemo(
@@ -132,11 +134,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
 
   const handleSubmit = async (text: string) => {
     if (!attachments.checkSendable()) return
-    const { media } = attachments
-    if (text.trim().length === 0 && media.length === 0) return
+    const { media, uploads } = attachments
+    if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return
     setSending(true)
     try {
-      await sessionsApi.post(postInputOf({ sessionId, text, media }))
+      await sessionsApi.post(postInputOf({ sessionId, text, media, uploads }))
       setDraft('')
       attachments.clear()
     } catch (failure) {
