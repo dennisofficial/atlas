@@ -15,15 +15,18 @@ import {
   ThreadPanelProvider,
   type ThreadPanelValue,
 } from '@/features/threads/panel/thread-panel-context'
+import { useComposerAttachments } from '@/features/threads/data/use-composer-attachments'
 import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
 
+import { postInputOf } from './data/session-media'
 import { sessionsApi } from './data/sessions-api'
 import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from './data/session-state'
 import { sessionCache, sessionStream } from './data/session-stream'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionTranscriptOf } from './data/session-transcript'
 import { useQueuedDock } from './data/use-queued-dock'
+import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionStream } from './data/use-session-stream'
 import { QueuedDock } from './queued-dock'
@@ -97,10 +100,17 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const listed = useV2Sessions().find((session) => session.sessionId === sessionId)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const files = useComposerAttachments()
+  const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
   const reveal = useSessionReveal(snapshot)
   const view = useMemo(
-    () => sessionTranscriptOf({ events: snapshot.events, overlay: snapshot.overlay, reveal }),
+    () =>
+      sessionTranscriptOf({
+        events: snapshot.events,
+        overlay: snapshot.overlay,
+        reveal,
+      }),
     [snapshot.events, snapshot.overlay, reveal],
   )
   const boot = useMemo(
@@ -123,11 +133,14 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   })
 
   const handleSubmit = async (text: string) => {
-    if (text.trim().length === 0) return
+    if (!attachments.checkSendable()) return
+    const { media, uploads } = attachments
+    if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return
     setSending(true)
     try {
-      await sessionsApi.post({ sessionId, text })
+      await sessionsApi.post(postInputOf({ sessionId, text, media, uploads }))
       setDraft('')
+      attachments.clear()
     } catch (failure) {
       toast.error(messageOf(failure))
     } finally {
@@ -167,7 +180,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             value={draft}
             onValueChange={setDraft}
             onSubmit={(text) => void handleSubmit(text)}
-            sending={sending}
+            sending={sending || attachments.uploading}
+            {...attachments.composerProps}
+            sendsAttachmentsAlone
             working={working}
             placeholder="Message Atlas…"
           />

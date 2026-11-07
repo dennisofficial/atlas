@@ -4,6 +4,7 @@ import type {
   EReportKind,
   ETldrStatus,
   SaidImage,
+  SaidMedia,
   SaidUpload,
 } from '@dltech/atlas-core'
 
@@ -51,6 +52,7 @@ export type OperatorSaidEntry = {
   files: readonly string[]
   images: readonly SaidImage[]
   uploads?: readonly SaidUpload[] | undefined
+  media?: readonly SaidMedia[] | undefined
 }
 
 export type ModelSaidEntry = {

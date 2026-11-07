@@ -3,13 +3,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
-import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool, type Pool } from '@dltech/atlas-db'
 import { FaultProxy } from '@dltech/atlas-host/testing'
-import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
+import type { EHostFault } from './host-faults'
+import { seedSession } from './rig-seed'
 import { startDaemon, type RigDaemon } from './rig-daemon'
 import { collectLines } from './rig-process'
 import { hostEnv, RIG_SECRET } from './rig-host-env'
@@ -43,6 +43,9 @@ export type HostKnobs = {
   noRing?: boolean
   queryTimeoutMs?: number
   toolOutputFile?: string
+  idleMs?: number
+  sweepMs?: number
+  fault?: EHostFault
 }
 
 export type FaultRig = {
@@ -75,32 +78,6 @@ export type FaultRig = {
   stop(): Promise<void>
 }
 
-const SEED_HOST_ID = 2_000_000_000
-
-const seedPrepared = async (args: {
-  plane: ControlPlane
-  sessionId: string
-  threadId: string
-}): Promise<void> => {
-  const { plane } = args
-  const { epoch } = await plane.grant({ sessionId: args.sessionId, hostId: SEED_HOST_ID })
-  const head = await plane.head({ threadId: args.threadId })
-  const outcome = await plane.append({
-    threadId: args.threadId,
-    epoch,
-    events: chainEvents({
-      threadId: toThreadId(args.threadId),
-      runId: toRunId('seed-prepared'),
-      epoch,
-      at: new Date().toISOString(),
-      bodies: [{ type: 'workspace-prepared' }],
-      from: head,
-    }),
-  })
-  if (!outcome.ok) throw new Error(`seeding prepared refused: ${JSON.stringify(outcome.refusal)}`)
-  await plane.revoke({ sessionId: args.sessionId, wantsHolder: false })
-}
-
 export const startRig = async (args: {
   databaseUrl: string
   redisUrl: string
@@ -110,7 +87,8 @@ export const startRig = async (args: {
     target: { host: target.hostname, port: Number(target.port) },
   })
   const pool: Pool = createPool(args.databaseUrl)
-  const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
+  const store = new PostgresControlStore(createDb(pool))
+  const plane = new ControlPlane({ store })
   const closers: (() => Promise<void>)[] = []
   const labelOf = async (hostId: number | null): Promise<string | undefined> => {
     if (hostId === null) return undefined
@@ -126,21 +104,8 @@ export const startRig = async (args: {
     dbProxy,
     labelOf,
 
-    async newSession({ sessionId, text, prepared }) {
-      const mainThreadId = `thread-${sessionId}`
-      await plane.createSession({
-        sessionId,
-        userId: 'user-1',
-        projectId: 'proj-1',
-        mainThreadId,
-      })
-      if (prepared !== false) await seedPrepared({ plane, sessionId, threadId: mainThreadId })
-      await plane.post({
-        sessionId,
-        kind: INBOX_KIND_MESSAGE,
-        payload: JSON.stringify({ text }),
-      })
-      return mainThreadId
+    newSession({ sessionId, text, prepared }) {
+      return seedSession({ store, sessionId, text, prepared: prepared !== false })
     },
 
     async wake(sessionId) {

@@ -1,11 +1,9 @@
 import pg from 'pg'
 
-import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import { PG_HOST_CHANGE_CHANNEL, PG_PRESENCE_LOCK_NAMESPACE } from '@dltech/atlas-protocol'
 
 import { PRESENCE_CONNECT_TIMEOUT_MS, type PgPresenceClient } from './pg-host-presence'
-import { wakeOrphans } from './wake-orphans'
 
 export type HostWatch = {
   recompute(): void
@@ -33,7 +31,7 @@ const newWatchClient = (url: string): pg.Client =>
 export const startHostWatch = (args: {
   url: string
   selfId(): number | undefined
-  plane: Pick<ControlPlane, 'sessionsNeedingHolder' | 'wake'>
+  ring(): void
   onHostChange(listener: () => void): () => void
   createClient?: (() => PgPresenceClient) | undefined
   log?: LogPort | undefined
@@ -41,8 +39,6 @@ export const startHostWatch = (args: {
   let closed = false
   let client: PgPresenceClient | undefined
   let reap: { owner: PgPresenceClient; successor: number } | undefined
-  let deathsSeen = 0
-  let deathsScanned = 0
   let retryTimer: ReturnType<typeof setTimeout> | undefined
   let failures = 0
   let loop: Promise<void> | undefined
@@ -104,7 +100,6 @@ export const startHostWatch = (args: {
 
   const handleDeath = (params: { owner: PgPresenceClient; successor: number }): void => {
     if (closed || client !== params.owner) return
-    deathsSeen += 1
     reap = params
     void pump()
   }
@@ -118,19 +113,6 @@ export const startHostWatch = (args: {
       ])
     } catch (error) {
       logError('reaping a dead host failed', error)
-    }
-  }
-
-  const scanOrphans = async (): Promise<boolean> => {
-    if (deathsScanned >= deathsSeen) return true
-    const covers = deathsSeen
-    try {
-      await wakeOrphans({ plane: args.plane, log: args.log })
-      deathsScanned = Math.max(deathsScanned, covers)
-      return true
-    } catch (error) {
-      logError('waking orphaned sessions failed', error)
-      return false
     }
   }
 
@@ -176,7 +158,7 @@ export const startHostWatch = (args: {
     const previous = client
     client = undefined
     await endClient(previous)
-    if (!(await scanOrphans())) return scheduleRetry()
+    if (pendingReap !== undefined) args.ring()
     if (closed) return
     const self = args.selfId()
     if (self === undefined) return

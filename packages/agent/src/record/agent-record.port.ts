@@ -1,4 +1,4 @@
-import type { Event, EventDraft, RunId, ThreadId } from '@dltech/atlas-core'
+import type { Event, EventDraft, LoopState, RunId, ThreadId } from '@dltech/atlas-core'
 
 export abstract class AgentRecordPort {
   abstract append(args: {
@@ -9,9 +9,11 @@ export abstract class AgentRecordPort {
     drafts: readonly EventDraft[]
   }): Promise<Event[]>
 
-  abstract ownEvents(args: { threadId: ThreadId; afterSeq?: number }): Promise<Event[]>
+  abstract ownEvents(args: { threadId: ThreadId; afterSeq?: number | undefined }): Promise<Event[]>
 
   abstract composedEvents(args: { threadId: ThreadId }): Promise<Event[]>
+
+  abstract loopState(args: { threadId: ThreadId }): Promise<LoopState>
 }
 
 export abstract class ModelContextPort {

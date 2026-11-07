@@ -3,7 +3,7 @@ import { hostname } from 'node:os'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
-import { logFieldsOf, LogPort } from '@dltech/atlas-observability'
+import { LogPort } from '@dltech/atlas-observability'
 
 import { createHostBus } from './bus/host-bus'
 import { startPgChangeFeed } from './bus/pg-change-feed'
@@ -30,7 +30,6 @@ import { createFollowSubscriptions } from './stream/follow-port'
 import { systemHostTimers } from './stream/system-timers'
 import { startStreamServer } from './stream/stream-server'
 import { createGracefulShutdown } from './shutdown/graceful-shutdown'
-import { wakeOrphans } from './presence/wake-orphans'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 
 class JsonLog extends LogPort {
@@ -101,12 +100,9 @@ const main = async (): Promise<void> => {
   watch = startHostWatch({
     url: databaseUrlWithTls(env.databaseDirectUrl),
     selfId: () => holder.hostId(),
-    plane,
+    ring: () => holder.ring(),
     onHostChange: (listener) => wakes.onHostChange(listener),
     log,
-  })
-  await wakeOrphans({ plane, log }).catch((error: unknown) => {
-    log.error({ source: 'main', message: 'start-up orphan scan failed', ...logFieldsOf({ error }) })
   })
   const changeFeed = startPgChangeFeed({ url: databaseUrlWithTls(env.databaseDirectUrl), log })
   const liveSource = createRedisLiveSource({ url: env.redisUrl, log })

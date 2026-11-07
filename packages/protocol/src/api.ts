@@ -1,4 +1,4 @@
-import { ESessionStatus } from '@dltech/atlas-core'
+import { ESessionStatus, MAX_MESSAGE_UPLOADS, saidUploadSchema } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
@@ -18,10 +18,18 @@ export const sessionPostInputSchema = z
     sessionId: z.string().min(1),
     text: z.string().max(1_000_000),
     media: sessionPostMediaListSchema.optional(),
+    uploads: z.array(saidUploadSchema).max(MAX_MESSAGE_UPLOADS).optional(),
   })
   .refine(
-    (input) => input.text.trim().length > 0 || (input.media?.length ?? 0) > 0,
-    'a message needs text or an image',
+    (input) =>
+      input.text.trim().length > 0 ||
+      (input.media?.length ?? 0) > 0 ||
+      (input.uploads?.length ?? 0) > 0,
+    'a message needs text or an attachment',
+  )
+  .refine(
+    (input) => (input.media?.length ?? 0) + (input.uploads?.length ?? 0) <= MAX_MESSAGE_UPLOADS,
+    `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`,
   )
 
 export const sessionEventsInputSchema = z.strictObject({
@@ -64,6 +72,7 @@ export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
 export const inboxMessageSchema = z.strictObject({
   text: z.string(),
   media: z.array(inboxMediaSchema).optional(),
+  uploads: z.array(saidUploadSchema).optional(),
 })
 
 export type InboxMessage = z.infer<typeof inboxMessageSchema>

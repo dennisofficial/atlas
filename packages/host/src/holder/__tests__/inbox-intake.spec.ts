@@ -88,4 +88,25 @@ describe('InboxIntake', () => {
       { type: 'user-said', text: '', media, requestId: 'inbox:5', inboxId: 5 },
     ])
   })
+
+  it('drafts a message that carries uploads', async () => {
+    const uploads = [
+      {
+        uploadId: '11111111-1111-4111-8111-111111111111',
+        pathname: 'composer-uploads/user-a/11111111-1111-4111-8111-111111111111/notes.txt',
+        name: 'notes.txt',
+        size: 7,
+        mediaType: 'text/plain',
+      },
+    ]
+    const withUploads = {
+      ...entry(6),
+      payload: JSON.stringify({ text: 'see file', uploads }),
+    } as InboxEntry
+    const drain = await intakeOver(async () => [withUploads]).prepare()
+    expect(drain.wakesTurn).toBe(true)
+    expect(drain.drafts).toEqual([
+      { type: 'user-said', text: 'see file', uploads, requestId: 'inbox:6', inboxId: 6 },
+    ])
+  })
 })

@@ -90,6 +90,19 @@ export class DaemonFileSystemPort extends FileSystemPort {
     await invoke({ calls: this.args.calls, op: { op: 'rename', from: args.from, to: args.to } })
   }
 
+  async fetchToFile(args: {
+    url: string
+    path: string
+    size: number
+    signal?: AbortSignal
+  }): Promise<void> {
+    await invoke({
+      calls: this.args.calls,
+      op: { op: 'fetchToFile', url: args.url, path: args.path, size: args.size },
+      ...(args.signal === undefined ? {} : { signal: args.signal }),
+    })
+  }
+
   async readDirectory(args: { path: string }): Promise<readonly FileSystemEntry[]> {
     const entries = await invoke({
       calls: this.args.calls,

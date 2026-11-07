@@ -6,6 +6,7 @@ import {
   ERetryReason,
   chainEvents,
   chainHash,
+  loopStateOf,
   toCallId,
   toRunId,
   toThreadId,
@@ -160,6 +161,7 @@ const viewOf = (cache: RecordCache) => {
   return {
     head,
     loop: cache.visibleLoopEvents(),
+    loopState: cache.loopState(),
     tails: Array.from({ length: Math.ceil((head.seq + 1) / 5) }, (_, step) =>
       cache.loopEventsAfter(step * 5),
     ),
@@ -185,8 +187,10 @@ const foldedViewOf = (cache: RecordCache) => {
     attempt,
     reason,
   }))
+  const loop = visibleLoopEvents(events)
   return {
-    loop: visibleLoopEvents(events),
+    loop,
+    loopState: loopStateOf({ events: loop }),
     dispatched: CALLS.map((callId) => {
       const hit = ofType('tool-dispatched').findLast((event) => event.callId === callId)
       return hit === undefined ? undefined : { bootId: hit.bootId }

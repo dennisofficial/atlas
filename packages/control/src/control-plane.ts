@@ -1,5 +1,4 @@
 import {
-  type ClaimResult,
   type InboxEntry,
   type Lease,
   type LogHead,
@@ -7,14 +6,16 @@ import {
   type V2EventType,
 } from '@dltech/atlas-core'
 
-import { appendIn, appendRefusalOf } from './append-ops'
+import { appendIn } from './append-ops'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
 import { postIn, takeBackIn, type TakeBackResult } from './inbox-ops'
 import { LeaseOps } from './lease-ops'
 import {
   ControlStorePort,
+  SeqConflictError,
   type BlobRow,
+  type ClaimedBatch,
   type BlobWrite,
   type ControlTx,
   type ThreadRow,
@@ -23,18 +24,15 @@ import {
   type SessionListParams,
 } from './port'
 import { readEventsIn, type ReadEventsPage } from './read-events'
-import type { AppendOutcome } from './refusal'
-import { archiveIn, claimNextIn, createSessionIn, titleUntitledIn, wakeIn } from './session-ops'
+import { AppendAbort, type AppendOutcome } from './refusal'
+import { archiveIn, titleUntitledIn } from './session-ops'
 import { readStatusSnapshotIn, type StatusSnapshot } from './status-snapshot'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 
 export const MAX_READ_LIMIT = 1000
 export const MAX_SESSION_LIST_LIMIT = 100
 
-export type ControlPlaneParams = {
-  store: ControlStorePort
-  clock?: (() => string) | undefined
-}
+export type ControlPlaneParams = { store: ControlStorePort; clock?: (() => string) | undefined }
 
 export type { ReadEventsPage } from './read-events'
 export type { TakeBackResult } from './inbox-ops'
@@ -69,9 +67,22 @@ export class ControlPlane {
     title?: string | undefined
     mainThreadId: string
   }): Promise<void> {
-    await this.store.transact(async (tx) =>
-      createSessionIn({ tx, ...params, at: await this.nowIn(tx) }),
-    )
+    await this.store.transact(async (tx) => {
+      const at = await this.nowIn(tx)
+      await tx.createSession({ ...params, at })
+      await tx.createThread({
+        threadId: params.mainThreadId,
+        sessionId: params.sessionId,
+        visibility: EMPTY_VISIBILITY_TEXT,
+        at,
+      })
+      await tx.notifyWake(params.sessionId)
+      await tx.announce({
+        sessionId: params.sessionId,
+        threadId: params.mainThreadId,
+        headSeq: 0,
+      })
+    })
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
@@ -82,11 +93,7 @@ export class ControlPlane {
     await this.store.transact((tx) => archiveIn({ tx, ...params }))
   }
 
-  async titleUntitledSession(params: {
-    sessionId: string
-    title: string
-    fromInboxId?: number | undefined
-  }): Promise<boolean> {
+  async titleUntitledSession(params: Omit<Parameters<typeof titleUntitledIn>[0], 'tx'>) {
     return this.store.transact((tx) => titleUntitledIn({ tx, ...params }))
   }
 
@@ -95,48 +102,39 @@ export class ControlPlane {
     projectId?: string | undefined
     limit: number
   }): Promise<ControlSessionRow[]> {
-    const limit = clampSessionLimit(params.limit)
-    return this.store.transact((tx) => tx.listSessions({ ...params, limit }))
+    return this.store.transact((tx) =>
+      tx.listSessions({ ...params, limit: clampSessionLimit(params.limit) }),
+    )
   }
 
   async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
-    const limit = clampSessionLimit(params.limit)
-    return this.store.transact((tx) => tx.listSessionDigests({ ...params, limit }))
+    return this.store.transact((tx) =>
+      tx.listSessionDigests({ ...params, limit: clampSessionLimit(params.limit) }),
+    )
   }
 
-  async sessionsNeedingHolder(params: { limit: number }): Promise<string[]> {
-    const limit = clampLimit(params.limit)
-    return this.store.transact((tx) => tx.sessionsNeedingHolder({ limit }))
-  }
-
-  async claimNext(params: { hostId: number; limit: number }): Promise<Lease[]> {
-    if (params.limit <= 0) return []
-    return this.store.transact(async (tx) =>
-      claimNextIn({
-        tx,
+  async claimNext(params: { hostId: number; limit: number }): Promise<ClaimedBatch> {
+    if (params.limit <= 0) return { leases: [], nextRetryAt: null }
+    return this.store.transact(async (tx) => {
+      const claimed = await tx.claimNeeding({
         hostId: params.hostId,
         now: await this.nowIn(tx),
         limit: clampLimit(params.limit),
-      }),
-    )
+      })
+      for (const lease of claimed.leases) await tx.announce({ sessionId: lease.sessionId })
+      return claimed
+    })
   }
 
   async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
     return this.store.transact((tx) =>
-      tx.leasesHeldBy({
-        hostId: params.hostId,
-        limit: clampLimit(params.limit),
-      }),
+      tx.leasesHeldBy({ hostId: params.hostId, limit: clampLimit(params.limit) }),
     )
   }
 
   async createThread(params: { threadId: string; sessionId: string }): Promise<void> {
     await this.store.transact(async (tx) =>
-      tx.createThread({
-        ...params,
-        visibility: EMPTY_VISIBILITY_TEXT,
-        at: await this.nowIn(tx),
-      }),
+      tx.createThread({ ...params, visibility: EMPTY_VISIBILITY_TEXT, at: await this.nowIn(tx) }),
     )
   }
 
@@ -153,10 +151,12 @@ export class ControlPlane {
     try {
       return await this.store.transact((tx) => appendIn({ tx, leases: this.leases, ...params }))
     } catch (error) {
-      return appendRefusalOf({
-        error,
-        currentHead: () => this.head({ threadId: params.threadId }),
-      })
+      if (error instanceof AppendAbort) {
+        return { ok: false, refusal: error.refusal, head: error.head }
+      }
+      if (!(error instanceof SeqConflictError)) throw error
+      const head = await this.head({ threadId: params.threadId })
+      return { ok: false, refusal: { kind: 'seq-mismatch', expected: head.seq + 1 }, head }
     }
   }
 
@@ -248,10 +248,6 @@ export class ControlPlane {
     return this.leases.grant(params)
   }
 
-  async claim(params: { sessionId: string; hostId: number }): Promise<ClaimResult> {
-    return this.leases.claimLease(params)
-  }
-
   revoke(params: {
     sessionId: string
     wantsHolder: boolean
@@ -283,7 +279,12 @@ export class ControlPlane {
   }
 
   async wake(params: { sessionIds: readonly string[] }): Promise<void> {
-    await this.store.transact((tx) => wakeIn({ tx, ...params }))
+    await this.store.transact(async (tx) => {
+      for (const sessionId of params.sessionIds) {
+        await tx.notifyWake(sessionId)
+        await tx.announce({ sessionId })
+      }
+    })
   }
 
   async hostPresent(params: { hostId: number }): Promise<boolean> {

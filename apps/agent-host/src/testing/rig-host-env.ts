@@ -41,6 +41,9 @@ export const hostEnv = (args: {
       ? {}
       : { DB_QUERY_TIMEOUT_MS: String(knobs.queryTimeoutMs) }),
     ...(knobs?.toolOutputFile === undefined ? {} : { TOOL_OUTPUT_FILE: knobs.toolOutputFile }),
+    ...(knobs?.idleMs === undefined ? {} : { IDLE_MINUTES: String(knobs.idleMs / 60_000) }),
+    ...(knobs?.sweepMs === undefined ? {} : { SWEEP_MS: String(knobs.sweepMs) }),
+    ...(knobs?.fault === undefined ? {} : { FAULT: knobs.fault }),
     ...(args.firstChunkFile === undefined ? {} : { FIRST_CHUNK_FILE: args.firstChunkFile }),
   }
 }

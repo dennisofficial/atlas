@@ -3,13 +3,11 @@ import type { InboxEntry } from '@dltech/atlas-core'
 
 import { toInbox } from './postgres-rows'
 
-type InboxKey = { sessionId: string; inboxId: number }
-
 export const allocateInboxIdIn = async (params: { tx: Tx; sessionId: string }): Promise<number> => {
-  const sessions = params.tx.orm.v2.V2Session
-  const session = await sessions.where({ id: params.sessionId }).forNoKeyUpdate().first()
-  if (session === null) throw new Error(`unknown session ${params.sessionId}`)
-  await sessions.where({ id: params.sessionId }).updateAndCount({
+  const { tx, sessionId } = params
+  const session = await tx.orm.v2.V2Session.where({ id: sessionId }).forNoKeyUpdate().first()
+  if (session === null) throw new Error(`unknown session ${sessionId}`)
+  await tx.orm.v2.V2Session.where({ id: sessionId }).updateAndCount({
     nextInboxId: session.nextInboxId + 1,
   })
   return session.nextInboxId
@@ -22,9 +20,11 @@ export const insertInboxEntryIn = async (params: { tx: Tx; entry: InboxEntry }):
   })
 }
 
-export const readInboxEntryIn = async (
-  params: { tx: Tx } & InboxKey,
-): Promise<InboxEntry | undefined> => {
+export const readInboxEntryIn = async (params: {
+  tx: Tx
+  sessionId: string
+  inboxId: number
+}): Promise<InboxEntry | undefined> => {
   const row = await params.tx.orm.v2.V2InboxEntry.first({
     sessionId: params.sessionId,
     inboxId: params.inboxId,
@@ -32,17 +32,28 @@ export const readInboxEntryIn = async (
   return row === null ? undefined : toInbox(row)
 }
 
-const unconsumed = (params: { tx: Tx } & InboxKey) =>
-  params.tx.orm.v2.V2InboxEntry.where((e) =>
+export const markInboxConsumedIn = async (params: {
+  tx: Tx
+  sessionId: string
+  inboxId: number
+  seq: number
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2InboxEntry.where((e) =>
     and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId), e.consumedSeq.isNull()),
-  )
+  ).updateAndCount({ consumedSeq: params.seq })
+  return changed === 1
+}
 
-export const markInboxConsumedIn = async (
-  params: { tx: Tx; seq: number } & InboxKey,
-): Promise<boolean> => (await unconsumed(params).updateAndCount({ consumedSeq: params.seq })) === 1
-
-export const deleteInboxEntryIn = async (params: { tx: Tx } & InboxKey): Promise<boolean> =>
-  (await unconsumed(params).deleteAndCount()) === 1
+export const deleteInboxEntryIn = async (params: {
+  tx: Tx
+  sessionId: string
+  inboxId: number
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2InboxEntry.where((e) =>
+    and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId), e.consumedSeq.isNull()),
+  ).deleteAndCount()
+  return changed === 1
+}
 
 export const readInboxEntriesIn = async (params: {
   tx: Tx

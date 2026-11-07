@@ -5,6 +5,7 @@ import {
   createMemoryHostPresence,
   type MemoryHostPresence,
 } from '../../testing/memory-host-presence'
+import type { SaidUploadsPort } from '@dltech/atlas-agent'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
@@ -55,6 +56,7 @@ export const makeRig = async (args: {
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
+  uploads?: SaidUploadsPort | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
   connectGate?: Promise<void> | undefined
@@ -94,6 +96,7 @@ export const makeRig = async (args: {
     watchedRepos: args.watchedRepos,
     runningShells: args.runningShells,
     model: args.model,
+    uploads: args.uploads,
     prepare: args.prepare,
     subscribePrepareOutput: args.subscribePrepareOutput,
     connectGate: args.connectGate,

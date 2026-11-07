@@ -1,12 +1,13 @@
 import {
   awaitsReply,
   ERunFailureKind,
-  pendingCalls,
   type CallId,
   type Event,
+  type PendingCall,
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import type { AgentRecordPort } from '../record/agent-record.port'
 import { TurnFault } from '../model/turn-fault'
 import type { SettlePending } from './settle-pending'
 import { stalledReport } from './turn-faults'
@@ -22,6 +23,20 @@ export function messageArrivedSince({
   return awaitsReply(
     events.filter((event) => event.seq > seenThrough && event.type !== 'assistant-said'),
   )
+}
+
+export async function messageArrivedAfter({
+  record,
+  threadId,
+  seenThrough,
+}: {
+  record: Pick<AgentRecordPort, 'ownEvents'>
+  threadId: ThreadId
+  seenThrough: number | undefined
+}): Promise<boolean> {
+  if (seenThrough === undefined) return false
+  const events = await record.ownEvents({ threadId, afterSeq: seenThrough })
+  return messageArrivedSince({ events, seenThrough })
 }
 
 export function committedSinceLastMessage(events: readonly Event[]): boolean {
@@ -50,19 +65,18 @@ export type SettledOutcome =
  * already left pending; `interrupted` means the operator stopped the turn mid-settle.
  */
 export async function settlePendingCall({
-  owned,
+  pending,
   threadId,
   settlePending,
   settleAttempted,
   signal,
 }: {
-  owned: readonly Event[]
+  pending: PendingCall | undefined
   threadId: ThreadId
   settlePending: SettlePending | undefined
   settleAttempted: CallId | undefined
   signal: AbortSignal
 }): Promise<SettledOutcome> {
-  const pending = pendingCalls(owned)[0]
   if (pending === undefined) return { kind: 'none-pending' }
 
   if (settlePending === undefined) {

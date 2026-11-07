@@ -1,5 +1,5 @@
 import { defineOp, type DaemonGroupFactory } from '../../engine'
-import type { GrepMatch, GrepOp } from '../../ops'
+import type { FetchToFileOp, GrepMatch, GrepOp } from '../../ops'
 import type { MemoryFileSystem } from '../memory-files'
 
 const decodeLenient = (bytes: Uint8Array): string =>
@@ -11,6 +11,25 @@ const decodeStrict = (bytes: Uint8Array): string | null => {
   } catch {
     return null
   }
+}
+
+const fetchIntoMemory = async (args: {
+  op: FetchToFileOp
+  fs: MemoryFileSystem
+  signal: AbortSignal
+}): Promise<void> => {
+  const { op, fs, signal } = args
+  const response = await fetch(op.url, { signal })
+  if (!response.ok || response.body === null) {
+    throw new Error(`fetching ${op.path} failed with status ${response.status}`)
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  if (bytes.length !== op.size) {
+    throw Object.assign(new Error(`fetched ${bytes.length} bytes, expected ${op.size}`), {
+      code: 'EINVAL',
+    })
+  }
+  fs.writeFile({ path: op.path, content: bytes })
 }
 
 const grepMemory = (args: { op: GrepOp; fs: MemoryFileSystem }): GrepMatch[] => {
@@ -94,6 +113,13 @@ export const fakeFilesGroup =
           op: 'rename',
           run: async ({ op }) => {
             fs.rename({ from: op.from, to: op.to })
+            return null
+          },
+        }),
+        defineOp({
+          op: 'fetchToFile',
+          run: async ({ op, ctx }) => {
+            await fetchIntoMemory({ op, fs, signal: ctx.signal })
             return null
           },
         }),

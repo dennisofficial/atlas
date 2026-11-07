@@ -8,6 +8,7 @@ import {
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
+  type ClaimedBatch,
   type ControlTx,
   type ReadEventsParams,
   type StoredEvent,
@@ -29,13 +30,12 @@ import { hostPresentIn } from './postgres-presence'
 import { sessionDigestsIn } from './postgres-digests'
 import {
   clearTitleFromIn,
+  createSessionIn,
+  readSessionIn,
   setSessionArchivedIn,
   setSessionTitleIfUntitledIn,
 } from './postgres-session-writes'
-import { sessionsNeedingHolderIn } from './postgres-needing-holder'
 import { claimNeedingIn } from './postgres-claim-next'
-import { toLease, toStoredEvent, toThreadRow } from './postgres-rows'
-import { createSessionIn, listSessionsIn, readSessionIn } from './postgres-sessions'
 import {
   allocateInboxIdIn,
   deleteInboxEntryIn,
@@ -44,6 +44,7 @@ import {
   readInboxEntriesIn,
   readInboxEntryIn,
 } from './postgres-inbox'
+import { toLease, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
 
 class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
@@ -104,15 +105,19 @@ class PostgresTx implements ControlTx {
     projectId?: string | undefined
     limit: number
   }): Promise<ControlSessionRow[]> {
-    return listSessionsIn({ tx: this.tx, ...params })
+    const where =
+      params.projectId === undefined
+        ? { userId: params.userId }
+        : { userId: params.userId, projectId: params.projectId }
+    const rows = await this.tx.orm.v2.V2Session.where(where)
+      .orderBy((s) => s.createdAt.desc())
+      .limit(params.limit)
+      .all()
+    return rows.map((row) => toSessionRow(row))
   }
 
   async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
     return sessionDigestsIn({ tx: this.tx, ...params })
-  }
-
-  async sessionsNeedingHolder(params: { now: string; limit: number }): Promise<string[]> {
-    return sessionsNeedingHolderIn({ tx: this.tx, ...params })
   }
 
   async createThread(params: {
@@ -209,9 +214,7 @@ class PostgresTx implements ControlTx {
   }
 
   async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
-    const rows = await this.tx.orm.v2.V2Lease.where({
-      holderHostId: params.hostId,
-    })
+    const rows = await this.tx.orm.v2.V2Lease.where({ holderHostId: params.hostId })
       .orderBy((l) => l.sessionId.asc())
       .limit(params.limit)
       .all()
@@ -228,7 +231,11 @@ class PostgresTx implements ControlTx {
     return row === null ? undefined : toLease(row)
   }
 
-  async claimNeeding(params: { hostId: number; now: string; limit: number }): Promise<Lease[]> {
+  async claimNeeding(params: {
+    hostId: number
+    now: string
+    limit: number
+  }): Promise<ClaimedBatch> {
     return claimNeedingIn({ tx: this.tx, ...params })
   }
 
@@ -248,7 +255,11 @@ class PostgresTx implements ControlTx {
     return readInboxEntryIn({ tx: this.tx, ...params })
   }
 
-  async markInboxConsumed(params: { sessionId: string; inboxId: number; seq: number }) {
+  async markInboxConsumed(params: {
+    sessionId: string
+    inboxId: number
+    seq: number
+  }): Promise<boolean> {
     return markInboxConsumedIn({ tx: this.tx, ...params })
   }
 

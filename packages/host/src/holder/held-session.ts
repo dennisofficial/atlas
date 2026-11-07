@@ -21,6 +21,7 @@ import { teardownHeld } from './held-teardown'
 import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
 import { IdleDeadline } from './idle-deadline'
+import { lostOutcome } from './lost-outcome'
 import { consumeStops, raceDeadline } from './held-wait'
 import { Reconciler } from './reconciler'
 import type { SessionRecord } from './record/record-adapter'
@@ -156,7 +157,7 @@ export class HeldSession {
       epoch: lease.epoch,
       signal: this.lifetimeAbort.signal,
       drainDeadline: () => this.drainDeadline,
-      onLeaseLost: () => this.loseLease(),
+      onLeaseLost: (error) => this.loseLease(lostOutcome(error)),
       onRuntime: (opened) => {
         this.runtime = opened
       },
@@ -205,10 +206,8 @@ export class HeldSession {
     })
     if (shellsRunning) this.lastActivityAt = deps.timers.now()
     switch (action) {
-      case EHeldAction.AbortTurn: {
-        this.turns.abort('stop')
-        return
-      }
+      case EHeldAction.AbortTurn:
+        return this.turns.abort('stop')
       case EHeldAction.ConsumeStop: {
         this.resumePending = false
         await consumeStops({
@@ -269,7 +268,7 @@ export class HeldSession {
     })
   }
 
-  loseLease(): void {
+  loseLease(kind: EHeldOutcome = EHeldOutcome.Fenced): void {
     if (this.lifetimeAbort.signal.aborted) return
     this.branches?.stop()
     this.record?.fence()
@@ -277,7 +276,7 @@ export class HeldSession {
     this.turns.abort()
     this.lifetimeAbort.abort()
     this.runtime?.remoteCalls.close()
-    this.finish(EHeldOutcome.Fenced)
+    this.finish(kind)
   }
 
   private async releaseIdle(): Promise<void> {

@@ -12,6 +12,7 @@ import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
 import { useDesktop } from '@/features/desktop/use-desktop'
 import { createSessionWithMessage } from '@/features/sessions/data/create-session'
 import { sessionsApi } from '@/features/sessions/data/sessions-api'
+import { useSessionAttachments } from '@/features/sessions/data/use-session-attachments'
 import { EEngine, EngineToggle } from '@/features/sessions/engine-toggle'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { NewThreadSkeleton } from '@/features/projects/project-skeletons'
@@ -52,6 +53,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       personalFast: picker.personalFast,
     })
   const images = useComposerAttachments()
+  const session = useSessionAttachments({ files: images })
   const drafts = useComposerDraft({
     scope: NEW_THREAD_DRAFT_SCOPE,
     text: draft,
@@ -88,11 +90,11 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       setDraft('')
       return
     }
-    if (!images.checkSendable()) return
     if (v2) {
       await handleSubmitV2(text)
       return
     }
+    if (!images.checkSendable()) return
     const held = images.images
     const uploads = images.uploads
     const sendId =
@@ -146,14 +148,19 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       toast.error('Pick a project for a v2 session')
       return
     }
+    if (!session.checkSendable()) return
+    const { media, uploads } = session
+    if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return
     setCreating(true)
     try {
       const sessionId = await createSessionWithMessage({
         api: sessionsApi,
         projectId,
         text,
-        attachments: images.images.length + images.uploads.length,
+        media,
+        uploads,
       })
+      session.clear()
       drafts.handleSent(text)
       router.push(`/sessions/${encodeURIComponent(sessionId)}`)
     } catch (failure) {
@@ -167,8 +174,9 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       value={draft}
       onValueChange={setDraft}
       onSubmit={handleSubmit}
-      sending={creating || images.uploading}
-      {...images.composerProps}
+      sending={creating || (v2 ? session.uploading : images.uploading)}
+      {...(v2 ? session.composerProps : images.composerProps)}
+      sendsAttachmentsAlone={v2}
       commandSpecs={commands.specs}
       placeholder="Describe a task for Atlas…"
     >

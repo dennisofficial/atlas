@@ -1,4 +1,4 @@
-import { EToolEffect, isResumable, type ThreadId } from '@dltech/atlas-core'
+import { EToolEffect, isResumableOf, type ThreadId } from '@dltech/atlas-core'
 import {
   HookChain,
   HookedToolDispatcher,
@@ -82,7 +82,7 @@ export const settleAndCheckResume = async (args: {
     threadId,
     effectOf: (name) => (runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name)),
   })
-  return isResumable(await record.ownEvents({ threadId }))
+  return isResumableOf(await record.loopState({ threadId }))
 }
 
 export const createBranchObserver = (args: {
@@ -132,6 +132,7 @@ export const createLoopRunner = (args: {
     model: runtime.model,
     ids: deps.ids,
     assembly: runtime.assembly,
+    ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
     tools: () => runtime.tools.declarations(),
     dispatch: new ScopedToolDispatcher(
       new HookedToolDispatcher({ registry: runtime.tools, hooks: new HookChain({}) }),

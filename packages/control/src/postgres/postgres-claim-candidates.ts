@@ -1,13 +1,10 @@
 import type { Tx } from '@dltech/atlas-db'
 import { PG_PRESENCE_LOCK_NAMESPACE } from '@dltech/atlas-protocol'
 
-export const claimableSessionIdsIn = async (params: {
-  tx: Tx
-  now: string
-  limit: number
-}): Promise<string[]> => {
-  const rows = await params.tx.query(
-    params.tx.raw.sql`SELECT s."id" FROM "v2"."V2Session" s
+const needingHolderIn = (tx: Tx) =>
+  tx.raw
+    .sql`SELECT s."id" AS "id", s."createdAt" AS "createdAt", l."retryAfter" AS "retryAfter", l."epoch" AS "epoch"
+        FROM "v2"."V2Session" s
         JOIN "v2"."V2Lease" l ON l."sessionId" = s."id"
         WHERE (l."holderHostId" IS NULL
             OR NOT EXISTS (SELECT 1 FROM pg_locks k
@@ -35,13 +32,37 @@ export const claimableSessionIdsIn = async (params: {
             OR NOT EXISTS (SELECT 1 FROM "v2"."V2Event" e
               WHERE e."threadId" = s."mainThreadId"
                 AND e."type" IN ('workspace-prepared', 'user-said', 'workspace-prepare-failed',
-                  'session-start-failed')))
-          AND (l."retryAfter" IS NULL OR l."retryAfter" <= ${params.now}::timestamptz)
-        ORDER BY s."createdAt" ASC, s."id" ASC
+                  'session-start-failed')))`.returnsRow({
+    id: 'pg/text@1',
+    epoch: 'pg/int4@1',
+    createdAt: 'pg/timestamptz-date@1',
+    retryAfter: { codecId: 'pg/timestamptz-date@1', nullable: true },
+  })
+
+export const claimableSessionIdsIn = async (params: {
+  tx: Tx
+  now: string
+  limit: number
+}): Promise<string[]> => {
+  const rows = await params.tx.query(
+    params.tx.raw.sql`SELECT n."id" FROM (${needingHolderIn(params.tx)}) n
+        JOIN "v2"."V2Lease" l ON l."sessionId" = n."id" AND l."epoch" = n."epoch"
+        WHERE n."retryAfter" IS NULL OR n."retryAfter" <= ${params.now}::timestamptz
+        ORDER BY n."createdAt" ASC, n."id" ASC
         LIMIT ${params.limit}
         FOR UPDATE OF l SKIP LOCKED`
       .returnsRow({ id: 'pg/text@1' })
       .build(),
   )
   return rows.map((row) => row.id)
+}
+
+export const nextRetryAtIn = async (params: { tx: Tx; now: string }): Promise<string | null> => {
+  const rows = await params.tx.query(
+    params.tx.raw.sql`SELECT min(n."retryAfter") AS "at" FROM (${needingHolderIn(params.tx)}) n
+        WHERE n."retryAfter" > ${params.now}::timestamptz`
+      .returnsRow({ at: { codecId: 'pg/timestamptz-date@1', nullable: true } })
+      .build(),
+  )
+  return rows[0]?.at?.toISOString() ?? null
 }
