@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAuthKind, toAccountId } from '@dltech/atlas-core'
+import { EAuthKind, EEffort, toAccountId } from '@dltech/atlas-core'
 import type { IssuedModelToken } from '../../tokens/oauth-types'
 
 import { AgentHostCredentialPort, CredentialsUnavailableError } from '../agent-host-credential-port'
@@ -31,7 +31,9 @@ const token = (accessToken: string, refreshAfter: string): IssuedModelToken => (
 
 const oauthModel = {
   configured: true as const,
-  modelId: 'claude-haiku-4-5',
+  ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
+  effort: EEffort.Medium,
+  fast: false,
   accountId: 'acc-1',
   credential: { kind: 'oauth' as const, connectionId: 'conn-1' },
 }
@@ -43,7 +45,9 @@ describe('AgentHostCredentialPort', () => {
       userId: 'u1',
       model: {
         configured: true,
-        modelId: 'claude-haiku-4-5',
+        ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
+        effort: EEffort.Medium,
+        fast: false,
         accountId: 'acc-key',
         credential: { kind: 'api-key', apiKey: 'sk-ant-x' },
       },
@@ -113,5 +117,21 @@ describe('AgentHostCredentialPort', () => {
     if (third.kind === EAuthKind.Oauth) expect(third.accessToken).toBe('at-2')
     expect(tokens.calls.length).toBe(2)
     void now
+  })
+
+  it('carries the provider account id of an issued token onto the credential', async () => {
+    const tokens = fakeTokens([
+      { ...token('at-1', '2026-11-03T12:30:00.000Z'), providerAccountId: 'cg-1' },
+    ])
+    const port = new AgentHostCredentialPort({
+      userId: 'u1',
+      model: oauthModel,
+      tokens,
+      now: () => Date.parse('2026-11-03T12:00:00.000Z'),
+    })
+    const credential = await port.read()
+    if (credential.kind === EAuthKind.Oauth) expect(credential.providerAccountId).toBe('cg-1')
+    const cached = await port.read()
+    if (cached.kind === EAuthKind.Oauth) expect(cached.providerAccountId).toBe('cg-1')
   })
 })

@@ -39,43 +39,41 @@ export const seedVercel = async (db: Db, over: Record<string, unknown> = {}): Pr
   })
 }
 
-export const seedApiKeyAccount = async (db: Db): Promise<void> => {
+export const seedApiKeyAccount = async (
+  args: Db | { db: Db; id: string; provider: string; apiKey: string },
+): Promise<void> => {
+  const { db, id, provider, apiKey } =
+    'db' in args ? args : { db: args, id: 'acct-1', provider: 'anthropic', apiKey: 'sk-test' }
   await db.orm.public.AgentAccount.create({
-    id: 'acct-1',
+    id,
     userId: 'user-1',
-    provider: 'anthropic',
+    provider,
     kind: 'api-key',
     origin: 'login',
     label: 'key',
     status: 'active',
-    sealedSecret: sealed({ kind: 'api-key', apiKey: 'sk-test' }),
+    sealedSecret: sealed({ kind: 'api-key', apiKey }),
   })
-  await db.orm.public.ActiveAccount.create({
-    userId: 'user-1',
-    provider: 'anthropic',
-    accountId: 'acct-1',
-  })
+  await db.orm.public.ActiveAccount.create({ userId: 'user-1', provider, accountId: id })
 }
 
 export const seedSetting = async (args: {
   db: Db
   scope: 'user' | 'project'
-  value: string
+  value: string | boolean
+  key?: string
 }): Promise<void> => {
+  const key = args.key ?? 'model.id'
   const encoded = `atlas-setting:v1:${JSON.stringify(args.value)}`
+  const id = `${args.scope}-${key}-${String(args.value)}`
   if (args.scope === 'user') {
-    await args.db.orm.public.UserSetting.create({
-      id: `us-${args.value}`,
-      userId: 'user-1',
-      key: 'model.id',
-      value: encoded,
-    })
+    await args.db.orm.public.UserSetting.create({ id, userId: 'user-1', key, value: encoded })
     return
   }
   await args.db.orm.public.ProjectSetting.create({
-    id: `ps-${args.value}`,
+    id,
     projectId: 'proj-1',
-    key: 'model.id',
+    key,
     value: encoded,
   })
 }

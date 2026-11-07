@@ -8,18 +8,19 @@ import {
 import {
   ANTHROPIC_PROVIDER_ID,
   EAuthKind,
+  EAuthProvider,
   secretOf,
   type AccountId,
   type Credential,
   type CredentialPort,
 } from '@dltech/atlas-core'
 
-import { CLAUDE_PLAN_LABEL } from './provider-ids'
-import { isConfirmedAuthRefusal } from './auth-repair'
-import { failingAs, withFailureAccount } from './failure-account'
-import { admittedByAccount, type ProviderAdmission } from './provider-admission'
-import { providerKey } from './provider-key'
-import { withStreamProvenance } from './stream-provenance'
+import { CLAUDE_PLAN_LABEL } from '../provider-ids'
+import { isConfirmedAuthRefusal } from '../auth-repair'
+import { failingAs, withFailureAccount } from '../failure-account'
+import { admittedByAccount, type ProviderAdmission } from '../provider-admission'
+import { providerKey } from '../provider-key'
+import { withStreamProvenance } from '../stream-provenance'
 import { withAnthropicCompatibleReasoning } from './anthropic-reasoning'
 import { withAnthropicSubscriptionAttribution } from './anthropic-subscription-attribution'
 
@@ -79,7 +80,10 @@ const authOf = (credential: Credential): AnthropicProviderSettings =>
 
 export function createAnthropicOauthModel(args: AnthropicOauthModelArgs): LanguageModelV4 {
   const authorizedModel = async (): Promise<AuthorizedModel> => {
-    const credential = await args.credentials.read({ accountId: args.accountId })
+    const credential = await args.credentials.read({
+      provider: EAuthProvider.Anthropic,
+      accountId: args.accountId,
+    })
     providerKey({ credential, label: CLAUDE_PLAN_LABEL })
 
     const provider = createAnthropic({

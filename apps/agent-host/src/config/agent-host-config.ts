@@ -1,9 +1,18 @@
+import type { EEffort, ModelRef } from '@dltech/atlas-core'
+
 export type ModelCredential =
   | { kind: 'oauth'; connectionId: string }
   | { kind: 'api-key'; apiKey: string }
 
 export type ModelConfig =
-  | { configured: true; modelId: string; accountId: string; credential: ModelCredential }
+  | {
+      configured: true
+      ref: ModelRef
+      effort: EEffort
+      fast: boolean
+      accountId: string
+      credential: ModelCredential
+    }
   | { configured: false; gap: string }
 
 export type WorkspaceRepo = { repo: string; branch?: string | undefined }

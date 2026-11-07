@@ -17,6 +17,7 @@ export type ProviderGrant = {
   refreshToken: string
   expiresAt: string
   scopes?: string[] | undefined
+  accountId?: string | undefined
 }
 
 export type ConnectionRow = {
@@ -37,6 +38,7 @@ export type IssuedModelToken = {
   expiresAt: string
   refreshAfter: string
   generation: number
+  providerAccountId?: string | undefined
 }
 
 export class ProviderRejectedError extends Error {}
