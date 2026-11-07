@@ -91,7 +91,11 @@ same way.
 
 Two halves. Both are needed before slice 7 can move a feature out of `core`.
 
-**The type-level event registry.** `src/event-registry.ts`:
+**The type-level event registry.** The interface lives in `core`
+(`packages/core/src/events/plugin-registry.ts`), not in `plugin-sdk`, because `plugin-sdk` depends on
+`core` and not the other way round — the same placement as `PortRegistryEntries`
+(`packages/core/src/ports/registry.ts:42`), which `harness` extends by declaration merging.
+`plugin-sdk` re-exports it as the contract-facing type.
 
 ```ts
 export interface PluginEventBodies {
@@ -105,7 +109,7 @@ export type PluginEventBody = NonNullable<
 A plugin merges its own bodies:
 
 ```ts
-declare module '@dltech/atlas-plugin-sdk' {
+declare module '@dltech/atlas-core' {
   interface PluginEventBodies {
     'pull-request-checks-changed': PullRequestChecksChanged
   }
