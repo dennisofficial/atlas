@@ -1,16 +1,19 @@
-import { homedir } from 'node:os'
 import { isAbsolute, resolve } from 'node:path'
 
 import { z } from 'zod'
 
+import { SANDBOX_HOME_PATH } from '../sandbox/constants'
+
 export const filePathSchema = z.string().min(1)
 
 export const pathEnvironmentNote =
-  'A path may reference environment variables such as $TMPDIR and may start with ~; both expand against the environment before resolution, and a variable that is not set is an error rather than a literal directory name. Scratch files belong under $ATLAS_SESSION_DIR/scratch.'
+  'A path may reference $ATLAS_HOME, the Atlas home directory of the sandbox; any other variable, and a leading ~, is an error rather than a literal directory name.'
 
 export type ToolPathResolution =
   | { ok: true; path: string; anchored: boolean }
   | { ok: false; reason: string }
+
+const SANDBOX_PATH_ENV: Readonly<Record<string, string>> = { ATLAS_HOME: SANDBOX_HOME_PATH }
 
 export type EnvExpansion = { ok: true; path: string } | { ok: false; reason: string }
 
@@ -18,16 +21,18 @@ const ENV_REFERENCE = /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*
 
 export function expandPathEnvironment(args: {
   path: string
-  env?: NodeJS.ProcessEnv
+  env?: Readonly<Record<string, string | undefined>>
 }): EnvExpansion {
-  const env = args.env ?? process.env
+  const env = args.env ?? SANDBOX_PATH_ENV
   let path = args.path
+  const unset = new Set<string>()
 
   if (path === '~' || path.startsWith('~/')) {
-    path = (env['HOME'] ?? homedir()) + path.slice(1)
+    const home = env['HOME']
+    if (home === undefined) unset.add('HOME')
+    else path = home + path.slice(1)
   }
 
-  const unset = new Set<string>()
   path = path.replace(
     ENV_REFERENCE,
     (reference, braced: string | undefined, bare: string | undefined) => {
@@ -56,7 +61,7 @@ export function expandPathEnvironment(args: {
 export function resolveToolPath(args: {
   projectDirectory: string
   path: string
-  env?: NodeJS.ProcessEnv
+  env?: Readonly<Record<string, string | undefined>>
 }): ToolPathResolution {
   const expanded = expandPathEnvironment({
     path: args.path,
