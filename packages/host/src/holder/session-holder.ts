@@ -30,6 +30,7 @@ export type SessionHolderArgs = {
   idleMinutes?: number | undefined
   sweepMs?: number | undefined
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
+  reasonOfStartError?: ((error: unknown) => string) | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
 }
@@ -51,6 +52,7 @@ export class SessionHolder {
   private readonly appendRetryMs: number
   private readonly idleMinutes: number
   private readonly isPermanentStartError: (error: unknown) => boolean
+  private readonly reasonOfStartError: ((error: unknown) => string) | undefined
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
@@ -81,6 +83,7 @@ export class SessionHolder {
     this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.isPermanentStartError = args.isPermanentStartError ?? (() => false)
+    this.reasonOfStartError = args.reasonOfStartError
     this.log = args.log
     this.settler = new LeaseSettler({
       plane: args.plane,
@@ -258,6 +261,7 @@ export class SessionHolder {
           attempts: args.lease.attempts,
           permanent: this.isPermanentStartError(error),
         }),
+      reasonOfStartError: this.reasonOfStartError,
       log: this.log,
     }
   }

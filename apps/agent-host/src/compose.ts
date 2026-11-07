@@ -12,6 +12,7 @@ import type { SandboxProvider } from './sandbox/sandbox-provider'
 import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { SessionNotFoundError } from './config/config-reader'
 import { CredentialsUnavailableError } from './config/agent-host-credential-port'
+import { startFailureReason } from './start-failure-reason'
 import {
   createSessionRuntimeFactory,
   SandboxNotConfiguredError,
@@ -56,6 +57,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     }),
     ids: new RandomIds(),
     isPermanentStartError,
+    reasonOfStartError: startFailureReason,
     maxSessions: args.env.maxSessions,
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),

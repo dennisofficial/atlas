@@ -1,5 +1,6 @@
 import {
   EInputConsumed,
+  INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type EventDraft,
   type InboxEntry,
@@ -33,6 +34,10 @@ export class InboxIntake implements AgentIntake {
     let wakesTurn = false
     for (const entry of entries) {
       if (entry.kind === INBOX_KIND_STOP) continue
+      if (entry.kind === INBOX_KIND_RETRY) {
+        await this.consumeQuietly(entry)
+        continue
+      }
       if (entry.kind === INBOX_KIND_MESSAGE) {
         const parsed = inboxMessageSchema.safeParse(JSON.parse(entry.payload))
         if (!parsed.success) {
@@ -61,11 +66,19 @@ export class InboxIntake implements AgentIntake {
       source: 'holder.intake',
       message: `inbox entry ${entry.inboxId} of kind "${entry.kind}" is consumed without a draft`,
     })
+    await this.consumeQuietly(entry)
+  }
+
+  private async consumeQuietly(entry: InboxEntry): Promise<void> {
     await this.args.record.append({
       threadId: this.args.threadId,
       runId: this.args.runId(),
       drafts: [
-        { type: 'input-consumed', inboxId: entry.inboxId, consumed: EInputConsumed.Discarded },
+        {
+          type: 'input-consumed',
+          inboxId: entry.inboxId,
+          consumed: EInputConsumed.Discarded,
+        },
       ],
     })
   }

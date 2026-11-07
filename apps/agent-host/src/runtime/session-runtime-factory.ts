@@ -44,6 +44,8 @@ import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
 import { daemonToolsOf } from './tools'
 import { ensureWorkspace } from './workspace-setup'
+import { workspaceRepoMap } from './workspace-repo-map'
+import { GithubPullRequestFinder } from '../github/github-pull-request-finder'
 
 export class SandboxNotConfiguredError extends Error {
   constructor(public readonly gap: string) {
@@ -186,6 +188,8 @@ export const createSessionRuntimeFactory = (
       additionalRepos: config.workspace.additionalRepos,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
+    const repoMap = workspaceRepoMap({ launchDirectory, workspace: config.workspace })
+    const repoAt = (path: string) => repoMap.find((entry) => entry.path === path)
     const tools = daemonToolsOf({ processes, files, agentFiles, setup: gate })
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
@@ -259,6 +263,11 @@ export const createSessionRuntimeFactory = (
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,
       watchedRepos: () => gitWatch.watchedRepos(),
+      baseBranchOf: (repoPath) => repoAt(repoPath)?.base ?? null,
+      pullRequests: {
+        repoOf: (repoPath) => repoAt(repoPath)?.repo ?? null,
+        finder: new GithubPullRequestFinder({ userId: config.userId, github: args.github }),
+      },
       runningShells: () => countRunningShells({ calls }),
       prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),

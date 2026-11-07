@@ -5,6 +5,7 @@ import {
   type ModelStepResult,
   type ModelToolCall,
   type ModelTraits,
+  type ProviderIdentity,
   type StepReading,
 } from '@dltech/atlas-core'
 
@@ -20,14 +21,19 @@ const calledDraft = ({ call, ordinal }: { call: ModelToolCall; ordinal: number }
 
 export type StepDraftsArgs = {
   result: ModelStepResult
-  model?: { traits?: () => ModelTraits } | undefined
+  model?: { identity?: ProviderIdentity; traits?: () => ModelTraits } | undefined
 }
 
 const readingOf = ({ result, model }: StepDraftsArgs): StepReading | undefined => {
   if (result.usage === undefined) return undefined
   const contextWindow = model === undefined ? 0 : contextWindowOf(model)
-  if (contextWindow <= 0) return result.usage
-  return { ...result.usage, contextWindow }
+  return {
+    ...result.usage,
+    ...(contextWindow > 0 ? { contextWindow } : {}),
+    ...(model?.identity === undefined
+      ? {}
+      : { providerId: model.identity.id, modelId: model.identity.modelId }),
+  }
 }
 
 const withStepUsage = ({

@@ -10,6 +10,7 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
+import { PrLinker } from './pr-linker'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
@@ -93,16 +94,54 @@ export const createBranchObserver = (args: {
   signal: AbortSignal
 }): BranchObserver => {
   const { deps, record, runtime, threadId } = args
+  const book = () => record.eventCache().bookkeeping()
+  const runId = () => deps.ids.nextRunId()
+  const linker =
+    runtime.pullRequests === undefined
+      ? undefined
+      : new PrLinker({
+          source: runtime.pullRequests,
+          record: {
+            append: ({ threadId: to, runId: id, body }) =>
+              record.append({ threadId: to, runId: id, drafts: [body] }),
+            lastObservation: (repo) => book().lastObservation(repo),
+            hasLink: (link) => book().hasLink(link),
+          },
+          threadId,
+          signal: args.signal,
+          repos: () => runtime.watchedRepos(),
+          runId,
+          ...(deps.log === undefined ? {} : { log: deps.log }),
+        })
   return new BranchObserver({
     record: {
-      append: ({ threadId: to, runId, body }) =>
-        record.append({ threadId: to, runId, drafts: [body] }),
-      lastObservation: (repo) => record.eventCache().bookkeeping().lastObservation(repo),
+      append: ({ threadId: to, runId: id, body }) =>
+        record.append({ threadId: to, runId: id, drafts: [body] }),
+      lastObservation: (repo) => book().lastObservation(repo),
+      recordedBase: (repo) => {
+        const fact = book().fact(`base:${repo}`)
+        return fact.found && typeof fact.value === 'string' ? fact.value : undefined
+      },
+      rememberBase: ({ threadId: to, runId: id, repo, base }) =>
+        record.append({
+          threadId: to,
+          runId: id,
+          drafts: [
+            {
+              type: 'fact-recorded',
+              key: `base:${repo}`,
+              kind: 'base',
+              value: base,
+            },
+          ],
+        }),
     },
     remoteCalls: runtime.remoteCalls,
     threadId,
     repos: () => runtime.watchedRepos(),
-    runId: () => deps.ids.nextRunId(),
+    baseOf: (repo) => runtime.baseBranchOf(repo),
+    afterRefresh: linker === undefined ? undefined : () => linker.link(),
+    runId,
     signal: args.signal,
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })
@@ -135,7 +174,10 @@ export const createLoopRunner = (args: {
     ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
     tools: () => runtime.tools.declarations(),
     dispatch: new ScopedToolDispatcher(
-      new HookedToolDispatcher({ registry: runtime.tools, hooks: new HookChain({}) }),
+      new HookedToolDispatcher({
+        registry: runtime.tools,
+        hooks: new HookChain({}),
+      }),
     ),
     intake,
     output: args.turns.liveOutput({

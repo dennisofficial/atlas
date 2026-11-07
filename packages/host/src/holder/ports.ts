@@ -38,6 +38,21 @@ export type PrepareResult =
   | { ok: true; warnings?: readonly string[] | undefined }
   | { ok: false; reason: string }
 
+export type FoundPullRequest = { number: number; url: string }
+
+export type PullRequestFinder = {
+  find(args: {
+    repo: string
+    branch: string
+    signal: AbortSignal
+  }): Promise<FoundPullRequest | null>
+}
+
+export type PullRequestSource = {
+  finder: PullRequestFinder
+  repoOf(repoPath: string): string | null
+}
+
 export type PrepareStepReporter = (step: WorkspaceStepReport) => void
 
 export type SessionRuntime = {
@@ -51,6 +66,8 @@ export type SessionRuntime = {
   normalizeFailure: NormalizeFailure
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>
+  baseBranchOf(repoPath: string): string | null
+  pullRequests?: PullRequestSource | undefined
   runningShells(): Promise<number>
   prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
   subscribePrepareOutput?(listener: (text: string) => void): void

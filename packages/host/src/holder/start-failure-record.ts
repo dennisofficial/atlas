@@ -60,7 +60,7 @@ export const giveUpStarting = async (args: {
     deps: args.deps,
     threadId: args.threadId,
     epoch: args.epoch,
-    reason: messageOf(args.error),
+    reason: args.deps.reasonOfStartError?.(args.error) ?? messageOf(args.error),
     permanent: verdict.permanent,
   })
 }
