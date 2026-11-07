@@ -39,11 +39,12 @@ export class InboxIntake implements AgentIntake {
           await this.consumeUnknown(entry)
           continue
         }
-        const { text, media } = parsed.data
+        const { text, media, uploads } = parsed.data
         drafts.push({
           type: 'user-said',
           text,
           ...(media === undefined || media.length === 0 ? {} : { media }),
+          ...(uploads === undefined || uploads.length === 0 ? {} : { uploads }),
           requestId: `inbox:${entry.inboxId}`,
           inboxId: entry.inboxId,
         })
