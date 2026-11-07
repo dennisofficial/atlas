@@ -2,7 +2,14 @@ import { describe, expect, it } from 'bun:test'
 
 import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
 
-import { consumedInboxIdsOf, mergeWithdrawnIntoDraft, visibleQueuedOf } from '../queued-messages'
+import { EQueuedAttachmentKind } from '@dltech/atlas-ui/ai/queued-messages'
+
+import {
+  consumedInboxIdsOf,
+  mergeWithdrawnIntoDraft,
+  queuedMediaHashesOf,
+  visibleQueuedOf,
+} from '../queued-messages'
 
 const eventsOf = (bodies: readonly V2Body[]) =>
   chainEvents({
@@ -54,5 +61,59 @@ describe('visibleQueuedOf', () => {
       { type: 'user-said', text: 'z', requestId: 'inbox:abc' },
     ])
     expect([...consumedInboxIdsOf(events)]).toEqual([])
+  })
+})
+
+describe('visibleQueuedOf attachments', () => {
+  const hash = 'a'.repeat(64)
+  const withAttachments = [
+    {
+      inboxId: 3,
+      text: 'look',
+      postedAt: '2026-11-06T10:00:02.000Z',
+      media: [
+        {
+          media: { hash, mediaType: 'image/png' as const, size: 10, width: 2, height: 3 },
+          source: 'shot.png',
+        },
+      ],
+      uploads: [
+        {
+          uploadId: '0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40',
+          pathname: 'composer-uploads/u/0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40/deploy.sh',
+          name: 'deploy.sh',
+          size: 7,
+          mediaType: 'text/x-sh',
+        },
+      ],
+    },
+  ]
+
+  it('shows queued images with their signed preview and files by name', () => {
+    const [entry] = visibleQueuedOf({
+      queued: withAttachments,
+      events: [],
+      urls: new Map([[hash, 'https://blob/shot']]),
+    })
+    expect(entry?.attachments).toEqual([
+      {
+        id: `media-0-${hash}`,
+        name: 'shot.png',
+        kind: EQueuedAttachmentKind.Image,
+        size: 10,
+        previewUrl: 'https://blob/shot',
+      },
+      {
+        id: '0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40',
+        name: 'deploy.sh',
+        kind: EQueuedAttachmentKind.File,
+        size: 7,
+      },
+    ])
+  })
+
+  it('lists each queued image hash once', () => {
+    expect(queuedMediaHashesOf([...withAttachments, ...withAttachments])).toEqual([hash])
+    expect(queuedMediaHashesOf(undefined)).toEqual([])
   })
 })

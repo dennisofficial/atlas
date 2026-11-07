@@ -89,6 +89,23 @@ describe('UserMessage', () => {
     )
     expect(container.querySelector('[data-slot="bubble"]')).toBeNull()
   })
+
+  it('shows attached files as cards in the image row, after the images', async () => {
+    const container = await render(
+      <UserMessage
+        images={[{ id: 'i1', src: 'data:image/png;base64,aGk=', alt: 'shot.png' }]}
+        attachments={[{ id: 'f1', label: 'deploy.sh' }]}
+      >
+        hi
+      </UserMessage>,
+    )
+
+    const row = container.querySelector('img[alt="shot.png"]')?.closest('div.flex-wrap')
+    const card = row?.querySelector('[data-slot="message-file"]')
+    expect(card?.textContent).toBe('deploy.sh')
+    expect(card?.getAttribute('title')).toBe('deploy.sh')
+    expect(container.querySelector('.font-mono')).toBeNull()
+  })
 })
 
 describe('UserMessage footer', () => {

@@ -146,24 +146,15 @@ export function UserMessage({
     <Message align="end">
       <MessageContent>
         <SpeakerName author={author} />
-        <MessageImages images={images} />
+        <MessageImages
+          images={images}
+          files={attachments.map((attachment) => ({ id: attachment.id, name: attachment.label }))}
+        />
         {children === undefined || children === null ? null : (
           <Bubble align="end" variant="muted">
             <BubbleContent>{children}</BubbleContent>
           </Bubble>
         )}
-        {attachments.length > 0 ? (
-          <div className="flex flex-wrap justify-end gap-1.5">
-            {attachments.map((attachment) => (
-              <span
-                key={attachment.id}
-                className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
-              >
-                {attachment.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
         {timestamp || hasActions ? (
           <MessageFooter>
             <FooterRow>
