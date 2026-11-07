@@ -8,7 +8,8 @@ import type {
 
 import { postInputOf } from './session-media'
 
-export const FILES_UNSUPPORTED = 'v2 sessions take images only — remove the other files.'
+export const FILES_UNSUPPORTED =
+  'Attachments added before switching to v2 can’t be sent — remove them and add them again.'
 
 export type SessionsApi = {
   create(input: SessionCreateInput): Promise<SessionCreateOutput>
