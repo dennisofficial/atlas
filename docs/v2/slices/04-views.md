@@ -1,6 +1,6 @@
 # Slice 4 spec: views
 
-Status: **spec, 2026-11-07; product answers in §9.** Anchors are `path:line` at
+Status: **done, 2026-11-07** (PRs #1988–#1992, fix #1994; live check in §11). Product answers in §9. Anchors are `path:line` at
 `0ff58be6d`; re-check before relying on one.
 
 ## Goal
@@ -328,3 +328,19 @@ Each a PR, each green on its own:
 Out of scope: the agent reacting to PR events, subscriptions, agents, shells and services views
 (slice 7); unread (slice 8); model choice (slice 6); spend of sub-agents and summaries (no v2
 writer yet: each carries its usage when it lands); the Mac release (follows the web).
+
+## 11. Live check (production, 2026-11-07)
+
+Run on byatlas.io against Dennis's account, deploys at `a1615601` (web, Render) and `44f3b6c5` (API).
+
+| Check                      | Result                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Branch and PR from the log | View side passes: the branch reached `checkouts.primary` 16 s after the first post (mid-turn); the PR link appeared at the next turn end; checks followed GitHub within one 3 s poll; closing showed in ≤ 2 s. The agent itself could not push: v2 sandboxes have no GitHub credentials or git identity, so the PR was opened from outside. |
+| Status in the sidebar      | Running and idle correct. Found a bug: `pull-request-linked` after a turn left status at `thinking`; fixed in #1994 (turn-neutral, view version 3).                                                                                                                                                                                         |
+| Context ring and spend     | Ring and spend popover match the view; spend grows across turns while context stays flat. Rewind is not exposed on v2 yet (slice 6), so "spend unchanged after a rewind" is covered by the conformance tests only.                                                                                                                          |
+| Failed to start and Retry  | Pass with a real start failure: "Atlas couldn't start this session", the plain reason, Retry reached idle in ~12 s with one discarded retry entry and no duplicate message.                                                                                                                                                                 |
+| Scale                      | `sessions.view` p50 over HTTPS: 145 ms (35 events), 115 ms (382), 124 ms (20,032); flat in log length. Cold catch-up 1.0–1.1 s at 20k events (#1990 scale test; the 1 s target relaxed to 1.5 s, dominated by event decode). Per-append cost not isolated; append p99 flat from 1k to 20k events.                                           |
+
+Follow-ups:
+- v2 sandboxes need GitHub credentials and a git identity so the agent can push and open PRs (v1 has them).
+- The PR link lands at turn end; a PR opened mid-turn shows when the turn ends.
