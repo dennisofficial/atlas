@@ -2,10 +2,14 @@ import type {
   SessionCreateInput,
   SessionCreateOutput,
   SessionPostInput,
+  SessionPostMedia,
   SessionPostOutput,
 } from '@dltech/atlas-protocol'
 
-export const ATTACHMENTS_UNSUPPORTED = 'v2 sessions take text only — remove the attachments.'
+import { postInputOf } from './session-media'
+
+export const FILES_UNSUPPORTED =
+  'Attachments added before switching to v2 can’t be sent — remove them and add them again.'
 
 export type SessionsApi = {
   create(input: SessionCreateInput): Promise<SessionCreateOutput>
@@ -16,10 +20,9 @@ export async function createSessionWithMessage(args: {
   api: SessionsApi
   projectId: string
   text: string
-  attachments: number
+  media: readonly SessionPostMedia[]
 }): Promise<string> {
-  if (args.attachments > 0) throw new Error(ATTACHMENTS_UNSUPPORTED)
   const { sessionId } = await args.api.create({ projectId: args.projectId })
-  await args.api.post({ sessionId, text: args.text })
+  await args.api.post(postInputOf({ sessionId, text: args.text, media: args.media }))
   return sessionId
 }

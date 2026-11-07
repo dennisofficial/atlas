@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  ATTACHMENTS_UNSUPPORTED,
-  createSessionWithMessage,
-  type SessionsApi,
-} from '../create-session'
+import { createSessionWithMessage, type SessionsApi } from '../create-session'
 
 const fakeApi = (params: { postFails?: boolean } = {}) => {
   const calls: unknown[][] = []
@@ -22,6 +18,8 @@ const fakeApi = (params: { postFails?: boolean } = {}) => {
   return { api, calls }
 }
 
+const HASH = 'a'.repeat(64)
+
 describe('createSessionWithMessage', () => {
   it('creates the session, then posts the first message to it', async () => {
     const { api, calls } = fakeApi()
@@ -30,7 +28,7 @@ describe('createSessionWithMessage', () => {
       api,
       projectId: 'proj-1',
       text: 'hello',
-      attachments: 0,
+      media: [],
     })
 
     expect(sessionId).toBe('sess-1')
@@ -40,20 +38,27 @@ describe('createSessionWithMessage', () => {
     ])
   })
 
+  it('posts the images with the first message, text or not', async () => {
+    const { api, calls } = fakeApi()
+
+    await createSessionWithMessage({
+      api,
+      projectId: 'proj-1',
+      text: '',
+      media: [{ hash: HASH, source: 'shot.png' }],
+    })
+
+    expect(calls[1]).toEqual([
+      'post',
+      { sessionId: 'sess-1', text: '', media: [{ hash: HASH, source: 'shot.png' }] },
+    ])
+  })
+
   it('fails when the first message cannot be posted', async () => {
     const { api } = fakeApi({ postFails: true })
 
     await expect(
-      createSessionWithMessage({ api, projectId: 'proj-1', text: 'hello', attachments: 0 }),
+      createSessionWithMessage({ api, projectId: 'proj-1', text: 'hello', media: [] }),
     ).rejects.toThrow('post refused')
-  })
-
-  it('refuses attachments before creating anything', async () => {
-    const { api, calls } = fakeApi()
-
-    await expect(
-      createSessionWithMessage({ api, projectId: 'proj-1', text: 'hello', attachments: 1 }),
-    ).rejects.toThrow(ATTACHMENTS_UNSUPPORTED)
-    expect(calls).toEqual([])
   })
 })
