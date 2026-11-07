@@ -3,12 +3,9 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
-import { Badge } from '@dltech/atlas-ui/components/badge'
-import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
+import { ESessionStatus } from '@dltech/atlas-core'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
-import { EHeaderState, STATE_LABEL } from '@/features/threads/data/header-model'
 import { messageOf } from '@/features/threads/data/use-send'
 import { EMPTY_DETAILS } from '@/features/threads/panel/details/details-input'
 import {
@@ -25,11 +22,16 @@ import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from './da
 import { sessionCache, sessionStream } from './data/session-stream'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionTranscriptOf } from './data/session-transcript'
+import { sessionViewModelOf } from './data/session-view-model'
+import { retrySessionNow } from './data/use-retry-session'
 import { useQueuedDock } from './data/use-queued-dock'
 import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionStream } from './data/use-session-stream'
 import { QueuedDock } from './queued-dock'
+import { SessionContext } from './session-context'
+import { SessionHeader } from './session-header'
+import { StartFailedCard } from './start-failed-card'
 
 const noop = () => undefined
 
@@ -57,39 +59,6 @@ const panelValueOf = (args: { sessionId: string; working: boolean }): ThreadPane
   closePanel: noop,
   refreshPod: noop,
 })
-
-const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
-  [EHeaderState.Failed]: 'destructive',
-  [EHeaderState.NeedsYou]: 'default',
-  [EHeaderState.Running]: 'secondary',
-  [EHeaderState.Idle]: 'secondary',
-}
-
-function SessionHeader({
-  state,
-  title,
-  naming,
-}: {
-  state: EHeaderState
-  title: string | null
-  naming: boolean
-}) {
-  return (
-    <header
-      data-chrome="titlebar"
-      className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4"
-    >
-      <div className="flex min-w-0 items-center gap-2">
-        <SidebarTrigger aria-label="Open navigation" />
-        <h1 className="min-w-0 truncate text-sm font-medium">
-          <NamingTitle title={title} naming={naming} fallback="Session" />
-        </h1>
-        <Badge variant="outline">v2</Badge>
-      </div>
-      <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
-    </header>
-  )
-}
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const snapshot = useSessionStream({
@@ -122,15 +91,17 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       }),
     [snapshot.events, snapshot.status, snapshot.setupOutput],
   )
+  const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
   const stateLine = sessionStateLineOf(snapshot)
   const queuedDock = useQueuedDock({
     sessionId,
     queued: snapshot.status?.queued,
-    events: snapshot.events,
     draft,
     onDraftChange: setDraft,
   })
+
+  const handleRetry = () => retrySessionNow(sessionId)
 
   const handleSubmit = async (text: string) => {
     if (!attachments.checkSendable()) return
@@ -155,6 +126,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           state={headerStateOfSession(snapshot.status)}
           title={listed?.title ?? null}
           naming={listed?.naming ?? false}
+          branch={model.branch}
+          entries={model.entries}
         />
         <div className="min-h-0 flex-1">
           <ThreadTranscript
@@ -163,7 +136,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             failedLabel={null}
             pod={null}
             working={working}
-            onRetryBoot={noop}
+            onRetryBoot={() => void handleRetry()}
             rewind={null}
             summarise={null}
             boot={boot}
@@ -175,6 +148,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               {stateLine}
             </p>
           )}
+          {snapshot.status?.state === ESessionStatus.StartFailed ? (
+            <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
+          ) : null}
           <QueuedDock dock={queuedDock} />
           <ThreadComposer
             value={draft}
@@ -185,7 +161,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             sendsAttachmentsAlone
             working={working}
             placeholder="Message Atlas…"
-          />
+          >
+            <SessionContext context={model.context} spend={model.spend} />
+          </ThreadComposer>
         </div>
       </div>
     </ThreadPanelProvider>

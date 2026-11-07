@@ -1,0 +1,79 @@
+import { EMeterBasis, type SpendTally } from '@dltech/atlas-core'
+import type { SessionSummary, SessionViewOutput } from '@dltech/atlas-protocol'
+
+import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
+
+type LinkedPullRequest = SessionViewOutput['pullRequests'][number]
+type RowPullRequest = NonNullable<SessionSummary['pullRequest']>
+
+export type SessionContextModel = {
+  used: number
+  limit: number
+  estimated: boolean
+}
+
+export type SessionViewModel = {
+  branch: string | undefined
+  entries: PullRequestEntry[]
+  context: SessionContextModel | null
+  spend: SpendTally | null
+}
+
+export const pullRequestEntryOf = (args: {
+  pullRequest: LinkedPullRequest
+  primaryBranch: string | undefined
+}): PullRequestEntry => {
+  const { pullRequest, primaryBranch } = args
+  const { state } = pullRequest
+  return {
+    repo: pullRequest.repo,
+    number: pullRequest.number,
+    url: pullRequest.url,
+    branch: pullRequest.branch,
+    state: state?.state,
+    title: state?.title,
+    checksRunning: state?.checks.running,
+    checksPassed: state?.checks.passed,
+    checksFailed: state?.checks.failed,
+    mergeable: state === null ? undefined : state.mergeable,
+    current: primaryBranch !== undefined && pullRequest.branch === primaryBranch,
+    via: undefined,
+  }
+}
+
+export const rowPullRequestEntryOf = (pullRequest: RowPullRequest): PullRequestEntry => ({
+  repo: pullRequest.repo,
+  number: pullRequest.number,
+  url: pullRequest.url,
+  branch: '',
+  state: pullRequest.state ?? undefined,
+  checksRunning: pullRequest.checks?.running,
+  checksPassed: pullRequest.checks?.passed,
+  checksFailed: pullRequest.checks?.failed,
+  mergeable: undefined,
+  current: false,
+  via: undefined,
+})
+
+export const contextOfView = (view: SessionViewOutput): SessionContextModel | null => {
+  const { context } = view
+  if (context === null || context.window === null || context.window <= 0) return null
+  return {
+    used: context.used,
+    limit: context.window,
+    estimated: context.basis === EMeterBasis.Estimated,
+  }
+}
+
+export const sessionViewModelOf = (view: SessionViewOutput | undefined): SessionViewModel => {
+  if (view === undefined) return { branch: undefined, entries: [], context: null, spend: null }
+  const primaryBranch = view.checkouts.primary?.branch
+  return {
+    branch: primaryBranch,
+    entries: view.pullRequests.map((pullRequest) =>
+      pullRequestEntryOf({ pullRequest, primaryBranch }),
+    ),
+    context: contextOfView(view),
+    spend: view.spend.tally,
+  }
+}
