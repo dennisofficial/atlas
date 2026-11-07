@@ -2,6 +2,8 @@ import type { Project, WireThread } from '@dltech/atlas-wire/web'
 
 import type { SessionNode } from '@/features/threads/data/threads-api'
 
+import type { V2RowView } from './v2-status'
+
 export const INACTIVE_AFTER_MS = 72 * 60 * 60 * 1000
 
 export enum EThreadBucket {
@@ -13,7 +15,7 @@ export enum EThreadBucket {
 export const NO_PROJECT_KEY = '__no-project__'
 export const NO_PROJECT_NAME = 'No project'
 
-export type ShellSessionNode = SessionNode & { v2?: true; naming?: boolean }
+export type ShellSessionNode = SessionNode & { v2?: true; naming?: boolean; v2View?: V2RowView }
 
 export interface ProjectThreads {
   project: Project | null

@@ -11,7 +11,7 @@ import { LiveThreadPodChip } from '../../thread-pod-chip'
 import { useThreadPanel } from '../thread-panel-context'
 import { tokenStatsOf, turnCountOf, type TokenStats } from './details-model'
 
-function Stat(props: { value: ReactNode; unit: string }) {
+export function Stat(props: { value: ReactNode; unit: string }) {
   return (
     <span className="flex h-4 items-center gap-1 whitespace-nowrap">
       <span className="text-foreground tabular-nums">{props.value}</span>
@@ -20,7 +20,7 @@ function Stat(props: { value: ReactNode; unit: string }) {
   )
 }
 
-function Tokens({ stats }: { stats: TokenStats }) {
+export function Tokens({ stats }: { stats: TokenStats }) {
   return (
     <span className="flex h-4 items-center gap-1.5 whitespace-nowrap tabular-nums">
       <span className="flex items-center gap-0.5">
