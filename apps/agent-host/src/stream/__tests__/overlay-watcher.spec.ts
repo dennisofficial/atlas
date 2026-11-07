@@ -4,7 +4,7 @@ import { EStepEndReason } from '@dltech/atlas-core'
 import { EStreamBlockKind, EStreamClearReason, type StreamStepKey } from '@dltech/atlas-protocol'
 
 import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
-import { STATUS_COALESCE_MS } from '../status-views'
+import { VIEW_COALESCE_MS } from '../session-views'
 import { FakeLiveSource, type TestFrame } from './fake-live-source'
 import { FollowRig, SESSION } from './follow-rig'
 import { ClientOverlay } from './overlay-client'
@@ -239,7 +239,7 @@ describe('live overlay', () => {
     await rig.settled()
     rig.store.markHostAbsent(1)
     await rig.plane.wake({ sessionIds: [SESSION] })
-    rig.timers.advance(STATUS_COALESCE_MS)
+    rig.timers.advance(VIEW_COALESCE_MS)
     await rig.settled()
     expect(rig.frames('overlay-clear')).toEqual([
       { type: 'overlay-clear', id: 'sub-1', reason: EStreamClearReason.HolderLost },

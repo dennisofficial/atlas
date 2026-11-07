@@ -3,13 +3,19 @@ import {
   sessionSummaryOf,
   type ControlSessionDigest,
 } from '@dltech/atlas-control'
-import type { SessionSummary } from '@dltech/atlas-protocol'
+import { STREAM_PROTOCOL_VERSION, type SessionSummary } from '@dltech/atlas-protocol'
 
 export type SessionEntry = {
   row: SessionSummary
   userId: string
   projectId: string
   namingEndsAt: number | undefined
+}
+
+export const rowForVersion = (args: { row: SessionSummary; version: number }): SessionSummary => {
+  if (args.version >= STREAM_PROTOCOL_VERSION) return args.row
+  const { status: _status, primaryBranch: _branch, pullRequest: _pr, ...legacy } = args.row
+  return legacy
 }
 
 export const entryOf = (args: { digest: ControlSessionDigest; now: number }): SessionEntry => {

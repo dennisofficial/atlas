@@ -8,6 +8,7 @@ import {
   isSetupOutputCallId,
   type EStreamErrorCode,
   type SessionStatusOutput,
+  type SessionViewOutput,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
@@ -47,6 +48,7 @@ export type SessionSnapshot = {
   events: readonly V2Event[]
   cursor: SessionCursor | undefined
   status: SessionStatusOutput | undefined
+  view?: SessionViewOutput | undefined
   overlay: OpenOverlay | undefined
   setupOutput?: string | undefined
   connection: ESessionConnection
@@ -74,6 +76,7 @@ type Inner = {
   window: SessionWindow
   overlay: OverlayState
   status: SessionStatusOutput | undefined
+  view: SessionViewOutput | undefined
   setupOutput: string
   phase: EStreamConnectionState
   live: boolean
@@ -92,6 +95,7 @@ const snapshotOf = (inner: Inner): SessionSnapshot => ({
   events: inner.window.events,
   cursor: inner.window.cursor,
   status: inner.status,
+  view: inner.view,
   overlay: inner.overlay.open,
   setupOutput: inner.setupOutput,
   connection: connectionOf(inner),
@@ -115,6 +119,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     window: EMPTY_WINDOW,
     overlay: EMPTY_OVERLAY_STATE,
     status: undefined,
+    view: undefined,
     setupOutput: '',
     phase: EStreamConnectionState.Connecting,
     live: false,
@@ -179,6 +184,10 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
 
   const handleView = (message: Extract<StreamServerMessage, { type: 'view' }>): void => {
     if (!acceptsView({ inner, at: message.at })) return
+    if (message.name === 'session') {
+      commit({ ...inner, status: message.value.status, view: message.value })
+      return
+    }
     commit({ ...inner, status: message.value })
   }
 
@@ -204,7 +213,14 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'error') commit({ ...inner, error: message.code })
     else if (message.type === 'reset') {
-      commit({ ...inner, window: resetWindow(), status: undefined, setupOutput: '', live: false })
+      commit({
+        ...inner,
+        window: resetWindow(),
+        status: undefined,
+        view: undefined,
+        setupOutput: '',
+        live: false,
+      })
     } else if (
       message.type === 'frame' &&
       message.frame.type === 'tool-output' &&

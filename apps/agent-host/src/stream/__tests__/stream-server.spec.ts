@@ -5,6 +5,7 @@ import {
   EStreamErrorCode,
   STREAM_HELLO_TIMEOUT_MS,
   STREAM_MAX_CLIENT_FRAME_BYTES,
+  STREAM_PROTOCOL_MIN_VERSION,
   STREAM_PROTOCOL_VERSION,
 } from '@dltech/atlas-protocol'
 
@@ -69,6 +70,13 @@ describe('stream server connection', () => {
     const client = harness.connect()
     client.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION + 4, token: 'tok-a' })
     expect(await client.next()).toMatchObject({ type: 'ready', v: STREAM_PROTOCOL_VERSION })
+  })
+
+  it('answers a version 1 hello with a version 1 ready', async () => {
+    harness = new StreamHarness()
+    const client = harness.connect()
+    client.send({ type: 'hello', v: STREAM_PROTOCOL_MIN_VERSION, token: 'tok-a' })
+    expect(await client.next()).toMatchObject({ type: 'ready', v: STREAM_PROTOCOL_MIN_VERSION })
   })
 
   it('closes 4401 when no hello arrives in time and owns no timer afterwards', async () => {

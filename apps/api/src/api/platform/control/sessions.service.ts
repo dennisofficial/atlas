@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import {
   ControlPlane,
   fallbackTitleOf,
+  pricedView,
   readSessionStatus,
   sessionSummaryOf,
   STATUS_EVENT_LIMIT,
@@ -34,7 +35,6 @@ import {
   EVENTS_DEFAULT_MAX_BYTES,
   toPageEvent,
 } from './session-events-page'
-import { pricedView } from './session-view-pricing'
 import { attachedUploads } from './upload-attachments'
 
 @Injectable()
@@ -267,7 +267,6 @@ export class SessionsService {
       plane: this.plane,
       sessionId: args.sessionId,
       threadId: session.mainThreadId,
-      now: new Date().toISOString(),
     })
     return value
   }

@@ -1,11 +1,11 @@
-import { readSessionStatus, type ChangeFeed } from '@dltech/atlas-control'
+import { pricedView, type ChangeFeed } from '@dltech/atlas-control'
 
 import { FollowSession } from './follow-session'
 import type { FollowDeps, FollowTarget, SubscriptionIndex } from './follow-types'
 import type { LiveSource } from './live-source'
 import { LiveOverlay } from './overlay/live-overlay'
 import { SessionsListIndex } from './sessions-list'
-import { StatusViews } from './status-views'
+import { SessionViews } from './session-views'
 import type { SubscriptionPort } from './subscription-port'
 
 export type FollowSubscriptions = SubscriptionPort & { close(): void }
@@ -21,11 +21,11 @@ export const createFollowSubscriptions = (
           source: args.live,
           timers,
           log,
-          onFrameWhileDead: (sessionId) => statusViews.recheck(sessionId),
+          onFrameWhileDead: (sessionId) => sessionViews.recheck(sessionId),
         })
-  const statusViews: StatusViews = new StatusViews({
-    read: ({ sessionId, threadId }) =>
-      readSessionStatus({ plane, sessionId, threadId, now: new Date(timers.now()).toISOString() }),
+  const sessionViews: SessionViews = new SessionViews({
+    read: async ({ sessionId, threadId }) =>
+      pricedView(await plane.readSessionView({ sessionId, threadId })),
     timers,
     log,
     onLiveness: (liveness) => overlay?.liveness(liveness),
@@ -37,14 +37,14 @@ export const createFollowSubscriptions = (
       const set = bySession.get(subscription.sessionId) ?? new Set()
       set.add(subscription)
       bySession.set(subscription.sessionId, set)
-      statusViews.add(subscription)
+      sessionViews.add(subscription)
       overlay?.add(subscription)
     },
     remove: (subscription) => {
       const set = bySession.get(subscription.sessionId)
       set?.delete(subscription)
       if (set?.size === 0) bySession.delete(subscription.sessionId)
-      statusViews.remove(subscription)
+      sessionViews.remove(subscription)
       overlay?.remove(subscription)
     },
     resnap: (subscription) => overlay?.resnap(subscription),
@@ -52,14 +52,14 @@ export const createFollowSubscriptions = (
   }
   const offChange = args.feed.onChange((change) => {
     for (const target of [...(bySession.get(change.sessionId) ?? [])]) target.handleChange(change)
-    statusViews.handleChange(change)
+    sessionViews.handleChange(change)
     sessions.handleChange(change)
   })
   const offGap = args.feed.onGap(() => {
     for (const targets of [...bySession.values()]) {
       for (const target of [...targets]) target.markDirty()
     }
-    statusViews.refreshAll()
+    sessionViews.refreshAll()
     sessions.handleGap()
   })
   const deps: FollowDeps = { plane, timers, log }
@@ -68,7 +68,7 @@ export const createFollowSubscriptions = (
     close: () => {
       offChange()
       offGap()
-      statusViews.close()
+      sessionViews.close()
       sessions.close()
       overlay?.close()
     },

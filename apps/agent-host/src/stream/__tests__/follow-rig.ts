@@ -10,7 +10,11 @@ import {
   type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
-import { EStreamSubscribeKind, type StreamServerMessage } from '@dltech/atlas-protocol'
+import {
+  EStreamSubscribeKind,
+  STREAM_PROTOCOL_VERSION,
+  type StreamServerMessage,
+} from '@dltech/atlas-protocol'
 
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
 import type { FollowPlane } from '../follow-types'
@@ -54,11 +58,10 @@ export class FollowRig {
         await this.onRead?.()
         return page
       },
-      readStatusSnapshot: (params) => {
+      readSessionView: (params) => {
         this.statusReads += 1
-        return this.plane.readStatusSnapshot(params)
+        return this.plane.readSessionView(params)
       },
-      readBlob: (params) => this.plane.readBlob(params),
       listSessionDigests: (params) => {
         this.digestReads += 1
         if (this.digestFailure !== undefined) return Promise.reject(this.digestFailure)
@@ -116,9 +119,10 @@ export class FollowRig {
     return chainHash(event)
   }
 
-  open(userId: string = OWNER): SubscriptionSession {
+  open(userId: string = OWNER, version: number = STREAM_PROTOCOL_VERSION): SubscriptionSession {
     return this.follow.open({
       userId,
+      version,
       send: (message) => this.sent.push(message),
       bufferedAmount: () => this.buffered,
       close: (code) => this.closedWith.push(code),
@@ -149,6 +153,12 @@ export class FollowRig {
     return this.sent.filter(
       (message): message is Extract<StreamServerMessage, { type: T }> => message.type === type,
     )
+  }
+
+  latestLease(): { epoch: number; holderHostId: number | null; live: boolean } | undefined {
+    const frame = this.frames('view').at(-1)
+    if (frame === undefined) return undefined
+    return frame.name === 'session' ? frame.value.status.lease : frame.value.lease
   }
 
   seqs(): number[] {

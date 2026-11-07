@@ -1,47 +1,47 @@
-import type { SessionStatusRead } from '@dltech/atlas-control'
 import type { HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
-import type { SessionChange, StreamServerMessage } from '@dltech/atlas-protocol'
+import type { SessionChange, SessionViewOutput, StreamServerMessage } from '@dltech/atlas-protocol'
 
-export const STATUS_COALESCE_MS = 250
+import { viewFrameOf } from './view-frame'
 
-export type StatusReader = (args: {
+export const VIEW_COALESCE_MS = 250
+
+export type ViewReader = (args: {
   sessionId: string
   threadId: string
-}) => Promise<SessionStatusRead>
+}) => Promise<SessionViewOutput>
 
-export type StatusWatcher = {
+export type ViewWatcher = {
   readonly id: string
   readonly sessionId: string
   readonly threadId: string | undefined
+  readonly protocolVersion: number
   send(message: StreamServerMessage): void
 }
 
 type Entry = {
   threadId: string
-  watchers: Map<StatusWatcher, string | undefined>
-  last: SessionStatusRead | undefined
+  watchers: Map<ViewWatcher, string | undefined>
+  last: SessionViewOutput | undefined
   running: boolean
   dirty: boolean
   lastRunAt: number | undefined
   timer: unknown
 }
 
-const signatureOf = (read: SessionStatusRead): string => `${read.at}:${JSON.stringify(read.value)}`
-
-export class StatusViews {
+export class SessionViews {
   private readonly entries = new Map<string, Entry>()
 
   constructor(
     private readonly args: {
-      read: StatusReader
+      read: ViewReader
       timers: HostTimers
       log: LogPort | undefined
       onLiveness?: (args: { sessionId: string; live: boolean }) => void
     },
   ) {}
 
-  add(watcher: StatusWatcher): void {
+  add(watcher: ViewWatcher): void {
     const { threadId } = watcher
     if (threadId === undefined) return
     const existing = this.entries.get(watcher.sessionId)
@@ -51,10 +51,10 @@ export class StatusViews {
       this.request({ sessionId: watcher.sessionId, entry })
       return
     }
-    if (entry.last !== undefined) this.deliver({ watcher, entry, read: entry.last })
+    if (entry.last !== undefined) this.deliver({ watcher, entry, view: entry.last })
   }
 
-  remove(watcher: StatusWatcher): void {
+  remove(watcher: ViewWatcher): void {
     const entry = this.entries.get(watcher.sessionId)
     if (entry === undefined) return
     entry.watchers.delete(watcher)
@@ -116,7 +116,7 @@ export class StatusViews {
     if (entry.timer !== undefined) return
     const { timers } = this.args
     const dueIn =
-      entry.lastRunAt === undefined ? 0 : entry.lastRunAt + STATUS_COALESCE_MS - timers.now()
+      entry.lastRunAt === undefined ? 0 : entry.lastRunAt + VIEW_COALESCE_MS - timers.now()
     if (dueIn <= 0) {
       void this.run(args)
       return
@@ -133,11 +133,11 @@ export class StatusViews {
     entry.dirty = false
     entry.lastRunAt = this.args.timers.now()
     try {
-      const read = await this.args.read({ sessionId, threadId: entry.threadId })
+      const view = await this.args.read({ sessionId, threadId: entry.threadId })
       if (this.entries.get(sessionId) !== entry) return
-      entry.last = read
-      for (const watcher of [...entry.watchers.keys()]) this.deliver({ watcher, entry, read })
-      this.args.onLiveness?.({ sessionId, live: read.value.lease.live })
+      entry.last = view
+      for (const watcher of [...entry.watchers.keys()]) this.deliver({ watcher, entry, view })
+      this.args.onLiveness?.({ sessionId, live: view.status.lease.live })
     } catch (error) {
       this.args.log?.error({
         source: 'stream',
@@ -150,11 +150,12 @@ export class StatusViews {
     }
   }
 
-  private deliver(args: { watcher: StatusWatcher; entry: Entry; read: SessionStatusRead }): void {
-    const { watcher, entry, read } = args
-    const signature = signatureOf(read)
+  private deliver(args: { watcher: ViewWatcher; entry: Entry; view: SessionViewOutput }): void {
+    const { watcher, entry, view } = args
+    const frame = viewFrameOf({ id: watcher.id, protocolVersion: watcher.protocolVersion, view })
+    const signature = JSON.stringify(frame)
     if (entry.watchers.get(watcher) === signature) return
     entry.watchers.set(watcher, signature)
-    watcher.send({ type: 'view', id: watcher.id, name: 'status', at: read.at, value: read.value })
+    watcher.send(frame)
   }
 }

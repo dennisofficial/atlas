@@ -15,6 +15,12 @@ const WORKING: ReadonlySet<ESessionStatus> = new Set([
   ESessionStatus.Resuming,
 ])
 
+const FAILED: ReadonlySet<ESessionStatus> = new Set([
+  ESessionStatus.Failed,
+  ESessionStatus.SetupFailed,
+  ESessionStatus.StartFailed,
+])
+
 export const isSessionWorking = (status: Status): boolean =>
   status !== undefined && WORKING.has(status.state)
 
@@ -53,7 +59,7 @@ export const sessionStateLineOf = (
 
 export const headerStateOfSession = (status: Status): EHeaderState => {
   if (status === undefined) return EHeaderState.Idle
-  if (status.state === ESessionStatus.Failed || status.state === ESessionStatus.SetupFailed) {
+  if (FAILED.has(status.state)) {
     return EHeaderState.Failed
   }
   if (status.state === ESessionStatus.WaitingForCredentials) return EHeaderState.NeedsYou

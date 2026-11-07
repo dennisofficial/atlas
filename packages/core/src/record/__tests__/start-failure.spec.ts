@@ -77,7 +77,7 @@ describe('activeStartFailure', () => {
 describe('sessionStatusOf with a start failure', () => {
   it('reports failed with the reason, even while the failed message is unconsumed', () => {
     expect(status({ bodies: [failed(1)], pending: true })).toEqual({
-      state: ESessionStatus.Failed,
+      state: ESessionStatus.StartFailed,
       reason: 'sandbox is not configured: no token',
       since: NOW,
     })
@@ -87,7 +87,7 @@ describe('sessionStatusOf with a start failure', () => {
     const result = status({
       bodies: [{ type: 'workspace-prepared' }, { type: 'user-said', text: 'a' }, failed(1)],
     })
-    expect(result.state).toBe(ESessionStatus.Failed)
+    expect(result.state).toBe(ESessionStatus.StartFailed)
   })
 
   it('reports sent once a newer message arrived', () => {

@@ -15,7 +15,7 @@ import { initialSpendState, stepSpend, type SpendState } from './spend'
 import { initialStatusFacts, stepStatusFacts, type StatusFacts } from './status-facts'
 import type { SessionStatus } from './status-types'
 
-export const SESSION_VIEW_VERSION = 1
+export const SESSION_VIEW_VERSION = 2
 
 export type SessionViewState = {
   version: number

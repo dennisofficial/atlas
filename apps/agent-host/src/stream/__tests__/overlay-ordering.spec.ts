@@ -4,7 +4,7 @@ import { EStepEndReason } from '@dltech/atlas-core'
 import { EStreamBlockKind, EStreamClearReason, type StreamStepKey } from '@dltech/atlas-protocol'
 
 import { JOIN_RETRY_BASE_MS } from '../overlay/overlay-watcher'
-import { STATUS_COALESCE_MS } from '../status-views'
+import { VIEW_COALESCE_MS } from '../session-views'
 import { FakeLiveSource, type TestFrame } from './fake-live-source'
 import { FollowRig, SESSION } from './follow-rig'
 import { clientViewOf } from './overlay-client'
@@ -41,7 +41,7 @@ describe('live overlay ordering and liveness', () => {
 
   const recheckStatus = async (): Promise<void> => {
     await rig.plane.wake({ sessionIds: [SESSION] })
-    rig.timers.advance(STATUS_COALESCE_MS)
+    rig.timers.advance(VIEW_COALESCE_MS)
     await rig.settled()
   }
 
@@ -67,14 +67,14 @@ describe('live overlay ordering and liveness', () => {
     const session = rig.open()
     await rig.subscribe({ session })
     await rig.settled()
-    expect(rig.frames('view').at(-1)?.value.lease.live).toBe(false)
+    expect(rig.latestLease()?.live).toBe(false)
     rig.store.markHostPresent(1)
     publish({ type: 'step-start', key: NEW, afterSeq: 0 }, false)
     publish(delta({ key: NEW, from: 0, text: 'abc' }), false)
     await session.handle({ type: 'resnap', id: 'sub-1' })
     await rig.settled()
     await recheckStatus()
-    expect(rig.frames('view').at(-1)?.value.lease.live).toBe(true)
+    expect(rig.latestLease()?.live).toBe(true)
     expect(clientViewOf(rig.sent)).toEqual({ key: NEW, text: 'abc' })
     publish(delta({ key: NEW, from: 3, text: 'def' }))
     await rig.settled()
@@ -85,7 +85,7 @@ describe('live overlay ordering and liveness', () => {
     publish({ type: 'step-start', key: OLD, afterSeq: 0 })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
-    rig.timers.advance(STATUS_COALESCE_MS)
+    rig.timers.advance(VIEW_COALESCE_MS)
     publish(delta({ key: OLD, from: 0, text: 'last' }))
     rig.store.markHostAbsent(1)
     await rig.plane.wake({ sessionIds: [SESSION] })
@@ -104,7 +104,7 @@ describe('live overlay ordering and liveness', () => {
     publish(delta({ key: NEW, from: 0, text: 'abc' }))
     await rig.settled()
     expect(live.reads).toBe(bufferReads)
-    rig.timers.advance(STATUS_COALESCE_MS)
+    rig.timers.advance(VIEW_COALESCE_MS)
     await rig.settled()
     expect(rig.statusReads).toBe(reads + 1)
   })

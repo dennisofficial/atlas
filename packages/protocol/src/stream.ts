@@ -1,4 +1,4 @@
-import type { z } from 'zod'
+import { z } from 'zod'
 
 import { streamClientMessageSchema, type StreamClientMessage } from './stream-client'
 import { streamServerMessageSchema, type StreamServerMessage } from './stream-server'
@@ -18,8 +18,15 @@ const typeOf = (raw: unknown): string | undefined => {
   return typeof type === 'string' ? type : undefined
 }
 
-const knownTypesOf = (options: readonly { shape: { type: { value: string } } }[]): Set<string> =>
-  new Set(options.map((option) => option.shape.type.value))
+const typesOf = (option: z.core.$ZodType): string[] => {
+  if (option instanceof z.ZodDiscriminatedUnion) return option.options.flatMap(typesOf)
+  if (!(option instanceof z.ZodObject)) return []
+  const { type } = option.shape
+  return type instanceof z.ZodLiteral ? [String(type.value)] : []
+}
+
+const knownTypesOf = (options: readonly z.core.$ZodType[]): Set<string> =>
+  new Set(options.flatMap(typesOf))
 
 const parseMessage = <T>(params: {
   raw: unknown

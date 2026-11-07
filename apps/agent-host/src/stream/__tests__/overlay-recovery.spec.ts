@@ -4,7 +4,7 @@ import { EStepEndReason } from '@dltech/atlas-core'
 import { EStreamBlockKind, type StreamStepKey } from '@dltech/atlas-protocol'
 
 import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
-import { STATUS_COALESCE_MS } from '../status-views'
+import { VIEW_COALESCE_MS } from '../session-views'
 import { FakeLiveSource, type TestFrame } from './fake-live-source'
 import { clientViewOf } from './overlay-client'
 import { FollowRig, SESSION } from './follow-rig'
@@ -95,7 +95,7 @@ describe('live overlay recovery', () => {
       live.beforeRead = undefined
       rig.store.markHostAbsent(1)
       await rig.plane.wake({ sessionIds: [SESSION] })
-      rig.timers.advance(STATUS_COALESCE_MS)
+      rig.timers.advance(VIEW_COALESCE_MS)
       await rig.settled()
     }
     live.afterCapture = () => {

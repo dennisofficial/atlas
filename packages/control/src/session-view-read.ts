@@ -157,7 +157,6 @@ export const readSessionViewIn = async (args: {
   now: string
 }): Promise<SessionViewRead | undefined> => {
   const { tx, sessionId, threadId } = args
-  await tx.useSnapshot()
   const row = await tx.readThread(threadId)
   if (row === undefined) throw new UnknownThreadError(threadId)
   const state = usableState(await tx.readSessionView(sessionId))
@@ -184,15 +183,16 @@ export const readSessionViewWithCatchUp = async (args: {
 }): Promise<SessionViewRead> => {
   const { store, sessionId, threadId } = args
   for (let attempt = 0; attempt < VIEW_READ_ATTEMPTS; attempt += 1) {
-    const read = await store.transact(async (tx) =>
-      readSessionViewIn({
+    const read = await store.transact(async (tx) => {
+      await tx.useSnapshot()
+      return readSessionViewIn({
         tx,
         leases: args.leases,
         sessionId,
         threadId,
         now: await args.nowIn(tx),
-      }),
-    )
+      })
+    })
     if (read !== undefined) return read
     await store.transact(async (tx) => {
       if ((await tx.lockThread(threadId)) === undefined) throw new UnknownThreadError(threadId)

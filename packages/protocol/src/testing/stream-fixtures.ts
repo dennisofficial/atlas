@@ -1,11 +1,13 @@
 import { ESessionStatus } from '@dltech/atlas-core'
 
+import type { SessionViewOutput } from '../api'
 import {
   EStreamBlockKind,
   EStreamClearReason,
   EStreamErrorCode,
   EStreamResetReason,
   EStreamSubscribeKind,
+  STREAM_PROTOCOL_MIN_VERSION,
   STREAM_PROTOCOL_VERSION,
   type StreamClientMessage,
   type StreamServerMessage,
@@ -15,6 +17,7 @@ export const streamStepKeyFixture = { runId: 'run-1', step: 3, attempt: 1 }
 
 export const streamClientFixtures = {
   hello: { type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'token-abc' },
+  helloV1: { type: 'hello', v: STREAM_PROTOCOL_MIN_VERSION, token: 'token-abc' },
   subscribeSession: {
     type: 'subscribe',
     id: 'sub-1',
@@ -45,8 +48,28 @@ const sessionRowFixture = {
   archivedAt: null,
 }
 
+export const sessionViewFixture = {
+  at: 413,
+  status: { state: ESessionStatus.Thinking, lease: { epoch: 1, holderHostId: 7, live: true } },
+  context: null,
+  spend: {
+    rows: [],
+    tally: {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      uncachedInputTokens: 0,
+      costUsd: null,
+    },
+  },
+  checkouts: { repos: [], primary: null },
+  pullRequests: [],
+} satisfies SessionViewOutput
+
 export const streamServerFixtures = {
   ready: { type: 'ready', v: STREAM_PROTOCOL_VERSION, connectionId: 'conn-1' },
+  readyV1: { type: 'ready', v: STREAM_PROTOCOL_MIN_VERSION, connectionId: 'conn-1' },
   events: {
     type: 'events',
     id: 'sub-1',
@@ -55,6 +78,7 @@ export const streamServerFixtures = {
     live: true,
   },
   reset: { type: 'reset', id: 'sub-1', reason: EStreamResetReason.Fork, tailFrom: 100 },
+  viewSession: { type: 'view', id: 'sub-1', name: 'session', at: 413, value: sessionViewFixture },
   view: {
     type: 'view',
     id: 'sub-1',

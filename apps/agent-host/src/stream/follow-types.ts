@@ -1,4 +1,4 @@
-import type { ControlPlane, StatusPlane } from '@dltech/atlas-control'
+import type { ControlPlane } from '@dltech/atlas-control'
 import type { HostTimers } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 import type { SessionChange, StreamServerMessage } from '@dltech/atlas-protocol'
@@ -7,9 +7,8 @@ import type { SubscriptionConnection } from './subscription-port'
 
 export type FollowPlane = Pick<
   ControlPlane,
-  'readSession' | 'head' | 'readEvents' | 'listSessionDigests'
-> &
-  StatusPlane
+  'readSession' | 'head' | 'readEvents' | 'listSessionDigests' | 'readSessionView'
+>
 
 export type FollowDeps = {
   plane: FollowPlane
@@ -28,6 +27,7 @@ export type FollowTarget = {
   readonly id: string
   readonly sessionId: string
   readonly threadId: string | undefined
+  readonly protocolVersion: number
   send(message: StreamServerMessage): void
   bufferedAmount(): number
   handleChange(change: SessionChange): void

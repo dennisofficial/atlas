@@ -1,6 +1,6 @@
-import { EStreamErrorCode } from '@dltech/atlas-protocol'
+import { EStreamErrorCode, type SessionSummary } from '@dltech/atlas-protocol'
 
-import type { SessionEntry } from './session-entry'
+import { rowForVersion, type SessionEntry } from './session-entry'
 import type { SessionsListIndex } from './sessions-list'
 import type { SubscriptionConnection } from './subscription-port'
 
@@ -49,7 +49,7 @@ export class SessionsSubscription {
     try {
       do {
         this.resnapRequested = false
-        const rows = await this.args.index.readSnapshot(this)
+        const rows = (await this.args.index.readSnapshot(this)).map((row) => this.rowOf(row))
         if (this.stopped) return
         this.sent.clear()
         for (const row of rows) this.sent.set(row.sessionId, JSON.stringify(row))
@@ -66,7 +66,7 @@ export class SessionsSubscription {
 
   apply(entry: SessionEntry): void {
     if (this.stopped) return
-    const { row } = entry
+    const row = this.rowOf(entry.row)
     if (this.snapshotting) {
       this.deferred.add(row.sessionId)
       return
@@ -100,6 +100,10 @@ export class SessionsSubscription {
     this.deferred.clear()
     this.args.index.remove(this)
     this.args.onEnded(this)
+  }
+
+  private rowOf(row: SessionSummary): SessionSummary {
+    return rowForVersion({ row, version: this.args.connection.version })
   }
 
   private flushDeferred(): void {

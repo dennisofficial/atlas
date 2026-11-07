@@ -1,7 +1,8 @@
 import { catalogOf, findCard, tallySpend } from '@dltech/atlas-core'
-import type { ControlSessionViewValue } from '@dltech/atlas-control'
 import { generatedCards } from '@dltech/atlas-models'
 import type { SessionViewOutput } from '@dltech/atlas-protocol'
+
+import type { ControlSessionViewValue } from './session-view-read'
 
 let catalog: ReturnType<typeof catalogOf> | undefined
 
