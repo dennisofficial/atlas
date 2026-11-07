@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EEffort } from '@dltech/atlas-core'
+
 import { anthropicThinkingOptions, anthropicThinkingOptionsOf } from '../anthropic-thinking'
 
 describe('anthropicThinkingOptionsOf', () => {
@@ -20,6 +22,6 @@ describe('anthropicThinkingOptionsOf', () => {
 
   it('sends nothing for a model without a card', () => {
     expect(anthropicThinkingOptionsOf('claude-unknown')).toBeUndefined()
-    expect(anthropicThinkingOptions(undefined)).toBeUndefined()
+    expect(anthropicThinkingOptions({ card: undefined, effort: EEffort.Medium })).toBeUndefined()
   })
 })

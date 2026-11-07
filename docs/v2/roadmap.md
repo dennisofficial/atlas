@@ -121,6 +121,10 @@ _Updated at the end of every slice. Last update: 2026-11-07._
   private Vercel Blob store; events carry a `MediaRef`, and the agent host sends each model a
   signed URL from one shared 6-day signing window. Spike: [research/image-urls/](research/image-urls/README.md).
   Slices A (foundation and URL requests), B (v2 web composer images), C (images the agent reads).
+- **Added 2026-11-07: every model provider in the agent host.** The session runs on the selected
+  `model.id` (project over user) on Anthropic (key or Claude OAuth), OpenAI (key or ChatGPT OAuth),
+  OpenRouter, Vercel AI Gateway and Inference.net (`apps/agent-host/src/model/providers/`). A model
+  whose provider has no account is a `configured: false` gap, never a silent switch to another model.
 - **Open:** browsing the files of a parked sandbox (a workspace mirror kept by the control plane) is
   proposed, not scheduled. D2 (local control plane), needed only at slice 9. 0020 (sub-agent worktrees, peer
   sessions) proposed; teammates survive as the peer-session preset — placement, ownership and

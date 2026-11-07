@@ -60,7 +60,7 @@ Written 2026-11-04 by the session that finished slice 3 PR 3. Read with the spec
 - The sandbox never receives `DAEMON_SECRET`: the host mints `daemonToken({ secret, sandboxName })` and passes it as
   `DAEMON_TOKEN` only in the detached `runCommand` env (`/proc/<pid>/environ` would expose the secret).
 - `agentHost.config` carries `model: { configured, modelId, accountId, credential: oauth{connectionId} |
-  api-key{apiKey} } | { configured: false, gap }`; Anthropic only in slice 3.
+  api-key{apiKey} } | { configured: false, gap }`; Anthropic only in slice 3; every v1 provider since `dennis/v2-all-providers` (config carries `ref`, `effort`, `fast`).
 - Bash is foreground-only until the shells plugin (slice 7); no clone yet.
 - Encrypted tier files at the app root are the source of truth; platforms hold only the private key
   (project memory `encrypted-env-tiers-are-source-of-truth`).

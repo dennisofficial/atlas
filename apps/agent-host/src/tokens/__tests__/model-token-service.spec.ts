@@ -195,4 +195,87 @@ describe('ModelTokenService', () => {
       .catch((error: unknown) => error)
     expect((failed as CredentialError).failure).toBe(ECredentialFailure.NotFound)
   })
+
+  describe('openai connections', () => {
+    const jwt = (claims: unknown): string =>
+      `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`
+    const idToken = jwt({ 'https://api.openai.com/auth': { chatgpt_account_id: 'cg-7' } })
+    const openaiGrant = (over: Record<string, unknown> = {}): Response =>
+      new Response(
+        JSON.stringify({ access_token: 'oa-2', expires_in: 1800, id_token: idToken, ...over }),
+        { status: 200 },
+      )
+
+    it('refreshes against the openai endpoint, keeps the refresh token and stores the account id', async () => {
+      await seedConnection({
+        db: testDb().db,
+        tokens: dueTokens(),
+        over: { provider: 'openai' },
+      })
+      const urls: string[] = []
+      const provider = providerFake(() => openaiGrant())
+      const fetchFn = async (url: string, init?: RequestInit): Promise<Response> => {
+        urls.push(url)
+        return provider.fetchFn(url, init)
+      }
+      const issued = await serviceOver(fetchFn).issue({ userId: 'user-1', connectionId: 'conn-1' })
+      expect(urls).toEqual(['https://auth.openai.com/oauth/token'])
+      expect(provider.bodies).toEqual([
+        {
+          grant_type: 'refresh_token',
+          client_id: 'app_EMoamEEZ73f0CkXaXp7hrann',
+          refresh_token: 'rt-1',
+        },
+      ])
+      expect(issued.accessToken).toBe('oa-2')
+      expect(issued.providerAccountId).toBe('cg-7')
+      expect(await unsealed()).toMatchObject({
+        accessToken: 'oa-2',
+        refreshToken: 'rt-1',
+        expiresAt: iso(NOW + 1_800_000),
+        accountId: 'cg-7',
+      })
+    })
+
+    it('takes the expiry from the access token exp when expires_in is absent', async () => {
+      await seedConnection({ db: testDb().db, tokens: dueTokens(), over: { provider: 'openai' } })
+      const exp = Math.floor(NOW / 1000) + 7200
+      const provider = providerFake(() =>
+        openaiGrant({ expires_in: undefined, access_token: jwt({ exp }) }),
+      )
+      await serviceOver(provider.fetchFn).issue({ userId: 'user-1', connectionId: 'conn-1' })
+      expect((await unsealed()).expiresAt).toBe(iso(exp * 1000))
+    })
+
+    it('marks the connection expired when openai rejects the grant', async () => {
+      await seedConnection({ db: testDb().db, tokens: dueTokens(), over: { provider: 'openai' } })
+      const provider = providerFake(() => new Response('{}', { status: 401 }))
+      const failed = await serviceOver(provider.fetchFn)
+        .issue({ userId: 'user-1', connectionId: 'conn-1' })
+        .catch((error: unknown) => error)
+      expect((failed as CredentialError).providerRefused).toBe(true)
+      expect((await rowOf())?.status).toBe('expired')
+    })
+
+    it('serves a stored account id without refreshing', async () => {
+      await seedConnection({
+        db: testDb().db,
+        tokens: stored({ accountId: 'cg-1' }),
+        over: { provider: 'openai' },
+      })
+      const issued = await serviceOver(providerFake(grantResponse).fetchFn).issue({
+        userId: 'user-1',
+        connectionId: 'conn-1',
+      })
+      expect(issued.providerAccountId).toBe('cg-1')
+    })
+
+    it('still refuses other providers', async () => {
+      await seedConnection({ db: testDb().db, tokens: stored(), over: { provider: 'gateway' } })
+      const failed = await serviceOver(providerFake(grantResponse).fetchFn)
+        .issue({ userId: 'user-1', connectionId: 'conn-1' })
+        .catch((error: unknown) => error)
+      expect((failed as CredentialError).failure).toBe(ECredentialFailure.Unsupported)
+    })
+  })
 })

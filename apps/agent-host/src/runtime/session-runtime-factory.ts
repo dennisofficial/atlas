@@ -1,5 +1,9 @@
 import {
+  DEFAULT_EFFORT,
   defaultPipeline,
+  findCard,
+  toAccountId,
+  type ModelRef,
   EWorkspaceStep,
   EWorkspaceStepState,
   type ModelPort,
@@ -16,13 +20,13 @@ import {
   type PrepareStepReporter,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
+import { generatedCatalogue } from '@dltech/atlas-models'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { MediaSigner } from '../media/media-signer'
 import { signerUrls } from '../media/media-urls'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
-import { createAnthropicOauthModel } from '../model/anthropic-oauth'
-import { anthropicThinkingOptionsOf } from '../model/anthropic-thinking'
+import { createProviderModel } from '../model/providers'
 import { normalizeProviderFailure } from '../model/failure'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
@@ -67,7 +71,7 @@ export type SessionRuntimeFactoryArgs = {
   media?: MediaSigner | undefined
 }
 
-const fallbackModelId = 'claude-sonnet-4-5'
+const UNCONFIGURED_REF: ModelRef = { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' }
 
 export const createSessionRuntimeFactory = (
   args: SessionRuntimeFactoryArgs,
@@ -187,20 +191,24 @@ export const createSessionRuntimeFactory = (
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
     let model: ModelPort
-    const modelId = config.model.configured === true ? config.model.modelId : fallbackModelId
+    const chosen = config.model.configured === true ? config.model : undefined
+    const ref = chosen?.ref ?? UNCONFIGURED_REF
     try {
       model =
         args.modelFor === undefined
           ? new AiSdkModelPort({
-              model: createAnthropicOauthModel({
+              model: createProviderModel({
+                ref,
                 credentials: new AgentHostCredentialPort({
                   userId: config.userId,
                   model: config.model,
                   tokens: args.tokens,
                 }),
-                modelId,
-                providerOptions: anthropicThinkingOptionsOf(modelId),
+                ...(chosen === undefined ? {} : { accountId: toAccountId(chosen.accountId) }),
+                effort: () => chosen?.effort ?? DEFAULT_EFFORT,
+                fast: () => chosen?.fast ?? false,
               }),
+              card: () => findCard({ catalog: generatedCatalogue(), ref }),
               mediaUrls:
                 args.media === undefined
                   ? undefined

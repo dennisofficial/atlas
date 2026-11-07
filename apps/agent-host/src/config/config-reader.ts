@@ -7,13 +7,12 @@ import type {
   VercelConfig,
   WorkspaceConfig,
 } from './agent-host-config'
-import { MODEL_SETTING_KEY, modelConfigOf } from './model-config'
+import { MODEL_SETTING_KEYS, modelConfigOf } from './model-config'
 import type { SecretCipher } from './secret-cipher'
 import { skillIndexOf } from './skill-index'
 import { VercelReconnectRequiredError } from '../tokens/vercel-token-refresher'
 
 const OAUTH_EXPIRY_MARGIN_MS = 60_000
-const ANTHROPIC = 'anthropic'
 
 const repoSchema = z.object({ repo: z.string().min(1), branch: z.string().min(1).optional() })
 
@@ -70,13 +69,12 @@ export class ConfigReader implements ConfigSource {
     const session = await db.orm.v2.V2Session.first({ id: sessionId })
     if (session === null) throw new SessionNotFoundError(sessionId)
     const { userId, projectId } = session
-    const [project, vercel, accounts, active, userModel, projectModel, skills] = await Promise.all([
+    const [project, vercel, accounts, activeAccounts, settings, skills] = await Promise.all([
       db.orm.public.Project.first({ id: projectId }),
       db.orm.public.UserVercelCredential.first({ userId }),
-      db.orm.public.AgentAccount.where({ userId, provider: ANTHROPIC }).all(),
-      db.orm.public.ActiveAccount.first({ userId, provider: ANTHROPIC }),
-      db.orm.public.UserSetting.first({ userId, key: MODEL_SETTING_KEY }),
-      db.orm.public.ProjectSetting.first({ projectId, key: MODEL_SETTING_KEY }),
+      db.orm.public.AgentAccount.where({ userId }).all(),
+      db.orm.public.ActiveAccount.where({ userId }).all(),
+      this.modelSettings({ userId, projectId }),
       skillIndexOf({ db, userId, projectId }),
     ])
     return {
@@ -85,13 +83,33 @@ export class ConfigReader implements ConfigSource {
       model: modelConfigOf({
         cipher: this.args.cipher,
         accounts,
-        activeAccountId: active?.accountId,
-        modelSetting: projectModel?.value ?? userModel?.value,
+        activeAccounts,
+        settings,
       }),
       workspace: workspaceOf(project),
       vercel: await this.vercelOf({ userId, row: vercel }),
       skills,
     }
+  }
+
+  private async modelSettings(args: {
+    userId: string
+    projectId: string
+  }): Promise<ReadonlyMap<string, string>> {
+    const { db } = this.args
+    const keys = Object.values(MODEL_SETTING_KEYS)
+    const [user, project] = await Promise.all([
+      Promise.all(keys.map((key) => db.orm.public.UserSetting.first({ userId: args.userId, key }))),
+      Promise.all(
+        keys.map((key) => db.orm.public.ProjectSetting.first({ projectId: args.projectId, key })),
+      ),
+    ])
+    const settings = new Map<string, string>()
+    keys.forEach((key, index) => {
+      const value = project[index]?.value ?? user[index]?.value
+      if (value !== undefined) settings.set(key, value)
+    })
+    return settings
   }
 
   private async vercelOf(args: { userId: string; row: VercelRow | null }): Promise<VercelConfig> {

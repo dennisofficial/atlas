@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { EEffort } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { VercelReconnectRequiredError } from '../../tokens/vercel-token-refresher'
@@ -45,7 +46,9 @@ describe('ConfigReader', () => {
     })
     expect(config.model).toEqual({
       configured: true,
-      modelId: 'claude-sonnet-4-5',
+      ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+      effort: EEffort.Medium,
+      fast: false,
       accountId: 'acct-1',
       credential: { kind: 'api-key', apiKey: 'sk-test' },
     })
@@ -56,12 +59,12 @@ describe('ConfigReader', () => {
     await seedOwner(db)
     await seedApiKeyAccount(db)
     expect((await readerOver().read({ sessionId: 's-1' })).model).toMatchObject({
-      modelId: 'claude-haiku-4-5',
+      ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
     })
     await seedSetting({ db, scope: 'user', value: 'anthropic/claude-sonnet-4-5' })
     await seedSetting({ db, scope: 'project', value: 'anthropic/claude-opus-4-1' })
     expect((await readerOver().read({ sessionId: 's-1' })).model).toMatchObject({
-      modelId: 'claude-opus-4-1',
+      ref: { providerId: 'anthropic', modelId: 'claude-opus-4-1' },
     })
   })
 
@@ -70,7 +73,7 @@ describe('ConfigReader', () => {
     await seedOwner(db)
     const config = await readerOver().read({ sessionId: 's-1' })
     expect(config.vercel).toEqual({ configured: false, gap: 'user-credential' })
-    expect(config.model).toEqual({ configured: false, gap: 'no anthropic account' })
+    expect(config.model).toEqual({ configured: false, gap: 'no model account' })
   })
 
   it('refreshes a near-expiry oauth vercel token instead of reporting a gap', async () => {
@@ -132,5 +135,23 @@ describe('ConfigReader', () => {
     expect(recording.sql.length).toBeGreaterThan(0)
     expect(recording.sql.some((text) => text.includes('SkillFile'))).toBe(false)
     expect(recording.sql.some((text) => text.includes('"Skill"'))).toBe(true)
+  })
+
+  it('reads every provider account, the effort and the fast setting', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await seedApiKeyAccount({ db, id: 'acct-oa', provider: 'openai', apiKey: 'sk-oa' })
+    await seedSetting({ db, scope: 'user', value: 'openai/gpt-5' })
+    await seedSetting({ db, scope: 'user', key: 'model.effort', value: 'high' })
+    await seedSetting({ db, scope: 'project', key: 'model.fast', value: true })
+    expect((await readerOver().read({ sessionId: 's-1' })).model).toEqual({
+      configured: true,
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      effort: EEffort.High,
+      fast: true,
+      accountId: 'acct-oa',
+      credential: { kind: 'api-key', apiKey: 'sk-oa' },
+    })
   })
 })

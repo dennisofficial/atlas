@@ -1,6 +1,7 @@
 import { CredentialError, ECredentialFailure } from '../model/credential-error'
 import type { SecretCipher } from '../config/secret-cipher'
 import { refreshAnthropicGrant, type TokenFetch } from './anthropic-token-endpoint'
+import { refreshOpenAiGrant } from './openai-token-endpoint'
 import type { OauthConnectionStore } from './oauth-connection-store'
 import {
   STALE_ATTEMPT_MS,
@@ -15,11 +16,13 @@ import {
   ProviderRejectedError,
   type ConnectionRow,
   type IssuedModelToken,
+  type ProviderGrant,
   type StoredTokens,
 } from './oauth-types'
 
 const MAX_PASSES = 6
 const ANTHROPIC = 'anthropic'
+const OPENAI = 'openai'
 
 const failure = (kind: ECredentialFailure, message: string, providerRefused?: boolean) =>
   new CredentialError({ failure: kind, message, providerRefused })
@@ -51,7 +54,7 @@ export class ModelTokenService {
       if (row.status !== EConnectionStatus.Active) {
         throw failure(ECredentialFailure.Expired, 'the model connection needs a fresh login')
       }
-      if (row.provider !== ANTHROPIC) {
+      if (row.provider !== ANTHROPIC && row.provider !== OPENAI) {
         throw failure(ECredentialFailure.Unsupported, `provider ${row.provider} is not supported`)
       }
       const tokens = this.unseal(row.sealedTokens)
@@ -96,11 +99,7 @@ export class ModelTokenService {
     if (!claimed) return undefined
     const fence = { id: args.row.id, attemptId, generation: args.row.generation }
     try {
-      const grant = await refreshAnthropicGrant({
-        refreshToken: args.tokens.refreshToken,
-        nowMs,
-        fetchFn: this.args.fetchFn,
-      })
+      const grant = await this.grantFor({ provider: args.row.provider, tokens: args.tokens, nowMs })
       const next: StoredTokens = {
         ...args.tokens,
         ...grant,
@@ -121,6 +120,19 @@ export class ModelTokenService {
         unavailable: failure(ECredentialFailure.RefreshFailed, 'the token issuer is unavailable'),
       })
     }
+  }
+
+  private grantFor(args: {
+    provider: string
+    tokens: StoredTokens
+    nowMs: number
+  }): Promise<ProviderGrant> {
+    const refresh = args.provider === OPENAI ? refreshOpenAiGrant : refreshAnthropicGrant
+    return refresh({
+      refreshToken: args.tokens.refreshToken,
+      nowMs: args.nowMs,
+      fetchFn: this.args.fetchFn,
+    })
   }
 
   private async fenceLost(fence: { id: string; attemptId: string }): Promise<boolean> {
@@ -149,6 +161,7 @@ export class ModelTokenService {
       expiresAt: args.tokens.expiresAt,
       refreshAfter: new Date(refreshAfterMs(args.tokens)).toISOString(),
       generation: args.row.generation,
+      ...(args.tokens.accountId === undefined ? {} : { providerAccountId: args.tokens.accountId }),
     }
   }
 

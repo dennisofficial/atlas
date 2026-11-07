@@ -1,3 +1,4 @@
+import { EEffort } from '@dltech/atlas-core'
 import { describe, expect, it, spyOn } from 'bun:test'
 import { EToolEffect, toThreadId } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
@@ -18,7 +19,9 @@ const configured = (over: Partial<AgentHostConfig> = {}): AgentHostConfig => ({
   projectId: 'proj-1',
   model: {
     configured: true,
-    modelId: 'claude-sonnet-4-5',
+    ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+    effort: EEffort.Medium,
+    fast: false,
     accountId: 'acct-1',
     credential: { kind: 'api-key', apiKey: 'sk-test' },
   },

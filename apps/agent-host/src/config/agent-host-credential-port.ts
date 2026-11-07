@@ -19,7 +19,7 @@ export class CredentialsUnavailableError extends Error {
 type ModelBlock = ModelConfig
 type Configured = Extract<ModelBlock, { configured: true }>
 
-type OauthLease = { accessToken: string; refreshAfterMs: number }
+type OauthLease = { accessToken: string; refreshAfterMs: number; providerAccountId?: string }
 
 export class AgentHostCredentialPort extends CredentialPort {
   private oauthLease: OauthLease | undefined
@@ -76,6 +76,9 @@ export class AgentHostCredentialPort extends CredentialPort {
     this.oauthLease = {
       accessToken: issued.accessToken,
       refreshAfterMs: Date.parse(issued.refreshAfter),
+      ...(issued.providerAccountId === undefined
+        ? {}
+        : { providerAccountId: issued.providerAccountId }),
     }
     return this.oauthCredential(model, issued.accessToken)
   }
@@ -87,6 +90,9 @@ export class AgentHostCredentialPort extends CredentialPort {
       accessToken,
       expiresAt:
         this.oauthLease === undefined ? '' : new Date(this.oauthLease.refreshAfterMs).toISOString(),
+      ...(this.oauthLease?.providerAccountId === undefined
+        ? {}
+        : { providerAccountId: this.oauthLease.providerAccountId }),
     }
   }
 }
