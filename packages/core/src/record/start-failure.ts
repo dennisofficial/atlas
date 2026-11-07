@@ -26,6 +26,8 @@ const ENDS_START_FAILURE: ReadonlySet<V2Event['type']> = new Set([
   'run-failed',
 ])
 
+export const endsStartFailure = (event: V2Event): boolean => ENDS_START_FAILURE.has(event.type)
+
 export const activeStartFailure = (events: readonly V2Event[]): StartFailure | undefined => {
   const index = events.findLastIndex((event) => event.type === 'session-start-failed')
   const failed = events[index]

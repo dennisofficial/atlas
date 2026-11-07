@@ -73,8 +73,11 @@ export enum EWorkspaceState {
 
 export type PrepareFailure = { inboxHead: number; reason: string; at: string }
 
+export const countsAsPrepared = (event: V2Event): boolean =>
+  event.type === 'workspace-prepared' || event.type === 'user-said'
+
 export const isWorkspacePrepared = (events: readonly V2Event[]): boolean =>
-  events.some((event) => event.type === 'workspace-prepared' || event.type === 'user-said')
+  events.some(countsAsPrepared)
 
 export const lastPrepareFailure = (events: readonly V2Event[]): PrepareFailure | undefined => {
   const failed = events.findLast((event) => event.type === 'workspace-prepare-failed')

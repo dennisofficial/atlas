@@ -1,4 +1,5 @@
 export const INBOX_KIND_STOP = 'stop'
+export const INBOX_KIND_RETRY = 'retry'
 
 export type InboxEntry = {
   sessionId: string

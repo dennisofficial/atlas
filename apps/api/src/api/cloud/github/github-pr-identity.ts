@@ -1,5 +1,7 @@
-export const normalizedRepo = (repo: string): string =>
-  repo.replace(/^github\.com\//i, '').toLowerCase()
-export const repoPattern = (repo: string): string => normalizedRepo(repo).replace(/[_%\\]/g, '\\$&')
+import { normalizedPrRepo } from '@dltech/atlas-core'
+
+export { normalizedPrRepo as normalizedRepo } from '@dltech/atlas-core'
+export const repoPattern = (repo: string): string =>
+  normalizedPrRepo(repo).replace(/[_%\\]/g, '\\$&')
 export const prIdentity = (pr: { repoFullName: string; prNumber: number }): string =>
-  `${normalizedRepo(pr.repoFullName)}#${pr.prNumber}`
+  `${normalizedPrRepo(pr.repoFullName)}#${pr.prNumber}`

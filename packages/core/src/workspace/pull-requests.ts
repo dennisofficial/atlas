@@ -1,6 +1,7 @@
 import type { EventDraft } from '../events/body'
 import type { Event } from '../events/envelope'
 import type { ThreadId } from '../events/ids'
+import type { V2Event } from '../record/event'
 
 export type LinkedPullRequest = {
   number: number
@@ -41,10 +42,12 @@ const fold = (links: readonly Link[], into: Map<string, LinkedPullRequest>): voi
  * link keeps its first position but refreshes the fields — a branch re-observed after a force-push
  * is the same pull request, not a new one.
  */
-export function pullRequestsOf(events: readonly Event[]): readonly LinkedPullRequest[] {
+export function pullRequestsOf(events: readonly (Event | V2Event)[]): readonly LinkedPullRequest[] {
   const byIdentity = new Map<string, LinkedPullRequest>()
   fold(
-    events.filter((event): event is Event & Link => event.type === 'pull-request-linked'),
+    events.filter(
+      (event): event is (Event | V2Event) & Link => event.type === 'pull-request-linked',
+    ),
     byIdentity,
   )
   return [...byIdentity.values()]

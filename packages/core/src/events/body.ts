@@ -18,7 +18,11 @@ import type { BackgroundShellEventBody } from './shell-body'
 import type { SubscriptionEventBody } from './subscription-body'
 
 /** What the provider reported for the model call that wrote this event, and the window it ran in. */
-export type StepReading = ModelUsage & { contextWindow?: number | undefined }
+export type StepReading = ModelUsage & {
+  contextWindow?: number | undefined
+  providerId?: string | undefined
+  modelId?: string | undefined
+}
 
 export enum ECompactionAnchor {
   Prefix = 'prefix',

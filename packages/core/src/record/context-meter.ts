@@ -2,6 +2,7 @@ import { estimateTextTokens } from '../assembly/tokens'
 import { estimateBodyTokens } from '../models/usage'
 import type { V2Event } from './event'
 import { visibleEvents } from './visibility'
+import { stepReadingOf } from './views/step-reading'
 
 export enum EMeterBasis {
   Measured = 'measured',
@@ -16,14 +17,7 @@ export type ContextMeter = {
   estimatedTokens: number
 }
 
-type StepEvent = Extract<V2Event, { type: 'assistant-said' | 'tool-called' }>
-
-const isStep = (event: V2Event): event is StepEvent =>
-  event.type === 'assistant-said' || event.type === 'tool-called'
-
-const readingOf = (event: V2Event) => (isStep(event) ? event.usage : undefined)
-
-const tokensOf = (event: V2Event): number => {
+export const meterTokensOf = (event: V2Event): number => {
   if (event.type === 'history-summarised') return estimateTextTokens(event.summary)
   if (
     event.type === 'history-rewound' ||
@@ -41,11 +35,11 @@ const tokensOf = (event: V2Event): number => {
 }
 
 const sum = (events: readonly V2Event[]): number =>
-  events.reduce((total, event) => total + tokensOf(event), 0)
+  events.reduce((total, event) => total + meterTokensOf(event), 0)
 
 const lastWindowIn = (events: readonly V2Event[]): number | null => {
   for (let index = events.length - 1; index >= 0; index -= 1) {
-    const window = readingOf(events[index] as V2Event)?.contextWindow
+    const window = stepReadingOf(events[index] as V2Event)?.contextWindow
     if (window !== undefined) return window
   }
   return null
@@ -70,10 +64,10 @@ const afterOwnStep = (tail: readonly V2Event[]): readonly V2Event[] => {
 export function contextMeterOf(events: readonly V2Event[]): ContextMeter {
   const visible = visibleEvents(events)
   const window = lastWindowIn(events)
-  const readingAt = visible.findLastIndex((event) => readingOf(event) !== undefined)
+  const readingAt = visible.findLastIndex((event) => stepReadingOf(event) !== undefined)
   const summarisedAt = visible.findLastIndex((event) => event.type === 'history-summarised')
 
-  const reading = readingAt < 0 ? undefined : readingOf(visible[readingAt] as V2Event)
+  const reading = readingAt < 0 ? undefined : stepReadingOf(visible[readingAt] as V2Event)
   if (reading === undefined || summarisedAt > readingAt) {
     const estimatedTokens = sum(visible)
     return {
