@@ -48,9 +48,9 @@ describe('v2 sidebar row', () => {
     expect(render({ status: { state: ESessionStatus.Idle } })).toContain('aria-label="Idle"')
   })
 
-  it('shows the primary branch, or no branch yet', () => {
+  it('shows the primary branch, or nothing when the view states none', () => {
     expect(render({ primaryBranch: 'topic' })).toContain('topic')
-    expect(render({})).toContain('No branch yet')
+    expect(render({})).not.toContain('No branch yet')
   })
 
   it('shows the pull request with its checks, or checks unknown', () => {
