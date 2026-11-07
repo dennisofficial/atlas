@@ -1,7 +1,10 @@
 import type { SessionListOutput } from '@dltech/atlas-protocol'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
+import { rowPullRequestEntryOf } from '@/features/sessions/data/session-view-model'
+
 import type { ProjectThreads, ShellSessionNode } from './thread-partition'
+import type { V2RowView } from './v2-status'
 
 export type V2SessionSummary = SessionListOutput['sessions'][number]
 
@@ -9,6 +12,15 @@ export const v2SessionHref = (sessionId: string): string =>
   `/sessions/${encodeURIComponent(sessionId)}`
 
 export const isV2Session = (session: ShellSessionNode): boolean => session.v2 === true
+
+const rowViewOf = (summary: V2SessionSummary): V2RowView => ({
+  status: summary.status?.state,
+  branch: summary.primaryBranch ?? undefined,
+  pullRequest:
+    summary.pullRequest === null || summary.pullRequest === undefined
+      ? undefined
+      : rowPullRequestEntryOf(summary.pullRequest),
+})
 
 export function v2RowOf(summary: V2SessionSummary): ShellSessionNode {
   const mainThread: WireThread = {
@@ -23,7 +35,14 @@ export function v2RowOf(summary: V2SessionSummary): ShellSessionNode {
     repo: null,
     projectId: summary.projectId,
   }
-  return { id: summary.sessionId, mainThread, teammates: [], v2: true, naming: summary.naming }
+  return {
+    id: summary.sessionId,
+    mainThread,
+    teammates: [],
+    v2: true,
+    naming: summary.naming,
+    v2View: rowViewOf(summary),
+  }
 }
 
 export function v2SessionIdsOf(

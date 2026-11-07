@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { toast } from 'sonner'
 
-import type { V2Event } from '@dltech/atlas-core'
 import type { SessionQueuedMessage } from '@dltech/atlas-protocol'
 
 import { messageOf } from '@/features/threads/data/use-send'
@@ -14,14 +13,13 @@ import { EWithdrawOutcome, withdrawQueued } from './withdraw-queued'
 export function useQueuedDock(args: {
   sessionId: string
   queued: readonly SessionQueuedMessage[] | undefined
-  events: readonly V2Event[]
   draft: string
   onDraftChange: (draft: string) => void
 }) {
-  const { sessionId, queued, events, draft, onDraftChange } = args
+  const { sessionId, queued, draft, onDraftChange } = args
   const hashes = useMemo(() => queuedMediaHashesOf(queued), [queued])
   const urls = useMediaUrls({ sessionId, hashes })
-  const entries = useMemo(() => visibleQueuedOf({ queued, events, urls }), [queued, events, urls])
+  const entries = useMemo(() => visibleQueuedOf({ queued, urls }), [queued, urls])
 
   const withdraw = async (params: { id: string; restoreText: boolean }) => {
     const entry = entries.find((candidate) => candidate.id === params.id)
