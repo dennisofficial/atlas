@@ -20,6 +20,19 @@ import { eventsOf, NOW, opsWithEdits, opsWithoutEdits, type Op } from './support
 const fold = (events: readonly V2Event[]): SessionViewState =>
   events.reduce(stepSessionView, initialSessionViewState)
 
+const foldWithRebuilds = (events: readonly V2Event[]): SessionViewState => {
+  let state = initialSessionViewState
+  events.forEach((event, index) => {
+    state = stepSessionView(state, event)
+    if (!needsRebuild(event)) return
+    state = rebuildEditSensitive({
+      state,
+      visibleTail: visibleEvents(events.slice(0, index + 1)),
+    })
+  })
+  return state
+}
+
 const inputs = fc.record({
   live: fc.boolean(),
   unconsumedInbox: fc.boolean(),
@@ -85,8 +98,10 @@ describe('session view fold against the whole-log oracles', () => {
     fc.assert(
       fc.property(opsWithEdits, inputs, (ops, live) => {
         const events = eventsOf(ops)
-        const view = sessionViewOf({ state: fold(events), now: NOW, ...live })
-        expect(view.status).toEqual(sessionStatusOf({ events, now: NOW, ...live }))
+        const view = sessionViewOf({ state: foldWithRebuilds(events), now: NOW, ...live })
+        expect(view.status).toEqual(
+          sessionStatusOf({ events: visibleEvents(events), now: NOW, ...live }),
+        )
         expectContext(view.context, contextMeterOf(events))
         expect(view.pullRequests).toEqual(linksOracle(events))
         expect(view.spend).toEqual(spendOracle(events))
@@ -107,20 +122,21 @@ describe('session view fold against the whole-log oracles', () => {
     )
   })
 
-  it('rebuilds status over the visible log and keeps the meter and world facts', () => {
+  it('reads no meter between an edit and its rebuild, and keeps world facts', () => {
     fc.assert(
       fc.property(opsWithEdits, inputs, (ops, live) => {
         const events = eventsOf(ops)
-        const visible = visibleEvents(events)
         const folded = fold(events)
-        const rebuilt = rebuildEditSensitive({ state: folded, visibleTail: visible })
-        const view = sessionViewOf({ state: rebuilt, now: NOW, ...live })
-        const before = sessionViewOf({ state: folded, now: NOW, ...live })
-        expect(view.status).toEqual(sessionStatusOf({ events: visible, now: NOW, ...live }))
-        expectContext(view.context, contextMeterOf(events))
-        expect(view.spend).toEqual(before.spend)
-        expect(view.checkouts).toEqual(before.checkouts)
-        expect(view.pullRequests).toEqual(before.pullRequests)
+        const view = sessionViewOf({ state: folded, now: NOW, ...live })
+        const rebuilt = sessionViewOf({ state: foldWithRebuilds(events), now: NOW, ...live })
+        if (events.some(needsRebuild)) {
+          const lastEdit = events.findLastIndex(needsRebuild)
+          const stale = fold(events.slice(0, lastEdit + 1))
+          expect(sessionViewOf({ state: stale, now: NOW, ...live }).context).toBeNull()
+        }
+        expect(rebuilt.spend).toEqual(view.spend)
+        expect(rebuilt.checkouts).toEqual(view.checkouts)
+        expect(rebuilt.pullRequests).toEqual(view.pullRequests)
       }),
       { numRuns: 200 },
     )
@@ -131,7 +147,7 @@ describe('session view fold against the whole-log oracles', () => {
       fc.property(opsWithEdits, opsWithEdits, (head, tail) => {
         const events = eventsOf([...head, ...tail])
         const split = eventsOf(head).length
-        const state = fold(events.slice(0, split))
+        const state = foldWithRebuilds(events.slice(0, split))
         const restored: SessionViewState = JSON.parse(JSON.stringify(state))
         const args = { live: true, unconsumedInbox: false, messageAfterFailure: false, now: NOW }
         expect(sessionViewOf({ state: restored, ...args })).toEqual(
@@ -157,8 +173,8 @@ describe('history edits', () => {
   it('leaves spend unchanged by a rewind to seq 0 while the meter drops', () => {
     const events = eventsOf(ops)
     const args = { live: true, unconsumedInbox: false, messageAfterFailure: false, now: NOW }
-    const before = sessionViewOf({ state: fold(events.slice(0, 2)), ...args })
-    const after = sessionViewOf({ state: fold(events), ...args })
+    const before = sessionViewOf({ state: foldWithRebuilds(events.slice(0, 2)), ...args })
+    const after = sessionViewOf({ state: foldWithRebuilds(events), ...args })
     expect(after.spend).toEqual(before.spend)
     expect(after.spend).not.toEqual([])
     expect(before.context?.basis).toBe(EMeterBasis.Measured)
@@ -186,6 +202,26 @@ describe('context meter nullability', () => {
       now: NOW,
     })
     expect(view.context).toBeNull()
+  })
+})
+
+describe('state size', () => {
+  it('stays under 16 KB after 20k events', () => {
+    const kinds = [
+      'user',
+      'assistant-usage',
+      'tool-called',
+      'dispatched',
+      'result',
+      'retry',
+    ] as const
+    const ops: Op[] = Array.from({ length: 20_000 }, (_, index) => ({
+      kind: kinds[index % kinds.length] ?? 'user',
+      a: index % 100,
+      b: (index * 7) % 100,
+    }))
+    const state = fold(eventsOf(ops))
+    expect(JSON.stringify(state).length).toBeLessThan(16_000)
   })
 })
 

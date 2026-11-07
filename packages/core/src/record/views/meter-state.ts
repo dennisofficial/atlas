@@ -1,6 +1,6 @@
 import { EMeterBasis, meterTokensOf, type ContextMeter } from '../context-meter'
 import type { V2Event, V2EventType } from '../event'
-import { EMPTY_VISIBILITY, isVisible, stepVisibility, type VisibilityState } from '../visibility'
+import { EMPTY_VISIBILITY, stepVisibility, type VisibilityState } from '../visibility'
 import { stepReadingOf } from './step-reading'
 
 export type MeterEntry = {
@@ -21,12 +21,9 @@ type Aggregate = {
 
 export type MeterState = {
   window: number | null
-  chunks: readonly (readonly MeterEntry[])[]
   visibility: VisibilityState
-  aggregate: Aggregate
+  aggregate: Aggregate | null
 }
-
-const CHUNK_SIZE = 256
 
 const EMPTY_AGGREGATE: Aggregate = {
   total: 0,
@@ -39,7 +36,6 @@ const EMPTY_AGGREGATE: Aggregate = {
 
 export const initialMeterState: MeterState = {
   window: null,
-  chunks: [],
   visibility: EMPTY_VISIBILITY,
   aggregate: EMPTY_AGGREGATE,
 }
@@ -84,53 +80,30 @@ const withEntry = (aggregate: Aggregate, entry: MeterEntry): Aggregate => {
 const aggregateOf = (entries: readonly MeterEntry[]): Aggregate =>
   entries.reduce(withEntry, EMPTY_AGGREGATE)
 
-const appended = (chunks: MeterState['chunks'], entry: MeterEntry): MeterState['chunks'] => {
-  const last = chunks[chunks.length - 1]
-  if (last === undefined || last.length >= CHUNK_SIZE) return [...chunks, [entry]]
-  return [...chunks.slice(0, -1), [...last, entry]]
-}
-
-const chunked = (entries: readonly MeterEntry[]): MeterState['chunks'] => {
-  const chunks: MeterEntry[][] = []
-  for (let index = 0; index < entries.length; index += CHUNK_SIZE) {
-    chunks.push(entries.slice(index, index + CHUNK_SIZE))
-  }
-  return chunks
-}
-
 const isEdit = (event: V2Event): boolean =>
   event.type === 'history-rewound' || event.type === 'history-summarised'
 
-const windowAfter = (state: MeterState, event: V2Event): number | null =>
-  stepReadingOf(event)?.contextWindow ?? state.window
-
 export const stepMeter = (state: MeterState, event: V2Event): MeterState => {
-  const entry = entryOf(event)
-  const window = windowAfter(state, event)
-  const chunks = appended(state.chunks, entry)
-  if (!isEdit(event)) {
-    return { ...state, window, chunks, aggregate: withEntry(state.aggregate, entry) }
+  const window = stepReadingOf(event)?.contextWindow ?? state.window
+  if (isEdit(event)) {
+    return { window, visibility: stepVisibility(state.visibility, event), aggregate: null }
   }
-  const visibility = stepVisibility(state.visibility, event)
-  const visible = chunks.flat().filter((kept) => isVisible(visibility, kept))
-  return { window, chunks, visibility, aggregate: aggregateOf(visible) }
+  if (state.aggregate === null) return { ...state, window }
+  return { ...state, window, aggregate: withEntry(state.aggregate, entryOf(event)) }
 }
 
 export const rebuildMeter = (args: {
   state: MeterState
   visibleTail: readonly V2Event[]
-}): MeterState => {
-  const entries = args.visibleTail.map(entryOf)
-  return {
-    window: args.state.window,
-    chunks: chunked(entries),
-    visibility: args.state.visibility,
-    aggregate: aggregateOf(entries),
-  }
-}
+}): MeterState => ({
+  window: args.state.window,
+  visibility: args.state.visibility,
+  aggregate: aggregateOf(args.visibleTail.map(entryOf)),
+})
 
 export const meterOf = (state: MeterState): ContextMeter | null => {
   const { aggregate, window } = state
+  if (aggregate === null) return null
   if (aggregate.readingSeq === null && aggregate.total === 0 && window === null) return null
   if (aggregate.readingSeq === null || aggregate.summaryAfterReading) {
     return {
