@@ -71,7 +71,8 @@ export const daemonTestEnv = (
   home: string,
   options?: { realCgroups?: boolean | undefined },
 ): Record<string, string | undefined> => ({
-  ...process.env,
+  PATH: process.env.PATH,
+  HOME: home,
   DAEMON_TOKEN: daemonToken({ secret: SECRET, sandboxName: SANDBOX }),
   ATLAS_SANDBOX_NAME: SANDBOX,
   ATLAS_DAEMON_HOME: join(home, 'daemon'),

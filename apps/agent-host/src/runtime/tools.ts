@@ -84,6 +84,7 @@ export const daemonToolsOf = (args: {
   files: DaemonFileSystemPort
   agentFiles: DaemonAgentFileSystemPort
   setup: Promise<void>
+  shellEnv?: (() => Record<string, string>) | undefined
 }): ToolDefinition[] => {
   const guard = new SerializedWrites()
   const tools: ToolDefinition[] = [
@@ -93,7 +94,7 @@ export const daemonToolsOf = (args: {
     new MultiEditTool(guard, args.agentFiles),
     new GrepTool(args.processes, args.agentFiles),
     new GlobTool(args.agentFiles),
-    new BashTool(new ForegroundOnlyShells(), args.files, args.processes),
+    new BashTool(new ForegroundOnlyShells(), args.files, args.processes, args.shellEnv),
   ]
   return tools.map((tool) => new SetupGatedTool(tool, args.setup))
 }

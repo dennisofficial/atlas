@@ -43,9 +43,11 @@ import { rewakingConnector } from './rewaking-connector'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
 import { daemonToolsOf } from './tools'
+import { ShellEnvCell } from './shell-env'
 import { ensureWorkspace } from './workspace-setup'
 import { workspaceRepoMap } from './workspace-repo-map'
 import { GithubPullRequestFinder } from '../github/github-pull-request-finder'
+import { githubIdentityLookup } from '../github/github-identity'
 
 export class SandboxNotConfiguredError extends Error {
   constructor(public readonly gap: string) {
@@ -71,6 +73,7 @@ export type SessionRuntimeFactoryArgs = {
   log?: LogPort | undefined
   pingMs?: number | undefined
   media?: MediaSigner | undefined
+  githubFetch?: typeof fetch | undefined
 }
 
 const UNCONFIGURED_REF: ModelRef = { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' }
@@ -120,11 +123,16 @@ export const createSessionRuntimeFactory = (
     const processes = new DaemonProcessPort({ calls })
     const files = new DaemonFileSystemPort({ calls })
     const agentFiles = new DaemonAgentFileSystemPort({ calls })
+    const shellEnv = new ShellEnvCell({
+      identityOf: githubIdentityLookup({ fetch: args.githubFetch }),
+      log: args.log,
+    })
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
         .then(async () => {
           steps.report({ step: EWorkspaceStep.Daemon, state: EWorkspaceStepState.Done })
           const token = await abortable(args.github.read({ userId: config.userId }), signal)
+          await shellEnv.refresh({ token, launchDirectory, signal })
           return ensureWorkspace({
             calls,
             processes,
@@ -190,7 +198,13 @@ export const createSessionRuntimeFactory = (
     })
     const repoMap = workspaceRepoMap({ launchDirectory, workspace: config.workspace })
     const repoAt = (path: string) => repoMap.find((entry) => entry.path === path)
-    const tools = daemonToolsOf({ processes, files, agentFiles, setup: gate })
+    const tools = daemonToolsOf({
+      processes,
+      files,
+      agentFiles,
+      setup: gate,
+      shellEnv: () => shellEnv.current(),
+    })
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 

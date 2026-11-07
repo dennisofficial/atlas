@@ -199,19 +199,35 @@ describe('file tools resolve relative paths against the project directory withou
 })
 
 describe('file tools expand environment references in paths', () => {
-  it('writes a file under a directory named through an environment variable', async () => {
-    process.env['ATLAS_SPEC_WRITE_DIR'] = root
+  it('expands $ATLAS_HOME to the sandbox home', () => {
+    expect(resolveToolPath({ projectDirectory: root, path: '$ATLAS_HOME/notes.md' })).toEqual({
+      ok: true,
+      path: '/atlas/home/notes.md',
+      anchored: false,
+    })
+  })
+
+  it('does not expand a variable of the host process', async () => {
+    process.env['ATLAS_SPEC_HOST_ONLY'] = 'host-only-value'
     try {
-      const outcome = await invoke(new WriteTool(new SerializedWrites(), files), {
-        path: '$ATLAS_SPEC_WRITE_DIR/via-env.md',
-        content: 'expanded\n',
+      const outcome = await invoke(new ReadTool({ files }), {
+        path: '$ATLAS_SPEC_HOST_ONLY/gone.md',
       })
 
-      expect(outcome.ok).toBe(true)
-      expect(await readFile(join(root, 'via-env.md'), 'utf8')).toBe('expanded\n')
+      expect(outcome.ok).toBe(false)
+      const reason = outcome.ok ? '' : outcome.reason
+      expect(reason).toContain('$ATLAS_SPEC_HOST_ONLY')
+      expect(reason).toContain('not set')
+      expect(reason).not.toContain('host-only-value')
     } finally {
-      delete process.env['ATLAS_SPEC_WRITE_DIR']
+      delete process.env['ATLAS_SPEC_HOST_ONLY']
     }
+  })
+
+  it('does not expand a tilde to the host home', () => {
+    const resolved = resolveToolPath({ projectDirectory: root, path: '~/notes.md' })
+    expect(resolved.ok).toBe(false)
+    if (!resolved.ok) expect(resolved.reason).toContain('$HOME')
   })
 
   it('refuses a path through an unset variable before anything is created', async () => {
@@ -230,7 +246,7 @@ describe('file tools expand environment references in paths', () => {
     )
   })
 
-  it('reports the unset variable for a read, the tool the screenshot hit', async () => {
+  it('reports the unset variable for a read', async () => {
     const outcome = await invoke(new ReadTool({ files }), {
       path: '$ATLAS_SPEC_DEFINITELY_UNSET/handoff.md',
     })
@@ -250,21 +266,5 @@ describe('file tools expand environment references in paths', () => {
     expect(outcome.ok).toBe(false)
     const reason = outcome.ok ? '' : outcome.reason
     expect(reason).toContain('$ATLAS_SPEC_DEFINITELY_UNSET')
-  })
-
-  it('does not claim an env-anchored miss resolved against the project directory', async () => {
-    process.env['ATLAS_SPEC_WRITE_DIR'] = root
-    try {
-      const outcome = await invoke(new ReadTool({ files }), {
-        path: '$ATLAS_SPEC_WRITE_DIR/gone.md',
-      })
-
-      expect(outcome.ok).toBe(false)
-      const reason = outcome.ok ? '' : outcome.reason
-      expect(reason).toContain(`File does not exist: ${join(root, 'gone.md')}`)
-      expect(reason).not.toContain('resolved against the project directory')
-    } finally {
-      delete process.env['ATLAS_SPEC_WRITE_DIR']
-    }
   })
 })

@@ -9,15 +9,7 @@ import {
   type ToolOutputChunk,
 } from '@dltech/atlas-core'
 
-import { atlasBinDirectory, LOGIN_ENV_MARKER } from './atlas-bin'
-
 const READ_GRACE_MS = 1_000
-
-const withShellEnv = (): Record<string, string | undefined> => ({
-  ...process.env,
-  PATH: `${atlasBinDirectory()}:${process.env.PATH ?? ''}`,
-  [LOGIN_ENV_MARKER]: '1',
-})
 
 export type Shell = ProcessHandle & { readonly pid?: number | undefined }
 
@@ -44,6 +36,7 @@ export function startShell(args: {
   command: string
   cwd: string
   processes: ProcessPort
+  env?: (() => Record<string, string>) | undefined
   threadId?: ThreadId | undefined
 }): StartedShell {
   const { processes } = args
@@ -53,7 +46,7 @@ export function startShell(args: {
       shell: processes.spawn({
         cmd: ['bash', '-c', args.command],
         cwd: args.cwd,
-        env: withShellEnv(),
+        env: args.env?.() ?? {},
         threadId: args.threadId,
       }),
     }
