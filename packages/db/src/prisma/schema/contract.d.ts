@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'367f086b8ddb99bd89844b81e34832f7646b1c9538a860aa325459c59b3f3d84'>;
+  StorageHashBase<'88da44e40f871a45304a595208c1647379c125fc649092756d0091e8c48dc658'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1162,6 +1162,7 @@ export namespace Models {
     nextInboxId: FieldOutputTypes['v2']['V2Session']['nextInboxId'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
     title: FieldOutputTypes['v2']['V2Session']['title'];
+    titledFromInboxId: FieldOutputTypes['v2']['V2Session']['titledFromInboxId'];
     userId: FieldOutputTypes['v2']['V2Session']['userId'];
     inbox: v2_V2InboxEntry[];
     lease: v2_V2Lease | null;
@@ -6493,6 +6494,12 @@ type ContractBase = Omit<
                 readonly title: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly titledFromInboxId: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
                   readonly many: false;
                 };
@@ -11896,6 +11903,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly titledFromInboxId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly userId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -11942,6 +11953,7 @@ type ContractBase = Omit<
                 readonly nextInboxId: { readonly column: 'nextInboxId' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly title: { readonly column: 'title' };
+                readonly titledFromInboxId: { readonly column: 'titledFromInboxId' };
                 readonly userId: { readonly column: 'userId' };
               };
             };

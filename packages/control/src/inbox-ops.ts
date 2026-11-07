@@ -31,12 +31,14 @@ export const takeBackIn = async (params: {
   inboxId: number
 }): Promise<TakeBackResult> => {
   const key = { sessionId: params.sessionId, inboxId: params.inboxId }
+  await params.tx.lockSession(params.sessionId)
   const entry = await params.tx.readInboxEntry(key)
   if (entry === undefined) return { ok: false, refusal: { kind: 'unknown-inbox-entry' } }
   const move = takeBack(entry)
   if (!move.ok) return move
   const deleted = await params.tx.deleteInboxEntry(key)
   if (!deleted) return { ok: false, refusal: { kind: 'already-consumed' } }
+  await params.tx.clearTitleFrom(key)
   await params.tx.announce({ sessionId: params.sessionId })
   return { ok: true }
 }

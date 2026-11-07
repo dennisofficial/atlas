@@ -1,17 +1,12 @@
 import type { ControlSessionRow } from '../../port'
-import type { State } from './memory-state'
-
-const publicRow = (row: State['sessions'] extends Map<string, infer R> ? R : never) => {
-  const { nextInboxId: _nextInboxId, ...session } = row
-  return { ...session }
-}
+import { sessionRowOf, type State } from './memory-state'
 
 export const readSessionIn = (params: {
   state: State
   sessionId: string
 }): ControlSessionRow | undefined => {
   const row = params.state.sessions.get(params.sessionId)
-  return row === undefined ? undefined : publicRow(row)
+  return row === undefined ? undefined : sessionRowOf(row)
 }
 
 export const setSessionArchivedIn = (params: {
@@ -29,10 +24,24 @@ export const setSessionTitleIfUntitledIn = (params: {
   state: State
   sessionId: string
   title: string
+  fromInboxId: number | null
 }): boolean => {
   const row = params.state.sessions.get(params.sessionId)
   if (row === undefined || row.title !== null) return false
   row.title = params.title
+  row.titledFromInboxId = params.fromInboxId
+  return true
+}
+
+export const clearTitleFromIn = (params: {
+  state: State
+  sessionId: string
+  inboxId: number
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined || row.titledFromInboxId !== params.inboxId) return false
+  row.title = null
+  row.titledFromInboxId = null
   return true
 }
 
@@ -47,7 +56,7 @@ export const listSessionsIn = (params: {
     .filter((row) => params.projectId === undefined || row.projectId === params.projectId)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, params.limit)
-    .map(publicRow)
+    .map(sessionRowOf)
 
 export const createSessionIn = (params: {
   state: State
@@ -69,6 +78,7 @@ export const createSessionIn = (params: {
     createdAt: params.at,
     archivedAt: null,
     nextInboxId: 1,
+    titledFromInboxId: null,
   })
   state.leases.set(params.sessionId, {
     sessionId: params.sessionId,

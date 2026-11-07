@@ -31,6 +31,7 @@ import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
 import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
 import { sessionDigestsIn } from './memory-digests'
 import {
+  clearTitleFromIn,
   createSessionIn,
   listSessionsIn,
   readSessionIn,
@@ -77,15 +78,20 @@ class MemoryTx implements ControlTx {
     return readSessionIn({ state: this.state, ...params })
   }
 
-  async setSessionArchived(params: {
-    sessionId: string
-    archivedAt: string | null
-  }): Promise<boolean> {
+  async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
     return setSessionArchivedIn({ state: this.state, ...params })
   }
 
-  async setSessionTitleIfUntitled(params: { sessionId: string; title: string }): Promise<boolean> {
+  async lockSession(sessionId: string): Promise<ControlSessionRow | undefined> {
+    return readSessionIn({ state: this.state, sessionId })
+  }
+
+  async setSessionTitleIfUntitled(params: Parameters<ControlTx['setSessionTitleIfUntitled']>[0]) {
     return setSessionTitleIfUntitledIn({ state: this.state, ...params })
+  }
+
+  async clearTitleFrom(params: { sessionId: string; inboxId: number }) {
+    return clearTitleFromIn({ state: this.state, ...params })
   }
 
   async listSessions(params: {

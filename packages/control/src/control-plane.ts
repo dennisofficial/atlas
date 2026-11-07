@@ -93,7 +93,7 @@ export class ControlPlane {
     await this.store.transact((tx) => archiveIn({ tx, ...params }))
   }
 
-  async titleUntitledSession(params: { sessionId: string; title: string }): Promise<boolean> {
+  async titleUntitledSession(params: Omit<Parameters<typeof titleUntitledIn>[0], 'tx'>) {
     return this.store.transact((tx) => titleUntitledIn({ tx, ...params }))
   }
 

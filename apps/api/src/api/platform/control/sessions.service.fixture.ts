@@ -1,6 +1,6 @@
+import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
-import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'

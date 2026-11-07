@@ -1,3 +1,4 @@
+import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { describe, expect, it } from 'bun:test'
 import { NotFoundException } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
@@ -14,7 +15,6 @@ import {
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
-import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'

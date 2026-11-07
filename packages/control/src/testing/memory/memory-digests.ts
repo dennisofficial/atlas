@@ -1,5 +1,5 @@
 import type { ControlSessionDigest, SessionListParams } from '../../port'
-import type { State } from './memory-state'
+import { sessionRowOf, type State } from './memory-state'
 
 const FIRST_MESSAGE_CHARS = 400
 
@@ -22,7 +22,10 @@ const firstMessageOf = (params: {
     ?.filter((entry) => entry.kind === 'message')
     .sort((a, b) => a.inboxId - b.inboxId)[0]
   if (first === undefined) return { firstMessageText: null, firstMessageAt: null }
-  return { firstMessageText: textOf(first.payload), firstMessageAt: first.postedAt }
+  return {
+    firstMessageText: textOf(first.payload),
+    firstMessageAt: first.postedAt,
+  }
 }
 
 export const sessionDigestsIn = (
@@ -34,7 +37,8 @@ export const sessionDigestsIn = (
     .filter((row) => params.sessionId === undefined || row.sessionId === params.sessionId)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, params.limit)
-    .map(({ nextInboxId: _nextInboxId, ...session }) => ({
+    .map(sessionRowOf)
+    .map((session) => ({
       ...session,
       lastEventAt: params.state.events.get(session.mainThreadId)?.at(-1)?.at ?? null,
       ...firstMessageOf({ state: params.state, sessionId: session.sessionId }),

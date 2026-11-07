@@ -9,6 +9,7 @@ const sessionRow = () => ({
   userId: 'user_1',
   projectId: 'project_1',
   title: null,
+  titledFromInboxId: null,
   mainThreadId: 'thr_1',
   nextInboxId: 1,
   createdAt: NOW,

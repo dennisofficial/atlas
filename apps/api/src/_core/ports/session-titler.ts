@@ -1,5 +1,12 @@
+import type { SaidImage } from '@dltech/atlas-core'
+
 export abstract class SessionTitler {
-  abstract nameOf(args: { userId: string; projectId: string; text: string }): Promise<string | null>
+  abstract nameOf(args: {
+    userId: string
+    projectId: string
+    text: string
+    images?: readonly SaidImage[] | undefined
+  }): Promise<string | null>
 }
 
 export class NoSessionTitler extends SessionTitler {

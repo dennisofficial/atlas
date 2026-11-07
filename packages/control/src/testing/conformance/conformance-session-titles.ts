@@ -36,7 +36,12 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
       expect((await plane.readSession({ sessionId: SESSION }))?.title).toBe('Build Fix')
 
       const second = await changesDuring(async () => {
-        expect(await plane.titleUntitledSession({ sessionId: SESSION, title: 'Other' })).toBe(false)
+        expect(
+          await plane.titleUntitledSession({
+            sessionId: SESSION,
+            title: 'Other',
+          }),
+        ).toBe(false)
       })
       expect(second).toEqual({ changes: [], wakes: 0 })
       expect((await plane.readSession({ sessionId: SESSION }))?.title).toBe('Build Fix')
@@ -44,9 +49,94 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
 
     it('never overwrites a title given at creation', async () => {
       await plane.createSession(
-        createSessionParams({ sessionId: 'titled', mainThreadId: 't-titled', title: 'Kept' }),
+        createSessionParams({
+          sessionId: 'titled',
+          mainThreadId: 't-titled',
+          title: 'Kept',
+        }),
       )
       expect(await plane.titleUntitledSession({ sessionId: 'titled', title: 'New' })).toBe(false)
+      expect((await plane.readSession({ sessionId: 'titled' }))?.title).toBe('Kept')
+    })
+
+    const postMessage = async (text: string) =>
+      (
+        await plane.post({
+          sessionId: SESSION,
+          kind: 'message',
+          payload: JSON.stringify({ text }),
+        })
+      ).inboxId
+
+    const titleNow = async () => (await plane.readSession({ sessionId: SESSION }))?.title
+
+    it('clears a title when the message it came from is taken back, announcing it', async () => {
+      const inboxId = await postMessage('fix the build')
+      await plane.titleUntitledSession({
+        sessionId: SESSION,
+        title: 'Build Fix',
+        fromInboxId: inboxId,
+      })
+
+      const taken = await changesDuring(() => plane.takeBack({ sessionId: SESSION, inboxId }))
+
+      expect(taken).toEqual({ changes: [{ sessionId: SESSION }], wakes: 0 })
+      expect(await titleNow()).toBeNull()
+      const again = await postMessage('add dark mode')
+      expect(
+        await plane.titleUntitledSession({
+          sessionId: SESSION,
+          title: 'Dark Mode',
+          fromInboxId: again,
+        }),
+      ).toBe(true)
+      expect(await titleNow()).toBe('Dark Mode')
+    })
+
+    it('refuses a title whose message was already taken back', async () => {
+      const inboxId = await postMessage('fix the build')
+      await plane.takeBack({ sessionId: SESSION, inboxId })
+
+      expect(
+        await plane.titleUntitledSession({
+          sessionId: SESSION,
+          title: 'Stale',
+          fromInboxId: inboxId,
+        }),
+      ).toBe(false)
+      expect(await titleNow()).toBeNull()
+    })
+
+    it('keeps the title when a different message is taken back', async () => {
+      const first = await postMessage('fix the build')
+      const second = await postMessage('also the tests')
+      await plane.titleUntitledSession({
+        sessionId: SESSION,
+        title: 'Build Fix',
+        fromInboxId: first,
+      })
+
+      expect((await plane.takeBack({ sessionId: SESSION, inboxId: second })).ok).toBe(true)
+
+      expect(await titleNow()).toBe('Build Fix')
+    })
+
+    it('keeps a title given at creation when a message is taken back', async () => {
+      await plane.createSession(
+        createSessionParams({
+          sessionId: 'titled',
+          mainThreadId: 't-titled',
+          title: 'Kept',
+        }),
+      )
+      const { inboxId } = await plane.post({
+        sessionId: 'titled',
+        kind: 'message',
+        payload: '{"text":"hi"}',
+      })
+
+      expect((await plane.takeBack({ sessionId: 'titled', inboxId })).ok).toBe(true)
+
       expect((await plane.readSession({ sessionId: 'titled' }))?.title).toBe('Kept')
     })
 
@@ -64,12 +154,24 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
     it('digests carry the first message time and filter to one session', async () => {
       await plane.createSession(createSessionParams({ sessionId: 'other', mainThreadId: 't-o' }))
       now = LATER
-      await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"hello"}' })
-      const one = await plane.listSessionDigests({ userId: USER, sessionId: SESSION, limit: 10 })
+      await plane.post({
+        sessionId: SESSION,
+        kind: 'message',
+        payload: '{"text":"hello"}',
+      })
+      const one = await plane.listSessionDigests({
+        userId: USER,
+        sessionId: SESSION,
+        limit: 10,
+      })
       expect(one.map((row) => [row.sessionId, row.firstMessageText, row.firstMessageAt])).toEqual([
         [SESSION, 'hello', LATER],
       ])
-      const other = await plane.listSessionDigests({ userId: USER, sessionId: 'other', limit: 10 })
+      const other = await plane.listSessionDigests({
+        userId: USER,
+        sessionId: 'other',
+        limit: 10,
+      })
       expect(other.map((row) => [row.sessionId, row.firstMessageAt])).toEqual([['other', null]])
       const stranger = await plane.listSessionDigests({
         userId: 'someone-else',
