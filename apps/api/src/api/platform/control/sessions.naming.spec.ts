@@ -4,6 +4,7 @@ import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import { ProjectAccess } from './project-access'
+import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 
@@ -48,6 +49,7 @@ const setup = () => {
     titler,
     background,
     new FakeMediaRegistry(),
+    new FakeMediaStore(),
   )
   return { service, titler, background }
 }

@@ -8,7 +8,8 @@ import {
   STATUS_EVENT_LIMIT,
 } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
-import { canonicalEvent, type V2Event } from '@dltech/atlas-core'
+import { canonicalEvent, type SaidUpload, type V2Event } from '@dltech/atlas-core'
+import { MediaStore } from '@dltech/atlas-media'
 import {
   INBOX_KIND_MESSAGE,
   inboxMessageSchema,
@@ -28,6 +29,7 @@ import { SessionTitler } from '../../../_core/ports/session-titler'
 import { attachedMedia } from './media-attachments'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
+import { attachedUploads } from './upload-attachments'
 
 export type LeaseView = { epoch: number; holderHostId: number | null; live: boolean }
 
@@ -51,6 +53,7 @@ export class SessionsService {
     @Inject(SessionTitler) private readonly titler: SessionTitler,
     @Inject(BackgroundWork) private readonly background: BackgroundWork,
     @Inject(MediaRegistry) private readonly media: MediaRegistry,
+    @Inject(MediaStore) private readonly store: MediaStore,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -92,6 +95,7 @@ export class SessionsService {
     sessionId: string
     text: string
     media?: readonly SessionPostMedia[] | undefined
+    uploads?: readonly SaidUpload[] | undefined
   }) {
     const session = await this.requireOwnedSession(args)
     const media = await attachedMedia({
@@ -99,8 +103,17 @@ export class SessionsService {
       userId: args.userId,
       media: args.media ?? [],
     })
+    const uploads = await attachedUploads({
+      store: this.store,
+      userId: args.userId,
+      uploads: args.uploads ?? [],
+    })
     const payload = JSON.stringify(
-      inboxMessageSchema.parse({ text: args.text, ...(media.length === 0 ? {} : { media }) }),
+      inboxMessageSchema.parse({
+        text: args.text,
+        ...(media.length === 0 ? {} : { media }),
+        ...(uploads.length === 0 ? {} : { uploads }),
+      }),
     )
     const { inboxId } = await this.plane.post({
       sessionId: args.sessionId,
