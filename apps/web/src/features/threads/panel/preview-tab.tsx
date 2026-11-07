@@ -88,7 +88,7 @@ export function PreviewTab({ data }: { data: PreviewsState }) {
     update(({ state: held }) => updateTab({ state: held, id: tab.id, change: next }))
   const handleNavigate = (target: string) => change((held) => navigated({ tab: held, url: target }))
   const handleAddress = (input: string) => {
-    const target = resolveAddress({ input, currentUrl: url, ports, allowExternal: false })
+    const target = resolveAddress({ input, currentUrl: url, ports, allowExternal: true })
     if (target !== null) handleNavigate(target)
   }
   const handleViewport = (viewport: Viewport) =>
@@ -122,7 +122,6 @@ export function PreviewTab({ data }: { data: PreviewsState }) {
       <PreviewTabBody
         threadId={threadId}
         tabId={tab.id}
-        url={url}
         page={page}
         ports={ports}
         onNavigate={handleNavigate}

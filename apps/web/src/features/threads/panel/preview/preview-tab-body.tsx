@@ -1,12 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ExternalLinkIcon, GlobeIcon } from 'lucide-react'
+import { GlobeIcon } from 'lucide-react'
 
 import { Notice } from '@dltech/atlas-ui/ai/notice'
 import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import { PreviewNewTab, PreviewOffline } from '@dltech/atlas-ui/ai/preview-new-tab'
-import { Button } from '@dltech/atlas-ui/components/button'
 
 import { EPreviewGate } from '@/features/desktop/use-preview-origins'
 
@@ -25,27 +24,6 @@ function PreviewSlot(props: { threadId: string; tabId: string }) {
   return <div ref={setElement} className="size-full" />
 }
 
-function ExternalNotice({ url }: { url: string }) {
-  return (
-    <Notice
-      icon={<GlobeIcon />}
-      title="This page opens outside Atlas"
-      description="The preview only loads this session's exposed ports. Open the page in your browser instead."
-      action={
-        <Button
-          variant="outline"
-          size="sm"
-          nativeButton={false}
-          render={<a href={url} target="_blank" rel="noreferrer noopener" />}
-        >
-          <ExternalLinkIcon data-icon="inline-start" />
-          Open in your browser
-        </Button>
-      }
-    />
-  )
-}
-
 function BlockedNotice() {
   return (
     <Notice
@@ -59,12 +37,11 @@ function BlockedNotice() {
 export function PreviewTabBody(props: {
   threadId: string
   tabId: string
-  url: string
   page: TabPage
   ports: PreviewPort[]
   onNavigate: (url: string) => void
 }) {
-  const { threadId, tabId, url, page, ports, onNavigate } = props
+  const { threadId, tabId, page, ports, onNavigate } = props
   const { gate } = useFrameRegistry()
   const key = liveKeyOf({ threadId, tabId })
   const framed =
@@ -77,7 +54,6 @@ export function PreviewTabBody(props: {
     return <PreviewNewTab ports={ports} onOpen={(port) => onNavigate(port.url)} />
   }
   if (page.kind === ETabPage.Loading) return null
-  if (page.kind === ETabPage.External) return <ExternalNotice url={url} />
   if (page.kind === ETabPage.Offline) return <PreviewOffline port={page.port} />
   if (gate === EPreviewGate.Failed) return <BlockedNotice />
   return <PreviewSlot threadId={threadId} tabId={tabId} />

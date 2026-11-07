@@ -8,14 +8,13 @@ export enum ETabPage {
   NewTab = 'new-tab',
   Loading = 'loading',
   Held = 'held',
-  External = 'external',
   Offline = 'offline',
   Frame = 'frame',
 }
 
 export type TabPage =
-  | { kind: ETabPage.NewTab | ETabPage.Loading | ETabPage.Held | ETabPage.External }
-  | { kind: ETabPage.Offline | ETabPage.Frame; port: PreviewPort }
+  | { kind: ETabPage.NewTab | ETabPage.Loading | ETabPage.Held | ETabPage.Frame }
+  | { kind: ETabPage.Offline; port: PreviewPort }
 
 export function tabPageOf(args: {
   url: string
@@ -27,7 +26,6 @@ export function tabPageOf(args: {
   if (url === NEW_TAB_URL) return { kind: ETabPage.NewTab }
   if (!loaded) return { kind: held ? ETabPage.Held : ETabPage.Loading }
   const port = previewPortForUrl({ url, ports })
-  if (port === null) return { kind: ETabPage.External }
-  if (port.status !== EPreviewStatus.Live) return { kind: ETabPage.Offline, port }
-  return { kind: ETabPage.Frame, port }
+  if (port !== null && port.status !== EPreviewStatus.Live) return { kind: ETabPage.Offline, port }
+  return { kind: ETabPage.Frame }
 }
