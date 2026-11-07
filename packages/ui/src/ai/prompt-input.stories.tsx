@@ -125,6 +125,29 @@ export const Composed: Story = {
   render: () => <ComposedPrompt />,
 }
 
+const FAST_MODEL = {
+  id: 'opus',
+  label: 'Opus 5.5',
+  provider: 'Anthropic',
+  efforts: [EEffort.Low, EEffort.Medium, EEffort.High],
+  fast: true,
+}
+
+export const ComposedWhileBusy: Story = {
+  render: () => (
+    <PromptInput busy queueWhileBusy placeholder="Queue a message for when Atlas is done…">
+      <ModelSelector
+        models={[FAST_MODEL]}
+        value={FAST_MODEL.id}
+        effort={EEffort.High}
+        fast={false}
+        onFastChange={() => undefined}
+      />
+      <Context used={88_000} limit={200_000} className="ml-auto" />
+    </PromptInput>
+  ),
+}
+
 export const QueueWhileBusy: Story = {
   args: {
     defaultValue: 'Also bump the storybook addons',

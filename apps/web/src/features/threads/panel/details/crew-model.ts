@@ -8,6 +8,8 @@ import {
   type CrewMember,
   type ModelCatalog,
 } from '@dltech/atlas-core'
+
+import { modelLabelOf as displayLabelOf } from '../../data/model-options'
 import {
   crewActivityOf,
   crewRowReading,
@@ -77,8 +79,13 @@ let catalog: ModelCatalog | undefined
 const modelLabelOf = (model: { id: string; modelId: string } | undefined): string | null => {
   if (model === undefined) return null
   catalog ??= catalogOf(generatedCards())
-  const card = findCard({ catalog, ref: { providerId: model.id, modelId: model.modelId } })
-  return card?.label ?? model.modelId
+  const card = findCard({
+    catalog,
+    ref: { providerId: model.id, modelId: model.modelId },
+  })
+  return card === undefined
+    ? model.modelId
+    : displayLabelOf({ providerId: model.id, label: card.label })
 }
 
 export type CrewEntry = {
@@ -96,7 +103,10 @@ export function crewEntriesOf(args: {
   return [
     ...args.agents.map((agent) => ({
       id: agent.id,
-      title: agentDisplayName({ agentType: agent.agentType, intent: agent.intent }),
+      title: agentDisplayName({
+        agentType: agent.agentType,
+        intent: agent.intent,
+      }),
       display: agent.display,
       teammate: false,
       view: agent,
@@ -129,7 +139,10 @@ export function crewRowsOf(args: {
   const snapshots = new Map<string, AgentSnapshotWire>(
     (roster?.agents ?? []).map((snapshot) => [String(snapshot.agentId), snapshot]),
   )
-  const rosters = { shells: roster?.shells ?? [], children: roster?.agents ?? [] }
+  const rosters = {
+    shells: roster?.shells ?? [],
+    children: roster?.agents ?? [],
+  }
 
   return args.entries.map((entry) => {
     const snapshot = snapshots.get(entry.id)
@@ -206,7 +219,10 @@ export function crewGroupsOf(args: {
   viewing: string | null
   expanded: { subagents: boolean; teammates: boolean }
 }): { subagents: CrewGroup; teammates: CrewGroup } {
-  const standings = standingsOfCrew({ crew: args.members, viewing: args.viewing })
+  const standings = standingsOfCrew({
+    crew: args.members,
+    viewing: args.viewing,
+  })
   const groupOf = (teammate: boolean): CrewGroup => {
     const rows = args.rows
       .filter((row) => row.teammate === teammate)

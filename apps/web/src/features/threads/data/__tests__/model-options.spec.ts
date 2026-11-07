@@ -4,9 +4,13 @@ import { EImageTier } from '@dltech/atlas-core'
 import { cardsForProvider, offersFastMode, withoutDatedDuplicates } from '@dltech/atlas-models'
 import { EModelProviderStatus, type ModelsResponse } from '@dltech/atlas-wire/web'
 
-import { modelOptionsFromResponse, modelOptionsOf } from '../model-options'
+import { modelLabelOf, modelOptionsFromResponse, modelOptionsOf } from '../model-options'
 
-const account = (provider: string, status = 'active') => ({ provider, kind: 'oauth', status })
+const account = (provider: string, status = 'active') => ({
+  provider,
+  kind: 'oauth',
+  status,
+})
 
 const CLAUDE = 'Claude Plan'
 const CODEX = 'Codex Plan'
@@ -78,7 +82,9 @@ describe('modelOptionsOf', () => {
   })
 
   it('maps the card image tier onto the image-support flag', () => {
-    const { models } = modelOptionsOf({ accounts: [account('anthropic'), account('openai')] })
+    const { models } = modelOptionsOf({
+      accounts: [account('anthropic'), account('openai')],
+    })
     const cards = [...cardsForProvider('anthropic'), ...cardsForProvider('openai')]
     const high = cards.find((card) => card.imageTier === EImageTier.HighResolution)
     const standard = cards.find((card) => card.imageTier === EImageTier.Standard)
@@ -91,7 +97,7 @@ describe('modelOptionsOf', () => {
     const card = cardsForProvider('anthropic').find((candidate) => candidate.effort !== undefined)
     const { models } = modelOptionsOf({ accounts: [account('anthropic')] })
     const option = models.find((model) => model.id === `anthropic/${card?.ref.modelId}`)
-    expect(option?.label).toBe(card?.label)
+    expect(option?.label).toBe(card?.label.replace(/^Claude /, ''))
     expect(option?.efforts?.length).toBeGreaterThan(0)
     expect(option?.context).toMatch(/^\d+(\.\d)?[kM]$/)
   })
@@ -112,16 +118,25 @@ describe('modelOptionsOf', () => {
   it('keeps a thread model whose provider is no longer offered selectable', () => {
     const card = cardsForProvider('anthropic')[0]
     const id = `anthropic/${card?.ref.modelId}`
-    const { models } = modelOptionsOf({ accounts: [account('openai')], currentId: id })
-    expect(models.find((model) => model.id === id)?.label).toBe(card?.label)
-    const unknown = modelOptionsOf({ accounts: [account('openai')], currentId: 'x/y' })
+    const { models } = modelOptionsOf({
+      accounts: [account('openai')],
+      currentId: id,
+    })
+    expect(models.find((model) => model.id === id)?.label).toBe(card?.label.replace(/^Claude /, ''))
+    const unknown = modelOptionsOf({
+      accounts: [account('openai')],
+      currentId: 'x/y',
+    })
     expect(unknown.models.find((model) => model.id === 'x/y')?.label).toBe('x/y')
   })
 
   it('does not duplicate a current model that is already offered', () => {
     const card = cardsForProvider('anthropic')[0]
     const id = `anthropic/${card?.ref.modelId}`
-    const { models } = modelOptionsOf({ accounts: [account('anthropic')], currentId: id })
+    const { models } = modelOptionsOf({
+      accounts: [account('anthropic')],
+      currentId: id,
+    })
     expect(models.filter((model) => model.id === id)).toHaveLength(1)
   })
 
@@ -171,5 +186,17 @@ describe('modelOptionsFromResponse', () => {
     const { models } = modelOptionsFromResponse({ response: liveResponse })
     expect(models.find((model) => model.id === 'anthropic/claude-opus-5')?.fast).toBe(true)
     expect(models.find((model) => model.id === 'anthropic/claude-sonnet-5')?.fast).toBe(false)
+  })
+
+  it('drops the Claude prefix from Anthropic model labels', () => {
+    const { models } = modelOptionsFromResponse({ response: liveResponse })
+    expect(models.map((model) => model.label)).toEqual(['Opus 5', 'Sonnet 5'])
+  })
+})
+
+describe('modelLabelOf', () => {
+  it('keeps labels of other providers whole', () => {
+    expect(modelLabelOf({ providerId: 'openrouter', label: 'Claude Opus 5' })).toBe('Claude Opus 5')
+    expect(modelLabelOf({ providerId: 'anthropic', label: 'Claude Opus 5.5' })).toBe('Opus 5.5')
   })
 })
