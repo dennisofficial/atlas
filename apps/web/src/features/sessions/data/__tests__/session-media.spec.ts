@@ -17,6 +17,14 @@ import {
   type PutImage,
 } from '../session-media'
 
+const UPLOAD = {
+  uploadId: '11111111-1111-4111-8111-111111111111',
+  pathname: 'composer-uploads/user-1/11111111-1111-4111-8111-111111111111/deploy.sh',
+  name: 'deploy.sh',
+  size: 12,
+  mediaType: 'application/x-sh',
+}
+
 const PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 const PNG_SHA256 = '497790947d4666760ce38f3c00e852c71fdb66cae849bae8e9ede352719e1581'
@@ -166,7 +174,7 @@ describe('planImageAttach', () => {
 
 describe('postInputOf', () => {
   it('omits media for a text-only message', () => {
-    expect(postInputOf({ sessionId: 's', text: 'hi', media: [] })).toEqual({
+    expect(postInputOf({ sessionId: 's', text: 'hi', media: [], uploads: [] })).toEqual({
       sessionId: 's',
       text: 'hi',
     })
@@ -178,6 +186,7 @@ describe('postInputOf', () => {
         sessionId: 's',
         text: '',
         media: [{ hash: HASH_A, source: 'a.png' }],
+        uploads: [],
       }),
     ).toEqual({
       sessionId: 's',
@@ -187,10 +196,31 @@ describe('postInputOf', () => {
   })
 
   it('carries both text and media', () => {
-    expect(postInputOf({ sessionId: 's', text: 'look', media: [{ hash: HASH_A }] })).toEqual({
+    expect(
+      postInputOf({ sessionId: 's', text: 'look', media: [{ hash: HASH_A }], uploads: [] }),
+    ).toEqual({
       sessionId: 's',
       text: 'look',
       media: [{ hash: HASH_A }],
     })
+  })
+
+  it('carries uploads alone', () => {
+    expect(postInputOf({ sessionId: 's', text: '', media: [], uploads: [UPLOAD] })).toEqual({
+      sessionId: 's',
+      text: '',
+      uploads: [UPLOAD],
+    })
+  })
+
+  it('carries media and uploads together', () => {
+    expect(
+      postInputOf({
+        sessionId: 's',
+        text: 'both',
+        media: [{ hash: HASH_A }],
+        uploads: [UPLOAD],
+      }),
+    ).toEqual({ sessionId: 's', text: 'both', media: [{ hash: HASH_A }], uploads: [UPLOAD] })
   })
 })

@@ -195,4 +195,19 @@ describe('sessionTranscriptOf', () => {
     const last = view.items[view.items.length - 1]
     expect(last?.kind === ETranscriptKind.Agent && last.text).toBe('Hello')
   })
+
+  it('carries the uploads of a user message into its item', () => {
+    const upload = {
+      uploadId: '11111111-1111-4111-8111-111111111111',
+      pathname: 'composer-uploads/user-1/11111111-1111-4111-8111-111111111111/deploy.sh',
+      name: 'deploy.sh',
+      size: 12,
+      mediaType: 'application/x-sh',
+    }
+    const events = mint([{ type: 'user-said', text: 'run it', uploads: [upload] }])
+
+    const [item] = sessionTranscriptOf(snapshotOf({ events })).items
+
+    expect(item?.kind === ETranscriptKind.User && item.uploads).toEqual([upload])
+  })
 })

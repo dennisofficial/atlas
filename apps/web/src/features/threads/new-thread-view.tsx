@@ -10,12 +10,9 @@ import type { Project, SaidImageWire } from '@dltech/atlas-wire/web'
 import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-local-thread'
 import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
 import { useDesktop } from '@/features/desktop/use-desktop'
-import {
-  createSessionWithMessage,
-  FILES_UNSUPPORTED,
-} from '@/features/sessions/data/create-session'
+import { createSessionWithMessage } from '@/features/sessions/data/create-session'
 import { sessionsApi } from '@/features/sessions/data/sessions-api'
-import { useSessionMedia } from '@/features/sessions/data/use-session-media'
+import { useSessionAttachments } from '@/features/sessions/data/use-session-attachments'
 import { EEngine, EngineToggle } from '@/features/sessions/engine-toggle'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { NewThreadSkeleton } from '@/features/projects/project-skeletons'
@@ -56,7 +53,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       personalFast: picker.personalFast,
     })
   const images = useComposerAttachments()
-  const media = useSessionMedia()
+  const session = useSessionAttachments({ files: images })
   const drafts = useComposerDraft({
     scope: NEW_THREAD_DRAFT_SCOPE,
     text: draft,
@@ -151,21 +148,19 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       toast.error('Pick a project for a v2 session')
       return
     }
-    if (images.images.length + images.uploads.length > 0) {
-      toast.error(FILES_UNSUPPORTED)
-      return
-    }
-    if (!media.checkSendable()) return
-    if (text.trim().length === 0 && media.media.length === 0) return
+    if (!session.checkSendable()) return
+    const { media, uploads } = session
+    if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return
     setCreating(true)
     try {
       const sessionId = await createSessionWithMessage({
         api: sessionsApi,
         projectId,
         text,
-        media: media.media,
+        media,
+        uploads,
       })
-      media.clear()
+      session.clear()
       drafts.handleSent(text)
       router.push(`/sessions/${encodeURIComponent(sessionId)}`)
     } catch (failure) {
@@ -174,22 +169,13 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     }
   }
 
-  const v2ComposerProps = {
-    attachments: [...media.composerProps.attachments, ...images.composerProps.attachments],
-    onAttachFiles: media.attach,
-    onRemoveAttachment: (id: string) => {
-      media.remove(id)
-      images.remove(id)
-    },
-  }
-
   return (
     <ThreadComposer
       value={draft}
       onValueChange={setDraft}
       onSubmit={handleSubmit}
-      sending={creating || (v2 ? media.uploading : images.uploading)}
-      {...(v2 ? v2ComposerProps : images.composerProps)}
+      sending={creating || (v2 ? session.uploading : images.uploading)}
+      {...(v2 ? session.composerProps : images.composerProps)}
       sendsAttachmentsAlone={v2}
       commandSpecs={commands.specs}
       placeholder="Describe a task for Atlas…"

@@ -1,4 +1,8 @@
-import { SUPPORTED_IMAGE_MEDIA_TYPES, type SupportedImageMediaType } from '@dltech/atlas-core'
+import {
+  SUPPORTED_IMAGE_MEDIA_TYPES,
+  type SaidUpload,
+  type SupportedImageMediaType,
+} from '@dltech/atlas-core'
 import type {
   MediaConfirmInput,
   MediaConfirmOutput,
@@ -165,10 +169,12 @@ export const postInputOf = (args: {
   sessionId: string
   text: string
   media: readonly SessionPostMedia[]
+  uploads: readonly SaidUpload[]
 }): SessionPostInput => ({
   sessionId: args.sessionId,
   text: args.text,
   ...(args.media.length === 0 ? {} : { media: [...args.media] }),
+  ...(args.uploads.length === 0 ? {} : { uploads: [...args.uploads] }),
 })
 
 const CHIP_STATUS: Record<EAttachmentStatus, EPromptAttachmentStatus> = {
