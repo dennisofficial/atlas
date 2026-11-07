@@ -132,6 +132,7 @@ export const createLoopRunner = (args: {
     model: runtime.model,
     ids: deps.ids,
     assembly: runtime.assembly,
+    ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
     tools: () => runtime.tools.declarations(),
     dispatch: new ScopedToolDispatcher(
       new HookedToolDispatcher({ registry: runtime.tools, hooks: new HookChain({}) }),

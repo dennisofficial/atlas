@@ -43,6 +43,15 @@ export const renameOpSchema = z
   })
   .strict()
 
+export const fetchToFileOpSchema = z
+  .object({
+    op: z.literal('fetchToFile'),
+    url: z.url(),
+    path: z.string().min(1),
+    size: z.number().int().min(0),
+  })
+  .strict()
+
 export const readDirectoryOpSchema = z
   .object({ op: z.literal('readDirectory'), path: z.string().min(1) })
   .strict()
@@ -103,6 +112,7 @@ export const filesOpSchemas = [
   removeOpSchema,
   mkdirOpSchema,
   renameOpSchema,
+  fetchToFileOpSchema,
   readDirectoryOpSchema,
   globOpSchema,
   grepOpSchema,
@@ -118,6 +128,7 @@ export const filesResultSchemas = [
   okResultSchema({ op: 'remove', value: z.null() }),
   okResultSchema({ op: 'mkdir', value: z.null() }),
   okResultSchema({ op: 'rename', value: z.null() }),
+  okResultSchema({ op: 'fetchToFile', value: z.null() }),
   okResultSchema({ op: 'readDirectory', value: z.array(directoryEntrySchema) }),
   okResultSchema({ op: 'glob', value: z.array(z.string()) }),
   okResultSchema({ op: 'grep', value: z.array(grepMatchSchema) }),
@@ -134,6 +145,7 @@ export type WriteFileOp = z.infer<typeof writeFileOpSchema>
 export type RemoveOp = z.infer<typeof removeOpSchema>
 export type MkdirOp = z.infer<typeof mkdirOpSchema>
 export type RenameOp = z.infer<typeof renameOpSchema>
+export type FetchToFileOp = z.infer<typeof fetchToFileOpSchema>
 export type ReadDirectoryOp = z.infer<typeof readDirectoryOpSchema>
 export type GlobOp = z.infer<typeof globOpSchema>
 export type GrepOp = z.infer<typeof grepOpSchema>

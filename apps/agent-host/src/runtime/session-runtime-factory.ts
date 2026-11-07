@@ -26,9 +26,11 @@ import { anthropicThinkingOptionsOf } from '../model/anthropic-thinking'
 import { normalizeProviderFailure } from '../model/failure'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
+import { SandboxSaidUploads } from '../uploads/sandbox-said-uploads'
+import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
-import { WORKSPACE_PATH } from '../sandbox/constants'
+import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
 import { abortable } from './abortable'
 import { PrepareSteps } from './prepare-steps'
@@ -239,6 +241,12 @@ export const createSessionRuntimeFactory = (
       assembly: defaultPipeline({
         prompt: agentHostPrompt({ identity: model.identity }),
         launchDirectory,
+      }),
+      uploads: new SandboxSaidUploads({
+        userId: config.userId,
+        home: SANDBOX_HOME_PATH,
+        files,
+        blobs: args.media === undefined ? null : signerUploadBlobs(args.media),
       }),
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,

@@ -24,6 +24,23 @@ const run = (args: { session: DaemonSession; op: Parameters<typeof runToEnd>[0][
   return runToEnd({ session: args.session, key: `f-${keys}`, op: args.op })
 }
 
+const FIXTURE = Uint8Array.from([0, 1, 2, 250, 251, 255, 10, 13, 42])
+
+const withBlobServer = async (body: (base: string) => Promise<void>): Promise<void> => {
+  const server = Bun.serve({
+    port: 0,
+    fetch: (request) =>
+      new URL(request.url).pathname === '/ok'
+        ? new Response(FIXTURE)
+        : new Response('gone', { status: 404 }),
+  })
+  try {
+    await body(`http://127.0.0.1:${server.port}`)
+  } finally {
+    await server.stop(true)
+  }
+}
+
 export const describeFilesConformance = (target: DaemonConformanceTarget): void => {
   describe(`files conformance (${target.name})`, () => {
     it('round-trips write, stat, read, list, glob, rename and remove', () =>
@@ -187,5 +204,73 @@ export const describeFilesConformance = (target: DaemonConformanceTarget): void 
           await run({ session, op: { op: 'remove', path: dir } })
         },
       }))
+
+    it('fetches a url into a new nested directory', () =>
+      withBlobServer((base) =>
+        withDaemon({
+          target,
+          body: async (handle) => {
+            const session = await connectAt({ handle })
+            const dir = workdir()
+            const path = `${dir}/nested/deeper/blob.bin`
+            const fetched = await run({
+              session,
+              op: { op: 'fetchToFile', url: `${base}/ok`, path, size: FIXTURE.length },
+            })
+            okValue({ result: fetched, op: 'fetchToFile' })
+            const read = await run({ session, op: { op: 'readBytes', path } })
+            expect(Buffer.from(okValue({ result: read, op: 'readBytes' }), 'base64')).toEqual(
+              Buffer.from(FIXTURE),
+            )
+            await run({ session, op: { op: 'remove', path: dir } })
+          },
+        }),
+      ))
+
+    it('rejects a size mismatch and leaves neither the file nor its part', () =>
+      withBlobServer((base) =>
+        withDaemon({
+          target,
+          body: async (handle) => {
+            const session = await connectAt({ handle })
+            const dir = workdir()
+            const path = `${dir}/blob.bin`
+            const fetched = await run({
+              session,
+              op: { op: 'fetchToFile', url: `${base}/ok`, path, size: FIXTURE.length + 1 },
+            })
+            expect(failureOf(fetched)).toBe(ECallFailure.InvalidInput)
+            for (const left of [path, `${path}.part`]) {
+              expect(failureOf(await run({ session, op: { op: 'stat', path: left } }))).toBe(
+                ECallFailure.NotFound,
+              )
+            }
+            await run({ session, op: { op: 'remove', path: dir } })
+          },
+        }),
+      ))
+
+    it('fails on a 404 and leaves nothing behind', () =>
+      withBlobServer((base) =>
+        withDaemon({
+          target,
+          body: async (handle) => {
+            const session = await connectAt({ handle })
+            const dir = workdir()
+            const path = `${dir}/blob.bin`
+            const fetched = await run({
+              session,
+              op: { op: 'fetchToFile', url: `${base}/gone`, path, size: 4 },
+            })
+            expect(fetched.status).not.toBe('ok')
+            for (const left of [path, `${path}.part`]) {
+              expect(failureOf(await run({ session, op: { op: 'stat', path: left } }))).toBe(
+                ECallFailure.NotFound,
+              )
+            }
+            await run({ session, op: { op: 'remove', path: dir } })
+          },
+        }),
+      ))
   })
 }
