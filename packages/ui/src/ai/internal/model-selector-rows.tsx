@@ -48,7 +48,9 @@ export function TriggerLabel({
   if (!model) return <span className="min-w-0 truncate">{placeholder}</span>
   return (
     <>
-      <ProviderMark model={model} />
+      <span className="contents max-md:hidden">
+        <ProviderMark model={model} />
+      </span>
       <span className="min-w-0 truncate">
         {model.label}
         {model.route ? <span className="text-muted-foreground"> · {model.route}</span> : null}
@@ -259,7 +261,7 @@ export function EffortMenu({
         }
       >
         {EFFORT_LABELS[value]}
-        <ChevronDownIcon />
+        <ChevronDownIcon className="max-md:hidden" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup value={value} onValueChange={handleValueChange}>
@@ -291,7 +293,7 @@ export function FastToggle({
       onClick={handleClick}
     >
       <ZapIcon className={cn(pressed && 'fill-current')} />
-      Fast
+      <span className="max-md:sr-only">Fast</span>
     </InputGroupButton>
   )
 }

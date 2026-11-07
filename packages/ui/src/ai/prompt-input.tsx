@@ -22,6 +22,7 @@ import {
 } from '#components/input-group'
 import { Spinner } from '#components/spinner'
 import { useIsMobile } from '#hooks/use-mobile'
+import { cn } from '#lib/utils'
 
 import {
   EPromptAttachmentStatus,
@@ -131,6 +132,8 @@ export function PromptInput({
     sendsAttachmentsAlone &&
     attachments.some((attachment) => attachment.status === EPromptAttachmentStatus.Ready)
   const sendable = canSend({ text, busy, sending, queueWhileBusy, attached })
+  const hasDraft = attached || text.trim().length > 0
+  const showsStop = busy && !sending && !(queueWhileBusy && hasDraft)
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setDraft(event.target.value)
@@ -228,7 +231,7 @@ export function PromptInput({
           autoCorrect={isMobile ? 'on' : 'off'}
           readOnly={sending}
           aria-busy={sending}
-          className={sending ? 'text-muted-foreground' : undefined}
+          className={cn('max-md:min-h-10', sending && 'text-muted-foreground')}
           aria-label="Message"
         />
         <InputGroupAddon align="block-end">
@@ -250,7 +253,7 @@ export function PromptInput({
             <PlusIcon />
           </InputGroupButton>
           <div className="flex min-w-0 flex-1 items-center gap-1">{children}</div>
-          {busy ? (
+          {showsStop ? (
             <InputGroupButton
               size="icon-sm"
               variant="default"
@@ -260,8 +263,7 @@ export function PromptInput({
             >
               <SquareIcon />
             </InputGroupButton>
-          ) : null}
-          {busy && !queueWhileBusy ? null : (
+          ) : (
             <InputGroupButton
               type="submit"
               size="icon-sm"

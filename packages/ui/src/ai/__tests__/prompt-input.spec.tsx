@@ -95,11 +95,18 @@ describe('PromptInput', () => {
     expect(canSend({ text: 'go', busy: false, sending: true, queueWhileBusy: true })).toBe(false)
   })
 
-  it('keeps send beside stop when queueing while busy', () => {
+  it('turns stop into send once a draft is typed while queueing', () => {
     const html = renderToStaticMarkup(<PromptInput defaultValue="x" busy queueWhileBusy />)
     const send = html.match(/<button[^>]*aria-label="Send"[^>]*>/)?.[0] ?? ''
 
-    expect(html).toContain('aria-label="Stop"')
+    expect(html).not.toContain('aria-label="Stop"')
     expect(send).not.toContain(' disabled=""')
+  })
+
+  it('shows only stop while queueing with an empty draft', () => {
+    const html = renderToStaticMarkup(<PromptInput defaultValue="  " busy queueWhileBusy />)
+
+    expect(html).toContain('aria-label="Stop"')
+    expect(html).not.toContain('aria-label="Send"')
   })
 })

@@ -197,10 +197,12 @@ export function ModelSelector({
     <>
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger
-          render={<InputGroupButton size="sm" className={cn('min-w-0 justify-start', className)} />}
+          render={
+            <InputGroupButton size="sm" className={cn('min-w-0 shrink justify-start', className)} />
+          }
         >
           <TriggerLabel model={current} placeholder={placeholder} />
-          <ChevronDownIcon className="ml-auto" />
+          <ChevronDownIcon className="ml-auto max-md:hidden" />
         </PopoverTrigger>
         <PopoverContent
           align="start"
@@ -288,7 +290,7 @@ export function ModelSelector({
       </Popover>
       {effort && current && effortOptions.length > 0 ? (
         <>
-          <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border" />
+          <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border max-md:hidden" />
           <EffortMenu efforts={effortOptions} value={effort} onChange={onEffortChange} />
         </>
       ) : null}

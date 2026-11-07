@@ -23,6 +23,6 @@ describe('Context', () => {
   it('shows the percentage in the trigger', () => {
     const html = renderToStaticMarkup(<Context used={50_000} limit={200_000} />)
 
-    expect(html).toContain('25% context')
+    expect(html.replace(/<[^>]+>/g, '')).toContain('25% context')
   })
 })
