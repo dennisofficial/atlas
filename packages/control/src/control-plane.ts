@@ -29,7 +29,6 @@ import { readSessionViewWithCatchUp, type SessionViewRead } from './session-view
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { AppendAbort, type AppendOutcome } from './refusal'
 import { archiveIn, createSessionIn, titleUntitledIn } from './session-ops'
-import { readStatusSnapshotIn, type StatusSnapshot } from './status-snapshot'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 
 export const MAX_READ_LIMIT = 1000
@@ -39,7 +38,6 @@ export type ControlPlaneParams = { store: ControlStorePort; clock?: (() => strin
 
 export type { ReadEventsPage } from './read-events'
 export type { TakeBackResult } from './inbox-ops'
-export type { StatusSnapshot } from './status-snapshot'
 
 const clampLimit = (limit: number): number => Math.max(1, Math.min(limit, MAX_READ_LIMIT))
 const clampSessionLimit = (limit: number): number =>
@@ -186,17 +184,6 @@ export class ControlPlane {
         maxBytes: params.maxBytes,
       })
     })
-  }
-
-  async readStatusSnapshot(params: {
-    sessionId: string
-    threadId: string
-    eventLimit: number
-  }): Promise<StatusSnapshot> {
-    const eventLimit = clampLimit(params.eventLimit)
-    return this.store.transact((tx) =>
-      readStatusSnapshotIn({ tx, leases: this.leases, ...params, eventLimit }),
-    )
   }
 
   async readBlob(params: {

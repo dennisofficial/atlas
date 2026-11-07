@@ -11,6 +11,7 @@ export type StreamSubscriptionMessage = Extract<
 
 export type SubscriptionConnection = {
   userId: string
+  version: number
   send(message: StreamServerMessage): void
   bufferedAmount(): number
   close(code: number): void

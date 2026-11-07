@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { NAMING_WINDOW_MS } from '@dltech/atlas-control'
+import { ESessionStatus } from '@dltech/atlas-core'
 import {
   EStreamErrorCode,
   EStreamSubscribeKind,
+  parseServerMessage,
   STREAM_MAX_SESSION_SUBSCRIPTIONS,
   type SessionSummary,
 } from '@dltech/atlas-protocol'
@@ -60,7 +62,34 @@ describe('sessions subscription', () => {
       createdAt: AT,
       updatedAt: AT,
       archivedAt: null,
+      status: { state: ESessionStatus.Preparing },
+      primaryBranch: null,
+      pullRequest: null,
     })
+  })
+
+  it('sends a version 1 connection rows without the view fields', async () => {
+    const legacy = rig.open(OWNER, 1)
+    await legacy.handle({ type: 'subscribe', id: 'old', kind: EStreamSubscribeKind.Sessions })
+    await rig.settled()
+    expect(onlyRow()).toEqual({
+      sessionId: SESSION,
+      projectId: 'project-1',
+      title: null,
+      naming: false,
+      mainThreadId: 'thread-1',
+      createdAt: AT,
+      updatedAt: AT,
+      archivedAt: null,
+    })
+    await rig.plane.setSessionArchived({ sessionId: SESSION, archivedAt: AT })
+    await rig.settled()
+    const upserts = rig.frames('upsert')
+    expect(upserts.length).toBeGreaterThan(0)
+    for (const upsert of upserts) {
+      expect(parseServerMessage(JSON.parse(JSON.stringify(upsert))).ok).toBe(true)
+      expect(Object.keys(upsert.row)).not.toContain('status')
+    }
   })
 
   it('filters the snapshot and later upserts by project', async () => {

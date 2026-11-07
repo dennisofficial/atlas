@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import type { z } from 'zod'
+
 import {
   EStreamClose,
   EStreamErrorCode,
@@ -7,6 +9,7 @@ import {
   STREAM_MAX_CLIENT_FRAME_BYTES,
   STREAM_MAX_SESSION_SUBSCRIPTIONS,
   STREAM_PAGE_EVENTS,
+  STREAM_PROTOCOL_MIN_VERSION,
   STREAM_PROTOCOL_VERSION,
   STREAM_TAIL_EVENTS,
   parseClientMessage,
@@ -20,7 +23,8 @@ const roundTrip = (value: unknown): unknown => JSON.parse(JSON.stringify(value))
 
 describe('stream constants', () => {
   it('pins the protocol version, limits and close codes', () => {
-    expect(STREAM_PROTOCOL_VERSION).toBe(1)
+    expect(STREAM_PROTOCOL_VERSION).toBe(2)
+    expect(STREAM_PROTOCOL_MIN_VERSION).toBe(1)
     expect(STREAM_MAX_CLIENT_FRAME_BYTES).toBe(65_536)
     expect(STREAM_HELLO_TIMEOUT_MS).toBe(5_000)
     expect(STREAM_MAX_SESSION_SUBSCRIPTIONS).toBe(32)
@@ -103,6 +107,32 @@ describe('server messages', () => {
       streamServerMessageSchema.safeParse({ type: 'error', code: EStreamErrorCode.Internal })
         .success,
     ).toBe(true)
+  })
+})
+
+describe('protocol versions', () => {
+  const accepts = (schema: z.ZodType, value: unknown) => schema.safeParse(value).success
+
+  it('accepts a version 1 hello and a version 1 or 2 ready', () => {
+    expect(accepts(streamClientMessageSchema, streamClientFixtures.helloV1)).toBe(true)
+    expect(accepts(streamServerMessageSchema, streamServerFixtures.readyV1)).toBe(true)
+    expect(accepts(streamServerMessageSchema, streamServerFixtures.ready)).toBe(true)
+  })
+
+  it('refuses a hello below the minimum version', () => {
+    const hello = { ...streamClientFixtures.hello, v: 0 }
+    expect(accepts(streamClientMessageSchema, hello)).toBe(false)
+  })
+
+  it('parses both view frames and refuses an unknown view name', () => {
+    expect(parseServerMessage(streamServerFixtures.view).ok).toBe(true)
+    expect(parseServerMessage(streamServerFixtures.viewSession).ok).toBe(true)
+    expect(parseServerMessage({ ...streamServerFixtures.view, name: 'other' }).ok).toBe(false)
+  })
+
+  it('refuses a session view carrying a status value', () => {
+    const frame = { ...streamServerFixtures.viewSession, value: streamServerFixtures.view.value }
+    expect(parseServerMessage(frame).ok).toBe(false)
   })
 })
 

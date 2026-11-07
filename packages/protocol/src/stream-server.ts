@@ -1,13 +1,18 @@
 import { z } from 'zod'
 
-import { sessionEventsOutputSchema, sessionStatusOutputSchema, sessionSummarySchema } from './api'
+import {
+  sessionEventsOutputSchema,
+  sessionStatusOutputSchema,
+  sessionSummarySchema,
+  sessionViewOutputSchema,
+} from './api'
 import { liveFrameSchema } from './bus'
 import {
   EStreamBlockKind,
   EStreamClearReason,
   EStreamErrorCode,
   EStreamResetReason,
-  STREAM_PROTOCOL_VERSION,
+  STREAM_PROTOCOL_MIN_VERSION,
 } from './stream-constants'
 import { streamStepKeySchema } from './stream-step-key'
 
@@ -17,10 +22,25 @@ export { streamStepKeySchema }
 
 export const streamSessionRowSchema = sessionSummarySchema
 
+const viewFrameShape = { type: z.literal('view'), id: idSchema, at: z.number().int().min(0) }
+
+export const streamViewMessageSchema = z.discriminatedUnion('name', [
+  z.strictObject({
+    ...viewFrameShape,
+    name: z.literal('status'),
+    value: sessionStatusOutputSchema,
+  }),
+  z.strictObject({
+    ...viewFrameShape,
+    name: z.literal('session'),
+    value: sessionViewOutputSchema,
+  }),
+])
+
 export const streamServerMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('ready'),
-    v: z.number().int().min(STREAM_PROTOCOL_VERSION),
+    v: z.number().int().min(STREAM_PROTOCOL_MIN_VERSION),
     connectionId: z.string().min(1),
   }),
   z.strictObject({
@@ -36,13 +56,7 @@ export const streamServerMessageSchema = z.discriminatedUnion('type', [
     reason: z.enum(EStreamResetReason),
     tailFrom: z.number().int().min(0),
   }),
-  z.strictObject({
-    type: z.literal('view'),
-    id: idSchema,
-    name: z.literal('status'),
-    at: z.number().int().min(0),
-    value: sessionStatusOutputSchema,
-  }),
+  streamViewMessageSchema,
   z.strictObject({
     type: z.literal('overlay'),
     id: idSchema,

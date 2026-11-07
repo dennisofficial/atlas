@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { EStreamSubscribeKind, STREAM_PROTOCOL_VERSION } from './stream-constants'
+import { EStreamSubscribeKind, STREAM_PROTOCOL_MIN_VERSION } from './stream-constants'
 
 const subscribeSessionSchema = z
   .strictObject({
@@ -31,7 +31,7 @@ export const streamSubscribeSchema = z.discriminatedUnion('kind', [
 export const streamClientMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('hello'),
-    v: z.number().int().min(STREAM_PROTOCOL_VERSION),
+    v: z.number().int().min(STREAM_PROTOCOL_MIN_VERSION),
     token: z.string().min(1),
   }),
   streamSubscribeSchema,

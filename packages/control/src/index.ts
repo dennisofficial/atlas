@@ -22,6 +22,7 @@ export type {
 } from './port'
 export type { BlobRow, BlobWrite } from './port'
 export { readSessionStatus, STATUS_EVENT_LIMIT } from './session-status'
+export { pricedView } from './session-view-pricing'
 export {
   FALLBACK_TITLE_CHARS,
   fallbackTitleOf,

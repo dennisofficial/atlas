@@ -162,6 +162,7 @@ export class StreamConnection {
         this.phase = EPhase.Ready
         this.session = this.deps.subscriptions.open({
           userId: principal.userId,
+          version: Math.min(helloVersion, STREAM_PROTOCOL_VERSION),
           send: (m) => this.send(m),
           bufferedAmount: () => this.socket.getBufferedAmount(),
           close: (code) => this.close(code),

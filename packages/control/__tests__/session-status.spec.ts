@@ -34,7 +34,7 @@ const setup = async () => {
     })
     if (!outcome.ok) throw new Error('append refused')
   }
-  const read = () => readSessionStatus({ plane, sessionId: SESSION, threadId: THREAD, now: NOW })
+  const read = () => readSessionStatus({ plane, sessionId: SESSION, threadId: THREAD })
   return { store, plane, append, read }
 }
 
@@ -162,7 +162,7 @@ describe('readSessionStatus', () => {
       ],
     })
     expect((await read()).value).toMatchObject({
-      state: ESessionStatus.Failed,
+      state: ESessionStatus.StartFailed,
       reason: 'sandbox is not configured',
     })
     await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"b"}' })
@@ -248,7 +248,6 @@ describe('readSessionStatus under a concurrent consume', () => {
       plane,
       sessionId: SESSION,
       threadId: THREAD,
-      now: NOW,
     })
 
     expect(status.value.state === ESessionStatus.Sent && status.at > 1).toBe(false)

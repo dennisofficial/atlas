@@ -47,6 +47,7 @@ describe('isSessionWorking', () => {
       ESessionStatus.Idle,
       ESessionStatus.Failed,
       ESessionStatus.SetupFailed,
+      ESessionStatus.StartFailed,
       ESessionStatus.WaitingForCredentials,
       undefined,
     ]) {

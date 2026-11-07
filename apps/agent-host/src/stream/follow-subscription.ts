@@ -66,6 +66,10 @@ export class FollowSubscription implements FollowTarget {
     return this.thread
   }
 
+  get protocolVersion(): number {
+    return this.args.connection.version
+  }
+
   send(message: StreamServerMessage): void {
     if (this.stopped) return
     this.args.connection.send(message)

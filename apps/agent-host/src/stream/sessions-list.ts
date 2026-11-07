@@ -37,6 +37,7 @@ export class SessionsListIndex {
       userId: subscription.userId,
       projectId: subscription.projectId,
       limit: SNAPSHOT_LIMIT,
+      withView: true,
     })
     const now = this.deps.timers.now()
     return digests.map((digest) => {
@@ -104,6 +105,7 @@ export class SessionsListIndex {
       userId: args.owner.userId,
       sessionId: args.sessionId,
       limit: 1,
+      withView: true,
     })
     if (digest === undefined) {
       this.clearDeadline(args.sessionId)

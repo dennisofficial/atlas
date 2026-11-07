@@ -64,7 +64,11 @@ export function deriveStatus(args: {
   const startFailure = facts.startFailure
   if (startFailure !== null) {
     if (args.messageAfterFailure === true) return { state: ESessionStatus.Sent }
-    return { state: ESessionStatus.Failed, reason: startFailure.reason, since: startFailure.at }
+    return {
+      state: ESessionStatus.StartFailed,
+      reason: startFailure.reason,
+      since: startFailure.at,
+    }
   }
 
   const workspace =
