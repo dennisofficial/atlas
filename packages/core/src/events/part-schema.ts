@@ -14,6 +14,8 @@ export const stepUsageSchema = z.object({
   cacheReadTokens: z.number().optional(),
   cacheWriteTokens: z.number().optional(),
   contextWindow: z.number().int().positive().optional(),
+  providerId: z.string().min(1).optional(),
+  modelId: z.string().min(1).optional(),
 })
 
 export const assistantPartSchema = z.discriminatedUnion('type', [

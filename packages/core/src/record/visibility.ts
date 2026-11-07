@@ -42,7 +42,7 @@ export function stepVisibility(state: VisibilityState, event: V2Event): Visibili
 const covers = (params: { span: HiddenSpan; seq: number }): boolean =>
   params.span.fromSeq <= params.seq && params.seq <= params.span.throughSeq
 
-export const isVisible = (state: VisibilityState, event: V2Event): boolean =>
+export const isVisible = (state: VisibilityState, event: Pick<V2Event, 'seq' | 'type'>): boolean =>
   !state.spans.some(
     (span) =>
       covers({ span, seq: event.seq }) &&
