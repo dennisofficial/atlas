@@ -176,7 +176,9 @@ export function ThreadRowBody({
             data-thread-line="secondary"
             className="col-span-2 mt-1 flex min-w-0 items-center gap-1.5 px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
           >
-            <ThreadWorkSummary entries={entries} branch={branch} />
+            {v2 && branch === undefined && latest === undefined ? null : (
+              <ThreadWorkSummary entries={entries} branch={branch} />
+            )}
             <time dateTime={thread.updatedAt} className="ml-auto shrink-0 font-mono">
               {relativeTime({ from: thread.updatedAt })}
             </time>

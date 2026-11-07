@@ -70,6 +70,15 @@ const branchesObserved = (): V2Event => ({
   worktrees: [],
 })
 
+const pullRequestLinked = (): V2Event => ({
+  ...envelope(),
+  type: 'pull-request-linked',
+  number: 7,
+  url: 'https://github.com/o/r/pull/7',
+  repo: 'o/r',
+  branch: 'topic',
+})
+
 const inputConsumed = (consumed: EInputConsumed = EInputConsumed.Stop): V2Event => ({
   ...envelope(),
   type: 'input-consumed',
@@ -320,6 +329,14 @@ describe('sessionStatusOf a step finish reason', () => {
 })
 
 describe('sessionStatusOf record-only events after the turn', () => {
+  it('reports idle when the host links a pull request after the reply', () => {
+    const result = status({
+      events: [userSaid(), assistantSaid(), branchesObserved(), pullRequestLinked()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Idle)
+  })
+
   it('reports idle when branches-observed follows the reply', () => {
     const result = status({
       events: [userSaid(), assistantSaid(), branchesObserved()],

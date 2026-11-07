@@ -1,6 +1,6 @@
 import { EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EFinishReason } from '../../stream/chunk'
-import { EInputConsumed, type RecordBody, type V2Event, type V2EventType } from '../event'
+import { EInputConsumed, type V2Event, type V2EventType } from '../event'
 import { endsStartFailure } from '../start-failure'
 import { countsAsPrepared } from '../workspace'
 
@@ -47,8 +47,9 @@ const TURN_ENDING_TYPES: ReadonlySet<V2EventType> = new Set([
   'session-start-failed',
 ])
 
-const TURN_NEUTRAL_TYPES: ReadonlySet<V2EventType> = new Set<RecordBody['type']>([
+const TURN_NEUTRAL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
   'branches-observed',
+  'pull-request-linked',
   'fact-recorded',
   'retry-scheduled',
   'input-consumed',
