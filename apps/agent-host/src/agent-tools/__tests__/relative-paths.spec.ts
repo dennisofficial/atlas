@@ -208,6 +208,7 @@ describe('file tools expand environment references in paths', () => {
   })
 
   it('does not expand a variable of the host process', async () => {
+    const previous = process.env['ATLAS_SPEC_HOST_ONLY']
     process.env['ATLAS_SPEC_HOST_ONLY'] = 'host-only-value'
     try {
       const outcome = await invoke(new ReadTool({ files }), {
@@ -220,7 +221,8 @@ describe('file tools expand environment references in paths', () => {
       expect(reason).toContain('not set')
       expect(reason).not.toContain('host-only-value')
     } finally {
-      delete process.env['ATLAS_SPEC_HOST_ONLY']
+      if (previous === undefined) delete process.env['ATLAS_SPEC_HOST_ONLY']
+      else process.env['ATLAS_SPEC_HOST_ONLY'] = previous
     }
   })
 
