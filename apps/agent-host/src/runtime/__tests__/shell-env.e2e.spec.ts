@@ -12,6 +12,7 @@ import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 
 const HOST_SECRETS = ['DATABASE_URL', 'REDIS_URL', 'DAEMON_SECRET', 'SECRETS_ENCRYPTION_KEY']
+const previous = { ...process.env }
 
 const identityFetch = (async () =>
   new Response(JSON.stringify({ id: 583231, login: 'octocat' }))) as unknown as typeof fetch
@@ -60,7 +61,10 @@ const shellOutputOf = async (args: { token: string | null }): Promise<string> =>
 }
 
 afterEach(() => {
-  for (const name of HOST_SECRETS) delete process.env[name]
+  for (const name of HOST_SECRETS) {
+    if (previous[name] === undefined) delete process.env[name]
+    else process.env[name] = previous[name]
+  }
 })
 
 describe('a shell in the sandbox', () => {

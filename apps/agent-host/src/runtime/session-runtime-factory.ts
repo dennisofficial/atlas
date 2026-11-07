@@ -30,6 +30,7 @@ import { createProviderModel } from '../model/providers'
 import { normalizeProviderFailure } from '../model/failure'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
+import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { SandboxSaidUploads } from '../uploads/sandbox-said-uploads'
 import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
@@ -39,11 +40,13 @@ import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/
 import { abortable } from './abortable'
 import { PrepareSteps } from './prepare-steps'
 import { countRunningShells } from './running-shells'
+import { startKeepAlive } from './keep-alive'
 import { rewakingConnector } from './rewaking-connector'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
 import { daemonToolsOf } from './tools'
 import { ShellEnvCell } from './shell-env'
+import { prepareSigning } from './signing-setup'
 import { ensureWorkspace } from './workspace-setup'
 import { workspaceRepoMap } from './workspace-repo-map'
 import { GithubPullRequestFinder } from '../github/github-pull-request-finder'
@@ -56,14 +59,13 @@ export class SandboxNotConfiguredError extends Error {
   }
 }
 
-const KEEP_ALIVE_EVERY_MS = 10 * 60_000
-const KEEP_ALIVE_WINDOW_MS = 45 * 60_000
 const SETUP_DEADLINE_MS = 15 * 60_000
 
 export type SessionRuntimeFactoryArgs = {
   config: ConfigSource
   tokens: Pick<ModelTokenService, 'issue'>
   github: Pick<GithubTokenReader, 'read'>
+  signingKey?: Pick<SigningKeyReader, 'read'> | undefined
   sandbox: SandboxProvider
   daemonSecret: string
   timers: HostTimers
@@ -132,7 +134,15 @@ export const createSessionRuntimeFactory = (
         .then(async () => {
           steps.report({ step: EWorkspaceStep.Daemon, state: EWorkspaceStepState.Done })
           const token = await abortable(args.github.read({ userId: config.userId }), signal)
-          await shellEnv.refresh({ token, launchDirectory, signal })
+          const signing = await prepareSigning({
+            reader: args.signingKey,
+            files,
+            userId: config.userId,
+            launchDirectory,
+            signal,
+            log: args.log,
+          })
+          await shellEnv.refresh({ token, signing, launchDirectory, signal })
           return ensureWorkspace({
             calls,
             processes,
@@ -238,25 +248,14 @@ export const createSessionRuntimeFactory = (
       throw error
     }
 
-    let keepAlive = signal.aborted
-      ? undefined
-      : args.timers.setTimeout(function renew() {
-          args.sandbox
-            .keepAlive({ sessionId, credentials, until: args.timers.now() + KEEP_ALIVE_WINDOW_MS })
-            .catch((error: unknown) => {
-              args.log?.error({
-                source: 'runtime.keep-alive',
-                message: `keep-alive for ${sessionId} failed`,
-                ...logFieldsOf({ error }),
-              })
-            })
-          keepAlive = args.timers.setTimeout(renew, KEEP_ALIVE_EVERY_MS)
-        }, KEEP_ALIVE_EVERY_MS)
-    const stopKeepAlive = (): void => {
-      args.timers.clearTimeout(keepAlive)
-      signal.removeEventListener('abort', stopKeepAlive)
-    }
-    signal.addEventListener('abort', stopKeepAlive, { once: true })
+    const stopKeepAlive = startKeepAlive({
+      sandbox: args.sandbox,
+      sessionId,
+      credentials,
+      timers: args.timers,
+      signal,
+      log: args.log,
+    })
 
     return {
       remoteCalls: calls,

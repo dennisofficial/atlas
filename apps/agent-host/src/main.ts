@@ -18,6 +18,7 @@ import { ModelTokenService } from './tokens/model-token-service'
 import { OauthConnectionStore } from './tokens/oauth-connection-store'
 import { VercelTokenRefresher } from './tokens/vercel-token-refresher'
 import { GithubTokenReader } from './tokens/github-token-reader'
+import { SigningKeyReader } from './tokens/signing-key-reader'
 import { MediaSigner } from './media/media-signer'
 import { PgMediaSigningWindows } from './media/pg-media-signing-windows'
 import { SecretCipher } from './config/secret-cipher'
@@ -61,6 +62,7 @@ const main = async (): Promise<void> => {
   const vercel = new VercelTokenRefresher({ db: createDb(pool), cipher, oauth: env.vercelOauth })
   const config = new ConfigReader({ db: createDb(pool), cipher, vercel })
   const github = new GithubTokenReader({ db: createDb(pool), cipher })
+  const signingKey = new SigningKeyReader({ db: createDb(pool), cipher })
   const tokens = new ModelTokenService({
     store: new OauthConnectionStore(createDb(pool)),
     cipher,
@@ -91,6 +93,7 @@ const main = async (): Promise<void> => {
     config,
     tokens,
     github,
+    signingKey,
     media,
     presence,
     log,

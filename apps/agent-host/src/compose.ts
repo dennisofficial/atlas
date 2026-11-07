@@ -5,6 +5,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import type { ModelTokenService } from './tokens/model-token-service'
 import type { GithubTokenReader } from './tokens/github-token-reader'
+import type { SigningKeyReader } from './tokens/signing-key-reader'
 import type { ConfigSource } from './config/agent-host-config'
 import type { AgentHostEnv } from './config/env'
 import type { MediaSigner } from './media/media-signer'
@@ -31,6 +32,7 @@ export type ComposeAgentHostArgs = {
   config: ConfigSource
   tokens: Pick<ModelTokenService, 'issue'>
   github: Pick<GithubTokenReader, 'read'>
+  signingKey: Pick<SigningKeyReader, 'read'>
   timers?: HostTimers | undefined
   log?: LogPort | undefined
   media?: MediaSigner | undefined
@@ -49,6 +51,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       config: args.config,
       tokens: args.tokens,
       github: args.github,
+      signingKey: args.signingKey,
       sandbox: args.sandbox,
       daemonSecret: args.env.daemonSecret,
       timers,

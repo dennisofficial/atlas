@@ -8,6 +8,8 @@ export const MATERIALIZED_SENTINEL = 'workspace-materialized'
 export const SETUP_SENTINEL = 'setup-ran'
 export const PRIMARY_SENTINEL = 'primary-cloned'
 export const TOKEN_FILE = 'github-token'
+export const SIGNING_KEY_FILE = 'signing-key'
+export const ALLOWED_SIGNERS_FILE = 'allowed-signers'
 
 export type Sentinels = { materialized: string; setupRan: string; primary: string }
 
