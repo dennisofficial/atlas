@@ -11,7 +11,7 @@ import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protoco
 
 import type { LogPort } from '@dltech/atlas-observability'
 
-import type { PrepareResult, PrepareStepReporter } from '../ports'
+import type { PrepareResult, PrepareStepReporter, PullRequestSource } from '../ports'
 import { SessionHolder } from '../session-holder'
 import { FakeBus, FakeClock, flushUntil, SANDBOX, SECRET, SESSION, THREAD } from './rig-fakes'
 import { makeRuntimeFactory, type RigRuntime, type ScriptRef } from './rig-runtime'
@@ -56,6 +56,9 @@ export const makeRig = async (args: {
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
+  baseBranches?: Readonly<Record<string, string>> | undefined
+  pullRequests?: PullRequestSource | undefined
+  reasonOfStartError?: ((error: unknown) => string) | undefined
   uploads?: SaidUploadsPort | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
@@ -69,7 +72,10 @@ export const makeRig = async (args: {
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store =
-    args.store ?? new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
+    args.store ??
+    new InMemoryControlStore({
+      clock: () => new Date(clock.now()).toISOString(),
+    })
   const memoryPresence = createMemoryHostPresence({ store })
   let registered: number | undefined
   const presence = {
@@ -85,7 +91,11 @@ export const makeRig = async (args: {
   const ids = new SequentialIds()
   const daemon =
     args.daemon ??
-    (await createInMemoryDaemon({ version: 'test', sandboxName: SANDBOX, secret: SECRET }))
+    (await createInMemoryDaemon({
+      version: 'test',
+      sandboxName: SANDBOX,
+      secret: SECRET,
+    }))
   const script: ScriptRef = { current: args.script ?? [{ text: 'ok' }] }
   const runtimes: RigRuntime[] = []
   const runtimeFor = makeRuntimeFactory({
@@ -96,6 +106,8 @@ export const makeRig = async (args: {
     watchedRepos: args.watchedRepos,
     runningShells: args.runningShells,
     model: args.model,
+    baseBranches: args.baseBranches,
+    pullRequests: args.pullRequests,
     uploads: args.uploads,
     prepare: args.prepare,
     subscribePrepareOutput: args.subscribePrepareOutput,
@@ -112,6 +124,7 @@ export const makeRig = async (args: {
     runtimes: runtimeFor,
     ids,
     maxSessions: args.maxSessions ?? 4,
+    reasonOfStartError: args.reasonOfStartError,
     ...(args.appendRetryMs === undefined ? {} : { appendRetryMs: args.appendRetryMs }),
     idleMinutes: args.idleMinutes ?? 30,
     sweepMs: args.sweepMs ?? 0,
@@ -139,7 +152,11 @@ export const makeRig = async (args: {
     script,
     runtimes,
     post: (text) =>
-      plane.post({ sessionId: SESSION, kind: 'message', payload: JSON.stringify({ text }) }),
+      plane.post({
+        sessionId: SESSION,
+        kind: 'message',
+        payload: JSON.stringify({ text }),
+      }),
     postStop: () => plane.post({ sessionId: SESSION, kind: 'stop', payload: '{}' }),
     wake: () => bus.wake(SESSION),
     flush: async () => {
@@ -147,7 +164,12 @@ export const makeRig = async (args: {
     },
     runCount: () => daemon.runCount(),
     events: async () => {
-      const out: { type: string; seq: number; epoch: number; bootId?: string | null }[] = []
+      const out: {
+        type: string
+        seq: number
+        epoch: number
+        bootId?: string | null
+      }[] = []
       let afterSeq = 0
       for (;;) {
         const page = await plane.readEvents({

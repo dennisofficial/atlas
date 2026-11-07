@@ -22,7 +22,12 @@ import { inMemoryDaemonToken, type InMemoryDaemon } from '@dltech/atlas-protocol
 
 import { RemoteCalls } from '../../calls/remote-calls'
 import { scopeDispatchedBootId } from '../../calls/call-scope'
-import type { PrepareResult, PrepareStepReporter, SessionRuntime } from '../ports'
+import type {
+  PrepareResult,
+  PrepareStepReporter,
+  PullRequestSource,
+  SessionRuntime,
+} from '../ports'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
 
 export type RigRuntime = SessionRuntime & {
@@ -53,9 +58,17 @@ class BashTool extends ToolDefinition {
       dispatchedBootId: scopeDispatchedBootId(),
     })
     if (result.status !== 'ok') return { ok: false, reason: result.error.message }
-    const value = result.value as { outcome: string; stdout?: string; exitCode: number | null }
+    const value = result.value as {
+      outcome: string
+      stdout?: string
+      exitCode: number | null
+    }
     if (value.outcome === 'cancelled') return { ok: false, reason: 'cancelled' }
-    return { ok: true, output: value.stdout ?? '', modelText: value.stdout ?? '' }
+    return {
+      ok: true,
+      output: value.stdout ?? '',
+      modelText: value.stdout ?? '',
+    }
   }
 }
 
@@ -76,6 +89,8 @@ export const makeRuntimeFactory = (args: {
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
   model?: (() => ModelPort) | undefined
+  baseBranches?: Readonly<Record<string, string>> | undefined
+  pullRequests?: PullRequestSource | undefined
   uploads?: SaidUploadsPort | undefined
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
@@ -114,7 +129,10 @@ export const makeRuntimeFactory = (args: {
       daemonTools: new Set(['bash']),
       ackedScopes,
       effectOf: () => EToolEffect.Read,
-      assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),
+      assembly: defaultPipeline({
+        prompt: () => EMPTY_PROMPT,
+        launchDirectory: '/w',
+      }),
       normalizeFailure: ({ message }) => ({
         kind: EProviderFailureKind.Network,
         scope: EProviderFailureScope.Route,
@@ -125,6 +143,8 @@ export const makeRuntimeFactory = (args: {
       launchDirectory: '/w',
       watched: [],
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
+      baseBranchOf: (repoPath) => args.baseBranches?.[repoPath] ?? null,
+      ...(args.pullRequests === undefined ? {} : { pullRequests: args.pullRequests }),
       runningShells: args.runningShells ?? (async () => 0),
       prepare: (onStep) => (args.prepare ?? (async () => ({ ok: true as const })))(onStep),
       ...(args.subscribePrepareOutput === undefined

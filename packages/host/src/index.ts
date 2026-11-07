@@ -29,14 +29,20 @@ export {
 } from './calls/socket'
 export { DaemonAgentFileSystemPort } from './calls/ports/agent-filesystem'
 export { DaemonFileSystemPort } from './calls/ports/filesystem'
-export { DaemonProcessPort, DEFAULT_SANDBOX_COMMANDS } from './calls/ports/process'
+export {
+  DaemonProcessPort,
+  DEFAULT_SANDBOX_COMMANDS,
+} from './calls/ports/process'
 export { SessionHolder, type SessionHolderArgs } from './holder/session-holder'
 export type {
   HostBus,
   HostPresence,
   HostTimers,
   PrepareResult,
+  FoundPullRequest,
   PrepareStepReporter,
+  PullRequestFinder,
+  PullRequestSource,
   SessionRuntime,
   SessionRuntimeFactory,
 } from './holder/ports'

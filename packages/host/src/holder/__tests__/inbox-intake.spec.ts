@@ -15,14 +15,53 @@ const entry = (inboxId: number): InboxEntry =>
     consumedSeq: null,
   }) as InboxEntry
 
-const intakeOver = (readInbox: (args: { afterId: number }) => Promise<InboxEntry[]>) =>
+const intakeOver = (
+  readInbox: (args: { afterId: number }) => Promise<InboxEntry[]>,
+  record: SessionRecord = {} as SessionRecord,
+) =>
   new InboxIntake({
     plane: { readInbox } as unknown as ControlPlane,
     sessionId: 'session-1',
-    record: {} as SessionRecord,
+    record,
     threadId: toThreadId('thread-1'),
     runId: () => toRunId('run-1'),
   })
+
+describe('InboxIntake retry entries', () => {
+  it('consumes a retry as discarded, drafts nothing and does not wake a turn', async () => {
+    const appended: unknown[] = []
+    const warnings: string[] = []
+    const record = {
+      append: async (args: unknown) => appended.push(args),
+    } as unknown as SessionRecord
+    const intake = new InboxIntake({
+      plane: {
+        readInbox: async () => [{ ...entry(3), kind: 'retry', payload: '{}' }],
+      } as unknown as ControlPlane,
+      sessionId: 'session-1',
+      record,
+      threadId: toThreadId('thread-1'),
+      runId: () => toRunId('run-1'),
+      log: { warn: (line: { message: string }) => warnings.push(line.message) } as never,
+    })
+    const drain = await intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(appended).toMatchObject([
+      { drafts: [{ type: 'input-consumed', inboxId: 3, consumed: 'discarded' }] },
+    ])
+    expect(warnings).toEqual([])
+  })
+
+  it('still drafts the message that arrived alongside the retry', async () => {
+    const record = { append: async () => [] } as unknown as SessionRecord
+    const drain = await intakeOver(
+      async () => [{ ...entry(1), kind: 'retry', payload: '{}' }, entry(2)],
+      record,
+    ).prepare()
+    expect(drain.drafts).toHaveLength(1)
+    expect(drain.wakesTurn).toBe(true)
+  })
+})
 
 describe('InboxIntake', () => {
   it('rejects when the inbox read fails instead of draining nothing', async () => {

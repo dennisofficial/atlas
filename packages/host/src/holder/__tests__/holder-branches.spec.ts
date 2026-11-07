@@ -35,7 +35,10 @@ const publishingGitGroup = (reads: { count: number }): DaemonGroupFactory => {
       defineOp({
         op: 'git.watch',
         run: async ({ op, ctx: callCtx }) => {
-          callCtx.publish({ type: 'git.branches', set: { ...SET, repoPath: op.repoPath } })
+          callCtx.publish({
+            type: 'git.branches',
+            set: { ...SET, repoPath: op.repoPath },
+          })
           return { ...SET, repoPath: op.repoPath }
         },
       }),
@@ -77,10 +80,19 @@ const connect = (daemon: Awaited<ReturnType<typeof makeDaemon>>): RemoteCalls =>
   return calls
 }
 
-const fakeRecord = (): BranchRecorder & { appended: BranchesObserved[] } => {
+const fakeRecord = (): BranchRecorder & {
+  appended: BranchesObserved[]
+  facts: Map<string, string>
+} => {
   const appended: BranchesObserved[] = []
+  const facts = new Map<string, string>()
   return {
     appended,
+    facts,
+    recordedBase: (repo) => facts.get(repo),
+    rememberBase: async ({ repo, base }) => {
+      facts.set(repo, base)
+    },
     append: async ({ body }) => {
       appended.push(body)
     },
@@ -101,7 +113,10 @@ describe('RemoteCalls.onEvent', () => {
       })
     })
     await calls.ready()
-    const result = await calls.invoke({ key: 'k1', op: { op: 'git.watch', repoPath: '/w' } })
+    const result = await calls.invoke({
+      key: 'k1',
+      op: { op: 'git.watch', repoPath: '/w' },
+    })
     expect(result.status).toBe(ECallStatus.Ok)
     await received
     expect(seen).toEqual(['/w'])
@@ -200,6 +215,7 @@ describe('BranchObserver', () => {
       threadId,
       signal: new AbortController().signal,
       repos: async () => [],
+      baseOf: () => null,
       runId: () => toRunId('run-1'),
     })
     observer.start()
@@ -222,6 +238,7 @@ describe('BranchObserver', () => {
       threadId,
       signal: new AbortController().signal,
       repos: async () => ['/w'],
+      baseOf: () => null,
       runId: () => toRunId('run-1'),
     })
     await calls.ready()
@@ -247,6 +264,7 @@ describe('BranchObserver', () => {
       threadId,
       signal: new AbortController().signal,
       repos: async () => ['/missing'],
+      baseOf: () => null,
       runId: () => toRunId('run-1'),
     })
     await calls.ready()
@@ -279,6 +297,7 @@ describe('BranchObserver', () => {
       threadId,
       signal: new AbortController().signal,
       repos: async () => ['/w'],
+      baseOf: () => null,
       runId: () => toRunId('run-1'),
     })
     await calls.ready()
@@ -288,9 +307,89 @@ describe('BranchObserver', () => {
     if (key === undefined) return
     expect(acked).toContain(key)
     const before = reads.count
-    const replay = await originalInvoke({ key, op: { op: 'git.read', repoPath: '/w' } })
+    const replay = await originalInvoke({
+      key,
+      op: { op: 'git.read', repoPath: '/w' },
+    })
     expect(replay.status).toBe(ECallStatus.Ok)
     expect(reads.count).toBe(before + 1)
+    calls.close()
+    await daemon.stop()
+  })
+
+  const observerOver = (args: {
+    record: ReturnType<typeof fakeRecord>
+    calls: RemoteCalls
+    baseOf: (repo: string) => string | null
+  }) =>
+    new BranchObserver({
+      record: args.record,
+      remoteCalls: args.calls,
+      threadId,
+      signal: new AbortController().signal,
+      repos: async () => ['/w'],
+      baseOf: args.baseOf,
+      runId: () => toRunId('run-1'),
+    })
+
+  it('stamps the configured base on the observation', async () => {
+    const daemon = await makeDaemon()
+    const calls = connect(daemon)
+    const record = fakeRecord()
+    await calls.ready()
+    await observerOver({ record, calls, baseOf: () => 'develop' }).refresh()
+    expect(record.appended[0]?.base).toBe('develop')
+    expect(record.facts.size).toBe(0)
+    calls.close()
+    await daemon.stop()
+  })
+
+  it('falls back to the checked-out head on the first observation and remembers it', async () => {
+    const daemon = await makeDaemon()
+    const calls = connect(daemon)
+    const record = fakeRecord()
+    await calls.ready()
+    await observerOver({ record, calls, baseOf: () => null }).refresh()
+    expect(record.appended[0]?.base).toBe('aaa111')
+    expect(record.facts.get('/w')).toBe('aaa111')
+    calls.close()
+    await daemon.stop()
+  })
+
+  it('a new holder reads the remembered base instead of the current head', async () => {
+    const daemon = await makeDaemon()
+    const calls = connect(daemon)
+    const record = fakeRecord()
+    record.facts.set('/w', 'main')
+    record.appended.push({
+      type: 'branches-observed',
+      repo: '/w',
+      head: 'feat-x',
+      base: 'main',
+      branches: [],
+      worktrees: [],
+    })
+    await calls.ready()
+    await observerOver({ record, calls, baseOf: () => null }).refresh()
+    expect(record.appended.at(-1)?.base).toBe('main')
+    calls.close()
+    await daemon.stop()
+  })
+
+  it('leaves base off when none is known and the record already has observations', async () => {
+    const daemon = await makeDaemon()
+    const calls = connect(daemon)
+    const record = fakeRecord()
+    record.appended.push({
+      type: 'branches-observed',
+      repo: '/w',
+      head: 'old',
+      branches: [],
+      worktrees: [],
+    })
+    await calls.ready()
+    await observerOver({ record, calls, baseOf: () => null }).refresh()
+    expect(record.appended.at(-1)).not.toHaveProperty('base')
     calls.close()
     await daemon.stop()
   })

@@ -16,5 +16,6 @@ export type HeldSessionDeps = {
   idleMinutes: number
   runtimeFor: SessionRuntimeFactory
   judgeStartFailure?: ((error: unknown) => StartVerdict) | undefined
+  reasonOfStartError?: ((error: unknown) => string) | undefined
   log?: LogPort | undefined
 }

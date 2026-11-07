@@ -15,6 +15,13 @@ const REFRESH_TIMEOUT_MS = 10_000
 export type BranchRecorder = {
   append(args: { threadId: ThreadId; runId: RunId; body: BranchesObserved }): Promise<unknown>
   lastObservation(repo: string): BranchObservation | undefined
+  recordedBase(repo: string): string | undefined
+  rememberBase(args: {
+    threadId: ThreadId
+    runId: RunId
+    repo: string
+    base: string
+  }): Promise<unknown>
 }
 
 export type BranchObserverArgs = {
@@ -23,6 +30,8 @@ export type BranchObserverArgs = {
   threadId: ThreadId
   signal: AbortSignal
   repos(): Promise<readonly string[]>
+  baseOf(repo: string): string | null
+  afterRefresh?: (() => Promise<void>) | undefined
   runId(): RunId
   log?: LogPort | undefined
 }
@@ -55,7 +64,12 @@ export class BranchObserver {
     this.stopped.abort()
   }
 
-  refresh(): Promise<void> {
+  async refresh(): Promise<void> {
+    await this.refreshRepos()
+    if (!this.isStopped) await this.args.afterRefresh?.()
+  }
+
+  private refreshRepos(): Promise<void> {
     return this.enqueue(async () => {
       const repos = await this.args.repos()
       for (const repo of repos) {
@@ -133,11 +147,34 @@ export class BranchObserver {
     if (this.isStopped) return
     const observation = observationOf(set)
     const last = this.args.record.lastObservation(observation.repo)
-    if (!observationChanged({ last, set: observation })) return
+    const base = await this.baseOf({
+      repo: observation.repo,
+      head: observation.head,
+      first: last === undefined,
+    })
+    const stamped = base === null ? observation : { ...observation, base }
+    if (!observationChanged({ last, set: stamped })) return
     await this.args.record.append({
       threadId: this.args.threadId,
       runId: this.args.runId(),
-      body: { type: 'branches-observed', ...observation },
+      body: { type: 'branches-observed', ...stamped },
     })
+  }
+
+  private async baseOf(args: {
+    repo: string
+    head: string | null
+    first: boolean
+  }): Promise<string | null> {
+    const known = this.args.baseOf(args.repo) ?? this.args.record.recordedBase(args.repo)
+    if (known !== null && known !== undefined) return known
+    if (!args.first || args.head === null) return null
+    await this.args.record.rememberBase({
+      threadId: this.args.threadId,
+      runId: this.args.runId(),
+      repo: args.repo,
+      base: args.head,
+    })
+    return args.head
   }
 }

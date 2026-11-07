@@ -76,6 +76,29 @@ describe('the step usage a draft carries', () => {
     expect(drafts[0]).not.toHaveProperty('usage.contextWindow')
   })
 
+  it('names the provider and model that ran the step', () => {
+    const drafts = draftsFor({
+      result: result({ toolCalls: [call] }),
+      model: { identity: { id: 'anthropic', modelId: 'claude-sonnet-4-5' } },
+    })
+    expect(drafts[0]).toMatchObject({
+      usage: { ...usage, providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+    })
+  })
+
+  it('carries the model identity with the window when both are known', () => {
+    const drafts = draftsFor({
+      result: result({ toolCalls: [call] }),
+      model: {
+        identity: { id: 'openai', modelId: 'gpt-5' },
+        traits: () => ({ contextWindow: WINDOW }),
+      },
+    })
+    expect(drafts[0]).toMatchObject({
+      usage: { ...usage, contextWindow: WINDOW, providerId: 'openai', modelId: 'gpt-5' },
+    })
+  })
+
   it('survives an interrupted step', () => {
     const drafts = interruptedDrafts(stepOf({ toolCalls: [call] }))
     expect(drafts[0]).toMatchObject({ type: 'tool-called', usage })
