@@ -13,6 +13,8 @@ namespace v2 {
     threads      V2Thread[]
     inbox        V2InboxEntry[]
     lease        V2Lease?
+    view         V2SessionView?
+    pullRequests V2SessionPullRequest[]
 
     @@index([userId, createdAt])
   }

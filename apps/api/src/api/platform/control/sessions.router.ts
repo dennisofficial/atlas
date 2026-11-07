@@ -13,6 +13,10 @@ import {
   sessionListOutputSchema,
   sessionPostInputSchema,
   sessionPostOutputSchema,
+  sessionRetryInputSchema,
+  sessionRetryOutputSchema,
+  sessionViewInputSchema,
+  sessionViewOutputSchema,
   sessionStatusInputSchema,
   sessionStatusOutputSchema,
   sessionWithdrawInputSchema,
@@ -29,6 +33,10 @@ import {
   type SessionListOutput,
   type SessionPostInput,
   type SessionPostOutput,
+  type SessionRetryInput,
+  type SessionRetryOutput,
+  type SessionViewInput,
+  type SessionViewOutput,
   type SessionStatusInput,
   type SessionStatusOutput,
   type SessionWithdrawInput,
@@ -103,5 +111,18 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionStatusOutput> {
     return this.sessions.status({ userId: ctx.auth.userId, sessionId: input.sessionId })
+  }
+
+  @Mutation({ input: sessionRetryInputSchema, output: sessionRetryOutputSchema })
+  retry(
+    @Input() input: SessionRetryInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionRetryOutput> {
+    return this.sessions.retry({ userId: ctx.auth.userId, sessionId: input.sessionId })
+  }
+
+  @Query({ input: sessionViewInputSchema, output: sessionViewOutputSchema })
+  view(@Input() input: SessionViewInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionViewOutput> {
+    return this.sessions.view({ userId: ctx.auth.userId, sessionId: input.sessionId })
   }
 }

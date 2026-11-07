@@ -8,44 +8,34 @@ import {
   STATUS_EVENT_LIMIT,
 } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
-import { canonicalEvent, type SaidUpload, type V2Event } from '@dltech/atlas-core'
+import { INBOX_KIND_RETRY, type SaidUpload } from '@dltech/atlas-core'
 import { MediaStore } from '@dltech/atlas-media'
 import {
+  EWithdrawRefusal,
   INBOX_KIND_MESSAGE,
   inboxMessageSchema,
+  type SessionArchiveOutput,
+  type SessionBlobOutput,
+  type SessionEventsOutput,
+  type SessionListOutput,
   type SessionPostMedia,
-} from '@dltech/atlas-protocol'
-import { EWithdrawRefusal } from '@dltech/atlas-protocol'
-import type {
-  SessionArchiveOutput,
-  SessionBlobOutput,
-  SessionEventsOutput,
-  SessionListOutput,
-  SessionStatusOutput,
-  SessionWithdrawOutput,
+  type SessionRetryOutput,
+  type SessionStatusOutput,
+  type SessionViewOutput,
+  type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import { attachedMedia, imagesForNaming, type AttachedMedia } from './media-attachments'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
+import {
+  BLOB_READ_DEFAULT_LENGTH,
+  EVENTS_DEFAULT_MAX_BYTES,
+  toPageEvent,
+} from './session-events-page'
+import { pricedView } from './session-view-pricing'
 import { attachedUploads } from './upload-attachments'
-
-export type LeaseView = {
-  epoch: number
-  holderHostId: number | null
-  live: boolean
-}
-
-const EVENTS_DEFAULT_MAX_BYTES = 2_000_000
-const EVENTS_HARD_CEILING_BYTES = 3_500_000
-const BLOB_READ_DEFAULT_LENGTH = 1_000_000
-
-const toPageEvent = (event: V2Event): Record<string, unknown> => {
-  const bytes = Buffer.byteLength(canonicalEvent(event), 'utf8')
-  if (bytes <= EVENTS_HARD_CEILING_BYTES) return event as Record<string, unknown>
-  return { seq: event.seq, type: event.type, oversized: { bytes } }
-}
 
 @Injectable()
 export class SessionsService {
@@ -92,6 +82,7 @@ export class SessionsService {
       userId: args.userId,
       projectId: args.projectId,
       limit: args.limit ?? 100,
+      withView: true,
     })
     const now = Date.now()
     return {
@@ -279,6 +270,21 @@ export class SessionsService {
       now: new Date().toISOString(),
     })
     return value
+  }
+
+  async view(args: { userId: string; sessionId: string }): Promise<SessionViewOutput> {
+    const session = await this.requireOwnedSession(args)
+    return pricedView(
+      await this.plane.readSessionView({
+        sessionId: args.sessionId,
+        threadId: session.mainThreadId,
+      }),
+    )
+  }
+
+  async retry(args: { userId: string; sessionId: string }): Promise<SessionRetryOutput> {
+    await this.requireOwnedSession(args)
+    return this.plane.post({ sessionId: args.sessionId, kind: INBOX_KIND_RETRY, payload: '{}' })
   }
 
   async requireOwnedSession(args: {

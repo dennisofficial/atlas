@@ -2,6 +2,11 @@ import { Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
+import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
+import { ControlPlane } from '@dltech/atlas-control'
+import { PostgresControlStore } from '@dltech/atlas-control/postgres'
+import { PG_CHANGE_CHANNEL } from '@dltech/atlas-protocol'
+import pg from 'pg'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { prepareDelivery, REST_FIELDS } from './github-delivery.fixture'
 import { localObservations } from './github-observation.fixture'
@@ -64,5 +69,79 @@ describe('GithubPrStateWriter versions', () => {
     await advanceTimersByTimeAsync(1_100)
 
     expect(received.map((state) => [state.version, state.checksPassed])).toEqual([[2, 2]])
+  })
+})
+
+describe('GithubPrStateWriter session announcements', () => {
+  useTestDatabase()
+
+  const heard: string[] = []
+  let listener: pg.Client
+
+  const linkSession = async (args: { sessionId: string; number: number }) => {
+    const plane = new ControlPlane({ store: new PostgresControlStore(db) })
+    await plane.createSession({
+      sessionId: args.sessionId,
+      userId: 'usr-a',
+      projectId: 'proj-a',
+      mainThreadId: `${args.sessionId}-thread`,
+    })
+    const lease = await plane.grant({ sessionId: args.sessionId, hostId: 1 })
+    const outcome = await plane.append({
+      threadId: `${args.sessionId}-thread`,
+      epoch: lease.epoch,
+      events: chainEvents({
+        threadId: toThreadId(`${args.sessionId}-thread`),
+        runId: toRunId('run-1'),
+        epoch: lease.epoch,
+        at: new Date().toISOString(),
+        bodies: [
+          {
+            type: 'pull-request-linked',
+            number: args.number,
+            url: `https://github.com/compai/app/pull/${args.number}`,
+            repo: 'github.com/CompAI/App',
+            branch: 'feat',
+          },
+        ],
+      }),
+    })
+    expect(outcome.ok).toBe(true)
+  }
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 200))
+
+  beforeEach(async () => {
+    await prepareDelivery()
+    heard.length = 0
+    listener = new pg.Client(process.env.DATABASE_URL)
+    await listener.connect()
+    listener.on('notification', (message) => {
+      if (message.payload === undefined) return
+      heard.push((JSON.parse(message.payload) as { sessionId: string }).sessionId)
+    })
+    await listener.query(`LISTEN ${PG_CHANGE_CHANNEL}`)
+  })
+  afterEach(() => listener.end())
+
+  it('announces the session linked to the written pull request and no other', async () => {
+    const { writer } = writerRig()
+    await linkSession({ sessionId: 'linked', number: 42 })
+    await linkSession({ sessionId: 'elsewhere', number: 43 })
+    await settle()
+    heard.length = 0
+    await write({ writer, checksPassed: 1 })
+    await settle()
+    expect(heard).toEqual(['linked'])
+  })
+
+  it('announces nothing when no session links the pull request', async () => {
+    const { writer } = writerRig()
+    await linkSession({ sessionId: 'elsewhere', number: 43 })
+    await settle()
+    heard.length = 0
+    await write({ writer, checksPassed: 1 })
+    await settle()
+    expect(heard).toEqual([])
   })
 })

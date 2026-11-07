@@ -3,7 +3,7 @@ import { canonicalEvent, type V2Body, type V2Event } from '@dltech/atlas-core'
 
 import type { SessionChange } from '@dltech/atlas-protocol'
 
-import type { ControlStorePort } from '../../port'
+import type { ControlStorePort, PrStateRow } from '../../port'
 import {
   appendBodies,
   HOLDER_HOST,
@@ -26,6 +26,7 @@ export type ConformanceParams = {
   changes: (sessionId: string) => Promise<SessionChange[]>
   nextHostId: () => Promise<number>
   holdPresence: (hostId: number) => Promise<() => Promise<void>>
+  seedPrState?: ((row: PrStateRow) => Promise<void>) | undefined
 }
 
 const consumed = (inboxId: number): V2Body => ({ type: 'input-consumed', inboxId })

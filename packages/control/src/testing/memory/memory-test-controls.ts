@@ -1,7 +1,8 @@
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import { MemoryChangeFeed } from './memory-change-feed'
-import type { State } from './memory-state'
+import { prKey, type State } from './memory-state'
+import type { PrStateRow } from '../../port'
 
 export class MemoryTestControls {
   private lastHostId = 0
@@ -25,6 +26,10 @@ export class MemoryTestControls {
 
   onGap(listener: () => void): () => void {
     return this.feed.onGap(listener)
+  }
+
+  setPrState(row: PrStateRow): void {
+    this.stateOf().prStates.set(prKey(row), { ...row })
   }
 
   changesOf(sessionId: string): SessionChange[] {

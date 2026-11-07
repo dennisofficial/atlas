@@ -1,4 +1,27 @@
+import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 import type { ControlTx } from './port'
+
+export const createSessionIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  userId: string
+  projectId: string
+  title?: string | undefined
+  mainThreadId: string
+  at: string
+}): Promise<void> => {
+  const { tx, ...session } = params
+  const { at } = session
+  await tx.createSession(session)
+  await tx.createThread({
+    threadId: params.mainThreadId,
+    sessionId: params.sessionId,
+    visibility: EMPTY_VISIBILITY_TEXT,
+    at,
+  })
+  await tx.notifyWake(params.sessionId)
+  await tx.announce({ sessionId: params.sessionId, threadId: params.mainThreadId, headSeq: 0 })
+}
 
 export const archiveIn = async (params: {
   tx: ControlTx

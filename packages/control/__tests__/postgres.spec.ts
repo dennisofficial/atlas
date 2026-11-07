@@ -20,9 +20,11 @@ import {
   describeControlPlaneReads,
   describeControlPlaneSessions,
   describeControlPlaneSessionTitles,
+  describeControlPlaneViews,
   describeControlPlaneWakes,
 } from '../src/testing/conformance'
 import { ControlPlane } from '../src/control-plane'
+import type { PrStateRow } from '../src/port'
 import { PostgresControlStore } from '../src/postgres'
 
 const testDb = useTestDatabase()
@@ -93,6 +95,24 @@ const conformanceParams = {
     return lastHostId
   },
   holdPresence: (hostId: number) => holdLock({ hostId, fn: 'pg_advisory_lock' }),
+  seedPrState: async (row: PrStateRow) => {
+    await testDb().pool.query(
+      `INSERT INTO "GithubPrState" ("repoFullName", "prNumber", "title", "url", "state", "headBranch", "headSha", "checksRunning", "checksPassed", "checksFailed", "mergeable", "updatedAt")
+       VALUES ($1, $2, $3, 'https://x', $4, 'feat', $5, $6, $7, $8, $9, $10)`,
+      [
+        row.repo,
+        row.number,
+        row.title,
+        row.state,
+        row.headSha,
+        row.checksRunning,
+        row.checksPassed,
+        row.checksFailed,
+        row.mergeable,
+        row.updatedAt,
+      ],
+    )
+  },
 }
 
 describeControlPlaneConformance(conformanceParams)
@@ -104,6 +124,7 @@ describeControlPlaneClaimNext(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
 describeControlPlaneChanges(conformanceParams)
+describeControlPlaneViews(conformanceParams)
 
 describeControlPlanePresence({
   ...conformanceParams,

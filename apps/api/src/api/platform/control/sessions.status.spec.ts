@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import {
   chainEvents,
+  EFinishReason,
   ERunFailureKind,
   ESessionStatus,
   toRunId,
@@ -209,5 +210,85 @@ describe('SessionsService status and events', () => {
     await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'retry' })
     const retrying = await service.status({ userId: 'user-a', sessionId: created.sessionId })
     expect(retrying.state).toBe(ESessionStatus.Preparing)
+  })
+
+  it('retry posts a retry entry that moves a failed session to sent, and refuses strangers', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const granted = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
+    const appended = await plane.append({
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-1'),
+        epoch: granted.epoch,
+        at: NOW,
+        bodies: [
+          { type: 'workspace-prepared' },
+          { type: 'user-said', text: 'go' },
+          { type: 'run-failed', failure: { kind: ERunFailureKind.Network, message: 'boom' } },
+        ],
+      }),
+    })
+    expect(appended.ok).toBe(true)
+    const failed = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(failed.state).toBe(ESessionStatus.Failed)
+
+    const { inboxId } = await service.retry({ userId: 'user-a', sessionId: created.sessionId })
+    const entry = await plane.readInboxEntry({ sessionId: created.sessionId, inboxId })
+    expect(entry).toMatchObject({ kind: 'retry', payload: '{}' })
+    const sent = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(sent.state).toBe(ESessionStatus.Sent)
+
+    await expect(service.retry({ userId: 'user-b', sessionId: created.sessionId })).rejects.toThrow(
+      'session not found',
+    )
+    await expect(service.view({ userId: 'user-b', sessionId: created.sessionId })).rejects.toThrow(
+      'session not found',
+    )
+  })
+
+  it('view prices the spend rows with the model catalog', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const granted = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
+    await plane.append({
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      events: chainEvents({
+        threadId: toThreadId(created.mainThreadId),
+        runId: toRunId('run-1'),
+        epoch: granted.epoch,
+        at: NOW,
+        bodies: [
+          { type: 'user-said', text: 'go' },
+          {
+            type: 'assistant-said',
+            parts: [],
+            finish: EFinishReason.Stop,
+            usage: {
+              inputTokens: 1000,
+              outputTokens: 10,
+              providerId: 'nobody',
+              modelId: 'nothing',
+            },
+          },
+        ],
+      }),
+    })
+    const view = await service.view({ userId: 'user-a', sessionId: created.sessionId })
+    expect(view.at).toBe(2)
+    expect(view.spend.rows).toEqual([
+      {
+        providerId: 'nobody',
+        modelId: 'nothing',
+        inputTokens: 1000,
+        outputTokens: 10,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      },
+    ])
+    expect(view.spend.tally).toMatchObject({ inputTokens: 1000, costUsd: null })
   })
 })
