@@ -18,6 +18,7 @@ describe('callOpSchema', () => {
       { op: 'remove', path: '/work/a' },
       { op: 'mkdir', path: '/work/a' },
       { op: 'rename', from: '/work/a', to: '/work/b' },
+      { op: 'fetchToFile', url: 'https://blob.example/a?sig=1', path: '/work/a', size: 3 },
       { op: 'readDirectory', path: '/work' },
       { op: 'glob', pattern: '**/*.ts', cwd: '/work', dot: true },
       { op: 'grep', pattern: 'needle', path: '/work', caseInsensitive: true, maxResults: 10 },

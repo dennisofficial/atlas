@@ -13,6 +13,7 @@ import {
 import { type DaemonGroupFactory, defineOp } from '@dltech/atlas-protocol/engine'
 
 import { type DaemonOpsDeps, ripgrepOf } from '../deps'
+import { fetchToFile } from './fetch-to-file'
 import { grepRipgrep } from './grep'
 
 const decodeStrict = (bytes: Uint8Array): string | null => {
@@ -105,6 +106,13 @@ export const filesGroup =
         op: 'rename',
         run: async ({ op }) => {
           await rename(op.from, op.to)
+          return null
+        },
+      }),
+      defineOp({
+        op: 'fetchToFile',
+        run: async ({ op, ctx }) => {
+          await fetchToFile({ op, signal: ctx.signal })
           return null
         },
       }),

@@ -38,15 +38,23 @@ export class MediaSigner {
   }
 
   async urlOf(args: { userId: string; hash: string }): Promise<string> {
+    return this.urlOfPathname({ pathname: mediaPathname(args) })
+  }
+
+  async urlOfPathname(args: { pathname: string }): Promise<string> {
     const held = this.held
     if (held === null || held.windowStart !== windowStartOf(this.now())) {
       throw new Error('MediaSigner.urlOf called before ready() for the current signing window')
     }
     return this.store.presignGet({
       delegation: held.delegation,
-      pathname: mediaPathname(args),
+      pathname: args.pathname,
       validUntil: held.validUntil,
     })
+  }
+
+  async sizeOf(args: { pathname: string }): Promise<number | null> {
+    return (await this.store.head({ pathname: args.pathname }))?.size ?? null
   }
 
   async exists(args: { userId: string; hash: string }): Promise<boolean> {

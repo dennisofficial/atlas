@@ -12,6 +12,7 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
+import type { SaidUploadsPort } from '@dltech/atlas-agent'
 import {
   ScriptedModel,
   fakeToolRegistry,
@@ -75,6 +76,7 @@ export const makeRuntimeFactory = (args: {
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
   model?: (() => ModelPort) | undefined
+  uploads?: SaidUploadsPort | undefined
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
   beforeRuntime?: (() => Promise<void>) | undefined
@@ -119,6 +121,7 @@ export const makeRuntimeFactory = (args: {
         retry: EProviderRetry.Transient,
         message,
       }),
+      ...(args.uploads === undefined ? {} : { uploads: args.uploads }),
       launchDirectory: '/w',
       watched: [],
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
