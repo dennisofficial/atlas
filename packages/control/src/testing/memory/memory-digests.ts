@@ -1,4 +1,4 @@
-import type { ControlSessionDigest, SessionListParams } from '../../port'
+import type { SessionDigestRow, SessionListParams } from '../../port'
 import { sessionRowOf, type State } from './memory-state'
 
 const FIRST_MESSAGE_CHARS = 400
@@ -30,7 +30,7 @@ const firstMessageOf = (params: {
 
 export const sessionDigestsIn = (
   params: { state: State } & SessionListParams,
-): ControlSessionDigest[] =>
+): SessionDigestRow[] =>
   [...params.state.sessions.values()]
     .filter((row) => row.userId === params.userId)
     .filter((row) => params.projectId === undefined || row.projectId === params.projectId)

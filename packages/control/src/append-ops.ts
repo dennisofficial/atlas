@@ -7,6 +7,7 @@ import type { LeaseOps } from './lease-ops'
 import { parseAppendEvents } from './parse-append'
 import { SeqConflictError, type BlobWrite, type ControlTx, type StoredEvent } from './port'
 import type { AppendOutcome, ControlRefusal } from './refusal'
+import { appendToViewIn, ensureMainThreadViewIn } from './session-view-ops'
 import { decodeVisibility, encodeVisibility, toStoredEvent } from './stored-event'
 
 export const appendIn = async (params: {
@@ -57,6 +58,11 @@ export const appendIn = async (params: {
   for (const event of parsed.events) {
     for (const ref of blobRefsOf(event)) refHashes.add(ref.hash)
   }
+  const view = await ensureMainThreadViewIn({
+    tx,
+    sessionId: row.sessionId,
+    threadId: params.threadId,
+  })
   await tx.insertBlobs(blobs)
   await tx.insertBlobRefs([...refHashes].map((hash) => ({ sessionId: row.sessionId, hash })))
   await tx.insertEvents(stored)
@@ -68,6 +74,20 @@ export const appendIn = async (params: {
     visibility: encodeVisibility(visibility),
   })
   if (!swapped) throw new SeqConflictError()
+  if (view !== undefined) {
+    await appendToViewIn({
+      tx,
+      sessionId: row.sessionId,
+      row: {
+        ...row,
+        headSeq: accepted.head.seq,
+        headHash: accepted.head.hash,
+        visibility: encodeVisibility(visibility),
+      },
+      state: view.state,
+      events: parsed.events,
+    })
+  }
   await tx.announce({
     sessionId: row.sessionId,
     threadId: params.threadId,

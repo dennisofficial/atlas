@@ -1,4 +1,4 @@
-import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
+import type { Hash, InboxEntry, Lease, SessionStatus } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 export type ClaimedBatch = { leases: Lease[]; nextRetryAt: string | null }
@@ -20,10 +20,51 @@ export type SessionListParams = {
   limit: number
 }
 
-export type ControlSessionDigest = ControlSessionRow & {
+export type SessionDigestRow = ControlSessionRow & {
   lastEventAt: string | null
   firstMessageText: string | null
   firstMessageAt: string | null
+}
+
+export type PrChecks = { running: number; passed: number; failed: number }
+
+export type ControlDigestPullRequest = {
+  repo: string
+  number: number
+  url: string
+  state: string | null
+  checks: PrChecks | null
+}
+
+export type ControlDigestView = {
+  status: SessionStatus
+  primaryBranch: string | null
+  pullRequest: ControlDigestPullRequest | null
+}
+
+export type ControlSessionDigest = SessionDigestRow & { view: ControlDigestView | null }
+
+export type SessionViewRow = {
+  sessionId: string
+  threadId: string
+  atSeq: number
+  version: number
+  state: string
+}
+
+export type SessionPullRequestKey = { repo: string; number: number }
+
+export type SessionPullRequestRow = SessionPullRequestKey & { sessionId: string }
+
+export type PrStateRow = SessionPullRequestKey & {
+  title: string
+  state: string
+  headSha: string
+  checksRunning: number
+  checksPassed: number
+  checksFailed: number
+  mergeable: boolean | null
+  updatedAt: string
 }
 
 export type ThreadRow = {
@@ -93,7 +134,7 @@ export interface ControlTx {
     projectId?: string | undefined
     limit: number
   }): Promise<ControlSessionRow[]>
-  listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]>
+  listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]>
   createThread(params: {
     threadId: string
     sessionId: string
@@ -135,6 +176,11 @@ export interface ControlTx {
   }): Promise<InboxEntry[]>
   notifyWake(sessionId: string): Promise<void>
   announce(change: SessionChange): Promise<void>
+  readSessionView(sessionId: string): Promise<SessionViewRow | undefined>
+  writeSessionView(row: SessionViewRow): Promise<void>
+  insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void>
+  sessionsLinkedTo(key: SessionPullRequestKey): Promise<string[]>
+  readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]>
   hostPresent(hostId: number): Promise<boolean>
 }
 

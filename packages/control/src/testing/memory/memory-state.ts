@@ -1,6 +1,13 @@
 import type { InboxEntry, Lease } from '@dltech/atlas-core'
 
-import type { BlobRow, ControlSessionRow, StoredEvent, ThreadRow } from '../../port'
+import type {
+  BlobRow,
+  ControlSessionRow,
+  PrStateRow,
+  SessionViewRow,
+  StoredEvent,
+  ThreadRow,
+} from '../../port'
 
 export type SessionRow = ControlSessionRow & {
   nextInboxId: number
@@ -22,6 +29,9 @@ export type State = {
   blobs: Map<string, BlobRow>
   blobRefs: Set<string>
   notifications: string[]
+  views: Map<string, SessionViewRow>
+  pullRequestLinks: Set<string>
+  prStates: Map<string, PrStateRow>
 }
 
 const PREPARE_HISTORY_TYPES: ReadonlySet<string> = new Set([
@@ -44,6 +54,9 @@ export const emptyState = (): State => ({
   blobs: new Map(),
   blobRefs: new Set(),
   notifications: [],
+  views: new Map(),
+  pullRequestLinks: new Set(),
+  prStates: new Map(),
 })
 
 export const cloneState = (state: State): State => ({
@@ -56,6 +69,9 @@ export const cloneState = (state: State): State => ({
   blobs: new Map([...state.blobs].map(([key, value]) => [key, { ...value }])),
   blobRefs: new Set(state.blobRefs),
   notifications: [...state.notifications],
+  views: new Map([...state.views].map(([key, value]) => [key, { ...value }])),
+  pullRequestLinks: new Set(state.pullRequestLinks),
+  prStates: new Map(state.prStates),
 })
 
 export const hasPrepareHistory = (log: readonly StoredEvent[]): boolean =>
@@ -94,3 +110,6 @@ export const activeFailureOf = (log: readonly StoredEvent[]): { inboxHead: numbe
   )
   return heads.length === 0 ? undefined : { inboxHead: Math.max(...heads) }
 }
+
+export const prKey = (params: { repo: string; number: number }): string =>
+  `${params.repo}#${params.number}`

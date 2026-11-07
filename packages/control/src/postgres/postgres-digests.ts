@@ -1,13 +1,13 @@
 import type { Tx } from '@dltech/atlas-db'
 
-import type { ControlSessionDigest, SessionListParams } from '../port'
+import type { SessionDigestRow, SessionListParams } from '../port'
 import { iso } from './postgres-rows'
 
 export const FIRST_MESSAGE_CHARS = 400
 
 export const sessionDigestsIn = async (
   params: { tx: Tx } & SessionListParams,
-): Promise<ControlSessionDigest[]> => {
+): Promise<SessionDigestRow[]> => {
   const anyProject = params.projectId === undefined
   const projectId = params.projectId ?? ''
   const anySession = params.sessionId === undefined

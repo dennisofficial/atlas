@@ -4,7 +4,15 @@ export type { ControlPlaneParams, ReadEventsPage, TakeBackResult } from './contr
 export { LeaseConflictError, UnknownThreadError } from './errors'
 export { ControlStorePort, SeqConflictError } from './port'
 export type {
+  ControlDigestPullRequest,
+  ControlDigestView,
   ControlSessionDigest,
+  PrChecks,
+  PrStateRow,
+  SessionDigestRow,
+  SessionPullRequestKey,
+  SessionPullRequestRow,
+  SessionViewRow,
   ControlSessionRow,
   ControlTx,
   ReadEventsParams,
@@ -23,3 +31,9 @@ export {
 export type { SessionStatusRead, StatusPlane } from './session-status'
 export { RecordCorruptError } from './refusal'
 export type { AppendOutcome, BlobRefusal, ControlRefusal } from './refusal'
+export type {
+  ControlPullRequest,
+  ControlPullRequestState,
+  ControlSessionViewValue,
+  SessionViewRead,
+} from './session-view-read'

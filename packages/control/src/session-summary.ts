@@ -1,6 +1,6 @@
 import type { SessionSummary } from '@dltech/atlas-protocol'
 
-import type { ControlSessionDigest } from './port'
+import type { ControlDigestView, ControlSessionDigest } from './port'
 
 export const NAMING_WINDOW_MS = 60_000
 export const FALLBACK_TITLE_CHARS = 40
@@ -20,12 +20,23 @@ const namingOf = (args: { digest: ControlSessionDigest; now: number }): boolean 
   return args.now - Date.parse(digest.firstMessageAt) < NAMING_WINDOW_MS
 }
 
+const rowViewOf = (view: ControlDigestView): Partial<SessionSummary> => ({
+  status: {
+    state: view.status.state,
+    ...(view.status.reason === undefined ? {} : { reason: view.status.reason }),
+    ...(view.status.since === undefined ? {} : { since: view.status.since }),
+  },
+  primaryBranch: view.primaryBranch,
+  pullRequest: view.pullRequest,
+})
+
 export const sessionSummaryOf = (args: {
   digest: ControlSessionDigest
   now: number
 }): SessionSummary => {
   const { digest } = args
   const naming = namingOf(args)
+  const view = digest.view
   const fallback = naming ? null : fallbackTitleOf(digest.firstMessageText ?? '')
   return {
     sessionId: digest.sessionId,
@@ -36,5 +47,6 @@ export const sessionSummaryOf = (args: {
     createdAt: digest.createdAt,
     updatedAt: digest.lastEventAt ?? digest.createdAt,
     archivedAt: digest.archivedAt,
+    ...(view === null || view === undefined ? {} : rowViewOf(view)),
   }
 }

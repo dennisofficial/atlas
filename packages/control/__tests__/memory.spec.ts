@@ -1,3 +1,4 @@
+import type { PrStateRow } from '../src/port'
 import { InMemoryControlStore } from '../src/testing/memory'
 import {
   describeControlPlaneBlobs,
@@ -9,6 +10,7 @@ import {
   describeControlPlaneReads,
   describeControlPlaneSessions,
   describeControlPlaneSessionTitles,
+  describeControlPlaneViews,
   describeControlPlaneWakes,
 } from '../src/testing/conformance'
 
@@ -22,6 +24,7 @@ const conformanceParams = {
   },
   wakes: async (sessionId: string) => store.wakeCount(sessionId),
   changes: async (sessionId: string) => store.changesOf(sessionId),
+  seedPrState: async (row: PrStateRow) => store.setPrState(row),
   nextHostId: async () => store.nextHostId(),
   holdPresence: async (hostId: number) => {
     store.markHostPresent(hostId)
@@ -38,6 +41,7 @@ describeControlPlaneClaimNext(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
 describeControlPlaneChanges(conformanceParams)
+describeControlPlaneViews(conformanceParams)
 
 describeControlPlanePresence({
   ...conformanceParams,

@@ -1,10 +1,9 @@
-import { and, isUniqueViolation, retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
-import { GENESIS_HASH, type Hash, type InboxEntry, type Lease } from '@dltech/atlas-core'
+import { retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
+import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
   ControlStorePort,
-  SeqConflictError,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
@@ -13,9 +12,13 @@ import {
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
-  type ControlSessionDigest,
   type ControlSessionRow,
+  type PrStateRow,
+  type SessionDigestRow,
   type SessionListParams,
+  type SessionPullRequestKey,
+  type SessionPullRequestRow,
+  type SessionViewRow,
 } from '../port'
 import {
   blobHashesPresent,
@@ -44,7 +47,15 @@ import {
   readInboxEntriesIn,
   readInboxEntryIn,
 } from './postgres-inbox'
-import { toLease, toSessionRow, toStoredEvent, toThreadRow } from './postgres-rows'
+import {
+  insertSessionPullRequestsIn,
+  readPrStatesIn,
+  readSessionViewIn,
+  sessionsLinkedToIn,
+  writeSessionViewIn,
+} from './postgres-views'
+import { toLease, toThreadRow } from './postgres-rows'
+import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
 
 class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
@@ -105,18 +116,10 @@ class PostgresTx implements ControlTx {
     projectId?: string | undefined
     limit: number
   }): Promise<ControlSessionRow[]> {
-    const where =
-      params.projectId === undefined
-        ? { userId: params.userId }
-        : { userId: params.userId, projectId: params.projectId }
-    const rows = await this.tx.orm.v2.V2Session.where(where)
-      .orderBy((s) => s.createdAt.desc())
-      .limit(params.limit)
-      .all()
-    return rows.map((row) => toSessionRow(row))
+    return listSessionsIn({ tx: this.tx, ...params })
   }
 
-  async listSessionDigests(params: SessionListParams): Promise<ControlSessionDigest[]> {
+  async listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]> {
     return sessionDigestsIn({ tx: this.tx, ...params })
   }
 
@@ -146,33 +149,12 @@ class PostgresTx implements ControlTx {
     return row === null ? undefined : toThreadRow(row)
   }
 
-  async writeThreadHead(params: {
-    threadId: string
-    expectedHeadSeq: number
-    headSeq: number
-    headHash: Hash
-    visibility: string
-  }): Promise<boolean> {
-    const changed = await this.tx.orm.v2.V2Thread.where({
-      id: params.threadId,
-      headSeq: params.expectedHeadSeq,
-    }).updateAndCount({
-      headSeq: params.headSeq,
-      headHash: params.headHash,
-      visibility: params.visibility,
-    })
-    return changed === 1
+  async writeThreadHead(params: Parameters<ControlTx['writeThreadHead']>[0]): Promise<boolean> {
+    return writeThreadHeadIn({ tx: this.tx, ...params })
   }
 
   async insertEvents(rows: readonly StoredEvent[]): Promise<void> {
-    try {
-      await this.tx.orm.v2.V2Event.createAndCount(
-        rows.map((row) => ({ ...row, at: new Date(row.at) })),
-      )
-    } catch (error) {
-      if (isUniqueViolation(error)) throw new SeqConflictError()
-      throw error
-    }
+    await insertEventsIn({ tx: this.tx, rows })
   }
 
   async insertBlobs(rows: readonly BlobWrite[]): Promise<void> {
@@ -196,16 +178,7 @@ class PostgresTx implements ControlTx {
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {
-    const { onlyTypes } = params
-    let query = this.tx.orm.v2.V2Event.where((e) =>
-      and(e.threadId.eq(params.threadId), e.seq.gt(params.afterSeq), e.seq.lte(params.throughSeq)),
-    )
-    if (onlyTypes !== undefined) query = query.where((e) => e.type.in([...onlyTypes]))
-    const rows = await query
-      .orderBy((e) => e.seq.asc())
-      .limit(params.limit)
-      .all()
-    return rows.map(toStoredEvent)
+    return readEventsIn({ tx: this.tx, ...params })
   }
 
   async readLease(sessionId: string): Promise<Lease | undefined> {
@@ -282,6 +255,26 @@ class PostgresTx implements ControlTx {
 
   async announce(change: SessionChange): Promise<void> {
     await announceIn({ tx: this.tx, change })
+  }
+
+  async readSessionView(sessionId: string): Promise<SessionViewRow | undefined> {
+    return readSessionViewIn({ tx: this.tx, sessionId })
+  }
+
+  async writeSessionView(row: SessionViewRow): Promise<void> {
+    await writeSessionViewIn({ tx: this.tx, row })
+  }
+
+  async insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void> {
+    await insertSessionPullRequestsIn({ tx: this.tx, rows })
+  }
+
+  async sessionsLinkedTo(key: SessionPullRequestKey): Promise<string[]> {
+    return sessionsLinkedToIn({ tx: this.tx, ...key })
+  }
+
+  async readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]> {
+    return readPrStatesIn({ tx: this.tx, keys })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {
