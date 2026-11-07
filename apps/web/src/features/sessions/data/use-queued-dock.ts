@@ -6,8 +6,9 @@ import type { SessionQueuedMessage } from '@dltech/atlas-protocol'
 
 import { messageOf } from '@/features/threads/data/use-send'
 
-import { visibleQueuedOf } from './queued-messages'
+import { queuedMediaHashesOf, visibleQueuedOf } from './queued-messages'
 import { sessionsApi } from './sessions-api'
+import { useMediaUrls } from './use-media-urls'
 import { EWithdrawOutcome, withdrawQueued } from './withdraw-queued'
 
 export function useQueuedDock(args: {
@@ -18,7 +19,9 @@ export function useQueuedDock(args: {
   onDraftChange: (draft: string) => void
 }) {
   const { sessionId, queued, events, draft, onDraftChange } = args
-  const entries = useMemo(() => visibleQueuedOf({ queued, events }), [queued, events])
+  const hashes = useMemo(() => queuedMediaHashesOf(queued), [queued])
+  const urls = useMediaUrls({ sessionId, hashes })
+  const entries = useMemo(() => visibleQueuedOf({ queued, events, urls }), [queued, events, urls])
 
   const withdraw = async (params: { id: string; restoreText: boolean }) => {
     const entry = entries.find((candidate) => candidate.id === params.id)

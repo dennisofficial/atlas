@@ -124,6 +124,8 @@ export const sessionQueuedMessageSchema = z.strictObject({
   inboxId: z.number().int().min(1),
   text: z.string(),
   postedAt: z.string().min(1),
+  media: z.array(inboxMediaSchema).optional(),
+  uploads: z.array(saidUploadSchema).optional(),
 })
 
 export const EWithdrawRefusal = {

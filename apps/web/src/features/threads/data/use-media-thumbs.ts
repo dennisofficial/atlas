@@ -10,7 +10,7 @@ import { createMediaUrlCache } from './media-url-cache'
 const NO_MEDIA: readonly SaidMedia[] = []
 const NO_THUMBS: readonly MessageImage[] = []
 
-const mediaUrls = createMediaUrlCache({
+export const mediaUrls = createMediaUrlCache({
   fetch: async (key) => (await cloudCall(api.media.url.query(key))).url,
 })
 

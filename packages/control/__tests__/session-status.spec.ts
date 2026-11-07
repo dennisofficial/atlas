@@ -94,6 +94,36 @@ describe('readSessionStatus', () => {
     expect((await read()).value.queued?.map((entry) => entry.text)).toEqual(['a', 'c'])
   })
 
+  it('carries the images and files of a queued message', async () => {
+    const { plane, read } = await setup()
+    const media = [
+      {
+        media: { hash: 'a'.repeat(64), mediaType: 'image/png', size: 10, width: 2, height: 3 },
+        source: 'shot.png',
+      },
+    ]
+    const uploads = [
+      {
+        uploadId: '0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40',
+        pathname: 'composer-uploads/user-a/0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40/deploy.sh',
+        name: 'deploy.sh',
+        size: 7,
+        mediaType: 'text/x-sh',
+      },
+    ]
+    await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: JSON.stringify({ text: 'look', media, uploads }),
+    })
+    await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"plain"}' })
+
+    const listed = (await read()).value.queued
+    expect(listed?.[0]).toMatchObject({ text: 'look', media, uploads })
+    expect(listed?.[1]).not.toHaveProperty('media')
+    expect(listed?.[1]).not.toHaveProperty('uploads')
+  })
+
   it('omits queued when nothing is pending', async () => {
     const { read } = await setup()
     expect((await read()).value.queued).toBeUndefined()
