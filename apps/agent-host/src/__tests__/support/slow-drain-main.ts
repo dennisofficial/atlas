@@ -15,6 +15,9 @@ const handleSignal = createGracefulShutdown({
   },
   exit: (code) => process.exit(code),
   log: new StdoutLog(),
+  hardExitAfterMs: Number(process.env.HARD_EXIT_MS ?? 60_000),
+  setTimeout: (fn, ms) => setTimeout(fn, ms),
+  clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
 })
 
 process.on('SIGTERM', handleSignal)
