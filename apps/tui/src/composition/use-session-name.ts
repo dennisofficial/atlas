@@ -1,5 +1,5 @@
 import { type ThreadId } from '@dltech/atlas-core'
-import { sanitizedTitle, type ThreadStorePort } from '@dltech/atlas-harness'
+import type { ThreadStorePort } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import { NAMING_ANIMATION_MS } from '../ui/hooks/use-naming-animation'
@@ -8,7 +8,7 @@ import { cloudRenameFailureNotice } from './cloud/cloud-write-notices'
 import type { AtlasApp } from './compose'
 import { durableOpLog } from './durable-op-log'
 import { messageOf } from './error-text'
-import { ERenamed, type Renaming } from './session-rename'
+import { ERenamed, typedTitle, type Renaming } from './session-rename'
 
 const trace = (message: string, threadId: ThreadId, data?: Record<string, unknown>): void => {
   if (process.env.ATLAS_TRACE_TITLING === undefined) return
@@ -195,7 +195,7 @@ export function useSessionName(args: {
     async (argumentText: string): Promise<Renaming> => {
       if (!started.current) return { type: ERenamed.Empty }
 
-      const given = sanitizedTitle(argumentText)
+      const given = typedTitle(argumentText)
       if (given !== null) {
         beginRename()
         return renameThroughStore(given, () => setNaming(false))

@@ -9,6 +9,8 @@ import {
 import { sessionDigest } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
+import { typedTitle } from '../session-rename'
+
 const THREAD = toThreadId('thread')
 
 const RUN = toRunId('run')
@@ -86,5 +88,20 @@ describe('sessionDigest', () => {
 
     expect(digest).toContain('the latest ask')
     expect(digest).not.toContain('bash')
+  })
+})
+
+describe('a title the operator typed', () => {
+  it('keeps every word of it, however long', () => {
+    expect(typedTitle('a name from the laptop')).toBe('a name from the laptop')
+  })
+
+  it('collapses the spacing a paste brings with it', () => {
+    expect(typedTitle('  rotate   the\nrefresh token ')).toBe('rotate the refresh token')
+  })
+
+  it('is nothing to rename to when only whitespace was typed', () => {
+    expect(typedTitle('')).toBeNull()
+    expect(typedTitle('   ')).toBeNull()
   })
 })
