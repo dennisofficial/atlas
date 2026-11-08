@@ -23,6 +23,11 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-08._
+- **Slice 7 PR 2, `plugins/github` subscriptions** (`dennis/github-plugin`): first registered plugin.
+  Subscribe/unsubscribe/list, the CI-watch hook and the `subscriptions` view are live; the CP derives
+  the `GithubSubscription` lease from the journal event through a new control append hook, which
+  lives until the subscription's own expiry (24 h default, no heartbeat). A PR event posts one inbox
+  message to each subscribed v2 session, deduped by the delivery row. The live proof is still open.
 - **Slice 7 PR 1, the plugin contract** (`dennis/plugin-contract`): plugin views ride the session view
   (version 4), pod tools/hooks/prompts/commands/daemon events and control commands are live, and
   `plugins/*` joins the workspace with an import guard. No plugin is registered yet.

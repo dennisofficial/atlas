@@ -35,6 +35,7 @@
     "@dltech/atlas-media": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
     "@dltech/atlas-native-commands": "workspace:*",
+    "@dltech/atlas-plugin-github": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",

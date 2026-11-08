@@ -9,6 +9,7 @@ import {
   type BlobWrite,
   type ClaimedBatch,
   type ControlTx,
+  type PrSubscriptionLease,
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
@@ -28,6 +29,7 @@ import {
   readInboxEntriesIn,
   readInboxEntryIn,
 } from './memory-inbox'
+import { prSubscriptionLeaseKey } from './memory-state'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
@@ -266,6 +268,14 @@ export class MemoryTx implements ControlTx {
 
   async readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]> {
     return readPrStatesIn({ state: this.state, keys })
+  }
+
+  async upsertPrSubscriptionLease(params: PrSubscriptionLease & { expiresAt: string }) {
+    this.state.prSubscriptionLeases.set(prSubscriptionLeaseKey(params), { ...params })
+  }
+
+  async deletePrSubscriptionLease(params: PrSubscriptionLease): Promise<boolean> {
+    return this.state.prSubscriptionLeases.delete(prSubscriptionLeaseKey(params))
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

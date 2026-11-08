@@ -14,6 +14,7 @@ import {
   type ThreadRow,
   type ControlSessionRow,
   type PrStateRow,
+  type PrSubscriptionLease,
   type SessionDigestRow,
   type SessionListParams,
   type SessionPullRequestKey,
@@ -55,6 +56,7 @@ import {
   sessionsLinkedToIn,
   writeSessionViewIn,
 } from './postgres-views'
+import { deletePrSubscriptionLeaseIn, upsertPrSubscriptionLeaseIn } from './postgres-subscriptions'
 import { toLease, toThreadRow } from './postgres-rows'
 import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
 
@@ -280,6 +282,14 @@ class PostgresTx implements ControlTx {
 
   async readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]> {
     return readPrStatesIn({ tx: this.tx, keys })
+  }
+
+  async upsertPrSubscriptionLease(params: PrSubscriptionLease & { expiresAt: string }) {
+    await upsertPrSubscriptionLeaseIn({ tx: this.tx, ...params })
+  }
+
+  async deletePrSubscriptionLease(params: PrSubscriptionLease): Promise<boolean> {
+    return deletePrSubscriptionLeaseIn({ tx: this.tx, ...params })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

@@ -8,7 +8,7 @@ import type {
   ToolDefinition,
   V2Event,
 } from '@dltech/atlas-core'
-import type { ControlPlane } from '@dltech/atlas-control'
+import type { AppendHook, ControlPlane } from '@dltech/atlas-control'
 import type { CallOp, CallResult, DaemonEventFrame } from '@dltech/atlas-protocol'
 
 export type PluginPodContext = {
@@ -31,10 +31,7 @@ export type PodSlot = {
   onDaemonEvent?(frame: DaemonEventFrame): void
 }
 
-export type ControlHook = {
-  name: string
-  appliesTo(event: V2Event): boolean
-}
+export type ControlHook = AppendHook
 
 export type ControlSlot = {
   hooks: readonly ControlHook[]
