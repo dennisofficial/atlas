@@ -21,6 +21,13 @@ import type { SessionRecord } from './record/record-adapter'
 
 export { INBOX_KIND_STOP }
 
+export const UNKNOWN_COMMAND_MAX_AGE_MS = 60 * 60 * 1000
+
+const overAge = (params: { postedAt: string; now: number }): boolean => {
+  const posted = Date.parse(params.postedAt)
+  return Number.isNaN(posted) || params.now - posted > UNKNOWN_COMMAND_MAX_AGE_MS
+}
+
 export type InboxIntakeArgs = {
   plane: ControlPlane
   sessionId: string
@@ -31,6 +38,7 @@ export type InboxIntakeArgs = {
   handlers?: CommandHandlers | undefined
   model?: ModelPort | undefined
   log?: LogPort | undefined
+  now?: (() => number) | undefined
 }
 
 export class InboxIntake implements AgentIntake {
@@ -91,11 +99,23 @@ export class InboxIntake implements AgentIntake {
   private async runCommand(entry: InboxEntry): Promise<void> {
     const resolved = this.commandIntake?.resolve(entry)
     if (this.commandIntake === undefined || resolved === undefined) {
-      await this.consumeUnknown(entry)
+      await this.leaveUnknownCommand(entry)
       return
     }
     if (await this.turnOpen()) return
     await this.commandIntake.run({ entry, ...resolved })
+  }
+
+  private async leaveUnknownCommand(entry: InboxEntry): Promise<void> {
+    const now = (this.args.now ?? Date.now)()
+    if (overAge({ postedAt: entry.postedAt, now })) {
+      await this.consumeUnknown(entry)
+      return
+    }
+    this.args.log?.info({
+      source: 'holder.intake',
+      message: `inbox entry ${entry.inboxId} of kind "${entry.kind}" is left for a holder that knows the kind`,
+    })
   }
 
   private async turnOpen(): Promise<boolean> {

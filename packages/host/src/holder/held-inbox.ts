@@ -5,6 +5,7 @@ import {
   type PrepareFailure,
 } from '@dltech/atlas-core'
 
+import { isCommandKind } from './command-intake'
 import type { HeldSessionDeps } from './held-session-deps'
 
 const INBOX_PAGE_LIMIT = 100
@@ -34,3 +35,8 @@ export const actionableEntries = (args: {
 }
 
 export const isStop = (entry: InboxEntry): boolean => entry.kind === INBOX_KIND_STOP
+
+export const understandsCommand = (deps: HeldSessionDeps, entry: InboxEntry): boolean =>
+  !isCommandKind(entry.kind) ||
+  (deps.commands?.byInboxKind.has(entry.kind) === true &&
+    deps.commandHandlers?.has(entry.kind) === true)

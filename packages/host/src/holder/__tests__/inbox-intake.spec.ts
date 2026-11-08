@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toRunId, toThreadId, type InboxEntry } from '@dltech/atlas-core'
+import { composeCommands } from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 
 import { InboxIntake } from '../inbox-intake'
 import type { SessionRecord } from '../record/record-adapter'
+
+const NOW = Date.parse('2026-11-08T12:00:00.000Z')
+const HOUR_MS = 60 * 60 * 1000
 
 const entry = (inboxId: number): InboxEntry =>
   ({
@@ -12,6 +16,7 @@ const entry = (inboxId: number): InboxEntry =>
     inboxId,
     kind: 'message',
     payload: JSON.stringify({ text: `m${inboxId}` }),
+    postedAt: new Date(NOW).toISOString(),
     consumedSeq: null,
   }) as InboxEntry
 
@@ -147,5 +152,82 @@ describe('InboxIntake', () => {
     expect(drain.drafts).toEqual([
       { type: 'user-said', text: 'see file', uploads, requestId: 'inbox:6', inboxId: 6 },
     ])
+  })
+})
+
+describe('InboxIntake unresolvable commands', () => {
+  const ghost = (overrides: Partial<InboxEntry> = {}): InboxEntry => ({
+    ...entry(7),
+    kind: 'command:ghost',
+    payload: '{}',
+    ...overrides,
+  })
+
+  const run = async (params: { entry: InboxEntry; commands: boolean; now?: number }) => {
+    const appended: unknown[] = []
+    const warnings: string[] = []
+    const infos: string[] = []
+    const intake = new InboxIntake({
+      plane: { readInbox: async () => [params.entry] } as unknown as ControlPlane,
+      sessionId: 'session-1',
+      record: { append: async (args: unknown) => appended.push(args) } as unknown as SessionRecord,
+      threadId: toThreadId('thread-1'),
+      runId: () => toRunId('run-1'),
+      ...(params.commands ? { commands: composeCommands([]) } : {}),
+      now: () => params.now ?? NOW,
+      log: {
+        warn: (line: { message: string }) => warnings.push(line.message),
+        info: (line: { message: string }) => infos.push(line.message),
+      } as never,
+    })
+    const drain = await intake.prepare()
+    return { drain, appended, warnings, infos }
+  }
+
+  for (const commands of [true, false]) {
+    const label = commands ? 'a registry without the kind' : 'no registry'
+
+    it(`leaves a young command in the inbox with ${label}`, async () => {
+      const { drain, appended, warnings, infos } = await run({ entry: ghost(), commands })
+      expect(drain).toEqual({ drafts: [], wakesTurn: false })
+      expect(appended).toEqual([])
+      expect(warnings).toEqual([])
+      expect(infos).toHaveLength(1)
+    })
+
+    it(`discards a command older than an hour with ${label}`, async () => {
+      const { drain, appended, warnings } = await run({
+        entry: ghost({ postedAt: new Date(NOW - 2 * HOUR_MS).toISOString() }),
+        commands,
+      })
+      expect(drain).toEqual({ drafts: [], wakesTurn: false })
+      expect(appended).toMatchObject([
+        { drafts: [{ type: 'input-consumed', inboxId: 7, consumed: 'discarded' }] },
+      ])
+      expect(warnings).toHaveLength(1)
+    })
+  }
+
+  it('keeps a command exactly at the age bound and discards it just past', async () => {
+    const at = (age: number) => ghost({ postedAt: new Date(NOW - age).toISOString() })
+    expect((await run({ entry: at(HOUR_MS), commands: true })).appended).toEqual([])
+    expect((await run({ entry: at(HOUR_MS + 1), commands: true })).appended).toHaveLength(1)
+  })
+
+  it('discards a command whose postedAt does not parse', async () => {
+    const { appended } = await run({ entry: ghost({ postedAt: 'not a date' }), commands: true })
+    expect(appended).toHaveLength(1)
+  })
+
+  it('still consumes a non-command unknown kind as discarded immediately', async () => {
+    const { drain, appended, warnings } = await run({
+      entry: { ...entry(8), kind: 'mystery', payload: '{}' },
+      commands: true,
+    })
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(appended).toMatchObject([
+      { drafts: [{ type: 'input-consumed', inboxId: 8, consumed: 'discarded' }] },
+    ])
+    expect(warnings).toHaveLength(1)
   })
 })
