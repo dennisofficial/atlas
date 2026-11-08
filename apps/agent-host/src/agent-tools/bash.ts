@@ -11,7 +11,6 @@ import {
   ProcessPort,
   SchemaTool,
   doesNothing,
-  optionalShellName,
   truncatesWatch,
   waitsBySleeping,
   waitsByWatching,
@@ -47,7 +46,7 @@ const MAXIMUM_TIMEOUT_MS = 600_000
 
 const inputSchema = withFallbackShellName(
   z.strictObject({
-    description: optionalShellName,
+    description: z.string().min(1),
     command: z.string().min(1),
     workdir: z.string().min(1).optional(),
     timeoutMs: z.number().int().positive().optional(),

@@ -69,12 +69,12 @@ describe('BashTool', () => {
     expect(outputOf(outcome)).toMatchObject({ description: 'echo nameless', stdout: 'nameless\n' })
   }, 30_000)
 
-  it('publishes the name first but optional, so a model is asked only for the command', () => {
+  it('publishes the name first and required, so a model writes one before its command', () => {
     const { inputSchema } = new BashTool(suite.shells)
-    const declared = z.toJSONSchema(inputSchema, { io: 'input' })
+    const declared = z.toJSONSchema(inputSchema)
 
     expect(Object.keys(declared.properties ?? {})[0]).toBe('description')
-    expect(declared.required).toEqual(['command'])
+    expect(declared.required).toEqual(['description', 'command'])
   })
 
   it('returns what a command printed and the zero it exited with', async () => {
