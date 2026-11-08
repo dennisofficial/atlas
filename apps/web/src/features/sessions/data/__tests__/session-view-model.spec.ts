@@ -156,6 +156,7 @@ describe('sessionViewModelOf', () => {
     expect(sessionViewModelOf(undefined)).toEqual({
       branch: undefined,
       entries: [],
+      subscriptions: [],
       context: null,
       spend: null,
     })
@@ -184,5 +185,22 @@ describe('sessionViewModelOf', () => {
 
   it('has no branch when there is no primary checkout', () => {
     expect(sessionViewModelOf(viewOf({})).branch).toBeUndefined()
+  })
+
+  it('lists the active github subscriptions from the plugin view', () => {
+    const row = {
+      id: 's1',
+      provider: 'github.pull-request',
+      target: { repo: 'github.com/owner/atlas', number: 31 },
+      label: 'owner/atlas#31',
+      threadId: 't1',
+      createdBy: 'agent',
+      status: 'active',
+      createdAt: '2026-11-08T10:00:00.000Z',
+    }
+    const model = sessionViewModelOf(viewOf({ pluginViews: { subscriptions: [row] } }))
+    expect(model.subscriptions).toEqual([
+      { number: 31, label: 'owner/atlas#31', url: 'https://github.com/owner/atlas/pull/31' },
+    ])
   })
 })

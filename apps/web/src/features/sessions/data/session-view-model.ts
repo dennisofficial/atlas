@@ -1,4 +1,8 @@
 import { EMeterBasis, type SpendTally } from '@dltech/atlas-core'
+import {
+  subscribedPullRequestsOf,
+  type SubscribedPullRequest,
+} from '@dltech/atlas-plugin-github/client'
 import type { SessionSummary, SessionViewOutput } from '@dltech/atlas-protocol'
 
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
@@ -15,6 +19,7 @@ export type SessionContextModel = {
 export type SessionViewModel = {
   branch: string | undefined
   entries: PullRequestEntry[]
+  subscriptions: readonly SubscribedPullRequest[]
   context: SessionContextModel | null
   spend: SpendTally | null
 }
@@ -66,13 +71,21 @@ export const contextOfView = (view: SessionViewOutput): SessionContextModel | nu
 }
 
 export const sessionViewModelOf = (view: SessionViewOutput | undefined): SessionViewModel => {
-  if (view === undefined) return { branch: undefined, entries: [], context: null, spend: null }
+  if (view === undefined)
+    return {
+      branch: undefined,
+      entries: [],
+      subscriptions: [],
+      context: null,
+      spend: null,
+    }
   const primaryBranch = view.checkouts.primary?.branch
   return {
     branch: primaryBranch,
     entries: view.pullRequests.map((pullRequest) =>
       pullRequestEntryOf({ pullRequest, primaryBranch }),
     ),
+    subscriptions: subscribedPullRequestsOf(view.pluginViews),
     context: contextOfView(view),
     spend: view.spend.tally,
   }

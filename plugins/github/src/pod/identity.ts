@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-import type { GitIdentity, IdentityLookup } from '../runtime/shell-env'
+export type GitIdentity = { name: string; email: string }
+
+export type IdentityLookup = (args: { token: string; signal: AbortSignal }) => Promise<GitIdentity>
 
 const USER_URL = 'https://api.github.com/user'
 const LOOKUP_TIMEOUT_MS = 10_000

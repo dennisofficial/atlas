@@ -23,6 +23,10 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-08._
+- **Slice 7 PR 3, `plugins/github` complete** (`dennis/github-ui`): the PR finder and identity lookup
+  moved from `apps/agent-host/src/github/` into the plugin's `/pod`, called from the agent-host
+  composition root; the session header shows the PRs the session is subscribed to; specs prove the
+  sandbox shell is the user's identity with no trailer or Atlas trace (spec §8.2). Live check pending.
 - **Slice 7 PR 2, `plugins/github` subscriptions** (`dennis/github-plugin`): first registered plugin.
   Subscribe/unsubscribe/list, the CI-watch hook and the `subscriptions` view are live; the CP derives
   the `GithubSubscription` lease from the journal event through a new control append hook, which

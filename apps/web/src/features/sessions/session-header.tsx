@@ -1,6 +1,8 @@
 'use client'
 
-import { GitBranch } from 'lucide-react'
+import { Bell, GitBranch } from 'lucide-react'
+
+import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
 
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { Badge } from '@dltech/atlas-ui/components/badge'
@@ -51,6 +53,33 @@ function HeaderPullRequest({ pinned, count }: { pinned: PullRequestEntry; count:
   )
 }
 
+function HeaderSubscriptions({
+  subscriptions,
+}: {
+  subscriptions: readonly SubscribedPullRequest[]
+}) {
+  return (
+    <span
+      data-session-subscriptions
+      className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
+    >
+      <Bell className="size-3" aria-label="Subscribed to" role="img" />
+      {subscriptions.map((subscription) => (
+        <a
+          key={subscription.url}
+          href={subscription.url}
+          target="_blank"
+          rel="noreferrer"
+          title={subscription.label}
+          className="font-mono underline-offset-2 hover:underline"
+        >
+          #{subscription.number}
+        </a>
+      ))}
+    </span>
+  )
+}
+
 export function SessionHeader({
   sessionId,
   state,
@@ -58,6 +87,7 @@ export function SessionHeader({
   naming,
   branch,
   entries,
+  subscriptions,
 }: {
   sessionId: string
   state: EHeaderState
@@ -65,6 +95,7 @@ export function SessionHeader({
   naming: boolean
   branch: string | undefined
   entries: readonly PullRequestEntry[]
+  subscriptions: readonly SubscribedPullRequest[]
 }) {
   const observationRef = useSessionPrObservation(entries)
   const pinned = pinnedPullRequestOf(entries)
@@ -90,6 +121,7 @@ export function SessionHeader({
           </Badge>
         )}
         {pinned === undefined ? null : <HeaderPullRequest pinned={pinned} count={entries.length} />}
+        {subscriptions.length === 0 ? null : <HeaderSubscriptions subscriptions={subscriptions} />}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
       </div>
     </header>

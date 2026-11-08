@@ -211,7 +211,7 @@ the agent can subscribe to a PR and be told when it moves.
   `github-sandbox-wake*`.
 - v2 already: `packages/core/src/record/branches.ts`, `views/checkouts.ts`,
   `views/pull-request-links.ts`, `packages/host/src/holder/branch-observer.ts`,
-  `pr-linker.ts`, `apps/agent-host/src/github/github-pull-request-finder.ts`.
+  `pr-linker.ts`, and the PR finder (it lived at `apps/agent-host/src/github/`; now `plugins/github/src/pod/finder.ts`, §8.2).
 
 **Declares:**
 - **Events:** `subscription-created`, `subscription-changed`, `subscription-ended` (v1 bodies in
@@ -460,7 +460,7 @@ across a repeated fan-out, a webhook plus a poll, and a restart, because event r
 dedupe-keyed per user and the delivery primary key is `(eventId, threadId)`. Spec:
 `github-v2-notice.spec.ts` fans the same event out twice.
 
-Not shipped (follow-up): the PR finder move (3b); client rendering beyond `subscriptionsOfView`.
+Not shipped here: the PR finder move and the header indicator; both shipped in §8.2, which completes the plugin.
 
 **Live check (2026-11-08, production).** Session `26efecc4-fe86-457a-b357-caccbda4d825`, thread
 `ef3aa40c-b3fb-403c-86e1-d3ce49173cd6`, project `cmvh6z3ls002i08jwseqmwbrv`
@@ -475,6 +475,45 @@ Not shipped (follow-up): the PR finder move (3b); client rendering beyond `subsc
 | Duplicate event                | none: one delivery row for that event                                                                                                             |
 | `unsubscribe` tool             | the `GithubSubscription` row was gone                                                                                                             |
 | Third commit after unsubscribe | no delivery in the following four minutes (`silent=yes`, one delivery in total)                                                                   |
+
+### 8.2 `plugins/github`, PR 2 of 2 (finder move, indicator, acting as the user)
+
+Shipped:
+- **The finder and identity lookup moved into the plugin.** `GithubPullRequestFinder` and
+  `githubIdentityLookup` are `plugins/github/src/pod/finder.ts` and `identity.ts`, exported from
+  `@dltech/atlas-plugin-github/pod` with their specs. The plugin does not import
+  `@dltech/atlas-host`: it declares the structural types it needs (`GithubTokenSource`,
+  `PullRequestFinder`/`FoundPullRequest`, `IdentityLookup`/`GitIdentity`), which the host's
+  `PullRequestFinder` and the shell env's `IdentityLookup` satisfy. The composition root
+  (`apps/agent-host/src/runtime/session-runtime-factory.ts`) builds `pullRequests.finder` and the
+  shell env identity from the plugin; `apps/agent-host/src/github/` is deleted. The host keeps the
+  generic `PullRequestSource`, `BranchObserver` and `PrLinker`.
+- **Subscription indicator.** `subscribedPullRequestsOf` (`/client`) turns the `subscriptions` view
+  into `{ number, label, url }` for active GitHub rows; `sessionViewModelOf` reads it from
+  `view.pluginViews` and `SessionHeader` renders a bell with the PR numbers, each linking to the PR,
+  beside the branch and PR badge. No new fetch.
+- **The pod acts as the user.** Audit of `shell-env.ts`, `signing-setup.ts` and the prompt
+  fragments found nothing that adds a co-author trailer or an Atlas identity, so nothing was
+  removed. The git identity is the signing key's user name and email, else the GitHub noreply
+  identity; commits are signed when a key exists. Specs: `shell-env.spec.ts` asserts one
+  `user.name`/`user.email` pair, no trailer, template or hooks-path entry and no `atlas` in the
+  identity; `signing.e2e.spec.ts` asserts a real commit in a sandbox shell is signed, verifies, and
+  its message is the one given, with no `Co-authored-by` or Atlas text.
+
+Not changed: the PR badge and checks tally stay in web, fed by the core `pullRequests` view
+(§5.1's correction); only the indicator is plugin data. Host files still name GitHub where it is
+the transport, not a feature: the token reader, the credential helper and `github.com` URL rewrite
+in `shell-env.ts`, and clone. These move with the shells/services slices or a future git plugin.
+
+**Live check (for the operator or main agent, on production after deploy and release):**
+1. Open a v2 session on a project with a GitHub connection and a signing key; on a branch, have the
+   agent `git commit` and `git push`. On GitHub the commit shows Verified, the author is you, the
+   message has no `Co-authored-by` line and no mention of Atlas.
+2. Open a PR for the branch. Within one PR-observation cycle the header shows `#N` with state and
+   checks (finder links it if the agent did not).
+3. Have the agent run `subscribe` on that PR. The header shows a bell and `#N` linking to the PR.
+4. `unsubscribe`. The bell disappears from the open session without a reload.
+5. Record the commit SHA, the Verified state and a screenshot of the header here.
 
 ## 9. Answers (2026-11-08)
 

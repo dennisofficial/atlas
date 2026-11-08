@@ -159,6 +159,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           naming={listed?.naming ?? false}
           branch={model.branch}
           entries={model.entries}
+          subscriptions={model.subscriptions}
         />
         <div className="min-h-0 flex-1">
           <ThreadTranscript

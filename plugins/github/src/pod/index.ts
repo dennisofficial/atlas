@@ -7,6 +7,14 @@ import { ListSubscriptionsTool, SubscribeTool, UnsubscribeTool } from './tools'
 
 export { CI_WATCH_DENY_REASON } from './ci-watch-hook'
 export { CiFeedFragment } from './ci-fragment'
+export { GithubPullRequestFinder } from './finder'
+export type {
+  FoundPullRequest,
+  GithubTokenSource,
+  PullRequestFinder,
+} from './finder'
+export { githubIdentityLookup } from './identity'
+export type { GitIdentity, IdentityLookup } from './identity'
 
 export const githubPod: PodSlot = {
   ...EMPTY_POD,
