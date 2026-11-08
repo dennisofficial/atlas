@@ -175,6 +175,7 @@ async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promi
           attachments: args.events.flatMap((event) =>
             event.type === 'user-said' ? attachmentsOf(event) : [],
           ),
+          threadId: args.threadId,
           resolver: deps.mediaUrls,
         })
 

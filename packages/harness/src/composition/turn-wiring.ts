@@ -47,7 +47,7 @@ import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { createLoopCut } from '../store/sessions/ops/cut-loop'
 import { ThreadStorePort } from '../store/thread-store'
-import { SaidUploadsPort } from '../uploads/said-uploads.port'
+import { turnUploadDeps } from '../uploads/turn-upload-deps'
 import { ToolDispatcher } from '../tools/dispatch'
 
 import { compactTurn, ECompaction } from './compact-turn'
@@ -157,7 +157,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     tools: args.declarations,
     dispatch: container.resolve(registeredPortToken(ToolDispatcher)),
     hooks: container.resolve(HookChainToken),
-    uploads: container.resolve(registeredPortToken(SaidUploadsPort)),
+    ...turnUploadDeps(container),
     intake: { prepare: (args) => intake.prepare(args) },
     expandContext: args.pending.expandContext,
     spend: {

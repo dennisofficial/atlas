@@ -4,6 +4,7 @@ import type {
   AccountStorePort,
   ClassifierPolicy,
   EWebSearchBackend,
+  MediaUrlResolver,
   PrEditPolicy,
   SecretsPort,
   SettingsStorePort,
@@ -85,6 +86,9 @@ export const CloudSettingsStoreToken: InjectionToken<CloudSettingsStore> = Symbo
 export const ServeSessionToken: InjectionToken<CloudSession> = Symbol('atlas.ServeSession')
 
 export const ClientVersionToken: InjectionToken<string> = Symbol('atlas.ClientVersion')
+
+export const MediaUrlResolverToken: InjectionToken<MediaUrlResolver | null> =
+  Symbol('atlas.MediaUrlResolver')
 
 export const SleepPreventionToken: InjectionToken<SleepPrevention> = Symbol('atlas.SleepPrevention')
 
