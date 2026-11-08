@@ -568,6 +568,49 @@ agent host `a4bb01faa`, replaced mid-check by `629a89369` (which is what the res
 | Restart the agent host   | keeper `shell-4e38e2b0` (`while true; do echo alive; …`) started at seq 67; the deploy of `629a89369` replaced the holder; the next turn's `shell_list` (seq 76) still returned it — running, 306 characters printed. The daemon, not the journal, is the roster |
 | Teardown                 | keeper killed (seq 83, `status: killed`), session archived, temporary `AuthSession` row deleted                                                                                                                                                                  |
 
+### 8.4 `plugins/services`, part 1 (the plugin over the daemon)
+
+Shipped: `plugins/services` (`@dltech/atlas-plugin-services`, `/core` `/pod` `/control` `/client`),
+registered in `apps/api` and `apps/agent-host`; the `services` view; the tools `service_start`,
+`service_stop`, `service_restart` and `service_list` over the daemon's `services.*` ops; the recorder
+that appends `service-ready` on the `services.ready` frame and `service-ended` on `services.ended`
+(with a 2 KB tail read through `services.log`); the prompt fragment.
+
+`service-ready` is the plugin's own event — the first real use of `PluginEventBodies` (the fixture had
+it; nothing else did). The composed schema decodes it in `apps/api`, asserted by
+`registered-plugins.spec.ts`, and the view folds it.
+
+Not in this part: `.atlas/services.yaml` declared services (setup, health waits, references),
+`exposePort` and the preview tunnel, the log-tail stream, and the web roster. Those are part 2, which
+waits on the preview design in §"Previews" below.
+
+Two facts the daemon's shape forced: `serviceInfoSchema` carries **no log path** (v1's registry did),
+so the ending's tail is read from `services.log`; and an ending whose `service-started` the journal
+never held (a service launched under a previous holder) is recorded from the daemon's own `command`
+rather than dropped, which would leave the roster showing a dead service as running.
+
+**Live check (2026-11-08, production).** Session `4ce613a5-06f5-47d7-893f-c7d16bf8f0eb`, thread
+`2b4b0997-054d-41fd-b19c-e44fdc3da1e0`, project `cmvh6z3ls002i08jwseqmwbrv`, agent host
+`2f4734b87`.
+
+| Step                                           | Result                                                                                                                                                         |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `service_start` a Bun HTTP server on port 4317 | `service-started` (port recorded), `service-ready` from the daemon's readiness probe; the tool reported `status: ready`, pid 1216                              |
+| `service_list runningOnly`                     | the row, running, port 4317                                                                                                                                    |
+| `service_stop`                                 | `service-ended` (`status: killed`, empty tail), and `pluginViews.services` = `[{ serviceId, name: probe, command, port: 4317, status: killed, ready: false }]` |
+| Repeat cycle, then a third after the fix below | same events; the third turn ended cleanly                                                                                                                      |
+
+**A turn-ending defect this check exposed, fixed in #2047 (`5f8eff012`).** The first two runs did the
+work and then failed the turn: `run-failed`, `exchange-fault: the assembled prompt ends with an
+assistant message`. `messageArrivedSince` (`packages/agent/src/loop/turn-position.ts:15`) counted
+every event after the seen mark with `assistant-said` filtered out, so an event that landed _before_
+the model answered still counted as unanswered: the loop asked again with nothing new, the assembled
+exchange ended with the assistant's own message, and the shape guard refused it. Shells only escape
+this because the quiet-step path appends a completion nudge. It now looks at turn-taking events after
+the model's last `assistant-said`, so an answer resets the question; `turn-position.spec.ts` covers
+the live shape (ending before the answer does not continue; ending after it does; a tool result
+does). The third production run above is the confirmation.
+
 ## 9. Answers (2026-11-08)
 
 1. **Order and packaging.** As recommended in §3: the contract, then github (subscriptions inside one

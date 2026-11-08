@@ -23,6 +23,13 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-08._
+- **Slice 7 PR 5, `plugins/services` part 1** (`dennis/services`): the plugin over the daemon's
+  `services.*` ops — the `services` view, `service_start`/`stop`/`restart`/`list`, the ready/ended
+  frame recorder with a log tail, and `service-ready` as the first real plugin event. Live-checked on
+  production 2026-11-08: start with a readiness wait, list, stop, one `service-ended`, the roster in
+  `pluginViews.services` (spec §8.4). Declared services and previews are part 2. The check also
+  exposed a loop defect — a turn kept alive for an event the model had already answered — fixed in
+  #2047.
 - **Slice 7 PR 4, `plugins/shells`** (`dennis/shells`): the fifth plugin tier package. The `shells`
   view folds the core `background-shell-*` events; `shell` / `shell_output` / `shell_input` /
   `shell_kill` / `shell_list` drive the daemon's `shells.*` ops; the pod appends the ending from the
