@@ -381,7 +381,10 @@ turns, then each capability through the real path:
 **One gap the check found.** A command posted while an agent-host deploy is rolling can be consumed by
 the old instance, which does not know the kind yet: it appends `input-consumed{discarded}` with a
 warning and the command is lost. Narrow, but real — a client should notice a discarded command rather
-than show it pending forever.
+than show it pending forever. **Closed 2026-11-08 (#2017):** an entry the holder cannot resolve is left
+in the inbox for the next holder, with a one-hour age bound, and it no longer counts as pending input
+(so it cannot start empty turns or ask a draining holder to keep one); a handler-less command that is
+still unknown after an hour is discarded as before.
 
 **Corrections the build made to this spec.** The view does not carry commands (the status output does,
 `SESSION_VIEW_VERSION` stays 3); `CommandContext` gained `visibleEvents()` and `model`; a control command
@@ -389,5 +392,7 @@ is excluded from `byInboxKind`; rewind's `toSeq` is the picked message and the r
 summarise's guards are a v2 sibling over the loop view; the generated tRPC router is committed (CI fails
 on drift), so a wire change commits it.
 
-**Follow-ups.** Re-run a summarise after a holder crash; the running-agent guard (slice 7); the TUI
-renderers (slice 9); the host record adapter and the session-view path on the plugin schema (slice 7).
+**Follow-ups.** The running-agent guard (slice 7); the TUI renderers (slice 9); the host record adapter
+and the session-view path on the plugin schema (slice 7). **Closed 2026-11-08:** a consumed command whose
+holder died re-runs once on takeover, without a second `input-consumed` (#2015), and a refusal that landed
+while the web page was closed is rendered from the log after reload (#2011).

@@ -220,3 +220,24 @@ Three bash calls; sandbox stopped (Vercel SDK) 15 s into call 2 (120 s wait). Ho
   detector (`loop-watch.ts`) reads; #1897 clears it in the interrupted rewrite.
 - Unrelated log: `holder.claim … lease changed concurrently` on host 55 at 21:53:20 — both hosts raced to claim the
   new session and one lost; benign.
+
+## Leftovers (2026-11-08)
+
+### A hard kill of the Render host: not reachable, and suspend is a freeze
+
+The API lists instances (`GET /v1/services/{id}/instances`) but has no kill or terminate action, and the
+service's SSH address refuses a keyless login, so there is no way from a pod to SIGKILL the process.
+`POST /suspend`, the most abrupt stop available, was measured during a real 60 s tool call on session
+`de884fc5-8e64-484c-8f5b-4c0057e15c58`: the instance logged no `draining`, no new `agent-host started`
+followed the resume, and the lease stayed at epoch 1 with the same holder — it paused and thawed rather
+than died. What that run does prove: a 22 s total freeze during a running call loses nothing; the call
+finished in the sandbox and the same holder appended its result once (run count 1). Full record in
+[hard-host-kill.md](hard-host-kill.md). SIGKILL itself stays covered by the local fault rows.
+
+### The 2026-11-07 drain-log mismatch: dropped
+
+The `draining` line is the retiring instance's SIGTERM handler, and Render starts the replacement before
+terminating the old instance, letting it drain up to `maxShutdownDelaySeconds` (300 s). So a drain
+timestamp sits after the replacement's `agent-host started` — by up to five minutes — and consecutive
+deploys overlap while an older instance is still draining (on 2026-11-07 `-99zwb` was still launching a
+sandbox daemon 25 s after it logged `draining`). Expected rolling-deploy behaviour, not a lost handoff.
