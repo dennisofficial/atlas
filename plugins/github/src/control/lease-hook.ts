@@ -3,9 +3,19 @@ import type { V2Event } from '@dltech/atlas-core'
 
 import { GITHUB_PROVIDER, targetOf } from '../core'
 
-export const LEASE_TTL_MS = 5 * 60_000
+export const DEFAULT_SUBSCRIPTION_TTL_MS = 24 * 60 * 60_000
 
-type CreatedBody = { subscriptionId?: unknown; provider?: unknown; target?: unknown }
+type CreatedBody = {
+  subscriptionId?: unknown
+  provider?: unknown
+  target?: unknown
+}
+
+const expiryOf = (event: { at: string; expiresAt?: string | undefined }): string => {
+  const declared = event.expiresAt === undefined ? Number.NaN : Date.parse(event.expiresAt)
+  if (!Number.isNaN(declared)) return new Date(declared).toISOString()
+  return new Date(Date.parse(event.at) + DEFAULT_SUBSCRIPTION_TTL_MS).toISOString()
+}
 
 const createdTarget = (args: { canonical: string; subscriptionId: string }) => {
   const body: CreatedBody = JSON.parse(args.canonical)
@@ -51,7 +61,7 @@ export const subscriptionLeaseHook: AppendHook = {
         userId: session.userId,
         threadId: event.threadId,
         ...target,
-        expiresAt: new Date(Date.parse(event.at) + LEASE_TTL_MS).toISOString(),
+        expiresAt: expiryOf(event),
       })
       return
     }

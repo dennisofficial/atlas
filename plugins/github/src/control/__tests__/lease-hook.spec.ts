@@ -13,20 +13,29 @@ import {
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { createV2EventSchema } from '@dltech/atlas-core'
 
-import { githubControl } from '..'
+import { DEFAULT_SUBSCRIPTION_TTL_MS, githubControl } from '..'
 import { githubCoreSlots } from '../../core'
 
 const SESSION = 'ses_1'
 const THREAD = 'thr_1'
 const AT = '2026-11-08T10:00:00.000Z'
 
-const created = (args: { id: string; provider?: string; target?: unknown }): V2Body => ({
+const created = (args: {
+  id: string
+  provider?: string
+  target?: unknown
+  expiresAt?: string
+}): V2Body => ({
   type: 'subscription-created',
   subscriptionId: args.id,
   provider: args.provider ?? 'github.pull-request',
-  target: (args.target ?? { repo: 'github.com/Dltech/Atlas', number: 7 }) as never,
+  target: (args.target ?? {
+    repo: 'github.com/Dltech/Atlas',
+    number: 7,
+  }) as never,
   label: 'dltech/atlas#7',
   createdBy: ESubscriptionActor.Agent,
+  ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
 })
 
 const ended = (id: string): V2Body => ({
@@ -83,10 +92,26 @@ describe('github subscription lease hook on append (postgres)', () => {
       branch: '#7',
       threadId: THREAD,
     })
-    expect(row?.expiresAt.getTime()).toBeGreaterThan(Date.parse(AT))
+    expect(row?.expiresAt.getTime()).toBe(Date.parse(AT) + DEFAULT_SUBSCRIPTION_TTL_MS)
+    expect(row?.liveUntil.getTime()).toBe(row?.expiresAt.getTime())
 
     await append([ended('a')])
     expect(await rows()).toHaveLength(0)
+  })
+
+  it('uses the expiry the subscription declares instead of the default', async () => {
+    const { append, rows } = await setup()
+    const declared = '2026-11-08T10:30:00.000Z'
+    await append([created({ id: 'a', expiresAt: declared })])
+    expect((await rows())[0]?.expiresAt.toISOString()).toBe(declared)
+  })
+
+  it('falls back to the default when the declared expiry is unreadable', async () => {
+    const { append, rows } = await setup()
+    await append([created({ id: 'a', expiresAt: 'soon' })])
+    expect((await rows())[0]?.expiresAt.getTime()).toBe(
+      Date.parse(AT) + DEFAULT_SUBSCRIPTION_TTL_MS,
+    )
   })
 
   it('is idempotent for a second subscription to the same pull request', async () => {
