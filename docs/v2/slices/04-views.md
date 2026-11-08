@@ -27,6 +27,9 @@ action.
 5. Scale: on a seeded 20k-event thread, the view costs ≤ 2 ms p99 extra per append, a sidebar
    snapshot of 100 sessions reads 100 rows and folds no events, and a cold backfill of the thread
    finishes in ≤ 1 s.
+   Measured 2026-11-08 against Postgres 17: the view's fold+encode costs 0.037 ms p99 per 50-event
+   append at 20k events (p50 0.022 ms; 2.581 ms p99 at 1k, two outlier samples whose cause was not isolated); the
+   whole-append delta is -6.20 ms p99 (late 32.85 ms, early 39.05 ms), dominated by database variance.
 
 ## 1. What exists today
 
@@ -339,7 +342,21 @@ Run on byatlas.io against Dennis's account, deploys at `a1615601` (web, Render) 
 | Status in the sidebar      | Running and idle correct. Found a bug: `pull-request-linked` after a turn left status at `thinking`; fixed in #1994 (turn-neutral, view version 3).                                                                                                                                                                                         |
 | Context ring and spend     | Ring and spend popover match the view; spend grows across turns while context stays flat. Rewind is not exposed on v2 yet (slice 6), so "spend unchanged after a rewind" is covered by the conformance tests only.                                                                                                                          |
 | Failed to start and Retry  | Pass with a real start failure: "Atlas couldn't start this session", the plain reason, Retry reached idle in ~12 s with one discarded retry entry and no duplicate message.                                                                                                                                                                 |
-| Scale                      | `sessions.view` p50 over HTTPS: 145 ms (35 events), 115 ms (382), 124 ms (20,032); flat in log length. Cold catch-up 1.0–1.1 s at 20k events (#1990 scale test; the 1 s target relaxed to 1.5 s, dominated by event decode). Per-append cost not isolated; append p99 flat from 1k to 20k events.                                           |
+| Scale                      | `sessions.view` p50 over HTTPS: 145 ms (35 events), 115 ms (382), 124 ms (20,032); flat in log length. Cold catch-up 1.0–1.1 s at 20k events (#1990 scale test; the 1 s target relaxed to 1.5 s, dominated by event decode). Per-append view cost isolated below; append p99 flat from 1k to 20k events.                                    |
+
+Per-append view cost, measured 2026-11-08 against Postgres 17 (`postgres-view-scale.spec.ts`, 200
+samples of fold+encode over one 50-event batch, in process, no database):
+
+| Measure                              | Near 1k events | Near 20k events |
+| ------------------------------------ | -------------- | --------------- |
+| View fold+encode p50 / p99 (ms)      | 0.033 / 2.581  | 0.022 / 0.037   |
+| Encoded view state (bytes)           | 530            | 532             |
+| View row write, warm (ms)            | 3.26           | 1.43            |
+| Whole 50-event append p50 / p99 (ms) | 16.37 / 39.05  | 14.21 / 32.85   |
+
+The exit criterion 5 bound (≤ 2 ms p99) holds at 20k events: 0.037 ms p99. The row body does not
+grow with the thread, and the write is one constant small upsert. The 2.581 ms p99 near 1k comes from two outlier samples out of 200 (p50 0.033 ms); the cause
+was not isolated, and the cost at 20k is lower, so it does not grow with the log.
 
 Follow-ups:
 - v2 sandboxes need GitHub credentials and a git identity so the agent can push and open PRs (v1 has them).
