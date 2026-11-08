@@ -92,7 +92,7 @@ describe('read on an image', () => {
       { type: 'text', text: `${paths.small} — image/png, 1024×768, 400 KB.` },
       {
         type: 'image',
-        data: expect.any(String),
+        bytes: { kind: 'inline', data: expect.any(String) },
         mediaType: 'image/png',
         source: paths.small,
         width: 1024,
@@ -101,8 +101,9 @@ describe('read on an image', () => {
     ])
 
     const part = outcome.modelParts?.[1]
-    if (part === undefined || part.type !== 'image') throw new Error('expected an image part')
-    expect(decodeBase64(part.data).byteLength).toBe(400 * 1024 + 24)
+    if (part === undefined || part.type !== 'image' || part.bytes.kind !== 'inline')
+      throw new Error('expected an inline image part')
+    expect(decodeBase64(part.bytes.data).byteLength).toBe(400 * 1024 + 24)
   })
 
   it('reports the picture rather than a line count', async () => {

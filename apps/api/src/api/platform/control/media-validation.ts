@@ -4,7 +4,7 @@ import {
   EImageDelivery,
   imageMediaType,
   imageSize,
-  planDelivery,
+  planInlineDelivery,
   type MediaRef,
 } from '@dltech/atlas-core'
 
@@ -26,7 +26,7 @@ export function validateMediaBytes(args: { hash: string; bytes: Uint8Array }): M
   if (size === null || size.width < 1 || size.height < 1) {
     return { ok: false, reason: 'the image has no readable size' }
   }
-  const plan = planDelivery({
+  const plan = planInlineDelivery({
     byteLength: args.bytes.byteLength,
     width: size.width,
     height: size.height,

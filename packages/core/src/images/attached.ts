@@ -1,10 +1,6 @@
-import { EImageDelivery, planDelivery } from './limits'
+import { EImageDelivery, planInlineDelivery } from './delivery'
 
-export type ImageOnDisk = {
-  path: string
-  width?: number | undefined
-  height?: number | undefined
-}
+export type ImageOnDisk = { path: string; width?: number | undefined; height?: number | undefined }
 
 /** Base64 carries three bytes in every four characters, padding aside. */
 export const base64Bytes = (data: string): number => Math.floor((data.length * 3) / 4)
@@ -20,7 +16,7 @@ export const imagePathLine = (image: ImageOnDisk): string =>
     : `[image ${image.path} · ${image.width}×${image.height}]`
 
 export const inlinable = (image: ImageOnDisk & { data: string }): boolean =>
-  planDelivery({
+  planInlineDelivery({
     byteLength: base64Bytes(image.data),
     width: image.width,
     height: image.height,

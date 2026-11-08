@@ -4,6 +4,7 @@ import type {
   ChunkFilter,
   IdPort,
   LoopCut,
+  MediaUrlResolver,
   ModelPort,
   ThreadId,
   ToolDeclaration,
@@ -39,6 +40,7 @@ export type TurnDeps = {
   dispatch?: ToolDispatcher | undefined
   hooks?: HookChain | undefined
   uploads?: SaidUploadsPort | undefined
+  mediaUrls?: MediaUrlResolver | undefined
   intake?: AgentIntake | undefined
   expandContext?: ExpandContext | undefined
   spend?: TurnLedgerDeps | undefined

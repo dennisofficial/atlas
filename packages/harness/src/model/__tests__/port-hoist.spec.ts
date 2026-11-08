@@ -47,7 +47,12 @@ const assembledWithToolImage: Assembled = {
               type: 'content',
               value: [
                 { type: 'text', text: '/tmp/shot.png — image/png.' },
-                { type: 'image', data: PIXEL, mediaType: 'image/png', source: '/tmp/shot.png' },
+                {
+                  type: 'image',
+                  bytes: { kind: 'inline', data: PIXEL },
+                  mediaType: 'image/png',
+                  source: '/tmp/shot.png',
+                },
               ],
             },
           },

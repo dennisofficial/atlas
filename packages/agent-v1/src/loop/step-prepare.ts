@@ -6,6 +6,8 @@ import {
   ERunFailureKind,
   attachmentsOf,
   exchangeFaults,
+  resolveMediaUrls,
+  type MediaUrlResolver,
   overflowsWindow,
   uploadsOf,
   type Assembled,
@@ -65,6 +67,7 @@ export type StepPrepareDeps = {
   countTokens: (assembled: Assembled) => number
   hooks: HookChain | undefined
   uploads: SaidUploadsPort | undefined
+  mediaUrls?: MediaUrlResolver | undefined
   onContext: ((args: { tokens: number; window: number }) => void) | undefined
   compact: (args: { threadId: ThreadId; tokens: number; window: number }) => Promise<boolean>
   trace?: TracePort | undefined
@@ -104,6 +107,7 @@ export const stepPrepareDepsOf = ({
   countTokens: deps.countTokens,
   hooks: deps.hooks,
   uploads: deps.uploads,
+  mediaUrls: deps.mediaUrls,
   onContext: deps.onContext,
   trace: deps.trace,
   compact: oncePerTurnCompact({
@@ -164,12 +168,24 @@ async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promi
           ...(args.signal === undefined ? {} : { signal: args.signal }),
         })
 
+  const mediaUrls =
+    deps.mediaUrls === undefined
+      ? undefined
+      : await resolveMediaUrls({
+          attachments: args.events.flatMap((event) =>
+            event.type === 'user-said' ? attachmentsOf(event) : [],
+          ),
+          resolver: deps.mediaUrls,
+        })
+
   const ctx: RuleContext = {
     events: args.events,
     threadId: args.threadId,
     step: args.step,
     provider: deps.model.identity,
     countTokens: deps.countTokens,
+    imageCapabilities: deps.model.traits?.().image,
+    ...(mediaUrls === undefined ? {} : { mediaUrls }),
     ...(placements === undefined ? {} : { uploads: placements }),
     ...(args.previous === undefined ? {} : { previous: args.previous }),
   }

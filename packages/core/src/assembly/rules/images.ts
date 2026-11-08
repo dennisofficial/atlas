@@ -5,6 +5,7 @@ import {
   SUPPORTED_IMAGE_MEDIA_TYPES,
   type SupportedImageMediaType,
 } from '../../images/limits'
+import { inlineImageData } from '../../message/image-bytes'
 import type { Message } from '../../message/message'
 import type {
   FilePart,
@@ -31,11 +32,18 @@ type VisualPart = UserContentPart
 const isPicture = (part: VisualPart): part is ImagePart | FilePart | MediaPart =>
   part.type === 'image' || part.type === 'file' || part.type === 'media'
 
+const sizeOfImage = (part: ImagePart) => {
+  if (part.width !== undefined && part.height !== undefined) {
+    return { width: part.width, height: part.height }
+  }
+  const data = inlineImageData(part)
+  return data === undefined
+    ? null
+    : imageSize({ bytes: decodeBase64(data), mediaType: part.mediaType })
+}
+
 const describedSize = (part: ImagePart): string => {
-  const size =
-    part.width === undefined || part.height === undefined
-      ? imageSize({ bytes: decodeBase64(part.data), mediaType: part.mediaType })
-      : { width: part.width, height: part.height }
+  const size = sizeOfImage(part)
   if (size === null) return part.mediaType
 
   return `${part.mediaType} ${size.width}×${size.height}`
@@ -79,8 +87,9 @@ const asSupported = (mediaType: string): SupportedImageMediaType | null =>
 
 const imageIsCorrupt = (part: ImagePart): boolean => {
   const mediaType = asSupported(part.mediaType)
-  if (mediaType === null) return false
-  return !decodesAsImage({ bytes: decodeBase64(part.data), mediaType })
+  const data = inlineImageData(part)
+  if (mediaType === null || data === undefined) return false
+  return !decodesAsImage({ bytes: decodeBase64(data), mediaType })
 }
 
 const imagesInParts = (parts: readonly VisualPart[]): number =>

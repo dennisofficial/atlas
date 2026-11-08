@@ -2,7 +2,7 @@ import {
   decodesAsImage,
   EImageDelivery,
   imageSize,
-  planDelivery,
+  planInlineDelivery,
   type AgentFileSystemPort,
   type ImageSize,
   type ModelPart,
@@ -82,7 +82,7 @@ const inlined = (args: {
     { type: 'text', text: summary },
     {
       type: 'image',
-      data: Buffer.from(args.bytes).toString('base64'),
+      bytes: { kind: 'inline', data: Buffer.from(args.bytes).toString('base64') },
       mediaType: args.mediaType,
       source: args.path,
       width: args.size?.width,
@@ -114,7 +114,7 @@ export async function readImage(args: {
 
   const size = imageSize({ bytes: args.head, mediaType })
 
-  const plan = planDelivery({ byteLength, width: size?.width, height: size?.height })
+  const plan = planInlineDelivery({ byteLength, width: size?.width, height: size?.height })
 
   if (plan.delivery === EImageDelivery.PathOnly) {
     return textOnly({

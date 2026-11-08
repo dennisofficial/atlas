@@ -24,7 +24,11 @@ const entry = (message: Message, seq: number): AssembledMessage => ({
   origin: { eventId: toEventId(`event-${seq}`), seq },
 })
 
-const shot = (): ImagePart => ({ type: 'image', data: 'AAAA', mediaType: 'image/png' })
+const shot = (): ImagePart => ({
+  type: 'image',
+  bytes: { kind: 'inline', data: 'AAAA' },
+  mediaType: 'image/png',
+})
 
 const shownWith = ({ images, seq }: { images: number; seq: number }): AssembledMessage =>
   entry(

@@ -63,14 +63,16 @@ const toModelToolResultOutput = (output: ToolResultOutput): ModelToolResultOutpu
         ? { type: 'text' as const, text: part.text }
         : part.type === 'media'
           ? toModelMediaText(part)
-          : {
-              type: 'file' as const,
-              data: { type: 'data' as const, data: part.data },
-              mediaType: part.mediaType,
-              ...(part.type === 'file' && part.filename !== undefined
-                ? { filename: part.filename }
-                : {}),
-            },
+          : part.type === 'image'
+            ? toModelResultImagePart(part)
+            : {
+                type: 'file' as const,
+                data: { type: 'data' as const, data: part.data },
+                mediaType: part.mediaType,
+                ...(part.type === 'file' && part.filename !== undefined
+                  ? { filename: part.filename }
+                  : {}),
+              },
     ),
   }
 }
@@ -83,12 +85,33 @@ const toModelToolResultPart = (part: ToolResultPart) => ({
   ...carriedProviderOptions(part.providerOptions),
 })
 
-const toModelImagePart = (part: ImagePart) => ({
-  type: 'file' as const,
-  data: { type: 'data' as const, data: part.data },
-  mediaType: part.mediaType,
-  ...carriedProviderOptions(part.providerOptions),
-})
+const toModelImagePart = (part: ImagePart) =>
+  part.bytes.kind === 'url'
+    ? {
+        type: 'image' as const,
+        image: new URL(part.bytes.url),
+        mediaType: part.mediaType,
+        ...carriedProviderOptions(part.providerOptions),
+      }
+    : {
+        type: 'file' as const,
+        data: { type: 'data' as const, data: part.bytes.data },
+        mediaType: part.mediaType,
+        ...carriedProviderOptions(part.providerOptions),
+      }
+
+const toModelResultImagePart = (part: ImagePart) =>
+  part.bytes.kind === 'url'
+    ? {
+        type: 'file' as const,
+        data: { type: 'url' as const, url: new URL(part.bytes.url) },
+        mediaType: part.mediaType,
+      }
+    : {
+        type: 'file' as const,
+        data: { type: 'data' as const, data: part.bytes.data },
+        mediaType: part.mediaType,
+      }
 
 const toModelFilePart = (part: FilePart) => ({
   type: 'file' as const,

@@ -162,7 +162,7 @@ describe('McpBridgeTool invocation', () => {
     if (!outcome.ok) return
     expect(outcome.modelParts).toEqual([
       { type: 'text', text: 'covers' },
-      { type: 'image', data: 'aW1hZ2U=', mediaType: 'image/png' },
+      { type: 'image', bytes: { kind: 'inline', data: 'aW1hZ2U=' }, mediaType: 'image/png' },
     ])
   })
 

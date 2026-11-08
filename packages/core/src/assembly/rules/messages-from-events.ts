@@ -18,7 +18,7 @@ import {
   backgroundShellMatchedBlock,
   backgroundShellStillRunningBlock,
 } from './background-shell-block'
-import { attachmentPartsOf } from './attachment-parts'
+import { attachmentPartsOf, type DeliveryContext } from './attachment-parts'
 import { agentReportedBlock } from './agent-reported-block'
 import { agentRestartedBlock } from './agent-restarted-block'
 import { nudgeBlock } from './nudge-block'
@@ -126,12 +126,14 @@ function appendCall({
 function saidContent({
   event,
   placements,
+  delivery,
 }: {
   event: EventOfType<'user-said'>
   placements: ReadonlyMap<string, UploadPlacement> | undefined
+  delivery: DeliveryContext
 }): UserContentPart[] {
   const attachments = attachmentsOf(event)
-  const { shown, named } = attachmentPartsOf(attachments)
+  const { shown, named } = attachmentPartsOf({ attachments, delivery })
   const uploads = uploadsOf(attachments)
 
   const said = [event.text, ...named].join('\n')
@@ -163,9 +165,11 @@ type Walk = { groups: readonly Group[]; settlements: ReadonlyMap<string, Settled
 function walkEvents({
   events,
   placements,
+  delivery,
 }: {
   events: readonly Event[]
   placements: ReadonlyMap<string, UploadPlacement> | undefined
+  delivery: DeliveryContext
 }): Walk {
   const groups: Group[] = []
   const settlements = new Map<string, SettledCall>()
@@ -212,7 +216,7 @@ function walkEvents({
 
     if (event.type === 'user-said') {
       groups.push({
-        message: { role: 'user', content: saidContent({ event, placements }) },
+        message: { role: 'user', content: saidContent({ event, placements, delivery }) },
         origin: originOf(event),
       })
       continue
@@ -411,7 +415,11 @@ export function messagesFromEvents(): Rule {
   return defineRule({
     name: 'messagesFromEvents',
     apply: (input, ctx) => {
-      const { groups, settlements } = walkEvents({ events: ctx.events, placements: ctx.uploads })
+      const { groups, settlements } = walkEvents({
+        events: ctx.events,
+        placements: ctx.uploads,
+        delivery: { capabilities: ctx.imageCapabilities, urls: ctx.mediaUrls },
+      })
 
       return {
         system: input.system,

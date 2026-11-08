@@ -1,4 +1,10 @@
-import type { AssemblyPipeline, ModelPort, ThreadId, WorkspaceStepReport } from '@dltech/atlas-core'
+import type {
+  AssemblyPipeline,
+  MediaUrlResolver,
+  ModelPort,
+  ThreadId,
+  WorkspaceStepReport,
+} from '@dltech/atlas-core'
 import type {
   NormalizeFailure,
   SaidUploadsPort,
@@ -64,6 +70,7 @@ export type SessionRuntime = {
   effectOf: ToolEffectResolver
   assembly: AssemblyPipeline
   uploads?: SaidUploadsPort | undefined
+  mediaUrls?: MediaUrlResolver | undefined
   normalizeFailure: NormalizeFailure
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>

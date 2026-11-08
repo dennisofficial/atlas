@@ -9,56 +9,16 @@ export type ImageFacts = {
   tier?: EImageTier | undefined
 }
 
-export enum EImageDelivery {
-  Inline = 'inline',
-  PathOnly = 'path-only',
-}
-
-export type DeliveryPlan = {
-  delivery: EImageDelivery
-  reason?: string
-}
-
 /** The API's ceiling is 10 MB of base64, which inflates raw bytes by a third. */
 export const MAX_INLINE_BYTES = 5 * 1024 * 1024
 
 /** Past this on either edge the API rejects the image outright rather than downscaling it. */
 export const MAX_API_EDGE = 8000
 
-const megabytes = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(1)} MB`
-
 export function visualTokens(facts: ImageFacts): number | null {
   if (facts.width === undefined || facts.height === undefined) return null
 
-  return projectedTokens({
-    size: { width: facts.width, height: facts.height },
-    tier: facts.tier,
-  })
-}
-
-/**
- * Resizing locally saves no tokens: the API bills patches of the size it resizes to, not of the
- * bytes on the wire. So the long edge is never a reason to withhold or shrink a picture, and only
- * the two ceilings the API actually enforces are.
- */
-export function planDelivery(facts: ImageFacts): DeliveryPlan {
-  const longEdge = Math.max(facts.width ?? 0, facts.height ?? 0)
-
-  if (longEdge > MAX_API_EDGE) {
-    return {
-      delivery: EImageDelivery.PathOnly,
-      reason: `its ${longEdge} pixel long edge is past the ${MAX_API_EDGE} the API accepts`,
-    }
-  }
-
-  if (facts.byteLength > MAX_INLINE_BYTES) {
-    return {
-      delivery: EImageDelivery.PathOnly,
-      reason: `${megabytes(facts.byteLength)} is past the ${megabytes(MAX_INLINE_BYTES)} inline limit`,
-    }
-  }
-
-  return { delivery: EImageDelivery.Inline }
+  return projectedTokens({ size: { width: facts.width, height: facts.height }, tier: facts.tier })
 }
 
 const readUint32BE = (bytes: Uint8Array, offset: number): number =>

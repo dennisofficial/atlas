@@ -34,7 +34,7 @@ describe('a message carrying attachments', () => {
       { type: 'text', text: operatorSaidAs('look') },
       {
         type: 'image',
-        data: 'iVBORw0KGgo=',
+        bytes: { kind: 'inline', data: 'iVBORw0KGgo=' },
         mediaType: 'image/png',
         source: 'shot.png',
         width: 4,

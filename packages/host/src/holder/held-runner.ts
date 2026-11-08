@@ -179,6 +179,7 @@ export const createLoopRunner = (args: {
     assembly: runtime.assembly,
     ...(runtime.plugins === undefined ? {} : { hooks: pod.hooks }),
     ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
+    ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
     tools: () => pod.tools.declarations(),
     dispatch: new ScopedToolDispatcher(
       new HookedToolDispatcher({

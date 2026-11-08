@@ -12,7 +12,15 @@ describe('estimateMessageTokens for media', () => {
     }
     const image: Message = {
       role: 'user',
-      content: [{ type: 'image', data: '', mediaType: 'image/png', width: 1000, height: 1000 }],
+      content: [
+        {
+          type: 'image',
+          bytes: { kind: 'inline', data: '' },
+          mediaType: 'image/png',
+          width: 1000,
+          height: 1000,
+        },
+      ],
     }
 
     expect(estimateMessageTokens(media)).toBeGreaterThan(0)

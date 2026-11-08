@@ -24,7 +24,7 @@ import { generatedCatalogue } from '@dltech/atlas-models'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { MediaSigner } from '../media/media-signer'
-import { signerUrls } from '../media/media-urls'
+import { attachmentUrlBinding, signerUrls } from '../media/media-urls'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { createProviderModel } from '../model/providers'
 import { normalizeProviderFailure } from '../model/failure'
@@ -273,6 +273,7 @@ export const createSessionRuntimeFactory = (
         files,
         blobs: args.media === undefined ? null : signerUploadBlobs(args.media),
       }),
+      ...attachmentUrlBinding({ signer: args.media, userId: config.userId }),
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,
       watchedRepos: () => gitWatch.watchedRepos(),

@@ -531,7 +531,12 @@ describe('a tool result that carries an image', () => {
     modelText: '/repo/docs/shot.png — image/png, 8×8, 1 KB.',
     modelParts: [
       { type: 'text', text: '/repo/docs/shot.png — image/png, 8×8, 1 KB.' },
-      { type: 'image', data: 'iVBOR', mediaType: 'image/png', source: '/repo/docs/shot.png' },
+      {
+        type: 'image',
+        bytes: { kind: 'inline', data: 'iVBOR' },
+        mediaType: 'image/png',
+        source: '/repo/docs/shot.png',
+      },
     ],
   }
 
@@ -569,5 +574,41 @@ describe('user-said uploads', () => {
       uploads: [{ ...upload, size: 200 * 1024 * 1024 }],
     }
     expect(eventBodySchema.safeParse(body).success).toBe(false)
+  })
+})
+
+describe('a tool result image part', () => {
+  const parse = (part: unknown) =>
+    eventBodySchema.parse({
+      type: 'tool-result',
+      callId: 'c',
+      name: 'read',
+      output: {},
+      modelParts: [part],
+    })
+
+  it('reads a url image', () => {
+    const part = {
+      type: 'image',
+      bytes: { kind: 'url', url: 'https://x.test/a.png' },
+      mediaType: 'image/png',
+    }
+
+    expect(parse(part)).toMatchObject({ modelParts: [part] })
+  })
+
+  it('reads an event logged with the legacy data field as inline bytes', () => {
+    expect(
+      parse({ type: 'image', data: 'iVBOR', mediaType: 'image/png', source: 's' }),
+    ).toMatchObject({
+      modelParts: [
+        {
+          type: 'image',
+          bytes: { kind: 'inline', data: 'iVBOR' },
+          mediaType: 'image/png',
+          source: 's',
+        },
+      ],
+    })
   })
 })

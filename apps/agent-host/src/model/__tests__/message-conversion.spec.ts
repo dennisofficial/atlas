@@ -129,13 +129,110 @@ describe('fromModelMessage', () => {
     expect(() => fromModelMessage({ role: 'system', content: 'be brief' })).toThrow(/system/i)
   })
 
-  it('refuses a remote image, which the event log cannot hold', () => {
+  it('accepts a url image part as url bytes', () => {
+    const withImage: ModelMessage = {
+      role: 'user',
+      content: [
+        { type: 'image', image: new URL('https://example.test/a.png'), mediaType: 'image/png' },
+      ],
+    }
+
+    expect(fromModelMessage(withImage)).toEqual({
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          bytes: { kind: 'url', url: 'https://example.test/a.png' },
+          mediaType: 'image/png',
+        },
+      ],
+    })
+  })
+
+  it('accepts a url string image part as url bytes', () => {
     const withImage: ModelMessage = {
       role: 'user',
       content: [{ type: 'image', image: 'https://example.test/a.png' }],
     }
 
-    expect(() => fromModelMessage(withImage)).toThrow(/image/i)
+    expect(fromModelMessage(withImage)).toMatchObject({
+      content: [{ type: 'image', bytes: { kind: 'url', url: 'https://example.test/a.png' } }],
+    })
+  })
+
+  it('still accepts a data uri image part as inline bytes', () => {
+    const withImage: ModelMessage = {
+      role: 'user',
+      content: [{ type: 'image', image: `data:image/png;base64,${PIXEL}` }],
+    }
+
+    expect(fromModelMessage(withImage)).toEqual({
+      role: 'user',
+      content: [{ type: 'image', bytes: { kind: 'inline', data: PIXEL }, mediaType: 'image/png' }],
+    })
+  })
+
+  it('sends a url image part out as a URL image and reads it back unchanged', () => {
+    const core = {
+      role: 'user' as const,
+      content: [
+        {
+          type: 'image' as const,
+          bytes: { kind: 'url' as const, url: 'https://example.test/a.png' },
+          mediaType: 'image/png',
+        },
+      ],
+    }
+
+    const sent = toModelMessage(core)
+
+    expect(sent).toEqual({
+      role: 'user',
+      content: [
+        { type: 'image', image: new URL('https://example.test/a.png'), mediaType: 'image/png' },
+      ],
+    })
+    expect(fromModelMessage(sent)).toEqual(core)
+  })
+
+  it('sends an inline image part out as data and reads it back unchanged', () => {
+    const core = {
+      role: 'user' as const,
+      content: [
+        {
+          type: 'image' as const,
+          bytes: { kind: 'inline' as const, data: PIXEL },
+          mediaType: 'image/png',
+        },
+      ],
+    }
+
+    expect(fromModelMessage(toModelMessage(core))).toEqual(core)
+  })
+
+  it('sends a tool result url image as a url file and reads it back as a url image', () => {
+    const core = {
+      role: 'tool' as const,
+      content: [
+        {
+          type: 'tool-result' as const,
+          toolCallId: 'call-1',
+          toolName: 'read',
+          output: {
+            type: 'content' as const,
+            value: [
+              {
+                type: 'image' as const,
+                bytes: { kind: 'url' as const, url: 'https://example.test/a.png' },
+                mediaType: 'image/png',
+              },
+            ],
+          },
+        },
+      ],
+    }
+
+    expect(fromModelMessage(toModelMessage(core))).toEqual(core)
   })
 
   it('carries an inline image back into a core user message', () => {
@@ -151,7 +248,7 @@ describe('fromModelMessage', () => {
       role: 'user',
       content: [
         { type: 'text', text: 'what is broken here?' },
-        { type: 'image', data: PIXEL, mediaType: 'image/png' },
+        { type: 'image', bytes: { kind: 'inline', data: PIXEL }, mediaType: 'image/png' },
       ],
     })
   })
@@ -186,7 +283,7 @@ describe('fromModelMessage', () => {
             type: 'content',
             value: [
               { type: 'text', text: 'Read image file [image/png] 1x1' },
-              { type: 'image', data: PIXEL, mediaType: 'image/png' },
+              { type: 'image', bytes: { kind: 'inline', data: PIXEL }, mediaType: 'image/png' },
             ],
           },
         },
@@ -197,7 +294,7 @@ describe('fromModelMessage', () => {
   it('sends an image part out as a file part, the SDK spelling since image parts were deprecated', () => {
     const sent = toModelMessage({
       role: 'user',
-      content: [{ type: 'image', data: PIXEL, mediaType: 'image/png' }],
+      content: [{ type: 'image', bytes: { kind: 'inline', data: PIXEL }, mediaType: 'image/png' }],
     })
 
     expect(sent).toEqual({
@@ -219,7 +316,7 @@ describe('fromModelMessage', () => {
       role: 'user',
       content: [
         { type: 'text', text: 'what is broken here?' },
-        { type: 'image', data: PIXEL, mediaType: 'image/png' },
+        { type: 'image', bytes: { kind: 'inline', data: PIXEL }, mediaType: 'image/png' },
       ],
     })
   })
@@ -323,7 +420,9 @@ describe('fromModelMessage', () => {
           toolName: 'read',
           output: {
             type: 'content',
-            value: [{ type: 'image', data: PIXEL, mediaType: 'image/png' }],
+            value: [
+              { type: 'image', bytes: { kind: 'inline', data: PIXEL }, mediaType: 'image/png' },
+            ],
           },
         },
       ],

@@ -205,7 +205,7 @@ describe('messagesFromEvents rendering a tool result that carries parts', () => 
   const withParts = (
     modelParts: readonly (
       | { type: 'text'; text: string }
-      | { type: 'image'; data: string; mediaType: string }
+      | { type: 'image'; bytes: { kind: 'inline'; data: string }; mediaType: string }
     )[],
   ) =>
     log([
@@ -232,7 +232,11 @@ describe('messagesFromEvents rendering a tool result that carries parts', () => 
   it('hands the model the parts rather than the summary text', () => {
     const parts = [
       { type: 'text' as const, text: 'shot.png — image/png, 8×8, 1 KB.' },
-      { type: 'image' as const, data: 'iVBOR', mediaType: 'image/png' },
+      {
+        type: 'image' as const,
+        bytes: { kind: 'inline' as const, data: 'iVBOR' },
+        mediaType: 'image/png',
+      },
     ]
 
     expect(contentOf(withParts(parts))).toMatchObject({ output: { type: 'content', value: parts } })
