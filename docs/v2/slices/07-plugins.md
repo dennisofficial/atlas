@@ -461,7 +461,20 @@ dedupe-keyed per user and the delivery primary key is `(eventId, threadId)`. Spe
 `github-v2-notice.spec.ts` fans the same event out twice.
 
 Not shipped (follow-up): the PR finder move (3b); client rendering beyond `subscriptionsOfView`.
-Live check is recorded in the PR body.
+
+**Live check (2026-11-08, production).** Session `26efecc4-fe86-457a-b357-caccbda4d825`, thread
+`ef3aa40c-b3fb-403c-86e1-d3ce49173cd6`, project `cmvh6z3ls002i08jwseqmwbrv`
+(dennisofficial/atlas), agent host `fbedb2479`, throwaway PR #2023 (closed after the check).
+
+| Step                           | Result                                                                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subscribe` tool on PR #2023   | `subscription-created` at seq 21                                                                                                                  |
+| Lease row                      | `branch "#2023"`, `threadId` = the main thread, `expiresAt` 2026-11-09T14:07:53Z (24 h), `pollBacked: true`                                       |
+| Second commit (`0baef077a`)    | one `GithubPrEventDelivery` row, kind `mergeability`, acked 14:08:15Z                                                                             |
+| The notice                     | one `user-said`: `GitHub: PR #2023 (https://github.com/dennisofficial/atlas/pull/2023) is mergeable.`, with an assistant reply — the session woke |
+| Duplicate event                | none: one delivery row for that event                                                                                                             |
+| `unsubscribe` tool             | the `GithubSubscription` row was gone                                                                                                             |
+| Third commit after unsubscribe | no delivery in the following four minutes (`silent=yes`, one delivery in total)                                                                   |
 
 ## 9. Answers (2026-11-08)
 
