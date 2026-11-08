@@ -30,6 +30,7 @@
     "@dltech/atlas-models": "workspace:*",
     "@dltech/atlas-native-commands": "workspace:*",
     "@dltech/atlas-observability": "workspace:*",
+    "@dltech/atlas-plugin-github": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dotenvx/dotenvx": "^1.71.0",

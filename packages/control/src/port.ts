@@ -67,6 +67,13 @@ export type PrStateRow = SessionPullRequestKey & {
   updatedAt: string
 }
 
+export type PrSubscriptionLease = {
+  userId: string
+  threadId: string
+  repo: string
+  number: number
+}
+
 export type ThreadRow = {
   threadId: string
   sessionId: string
@@ -182,6 +189,8 @@ export interface ControlTx {
   insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void>
   sessionsLinkedTo(key: SessionPullRequestKey): Promise<string[]>
   readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]>
+  upsertPrSubscriptionLease(params: PrSubscriptionLease & { expiresAt: string }): Promise<void>
+  deletePrSubscriptionLease(params: PrSubscriptionLease): Promise<boolean>
   hostPresent(hostId: number): Promise<boolean>
 }
 

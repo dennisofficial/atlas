@@ -8,6 +8,7 @@ import {
   type V2EventType,
 } from '@dltech/atlas-core'
 import type { z } from 'zod'
+import type { AppendHook } from './append-hooks'
 import { appendIn } from './append-ops'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
@@ -41,6 +42,7 @@ export type ControlPlaneParams = {
   clock?: (() => string) | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
+  appendHooks?: readonly AppendHook[] | undefined
 }
 
 export type { ReadEventsPage } from './read-events'
@@ -57,12 +59,14 @@ export class ControlPlane {
   private readonly leases: LeaseOps
   private readonly eventSchema: z.ZodType<V2Event> | undefined
   private readonly pluginViews: readonly PluginViewFold[]
+  private readonly appendHooks: readonly AppendHook[]
 
   constructor(params: ControlPlaneParams) {
     this.store = params.store
     this.clock = params.clock
     this.eventSchema = params.eventSchema
     this.pluginViews = params.pluginViews ?? []
+    this.appendHooks = params.appendHooks ?? []
     this.leases = new LeaseOps({ store: params.store })
   }
 
@@ -177,6 +181,7 @@ export class ControlPlane {
           leases: this.leases,
           eventSchema: this.eventSchema,
           pluginViews: this.pluginViews,
+          appendHooks: this.appendHooks,
           ...params,
         }),
       )

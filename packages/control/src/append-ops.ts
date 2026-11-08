@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
+import { runAppendHooks, type AppendHook } from './append-hooks'
 import { missingBlobHashes, verifyBlobWrites } from './blob-ops'
 import { consumeInbox } from './consume-inbox'
 import { UnknownThreadError } from './errors'
@@ -27,6 +28,7 @@ export const appendIn = async (params: {
   blobs?: readonly BlobWrite[] | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
+  appendHooks?: readonly AppendHook[] | undefined
 }): Promise<AppendOutcome> => {
   const { tx } = params
   const row = await tx.lockThread(params.threadId)
@@ -79,6 +81,12 @@ export const appendIn = async (params: {
   await tx.insertBlobs(blobs)
   await tx.insertBlobRefs([...refHashes].map((hash) => ({ sessionId: row.sessionId, hash })))
   await tx.insertEvents(stored)
+  await runAppendHooks({
+    tx,
+    sessionId: row.sessionId,
+    events: parsed.events,
+    hooks: params.appendHooks,
+  })
   const swapped = await tx.writeThreadHead({
     threadId: params.threadId,
     expectedHeadSeq: head.seq,

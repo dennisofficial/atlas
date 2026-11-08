@@ -145,7 +145,15 @@ export const createFixturePlugin = (): { plugin: Plugin; record: ProbeRecord } =
     pod: podOf(record),
     control: {
       ...EMPTY_CONTROL,
-      hooks: [{ name: 'probe-control', appliesTo: (e) => e.type === 'probe-observed' }],
+      hooks: [
+        {
+          name: 'probe-control',
+          appliesTo: (e) => e.type === 'probe-observed',
+          handle: async ({ sessionId }) => {
+            record.controlReads.push(`hook:${sessionId}`)
+          },
+        },
+      ],
       commands: new Map([
         [
           probeRead.spec.name,

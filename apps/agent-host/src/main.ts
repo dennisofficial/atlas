@@ -33,7 +33,7 @@ import { systemHostTimers } from './stream/system-timers'
 import { startStreamServer } from './stream/stream-server'
 import { createGracefulShutdown } from './shutdown/graceful-shutdown'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
-import { registeredPlugins } from './registered-plugins'
+import { composedPlugins, registeredPlugins } from './registered-plugins'
 
 const SHUTDOWN_GRACE_MS = 20_000
 
@@ -53,6 +53,8 @@ const main = async (): Promise<void> => {
   const plane = new ControlPlane({
     store: new PostgresControlStore(createDb(pool)),
     eventSchema: eventSchemaOf(registeredPlugins),
+    pluginViews: composedPlugins.views,
+    appendHooks: composedPlugins.control.hooks,
   })
   const log = new JsonLog()
   const liveFrames = createRedisLiveFrames({ url: env.redisUrl, log })

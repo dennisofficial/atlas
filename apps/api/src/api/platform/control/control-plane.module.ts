@@ -21,6 +21,7 @@ export const controlPlaneProvider: Provider = {
       store: new PostgresControlStore(db),
       eventSchema: eventSchemaOf(registeredPlugins),
       pluginViews: composedPlugins.views,
+      appendHooks: composedPlugins.control.hooks,
     }),
 }
 

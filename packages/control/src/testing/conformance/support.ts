@@ -9,6 +9,7 @@ import {
   type V2EventType,
 } from '@dltech/atlas-core'
 
+import type { AppendHook } from '../../append-hooks'
 import { ControlPlane } from '../../control-plane'
 import type { z } from 'zod'
 
@@ -26,7 +27,10 @@ export type Harness = { plane: ControlPlane; setNow: (iso: string) => void }
 export function makeHarness(
   store: ControlStorePort,
   eventSchema?: z.ZodType<V2Event> | undefined,
-  options?: { pluginViews?: readonly PluginViewFold[] | undefined },
+  options?: {
+    pluginViews?: readonly PluginViewFold[] | undefined
+    appendHooks?: readonly AppendHook[] | undefined
+  },
 ): Harness {
   let now = T0
   const plane = new ControlPlane({
@@ -34,6 +38,7 @@ export function makeHarness(
     clock: () => now,
     ...(eventSchema === undefined ? {} : { eventSchema }),
     pluginViews: options?.pluginViews,
+    appendHooks: options?.appendHooks,
   })
   return { plane, setNow: (iso) => (now = iso) }
 }

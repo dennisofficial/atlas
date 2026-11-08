@@ -135,7 +135,12 @@ throws (tool collisions throw when the pod context is built, the rest at compose
 context's `append` now does too. The plane validates with the composed schema.
 
 **Control slots.** `ControlSlot` has `hooks` and `commands` (control-handled commands, as `rename` is).
-`onAppended` and `ports` are not built: the first plugin that needs a CP-side reaction adds them.
+`ports` is not built. The first plugin that needs a CP-side reaction (github subscriptions) added the
+append hook: `ControlHook` is `AppendHook` (`packages/control/src/append-hooks.ts`), `{ name,
+appliesTo(event), handle({ tx, sessionId, event }) }`. `ControlPlane` takes `appendHooks` and
+`appendIn` runs them after `insertEvents`, inside the append transaction, so a throwing hook rolls
+the append back (`packages/control/__tests__/append-hooks.spec.ts`). `ControlTx` gained
+`upsertPrSubscriptionLease` / `deletePrSubscriptionLease` for the `GithubSubscription` transport row.
 
 **Commands.** `PluginSlots.commands` is `readonly Command[]` from `@dltech/atlas-commands`. The API's
 `nativeCommandRegistry` composes `[...nativeCommands, ...composedPlugins.commands]` and
@@ -209,14 +214,18 @@ the agent can subscribe to a PR and be told when it moves.
   `pr-linker.ts`, `apps/agent-host/src/github/github-pull-request-finder.ts`.
 
 **Declares:**
-- **Events** (move from core): `branches-observed`, `pull-request-linked`; new
-  `subscription-created`, `subscription-changed`, `subscription-ended` (v1 bodies in
-  `packages/core/src/events/subscription-body.ts`), and `pull-request-observed` if a PR change is
-  worth a log row rather than a view update.
-- **Views:** `branches` (from `checkouts.ts`), `pullRequests` (from `pull-request-links.ts`), and
-  `subscriptions` (a port of `subscriptionsOf`, `packages/core/src/subscriptions/subscription.ts:39`).
-  These are the first `pluginViews` (§2), so `core` loses the two fold files and their
-  `status-facts` lines (`packages/core/src/record/views/status-facts.ts:51-52`).
+- **Events:** `subscription-created`, `subscription-changed`, `subscription-ended` (v1 bodies in
+  `packages/core/src/events/subscription-body.ts`; they are already core `EventBody` members, so the
+  plugin's `events` list is empty and its schemas stay in core), and `pull-request-observed` if a PR
+  change is worth a log row rather than a view update.
+  **Correction (2026-11-08):** `branches-observed` and `pull-request-linked` stay in core with their
+  folds (`checkouts`, `pull-request-links`). Architecture P6 puts branch, worktree and PR links in
+  core as session facts, and the CP digest (`primaryBranch`) and web's v2 rows read them with
+  types; a plugin fold would leave both reading an untyped bag for a value every session has. The
+  host keeps the generic `BranchObserver`/`PrLinker`. What moves is the GitHub-specific half: the PR
+  finder, the subscription machinery, CI watching and the prompt text.
+- **Views:** `subscriptions` (a port of `subscriptionsOf`, `packages/core/src/subscriptions/subscription.ts:39`),
+  the first real `pluginViews` entry (§2). `branches` and `pullRequests` stay core views.
 - **Commands/tools:** `subscribe` (provider, target or current-branch PR, optional expiry),
   `unsubscribe`, `list_subscriptions`. In v1 these are tools
   (`packages/harness/src/tools/builtin/{subscribe,unsubscribe,subscription-list}.ts`); in v2 they
@@ -414,6 +423,20 @@ it moves to Done; the budget refuses a message past the limit.
 
 Filled per plugin as each PR merges: the package, its registrations, the live check table and any
 correction this spec needed.
+
+### 8.1 `plugins/github`, PR 1 of 2 (subscriptions)
+
+Shipped: `plugins/github` (`@dltech/atlas-plugin-github`, `/core` `/pod` `/control` `/client`),
+registered in `apps/api`, `apps/agent-host` and `apps/web`; the `subscriptions` view; `subscribe` /
+`unsubscribe` as pod commands and `subscribe` / `unsubscribe` / `list_subscriptions` as pod tools
+(target resolved with `gh` over `ctx.call('exec')`); the CI-watch `beforeTool` hook and prompt
+fragment; the control append hook that writes and removes the `GithubSubscription` lease in the
+append transaction. One writer: the pod appends the journal event, the CP derives the lease from it.
+
+Not shipped (PR 2 or follow-up): the wake. A PR event reaching the fan-out does not yet wake a v2
+session with one notice and an ack (`githubPrs.ackEvents`); the lease heartbeat (the lease has a
+5-minute TTL and nothing renews it for a v2 session); the PR finder move (3b); client rendering
+beyond `subscriptionsOfView`. Live check is recorded in the PR body.
 
 ## 9. Answers (2026-11-08)
 

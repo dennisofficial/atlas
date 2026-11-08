@@ -32,6 +32,7 @@
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-native-commands": "workspace:*",
         "@dltech/atlas-observability": "workspace:*",
+        "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dotenvx/dotenvx": "^1.71.0",
@@ -61,6 +62,7 @@
         "@dltech/atlas-media": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-native-commands": "workspace:*",
+        "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
@@ -309,6 +311,7 @@
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-harness": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
+        "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-ui": "workspace:*",
@@ -726,6 +729,24 @@
         "@types/bun": "latest",
         "@types/node": "^26.3.0",
         "typescript": "6.0.3",
+      },
+    },
+    "plugins/github": {
+      "name": "@dltech/atlas-plugin-github",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-agent": "workspace:*",
+        "@dltech/atlas-client": "workspace:*",
+        "@dltech/atlas-commands": "workspace:*",
+        "@dltech/atlas-control": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-db": "workspace:*",
+        "@dltech/atlas-plugin-sdk": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
       },
     },
   },
@@ -1167,6 +1188,8 @@
     "@dltech/atlas-native-commands": ["@dltech/atlas-native-commands@workspace:commands"],
 
     "@dltech/atlas-observability": ["@dltech/atlas-observability@workspace:packages/observability"],
+
+    "@dltech/atlas-plugin-github": ["@dltech/atlas-plugin-github@workspace:plugins/github"],
 
     "@dltech/atlas-plugin-sdk": ["@dltech/atlas-plugin-sdk@workspace:packages/plugin-sdk"],
 
