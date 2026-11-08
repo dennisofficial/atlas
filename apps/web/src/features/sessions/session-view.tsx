@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ESessionStatus } from '@dltech/atlas-core'
+import { journalActivityOf } from '@dltech/atlas-client/crew'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
 import { messageOf } from '@/features/threads/data/use-send'
@@ -98,6 +99,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     [snapshot.events, snapshot.status, snapshot.setupOutput],
   )
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
+  const background = useMemo(() => journalActivityOf(snapshot.events), [snapshot.events])
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
   const stateLine = sessionStateLineOf(snapshot)
   const queuedDock = useQueuedDock({
@@ -167,6 +169,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             failedLabel={null}
             pod={null}
             working={working}
+            background={background}
             onRetryBoot={() => void handleRetry()}
             rewind={rewind}
             summarise={summarise.transcript}

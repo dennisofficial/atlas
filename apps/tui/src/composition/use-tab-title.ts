@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-import { isWaiting, type BackgroundWork } from '../ui/background-wait'
+import { isWaiting, type BackgroundWork } from '@dltech/atlas-client/crew'
 import {
   IDLE_TITLE_GLYPH,
   NEEDS_OPERATOR_TITLE_GLYPH,

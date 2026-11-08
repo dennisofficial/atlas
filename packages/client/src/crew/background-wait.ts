@@ -1,13 +1,13 @@
-import { formatElapsed } from './theme'
+import { formatElapsed } from '../transcript/format-elapsed'
 
 export type BackgroundWork = {
-  agents: number
+  subagents: number
   shells: number
 }
 
-export const NOTHING_IN_BACKGROUND: BackgroundWork = { agents: 0, shells: 0 }
+export const NOTHING_IN_BACKGROUND: BackgroundWork = { subagents: 0, shells: 0 }
 
-export const isWaiting = (work: BackgroundWork): boolean => work.agents + work.shells > 0
+export const isWaiting = (work: BackgroundWork): boolean => work.subagents + work.shells > 0
 
 const tally = (args: { count: number; noun: string }): string =>
   `${args.count} ${args.noun}${args.count === 1 ? '' : 's'}`
@@ -24,7 +24,9 @@ export function backgroundWaitLabel(args: {
   waitedMs?: number | undefined
 }): string | null {
   const tallies = [
-    args.work.agents > 0 ? tally({ count: args.work.agents, noun: 'background agent' }) : null,
+    args.work.subagents > 0
+      ? tally({ count: args.work.subagents, noun: 'background agent' })
+      : null,
     args.work.shells > 0 ? tally({ count: args.work.shells, noun: 'shell' }) : null,
   ].filter((part): part is string => part !== null)
 

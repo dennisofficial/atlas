@@ -477,9 +477,9 @@ describe('the pieces around the transcript mount', () => {
 
   it('renders the waiting line for every count it can carry', async () => {
     for (const work of [
-      { agents: 2, shells: 0 },
-      { agents: 0, shells: 1 },
-      { agents: 1, shells: 3 },
+      { subagents: 2, shells: 0 },
+      { subagents: 0, shells: 1 },
+      { subagents: 1, shells: 3 },
     ]) {
       await expect(mount(<WaitingLine work={work} />, 60)).resolves.toBeUndefined()
     }
@@ -487,7 +487,7 @@ describe('the pieces around the transcript mount', () => {
 
   it('waits on what the settled turn left running', async () => {
     const frame = await frameOf(
-      transcript({ model: SETTLED, width: 80, background: { agents: 2, shells: 1 } }),
+      transcript({ model: SETTLED, width: 80, background: { subagents: 2, shells: 1 } }),
       80,
     )
 
@@ -500,7 +500,7 @@ describe('the pieces around the transcript mount', () => {
         model: STREAMING,
         width: 80,
         turn: RUNNING,
-        background: { agents: 2, shells: 1 },
+        background: { subagents: 2, shells: 1 },
       }),
       80,
     )
@@ -513,7 +513,7 @@ describe('the pieces around the transcript mount', () => {
       transcript({
         model: FAILED_WITH_A_REASON,
         width: 80,
-        background: { agents: 1, shells: 0 },
+        background: { subagents: 1, shells: 0 },
       }),
       80,
     )
@@ -526,7 +526,7 @@ describe('the pieces around the transcript mount', () => {
       transcript({
         model: SETTLED,
         width: 80,
-        background: { agents: 0, shells: 1 },
+        background: { subagents: 0, shells: 1 },
         waitingSince: Date.now(),
       }),
       80,
@@ -544,7 +544,7 @@ describe('the pieces around the transcript mount', () => {
       transcript({
         model: SETTLED,
         width: 80,
-        background: { agents: 0, shells: 1 },
+        background: { subagents: 0, shells: 1 },
         waitingSince: Date.now() - 90_000,
       }),
       80,
@@ -562,7 +562,7 @@ describe('the pieces around the transcript mount', () => {
   it('counts the wait up on the ticker while nothing above re-renders', async () => {
     const setup = await testRender(
       <box flexDirection="column" width={80} height={HEIGHT}>
-        <WaitingLine work={{ agents: 0, shells: 1 }} since={Date.now()} />
+        <WaitingLine work={{ subagents: 0, shells: 1 }} since={Date.now()} />
       </box>,
       { width: 80, height: HEIGHT },
     )
@@ -580,7 +580,7 @@ describe('the pieces around the transcript mount', () => {
 
   it('says what it is waiting on with no origin to time it against', async () => {
     const frame = await frameOf(
-      transcript({ model: SETTLED, width: 80, background: { agents: 0, shells: 1 } }),
+      transcript({ model: SETTLED, width: 80, background: { subagents: 0, shells: 1 } }),
       80,
     )
 
@@ -590,7 +590,7 @@ describe('the pieces around the transcript mount', () => {
 
   it('takes no room once the background is empty', async () => {
     const frame = await frameOf(
-      transcript({ model: SETTLED, width: 80, background: { agents: 0, shells: 0 } }),
+      transcript({ model: SETTLED, width: 80, background: { subagents: 0, shells: 0 } }),
       80,
     )
 
