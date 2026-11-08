@@ -1,4 +1,5 @@
-import { v2EventSchema } from '@dltech/atlas-core'
+import { v2EventSchema, type V2Event } from '@dltech/atlas-core'
+import type { z } from 'zod'
 import type { SessionCache, SessionWindow } from '@dltech/atlas-client/stream'
 
 export const SESSION_CACHE_DB = 'atlas-stream'
@@ -24,20 +25,20 @@ const isSpan = (value: unknown): boolean =>
   typeof value.throughSeq === 'number' &&
   typeof value.keepSurvivors === 'boolean'
 
-const isWindow = (value: unknown): value is SessionWindow =>
+const isWindow = (value: unknown, eventSchema: z.ZodType<V2Event>): value is SessionWindow =>
   isRecord(value) &&
   Array.isArray(value.events) &&
-  value.events.every((event) => v2EventSchema.safeParse(event).success) &&
+  value.events.every((event) => eventSchema.safeParse(event).success) &&
   isRecord(value.visibility) &&
   Array.isArray(value.visibility.spans) &&
   value.visibility.spans.every(isSpan) &&
   isCursor(value.cursor)
 
-const isCachedWindow = (value: unknown): value is CachedWindow =>
+const isCachedWindow = (value: unknown, eventSchema: z.ZodType<V2Event>): value is CachedWindow =>
   isRecord(value) &&
   value.version === RECORD_VERSION &&
   typeof value.savedAt === 'number' &&
-  isWindow(value.window)
+  isWindow(value.window, eventSchema)
 
 const requestDone = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -85,8 +86,10 @@ const evictOldest = async (store: IDBObjectStore): Promise<void> => {
 export function createIndexedDbSessionCache(args: {
   factory: IDBFactory | undefined
   now: () => number
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): SessionCache {
   const { factory, now } = args
+  const eventSchema = args.eventSchema ?? v2EventSchema
   const withDatabase = async <T>({
     fallback,
     use,
@@ -114,7 +117,7 @@ export function createIndexedDbSessionCache(args: {
         use: async (db) => {
           const tx = db.transaction(SESSION_CACHE_STORE, 'readonly')
           const value = await requestDone(tx.objectStore(SESSION_CACHE_STORE).get(sessionId))
-          return isCachedWindow(value) ? value.window : undefined
+          return isCachedWindow(value, eventSchema) ? value.window : undefined
         },
       }),
     save: ({ sessionId, window }) =>
@@ -134,8 +137,9 @@ export function createIndexedDbSessionCache(args: {
   }
 }
 
-export const browserSessionCache = (): SessionCache =>
+export const browserSessionCache = (eventSchema?: z.ZodType<V2Event>): SessionCache =>
   createIndexedDbSessionCache({
     factory: typeof indexedDB === 'undefined' ? undefined : indexedDB,
     now: () => Date.now(),
+    eventSchema,
   })

@@ -7,7 +7,7 @@ import {
   type V2Event,
   type VisibilityState,
 } from '@dltech/atlas-core'
-import type { ZodError } from 'zod'
+import type { z, ZodError } from 'zod'
 
 export const WINDOW_LIMIT = 3_000
 
@@ -51,10 +51,11 @@ const issueOf = (error: ZodError): string => {
 const freshEventsOf = (args: {
   raw: readonly unknown[]
   after: number
+  eventSchema: z.ZodType<V2Event>
 }): { fresh: Parsed[]; unreadable: UnreadableEvent | undefined } => {
   const fresh: Parsed[] = []
   for (const raw of args.raw) {
-    const parsed = v2EventSchema.safeParse(raw)
+    const parsed = args.eventSchema.safeParse(raw)
     if (!parsed.success) {
       return { fresh, unreadable: { seq: seqOfRaw(raw), issue: issueOf(parsed.error) } }
     }
@@ -74,11 +75,13 @@ const cursorAfter = (args: { page: EventsPage; last: Parsed }): SessionCursor =>
 export const applyPageOutcome = (args: {
   window: SessionWindow
   page: EventsPage
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): PageOutcome => {
   const { window, page } = args
   const { fresh, unreadable } = freshEventsOf({
     raw: page.events,
     after: window.cursor?.seq ?? 0,
+    eventSchema: args.eventSchema ?? v2EventSchema,
   })
   const last = fresh[fresh.length - 1]
   if (last === undefined) return { window, unreadable }
@@ -92,5 +95,8 @@ export const applyPageOutcome = (args: {
   return { window: { events, visibility, cursor: cursorAfter({ page, last }) }, unreadable }
 }
 
-export const applyPage = (args: { window: SessionWindow; page: EventsPage }): SessionWindow =>
-  applyPageOutcome(args).window
+export const applyPage = (args: {
+  window: SessionWindow
+  page: EventsPage
+  eventSchema?: z.ZodType<V2Event> | undefined
+}): SessionWindow => applyPageOutcome(args).window

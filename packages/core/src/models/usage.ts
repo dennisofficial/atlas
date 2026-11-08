@@ -1,6 +1,7 @@
 import { estimateMessageTokens } from '../assembly/tokens'
 import type { EventBody, StepReading } from '../events/body'
 import type { Event } from '../events/envelope'
+import type { PluginEventBody } from '../events/plugin-registry'
 import type { Message } from '../message/message'
 import type { ToolCallPart, ToolResultOutput, ToolResultPart } from '../message/parts'
 import type { ModelUsage } from '../stream/chunk'
@@ -19,7 +20,7 @@ const resultPart = (args: { name: string; output: ToolResultOutput }): ToolResul
   output: args.output,
 })
 
-function messageOfEvent(event: EventBody): Message | undefined {
+function messageOfEvent(event: EventBody | PluginEventBody): Message | undefined {
   if (event.type === 'user-said') {
     return { role: 'user', content: [{ type: 'text', text: event.text }] }
   }
@@ -68,7 +69,7 @@ export function estimateEventTokens(events: readonly Event[]): number {
   return events.reduce((total, event) => total + estimateBodyTokens(event), 0)
 }
 
-export function estimateBodyTokens(body: EventBody): number {
+export function estimateBodyTokens(body: EventBody | PluginEventBody): number {
   const message = messageOfEvent(body)
   return message === undefined ? 0 : estimateMessageTokens(message)
 }

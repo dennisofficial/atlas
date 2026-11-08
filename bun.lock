@@ -50,6 +50,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@ai-sdk/anthropic": "^4.0.87",
+        "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
@@ -427,6 +428,17 @@
         "typescript": "6.0.3",
       },
     },
+    "packages/commands": {
+      "name": "@dltech/atlas-commands",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/control": {
       "name": "@dltech/atlas-control",
       "version": "0.1.0",
@@ -552,6 +564,17 @@
       "dependencies": {
         "@dltech/atlas-core": "workspace:*",
         "posthog-node": "^5.54.1",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/plugin-sdk": {
+      "name": "@dltech/atlas-plugin-sdk",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
+        "zod": "^4.4.3",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -1090,6 +1113,8 @@
 
     "@dltech/atlas-client": ["@dltech/atlas-client@workspace:packages/client"],
 
+    "@dltech/atlas-commands": ["@dltech/atlas-commands@workspace:packages/commands"],
+
     "@dltech/atlas-control": ["@dltech/atlas-control@workspace:packages/control"],
 
     "@dltech/atlas-core": ["@dltech/atlas-core@workspace:packages/core"],
@@ -1113,6 +1138,8 @@
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
 
     "@dltech/atlas-observability": ["@dltech/atlas-observability@workspace:packages/observability"],
+
+    "@dltech/atlas-plugin-sdk": ["@dltech/atlas-plugin-sdk@workspace:packages/plugin-sdk"],
 
     "@dltech/atlas-preview-worker": ["@dltech/atlas-preview-worker@workspace:apps/preview-worker"],
 

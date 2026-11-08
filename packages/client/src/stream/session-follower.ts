@@ -4,6 +4,7 @@ import {
   EWorkspaceStepState,
   type V2Event,
 } from '@dltech/atlas-core'
+import type { z } from 'zod'
 import {
   isSetupOutputCallId,
   type EStreamErrorCode,
@@ -70,6 +71,7 @@ export type SessionFollowerArgs = {
   cache: SessionCache
   scheduler: StreamScheduler
   onResnap(): void
+  eventSchema?: z.ZodType<V2Event> | undefined
 }
 
 type Inner = {
@@ -157,6 +159,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     const { window, unreadable } = applyPageOutcome({
       window: inner.window,
       page: { events: message.events, head: message.head },
+      eventSchema: args.eventSchema,
     })
     const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
     if (unreadable !== undefined) {

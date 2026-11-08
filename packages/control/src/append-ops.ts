@@ -1,4 +1,11 @@
-import { acceptAppend, blobRefsOf, stepVisibility, type LogHead } from '@dltech/atlas-core'
+import {
+  acceptAppend,
+  blobRefsOf,
+  stepVisibility,
+  type LogHead,
+  type V2Event,
+} from '@dltech/atlas-core'
+import type { z } from 'zod'
 
 import { missingBlobHashes, verifyBlobWrites } from './blob-ops'
 import { consumeInbox } from './consume-inbox'
@@ -17,6 +24,7 @@ export const appendIn = async (params: {
   epoch: number
   events: readonly unknown[]
   blobs?: readonly BlobWrite[] | undefined
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<AppendOutcome> => {
   const { tx } = params
   const row = await tx.lockThread(params.threadId)
@@ -28,6 +36,7 @@ export const appendIn = async (params: {
     threadId: params.threadId,
     nextSeq: head.seq + 1,
     raw: params.events,
+    eventSchema: params.eventSchema,
   })
   if (!parsed.ok) return refuse(parsed.refusal)
   const accepted = acceptAppend({ head, lease, epoch: params.epoch, events: parsed.events })

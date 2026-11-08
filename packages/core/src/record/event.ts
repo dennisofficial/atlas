@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { ECompactionAnchor, type EventBody } from '../events/body'
 import { eventIdSchema, runIdSchema, threadIdSchema } from '../events/ids'
 import type { EventId, RunId, ThreadId } from '../events/ids'
-import { eventBodySchema } from '../events/schema'
+import { createEventBodySchema, type EventBodySchemaArgs } from '../events/create-schema'
+import type { PluginEventBody } from '../events/plugin-registry'
 import { branchesObservedSchema, type BranchesObserved } from './branches'
 import { retryScheduledSchema, type RetryScheduled } from './retry-scheduled'
 import { sessionStartFailedSchema, type SessionStartFailed } from './start-failure'
@@ -54,7 +55,10 @@ export type RecordBody =
   | WorkspaceStep
   | SessionStartFailed
 
-export type V2Body = Exclude<EventBody, { type: 'history-compacted' }> | RecordBody
+export type V2Body =
+  | Exclude<EventBody, { type: 'history-compacted' }>
+  | RecordBody
+  | PluginEventBody
 
 export type StampedV2<TBody> = TBody extends unknown ? TBody & RecordEnvelope : never
 
@@ -133,22 +137,30 @@ export const RECORD_ONLY_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>(
 const typeOf = (raw: unknown): unknown =>
   typeof raw === 'object' && raw !== null && 'type' in raw ? raw.type : undefined
 
-const bodySchemaFor = (raw: unknown): z.ZodType<V2Body> => {
-  const type = typeOf(raw)
+const bodySchemaFor = (params: {
+  raw: unknown
+  composedBody: z.ZodType<V2Body>
+}): z.ZodType<V2Body> => {
+  const type = typeOf(params.raw)
   if (type === 'history-compacted') return z.never()
   if (typeof type === 'string' && Object.hasOwn(RECORD_TYPE_TABLE, type)) return recordBodySchema
-  return eventBodySchema as z.ZodType<V2Body>
+  return params.composedBody
 }
 
-export const v2EventSchema: z.ZodType<V2Event> = z.unknown().transform((raw, ctx) => {
-  const envelope = recordEnvelopeSchema.safeParse(raw)
-  const body = bodySchemaFor(raw).safeParse(raw)
-  for (const result of [envelope, body]) {
-    if (result.success) continue
-    for (const issue of result.error.issues) {
-      ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path })
+export const createV2EventSchema = (args: EventBodySchemaArgs = {}): z.ZodType<V2Event> => {
+  const composedBody = createEventBodySchema(args) as z.ZodType<V2Body>
+  return z.unknown().transform((raw, ctx) => {
+    const envelope = recordEnvelopeSchema.safeParse(raw)
+    const body = bodySchemaFor({ raw, composedBody }).safeParse(raw)
+    for (const result of [envelope, body]) {
+      if (result.success) continue
+      for (const issue of result.error.issues) {
+        ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path })
+      }
     }
-  }
-  if (!envelope.success || !body.success) return z.NEVER
-  return { ...body.data, ...envelope.data } as V2Event
-})
+    if (!envelope.success || !body.success) return z.NEVER
+    return { ...body.data, ...envelope.data } as V2Event
+  })
+}
+
+export const v2EventSchema: z.ZodType<V2Event> = createV2EventSchema({ pluginBodies: [] })
