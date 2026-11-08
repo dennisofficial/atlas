@@ -50,7 +50,7 @@ export const signerAttachmentUrls = (args: {
   signer: MediaSigner
   userId: string
 }): MediaUrlResolver => ({
-  async urlOf(ref) {
+  async urlOf({ ref }) {
     await args.signer.ready()
     if ('hash' in ref) return args.signer.urlOf({ userId: args.userId, hash: ref.hash })
     if (!isOwnedUpload({ upload: ref, userId: args.userId })) {

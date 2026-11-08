@@ -1,8 +1,11 @@
+import type { ThreadId } from '../events/ids'
 import { EAttachmentStore, isImage, type Attachment } from './attachment'
 
 export type MediaUrlRef = { hash: string } | { uploadId: string; pathname: string; name: string }
 
-export type MediaUrlResolver = { urlOf(ref: MediaUrlRef): Promise<string> }
+export type MediaUrlResolver = {
+  urlOf(args: { ref: MediaUrlRef; threadId: ThreadId }): Promise<string>
+}
 
 export type ResolvedMediaUrls = ReadonlyMap<string, string>
 
@@ -23,9 +26,11 @@ export function mediaUrlRefOf(attachment: Attachment): MediaUrlRef | null {
 
 export async function resolveMediaUrls({
   attachments,
+  threadId,
   resolver,
 }: {
   attachments: readonly Attachment[]
+  threadId: ThreadId
   resolver: MediaUrlResolver
 }): Promise<ResolvedMediaUrls> {
   const refs = new Map<string, MediaUrlRef>()
@@ -37,7 +42,7 @@ export async function resolveMediaUrls({
   const settled = await Promise.all(
     [...refs].map(async ([key, ref]) => {
       try {
-        return [key, await resolver.urlOf(ref)] as const
+        return [key, await resolver.urlOf({ ref, threadId })] as const
       } catch {
         return null
       }
