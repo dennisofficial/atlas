@@ -1,3 +1,5 @@
+import type { V2Event } from '@dltech/atlas-core'
+import type { z } from 'zod'
 import {
   EStreamSubscribeKind,
   type StreamClientMessage,
@@ -30,6 +32,7 @@ export type StreamConnectionArgs = {
   socket: StreamSocketFactory
   scheduler: StreamScheduler
   networkSignal?: StreamNetworkSignal | undefined
+  eventSchema?: z.ZodType<V2Event> | undefined
 }
 
 export type FollowedSession = SessionFollower & { close(): void }
@@ -216,6 +219,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
       cache: cache ?? memorySessionCache(),
       scheduler,
       onResnap: () => sendMessage({ type: 'resnap', id }),
+      eventSchema: args.eventSchema,
     })
     const entry: Followed = { id, sessionId, follower }
     followed.set(id, entry)

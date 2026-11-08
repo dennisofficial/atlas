@@ -1,4 +1,5 @@
 import { v2EventSchema, type V2Event } from '@dltech/atlas-core'
+import type { z } from 'zod'
 
 import type { ControlRefusal } from './refusal'
 
@@ -18,10 +19,12 @@ export function parseAppendEvents(params: {
   threadId: string
   nextSeq: number
   raw: readonly unknown[]
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): ParsedAppend {
+  const schema = params.eventSchema ?? v2EventSchema
   const events: V2Event[] = []
   for (const raw of params.raw) {
-    const parsed = v2EventSchema.safeParse(raw)
+    const parsed = schema.safeParse(raw)
     if (!parsed.success) {
       const issue = parsed.error.issues[0]?.message ?? 'invalid event'
       return malformed({ raw, fallback: params.nextSeq, issue })

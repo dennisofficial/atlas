@@ -3,8 +3,10 @@ import {
   type Lease,
   type LogHead,
   type RevokeResult,
+  type V2Event,
   type V2EventType,
 } from '@dltech/atlas-core'
+import type { z } from 'zod'
 
 import { appendIn } from './append-ops'
 import { readBlobIn } from './blob-ops'
@@ -34,7 +36,11 @@ import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 export const MAX_READ_LIMIT = 1000
 export const MAX_SESSION_LIST_LIMIT = 100
 
-export type ControlPlaneParams = { store: ControlStorePort; clock?: (() => string) | undefined }
+export type ControlPlaneParams = {
+  store: ControlStorePort
+  clock?: (() => string) | undefined
+  eventSchema?: z.ZodType<V2Event> | undefined
+}
 
 export type { ReadEventsPage } from './read-events'
 export type { TakeBackResult } from './inbox-ops'
@@ -48,10 +54,12 @@ export class ControlPlane {
   private readonly store: ControlStorePort
   private readonly clock: (() => string) | undefined
   private readonly leases: LeaseOps
+  private readonly eventSchema: z.ZodType<V2Event> | undefined
 
   constructor(params: ControlPlaneParams) {
     this.store = params.store
     this.clock = params.clock
+    this.eventSchema = params.eventSchema
     this.leases = new LeaseOps({ store: params.store })
   }
 
@@ -152,7 +160,9 @@ export class ControlPlane {
     blobs?: readonly BlobWrite[] | undefined
   }): Promise<AppendOutcome> {
     try {
-      return await this.store.transact((tx) => appendIn({ tx, leases: this.leases, ...params }))
+      return await this.store.transact((tx) =>
+        appendIn({ tx, leases: this.leases, eventSchema: this.eventSchema, ...params }),
+      )
     } catch (error) {
       if (error instanceof AppendAbort) {
         return { ok: false, refusal: error.refusal, head: error.head }
@@ -182,6 +192,7 @@ export class ControlPlane {
         visible: params.visible,
         hiddenTypes: params.hiddenTypes,
         maxBytes: params.maxBytes,
+        eventSchema: this.eventSchema,
       })
     })
   }
