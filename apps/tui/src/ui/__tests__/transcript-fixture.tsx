@@ -10,7 +10,7 @@ import {
   type TranscriptModel,
   type TurnEndedEntry,
 } from '../../store'
-import type { BackgroundWork } from '../background-wait'
+import type { BackgroundWork } from '@dltech/atlas-client/crew'
 import { Transcript } from '../components/transcript'
 import { NO_LIVE_INPUT, type TurnClock } from '../turn-clock'
 import { teardown } from '../markdown/__tests__/harness'

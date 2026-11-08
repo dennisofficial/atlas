@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { isWaiting, type BackgroundWork } from '../ui/background-wait'
+import { isWaiting, type BackgroundWork } from '@dltech/atlas-client/crew'
 import { composerEdgeVersion, subscribeComposerEdge } from '../ui/composer-edge-store'
 import { densityVersion, subscribeDensity } from '../ui/density-store'
 import { useDiffStat } from '../ui/hooks/use-diff-stat'
@@ -82,7 +82,7 @@ export function useBackgroundWait(args: {
   shells: Pick<ReturnType<typeof useShells>, 'running'>
 }) {
   const background = useMemo(
-    (): BackgroundWork => ({ agents: args.agents.running, shells: args.shells.running }),
+    (): BackgroundWork => ({ subagents: args.agents.running, shells: args.shells.running }),
     [args.agents.running, args.shells.running],
   )
   const waitingSince = useSince(isWaiting(background))

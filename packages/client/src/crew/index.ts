@@ -1,3 +1,5 @@
 export * from './readout'
 export * from './activity'
+export * from './background-wait'
+export * from './journal-activity'
 export * from './visits'

@@ -39,6 +39,7 @@ import { useThreadMetadata } from './data/use-thread-metadata'
 import { useThreadSignals } from './data/use-thread-signals'
 import { useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
+import { useThreadActivity } from './data/use-thread-activity'
 import { useThreadSource } from './data/use-thread-source'
 import { useThreadSubmit } from './data/use-thread-submit'
 import { useTakeBackEscape } from './data/use-take-back-escape'
@@ -76,6 +77,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     onModelChanged: model.handleRemoteChange,
   })
   const { events, steps, outputs, loaded, error, working, channel, sendLive, chooseModel } = source
+  const background = useThreadActivity({ threadId, channel })
   const { sending, send, retryBoot } = useSend()
   const { afterConnect } = backend
   useEffect(() => {
@@ -289,6 +291,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
                 failedLabel={attention.failedLabel}
                 pod={pod}
                 working={working}
+                background={background}
                 onRetryBoot={() => void handleRetryBoot()}
                 rewind={rewind.transcript}
                 summarise={summarise.transcript}

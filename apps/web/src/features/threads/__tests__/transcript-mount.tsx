@@ -1,6 +1,8 @@
 import { act } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 
+import { NOTHING_IN_BACKGROUND, type BackgroundWork } from '@dltech/atlas-client/crew'
+
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
 import { EMPTY_DETAILS } from '../panel/details/details-input'
@@ -52,6 +54,8 @@ export const mountWith = async (args: {
   rows?: TranscriptRow[]
   failureCard?: RunFailureCardProps | null
   failedLabel?: string | null
+  working?: boolean
+  background?: BackgroundWork
 }) => {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
@@ -66,7 +70,8 @@ export const mountWith = async (args: {
             failureCard={args.failureCard ?? null}
             failedLabel={args.failedLabel ?? null}
             pod={null}
-            working={false}
+            working={args.working ?? false}
+            background={args.background ?? NOTHING_IN_BACKGROUND}
             onRetryBoot={() => undefined}
             rewind={args.rewind}
             summarise={args.summarise ?? null}

@@ -4,7 +4,7 @@ import type { ScrollBoxRenderable } from '@opentui/core'
 
 import type { RunAttention } from '@dltech/atlas-client/transcript'
 import { EEntryKind, type PendingRow, type TranscriptModel } from '../../store'
-import { NOTHING_IN_BACKGROUND, type BackgroundWork } from '../background-wait'
+import { NOTHING_IN_BACKGROUND, type BackgroundWork } from '@dltech/atlas-client/crew'
 import { useAppearance } from '../hooks/use-appearance'
 import { useEntryWindow } from '../hooks/use-entry-window'
 import { useTranscriptFollow } from '../hooks/use-transcript-follow'

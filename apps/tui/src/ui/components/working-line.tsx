@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { backgroundWaitLabel, type BackgroundWork } from '../background-wait'
+import { backgroundWaitLabel, type BackgroundWork } from '@dltech/atlas-client/crew'
 import { useClickRegion } from '../hooks/use-click-region'
 import { EKeyGroup, EKeyLayer, useKeyBindings } from '../keys'
 import { retryLabel, type RetryWait } from '../retry-countdown'

@@ -3,6 +3,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { CirclePauseIcon } from 'lucide-react'
 
+import { isWaiting, type BackgroundWork } from '@dltech/atlas-client/crew'
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
 import { RunFailedMarker } from '@dltech/atlas-ui/ai/run-failed-marker'
@@ -22,6 +23,7 @@ import { useDiagramRepair } from './data/use-diagram-repair'
 import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
+import { BackgroundWaitLine } from './transcript/background-wait-line'
 import { RunFailureCard, type RunFailureCardProps } from './transcript/run-failure-card'
 import {
   TurnView,
@@ -77,6 +79,7 @@ export function ThreadTranscript({
   failedLabel,
   pod,
   working,
+  background,
   onRetryBoot,
   rewind,
   summarise,
@@ -87,6 +90,8 @@ export function ThreadTranscript({
   failedLabel: string | null
   pod: PodStatus | null
   working: boolean
+  /** What the session left running: a live row while the turn is over and it is still out there. */
+  background: BackgroundWork
   onRetryBoot: () => void
   rewind: TranscriptRewind | null
   summarise: TranscriptSummarise | null
@@ -137,6 +142,11 @@ export function ThreadTranscript({
       ) : failedLabel === null ? null : (
         <ChatItem id="turn-failure">
           <RunFailedMarker label={failedLabel} />
+        </ChatItem>
+      )}
+      {working || !isWaiting(background) ? null : (
+        <ChatItem id="background-wait">
+          <BackgroundWaitLine work={background} />
         </ChatItem>
       )}
     </Chat>

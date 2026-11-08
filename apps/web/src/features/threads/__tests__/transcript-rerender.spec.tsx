@@ -26,6 +26,7 @@ mock.module('@dltech/atlas-ui/ai/message-response', () => ({
   MessageResponse: ({ children }: { children: unknown }) => <p>{String(children)}</p>,
 }))
 
+const { NOTHING_IN_BACKGROUND } = await import('@dltech/atlas-client/crew')
 const { ETranscriptKind } = await import('../data/transcript-items')
 const { EMPTY_DETAILS } = await import('../panel/details/details-input')
 const { ThreadPanelProvider } = await import('../panel/thread-panel-context')
@@ -108,6 +109,7 @@ const setup = async () => {
               failedLabel={null}
               pod={null}
               working={working}
+              background={NOTHING_IN_BACKGROUND}
               onRetryBoot={() => undefined}
               rewind={null}
               summarise={null}
