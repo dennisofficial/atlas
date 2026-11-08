@@ -69,6 +69,7 @@ processes are gone. Finished results survive; a running call is honestly lost.
 
 ## Status
 
-- PR 1: journal format, prune by age and bytes, ledger fallback, `answer`/`answered`, host collection,
-  fault row F44. Landed as this document's sibling commit (see `durable-calls.md`).
-- PR 2: drain and launch. See `durable-calls.md` for the drain contract once it lands.
+- PR 1 (#2028, `30b42910c`): journal format, prune by age and bytes, ledger fallback, `answer`/`answered`,
+  host collection, fault row F44. Recorded in `durable-calls.md`.
+- PR 2: `POST /drain`, `DaemonEngine.drain`, drain-then-boot with the kill fallback, fault row F45. The
+  `durable-calls.md` "Draining instead of killing" section is the contract.

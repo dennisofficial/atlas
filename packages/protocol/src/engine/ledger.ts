@@ -2,7 +2,6 @@ import {
   ECallError,
   ECallState,
   EDaemonAnswer,
-  answerCalls,
   initialCalls,
   stepCalls,
   type SteppedCalls,
@@ -10,21 +9,25 @@ import {
 
 import { EDaemonErrorKind, ERunState } from '../frames'
 import { ECallFailure, type CallOp, type CallResult, type DaemonEvent, type OpName } from '../ops'
-import { CallOutput, type CallSink } from './call-output'
-import {
-  CALL_JOURNAL_FORMAT,
-  ECallJournalState,
-  type CallJournal,
-  type CallStore,
-} from './call-store'
+import type { CallSink } from './call-output'
+import { ECallJournalState, type CallJournal, type CallStore } from './call-store'
 import type { RegisteredOp } from './group'
 import { KeyLock } from './key-lock'
+import { LiveCall, answerFor, discardJournal, readJournal } from './live-call'
 import { type LedgerOutcome, refused, staleEpoch, unknownKey } from './outcomes'
-import { failedResult, interruptedByRestart, invokeOp } from './results'
+import { interruptedByRestart } from './results'
 
 export type { LedgerOutcome } from './outcomes'
 
-type LiveCall = { op: CallOp; epoch: number; output: CallOutput; abort: AbortController }
+export type CallRunArgs = {
+  key: string
+  epoch: number
+  op: CallOp
+  owner: object
+  sink: CallSink
+  fromOffset: number
+  onReply(state: ERunState): void
+}
 
 export type CallLedgerArgs = {
   store: CallStore
@@ -32,6 +35,7 @@ export type CallLedgerArgs = {
   ops: ReadonlyMap<OpName, RegisteredOp>
   publish(event: DaemonEvent): void
   onFault(args: { key: string; error: unknown }): void
+  onRunning(promise: Promise<void>): void
 }
 
 export class CallLedger {
@@ -61,15 +65,7 @@ export class CallLedger {
     return { ok: true }
   }
 
-  run(args: {
-    key: string
-    epoch: number
-    op: CallOp
-    owner: object
-    sink: CallSink
-    fromOffset: number
-    onReply(state: ERunState): void
-  }): Promise<LedgerOutcome> {
+  run(args: CallRunArgs): Promise<LedgerOutcome> {
     this.arrivals += 1
     const arrival = this.arrivals
     return this.lock.run({
@@ -84,7 +80,7 @@ export class CallLedger {
         if (spawns) {
           let stored: CallJournal | undefined
           try {
-            stored = await this.storedJournal({ key: args.key })
+            stored = await this.readStored(args.key)
           } catch {
             return refused({
               errorKind: EDaemonErrorKind.Internal,
@@ -93,16 +89,7 @@ export class CallLedger {
           }
           if (stored !== undefined) {
             this.protocol = stepped.state
-            return await this.adopt({
-              key: args.key,
-              epoch: args.epoch,
-              op: args.op,
-              owner: args.owner,
-              sink: args.sink,
-              fromOffset: args.fromOffset,
-              onReply: args.onReply,
-              stored,
-            })
+            return await this.adopt({ ...args, stored })
           }
         }
         const handler = this.args.ops.get(args.op.op)
@@ -114,13 +101,7 @@ export class CallLedger {
         }
         this.protocol = stepped.state
         if (spawns && handler !== undefined) {
-          const started = await this.spawn({
-            key: args.key,
-            epoch: args.epoch,
-            op: args.op,
-            handler,
-            arrival,
-          })
+          const started = await this.spawn({ ...args, handler, arrival })
           if (!started.ok) return started
         }
         const call = this.calls.get(args.key)
@@ -135,13 +116,13 @@ export class CallLedger {
   answer(args: { key: string }): Promise<EDaemonAnswer> {
     return this.lock.run({
       key: args.key,
-      task: async () => {
-        const known = answerCalls({ state: this.protocol, key: args.key })
-        if (known !== EDaemonAnswer.NeverSeen) return known
-        const stored = await this.storedJournal({ key: args.key }).catch(() => undefined)
-        if (stored === undefined) return EDaemonAnswer.NeverSeen
-        return stored.state === ECallJournalState.Done ? EDaemonAnswer.Done : EDaemonAnswer.Running
-      },
+      task: () =>
+        answerFor({
+          state: this.protocol,
+          key: args.key,
+          store: this.args.store,
+          onFault: this.args.onFault,
+        }),
     })
   }
 
@@ -166,11 +147,7 @@ export class CallLedger {
         this.calls.delete(args.key)
         this.cancelledThrough.delete(args.key)
         await call?.output.drain()
-        try {
-          await this.args.store.remove({ key: args.key })
-        } catch (error) {
-          this.args.onFault({ key: args.key, error })
-        }
+        await this.discard(args.key)
         return { ok: true }
       },
     })
@@ -202,90 +179,56 @@ export class CallLedger {
     return this.protocol.calls[key] === ECallState.Running
   }
 
-  private async storedJournal(args: { key: string }): Promise<CallJournal | undefined> {
-    try {
-      return await this.args.store.readState({ key: args.key })
-    } catch (error) {
-      this.args.onFault({ key: args.key, error })
-      throw error
-    }
+  private readStored(key: string): Promise<CallJournal | undefined> {
+    return readJournal({ store: this.args.store, key, onFault: this.args.onFault })
   }
 
-  private async adopt(args: {
-    key: string
-    epoch: number
-    op: CallOp
-    owner: object
-    sink: CallSink
-    fromOffset: number
-    onReply(state: ERunState): void
-    stored: CallJournal
-  }): Promise<LedgerOutcome> {
-    const call: LiveCall = {
+  private discard(key: string): Promise<void> {
+    return discardJournal({ store: this.args.store, key, onFault: this.args.onFault })
+  }
+
+  private async adopt(args: CallRunArgs & { stored: CallJournal }): Promise<LedgerOutcome> {
+    const call = new LiveCall({
+      key: args.key,
       op: args.op,
       epoch: args.epoch,
+      store: this.args.store,
       abort: new AbortController(),
-      output: new CallOutput({
-        key: args.key,
-        op: args.op.op,
-        store: this.args.store,
-        storedBytes: args.stored.outputBytes,
-        onFault: ({ error }) => this.args.onFault({ key: args.key, error }),
-      }),
-    }
+      storedBytes: args.stored.outputBytes,
+      onFault: this.args.onFault,
+    })
     this.calls.set(args.key, call)
     if (args.stored.state === ECallJournalState.Done) {
-      this.protocol = stepCalls({
-        state: this.protocol,
-        input: { type: 'exit', key: args.key, result: JSON.stringify(args.stored.result) },
-      }).state
       call.output.close()
-      call.output.end({ result: args.stored.result })
+      this.settle({ key: args.key, call, result: args.stored.result })
     } else {
-      await this.finish({ key: args.key, call, result: interruptedByRestart(args.op.op) })
+      await call.persist(interruptedByRestart(args.op.op), (result) =>
+        this.settle({ key: args.key, call, result }),
+      )
     }
     args.onReply(this.isRunning(args.key) ? ERunState.Running : ERunState.Done)
     call.output.attach({ owner: args.owner, sink: args.sink, fromOffset: args.fromOffset })
     return { ok: true }
   }
 
-  private async spawn(args: {
-    key: string
-    epoch: number
-    op: CallOp
-    handler: RegisteredOp
-    arrival: number
-  }): Promise<LedgerOutcome> {
-    const call: LiveCall = {
+  private async spawn(
+    args: CallRunArgs & { handler: RegisteredOp; arrival: number },
+  ): Promise<LedgerOutcome> {
+    const call = new LiveCall({
+      key: args.key,
       op: args.op,
       epoch: args.epoch,
+      store: this.args.store,
       abort: this.controllerFor({ key: args.key, arrival: args.arrival }),
-      output: new CallOutput({
-        key: args.key,
-        op: args.op.op,
-        store: this.args.store,
-        onFault: ({ error }) => this.args.onFault({ key: args.key, error }),
-      }),
-    }
+      onFault: this.args.onFault,
+    })
     this.calls.set(args.key, call)
-    try {
-      await this.args.store.writeState({
-        key: args.key,
-        journal: {
-          format: CALL_JOURNAL_FORMAT,
-          state: ECallJournalState.Running,
-          epoch: args.epoch,
-          op: args.op,
-          outputBytes: 0,
-        },
-      })
-    } catch (error) {
-      this.args.onFault({ key: args.key, error })
+    if (!(await call.journalRunning())) {
       const message = 'the call journal could not be written'
       this.settle({
         key: args.key,
         call,
-        result: this.failure({ call, code: ECallFailure.PersistFailed, message }),
+        result: call.failure(ECallFailure.PersistFailed, message),
       })
       return { ok: true }
     }
@@ -295,15 +238,18 @@ export class CallLedger {
     }
     if (call.abort.signal.aborted) {
       const message = `${args.key} was cancelled before it started`
-      void this.finish({
-        key: args.key,
-        call,
-        result: this.failure({ call, code: ECallFailure.Cancelled, message }),
-      })
+      void call.persist(call.failure(ECallFailure.Cancelled, message), (result) =>
+        this.settle({ key: args.key, call, result }),
+      )
       return { ok: true }
     }
     this.runs += 1
-    void this.execute({ key: args.key, call, handler: args.handler })
+    const running: Promise<void> = this.execute({
+      key: args.key,
+      call,
+      handler: args.handler,
+    }).catch((error: unknown) => this.args.onFault({ key: args.key, error }))
+    this.args.onRunning(running)
     return { ok: true }
   }
 
@@ -319,15 +265,7 @@ export class CallLedger {
       input: { type: 'abandon', key: args.key },
     }).state
     this.calls.delete(args.key)
-    try {
-      await this.args.store.remove({ key: args.key })
-    } catch (error) {
-      this.args.onFault({ key: args.key, error })
-    }
-  }
-
-  private failure(args: { call: LiveCall; code: ECallFailure; message: string }): CallResult {
-    return failedResult({ op: args.call.op.op, code: args.code, message: args.message })
+    await this.discard(args.key)
   }
 
   private async execute(args: {
@@ -336,47 +274,12 @@ export class CallLedger {
     handler: RegisteredOp
   }): Promise<void> {
     const { call } = args
-    const result = await invokeOp({
-      handler: args.handler,
-      op: call.op,
-      ctx: {
-        key: args.key,
-        signal: call.abort.signal,
-        output: (bytes) => call.output.write(bytes),
-        publish: (event) => this.args.publish(event),
-      },
+    const result = await call.run(args.handler, this.args.publish)
+    await this.lock.run({
+      key: args.key,
+      task: () =>
+        call.persist(result, (done) => this.settle({ key: args.key, call, result: done })),
     })
-    await this.lock.run({ key: args.key, task: () => this.finish({ key: args.key, call, result }) })
-  }
-
-  private async finish(args: { key: string; call: LiveCall; result: CallResult }): Promise<void> {
-    const { call } = args
-    call.output.close()
-    await call.output.drain()
-    const result = call.output.lost() ? call.output.lostResult() : args.result
-    try {
-      await this.args.store.writeState({
-        key: args.key,
-        journal: {
-          format: CALL_JOURNAL_FORMAT,
-          state: ECallJournalState.Done,
-          epoch: call.epoch,
-          op: call.op,
-          outputBytes: call.output.bytes(),
-          result,
-        },
-      })
-    } catch (error) {
-      this.args.onFault({ key: args.key, error })
-      const message = `the result of ${args.key} could not be persisted`
-      this.settle({
-        key: args.key,
-        call,
-        result: this.failure({ call, code: ECallFailure.PersistFailed, message }),
-      })
-      return
-    }
-    this.settle({ key: args.key, call, result })
   }
 
   private settle(args: { key: string; call: LiveCall; result: CallResult }): void {

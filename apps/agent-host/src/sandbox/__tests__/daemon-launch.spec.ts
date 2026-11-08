@@ -23,8 +23,12 @@ const fakeSandbox = (state: {
   alive: boolean
   listens: boolean
   answersAsDaemon?: boolean
+  acceptsDrain?: boolean
+  closesOnDrain?: boolean
 }) => {
   const commands: RecordedCommand[] = []
+  const listeningAtBoot: boolean[] = []
+  let drained = false
   const writes: RecordedWrite[] = []
   const sandbox = {
     name: 'atlas-v2-s1',
@@ -42,7 +46,19 @@ const fakeSandbox = (state: {
       if (params.env !== undefined) record.env = params.env
       commands.push(record)
       const script = params.args?.[1] ?? ''
-      if (params.detached === true) return { exitCode: 0 }
+      if (params.detached === true) {
+        listeningAtBoot.push(state.listens)
+        if (drained) state.listens = true
+        return { exitCode: 0 }
+      }
+      if (script.startsWith('curl') && script.includes('/drain')) {
+        if (!(state.acceptsDrain ?? false)) return { exitCode: 7, stdout: async () => '000' }
+        if (state.closesOnDrain ?? true) {
+          state.listens = false
+          drained = true
+        }
+        return { exitCode: 0, stdout: async () => '202' }
+      }
       if (script.startsWith(`cat ${daemonPaths.version}`)) {
         return { exitCode: 0, stdout: async () => state.version ?? '' }
       }
@@ -58,8 +74,12 @@ const fakeSandbox = (state: {
       return { exitCode: 0, stdout: async () => '' }
     },
   }
-  return { sandbox: sandbox as unknown as Sandbox, commands, writes }
+  return { sandbox: sandbox as unknown as Sandbox, commands, writes, listeningAtBoot }
 }
+
+const isDrain = (command: RecordedCommand): boolean => (command.args[1] ?? '').includes('/drain')
+
+const isKill = (command: RecordedCommand): boolean => (command.args[1] ?? '').includes('kill -9')
 
 const bundle = (content = '// daemon bundle\n') => {
   const dir = mkdtempSync(join(tmpdir(), 'atlas-daemon-bundle-'))
@@ -76,7 +96,7 @@ describe('launchDaemon', () => {
   it('starts the daemon detached with the token only in that runCommand env', async () => {
     const { bundle: b, version, cleanup } = bundle()
     try {
-      const { sandbox, commands, writes } = fakeSandbox({ alive: false, listens: true })
+      const { sandbox, writes } = fakeSandbox({ alive: false, listens: true })
       await launchDaemon({ sandbox, bundle: b, token: 'tok-1', sandboxName: 'atlas-v2-s1' })
 
       const detached = commands.filter((command) => command.detached === true)
@@ -92,6 +112,7 @@ describe('launchDaemon', () => {
         expect(JSON.stringify(command.env ?? {})).not.toContain('tok-1')
         expect(command.args[1] ?? '').not.toContain('tok-1')
       }
+      expect(commands.some(isDrain)).toBe(false)
       const paths = writes.map((write) => write.path)
       expect(paths).toContain(daemonPaths.bundle)
       expect(paths).toContain(daemonPaths.version)
@@ -131,6 +152,72 @@ describe('launchDaemon', () => {
       )
       expect(killed).toBeDefined()
       expect(killed?.args[1]).toContain('kill -0')
+      expect(commands.filter(isDrain).length).toBe(1)
+      expect(commands.filter(isKill).length).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('drains a live daemon of another version instead of killing it', async () => {
+    const { bundle: b, cleanup } = bundle()
+    try {
+      const lines: string[] = []
+      const { sandbox, commands, writes, listeningAtBoot } = fakeSandbox({
+        version: 'v-old',
+        alive: true,
+        listens: true,
+        acceptsDrain: true,
+      })
+      await launchDaemon({
+        sandbox,
+        bundle: b,
+        token: 'tok-1',
+        sandboxName: 'atlas-v2-s1',
+        log: (line) => lines.push(line),
+      })
+      const drains = commands.filter(isDrain)
+      expect(drains.length).toBe(1)
+      expect(drains[0]?.env).toEqual({ ATLAS_DRAIN_TOKEN: 'tok-1' })
+      expect(drains[0]?.args[1]).toContain('http://localhost:3000/drain')
+      expect(drains[0]?.args[1]).toContain('{"deadlineMs":600000}')
+      expect(commands.some(isKill)).toBe(false)
+      expect(listeningAtBoot).toEqual([false])
+      expect(writes.map((write) => write.path)).toContain(daemonPaths.bundle)
+      expect(lines.some((line) => line.includes('draining'))).toBe(true)
+      expect(lines.some((line) => line.includes('drained'))).toBe(true)
+      for (const command of commands.filter((candidate) => candidate.detached !== true)) {
+        expect(command.args[1] ?? '').not.toContain('tok-1')
+        if (!isDrain(command)) expect(JSON.stringify(command.env ?? {})).not.toContain('tok-1')
+      }
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('kills the old daemon when it does not close within the drain budget', async () => {
+    const { bundle: b, cleanup } = bundle()
+    try {
+      const lines: string[] = []
+      const { sandbox, commands } = fakeSandbox({
+        version: 'v-old',
+        alive: true,
+        listens: true,
+        acceptsDrain: true,
+        closesOnDrain: false,
+      })
+      await launchDaemon({
+        sandbox,
+        bundle: b,
+        token: 'tok-1',
+        sandboxName: 'atlas-v2-s1',
+        drainBudgetMs: 600,
+        log: (line) => lines.push(line),
+      })
+      expect(commands.filter(isDrain).length).toBe(1)
+      expect(commands.filter(isKill).length).toBe(1)
+      expect(commands.filter((command) => command.detached === true).length).toBe(1)
+      expect(lines.some((line) => line.includes('did not drain within'))).toBe(true)
     } finally {
       cleanup()
     }
@@ -139,7 +226,7 @@ describe('launchDaemon', () => {
   it('re-uploads when the bundle content changed while an old daemon is alive', async () => {
     const { bundle: b, version, cleanup } = bundle('// daemon bundle v2\n')
     try {
-      const { sandbox, commands, writes } = fakeSandbox({
+      const { sandbox, writes } = fakeSandbox({
         version,
         alive: true,
         listens: true,

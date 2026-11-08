@@ -16,6 +16,7 @@ export type RigDaemon = {
   proxy: FaultProxy
   home: string
   readonly bootId: string
+  drain(args?: { deadlineMs?: number }): Promise<void>
   restart(args: { keepHome: true }): Promise<void>
   relocate(args: { keepHome: true }): Promise<void>
   stop(): Promise<void>
@@ -77,9 +78,10 @@ export const startDaemon = async (args: {
 }): Promise<RigDaemon> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-fault-rig-daemon-'))
   const sandboxName = sandboxNameOf(args.sessionId)
+  const token = daemonToken({ secret: args.secret, sandboxName })
   const env = {
     ...daemonTestEnv(home),
-    DAEMON_TOKEN: daemonToken({ secret: args.secret, sandboxName }),
+    DAEMON_TOKEN: token,
     ATLAS_SANDBOX_NAME: sandboxName,
     HOME: home,
   }
@@ -87,6 +89,7 @@ export const startDaemon = async (args: {
   let child: DaemonChild | undefined
   let proxy: FaultProxy | undefined
   let currentBootId = ''
+  let currentPort = 0
   let stopped = false
 
   const spawn = async (): Promise<void> => {
@@ -112,6 +115,7 @@ export const startDaemon = async (args: {
       return
     }
     currentBootId = listening.bootId
+    currentPort = listening.port
     if (proxy === undefined) {
       proxy = await FaultProxy.start({ target: { host: '127.0.0.1', port: listening.port } })
       return
@@ -148,6 +152,24 @@ export const startDaemon = async (args: {
     home,
     get bootId() {
       return currentBootId
+    },
+    async drain(options) {
+      if (stopped) throw new Error('cannot drain a stopped daemon')
+      const current = child
+      if (current === undefined) throw new Error('cannot drain a daemon that is not running')
+      const deadlineMs = options?.deadlineMs ?? 60_000
+      const response = await fetch(`http://127.0.0.1:${currentPort}/drain`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+        body: JSON.stringify({ deadlineMs }),
+      })
+      if (response.status !== 202) throw new Error(`drain refused with ${response.status}`)
+      const exited = await Promise.race([
+        current.exited.then(() => true as const),
+        new Promise<false>((resolve) => setTimeout(() => resolve(false), deadlineMs + 5_000)),
+      ])
+      if (!exited) throw new Error(`daemon did not exit within ${deadlineMs} ms of draining`)
+      if (child === current) child = undefined
     },
     async restart({ keepHome }) {
       if (stopped) throw new Error('cannot restart a stopped daemon')

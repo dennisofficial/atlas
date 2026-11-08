@@ -17,11 +17,13 @@ import {
 } from './connection'
 import type { DaemonGroup } from './group'
 import { CallLedger, type LedgerOutcome } from './ledger'
+import { ExecutingCalls } from './live-call'
 
 type Peer = { connection: EngineConnection; epoch: number | null; live: boolean }
 
 export class DaemonEngine {
   private readonly ledger: CallLedger
+  private readonly executing = new ExecutingCalls()
   private readonly groups: readonly DaemonGroup[]
   private current: Peer | null = null
 
@@ -33,6 +35,7 @@ export class DaemonEngine {
       ops: opsOf(this.groups),
       publish: (event) => this.publish(event),
       onFault: args.onFault,
+      onRunning: (promise) => this.executing.track(promise),
     })
   }
 
@@ -42,6 +45,10 @@ export class DaemonEngine {
 
   runCount(): number {
     return this.ledger.runCount()
+  }
+
+  drain(args: { deadlineMs: number }): Promise<boolean> {
+    return this.executing.settled(args.deadlineMs)
   }
 
   async stop(): Promise<void> {

@@ -47,7 +47,26 @@ const engine = new DaemonEngine({
 })
 await engine.open()
 
-const listener = listenWebSocket({ engine, port: Number(env.PORT ?? 3000) })
+let drained = false
+const handleDrain = (deadlineMs: number): void => {
+  if (drained) return
+  drained = true
+  console.log('atlas-daemon draining')
+  void engine
+    .drain({ deadlineMs })
+    .then(() => {
+      listener.stop()
+      return engine.stop()
+    })
+    .then(() => process.exit(0))
+}
+
+const listener = listenWebSocket({
+  engine,
+  port: Number(env.PORT ?? 3000),
+  token,
+  drain: handleDrain,
+})
 
 const handleSignal = (): void => {
   listener.stop()
