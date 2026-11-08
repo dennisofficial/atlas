@@ -339,8 +339,9 @@ The first two merge in either order; #2005 needs #2002; #2006–#2008 need #2005
 - Re-running a summarise whose holder died after `input-consumed`, and the running-agent guard
   (slice 7).
 - The host's record adapter and the session-view read path still decode with core's schema, so a
-  plugin event can be appended and read directly but not through the view's catch-up; slice 7 threads
-  it when the first real plugin regains events.
+  plugin event can be appended and read directly but not through the view's catch-up. Closed in
+  #2013: the plane's schema now reaches the view catch-up, the command tail, the digest view and the
+  host's append, and the apps compose it from a registered-plugin list.
 - The plugin registry's type-level guarantee is per package: a plugin's body is typed without editing
   `core`, while core's own switches keep a defined fallthrough for bodies they do not know (the client
   ignores one it has no plugin for).
