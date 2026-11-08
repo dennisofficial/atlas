@@ -1,9 +1,39 @@
 import { describe, expect, it } from 'bun:test'
 import { EventEmitter } from 'node:events'
 
+import { LogPort } from '@dltech/atlas-observability'
+
 import { startPgListener } from '../pg-listener'
 
+class MemoryLog extends LogPort {
+  readonly messages: string[] = []
+  record(entry: Parameters<LogPort['record']>[0]): void {
+    this.messages.push(entry.message)
+  }
+}
+
 type Stage = 'connect' | 'listen'
+
+class HangingClient extends EventEmitter {
+  ended = false
+
+  constructor(private readonly hangAt: Stage) {
+    super()
+  }
+
+  connect(): Promise<unknown> {
+    return this.hangAt === 'connect' ? new Promise(() => {}) : Promise.resolve({})
+  }
+
+  query(): Promise<unknown> {
+    return this.hangAt === 'listen' ? new Promise(() => {}) : Promise.resolve({})
+  }
+
+  end(): Promise<void> {
+    this.ended = true
+    return Promise.resolve()
+  }
+}
 
 class DyingClient extends EventEmitter {
   ended = false
@@ -107,4 +137,33 @@ describe('pg listener lifecycle', () => {
     await settle(400)
     expect(created).toBe(1)
   })
+
+  for (const hangAt of ['connect', 'listen'] as const) {
+    it(`an attempt that hangs during ${hangAt} is dropped and retried`, async () => {
+      const clients: (HangingClient | DyingClient)[] = []
+      const log = new MemoryLog()
+      const listener = startPgListener({
+        url: 'postgres://unused',
+        channels: ['c'],
+        connectTimeoutMs: 30,
+        queryTimeoutMs: 30,
+        log,
+        createClient: () => {
+          const client = clients.length === 0 ? new HangingClient(hangAt) : new DyingClient({})
+          clients.push(client)
+          return client
+        },
+      })
+      let reconnects = 0
+      listener.onReconnect(() => {
+        reconnects += 1
+      })
+      await realSettle(600)
+      expect(clients.length).toBe(2)
+      expect(clients[0]?.ended).toBe(true)
+      expect(reconnects).toBe(1)
+      expect(log.messages).toContain('listener connect failed')
+      await listener.close()
+    })
+  }
 })

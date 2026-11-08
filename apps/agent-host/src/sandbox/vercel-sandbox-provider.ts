@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
+import { SandboxUnavailableError } from '@dltech/atlas-host'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import {
   imageOptimizeRetry,
@@ -13,6 +14,22 @@ import { liveSdk, renewSessionDeadline, routedUrlOf, type VercelSdk } from './ve
 import { launchDaemon, type DaemonBundle } from './daemon-launch'
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox-provider'
 
+export const WAKE_DEADLINE_MS = 5 * 60_000
+
+const abortedWake = (args: { signal: AbortSignal; caller: AbortSignal }): Promise<never> =>
+  new Promise((_, reject) => {
+    const fail = (): void =>
+      reject(
+        new SandboxUnavailableError(
+          args.caller.aborted
+            ? 'waking the sandbox was cancelled'
+            : 'the sandbox did not wake within 5 minutes',
+        ),
+      )
+    if (args.signal.aborted) fail()
+    else args.signal.addEventListener('abort', fail, { once: true })
+  })
+
 export class VercelSandboxProvider extends SandboxProvider {
   constructor(
     private readonly args: {
@@ -21,6 +38,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       daemonSecret: string
       cloudUrl: string
       sdk?: VercelSdk | undefined
+      wakeDeadlineMs?: number | undefined
       log?: ((line: string) => void) | undefined
     },
   ) {
@@ -32,6 +50,20 @@ export class VercelSandboxProvider extends SandboxProvider {
   }
 
   async wake(args: {
+    sessionId: string
+    credentials: VercelCredentials
+    signal: AbortSignal
+  }): Promise<DaemonEndpoint> {
+    const signal = AbortSignal.any([
+      AbortSignal.timeout(this.args.wakeDeadlineMs ?? WAKE_DEADLINE_MS),
+      args.signal,
+    ])
+    const waking = this.wakeWithin({ ...args, signal })
+    waking.catch(() => undefined)
+    return Promise.race([waking, abortedWake({ signal, caller: args.signal })])
+  }
+
+  private async wakeWithin(args: {
     sessionId: string
     credentials: VercelCredentials
     signal: AbortSignal
@@ -51,6 +83,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       token: randomUUID(),
       environment: { ATLAS_SANDBOX_NAME: sandboxName },
       onCreate: () => Promise.resolve(),
+      signal: args.signal,
     })
     await launchDaemon({
       sandbox,

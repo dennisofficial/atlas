@@ -1,3 +1,4 @@
+import { createV2EventSchema, type V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
 import type {
@@ -67,3 +68,6 @@ export const composePlugins = (plugins: readonly Plugin[]): ComposedPlugins =>
     client: Object.freeze({ hooks: Object.freeze(plugins.flatMap((p) => p.client.hooks)) }),
     transports: Object.freeze(plugins.map((plugin) => plugin.transport)),
   })
+
+export const eventSchemaOf = (plugins: readonly Plugin[]): z.ZodType<V2Event> =>
+  createV2EventSchema({ pluginBodies: composePlugins(plugins).eventBodies })

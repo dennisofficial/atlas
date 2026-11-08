@@ -4,6 +4,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { LogPort } from '@dltech/atlas-observability'
+import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
 
 import { createHostBus } from './bus/host-bus'
 import { startPgChangeFeed } from './bus/pg-change-feed'
@@ -32,6 +33,9 @@ import { systemHostTimers } from './stream/system-timers'
 import { startStreamServer } from './stream/stream-server'
 import { createGracefulShutdown } from './shutdown/graceful-shutdown'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
+import { registeredPlugins } from './registered-plugins'
+
+const SHUTDOWN_GRACE_MS = 20_000
 
 class JsonLog extends LogPort {
   record(entry: Parameters<LogPort['record']>[0]): void {
@@ -46,7 +50,10 @@ const main = async (): Promise<void> => {
     process.exit(78)
   }
   const pool = createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: 10_000 })
-  const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
+  const plane = new ControlPlane({
+    store: new PostgresControlStore(createDb(pool)),
+    eventSchema: eventSchemaOf(registeredPlugins),
+  })
   const log = new JsonLog()
   const liveFrames = createRedisLiveFrames({ url: env.redisUrl, log })
   const wakes = startPgWakeListener({ url: databaseUrlWithTls(env.databaseDirectUrl), log })
@@ -128,6 +135,9 @@ const main = async (): Promise<void> => {
   log.info({ source: 'main', message: 'agent-host started' })
 
   const handleSignal = createGracefulShutdown({
+    hardExitAfterMs: env.drainMs + SHUTDOWN_GRACE_MS,
+    setTimeout: (fn, ms) => setTimeout(fn, ms),
+    clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
     drain: async () => {
       await Promise.all([stream.drain({}), holder.drain({ deadline: Date.now() + env.drainMs })])
       await watch?.close()

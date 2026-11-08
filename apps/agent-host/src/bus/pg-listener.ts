@@ -21,6 +21,26 @@ export type PgListenerClient = {
 
 const RECONNECT_BASE_MS = 250
 const RECONNECT_CAP_MS = 5_000
+const CONNECT_TIMEOUT_MS = 5_000
+const QUERY_TIMEOUT_MS = 10_000
+
+const withDeadline = <T>(args: { promise: Promise<T>; ms: number; what: string }): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${args.what} did not finish within ${args.ms}ms`)),
+      args.ms,
+    )
+    args.promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error: unknown) => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
 
 export const startPgListener = (args: {
   url: string
@@ -29,9 +49,13 @@ export const startPgListener = (args: {
   createClient?: (() => PgListenerClient) | undefined
   log?: LogPort | undefined
   source?: string | undefined
+  connectTimeoutMs?: number | undefined
+  queryTimeoutMs?: number | undefined
 }): PgListener => {
   const channelListeners = new Map<string, Set<(payload: string) => void>>()
   const reconnectListeners = new Set<() => void>()
+  const connectTimeoutMs = args.connectTimeoutMs ?? CONNECT_TIMEOUT_MS
+  const queryTimeoutMs = args.queryTimeoutMs ?? QUERY_TIMEOUT_MS
   const source = args.source ?? 'bus.pg-listener'
   let closed = false
   let retryTimer: ReturnType<typeof setTimeout> | undefined
@@ -66,15 +90,21 @@ export const startPgListener = (args: {
       new pg.Client({
         connectionString: args.url,
         keepAlive: true,
+        connectionTimeoutMillis: connectTimeoutMs,
+        query_timeout: queryTimeoutMs,
         application_name: args.applicationName ?? 'atlas-pg-listener',
       })
     client = next
     next.on('error', (error: unknown) => void drop(next, error))
     next.on('end', () => void drop(next))
     try {
-      await next.connect()
+      await withDeadline({ promise: next.connect(), ms: connectTimeoutMs, what: 'connect' })
       if (client !== next) return
-      await next.query(args.channels.map((channel) => `LISTEN ${channel}`).join('; '))
+      await withDeadline({
+        promise: next.query(args.channels.map((channel) => `LISTEN ${channel}`).join('; ')),
+        ms: queryTimeoutMs,
+        what: 'LISTEN',
+      })
     } catch (error) {
       if (!closed && client === next) {
         logError('listener connect failed', error)

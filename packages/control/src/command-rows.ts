@@ -1,10 +1,12 @@
 import { COMMAND_INBOX_PREFIX } from '@dltech/atlas-commands'
-import { EInputConsumed } from '@dltech/atlas-core'
+import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
 import {
   ECommandState,
   QUEUED_MESSAGES_LIMIT,
   type SessionCommandRow,
 } from '@dltech/atlas-protocol'
+
+import type { z } from 'zod'
 
 import type { ControlTx } from './port'
 import { readEventsIn } from './read-events'
@@ -41,6 +43,7 @@ export const runningCommandsIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<SessionCommandRow[]> => {
   const { tx, sessionId } = args
   const row = await tx.readThread(args.threadId)
@@ -51,6 +54,7 @@ export const runningCommandsIn = async (args: {
     afterSeq: Math.max(0, row.headSeq - VIEW_TAIL_LIMIT),
     limit: VIEW_TAIL_LIMIT,
     visible: true,
+    eventSchema: args.eventSchema,
   })
   const rows: SessionCommandRow[] = []
   for (const inboxId of unfinishedCommandIdsOf(tail.events)) {
