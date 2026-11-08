@@ -1,6 +1,11 @@
 import { BadRequestException } from '@nestjs/common'
-import { commandOf, composeCommands, type CommandRegistry } from '@dltech/atlas-commands'
-import { nativeCommands } from '@dltech/atlas-native-commands'
+import {
+  commandOf,
+  composeCommands,
+  type CommandRegistry,
+  type ControlCommandHandler,
+} from '@dltech/atlas-commands'
+import { nativeCommands, nativeControlHandlers } from '@dltech/atlas-native-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { SessionCommandOutput } from '@dltech/atlas-protocol'
 
@@ -14,12 +19,20 @@ export async function postCommand(params: {
   sessionId: string
   name: string
   args: unknown
+  controlHandlers?: ReadonlyMap<string, ControlCommandHandler<ControlPlane, unknown>>
 }): Promise<SessionCommandOutput> {
   const command = commandOf({ registry: params.registry, name: params.name })
   if (command === undefined) throw new BadRequestException(`unknown command "${params.name}"`)
   const parsed = command.spec.args.safeParse(params.args)
   if (!parsed.success) {
     throw new BadRequestException(`invalid arguments for "${params.name}": ${parsed.error.message}`)
+  }
+  if (command.spec.handledIn === 'control') {
+    const handlers = params.controlHandlers ?? nativeControlHandlers
+    const handler = handlers.get(command.spec.name)
+    if (handler === undefined) throw new Error(`no control handler for "${command.spec.name}"`)
+    await handler({ plane: params.plane, sessionId: params.sessionId, args: parsed.data })
+    return {}
   }
   return params.plane.post({
     sessionId: params.sessionId,

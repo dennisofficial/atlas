@@ -63,3 +63,22 @@ export const titleUntitledIn = async (params: {
   if (titled) await tx.announce({ sessionId })
   return titled
 }
+
+export const SESSION_TITLE_MAX_LENGTH = 200
+
+export const renameIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  title: string
+}): Promise<void> => {
+  const { tx, sessionId } = params
+  const title = params.title.trim()
+  if (title.length === 0) throw new Error('A session needs a name')
+  if (title.length > SESSION_TITLE_MAX_LENGTH) {
+    throw new Error(`A session name is at most ${SESSION_TITLE_MAX_LENGTH} characters`)
+  }
+  if (!(await tx.setSessionTitle({ sessionId, title }))) {
+    throw new Error(`unknown session ${sessionId}`)
+  }
+  await tx.announce({ sessionId })
+}

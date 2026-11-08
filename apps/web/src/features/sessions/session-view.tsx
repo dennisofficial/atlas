@@ -164,6 +164,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     <ThreadPanelProvider value={panel}>
       <div className="flex min-h-0 flex-1 flex-col">
         <SessionHeader
+          sessionId={sessionId}
           state={headerStateOfSession(snapshot.status)}
           title={listed?.title ?? null}
           naming={listed?.naming ?? false}

@@ -19,6 +19,7 @@ export const TEST_COMMAND = defineCommand({
     group: ECommandGroup.Session,
     args: RENAME_ARGS,
     timing: ECommandTiming.Settled,
+    handledIn: 'pod',
   },
 })
 

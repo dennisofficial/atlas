@@ -17,6 +17,8 @@ import {
   type PullRequestEntry,
 } from '@/features/threads/data/pull-request-entries'
 
+import { RenameAction } from '@/features/shell/rename-action'
+
 import { useSessionPrObservation } from './data/use-session-pr-observation'
 
 const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
@@ -50,12 +52,14 @@ function HeaderPullRequest({ pinned, count }: { pinned: PullRequestEntry; count:
 }
 
 export function SessionHeader({
+  sessionId,
   state,
   title,
   naming,
   branch,
   entries,
 }: {
+  sessionId: string
   state: EHeaderState
   title: string | null
   naming: boolean
@@ -75,6 +79,7 @@ export function SessionHeader({
         <h1 className="min-w-0 truncate text-sm font-medium">
           <NamingTitle title={title} naming={naming} fallback="Session" />
         </h1>
+        <RenameAction sessionId={sessionId} title={title} />
         <Badge variant="outline">v2</Badge>
       </div>
       <div className="flex min-w-0 shrink-0 items-center gap-3">

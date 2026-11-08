@@ -27,6 +27,7 @@ const render = (props: { branch?: string; entries: PullRequestEntry[] }) =>
   renderToStaticMarkup(
     <SidebarProvider>
       <SessionHeader
+        sessionId="s1"
         state={EHeaderState.Idle}
         title="Fix login"
         naming={false}

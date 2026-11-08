@@ -33,6 +33,18 @@ export const setSessionTitleIfUntitledIn = (params: {
   return true
 }
 
+export const setSessionTitleIn = (params: {
+  state: State
+  sessionId: string
+  title: string
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined) return false
+  row.title = params.title
+  row.titledFromInboxId = null
+  return true
+}
+
 export const clearTitleFromIn = (params: {
   state: State
   sessionId: string

@@ -7,7 +7,6 @@ import {
   type V2EventType,
 } from '@dltech/atlas-core'
 import type { z } from 'zod'
-
 import { appendIn } from './append-ops'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
@@ -30,7 +29,7 @@ import { withDigestViews } from './session-digest-view'
 import { readSessionViewWithCatchUp, type SessionViewRead } from './session-view-read'
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { AppendAbort, type AppendOutcome } from './refusal'
-import { archiveIn, createSessionIn, titleUntitledIn } from './session-ops'
+import { archiveIn, createSessionIn, renameIn, titleUntitledIn } from './session-ops'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 
 export const MAX_READ_LIMIT = 1000
@@ -89,6 +88,10 @@ export class ControlPlane {
 
   async titleUntitledSession(params: Omit<Parameters<typeof titleUntitledIn>[0], 'tx'>) {
     return this.store.transact((tx) => titleUntitledIn({ tx, ...params }))
+  }
+
+  async renameSession(params: Omit<Parameters<typeof renameIn>[0], 'tx'>) {
+    await this.store.transact((tx) => renameIn({ tx, ...params }))
   }
 
   async listSessions(params: {

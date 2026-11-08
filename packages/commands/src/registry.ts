@@ -30,7 +30,7 @@ export function composeCommands(commands: readonly Command[]): CommandRegistry {
       throw new Error(`duplicate command "${command.spec.name}"`)
     }
     byName.set(command.spec.name, command)
-    byInboxKind.set(command.inboxKind, command)
+    if (command.spec.handledIn === 'pod') byInboxKind.set(command.inboxKind, command)
   }
   return Object.freeze({ all: Object.freeze([...commands]), byName, byInboxKind })
 }
