@@ -543,9 +543,15 @@ What this plugin does not need, and why:
   channel to a browser except the durable journal, which would flood. The options are written up as
   an open question in the plugin's section file; this PR does not invent one.
 
-Not shipped here: the web roster chip (a follow-up PR reads `pluginViews.shells` in the session
-header). The transcript's ended line already renders from the core event
+**The client half** shipped in #2036 (`18ce62eb4`): `plugins/shells/src/client/index.ts` reads the
+view through `pluginViewOf` (`shellsOfView`, `shellRosterOf` — running rows only), the session header
+renders a terminal chip with the running count whose `title` lists the shells, only when something is
+running (`apps/web/src/features/sessions/session-header.tsx`), and `apps/web` registers the plugin.
+The transcript's ended line already renders from the core event
 (`packages/client/src/transcript/notice-entries.ts:22`).
+
+**Not built:** the live-output stream (§5.2's transport slot), and the running-shells reminder that
+v2's `defaultPipeline` cannot produce — the plugin supplies it from a `beforeStep` hook instead.
 
 **Live check (2026-11-08, production).** Session `7850e6ff-c1be-4a0c-918f-f841caa3e7b8`, thread
 `759c2536-d748-4de1-86a0-1642c9ec0fa9`, project `cmvh6z3ls002i08jwseqmwbrv` (dennisofficial/atlas),
