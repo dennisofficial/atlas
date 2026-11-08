@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
 import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { noticeV2Sessions } from './github-v2-notice'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { replayThreadEvents } from './github-pr-event-thread-replay'
 import type { EPrEventKind, GithubPrEventDto, GithubPrEventPayload } from './github-realtime.types'
@@ -79,6 +80,7 @@ export class GithubPrEventMailboxService {
         consumedAt: null,
         createdAt,
       }
+      if (args.wake !== false) await this.noticeV2({ tx: args.tx, event: row })
       this.fanout.pushEvent({
         userIds: [userId],
         event: eventDtoOf(row),
@@ -101,6 +103,11 @@ export class GithubPrEventMailboxService {
         },
       )
     }
+  }
+
+  private noticeV2(args: { tx: Tx | undefined; event: Row<'GithubPrEvent'> }): Promise<unknown> {
+    if (args.tx !== undefined) return noticeV2Sessions({ tx: args.tx, event: args.event })
+    return db.transaction((tx) => noticeV2Sessions({ tx, event: args.event }))
   }
 
   /**

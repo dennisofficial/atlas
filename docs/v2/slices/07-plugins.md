@@ -234,8 +234,10 @@ the agent can subscribe to a PR and be told when it moves.
   (`start/emit`), the CI-watch before-tool block, the after-tool/after-shell PR refresh, the CI
   prompt fragment, and the PR refresh on turn end. The host keeps the trigger points and calls the
   registered plugin handlers; no host file names GitHub.
-- **Control:** subscribe/heartbeat/unsubscribe transport leases (`GithubSubscription`), the
-  observation lease and budget (Redis), PR state reads, `ackEvents`, the wake of a linked session,
+- **Control:** subscribe/unsubscribe transport leases (`GithubSubscription`, living until the
+  subscription's own expiry; no heartbeat in v2), the
+  observation lease and budget (Redis), PR state reads, the wake of a linked session (one inbox
+  `message` per live subscription, deduped and acked by the `GithubPrEventDelivery` row),
   and the PR state join into the view (replacing `postgres-views.ts:74`'s direct dependency on the v1
   table, or reading it through a CP port until cutover).
 - **Client:** the PR badge and checks tally (`apps/web/src/features/shell/thread-pull-requests.ts`,
@@ -433,10 +435,33 @@ registered in `apps/api`, `apps/agent-host` and `apps/web`; the `subscriptions` 
 fragment; the control append hook that writes and removes the `GithubSubscription` lease in the
 append transaction. One writer: the pod appends the journal event, the CP derives the lease from it.
 
-Not shipped (PR 2 or follow-up): the wake. A PR event reaching the fan-out does not yet wake a v2
-session with one notice and an ack (`githubPrs.ackEvents`); the lease heartbeat (the lease has a
-5-minute TTL and nothing renews it for a v2 session); the PR finder move (3b); client rendering
-beyond `subscriptionsOfView`. Live check is recorded in the PR body.
+**Lease lifetime.** v1's 5-minute `GithubSubscription.expiresAt` was a liveness heartbeat. v2 has
+no heartbeat, so the append hook sets `expiresAt` and `liveUntil` from the `subscription-created`
+body's own `expiresAt`, falling back to `DEFAULT_SUBSCRIPTION_TTL_MS` (24 h) when it is absent or
+unreadable. A subscription created once stays live until it ends or expires; no timer or poller.
+
+**The wake.** The control plane cannot append to a session (no holder lease), so its write is the
+inbox. `GithubPrEventMailboxService.record` (the one place every webhook, poll and discussion event
+passes) calls `noticeV2Sessions` (`apps/api/src/api/cloud/github/github-v2-notice.ts`) in the
+same transaction as the event row when the caller passes one. For each live `GithubSubscription` of
+the event's user and PR whose `threadId` is a `V2Thread`, it inserts a `GithubPrEventDelivery` row
+keyed `(eventId, threadId)` and, only when that insert wins, posts one `message` inbox entry via
+`postInboxEntryIn` (`@dltech/atlas-control/postgres`: allocate id, insert, `NOTIFY` wake and change
+in the same `Tx`). The holder already turns a `message` entry into `user-said` and a turn
+(`inbox-intake.ts`), so there is no new inbox kind and no plugin inbox handler. The text is
+deterministic (`github-v2-notice-text.ts`): PR number and URL plus the verdict with the checks
+tally, mergeability, a merged/closed transition, or the review/comment author.
+
+**Ack.** The delivery row is inserted already acked (`ackedAt` set, no lease), so it is both the
+dedupe and the ack: v1's `githubPrs.ackEvents` exists because a pod journals the event later, but a
+v2 inbox entry is durable in the same transaction, so there is nothing for a pod to ack and the
+replay path (`claimDeliveries`) skips an acked row. One notice per event per subscription holds
+across a repeated fan-out, a webhook plus a poll, and a restart, because event rows are
+dedupe-keyed per user and the delivery primary key is `(eventId, threadId)`. Spec:
+`github-v2-notice.spec.ts` fans the same event out twice.
+
+Not shipped (follow-up): the PR finder move (3b); client rendering beyond `subscriptionsOfView`.
+Live check is recorded in the PR body.
 
 ## 9. Answers (2026-11-08)
 
