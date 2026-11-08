@@ -200,7 +200,7 @@ jobs:
       # bun-test-incremental's own suite drives child `bun test` runs, so it must never run
       # incrementally against itself; it is excluded here and run in its own step below.
       - name: test
-        run: bun run --filter './packages/*' --filter './apps/*' --filter './evals' --filter '!@dltech/bun-test-incremental' test ${CHANGED_ARG:+"$CHANGED_ARG"}
+        run: bun run --filter './packages/*' --filter './commands' --filter './apps/*' --filter './evals' --filter '!@dltech/bun-test-incremental' test ${CHANGED_ARG:+"$CHANGED_ARG"}
         env:
           BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/summaries
           CHANGED_ARG: ${{ steps.diff-base.outputs.changed }}

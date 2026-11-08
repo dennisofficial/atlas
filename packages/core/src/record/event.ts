@@ -39,7 +39,7 @@ export enum EInputConsumed {
 }
 
 export type RecordBody =
-  | { type: 'history-rewound'; toSeq: number }
+  | { type: 'history-rewound'; toSeq: number; draft?: string | undefined }
   | {
       type: 'history-summarised'
       fromSeq: number
@@ -92,7 +92,11 @@ const recordEnvelopeSchema = z.object({
 })
 
 const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('history-rewound'), toSeq: z.number().int().min(0) }),
+  z.object({
+    type: z.literal('history-rewound'),
+    toSeq: z.number().int().min(0),
+    draft: z.string().optional(),
+  }),
   z.object({
     type: z.literal('history-summarised'),
     fromSeq: seqSchema,

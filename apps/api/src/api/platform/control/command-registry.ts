@@ -1,11 +1,12 @@
 import { BadRequestException } from '@nestjs/common'
 import { commandOf, composeCommands, type CommandRegistry } from '@dltech/atlas-commands'
+import { nativeCommands } from '@dltech/atlas-native-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { SessionCommandOutput } from '@dltech/atlas-protocol'
 
 export const COMMAND_REGISTRY = Symbol('COMMAND_REGISTRY')
 
-export const nativeCommandRegistry = (): CommandRegistry => composeCommands([])
+export const nativeCommandRegistry = (): CommandRegistry => composeCommands(nativeCommands)
 
 export async function postCommand(params: {
   plane: ControlPlane

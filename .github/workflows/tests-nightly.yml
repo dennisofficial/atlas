@@ -76,14 +76,14 @@ jobs:
         env:
           BUN_TEST_INCREMENTAL: plan
           BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/plan
-        run: bun run --filter './packages/*' --filter './apps/*' --filter './evals' test
+        run: bun run --filter './packages/*' --filter './commands' --filter './apps/*' --filter './evals' test
 
       - name: run everything
         continue-on-error: true
         env:
           BUN_TEST_INCREMENTAL: force
           BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/full
-        run: bun run --filter './packages/*' --filter './apps/*' --filter './evals' test
+        run: bun run --filter './packages/*' --filter './commands' --filter './apps/*' --filter './evals' test
 
       - name: check the cache hid no failure
         if: always()
