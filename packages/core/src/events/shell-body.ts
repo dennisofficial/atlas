@@ -7,6 +7,7 @@ export type BackgroundShellEventBody =
       shellId: string
       command: string
       description?: string | undefined
+      cwd?: string | undefined
       bootId?: string | undefined
       outputPath?: string | undefined
     }

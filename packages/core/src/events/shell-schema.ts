@@ -10,6 +10,7 @@ export const shellEventSchemas = [
     shellId: z.string().min(1),
     command: z.string(),
     description: z.string().optional(),
+    cwd: z.string().min(1).optional(),
     bootId: z.string().min(1).optional(),
     outputPath: z.string().min(1).optional(),
   }),
