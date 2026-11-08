@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
-import { fallbackShellName, optionalShellName, withFallbackShellName } from '../fallback-shell-name'
+import { fallbackShellName, withFallbackShellName } from '../fallback-shell-name'
 
 const schema = withFallbackShellName(
   z.strictObject({
-    description: optionalShellName,
+    description: z.string().min(1),
     command: z.string().min(1),
     workdir: z.string().min(1).optional(),
   }),
@@ -36,11 +36,11 @@ describe('withFallbackShellName', () => {
     expect(schema.safeParse({}).success).toBe(false)
   })
 
-  it('publishes the name first and optional, since only the developer reads it', () => {
-    const declared = z.toJSONSchema(schema, { io: 'input' })
+  it('publishes the name first and required, so a model writes one before its command', () => {
+    const declared = z.toJSONSchema(schema)
 
     expect(Object.keys(declared.properties ?? {})[0]).toBe('description')
-    expect(declared.required).toEqual(['command'])
+    expect(declared.required).toEqual(['description', 'command'])
   })
 })
 
