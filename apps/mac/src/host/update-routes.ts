@@ -24,7 +24,7 @@ export function createUpdateHandler({
   updates,
 }: {
   updates: IDesktopUpdatesPort
-}): (request: Request, pathname: string) => Response | undefined {
+}): (request: Request, pathname: string) => Response | Promise<Response> | undefined {
   return (request, pathname) => {
     if (pathname === UPDATE_PATH && request.method === 'GET') {
       return Response.json(updates.status())
