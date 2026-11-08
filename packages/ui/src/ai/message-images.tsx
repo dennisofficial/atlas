@@ -74,22 +74,29 @@ export function MessageFileCard({ file }: { file: MessageFile }) {
   )
 }
 
-export function MessageImages({
-  images,
-  files = [],
-}: {
-  images: readonly MessageImage[]
-  files?: readonly MessageFile[]
-}) {
-  if (images.length === 0 && files.length === 0) return null
+export interface MessageAttachment {
+  id: string
+  name: string
+  src?: string | undefined
+}
+
+export function MessageAttachments({ attachments }: { attachments: readonly MessageAttachment[] }) {
+  if (attachments.length === 0) return null
   return (
     <div className="flex flex-wrap justify-end gap-2">
-      {images.map((image) => (
-        <MessageImageThumb key={image.id} image={image} />
-      ))}
-      {files.map((file) => (
-        <MessageFileCard key={file.id} file={file} />
-      ))}
+      {attachments.map((attachment) =>
+        attachment.src === undefined ? (
+          <MessageFileCard
+            key={attachment.id}
+            file={{ id: attachment.id, name: attachment.name }}
+          />
+        ) : (
+          <MessageImageThumb
+            key={attachment.id}
+            image={{ id: attachment.id, src: attachment.src, alt: attachment.name }}
+          />
+        ),
+      )}
     </div>
   )
 }

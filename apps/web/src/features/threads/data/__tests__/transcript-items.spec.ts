@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EStepEnd, toStepId, type StepSignal } from '@dltech/atlas-client/channel'
 import { liveSteps, stepsOfSignals } from '@dltech/atlas-client/transcript'
-import { toCallId } from '@dltech/atlas-core'
+import { EAttachmentStore, toCallId } from '@dltech/atlas-core'
 import { EToolState } from '@dltech/atlas-ui/ai/tool'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
@@ -366,17 +366,30 @@ describe('tool titles', () => {
     expect(item.calls[0]?.title).toBeUndefined()
   })
 
-  it('carries pasted images on the user item', () => {
+  it('carries a pasted picture as one attachment on the user item', () => {
     const shot = { path: 'shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }
     const view = viewOf({ events: [wire(1, { type: 'user-said', text: 'look', images: [shot] })] })
-    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, images: [shot] })
+    expect(view.items[0]).toMatchObject({
+      kind: ETranscriptKind.User,
+      attachments: [
+        {
+          name: 'shot.png',
+          mediaType: 'image/png',
+          content: { store: EAttachmentStore.Inline, data: 'aGVsbG8=' },
+        },
+      ],
+    })
   })
 
-  it('keeps a message that is only a pasted image', () => {
+  it('keeps a message that is only a pasted picture', () => {
     const shot = { path: 'shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }
     const view = viewOf({ events: [wire(1, { type: 'user-said', text: '', images: [shot] })] })
     expect(view.items).toHaveLength(1)
-    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, text: '', images: [shot] })
+    expect(view.items[0]).toMatchObject({
+      kind: ETranscriptKind.User,
+      text: '',
+      attachments: [{ name: 'shot.png' }],
+    })
   })
 })
 
@@ -392,11 +405,14 @@ describe('upload-only messages', () => {
       },
     ]
     const view = viewOf({ events: [wire(1, { type: 'user-said', text: '', uploads })] })
-    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, uploads })
+    expect(view.items[0]).toMatchObject({
+      kind: ETranscriptKind.User,
+      attachments: [{ id: uploads[0]?.uploadId, name: 'a.pdf' }],
+    })
   })
 })
 
-describe('an upload the transcript already previews', () => {
+describe('a picture sent with its upload', () => {
   const upload = {
     uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a02',
     pathname: 'p/image.png',
@@ -405,25 +421,25 @@ describe('an upload the transcript already previews', () => {
     mediaType: 'image/png',
   }
   const shot = { path: 'image.png', mediaType: 'image/png', data: 'aGVsbG8=' }
-  const attachment = {
-    media: { hash: 'a'.repeat(64), mediaType: 'image/png', size: 12, width: 4, height: 3 },
-    source: 'image.png',
-  }
 
-  it('shows a picture sent with its upload once, as the picture', () => {
+  it('is one attachment carrying both the upload and its inline copy', () => {
     const view = viewOf({
       events: [wire(1, { type: 'user-said', text: '', images: [shot], uploads: [upload] })],
     })
-    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, images: [shot] })
-    expect(view.items[0]).not.toHaveProperty('uploads')
-  })
-
-  it('shows a picture sent with its upload once, as the attachment', () => {
-    const view = viewOf({
-      events: [wire(1, { type: 'user-said', text: '', media: [attachment], uploads: [upload] })],
+    expect(view.items[0]).toMatchObject({
+      kind: ETranscriptKind.User,
+      attachments: [
+        {
+          id: upload.uploadId,
+          name: 'image.png',
+          content: {
+            store: EAttachmentStore.Upload,
+            uploadId: upload.uploadId,
+            inline: 'aGVsbG8=',
+          },
+        },
+      ],
     })
-    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, media: [attachment] })
-    expect(view.items[0]).not.toHaveProperty('uploads')
   })
 
   it('keeps the other uploads of the same message', () => {
@@ -431,12 +447,18 @@ describe('an upload the transcript already previews', () => {
     const view = viewOf({
       events: [wire(1, { type: 'user-said', text: '', images: [shot], uploads: [upload, other] })],
     })
-    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, uploads: [other] })
+    expect(view.items[0]).toMatchObject({
+      kind: ETranscriptKind.User,
+      attachments: [{ name: 'image.png' }, { name: 'notes.md' }],
+    })
   })
 
   it('keeps an upload that has no preview of its own', () => {
     const bigger = { ...upload, uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a04', name: 'scan.pdf' }
     const view = viewOf({ events: [wire(1, { type: 'user-said', text: '', uploads: [bigger] })] })
-    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, uploads: [bigger] })
+    expect(view.items[0]).toMatchObject({
+      kind: ETranscriptKind.User,
+      attachments: [{ name: 'scan.pdf', content: { store: EAttachmentStore.Upload } }],
+    })
   })
 })

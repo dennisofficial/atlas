@@ -23,26 +23,20 @@ import {
   SummariseAction,
   type SummariseActions,
 } from './internal/summarise-action'
-import { MessageImages, type MessageImage } from './message-images'
+import { MessageAttachments, type MessageAttachment } from './message-images'
 
-export type { MessageImage } from './message-images'
+export type { MessageAttachment, MessageImage } from './message-images'
 
 export enum EFeedback {
   Good = 'good',
   Bad = 'bad',
 }
 
-export interface MessageAttachment {
-  id: string
-  label: string
-}
-
 export interface UserMessageProps extends SummariseActions {
   children?: ReactNode
   author?: string
   timestamp?: string
-  attachments?: MessageAttachment[]
-  images?: readonly MessageImage[]
+  attachments?: readonly MessageAttachment[]
   copyText?: string
   onEdit?: () => void
   onRewind?: () => void
@@ -132,7 +126,6 @@ export function UserMessage({
   author,
   timestamp,
   attachments = [],
-  images = [],
   copyText,
   onEdit,
   onRewind,
@@ -146,10 +139,7 @@ export function UserMessage({
     <Message align="end">
       <MessageContent>
         <SpeakerName author={author} />
-        <MessageImages
-          images={images}
-          files={attachments.map((attachment) => ({ id: attachment.id, name: attachment.label }))}
-        />
+        <MessageAttachments attachments={attachments} />
         {children === undefined || children === null ? null : (
           <Bubble align="end" variant="muted">
             <BubbleContent>{children}</BubbleContent>

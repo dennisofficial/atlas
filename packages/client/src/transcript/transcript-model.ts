@@ -1,11 +1,9 @@
 import type {
+  Attachment,
   EExecutionLocation,
   ELocationChangeCause,
   EReportKind,
   ETldrStatus,
-  SaidImage,
-  SaidMedia,
-  SaidUpload,
 } from '@dltech/atlas-core'
 
 import { runLabel } from './tools'
@@ -50,9 +48,7 @@ export type OperatorSaidEntry = {
   steer: boolean
   skills: readonly string[]
   files: readonly string[]
-  images: readonly SaidImage[]
-  uploads?: readonly SaidUpload[] | undefined
-  media?: readonly SaidMedia[] | undefined
+  attachments: readonly Attachment[]
 }
 
 export type ModelSaidEntry = {
