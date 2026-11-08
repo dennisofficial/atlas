@@ -2,9 +2,16 @@ import type { LogPort } from '@dltech/atlas-observability'
 import { ECallFailure } from '@dltech/atlas-protocol'
 import type { CallOp, CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
-import { FencedError, ProtocolViolationError, callLostAcrossBoot } from './errors'
+import { abandonCall, attachCallSignal } from './call-signal'
+import {
+  FencedError,
+  ProtocolViolationError,
+  ReadyTimeoutError,
+  callLostAcrossBoot,
+} from './errors'
 import { scopeDispatchedBootId } from './call-scope'
 import { DaemonLink } from './link'
+import { READY_TIMEOUT_MS, withReadyDeadline } from './ready-deadline'
 import { ReadyGate, type ReadyReply } from './ready-gate'
 import {
   failedResult,
@@ -125,15 +132,15 @@ export class RemoteCallsState {
       done: false,
     }
     if (!this.detached) call.waiters.push(waiter)
-    if (args.signal !== undefined) this.attachSignal({ call, signal: args.signal })
     this.pending.set(args.key, call)
+    if (args.signal !== undefined) this.attachSignal({ call, signal: args.signal })
     try {
-      await this.gate.promise
+      await this.readyWithin(call.controller.signal)
     } catch (error) {
-      this.pending.delete(args.key)
-      waiter.detach?.()
+      abandonCall({ call, pending: this.pending, error: error as Error })
       throw error
     }
+    if (call.done) return outcome
     if (
       callLostAcrossBoot({
         op: call.op.op,
@@ -164,40 +171,42 @@ export class RemoteCallsState {
     }
   }
 
-  private ackKey(args: { key: string }): Promise<boolean> {
-    if (this.fenced || this.closed) return Promise.resolve(false)
-    return new Promise<boolean>((resolve, reject) => {
-      this.gate.promise.then(
-        () => {
-          if (this.fenced) {
-            resolve(false)
-            return
-          }
-          this.pendingAcks.set(args.key, { key: args.key, resolve })
-          if (this.link.ready) this.link.send({ kind: 'ack', key: args.key, epoch: this.epoch })
-        },
-        () => {
-          if (this.fenced || this.closed) {
-            resolve(false)
-            return
-          }
-          reject(new ProtocolViolationError('the daemon link failed before the ack could be sent'))
-        },
-      )
+  private async ackKey(args: { key: string }): Promise<boolean> {
+    if (this.fenced || this.closed) return false
+    try {
+      await this.readyWithin()
+    } catch (error) {
+      if (this.fenced || this.closed || error instanceof ReadyTimeoutError) return false
+      throw new ProtocolViolationError('the daemon link failed before the ack could be sent')
+    }
+    if (this.fenced || this.closed) return false
+    return new Promise<boolean>((resolve) => {
+      this.pendingAcks.set(args.key, { key: args.key, resolve })
+      if (this.link.ready) this.link.send({ kind: 'ack', key: args.key, epoch: this.epoch })
+    })
+  }
+
+  private readyWithin(signal?: AbortSignal): Promise<ReadyReply | undefined> {
+    return withReadyDeadline({
+      promise: this.gate.promise,
+      timeoutMs: this.args.readyTimeoutMs ?? READY_TIMEOUT_MS,
+      timers: this.args.timers,
+      signal,
     })
   }
 
   private attachSignal(args: { call: Pending; signal: AbortSignal }): void {
-    const onAbort = (): void => {
-      if (this.detached) return
-      args.call.controller.abort()
-      if (args.call.sent && this.link.ready) {
+    attachCallSignal({
+      call: args.call,
+      signal: args.signal,
+      isDetached: () => this.detached,
+      isLinkReady: () => this.link.ready,
+      sendCancel: () => {
+        if (!this.link.ready) return
         this.link.send({ kind: 'cancel', key: args.call.key, epoch: this.epoch })
-      }
-    }
-    args.signal.addEventListener('abort', onAbort, { once: true })
-    args.call.detach = () => args.signal.removeEventListener('abort', onAbort)
-    if (args.signal.aborted) onAbort()
+      },
+      settleInterrupted: () => this.settle(args.call, interruptedResult(args.call.op.op)),
+    })
   }
 
   private settle(call: Pending, result: CallResult): void {
