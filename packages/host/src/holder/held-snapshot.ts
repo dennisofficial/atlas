@@ -9,7 +9,7 @@ import {
 
 import { idleReleaseDue } from './held-idle'
 import { countRunningShells } from './held-shells'
-import { actionableEntries, isStop, readFullInbox } from './held-inbox'
+import { actionableEntries, isStop, readFullInbox, understandsCommand } from './held-inbox'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
 
@@ -30,12 +30,13 @@ export const readHeldAction = async (args: {
 }> => {
   const { deps } = args
   const entries = await readFullInbox(deps)
+  const resolvable = entries.filter((entry) => understandsCommand(deps, entry))
   const workspace = workspaceStateFrom({
     record: args.workspace ?? NO_WORKSPACE_RECORD,
     preparing: args.preparing,
-    pendingMessageIds: entries.filter((entry) => !isStop(entry)).map((entry) => entry.inboxId),
+    pendingMessageIds: resolvable.filter((entry) => !isStop(entry)).map((entry) => entry.inboxId),
   })
-  const actionable = actionableEntries({ entries, failure: workspace.failure })
+  const actionable = actionableEntries({ entries: resolvable, failure: workspace.failure })
   const messagePending = actionable.some((entry) => !isStop(entry))
   const idleArgs = {
     deps,

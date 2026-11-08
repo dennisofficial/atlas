@@ -166,6 +166,7 @@ export const createLoopRunner = (args: {
     commands: deps.commands,
     handlers: deps.commandHandlers,
     model: runtime.model,
+    now: () => deps.timers.now(),
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })
   const runner = new LoopTurnRunner({

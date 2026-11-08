@@ -97,22 +97,53 @@ describe('SessionHolder command intake', () => {
     expect((await typesOf(rig)).includes('fact-recorded')).toBe(false)
   })
 
-  it('discards a command kind that has no handler', async () => {
+  it('leaves a command kind with no handler in the inbox and starts no turn', async () => {
+    const rig = await makeRig({
+      commands: composeCommands([ping]),
+      commandHandlers: new Map([[ping.inboxKind, handlerOf('done')]]),
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    const ghost = await rig.plane.post({ sessionId: SESSION, kind: 'command:ghost', payload: '{}' })
+    await postPing(rig, '{"word":"hi"}')
+    await rig.wake()
+    const settled = await flushUntil({
+      check: async () => (await typesOf(rig)).includes('fact-recorded'),
+    })
+    expect(settled).toBe(true)
+    await rig.flush()
+    const consumed = (await eventsOf(rig)).flatMap((event) =>
+      event.type === 'input-consumed' ? [event] : [],
+    )
+    expect(consumed.map((event) => event.inboxId)).not.toContain(ghost.inboxId)
+    const inbox = await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })
+    expect(inbox.map((entry) => entry.inboxId)).toContain(ghost.inboxId)
+    expect(rig.runCount()).toBe(0)
+  })
+
+  it('does not start an empty turn when the only input is an unresolvable command', async () => {
     const rig = await makeRig({ commands: composeCommands([ping]) })
     await seedSession(rig)
     await rig.holder.start()
     await rig.plane.post({ sessionId: SESSION, kind: 'command:ghost', payload: '{}' })
-    await postPing(rig, '{"word":"hi"}')
+    await rig.wake()
+    await rig.flush()
+    await rig.wake()
+    await rig.flush()
+    expect(rig.runCount()).toBe(0)
+    expect(await typesOf(rig)).not.toContain('input-consumed')
+    const inbox = await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })
+    expect(inbox).toHaveLength(1)
+  })
+
+  it('runs a command kind for a holder that knows it', async () => {
+    const rig = await rigWith('done')
+    await postPing(rig, '{"word":"known"}')
     await rig.wake()
     const settled = await flushUntil({
-      check: async () =>
-        (await eventsOf(rig)).filter((event) => event.type === 'input-consumed').length === 2,
+      check: async () => (await typesOf(rig)).includes('fact-recorded'),
     })
     expect(settled).toBe(true)
-    const consumed = (await eventsOf(rig)).flatMap((event) =>
-      event.type === 'input-consumed' ? [event.consumed] : [],
-    )
-    expect(consumed).toEqual([EInputConsumed.Discarded, EInputConsumed.Discarded])
   })
 
   it('leaves a command posted during a turn until the turn settles', async () => {
