@@ -2,6 +2,7 @@ export {
   FencedError,
   OpMismatchError,
   ProtocolViolationError,
+  ReadyTimeoutError,
   SandboxUnavailableError,
   isReadOnlyOp,
 } from './calls/errors'

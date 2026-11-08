@@ -79,3 +79,10 @@ export const callLostAcrossBoot = (args: {
 }
 
 export const interruptedMessage = crashedCallMessage
+
+export class ReadyTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`the sandbox did not answer within ${Math.ceil(timeoutMs / 1000)}s`)
+    this.name = 'ReadyTimeoutError'
+  }
+}

@@ -35,6 +35,8 @@ import { createGracefulShutdown } from './shutdown/graceful-shutdown'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 import { registeredPlugins } from './registered-plugins'
 
+const SHUTDOWN_GRACE_MS = 20_000
+
 class JsonLog extends LogPort {
   record(entry: Parameters<LogPort['record']>[0]): void {
     console.log(JSON.stringify(entry))
@@ -133,6 +135,9 @@ const main = async (): Promise<void> => {
   log.info({ source: 'main', message: 'agent-host started' })
 
   const handleSignal = createGracefulShutdown({
+    hardExitAfterMs: env.drainMs + SHUTDOWN_GRACE_MS,
+    setTimeout: (fn, ms) => setTimeout(fn, ms),
+    clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
     drain: async () => {
       await Promise.all([stream.drain({}), holder.drain({ deadline: Date.now() + env.drainMs })])
       await watch?.close()

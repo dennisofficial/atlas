@@ -35,8 +35,10 @@ export async function mountWithRetries(args: {
   token: string
   environment?: Record<string, string> | undefined
   onCreate: () => Promise<void>
+  signal?: AbortSignal | undefined
 }): Promise<Sandbox> {
   for (let attempt = 1, optimizeWaits = 0; ; attempt++) {
+    args.signal?.throwIfAborted()
     try {
       return await args.sdk.getOrCreate({
         ...args.credentials,
@@ -57,7 +59,10 @@ export async function mountWithRetries(args: {
           ATLAS_HOME: SANDBOX_HOME_PATH,
           ...args.environment,
         },
-        signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
+        signal: AbortSignal.any([
+          AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
+          ...(args.signal === undefined ? [] : [args.signal]),
+        ]),
       })
     } catch (failure) {
       if (isImageNotFound(failure)) {
