@@ -124,8 +124,7 @@ throws (tool collisions throw when the pod context is built, the rest at compose
 - `packages/host/src/holder/plugin-pod.ts` builds the context from the `SessionRecord` and
   `RemoteCalls` (`call` is `invoke` under a fresh key, `onDaemonEvent` is `RemoteCalls.onEvent`),
   extends the runtime's `ToolRegistry` with the plugin tools, and gives the loop a `HookChain` of the
-  plugin hooks. Without `SessionRuntime.plugins` nothing changes. `bindPluginRecord` is called after
-  `SessionRecord.open` for a plugin that needs the record outside a context.
+  plugin hooks. Without `SessionRuntime.plugins` nothing changes.
 - Prompt fragments join the registry through `agentHostPrompt({ extraFragments })`.
 - Daemon frames fan out from `RemoteCalls.onEvent` to each slot's `onDaemonEvent` and to listeners a
   hook registered through the context.
