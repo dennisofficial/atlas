@@ -155,7 +155,7 @@ export const createLoopRunner = (args: {
   threadId: ThreadId
   epoch: number
   isModelOnlyDrain(): boolean
-}): LoopTurnRunner => {
+}): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
   const intake = new InboxIntake({
     plane: deps.plane,
@@ -168,7 +168,7 @@ export const createLoopRunner = (args: {
     model: runtime.model,
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })
-  return new LoopTurnRunner({
+  const runner = new LoopTurnRunner({
     record,
     modelContext: record,
     model: runtime.model,
@@ -198,6 +198,7 @@ export const createLoopRunner = (args: {
       runId: () => deps.ids.nextRunId(),
     }),
   })
+  return { runner, intake }
 }
 
 export const wireHeldLoop = (args: {
@@ -209,9 +210,9 @@ export const wireHeldLoop = (args: {
   signal: AbortSignal
   epoch: number
   isModelOnlyDrain(): boolean
-}): { runner: LoopTurnRunner; branches: BranchObserver } => {
-  const runner = createLoopRunner(args)
+}): { runner: LoopTurnRunner; branches: BranchObserver; recoverCommands(): Promise<void> } => {
+  const { runner, intake } = createLoopRunner(args)
   const branches = createBranchObserver(args)
   branches.start()
-  return { runner, branches }
+  return { runner, branches, recoverCommands: () => intake.recoverUnfinished() }
 }

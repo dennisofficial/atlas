@@ -165,7 +165,7 @@ export class HeldSession {
     this.record = record
     if (this.lifetimeAbort.signal.aborted) return record.fence()
     if (this.draining) record.markDraining()
-    const { runner, branches } = wireHeldLoop({
+    const { runner, branches, recoverCommands } = wireHeldLoop({
       deps,
       runtime,
       record,
@@ -177,8 +177,9 @@ export class HeldSession {
     })
     this.branches = branches
     this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })
+    await recoverCommands()
     const completion = new Promise<void>((resolve) => (this.finishDrive = resolve))
-    if (this.outcome !== undefined) return
+    if (this.lifetimeAbort.signal.aborted || this.outcome !== undefined) return
     const reconciler = new Reconciler({
       timers: deps.timers,
       step: () => this.step({ runner, threadId }),

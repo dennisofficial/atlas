@@ -52,9 +52,30 @@ export class CommandIntake {
     command: Command
     handler: CommandHandler<unknown>
   }): Promise<void> {
+    const { inboxId } = params.entry
+    await this.args.append([{ type: 'input-consumed', inboxId, consumed: EInputConsumed.Command }])
+    await this.dispatch(params)
+  }
+
+  async replay({ entry }: { entry: InboxEntry }): Promise<void> {
+    const resolved = this.resolve(entry)
+    if (resolved === undefined) {
+      this.args.log?.warn({
+        source: 'holder.command',
+        message: `inbox entry ${entry.inboxId} of kind "${entry.kind}" cannot be replayed: no handler`,
+      })
+      return
+    }
+    await this.dispatch({ entry, ...resolved })
+  }
+
+  private async dispatch(params: {
+    entry: InboxEntry
+    command: Command
+    handler: CommandHandler<unknown>
+  }): Promise<void> {
     const { entry, command, handler } = params
     const { inboxId } = entry
-    await this.args.append([{ type: 'input-consumed', inboxId, consumed: EInputConsumed.Command }])
     const parsed = command.spec.args.safeParse(payloadOf(entry.payload))
     if (!parsed.success) {
       await this.refuse({ inboxId, reason: parsed.error.message })
