@@ -102,26 +102,47 @@ real processes: a gated bash, `daemon.drain()`, the gate released, the daemon ex
 signal and no orphan, a new daemon on the same home, and the done result collected exactly once with the
 run count still one.
 
-## What the live check still owes
+## The live check (2026-11-08)
 
-Everything above is proven with real processes on this machine: a real daemon binary, a real sandbox home,
-real Postgres and Redis, and the real agent host, through the fault rig. What is **not** proven live is a
-swap inside a real Vercel sandbox against production — the shape the earlier SIGKILL run got wrong. The
-recipe, for whoever has the window:
-1. Build the daemon from the branch (`bun run --cwd apps/daemon build`) and run a local agent host with the
-   production env, holding a real session and sandbox; start a long bash and kill the host with `SIGKILL`.
-2. Start a second host whose daemon bundle is built from a _different_ commit, so its hash differs.
-3. It wakes the sandbox, finds the mismatch, drains the old daemon (which finishes the bash), waits for the
-   port to close, boots the new one and collects the result. Expect one `tool-dispatched`, one done
-   `tool-result`, and one run of the command's marker line.
-4. Gate on Render being absent: its log printing `draining` **and** `GET /v1/services/{id}/instances`
-   staying `[]` for 30–60 s, plus host A's log showing `holder.takeover` for the session before any kill.
-   Resume production in a `finally`.
+Run on a real Vercel sandbox with `launchDaemon` driven directly instead of through the control plane: no
+session, no Render and no model in the path. One sandbox, the daemon booted from a `0.1.0` bundle
+(`sha256 d89af21693be…`), an `exec` of a 200 MB `bzip2` dispatched to it, then a second `launchDaemon` with a
+`0.1.1` bundle (`58606726cf5a…`) while that call was still running. The second wake's log:
 
-It was not run in the session that landed these two changes: the driver scripts were never kept (they lived
-in a gitignored `.scratch/`), rebuilding them plus a five-minute production outage needed a window the
-operator had not opened. The unit and fault rows above are the evidence the merge rests on; a live pass
-would only add the Vercel sandbox to the same path.
+```
+sandbox atlas-v2-45651576… runs daemon "d89af21693be…", needs "58606726cf5a…" — restarting it
+sandbox atlas-v2-45651576… daemon is draining
+sandbox atlas-v2-45651576… daemon drained
+sandbox atlas-v2-45651576… has no matching daemon — booting it under the flock
+sandbox atlas-v2-45651576… daemon is listening on 3000
+```
+
+That wake took 15.6 s: the drain waiting out the rest of the `bzip2`. The two clients, one per daemon:
+
+| socket          | daemon                              | frames                                                                                                                                                                            |
+| --------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| before the swap | `version 0.1.0`, bootId `1ec88394…` | `run-reply running`, then the output (`200889634\n`, `finished\n1\n`) and `result ok, exit 0, outputBytes 21` — the old daemon finished the call it had started, during the drain |
+| after the swap  | `version 0.1.1`, bootId `1a8f0642…` | `answered k1 done`, `run-reply done`, `result ok, exit 0, outputBytes 21`, and the replayed output `200889634\nfinished\n1\n`                                                     |
+
+The `1` is the command's own `wc -l < /tmp/swap-runs`, so the bash ran once, and the kill fallback never
+fired (`killLines` empty). A version mismatch drained the old daemon instead of killing it, a running call
+finished across the swap, and the next daemon served the stored result without re-running anything.
+
+Seven earlier attempts went through the control plane with Render suspended and all seven were invalid. The
+traps they exposed are worth keeping:
+- a background subshell's `$!` is not the process unless the subshell `exec`s, so a "kill" can leave the old
+  host alive to collect the call itself;
+- `trap … EXIT` does not survive `SIGTERM`; a script that holds production suspended needs a `TERM` trap too;
+- a session whose preparation never reached `workspace-prepared` stays claimable forever, so every host picks
+  it up and retries it;
+- `POST /resume` starts a Render build, and that build finishing mid-window spawns an instance that takes the
+  session back, so absence must be re-verified _after_ the suspend;
+- `POST /v1/services/{id}/scale` queues a deploy as well.
+
+The driver was a gitignored scratch script (`apps/agent-host/.scratch/live-swap/swap-live.ts`, not kept, like
+the earlier live-exit tests): it reads the operator's Vercel credential from the `UserVercelCredential` row,
+builds both bundles from the same source with different `ATLAS_DAEMON_VERSION` defines, then runs the
+sequence above and stops the sandbox.
 
 ## What stays interrupted
 
