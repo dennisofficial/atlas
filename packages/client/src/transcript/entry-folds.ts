@@ -22,9 +22,7 @@ export function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntr
       said: [...open.said, ...entry.said],
       skills: [...new Set([...open.skills, ...entry.skills])],
       files: [...new Set([...open.files, ...entry.files])],
-      images: [...open.images, ...entry.images],
-      uploads: [...(open.uploads ?? []), ...(entry.uploads ?? [])],
-      media: [...(open.media ?? []), ...(entry.media ?? [])],
+      attachments: [...open.attachments, ...entry.attachments],
     }
   }
 

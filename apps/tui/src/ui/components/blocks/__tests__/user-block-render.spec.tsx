@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { SaidImage } from '@dltech/atlas-core'
+import { EAttachmentStore, type Attachment } from '@dltech/atlas-core'
 
 import { frameOf } from '../../../__tests__/transcript-fixture'
 import { grammarsReady } from '../../../markdown/__tests__/harness'
@@ -7,18 +7,19 @@ import { UserBlock } from '../user-block'
 
 await grammarsReady()
 
-const IMAGE: SaidImage = {
-  path: '/tmp/atlas/pastes/t1/paste-1.png',
+const IMAGE: Attachment = {
+  id: 'image:0',
+  name: 'paste-1.png',
   mediaType: 'image/png',
-  data: 'A'.repeat(4096),
-  width: 560,
-  height: 280,
+  size: 3072,
+  content: { store: EAttachmentStore.Inline, data: 'A'.repeat(4096) },
+  image: { width: 560, height: 280 },
 }
 
 const ATTACHED = {
   skills: ['implement', 'tdd'],
   files: ['apps/tui/src/ui/components/blocks/user-block.tsx'],
-  images: [IMAGE],
+  attachments: [IMAGE],
 } as const
 
 const rowWith = (frame: string, text: string): number =>

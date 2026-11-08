@@ -25,7 +25,13 @@
 // It must own a real terminal: `bun run --filter` and `turbo run` both pipe a script's output,
 // which leaves stdin un-raw and sizes the renderer to a default rather than the window.
 
-import { base64Bytes, visualTokens, type SaidImage } from '@dltech/atlas-core'
+import {
+  base64Bytes,
+  EAttachmentStore,
+  inlineData,
+  visualTokens,
+  type Attachment,
+} from '@dltech/atlas-core'
 import { createCliRenderer } from '@opentui/core'
 import { createRoot, useKeyboard, useTerminalDimensions } from '@opentui/react'
 import { type ReactNode, useState } from 'react'
@@ -69,15 +75,16 @@ type Fixture = {
   said: readonly string[]
   skills: readonly string[]
   files: readonly string[]
-  images: readonly SaidImage[]
+  attachments: readonly Attachment[]
 }
 
-const IMAGE: SaidImage = {
-  path: '/tmp/atlas-attach-shot.png',
+const ATTACHMENT: Attachment = {
+  id: 'shot',
+  name: 'atlas-attach-shot.png',
   mediaType: 'image/png',
-  data: 'QUJD'.repeat(500),
-  width: 1208,
-  height: 272,
+  size: 1500,
+  content: { store: EAttachmentStore.Inline, data: 'QUJD'.repeat(500) },
+  image: { width: 1208, height: 272 },
 }
 
 const FIXTURES: readonly Fixture[] = [
@@ -86,32 +93,33 @@ const FIXTURES: readonly Fixture[] = [
     said: ['Lets read and /implement using /tdd\n@/tmp/comp-v3-setup-session-to-nestjs-handoff.md'],
     skills: ['implement', 'tdd'],
     files: ['/tmp/comp-v3-setup-session-to-nestjs-handoff.md'],
-    images: [],
+    attachments: [],
   },
   {
     label: 'everything at once — skills, two files, an image',
     said: ['why does this fail?'],
     skills: ['tdd'],
     files: ['apps/tui/src/ui/components/blocks/user-block.tsx', 'apps/tui/src/ui/palette.ts'],
-    images: [IMAGE],
+    attachments: [ATTACHMENT],
   },
   {
     label: 'no attachments — every variant must agree on this one',
     said: ['plain message, nothing riding along'],
     skills: [],
     files: [],
-    images: [],
+    attachments: [],
   },
 ]
 
 const basename = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 
-function imageText(image: SaidImage): string {
-  const parts = [basename(image.path)]
-  if (image.width !== undefined && image.height !== undefined) {
-    parts.push(`${image.width}×${image.height}`)
-  }
-  const tokens = visualTokens({ byteLength: base64Bytes(image.data), ...image })
+function imageText(attachment: Attachment): string {
+  const parts = [attachment.name]
+  const { width, height } = attachment.image ?? {}
+  if (width !== undefined && height !== undefined) parts.push(`${width}×${height}`)
+  const data = inlineData(attachment)
+  const tokens =
+    data === undefined ? null : visualTokens({ byteLength: base64Bytes(data), ...attachment.image })
   if (tokens !== null) parts.push(`~${formatTokens(tokens)} tokens`)
   return parts.join(' · ')
 }
@@ -130,8 +138,8 @@ function attachmentTexts(fixture: Fixture): readonly string[] {
     const noun = fixture.files.length === 1 ? 'file' : 'files'
     texts.push(`${noun} ${fixture.files.join(', ')}`)
   }
-  for (const image of fixture.images) {
-    texts.push(`image ${imageText(image)}`)
+  for (const attachment of fixture.attachments) {
+    texts.push(`image ${imageText(attachment)}`)
   }
   return texts
 }
@@ -292,8 +300,13 @@ function chipList(fixture: Fixture, fill: string, icons: ChipIcons): ReactNode[]
     ...fixture.files.map((file) => (
       <Chip key={`f:${file}`} icon={icons.file} label={basename(file)} fill={fill} />
     )),
-    ...fixture.images.map((image) => (
-      <Chip key={`i:${image.path}`} icon={icons.image} label={imageText(image)} fill={fill} />
+    ...fixture.attachments.map((attachment) => (
+      <Chip
+        key={`a:${attachment.id}`}
+        icon={icons.image}
+        label={imageText(attachment)}
+        fill={fill}
+      />
     )),
   ]
 }
@@ -353,8 +366,8 @@ function HairlineMessage(props: { fixture: Fixture; width: number }): ReactNode 
     ...props.fixture.files.map((file) => (
       <text key={`f:${file}`} fg={theme.meta}>{`  file ${file}`}</text>
     )),
-    ...props.fixture.images.map((image) => (
-      <text key={`i:${image.path}`} fg={theme.meta}>{`▣ image ${imageText(image)}`}</text>
+    ...props.fixture.attachments.map((attachment) => (
+      <text key={`a:${attachment.id}`} fg={theme.meta}>{`▣ image ${imageText(attachment)}`}</text>
     )),
   ]
 
@@ -487,7 +500,7 @@ function FixtureView(props: { page: Page; fixture: Fixture; width: number }): Re
           width={width}
           skills={fixture.skills}
           files={fixture.files}
-          images={fixture.images}
+          attachments={fixture.attachments}
         />
       ) : null}
       {props.page === 'band' ? <BandMessage fixture={fixture} width={width} /> : null}

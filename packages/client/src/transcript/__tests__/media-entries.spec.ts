@@ -1,3 +1,4 @@
+import { EAttachmentStore } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { deriveTranscript } from '../derive-transcript'
@@ -17,24 +18,31 @@ const HASH_A = 'a'.repeat(64)
 const HASH_B = 'b'.repeat(64)
 
 describe('operator media', () => {
-  it('carries media on the entry, and keeps a media-only message', () => {
+  it('carries media as an attachment, and keeps a media-only message', () => {
     const events = log([{ type: 'user-said', text: '', media: [media(HASH_A)] }])
-    expect(fromTheOperator(deriveTranscript({ events, signals: [] }))[0]?.media).toEqual([
-      media(HASH_A),
+    expect(fromTheOperator(deriveTranscript({ events, signals: [] }))[0]?.attachments).toEqual([
+      {
+        id: `media:0:${HASH_A}`,
+        name: 'a.png',
+        mediaType: 'image/png',
+        size: 1,
+        content: { store: EAttachmentStore.Media, hash: HASH_A },
+        image: { width: 1, height: 1 },
+      },
     ])
   })
 
-  it('defaults to no media', () => {
+  it('defaults to no attachments', () => {
     const events = log([{ type: 'user-said', text: 'hi' }])
-    expect(fromTheOperator(deriveTranscript({ events, signals: [] }))[0]?.media).toEqual([])
+    expect(fromTheOperator(deriveTranscript({ events, signals: [] }))[0]?.attachments).toEqual([])
   })
 
-  it('concatenates media when messages fold into one block', () => {
+  it('concatenates attachments when messages fold into one block', () => {
     const events = log([
       { type: 'user-said', text: 'one', media: [media(HASH_A)] },
       { type: 'user-said', text: 'two', media: [media(HASH_B)] },
     ])
     const [entry] = fromTheOperator(deriveTranscript({ events, signals: [] }))
-    expect(entry?.media?.map((item) => item.media.hash)).toEqual([HASH_A, HASH_B])
+    expect(entry?.attachments.map((attachment) => attachment.name)).toEqual(['a.png', 'b.png'])
   })
 })

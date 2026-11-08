@@ -12,7 +12,7 @@ const said = (args: { key: string; text: string }): TranscriptEntry => ({
   steer: false,
   skills: [],
   files: [],
-  images: [],
+  attachments: [],
 })
 
 describe('stabilisedEntries', () => {

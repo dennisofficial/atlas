@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
-import type { SaidImage } from '@dltech/atlas-core'
+import { EAttachmentStore, type Attachment } from '@dltech/atlas-core'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -100,12 +100,13 @@ describe('opening an image from the transcript', () => {
   })
 
   test('a click on an image chip opens it, a click on a skill chip does not', async () => {
-    const image: SaidImage = {
-      path: '/remote/paste-1.png',
+    const image: Attachment = {
+      id: 'image:0',
+      name: 'paste-1.png',
       mediaType: 'image/png',
-      data: 'AAAA',
-      width: 10,
-      height: 10,
+      size: 3,
+      content: { store: EAttachmentStore.Inline, data: 'AAAA' },
+      image: { width: 10, height: 10 },
     }
     const opened: OpenableImage[] = []
     const { renderOnce, flush, captureCharFrame, mockMouse, renderer } = await testRender(
@@ -113,7 +114,7 @@ describe('opening an image from the transcript', () => {
         said={['look']}
         width={80}
         skills={['tdd']}
-        images={[image]}
+        attachments={[image]}
         onOpenImage={(picked) => {
           opened.push(picked)
           return true
@@ -134,7 +135,7 @@ describe('opening an image from the transcript', () => {
 
     await mockMouse.click((lines[imageRow]?.indexOf('paste-1') ?? 0) + 1, imageRow)
     await flush()
-    expect(opened).toEqual([{ path: image.path, mediaType: 'image/png', data: 'AAAA' }])
+    expect(opened).toEqual([{ path: image.name, mediaType: 'image/png', data: 'AAAA' }])
     renderer.destroy()
   })
 })

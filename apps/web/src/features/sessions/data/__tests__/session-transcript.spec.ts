@@ -196,7 +196,7 @@ describe('sessionTranscriptOf', () => {
     expect(last?.kind === ETranscriptKind.Agent && last.text).toBe('Hello')
   })
 
-  it('carries the uploads of a user message into its item', () => {
+  it('carries an upload of a user message as an attachment on its item', () => {
     const upload = {
       uploadId: '11111111-1111-4111-8111-111111111111',
       pathname: 'composer-uploads/user-1/11111111-1111-4111-8111-111111111111/deploy.sh',
@@ -208,6 +208,8 @@ describe('sessionTranscriptOf', () => {
 
     const [item] = sessionTranscriptOf(snapshotOf({ events })).items
 
-    expect(item?.kind === ETranscriptKind.User && item.uploads).toEqual([upload])
+    expect(item?.kind === ETranscriptKind.User && item.attachments).toMatchObject([
+      { id: upload.uploadId, name: 'deploy.sh', content: { store: 'upload' } },
+    ])
   })
 })

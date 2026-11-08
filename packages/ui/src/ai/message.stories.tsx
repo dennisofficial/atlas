@@ -55,7 +55,7 @@ export const User: Story = {
       timestamp="2:01 PM"
       copyText="Rebase the ui package on shadcn and keep our colors."
       onEdit={() => {}}
-      attachments={[{ id: '1', label: 'typecheck.log' }]}
+      attachments={[{ id: '1', name: 'typecheck.log' }]}
     >
       Rebase the ui package on shadcn and keep our colors.
     </UserMessage>
@@ -90,7 +90,7 @@ export const UserImageOnly: Story = {
     <UserMessage
       author="Dennis"
       timestamp="9:31 AM"
-      images={[{ id: 'i1', src: SCREENSHOT_SRC, alt: 'shot.png' }]}
+      attachments={[{ id: 'i1', name: 'shot.png', src: SCREENSHOT_SRC }]}
       onRewind={() => {}}
     />
   ),

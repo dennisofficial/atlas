@@ -14,12 +14,10 @@ import {
   applyDiagramRepairs,
   diagramRepairsByMessage,
   repairsForMessage,
+  type Attachment,
   type CallId,
   type DiagramRepairsByMessage,
   type Event,
-  type SaidImage,
-  type SaidMedia,
-  type SaidUpload,
 } from '@dltech/atlas-core'
 
 import {
@@ -53,9 +51,7 @@ export type TranscriptItem = Timed &
         kind: ETranscriptKind.User
         id: string
         text: string
-        images?: readonly SaidImage[]
-        uploads?: readonly SaidUpload[]
-        media?: readonly SaidMedia[]
+        attachments?: readonly Attachment[]
       }
     | {
         kind: ETranscriptKind.Agent
@@ -82,27 +78,13 @@ export type ThreadTranscriptView = {
   streaming: boolean
 }
 
-const previewedNamesOf = (entry: OperatorSaidEntry): ReadonlySet<string> => {
-  const names = new Set<string>(entry.images.map((image) => image.path))
-  for (const item of entry.media ?? []) if (item.source !== undefined) names.add(item.source)
-  return names
-}
-
 function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
-  const images = entry.images.length > 0 ? { images: entry.images } : {}
-  const previewed = previewedNamesOf(entry)
-  const uploads = (entry.uploads ?? []).filter((upload) => !previewed.has(upload.name))
-  const uploadsField = uploads.length > 0 ? { uploads } : {}
-  const media = (entry.media ?? []).length > 0 ? { media: entry.media } : {}
-  const attached = 'images' in images || 'uploads' in uploadsField || 'media' in media
-  if (!attached && entry.text.trim().length === 0) return null
+  if (entry.attachments.length === 0 && entry.text.trim().length === 0) return null
   return {
     kind: ETranscriptKind.User,
     id: entry.key,
     text: entry.text,
-    ...images,
-    ...uploadsField,
-    ...media,
+    ...(entry.attachments.length === 0 ? {} : { attachments: entry.attachments }),
   }
 }
 

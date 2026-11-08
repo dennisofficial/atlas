@@ -1,11 +1,9 @@
 import {
+  attachmentsOf as attachmentsOfSaid,
   currentContextEvents,
   isNoticeArrival,
   latestTldrPerAnchor,
   type Event,
-  type SaidImage,
-  type SaidMedia,
-  type SaidUpload,
 } from '@dltech/atlas-core'
 
 import { entriesOfAssistantEvent, saidWhileToolsWereOutstanding } from './assistant-entries'
@@ -17,10 +15,6 @@ import { toolRuns, type ToolRun } from './tool-runs'
 import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './transcript-model'
 import { turnEndedEntry, turnsBySeq } from './turn-rows'
 import type { TurnSpend } from './turn-spend'
-
-const NOTHING_PICTURED: readonly SaidImage[] = Object.freeze([])
-const NOTHING_UPLOADED: readonly SaidUpload[] = Object.freeze([])
-const NOTHING_MEDIATED: readonly SaidMedia[] = Object.freeze([])
 
 export function durableEntries(args: {
   events: readonly Event[]
@@ -56,9 +50,7 @@ export function durableEntries(args: {
           steer: steers.has(event.id),
           skills: (attached.get(event.id) ?? NOTHING_ATTACHED).skills,
           files: (attached.get(event.id) ?? NOTHING_ATTACHED).files,
-          images: event.images ?? NOTHING_PICTURED,
-          uploads: event.uploads ?? NOTHING_UPLOADED,
-          media: event.media ?? NOTHING_MEDIATED,
+          attachments: attachmentsOfSaid(event),
         },
       ]
     }
