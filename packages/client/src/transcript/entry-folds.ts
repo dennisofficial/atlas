@@ -1,6 +1,4 @@
-import { EExecutionLocation, ELocationChangeCause, type EventOfType } from '@dltech/atlas-core'
-
-import { EAuthor, EEntryKind, type TranscriptEntry } from './transcript-model'
+import { EEntryKind, type TranscriptEntry } from './transcript-model'
 
 export function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntry[] {
   const folded: TranscriptEntry[] = []
@@ -29,34 +27,4 @@ export function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntr
   }
 
   return folded
-}
-
-/**
- * A session starts where it was placed and only moves between host and docker from there: a move to
- * or out of the cloud is the birth's own arrival, not a move the operator needs told about. An
- * expired sandbox still is one, because it takes a running session out of the cloud.
- */
-export const isCloudMove = (event: EventOfType<'location-changed'>): boolean =>
-  event.cause !== ELocationChangeCause.SandboxExpired &&
-  (event.from === EExecutionLocation.Cloud || event.to === EExecutionLocation.Cloud)
-
-export const locationChangedEntry = (args: {
-  key: string
-  to: EExecutionLocation
-  cause?: ELocationChangeCause | undefined
-}): TranscriptEntry => {
-  const text =
-    args.to === EExecutionLocation.Docker
-      ? 'docker container'
-      : args.to === EExecutionLocation.Cloud
-        ? 'cloud sandbox'
-        : 'host'
-  return {
-    kind: EEntryKind.LocationChanged,
-    author: EAuthor.Model,
-    key: args.key,
-    text,
-    to: args.to,
-    cause: args.cause,
-  }
 }

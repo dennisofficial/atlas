@@ -1,12 +1,4 @@
-import type {
-  EExecutionLocation,
-  ELocationChangeCause,
-  EReportKind,
-  ETldrStatus,
-  SaidImage,
-  SaidMedia,
-  SaidUpload,
-} from '@dltech/atlas-core'
+import type { EReportKind, ETldrStatus, SaidImage, SaidMedia, SaidUpload } from '@dltech/atlas-core'
 
 import { runLabel } from './tools'
 import { settled, type ToolRun } from './tool-runs'
@@ -33,7 +25,6 @@ export enum EEntryKind {
   TldrWritten = 'tldr-written',
   TurnEnded = 'turn-ended',
   SandboxNotice = 'sandbox-notice',
-  LocationChanged = 'location-changed',
   Rotated = 'rotated',
   OperatorInput = 'operator-input',
   SystemContext = 'system-context',
@@ -208,15 +199,6 @@ export type SandboxNoticeEntry = {
   failed: boolean
 }
 
-export type LocationChangedEntry = {
-  kind: EEntryKind.LocationChanged
-  author: EAuthor.Model
-  key: string
-  text: string
-  to: EExecutionLocation
-  cause?: ELocationChangeCause | undefined
-}
-
 export type RotatedEntry = {
   kind: EEntryKind.Rotated
   author: EAuthor.Model
@@ -284,7 +266,6 @@ export type TranscriptEntry =
   | TldrWrittenEntry
   | TurnEndedEntry
   | SandboxNoticeEntry
-  | LocationChangedEntry
   | RotatedEntry
   | OperatorInputEntry
   | SystemContextEntry
