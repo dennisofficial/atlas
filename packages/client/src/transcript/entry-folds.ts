@@ -1,6 +1,4 @@
-import { EExecutionLocation, type ELocationChangeCause } from '@dltech/atlas-core'
-
-import { EAuthor, EEntryKind, type TranscriptEntry } from './transcript-model'
+import { EEntryKind, type TranscriptEntry } from './transcript-model'
 
 export function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntry[] {
   const folded: TranscriptEntry[] = []
@@ -27,25 +25,4 @@ export function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntr
   }
 
   return folded
-}
-
-export const locationChangedEntry = (args: {
-  key: string
-  to: EExecutionLocation
-  cause?: ELocationChangeCause | undefined
-}): TranscriptEntry => {
-  const text =
-    args.to === EExecutionLocation.Docker
-      ? 'docker container'
-      : args.to === EExecutionLocation.Cloud
-        ? 'cloud sandbox'
-        : 'host'
-  return {
-    kind: EEntryKind.LocationChanged,
-    author: EAuthor.Model,
-    key: args.key,
-    text,
-    to: args.to,
-    cause: args.cause,
-  }
 }
