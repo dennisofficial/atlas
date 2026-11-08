@@ -16,6 +16,7 @@ export type HeldSessionDeps = {
   ids: IdPort
   appendRetryMs: number
   idleMinutes: number
+  stallAfterMs?: number | undefined
   runtimeFor: SessionRuntimeFactory
   judgeStartFailure?: ((error: unknown) => StartVerdict) | undefined
   reasonOfStartError?: ((error: unknown) => string) | undefined
