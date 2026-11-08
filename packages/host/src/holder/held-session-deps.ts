@@ -1,7 +1,9 @@
+import type { CommandRegistry } from '@dltech/atlas-commands'
 import type { IdPort } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
+import type { CommandHandlers } from './command-intake'
 import type { HostBus, HostTimers, SessionRuntimeFactory } from './ports'
 
 export type StartVerdict = { permanent: boolean; giveUp: boolean }
@@ -17,5 +19,7 @@ export type HeldSessionDeps = {
   runtimeFor: SessionRuntimeFactory
   judgeStartFailure?: ((error: unknown) => StartVerdict) | undefined
   reasonOfStartError?: ((error: unknown) => string) | undefined
+  commands?: CommandRegistry | undefined
+  commandHandlers?: CommandHandlers | undefined
   log?: LogPort | undefined
 }

@@ -1,6 +1,9 @@
+import type { EventDraft, RecordBody } from '@dltech/atlas-core'
+
 export type CommandContext<Args> = {
   args: Args
   sessionId: string
+  append(drafts: readonly (EventDraft | RecordBody)[]): Promise<void>
   log: (message: string) => void
 }
 

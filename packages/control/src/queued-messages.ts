@@ -1,9 +1,11 @@
+import { COMMAND_INBOX_PREFIX } from '@dltech/atlas-commands'
 import type { InboxEntry } from '@dltech/atlas-core'
 import {
   INBOX_KIND_MESSAGE,
   inboxMessageSchema,
   QUEUED_MESSAGES_LIMIT,
   type InboxMessage,
+  type SessionCommandRow,
   type SessionQueuedMessage,
 } from '@dltech/atlas-protocol'
 
@@ -29,6 +31,16 @@ export const queuedOf = (inbox: readonly InboxEntry[]): SessionQueuedMessage[] =
         },
       ]
     })
+    .slice(0, QUEUED_MESSAGES_LIMIT)
+
+export const commandsOf = (inbox: readonly InboxEntry[]): SessionCommandRow[] =>
+  inbox
+    .filter((entry) => entry.kind.startsWith(COMMAND_INBOX_PREFIX))
+    .map((entry) => ({
+      inboxId: entry.inboxId,
+      name: entry.kind.slice(COMMAND_INBOX_PREFIX.length),
+      postedAt: entry.postedAt,
+    }))
     .slice(0, QUEUED_MESSAGES_LIMIT)
 
 const safeJson = (payload: string): unknown => {

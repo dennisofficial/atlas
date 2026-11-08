@@ -1,3 +1,4 @@
+import type { CommandRegistry } from '@dltech/atlas-commands'
 import { toThreadId, type ModelPort } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
@@ -11,6 +12,7 @@ import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protoco
 
 import type { LogPort } from '@dltech/atlas-observability'
 
+import type { CommandHandlers } from '../command-intake'
 import type { PrepareResult, PrepareStepReporter, PullRequestSource } from '../ports'
 import { SessionHolder } from '../session-holder'
 import { FakeBus, FakeClock, flushUntil, SANDBOX, SECRET, SESSION, THREAD } from './rig-fakes'
@@ -67,6 +69,8 @@ export const makeRig = async (args: {
   beforeRuntime?: (() => Promise<void>) | undefined
   beforeRegister?: (() => Promise<void>) | undefined
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
+  commands?: CommandRegistry | undefined
+  commandHandlers?: CommandHandlers | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
 }): Promise<HolderRig> => {
@@ -131,6 +135,8 @@ export const makeRig = async (args: {
     ...(args.isPermanentStartError === undefined
       ? {}
       : { isPermanentStartError: args.isPermanentStartError }),
+    commands: args.commands,
+    commandHandlers: args.commandHandlers,
     ...(args.log === undefined ? {} : { log: args.log }),
     onHostIdChanged: args.onHostIdChanged,
   })

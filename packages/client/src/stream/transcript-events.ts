@@ -30,6 +30,7 @@ const transcriptEventOf = (event: V2Event): Event | null => {
   switch (event.type) {
     case 'history-rewound':
     case 'input-consumed':
+    case 'input-refused':
     case 'fact-recorded':
     case 'retry-scheduled':
     case 'branches-observed':

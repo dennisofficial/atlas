@@ -1,17 +1,21 @@
 import {
+  awaitsReplyOf,
   EInputConsumed,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type EventDraft,
   type InboxEntry,
+  type RecordBody,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
+import type { CommandRegistry } from '@dltech/atlas-commands'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
+import { CommandIntake, isCommandKind, type CommandHandlers } from './command-intake'
 import type { SessionRecord } from './record/record-adapter'
 
 export { INBOX_KIND_STOP }
@@ -22,11 +26,26 @@ export type InboxIntakeArgs = {
   record: SessionRecord
   threadId: ThreadId
   runId: () => RunId
+  commands?: CommandRegistry | undefined
+  handlers?: CommandHandlers | undefined
   log?: LogPort | undefined
 }
 
 export class InboxIntake implements AgentIntake {
-  constructor(private readonly args: InboxIntakeArgs) {}
+  private readonly commandIntake: CommandIntake | undefined
+
+  constructor(private readonly args: InboxIntakeArgs) {
+    this.commandIntake =
+      args.commands === undefined
+        ? undefined
+        : new CommandIntake({
+            commands: args.commands,
+            handlers: args.handlers ?? new Map(),
+            sessionId: args.sessionId,
+            append: (drafts) => this.appendDrafts(drafts),
+            log: args.log,
+          })
+  }
 
   async prepare(): Promise<PendingDrain> {
     const entries = await this.fetch()
@@ -56,9 +75,36 @@ export class InboxIntake implements AgentIntake {
         wakesTurn = true
         continue
       }
+      if (isCommandKind(entry.kind)) {
+        await this.runCommand(entry)
+        continue
+      }
       await this.consumeUnknown(entry)
     }
     return { drafts, wakesTurn }
+  }
+
+  private async runCommand(entry: InboxEntry): Promise<void> {
+    const resolved = this.commandIntake?.resolve(entry)
+    if (this.commandIntake === undefined || resolved === undefined) {
+      await this.consumeUnknown(entry)
+      return
+    }
+    if (await this.turnOpen()) return
+    await this.commandIntake.run({ entry, ...resolved })
+  }
+
+  private async turnOpen(): Promise<boolean> {
+    const state = await this.args.record.loopState({ threadId: this.args.threadId })
+    return awaitsReplyOf(state)
+  }
+
+  private async appendDrafts(drafts: readonly (EventDraft | RecordBody)[]): Promise<void> {
+    await this.args.record.append({
+      threadId: this.args.threadId,
+      runId: this.args.runId(),
+      drafts,
+    })
   }
 
   private async consumeUnknown(entry: InboxEntry): Promise<void> {

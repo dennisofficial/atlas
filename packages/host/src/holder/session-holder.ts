@@ -1,3 +1,4 @@
+import type { CommandRegistry } from '@dltech/atlas-commands'
 import {
   EHeldOutcome,
   startVerdict,
@@ -11,6 +12,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { HostBus, HostPresence, HostTimers, SessionRuntimeFactory } from './ports'
 import { ClaimLoop } from './claim-loop'
+import type { CommandHandlers } from './command-intake'
 import { HeldSession, type HeldSessionDeps } from './held-session'
 import { HolderPresence } from './holder-presence'
 import { auditOwnLeases } from './own-lease-audit'
@@ -31,6 +33,8 @@ export type SessionHolderArgs = {
   sweepMs?: number | undefined
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
   reasonOfStartError?: ((error: unknown) => string) | undefined
+  commands?: CommandRegistry | undefined
+  commandHandlers?: CommandHandlers | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
 }
@@ -53,6 +57,8 @@ export class SessionHolder {
   private readonly idleMinutes: number
   private readonly isPermanentStartError: (error: unknown) => boolean
   private readonly reasonOfStartError: ((error: unknown) => string) | undefined
+  private readonly commands: CommandRegistry | undefined
+  private readonly commandHandlers: CommandHandlers | undefined
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
@@ -84,6 +90,8 @@ export class SessionHolder {
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.isPermanentStartError = args.isPermanentStartError ?? (() => false)
     this.reasonOfStartError = args.reasonOfStartError
+    this.commands = args.commands
+    this.commandHandlers = args.commandHandlers
     this.log = args.log
     this.settler = new LeaseSettler({
       plane: args.plane,
@@ -262,6 +270,8 @@ export class SessionHolder {
           permanent: this.isPermanentStartError(error),
         }),
       reasonOfStartError: this.reasonOfStartError,
+      commands: this.commands,
+      commandHandlers: this.commandHandlers,
       log: this.log,
     }
   }
