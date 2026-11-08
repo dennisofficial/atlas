@@ -47,12 +47,15 @@ export const toStoredEvent = (params: { event: V2Event; hash: Hash }): StoredEve
   canonical: canonicalEvent(params.event),
 })
 
-export function decodeStoredEvent(row: StoredEvent): V2Event {
+export function decodeStoredEvent(
+  row: StoredEvent,
+  eventSchema: z.ZodType<V2Event> = v2EventSchema,
+): V2Event {
   const digest = sha256Hex(new TextEncoder().encode(row.canonical))
   if (digest !== row.hash) {
     throw new RecordCorruptError(`hash mismatch at ${row.threadId}:${row.seq}`)
   }
-  const parsed = v2EventSchema.safeParse(JSON.parse(row.canonical))
+  const parsed = eventSchema.safeParse(JSON.parse(row.canonical))
   if (!parsed.success) {
     throw new RecordCorruptError(`stored event ${row.threadId}:${row.seq} is invalid`)
   }

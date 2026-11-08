@@ -1,5 +1,6 @@
 import type { V2Event, V2EventType, VisibleSegment } from '@dltech/atlas-core'
 import { visibleSegments } from '@dltech/atlas-core'
+import type { z } from 'zod'
 
 import type { ControlTx, StoredEvent, ThreadRow } from './port'
 import { decodeStoredEvent, decodeVisibility } from './stored-event'
@@ -75,6 +76,7 @@ export const readEventsIn = async (params: {
   visible: boolean
   hiddenTypes?: readonly V2EventType[] | undefined
   maxBytes?: number | undefined
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<ReadEventsPage> => {
   const { tx, row } = params
   const segments = segmentsOf({
@@ -99,7 +101,7 @@ export const readEventsIn = async (params: {
     params.maxBytes === undefined
       ? { kept: rows, stoppedEarly: false }
       : boundRowsByBytes(rows, params.maxBytes)
-  const events = bounded.kept.map(decodeStoredEvent)
+  const events = bounded.kept.map((stored) => decodeStoredEvent(stored, params.eventSchema))
   const last = events[events.length - 1]
   const more =
     last !== undefined &&
