@@ -10,6 +10,7 @@ import {
   type Event,
   type EventDraft,
   type InboxEntry,
+  type ModelPort,
   type RecordBody,
 } from '@dltech/atlas-core'
 import type { LogPort } from '@dltech/atlas-observability'
@@ -22,6 +23,7 @@ export type CommandIntakeArgs = {
   commands: CommandRegistry
   handlers: CommandHandlers
   sessionId: string
+  model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
   append(drafts: readonly (EventDraft | RecordBody)[]): Promise<void>
   log?: LogPort | undefined
@@ -61,6 +63,7 @@ export class CommandIntake {
     const context: CommandContext<unknown> = {
       args: parsed.data,
       sessionId: this.args.sessionId,
+      model: this.args.model,
       visibleEvents: this.args.visibleEvents,
       append: this.args.append,
       log: (message) =>

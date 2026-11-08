@@ -1,8 +1,9 @@
-import type { Event, EventDraft, RecordBody } from '@dltech/atlas-core'
+import type { Event, EventDraft, ModelPort, RecordBody } from '@dltech/atlas-core'
 
 export type CommandContext<Args> = {
   args: Args
   sessionId: string
+  model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
   append(drafts: readonly (EventDraft | RecordBody)[]): Promise<void>
   log: (message: string) => void
