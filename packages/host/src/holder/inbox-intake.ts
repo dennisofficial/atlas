@@ -16,6 +16,7 @@ import type { CommandRegistry } from '@dltech/atlas-commands'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
+import { INBOX_INTAKE_MAX_PAGES, readInboxPages } from './held-inbox'
 import { CommandIntake, isCommandKind, type CommandHandlers } from './command-intake'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -155,10 +156,10 @@ export class InboxIntake implements AgentIntake {
 
   private async fetch(): Promise<InboxEntry[]> {
     try {
-      return await this.args.plane.readInbox({
+      return await readInboxPages({
+        plane: this.args.plane,
         sessionId: this.args.sessionId,
-        afterId: 0,
-        limit: 100,
+        maxPages: INBOX_INTAKE_MAX_PAGES,
       })
     } catch (error) {
       this.args.log?.error({

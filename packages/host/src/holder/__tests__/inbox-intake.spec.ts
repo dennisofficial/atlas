@@ -219,6 +219,50 @@ describe('InboxIntake unresolvable commands', () => {
     expect(appended).toHaveLength(1)
   })
 
+  it('still drafts a message that sits behind more than one page of left commands', async () => {
+    const left = Array.from({ length: 101 }, (_, index) => ghost({ inboxId: index + 1 }))
+    const all = [...left, entry(102)]
+    const reads: number[] = []
+    const intake = new InboxIntake({
+      plane: {
+        readInbox: async ({ afterId, limit }: { afterId: number; limit: number }) => {
+          reads.push(afterId)
+          return all.filter((candidate) => candidate.inboxId > afterId).slice(0, limit)
+        },
+      } as unknown as ControlPlane,
+      sessionId: 'session-1',
+      record: { append: async () => [] } as unknown as SessionRecord,
+      threadId: toThreadId('thread-1'),
+      runId: () => toRunId('run-1'),
+      now: () => NOW,
+    })
+    const drain = await intake.prepare()
+    expect(reads).toEqual([0, 100])
+    expect(drain.wakesTurn).toBe(true)
+    expect(drain.drafts).toEqual([
+      { type: 'user-said', text: 'm102', requestId: 'inbox:102', inboxId: 102 },
+    ])
+  })
+
+  it('stops reading after ten pages', async () => {
+    let reads = 0
+    const intake = new InboxIntake({
+      plane: {
+        readInbox: async ({ afterId }: { afterId: number }) => {
+          reads += 1
+          return Array.from({ length: 100 }, (_, index) => ghost({ inboxId: afterId + index + 1 }))
+        },
+      } as unknown as ControlPlane,
+      sessionId: 'session-1',
+      record: {} as SessionRecord,
+      threadId: toThreadId('thread-1'),
+      runId: () => toRunId('run-1'),
+      now: () => NOW,
+    })
+    await intake.prepare()
+    expect(reads).toBe(10)
+  })
+
   it('still consumes a non-command unknown kind as discarded immediately', async () => {
     const { drain, appended, warnings } = await run({
       entry: { ...entry(8), kind: 'mystery', payload: '{}' },
