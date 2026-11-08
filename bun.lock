@@ -34,6 +34,7 @@
         "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
+        "@dltech/atlas-plugin-shells": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dotenvx/dotenvx": "^1.71.0",
         "@types/pg": "^8",
@@ -64,6 +65,7 @@
         "@dltech/atlas-native-commands": "workspace:*",
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
+        "@dltech/atlas-plugin-shells": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@dotenvx/dotenvx": "^1.71.0",
@@ -558,6 +560,7 @@
       "devDependencies": {
         "@dltech/atlas-daemon": "workspace:*",
         "@dltech/atlas-native-commands": "workspace:*",
+        "@dltech/atlas-plugin-shells": "workspace:*",
         "@types/bun": "latest",
         "@vscode/ripgrep": "^1.18.0",
       },
@@ -741,6 +744,20 @@
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
+        "@dltech/atlas-plugin-sdk": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "plugins/shells": {
+      "name": "@dltech/atlas-plugin-shells",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-agent": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "zod": "^4.4.3",
@@ -1192,6 +1209,8 @@
     "@dltech/atlas-plugin-github": ["@dltech/atlas-plugin-github@workspace:plugins/github"],
 
     "@dltech/atlas-plugin-sdk": ["@dltech/atlas-plugin-sdk@workspace:packages/plugin-sdk"],
+
+    "@dltech/atlas-plugin-shells": ["@dltech/atlas-plugin-shells@workspace:plugins/shells"],
 
     "@dltech/atlas-preview-worker": ["@dltech/atlas-preview-worker@workspace:apps/preview-worker"],
 
