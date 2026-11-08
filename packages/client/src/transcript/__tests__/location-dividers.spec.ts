@@ -11,17 +11,7 @@ const dividerCount = (events: Parameters<typeof deriveTranscript>[0]['events']):
   ).length
 
 describe('location dividers', () => {
-  it('shows a logged move between host and cloud', () => {
-    const moved = log([
-      { type: 'user-said', text: 'take it up' },
-      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
-      { type: 'user-said', text: 'keep it going from up there' },
-    ])
-
-    expect(dividerCount(moved)).toBe(1)
-  })
-
-  it('shows a logged born-cloud arrival', () => {
+  it('says nothing about a session that started in the cloud', () => {
     const bornCloud = log([
       { type: 'user-said', text: 'start in the cloud' },
       {
@@ -32,7 +22,21 @@ describe('location dividers', () => {
       },
     ])
 
-    expect(dividerCount(bornCloud)).toBe(1)
+    expect(dividerCount(bornCloud)).toBe(0)
+  })
+
+  it('says nothing about a logged move to or from the cloud', () => {
+    const up = log([
+      { type: 'user-said', text: 'take it up' },
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+    ])
+    const down = log([
+      { type: 'user-said', text: 'bring it back' },
+      { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host },
+    ])
+
+    expect(dividerCount(up)).toBe(0)
+    expect(dividerCount(down)).toBe(0)
   })
 
   it('keeps a genuine host-to-docker move', () => {

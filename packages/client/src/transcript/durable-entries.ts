@@ -10,7 +10,7 @@ import {
 
 import { entriesOfAssistantEvent, saidWhileToolsWereOutstanding } from './assistant-entries'
 import { contextLoadedWith, contextRuns, NOTHING_ATTACHED } from './context-entries'
-import { inOneBreath, locationChangedEntry } from './entry-folds'
+import { inOneBreath, isCloudMove, locationChangedEntry } from './entry-folds'
 import { noticeEntriesOf } from './notice-entries'
 import { attachmentsOf } from './tool-attachments'
 import { toolRuns, type ToolRun } from './tool-runs'
@@ -115,6 +115,7 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'location-changed') {
+      if (isCloudMove(event)) return []
       return [locationChangedEntry({ key: event.id, to: event.to, cause: event.cause })]
     }
 
