@@ -1,4 +1,5 @@
 import type { ChannelSignal, StepSignal } from '@dltech/atlas-client/channel'
+import type { Attachment } from '@dltech/atlas-core'
 import type { OperatorInputRequestWire } from '@dltech/atlas-wire/web'
 import { randomUUID } from 'expo-crypto'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
@@ -24,7 +25,7 @@ export type LiveThread = ThreadView & {
   connection: string | null
   title: string | null
   operatorInput: OperatorInputRequestWire | null
-  send: (text: string) => Promise<boolean>
+  send: (message: { text: string; attachments: readonly Attachment[] }) => Promise<boolean>
   stop: () => void
   retry: () => void
   submitOperatorInput: (value: string) => Promise<string | null>
@@ -143,15 +144,22 @@ export function useThread(threadId: string | undefined): LiveThread {
   }, [api, threadId, state.loaded, state.working, state.events])
 
   const send = useCallback(
-    async (text: string): Promise<boolean> => {
+    async (message: { text: string; attachments: readonly Attachment[] }): Promise<boolean> => {
       if (api === undefined || threadId === undefined) return false
-      const trimmed = text.trim()
-      if (trimmed.length === 0) return false
+      const text = message.text.trim()
+      const attachments = [...message.attachments]
+      if (text.length === 0 && attachments.length === 0) return false
       const sendId = randomUUID()
       const channel = channelRef.current
-      if (channel?.send({ text: trimmed, requestId: sendId })) return true
+      if (channel?.send({ text, requestId: sendId, attachments })) return true
+      if (text.length === 0) return false
       try {
-        await api.threadMessages.send.mutate({ threadId, sendId, text: trimmed })
+        await api.threadMessages.send.mutate({
+          threadId,
+          sendId,
+          text,
+          ...(attachments.length === 0 ? {} : { attachments }),
+        })
       } catch {
         return false
       }
