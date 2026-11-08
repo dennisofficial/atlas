@@ -47,6 +47,24 @@ describe('pod-delivered agent settings', () => {
     expect(verdictOf({ key: 'web.searchBackend', value: 'searxng' }).ok).toBe(true)
   })
 
+  it('takes an effort or inherit for sub-agents, and only a rung for one type', () => {
+    expect(CLOUD_SETTING_REGISTRY.has('agents.subagentEffort')).toBe(true)
+    expect(CLOUD_SETTING_REGISTRY.has('agents.type.explore.effort')).toBe(false)
+    for (const key of ['agents.subagentEffort', 'agents.type.explore.effort']) {
+      expect(verdictOf({ key, value: '' }).ok).toBe(true)
+      expect(verdictOf({ key, value: 'high' }).ok).toBe(true)
+      expect(verdictOf({ key, value: 'anthropic/claude-opus-5' }).ok).toBe(false)
+      expect(verdictOf({ key, value: 'loud' }).ok).toBe(false)
+    }
+  })
+
+  it('keeps a model reference out of the effort keys and an effort out of the model keys', () => {
+    expect(verdictOf({ key: 'agents.type.explore', value: 'anthropic/claude-opus-5' }).ok).toBe(
+      true,
+    )
+    expect(verdictOf({ key: 'agents.type.explore', value: 'high' }).ok).toBe(false)
+  })
+
   it('matches the core registry values byte-for-byte', () => {
     const sorted = (values: readonly string[]): string[] => [...values].sort()
     expect(sorted(Object.values(EClassifierModeWire))).toEqual(sorted(CORE_CLASSIFIER_MODES))

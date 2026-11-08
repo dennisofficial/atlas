@@ -18,6 +18,7 @@ import {
   DEFAULT_DECISIONS_PROVIDER,
   EDecisionsProvider,
 } from './decisions-presets'
+import { EFFORT_OPTIONS_WITH_INHERIT, INHERIT_EFFORT } from './effort-rows'
 import { ESettingsLayer } from './layers'
 import { choiceValueOf, type SettingsResolution } from './resolve'
 import { ESettingKind, type SettingOption } from './value'
@@ -71,6 +72,7 @@ export enum ESettingId {
   CompactionModel = 'model.compactionModel',
   ModelFavourites = 'model.favourites',
   SubagentModel = 'agents.subagentModel',
+  SubagentEffort = 'agents.subagentEffort',
   ExecutionLocation = 'execution.location',
   LastBornPlacement = 'placement.lastBorn',
   ContainerCpus = 'container.cpus',
@@ -655,6 +657,18 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     kind: ESettingKind.Model,
     fallback: '',
     unsetLabel: 'inherit conversation',
+  },
+  {
+    id: ESettingId.SubagentEffort,
+    page: ESettingPage.Models,
+    group: 'Background processes',
+    label: 'Sub-agent effort',
+    description:
+      'How hard every sub-agent thinks before it answers, unless its own type is given an effort below. Left on inherit, a sub-agent thinks as hard as the agent that spawned it. A model that offers no budget ignores it.',
+    environmentVariable: 'ATLAS_SUBAGENT_EFFORT',
+    kind: ESettingKind.Choice,
+    fallback: INHERIT_EFFORT,
+    options: EFFORT_OPTIONS_WITH_INHERIT,
   },
   {
     id: ESettingId.DecisionsProvider,

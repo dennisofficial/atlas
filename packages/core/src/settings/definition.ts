@@ -33,6 +33,8 @@ type SettingFacts = {
   writeLayer?: ESettingsLayer.User | ESettingsLayer.Project
   storage?: ESettingStorage
   visibleWhen?: (args: { resolution: SettingsResolution }) => boolean
+  /** Present when the row is one agent type's own choice rather than a global one. */
+  agentType?: AgentTypeModelSource
 }
 
 export type ToggleDefinition = SettingFacts & {

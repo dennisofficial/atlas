@@ -1,5 +1,5 @@
 import {
-  agentTypeModelDefinitions,
+  agentTypeDefinitions,
   EDefinitionOrigin,
   agentTypeSettingId,
   choiceValueOf,
@@ -123,7 +123,8 @@ describe('the model-kind settings rows', () => {
   it('opens an unset teammate picker on the current main agent rather than the sub-agent model', async () => {
     const app = appWith()
     app.settings.register(
-      agentTypeModelDefinitions({
+      agentTypeDefinitions({
+        effortRungsOf: () => undefined,
         types: [{ name: 'teammate', origin: EDefinitionOrigin.BuiltIn }],
       }),
     )

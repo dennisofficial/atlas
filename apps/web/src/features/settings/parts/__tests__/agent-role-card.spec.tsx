@@ -8,7 +8,13 @@ import { EEffortLevel } from '@dltech/atlas-wire/web'
 
 import type { ModelPicker } from '@/features/threads/data/use-model-picker'
 
-import { EAgentRole, ROLE_META, type RoleSetting } from '../../fixtures/settings-agent'
+import {
+  BUILT_IN_AGENT_META,
+  EAgentRole,
+  EBuiltInAgentType,
+  ROLE_META,
+  type RoleSetting,
+} from '../../fixtures/settings-agent'
 
 mock.module('next/navigation', () => ({
   useRouter: () => ({ push: () => {} }),
@@ -19,7 +25,12 @@ const { RoleCard } = await import('../agent-role-card')
 const MAIN_META = ROLE_META[EAgentRole.Main]
 
 const MODELS = [
-  { id: 'mock/full', label: 'Full Ladder', provider: 'Mock', efforts: Object.values(EEffort) },
+  {
+    id: 'mock/full',
+    label: 'Full Ladder',
+    provider: 'Mock',
+    efforts: Object.values(EEffort),
+  },
   {
     id: 'mock/narrow',
     label: 'Narrow',
@@ -183,5 +194,104 @@ describe('RoleCard effort row', () => {
     await pickModel(element, 'No Effort')
 
     expect(changes).toEqual([{ model: 'mock/none', effort: EEffortLevel.Medium }])
+  })
+})
+
+const BUILDER_META = BUILT_IN_AGENT_META[EBuiltInAgentType.Builder]
+
+const choiceLabels = (element: HTMLElement): string[] =>
+  [...element.querySelectorAll('[data-slot="toggle-group-item"]')].map(
+    (item) => item.textContent ?? '',
+  )
+
+async function pressChoice(element: HTMLElement, label: string): Promise<void> {
+  const item = [...element.querySelectorAll('[data-slot="toggle-group-item"]')].find(
+    (candidate) => candidate.textContent === label,
+  )
+  if (!(item instanceof HTMLElement)) throw new Error(`no item ${label}`)
+  await act(async () => {
+    item.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+  })
+}
+
+describe('RoleCard inheriting effort', () => {
+  it('shows an Inherit item and no slider', async () => {
+    const element = await render(
+      <RoleCard
+        meta={BUILDER_META}
+        setting={{ model: 'auto' }}
+        picker={picker}
+        onChange={() => {}}
+      />,
+    )
+    expect(choiceLabels(element)[0]).toBe('Inherit')
+    expect(element.querySelector('input[type="range"]')).toBeNull()
+  })
+
+  it('reports the chosen rung and then undefined for Inherit', async () => {
+    const changes: RoleSetting[] = []
+    const element = await render(
+      <RoleCard
+        meta={BUILDER_META}
+        setting={{ model: 'auto', effort: EEffortLevel.Low }}
+        picker={picker}
+        onChange={(next) => changes.push(next)}
+      />,
+    )
+    await pressChoice(element, 'High')
+    await pressChoice(element, 'Inherit')
+    expect(changes).toEqual([{ model: 'auto', effort: EEffortLevel.High }, { model: 'auto' }])
+  })
+
+  it('offers only the rungs a narrow model supports', async () => {
+    const element = await render(
+      <RoleCard
+        meta={BUILDER_META}
+        setting={{ model: 'mock/narrow' }}
+        picker={picker}
+        onChange={() => {}}
+      />,
+    )
+    expect(choiceLabels(element)).toEqual(['Inherit', 'Off', 'Low', 'High', 'Max'])
+  })
+
+  it('hides the row for a model with no effort map', async () => {
+    const element = await render(
+      <RoleCard
+        meta={BUILDER_META}
+        setting={{ model: 'mock/none' }}
+        picker={picker}
+        onChange={() => {}}
+      />,
+    )
+    expect(choiceLabels(element)).toHaveLength(0)
+  })
+
+  it('keeps an inherited effort undefined across a model change', async () => {
+    const changes: RoleSetting[] = []
+    const element = await render(
+      <RoleCard
+        meta={BUILDER_META}
+        setting={{ model: 'mock/full' }}
+        picker={picker}
+        onChange={(next) => changes.push(next)}
+      />,
+    )
+    await pickModel(element, 'Narrow')
+    expect(changes).toEqual([{ model: 'mock/narrow' }])
+  })
+
+  it('clamps a concrete effort when switching to a narrower model', async () => {
+    const changes: RoleSetting[] = []
+    const element = await render(
+      <RoleCard
+        meta={BUILDER_META}
+        setting={{ model: 'mock/full', effort: EEffortLevel.Medium }}
+        picker={picker}
+        onChange={(next) => changes.push(next)}
+      />,
+    )
+    await pickModel(element, 'Narrow')
+    expect(changes).toEqual([{ model: 'mock/narrow', effort: EEffortLevel.High }])
   })
 })

@@ -5,7 +5,8 @@ import { join } from 'node:path'
 import type { MockLanguageModelV4 } from 'ai/test'
 
 import {
-  agentTypeModelDefinitions,
+  agentTypeDefinitions,
+  agentTypeEffortSettingId,
   agentTypeSettingId,
   ATLAS_SETTINGS,
   catalogOf,
@@ -245,11 +246,43 @@ export const pinType = (
   args: { type: string; ref: ModelRef },
 ): void => {
   fixture.settings.register(
-    agentTypeModelDefinitions({ types: [{ name: args.type, origin: EDefinitionOrigin.BuiltIn }] }),
+    agentTypeDefinitions({
+      types: [{ name: args.type, origin: EDefinitionOrigin.BuiltIn }],
+      effortRungsOf: () => undefined,
+    }),
   )
   const written = fixture.settings.set({
     id: agentTypeSettingId(args.type),
     value: keyOf(args.ref),
   })
   if (!written.ok) throw new Error('the agent-type model pin did not land')
+}
+
+export const pinSubagentEffort = (fixture: ChildModelFixture, effort: EffortValue | ''): void => {
+  const written = fixture.settings.set({ id: ESettingId.SubagentEffort, value: effort })
+  if (!written.ok) throw new Error('the subagent effort pin did not land')
+}
+
+export const pinTypeEffort = (
+  fixture: ChildModelFixture,
+  args: { type: string; effort: EffortValue | ''; model?: ModelRef },
+): void => {
+  fixture.settings.register(
+    agentTypeDefinitions({
+      types: [{ name: args.type, origin: EDefinitionOrigin.BuiltIn }],
+      effortRungsOf: () => undefined,
+    }),
+  )
+  if (args.model !== undefined) {
+    const modelWritten = fixture.settings.set({
+      id: agentTypeSettingId(args.type),
+      value: keyOf(args.model),
+    })
+    if (!modelWritten.ok) throw new Error('the agent-type model pin did not land')
+  }
+  const written = fixture.settings.set({
+    id: agentTypeEffortSettingId(args.type),
+    value: args.effort,
+  })
+  if (!written.ok) throw new Error('the agent-type effort pin did not land')
 }

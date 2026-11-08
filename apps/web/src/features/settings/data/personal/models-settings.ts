@@ -15,16 +15,30 @@ import {
 } from '../../fixtures/settings-agent'
 import { diffChanges, settingBool, settingString } from './settings-values'
 
-type RoleKeys = { model: string; effort?: string; fast?: string }
+type RoleKeys = {
+  model: string
+  effort?: string
+  fast?: string
+  effortInherits?: boolean
+}
 
 export const ROLE_KEYS: Record<EAgentRole, RoleKeys> = {
-  [EAgentRole.Main]: { model: 'model.id', effort: 'model.effort', fast: 'model.fast' },
-  [EAgentRole.Subagents]: { model: 'agents.subagentModel' },
+  [EAgentRole.Main]: {
+    model: 'model.id',
+    effort: 'model.effort',
+    fast: 'model.fast',
+  },
+  [EAgentRole.Subagents]: {
+    model: 'agents.subagentModel',
+    effort: 'agents.subagentEffort',
+    effortInherits: true,
+  },
   [EAgentRole.Quick]: { model: 'model.quickModel' },
   [EAgentRole.Compaction]: { model: 'model.compactionModel' },
 }
 
 export const TEAMMATE_MODEL_KEY = 'agents.type.teammate'
+export const TEAMMATE_EFFORT_KEY = 'agents.type.teammate.effort'
 
 export const BUILT_IN_MODEL_KEYS: Record<EBuiltInAgentType, string> = {
   [EBuiltInAgentType.Builder]: 'agents.type.builder',
@@ -32,6 +46,14 @@ export const BUILT_IN_MODEL_KEYS: Record<EBuiltInAgentType, string> = {
   [EBuiltInAgentType.GeneralPurpose]: 'agents.type.general-purpose',
   [EBuiltInAgentType.Preview]: 'agents.type.preview',
   [EBuiltInAgentType.Reviewer]: 'agents.type.reviewer',
+}
+
+export const BUILT_IN_EFFORT_KEYS: Record<EBuiltInAgentType, string> = {
+  [EBuiltInAgentType.Builder]: 'agents.type.builder.effort',
+  [EBuiltInAgentType.Explore]: 'agents.type.explore.effort',
+  [EBuiltInAgentType.GeneralPurpose]: 'agents.type.general-purpose.effort',
+  [EBuiltInAgentType.Preview]: 'agents.type.preview.effort',
+  [EBuiltInAgentType.Reviewer]: 'agents.type.reviewer.effort',
 }
 
 export const PRESET_KEY = 'web.models.preset'
@@ -50,21 +72,35 @@ export const modelFromStored = (stored: string): string => (stored === '' ? AUTO
 
 export const modelToStored = (model: string): string => (model === AUTO_MODEL ? '' : model)
 
+const inheritedEffortFrom = (stored: string): { effort?: EEffortLevel } =>
+  isEffortLevel(stored) ? { effort: stored } : {}
+
 const roleFromKeys = (args: { values: SettingValues; keys: RoleKeys }): RoleSetting => {
   const model = modelFromStored(settingString({ values: args.values, key: args.keys.model }))
   if (args.keys.effort === undefined) return { model }
+  const stored = settingString({ values: args.values, key: args.keys.effort })
   return {
     model,
-    effort: effortFromStored(settingString({ values: args.values, key: args.keys.effort })),
+    ...(args.keys.effortInherits === true
+      ? inheritedEffortFrom(stored)
+      : { effort: effortFromStored(stored) }),
     ...(args.keys.fast === undefined
       ? {}
       : { fast: settingBool({ values: args.values, key: args.keys.fast }) }),
   }
 }
 
-const agentTypeModelFrom = (args: { values: SettingValues; key: string }): RoleSetting => {
-  const stored = args.values.get(args.key)
-  return { model: modelFromStored(typeof stored === 'string' ? stored : '') }
+const agentTypeSettingFrom = (args: {
+  values: SettingValues
+  modelKey: string
+  effortKey: string
+}): RoleSetting => {
+  const model = args.values.get(args.modelKey)
+  const effort = args.values.get(args.effortKey)
+  return {
+    model: modelFromStored(typeof model === 'string' ? model : ''),
+    ...inheritedEffortFrom(typeof effort === 'string' ? effort : ''),
+  }
 }
 
 export function modelsConfigFrom(values: SettingValues): ModelsConfig {
@@ -79,10 +115,18 @@ export function modelsConfigFrom(values: SettingValues): ModelsConfig {
 
 export function modelsDraftFrom(values: SettingValues): ModelsDraft {
   const builtIn = (type: EBuiltInAgentType): RoleSetting =>
-    agentTypeModelFrom({ values, key: BUILT_IN_MODEL_KEYS[type] })
+    agentTypeSettingFrom({
+      values,
+      modelKey: BUILT_IN_MODEL_KEYS[type],
+      effortKey: BUILT_IN_EFFORT_KEYS[type],
+    })
   return {
     roles: modelsConfigFrom(values),
-    teammate: agentTypeModelFrom({ values, key: TEAMMATE_MODEL_KEY }),
+    teammate: agentTypeSettingFrom({
+      values,
+      modelKey: TEAMMATE_MODEL_KEY,
+      effortKey: TEAMMATE_EFFORT_KEY,
+    }),
     builtIns: {
       [EBuiltInAgentType.Builder]: builtIn(EBuiltInAgentType.Builder),
       [EBuiltInAgentType.Explore]: builtIn(EBuiltInAgentType.Explore),
@@ -100,7 +144,7 @@ const withoutFast = (
   for (const role of ROLES) {
     const setting = roles[role]
     stripped[role] =
-      setting.effort === undefined
+      setting.effort === undefined || ROLE_KEYS[role].effortInherits === true
         ? { model: setting.model }
         : { model: setting.model, effort: setting.effort }
   }
@@ -121,9 +165,18 @@ const flattenRoles = (roles: ModelsConfig): Record<string, string | boolean> => 
     const keys = ROLE_KEYS[role]
     flat[keys.model] = modelToStored(roles[role].model)
     const effort = roles[role].effort
-    if (keys.effort !== undefined && effort !== undefined) flat[keys.effort] = effort
+    if (keys.effort !== undefined) flat[keys.effort] = effort ?? ''
     const fast = roles[role].fast
     if (keys.fast !== undefined && fast !== undefined) flat[keys.fast] = fast
+  }
+  return flat
+}
+
+const presetRelevantFlat = (roles: ModelsConfig): Record<string, string | boolean> => {
+  const flat = flattenRoles(roles)
+  for (const role of ROLES) {
+    const keys = ROLE_KEYS[role]
+    if (keys.effort !== undefined && keys.effortInherits === true) delete flat[keys.effort]
   }
   return flat
 }
@@ -131,8 +184,10 @@ const flattenRoles = (roles: ModelsConfig): Record<string, string | boolean> => 
 const flatten = (config: ModelsDraft): Record<string, string | boolean> => {
   const flat = flattenRoles(config.roles)
   flat[TEAMMATE_MODEL_KEY] = modelToStored(config.teammate.model)
+  flat[TEAMMATE_EFFORT_KEY] = config.teammate.effort ?? ''
   for (const type of BUILT_IN_AGENT_ORDER) {
     flat[BUILT_IN_MODEL_KEYS[type]] = modelToStored(config.builtIns[type].model)
+    flat[BUILT_IN_EFFORT_KEYS[type]] = config.builtIns[type].effort ?? ''
   }
   return flat
 }
@@ -143,8 +198,8 @@ export function modelsChanges(args: { saved: ModelsDraft; draft: ModelsDraft }):
     draft: flatten(args.draft),
   })
   const roleChanges = diffChanges({
-    saved: flattenRoles(args.saved.roles),
-    draft: flattenRoles(args.draft.roles),
+    saved: presetRelevantFlat(args.saved.roles),
+    draft: presetRelevantFlat(args.draft.roles),
   })
   if (Object.keys(roleChanges).length === 0) return changes
   const preset = activePresetOf(args.draft.roles)
