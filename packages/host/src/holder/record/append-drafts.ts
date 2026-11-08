@@ -1,4 +1,4 @@
-import type { EventDraft, RecordBody, V2Body } from '@dltech/atlas-core'
+import type { EventDraft, PluginEventBody, RecordBody, V2Body } from '@dltech/atlas-core'
 
 export class RecordCorruptionError extends Error {
   constructor(message: string) {
@@ -7,7 +7,7 @@ export class RecordCorruptionError extends Error {
   }
 }
 
-export type AppendBody = EventDraft | RecordBody
+export type AppendBody = EventDraft | RecordBody | PluginEventBody
 
 export const toRecordBody = (draft: AppendBody): V2Body => {
   if (draft.type === 'history-compacted') {

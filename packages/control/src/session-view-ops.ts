@@ -8,6 +8,7 @@ import {
   type SessionViewState,
   type V2Event,
 } from '@dltech/atlas-core'
+import type { z } from 'zod'
 
 import { UnknownThreadError } from './errors'
 import type { ControlTx, SessionPullRequestRow, SessionViewRow, ThreadRow } from './port'
@@ -43,6 +44,7 @@ export const rebuildFromTail = async (args: {
   tx: ControlTx
   row: ThreadRow
   state: SessionViewState
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<SessionViewState> => {
   const tail = await readEventsIn({
     tx: args.tx,
@@ -50,6 +52,7 @@ export const rebuildFromTail = async (args: {
     afterSeq: Math.max(0, args.row.headSeq - VIEW_TAIL_LIMIT),
     limit: VIEW_TAIL_LIMIT,
     visible: true,
+    eventSchema: args.eventSchema,
   })
   return rebuildEditSensitive({ state: args.state, visibleTail: tail.events })
 }
@@ -83,6 +86,7 @@ export const ensureSessionViewIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<LoadedView> => {
   const { tx, sessionId, threadId } = args
   const row = await tx.readThread(threadId)
@@ -99,13 +103,14 @@ export const ensureSessionViewIn = async (args: {
       afterSeq: state.at,
       limit: CATCH_UP_PAGE,
       visible: false,
+      eventSchema: args.eventSchema,
     })
     const folded = foldEvents({ state, events: page.events })
     state = folded.state
     rebuild ||= folded.rebuild
     if (page.next === undefined) break
   }
-  if (rebuild) state = await rebuildFromTail({ tx, row, state })
+  if (rebuild) state = await rebuildFromTail({ tx, row, state, eventSchema: args.eventSchema })
   await persistIn({ tx, sessionId, threadId, state, links: state.pullRequests.links })
   return { row, state }
 }
@@ -114,6 +119,7 @@ export const ensureMainThreadViewIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<LoadedView | undefined> => {
   const session = await args.tx.readSession({ sessionId: args.sessionId })
   if (session?.mainThreadId !== args.threadId) return undefined
@@ -126,11 +132,12 @@ export const appendToViewIn = async (args: {
   row: ThreadRow
   state: SessionViewState
   events: readonly V2Event[]
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<void> => {
   const { tx, row } = args
   const folded = foldEvents({ state: args.state, events: args.events })
   const state = folded.rebuild
-    ? await rebuildFromTail({ tx, row, state: folded.state })
+    ? await rebuildFromTail({ tx, row, state: folded.state, eventSchema: args.eventSchema })
     : folded.state
   const links = args.events.flatMap((event) =>
     event.type === 'pull-request-linked'

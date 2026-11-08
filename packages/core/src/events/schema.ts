@@ -60,7 +60,7 @@ export const eventEnvelopeSchema: z.ZodType<EventEnvelope> = z.object({
   at: z.string().min(1),
 })
 
-export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type', [
+const coreEventBodySchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('user-said'),
     text: z.string(),
@@ -276,3 +276,9 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     cause: modelWaitCauseSchema,
   }),
 ])
+
+export const eventBodySchema: z.ZodType<EventBody> = coreEventBodySchema
+
+export const CORE_EVENT_TYPES: ReadonlySet<string> = new Set(
+  coreEventBodySchema.options.map((option) => option.shape.type.value),
+)

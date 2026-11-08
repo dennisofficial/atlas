@@ -8,8 +8,10 @@ import {
   type PullRequestLink,
   type SessionViewState,
   type SessionViewValue,
+  type V2Event,
 } from '@dltech/atlas-core'
 import type { SessionCommandRow, SessionStatusOutput } from '@dltech/atlas-protocol'
+import type { z } from 'zod'
 
 import { UnknownThreadError } from './errors'
 import type { LeaseOps } from './lease-ops'
@@ -43,6 +45,7 @@ export const currentViewIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<SessionViewState> => {
   const { tx, sessionId, threadId } = args
   const row = await tx.readThread(threadId)
@@ -62,6 +65,7 @@ const messageAfterFailureIn = async (args: {
   sessionId: string
   threadId: string
   state: SessionViewState
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<boolean> => {
   const { tx } = args
   if (!failureMayBeActive(args.state)) return false
@@ -73,6 +77,7 @@ const messageAfterFailureIn = async (args: {
     afterSeq: Math.max(0, row.headSeq - VIEW_TAIL_LIMIT),
     limit: VIEW_TAIL_LIMIT,
     visible: true,
+    eventSchema: args.eventSchema,
   })
   const failure = activeStartFailure(page.events) ?? activeFailure(page.events)
   if (failure === undefined) return false
@@ -99,6 +104,7 @@ export const liveViewIn = async (args: {
   threadId: string
   state: SessionViewState
   now: string
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<LiveView> => {
   const { tx, sessionId, state } = args
   const pending = await tx.readInboxEntries({
@@ -162,6 +168,7 @@ export const readSessionViewIn = async (args: {
   sessionId: string
   threadId: string
   now: string
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<SessionViewRead | undefined> => {
   const { tx, sessionId, threadId } = args
   const row = await tx.readThread(threadId)
@@ -175,7 +182,12 @@ export const readSessionViewIn = async (args: {
       ...live.value,
       status: statusOutputOf({
         live,
-        running: await runningCommandsIn({ tx, sessionId, threadId }),
+        running: await runningCommandsIn({
+          tx,
+          sessionId,
+          threadId,
+          eventSchema: args.eventSchema,
+        }),
       }),
       pullRequests: await pullRequestsWithState({ tx, links: live.value.pullRequests }),
     },
@@ -190,6 +202,7 @@ export const readSessionViewWithCatchUp = async (args: {
   nowIn: (tx: ControlTx) => Promise<string>
   sessionId: string
   threadId: string
+  eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<SessionViewRead> => {
   const { store, sessionId, threadId } = args
   for (let attempt = 0; attempt < VIEW_READ_ATTEMPTS; attempt += 1) {
@@ -201,12 +214,13 @@ export const readSessionViewWithCatchUp = async (args: {
         sessionId,
         threadId,
         now: await args.nowIn(tx),
+        eventSchema: args.eventSchema,
       })
     })
     if (read !== undefined) return read
     await store.transact(async (tx) => {
       if ((await tx.lockThread(threadId)) === undefined) throw new UnknownThreadError(threadId)
-      await ensureSessionViewIn({ tx, sessionId, threadId })
+      await ensureSessionViewIn({ tx, sessionId, threadId, eventSchema: args.eventSchema })
     })
   }
   throw new Error(`session view of ${sessionId} kept changing under the read`)

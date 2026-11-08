@@ -9,6 +9,12 @@ import { applyPage, EMPTY_WINDOW } from '../session-window'
 import { transcriptEventsOf } from '../transcript-events'
 import { headOf, mintEvents } from './support'
 
+declare module '@dltech/atlas-core' {
+  interface PluginEventBodies {
+    'probe-observed': { type: 'probe-observed'; label: string }
+  }
+}
+
 const call = toCallId('call-1')
 
 const said = (text: string): V2Body => ({
@@ -165,6 +171,21 @@ describe('transcriptEventsOf', () => {
 
     expect(called).not.toHaveProperty('input')
     expect(ran?.kind === EEntryKind.ToolsRan && typeof runLabel(ran.run.calls)).toBe('string')
+  })
+
+  it('ignores a body no plugin on this client knows', () => {
+    const events = mintEvents({
+      bodies: [
+        { type: 'user-said', text: 'hi' },
+        { type: 'probe-observed', label: 'x' },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'there' }] },
+      ],
+    })
+
+    expect(transcriptEventsOf(events).map((event) => event.type)).toEqual([
+      'user-said',
+      'assistant-said',
+    ])
   })
 
   it('passes a plain object input and output through untouched', () => {
