@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { CallOutput, OUTPUT_FRAME_BYTES, type CallSink } from '../call-output'
-import { ECallJournalState, MemoryCallStore } from '../call-store'
+import { CALL_JOURNAL_FORMAT, ECallJournalState, MemoryCallStore } from '../call-store'
 
 type OutputFrame = { offset: number; bytes: Uint8Array }
 
@@ -58,6 +58,7 @@ const sink = (frames: OutputFrame[]): CallSink => ({
 })
 
 const journal = {
+  format: CALL_JOURNAL_FORMAT,
   state: ECallJournalState.Running,
   epoch: 1,
   op: { op: 'stat', path: '/' },

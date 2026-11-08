@@ -61,9 +61,34 @@ src/main.ts`, `PORT=20001`.
 
 So the SIGKILL path works end to end with a real sandbox: the record is intact, the next holder claims in
 seconds, the crashed call is settled as interrupted rather than silently re-run, and the side effect
-appears exactly once (marker file one line). It also shows the deliberate difference from the F11 fault row:
-there the daemon keeps the call and the next holder _collects_ it; under a real SIGKILL the call is settled
-interrupted and the model is told its effects are unknown.
+appears exactly once (marker file one line).
+
+**The interrupted result is a version swap, not SIGKILL semantics.** The earlier reading of this run ("a
+real SIGKILL settles the call interrupted, a deliberate difference from F11") was wrong, and Render's own
+log of the window says why:
+
+```
+08:02:03.495 sandbox atlas-v2-<session> runs daemon "8a169b5c…", needs "9b5222a3…" — restarting it
+08:02:03.928 has no matching daemon — booting it under the flock
+```
+
+The sandbox never crashed and the daemon never stopped on its own. The local host ran a daemon bundle built
+from a different commit than the Render host's, so `launchDaemon` replaced the daemon (`daemon-launch.ts:96-101`)
+and the running bash died with it. That is the version-_mismatch_ case
+([daemon version swaps](../../handoffs/daemon-version-swaps.md) fixes it by draining instead of killing). A
+same-version takeover is expected to keep the daemon (`daemon-launch.ts:89-95`, "has a live daemon at version
+… — keeping it"), which is what F11 shows; it has **not** been observed live yet, because the second attempt
+below did not hold a single-host window.
+
+## Second attempt (2026-11-08, invalid)
+
+A rerun aimed at the same-version case built the daemon from Render's live commit (`a70b37688`, bundle sha256
+`dcb1dd1c…`). Render kept serving the session through the suspend: its instance claimed at 08:35:49 and its log
+shows the daemon booted at 08:35:53, while the local host A never logged a takeover. The SIGKILL therefore hit
+a host that owned nothing, and the clean `tool-result` (`"1"`, not interrupted, one boot id) proves only that
+Render ran the turn normally. A rerun must gate on Render being _absent_ — its log printing `draining` and
+`GET /services/{id}/instances` staying `[]` for 30–60 s — and on host A's log showing `holder.takeover` for the
+session before anything is killed.
 
 Caveat for anyone repeating this: `POST /suspend` cancels a deploy in flight, and `POST /resume` starts a
 fresh build, so the production host is the better part of five minutes with no instance — do it only when
@@ -74,5 +99,9 @@ no session is live.
 The Render host itself cannot be SIGKILLed from here (no kill API, no shell), but SIGKILL of a holder is
 proven twice: by the local fault rows (`f23`, `f10`–`f15`, `f43`) with real processes and a scripted daemon,
 and by the run above with a real process, the production control plane and a real Vercel sandbox. The
-suspend experiment adds the freeze datapoint. Recorded in
-`docs/v2/research/slice-3/live-exit-tests.md`.
+suspend experiment adds the freeze datapoint.
+
+What that run does **not** prove is the interrupted result it produced: its own daemon was replaced for a
+version mismatch, so it is evidence for the mismatch case, not for a same-version takeover. The
+same-version case rests on the code (`daemon-launch.ts:89-95`) until a rerun gates on Render being absent.
+Recorded in `docs/v2/research/slice-3/live-exit-tests.md`.

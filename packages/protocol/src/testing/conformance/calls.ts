@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EDaemonAnswer } from '@dltech/atlas-core'
+
 import { EDaemonErrorKind } from '../../frames'
-import { EExecOutcome } from '../../ops'
+import { ECallFailure, EExecOutcome } from '../../ops'
 import {
   ERunState,
   ackOf,
+  answerOf,
   connectAt,
   errorOf,
+  failureOf,
   okValue,
   replyOf,
   resultOf,
@@ -163,24 +167,46 @@ export const describeCallsConformance = (target: DaemonConformanceTarget): void 
         },
       }))
 
-    it('prunes every call when the daemon restarts on the same disk under a new bootId', () =>
+    it('keeps a finished call across a restart on the same disk and serves it without a rerun', () =>
       withDaemon({
         target,
         body: async (handle) => {
           const session = await connectAt({ handle })
-          await runToEnd({ session, key: 'k-pruned', op: shell('echo lost') })
-          sendRun({ session, key: 'k-pruned-live', op: shell('sleep 5') })
-          await replyOf({ session, key: 'k-pruned-live' })
+          const first = await runToEnd({ session, key: 'k-kept', op: shell('echo kept') })
           const before = handle.bootId()
           await handle.restart()
           expect(handle.bootId()).not.toBe(before)
           const after = await connectAt({ handle })
-          expect(await ackOf({ session: after, key: 'k-pruned' })).toBe(EDaemonErrorKind.UnknownKey)
+          expect(await answerOf({ session: after, key: 'k-kept' })).toBe(EDaemonAnswer.Done)
+          expect(await answerOf({ session: after, key: 'k-gone' })).toBe(EDaemonAnswer.NeverSeen)
+          sendRun({ session: after, key: 'k-kept', op: shell('echo kept') })
+          expect(await replyOf({ session: after, key: 'k-kept' })).toBe(ERunState.Done)
+          expect(await resultOf({ session: after, key: 'k-kept' })).toEqual(first)
+          expect(streamOf({ session: after, key: 'k-kept' })).toBe('kept\n')
           expect(await runsOf(after)).toBe(0)
-          sendRun({ session: after, key: 'k-pruned-live', op: shell('echo fresh') })
-          expect(await replyOf({ session: after, key: 'k-pruned-live' })).toBe(ERunState.Running)
-          await resultOf({ session: after, key: 'k-pruned-live' })
-          expect(streamOf({ session: after, key: 'k-pruned-live' })).toBe('fresh\n')
+          expect(await ackOf({ session: after, key: 'k-kept' })).toBe('acked')
+          expect(await answerOf({ session: after, key: 'k-kept' })).toBe(EDaemonAnswer.NeverSeen)
+        },
+      }))
+
+    it('answers interrupted for a call that was running when the daemon restarted', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          sendRun({ session, key: 'k-cut', op: shell('sleep 5') })
+          await replyOf({ session, key: 'k-cut' })
+          await sleep(100)
+          await handle.restart()
+          const after = await connectAt({ handle })
+          expect(await answerOf({ session: after, key: 'k-cut' })).toBe(EDaemonAnswer.Running)
+          sendRun({ session: after, key: 'k-cut', op: shell('echo fresh') })
+          expect(await replyOf({ session: after, key: 'k-cut' })).toBe(ERunState.Done)
+          expect(failureOf(await resultOf({ session: after, key: 'k-cut' }))).toBe(
+            ECallFailure.Interrupted,
+          )
+          expect(await runsOf(after)).toBe(0)
+          expect(await answerOf({ session: after, key: 'k-cut' })).toBe(EDaemonAnswer.Done)
         },
       }))
   })

@@ -1,20 +1,49 @@
-import type { CallOp, CallResult } from '../ops'
+import { z } from 'zod'
+
+import { callOpSchema, callResultSchema, type CallOp, type CallResult } from '../ops'
 
 export enum ECallJournalState {
   Running = 'running',
   Done = 'done',
 }
 
-export type CallJournal = {
-  state: ECallJournalState
+export const CALL_JOURNAL_FORMAT = 1
+
+type CallJournalFields = {
+  format: typeof CALL_JOURNAL_FORMAT
   epoch: number
   op: CallOp
   outputBytes: number
-  result?: CallResult | undefined
+}
+
+export type CallJournal =
+  | (CallJournalFields & { state: ECallJournalState.Running })
+  | (CallJournalFields & { state: ECallJournalState.Done; result: CallResult })
+
+const journalFields = {
+  format: z.literal(CALL_JOURNAL_FORMAT),
+  epoch: z.number().int().min(0),
+  op: callOpSchema,
+  outputBytes: z.number().int().min(0),
+}
+
+export const callJournalSchema = z.discriminatedUnion('state', [
+  z.object({ ...journalFields, state: z.literal(ECallJournalState.Running) }),
+  z.object({
+    ...journalFields,
+    state: z.literal(ECallJournalState.Done),
+    result: callResultSchema,
+  }),
+])
+
+export const parseCallJournal = (value: unknown): CallJournal | undefined => {
+  const parsed = callJournalSchema.safeParse(value)
+  return parsed.success ? parsed.data : undefined
 }
 
 export type CallStore = {
   prune(): Promise<void>
+  readState(args: { key: string }): Promise<CallJournal | undefined>
   writeState(args: { key: string; journal: CallJournal }): Promise<void>
   appendOutput(args: { key: string; bytes: Uint8Array }): Promise<void>
   readOutput(args: { key: string; offset: number }): Promise<Uint8Array>
@@ -38,7 +67,11 @@ export class MemoryCallStore implements CallStore {
   private readonly calls = new Map<string, MemoryCall>()
 
   async prune(): Promise<void> {
-    this.calls.clear()
+    return Promise.resolve()
+  }
+
+  async readState(args: { key: string }): Promise<CallJournal | undefined> {
+    return this.calls.get(args.key)?.journal
   }
 
   async writeState(args: { key: string; journal: CallJournal }): Promise<void> {
@@ -64,5 +97,13 @@ export class MemoryCallStore implements CallStore {
 
   journalOf(key: string): CallJournal | undefined {
     return this.calls.get(key)?.journal
+  }
+
+  snapshot(): MemoryCallStore {
+    const copy = new MemoryCallStore()
+    for (const [key, call] of this.calls) {
+      copy.calls.set(key, { journal: call.journal, output: [...call.output] })
+    }
+    return copy
   }
 }

@@ -41,7 +41,7 @@ export const createInMemoryDaemon = async (
   options: InMemoryDaemonOptions,
 ): Promise<InMemoryDaemon> => {
   const fs = new MemoryFileSystem()
-  const store = new MemoryCallStore()
+  let store = new MemoryCallStore()
   const groupsOf = options.groups ?? fakeDaemonGroups
   const closers = new Set<() => void>()
   let boot = randomUUID()
@@ -137,7 +137,9 @@ export const createInMemoryDaemon = async (
     connect,
     connectRaw,
     restart: async () => {
+      const kept = store.snapshot()
       await dropAll()
+      store = kept
       boot = randomUUID()
       engine = await engineFor(boot)
     },

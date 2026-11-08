@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ECallStatus, EExecOutcome } from '@dltech/atlas-protocol'
+import { ECallFailure, ECallStatus, EExecOutcome } from '@dltech/atlas-protocol'
 
 import { FencedError, SandboxUnavailableError } from '..'
 import { openCalls, uniqueKey, type RemoteCallsTarget } from './remote-calls-support'
@@ -97,7 +97,8 @@ export const describeRemoteCallsLifecycle = (target: RemoteCallsTarget): void =>
         const [execResult, statResult] = await Promise.all([execDone, statDone])
         expect(execResult.status).toBe(ECallStatus.Failed)
         if (execResult.status === 'failed') {
-          expect(execResult.error.message).toContain('interrupted by a process restart')
+          expect(execResult.error.code).toBe(ECallFailure.Interrupted)
+          expect(execResult.error.message).toContain('interrupted by a daemon restart')
         }
         expect(statResult.status).toBe(ECallStatus.Ok)
         calls.close()
@@ -105,6 +106,52 @@ export const describeRemoteCallsLifecycle = (target: RemoteCallsTarget): void =>
         await handle.stop()
       }
     }, 15000)
+
+    it('collects a finished call the daemon still holds when its dispatch boot is gone', async () => {
+      const handle = await target.start()
+      try {
+        const first = openCalls({ handle })
+        const key = uniqueKey('kept')
+        const op = { op: 'exec', argv: ['/bin/sh', '-c', 'echo kept'] } as const
+        await first.invoke({ key, op })
+        first.close()
+
+        const second = openCalls({ handle })
+        await second.ready()
+        const chunks: string[] = []
+        const result = await second.invoke({
+          key,
+          op,
+          dispatchedBootId: 'previous-boot',
+          onOutput: (bytes) => chunks.push(Buffer.from(bytes).toString('utf8')),
+        })
+        expect(result.status).toBe(ECallStatus.Ok)
+        expect(chunks.join('')).toBe('kept\n')
+        if (handle.runCount() !== undefined) expect(handle.runCount()).toBe(1)
+        second.close()
+      } finally {
+        await handle.stop()
+      }
+    })
+
+    it('fails as interrupted, without running anything, when the daemon never saw the dispatch', async () => {
+      const handle = await target.start()
+      try {
+        const calls = openCalls({ handle })
+        await calls.ready()
+        const result = await calls.invoke({
+          key: uniqueKey('never'),
+          op: { op: 'exec', argv: ['/bin/sh', '-c', 'echo nope'] },
+          dispatchedBootId: 'previous-boot',
+        })
+        expect(result.status).toBe(ECallStatus.Failed)
+        if (result.status === 'failed') expect(result.error.code).toBe(ECallFailure.Interrupted)
+        if (handle.runCount() !== undefined) expect(handle.runCount()).toBe(0)
+        calls.close()
+      } finally {
+        await handle.stop()
+      }
+    })
 
     it('fences the older holder when a second opens at a higher epoch', async () => {
       const handle = await target.start()

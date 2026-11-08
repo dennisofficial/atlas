@@ -1,7 +1,7 @@
 import { ECallFailure, ECallStatus, EExecOutcome } from '@dltech/atlas-protocol'
 import type { DaemonFrame, CallOp, CallResult } from '@dltech/atlas-protocol'
 
-import { OpMismatchError, actionForLostCall, interruptedMessage } from './errors'
+import { OpMismatchError, interruptedMessage, type DaemonAnswer } from './errors'
 import type { DaemonLink } from './link'
 
 export type Waiter = {
@@ -19,6 +19,7 @@ export type Pending = {
   delivered: number
   sent: boolean
   done: boolean
+  awaitingAnswer: boolean
   detach?: (() => void) | undefined
 }
 
@@ -96,13 +97,17 @@ export type FrameSink = {
   sendRun(call: Pending): void
   failAll(error: Error): void
   handleHelloReply(frame: { bootId: string; version: string }): void
-  recoverAcrossRestart(previousBootId: string): void
+  answered(key: string, state: DaemonAnswer): void
   emitEvent(frame: Extract<DaemonFrame, { kind: 'event' }>): void
 }
 
 export const handleDaemonFrame = (state: FrameSink, frame: DaemonFrame): void => {
   if (frame.kind === 'hello-reply') {
     state.handleHelloReply(frame)
+    return
+  }
+  if (frame.kind === 'answered') {
+    state.answered(frame.key, frame.state)
     return
   }
   if (frame.kind === 'output') {
@@ -148,6 +153,7 @@ const handleErrorFrame = (
   state: FrameSink,
   frame: { key?: string | undefined; errorKind: string; message: string },
 ): void => {
+  if (frame.key !== undefined) state.answered(frame.key, 'unavailable')
   if (frame.errorKind === 'stale-epoch') return
   if (frame.key !== undefined && frame.errorKind === 'unknown-key') {
     const ack = state.pendingAcks.get(frame.key)
@@ -168,33 +174,5 @@ const handleErrorFrame = (
   const call = frame.key === undefined ? undefined : state.pending.get(frame.key)
   if (call !== undefined) {
     state.settleError(call, new Error(`${frame.errorKind}: ${frame.message}`))
-  }
-}
-
-export const recoverRestartedCalls = (args: {
-  state: FrameSink
-  previousBootId: string
-  currentBootId: string
-}): void => {
-  const { state } = args
-  for (const call of [...state.pending.values()]) {
-    if (call.done) continue
-    const action = actionForLostCall({
-      op: call.op.op,
-      dispatchedBootId: args.previousBootId,
-      currentBootId: args.currentBootId,
-    })
-    if (action.rerun) {
-      call.delivered = 0
-      continue
-    }
-    state.settle(
-      call,
-      failedResult({
-        op: call.op.op,
-        code: ECallFailure.Interrupted,
-        message: interruptedMessage(call.op.op),
-      }),
-    )
   }
 }
