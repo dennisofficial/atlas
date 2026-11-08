@@ -505,15 +505,19 @@ Not changed: the PR badge and checks tally stay in web, fed by the core `pullReq
 the transport, not a feature: the token reader, the credential helper and `github.com` URL rewrite
 in `shell-env.ts`, and clone. These move with the shells/services slices or a future git plugin.
 
-**Live check (for the operator or main agent, on production after deploy and release):**
-1. Open a v2 session on a project with a GitHub connection and a signing key; on a branch, have the
-   agent `git commit` and `git push`. On GitHub the commit shows Verified, the author is you, the
-   message has no `Co-authored-by` line and no mention of Atlas.
-2. Open a PR for the branch. Within one PR-observation cycle the header shows `#N` with state and
-   checks (finder links it if the agent did not).
-3. Have the agent run `subscribe` on that PR. The header shows a bell and `#N` linking to the PR.
-4. `unsubscribe`. The bell disappears from the open session without a reload.
-5. Record the commit SHA, the Verified state and a screenshot of the header here.
+**Live check (2026-11-08, production).** Session `64e981de-056d-4cad-95e2-070bb93d2334`, thread
+`ae18de86-f218-4398-9c27-f03fc350c65c`, agent host `72c4f274e`, throwaway PR #2027 (closed after
+the check).
+
+| Step                                             | Result                                                                                                                                                                                                                                                              |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The agent branches, commits and pushes           | commit `f98715ad520215ee8fa7fae23203bbe525ad914c`, author and committer `dennisofficial <34203433+dennisofficial@users.noreply.github.com>`, GitHub verification `verified: true, valid`, message `chore: identity live check` — no `Co-authored-by`, no Atlas text |
+| The agent opens PR #2027 and the finder links it | the session view carries the link (`pullRequests`)                                                                                                                                                                                                                  |
+| `subscribe` to #2027                             | `pluginViews.subscriptions` holds one active row, label `dennisofficial/atlas#2027`, the data the header bell renders                                                                                                                                               |
+| `unsubscribe`                                    | the bag empties without a reload                                                                                                                                                                                                                                    |
+
+The header's rendering itself is covered by `session-header.spec.tsx` and
+`session-view-model.spec.ts`; the live run proves the view data behind it.
 
 ## 9. Answers (2026-11-08)
 
