@@ -81,8 +81,12 @@ _Updated at the end of every slice. Last update: 2026-11-08._
   state until the next message. Fault rows F28, F29, F34, F36 and F37 cover it. Verified live on prod
   2026-11-07: a broken sandbox fails in 3 s and recovers on the next message, a restart mid-tool hands the
   turn over in ~2 s with the tool run once, a session parked for 6.6 h resumes in ~2 s, and a failed setup
-  script continues with the model told. Not yet tested live: a hard kill of the host (Render restarts
-  drain gracefully). Audit steps 4–5 (edge deadlines, a progress watchdog) remain.
+  script continues with the model told. A hard kill of the host could not be tried live: Render exposes no
+  kill and no shell, and its suspend freezes the instance rather than killing it
+  ([live-exit-tests](research/slice-3/live-exit-tests.md)). Audit steps 4–5 landed 2026-11-08: deadlines at
+  the daemon ready wait, `sandbox.wake()`, the drain and the LISTEN connection (#2016), and a per-turn
+  progress watchdog that records `run-failed{kind:'stalled'}` after 11 minutes of silence (#2019). Still
+  open from the audit: a Stop API route, crash-loop quarantine and the fault-rig invariant.
 - **Done: slice 3, the agent host and the sandbox daemon (0021).** Spec:
   [slices/03-agent-host.md](slices/03-agent-host.md); PRs #1735 to #1846. Render Virginia → Vercel `iad1`
   RTT was measured first ([research/d8/rtt-render.md](research/d8/rtt-render.md): 5–20 ms p50 per tool

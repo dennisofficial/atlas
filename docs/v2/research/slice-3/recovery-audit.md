@@ -244,3 +244,20 @@ Every new row should also assert the §3 invariant: within a stated bound, the r
 - F-02/F-03 (permanent link failure): addressed for every non-fenced failure in #1899 (`ReadyGate` + `DaemonLink.restart`); the ready deadline and the Stop-while-waiting-on-ready part are still open.
 - F-04 confirmed: `session-holder.ts:145-147` returns on pending claim, start backoff or `maxSessions` with no later retry.
 - F-06 confirmed: `start-backoff.ts` retries 1 s doubling to a 30 s cap, forever, with nothing appended.
+
+## Closed 2026-11-08 (audit steps 4–5)
+
+| Edge / gap                                     | Bound and outcome                                                                                                                                            | PR    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
+| Daemon `ready()` wait in `invoke` and `ackKey` | 60 s; `invoke` rejects `ReadyTimeoutError` and drops the call, `ack` resolves false; an abort before send settles the call interrupted                       | #2016 |
+| `sandbox.wake()`                               | 5 min combined with the caller's signal; `SandboxUnavailableError`, which the prepare path already shows                                                     | #2016 |
+| Drain                                          | hard exit at `drainMs + 20 s` (inside Render's 300 s), logged and exit 1                                                                                     | #2016 |
+| LISTEN connect and query                       | 5 s connect, 10 s `LISTEN`, then the existing drop-and-retry                                                                                                 | #2016 |
+| A turn that stops progressing                  | 11 min with no activity aborts the turn and records `run-failed{kind:'stalled'}`; the session stays held and failed-visible, and the next message resumes it | #2019 |
+
+The watchdog reuses `ERunFailureKind.Stalled`, so no record-union change was needed and the existing
+remedies table already offers Retry.
+
+Still open from this audit: a Stop API route (F-13), crash-loop quarantine (§3 item 7), the fault-rig
+invariant (§3 item 9), jitter and process-level handlers (F-14), and a deadline on the public
+`RemoteCalls.ready()` (only the waits inside `invoke` and `ackKey` are bounded).
