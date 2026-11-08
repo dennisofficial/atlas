@@ -1,8 +1,9 @@
 'use client'
 
-import { Bell, GitBranch } from 'lucide-react'
+import { Bell, GitBranch, Terminal } from 'lucide-react'
 
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
+import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { Badge } from '@dltech/atlas-ui/components/badge'
@@ -80,6 +81,19 @@ function HeaderSubscriptions({
   )
 }
 
+function HeaderShells({ shells }: { shells: ShellRoster }) {
+  return (
+    <span
+      data-session-shells
+      title={shells.labels.join(', ')}
+      className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
+    >
+      <Terminal className="size-3" aria-label="Running shells" role="img" />
+      <span className="font-mono">{shells.running}</span>
+    </span>
+  )
+}
+
 export function SessionHeader({
   sessionId,
   state,
@@ -88,6 +102,7 @@ export function SessionHeader({
   branch,
   entries,
   subscriptions,
+  shells,
 }: {
   sessionId: string
   state: EHeaderState
@@ -96,6 +111,7 @@ export function SessionHeader({
   branch: string | undefined
   entries: readonly PullRequestEntry[]
   subscriptions: readonly SubscribedPullRequest[]
+  shells: ShellRoster
 }) {
   const observationRef = useSessionPrObservation(entries)
   const pinned = pinnedPullRequestOf(entries)
@@ -122,6 +138,7 @@ export function SessionHeader({
         )}
         {pinned === undefined ? null : <HeaderPullRequest pinned={pinned} count={entries.length} />}
         {subscriptions.length === 0 ? null : <HeaderSubscriptions subscriptions={subscriptions} />}
+        {shells.running === 0 ? null : <HeaderShells shells={shells} />}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
       </div>
     </header>

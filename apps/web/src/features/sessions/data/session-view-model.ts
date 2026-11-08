@@ -3,6 +3,7 @@ import {
   subscribedPullRequestsOf,
   type SubscribedPullRequest,
 } from '@dltech/atlas-plugin-github/client'
+import { shellRosterOf, type ShellRoster } from '@dltech/atlas-plugin-shells/client'
 import type { SessionSummary, SessionViewOutput } from '@dltech/atlas-protocol'
 
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
@@ -20,6 +21,7 @@ export type SessionViewModel = {
   branch: string | undefined
   entries: PullRequestEntry[]
   subscriptions: readonly SubscribedPullRequest[]
+  shells: ShellRoster
   context: SessionContextModel | null
   spend: SpendTally | null
 }
@@ -76,6 +78,7 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
       branch: undefined,
       entries: [],
       subscriptions: [],
+      shells: { running: 0, awaitingInput: false, labels: [] },
       context: null,
       spend: null,
     }
@@ -86,6 +89,7 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
       pullRequestEntryOf({ pullRequest, primaryBranch }),
     ),
     subscriptions: subscribedPullRequestsOf(view.pluginViews),
+    shells: shellRosterOf(view.pluginViews),
     context: contextOfView(view),
     spend: view.spend.tally,
   }

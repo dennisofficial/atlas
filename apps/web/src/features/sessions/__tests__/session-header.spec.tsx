@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
+import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
 import { EHeaderState } from '@/features/threads/data/header-model'
@@ -34,6 +35,7 @@ const render = (props: {
   branch?: string
   entries: PullRequestEntry[]
   subscriptions?: SubscribedPullRequest[]
+  shells?: ShellRoster
 }) =>
   renderToStaticMarkup(
     <SidebarProvider>
@@ -45,6 +47,7 @@ const render = (props: {
         branch={props.branch}
         entries={props.entries}
         subscriptions={props.subscriptions ?? []}
+        shells={props.shells ?? { running: 0, awaitingInput: false, labels: [] }}
       />
     </SidebarProvider>,
   )
@@ -98,5 +101,19 @@ describe('SessionHeader', () => {
 
   it('shows no subscription indicator without subscriptions', () => {
     expect(render({ entries: [entry()] })).not.toContain('data-session-subscriptions')
+  })
+
+  it('shows the running shell count titled with their labels', () => {
+    const html = render({
+      entries: [],
+      shells: { running: 2, awaitingInput: false, labels: ['dev server', 'watcher'] },
+    })
+    expect(html).toContain('data-session-shells')
+    expect(html).toContain('title="dev server, watcher"')
+    expect(html).toContain('>2<')
+  })
+
+  it('shows no shell indicator when none are running', () => {
+    expect(render({ entries: [entry()] })).not.toContain('data-session-shells')
   })
 })
