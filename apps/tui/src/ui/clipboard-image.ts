@@ -8,7 +8,7 @@ import {
   EImageDelivery,
   imageMediaType,
   imageSize,
-  planDelivery,
+  planInlineDelivery,
   projectedSize,
   visualTokens,
   type EImageTier,
@@ -171,7 +171,7 @@ async function writtenClipboardImage(args: {
   writeFileSync(path, sized.bytes)
 
   const facts = { byteLength: sized.bytes.byteLength, ...sized.size, tier }
-  const settled = planDelivery(facts)
+  const settled = planInlineDelivery(facts)
 
   return {
     path,

@@ -3,15 +3,11 @@ import { describe, expect, test } from 'bun:test'
 import {
   decodeBase64,
   decodesAsImage,
-  EImageDelivery,
   gifSize,
   imageMediaType,
   imageSize,
   jpegSize,
   jpegWellFormed,
-  MAX_API_EDGE,
-  MAX_INLINE_BYTES,
-  planDelivery,
   pngSize,
   visualTokens,
   webpSize,
@@ -212,45 +208,12 @@ describe('decodesAsImage', () => {
   })
 })
 
-describe('delivery planning', () => {
-  test('an ordinary screenshot inlines untouched', () => {
-    expect(planDelivery({ byteLength: 400_000, width: 1440, height: 900 })).toEqual({
-      delivery: EImageDelivery.Inline,
-    })
-  })
-
-  test('sends an image past the tier long edge untouched, because the API downscales it anyway', () => {
-    expect(planDelivery({ byteLength: 3_500_000, width: 6000, height: 4000 })).toEqual({
-      delivery: EImageDelivery.Inline,
-    })
-  })
-
+describe('delivery cost', () => {
   test('costs the same tokens sent whole as it would resized, which is why it is sent whole', () => {
     const facts = { byteLength: 3_500_000, width: 6000, height: 4000 }
     const projected = projectedSize({ size: { width: facts.width, height: facts.height } })
 
     expect(visualTokens(facts)).toBe(visualTokens({ ...facts, ...projected }))
-  })
-
-  test('falls back to the path past the edge the API refuses outright', () => {
-    const plan = planDelivery({ byteLength: 1_000, width: MAX_API_EDGE + 1, height: 10 })
-
-    expect(plan.delivery).toBe(EImageDelivery.PathOnly)
-    expect(plan.reason).toContain(String(MAX_API_EDGE))
-  })
-
-  test('falls back to the path when the bytes exceed what the wire allows', () => {
-    const plan = planDelivery({ byteLength: MAX_INLINE_BYTES + 1, width: 2000, height: 2000 })
-
-    expect(plan.delivery).toBe(EImageDelivery.PathOnly)
-    expect(plan.reason).toContain('inline limit')
-  })
-
-  test('weighs the bytes even when the dimensions could not be read', () => {
-    expect(planDelivery({ byteLength: 10 }).delivery).toBe(EImageDelivery.Inline)
-    expect(planDelivery({ byteLength: MAX_INLINE_BYTES + 1 }).delivery).toBe(
-      EImageDelivery.PathOnly,
-    )
   })
 })
 

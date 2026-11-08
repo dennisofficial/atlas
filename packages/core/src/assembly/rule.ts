@@ -1,5 +1,7 @@
+import type { ResolvedMediaUrls } from '../attachments/media-urls'
 import type { Event } from '../events/envelope'
 import type { ThreadId } from '../events/ids'
+import type { ImageCapabilities } from '../images/delivery'
 import type { ProviderIdentity } from '../provider'
 import type { UploadPlacement } from '../uploads/placement'
 import type { Assembled } from './assembled'
@@ -13,6 +15,8 @@ export type RuleContext = {
   countTokens: (value: Assembled) => number
   previous?: Assembled | undefined
   uploads?: ReadonlyMap<string, UploadPlacement> | undefined
+  imageCapabilities?: ImageCapabilities | undefined
+  mediaUrls?: ResolvedMediaUrls | undefined
 }
 
 export type RuleFn = (input: Assembled, ctx: RuleContext) => Assembled

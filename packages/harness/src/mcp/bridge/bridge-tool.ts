@@ -58,7 +58,11 @@ const imageBlockOf = (block: unknown): ImagePart | undefined => {
   const record = asRecord(block as McpJson | undefined)
   if (record === undefined || record['type'] !== 'image') return undefined
   if (typeof record['data'] !== 'string' || typeof record['mimeType'] !== 'string') return undefined
-  return { type: 'image', data: record['data'], mediaType: record['mimeType'] }
+  return {
+    type: 'image',
+    bytes: { kind: 'inline', data: record['data'] },
+    mediaType: record['mimeType'],
+  }
 }
 
 const stringifyRaw = (raw: unknown): string =>

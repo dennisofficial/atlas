@@ -10,6 +10,7 @@ import type {
 import type {
   AssistantMessage,
   FilePart,
+  ImageBytes,
   ImagePart,
   Message,
   TextPart,
@@ -42,47 +43,68 @@ const fromModelTextPart = (part: ModelTextPart): TextPart => ({
 
 const REMOTE_IMAGE = /^(?:https?:|data:)/i
 
+const DATA_URI = /^data:([^;,]+);base64,(.*)$/is
+
 const isImageMediaType = (mediaType: string): boolean =>
   mediaType.startsWith('image/') || mediaType === 'image'
 
-const fromModelImagePart = (part: ModelImagePart): ImagePart => {
-  if (typeof part.image !== 'string' || REMOTE_IMAGE.test(part.image)) {
-    return refuse('a user image part that is not inline base64')
+type ImageSource = { bytes: ImageBytes; mediaType?: string }
+
+const imageSourceOf = (value: string | URL): ImageSource | null => {
+  if (value instanceof URL) return { bytes: { kind: 'url', url: value.href } }
+  if (!REMOTE_IMAGE.test(value)) return { bytes: { kind: 'inline', data: value } }
+
+  const uri = DATA_URI.exec(value)
+  if (uri !== null) {
+    return { bytes: { kind: 'inline', data: uri[2] ?? '' }, mediaType: uri[1] ?? '' }
   }
+
+  return /^data:/i.test(value) ? null : { bytes: { kind: 'url', url: new URL(value).href } }
+}
+
+const fromModelImagePart = (part: ModelImagePart): ImagePart => {
+  const source =
+    typeof part.image === 'string' || part.image instanceof URL ? imageSourceOf(part.image) : null
+  if (source === null) return refuse('a user image part that is neither inline base64 nor a URL')
 
   return {
     type: 'image',
-    data: part.image,
-    mediaType: part.mediaType ?? 'image/png',
+    bytes: source.bytes,
+    mediaType: part.mediaType ?? source.mediaType ?? 'image/png',
     ...carriedProviderOptions(toCoreProviderOptions(part.providerOptions)),
   }
 }
 
-const fromModelFilePart = (part: ModelFilePart): ImagePart | FilePart => {
-  const data = part.data
-  const inline =
-    typeof data === 'string'
-      ? data
-      : typeof data === 'object' && !(data instanceof URL) && 'type' in data && data.type === 'data'
-        ? data.data
-        : undefined
-
-  if (typeof inline !== 'string' || REMOTE_IMAGE.test(inline)) {
-    return refuse('a user file part that is not inline base64')
+const fileSourceOf = (data: ModelFilePart['data']): ImageSource | null => {
+  if (typeof data === 'string') return imageSourceOf(data)
+  if (data instanceof URL) return imageSourceOf(data)
+  if (typeof data === 'object' && 'type' in data && data.type === 'data') {
+    return typeof data.data === 'string' ? imageSourceOf(data.data) : null
   }
+  if (typeof data === 'object' && 'type' in data && data.type === 'url') {
+    return imageSourceOf(data.url)
+  }
+  return null
+}
+
+const fromModelFilePart = (part: ModelFilePart): ImagePart | FilePart => {
+  const source = fileSourceOf(part.data)
+  if (source === null) return refuse('a user file part that is not inline base64 or a URL')
 
   if (isImageMediaType(part.mediaType)) {
     return {
       type: 'image',
-      data: inline,
+      bytes: source.bytes,
       mediaType: part.mediaType,
       ...carriedProviderOptions(toCoreProviderOptions(part.providerOptions)),
     }
   }
 
+  if (source.bytes.kind !== 'inline') return refuse('a user file part that is not inline base64')
+
   return {
     type: 'file',
-    data: inline,
+    data: source.bytes.data,
     mediaType: part.mediaType,
     ...(part.filename === undefined ? {} : { filename: part.filename }),
     ...carriedProviderOptions(toCoreProviderOptions(part.providerOptions)),
@@ -145,22 +167,29 @@ const fromModelToolResultOutput = (output: ModelToolResultOutput): ToolResultOut
         if (part.type === 'text') return { type: 'text' as const, text: part.text }
 
         if (part.type === 'file-data') {
-          return { type: 'image' as const, data: part.data, mediaType: part.mediaType }
+          return {
+            type: 'image' as const,
+            bytes: { kind: 'inline' as const, data: part.data },
+            mediaType: part.mediaType,
+          }
         }
 
         if (part.type !== 'file') return refuse(`a tool result ${part.type} part`)
 
-        if (part.data.type !== 'data' || typeof part.data.data !== 'string') {
-          return refuse('a tool result file that is not inline base64')
-        }
+        const source = fileSourceOf(part.data)
+        if (source === null) return refuse('a tool result file that is not inline base64 or a URL')
 
         if (isImageMediaType(part.mediaType)) {
-          return { type: 'image' as const, data: part.data.data, mediaType: part.mediaType }
+          return { type: 'image' as const, bytes: source.bytes, mediaType: part.mediaType }
+        }
+
+        if (source.bytes.kind !== 'inline') {
+          return refuse('a tool result file that is not inline base64')
         }
 
         return {
           type: 'file' as const,
-          data: part.data.data,
+          data: source.bytes.data,
           mediaType: part.mediaType,
           ...(part.filename === undefined ? {} : { filename: part.filename }),
         }

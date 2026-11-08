@@ -62,11 +62,7 @@ export type ToolCall = {
  * `tools/aggregate`, which reads a classification this layer knows nothing about. What the store
  * owes the renderer is the run and its order.
  */
-export type ToolRun = {
-  key: string
-  openedBy: CallId
-  calls: readonly ToolCall[]
-}
+export type ToolRun = { key: string; openedBy: CallId; calls: readonly ToolCall[] }
 
 export type LiveToolCall = {
   callId: CallId
@@ -146,11 +142,15 @@ function firstImageIn(
   if (parts === undefined) return undefined
 
   const part = parts.find(
-    (entry) => entry.type === 'image' && entry.data.length > 0 && entry.mediaType.length > 0,
+    (entry) =>
+      entry.type === 'image' &&
+      entry.bytes.kind === 'inline' &&
+      entry.bytes.data.length > 0 &&
+      entry.mediaType.length > 0,
   )
-  if (part === undefined || part.type !== 'image') return undefined
+  if (part === undefined || part.type !== 'image' || part.bytes.kind !== 'inline') return undefined
 
-  return { data: part.data, mediaType: part.mediaType }
+  return { data: part.bytes.data, mediaType: part.mediaType }
 }
 
 type CallSeed = { callId: CallId; name: string; input: unknown; at: string | null }

@@ -31,19 +31,38 @@ export const assistantPartSchema = z.discriminatedUnion('type', [
   }),
 ])
 
-export const toolResultPartSchema = z.discriminatedUnion('type', [
+const imageBytesSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('inline'), data: z.string() }),
+  z.object({ kind: z.literal('url'), url: z.string() }),
+])
+
+const imagePartSchema = z.object({
+  type: z.literal('image'),
+  bytes: imageBytesSchema,
+  mediaType: z.string(),
+  source: z.string().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  providerOptions: providerOptionsSchema.optional(),
+})
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+function withCurrentImageShape(part: unknown): unknown {
+  if (!isRecord(part) || part['type'] !== 'image') return part
+  if (typeof part['data'] !== 'string' || 'bytes' in part) return part
+  const { data, ...rest } = part
+  return { ...rest, bytes: { kind: 'inline', data } }
+}
+
+const toolResultPartUnion = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('text'),
     text: z.string(),
     providerOptions: providerOptionsSchema.optional(),
   }),
-  z.object({
-    type: z.literal('image'),
-    data: z.string(),
-    mediaType: z.string(),
-    source: z.string().optional(),
-    providerOptions: providerOptionsSchema.optional(),
-  }),
+  imagePartSchema,
   z.object({
     type: z.literal('file'),
     data: z.string(),
@@ -59,6 +78,8 @@ export const toolResultPartSchema = z.discriminatedUnion('type', [
     providerOptions: providerOptionsSchema.optional(),
   }),
 ])
+
+export const toolResultPartSchema = z.preprocess(withCurrentImageShape, toolResultPartUnion)
 
 export const saidImageSchema = z.object({
   path: z.string(),

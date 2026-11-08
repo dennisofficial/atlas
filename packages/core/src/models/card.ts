@@ -1,3 +1,4 @@
+import type { ImageCapabilities } from '../images/delivery'
 import type { EImageTier } from '../images/projection'
 import type { EffortMap } from './effort-ladder'
 import { refKey, type ModelRef } from './ref'
@@ -15,6 +16,7 @@ export type ModelCard = {
   api: string
   contextWindow: number
   imageTier: EImageTier
+  image?: ImageCapabilities
   maxOutputTokens?: number
   cost?: ModelCost
   effort?: EffortMap

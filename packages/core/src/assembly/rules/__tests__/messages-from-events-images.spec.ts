@@ -27,7 +27,7 @@ describe('a message somebody attached a picture to', () => {
       { type: 'text', text: operatorSaidAs('why is this broken') },
       {
         type: 'image',
-        data: SHOT.data,
+        bytes: { kind: 'inline', data: SHOT.data },
         mediaType: 'image/png',
         source: SHOT.path,
         width: SHOT.width,

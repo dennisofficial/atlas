@@ -1,4 +1,9 @@
-import type { MediaPart, Message } from '@dltech/atlas-core'
+import {
+  isOwnedUpload,
+  type MediaPart,
+  type MediaUrlResolver,
+  type Message,
+} from '@dltech/atlas-core'
 
 import type { MediaSigner } from './media-signer'
 
@@ -40,3 +45,25 @@ export const signerUrls = (args: { signer: MediaSigner; userId: string }): Media
     return hashes.filter((_, index) => present[index] === false)
   },
 })
+
+export const signerAttachmentUrls = (args: {
+  signer: MediaSigner
+  userId: string
+}): MediaUrlResolver => ({
+  async urlOf(ref) {
+    await args.signer.ready()
+    if ('hash' in ref) return args.signer.urlOf({ userId: args.userId, hash: ref.hash })
+    if (!isOwnedUpload({ upload: ref, userId: args.userId })) {
+      throw new Error(`upload ${ref.uploadId} is not owned by this user`)
+    }
+    return args.signer.urlOfPathname({ pathname: ref.pathname })
+  },
+})
+
+export const attachmentUrlBinding = (args: {
+  signer: MediaSigner | undefined
+  userId: string
+}): { mediaUrls?: MediaUrlResolver } =>
+  args.signer === undefined
+    ? {}
+    : { mediaUrls: signerAttachmentUrls({ signer: args.signer, userId: args.userId }) }

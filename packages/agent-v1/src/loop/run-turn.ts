@@ -96,6 +96,7 @@ export class LoopTurnRunner extends TurnRunner {
           : ({ tokens, window }) => deps.output?.emit({ type: 'context-size', tokens, window }),
       hooks: deps.hooks,
       uploads: deps.uploads,
+      mediaUrls: deps.mediaUrls,
       intake: deps.intake,
       settlePending:
         deps.dispatch === undefined

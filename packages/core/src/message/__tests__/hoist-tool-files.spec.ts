@@ -9,7 +9,7 @@ const PIXEL =
 
 const image = (source?: string): ImagePart => ({
   type: 'image',
-  data: PIXEL,
+  bytes: { kind: 'inline', data: PIXEL },
   mediaType: 'image/png',
   ...(source === undefined ? {} : { source }),
 })

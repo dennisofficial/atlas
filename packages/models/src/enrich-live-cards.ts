@@ -4,8 +4,10 @@ const enrichCard = (args: { live: ModelCard; generated: ModelCard }): ModelCard 
   const { live, generated } = args
   const cost = live.cost ?? generated.cost
   const maxOutputTokens = live.maxOutputTokens ?? generated.maxOutputTokens
+  const image = live.image ?? generated.image
   return {
     ...live,
+    ...(image === undefined ? {} : { image }),
     contextWindow:
       live.contextWindow > CONTEXT_WINDOW_UNMEASURED ? live.contextWindow : generated.contextWindow,
     ...(cost === undefined ? {} : { cost: { ...cost } }),

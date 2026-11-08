@@ -20,7 +20,7 @@ const png = ({ width, height }: { width: number; height: number }): string => {
 
 const shot = (index: number): ImagePart => ({
   type: 'image',
-  data: png({ width: 1024 + index, height: 768 }),
+  bytes: { kind: 'inline', data: png({ width: 1024 + index, height: 768 }) },
   mediaType: 'image/png',
 })
 
@@ -200,7 +200,11 @@ describe('imagesInContext', () => {
         role: 'user',
         content: [
           { type: 'text', text: 'look' },
-          { type: 'image', data: 'bm90IGFuIGltYWdl', mediaType: 'image/png' },
+          {
+            type: 'image',
+            bytes: { kind: 'inline', data: 'bm90IGFuIGltYWdl' },
+            mediaType: 'image/png',
+          },
         ],
       },
       origin: origin(1),
@@ -248,7 +252,12 @@ describe('corruptImagesDropped', () => {
             type: 'content',
             value: [
               { type: 'text', text: 'shot.jpg' },
-              { type: 'image', data: corruptJpeg(), mediaType: 'image/jpeg', source: 'shot.jpg' },
+              {
+                type: 'image',
+                bytes: { kind: 'inline', data: corruptJpeg() },
+                mediaType: 'image/jpeg',
+                source: 'shot.jpg',
+              },
             ],
           },
         },

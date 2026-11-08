@@ -141,7 +141,7 @@ describe('a result that handed the model a picture', () => {
           { type: 'text', text: '/repo/docs/shot.png — image/png, 8×8, 412 KB.' },
           {
             type: 'image',
-            data: 'aGVsbG8td29ybGQ=',
+            bytes: { kind: 'inline', data: 'aGVsbG8td29ybGQ=' },
             mediaType: 'image/png',
             source: '/repo/docs/shot.png',
           },

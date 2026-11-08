@@ -1,4 +1,5 @@
 import type { Assembled } from '../assembly/assembled'
+import type { ImageCapabilities } from '../images/delivery'
 import { DEFAULT_IMAGE_TIER, type EImageTier } from '../images/projection'
 import type { AssistantPart } from '../events/body'
 import type { CallId } from '../events/ids'
@@ -20,6 +21,7 @@ export type ModelStepResult = {
 
 export type ModelTraits = {
   imageTier?: EImageTier | undefined
+  image?: ImageCapabilities | undefined
   contextWindow?: number | undefined
 }
 

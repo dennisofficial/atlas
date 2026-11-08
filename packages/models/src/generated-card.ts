@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { offersFastMode } from './fast-models'
+import { imageCapabilitiesOf } from './image-capabilities'
 
 export { OPENAI_COMPLETIONS_API }
 
@@ -113,6 +114,7 @@ export function toModelCard(row: GeneratedCard): ModelCard | undefined {
     api: row.api,
     contextWindow: row.contextWindow,
     imageTier,
+    image: imageCapabilitiesOf({ api: row.api, ref: row.ref }),
     ...(row.maxOutputTokens === undefined ? {} : { maxOutputTokens: row.maxOutputTokens }),
     ...(cost === undefined ? {} : { cost }),
     ...(effort === undefined ? {} : { effort }),
