@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
-import type { ProcessPort, SpawnCommand, ToolOutcome } from '@dltech/atlas-core'
+import type { ToolOutcome } from '@dltech/atlas-core'
 
 import { BashTool } from '../bash'
 import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
