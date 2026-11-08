@@ -20,6 +20,7 @@ const LISTEN_POLL_MS = 500
 const DRAIN_POLL_MS = 250
 const DAEMON_DRAIN_BUDGET_MS = 600_000
 const DRAIN_ACCEPTED = '202'
+const DRAIN_ALREADY = '409'
 
 const LISTEN_PROBE = `curl -s localhost:${DAEMON_PORT} | grep -qx atlas-daemon`
 const ALIVE_PROBE = `[ -f ${DAEMON_PID_PATH} ] && kill -0 "$(cat ${DAEMON_PID_PATH})" 2>/dev/null`
@@ -77,19 +78,24 @@ const waitForListen = async (args: { sandbox: Sandbox; budgetMs: number }): Prom
   )
 }
 
+type DrainAnswer = 'accepted' | 'already' | 'refused'
+
 const requestDrain = async (args: {
   sandbox: Sandbox
   token: string
   deadlineMs: number
-}): Promise<boolean> => {
+}): Promise<DrainAnswer> => {
   const run = await sandboxSh({
     sandbox: args.sandbox,
     script: `curl -s -m 10 -o /dev/null -w '%{http_code}' -X POST -H "authorization: Bearer $ATLAS_DRAIN_TOKEN" 'http://localhost:${DAEMON_PORT}/drain' --data '{"deadlineMs":${args.deadlineMs}}'`,
     timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
     env: { ATLAS_DRAIN_TOKEN: args.token },
   })
-  if (typeof run.stdout !== 'function') return false
-  return (await run.stdout()).trim() === DRAIN_ACCEPTED
+  if (typeof run.stdout !== 'function') return 'refused'
+  const code = (await run.stdout()).trim()
+  if (code === DRAIN_ACCEPTED) return 'accepted'
+  if (code === DRAIN_ALREADY) return 'already'
+  return 'refused'
 }
 
 const waitForClose = async (args: { sandbox: Sandbox; budgetMs: number }): Promise<boolean> => {
@@ -108,17 +114,19 @@ const retireDaemon = async (args: {
   log?: ((line: string) => void) | undefined
 }): Promise<void> => {
   const { sandbox } = args
-  const accepted = await requestDrain({
+  const answer = await requestDrain({
     sandbox,
     token: args.token,
     deadlineMs: args.drainBudgetMs,
   })
-  if (!accepted) {
+  if (answer === 'refused') {
     args.log?.(`sandbox ${sandbox.name} daemon does not drain — killing it`)
     await sh({ sandbox, script: KILL_SCRIPT })
     return
   }
-  args.log?.(`sandbox ${sandbox.name} daemon is draining`)
+  args.log?.(
+    `sandbox ${sandbox.name} daemon ${answer === 'already' ? 'is already draining' : 'is draining'}`,
+  )
   if (await waitForClose({ sandbox, budgetMs: args.drainBudgetMs })) {
     args.log?.(`sandbox ${sandbox.name} daemon drained`)
     return

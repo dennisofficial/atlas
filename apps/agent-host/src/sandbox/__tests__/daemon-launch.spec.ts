@@ -24,6 +24,7 @@ const fakeSandbox = (state: {
   listens: boolean
   answersAsDaemon?: boolean
   acceptsDrain?: boolean
+  drainAlready?: boolean
   closesOnDrain?: boolean
 }) => {
   const commands: RecordedCommand[] = []
@@ -52,6 +53,11 @@ const fakeSandbox = (state: {
         return { exitCode: 0 }
       }
       if (script.startsWith('curl') && script.includes('/drain')) {
+        if (state.drainAlready === true) {
+          state.listens = false
+          drained = true
+          return { exitCode: 0, stdout: async () => '409' }
+        }
         if (!(state.acceptsDrain ?? false)) return { exitCode: 7, stdout: async () => '000' }
         if (state.closesOnDrain ?? true) {
           state.listens = false
@@ -96,7 +102,7 @@ describe('launchDaemon', () => {
   it('starts the daemon detached with the token only in that runCommand env', async () => {
     const { bundle: b, version, cleanup } = bundle()
     try {
-      const { sandbox, writes } = fakeSandbox({ alive: false, listens: true })
+      const { sandbox, commands, writes } = fakeSandbox({ alive: false, listens: true })
       await launchDaemon({ sandbox, bundle: b, token: 'tok-1', sandboxName: 'atlas-v2-s1' })
 
       const detached = commands.filter((command) => command.detached === true)
@@ -190,6 +196,32 @@ describe('launchDaemon', () => {
         expect(command.args[1] ?? '').not.toContain('tok-1')
         if (!isDrain(command)) expect(JSON.stringify(command.env ?? {})).not.toContain('tok-1')
       }
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('waits for a daemon that another host already set draining instead of killing it', async () => {
+    const { bundle: b, cleanup } = bundle()
+    try {
+      const lines: string[] = []
+      const { sandbox, commands, writes } = fakeSandbox({
+        version: 'v-old',
+        alive: true,
+        listens: true,
+        drainAlready: true,
+      })
+      await launchDaemon({
+        sandbox,
+        bundle: b,
+        token: 'tok-1',
+        sandboxName: 'atlas-v2-s1',
+        log: (line) => lines.push(line),
+      })
+      expect(commands.filter(isDrain).length).toBe(1)
+      expect(commands.some(isKill)).toBe(false)
+      expect(writes.map((write) => write.path)).toContain(daemonPaths.bundle)
+      expect(lines.some((line) => line.includes('already draining'))).toBe(true)
     } finally {
       cleanup()
     }
