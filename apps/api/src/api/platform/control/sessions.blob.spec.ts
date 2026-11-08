@@ -1,3 +1,4 @@
+import { composeCommands } from '@dltech/atlas-commands'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { describe, expect, it } from 'bun:test'
 import { NotFoundException } from '@nestjs/common'
@@ -43,6 +44,7 @@ describe('SessionsService blob reads', () => {
       new NoBackgroundWork(),
       new FakeMediaRegistry(),
       new FakeMediaStore(),
+      composeCommands([]),
     )
     return { plane, service }
   }

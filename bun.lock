@@ -50,6 +50,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@ai-sdk/anthropic": "^4.0.87",
+        "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
@@ -425,6 +426,17 @@
         "@types/bun": "latest",
         "fast-check": "^4.0.0",
         "typescript": "6.0.3",
+      },
+    },
+    "packages/commands": {
+      "name": "@dltech/atlas-commands",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
       },
     },
     "packages/control": {
@@ -1089,6 +1101,8 @@
     "@dltech/atlas-api-router": ["@dltech/atlas-api-router@workspace:packages/api-router"],
 
     "@dltech/atlas-client": ["@dltech/atlas-client@workspace:packages/client"],
+
+    "@dltech/atlas-commands": ["@dltech/atlas-commands@workspace:packages/commands"],
 
     "@dltech/atlas-control": ["@dltech/atlas-control@workspace:packages/control"],
 

@@ -1,3 +1,4 @@
+import { composeCommands } from '@dltech/atlas-commands'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
@@ -49,6 +50,7 @@ export const setupNaming = () => {
     background,
     registry,
     mediaStore,
+    composeCommands([]),
   )
   return { service, titler, background, registry, mediaStore }
 }

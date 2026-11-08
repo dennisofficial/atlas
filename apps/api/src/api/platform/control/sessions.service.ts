@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import type { CommandRegistry } from '@dltech/atlas-commands'
 import {
   ControlPlane,
-  fallbackTitleOf,
   pricedView,
   readSessionStatus,
   sessionSummaryOf,
@@ -17,6 +17,8 @@ import {
   inboxMessageSchema,
   type SessionArchiveOutput,
   type SessionBlobOutput,
+  type SessionCommandInput,
+  type SessionCommandOutput,
   type SessionEventsOutput,
   type SessionListOutput,
   type SessionPostMedia,
@@ -27,9 +29,11 @@ import {
 } from '@dltech/atlas-protocol'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
-import { attachedMedia, imagesForNaming, type AttachedMedia } from './media-attachments'
+import { attachedMedia } from './media-attachments'
+import { COMMAND_REGISTRY, postCommand } from './command-registry'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
+import { nameSession } from './session-naming'
 import {
   BLOB_READ_DEFAULT_LENGTH,
   EVENTS_DEFAULT_MAX_BYTES,
@@ -48,6 +52,7 @@ export class SessionsService {
     @Inject(BackgroundWork) private readonly background: BackgroundWork,
     @Inject(MediaRegistry) private readonly media: MediaRegistry,
     @Inject(MediaStore) private readonly store: MediaStore,
+    @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -122,7 +127,11 @@ export class SessionsService {
     })
     if (session.title === null) {
       this.background.keepAlive(
-        this.nameSession({
+        nameSession({
+          store: this.store,
+          titler: this.titler,
+          plane: this.plane,
+          logger: this.logger,
           userId: args.userId,
           sessionId: args.sessionId,
           projectId: session.projectId,
@@ -133,43 +142,6 @@ export class SessionsService {
       )
     }
     return { inboxId }
-  }
-
-  private async nameSession(args: {
-    userId: string
-    sessionId: string
-    projectId: string
-    text: string
-    media: readonly AttachedMedia[]
-    inboxId: number
-  }): Promise<void> {
-    try {
-      const images = await imagesForNaming({
-        store: this.store,
-        userId: args.userId,
-        media: args.media,
-      })
-      const generated = await this.titler
-        .nameOf({
-          userId: args.userId,
-          projectId: args.projectId,
-          text: args.text,
-          ...(images.length === 0 ? {} : { images }),
-        })
-        .catch((failure: unknown) => {
-          this.logger.warn(`naming ${args.sessionId} failed: ${String(failure)}`)
-          return null
-        })
-      const title = generated ?? fallbackTitleOf(args.text)
-      if (title === null) return
-      await this.plane.titleUntitledSession({
-        sessionId: args.sessionId,
-        title,
-        fromInboxId: args.inboxId,
-      })
-    } catch (failure) {
-      this.logger.warn(`storing the name of ${args.sessionId} failed: ${String(failure)}`)
-    }
   }
 
   async withdraw(args: {
@@ -284,6 +256,11 @@ export class SessionsService {
   async retry(args: { userId: string; sessionId: string }): Promise<SessionRetryOutput> {
     await this.requireOwnedSession(args)
     return this.plane.post({ sessionId: args.sessionId, kind: INBOX_KIND_RETRY, payload: '{}' })
+  }
+
+  async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {
+    await this.requireOwnedSession(args)
+    return postCommand({ plane: this.plane, registry: this.commands, ...args })
   }
 
   async requireOwnedSession(args: {
