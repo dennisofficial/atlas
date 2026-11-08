@@ -73,3 +73,5 @@ processes are gone. Finished results survive; a running call is honestly lost.
   host collection, fault row F44. Recorded in `durable-calls.md`.
 - PR 2: `POST /drain`, `DaemonEngine.drain`, drain-then-boot with the kill fallback, fault row F45. The
   `durable-calls.md` "Draining instead of killing" section is the contract.
+- Still open: the live swap inside a real Vercel sandbox against production, with the exact recipe and the
+  reason it was not run in `durable-calls.md` ("What the live check still owes").

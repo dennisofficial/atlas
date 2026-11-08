@@ -102,6 +102,27 @@ real processes: a gated bash, `daemon.drain()`, the gate released, the daemon ex
 signal and no orphan, a new daemon on the same home, and the done result collected exactly once with the
 run count still one.
 
+## What the live check still owes
+
+Everything above is proven with real processes on this machine: a real daemon binary, a real sandbox home,
+real Postgres and Redis, and the real agent host, through the fault rig. What is **not** proven live is a
+swap inside a real Vercel sandbox against production — the shape the earlier SIGKILL run got wrong. The
+recipe, for whoever has the window:
+1. Build the daemon from the branch (`bun run --cwd apps/daemon build`) and run a local agent host with the
+   production env, holding a real session and sandbox; start a long bash and kill the host with `SIGKILL`.
+2. Start a second host whose daemon bundle is built from a _different_ commit, so its hash differs.
+3. It wakes the sandbox, finds the mismatch, drains the old daemon (which finishes the bash), waits for the
+   port to close, boots the new one and collects the result. Expect one `tool-dispatched`, one done
+   `tool-result`, and one run of the command's marker line.
+4. Gate on Render being absent: its log printing `draining` **and** `GET /v1/services/{id}/instances`
+   staying `[]` for 30–60 s, plus host A's log showing `holder.takeover` for the session before any kill.
+   Resume production in a `finally`.
+
+It was not run in the session that landed these two changes: the driver scripts were never kept (they lived
+in a gitignored `.scratch/`), rebuilding them plus a five-minute production outage needed a window the
+operator had not opened. The unit and fault rows above are the evidence the merge rests on; a live pass
+would only add the Vercel sandbox to the same path.
+
 ## What stays interrupted
 
 A daemon crash mid-call, a sandbox stop/restore, and a host that dies before the daemon finished: there is
