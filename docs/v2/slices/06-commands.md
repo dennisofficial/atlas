@@ -1,7 +1,7 @@
 # Slice 6 spec: `plugin-sdk` and `commands`
 
-Status: **settled 2026-11-07** (operator's answers in §9); nothing is built yet. Anchors are
-`path:line` at `7005a2a8b`; re-check before relying on one.
+Status: **done 2026-11-08** (PRs #2002, #2003, #2005, #2006, #2007, #2008; results and the live
+check in §10). Anchors were `path:line` at `7005a2a8b`; re-check before relying on one.
 
 ## Goal
 
@@ -162,8 +162,19 @@ command and an inbox handler), composes through `composePlugins`, and its event 
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `spec.ts`     | `CommandSpec` — name, summary, group, `args: z.ZodType`, `timing`: one per capability, the only place its inbox kind and argument shape live |
 | `registry.ts` | `defineCommand`, `composeCommands`, `commandOf`: the table the API validates against, the holder dispatches through and the TUI lists        |
-| `pod.ts`      | `CommandHandler` and `CommandContext` (args, session, record, model, log); the handlers themselves land in PRs 4–6                           |
-| `hooks.ts`    | headless `useRunCommand(command)`, posting through `sessions.command`; added with its first web consumer in PR 4                             |
+| `pod.ts`      | `CommandHandler` and `CommandContext`: `{ args, sessionId, append(drafts), visibleEvents(), model?, log }`                                   |
+| `control.ts`  | `ControlCommandHandler`, for the one command whose work is a control-plane write (rename)                                                    |
+
+**As built, the context grew twice.** `visibleEvents()` arrived when rewind needed the log and the
+context had no plane; `model` when summarise needed one, threaded from `runtime.model`
+(`packages/host/src/holder/held-runner.ts:171`) through the holder to the intake. `append` takes
+`EventDraft | RecordBody`, so a handler appends its own record event. There is no `hooks.ts`: each
+web action is a small data module beside its surface (`session-rewind.ts`, `session-summarise.ts`,
+`rename-session.ts`).
+
+**`handledIn`.** `CommandSpec.handledIn: 'pod' | 'control'` marks the difference. A `control` command
+never enters `byInboxKind`, so a holder can never pick one up; `sessions.command` runs it inline and
+answers `{}`.
 
 **No text layer yet.** Parsing text into arguments (`/rename my thing`) and building a slash menu are
 what a surface that takes text needs, and only the TUI does. They land with the TUI at slice 9 beside
@@ -176,7 +187,8 @@ composed registry, validates `args` with that command's schema, and posts an inb
 `` `command:${name}` `` whose payload is the args JSON — `sessions.retry`'s shape
 (`sessions.service.ts:285-287`), with ownership checked as `requireOwnedSession` does
 (`:289-297`). An unknown name or invalid args is a `BAD_REQUEST` and posts nothing. A client can only
-run a command the server knows.
+run a command the server knows. The output is `{ inboxId?: number }`: present for a pod command,
+absent for a control command.
 
 **Intake: the holder runs commands between turns.** `InboxIntake` (`inbox-intake.ts:28`) takes the
 composed command table and dispatches in `prepare()` (`:31-62`):
@@ -193,12 +205,11 @@ composed command table and dispatches in `prepare()` (`:31-62`):
 `RecordBody` (`event.ts:39`), `recordBodySchema` (`:88`) and `RECORD_TYPE_TABLE` (`:116`). A refusal
 is not a transcript row: `transcript-events.ts:30` maps it to `null`, beside `input-consumed`.
 
-**The view carries commands.** `SessionViewValue` gains `commands: readonly SessionCommandRow[]`
-(`{ inboxId, name, state: 'pending' | 'refused', reason? }`), built where `queuedOf` is built
-(`packages/control/src/session-view-read.ts:140`) from the same inbox page plus the refusals in the
-visible tail. **Bump `SESSION_VIEW_VERSION`** (`packages/core/src/record/views/session-view.ts`) —
-materialized rows refold lazily through `usableState` (`packages/control/src/session-view-ops.ts:22-27`)
-— because the folded value's shape changed.
+**Pending commands ride the status output, and the fold is untouched.** `SessionStatusOutput` gains
+`commands: SessionCommandRow[]` (`{ inboxId, name, postedAt }`) beside `queued`, filled in
+`statusOutputOf` (`packages/control/src/session-view-read.ts:140`) from the same inbox page and
+filtered on the `command:` prefix. `SESSION_VIEW_VERSION` stays 3: a refusal is read from the
+`input-refused` event the client already holds in its window, so nothing is materialized for it.
 
 ## 4. Native commands (`commands/` root)
 
@@ -218,6 +229,9 @@ Picks one of your own messages, confirms, posts `{ toSeq }`.
 - Schema change: `history-rewound` gains `draft: string` (`event.ts:40`, `:89`). A `history-rewound`
   without it is still valid (older rows), so the field is optional and the composer only refills when
   it is present.
+- `toSeq` means two things: the command's `{ toSeq }` is the picked message's own seq, while the
+  record's `history-rewound.toSeq` is that minus one, because visibility hides from `toSeq + 1`
+  (`packages/core/src/record/visibility.ts:20-29`).
 - Web: the per-message action the transcript already renders (`TranscriptRewind`,
   `apps/web/src/features/threads/transcript/transcript-turn.tsx:35-38`) fed from v2 events. No
   `/rewind` in the composer (§9 A1).
@@ -228,18 +242,22 @@ Picks one of your own messages, confirms, posts `{ toSeq }`.
 
 The design in [summarise-at-message.md](summarise-at-message.md), unchanged except where v2 has no
 counterpart yet.
-- Payload `{ throughSeq }`, prefix only. Core guard: generalise v1's `compactionTarget`
-  (`packages/core/src/compaction/compaction-target.ts:43`) to take the floor as a parameter and add a
-  v2 floor over `history-summarised` + the visible events; v1 keeps passing `compactedThrough`.
+- Payload `{ throughSeq }`, prefix only, where `throughSeq` is the event immediately before a visible
+  user message. The guards are a v2 sibling, `packages/core/src/record/summary-target.ts`, not a
+  generalisation of v1's `compactionTarget`: v1 reads `history-compacted`, and the loop's view turns
+  `history-summarised` into exactly that, so the sibling reads the loop's view. `fromSeq` is the first
+  visible event's seq, not 1 — a holder log carries record-only events before the first message.
 - Pod: `input-consumed`, guard, summarise the range with the session's admitted model, append
   `history-summarised{ fromSeq, throughSeq, anchor: 'prefix', summary }`. The summariser prompt is
   **copied** from v1 into `pod.ts` (v2 shares no logic with v1, 0001/0021-ish rule: v1 code is prior
   art, never imported).
-- Refusals append `input-refused`: the range splits a tool call, saves nothing, sits under an existing
-  summary, or holds a running sub-agent ("stop the agent first" — slice 7 decides whether summarise
-  stops them instead).
-- Crash mid-summary: a consumed entry with neither outcome after it is re-run by the next holder; the
-  summariser has no side effects, so re-running is safe and needs no `OnceLedger` row.
+- Refusals append `input-refused` with one of "That message cannot be summarised", "There is nothing
+  to summarise", "That range is already summarised", "That range splits a tool call", "This session
+  has no model to summarise with", "The summary came back empty". A visible earlier summary inside the
+  range is folded into the new one rather than refused. A range holding a running sub-agent is **not**
+  refused yet: nothing on v2 spawns one, and slice 7 adds that guard.
+- Crash mid-summary: a consumed entry with neither outcome after it should be re-run by the next
+  holder — the summariser has no side effects. **Not built or tested yet** (§8).
 - Rewind undoes a summary: already true of `visibility.ts:19-28`, so the confirm copy drops v1's "can
   no longer be rewound to" and says a rewind to before the summary brings the messages back.
 - Web: the `SummariseDialog` + per-message action v1 already ships (`TranscriptSummarise`,
@@ -255,7 +273,9 @@ Payload `{ name }` → the session's title becomes `name`.
   same push a rename makes today. If a later slice makes the title a fold, the handler moves to the
   pod unchanged.
 - A `setSessionTitle` op is added to `ControlTx` and the memory/Postgres adapters beside
-  `setSessionTitleIfUntitled`, because rename must overwrite a title the auto-namer already set.
+  `setSessionTitleIfUntitled`, because rename must overwrite a title the auto-namer already set. It
+  also clears `titledFromInboxId`, so taking back the message that auto-named a session no longer
+  blanks a name the operator chose.
 - Web: a pencil `RowAction` on the session row, shown on hover beside archive
   (`shell-thread-row-body.tsx:103`), opening a small input; the session header's title is the same
   action. No `/rename` in the composer (§9 A1).
@@ -263,35 +283,35 @@ Payload `{ name }` → the session's title becomes `name`.
 ## 5. Web wiring
 
 The web presents capabilities on the thing they act on, not as slash commands (§9 A1).
-- The v2 session view supplies `rewind` and `summarise` to `ThreadTranscript`
-  (`thread-transcript.tsx:87-92`), built from `snapshot.events` and the view's `commands`.
-- The sidebar row gains a rename `RowAction` (pencil) beside archive; it posts `rename` and the row
-  re-renders from the announced session list.
-- A command pending shows as a row where the queued dock shows messages (`QueuedDock`); a refusal
-  shows its reason in the same place, with the reason text from the command's own refusal strings.
-- The composer refills from `history-rewound.draft` when it is present.
+- Rewind and summarise are per-message actions on the transcript (`TranscriptRewind`,
+  `TranscriptSummarise`), built by `data/session-rewind.ts` and `data/session-summarise.ts` from the
+  snapshot's visible events; each posts through `sessions.command`.
+- Summarise mounts the shipped dialog with a v2 `copyOf`, so the copy says a rewind to before the
+  summary brings the messages back. Its pending state is derived from the log (a later
+  `history-summarised`, or `input-refused` for that inbox id), not from the inbox.
+- Rename is a pencil `RowAction` on the session row's hover cluster (v2 rows only) and beside the
+  session header's title, opening a popover input; Enter saves, Escape closes.
+- A refusal shows its reason inline above the composer, next to rewind's.
+- The composer refills from `history-rewound.draft`, and from the picked text the moment the rewind
+  lands (the picked event leaves the window).
 - The composer's slash menu stays as it is: no command specs are passed to it, so typing `/` keeps
   sending text until a later slice decides which commands deserve a menu on web.
 
-## 6. PR breakdown
+## 6. As built
 
-1. `feat(plugin-sdk): plugin contract and the type-level event registry` — §2, the fixture plugin, and
-   the decoder threaded through control, host and client.
-2. `feat(commands): the command contract and sessions.command` — §3's spec and registry plus the
-   wire, with the API refusing unknown names and bad args.
-3. `feat(host): run inbox commands between turns` — intake dispatch, `input-refused` in `core`, the
-   view's command rows, `SESSION_VIEW_VERSION` bump.
-4. `feat(commands/rewind): rewind to a message on v2` — command, `history-rewound.draft`, the message
-   action on web, its TUI renderer behind a component test.
-5. `feat(commands/summarise): summarise up to a message on v2` — guards, pod handler, the message
-   action on web.
-6. `feat(commands/rename): rename a v2 session` — CP-side handler, `setSessionTitle`, the sidebar
-   pencil and the header title on web.
-7. `docs(v2): slice 6 done` — roadmap row and Current state, the live check below written into this
-   spec.
+| PR    | Title                                                                     | What it landed                                                            |
+| ----- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| #2002 | `refactor(commands): the command contract, registry and sessions.command` | `packages/commands`, the mutation, the API's registry and refusal         |
+| #2003 | `refactor(plugin-sdk): the plugin contract and the event registry`        | registry in `core`, `createV2EventSchema`, `packages/plugin-sdk`, fixture |
+| #2005 | `refactor(host): run inbox commands between turns`                        | intake, `input-refused`, `EInputConsumed.Command`, pending rows           |
+| #2006 | `feat(commands/rewind): rewind to a message on v2`                        | root `commands/` package, `history-rewound.draft`, the message action     |
+| #2007 | `feat(commands/rename): rename a v2 session from the sidebar`             | `handledIn`, `setSessionTitle`, the pencil                                |
+| #2008 | `feat(commands/summarise): summarise up to a message on v2`               | `summary-target.ts`, the summariser, the message action                   |
+| this  | `docs(v2): slice 6 done`                                                  | §10, the roadmap, the follow-ups                                          |
 
-Each PR is reviewable in one sitting and lands in order. 1 and 2 are independent; 3 needs 2; 4–6 need
-3.
+The first two merge in either order; #2005 needs #2002; #2006–#2008 need #2005. #2006, #2007 and
+#2008 were built by separate agents in parallel worktrees and conflicted only in
+`commands/src/index.ts`, which registers each command and both handler maps.
 
 ## 7. Test plan
 
@@ -302,7 +322,6 @@ Each PR is reviewable in one sitting and lands in order. 1 and 2 are independent
 | Control conformance (memory + Postgres) | `sessions.command` posts `command:<name>` with validated args; an unknown name or bad args is refused and posts nothing; `input-refused` folds into the view's command rows; the pending row clears when the outcome appends; a rewind leaves `spend` unchanged and drops the meter |
 | Host                                    | The holder runs a command between turns and not during one; a message posted while a command runs is consumed after; killing the holder after `input-consumed` re-runs the summary once; an unknown `command:` kind is consumed as discarded with a warning                         |
 | Web                                     | The message action posts rewind and summarise; the composer refills from `draft`; the sidebar pencil renames and the row shows the new title; a refusal shows its reason; a pending command shows until its outcome                                                                 |
-| TUI (renderer only)                     | Each command's `tui.tsx` renders from the shared client state and dispatches the same inbox kind; the surface itself is wired in slice 9                                                                                                                                            |
 | Live (prod v2 session)                  | Rewind the last turn: spend row unchanged, meter lower. Summarise a range: one summary row, the range hidden, the messages return on a rewind past it. Rename. One refused summarise shows its reason                                                                               |
 
 ## 8. Out of scope
@@ -315,6 +334,16 @@ Each PR is reviewable in one sitting and lands in order. 1 and 2 are independent
 - The TUI's v2 session surface (slice 9) — see §9 Q2.
 - Commands that act on a running turn (interrupt, queued-edit). Stop already exists as its own inbox
   kind and is untouched.
+- The TUI renderers and slash commands: with no v2 session surface before slice 9 there is nothing to
+  wire them to, so the shared part is the declaration and the registry.
+- Re-running a summarise whose holder died after `input-consumed`, and the running-agent guard
+  (slice 7).
+- The host's record adapter and the session-view read path still decode with core's schema, so a
+  plugin event can be appended and read directly but not through the view's catch-up; slice 7 threads
+  it when the first real plugin regains events.
+- The plugin registry's type-level guarantee is per package: a plugin's body is typed without editing
+  `core`, while core's own switches keep a defined fallthrough for bodies they do not know (the client
+  ignores one it has no plugin for).
 
 ## 9. Operator answers (2026-11-07)
 
@@ -330,3 +359,34 @@ Each PR is reviewable in one sitting and lands in order. 1 and 2 are independent
 4. **Rename.** No log event, because nothing in the transcript needs to show a rename. The title stays
    the CP row; rename is the one CP-handled command and appends nothing; the sidebar follows the
    announced session row.
+
+## 10. Results (2026-11-08)
+
+**What shipped.** `plugin-sdk` with a type-level event registry and a slot-complete contract, proven by
+a fixture plugin; `packages/commands` with `handledIn` and one `sessions.command` mutation; the holder's
+command intake with `input-refused`; three capabilities on v2 web — rewind, summarise, rename.
+
+**Live check (2026-11-08, production, one v2 session on the atlas project, claude-opus-5-5).** Two
+turns, then each capability through the real path:
+
+| Step                                                 | Result                                                                                                                                                                                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Two turns                                            | context meter 6035, one spend row                                                                                                                                                                                       |
+| `summarise` up to the second message                 | meter 6035 → 103, spend rows unchanged at 1                                                                                                                                                                             |
+| `rewind` to the second message                       | meter 103 → 6010 and the summary was **undone** — the rewind target sits before the summary event, which is the documented "a rewind to before a summary brings the messages back" (the copy says so), not a bug        |
+| `rewind` to the first message, no summary in the way | `POST /v1/trpc/sessions.command` → `{ inboxId }`; **meter 6010 → 0, spend rows unchanged at 1** — the slice-4 statement ("spend counts every call, rewound or not, while the meter drops") seen live for the first time |
+| `rename`                                             | `POST /v1/trpc/sessions.command` → `{}` (a control command posts nothing) and the title became the new name                                                                                                             |
+
+**One gap the check found.** A command posted while an agent-host deploy is rolling can be consumed by
+the old instance, which does not know the kind yet: it appends `input-consumed{discarded}` with a
+warning and the command is lost. Narrow, but real — a client should notice a discarded command rather
+than show it pending forever.
+
+**Corrections the build made to this spec.** The view does not carry commands (the status output does,
+`SESSION_VIEW_VERSION` stays 3); `CommandContext` gained `visibleEvents()` and `model`; a control command
+is excluded from `byInboxKind`; rewind's `toSeq` is the picked message and the record's is one less;
+summarise's guards are a v2 sibling over the loop view; the generated tRPC router is committed (CI fails
+on drift), so a wire change commits it.
+
+**Follow-ups.** Re-run a summarise after a holder crash; the running-agent guard (slice 7); the TUI
+renderers (slice 9); the host record adapter and the session-view path on the plugin schema (slice 7).
