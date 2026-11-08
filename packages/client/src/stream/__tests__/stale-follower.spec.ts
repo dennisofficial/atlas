@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
+import type { StreamServerMessage } from '@dltech/atlas-protocol'
+
 import { EStreamConnectionState } from '../connection-machine'
 import { memorySessionCache } from '../session-cache'
 import { createSessionFollower, ESessionConnection } from '../session-follower'
@@ -27,7 +29,7 @@ afterEach(() => {
   console.warn = warned
 })
 
-const pageWithUnknownEvent = () => {
+const pageWithUnknownEvent = (): StreamServerMessage => {
   const events = mintUserEvents({ count: 2 })
   return {
     type: 'events',
@@ -35,7 +37,7 @@ const pageWithUnknownEvent = () => {
     events: [{ ...events[0] }, { seq: 2, type: 'from-the-future' }],
     head: headOf(events),
     live: true,
-  } as const
+  }
 }
 
 describe('a client whose schema is behind the host', () => {
