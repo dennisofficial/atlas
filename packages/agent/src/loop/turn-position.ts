@@ -20,9 +20,9 @@ export function messageArrivedSince({
   seenThrough: number | undefined
 }): boolean {
   if (seenThrough === undefined) return false
-  return awaitsReply(
-    events.filter((event) => event.seq > seenThrough && event.type !== 'assistant-said'),
-  )
+  const afterSeen = events.filter((event) => event.seq > seenThrough)
+  const answered = afterSeen.filter((event) => event.type === 'assistant-said').at(-1)?.seq
+  return awaitsReply(afterSeen.filter((event) => event.seq > (answered ?? seenThrough)))
 }
 
 export async function messageArrivedAfter({
