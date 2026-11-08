@@ -1,4 +1,5 @@
 import type {
+  Attachment,
   EventDraft,
   EventLogPort,
   RunFailure,
@@ -95,6 +96,7 @@ export class PublishingTurnRunner extends TurnRunner {
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
     uploads?: readonly SaidUpload[]
+    attachments?: readonly Attachment[]
     context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal

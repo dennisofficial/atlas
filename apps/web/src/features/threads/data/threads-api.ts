@@ -1,9 +1,5 @@
-import type { SaidUpload } from '@dltech/atlas-core'
-import {
-  createThreadReplySchema,
-  type SaidImageWire,
-  type WireSessionNode,
-} from '@dltech/atlas-wire/web'
+import type { Attachment } from '@dltech/atlas-core'
+import { createThreadReplySchema, type WireSessionNode } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 
@@ -35,8 +31,7 @@ export const postMessage = (args: {
   threadId: string
   sendId: string
   text: string
-  images?: SaidImageWire[]
-  uploads?: SaidUpload[]
+  attachments?: Attachment[]
 }) => cloudCall(api.threadMessages.send.mutate(args))
 
 export const fetchEvents = (args: { threadId: string; fromSeq?: number | undefined }) =>

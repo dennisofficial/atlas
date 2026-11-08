@@ -141,6 +141,7 @@ export function createTurnDriver(
           ...(said.images === undefined ? {} : { images: said.images }),
           ...(said.files === undefined ? {} : { files: said.files }),
           ...(said.uploads === undefined ? {} : { uploads: said.uploads }),
+          ...(said.attachments === undefined ? {} : { attachments: said.attachments }),
           ...(said.context === undefined ? {} : { context: said.context }),
         })
         intake.changed()

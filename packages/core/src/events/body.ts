@@ -1,6 +1,6 @@
+import type { Attachment } from '../attachments/attachment'
 import type { DiagramRepairedBody } from '../diagrams/diagram-body'
 import type { EExecutionLocation } from '../execution/location'
-import type { MediaRef } from '../media/media-ref'
 import type { ReasoningPart, TextPart, UserContentPart } from '../message/parts'
 import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EServiceStatus } from '../services/status'
@@ -91,33 +91,7 @@ export enum EAssistantPlaceholder {
 
 export type AssistantPart = TextPart | ReasoningPart
 
-export type SaidImage = {
-  path: string
-  mediaType: string
-  data: string
-  width?: number | undefined
-  height?: number | undefined
-}
-
-export type SaidFile = {
-  path: string
-  mediaType: string
-  data: string
-  filename?: string | undefined
-}
-
-export type SaidMedia = {
-  media: MediaRef
-  source?: string | undefined
-}
-
-export type SaidUpload = {
-  uploadId: string
-  pathname: string
-  name: string
-  size: number
-  mediaType: string
-}
+import type { SaidFile, SaidImage, SaidMedia, SaidUpload } from '../attachments/legacy-said'
 
 export type EventBody =
   | {
@@ -130,6 +104,7 @@ export type EventBody =
       files?: readonly SaidFile[] | undefined
       uploads?: readonly SaidUpload[] | undefined
       media?: readonly SaidMedia[] | undefined
+      attachments?: readonly Attachment[] | undefined
     }
   | {
       type: 'assistant-said'

@@ -7,16 +7,8 @@ import { callIdsIn, freshCallId } from '../../events/dedupe-call-ids'
 import type { Event, EventOfType, EventRef } from '../../events/envelope'
 import { isNoticeArrival } from '../../events/notice-stage'
 import { liveNudgeIds } from '../../events/nudges'
-import { imagePathLine, inlinable } from '../../images/attached'
-import type {
-  FilePart,
-  ImagePart,
-  MediaPart,
-  ToolCallPart,
-  ToolResultPart,
-  UserContentPart,
-} from '../../message/parts'
-import { basenameOf } from '../../policy/classifier/path-set'
+import { attachmentsOf, uploadsOf } from '../../attachments'
+import type { ToolCallPart, ToolResultPart, UserContentPart } from '../../message/parts'
 import { shellEventContextsOf } from '../../shells/lifecycle'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
@@ -26,6 +18,7 @@ import {
   backgroundShellMatchedBlock,
   backgroundShellStillRunningBlock,
 } from './background-shell-block'
+import { attachmentPartsOf } from './attachment-parts'
 import { agentReportedBlock } from './agent-reported-block'
 import { agentRestartedBlock } from './agent-restarted-block'
 import { nudgeBlock } from './nudge-block'
@@ -137,38 +130,9 @@ function saidContent({
   event: EventOfType<'user-said'>
   placements: ReadonlyMap<string, UploadPlacement> | undefined
 }): UserContentPart[] {
-  const shown: (ImagePart | FilePart | MediaPart)[] = []
-  const named: string[] = []
-
-  for (const image of event.images ?? []) {
-    if (!inlinable(image)) {
-      named.push(imagePathLine(image))
-      continue
-    }
-
-    shown.push({
-      type: 'image',
-      data: image.data,
-      mediaType: image.mediaType,
-      source: image.path,
-      width: image.width,
-      height: image.height,
-    })
-  }
-
-  for (const file of event.files ?? []) {
-    shown.push({
-      type: 'file',
-      data: file.data,
-      mediaType: file.mediaType,
-      filename: file.filename ?? basenameOf({ path: file.path }),
-      source: file.path,
-    })
-  }
-
-  for (const said of event.media ?? []) {
-    shown.push({ type: 'media', media: said.media, source: said.source })
-  }
+  const attachments = attachmentsOf(event)
+  const { shown, named } = attachmentPartsOf(attachments)
+  const uploads = uploadsOf(attachments)
 
   const said = [event.text, ...named].join('\n')
   const text =
@@ -178,12 +142,12 @@ function saidContent({
 
   return [
     { type: 'text', text },
-    ...(event.uploads === undefined || event.uploads.length === 0
+    ...(uploads.length === 0
       ? []
       : [
           {
             type: 'text' as const,
-            text: uploadsBlock({ uploads: event.uploads, placements }),
+            text: uploadsBlock({ uploads, placements }),
           },
         ]),
     ...shown,

@@ -20,6 +20,14 @@ const fakeApi = (params: { postFails?: boolean } = {}) => {
 
 const HASH = 'a'.repeat(64)
 
+const MEDIA = {
+  id: `media:${HASH}`,
+  name: 'shot.png',
+  mediaType: 'image/png',
+  size: 4,
+  content: { store: 'media' as const, hash: HASH },
+}
+
 const UPLOAD = {
   uploadId: '11111111-1111-4111-8111-111111111111',
   pathname: 'composer-uploads/user-1/11111111-1111-4111-8111-111111111111/deploy.sh',
@@ -54,14 +62,11 @@ describe('createSessionWithMessage', () => {
       api,
       projectId: 'proj-1',
       text: '',
-      media: [{ hash: HASH, source: 'shot.png' }],
+      media: [MEDIA],
       uploads: [],
     })
 
-    expect(calls[1]).toEqual([
-      'post',
-      { sessionId: 'sess-1', text: '', media: [{ hash: HASH, source: 'shot.png' }] },
-    ])
+    expect(calls[1]).toEqual(['post', { sessionId: 'sess-1', text: '', attachments: [MEDIA] }])
   })
 
   it('posts the uploads with the first message', async () => {
@@ -75,7 +80,16 @@ describe('createSessionWithMessage', () => {
       uploads: [UPLOAD],
     })
 
-    expect(calls[1]).toEqual(['post', { sessionId: 'sess-1', text: 'run it', uploads: [UPLOAD] }])
+    const [post] = calls.slice(1)
+    const body = post?.[1] as {
+      attachments: { id: string; content: { store: string } }[]
+    }
+    expect(body.attachments).toHaveLength(1)
+    expect(body.attachments[0]).toMatchObject({
+      id: UPLOAD.uploadId,
+      content: { store: 'upload' },
+    })
+    expect('uploads' in body).toBe(false)
   })
 
   it('fails when the first message cannot be posted', async () => {

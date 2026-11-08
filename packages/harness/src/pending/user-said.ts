@@ -9,4 +9,5 @@ export const userSaidDraft = (said: PendingSaid): EventDraft =>
     images: said.images,
     files: said.files,
     uploads: said.uploads,
+    attachments: said.attachments,
   })

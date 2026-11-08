@@ -1,3 +1,4 @@
+export * from '../attachment-wire'
 export * from '../composer-draft-wire'
 export * from '../memory-wire'
 export * from '../workspace-file-wire'

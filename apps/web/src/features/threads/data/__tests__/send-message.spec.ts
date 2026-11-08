@@ -31,46 +31,64 @@ describe('sendMessage', () => {
   })
 })
 
-const images = [{ path: 'a.png', mediaType: 'image/png', data: 'QUJD' }]
+const attachments = [
+  {
+    id: 'a',
+    name: 'a.png',
+    mediaType: 'image/png',
+    size: 3,
+    content: { store: 'inline' as const, data: 'QUJD' },
+  },
+]
 
-describe('sendMessage images', () => {
-  it('posts images when given and omits an empty list', async () => {
-    await sendMessage({ threadId: 't1', text: 'hi', sendId: 's1', images })
-    await sendMessage({ threadId: 't1', text: 'hi', sendId: 's2', images: [] })
+describe('sendMessage attachments', () => {
+  it('posts attachments when given and omits an empty list', async () => {
+    await sendMessage({
+      threadId: 't1',
+      text: 'hi',
+      sendId: 's1',
+      attachments,
+    })
+    await sendMessage({
+      threadId: 't1',
+      text: 'hi',
+      sendId: 's2',
+      attachments: [],
+    })
     expect(calls.map((call) => call.body)).toEqual([
-      { threadId: 't1', sendId: 's1', text: 'hi', images },
+      { threadId: 't1', sendId: 's1', text: 'hi', attachments },
       { threadId: 't1', sendId: 's2', text: 'hi' },
     ])
   })
 })
 
 describe('deliverMessage', () => {
-  it('passes images to the live send and skips HTTP', async () => {
+  it('passes attachments to the live send and skips HTTP', async () => {
     const sent: unknown[] = []
     await deliverMessage({
       threadId: 't1',
       text: 'hi',
       sendId: 's1',
-      images,
+      attachments,
       liveSend: (message) => {
         sent.push(message)
         return true
       },
     })
-    expect(sent).toEqual([{ text: 'hi', requestId: 's1', images }])
+    expect(sent).toEqual([{ text: 'hi', requestId: 's1', attachments }])
     expect(calls).toEqual([])
   })
 
-  it('posts images over HTTP when the socket cannot take the send', async () => {
+  it('posts attachments over HTTP when the socket cannot take the send', async () => {
     await deliverMessage({
       threadId: 't1',
       text: 'hi',
       sendId: 's1',
-      images,
+      attachments,
       liveSend: () => false,
     })
     expect(calls.map((call) => call.body)).toEqual([
-      { threadId: 't1', sendId: 's1', text: 'hi', images },
+      { threadId: 't1', sendId: 's1', text: 'hi', attachments },
     ])
   })
 
@@ -126,34 +144,5 @@ describe('deliverMessage dispatch failure', () => {
     await expect(
       deliverMessage({ threadId: 't1', text: 'hi', sendId: 's1', liveSend: () => false }),
     ).resolves.toBeUndefined()
-  })
-})
-
-describe('sendMessage uploads', () => {
-  const uploads = [
-    {
-      uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a01',
-      pathname: 'p',
-      name: 'a.pdf',
-      size: 1,
-      mediaType: 'x/y',
-    },
-  ]
-
-  it('posts uploads over HTTP and to the live send', async () => {
-    await sendMessage({ threadId: 't1', text: 'hi', sendId: 's1', uploads })
-    expect(calls.at(-1)?.body).toEqual({ threadId: 't1', sendId: 's1', text: 'hi', uploads })
-    const sent: unknown[] = []
-    await deliverMessage({
-      threadId: 't1',
-      text: 'hi',
-      sendId: 's1',
-      uploads,
-      liveSend: (args) => {
-        sent.push(args)
-        return true
-      },
-    })
-    expect(sent).toEqual([{ text: 'hi', requestId: 's1', uploads }])
   })
 })

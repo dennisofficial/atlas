@@ -102,8 +102,15 @@ describe('a turn driven over the session socket', () => {
     expect(live().sent.at(-1)).toMatchObject({
       kind: EClientFrame.Send,
       text: 'see the shot',
-      images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }],
-      context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'prose' }],
+      attachments: [{ name: 'shot.png', source: '/tmp/shot.png', mediaType: 'image/png' }],
+      context: [
+        {
+          type: 'context-loaded',
+          slot: 'skill',
+          key: 'commit',
+          content: 'prose',
+        },
+      ],
     })
 
     endTurn(receive, completed('run-1'))

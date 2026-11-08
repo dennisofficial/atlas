@@ -94,8 +94,16 @@ describe('startServe', () => {
       {
         type: 'user-said',
         text: 'go',
-        images: [
-          { path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=', width: 2, height: 1 },
+        attachments: [
+          {
+            id: 'image:0',
+            name: 'shot.png',
+            mediaType: 'image/png',
+            size: 6,
+            source: '/tmp/shot.png',
+            content: { store: 'inline', data: 'aGVsbG8=' },
+            image: { width: 2, height: 1 },
+          },
         ],
       },
     ])

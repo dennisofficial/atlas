@@ -237,10 +237,27 @@ describe('MediaService', () => {
         afterId: 0,
         limit: 10,
       })
-      expect(JSON.parse(entry?.payload ?? '')).toEqual({
-        text: '',
-        media: [{ media, source: 'shot.png' }, { media }],
-      })
+      const payload = JSON.parse(entry?.payload ?? '')
+      expect('media' in payload).toBe(false)
+      expect(payload.attachments).toEqual([
+        {
+          id: `media:0:${hash}`,
+          name: 'shot.png',
+          mediaType: media.mediaType,
+          size: media.size,
+          source: 'shot.png',
+          content: { store: 'media', hash },
+          image: { width: media.width, height: media.height },
+        },
+        {
+          id: `media:1:${hash}`,
+          name: hash,
+          mediaType: media.mediaType,
+          size: media.size,
+          content: { store: 'media', hash },
+          image: { width: media.width, height: media.height },
+        },
+      ])
     })
 
     it('omits media from a text-only payload', async () => {

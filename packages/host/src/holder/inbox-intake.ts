@@ -1,4 +1,5 @@
 import {
+  attachmentsOf,
   awaitsReplyOf,
   EInputConsumed,
   INBOX_KIND_RETRY,
@@ -78,12 +79,12 @@ export class InboxIntake implements AgentIntake {
           await this.consumeUnknown(entry)
           continue
         }
-        const { text, media, uploads } = parsed.data
+        const { text, ...legacy } = parsed.data
+        const attachments = attachmentsOf(legacy)
         drafts.push({
           type: 'user-said',
           text,
-          ...(media === undefined || media.length === 0 ? {} : { media }),
-          ...(uploads === undefined || uploads.length === 0 ? {} : { uploads }),
+          ...(attachments.length === 0 ? {} : { attachments }),
           requestId: `inbox:${entry.inboxId}`,
           inboxId: entry.inboxId,
         })

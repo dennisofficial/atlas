@@ -3,6 +3,7 @@ import type {
   EExecutionLocation,
   EKilledBy,
   EReportKind,
+  Attachment,
   SaidFile,
   SaidImage,
   ThreadId,
@@ -40,6 +41,7 @@ export abstract class AgentRegistryPort {
     text: string
     images?: readonly SaidImage[] | undefined
     files?: readonly SaidFile[] | undefined
+    attachments?: readonly Attachment[] | undefined
   }): Promise<AgentOutcome>
   abstract reportToParent(args: {
     threadId: ThreadId

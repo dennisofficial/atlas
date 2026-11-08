@@ -1,4 +1,5 @@
 import {
+  type Attachment,
   type SaidFile,
   type SaidImage,
   attributedStop,
@@ -49,6 +50,7 @@ export type SteerMessage = {
   text: string
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
+  attachments?: readonly Attachment[] | undefined
   via?: EMessageOrigin | undefined
 }
 

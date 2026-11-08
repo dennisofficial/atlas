@@ -1,4 +1,4 @@
-import type { EventLogPort, SaidUpload, ThreadId } from '@dltech/atlas-core'
+import type { Attachment, EventLogPort, SaidUpload, ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelConnection, ChannelReload, RemoteDeltaChannel } from './remote-delta-channel'
 import { ECloudSandboxState, type WorkspaceSpec } from './sandbox-client'
@@ -90,6 +90,7 @@ export type CloudMessages = {
     text: string
     images?: readonly SaidImageWire[] | undefined
     uploads?: readonly SaidUpload[] | undefined
+    attachments?: readonly Attachment[] | undefined
   }): Promise<void>
 }
 

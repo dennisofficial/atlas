@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { SaidImage, SaidUpload } from '../../events/body'
+import type { SaidImage, SaidUpload } from '../legacy-said'
 import { EAttachmentStore, inlineData, mediaHashOf } from '../attachment'
 import { attachmentsOf } from '../from-said'
 

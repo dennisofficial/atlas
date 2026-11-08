@@ -1,6 +1,12 @@
-import { eventBodySchema, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import {
+  eventBodySchema,
+  type Attachment,
+  type EventDraft,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { EClientFrame, EServeFrame, type ClientFrame, type ServeFrame } from '@dltech/atlas-harness'
 
+import { frameAttachmentsOf } from './frame-attachments'
 import { sayToChild } from './child-send'
 import type { FrameBuffer } from './frame-buffer'
 import { EServeEvent, type ServeLog } from './serve-log'
@@ -24,8 +30,9 @@ export function createTurnCommands(args: {
   const deliverToChild = async (given: {
     socket: SessionSocket
     frame: Extract<ClientFrame, { kind: EClientFrame.Send }>
+    attachments: Attachment[] | undefined
   }): Promise<void> => {
-    const { socket, frame } = given
+    const { socket, frame, attachments } = given
     const target = frame.threadId ?? threadId
     const fail = (message: string): void => {
       send({ socket, frame: { kind: EServeFrame.Error, message } })
@@ -39,7 +46,13 @@ export function createTurnCommands(args: {
       return
     }
     try {
-      await sayToChild({ ...args.childSend, owner: threadId, agentId: target, frame })
+      await sayToChild({
+        ...args.childSend,
+        owner: threadId,
+        agentId: target,
+        frame,
+        attachments,
+      })
       committedSends.add(frame.sendId)
       send({ socket, frame: { kind: EServeFrame.SendAcked, sendId: frame.sendId } })
     } catch (error) {
@@ -60,12 +73,25 @@ export function createTurnCommands(args: {
         })
         return
       }
+      let attachments: Attachment[] | undefined
+      try {
+        attachments = frameAttachmentsOf(frame.attachments)
+      } catch {
+        send({
+          socket,
+          frame: {
+            kind: EServeFrame.Error,
+            message: 'an attachment was not readable',
+          },
+        })
+        return
+      }
       if (committedSends.has(frame.sendId)) {
         send({ socket, frame: { kind: EServeFrame.SendAcked, sendId: frame.sendId } })
         return
       }
       if (frame.threadId !== undefined && frame.threadId !== threadId) {
-        void deliverToChild({ socket, frame })
+        void deliverToChild({ socket, frame, attachments })
         return
       }
       void driver
@@ -75,6 +101,7 @@ export function createTurnCommands(args: {
           images: frame.images,
           files: frame.files,
           uploads: frame.uploads,
+          attachments,
           ...(context === undefined ? {} : { context }),
         })
         .then(() => {

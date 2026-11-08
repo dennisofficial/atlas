@@ -1,8 +1,6 @@
-import type { SaidUpload } from '@dltech/atlas-core'
-import type { SaidImageWire } from '@dltech/atlas-wire/web'
+import type { Attachment } from '@dltech/atlas-core'
 
-import { uploadsFieldOf } from './composer-attachments'
-import { imagesFieldOf } from './composer-images'
+import { attachmentsFieldOf } from './composer-attachments'
 
 export type CreateThreadBody = {
   projectId?: string
@@ -12,8 +10,7 @@ export type CreateThreadBody = {
   firstMessage: {
     sendId: string
     text: string
-    images?: SaidImageWire[]
-    uploads?: SaidUpload[]
+    attachments?: Attachment[]
   }
 }
 
@@ -21,8 +18,7 @@ export function createThreadBodyOf(args: {
   projectId: string | null
   text: string
   sendId: string
-  images?: SaidImageWire[] | undefined
-  uploads?: SaidUpload[] | undefined
+  attachments?: Attachment[] | undefined
   model?: string | undefined
   effort?: string | undefined
   fast?: boolean | undefined
@@ -35,8 +31,7 @@ export function createThreadBodyOf(args: {
     firstMessage: {
       sendId: args.sendId,
       text: args.text,
-      ...imagesFieldOf(args.images),
-      ...uploadsFieldOf(args.uploads),
+      ...attachmentsFieldOf(args.attachments),
     },
   }
 }

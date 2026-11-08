@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import {
   EThreadMessageState,
   EThreadStreamFrame,
+  type AttachmentWire,
   type SaidImageWire,
   type SaidUploadWire,
   type ThreadMessageReply,
@@ -38,6 +39,7 @@ type SendArgs = {
   text: string
   images?: readonly SaidImageWire[] | undefined
   uploads?: readonly SaidUploadWire[] | undefined
+  attachments?: readonly AttachmentWire[] | undefined
 }
 
 type StagedSend = {
@@ -120,7 +122,7 @@ export class ThreadMessagesService {
   private async appendAndClaim(
     args: SendArgs & { thread: Row<'Thread'>; claimable: boolean },
   ): Promise<StagedSend> {
-    const { thread, userId, threadId, sendId, text, images, uploads, claimable } = args
+    const { thread, userId, threadId, sendId, text, images, uploads, attachments, claimable } = args
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
       const podLease = await tx.orm.public.LocalPodLease.where({ threadId }).select('id').first()
@@ -137,7 +139,16 @@ export class ThreadMessagesService {
       }
       const appended = alreadyAppended
         ? undefined
-        : await appendUserSaid({ tx, threadId, userId, sendId, text, images, uploads })
+        : await appendUserSaid({
+            tx,
+            threadId,
+            userId,
+            sendId,
+            text,
+            images,
+            uploads,
+            attachments,
+          })
       const claim =
         relaunch && claimable ? await this.pod.claim({ writer: tx, thread, existing }) : null
       return {

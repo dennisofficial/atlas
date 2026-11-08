@@ -10,11 +10,16 @@ import {
   type SessionQueuedMessage,
 } from '@dltech/atlas-protocol'
 
-const attachmentsOf = (message: InboxMessage): Pick<SessionQueuedMessage, 'media' | 'uploads'> => ({
+const attachmentsOf = (
+  message: InboxMessage,
+): Pick<SessionQueuedMessage, 'media' | 'uploads' | 'attachments'> => ({
   ...(message.media === undefined || message.media.length === 0 ? {} : { media: message.media }),
   ...(message.uploads === undefined || message.uploads.length === 0
     ? {}
     : { uploads: message.uploads }),
+  ...(message.attachments === undefined || message.attachments.length === 0
+    ? {}
+    : { attachments: message.attachments }),
 })
 
 export const queuedOf = (inbox: readonly InboxEntry[]): SessionQueuedMessage[] =>

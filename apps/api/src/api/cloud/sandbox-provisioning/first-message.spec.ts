@@ -12,7 +12,17 @@ describe('userSaidDraftOf', () => {
       type: 'user-said',
       text: 'look',
       requestId: 'snd-1',
-      images: [IMAGE],
+      attachments: [
+        {
+          id: 'image:0',
+          name: 'shot.png',
+          mediaType: 'image/png',
+          size: 3,
+          source: 'shot.png',
+          content: { store: 'inline', data: 'aGk=' },
+          image: { width: 4, height: 3 },
+        },
+      ],
     })
   })
 
@@ -33,8 +43,10 @@ describe('userSaidDraftOf', () => {
       mediaType: 'text/plain',
     }
     const body = JSON.parse(userSaidDraftOf({ sendId: 's', text: 'look', uploads: [upload] }).body)
-    expect(body.uploads).toEqual([upload])
+    expect(body.attachments).toHaveLength(1)
+    expect(body.attachments[0].content.store).toBe('upload')
+    expect('uploads' in body).toBe(false)
     const empty = JSON.parse(userSaidDraftOf({ sendId: 's', text: 'look', uploads: [] }).body)
-    expect('uploads' in empty).toBe(false)
+    expect('attachments' in empty).toBe(false)
   })
 })

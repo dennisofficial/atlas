@@ -1,5 +1,7 @@
 import {
+  attachmentsOf,
   EContextSlot,
+  inlineImagesOf,
   inlinable,
   type Event,
   type EventDraft,
@@ -36,7 +38,7 @@ export function namingImagesOf(events: readonly Event[]): readonly SaidImage[] {
   const said = opening(events).find((event) => event.type === 'user-said')
   if (said === undefined || said.type !== 'user-said') return []
 
-  return (said.images ?? []).filter((image) => inlinable(image))
+  return inlineImagesOf(attachmentsOf(said)).filter((image) => inlinable(image))
 }
 
 /**

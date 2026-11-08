@@ -18,6 +18,7 @@ export type PodSessionSend = (args: {
   text: string
   images?: Parameters<CloudMessages['send']>[0]['images']
   uploads?: Parameters<CloudMessages['send']>[0]['uploads']
+  attachments?: Parameters<CloudMessages['send']>[0]['attachments']
 }) => void
 
 /** Provisioning the pod is how the session learns whether the thread has a cloud control plane. */

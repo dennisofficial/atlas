@@ -28,6 +28,7 @@ export class ThreadMessagesRouter {
       text: input.text,
       images: input.images,
       uploads: input.uploads,
+      attachments: input.attachments,
     })
   }
 

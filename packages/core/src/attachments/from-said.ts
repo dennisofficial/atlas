@@ -1,8 +1,9 @@
-import type { SaidFile, SaidImage, SaidMedia, SaidUpload } from '../events/body'
+import type { SaidFile, SaidImage, SaidMedia, SaidUpload } from './legacy-said'
 import { base64Bytes } from '../images/attached'
 import { EAttachmentStore, type Attachment } from './attachment'
 
 export type SaidAttachments = {
+  attachments?: readonly Attachment[] | undefined
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
   uploads?: readonly SaidUpload[] | undefined
@@ -28,6 +29,7 @@ const pictureOf = (args: {
     name,
     mediaType: image.mediaType,
     size: upload?.size ?? base64Bytes(image.data),
+    source: image.path,
     content:
       upload === undefined
         ? inlineOf(image.data)
@@ -44,6 +46,7 @@ const pictureOf = (args: {
 }
 
 export function attachmentsOf(said: SaidAttachments): readonly Attachment[] {
+  if (said.attachments !== undefined && said.attachments.length > 0) return said.attachments
   const uploads = [...(said.uploads ?? [])]
   const pictures = (said.images ?? []).map((image, index) => {
     const at = uploads.findIndex((upload) => upload.name === image.path)
@@ -56,6 +59,7 @@ export function attachmentsOf(said: SaidAttachments): readonly Attachment[] {
       name: file.filename ?? basenameOf(file.path),
       mediaType: file.mediaType,
       size: base64Bytes(file.data),
+      source: file.path,
       content: inlineOf(file.data),
     }),
   )
@@ -78,6 +82,7 @@ export function attachmentsOf(said: SaidAttachments): readonly Attachment[] {
       name: basenameOf(item.source ?? item.media.hash),
       mediaType: item.media.mediaType,
       size: item.media.size,
+      ...(item.source === undefined ? {} : { source: item.source }),
       content: { store: EAttachmentStore.Media, hash: item.media.hash },
       image: { width: item.media.width, height: item.media.height },
     }),

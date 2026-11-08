@@ -1,6 +1,7 @@
 import {
   EMessageOrigin,
   saidBody,
+  type Attachment,
   type EventDraft,
   type SaidFile,
   type SaidImage,
@@ -14,6 +15,7 @@ export type PendingSaid = {
   images: readonly SaidImage[]
   files: readonly SaidFile[]
   uploads?: readonly SaidUpload[] | undefined
+  attachments?: readonly Attachment[] | undefined
   context?: readonly EventDraft[] | undefined
   via?: EMessageOrigin | undefined
   requestId?: string | undefined
@@ -39,6 +41,7 @@ export type PendingQueue<Command = never> = {
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
     uploads?: readonly SaidUpload[] | undefined
+    attachments?: readonly Attachment[] | undefined
     context?: readonly EventDraft[] | undefined
     via?: EMessageOrigin | undefined
     requestId?: string | undefined
@@ -113,7 +116,7 @@ export function createPendingQueue<Command = never>(
 
     reserved: (entryId) => reserved.has(entryId),
 
-    enqueue({ text, images, files, uploads, context, via, requestId }) {
+    enqueue({ text, images, files, uploads, attachments, context, via, requestId }) {
       settle([
         ...entries,
         {
@@ -123,6 +126,7 @@ export function createPendingQueue<Command = never>(
           images: images ?? NO_IMAGES,
           files: files ?? NO_FILES,
           ...(uploads === undefined || uploads.length === 0 ? {} : { uploads }),
+          ...(attachments === undefined || attachments.length === 0 ? {} : { attachments }),
           ...(context === undefined ? {} : { context }),
           ...(via === undefined ? {} : { via }),
           ...(requestId === undefined ? {} : { requestId }),

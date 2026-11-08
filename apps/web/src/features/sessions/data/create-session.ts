@@ -1,9 +1,8 @@
-import type { SaidUpload } from '@dltech/atlas-core'
+import type { Attachment, SaidUpload } from '@dltech/atlas-core'
 import type {
   SessionCreateInput,
   SessionCreateOutput,
   SessionPostInput,
-  SessionPostMedia,
   SessionPostOutput,
 } from '@dltech/atlas-protocol'
 
@@ -18,7 +17,7 @@ export async function createSessionWithMessage(args: {
   api: SessionsApi
   projectId: string
   text: string
-  media: readonly SessionPostMedia[]
+  media: readonly Attachment[]
   uploads: readonly SaidUpload[]
 }): Promise<string> {
   const { sessionId } = await args.api.create({ projectId: args.projectId })

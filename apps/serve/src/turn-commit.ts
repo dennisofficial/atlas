@@ -1,6 +1,7 @@
 import {
   saidBody,
   type EventDraft,
+  type Attachment,
   type SaidFile,
   type SaidUpload,
   type SaidImage,
@@ -16,6 +17,7 @@ export type Said = {
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
   uploads?: readonly SaidUpload[] | undefined
+  attachments?: readonly Attachment[] | undefined
   context?: readonly EventDraft[] | undefined
 }
 
@@ -57,6 +59,7 @@ export function createTurnCommit(args: {
         ...(said.images === undefined ? {} : { images: said.images }),
         ...(said.files === undefined ? {} : { files: said.files }),
         ...(said.uploads === undefined ? {} : { uploads: said.uploads }),
+        ...(said.attachments === undefined ? {} : { attachments: said.attachments }),
         ...(said.context === undefined ? {} : { context: said.context }),
       })
       await intake.commit({ threadId, append: writeDrafts })
@@ -73,6 +76,7 @@ export function createTurnCommit(args: {
         images: said.images,
         files: said.files,
         uploads: said.uploads,
+        attachments: said.attachments,
       }),
     ])
   }

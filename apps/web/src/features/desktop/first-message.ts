@@ -1,13 +1,11 @@
-import type { SaidUpload } from '@dltech/atlas-core'
-import type { SaidImageWire } from '@dltech/atlas-wire/web'
+import type { Attachment } from '@dltech/atlas-core'
 
 import type { LiveSend } from '@/features/threads/data/live-thread-view'
 
 type HeldMessage = {
   text: string
   sendId: string
-  images?: SaidImageWire[]
-  uploads?: SaidUpload[]
+  attachments?: Attachment[]
 }
 
 const held = new Map<string, HeldMessage>()
@@ -23,8 +21,7 @@ export function deliverHeldFirstMessage(args: { threadId: string; send: LiveSend
   const sent = args.send({
     text: message.text,
     requestId: message.sendId,
-    ...(message.images === undefined ? {} : { images: message.images }),
-    ...(message.uploads === undefined ? {} : { uploads: message.uploads }),
+    ...(message.attachments === undefined ? {} : { attachments: message.attachments }),
   })
   if (sent) held.delete(args.threadId)
   return sent

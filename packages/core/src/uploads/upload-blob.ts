@@ -1,4 +1,4 @@
-import type { SaidUpload } from '../events/body'
+import type { SaidUpload } from '../attachments/legacy-said'
 
 export const UPLOADS_BLOB_PREFIX = 'composer-uploads/'
 

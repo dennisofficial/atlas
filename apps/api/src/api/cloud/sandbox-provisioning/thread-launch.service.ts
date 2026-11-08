@@ -17,7 +17,13 @@ import { threadProjectColumn } from '../../platform/sessions/thread-project'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { ThreadTitlingService } from '../thread-titling/thread-titling.service'
 import { ThreadsService } from '../../platform/sessions/threads.service'
-import { findFirstMessageThread, lockFirstMessage, userSaidDraftOf } from './first-message'
+import {
+  findFirstMessageThread,
+  firstMessageAttachmentsOf,
+  lockFirstMessage,
+  userSaidDraftOf,
+} from './first-message'
+import { inlineImagesOf } from '@dltech/atlas-core'
 import {
   DISPATCH_FAILED_MESSAGE,
   dispatchFailedReply,
@@ -96,7 +102,7 @@ export class ThreadLaunchService extends ThreadLauncher {
           threadId,
           projectId: session.projectId,
           text: firstMessage.text,
-          images: firstMessage.images,
+          images: inlineImagesOf(firstMessageAttachmentsOf(firstMessage)),
         }),
       )
     }

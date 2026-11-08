@@ -192,15 +192,24 @@ describe('createLocalThread', () => {
     expect(deliverHeldFirstMessage({ threadId: 'brn_1', send: () => true })).toBe(false)
   })
 
-  it('the held first message carries its uploads to the live channel', () => {
-    const upload = {
-      uploadId: '00000000-0000-4000-8000-000000000001',
-      pathname: 'uploads/notes.txt',
+  it('the held first message carries its attachments to the live channel', () => {
+    const attachment = {
+      id: '00000000-0000-4000-8000-000000000001',
       name: 'notes.txt',
-      size: 5,
       mediaType: 'text/plain',
+      size: 5,
+      content: {
+        store: 'upload' as const,
+        uploadId: '00000000-0000-4000-8000-000000000001',
+        pathname: 'uploads/notes.txt',
+      },
     }
-    holdFirstMessage({ threadId: 'brn_2', text: 'see file', sendId: 's2', uploads: [upload] })
+    holdFirstMessage({
+      threadId: 'brn_2',
+      text: 'see file',
+      sendId: 's2',
+      attachments: [attachment],
+    })
     const sent: unknown[] = []
     deliverHeldFirstMessage({
       threadId: 'brn_2',
@@ -209,7 +218,7 @@ describe('createLocalThread', () => {
         return true
       },
     })
-    expect(sent).toEqual([{ text: 'see file', requestId: 's2', uploads: [upload] }])
+    expect(sent).toEqual([{ text: 'see file', requestId: 's2', attachments: [attachment] }])
   })
 })
 

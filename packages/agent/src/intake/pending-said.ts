@@ -1,4 +1,5 @@
 import type {
+  Attachment,
   EMessageOrigin,
   EventDraft,
   SaidFile,
@@ -11,6 +12,7 @@ export type PendingSaid = {
   images: readonly SaidImage[]
   files: readonly SaidFile[]
   uploads?: readonly SaidUpload[] | undefined
+  attachments?: readonly Attachment[] | undefined
   context?: readonly EventDraft[] | undefined
   via?: EMessageOrigin | undefined
   requestId?: string | undefined

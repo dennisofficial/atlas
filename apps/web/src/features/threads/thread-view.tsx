@@ -106,7 +106,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     events,
     podState: pod?.state ?? null,
     setDraft,
-    onRestoreUploads: (uploads) => images.restore({ uploads, images: [] }),
+    onRestore: images.restore,
   })
   const parsed = useMemo(() => eventsFromWire(visible), [visible])
   const durable = useMemo(() => durableTranscriptOf({ events: parsed }), [parsed])

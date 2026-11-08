@@ -1,5 +1,5 @@
 import { systemContext } from '../../context/envelope'
-import type { SaidUpload } from '../../events/body'
+import type { SaidUpload } from '../../attachments/legacy-said'
 import { EUploadState, type UploadPlacement } from '../../uploads/placement'
 import { uploadPathOf } from '../../uploads/paths'
 

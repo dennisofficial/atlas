@@ -1,4 +1,11 @@
-import type { EventDraft, SaidFile, SaidImage, SaidUpload, ThreadId } from '@dltech/atlas-core'
+import type {
+  Attachment,
+  EventDraft,
+  SaidFile,
+  SaidImage,
+  SaidUpload,
+  ThreadId,
+} from '@dltech/atlas-core'
 
 import type { PauseSignal } from './pause-signal'
 import type { TurnOutcome } from './turn-outcome'
@@ -10,6 +17,7 @@ export abstract class TurnRunner {
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
     uploads?: readonly SaidUpload[]
+    attachments?: readonly Attachment[]
     context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal

@@ -35,17 +35,39 @@ describe('createThreadBodyOf', () => {
   })
 })
 
-describe('createThreadBodyOf images', () => {
-  const images = [{ path: 'a.png', mediaType: 'image/png', data: 'QUJD' }]
+describe('createThreadBodyOf attachments', () => {
+  const attachments = [
+    {
+      id: 'a',
+      name: 'a.png',
+      mediaType: 'image/png',
+      size: 3,
+      content: { store: 'inline' as const, data: 'QUJD' },
+    },
+  ]
 
-  it('carries images on the first message', () => {
-    const body = createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1', images })
-    expect(body.firstMessage).toEqual({ sendId: 's1', text: 'hi', images })
+  it('carries attachments on the first message', () => {
+    const body = createThreadBodyOf({
+      projectId: null,
+      text: 'hi',
+      sendId: 's1',
+      attachments,
+    })
+    expect(body.firstMessage).toEqual({
+      sendId: 's1',
+      text: 'hi',
+      attachments,
+    })
   })
 
-  it('omits an empty images list', () => {
-    const body = createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1', images: [] })
-    expect('images' in body.firstMessage).toBe(false)
+  it('omits an empty attachments list', () => {
+    const body = createThreadBodyOf({
+      projectId: null,
+      text: 'hi',
+      sendId: 's1',
+      attachments: [],
+    })
+    expect('attachments' in body.firstMessage).toBe(false)
   })
 })
 
@@ -84,31 +106,5 @@ describe('createThread', () => {
     )
     const body = createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1' })
     await expect(createThread(body)).rejects.toThrow()
-  })
-})
-
-describe('createThreadBodyOf uploads', () => {
-  const uploads = [
-    {
-      uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a01',
-      pathname: 'p',
-      name: 'a.pdf',
-      size: 1,
-      mediaType: 'x/y',
-    },
-  ]
-
-  it('carries uploads on the first message and omits an empty list', () => {
-    expect(
-      createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1', uploads }).firstMessage,
-    ).toEqual({
-      sendId: 's1',
-      text: 'hi',
-      uploads,
-    })
-    expect(
-      'uploads' in
-        createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1', uploads: [] }).firstMessage,
-    ).toBe(false)
   })
 })

@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EImageDelivery } from '@dltech/atlas-core'
+import { attachmentsOf, EImageDelivery, inlineImagesOf } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
@@ -121,7 +121,8 @@ describe('a screenshot pasted into the draft', () => {
           await mounted.frame()
           const events = await mounted.app.log.read({ threadId: THREAD })
           return events.some(
-            (event) => event.type === 'user-said' && (event.images ?? []).length > 0,
+            (event) =>
+              event.type === 'user-said' && inlineImagesOf(attachmentsOf(event)).length > 0,
           )
         },
         within: 20_000,
@@ -131,7 +132,9 @@ describe('a screenshot pasted into the draft', () => {
 
       const events = await mounted.app.log.read({ threadId: THREAD })
       const said = events.find((event) => event.type === 'user-said')
-      expect(said?.type === 'user-said' ? said.images?.[0] : null).toMatchObject({
+      expect(
+        said?.type === 'user-said' ? inlineImagesOf(attachmentsOf(said))[0] : null,
+      ).toMatchObject({
         mediaType: 'image/png',
         width: WIDTH,
         height: HEIGHT,

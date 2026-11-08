@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { attachmentSchema } from '../attachments/attachment-schema'
 import { diagramRepairedSchema } from '../diagrams/diagram-body'
 import { EExecutionLocation } from '../execution/location'
 import { EFinishReason } from '../stream/chunk'
@@ -71,6 +72,7 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     files: z.array(saidFileSchema).optional(),
     uploads: z.array(saidUploadSchema).optional(),
     media: z.array(saidMediaSchema).optional(),
+    attachments: z.array(attachmentSchema).optional(),
   }),
   z.object({
     type: z.literal('assistant-said'),

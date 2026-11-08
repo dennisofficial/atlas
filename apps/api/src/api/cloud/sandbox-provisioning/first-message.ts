@@ -1,4 +1,10 @@
-import type { EventDraftInput, SaidImageWire, SaidUploadWire } from '@dltech/atlas-wire'
+import { attachmentSchema, attachmentsOf } from '@dltech/atlas-core'
+import type {
+  AttachmentWire,
+  EventDraftInput,
+  SaidImageWire,
+  SaidUploadWire,
+} from '@dltech/atlas-wire'
 import { z } from 'zod'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 
@@ -7,22 +13,33 @@ export type FirstMessage = {
   text: string
   images?: readonly SaidImageWire[] | undefined
   uploads?: readonly SaidUploadWire[] | undefined
+  attachments?: readonly AttachmentWire[] | undefined
 }
 
-export const userSaidDraftOf = (message: FirstMessage): EventDraftInput => ({
-  type: 'user-said',
-  body: JSON.stringify({
+const attachmentsListSchema = z.array(attachmentSchema)
+
+export const firstMessageAttachmentsOf = (message: FirstMessage) =>
+  attachmentsOf({
+    images: message.images,
+    uploads: message.uploads,
+    attachments:
+      message.attachments === undefined
+        ? undefined
+        : attachmentsListSchema.parse(message.attachments),
+  })
+
+export const userSaidDraftOf = (message: FirstMessage): EventDraftInput => {
+  const attachments = firstMessageAttachmentsOf(message)
+  return {
     type: 'user-said',
-    text: message.text,
-    requestId: message.sendId,
-    ...(message.images === undefined || message.images.length === 0
-      ? {}
-      : { images: message.images }),
-    ...(message.uploads === undefined || message.uploads.length === 0
-      ? {}
-      : { uploads: message.uploads }),
-  }),
-})
+    body: JSON.stringify({
+      type: 'user-said',
+      text: message.text,
+      requestId: message.sendId,
+      ...(attachments.length === 0 ? {} : { attachments }),
+    }),
+  }
+}
 
 const requestBodySchema = z.object({ requestId: z.string() })
 

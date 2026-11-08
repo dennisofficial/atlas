@@ -99,13 +99,17 @@ describe('sayToChild', () => {
             type: 'user-said',
             text: 'pick this back up',
             requestId: 'req-1',
-            uploads: [
+            attachments: [
               {
-                uploadId: '6f1c2b60-3b1a-4f6a-9b7a-2c5c2b9f1a11',
-                pathname: '/tmp/upload.zip',
+                id: '6f1c2b60-3b1a-4f6a-9b7a-2c5c2b9f1a11',
                 name: 'upload.zip',
-                size: 10,
                 mediaType: 'application/zip',
+                size: 10,
+                content: {
+                  store: 'upload',
+                  uploadId: '6f1c2b60-3b1a-4f6a-9b7a-2c5c2b9f1a11',
+                  pathname: '/tmp/upload.zip',
+                },
               },
             ],
             via: EMessageOrigin.Operator,

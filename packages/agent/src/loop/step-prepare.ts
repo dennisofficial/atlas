@@ -4,8 +4,10 @@ import {
   contextWindowOf,
   EAutoCompact,
   ERunFailureKind,
+  attachmentsOf,
   exchangeFaults,
   overflowsWindow,
+  uploadsOf,
   type Assembled,
   type AssemblyPipeline,
   type Event,
@@ -111,7 +113,7 @@ export const stepPrepareDepsOf = ({
   }),
 })
 
-function uploadsOf({ events, threadId }: { events: readonly Event[]; threadId: ThreadId }): {
+function uploadsInEvents({ events, threadId }: { events: readonly Event[]; threadId: ThreadId }): {
   all: SaidUpload[]
   current: Set<string>
 } {
@@ -120,9 +122,10 @@ function uploadsOf({ events, threadId }: { events: readonly Event[]; threadId: T
   for (const event of events) {
     if (event.threadId !== threadId) continue
     if (event.type === 'assistant-said') current = new Set()
-    if (event.type !== 'user-said' || event.uploads === undefined) continue
-    all.push(...event.uploads)
-    for (const upload of event.uploads) current.add(upload.uploadId)
+    if (event.type !== 'user-said') continue
+    const uploads = uploadsOf(attachmentsOf(event))
+    all.push(...uploads)
+    for (const upload of uploads) current.add(upload.uploadId)
   }
   return { all, current }
 }
@@ -147,7 +150,10 @@ export function prepareStepAssembly(
 }
 
 async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promise<PreparedStep> {
-  const uploads = uploadsOf({ events: args.events, threadId: args.threadId })
+  const uploads = uploadsInEvents({
+    events: args.events,
+    threadId: args.threadId,
+  })
   const placements =
     deps.uploads === undefined || uploads.all.length === 0
       ? undefined

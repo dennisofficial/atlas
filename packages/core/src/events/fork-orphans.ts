@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-import type { SaidFile, SaidImage, SaidUpload } from './body'
+import type { Attachment } from '../attachments/attachment'
+import { attachmentSchema } from '../attachments/attachment-schema'
+import type { SaidFile, SaidImage, SaidUpload } from '../attachments/legacy-said'
 import { saidFileSchema, saidImageSchema, saidUploadSchema } from './part-schema'
 
 export type ForkEvent = { seq: number; type: string; body: unknown }
@@ -11,6 +13,7 @@ export type OrphanedInput = {
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
   uploads?: readonly SaidUpload[] | undefined
+  attachments?: readonly Attachment[] | undefined
 }
 
 export type DiscardedForkEvent = { seq: number; type: string }
@@ -25,19 +28,21 @@ const saidFieldsSchema = z.object({
   images: z.array(saidImageSchema).optional().catch(undefined),
   files: z.array(saidFileSchema).optional().catch(undefined),
   uploads: z.array(saidUploadSchema).optional().catch(undefined),
+  attachments: z.array(attachmentSchema).optional().catch(undefined),
 })
 
 const inputOf = (event: ForkEvent): OrphanedInput | undefined => {
   if (event.type !== USER_SAID) return undefined
   const parsed = saidFieldsSchema.safeParse(event.body)
   if (!parsed.success) return undefined
-  const { text, requestId, images, files, uploads } = parsed.data
+  const { text, requestId, images, files, uploads, attachments } = parsed.data
   return {
     text,
     ...(requestId === undefined ? {} : { requestId }),
     ...(images === undefined ? {} : { images }),
     ...(files === undefined ? {} : { files }),
     ...(uploads === undefined ? {} : { uploads }),
+    ...(attachments === undefined ? {} : { attachments }),
   }
 }
 

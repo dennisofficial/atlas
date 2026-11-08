@@ -6,6 +6,7 @@ import {
   type Assembled,
   type ThreadId,
   type EventDraft,
+  type Attachment,
   type SaidFile,
   type SaidImage,
   type SaidUpload,
@@ -145,6 +146,7 @@ export class LoopTurnRunner extends TurnRunner {
     images,
     files,
     uploads,
+    attachments,
     context,
     signal,
     pause,
@@ -155,6 +157,7 @@ export class LoopTurnRunner extends TurnRunner {
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
     uploads?: readonly SaidUpload[]
+    attachments?: readonly Attachment[]
     context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal
@@ -164,7 +167,11 @@ export class LoopTurnRunner extends TurnRunner {
     await this.record.append({
       threadId,
       runId: this.ids.nextRunId(),
-      drafts: [...held, ...expanded, saidBody({ text, requestId, images, files, uploads })],
+      drafts: [
+        ...held,
+        ...expanded,
+        saidBody({ text, requestId, images, files, uploads, attachments }),
+      ],
     })
     return this.runTurn({
       threadId,

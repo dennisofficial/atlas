@@ -4,7 +4,7 @@ import {
   requestRewindApply,
   type RemoteDeltaChannel,
 } from '@dltech/atlas-client/channel'
-import { toThreadId } from '@dltech/atlas-core'
+import { attachmentsOf, inlineImagesOf, toThreadId, uploadsOf } from '@dltech/atlas-core'
 import { rosterWireSchema, takeBackPendingReplySchema } from '@dltech/atlas-wire/web'
 
 import type {
@@ -57,7 +57,15 @@ export function createLiveThreadActions(args: {
     })
     const taken = takeBackPendingReplySchema.parse(reply).taken
     if (taken === null) return null
-    return { text: taken.text, images: taken.images, uploads: taken.uploads ?? [] }
+    const attachments = attachmentsOf({
+      ...taken,
+      attachments: taken.attachments,
+    })
+    return {
+      text: taken.text,
+      images: inlineImagesOf(attachments),
+      uploads: uploadsOf(attachments),
+    }
   }
 
   const interrupt: LiveInterrupt = () => {

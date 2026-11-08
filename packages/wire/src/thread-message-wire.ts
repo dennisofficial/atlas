@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { attachmentsWireSchema } from './attachment-wire'
 import { saidImageWireSchema } from './channel-wire'
 import { MAX_MESSAGE_UPLOADS, saidUploadWireSchema } from './upload-wire'
 
@@ -15,6 +16,7 @@ export const threadMessageRequestSchema = z.object({
   text: z.string().min(1).max(100_000),
   images: z.array(saidImageWireSchema).max(MAX_MESSAGE_IMAGES).optional(),
   uploads: z.array(saidUploadWireSchema).max(MAX_MESSAGE_UPLOADS).optional(),
+  attachments: attachmentsWireSchema.optional(),
 })
 export type ThreadMessageRequest = z.infer<typeof threadMessageRequestSchema>
 

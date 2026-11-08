@@ -163,6 +163,9 @@ export function useDrivenTurn(args: {
                 threadId,
                 said: saidDraft.text,
                 ...(saidDraft.images === undefined ? {} : { images: saidDraft.images }),
+                ...(saidDraft.attachments === undefined
+                  ? {}
+                  : { attachments: saidDraft.attachments }),
                 context: drafts.filter((_, index) => index !== saidIndex),
               })
             }

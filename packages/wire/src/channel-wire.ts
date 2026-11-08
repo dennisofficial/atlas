@@ -8,6 +8,7 @@ import { runtimeCheckpointSchema } from './runtime-checkpoint'
 import { channelSignalSchema } from './signal-wire'
 import { subscriptionsWireSchema } from './subscription-wire'
 import { terminalExitWireSchema, terminalOutputWireSchema } from './terminal-wire'
+import { attachmentsWireSchema } from './attachment-wire'
 import { saidFileWireSchema, saidImageWireSchema } from './said-wire'
 import { sendIdWireSchema, turnOutcomeWireSchema } from './turn-outcome-wire'
 import { MAX_MESSAGE_UPLOADS, saidUploadWireSchema } from './upload-wire'
@@ -229,6 +230,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     images: z.array(saidImageWireSchema).readonly().optional(),
     files: z.array(saidFileWireSchema).readonly().optional(),
     uploads: z.array(saidUploadWireSchema).max(MAX_MESSAGE_UPLOADS).readonly().optional(),
+    attachments: attachmentsWireSchema.optional(),
     context: z.array(z.unknown()).readonly().optional(),
   }),
   z.object({ kind: z.literal(EClientFrame.Run), resume: z.boolean().optional() }),

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { attachmentsWireSchema } from './attachment-wire'
 import { rotationStateWireSchema } from './rotation-wire'
 import { saidUploadWireSchema } from './upload-wire'
 import { threadIdWireSchema } from './request-wire'
@@ -140,6 +141,7 @@ const pendingEntryWireSchema = z.object({
   via: z.string().optional(),
   reserved: z.boolean(),
   uploads: z.array(saidUploadWireSchema).readonly().optional(),
+  attachments: attachmentsWireSchema.optional(),
 })
 
 export type PendingEntryWire = z.infer<typeof pendingEntryWireSchema>

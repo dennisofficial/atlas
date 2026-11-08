@@ -1,4 +1,6 @@
 import {
+  attachmentSchema,
+  EAttachmentStore,
   EMeterBasis,
   ESessionStatus,
   MAX_MESSAGE_UPLOADS,
@@ -19,22 +21,33 @@ export const sessionListInputSchema = z.strictObject({
   limit: z.number().int().min(1).max(100).optional(),
 })
 
+const storedAttachmentSchema = attachmentSchema.refine(
+  (attachment) => attachment.content.store !== EAttachmentStore.Inline,
+  'a posted attachment is an upload or stored media',
+)
+
 export const sessionPostInputSchema = z
   .strictObject({
     sessionId: z.string().min(1),
     text: z.string().max(1_000_000),
     media: sessionPostMediaListSchema.optional(),
     uploads: z.array(saidUploadSchema).max(MAX_MESSAGE_UPLOADS).optional(),
+    attachments: z.array(storedAttachmentSchema).max(MAX_MESSAGE_UPLOADS).optional(),
   })
   .refine(
     (input) =>
       input.text.trim().length > 0 ||
       (input.media?.length ?? 0) > 0 ||
-      (input.uploads?.length ?? 0) > 0,
+      (input.uploads?.length ?? 0) > 0 ||
+      (input.attachments?.length ?? 0) > 0,
     'a message needs text or an attachment',
   )
   .refine(
-    (input) => (input.media?.length ?? 0) + (input.uploads?.length ?? 0) <= MAX_MESSAGE_UPLOADS,
+    (input) =>
+      (input.media?.length ?? 0) +
+        (input.uploads?.length ?? 0) +
+        (input.attachments?.length ?? 0) <=
+      MAX_MESSAGE_UPLOADS,
     `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`,
   )
 
@@ -79,6 +92,7 @@ export const inboxMessageSchema = z.strictObject({
   text: z.string(),
   media: z.array(inboxMediaSchema).optional(),
   uploads: z.array(saidUploadSchema).optional(),
+  attachments: z.array(attachmentSchema).optional(),
 })
 
 export type InboxMessage = z.infer<typeof inboxMessageSchema>
@@ -155,6 +169,7 @@ export const sessionQueuedMessageSchema = z.strictObject({
   postedAt: z.string().min(1),
   media: z.array(inboxMediaSchema).optional(),
   uploads: z.array(saidUploadSchema).optional(),
+  attachments: z.array(attachmentSchema).optional(),
 })
 
 export const EWithdrawRefusal = {
