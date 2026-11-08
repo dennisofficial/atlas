@@ -395,3 +395,48 @@ describe('upload-only messages', () => {
     expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, uploads })
   })
 })
+
+describe('an upload the transcript already previews', () => {
+  const upload = {
+    uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a02',
+    pathname: 'p/image.png',
+    name: 'image.png',
+    size: 12,
+    mediaType: 'image/png',
+  }
+  const shot = { path: 'image.png', mediaType: 'image/png', data: 'aGVsbG8=' }
+  const attachment = {
+    media: { hash: 'a'.repeat(64), mediaType: 'image/png', size: 12, width: 4, height: 3 },
+    source: 'image.png',
+  }
+
+  it('shows a picture sent with its upload once, as the picture', () => {
+    const view = viewOf({
+      events: [wire(1, { type: 'user-said', text: '', images: [shot], uploads: [upload] })],
+    })
+    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, images: [shot] })
+    expect(view.items[0]).not.toHaveProperty('uploads')
+  })
+
+  it('shows a picture sent with its upload once, as the attachment', () => {
+    const view = viewOf({
+      events: [wire(1, { type: 'user-said', text: '', media: [attachment], uploads: [upload] })],
+    })
+    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, media: [attachment] })
+    expect(view.items[0]).not.toHaveProperty('uploads')
+  })
+
+  it('keeps the other uploads of the same message', () => {
+    const other = { ...upload, uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a03', name: 'notes.md' }
+    const view = viewOf({
+      events: [wire(1, { type: 'user-said', text: '', images: [shot], uploads: [upload, other] })],
+    })
+    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, uploads: [other] })
+  })
+
+  it('keeps an upload that has no preview of its own', () => {
+    const bigger = { ...upload, uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a04', name: 'scan.pdf' }
+    const view = viewOf({ events: [wire(1, { type: 'user-said', text: '', uploads: [bigger] })] })
+    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, uploads: [bigger] })
+  })
+})

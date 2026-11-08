@@ -82,18 +82,26 @@ export type ThreadTranscriptView = {
   streaming: boolean
 }
 
+const previewedNamesOf = (entry: OperatorSaidEntry): ReadonlySet<string> => {
+  const names = new Set<string>(entry.images.map((image) => image.path))
+  for (const item of entry.media ?? []) if (item.source !== undefined) names.add(item.source)
+  return names
+}
+
 function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
   const images = entry.images.length > 0 ? { images: entry.images } : {}
-  const uploads = (entry.uploads ?? []).length > 0 ? { uploads: entry.uploads } : {}
+  const previewed = previewedNamesOf(entry)
+  const uploads = (entry.uploads ?? []).filter((upload) => !previewed.has(upload.name))
+  const uploadsField = uploads.length > 0 ? { uploads } : {}
   const media = (entry.media ?? []).length > 0 ? { media: entry.media } : {}
-  const attached = 'images' in images || 'uploads' in uploads || 'media' in media
+  const attached = 'images' in images || 'uploads' in uploadsField || 'media' in media
   if (!attached && entry.text.trim().length === 0) return null
   return {
     kind: ETranscriptKind.User,
     id: entry.key,
     text: entry.text,
     ...images,
-    ...uploads,
+    ...uploadsField,
     ...media,
   }
 }
