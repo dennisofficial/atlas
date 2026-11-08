@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@dltech/atlas-daemon": "workspace:*",
+    "@dltech/atlas-native-commands": "workspace:*",
     "@types/bun": "latest",
     "@vscode/ripgrep": "^1.18.0"
   }

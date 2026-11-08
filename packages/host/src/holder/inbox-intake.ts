@@ -42,6 +42,7 @@ export class InboxIntake implements AgentIntake {
             commands: args.commands,
             handlers: args.handlers ?? new Map(),
             sessionId: args.sessionId,
+            visibleEvents: () => args.record.eventCache().visibleLoopEvents(),
             append: (drafts) => this.appendDrafts(drafts),
             log: args.log,
           })

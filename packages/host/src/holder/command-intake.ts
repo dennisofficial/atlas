@@ -7,6 +7,7 @@ import {
 } from '@dltech/atlas-commands'
 import {
   EInputConsumed,
+  type Event,
   type EventDraft,
   type InboxEntry,
   type RecordBody,
@@ -21,6 +22,7 @@ export type CommandIntakeArgs = {
   commands: CommandRegistry
   handlers: CommandHandlers
   sessionId: string
+  visibleEvents(): readonly Event[]
   append(drafts: readonly (EventDraft | RecordBody)[]): Promise<void>
   log?: LogPort | undefined
 }
@@ -59,6 +61,7 @@ export class CommandIntake {
     const context: CommandContext<unknown> = {
       args: parsed.data,
       sessionId: this.args.sessionId,
+      visibleEvents: this.args.visibleEvents,
       append: this.args.append,
       log: (message) =>
         this.args.log?.info({

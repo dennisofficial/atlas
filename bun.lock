@@ -23,12 +23,14 @@
         "@ai-sdk/openai-compatible": "^3.0.77",
         "@ai-sdk/provider": "4.0.33",
         "@dltech/atlas-agent": "workspace:*",
+        "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
         "@dltech/atlas-host": "workspace:*",
         "@dltech/atlas-media": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
+        "@dltech/atlas-native-commands": "workspace:*",
         "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dotenvx/dotenvx": "^1.71.0",
@@ -57,6 +59,7 @@
         "@dltech/atlas-harness": "workspace:*",
         "@dltech/atlas-media": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
+        "@dltech/atlas-native-commands": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@dotenvx/dotenvx": "^1.71.0",
@@ -335,6 +338,18 @@
         "@types/bun": "latest",
       },
     },
+    "commands": {
+      "name": "@dltech/atlas-native-commands",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-commands": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "evals": {
       "name": "@dltech/atlas-evals",
       "version": "0.1.0",
@@ -534,6 +549,7 @@
       },
       "devDependencies": {
         "@dltech/atlas-daemon": "workspace:*",
+        "@dltech/atlas-native-commands": "workspace:*",
         "@types/bun": "latest",
         "@vscode/ripgrep": "^1.18.0",
       },
@@ -1138,6 +1154,8 @@
     "@dltech/atlas-mobile": ["@dltech/atlas-mobile@workspace:apps/mobile"],
 
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
+
+    "@dltech/atlas-native-commands": ["@dltech/atlas-native-commands@workspace:commands"],
 
     "@dltech/atlas-observability": ["@dltech/atlas-observability@workspace:packages/observability"],
 
