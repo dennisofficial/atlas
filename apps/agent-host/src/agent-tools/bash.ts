@@ -14,6 +14,7 @@ import {
   truncatesWatch,
   waitsBySleeping,
   waitsByWatching,
+  withFallbackShellName,
   type DeclaredPathField,
   type ThreadId,
   type ToolOutcome,
@@ -43,14 +44,16 @@ import {
 const DEFAULT_TIMEOUT_MS = 120_000
 const MAXIMUM_TIMEOUT_MS = 600_000
 
-const inputSchema = z.strictObject({
-  description: z.string().min(1),
-  command: z.string().min(1),
-  workdir: z.string().min(1).optional(),
-  timeoutMs: z.number().int().positive().optional(),
-  runInBackground: z.boolean().optional(),
-  watch: z.string().min(1).optional(),
-})
+const inputSchema = withFallbackShellName(
+  z.strictObject({
+    description: z.string().min(1),
+    command: z.string().min(1),
+    workdir: z.string().min(1).optional(),
+    timeoutMs: z.number().int().positive().optional(),
+    runInBackground: z.boolean().optional(),
+    watch: z.string().min(1).optional(),
+  }),
+)
 
 const description = bashDescription({
   defaultTimeoutMs: DEFAULT_TIMEOUT_MS,

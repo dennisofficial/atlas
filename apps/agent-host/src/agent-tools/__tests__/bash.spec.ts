@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
-import type { ProcessPort, SpawnCommand, ToolOutcome } from '@dltech/atlas-core'
+import type { ToolOutcome } from '@dltech/atlas-core'
 
 import { BashTool } from '../bash'
 import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
@@ -51,18 +51,18 @@ describe('BashTool', () => {
     expect(!outcome.ok && outcome.reason).toContain('bash was called with invalid input')
   }, 30_000)
 
-  it('refuses a command that arrives without a name', async () => {
-    const outcome = await submit({ command: 'echo unnamed' })
+  it('names a command that arrives without a name after the command', async () => {
+    const outcome = await submit({ command: 'echo unnamed', description: null })
 
-    expect(outcome).toMatchObject({ ok: false })
-    expect(!outcome.ok && outcome.reason).toContain('description')
+    expect(outputOf(outcome)).toMatchObject({ description: 'echo unnamed', stdout: 'unnamed\n' })
   }, 30_000)
 
-  it('asks for the name before the command, so a row is named while the command still streams', () => {
+  it('asks for the name first and as required, so a row is named while the command still streams', () => {
     const { inputSchema } = new BashTool(new ForegroundOnlyShells(), files, processes)
     const declared = z.toJSONSchema(inputSchema)
 
     expect(Object.keys(declared.properties ?? {})[0]).toBe('description')
+    expect(declared.required).toContain('description')
   })
 
   it('returns what a command printed and the zero it exited with', async () => {
