@@ -5,6 +5,8 @@ import {
   sessionArchiveOutputSchema,
   sessionBlobInputSchema,
   sessionBlobOutputSchema,
+  sessionCommandInputSchema,
+  sessionCommandOutputSchema,
   sessionCreateInputSchema,
   sessionCreateOutputSchema,
   sessionEventsInputSchema,
@@ -25,6 +27,8 @@ import {
   type SessionArchiveOutput,
   type SessionBlobInput,
   type SessionBlobOutput,
+  type SessionCommandInput,
+  type SessionCommandOutput,
   type SessionCreateInput,
   type SessionCreateOutput,
   type SessionEventsInput,
@@ -119,6 +123,14 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionRetryOutput> {
     return this.sessions.retry({ userId: ctx.auth.userId, sessionId: input.sessionId })
+  }
+
+  @Mutation({ input: sessionCommandInputSchema, output: sessionCommandOutputSchema })
+  command(
+    @Input() input: SessionCommandInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionCommandOutput> {
+    return this.sessions.command({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionViewInputSchema, output: sessionViewOutputSchema })

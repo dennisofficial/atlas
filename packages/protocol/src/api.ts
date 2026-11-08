@@ -183,11 +183,19 @@ export const sessionRetryInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
 
+export const sessionCommandInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  name: z.string().min(1),
+  args: z.unknown(),
+})
+
 export const sessionViewInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
 
 export const sessionRetryOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
+
+export const sessionCommandOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
 
 const tokenSpendShape = {
   inputTokens: z.number().int().min(0),
@@ -265,6 +273,8 @@ export const sessionViewOutputSchema = z.strictObject({
 
 export type SessionRetryInput = z.infer<typeof sessionRetryInputSchema>
 export type SessionRetryOutput = z.infer<typeof sessionRetryOutputSchema>
+export type SessionCommandInput = z.infer<typeof sessionCommandInputSchema>
+export type SessionCommandOutput = z.infer<typeof sessionCommandOutputSchema>
 export type SessionViewInput = z.infer<typeof sessionViewInputSchema>
 export type SessionViewOutput = z.infer<typeof sessionViewOutputSchema>
 export type SessionCreateOutput = z.infer<typeof sessionCreateOutputSchema>

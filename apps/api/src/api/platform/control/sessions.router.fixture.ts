@@ -19,6 +19,7 @@ export const sessions = {
   blob: vi.fn(),
   status: vi.fn(),
   retry: vi.fn(),
+  command: vi.fn(),
   view: vi.fn(),
 }
 

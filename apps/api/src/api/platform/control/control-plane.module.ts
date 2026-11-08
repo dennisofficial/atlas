@@ -3,6 +3,7 @@ import { db } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
+import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
 import { DbMediaRegistry, MediaRegistry } from './media-registry'
 import { mediaStoreProvider } from './media-store.provider'
 import { MediaRouter } from './media.router'
@@ -23,6 +24,7 @@ export const controlPlaneProvider: Provider = {
     backgroundWorkProvider(),
     { provide: MediaRegistry, useClass: DbMediaRegistry },
     mediaStoreProvider,
+    { provide: COMMAND_REGISTRY, useFactory: nativeCommandRegistry },
     SessionsService,
     SessionsRouter,
     MediaService,

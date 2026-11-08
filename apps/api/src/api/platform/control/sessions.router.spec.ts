@@ -170,4 +170,29 @@ describe('SessionsRouter', () => {
       .query({ input: JSON.stringify({}) })
     expect(badView.status).toBe(400)
   })
+
+  it('wires command to the owner-scoped service and validates its input shape', async () => {
+    sessions.command.mockResolvedValue({ inboxId: 4 })
+    const posted = await request(app.getHttpServer())
+      .post('/v1/trpc/sessions.command')
+      .set(as('session-a'))
+      .send({ sessionId: 's1', name: 'rename', args: { title: 'x' } })
+    expect(posted.status).toBe(200)
+    expect(posted.body.result.data).toEqual({ inboxId: 4 })
+    expect(sessions.command).toHaveBeenCalledWith({
+      userId: 'user-a',
+      sessionId: 's1',
+      name: 'rename',
+      args: { title: 'x' },
+    })
+    const unauthenticated = await request(app.getHttpServer())
+      .post('/v1/trpc/sessions.command')
+      .send({ sessionId: 's1', name: 'rename', args: {} })
+    expect(unauthenticated.status).toBe(401)
+    const unnamed = await request(app.getHttpServer())
+      .post('/v1/trpc/sessions.command')
+      .set(as('session-a'))
+      .send({ sessionId: 's1', args: {} })
+    expect(unnamed.status).toBe(400)
+  })
 })
