@@ -6,7 +6,6 @@ import { abandonCall, attachCallSignal } from './call-signal'
 import {
   FencedError,
   ProtocolViolationError,
-  ReadyTimeoutError,
   actionForAnswer,
   callLostAcrossBoot,
   needsRun,
@@ -16,6 +15,7 @@ import { scopeDispatchedBootId } from './call-scope'
 import { DaemonLink } from './link'
 import { READY_TIMEOUT_MS, withReadyDeadline } from './ready-deadline'
 import { ReadyGate, type ReadyReply } from './ready-gate'
+import { ScopeAcks } from './scope-acks'
 import {
   failedResult,
   handedOffResult,
@@ -27,11 +27,11 @@ import {
 } from './remote-calls-frames'
 import type { RemoteCallsArgs } from './remote-calls'
 
-export const ACK_TIMEOUT_MS = 10_000
+export { ACK_TIMEOUT_MS } from './scope-acks'
 
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
-  private readonly pendingAcks = new Map<string, { key: string; resolve(found: boolean): void }>()
+  private readonly acks: ScopeAcks
   private readonly asking = new Map<string, (answer: DaemonAnswer) => void>()
   private readonly link: DaemonLink
   private readonly log: LogPort | undefined
@@ -48,9 +48,13 @@ export class RemoteCallsState {
     this.log = args.log
     this.link = new DaemonLink({
       timers: args.timers,
+      sessionId: args.sessionId,
+      log: args.log,
       ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
+      ...(args.handshakeMs === undefined ? {} : { handshakeMs: args.handshakeMs }),
       events: {
         onFrame: (frame) => handleDaemonFrame(this.sink(), frame),
+        onDown: () => this.handleLinkDown(),
         onSuperseded: (reason) => {
           this.fenced = true
           args.onFenced()
@@ -60,6 +64,15 @@ export class RemoteCallsState {
           this.failAll(new ProtocolViolationError(`daemon refused the hello: ${reason}`)),
         onFatal: (error) => this.failAll(error),
       },
+    })
+    this.acks = new ScopeAcks({
+      timers: args.timers,
+      sessionId: args.sessionId,
+      log: args.log,
+      link: this.link,
+      epoch: () => this.epoch,
+      gone: () => this.fenced || this.closed,
+      readyWithin: (signal) => this.readyWithin(signal),
     })
   }
 
@@ -78,7 +91,11 @@ export class RemoteCallsState {
 
   ready(): Promise<ReadyReply> {
     this.reopenIfDown()
-    return this.gate.promise
+    return withReadyDeadline({
+      promise: this.gate.promise,
+      timeoutMs: this.args.readyTimeoutMs ?? READY_TIMEOUT_MS,
+      timers: this.args.timers,
+    })
   }
 
   bootId(): string | undefined {
@@ -100,7 +117,8 @@ export class RemoteCallsState {
     this.link.teardown()
     this.refuseAnswers()
     const error = new FencedError(`session ${this.args.sessionId} closed its daemon link`)
-    rejectPending({ pending: this.pending, pendingAcks: this.pendingAcks, error })
+    rejectPending({ pending: this.pending, error })
+    this.acks.releaseAll()
     this.gate.rejectSoon(error)
   }
 
@@ -175,44 +193,11 @@ export class RemoteCallsState {
   }
 
   ack(args: { key: string }): Promise<void> {
-    return this.ackKey({ key: args.key }).then(() => undefined)
+    return this.acks.ack({ key: args.key }).then(() => undefined)
   }
 
-  async ackScope(args: { scopeKey: string; count?: number | undefined }): Promise<void> {
-    if (args.count !== undefined) {
-      for (let index = args.count - 1; index >= 0; index -= 1) {
-        await this.ack({ key: `${args.scopeKey}.${index}` })
-      }
-      return
-    }
-    for (let index = 0; ; index += 1) {
-      if (!(await this.ackKey({ key: `${args.scopeKey}.${index}` }))) return
-    }
-  }
-
-  private async ackKey(args: { key: string }): Promise<boolean> {
-    if (this.fenced || this.closed) return false
-    try {
-      await this.readyWithin()
-    } catch (error) {
-      if (this.fenced || this.closed || error instanceof ReadyTimeoutError) return false
-      throw new ProtocolViolationError('the daemon link failed before the ack could be sent')
-    }
-    if (this.fenced || this.closed) return false
-    return new Promise<boolean>((resolve) => {
-      const timer = this.args.timers.setTimeout(() => {
-        this.pendingAcks.delete(args.key)
-        resolve(false)
-      }, ACK_TIMEOUT_MS)
-      this.pendingAcks.set(args.key, {
-        key: args.key,
-        resolve: (found) => {
-          this.args.timers.clearTimeout(timer)
-          resolve(found)
-        },
-      })
-      this.link.send({ kind: 'ack', key: args.key, epoch: this.epoch })
-    })
+  ackScope(args: { scopeKey: string; count?: number | undefined }): Promise<void> {
+    return this.acks.scope(args)
   }
 
   private readyWithin(signal?: AbortSignal): Promise<ReadyReply | undefined> {
@@ -275,8 +260,13 @@ export class RemoteCallsState {
     this.linkBootId = frame.bootId
     this.link.markReady()
     this.gate.resolve(frame)
-    for (const ack of this.pendingAcks.values()) {
-      this.link.send({ kind: 'ack', key: ack.key, epoch: this.epoch })
+    const flushedAcks = this.acks.flush()
+    if (previousBootId !== undefined) {
+      this.log?.info({
+        source: 'calls.link',
+        message: 'daemon link back up',
+        data: { sessionId: this.args.sessionId, restart, flushedAcks, pending: this.pending.size },
+      })
     }
     if (restart) this.recoverAcrossRestart(previousBootId)
     for (const call of this.pending.values()) {
@@ -332,6 +322,11 @@ export class RemoteCallsState {
     for (const key of [...this.asking.keys()]) this.answered(key, 'unavailable')
   }
 
+  private handleLinkDown(): void {
+    this.gate.rearm()
+    this.refuseAnswers()
+  }
+
   private reopenIfDown(): void {
     if (this.down === null || this.fenced || this.closed) return
     this.down = null
@@ -345,15 +340,14 @@ export class RemoteCallsState {
     this.refuseAnswers()
     this.gate.reject(error)
     for (const call of [...this.pending.values()]) this.settleError(call, error)
-    for (const ack of [...this.pendingAcks.values()]) ack.resolve(false)
-    this.pendingAcks.clear()
+    this.acks.releaseAll()
     this.log?.error({ source: 'remote-calls', message: error.message })
   }
 
   private sink() {
     return {
       pending: this.pending,
-      pendingAcks: this.pendingAcks,
+      settleAck: (args: { key: string; found: boolean }) => this.acks.settle(args),
       link: this.link,
       settle: (call: Pending, result: CallResult) => this.settle(call, result),
       settleError: (call: Pending, error: Error) => this.settleError(call, error),
