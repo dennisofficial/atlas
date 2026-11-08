@@ -57,12 +57,12 @@ describe('BashTool', () => {
     expect(outputOf(outcome)).toMatchObject({ description: 'echo unnamed', stdout: 'unnamed\n' })
   }, 30_000)
 
-  it('asks for the name first and as required, so a row is named while the command still streams', () => {
+  it('publishes the name first but optional, so a model is asked only for the command', () => {
     const { inputSchema } = new BashTool(new ForegroundOnlyShells(), files, processes)
-    const declared = z.toJSONSchema(inputSchema)
+    const declared = z.toJSONSchema(inputSchema, { io: 'input' })
 
     expect(Object.keys(declared.properties ?? {})[0]).toBe('description')
-    expect(declared.required).toContain('description')
+    expect(declared.required).toEqual(['command'])
   })
 
   it('returns what a command printed and the zero it exited with', async () => {
