@@ -22,6 +22,7 @@ export type LiveThread = ThreadView & {
   now: number
   loaded: boolean
   failedToLoad: boolean
+  stale: boolean
   connection: string | null
   title: string | null
   operatorInput: OperatorInputRequestWire | null
@@ -197,6 +198,7 @@ export function useThread(threadId: string | undefined): LiveThread {
     now,
     loaded: state.loaded,
     failedToLoad: state.failed,
+    stale: state.stale,
     connection: state.connection,
     title: state.title,
     operatorInput: state.operatorInput,

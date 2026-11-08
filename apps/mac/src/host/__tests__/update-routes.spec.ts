@@ -6,6 +6,7 @@ const SECRET = 'b'.repeat(64)
 let host: IDesktopHost
 let status: IDesktopUpdateStatus = { state: EDesktopUpdateState.Idle }
 let restarts = 0
+let checks = 0
 
 beforeAll(() => {
   host = createDesktopHost({
@@ -14,6 +15,11 @@ beforeAll(() => {
     secret: SECRET,
     updates: {
       status: () => status,
+      check: async () => {
+        checks += 1
+        status = { state: EDesktopUpdateState.Ready, version: '1.2.4' }
+        return status
+      },
       restart: async () => void (restarts += 1),
     },
   })
@@ -38,6 +44,9 @@ describe('desktop update routes', () => {
     })
     expect(res.status).toBe(403)
     expect(restarts).toBe(0)
+    const checked = await fetch(`${host.url}/desktop/update/check`, { method: 'POST' })
+    expect(checked.status).toBe(403)
+    expect(checks).toBe(0)
   })
 
   test('report idle then ready with version', async () => {
@@ -51,6 +60,14 @@ describe('desktop update routes', () => {
       state: 'ready',
       version: '1.2.3',
     })
+  })
+
+  test('check runs the port and reports what it found', async () => {
+    const headers = { cookie: await cookie() }
+    status = { state: EDesktopUpdateState.Idle }
+    const found = await fetch(`${host.url}/desktop/update/check`, { method: 'POST', headers })
+    expect(await found.json()).toEqual({ state: 'ready', version: '1.2.4' })
+    expect(checks).toBe(1)
   })
 
   test('restart is refused while idle and calls the port when ready', async () => {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ESessionStatus } from '@dltech/atlas-core'
+import { ESessionConnection } from '@dltech/atlas-client/stream'
 import { journalActivityOf } from '@dltech/atlas-client/crew'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
@@ -28,6 +29,7 @@ import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionTranscriptOf } from './data/session-transcript'
 import { sessionViewModelOf } from './data/session-view-model'
 import { retrySessionNow } from './data/use-retry-session'
+import { SessionUpdateCard } from './session-update-card'
 import { useQueuedDock } from './data/use-queued-dock'
 import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
@@ -179,6 +181,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           />
         </div>
         <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
+          {snapshot.connection === ESessionConnection.Stale ? <SessionUpdateCard /> : null}
           {stateLine === null ? null : (
             <p role="status" className="truncate px-1 text-xs text-muted-foreground">
               {stateLine}

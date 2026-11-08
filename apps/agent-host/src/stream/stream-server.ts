@@ -28,6 +28,7 @@ export type StreamServerArgs = {
   port: number
   auth: StreamAuthPort
   trustedOrigins: readonly string[]
+  eventTypes?: readonly string[] | undefined
   maxConnectionsPerUser?: number
   subscriptions?: SubscriptionPort
   timers?: HostTimers
@@ -87,6 +88,7 @@ export const startStreamServer = (args: StreamServerArgs): StreamServer => {
           subscriptions,
           timers,
           users,
+          eventTypes: args.eventTypes,
           log: args.log,
           onClosed: handleConnectionClosed,
         })

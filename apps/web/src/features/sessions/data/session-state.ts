@@ -29,7 +29,9 @@ const CONNECTION_LINE: Record<ESessionConnection, string | null> = {
   [ESessionConnection.CatchingUp]: 'Catching up…',
   [ESessionConnection.Reconnecting]: 'Reconnecting…',
   [ESessionConnection.Offline]: 'Offline — reload to reconnect',
-  [ESessionConnection.Outdated]: 'Atlas was updated. Reload to see this session.',
+  [ESessionConnection.Stale]: null,
+  [ESessionConnection.Outdated]:
+    'This session has a part Atlas could not read. Reload to try again.',
 }
 
 const ERROR_LINE: Record<EStreamErrorCode, string> = {

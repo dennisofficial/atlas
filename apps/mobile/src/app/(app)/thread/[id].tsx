@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Composer } from '../../../thread/composer/composer'
 import { OperatorInputCard } from '../../../thread/composer/operator-input-card'
+import { StaleCard } from '../../../thread/composer/stale-card'
 import { useAttachments } from '../../../thread/composer/use-attachments'
 import { Transcript } from '../../../thread/components/transcript'
 import { useThread } from '../../../thread/data/use-thread'
@@ -64,6 +65,11 @@ export default function ThreadScreen() {
             </View>
           )}
           <View style={{ paddingBottom: insets.bottom }}>
+            {thread.stale ? (
+              <View style={styles.operator}>
+                <StaleCard />
+              </View>
+            ) : null}
             {thread.operatorInput === null ? null : (
               <View style={styles.operator}>
                 <OperatorInputCard

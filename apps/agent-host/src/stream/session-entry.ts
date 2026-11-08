@@ -3,7 +3,7 @@ import {
   sessionSummaryOf,
   type ControlSessionDigest,
 } from '@dltech/atlas-control'
-import { STREAM_PROTOCOL_VERSION, type SessionSummary } from '@dltech/atlas-protocol'
+import { STREAM_SESSION_VIEW_VERSION, type SessionSummary } from '@dltech/atlas-protocol'
 
 export type SessionEntry = {
   row: SessionSummary
@@ -13,7 +13,7 @@ export type SessionEntry = {
 }
 
 export const rowForVersion = (args: { row: SessionSummary; version: number }): SessionSummary => {
-  if (args.version >= STREAM_PROTOCOL_VERSION) return args.row
+  if (args.version >= STREAM_SESSION_VIEW_VERSION) return args.row
   const { status: _status, primaryBranch: _branch, pullRequest: _pr, ...legacy } = args.row
   return legacy
 }

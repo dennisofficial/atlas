@@ -6,9 +6,10 @@ import { startOnStablePort } from '../host/stable-port'
 import { defaultDesktopHome, podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
 import { EMenuAction, installApplicationMenu } from './menu'
-import { restartToPrepared, startAutoUpdate } from './auto-update'
+import { checkNow, EManualCheckOutcome, restartToPrepared, startAutoUpdate } from './auto-update'
 import { runCheckForUpdates } from './check-for-updates'
 import { createUpdateState } from './update-state'
+import { EDesktopUpdateState } from '../host/update-routes'
 import { DESKTOP_PRELOAD } from './preload'
 import { runLogged, writeLog } from './crash-log'
 import { type IExternalLinkRouter, routeExternalLinks } from './external-links-wiring'
@@ -51,6 +52,13 @@ await runLogged(async () => {
       auth: { home, openExternal: (url) => Utils.openExternal(url) },
       updates: {
         status: updateState.status,
+        check: async () => {
+          const result = await checkNow({ updater: Updater, onReady: updateState.markReady })
+          if (result.outcome === EManualCheckOutcome.Failed) {
+            return { state: EDesktopUpdateState.Idle, error: result.message }
+          }
+          return updateState.status()
+        },
         restart: () => restartToPrepared({ updater: Updater, state: updateState }),
       },
       window: {

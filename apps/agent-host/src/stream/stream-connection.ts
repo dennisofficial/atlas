@@ -15,6 +15,7 @@ import {
 } from '@dltech/atlas-protocol'
 
 import { decodeFrame, frameBytes } from './decode-frame'
+import { readyFrameOf } from './ready-frame'
 import type { StreamAuthPort } from './stream-auth'
 import {
   EStreamServerClose,
@@ -43,6 +44,7 @@ export type StreamConnectionDeps = {
   subscriptions: SubscriptionPort
   timers: HostTimers
   users: UserSlots
+  eventTypes: readonly string[] | undefined
   log: LogPort | undefined
   onClosed(connection: StreamConnection): void
 }
@@ -160,18 +162,21 @@ export class StreamConnection {
         this.userId = principal.userId
         this.expiresAt = principal.expiresAt
         this.phase = EPhase.Ready
+        const version = Math.min(helloVersion, STREAM_PROTOCOL_VERSION)
         this.session = this.deps.subscriptions.open({
           userId: principal.userId,
-          version: Math.min(helloVersion, STREAM_PROTOCOL_VERSION),
+          version,
           send: (m) => this.send(m),
           bufferedAmount: () => this.socket.getBufferedAmount(),
           close: (code) => this.close(code),
         })
-        this.send({
-          type: 'ready',
-          v: Math.min(helloVersion, STREAM_PROTOCOL_VERSION),
-          connectionId: this.id,
-        })
+        this.send(
+          readyFrameOf({
+            version,
+            connectionId: this.id,
+            eventTypes: this.deps.eventTypes,
+          }),
+        )
         this.armRecheck()
         this.armHeartbeat()
       },

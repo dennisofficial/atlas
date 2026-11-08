@@ -1,5 +1,6 @@
 import {
   eventSchemaOf,
+  eventTypesOf,
   definePlugin,
   EMPTY_CONTROL,
   EMPTY_POD,
@@ -29,3 +30,5 @@ const registeredPlugins: readonly Plugin[] = [
 ]
 
 export const sessionEventSchema = eventSchemaOf(registeredPlugins)
+
+export const sessionEventTypes: ReadonlySet<string> = new Set(eventTypesOf(registeredPlugins))

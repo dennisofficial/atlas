@@ -12,20 +12,28 @@ export interface IDesktopUpdateStatus {
 
 export interface IDesktopUpdatesPort {
   status: () => IDesktopUpdateStatus
+  check: () => Promise<IDesktopUpdateStatus>
   restart: () => Promise<void>
 }
 
 export const UPDATE_PATH = '/desktop/update'
+export const UPDATE_CHECK_PATH = '/desktop/update/check'
 export const UPDATE_RESTART_PATH = '/desktop/update/restart'
 
 export function createUpdateHandler({
   updates,
 }: {
   updates: IDesktopUpdatesPort
-}): (request: Request, pathname: string) => Response | undefined {
+}): (request: Request, pathname: string) => Response | Promise<Response> | undefined {
   return (request, pathname) => {
     if (pathname === UPDATE_PATH && request.method === 'GET') {
       return Response.json(updates.status())
+    }
+    if (pathname === UPDATE_CHECK_PATH && request.method === 'POST') {
+      return updates.check().then(
+        (status) => Response.json(status),
+        () => Response.json({ state: EDesktopUpdateState.Idle, error: 'The check failed' }),
+      )
     }
     if (pathname === UPDATE_RESTART_PATH && request.method === 'POST') {
       if (updates.status().state !== EDesktopUpdateState.Ready) {

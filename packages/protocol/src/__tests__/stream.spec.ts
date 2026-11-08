@@ -5,12 +5,14 @@ import type { z } from 'zod'
 import {
   EStreamClose,
   EStreamErrorCode,
+  STREAM_EVENT_TYPES_VERSION,
   STREAM_HELLO_TIMEOUT_MS,
   STREAM_MAX_CLIENT_FRAME_BYTES,
   STREAM_MAX_SESSION_SUBSCRIPTIONS,
   STREAM_PAGE_EVENTS,
   STREAM_PROTOCOL_MIN_VERSION,
   STREAM_PROTOCOL_VERSION,
+  STREAM_SESSION_VIEW_VERSION,
   STREAM_TAIL_EVENTS,
   parseClientMessage,
   parseServerMessage,
@@ -23,7 +25,9 @@ const roundTrip = (value: unknown): unknown => JSON.parse(JSON.stringify(value))
 
 describe('stream constants', () => {
   it('pins the protocol version, limits and close codes', () => {
-    expect(STREAM_PROTOCOL_VERSION).toBe(2)
+    expect(STREAM_PROTOCOL_VERSION).toBe(3)
+    expect(STREAM_SESSION_VIEW_VERSION).toBe(2)
+    expect(STREAM_EVENT_TYPES_VERSION).toBe(3)
     expect(STREAM_PROTOCOL_MIN_VERSION).toBe(1)
     expect(STREAM_MAX_CLIENT_FRAME_BYTES).toBe(65_536)
     expect(STREAM_HELLO_TIMEOUT_MS).toBe(5_000)
