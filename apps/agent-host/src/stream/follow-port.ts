@@ -6,6 +6,7 @@ import type { LiveSource } from './live-source'
 import { LiveOverlay } from './overlay/live-overlay'
 import { SessionsListIndex } from './sessions-list'
 import { SessionViews } from './session-views'
+import { sharedReads } from './shared-reads'
 import type { SubscriptionPort } from './subscription-port'
 
 export type FollowSubscriptions = SubscriptionPort & { close(): void }
@@ -13,7 +14,8 @@ export type FollowSubscriptions = SubscriptionPort & { close(): void }
 export const createFollowSubscriptions = (
   args: FollowDeps & { feed: ChangeFeed; live?: LiveSource | undefined },
 ): FollowSubscriptions => {
-  const { plane, timers, log } = args
+  const { timers, log } = args
+  const plane = sharedReads(args.plane)
   const overlay =
     args.live === undefined
       ? undefined

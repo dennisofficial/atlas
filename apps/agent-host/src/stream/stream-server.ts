@@ -28,6 +28,7 @@ export type StreamServerArgs = {
   port: number
   auth: StreamAuthPort
   trustedOrigins: readonly string[]
+  maxConnectionsPerUser?: number
   subscriptions?: SubscriptionPort
   timers?: HostTimers
   log?: LogPort
@@ -45,7 +46,9 @@ const originAllowed = (args: { request: Request; trusted: readonly string[] }): 
 export const startStreamServer = (args: StreamServerArgs): StreamServer => {
   const timers = args.timers ?? systemHostTimers
   const subscriptions = args.subscriptions ?? unimplementedSubscriptions
-  const users = createUserSlots({ limit: STREAM_MAX_CONNECTIONS_PER_USER })
+  const users = createUserSlots({
+    limit: args.maxConnectionsPerUser ?? STREAM_MAX_CONNECTIONS_PER_USER,
+  })
   const open = new Set<StreamConnection>()
   let draining = false
   let emptied: (() => void) | undefined
