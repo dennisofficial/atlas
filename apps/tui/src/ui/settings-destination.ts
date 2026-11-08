@@ -1,4 +1,4 @@
-import { EDefinitionOrigin, ESettingKind, ESettingsLayer } from '@dltech/atlas-core'
+import { EDefinitionOrigin, ESettingsLayer } from '@dltech/atlas-core'
 
 import { isOverriddenSetting, type SettingsRow } from './settings-model'
 
@@ -18,8 +18,7 @@ export const definitionOriginName = (origin: EDefinitionOrigin): string => {
   return 'built-in'
 }
 
-const agentTypeOf = (setting: SettingsRow) =>
-  setting.definition.kind === ESettingKind.Model ? setting.definition.agentType : undefined
+const agentTypeOf = (setting: SettingsRow) => setting.definition.agentType
 
 export const savesToProject = (setting: SettingsRow): boolean =>
   setting.definition.writeLayer === ESettingsLayer.Project

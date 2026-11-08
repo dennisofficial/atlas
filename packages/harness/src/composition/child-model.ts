@@ -1,8 +1,10 @@
 import {
+  agentTypeEffortSettingId,
   agentTypeSettingId,
   EFFORT_LADDER,
   ENoticeTone,
   ESettingId,
+  effortRungOf,
   NOTICE_WARN_MS,
   parseRef,
   refKey,
@@ -43,17 +45,26 @@ export function childModelSelection(
     return ref !== undefined && isRefReachable({ catalogue: args.models, ref }) ? held : undefined
   }
 
+  const chosenEffort = (id: string): ReturnType<typeof effortRungOf> =>
+    effortRungOf(textValueOf({ resolution: args.settings.snapshot().resolution, id }))
+
   return async ({ agentType, spawnedBy }) => {
     const parent = args.model.choice()
+    const teammate = isTeammateType(agentType.name)
     const pinned =
       liveSetting(agentTypeSettingId(agentType.name)) ??
       agentType.model ??
-      (isTeammateType(agentType.name) ? undefined : liveSetting(ESettingId.SubagentModel))
+      (teammate ? undefined : liveSetting(ESettingId.SubagentModel))
     const spawner = await args.threads.find({ threadId: spawnedBy })
     const inherited = spawner?.agent === undefined ? undefined : spawner.model
+    const effort =
+      chosenEffort(agentTypeEffortSettingId(agentType.name)) ??
+      (teammate ? undefined : chosenEffort(ESettingId.SubagentEffort)) ??
+      inherited?.effort ??
+      parent.effort
     return {
       ref: pinned ?? inherited?.ref ?? refKey(parent.ref),
-      effort: inherited?.effort ?? parent.effort,
+      effort,
       ...((inherited?.fast ?? parent.fast) === true ? { fast: true } : {}),
     }
   }

@@ -119,16 +119,76 @@ const fallbackRefOf = (args: {
   return undefined
 }
 
+/** The model the thread itself runs, as the API recorded it when it was created or changed. */
+export type ThreadModelChoice = {
+  ref: string
+  effort?: string | undefined
+  fast?: boolean | undefined
+}
+
+type WantedModel = { ref: ModelRef; effort: unknown; fast: unknown }
+
+const configuredWith = (args: {
+  cipher: SecretCipher
+  parsed: readonly ParsedAccount[]
+  activeAccounts: readonly ActiveAccountRow[]
+  wanted: WantedModel
+}): ModelConfig | undefined => {
+  const { ref } = args.wanted
+  if (!isProvider(ref.providerId)) return undefined
+  const chosen = chosenFor({
+    provider: ref.providerId,
+    parsed: args.parsed,
+    activeAccounts: args.activeAccounts,
+  })
+  if (chosen === undefined) return undefined
+  const secret = accountSecretSchema.safeParse(
+    JSON.parse(args.cipher.decrypt(chosen.row.sealedSecret)),
+  )
+  if (!secret.success) return undefined
+  const base = {
+    configured: true,
+    ref,
+    effort: effortOf(args.wanted.effort),
+    fast: args.wanted.fast === true,
+    accountId: chosen.row.id,
+  } as const
+  if (secret.data.kind === EAuthKind.ApiKey) {
+    return { ...base, credential: { kind: 'api-key', apiKey: secret.data.apiKey } }
+  }
+  const connectionId = secret.data.authority?.connectionId
+  return connectionId === undefined
+    ? undefined
+    : { ...base, credential: { kind: 'oauth', connectionId } }
+}
+
 export const modelConfigOf = (args: {
   cipher: SecretCipher
   accounts: readonly AccountRow[]
   activeAccounts: readonly ActiveAccountRow[]
   settings: ReadonlyMap<string, string>
+  thread?: ThreadModelChoice | undefined
 }): ModelConfig => {
   const parsed = args.accounts.flatMap((row) => {
     const account = accountOf(row)
     return account === undefined ? [] : [{ account, row }]
   })
+  const settingsEffort = settingOf({ settings: args.settings, key: MODEL_SETTING_KEYS.effort })
+  const settingsFast = settingOf({ settings: args.settings, key: MODEL_SETTING_KEYS.fast })
+  const threadRef = args.thread === undefined ? undefined : parseRef(args.thread.ref)
+  if (threadRef !== undefined && args.thread !== undefined) {
+    const fromThread = configuredWith({
+      cipher: args.cipher,
+      parsed,
+      activeAccounts: args.activeAccounts,
+      wanted: {
+        ref: threadRef,
+        effort: args.thread.effort ?? settingsEffort,
+        fast: args.thread.fast ?? settingsFast,
+      },
+    })
+    if (fromThread !== undefined) return fromThread
+  }
   const idSetting = settingOf({ settings: args.settings, key: MODEL_SETTING_KEYS.id })
   const named = typeof idSetting === 'string' ? parseRef(idSetting) : undefined
   const ref = named ?? fallbackRefOf({ parsed, activeAccounts: args.activeAccounts })
@@ -149,8 +209,8 @@ export const modelConfigOf = (args: {
   const base = {
     configured: true,
     ref,
-    effort: effortOf(settingOf({ settings: args.settings, key: MODEL_SETTING_KEYS.effort })),
-    fast: settingOf({ settings: args.settings, key: MODEL_SETTING_KEYS.fast }) === true,
+    effort: effortOf(settingsEffort),
+    fast: settingsFast === true,
     accountId: chosen.row.id,
   } as const
   if (secret.data.kind === EAuthKind.ApiKey) {

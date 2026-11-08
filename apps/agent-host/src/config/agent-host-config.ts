@@ -1,4 +1,4 @@
-import type { EEffort, ModelRef } from '@dltech/atlas-core'
+import type { EEffort, ModelRef, ThreadId } from '@dltech/atlas-core'
 
 export type ModelCredential =
   | { kind: 'oauth'; connectionId: string }
@@ -41,4 +41,6 @@ export type AgentHostConfig = {
   skills: SkillIndexEntry[]
 }
 
-export type ConfigSource = { read(args: { sessionId: string }): Promise<AgentHostConfig> }
+export type ConfigSource = {
+  read(args: { sessionId: string; threadId?: ThreadId | undefined }): Promise<AgentHostConfig>
+}

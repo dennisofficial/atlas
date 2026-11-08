@@ -1,11 +1,10 @@
 import {
-  agentTypeModelDefinitions,
+  agentTypeDefinitions,
   agentTypeModelGroup,
   DEFAULT_LAYER_ORIGIN,
   definitionsOfPage,
   isSettingVisible,
   EDefinitionOrigin,
-  ESettingKind,
   ESettingPage,
   ESettingsLayer,
   SETTING_PAGES,
@@ -54,7 +53,7 @@ const clamped = (args: { index: number; length: number }): number =>
   Math.min(Math.max(0, args.index), Math.max(0, args.length - 1))
 
 const agentTypeOf = (setting: ResolvedSetting): AgentTypeModelSource | undefined =>
-  setting.definition.kind === ESettingKind.Model ? setting.definition.agentType : undefined
+  setting.definition.agentType
 
 export const isOverriddenSetting = (setting: ResolvedSetting): boolean =>
   agentTypeOf(setting)?.overriddenBy !== undefined
@@ -91,7 +90,8 @@ const agentGroupsLast = (groups: readonly SettingsGroup[]): readonly SettingsGro
 
 const shadowRowsOf = (shadows: readonly ShadowedAgentTypeSource[]): readonly SettingsRow[] =>
   shadows.flatMap((shadow) =>
-    agentTypeModelDefinitions({
+    agentTypeDefinitions({
+      effortRungsOf: () => undefined,
       types: [
         {
           name: shadow.name,

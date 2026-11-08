@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Composer } from '../../../thread/composer/composer'
 import { OperatorInputCard } from '../../../thread/composer/operator-input-card'
 import { StaleCard } from '../../../thread/composer/stale-card'
+import { useAttachments } from '../../../thread/composer/use-attachments'
 import { Transcript } from '../../../thread/components/transcript'
 import { useThread } from '../../../thread/data/use-thread'
 
@@ -25,6 +26,7 @@ export default function ThreadScreen() {
   const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id: string }>()
   const thread = useThread(id)
+  const attachments = useAttachments()
   const title = thread.failedToLoad ? '' : (thread.title ?? '')
 
   return (
@@ -48,7 +50,7 @@ export default function ThreadScreen() {
           keyboardVerticalOffset={HEADER_HEIGHT}
           style={styles.fill}
         >
-          <Transcript rows={thread.rows} working={thread.working} now={thread.now} />
+          <Transcript rows={thread.rows} working={thread.working} now={thread.now} threadId={id} />
           {thread.failure === null ? null : (
             <View style={styles.failure}>
               <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.failureText}>
@@ -77,7 +79,12 @@ export default function ThreadScreen() {
                 />
               </View>
             )}
-            <Composer working={thread.working} onSend={thread.send} onStop={thread.stop} />
+            <Composer
+              working={thread.working}
+              attachments={attachments}
+              onSend={thread.send}
+              onStop={thread.stop}
+            />
           </View>
         </KeyboardAvoidingView>
       ) : null}

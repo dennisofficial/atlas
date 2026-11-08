@@ -8,7 +8,7 @@ import {
   type ConnectionView,
   type SandboxAttachment,
 } from '@dltech/atlas-client/channel'
-import { toThreadId } from '@dltech/atlas-core'
+import { toThreadId, type Attachment } from '@dltech/atlas-core'
 import { operatorInputReplySchema } from '@dltech/atlas-wire/web'
 
 const CONFLICT = 409
@@ -41,7 +41,7 @@ export type ThreadChannelHandlers = {
 
 export type ThreadChannel = {
   connected: () => boolean
-  send: (args: { text: string; requestId: string }) => boolean
+  send: (args: { text: string; requestId: string; attachments: readonly Attachment[] }) => boolean
   interrupt: () => boolean
   retry: () => boolean
   provideOperatorInput: (args: { requestId: string; value: string }) => Promise<string | null>
@@ -100,9 +100,9 @@ export async function openThreadChannel(args: {
 
   return {
     connected: isConnected,
-    send: ({ text, requestId }) => {
+    send: ({ text, requestId, attachments }) => {
       if (!isConnected()) return false
-      channel.send({ text, requestId })
+      channel.send({ text, requestId, attachments })
       return true
     },
     interrupt: () => {

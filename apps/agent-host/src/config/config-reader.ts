@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { ThreadId } from '@dltech/atlas-core'
 import type { Db } from '@dltech/atlas-db'
 
 import type {
@@ -7,7 +8,7 @@ import type {
   VercelConfig,
   WorkspaceConfig,
 } from './agent-host-config'
-import { MODEL_SETTING_KEYS, modelConfigOf } from './model-config'
+import { MODEL_SETTING_KEYS, modelConfigOf, type ThreadModelChoice } from './model-config'
 import type { SecretCipher } from './secret-cipher'
 import { skillIndexOf } from './skill-index'
 import { VercelReconnectRequiredError } from '../tokens/vercel-token-refresher'
@@ -64,19 +65,31 @@ export class ConfigReader implements ConfigSource {
     this.now = args.now ?? Date.now
   }
 
-  async read({ sessionId }: { sessionId: string }): Promise<AgentHostConfig> {
+  async read({
+    sessionId,
+    threadId,
+  }: {
+    sessionId: string
+    threadId?: ThreadId | undefined
+  }): Promise<AgentHostConfig> {
     const { db } = this.args
     const session = await db.orm.v2.V2Session.first({ id: sessionId })
     if (session === null) throw new SessionNotFoundError(sessionId)
     const { userId, projectId } = session
-    const [project, vercel, accounts, activeAccounts, settings, skills] = await Promise.all([
-      db.orm.public.Project.first({ id: projectId }),
-      db.orm.public.UserVercelCredential.first({ userId }),
-      db.orm.public.AgentAccount.where({ userId }).all(),
-      db.orm.public.ActiveAccount.where({ userId }).all(),
-      this.modelSettings({ userId, projectId }),
-      skillIndexOf({ db, userId, projectId }),
-    ])
+    const [project, vercel, accounts, activeAccounts, settings, skills, thread] = await Promise.all(
+      [
+        db.orm.public.Project.first({ id: projectId }),
+        db.orm.public.UserVercelCredential.first({ userId }),
+        db.orm.public.AgentAccount.where({ userId }).all(),
+        db.orm.public.ActiveAccount.where({ userId }).all(),
+        this.modelSettings({ userId, projectId }),
+        skillIndexOf({ db, userId, projectId }),
+        threadId === undefined
+          ? Promise.resolve(null)
+          : db.orm.public.Thread.first({ id: threadId }),
+      ],
+    )
+    const threadModel = this.threadModelOf(thread)
     return {
       userId,
       projectId,
@@ -85,10 +98,26 @@ export class ConfigReader implements ConfigSource {
         accounts,
         activeAccounts,
         settings,
+        ...(threadModel === undefined ? {} : { thread: threadModel }),
       }),
       workspace: workspaceOf(project),
       vercel: await this.vercelOf({ userId, row: vercel }),
       skills,
+    }
+  }
+
+  private threadModelOf(
+    thread: {
+      modelRef: string | null
+      modelEffort: string | null
+      modelFast: boolean | null
+    } | null,
+  ): ThreadModelChoice | undefined {
+    if (thread === null || thread.modelRef === null) return undefined
+    return {
+      ref: thread.modelRef,
+      ...(thread.modelEffort === null ? {} : { effort: thread.modelEffort }),
+      ...(thread.modelFast === null ? {} : { fast: thread.modelFast }),
     }
   }
 

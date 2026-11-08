@@ -18,7 +18,10 @@ import {
 } from '../fixtures/settings-agent'
 import { SettingsCard, SettingsRow, SettingsSection } from '../settings-layout'
 import { PROVIDERS_HREF } from '../settings-nav'
+import { AgentEffortChoice } from './agent-effort-choice'
 import { EffortSlider } from './agent-effort-slider'
+
+const DEFAULT_EFFORT_HINT = 'Higher effort thinks longer and costs more per turn.'
 
 const effortLevelsOf = (efforts: readonly string[] | undefined): EEffortLevel[] | undefined => {
   if (efforts === undefined || efforts.length === 0) return undefined
@@ -62,12 +65,14 @@ export function RoleCard({
     currentId: setting.model,
   })
   const effort = setting.effort
-  const effortLabel = EFFORT_STEPS.find((step) => step.effort === effort)?.label
+  const inherits = meta.effortInherits === true
+  const effortLabel =
+    EFFORT_STEPS.find((step) => step.effort === effort)?.label ?? (inherits ? 'Inherit' : undefined)
   const selected = picker.options.models.find((model) => model.id === setting.model)
   const supportedEfforts = effortLevelsOf(selected?.efforts)
   const modelHasNoEffortMap =
     setting.model !== AUTO_MODEL && selected !== undefined && supportedEfforts === undefined
-  const showEffort = effort !== undefined && !modelHasNoEffortMap
+  const showEffort = (inherits || effort !== undefined) && !modelHasNoEffortMap
 
   const handleFastChange = (next: boolean) => onChange({ ...setting, fast: next })
   const handleModelChange = (model: string) => {
@@ -82,6 +87,10 @@ export function RoleCard({
     onChange(clamped === undefined ? { ...setting, model } : { ...setting, model, effort: clamped })
   }
   const handleEffortChange = (next: EEffortLevel) => onChange({ ...setting, effort: next })
+  const handleInheritableEffortChange = (next: EEffortLevel | undefined) => {
+    const { effort: _previous, ...rest } = setting
+    onChange(next === undefined ? rest : { ...rest, effort: next })
+  }
   const handleManageProviders = () => router.push(PROVIDERS_HREF)
 
   return (
@@ -105,18 +114,27 @@ export function RoleCard({
             />
           }
         />
-        {!showEffort || effort === undefined ? null : (
+        {!showEffort ? null : (
           <SettingsRow
             title="Effort"
-            description="Higher effort thinks longer and costs more per turn."
+            description={meta.effortHint ?? DEFAULT_EFFORT_HINT}
             control={<span className="font-mono text-xs text-muted-foreground">{effortLabel}</span>}
           >
-            <EffortSlider
-              value={effort}
-              onChange={handleEffortChange}
-              label={`${meta.title} effort`}
-              {...(supportedEfforts === undefined ? {} : { supportedEfforts })}
-            />
+            {inherits ? (
+              <AgentEffortChoice
+                value={effort}
+                onChange={handleInheritableEffortChange}
+                label={`${meta.title} effort`}
+                {...(supportedEfforts === undefined ? {} : { supportedEfforts })}
+              />
+            ) : effort === undefined ? null : (
+              <EffortSlider
+                value={effort}
+                onChange={handleEffortChange}
+                label={`${meta.title} effort`}
+                {...(supportedEfforts === undefined ? {} : { supportedEfforts })}
+              />
+            )}
           </SettingsRow>
         )}
         {fast === undefined ? null : (

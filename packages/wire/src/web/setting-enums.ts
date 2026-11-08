@@ -79,6 +79,8 @@ export const QUIET_HOUR_PATTERN = /^([01]\d|2[0-3]):00$/
 
 export const effortSchema = z.enum(EEffortLevel)
 
+export const effortOrInheritSchema = z.union([z.literal(''), effortSchema])
+
 // https://vercel.com/docs/sandbox/pricing — 1 or an even 2..32 vCPUs, 2 GB RAM each
 export const SANDBOX_VCPU_SIZES = [
   1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32,

@@ -10,6 +10,7 @@ import {
   EClassifierModeWire,
   EDecisionsProviderWire,
   EEffortLevel,
+  effortOrInheritSchema,
   effortSchema,
   EPlacementChooserShape,
   EVerdictTiming,
@@ -51,6 +52,12 @@ export const HARNESS_SETTING_ENTRIES = [
   settingEntry({
     key: 'agents.subagentModel',
     schema: modelRefSettingSchema,
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'agents.subagentEffort',
+    schema: effortOrInheritSchema,
     fallback: '',
     consumer: ESettingConsumer.Harness,
   }),
@@ -189,6 +196,13 @@ export const HARNESS_SETTING_PREFIXES = [
   prefixEntry({
     prefix: 'agents.type.',
     schema: modelRefSettingSchema,
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+  prefixEntry({
+    prefix: 'agents.type.',
+    suffix: '.effort',
+    schema: effortOrInheritSchema,
     fallback: '',
     consumer: ESettingConsumer.Harness,
   }),

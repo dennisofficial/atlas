@@ -31,8 +31,7 @@ const SAVES_TO = 'Saves to'
 
 const BUILT_IN_SOURCE = 'Built-in'
 
-const agentTypeOf = (setting: ResolvedSetting) =>
-  setting.definition.kind === ESettingKind.Model ? setting.definition.agentType : undefined
+const agentTypeOf = (setting: ResolvedSetting) => setting.definition.agentType
 
 function sourceOf(setting: ResolvedSetting): string | undefined {
   const agentType = agentTypeOf(setting)
@@ -44,7 +43,7 @@ function sourceOf(setting: ResolvedSetting): string | undefined {
 function overriddenWarning(setting: ResolvedSetting): string | undefined {
   const winner = agentTypeOf(setting)?.overriddenBy
   if (winner === undefined) return undefined
-  return `Overridden by the ${definitionOriginName(winner)} definition of the same name. It is not used, and its model cannot be set here.`
+  return `Overridden by the ${definitionOriginName(winner)} definition of the same name. It is not used, and its model and effort cannot be set here.`
 }
 
 function destinationLines(setting: SettingsRow): string[] | undefined {

@@ -29,6 +29,14 @@ export default (): ExpoConfig => ({
     'expo-notifications',
     'expo-apple-authentication',
     'expo-web-browser',
+    'expo-document-picker',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Atlas reads the photos you choose so you can send them to your agent.',
+        cameraPermission: 'Atlas uses the camera only when you take a photo to send.',
+      },
+    ],
     'posthog-react-native/expo',
     [
       'expo-splash-screen',

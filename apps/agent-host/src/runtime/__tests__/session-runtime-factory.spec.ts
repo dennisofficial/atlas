@@ -329,4 +329,38 @@ describe('createSessionRuntimeFactory', () => {
     expect(runtime.model).toBeDefined()
     await runtime.stop()
   })
+  it("builds the model port with the thread model's image capability", async () => {
+    const asked: { sessionId: string; threadId?: string | undefined }[] = []
+    const api: ConfigSource & { issue(): Promise<never> } = {
+      read: async (args) => {
+        asked.push(args)
+        return configured({
+          model: {
+            configured: true,
+            ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
+            effort: EEffort.High,
+            fast: false,
+            accountId: 'acct-1',
+            credential: { kind: 'api-key', apiKey: 'sk-test' },
+          },
+        })
+      },
+      issue: async () => {
+        throw new Error('unused')
+      },
+    }
+    const runtime = await makeFactory({ api, sandbox: new FakeSandbox(true) })({
+      sessionId: 's-7',
+      threadId: toThreadId('t-7'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    expect(asked).toEqual([{ sessionId: 's-7', threadId: 't-7' }])
+    expect(runtime.model.traits?.().image).toEqual({
+      images: 'both',
+      maxInlineBytes: 5_242_880,
+      maxEdge: 8_000,
+    })
+    await runtime.stop()
+  })
 })

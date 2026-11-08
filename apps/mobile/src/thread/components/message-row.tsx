@@ -3,10 +3,17 @@ import { Card, ETextRole, ETextTone, Markdown, Text } from '@dltech/atlas-ui-nat
 import { StyleSheet, View } from 'react-native'
 
 import { EMessageAuthor, type MessageRow } from '../rows'
+import { MessageAttachments } from './message-attachments'
 
 const STEER_CAPTION = 'Steered mid-turn'
 
-export const MessageRowView = ({ row }: { row: MessageRow }) => {
+export const MessageRowView = ({
+  row,
+  threadId,
+}: {
+  row: MessageRow
+  threadId: string | undefined
+}) => {
   if (row.author === EMessageAuthor.Atlas) {
     return (
       <View>
@@ -19,17 +26,7 @@ export const MessageRowView = ({ row }: { row: MessageRow }) => {
     <View style={styles.you}>
       <Card style={styles.bubble}>
         {row.text.length > 0 ? <Markdown value={row.text} breaks /> : null}
-        {row.attachments.map((attachment) => (
-          <Text
-            key={attachment.id}
-            size={ETextRole.Xs}
-            tone={ETextTone.Muted}
-            numberOfLines={1}
-            ellipsizeMode="middle"
-          >
-            {attachment.name}
-          </Text>
-        ))}
+        <MessageAttachments threadId={threadId} attachments={row.attachments} />
       </Card>
       {row.steer ? (
         <Text size={ETextRole.Xs} tone={ETextTone.Muted}>

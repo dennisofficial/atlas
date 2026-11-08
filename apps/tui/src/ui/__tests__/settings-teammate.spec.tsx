@@ -1,6 +1,6 @@
 import {
   ATLAS_SETTINGS,
-  agentTypeModelDefinitions,
+  agentTypeDefinitions,
   EDefinitionOrigin,
   agentTypeSettingId,
   ESettingsLayer,
@@ -15,7 +15,10 @@ const builtIn = (names: readonly string[]) =>
 
 const definitions = [
   ...ATLAS_SETTINGS,
-  ...agentTypeModelDefinitions({ types: builtIn(['builder', 'explore', 'teammate']) }),
+  ...agentTypeDefinitions({
+    effortRungsOf: () => undefined,
+    types: builtIn(['builder', 'explore', 'teammate']),
+  }),
 ]
 const state = { pageIndex: 1, rowIndex: 3 }
 
