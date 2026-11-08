@@ -1,5 +1,6 @@
 import { EBootStep, EBootStepState, EThreadMessageState } from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
+import { attachmentsOf } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { applyPodEvents } from '../../platform/sandboxes/pod-events'
@@ -55,14 +56,14 @@ describe('ThreadMessagesService.send', () => {
     expect(dispatch).toHaveBeenCalledTimes(1)
   })
 
-  it('stores images on the appended event', async () => {
+  it('stores attachments on the appended event', async () => {
     const { service } = messagesWith()
     const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
 
     await service.send({ ...ARGS, images })
 
     const [event] = await eventsOf()
-    expect(JSON.parse(event?.body ?? '').images).toEqual(images)
+    expect(JSON.parse(event?.body ?? '').attachments).toEqual(attachmentsOf({ images }))
   })
 
   it("does not send to another user's thread", async () => {
