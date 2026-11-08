@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
 import { EHeaderState } from '@/features/threads/data/header-model'
@@ -23,7 +24,17 @@ const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => (
   ...overrides,
 })
 
-const render = (props: { branch?: string; entries: PullRequestEntry[] }) =>
+const subscribed: SubscribedPullRequest = {
+  number: 31,
+  label: 'owner/atlas#31',
+  url: 'https://github.com/owner/atlas/pull/31',
+}
+
+const render = (props: {
+  branch?: string
+  entries: PullRequestEntry[]
+  subscriptions?: SubscribedPullRequest[]
+}) =>
   renderToStaticMarkup(
     <SidebarProvider>
       <SessionHeader
@@ -33,6 +44,7 @@ const render = (props: { branch?: string; entries: PullRequestEntry[] }) =>
         naming={false}
         branch={props.branch}
         entries={props.entries}
+        subscriptions={props.subscriptions ?? []}
       />
     </SidebarProvider>,
   )
@@ -75,5 +87,16 @@ describe('SessionHeader', () => {
     const html = render({ entries: [] })
     expect(html).not.toContain('data-session-branch')
     expect(html).not.toContain('data-session-pr')
+  })
+
+  it('lists the pull requests the session is subscribed to, each linking to its url', () => {
+    const html = render({ entries: [], subscriptions: [subscribed] })
+    expect(html).toContain('data-session-subscriptions')
+    expect(html).toContain('href="https://github.com/owner/atlas/pull/31"')
+    expect(html).toContain('#31')
+  })
+
+  it('shows no subscription indicator without subscriptions', () => {
+    expect(render({ entries: [entry()] })).not.toContain('data-session-subscriptions')
   })
 })

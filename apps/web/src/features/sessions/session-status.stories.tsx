@@ -42,6 +42,7 @@ const header = (args: { entries: PullRequestEntry[]; branch: string | undefined 
         naming={false}
         branch={args.branch}
         entries={args.entries}
+        subscriptions={[]}
       />
     </div>
   </SidebarProvider>

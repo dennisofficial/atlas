@@ -1,9 +1,18 @@
-import type { FoundPullRequest, PullRequestFinder } from '@dltech/atlas-host'
 import { z } from 'zod'
 
-import type { GithubTokenReader } from '../tokens/github-token-reader'
-
 const API_ROOT = 'https://api.github.com'
+
+export type GithubTokenSource = { read(args: { userId: string }): Promise<string | null> }
+
+export type FoundPullRequest = { number: number; url: string }
+
+export type PullRequestFinder = {
+  find(args: {
+    repo: string
+    branch: string
+    signal: AbortSignal
+  }): Promise<FoundPullRequest | null>
+}
 
 const pullsSchema = z.array(
   z.object({
@@ -17,7 +26,7 @@ export class GithubPullRequestFinder implements PullRequestFinder {
   constructor(
     private readonly args: {
       userId: string
-      github: Pick<GithubTokenReader, 'read'>
+      github: GithubTokenSource
       fetch?: typeof fetch | undefined
     },
   ) {}

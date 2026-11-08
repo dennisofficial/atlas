@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { githubIdentityLookup } from '../github-identity'
+import { githubIdentityLookup } from '../identity'
 
 const stub = (args: { body: unknown; status?: number }) => {
   const calls: { url: string; init: RequestInit | undefined }[] = []

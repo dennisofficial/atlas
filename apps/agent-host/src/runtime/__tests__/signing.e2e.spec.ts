@@ -38,6 +38,7 @@ const COMMIT_SCRIPT = [
   'git commit -q --allow-empty -m signed',
   'git verify-commit HEAD 2>&1',
   'echo "author=$(git log -1 --format=%an\\ %ae)"',
+  'echo "message=$(git log -1 --format=%B)"',
   'git log --show-signature -1 | grep -E "Good|signature"',
 ].join('\n')
 
@@ -98,6 +99,8 @@ describe('a commit in a sandbox shell', () => {
     })
     expect(output).toContain('Good "git" signature for signer@example.com')
     expect(output).toContain('author=Signing Dennis signer@example.com')
+    expect(output).toContain('message=signed')
+    expect(output).not.toMatch(/co-authored-by|atlas/i)
     expect(keyMode).toBe(0o600)
   }, 60_000)
 

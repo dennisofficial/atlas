@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { GithubPullRequestFinder } from '../github-pull-request-finder'
+import { GithubPullRequestFinder } from '../finder'
 
 const stub = (args: { body: unknown; status?: number }) => {
   const calls: { url: string; init: RequestInit | undefined }[] = []

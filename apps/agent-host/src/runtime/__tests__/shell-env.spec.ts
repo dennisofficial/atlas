@@ -102,6 +102,51 @@ describe('shellEnvOf', () => {
   })
 })
 
+describe('shellEnvOf acts as the user', () => {
+  const cases = [
+    {
+      name: 'github identity',
+      identity,
+      signing: null,
+      expected: [identity.name, identity.email] as const,
+    },
+    {
+      name: 'signing identity',
+      identity: null,
+      signing,
+      expected: [signing.userName, signing.userEmail] as const,
+    },
+    {
+      name: 'signing over github identity',
+      identity,
+      signing,
+      expected: [signing.userName, signing.userEmail] as const,
+    },
+  ]
+
+  it.each(cases)('$name: the user is the only identity, with no trailer or Atlas entry', (c) => {
+    const env = shellEnvOf({
+      githubToken: 'gho_abc',
+      identity: c.identity,
+      signing: c.signing,
+      launchDirectory: '/w',
+    })
+    const config = gitConfigOf(env)
+    expect(config.filter(([key]) => key === 'user.name')).toEqual([['user.name', c.expected[0]]])
+    expect(config.filter(([key]) => key === 'user.email')).toEqual([['user.email', c.expected[1]]])
+    const keys = config.map(([key]) => key)
+    for (const key of ['commit.template', 'core.hooksPath', 'author.name', 'committer.name']) {
+      expect(keys).not.toContain(key)
+    }
+    expect(keys.filter((key) => key.startsWith('trailer.'))).toEqual([])
+    const identityValues = config
+      .filter(([key]) => key === 'user.name' || key === 'user.email')
+      .map(([, value]) => value)
+    expect(identityValues.join(' ')).not.toMatch(/atlas/i)
+    expect(JSON.stringify(env)).not.toMatch(/co-authored-by/i)
+  })
+})
+
 describe('shellEnvOf with a signing key', () => {
   const signingKeys = [
     'gpg.format',

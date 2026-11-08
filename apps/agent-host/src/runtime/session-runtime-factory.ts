@@ -43,6 +43,7 @@ import { PrepareSteps } from './prepare-steps'
 import { countRunningShells } from './running-shells'
 import { startKeepAlive } from './keep-alive'
 import { rewakingConnector } from './rewaking-connector'
+import { GithubPullRequestFinder, githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
@@ -51,8 +52,6 @@ import { ShellEnvCell } from './shell-env'
 import { prepareSigning } from './signing-setup'
 import { ensureWorkspace } from './workspace-setup'
 import { workspaceRepoMap } from './workspace-repo-map'
-import { GithubPullRequestFinder } from '../github/github-pull-request-finder'
-import { githubIdentityLookup } from '../github/github-identity'
 
 export { SandboxNotConfiguredError }
 
