@@ -52,6 +52,7 @@ export {
   LIVE_STEP_CAP_BYTES,
   LiveStepBuffer,
 } from './holder/live-step-buffer'
+export { StalledTurnError } from './holder/stalled-turn'
 export { InboxIntake, INBOX_KIND_STOP } from './holder/inbox-intake'
 export {
   LeaseLostError,
