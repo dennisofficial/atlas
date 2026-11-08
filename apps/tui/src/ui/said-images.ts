@@ -1,14 +1,16 @@
-import { base64Bytes, visualTokens, type SaidImage } from '@dltech/atlas-core'
+import { base64Bytes, inlineData, visualTokens, type Attachment } from '@dltech/atlas-core'
 
 import { formatTokens } from './theme'
 
-const basename = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
+const sized = (attachment: Attachment): string | null => {
+  const { width, height } = attachment.image ?? {}
+  return width === undefined || height === undefined ? null : `${width}×${height}`
+}
 
-const sized = (image: SaidImage): string | null =>
-  image.width === undefined || image.height === undefined ? null : `${image.width}×${image.height}`
-
-const cost = (image: SaidImage): string | null => {
-  const tokens = visualTokens({ byteLength: base64Bytes(image.data), ...image })
+const cost = (attachment: Attachment): string | null => {
+  const data = inlineData(attachment)
+  if (data === undefined) return null
+  const tokens = visualTokens({ byteLength: base64Bytes(data), ...attachment.image })
   return tokens === null ? null : `~${formatTokens(tokens)} tokens`
 }
 
@@ -18,7 +20,7 @@ const cost = (image: SaidImage): string | null => {
  * transcript is the only place left to see what it took. The carrier adds its own mark — the
  * attachment chip prefixes `glyph.image` — so the text itself stays glyphless.
  */
-export const saidImageText = (image: SaidImage): string =>
-  [basename(image.path), sized(image), cost(image)]
+export const saidImageText = (attachment: Attachment): string =>
+  [attachment.name, sized(attachment), cost(attachment)]
     .filter((part): part is string => part !== null)
     .join(' · ')

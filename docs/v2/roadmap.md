@@ -23,6 +23,13 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-08._
+- **Slice 7 PR 4, `plugins/shells`** (`dennis/shells`): the fifth plugin tier package. The `shells`
+  view folds the core `background-shell-*` events; `shell` / `shell_output` / `shell_input` /
+  `shell_kill` / `shell_list` drive the daemon's `shells.*` ops; the pod appends the ending from the
+  daemon frame; a `beforeStep` hook adds the running roster and a prompt fragment explains the
+  tools. Live-checked on production 2026-11-08: start, read, answer stdin, kill, the roster in
+  `pluginViews.shells`, and a shell still listed by `shell_list` after the agent host was replaced
+  (spec §8.3). The web header shows a chip with the running shells (#2036).
 - **Slice 7 PR 3, `plugins/github` complete** (`dennis/github-ui`): the PR finder and identity lookup
   moved from `apps/agent-host/src/github/` into the plugin's `/pod`, called from the agent-host
   composition root; the session header shows the PRs the session is subscribed to; specs prove the

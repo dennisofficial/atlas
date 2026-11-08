@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { mediaUrls } from '@/features/threads/data/use-media-thumbs'
+import { mediaUrls } from '@/features/threads/data/media-urls'
 
 export function useMediaUrls(args: {
   sessionId: string

@@ -1,4 +1,4 @@
-import type { SaidImage } from '@dltech/atlas-core'
+import { inlineData, isImage, type Attachment } from '@dltech/atlas-core'
 import React from 'react'
 
 import { useClickRegion } from '../../hooks/use-click-region'
@@ -27,13 +27,13 @@ type AttachmentChip = {
   key: string
   icon: string
   label: string
-  image?: SaidImage
+  attachment?: Attachment
 }
 
 function attachmentChips(args: {
   skills: readonly string[]
   files: readonly string[]
-  images: readonly SaidImage[]
+  attachments: readonly Attachment[]
 }): readonly AttachmentChip[] {
   return [
     ...args.skills.map((skill) => ({
@@ -46,26 +46,27 @@ function attachmentChips(args: {
       icon: glyph.file,
       label: basename(file),
     })),
-    ...args.images.map((image) => ({
-      key: `image:${image.path}`,
-      icon: glyph.image,
-      label: saidImageText(image),
-      image,
+    ...args.attachments.map((attachment) => ({
+      key: `attachment:${attachment.id}`,
+      icon: isImage(attachment) ? glyph.image : glyph.file,
+      label: isImage(attachment) ? saidImageText(attachment) : attachment.name,
+      attachment,
     })),
   ]
 }
 
 function Chip(props: { chip: AttachmentChip; onOpenImage: OpenImage }): React.ReactNode {
-  const { image } = props.chip
+  const { attachment } = props.chip
+  const data = attachment === undefined ? undefined : inlineData(attachment)
   const handleOpen = (): void => {
-    if (image !== undefined)
+    if (attachment !== undefined && data !== undefined)
       props.onOpenImage({
-        path: image.path,
-        mediaType: image.mediaType,
-        data: image.data,
+        path: attachment.name,
+        mediaType: attachment.mediaType,
+        data,
       })
   }
-  const region = useClickRegion(image === undefined ? undefined : handleOpen)
+  const region = useClickRegion(data === undefined ? undefined : handleOpen)
   return (
     <box
       backgroundColor={region.hovered ? theme.hoverBg : theme.selectedBg}
@@ -89,14 +90,14 @@ export function UserBlock(props: {
   sendFailed?: boolean
   skills?: readonly string[]
   files?: readonly string[]
-  images?: readonly SaidImage[]
+  attachments?: readonly Attachment[]
   onOpenImage?: OpenImage
 }): React.ReactNode {
   const columns = Math.max(NARROWEST_BAND, props.width - RESERVED)
   const chips = attachmentChips({
     skills: props.skills ?? [],
     files: props.files ?? [],
-    images: props.images ?? [],
+    attachments: props.attachments ?? [],
   })
 
   return (

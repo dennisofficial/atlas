@@ -1,4 +1,4 @@
-import type { EReportKind, ETldrStatus, SaidImage, SaidMedia, SaidUpload } from '@dltech/atlas-core'
+import type { Attachment, EReportKind, ETldrStatus } from '@dltech/atlas-core'
 
 import { runLabel } from './tools'
 import { settled, type ToolRun } from './tool-runs'
@@ -41,9 +41,7 @@ export type OperatorSaidEntry = {
   steer: boolean
   skills: readonly string[]
   files: readonly string[]
-  images: readonly SaidImage[]
-  uploads?: readonly SaidUpload[] | undefined
-  media?: readonly SaidMedia[] | undefined
+  attachments: readonly Attachment[]
 }
 
 export type ModelSaidEntry = {

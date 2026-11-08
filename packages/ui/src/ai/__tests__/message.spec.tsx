@@ -80,7 +80,9 @@ describe('UserMessage', () => {
     const root = createRoot(container)
     await act(async () =>
       root.render(
-        <UserMessage images={[{ id: 'i1', src: 'data:image/png;base64,aGk=', alt: 'shot.png' }]} />,
+        <UserMessage
+          attachments={[{ id: 'i1', name: 'shot.png', src: 'data:image/png;base64,aGk=' }]}
+        />,
       ),
     )
 
@@ -90,11 +92,13 @@ describe('UserMessage', () => {
     expect(container.querySelector('[data-slot="bubble"]')).toBeNull()
   })
 
-  it('shows attached files as cards in the image row, after the images', async () => {
+  it('shows attached files as cards in the attachment row, after the pictures', async () => {
     const container = await render(
       <UserMessage
-        images={[{ id: 'i1', src: 'data:image/png;base64,aGk=', alt: 'shot.png' }]}
-        attachments={[{ id: 'f1', label: 'deploy.sh' }]}
+        attachments={[
+          { id: 'i1', name: 'shot.png', src: 'data:image/png;base64,aGk=' },
+          { id: 'f1', name: 'deploy.sh' },
+        ]}
       >
         hi
       </UserMessage>,
@@ -125,12 +129,12 @@ describe('UserMessage footer', () => {
   })
 
   it('offers no copy for missing or whitespace-only text', async () => {
-    const image = [{ id: 'i1', src: 'data:image/png;base64,aGk=', alt: 'shot.png' }]
-    const imageOnly = await render(<UserMessage images={image} copyText="" />)
+    const image = [{ id: 'i1', name: 'shot.png', src: 'data:image/png;base64,aGk=' }]
+    const imageOnly = await render(<UserMessage attachments={image} copyText="" />)
     expect(imageOnly.querySelector('button[aria-label="Copy"]')).toBeNull()
     expect(footerOf(imageOnly)).toBeNull()
 
-    const blank = await render(<UserMessage images={image} copyText={'  \n '} />)
+    const blank = await render(<UserMessage attachments={image} copyText={'  \n '} />)
     expect(blank.querySelector('button[aria-label="Copy"]')).toBeNull()
   })
 

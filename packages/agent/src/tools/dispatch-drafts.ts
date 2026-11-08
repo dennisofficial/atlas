@@ -1,4 +1,9 @@
-import type { CallId, EventDraft } from '@dltech/atlas-core'
+import {
+  toolTakesClause,
+  type CallId,
+  type EventDraft,
+  type ToolParameters,
+} from '@dltech/atlas-core'
 
 import { logFieldsOf } from '@dltech/atlas-observability'
 
@@ -55,6 +60,7 @@ export function unknownToolDraft(args: {
 export function invalidInputDraft(args: {
   call: DispatchableCall
   issues: readonly { path: readonly PropertyKey[]; message: string }[]
+  parameters: ToolParameters
 }): EventDraft {
   const problems = args.issues
     .slice(0, MAX_REPORTED_ISSUES)
@@ -70,7 +76,14 @@ export function invalidInputDraft(args: {
     name: args.call.name,
     output: undefined,
     error: {
-      message: `the ${args.call.name} tool rejected this input: ${problems === '' ? 'it does not match the schema' : problems}`,
+      message: [
+        `the ${args.call.name} tool rejected this input: ${problems === '' ? 'it does not match the schema' : problems}.`,
+        'Nothing ran.',
+        toolTakesClause({ name: args.call.name, parameters: args.parameters }),
+        `Call ${args.call.name} again with the required fields set.`,
+      ]
+        .filter((part) => part !== '')
+        .join(' '),
     },
   }
 }

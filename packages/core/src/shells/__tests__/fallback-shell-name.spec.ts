@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
-import { fallbackShellName, withFallbackShellName } from '../fallback-shell-name'
+import { fallbackShellName, optionalShellName, withFallbackShellName } from '../fallback-shell-name'
 
 const schema = withFallbackShellName(
-  z.strictObject({ description: z.string().min(1), command: z.string().min(1) }),
+  z.strictObject({
+    description: optionalShellName,
+    command: z.string().min(1),
+    workdir: z.string().min(1).optional(),
+  }),
 )
 
 describe('withFallbackShellName', () => {
@@ -19,6 +23,7 @@ describe('withFallbackShellName', () => {
     ['missing', {}],
     ['null', { description: null }],
     ['blank', { description: '   ' }],
+    ['not a string', { description: 42 }],
   ])('names a command whose name is %s after the command', (_, name) => {
     expect(schema.parse({ ...name, command: 'cat a.ts;\n  sed -n 1,5p b.ts' })).toEqual({
       description: 'cat a.ts; sed -n 1,5p b.ts',
@@ -28,10 +33,14 @@ describe('withFallbackShellName', () => {
 
   it('still refuses input with no command to name it after', () => {
     expect(schema.safeParse({ command: '' }).success).toBe(false)
+    expect(schema.safeParse({}).success).toBe(false)
   })
 
-  it('publishes the name as required, so models are still asked for one', () => {
-    expect(z.toJSONSchema(schema).required).toEqual(['description', 'command'])
+  it('publishes the name first and optional, since only the developer reads it', () => {
+    const declared = z.toJSONSchema(schema, { io: 'input' })
+
+    expect(Object.keys(declared.properties ?? {})[0]).toBe('description')
+    expect(declared.required).toEqual(['command'])
   })
 })
 

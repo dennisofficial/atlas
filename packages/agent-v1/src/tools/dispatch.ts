@@ -1,6 +1,7 @@
 import {
   EBeforeToolDecision,
   hookOutcomeDrafts,
+  parametersOf,
   resolveBeforeTool,
   type ActiveWorktree,
   type CallId,
@@ -132,7 +133,19 @@ export class HookedToolDispatcher extends ToolDispatcher {
     }
 
     const parsed = definition.inputSchema.safeParse(call.input)
-    if (!parsed.success) return [invalidInputDraft({ call, issues: parsed.error.issues })]
+    if (!parsed.success) {
+      return [
+        invalidInputDraft({
+          call,
+          issues: parsed.error.issues,
+          parameters: parametersOf({
+            inputSchema: definition.inputSchema,
+            jsonSchema: this.registry.declarations().find((declared) => declared.name === call.name)
+              ?.jsonSchema,
+          }),
+        }),
+      ]
+    }
 
     const candidate: ToolCall = {
       callId: call.callId,

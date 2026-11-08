@@ -1,3 +1,4 @@
+import { EAttachmentStore } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { deriveTranscript } from '../derive-transcript'
@@ -12,19 +13,25 @@ const upload = (uploadId: string) => ({
 })
 
 describe('operator uploads', () => {
-  it('carries uploads on the entry', () => {
+  it('carries an upload as an attachment', () => {
     const events = log([{ type: 'user-said', text: 'see', uploads: [upload('a')] }])
-    expect(fromTheOperator(deriveTranscript({ events, signals: [] }))[0]?.uploads).toEqual([
-      upload('a'),
+    expect(fromTheOperator(deriveTranscript({ events, signals: [] }))[0]?.attachments).toEqual([
+      {
+        id: 'a',
+        name: 'a.pdf',
+        mediaType: 'application/pdf',
+        size: 1,
+        content: { store: EAttachmentStore.Upload, uploadId: 'a', pathname: 'p/a' },
+      },
     ])
   })
 
-  it('concatenates uploads when messages fold into one block', () => {
+  it('concatenates attachments when messages fold into one block', () => {
     const events = log([
       { type: 'user-said', text: 'one', uploads: [upload('a')] },
       { type: 'user-said', text: 'two', uploads: [upload('b')] },
     ])
     const [entry] = fromTheOperator(deriveTranscript({ events, signals: [] }))
-    expect(entry?.uploads?.map((item) => item.uploadId)).toEqual(['a', 'b'])
+    expect(entry?.attachments.map((attachment) => attachment.id)).toEqual(['a', 'b'])
   })
 })

@@ -57,7 +57,7 @@ const operatorSaid = (
   steer: flags.steer ?? false,
   skills: [],
   files: [],
-  images: [],
+  attachments: [],
 })
 
 type ModelFlags = { streaming?: boolean; interrupted?: boolean }
