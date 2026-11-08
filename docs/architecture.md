@@ -1619,11 +1619,14 @@ catalogue — or whose account is gone — falls back _whole_, so an effort neve
 that offered it.
 
 **A child's model and effort are chosen at spawn and change only by an explicit operator pick.**
-The type's settings row outranks its definition pin. For sub-agents, the sub-agent role row
-comes next; otherwise the child inherits its spawner's pair. Teammates skip the sub-agent role
-row and inherit the main agent's current pair unless explicitly pinned. A teammate's sub-agents
-inherit the teammate's pair, not the main conversation's. The chosen pair is stored in the child's
-existing thread metadata before the spawn is published, and the runner builds a fixed model and prompt from it.
+Model and effort resolve along two separate chains, because a type may want a different model
+without changing how hard it thinks: the model walks type settings row, definition pin, sub-agent
+role row, spawner; the effort walks type effort row, sub-agent effort row, spawner's effort, main
+conversation. An effort row left on `inherit` is still resolved at spawn and saved with the pair,
+so it costs nothing to leave every row unset. Teammates skip both sub-agent role rows and inherit
+the main agent's current pair unless explicitly set. A teammate's sub-agents inherit the teammate's
+pair, not the main conversation's. The chosen pair is stored in the child's existing thread
+metadata before the spawn is published, and the runner builds a fixed model and prompt from it.
 Changing the parent or settings affects new children only; steering, waking, resuming, and
 relocating a child retain its saved pair. Older children with no recorded pair resolve and save
 one on their first re-entry. An unavailable saved model fails rather than silently choosing another.

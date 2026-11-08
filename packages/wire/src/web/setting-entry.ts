@@ -18,9 +18,18 @@ export type CloudSettingEntry = {
 
 export type CloudSettingPrefixEntry = Omit<CloudSettingEntry, 'key'> & {
   prefix: string
+  suffix?: string
 }
 
 export const prefixEntry = (entry: CloudSettingPrefixEntry): CloudSettingPrefixEntry => entry
+
+const specificity = (entry: CloudSettingPrefixEntry): number =>
+  entry.prefix.length + (entry.suffix?.length ?? 0)
+
+const prefixMatches = (entry: CloudSettingPrefixEntry, key: string): boolean =>
+  key.startsWith(entry.prefix) &&
+  key.length > entry.prefix.length &&
+  (entry.suffix === undefined || key.endsWith(entry.suffix))
 
 export const entryFor = (args: {
   registry: ReadonlyMap<string, CloudSettingEntry>
@@ -29,9 +38,13 @@ export const entryFor = (args: {
 }): CloudSettingEntry | undefined => {
   const exact = args.registry.get(args.key)
   if (exact !== undefined) return exact
-  const match = args.prefixes.find(
-    (entry) => args.key.startsWith(entry.prefix) && args.key.length > entry.prefix.length,
-  )
+  const match = args.prefixes
+    .filter((entry) => prefixMatches(entry, args.key))
+    .reduce<CloudSettingPrefixEntry | undefined>(
+      (best, entry) =>
+        best === undefined || specificity(entry) > specificity(best) ? entry : best,
+      undefined,
+    )
   return match === undefined ? undefined : { ...match, key: args.key }
 }
 

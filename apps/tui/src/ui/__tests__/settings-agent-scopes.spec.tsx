@@ -1,6 +1,6 @@
 import {
   ATLAS_SETTINGS,
-  agentTypeModelDefinitions,
+  agentTypeDefinitions,
   agentTypeSettingId,
   EDefinitionOrigin,
   ESettingPage,
@@ -8,7 +8,6 @@ import {
 } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { glyph } from '../theme'
 import {
   currentRow,
   isOverriddenSetting,
@@ -54,7 +53,10 @@ const shadowed: readonly ShadowedAgentTypeSource[] = [
   },
 ]
 
-const definitions = [...ATLAS_SETTINGS, ...agentTypeModelDefinitions({ types })]
+const definitions = [
+  ...ATLAS_SETTINGS,
+  ...agentTypeDefinitions({ effortRungsOf: () => undefined, types }),
+]
 
 const writeOriginOf = (id: string): string | undefined =>
   definitions.find((definition) => definition.id === id)?.writeLayer === 'project'
@@ -89,12 +91,25 @@ describe('the models page agent sections', () => {
       'Repository-defined sub-agents',
     ])
     expect(held.groups[0]?.rows.map(nameOf)).toContain('Teammates')
-    expect(held.groups[3]?.rows.map(nameOf)).toEqual(['explore agents', 'explore agents'])
-    expect(held.groups[5]?.rows.map(nameOf)).toEqual(['auditor agents', 'reviewer agents'])
+    expect(held.groups[3]?.rows.map(nameOf)).toEqual([
+      'explore agents',
+      'explore effort',
+      'explore agents',
+      'explore effort',
+    ])
+    expect(held.groups[5]?.rows.map(nameOf)).toEqual([
+      'auditor agents',
+      'auditor effort',
+      'reviewer agents',
+      'reviewer effort',
+    ])
     expect(held.groups[4]?.rows.map(nameOf)).toEqual([
       'reviewer agents',
+      'reviewer effort',
       'reviewer agents',
+      'reviewer effort',
       'writer agents',
+      'writer effort',
     ])
   })
 
@@ -124,7 +139,7 @@ describe('the models page agent sections', () => {
     const { held } = modelPage()
     const resolution = resolveSettings({ definitions, layers: [] })
 
-    expect(held.rows.filter(isOverriddenSetting)).toHaveLength(3)
+    expect(held.rows.filter(isOverriddenSetting)).toHaveLength(6)
     expect(
       held.rows
         .filter((row) => !isOverriddenSetting(row))
@@ -170,14 +185,35 @@ describe('the models page agent rows on screen', () => {
     rowsOf(page({ definitions, shadowedAgentTypes: shadowed, writeOriginOf, state, width }), width)
 
   it('headings the three sections', async () => {
-    const rows = await shown(modelsState(0))
+    const sections = [
+      { origin: EDefinitionOrigin.BuiltIn, name: 'explore', heading: 'BUILT-IN SUB-AGENTS' },
+      { origin: EDefinitionOrigin.User, name: 'writer', heading: 'GLOBAL USER-DEFINED SUB-AGENTS' },
+      {
+        origin: EDefinitionOrigin.Project,
+        name: 'reviewer',
+        heading: 'REPOSITORY-DEFINED SUB-AGENTS',
+      },
+    ]
 
-    for (const heading of [
-      'BUILT-IN SUB-AGENTS',
-      'REPOSITORY-DEFINED SUB-AGENTS',
-      'GLOBAL USER-DEFINED SUB-AGENTS',
-    ]) {
-      expect(rowWith(rows, heading)).not.toBe('')
+    for (const section of sections) {
+      const sectionDefinitions = [
+        ...ATLAS_SETTINGS,
+        ...agentTypeDefinitions({
+          effortRungsOf: () => undefined,
+          types: [
+            {
+              name: section.name,
+              origin: section.origin,
+              definedIn: `/agents/${section.name}.md`,
+            },
+          ],
+        }),
+      ]
+      const rows = await rowsOf(
+        page({ definitions: sectionDefinitions, state: { pageIndex: 1, rowIndex: 0 } }),
+        WIDE,
+      )
+      expect(rowWith(rows, section.heading)).not.toBe('')
     }
   })
 
@@ -217,7 +253,7 @@ describe('the models page agent rows on screen', () => {
     expect(frame).toContain('SAVES TO')
     expect(frame).toContain('Saves to project settings')
     expect(frame).toContain('.atlas/settings.json')
-    expect(frame).toContain(glyph.selected)
+    expect(frame).toContain(`edits write to ${PROJECT_FILE}`)
   })
 
   it('keeps overridden status and the honest destination in the footer when the sidebar is folded', async () => {

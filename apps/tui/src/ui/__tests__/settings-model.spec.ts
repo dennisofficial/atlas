@@ -1,7 +1,8 @@
 import {
   ATLAS_SETTINGS,
-  agentTypeModelDefinitions,
+  agentTypeDefinitions,
   EDefinitionOrigin,
+  agentTypeEffortSettingId,
   agentTypeSettingId,
   ESettingId,
   ESettingPage,
@@ -92,7 +93,7 @@ describe('settingsModel', () => {
     expect(models?.page.id).toBe(ESettingPage.Models)
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Model', 3],
-      ['Background processes', 3],
+      ['Background processes', 4],
       ['Decisions', 2],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
@@ -102,6 +103,7 @@ describe('settingsModel', () => {
       ESettingId.QuickModel,
       ESettingId.CompactionModel,
       ESettingId.SubagentModel,
+      ESettingId.SubagentEffort,
       ESettingId.DecisionsProvider,
       ESettingId.DecisionsToken,
     ])
@@ -110,7 +112,10 @@ describe('settingsModel', () => {
   it('groups a late-registered teammate with the main model and keeps navigation in visual order', () => {
     const definitions = [
       ...ATLAS_SETTINGS,
-      ...agentTypeModelDefinitions({ types: builtIn(['builder', 'teammate', 'explore']) }),
+      ...agentTypeDefinitions({
+        effortRungsOf: () => undefined,
+        types: builtIn(['builder', 'teammate', 'explore']),
+      }),
     ]
     const model = settingsModel({
       definitions,
@@ -119,23 +124,27 @@ describe('settingsModel', () => {
     const models = model.pages.find((page) => page.page.id === ESettingPage.Models)
 
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
-      ['Model', 4],
-      ['Background processes', 3],
+      ['Model', 5],
+      ['Background processes', 4],
       ['Decisions', 2],
-      ['Built-in sub-agents', 2],
+      ['Built-in sub-agents', 4],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
       ESettingId.ModelId,
       ESettingId.ModelEffort,
       ESettingId.ModelFast,
       agentTypeSettingId('teammate'),
+      agentTypeEffortSettingId('teammate'),
       ESettingId.QuickModel,
       ESettingId.CompactionModel,
       ESettingId.SubagentModel,
+      ESettingId.SubagentEffort,
       ESettingId.DecisionsProvider,
       ESettingId.DecisionsToken,
       agentTypeSettingId('builder'),
+      agentTypeEffortSettingId('builder'),
       agentTypeSettingId('explore'),
+      agentTypeEffortSettingId('explore'),
     ])
     expect(currentRow({ state: { pageIndex: 1, rowIndex: 3 }, model })?.definition.id).toBe(
       agentTypeSettingId('teammate'),

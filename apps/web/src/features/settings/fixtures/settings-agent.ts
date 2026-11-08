@@ -42,7 +42,13 @@ export const EFFORT_STEPS: {
 
 export const AUTO_MODEL = 'auto'
 
-export type RoleSetting = { model: string; effort?: EEffortLevel; fast?: boolean }
+export const INHERIT_EFFORT = 'inherit'
+
+export type RoleSetting = {
+  model: string
+  effort?: EEffortLevel
+  fast?: boolean
+}
 export type ModelsConfig = Record<EAgentRole, RoleSetting>
 
 export type ModelsDraft = {
@@ -50,6 +56,9 @@ export type ModelsDraft = {
   teammate: RoleSetting
   builtIns: Record<EBuiltInAgentType, RoleSetting>
 }
+
+const INHERITED_EFFORT_HINT =
+  'Left on inherit, this agent thinks as hard as the agent that spawned it.'
 
 export const ROLE_META: Record<EAgentRole, RoleMeta> = {
   [EAgentRole.Main]: {
@@ -64,7 +73,9 @@ export const ROLE_META: Record<EAgentRole, RoleMeta> = {
     description: 'Parallel workers the main agent spawns for search, review, and builds.',
     autoLabel: 'Follow main agent',
     modelHint: 'New subagents run on this model. Left on follow, they use the main agent’s model.',
-    hasEffort: false,
+    hasEffort: true,
+    effortInherits: true,
+    effortHint: INHERITED_EFFORT_HINT,
   },
   [EAgentRole.Quick]: {
     title: 'Quick calls',
@@ -96,6 +107,8 @@ export type RoleMeta = {
   autoLabel: string
   modelHint: string
   hasEffort: boolean
+  effortInherits?: boolean
+  effortHint?: string
 }
 
 export const TEAMMATE_META: RoleMeta = {
@@ -103,13 +116,20 @@ export const TEAMMATE_META: RoleMeta = {
   description: 'Full Atlas sessions running beside the main agent as peers.',
   autoLabel: 'Follow main agent',
   modelHint: 'New teammates run on this model. Left on follow, they use the main agent’s model.',
-  hasEffort: false,
+  hasEffort: true,
+  effortInherits: true,
+  effortHint: 'Left on inherit, this agent thinks as hard as the main agent.',
 }
 
-const followSubagents: Pick<RoleMeta, 'autoLabel' | 'modelHint' | 'hasEffort'> = {
+const followSubagents: Pick<
+  RoleMeta,
+  'autoLabel' | 'modelHint' | 'hasEffort' | 'effortInherits' | 'effortHint'
+> = {
   autoLabel: 'Follow sub-agents',
   modelHint: 'Left on follow, these agents use the Subagents model.',
-  hasEffort: false,
+  hasEffort: true,
+  effortInherits: true,
+  effortHint: INHERITED_EFFORT_HINT,
 }
 
 export const BUILT_IN_AGENT_META: Record<EBuiltInAgentType, RoleMeta> = {

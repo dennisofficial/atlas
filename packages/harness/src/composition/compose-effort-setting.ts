@@ -8,14 +8,15 @@ import {
   textValueOf,
   type ChoiceDefinition,
   type SettingOption,
+  type SettingsResolution,
 } from '@dltech/atlas-core'
 
 import type { ModelCatalogue } from './model-catalogue'
 
-const staticEffort = (): ChoiceDefinition => {
-  const held = ATLAS_SETTINGS.find((definition) => definition.id === ESettingId.ModelEffort)
+const staticChoice = (id: ESettingId): ChoiceDefinition => {
+  const held = ATLAS_SETTINGS.find((definition) => definition.id === id)
   if (held === undefined || held.kind !== ESettingKind.Choice) {
-    throw new Error('the registry no longer holds a model.effort choice to build from')
+    throw new Error(`the registry no longer holds ${id} as a choice to build from`)
   }
   return held
 }
@@ -23,38 +24,54 @@ const staticEffort = (): ChoiceDefinition => {
 const rungOptions = (rungs: readonly string[]): readonly SettingOption[] =>
   rungs.map((rung) => ({ value: rung, label: rung }))
 
+const rungsOfModel = (args: {
+  models: ModelCatalogue
+  modelId: string
+}): readonly SettingOption[] | undefined => {
+  const ref = parseRef(args.modelId)
+  if (ref === undefined) return undefined
+  const rungs = supportedEfforts(args.models.cardFor(ref)?.effort)
+  return rungs.length === 0 ? undefined : rungOptions(rungs)
+}
+
 /**
- * The effort row a catalogue-aware session registers instead of the static one: the rungs the
- * resolved default model takes, or the full ladder when the model is unset, unknown, or carries
- * no effort map. The stored value is never rewritten here — an out-of-rungs value self-corrects
- * on the first keypress, and the session clamps when it actually runs the model.
+ * The effort row a catalogue-aware session registers instead of the static one: the rungs the model
+ * that will actually run takes, or the full ladder when that model is unset, unknown, or carries no
+ * effort map. The stored value is never rewritten here — an out-of-rungs value self-corrects on the
+ * first keypress, and the session clamps when it actually runs the model.
  */
+const catalogueAware = (args: {
+  base: ChoiceDefinition
+  models: ModelCatalogue
+  modelIds: (resolution: SettingsResolution) => readonly string[]
+}): ChoiceDefinition => ({
+  ...args.base,
+  optionsFor: ({ resolution }) => {
+    for (const modelId of args.modelIds(resolution)) {
+      if (modelId.length === 0) continue
+      return rungsOfModel({ models: args.models, modelId }) ?? EFFORT_OPTIONS
+    }
+    return EFFORT_OPTIONS
+  },
+})
+
 export function effortSettingDefinition(args: { models: ModelCatalogue }): ChoiceDefinition {
-  const { models } = args
-  const base = staticEffort()
+  return catalogueAware({
+    base: staticChoice(ESettingId.ModelEffort),
+    models: args.models,
+    modelIds: (resolution) => [textValueOf({ resolution, id: ESettingId.ModelId })],
+  })
+}
 
-  return {
-    id: base.id,
-    page: base.page,
-    group: base.group,
-    label: base.label,
-    description: base.description,
-    ...(base.environmentVariable === undefined
-      ? {}
-      : { environmentVariable: base.environmentVariable }),
-    ...(base.writeLayer === undefined ? {} : { writeLayer: base.writeLayer }),
-    ...(base.storage === undefined ? {} : { storage: base.storage }),
-    ...(base.visibleWhen === undefined ? {} : { visibleWhen: base.visibleWhen }),
-    kind: base.kind,
-    fallback: base.fallback,
-    options: base.options,
-    optionsFor: ({ resolution }) => {
-      const reference = textValueOf({ resolution, id: ESettingId.ModelId })
-      const ref = parseRef(reference)
-      if (ref === undefined) return EFFORT_OPTIONS
-
-      const rungs = supportedEfforts(models.cardFor(ref)?.effort)
-      return rungs.length === 0 ? EFFORT_OPTIONS : rungOptions(rungs)
-    },
-  }
+export function subagentEffortSettingDefinition(args: {
+  models: ModelCatalogue
+}): ChoiceDefinition {
+  return catalogueAware({
+    base: staticChoice(ESettingId.SubagentEffort),
+    models: args.models,
+    modelIds: (resolution) => [
+      textValueOf({ resolution, id: ESettingId.SubagentModel }),
+      textValueOf({ resolution, id: ESettingId.ModelId }),
+    ],
+  })
 }

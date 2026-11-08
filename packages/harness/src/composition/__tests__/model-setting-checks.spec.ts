@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  agentTypeModelDefinitions,
+  agentTypeDefinitions,
   ATLAS_SETTINGS,
   EDefinitionOrigin,
   ESettingId,
@@ -71,7 +71,8 @@ describe('unreachableModelSettings', () => {
   it('checks late-registered per-type rows too', () => {
     const definitions: readonly SettingDefinition[] = [
       ...ATLAS_SETTINGS,
-      ...agentTypeModelDefinitions({
+      ...agentTypeDefinitions({
+        effortRungsOf: () => undefined,
         types: [{ name: 'explore', origin: EDefinitionOrigin.BuiltIn }],
       }),
     ]

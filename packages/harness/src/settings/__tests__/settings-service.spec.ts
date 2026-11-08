@@ -1,5 +1,5 @@
 import {
-  agentTypeModelDefinitions,
+  agentTypeDefinitions,
   ATLAS_SETTINGS,
   EDefinitionOrigin,
   EMPTY_SETTINGS_DOCUMENT,
@@ -137,7 +137,9 @@ describe('createSettingsService', () => {
     expect(service.snapshot().resolution.settings.has('agents.type.explore')).toBe(false)
 
     service.register(
-      agentTypeModelDefinitions({ types: EXPLORE_TYPE }).map((definition) => ({ ...definition })),
+      agentTypeDefinitions({ effortRungsOf: () => undefined, types: EXPLORE_TYPE }).map(
+        (definition) => ({ ...definition }),
+      ),
     )
 
     expect(told).toBe(1)
@@ -155,8 +157,8 @@ describe('createSettingsService', () => {
       told += 1
     })
 
-    service.register(agentTypeModelDefinitions({ types: EXPLORE_TYPE }))
-    service.register(agentTypeModelDefinitions({ types: EXPLORE_TYPE }))
+    service.register(agentTypeDefinitions({ effortRungsOf: () => undefined, types: EXPLORE_TYPE }))
+    service.register(agentTypeDefinitions({ effortRungsOf: () => undefined, types: EXPLORE_TYPE }))
 
     expect(told).toBe(1)
   })

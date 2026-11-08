@@ -1,4 +1,4 @@
-import { agentTypeModelDefinitions, ESettingId, parseRef } from '@dltech/atlas-core'
+import { agentTypeDefinitions, ESettingId, parseRef, supportedEfforts } from '@dltech/atlas-core'
 
 import { bindAgentTypes } from '../agents/types/bind-agent-types'
 import type { AgentTypeCatalog } from '../agents/types/registry'
@@ -6,7 +6,7 @@ import { agentTypeSources } from '../agents/types/roots'
 import type { DependencyContainer } from '../container/injection'
 import type { SettingsService } from '../settings/service'
 
-import { effortSettingDefinition } from './compose-effort-setting'
+import { effortSettingDefinition, subagentEffortSettingDefinition } from './compose-effort-setting'
 import { knownRefs, type ModelCatalogue } from './model-catalogue'
 
 export async function bindSessionAgentTypes(args: {
@@ -31,8 +31,15 @@ export async function bindSessionAgentTypes(args: {
 
   args.settings.register([
     effortSettingDefinition({ models }),
-    ...agentTypeModelDefinitions({
+    subagentEffortSettingDefinition({ models }),
+    ...agentTypeDefinitions({
       types: agentTypes.types.map(({ name, origin, definedIn }) => ({ name, origin, definedIn })),
+      effortRungsOf: (modelId) => {
+        const ref = parseRef(modelId)
+        if (ref === undefined) return undefined
+        const card = models.cardFor(ref)
+        return card === undefined ? undefined : supportedEfforts(card.effort)
+      },
     }),
   ])
 

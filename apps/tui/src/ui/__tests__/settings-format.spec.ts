@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ATLAS_SETTINGS, ESettingId, ESettingKind, type RangeDefinition } from '@dltech/atlas-core'
+import {
+  ATLAS_SETTINGS,
+  ESettingId,
+  ESettingKind,
+  type ChoiceDefinition,
+  type RangeDefinition,
+} from '@dltech/atlas-core'
 
 import { valueLabel } from '../settings-format'
 
@@ -11,7 +17,23 @@ const rangeOf = (id: ESettingId): RangeDefinition => {
   return found
 }
 
+const choiceOf = (id: ESettingId): ChoiceDefinition => {
+  const found = ATLAS_SETTINGS.find((definition) => definition.id === id)
+  if (found === undefined || found.kind !== ESettingKind.Choice)
+    throw new Error(`${id} is not a choice`)
+  return found
+}
+
 describe('valueLabel', () => {
+  it('reads an unset effort as inherit rather than an empty cell', () => {
+    expect(valueLabel({ definition: choiceOf(ESettingId.SubagentEffort), value: '' })).toBe(
+      'inherit',
+    )
+    expect(valueLabel({ definition: choiceOf(ESettingId.SubagentEffort), value: 'high' })).toBe(
+      'high',
+    )
+  })
+
   it('reads a range at zero by its zeroLabel when it names one', () => {
     expect(valueLabel({ definition: rangeOf(ESettingId.ContainerCpus), value: 0 })).toBe('no limit')
     expect(valueLabel({ definition: rangeOf(ESettingId.ContainerMemory), value: 0 })).toBe(

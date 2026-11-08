@@ -1,5 +1,5 @@
 import {
-  agentTypeModelDefinitions,
+  agentTypeDefinitions,
   agentTypeSettingId,
   EDefinitionOrigin,
   ESettingsLayer,
@@ -53,7 +53,7 @@ const appWith = (withProject = true): FakeApp => {
       ],
     },
   })
-  app.settings.register(agentTypeModelDefinitions({ types }))
+  app.settings.register(agentTypeDefinitions({ effortRungsOf: () => undefined, types }))
   return app
 }
 

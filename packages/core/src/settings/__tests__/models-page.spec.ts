@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EDefinitionOrigin } from '../../discovery/origin'
-import { agentTypeModelDefinitions, agentTypeSettingId } from '../agent-type-rows'
+import { EEffort, EFFORT_LADDER } from '../../models/effort-ladder'
+import {
+  agentTypeDefinitions,
+  agentTypeEffortSettingId,
+  agentTypeSettingId,
+} from '../agent-type-rows'
 import { ESettingsLayer } from '../layers'
-import { definitionsOfPage, ESettingPage } from '../definition'
+import {
+  definitionsOfPage,
+  ESettingPage,
+  isSettingVisible,
+  type ChoiceDefinition,
+} from '../definition'
 import { ATLAS_SETTINGS, ESettingId, SETTING_PAGES } from '../registry'
+import { resolveSettings } from '../resolve'
 import { ESettingKind } from '../value'
 
 const modelsRows = () =>
@@ -30,6 +41,7 @@ describe('the models settings page', () => {
       ESettingId.QuickModel,
       ESettingId.CompactionModel,
       ESettingId.SubagentModel,
+      ESettingId.SubagentEffort,
       ESettingId.DecisionsProvider,
       ESettingId.DecisionsUrl,
       ESettingId.DecisionsModel,
@@ -48,6 +60,7 @@ describe('the models settings page', () => {
           (row) =>
             row.kind === ESettingKind.Model ||
             row.id === ESettingId.ModelEffort ||
+            row.id === ESettingId.SubagentEffort ||
             row.id === ESettingId.ModelFast,
         ),
     ).toBe(true)
@@ -60,35 +73,67 @@ describe('the models settings page', () => {
   })
 })
 
-describe('agentTypeModelDefinitions', () => {
-  it('builds one model row per built-in type on the models page', () => {
-    const definitions = agentTypeModelDefinitions({
-      types: ['explore', 'builder'].map((name) => ({ name, origin: EDefinitionOrigin.BuiltIn })),
+describe('agentTypeDefinitions', () => {
+  const noRungs = () => undefined
+
+  const builtIn = (name: string) => ({ name, origin: EDefinitionOrigin.BuiltIn })
+
+  const resolutionOf = (args: {
+    definitions: ReturnType<typeof agentTypeDefinitions>
+    values: Record<string, unknown>
+  }) =>
+    resolveSettings({
+      definitions: [...ATLAS_SETTINGS, ...args.definitions],
+      layers: [{ layer: ESettingsLayer.User, origin: 'test', values: args.values }],
+    })
+
+  it('builds a model row and an effort row per built-in type, model first', () => {
+    const definitions = agentTypeDefinitions({
+      types: [builtIn('explore'), builtIn('builder')],
+      effortRungsOf: noRungs,
     })
 
     expect(definitions.map((definition) => definition.id)).toEqual([
       'agents.type.explore',
+      'agents.type.explore.effort',
       'agents.type.builder',
+      'agents.type.builder.effort',
+    ])
+    expect(definitions.map((definition) => definition.kind)).toEqual([
+      ESettingKind.Model,
+      ESettingKind.Choice,
+      ESettingKind.Model,
+      ESettingKind.Choice,
     ])
     for (const definition of definitions) {
-      expect(definition.kind).toBe(ESettingKind.Model)
       expect(definition.page).toBe(ESettingPage.Models)
       expect(definition.group).toBe('Built-in sub-agents')
       expect(definition.fallback).toBe('')
     }
+    const effort = definitions[1] as ChoiceDefinition
+    expect(effort.label).toBe('explore effort')
+    expect(effort.options.map((option) => option.value)).toEqual(['', ...EFFORT_LADDER])
   })
 
   it('places teammates with the main model and inherits the main agent', () => {
-    const [definition] = agentTypeModelDefinitions({
-      types: [{ name: 'teammate', origin: EDefinitionOrigin.BuiltIn }],
+    const [model, effort] = agentTypeDefinitions({
+      types: [builtIn('teammate')],
+      effortRungsOf: noRungs,
     })
 
-    expect(definition?.id).toBe('agents.type.teammate')
-    expect(definition?.page).toBe(ESettingPage.Models)
-    expect(definition?.group).toBe('Model')
-    expect(definition?.label).toBe('Teammates')
-    expect(definition?.unsetLabel).toBe('follow main agent')
-    expect(definition?.description).toContain("main agent's current model and effort")
+    expect(model?.id).toBe('agents.type.teammate')
+    expect(model?.page).toBe(ESettingPage.Models)
+    expect(model?.group).toBe('Model')
+    expect(model?.label).toBe('Teammates')
+    expect(model?.kind === ESettingKind.Model ? model.unsetLabel : undefined).toBe(
+      'follow main agent',
+    )
+    expect(model?.description).toContain("main agent's current model and effort")
+
+    expect(effort?.id).toBe(agentTypeEffortSettingId('teammate'))
+    expect(effort?.group).toBe('Model')
+    expect(effort?.label).toBe('Teammates effort')
+    expect(effort?.description).toContain('main agent')
   })
 
   it('retains provenance and scopes repository choices to project settings', () => {
@@ -103,25 +148,38 @@ describe('agentTypeModelDefinitions', () => {
         origin: EDefinitionOrigin.User,
         definedIn: '/home/.atlas/agents/auditor.md',
       },
-      { name: 'builder', origin: EDefinitionOrigin.BuiltIn },
+      builtIn('builder'),
     ]
-    const definitions = agentTypeModelDefinitions({ types })
+    const definitions = agentTypeDefinitions({ types, effortRungsOf: noRungs })
 
     expect(definitions.map((definition) => definition.group)).toEqual([
       'Repository-defined sub-agents',
+      'Repository-defined sub-agents',
+      'Global user-defined sub-agents',
       'Global user-defined sub-agents',
       'Built-in sub-agents',
+      'Built-in sub-agents',
     ])
-    expect(definitions.map((definition) => definition.agentType)).toEqual(types)
+    expect(definitions.map((definition) => definition.agentType)).toEqual([
+      types[0],
+      types[0],
+      types[1],
+      types[1],
+      types[2],
+      types[2],
+    ])
     expect(definitions.map((definition) => definition.writeLayer)).toEqual([
       ESettingsLayer.Project,
+      ESettingsLayer.Project,
+      ESettingsLayer.User,
+      ESettingsLayer.User,
       ESettingsLayer.User,
       ESettingsLayer.User,
     ])
   })
 
   it('retains the overriding origin for display-only definitions', () => {
-    const [definition] = agentTypeModelDefinitions({
+    const [model, effort] = agentTypeDefinitions({
       types: [
         {
           name: 'reviewer',
@@ -129,13 +187,89 @@ describe('agentTypeModelDefinitions', () => {
           overriddenBy: EDefinitionOrigin.Project,
         },
       ],
+      effortRungsOf: noRungs,
     })
 
-    expect(definition?.agentType?.overriddenBy).toBe(EDefinitionOrigin.Project)
-    expect(definition?.id).toBe('agents.type.reviewer')
+    expect(model?.agentType?.overriddenBy).toBe(EDefinitionOrigin.Project)
+    expect(model?.id).toBe('agents.type.reviewer')
+    expect(effort?.agentType?.overriddenBy).toBe(EDefinitionOrigin.Project)
   })
 
   it('derives stable ids from the type name', () => {
     expect(agentTypeSettingId('general-purpose')).toBe('agents.type.general-purpose')
+    expect(agentTypeEffortSettingId('general-purpose')).toBe('agents.type.general-purpose.effort')
+  })
+
+  it('offers the rungs of the model the type will actually run on', () => {
+    const definitions = agentTypeDefinitions({
+      types: [builtIn('explore')],
+      effortRungsOf: (modelId) =>
+        modelId === 'anthropic/claude-opus-5' ? [EEffort.Low, EEffort.High] : undefined,
+    })
+    const effort = definitions[1] as ChoiceDefinition
+
+    const own = resolutionOf({
+      definitions,
+      values: { 'agents.type.explore': 'anthropic/claude-opus-5' },
+    })
+    expect(effort.optionsFor?.({ resolution: own }).map((option) => option.value)).toEqual([
+      '',
+      EEffort.Low,
+      EEffort.High,
+    ])
+
+    const shared = resolutionOf({
+      definitions,
+      values: { 'agents.subagentModel': 'anthropic/claude-opus-5' },
+    })
+    expect(effort.optionsFor?.({ resolution: shared }).map((option) => option.value)).toEqual([
+      '',
+      EEffort.Low,
+      EEffort.High,
+    ])
+
+    const none = resolutionOf({ definitions, values: {} })
+    expect(effort.optionsFor?.({ resolution: none }).map((option) => option.value)).toEqual([
+      '',
+      ...EFFORT_LADDER,
+    ])
+  })
+
+  it('ignores the sub-agent model for a teammate, which follows the main agent', () => {
+    const definitions = agentTypeDefinitions({
+      types: [builtIn('teammate')],
+      effortRungsOf: (modelId) => (modelId === 'openai/gpt-5-mini' ? [EEffort.Low] : undefined),
+    })
+    const effort = definitions[1] as ChoiceDefinition
+    const resolution = resolutionOf({
+      definitions,
+      values: { 'agents.subagentModel': 'openai/gpt-5-mini' },
+    })
+
+    expect(effort.optionsFor?.({ resolution }).map((option) => option.value)).toEqual([
+      '',
+      ...EFFORT_LADDER,
+    ])
+  })
+
+  it('hides the effort row when the model takes no effort at all', () => {
+    const definitions = agentTypeDefinitions({
+      types: [builtIn('explore')],
+      effortRungsOf: (modelId) => (modelId === 'openai/gpt-5-mini' ? [] : undefined),
+    })
+    const effort = definitions[1]
+
+    const noBudget = resolutionOf({
+      definitions,
+      values: { 'agents.type.explore': 'openai/gpt-5-mini' },
+    })
+    expect(
+      effort === undefined ? false : isSettingVisible({ definition: effort, resolution: noBudget }),
+    ).toBe(false)
+
+    const unknown = resolutionOf({ definitions, values: {} })
+    expect(
+      effort === undefined ? false : isSettingVisible({ definition: effort, resolution: unknown }),
+    ).toBe(true)
   })
 })

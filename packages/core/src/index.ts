@@ -302,6 +302,7 @@ export * from './settings/registry'
 export * from './settings/decisions-presets'
 export * from './settings/decisions-endpoint'
 export * from './settings/agent-type-rows'
+export * from './settings/effort-rows'
 
 export * from './version/semver'
 export * from './version/clean-release-body'

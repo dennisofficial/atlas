@@ -54,7 +54,7 @@ const PICKER: ModelPicker = {
 }
 
 describe('built-in sub-agent role cards', () => {
-  it('renders one model-only card per built-in type', async () => {
+  it('renders a model card with an inheritable effort row per built-in type', async () => {
     for (const type of BUILT_IN_AGENT_ORDER) {
       const element = await render(
         <RoleCard
@@ -66,7 +66,8 @@ describe('built-in sub-agent role cards', () => {
       )
       expect(element.textContent).toContain(`${type} agents`)
       expect(element.textContent).toContain('Follow sub-agents')
-      expect(element.textContent).not.toContain('Effort')
+      expect(element.textContent).toContain('Effort')
+      expect(element.textContent).toContain('Inherit')
     }
   })
 })
