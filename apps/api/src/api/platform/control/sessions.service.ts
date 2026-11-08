@@ -30,7 +30,7 @@ import {
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import { attachedMedia } from './media-attachments'
-import { COMMAND_REGISTRY, postCommand } from './command-registry'
+import { COMMAND_REGISTRY, controlCommandHandlers, postCommand } from './command-registry'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
 import { nameSession } from './session-naming'
@@ -260,7 +260,12 @@ export class SessionsService {
 
   async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {
     await this.requireOwnedSession(args)
-    return postCommand({ plane: this.plane, registry: this.commands, ...args })
+    return postCommand({
+      plane: this.plane,
+      registry: this.commands,
+      controlHandlers: controlCommandHandlers(),
+      ...args,
+    })
   }
 
   async requireOwnedSession(args: {

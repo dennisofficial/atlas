@@ -2,7 +2,7 @@ import { ALLOWLIST } from './split-guard/allowlist'
 import { SPLIT_RULES } from './split-guard/rules'
 import { judge, violationsOf } from './split-guard/scan'
 
-const SOURCE_GLOB = new Bun.Glob('{packages,apps}/*/**/*.{ts,tsx}')
+const SOURCE_GLOB = new Bun.Glob('{packages,apps,plugins}/*/**/*.{ts,tsx}')
 
 const readSources = async (): Promise<Map<string, string>> => {
   const files = new Map<string, string>()

@@ -5,6 +5,7 @@ import {
   initialSessionViewState,
   SESSION_VIEW_VERSION,
   stepSessionView,
+  type PluginViewFold,
   type SessionViewState,
   type V2Event,
 } from '@dltech/atlas-core'
@@ -27,14 +28,32 @@ export const usableState = (view: SessionViewRow | undefined): SessionViewState 
   return state.at === view.atSeq ? state : undefined
 }
 
+const foldPluginViews = (args: {
+  bag: Readonly<Record<string, unknown>>
+  views: readonly PluginViewFold[]
+  event: V2Event
+}): Readonly<Record<string, unknown>> => {
+  let bag = args.bag
+  for (const view of args.views) {
+    const current = Object.hasOwn(bag, view.name) ? bag[view.name] : view.initial
+    bag = { ...bag, [view.name]: view.fold(current, args.event) }
+  }
+  return bag
+}
+
 export const foldEvents = (args: {
   state: SessionViewState
   events: readonly V2Event[]
+  pluginViews?: readonly PluginViewFold[] | undefined
 }): { state: SessionViewState; rebuild: boolean } => {
+  const views = args.pluginViews ?? []
   let state = args.state
   let rebuild = false
   for (const event of args.events) {
     state = stepSessionView(state, event)
+    if (views.length > 0) {
+      state = { ...state, pluginViews: foldPluginViews({ bag: state.pluginViews, views, event }) }
+    }
     rebuild ||= needsRebuild(event)
   }
   return { state, rebuild }
@@ -87,6 +106,7 @@ export const ensureSessionViewIn = async (args: {
   sessionId: string
   threadId: string
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<LoadedView> => {
   const { tx, sessionId, threadId } = args
   const row = await tx.readThread(threadId)
@@ -105,7 +125,7 @@ export const ensureSessionViewIn = async (args: {
       visible: false,
       eventSchema: args.eventSchema,
     })
-    const folded = foldEvents({ state, events: page.events })
+    const folded = foldEvents({ state, events: page.events, pluginViews: args.pluginViews })
     state = folded.state
     rebuild ||= folded.rebuild
     if (page.next === undefined) break
@@ -120,6 +140,7 @@ export const ensureMainThreadViewIn = async (args: {
   sessionId: string
   threadId: string
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<LoadedView | undefined> => {
   const session = await args.tx.readSession({ sessionId: args.sessionId })
   if (session?.mainThreadId !== args.threadId) return undefined
@@ -133,9 +154,14 @@ export const appendToViewIn = async (args: {
   state: SessionViewState
   events: readonly V2Event[]
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<void> => {
   const { tx, row } = args
-  const folded = foldEvents({ state: args.state, events: args.events })
+  const folded = foldEvents({
+    state: args.state,
+    events: args.events,
+    pluginViews: args.pluginViews,
+  })
   const state = folded.rebuild
     ? await rebuildFromTail({ tx, row, state: folded.state, eventSchema: args.eventSchema })
     : folded.state

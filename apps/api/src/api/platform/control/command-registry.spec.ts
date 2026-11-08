@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import { BadRequestException } from '@nestjs/common'
 import { setupSessionsService } from './sessions.service.fixture'
+import { composeCommands } from '@dltech/atlas-commands'
+import { composePlugins } from '@dltech/atlas-plugin-sdk'
+import { createFixturePlugin } from '@dltech/atlas-plugin-sdk/testing'
 import { nativeCommandRegistry, postCommand } from './command-registry'
 
 const seed = async () => {
@@ -92,5 +95,45 @@ describe('nativeCommandRegistry', () => {
     })
     expect(refused).rejects.toBeInstanceOf(BadRequestException)
     await refused.catch(() => undefined)
+  })
+})
+
+describe('a plugin command', () => {
+  const fixture = () => {
+    const { plugin, record } = createFixturePlugin()
+    const composed = composePlugins([plugin])
+    return { composed, record, registry: composeCommands(composed.commands) }
+  }
+
+  it('posts a plugin pod command to the inbox under its command kind', async () => {
+    const { plane, sessionId } = await seed()
+    const { registry } = fixture()
+    const posted = await postCommand({
+      plane,
+      registry,
+      sessionId,
+      name: 'probe-observe',
+      args: { label: 'x' },
+    })
+    expect(posted).toEqual({ inboxId: 1 })
+    const [entry] = await plane.readInbox({ sessionId, afterId: 0, limit: 10 })
+    expect(entry?.kind).toBe('command:probe-observe')
+  })
+
+  it('runs a plugin control command inline without touching the inbox', async () => {
+    const { plane, sessionId } = await seed()
+    const { registry, composed, record } = fixture()
+    const answered = await postCommand({
+      plane,
+      registry,
+      sessionId,
+      name: 'probe-read',
+      args: {},
+      controlHandlers: composed.control.commands,
+    })
+    expect(answered).toEqual({})
+    expect(record.controlReads).toEqual([sessionId])
+    expect(await plane.readInbox({ sessionId, afterId: 0, limit: 10 })).toEqual([])
+    expect(registry.byInboxKind.has('command:probe-read')).toBe(false)
   })
 })

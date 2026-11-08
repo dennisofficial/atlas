@@ -4,6 +4,7 @@ import {
   ERunner,
   promptContextFor,
   promptModelOf,
+  type PromptFragment,
   type PromptSource,
   type ProviderIdentity,
 } from '@dltech/atlas-core'
@@ -26,7 +27,7 @@ import {
 import { ParallelToolCallsFragment, PreferDedicatedToolsFragment } from './prompt-fragments/tools'
 import { PromptFragmentRegistry } from './prompt-registry'
 
-const registryOf = (): PromptFragmentRegistry =>
+const registryOf = (extraFragments: readonly PromptFragment[]): PromptFragmentRegistry =>
   new PromptFragmentRegistry([
     new AtlasIdentityFragment(),
     new EnvelopeContractFragment(),
@@ -46,10 +47,14 @@ const registryOf = (): PromptFragmentRegistry =>
     new OutputShapeFragment(),
     new CiteFileAndLineFragment(),
     new AnswerInTextFragment(),
+    ...extraFragments,
   ])
 
-export const agentHostPrompt = (args: { identity: ProviderIdentity }): PromptSource => {
-  const registry = registryOf()
+export const agentHostPrompt = (args: {
+  identity: ProviderIdentity
+  extraFragments?: readonly PromptFragment[] | undefined
+}): PromptSource => {
+  const registry = registryOf(args.extraFragments ?? [])
   return ({ projectDirectory }) =>
     registry.compile(
       promptContextFor({

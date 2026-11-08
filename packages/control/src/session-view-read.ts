@@ -5,6 +5,7 @@ import {
   sessionViewOf,
   type InboxEntry,
   type Lease,
+  type PluginViewFold,
   type PullRequestLink,
   type SessionViewState,
   type SessionViewValue,
@@ -46,6 +47,7 @@ export const currentViewIn = async (args: {
   sessionId: string
   threadId: string
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<SessionViewState> => {
   const { tx, sessionId, threadId } = args
   const row = await tx.readThread(threadId)
@@ -203,6 +205,7 @@ export const readSessionViewWithCatchUp = async (args: {
   sessionId: string
   threadId: string
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<SessionViewRead> => {
   const { store, sessionId, threadId } = args
   for (let attempt = 0; attempt < VIEW_READ_ATTEMPTS; attempt += 1) {
@@ -220,7 +223,13 @@ export const readSessionViewWithCatchUp = async (args: {
     if (read !== undefined) return read
     await store.transact(async (tx) => {
       if ((await tx.lockThread(threadId)) === undefined) throw new UnknownThreadError(threadId)
-      await ensureSessionViewIn({ tx, sessionId, threadId, eventSchema: args.eventSchema })
+      await ensureSessionViewIn({
+        tx,
+        sessionId,
+        threadId,
+        eventSchema: args.eventSchema,
+        pluginViews: args.pluginViews,
+      })
     })
   }
   throw new Error(`session view of ${sessionId} kept changing under the read`)

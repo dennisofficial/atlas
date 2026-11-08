@@ -2,6 +2,7 @@ export type SplitRule = {
   readonly name: string
   readonly roots: readonly string[]
   readonly forbidden: readonly string[]
+  readonly forbids?: (args: { file: string; specifier: string }) => boolean
 }
 
 export type Violation = {
@@ -39,7 +40,11 @@ export const violationsOf = (args: {
       .filter((rule) => isUnder(file, rule.roots))
       .flatMap((rule) =>
         specifiersOf(text)
-          .filter((specifier) => isForbidden(specifier, rule.forbidden))
+          .filter(
+            (specifier) =>
+              isForbidden(specifier, rule.forbidden) ||
+              rule.forbids?.({ file, specifier }) === true,
+          )
           .map((specifier) => ({ file, specifier, rule: rule.name })),
       ),
   )

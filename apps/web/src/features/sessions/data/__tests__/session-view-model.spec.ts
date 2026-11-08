@@ -29,6 +29,7 @@ const sessionViewFixture = {
   },
   checkouts: { repos: [], primary: null },
   pullRequests: [],
+  pluginViews: {},
 } satisfies SessionViewOutput
 
 const linked = {

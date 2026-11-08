@@ -7,6 +7,7 @@ import {
   type MemoryHostPresence,
 } from '../../testing/memory-host-presence'
 import type { SaidUploadsPort } from '@dltech/atlas-agent'
+import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
@@ -74,6 +75,7 @@ export const makeRig = async (args: {
   commandHandlers?: CommandHandlers | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
+  plugins?: ComposedPlugins | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store =
@@ -119,6 +121,7 @@ export const makeRig = async (args: {
     connectGate: args.connectGate,
     runtimeGate: args.runtimeGate,
     beforeRuntime: args.beforeRuntime,
+    plugins: args.plugins,
   })
 
   const holder = new SessionHolder({

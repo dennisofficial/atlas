@@ -3,6 +3,7 @@ import {
   blobRefsOf,
   stepVisibility,
   type LogHead,
+  type PluginViewFold,
   type V2Event,
 } from '@dltech/atlas-core'
 import type { z } from 'zod'
@@ -25,6 +26,7 @@ export const appendIn = async (params: {
   events: readonly unknown[]
   blobs?: readonly BlobWrite[] | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<AppendOutcome> => {
   const { tx } = params
   const row = await tx.lockThread(params.threadId)
@@ -72,6 +74,7 @@ export const appendIn = async (params: {
     sessionId: row.sessionId,
     threadId: params.threadId,
     eventSchema: params.eventSchema,
+    pluginViews: params.pluginViews,
   })
   await tx.insertBlobs(blobs)
   await tx.insertBlobRefs([...refHashes].map((hash) => ({ sessionId: row.sessionId, hash })))
@@ -97,6 +100,7 @@ export const appendIn = async (params: {
       state: view.state,
       events: parsed.events,
       eventSchema: params.eventSchema,
+      pluginViews: params.pluginViews,
     })
   }
   await tx.announce({

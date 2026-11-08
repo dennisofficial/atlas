@@ -38,10 +38,12 @@ import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
 import { abortable } from './abortable'
+import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
 import { PrepareSteps } from './prepare-steps'
 import { countRunningShells } from './running-shells'
 import { startKeepAlive } from './keep-alive'
 import { rewakingConnector } from './rewaking-connector'
+import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
 import { daemonToolsOf } from './tools'
@@ -52,12 +54,7 @@ import { workspaceRepoMap } from './workspace-repo-map'
 import { GithubPullRequestFinder } from '../github/github-pull-request-finder'
 import { githubIdentityLookup } from '../github/github-identity'
 
-export class SandboxNotConfiguredError extends Error {
-  constructor(public readonly gap: string) {
-    super(`sandbox is not configured: ${gap}`)
-    this.name = 'SandboxNotConfiguredError'
-  }
-}
+export { SandboxNotConfiguredError }
 
 const SETUP_DEADLINE_MS = 15 * 60_000
 
@@ -76,6 +73,7 @@ export type SessionRuntimeFactoryArgs = {
   pingMs?: number | undefined
   media?: MediaSigner | undefined
   githubFetch?: typeof fetch | undefined
+  plugins?: ComposedPlugins | undefined
 }
 
 const UNCONFIGURED_REF: ModelRef = { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' }
@@ -264,7 +262,10 @@ export const createSessionRuntimeFactory = (
       daemonTools: new Set(byName.keys()),
       effectOf: (name) => byName.get(name)?.effect,
       assembly: defaultPipeline({
-        prompt: agentHostPrompt({ identity: model.identity }),
+        prompt: agentHostPrompt({
+          identity: model.identity,
+          extraFragments: args.plugins?.pod.prompts,
+        }),
         launchDirectory,
       }),
       uploads: new SandboxSaidUploads({
@@ -281,6 +282,7 @@ export const createSessionRuntimeFactory = (
         repoOf: (repoPath) => repoAt(repoPath)?.repo ?? null,
         finder: new GithubPullRequestFinder({ userId: config.userId, github: args.github }),
       },
+      plugins: args.plugins,
       runningShells: () => countRunningShells({ calls }),
       prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),

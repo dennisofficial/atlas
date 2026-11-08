@@ -11,7 +11,8 @@ const isViewState = (value: unknown): value is SessionViewState =>
   isRecord(value.meter) &&
   isRecord(value.checkouts) &&
   isRecord(value.pullRequests) &&
-  isRecord(value.spend)
+  isRecord(value.spend) &&
+  isRecord(value.pluginViews)
 
 export const encodeViewState = (state: SessionViewState): string => JSON.stringify(state)
 

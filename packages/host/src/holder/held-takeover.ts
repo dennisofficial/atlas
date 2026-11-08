@@ -74,6 +74,7 @@ export class TakeOver {
       preloaded: cache,
       ...(deps.log === undefined ? {} : { log: deps.log }),
     })
+    runtime.bindPluginRecord?.(record)
     return { runtime, record }
   }
 

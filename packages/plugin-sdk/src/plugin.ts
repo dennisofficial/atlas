@@ -1,19 +1,14 @@
-import { createV2EventSchema, type V2Event } from '@dltech/atlas-core'
+import type { Command } from '@dltech/atlas-commands'
+import { createV2EventSchema, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
-import type {
-  ClientSlot,
-  CommandSpec,
-  ControlSlot,
-  PluginTransport,
-  PodSlot,
-  ViewFold,
-} from './slots'
+import { composePod, mergeMaps, type ComposedPod } from './compose-pod'
+import type { ClientSlot, ControlSlot, PluginTransport, PodSlot } from './slots'
 
 export type PluginSlots = {
   events: readonly z.ZodType[]
-  views: readonly ViewFold[]
-  commands: readonly CommandSpec[]
+  views: readonly PluginViewFold[]
+  commands: readonly Command[]
   pod: PodSlot
   control: ControlSlot
   client: ClientSlot
@@ -25,9 +20,9 @@ export type Plugin = Readonly<{ name: string } & PluginSlots>
 export type ComposedPlugins = {
   names: readonly string[]
   eventBodies: readonly z.ZodType[]
-  views: readonly ViewFold[]
-  commands: readonly CommandSpec[]
-  pod: PodSlot
+  views: readonly PluginViewFold[]
+  commands: readonly Command[]
+  pod: ComposedPod
   control: ControlSlot
   client: ClientSlot
   transports: readonly PluginTransport[]
@@ -63,8 +58,14 @@ export const composePlugins = (plugins: readonly Plugin[]): ComposedPlugins =>
     eventBodies: Object.freeze(plugins.flatMap((plugin) => plugin.events)),
     views: Object.freeze(plugins.flatMap((plugin) => plugin.views)),
     commands: Object.freeze(plugins.flatMap((plugin) => plugin.commands)),
-    pod: Object.freeze({ handlers: Object.freeze(plugins.flatMap((p) => p.pod.handlers)) }),
-    control: Object.freeze({ hooks: Object.freeze(plugins.flatMap((p) => p.control.hooks)) }),
+    pod: composePod(plugins.map((plugin) => plugin.pod)),
+    control: Object.freeze({
+      hooks: Object.freeze(plugins.flatMap((plugin) => plugin.control.hooks)),
+      commands: mergeMaps({
+        maps: plugins.map((plugin) => plugin.control.commands),
+        what: 'the control command',
+      }),
+    }),
     client: Object.freeze({ hooks: Object.freeze(plugins.flatMap((p) => p.client.hooks)) }),
     transports: Object.freeze(plugins.map((plugin) => plugin.transport)),
   })

@@ -17,6 +17,7 @@
     "@dltech/atlas-control": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-observability": "workspace:*",
+    "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "zod": "^4.4.3"
   },

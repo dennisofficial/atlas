@@ -65,6 +65,7 @@ export const sessionViewFixture = {
   },
   checkouts: { repos: [], primary: null },
   pullRequests: [],
+  pluginViews: {},
 } satisfies SessionViewOutput
 
 export const streamServerFixtures = {

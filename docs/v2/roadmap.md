@@ -23,6 +23,9 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-08._
+- **Slice 7 PR 1, the plugin contract** (`dennis/plugin-contract`): plugin views ride the session view
+  (version 4), pod tools/hooks/prompts/commands/daemon events and control commands are live, and
+  `plugins/*` joins the workspace with an import guard. No plugin is registered yet.
 - **Spec written 2026-11-08: slice 7, plugins** ([spec](slices/07-plugins.md); open questions in its
   §9). It completes the slice-6 contract first (plugin views in the session view, pod tools/hooks/
   prompts/daemon events, control commands), then moves each feature into `plugins/<name>/` in the

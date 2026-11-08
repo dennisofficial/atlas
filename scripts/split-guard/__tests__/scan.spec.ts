@@ -64,6 +64,34 @@ describe('violationsOf', () => {
   })
 })
 
+describe('plugin isolation rule', () => {
+  const found = (entries: Record<string, string>) =>
+    violationsOf({ rules: SPLIT_RULES, files: files(entries) })
+
+  it('flags a plugin importing another plugin by package name or path', () => {
+    const result = found({
+      'plugins/github/src/a.ts': "import { x } from '@dltech/atlas-plugin-shells/pod'",
+      'plugins/github/src/b.ts': "import { y } from '../../shells/src/pod'",
+      'plugins/github/src/c.ts': "import { z } from 'plugins/shells'",
+    })
+    expect(result.map((violation) => violation.file)).toEqual([
+      'plugins/github/src/a.ts',
+      'plugins/github/src/b.ts',
+      'plugins/github/src/c.ts',
+    ])
+  })
+
+  it('allows a plugin its own package, the sdk and foundation packages', () => {
+    const result = found({
+      'plugins/github/src/a.ts': "import { x } from '@dltech/atlas-plugin-github/core'",
+      'plugins/github/src/b.ts': "import { y } from '@dltech/atlas-plugin-sdk'",
+      'plugins/github/src/c.ts': "import { z } from '@dltech/atlas-core'",
+      'apps/api/src/d.ts': "import { w } from '@dltech/atlas-plugin-shells/control'",
+    })
+    expect(result).toEqual([])
+  })
+})
+
 describe('judge', () => {
   const violation = { file: 'a.ts', specifier: '@s', rule: 'r' }
 

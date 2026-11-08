@@ -8,8 +8,15 @@ import {
 } from '@dltech/atlas-core'
 import type { V2Body, V2Event } from '@dltech/atlas-core'
 
-import { composePlugins, definePlugin, MissingPluginSlotError } from '..'
-import { fixtureLabelsView, fixtureObservedSchema, fixturePlugin } from './fixture-plugin'
+import { composePlugins, definePlugin, EMPTY_CONTROL, EMPTY_POD, MissingPluginSlotError } from '..'
+import type { Plugin, PluginPodContext, PodSlot } from '..'
+import {
+  createFixturePlugin,
+  fixturePlugin,
+  PROBE_FRAGMENT_ID,
+  probeLabelsView,
+  probeObservedSchema,
+} from '../testing'
 
 const mintWire = (bodies: V2Body[]): unknown[] =>
   JSON.parse(
@@ -24,7 +31,7 @@ const mintWire = (bodies: V2Body[]): unknown[] =>
     ),
   )
 
-const observed: V2Body = { type: 'fixture-observed', label: 'first' }
+const observed: V2Body = { type: 'probe-observed', label: 'first' }
 
 describe('plugin event registry', () => {
   it('round-trips a plugin event through the composed decoder', () => {
@@ -33,11 +40,11 @@ describe('plugin event registry', () => {
     const [wire] = mintWire([observed])
     const parsed = schema.safeParse(wire)
     expect(parsed.success).toBe(true)
-    expect(parsed.data).toMatchObject({ type: 'fixture-observed', label: 'first', seq: 1 })
+    expect(parsed.data).toMatchObject({ type: 'probe-observed', label: 'first', seq: 1 })
   })
 
   it('still decodes core and record bodies through the composed decoder', () => {
-    const schema = createV2EventSchema({ pluginBodies: [fixtureObservedSchema] })
+    const schema = createV2EventSchema({ pluginBodies: [probeObservedSchema] })
     const wires = mintWire([
       { type: 'user-said', text: 'hi' },
       { type: 'history-rewound', toSeq: 0 },
@@ -52,17 +59,17 @@ describe('plugin event registry', () => {
   })
 
   it('rejects a plugin event the plugin schema refuses', () => {
-    const schema = createV2EventSchema({ pluginBodies: [fixtureObservedSchema] })
-    const [wire] = mintWire([{ type: 'fixture-observed', label: '' }])
+    const schema = createV2EventSchema({ pluginBodies: [probeObservedSchema] })
+    const [wire] = mintWire([{ type: 'probe-observed', label: '' }])
     expect(schema.safeParse(wire).success).toBe(false)
   })
 
   it('folds the plugin view over decoded events', () => {
-    const schema = createV2EventSchema({ pluginBodies: [fixtureObservedSchema] })
+    const schema = createV2EventSchema({ pluginBodies: [probeObservedSchema] })
     const events = mintWire([observed, { type: 'user-said', text: 'x' }]).map(
       (wire): V2Event => schema.parse(wire),
     )
-    const labels = events.reduce(fixtureLabelsView.fold, fixtureLabelsView.initial)
+    const labels = events.reduce(probeLabelsView.fold, probeLabelsView.initial)
     expect(labels).toEqual(['first'])
   })
 })
@@ -72,19 +79,22 @@ describe('composePlugins', () => {
     name: 'second',
     events: [],
     views: [],
-    commands: [{ name: 'second-command', summary: 'second' }],
-    pod: { handlers: [] },
-    control: { hooks: [] },
+    commands: [],
+    pod: EMPTY_POD,
+    control: EMPTY_CONTROL,
     client: { hooks: [] },
     transport: 'none',
   })
 
   it('carries every slot of every plugin', () => {
     const composed = composePlugins([fixturePlugin, second])
-    expect(composed.names).toEqual(['fixture', 'second'])
+    expect(composed.names).toEqual(['probe', 'second'])
     expect(composed.eventBodies).toHaveLength(1)
     expect(composed.views).toHaveLength(1)
-    expect(composed.pod.handlers).toHaveLength(1)
+    expect(composed.commands.map((c) => c.spec.name)).toEqual(['probe-observe', 'probe-read'])
+    expect(composed.pod.prompts.map((p) => p.id)).toEqual([PROBE_FRAGMENT_ID])
+    expect([...composed.pod.commands.keys()]).toEqual(['command:probe-observe'])
+    expect([...composed.control.commands.keys()]).toEqual(['probe-read'])
     expect(composed.control.hooks).toHaveLength(1)
     expect(composed.client.hooks).toHaveLength(1)
     expect(composed.transports).toEqual(['stream', 'none'])
@@ -97,11 +107,93 @@ describe('composePlugins', () => {
     expect(Object.isFrozen(composed.pod)).toBe(true)
   })
 
+  it('composes nothing from an empty list', () => {
+    const composed = composePlugins([])
+    expect(composed.pod.prompts).toEqual([])
+    expect(composed.pod.commands.size).toBe(0)
+    expect(composed.control.commands.size).toBe(0)
+  })
+
+  const isolated = (args: { name: string; pod: PodSlot }) =>
+    definePlugin({
+      name: args.name,
+      events: [],
+      views: [],
+      commands: [],
+      pod: args.pod,
+      control: EMPTY_CONTROL,
+      client: { hooks: [] },
+      transport: 'none',
+    })
+
+  const podOf = (plugin: Plugin, overrides: Partial<PodSlot>): PodSlot => ({
+    ...plugin.pod,
+    prompts: [],
+    commands: new Map(),
+    ...overrides,
+  })
+
+  it('refuses two plugins that register the same prompt id', () => {
+    const twin = createFixturePlugin().plugin
+    const a = isolated({ name: 'a', pod: { ...EMPTY_POD, prompts: fixturePlugin.pod.prompts } })
+    const b = isolated({ name: 'b', pod: { ...EMPTY_POD, prompts: twin.pod.prompts } })
+    expect(() => composePlugins([a, b])).toThrow(
+      'two plugins register the prompt fragment "probe-fragment"',
+    )
+  })
+
+  it('refuses two plugins that register the same control command', () => {
+    const twin = createFixturePlugin().plugin
+    const control = (name: string, plugin: Plugin) =>
+      definePlugin({ ...plugin, name, pod: EMPTY_POD })
+    expect(() => composePlugins([control('a', fixturePlugin), control('b', twin)])).toThrow(
+      'two plugins register the control command "probe-read"',
+    )
+  })
+
+  it('refuses two tools with one name', () => {
+    const a = createFixturePlugin().plugin
+    const b = createFixturePlugin().plugin
+    const composed = composePlugins([
+      isolated({ name: 'a', pod: podOf(a, {}) }),
+      isolated({ name: 'b', pod: podOf(b, {}) }),
+    ])
+    const ctx = { onDaemonEvent: () => () => {} } as unknown as PluginPodContext
+    expect(() => composed.pod.tools(ctx)).toThrow('two plugins register the tool "probe_tool"')
+  })
+
+  it('refuses two pod commands with one name', () => {
+    const a = createFixturePlugin().plugin
+    const b = createFixturePlugin().plugin
+    const only = (name: string, plugin: Plugin) =>
+      isolated({ name, pod: { ...EMPTY_POD, commands: plugin.pod.commands } })
+    expect(() => composePlugins([only('a', a), only('b', b)])).toThrow(
+      'two plugins register the pod command "command:probe-observe"',
+    )
+  })
+
+  it('fans a daemon frame out to every slot handler', () => {
+    const { plugin, record } = createFixturePlugin()
+    const frame = { kind: 'event', event: { type: 'git.branches' } } as never
+    composePlugins([plugin, second]).pod.onDaemonEvent(frame)
+    expect(record.daemonFrames).toEqual([frame])
+  })
+
+  it('concatenates hook arrays', () => {
+    const a = createFixturePlugin().plugin
+    const b = createFixturePlugin().plugin
+    const ctx = { onDaemonEvent: () => () => {} } as unknown as PluginPodContext
+    const hooks = composePlugins([
+      isolated({ name: 'a', pod: podOf(a, {}) }),
+      isolated({ name: 'b', pod: podOf(b, {}) }),
+    ]).pod.hooks(ctx)
+    expect(hooks.beforeStep).toHaveLength(2)
+    expect(hooks.afterTurn).toEqual([])
+  })
+
   it('keeps commands in registration order', () => {
-    const names = composePlugins([fixturePlugin, second]).commands.map((c) => c.name)
-    expect(names).toEqual(['fixture-observe', 'second-command'])
-    const reversed = composePlugins([second, fixturePlugin]).commands.map((c) => c.name)
-    expect(reversed).toEqual(['second-command', 'fixture-observe'])
+    const names = composePlugins([fixturePlugin, second]).commands.map((c) => c.spec.name)
+    expect(names).toEqual(['probe-observe', 'probe-read'])
   })
 })
 
