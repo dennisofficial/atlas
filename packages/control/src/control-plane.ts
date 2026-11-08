@@ -2,6 +2,7 @@ import {
   type InboxEntry,
   type Lease,
   type LogHead,
+  type PluginViewFold,
   type RevokeResult,
   type V2Event,
   type V2EventType,
@@ -39,6 +40,7 @@ export type ControlPlaneParams = {
   store: ControlStorePort
   clock?: (() => string) | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
 }
 
 export type { ReadEventsPage } from './read-events'
@@ -54,11 +56,13 @@ export class ControlPlane {
   private readonly clock: (() => string) | undefined
   private readonly leases: LeaseOps
   private readonly eventSchema: z.ZodType<V2Event> | undefined
+  private readonly pluginViews: readonly PluginViewFold[]
 
   constructor(params: ControlPlaneParams) {
     this.store = params.store
     this.clock = params.clock
     this.eventSchema = params.eventSchema
+    this.pluginViews = params.pluginViews ?? []
     this.leases = new LeaseOps({ store: params.store })
   }
 
@@ -116,6 +120,7 @@ export class ControlPlane {
         now: await this.nowIn(tx),
         withView: withView === true,
         eventSchema: this.eventSchema,
+        pluginViews: this.pluginViews,
       }),
     )
   }
@@ -127,6 +132,7 @@ export class ControlPlane {
       nowIn: (tx) => this.nowIn(tx),
       ...params,
       eventSchema: this.eventSchema,
+      pluginViews: this.pluginViews,
     })
   }
 
@@ -166,7 +172,13 @@ export class ControlPlane {
   }): Promise<AppendOutcome> {
     try {
       return await this.store.transact((tx) =>
-        appendIn({ tx, leases: this.leases, eventSchema: this.eventSchema, ...params }),
+        appendIn({
+          tx,
+          leases: this.leases,
+          eventSchema: this.eventSchema,
+          pluginViews: this.pluginViews,
+          ...params,
+        }),
       )
     } catch (error) {
       if (error instanceof AppendAbort) {

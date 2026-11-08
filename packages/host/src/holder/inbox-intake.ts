@@ -6,6 +6,7 @@ import {
   type EventDraft,
   type InboxEntry,
   type ModelPort,
+  type PluginEventBody,
   type RecordBody,
   visibleEvents,
   type RunId,
@@ -148,7 +149,9 @@ export class InboxIntake implements AgentIntake {
     return awaitsReplyOf(state)
   }
 
-  private async appendDrafts(drafts: readonly (EventDraft | RecordBody)[]): Promise<void> {
+  private async appendDrafts(
+    drafts: readonly (EventDraft | RecordBody | PluginEventBody)[],
+  ): Promise<void> {
     await this.args.record.append({
       threadId: this.args.threadId,
       runId: this.args.runId(),

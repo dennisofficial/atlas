@@ -4,14 +4,19 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
   "dependencies": {
+    "@dltech/atlas-agent": "workspace:*",
+    "@dltech/atlas-commands": "workspace:*",
+    "@dltech/atlas-control": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {

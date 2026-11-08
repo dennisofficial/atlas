@@ -11,6 +11,7 @@ import {
   type EventDraft,
   type InboxEntry,
   type ModelPort,
+  type PluginEventBody,
   type RecordBody,
 } from '@dltech/atlas-core'
 import type { LogPort } from '@dltech/atlas-observability'
@@ -25,7 +26,7 @@ export type CommandIntakeArgs = {
   sessionId: string
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
-  append(drafts: readonly (EventDraft | RecordBody)[]): Promise<void>
+  append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   log?: LogPort | undefined
 }
 

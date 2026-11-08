@@ -273,6 +273,7 @@ export const sessionViewOutputSchema = z.strictObject({
   }),
   checkouts: sessionCheckoutsSchema,
   pullRequests: z.array(sessionLinkedPullRequestSchema),
+  pluginViews: z.record(z.string(), z.unknown()),
 })
 
 export type SessionRetryInput = z.infer<typeof sessionRetryInputSchema>

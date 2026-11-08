@@ -18,6 +18,7 @@ import {
   fakeToolRegistry,
   type ScriptedModelStep,
 } from '@dltech/atlas-agent/testing'
+import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { inMemoryDaemonToken, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
 import { RemoteCalls } from '../../calls/remote-calls'
@@ -95,6 +96,7 @@ export const makeRuntimeFactory = (args: {
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
   beforeRuntime?: (() => Promise<void>) | undefined
+  plugins?: ComposedPlugins | undefined
 }): ((params: {
   sessionId: string
   threadId: ThreadId
@@ -145,6 +147,7 @@ export const makeRuntimeFactory = (args: {
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
       baseBranchOf: (repoPath) => args.baseBranches?.[repoPath] ?? null,
       ...(args.pullRequests === undefined ? {} : { pullRequests: args.pullRequests }),
+      ...(args.plugins === undefined ? {} : { plugins: args.plugins }),
       runningShells: args.runningShells ?? (async () => 0),
       prepare: (onStep) => (args.prepare ?? (async () => ({ ok: true as const })))(onStep),
       ...(args.subscribePrepareOutput === undefined

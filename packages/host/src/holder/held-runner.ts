@@ -1,6 +1,5 @@
 import { EToolEffect, isResumableOf, type ThreadId } from '@dltech/atlas-core'
 import {
-  HookChain,
   HookedToolDispatcher,
   LoopTurnRunner,
   type PauseSignal,
@@ -11,6 +10,7 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
 import { PrLinker } from './pr-linker'
+import { pluginPodOf } from './plugin-pod'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
@@ -154,9 +154,11 @@ export const createLoopRunner = (args: {
   turns: HeldTurns
   threadId: ThreadId
   epoch: number
+  signal: AbortSignal
   isModelOnlyDrain(): boolean
 }): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
+  const pod = pluginPodOf({ deps, runtime, record, threadId, signal: args.signal })
   const intake = new InboxIntake({
     plane: deps.plane,
     sessionId: deps.sessionId,
@@ -175,12 +177,13 @@ export const createLoopRunner = (args: {
     model: runtime.model,
     ids: deps.ids,
     assembly: runtime.assembly,
+    ...(runtime.plugins === undefined ? {} : { hooks: pod.hooks }),
     ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
-    tools: () => runtime.tools.declarations(),
+    tools: () => pod.tools.declarations(),
     dispatch: new ScopedToolDispatcher(
       new HookedToolDispatcher({
-        registry: runtime.tools,
-        hooks: new HookChain({}),
+        registry: pod.tools,
+        hooks: pod.hooks,
       }),
     ),
     intake,

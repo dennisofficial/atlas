@@ -2,6 +2,7 @@ import { RandomIds } from './runtime/random-ids'
 import { composeCommands } from '@dltech/atlas-commands'
 import { SessionHolder, type HostPresence } from '@dltech/atlas-host'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
+import { composedPlugins } from './registered-plugins'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
@@ -58,14 +59,15 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       daemonSecret: args.env.daemonSecret,
       timers,
       media: args.media,
+      plugins: composedPlugins,
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
     ids: new RandomIds(),
     isPermanentStartError,
     reasonOfStartError: startFailureReason,
     maxSessions: args.env.maxSessions,
-    commands: composeCommands(nativeCommands),
-    commandHandlers: nativeCommandHandlers,
+    commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
+    commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })

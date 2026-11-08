@@ -8,10 +8,17 @@ import {
 import { nativeCommands, nativeControlHandlers } from '@dltech/atlas-native-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { SessionCommandOutput } from '@dltech/atlas-protocol'
+import { composedPlugins } from './registered-plugins'
 
 export const COMMAND_REGISTRY = Symbol('COMMAND_REGISTRY')
 
-export const nativeCommandRegistry = (): CommandRegistry => composeCommands(nativeCommands)
+export const nativeCommandRegistry = (): CommandRegistry =>
+  composeCommands([...nativeCommands, ...composedPlugins.commands])
+
+export const controlCommandHandlers = (): ReadonlyMap<
+  string,
+  ControlCommandHandler<ControlPlane, unknown>
+> => new Map([...nativeControlHandlers, ...composedPlugins.control.commands])
 
 export async function postCommand(params: {
   plane: ControlPlane

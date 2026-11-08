@@ -42,5 +42,6 @@ export const pricedView = (args: {
       branch: link.branch,
       state: link.state,
     })),
+    pluginViews: value.pluginViews,
   }
 }

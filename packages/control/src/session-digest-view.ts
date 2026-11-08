@@ -1,7 +1,7 @@
 import type { LeaseOps } from './lease-ops'
 import type { ControlDigestView, ControlSessionDigest, ControlTx, SessionDigestRow } from './port'
 import { currentViewIn, liveViewIn, pullRequestsWithState } from './session-view-read'
-import { checkoutsOf, type V2Event } from '@dltech/atlas-core'
+import { checkoutsOf, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
 const digestViewIn = async (args: {
@@ -10,6 +10,7 @@ const digestViewIn = async (args: {
   row: SessionDigestRow
   now: string
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<ControlDigestView> => {
   const { tx, row } = args
   const state = await currentViewIn({
@@ -17,6 +18,7 @@ const digestViewIn = async (args: {
     sessionId: row.sessionId,
     threadId: row.mainThreadId,
     eventSchema: args.eventSchema,
+    pluginViews: args.pluginViews,
   })
   const live = await liveViewIn({
     tx,
@@ -53,6 +55,7 @@ export const withDigestViews = async (args: {
   now: string
   withView: boolean
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<ControlSessionDigest[]> => {
   const digests: ControlSessionDigest[] = []
   for (const row of args.rows) {

@@ -1,6 +1,6 @@
 # Slice 7 spec: plugins, one at a time
 
-Status: **spec, 2026-11-08.** Waits on the operator's answers in §9 before the first plugin starts.
+Status: **spec, 2026-11-08.** The operator's answers are in §9; the contract PR (§2) is built.
 Anchors are `path:line` at `1ed61c015`; re-check before relying on one. Prior slice:
 [06-commands.md](06-commands.md). Contract: [architecture.md](../architecture.md) §4 P8 and §7,
 [0019](../../decisions/0019-v2-package-map.md), [0020](../../decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md),
@@ -84,65 +84,73 @@ The slice-6 slots are placeholders because nothing real used them. Before the fi
 makes them load-bearing. It changes no behaviour without a plugin.
 
 **Events and views.** A plugin's folds run beside `stepSessionView`, not inside core:
-- `SessionViewState` gains `pluginViews: Readonly<Record<string, unknown>>` and
-  `SESSION_VIEW_VERSION` goes to 4 (`packages/core/src/record/views/session-view.ts:18-28`).
-- `ControlPlane` takes `pluginViews: readonly ViewFold[]` (`packages/control/src/control-plane.ts:38`),
-  and `foldEvents` (`packages/control/src/session-view-ops.ts:29`) runs `stepSessionView` then each
-  fold, writing the result into `pluginViews`. Core's `stepSessionView` leaves the bag untouched.
-- `SessionViewState.pluginViews` is persisted with the view, carried on the wire
-  (`packages/protocol` view output) and read by a client helper `pluginViewOf(view, name)`.
-- `composePlugins(...).views` is the input, built at the same app roots as the decoder.
+- `PluginViewFold<TState> { name, initial, fold }` lives in `packages/core/src/record/views/plugin-view.ts`.
+- `SessionViewState` and `SessionViewValue` gain `pluginViews: Readonly<Record<string, unknown>>` and
+  `SESSION_VIEW_VERSION` is 4 (`packages/core/src/record/views/session-view.ts`). Core's
+  `stepSessionView` leaves the bag untouched. The bump rebuilds each stored row once on its next read.
+- `ControlPlane` takes `pluginViews?: readonly PluginViewFold[]` (`packages/control/src/control-plane.ts`);
+  `foldEvents` (`packages/control/src/session-view-ops.ts`) runs `stepSessionView` then each fold and
+  writes the result into `pluginViews`. Append, catch-up and the digest view all pass it.
+- The bag is persisted with the view, carried on the wire (`sessionViewOutputSchema.pluginViews`) and
+  read by `pluginViewOf({ views, name, schema })` in `packages/client/src/stream/plugin-views.ts`:
+  undefined when absent, throws on a bag the schema refuses.
+- `composePlugins(...).views` is the input, built at the app roots beside the decoder.
 
-**Pod slots.** A plugin's pod slot is a factory over a context, so the plugin never imports the host:
+**Pod slots.** A plugin's pod slot is a factory over a context, so the plugin never imports the host
+(`packages/plugin-sdk/src/slots.ts`):
 ```ts
 export type PluginPodContext = {
   sessionId: string
-  append(drafts: readonly PluginBody[]): Promise<void>
-  visibleEvents(): readonly V2Event[]
-  daemon: {
-    processes: DaemonProcessPort
-    files: DaemonFileSystemPort
-    agentFiles: DaemonAgentFileSystemPort
-  }
-  log: LogPort
+  append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
+  events(): readonly V2Event[]
+  call(
+    op: CallOp,
+    options?: { signal?: AbortSignal; onOutput?(bytes: Uint8Array): void },
+  ): Promise<CallResult>
+  onDaemonEvent(listener: (frame: DaemonEventFrame) => void): () => void
+  log(message: string): void
 }
 export type PodSlot = {
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
-  hooks?(ctx: PluginPodContext): PluginHookSet // beforeTurn, beforeStep, afterTool, afterTurn
+  hooks?(ctx: PluginPodContext): HookChainArgs
   prompts: readonly PromptFragment[]
-  inboxHandlers: readonly PluginInboxHandler[] // command kinds and notices
+  commands: ReadonlyMap<string, CommandHandler<unknown>> // by inbox kind, e.g. "command:probe-observe"
   onDaemonEvent?(frame: DaemonEventFrame): void
 }
 ```
+`EMPTY_POD` and `EMPTY_CONTROL` are the spreadable empties. `composePlugins` flattens the slots in
+`packages/plugin-sdk/src/compose-pod.ts`: tool names, prompt ids and command names are unique or it
+throws (tool collisions throw when the pod context is built, the rest at compose time).
+- `packages/host/src/holder/plugin-pod.ts` builds the context from the `SessionRecord` and
+  `RemoteCalls` (`call` is `invoke` under a fresh key, `onDaemonEvent` is `RemoteCalls.onEvent`),
+  extends the runtime's `ToolRegistry` with the plugin tools, and gives the loop a `HookChain` of the
+  plugin hooks. Without `SessionRuntime.plugins` nothing changes.
+- Prompt fragments join the registry through `agentHostPrompt({ extraFragments })`.
+- Daemon frames fan out from `RemoteCalls.onEvent` to each slot's `onDaemonEvent` and to listeners a
+  hook registered through the context.
+- Pod inbox handlers are the `commands` map, keyed by the command's inbox kind; there is no separate
+  inbox-handler slot yet.
 
-- `daemonToolsOf` (`apps/agent-host/src/runtime/tools.ts:92`) appends each plugin's tools; the
-  `SessionRuntime` builds the context from the `SessionRecord` and `RemoteCalls`.
-- The hook chain (`apps/agent-host`, `packages/host`) appends each plugin's hooks in the app's order.
-- Prompt fragments join `PromptFragmentRegistry`; daemon frames fan out from
-  `RemoteCalls.onEvent` to the registering plugin.
-- `tool.name` collisions fail boot, the same way hook ids and prompt ids do.
+**Pod append of a plugin body.** `AppendBody` accepts a `PluginEventBody` (#2013), and the command
+context's `append` now does too. The plane validates with the composed schema.
 
-**Pod append of a plugin body.** `AppendBody` already accepts a `PluginEventBody` (#2013). The pod
-context's `append` takes the plugin's own bodies; the plane validates with the composed schema.
+**Control slots.** `ControlSlot` has `hooks` and `commands` (control-handled commands, as `rename` is).
+`onAppended` and `ports` are not built: the first plugin that needs a CP-side reaction adds them.
 
-**Control slots.** `ControlSlot` grows `commands` (control-handled inbox commands, as `rename` is),
-`onAppended?(event)` (a CP-side reaction inside the append transaction, e.g. a subscription lease),
-and `ports` the plugin binds at boot. A CP handler receives the `ControlPlane` and the event or
-command payload, never a container.
-
-**Commands.** `composeCommands` takes the native list and every plugin's `commands` at both roots:
-`nativeCommandRegistry` (`apps/api/src/api/platform/control/command-registry.ts:15`) and the host's
-`composeCommands(nativeCommands)` (`apps/agent-host/src/compose.ts:67`). A plugin command's handlers
-land in the same `CommandHandlers` / `ControlCommandHandler` maps as a native one, so the web and the
-TUI present it identically.
+**Commands.** `PluginSlots.commands` is `readonly Command[]` from `@dltech/atlas-commands`. The API's
+`nativeCommandRegistry` composes `[...nativeCommands, ...composedPlugins.commands]` and
+`controlCommandHandlers()` merges the control handlers; the host's `composeCommands` and handler map
+do the same with `composedPlugins.pod.commands`. A control command never enters `byInboxKind`.
 
 **The `plugins/*` workspace and the import guard.** Root `package.json` workspaces gain `plugins/*`
 (`package.json:6-11`). A `check-package-split.ts` rule (`scripts/split-guard/rules.ts`) rejects
 `plugins/<a>` importing `plugins/<b>`.
 
-**Proof for this PR.** A fixture plugin (the slice-6 fixture, now registered in one app test) whose
-fold reaches the view, whose tool and hook reach the pod, and whose command dispatches through
-`sessions.command`; no plugin means no change.
+**Proof for this PR.** The fixture plugin moved from `packages/plugin-sdk/src/__tests__` to
+`packages/plugin-sdk/src/testing/fixture-plugin.ts` (exported as `@dltech/atlas-plugin-sdk/testing`,
+now the `probe` plugin). Its fold reaches the view (control spec), its tool, hook, prompt fragment,
+pod command and daemon handler run in a holder rig (`holder-plugins.spec.ts`), and its commands
+dispatch through `postCommand` (API spec). No plugin means no change.
 
 ## 3. Order and packaging (operator confirms in §9)
 
@@ -399,8 +407,6 @@ it moves to Done; the budget refuses a message past the limit.
 - Repo-loaded plugins (v1's `directory-source`, `repo-plugins`, `purity`, `manifest` machinery):
   slice 7 moves native plugins only.
 - The unread dot (slice 8); local pods and `atlasd` (slice 9); v1 retirement (slice 10).
-- MCP and skills: named in slice 6 §8 as belonging to slice 7, but not in roadmap row 7 and not in
-  the operator's order. Proposed to stay out of slice 7 (§9 Q4).
 - Moving v1's durable shell supervisor, its notice/awaiting-input machinery or its file PR cache:
   the daemon's own process state replaces the supervisor; notices become plugin events.
 
@@ -409,19 +415,15 @@ it moves to Done; the budget refuses a message past the limit.
 Filled per plugin as each PR merges: the package, its registrations, the live check table and any
 correction this spec needed.
 
-## 9. Operator questions (2026-11-08)
+## 9. Answers (2026-11-08)
 
-1. **Order and packaging.** Confirm §3: the contract first, then github (with subscriptions inside),
-   shells, services (with previews inside), memory, crew, sessions. The alternatives are one package
-   per feature (subscriptions separate from github; previews separate from services) at the cost of
-   a shared foundation package each, and a different order.
-2. **Teammate preset.** The sessions plugin ships the teammate preset from
-   [03-teammates.md](03-teammates.md) — a spawned peer in the spawner's pod, owned by the operator,
-   nested in the sidebar, archived to Done. Confirm, and pick the per-session message budget's shape:
-   a simple count per spawn family (recommended: 20 messages per peer session, resettable by the
-   operator) rather than a rate.
-3. **The GitHub live check.** v2 sandboxes may not be able to push or open a PR. If they cannot, the
-   proof is: the operator pushes a branch and opens the PR, the pod observes both and the session
-   wakes on CI. Confirm that counts, or that slice 7 must give v2 sandboxes GitHub credentials.
-4. **MCP and skills.** Confirm they are out of slice 7 (§7) and get their own row, or add them to
-   this slice's order.
+1. **Order and packaging.** As recommended in §3: the contract, then github (subscriptions inside one
+   package), shells, services (previews inside), memory, crew, sessions.
+2. **Teammate budget.** 20 messages per peer session, resettable by the operator.
+3. **GitHub.** The pod acts with the operator's OAuth credentials. Commits are the user's, with no
+   co-author trailer and no Atlas trace. The sandbox may push and open PRs.
+4. **MCP and skills.** Their own slice, out of slice 7 (see Next below).
+
+## Next
+
+MCP and skills get their own row after slice 7; §7 no longer proposes them for this slice.

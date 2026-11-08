@@ -15,7 +15,7 @@ import { initialSpendState, stepSpend, type SpendState } from './spend'
 import { initialStatusFacts, stepStatusFacts, type StatusFacts } from './status-facts'
 import type { SessionStatus } from './status-types'
 
-export const SESSION_VIEW_VERSION = 3
+export const SESSION_VIEW_VERSION = 4
 
 export type SessionViewState = {
   version: number
@@ -25,6 +25,7 @@ export type SessionViewState = {
   checkouts: CheckoutsState
   pullRequests: PullRequestLinksState
   spend: SpendState
+  pluginViews: Readonly<Record<string, unknown>>
 }
 
 export type SessionViewValue = {
@@ -33,6 +34,7 @@ export type SessionViewValue = {
   spend: readonly SpendRow[]
   checkouts: CheckoutsView
   pullRequests: readonly PullRequestLink[]
+  pluginViews: Readonly<Record<string, unknown>>
 }
 
 export const initialSessionViewState: SessionViewState = {
@@ -43,6 +45,7 @@ export const initialSessionViewState: SessionViewState = {
   checkouts: initialCheckoutsState,
   pullRequests: initialPullRequestLinks,
   spend: initialSpendState,
+  pluginViews: {},
 }
 
 export const stepSessionView = (state: SessionViewState, event: V2Event): SessionViewState => ({
@@ -54,6 +57,7 @@ export const stepSessionView = (state: SessionViewState, event: V2Event): Sessio
     event.type === 'branches-observed' ? stepCheckouts(state.checkouts, event) : state.checkouts,
   pullRequests: stepPullRequestLinks(state.pullRequests, event),
   spend: stepSpend(state.spend, event),
+  pluginViews: state.pluginViews,
 })
 
 export const needsRebuild = (event: V2Event): boolean =>
@@ -86,4 +90,5 @@ export const sessionViewOf = (args: {
   spend: args.state.spend.rows,
   checkouts: checkoutsOf(args.state.checkouts),
   pullRequests: args.state.pullRequests.links,
+  pluginViews: args.state.pluginViews,
 })

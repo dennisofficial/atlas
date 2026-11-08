@@ -5,6 +5,7 @@ import type {
   ToolEffectResolver,
   ToolRegistry,
 } from '@dltech/atlas-agent'
+import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import type { LiveFrame } from '@dltech/atlas-protocol'
 
 import type { RemoteCalls } from '../calls/remote-calls'
@@ -68,6 +69,7 @@ export type SessionRuntime = {
   watchedRepos(): Promise<readonly string[]>
   baseBranchOf(repoPath: string): string | null
   pullRequests?: PullRequestSource | undefined
+  plugins?: ComposedPlugins | undefined
   runningShells(): Promise<number>
   prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
   subscribePrepareOutput?(listener: (text: string) => void): void

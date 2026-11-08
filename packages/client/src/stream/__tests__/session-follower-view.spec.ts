@@ -30,6 +30,7 @@ const viewBase = {
   },
   checkouts: { repos: [], primary: null },
   pullRequests: [],
+  pluginViews: {},
 }
 
 const sessionView = (params: { at: number; state?: ESessionStatus }): StreamServerMessage => ({

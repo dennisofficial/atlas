@@ -3,6 +3,7 @@ import {
   toRunId,
   toThreadId,
   type LogHead,
+  type PluginViewFold,
   type V2Body,
   type V2Event,
   type V2EventType,
@@ -25,12 +26,14 @@ export type Harness = { plane: ControlPlane; setNow: (iso: string) => void }
 export function makeHarness(
   store: ControlStorePort,
   eventSchema?: z.ZodType<V2Event> | undefined,
+  options?: { pluginViews?: readonly PluginViewFold[] | undefined },
 ): Harness {
   let now = T0
   const plane = new ControlPlane({
     store,
     clock: () => now,
     ...(eventSchema === undefined ? {} : { eventSchema }),
+    pluginViews: options?.pluginViews,
   })
   return { plane, setNow: (iso) => (now = iso) }
 }

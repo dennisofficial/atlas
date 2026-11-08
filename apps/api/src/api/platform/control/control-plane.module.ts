@@ -5,7 +5,7 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
-import { registeredPlugins } from './registered-plugins'
+import { composedPlugins, registeredPlugins } from './registered-plugins'
 import { DbMediaRegistry, MediaRegistry } from './media-registry'
 import { mediaStoreProvider } from './media-store.provider'
 import { MediaRouter } from './media.router'
@@ -20,6 +20,7 @@ export const controlPlaneProvider: Provider = {
     new ControlPlane({
       store: new PostgresControlStore(db),
       eventSchema: eventSchemaOf(registeredPlugins),
+      pluginViews: composedPlugins.views,
     }),
 }
 
