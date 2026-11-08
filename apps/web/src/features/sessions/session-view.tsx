@@ -21,14 +21,8 @@ import { postInputOf } from './data/session-media'
 import { sessionsApi } from './data/sessions-api'
 import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from './data/session-state'
 import { sessionCache, sessionStream } from './data/session-stream'
-import {
-  ERewindOutcome,
-  requestRewind,
-  rewindOutcomeOf,
-  rewoundDraftOf,
-  seqByEventIdOf,
-  type PendingRewind,
-} from './data/session-rewind'
+import { requestRewind, rewoundDraftOf, seqByEventIdOf } from './data/session-rewind'
+import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionTranscriptOf } from './data/session-transcript'
 import { sessionViewModelOf } from './data/session-view-model'
@@ -40,6 +34,7 @@ import { useSessionSummarise } from './data/use-session-summarise'
 import { useSessionStream } from './data/use-session-stream'
 import { CommandRows } from './command-rows'
 import { QueuedDock } from './queued-dock'
+import { RefusalRows } from './refusal-rows'
 import { SessionContext } from './session-context'
 import { SessionHeader } from './session-header'
 import { StartFailedCard } from './start-failed-card'
@@ -80,7 +75,6 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const listed = useV2Sessions().find((session) => session.sessionId === sessionId)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
-  const [pendingRewind, setPendingRewind] = useState<PendingRewind | undefined>(undefined)
   const files = useComposerAttachments()
   const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
@@ -119,20 +113,16 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     const seqs = seqByEventIdOf(snapshot.events)
     return {
       points: new Set(seqs.keys()),
-      onRewind: ({ eventId, text }: { eventId: string; text: string }) => {
+      onRewind: ({ eventId }: { eventId: string; text: string }) => {
         const toSeq = seqs.get(eventId)
         if (toSeq === undefined) return
-        requestRewind({ api: sessionsApi, sessionId, toSeq, eventId, text }).then(
-          setPendingRewind,
-          (failure) => toast.error(messageOf(failure)),
+        requestRewind({ api: sessionsApi, sessionId, toSeq }).catch((failure) =>
+          toast.error(messageOf(failure)),
         )
       },
     }
   }, [snapshot.events, sessionId])
-  const rewindOutcome =
-    pendingRewind === undefined
-      ? undefined
-      : rewindOutcomeOf({ events: snapshot.events, pending: pendingRewind })
+  const refusals = useMemo(() => sessionRefusalsOf(snapshot.events), [snapshot.events])
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
 
@@ -142,12 +132,6 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     if (rewoundDraft === undefined) return
     setDraft((current) => (current === '' ? rewoundDraft : current))
   }, [rewoundDraft])
-
-  useEffect(() => {
-    if (rewindOutcome?.kind !== ERewindOutcome.Applied) return
-    setDraft(rewindOutcome.draft)
-    setPendingRewind(undefined)
-  }, [rewindOutcome])
 
   const handleSubmit = async (text: string) => {
     if (!attachments.checkSendable()) return
@@ -198,16 +182,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           {snapshot.status?.state === ESessionStatus.StartFailed ? (
             <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
           ) : null}
-          {rewindOutcome?.kind !== ERewindOutcome.Refused ? null : (
-            <p role="alert" className="px-1 text-xs text-destructive">
-              {rewindOutcome.reason}
-            </p>
-          )}
-          {summarise.refusal === null ? null : (
-            <p role="alert" className="px-1 text-xs text-destructive">
-              {summarise.refusal}
-            </p>
-          )}
+          <RefusalRows refusals={refusals} />
           <SummariseDialog {...summarise.dialog} />
           <CommandRows rows={snapshot.status?.commands} />
           <QueuedDock dock={queuedDock} />
