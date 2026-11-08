@@ -34,6 +34,7 @@ export enum EInputConsumed {
   Message = 'message',
   Stop = 'stop',
   Discarded = 'discarded',
+  Command = 'command',
 }
 
 export type RecordBody =
@@ -46,6 +47,7 @@ export type RecordBody =
       summary: string
     }
   | { type: 'input-consumed'; inboxId: number; consumed?: EInputConsumed | undefined }
+  | { type: 'input-refused'; inboxId: number; reason: string }
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
   | RetryScheduled
   | BranchesObserved
@@ -100,6 +102,11 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     consumed: z.enum(EInputConsumed).optional(),
   }),
   z.object({
+    type: z.literal('input-refused'),
+    inboxId: z.number().int().min(1),
+    reason: z.string(),
+  }),
+  z.object({
     type: z.literal('fact-recorded'),
     key: z.string().min(1),
     kind: z.string().min(1),
@@ -117,6 +124,7 @@ const RECORD_TYPE_TABLE = {
   'history-rewound': true,
   'history-summarised': true,
   'input-consumed': true,
+  'input-refused': true,
   'fact-recorded': true,
   'retry-scheduled': true,
   'branches-observed': true,

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EFinishReason } from '../../stream/chunk'
 import { chainHash } from '../chain'
 import { chainEvents } from '../chain-events'
-import { v2EventSchema, type V2Event } from '../event'
+import { RECORD_ONLY_TYPES, v2EventSchema, type V2Event } from '../event'
 import { mint, NOW, runId, threadId } from './support'
 
 describe('v2EventSchema', () => {
@@ -85,5 +85,15 @@ describe('v2EventSchema', () => {
     }
     delete (dispatched as { text?: string }).text
     expect(v2EventSchema.safeParse(dispatched).success).toBe(true)
+  })
+
+  it('accepts an input-refused body, rejects a malformed one and keeps it record-only', () => {
+    const [plain] = mint({ count: 1 })
+    const refused = { ...plain, type: 'input-refused', inboxId: 4, reason: 'not now' }
+    delete (refused as { text?: string }).text
+    expect(v2EventSchema.safeParse(refused).success).toBe(true)
+    expect(v2EventSchema.safeParse({ ...refused, inboxId: 0 }).success).toBe(false)
+    expect(v2EventSchema.safeParse({ ...refused, reason: undefined }).success).toBe(false)
+    expect(RECORD_ONLY_TYPES.has('input-refused')).toBe(true)
   })
 })

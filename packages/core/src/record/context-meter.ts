@@ -22,6 +22,7 @@ export const meterTokensOf = (event: V2Event): number => {
   if (
     event.type === 'history-rewound' ||
     event.type === 'input-consumed' ||
+    event.type === 'input-refused' ||
     event.type === 'fact-recorded' ||
     event.type === 'retry-scheduled' ||
     event.type === 'branches-observed' ||

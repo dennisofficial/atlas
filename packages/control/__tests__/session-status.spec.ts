@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { chainEvents, ESessionStatus, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  EInputConsumed,
+  ESessionStatus,
+  toRunId,
+  toThreadId,
+  type V2Body,
+} from '@dltech/atlas-core'
 
 import { ControlPlane, readSessionStatus } from '../src'
 import type { ControlTx } from '../src/port'
@@ -122,6 +129,34 @@ describe('readSessionStatus', () => {
     expect(listed?.[0]).toMatchObject({ text: 'look', media, uploads })
     expect(listed?.[1]).not.toHaveProperty('media')
     expect(listed?.[1]).not.toHaveProperty('uploads')
+  })
+
+  it('lists a posted command beside queued and drops it once consumed', async () => {
+    const { plane, append, read } = await setup()
+    const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
+    await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
+    const message = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: '{"text":"hi"}',
+    })
+    const command = await plane.post({
+      sessionId: SESSION,
+      kind: 'command:rename',
+      payload: '{"title":"x"}',
+    })
+
+    const listed = (await read()).value
+    expect(listed.commands).toEqual([{ inboxId: command.inboxId, name: 'rename', postedAt: NOW }])
+    expect(listed.queued?.map((entry) => entry.inboxId)).toEqual([message.inboxId])
+
+    await append({
+      epoch: lease.epoch,
+      bodies: [
+        { type: 'input-consumed', inboxId: command.inboxId, consumed: EInputConsumed.Command },
+      ],
+    })
+    expect((await read()).value.commands).toBeUndefined()
   })
 
   it('omits queued when nothing is pending', async () => {

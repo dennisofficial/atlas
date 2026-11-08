@@ -443,6 +443,7 @@
       "name": "@dltech/atlas-control",
       "version": "0.1.0",
       "dependencies": {
+        "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
@@ -524,6 +525,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@dltech/atlas-agent": "workspace:*",
+        "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-observability": "workspace:*",

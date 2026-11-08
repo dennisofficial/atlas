@@ -14,7 +14,7 @@ import type { SessionStatusOutput } from '@dltech/atlas-protocol'
 import { UnknownThreadError } from './errors'
 import type { LeaseOps } from './lease-ops'
 import type { ControlStorePort, ControlTx, PrChecks, PrStateRow } from './port'
-import { queuedOf } from './queued-messages'
+import { commandsOf, queuedOf } from './queued-messages'
 import { readEventsIn } from './read-events'
 import { ensureSessionViewIn, usableState, VIEW_TAIL_LIMIT } from './session-view-ops'
 
@@ -140,12 +140,14 @@ export const pullRequestsWithState = async (args: {
 export const statusOutputOf = (live: LiveView): SessionStatusOutput => {
   const { status } = live.value
   const queued = queuedOf(live.pending)
+  const commands = commandsOf(live.pending)
   return {
     state: status.state,
     ...(status.reason === undefined ? {} : { reason: status.reason }),
     ...(status.since === undefined ? {} : { since: status.since }),
     lease: { epoch: live.lease.epoch, holderHostId: live.lease.holderHostId, live: live.live },
     ...(queued.length === 0 ? {} : { queued }),
+    ...(commands.length === 0 ? {} : { commands }),
   }
 }
 

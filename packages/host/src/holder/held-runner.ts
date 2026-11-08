@@ -163,6 +163,8 @@ export const createLoopRunner = (args: {
     record,
     threadId,
     runId: () => deps.ids.nextRunId(),
+    commands: deps.commands,
+    handlers: deps.commandHandlers,
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })
   return new LoopTurnRunner({
