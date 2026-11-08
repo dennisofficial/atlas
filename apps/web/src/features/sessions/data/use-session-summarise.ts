@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { SummariseReach, V2Event } from '@dltech/atlas-core'
@@ -9,14 +9,7 @@ import type { TranscriptSummarise } from '@/features/threads/data/use-summarise'
 import { messageOf } from '@/features/threads/data/use-send'
 
 import { sessionsApi } from './sessions-api'
-import {
-  ESummariseOutcome,
-  requestSummarise,
-  summariseCopyOf,
-  summariseOutcomeOf,
-  summarisePointsOf,
-  type PendingSummarise,
-} from './session-summarise'
+import { requestSummarise, summariseCopyOf, summarisePointsOf } from './session-summarise'
 
 export type SessionSummarise = {
   transcript: TranscriptSummarise
@@ -26,7 +19,6 @@ export type SessionSummarise = {
     onConfirm: () => void
     copyOf: typeof summariseCopyOf
   }
-  refusal: string | null
 }
 
 export function useSessionSummarise(args: {
@@ -35,13 +27,7 @@ export function useSessionSummarise(args: {
 }): SessionSummarise {
   const { sessionId, events } = args
   const [pick, setPick] = useState<SummariseReach | null>(null)
-  const [pending, setPending] = useState<PendingSummarise | undefined>(undefined)
   const points = useMemo(() => summarisePointsOf(events), [events])
-  const outcome = pending === undefined ? undefined : summariseOutcomeOf({ events, pending })
-
-  useEffect(() => {
-    if (outcome?.kind === ESummariseOutcome.Applied) setPending(undefined)
-  }, [outcome])
 
   const handleSummarise = useCallback(
     (eventId: string) => {
@@ -58,8 +44,7 @@ export function useSessionSummarise(args: {
   const handleConfirm = () => {
     if (pick === null) return
     setPick(null)
-    requestSummarise({ api: sessionsApi, sessionId, throughSeq: pick.throughSeq }).then(
-      setPending,
+    requestSummarise({ api: sessionsApi, sessionId, throughSeq: pick.throughSeq }).catch(
       (failure) => toast.error(messageOf(failure)),
     )
   }
@@ -72,6 +57,5 @@ export function useSessionSummarise(args: {
       onConfirm: handleConfirm,
       copyOf: summariseCopyOf,
     },
-    refusal: outcome?.kind === ESummariseOutcome.Refused ? outcome.reason : null,
   }
 }

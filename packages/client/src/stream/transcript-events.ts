@@ -1,4 +1,8 @@
-import { isBlobRef, type Event, type V2Event } from '@dltech/atlas-core'
+import { CORE_EVENT_TYPES, isBlobRef, type Event, type V2Event } from '@dltech/atlas-core'
+
+type CoreV2Event = Extract<V2Event, Event>
+
+const isCoreEvent = (event: V2Event): event is CoreV2Event => CORE_EVENT_TYPES.has(event.type)
 
 type WithoutChain<TEvent> = TEvent extends unknown ? Omit<TEvent, 'epoch' | 'prevHash'> : never
 
@@ -42,7 +46,7 @@ const transcriptEventOf = (event: V2Event): Event | null => {
     case 'history-summarised':
       return compactedOf(event)
     default:
-      return resolvedOf(withoutChain(event))
+      return isCoreEvent(event) ? resolvedOf(withoutChain(event)) : null
   }
 }
 

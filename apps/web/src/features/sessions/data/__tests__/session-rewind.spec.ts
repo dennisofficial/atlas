@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
 
-import {
-  ERewindOutcome,
-  requestRewind,
-  rewindOutcomeOf,
-  rewoundDraftOf,
-  seqByEventIdOf,
-  type PendingRewind,
-} from '../session-rewind'
+import { requestRewind, rewoundDraftOf, seqByEventIdOf } from '../session-rewind'
 
 const eventsOf = (bodies: readonly V2Body[]) =>
   chainEvents({
@@ -34,7 +27,7 @@ describe('session rewind', () => {
 
   it('posts the rewind command with the sequence only', async () => {
     const calls: unknown[] = []
-    const pending = await requestRewind({
+    const inboxId = await requestRewind({
       api: {
         command: (input) => {
           calls.push(input)
@@ -43,43 +36,9 @@ describe('session rewind', () => {
       },
       sessionId: 's1',
       toSeq: 3,
-      eventId: 'evt-3',
-      text: 'c',
     })
     expect(calls).toEqual([{ sessionId: 's1', name: 'rewind', args: { toSeq: 3 } }])
-    expect(pending).toEqual({ inboxId: 7, eventId: 'evt-3', text: 'c' })
-  })
-
-  describe('rewindOutcomeOf', () => {
-    const events = eventsOf([said('a'), said('b')])
-    const picked = events[1]
-    const pendingOf = (overrides: Partial<PendingRewind>): PendingRewind => ({
-      inboxId: 7,
-      eventId: picked?.id ?? '',
-      text: 'b',
-      ...overrides,
-    })
-
-    it('waits while the picked message is still in the window', () => {
-      expect(rewindOutcomeOf({ events, pending: pendingOf({}) })).toEqual({
-        kind: ERewindOutcome.Waiting,
-      })
-    })
-
-    it('applies the message text once the picked message has left the window', () => {
-      expect(rewindOutcomeOf({ events: events.slice(0, 1), pending: pendingOf({}) })).toEqual({
-        kind: ERewindOutcome.Applied,
-        draft: 'b',
-      })
-    })
-
-    it('reports the refusal of the pending command from the log', () => {
-      const refused = eventsOf([said('a'), { type: 'input-refused', inboxId: 7, reason: 'no' }])
-      expect(rewindOutcomeOf({ events: refused, pending: pendingOf({ eventId: 'x' }) })).toEqual({
-        kind: ERewindOutcome.Refused,
-        reason: 'no',
-      })
-    })
+    expect(inboxId).toBe(7)
   })
 
   describe('rewoundDraftOf', () => {

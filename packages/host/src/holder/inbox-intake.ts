@@ -7,10 +7,11 @@ import {
   type InboxEntry,
   type ModelPort,
   type RecordBody,
+  visibleEvents,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type { ControlPlane } from '@dltech/atlas-control'
+import { unfinishedCommandIdsOf, type ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
 import type { CommandRegistry } from '@dltech/atlas-commands'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
@@ -95,6 +96,29 @@ export class InboxIntake implements AgentIntake {
       await this.consumeUnknown(entry)
     }
     return { drafts, wakesTurn }
+  }
+
+  async recoverUnfinished(): Promise<void> {
+    if (this.commandIntake === undefined) return
+    const { sessionId, record } = this.args
+    const visible = visibleEvents(record.eventCache().eventsAfter(0))
+    for (const inboxId of unfinishedCommandIdsOf(visible)) {
+      try {
+        const entry = await this.args.plane.readInboxEntry({ sessionId, inboxId })
+        if (entry === undefined || !isCommandKind(entry.kind)) continue
+        this.args.log?.info({
+          source: 'holder.intake',
+          message: `re-running consumed command ${inboxId} of kind "${entry.kind}" after takeover`,
+        })
+        await this.commandIntake.replay({ entry })
+      } catch (error) {
+        this.args.log?.error({
+          source: 'holder.intake',
+          message: `re-running consumed command ${inboxId} failed`,
+          ...logFieldsOf({ error }),
+        })
+      }
+    }
   }
 
   private async runCommand(entry: InboxEntry): Promise<void> {

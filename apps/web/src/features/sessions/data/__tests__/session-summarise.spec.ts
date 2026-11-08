@@ -1,19 +1,7 @@
 import { describe, expect, it } from 'bun:test'
-import {
-  chainEvents,
-  ECompactionAnchor,
-  toRunId,
-  toThreadId,
-  type V2Body,
-} from '@dltech/atlas-core'
+import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
 
-import {
-  ESummariseOutcome,
-  requestSummarise,
-  summariseCopyOf,
-  summariseOutcomeOf,
-  summarisePointsOf,
-} from '../session-summarise'
+import { requestSummarise, summariseCopyOf, summarisePointsOf } from '../session-summarise'
 
 const eventsOf = (bodies: readonly V2Body[]) =>
   chainEvents({
@@ -45,7 +33,7 @@ describe('session summarise', () => {
 
   it('posts the summarise command with the through sequence only', async () => {
     const calls: unknown[] = []
-    const pending = await requestSummarise({
+    const inboxId = await requestSummarise({
       api: {
         command: (input) => {
           calls.push(input)
@@ -56,53 +44,6 @@ describe('session summarise', () => {
       throughSeq: 2,
     })
     expect(calls).toEqual([{ sessionId: 's1', name: 'summarise', args: { throughSeq: 2 } }])
-    expect(pending).toEqual({ inboxId: 9 })
-  })
-
-  describe('summariseOutcomeOf', () => {
-    const pending = { inboxId: 9 }
-    const base: V2Body[] = [said('a'), replied, said('b')]
-
-    it('waits until the log answers', () => {
-      expect(summariseOutcomeOf({ events: eventsOf(base), pending })).toEqual({
-        kind: ESummariseOutcome.Waiting,
-      })
-    })
-
-    it('reports the refusal of the pending command', () => {
-      const events = eventsOf([...base, { type: 'input-refused', inboxId: 9, reason: 'nope' }])
-      expect(summariseOutcomeOf({ events, pending })).toEqual({
-        kind: ESummariseOutcome.Refused,
-        reason: 'nope',
-      })
-    })
-
-    it('does not apply for a summary that answers another command', () => {
-      const other: V2Body = {
-        type: 'history-summarised',
-        fromSeq: 1,
-        throughSeq: 2,
-        anchor: ECompactionAnchor.Prefix,
-        summary: 's',
-        inboxId: 4,
-      }
-      expect(summariseOutcomeOf({ events: eventsOf([...base, other]), pending })).toEqual({
-        kind: ESummariseOutcome.Waiting,
-      })
-    })
-
-    it('applies once the summary naming the command lands', () => {
-      const summary: V2Body = {
-        type: 'history-summarised',
-        fromSeq: 1,
-        throughSeq: 2,
-        anchor: ECompactionAnchor.Prefix,
-        summary: 's',
-        inboxId: 9,
-      }
-      expect(summariseOutcomeOf({ events: eventsOf([...base, summary]), pending })).toEqual({
-        kind: ESummariseOutcome.Applied,
-      })
-    })
+    expect(inboxId).toBe(9)
   })
 })

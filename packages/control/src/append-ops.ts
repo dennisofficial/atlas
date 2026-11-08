@@ -71,6 +71,7 @@ export const appendIn = async (params: {
     tx,
     sessionId: row.sessionId,
     threadId: params.threadId,
+    eventSchema: params.eventSchema,
   })
   await tx.insertBlobs(blobs)
   await tx.insertBlobRefs([...refHashes].map((hash) => ({ sessionId: row.sessionId, hash })))
@@ -95,6 +96,7 @@ export const appendIn = async (params: {
       },
       state: view.state,
       events: parsed.events,
+      eventSchema: params.eventSchema,
     })
   }
   await tx.announce({

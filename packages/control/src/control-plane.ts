@@ -115,6 +115,7 @@ export class ControlPlane {
         rows: await tx.listSessionDigests({ ...list, limit: clampSessionLimit(list.limit) }),
         now: await this.nowIn(tx),
         withView: withView === true,
+        eventSchema: this.eventSchema,
       }),
     )
   }
@@ -125,6 +126,7 @@ export class ControlPlane {
       leases: this.leases,
       nowIn: (tx) => this.nowIn(tx),
       ...params,
+      eventSchema: this.eventSchema,
     })
   }
 

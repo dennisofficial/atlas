@@ -21,6 +21,7 @@ export type {
   ThreadRow,
 } from './port'
 export type { BlobRow, BlobWrite } from './port'
+export { unfinishedCommandIdsOf } from './command-rows'
 export { readSessionStatus, STATUS_EVENT_LIMIT } from './session-status'
 export { pricedView } from './session-view-pricing'
 export {

@@ -9,6 +9,8 @@ import {
 } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
+import type { z } from 'zod'
+
 import type { ControlStorePort } from '../../port'
 
 export const SESSION = 'session-1'
@@ -20,9 +22,16 @@ export const T0 = '2026-11-02T12:00:00.000Z'
 
 export type Harness = { plane: ControlPlane; setNow: (iso: string) => void }
 
-export function makeHarness(store: ControlStorePort): Harness {
+export function makeHarness(
+  store: ControlStorePort,
+  eventSchema?: z.ZodType<V2Event> | undefined,
+): Harness {
   let now = T0
-  const plane = new ControlPlane({ store, clock: () => now })
+  const plane = new ControlPlane({
+    store,
+    clock: () => now,
+    ...(eventSchema === undefined ? {} : { eventSchema }),
+  })
   return { plane, setNow: (iso) => (now = iso) }
 }
 

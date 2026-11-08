@@ -11,13 +11,14 @@ import { sharedQueryClient } from '@/lib/query-client'
 import { SESSION_QUERY_KEY } from '@/lib/use-session-query'
 
 import { browserSessionCache } from './indexed-db-session-cache'
+import { sessionEventSchema } from '../registered-plugins'
 import { fetchStreamToken, SIGNED_OUT_CODE } from './stream-token'
 
 let connection: StreamConnection | undefined
 let cache: SessionCache | undefined
 
 export function sessionCache(): SessionCache {
-  cache ??= browserSessionCache()
+  cache ??= browserSessionCache(sessionEventSchema)
   return cache
 }
 
@@ -43,6 +44,7 @@ export function sessionStream(): StreamConnection {
     getToken: tokenSourceOf({ fetchToken: fetchStreamToken, onSignedOut: handleSignedOut }),
     socket: browserStreamSocket,
     scheduler: systemStreamScheduler,
+    eventSchema: sessionEventSchema,
   })
   connection.connect()
   return connection
