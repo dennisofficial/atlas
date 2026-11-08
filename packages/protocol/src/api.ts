@@ -202,7 +202,9 @@ export const sessionViewInputSchema = z.strictObject({
 
 export const sessionRetryOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
 
-export const sessionCommandOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
+export const sessionCommandOutputSchema = z.strictObject({
+  inboxId: z.number().int().min(1).optional(),
+})
 
 const tokenSpendShape = {
   inputTokens: z.number().int().min(0),

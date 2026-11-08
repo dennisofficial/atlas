@@ -8,6 +8,7 @@ import { relativeTime } from '@/features/settings/data/personal/relative-time'
 import { currentBranchOf } from '@/features/threads/data/header-model'
 import { EPrObservationPriority } from '@/features/threads/data/pr-observation-targets'
 import { LocalPodIcon } from '@/features/threads/thread-header'
+import { RenameAction } from './rename-action'
 import { rowNamingOf, useThreadNaming } from './active-naming'
 import { ESidebarDensity, useSidebarDensity } from './shell-density'
 import { useSidebarPrObservation } from './shell-pr-observations'
@@ -100,19 +101,22 @@ export function ThreadRowBody({
       collapsed={collapsed}
       states={states}
       actions={
-        <RowAction label={archiveLabel} onClick={handleArchive}>
-          {teammate ? (
-            archived ? (
-              <RotateCcw />
+        <>
+          {v2 ? <RenameAction sessionId={thread.id} title={naming.title} /> : null}
+          <RowAction label={archiveLabel} onClick={handleArchive}>
+            {teammate ? (
+              archived ? (
+                <RotateCcw />
+              ) : (
+                <CircleCheck />
+              )
+            ) : archived ? (
+              <ArchiveRestore />
             ) : (
-              <CircleCheck />
-            )
-          ) : archived ? (
-            <ArchiveRestore />
-          ) : (
-            <Archive />
-          )}
-        </RowAction>
+              <Archive />
+            )}
+          </RowAction>
+        </>
       }
       indicator={
         pinned ? (

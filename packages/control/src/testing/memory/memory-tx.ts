@@ -41,6 +41,7 @@ import {
   readSessionIn,
   setSessionArchivedIn,
   setSessionTitleIfUntitledIn,
+  setSessionTitleIn,
 } from './memory-sessions'
 import { MemoryTestControls } from './memory-test-controls'
 import { cloneState, emptyState, refKey, type State } from './memory-state'
@@ -99,6 +100,10 @@ export class MemoryTx implements ControlTx {
 
   async setSessionTitleIfUntitled(params: Parameters<ControlTx['setSessionTitleIfUntitled']>[0]) {
     return setSessionTitleIfUntitledIn({ state: this.state, ...params })
+  }
+
+  async setSessionTitle(params: { sessionId: string; title: string }) {
+    return setSessionTitleIn({ state: this.state, ...params })
   }
 
   async clearTitleFrom(params: { sessionId: string; inboxId: number }) {

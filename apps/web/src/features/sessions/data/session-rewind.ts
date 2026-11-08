@@ -52,6 +52,7 @@ export const requestRewind = async ({
   text: string
 }): Promise<PendingRewind> => {
   const { inboxId } = await api.command({ sessionId, name: 'rewind', args: { toSeq } })
+  if (inboxId === undefined) throw new Error('rewind was not queued')
   return { inboxId, eventId, text }
 }
 

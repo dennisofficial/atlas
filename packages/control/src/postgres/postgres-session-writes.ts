@@ -72,6 +72,17 @@ export const setSessionTitleIfUntitledIn = async (params: {
   return changed === 1
 }
 
+export const setSessionTitleIn = async (params: {
+  tx: Tx
+  sessionId: string
+  title: string
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+  }).updateAndCount({ title: params.title, titledFromInboxId: null })
+  return changed === 1
+}
+
 export const clearTitleFromIn = async (params: {
   tx: Tx
   sessionId: string

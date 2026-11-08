@@ -140,6 +140,44 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
       expect((await plane.readSession({ sessionId: 'titled' }))?.title).toBe('Kept')
     })
 
+    it('renames over an auto-named title, trimming and announcing without waking', async () => {
+      await plane.titleUntitledSession({ sessionId: SESSION, title: 'Build Fix' })
+      const renamed = await changesDuring(() =>
+        plane.renameSession({ sessionId: SESSION, title: '  My Name  ' }),
+      )
+      expect(renamed).toEqual({ changes: [{ sessionId: SESSION }], wakes: 0 })
+      expect(await titleNow()).toBe('My Name')
+      expect(await plane.titleUntitledSession({ sessionId: SESSION, title: 'Auto Again' })).toBe(
+        false,
+      )
+    })
+
+    it('keeps a chosen name when the message that auto-named it is taken back', async () => {
+      const inboxId = await postMessage('fix the build')
+      await plane.titleUntitledSession({ sessionId: SESSION, title: 'Auto', fromInboxId: inboxId })
+      await plane.renameSession({ sessionId: SESSION, title: 'Mine' })
+      await plane.takeBack({ sessionId: SESSION, inboxId })
+      expect(await titleNow()).toBe('Mine')
+    })
+
+    it('renames an untitled session', async () => {
+      await plane.renameSession({ sessionId: SESSION, title: 'First' })
+      expect(await titleNow()).toBe('First')
+    })
+
+    it('refuses an empty or over-long name and an unknown session', async () => {
+      const empty = plane.renameSession({ sessionId: SESSION, title: '   ' })
+      expect(empty).rejects.toThrow('A session needs a name')
+      await empty.catch(() => undefined)
+      const long = plane.renameSession({ sessionId: SESSION, title: 'x'.repeat(201) })
+      expect(long).rejects.toThrow('200')
+      await long.catch(() => undefined)
+      const unknown = plane.renameSession({ sessionId: 'nope', title: 'X' })
+      expect(unknown).rejects.toThrow('unknown session nope')
+      await unknown.catch(() => undefined)
+      expect(await titleNow()).toBeNull()
+    })
+
     it('answers false for an unknown session', async () => {
       expect(await plane.titleUntitledSession({ sessionId: 'nope', title: 'X' })).toBe(false)
     })

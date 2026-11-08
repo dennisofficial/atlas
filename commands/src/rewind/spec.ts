@@ -16,6 +16,7 @@ export const rewind = defineCommand({
     group: ECommandGroup.Context,
     args: rewindArgs,
     timing: ECommandTiming.Settled,
+    handledIn: 'pod',
   },
 })
 

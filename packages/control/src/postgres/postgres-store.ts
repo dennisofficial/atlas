@@ -37,6 +37,7 @@ import {
   readSessionIn,
   setSessionArchivedIn,
   setSessionTitleIfUntitledIn,
+  setSessionTitleIn,
 } from './postgres-session-writes'
 import { claimNeedingIn } from './postgres-claim-next'
 import {
@@ -105,6 +106,10 @@ class PostgresTx implements ControlTx {
     fromInboxId: number | null
   }) {
     return setSessionTitleIfUntitledIn({ tx: this.tx, ...params })
+  }
+
+  async setSessionTitle(params: { sessionId: string; title: string }) {
+    return setSessionTitleIn({ tx: this.tx, ...params })
   }
 
   async clearTitleFrom(params: { sessionId: string; inboxId: number }) {

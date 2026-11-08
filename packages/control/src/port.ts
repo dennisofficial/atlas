@@ -128,6 +128,7 @@ export interface ControlTx {
     title: string
     fromInboxId: number | null
   }): Promise<boolean>
+  setSessionTitle(params: { sessionId: string; title: string }): Promise<boolean>
   clearTitleFrom(params: { sessionId: string; inboxId: number }): Promise<boolean>
   listSessions(params: {
     userId: string

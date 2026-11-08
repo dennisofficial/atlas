@@ -3,12 +3,13 @@ import { ECommandGroup, ECommandTiming } from '@dltech/atlas-core'
 import { z } from 'zod'
 import { commandOf, composeCommands, defineCommand } from '../registry'
 
-const specOf = (name: string) => ({
+const specOf = (name: string, handledIn: 'pod' | 'control' = 'pod') => ({
   name,
   summary: `${name} summary`,
   group: ECommandGroup.Session,
   args: z.strictObject({ title: z.string() }),
   timing: ECommandTiming.Settled,
+  handledIn,
 })
 
 describe('defineCommand', () => {
@@ -43,6 +44,21 @@ describe('composeCommands', () => {
     const first = defineCommand({ spec: specOf('rename') })
     const second = defineCommand({ spec: specOf('rename') })
     expect(() => composeCommands([first, second])).toThrow('duplicate command "rename"')
+  })
+
+  it('keeps control-handled commands out of the inbox index', () => {
+    const rename = defineCommand({ spec: specOf('rename', 'control') })
+    const summarise = defineCommand({ spec: specOf('summarise') })
+    const registry = composeCommands([rename, summarise])
+    expect(registry.byName.get('rename')).toBe(rename)
+    expect(registry.byInboxKind.has('command:rename')).toBe(false)
+    expect(registry.byInboxKind.get('command:summarise')).toBe(summarise)
+  })
+
+  it('refuses the same name across handling kinds', () => {
+    const pod = defineCommand({ spec: specOf('rename') })
+    const control = defineCommand({ spec: specOf('rename', 'control') })
+    expect(() => composeCommands([pod, control])).toThrow('duplicate command "rename"')
   })
 
   it('composes an empty registry', () => {

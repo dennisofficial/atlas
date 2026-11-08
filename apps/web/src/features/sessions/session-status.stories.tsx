@@ -36,6 +36,7 @@ const header = (args: { entries: PullRequestEntry[]; branch: string | undefined 
   <SidebarProvider>
     <div className="w-full">
       <SessionHeader
+        sessionId="story"
         state={EHeaderState.Idle}
         title="Show v2 session status"
         naming={false}

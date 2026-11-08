@@ -1,3 +1,4 @@
+export type { ControlCommandHandler } from './control'
 export type { CommandContext, CommandHandler, CommandResult } from './pod'
 export {
   COMMAND_INBOX_PREFIX,
