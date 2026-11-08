@@ -158,15 +158,18 @@ command and an inbox handler), composes through `composePlugins`, and its event 
 
 ## 3. `packages/commands`
 
-| File           | Holds                                                                                                                                                                                         |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `spec.ts`      | `CommandSpec` — the v1 shape (`packages/core/src/commands/spec.ts:12`) plus `args: z.ZodType`, `timing` (settled or immediate; only settled ships in this slice) and `summary`/`argumentHint` |
-| `arguments.ts` | argument text → validated args, one refusal string per failure (`/rename my thing` → `{ name: 'my thing' }`)                                                                                  |
-| `registry.ts`  | `defineCommand`, `composeCommands`, `commandOf`, `menuOf(registry)` → the `readonly SurfaceCommand[]` a slash menu consumes, for the TUI (the web presents these as affordances, §5)          |
-| `dispatch.ts`  | pure: raw composer text + registry → `{kind:'command', name, args}` \| `{kind:'send', text}` \| `{kind:'refused', reason}`, reusing `resolveSubmission` for the text half; used by the TUI    |
-| `hooks.ts`     | headless React: `useSessionCommands(session)` → the menu, the pending set and the last refusal from the session view; `useRunCommand()` posts through `sessions.command`                      |
-| `pod.ts`       | `CommandHandler = (ctx) => Promise<{ drafts: readonly EventDraft[] } \| { refused: string }>` and the `CommandContext` (args, session, record, model, log)                                    |
-| `client.ts`    | the shared pending/refused line as headless state (rendering is each surface's)                                                                                                               |
+| File          | Holds                                                                                                                                        |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `spec.ts`     | `CommandSpec` — name, summary, group, `args: z.ZodType`, `timing`: one per capability, the only place its inbox kind and argument shape live |
+| `registry.ts` | `defineCommand`, `composeCommands`, `commandOf`: the table the API validates against, the holder dispatches through and the TUI lists        |
+| `pod.ts`      | `CommandHandler` and `CommandContext` (args, session, record, model, log); the handlers themselves land in PRs 4–6                           |
+| `hooks.ts`    | headless `useRunCommand(command)`, posting through `sessions.command`; added with its first web consumer in PR 4                             |
+
+**No text layer yet.** Parsing text into arguments (`/rename my thing`) and building a slash menu are
+what a surface that takes text needs, and only the TUI does. They land with the TUI at slice 9 beside
+its first consumer; web posts structured arguments from the affordance the operator clicked, so it
+never needs them. The contract is what stops that from being duplicated: one spec, one argument
+schema, one inbox kind, validated once on the server.
 
 **Wire: `sessions.command`.** One mutation, `{ sessionId, name, args }`. It resolves `name` in the
 composed registry, validates `args` with that command's schema, and posts an inbox entry of kind
@@ -274,8 +277,8 @@ The web presents capabilities on the thing they act on, not as slash commands (�
 
 1. `feat(plugin-sdk): plugin contract and the type-level event registry` — §2, the fixture plugin, and
    the decoder threaded through control, host and client.
-2. `feat(commands): the command contract, registry and dispatch` — §3's pure files plus
-   `sessions.command`, with the API refusing unknown names and bad args.
+2. `feat(commands): the command contract and sessions.command` — §3's spec and registry plus the
+   wire, with the API refusing unknown names and bad args.
 3. `feat(host): run inbox commands between turns` — intake dispatch, `input-refused` in `core`, the
    view's command rows, `SESSION_VIEW_VERSION` bump.
 4. `feat(commands/rewind): rewind to a message on v2` — command, `history-rewound.draft`, the message
@@ -305,6 +308,7 @@ Each PR is reviewable in one sitting and lands in order. 1 and 2 are independent
 ## 8. Out of scope
 
 - Fork-from-here; auto-compaction; GC of hidden rows (P5 storage policy).
+- Command text parsing, the slash menu and per-surface dispatch: the TUI's, at slice 9 (§3).
 - `/model`, `/compact`, `/rotate`, `/cd`, `/new`, `/help` and the rest of the v1 catalogue. `/skills`,
   `/mcp` and `/shells` belong to slice 7's plugins.
 - Moving real feature events out of `core`: slice 6 builds and proves the registry, slice 7 moves them.
