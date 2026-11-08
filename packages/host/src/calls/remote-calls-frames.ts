@@ -26,11 +26,7 @@ export type Pending = {
 export const interruptedResult = (op: string): CallResult =>
   failedResult({ op, code: ECallFailure.Interrupted, message: interruptedMessage(op) })
 
-export const rejectPending = (args: {
-  pending: Map<string, Pending>
-  pendingAcks: Map<string, { key: string; resolve(found: boolean): void }>
-  error: Error
-}): void => {
+export const rejectPending = (args: { pending: Map<string, Pending>; error: Error }): void => {
   for (const call of [...args.pending.values()]) {
     if (call.done) continue
     call.done = true
@@ -38,8 +34,6 @@ export const rejectPending = (args: {
     call.detach?.()
     for (const waiter of call.waiters) waiter.reject?.(args.error)
   }
-  for (const ack of [...args.pendingAcks.values()]) ack.resolve(false)
-  args.pendingAcks.clear()
 }
 
 export const failedResult = (args: {
@@ -90,7 +84,7 @@ export const cancelledResult = (call: Pending): CallResult => {
 
 export type FrameSink = {
   pending: Map<string, Pending>
-  pendingAcks: Map<string, { key: string; resolve(found: boolean): void }>
+  settleAck(args: { key: string; found: boolean }): boolean
   link: DaemonLink
   settle(call: Pending, result: CallResult): void
   settleError(call: Pending, error: Error): void
@@ -130,8 +124,7 @@ export const handleDaemonFrame = (state: FrameSink, frame: DaemonFrame): void =>
   if (frame.kind === 'run-reply' || frame.kind === 'health') return
   if (frame.kind === 'pong') return
   if (frame.kind === 'acked') {
-    state.pendingAcks.get(frame.key)?.resolve(true)
-    state.pendingAcks.delete(frame.key)
+    state.settleAck({ key: frame.key, found: true })
     return
   }
   handleErrorFrame(state, frame)
@@ -154,12 +147,7 @@ const handleErrorFrame = (
   frame: { key?: string | undefined; errorKind: string; message: string },
 ): void => {
   if (frame.key !== undefined) state.answered(frame.key, 'unavailable')
-  const pendingAck = frame.key === undefined ? undefined : state.pendingAcks.get(frame.key)
-  if (pendingAck !== undefined && frame.key !== undefined) {
-    pendingAck.resolve(false)
-    state.pendingAcks.delete(frame.key)
-    return
-  }
+  if (frame.key !== undefined && state.settleAck({ key: frame.key, found: false })) return
   if (frame.errorKind === 'stale-epoch') return
   if (frame.key !== undefined && frame.errorKind === 'unknown-key') {
     const call = state.pending.get(frame.key)

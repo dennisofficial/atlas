@@ -55,7 +55,7 @@ export const describeRemoteCallsLifecycle = (target: RemoteCallsTarget): void =>
           connector: async () => {
             const inner = await handle.connectorFor()()
             return (handlers) =>
-              inner({ onText: handlers.onText, onClose: handlers.onClose }).then((socket) => {
+              inner(handlers).then((socket) => {
                 sockets.push(socket)
                 return socket
               })

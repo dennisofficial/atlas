@@ -5,7 +5,8 @@ import { createInMemoryDaemon, inMemoryDaemonToken } from '@dltech/atlas-protoco
 
 import { RemoteCalls, type DaemonConnector, type DaemonSocket } from '../..'
 import type { DaemonLinkHandlers } from '../socket'
-import { DaemonLink } from '../link'
+import { DaemonLink, HANDSHAKE_MS } from '../link'
+import { READY_TIMEOUT_MS } from '../ready-deadline'
 import { fakeTimers } from '../../testing'
 
 const SANDBOX = 'atlas-v2-health-test'
@@ -53,7 +54,7 @@ describe('link health on a fake clock', () => {
       timers: {
         ...timers,
         setTimeout: (handler: () => void, ms: number) => {
-          if (ms !== 10_000) waits.push(ms)
+          if (![10_000, HANDSHAKE_MS, READY_TIMEOUT_MS].includes(ms)) waits.push(ms)
           return timers.setTimeout(handler, ms)
         },
       },
@@ -104,7 +105,7 @@ describe('link health on a fake clock', () => {
       timers: {
         ...timers,
         setTimeout: (handler: () => void, ms: number) => {
-          if (ms !== 10_000) waits.push(ms)
+          if (![10_000, HANDSHAKE_MS, READY_TIMEOUT_MS].includes(ms)) waits.push(ms)
           return timers.setTimeout(handler, ms)
         },
       },
@@ -148,6 +149,7 @@ describe('link health on a fake clock', () => {
       timers,
       events: {
         onFrame: () => {},
+        onDown: () => {},
         onSuperseded: () => {},
         onUnauthenticated: () => {},
         onFatal: (error) => {

@@ -4,13 +4,20 @@ import type { CallTimers } from './remote-calls'
 
 export const READY_TIMEOUT_MS = 60_000
 
-export const withReadyDeadline = (args: {
+type ReadyDeadlineArgs = {
   promise: Promise<ReadyReply>
   timeoutMs: number
   timers: CallTimers
-  signal?: AbortSignal | undefined
-}): Promise<ReadyReply | undefined> =>
-  new Promise((resolve, reject) => {
+}
+
+export function withReadyDeadline(args: ReadyDeadlineArgs): Promise<ReadyReply>
+export function withReadyDeadline(
+  args: ReadyDeadlineArgs & { signal: AbortSignal | undefined },
+): Promise<ReadyReply | undefined>
+export function withReadyDeadline(
+  args: ReadyDeadlineArgs & { signal?: AbortSignal | undefined },
+): Promise<ReadyReply | undefined> {
+  return new Promise((resolve, reject) => {
     const timer = args.timers.setTimeout(() => {
       finish()
       reject(new ReadyTimeoutError(args.timeoutMs))
@@ -36,3 +43,4 @@ export const withReadyDeadline = (args: {
     )
     if (args.signal?.aborted) onAbort()
   })
+}
