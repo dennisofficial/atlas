@@ -53,12 +53,12 @@ describe('recordShellEnding', () => {
     expect(event && 'exitCode' in event).toBe(false)
   })
 
-  it('maps an out-of-memory kill to overflowed', async () => {
+  it('maps an out-of-memory kill to a failed exit rather than an output overflow', async () => {
     const harness = rig()
     const shellId = await started(harness)
-    harness.finish(shellId, EShellRunStatus.OomKilled, null)
+    harness.finish(shellId, EShellRunStatus.OomKilled, 137)
     await ending(harness, shellId)
-    expect(harness.log.at(-1)).toMatchObject({ status: EShellStatus.Overflowed })
+    expect(harness.log.at(-1)).toMatchObject({ status: EShellStatus.Exited, exitCode: 137 })
   })
 
   it('records a frame delivered twice only once', async () => {

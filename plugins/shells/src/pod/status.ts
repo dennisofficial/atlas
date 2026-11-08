@@ -15,7 +15,7 @@ export const outcomeOf = (info: ShellInfo): ShellOutcome => {
   if (info.status === EShellRunStatus.TimedOut) {
     return { status: EShellStatus.Killed, killedBy: EKilledBy.Timeout, exitCode }
   }
-  return { status: EShellStatus.Overflowed, exitCode }
+  return { status: EShellStatus.Exited, exitCode }
 }
 
 export type StartedShell = { description?: string | undefined; command: string }
