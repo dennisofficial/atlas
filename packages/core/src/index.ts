@@ -153,6 +153,7 @@ export * from './services/fold'
 export * from './stream/chunk'
 
 export * from './tools/call-interrupted'
+export * from './tools/parameters'
 export * from './tools/tool'
 export * from './tools/effect-order'
 export * from './tools/dynamic-source'
