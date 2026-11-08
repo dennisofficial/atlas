@@ -1,4 +1,4 @@
-import { EDaemonAnswer, recoverCall } from '@dltech/atlas-core'
+import { EDaemonAnswer, recoverCall, type RecoverAction } from '@dltech/atlas-core'
 
 export class SandboxUnavailableError extends Error {
   constructor(message: string) {
@@ -45,6 +45,29 @@ const READ_ONLY_OPS = new Set([
 
 const crashedCallMessage = (op: string): string =>
   `${op} was interrupted by a process restart before its result was recorded; its effects are unknown — check before repeating it`
+
+export type DaemonAnswer = EDaemonAnswer | 'unavailable'
+
+export const actionForAnswer = (args: {
+  op: string
+  dispatchedBootId: string | undefined
+  currentBootId: string | undefined
+  answer: DaemonAnswer
+}): RecoverAction =>
+  recoverCall({
+    facts: {
+      dispatched: true,
+      dispatchedBootId: args.dispatchedBootId,
+      resultRecorded: false,
+      readOnly: isReadOnlyOp(args.op),
+    },
+    answer: args.answer === 'unavailable' ? EDaemonAnswer.NeverSeen : args.answer,
+    bootId: args.currentBootId ?? '',
+    variant: { doneRuns: true },
+  })
+
+export const needsRun = (action: RecoverAction): boolean =>
+  action.type === 'run' || action.type === 'rerun' || action.type === 'attach'
 
 export const actionForLostCall = (args: {
   op: string

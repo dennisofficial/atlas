@@ -1,3 +1,4 @@
+import { EDaemonAnswer } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { callOpSchema, callResultSchema, daemonEventSchema } from './ops'
@@ -55,6 +56,12 @@ export const cancelFrameSchema = z.object({
   epoch: epochSchema,
 })
 
+export const answerFrameSchema = z.object({
+  kind: z.literal('answer'),
+  key: callKeySchema,
+  epoch: epochSchema,
+})
+
 export const pingFrameSchema = z.object({ kind: z.literal('ping') })
 
 export const hostFrameSchema = z.discriminatedUnion('kind', [
@@ -62,6 +69,7 @@ export const hostFrameSchema = z.discriminatedUnion('kind', [
   runFrameSchema,
   ackFrameSchema,
   cancelFrameSchema,
+  answerFrameSchema,
   pingFrameSchema,
 ])
 
@@ -106,6 +114,12 @@ export const daemonErrorFrameSchema = z.object({
 
 export const ackedFrameSchema = z.object({ kind: z.literal('acked'), key: callKeySchema })
 
+export const answeredFrameSchema = z.object({
+  kind: z.literal('answered'),
+  key: callKeySchema,
+  state: z.enum(EDaemonAnswer),
+})
+
 export const pongFrameSchema = z.object({ kind: z.literal('pong'), runs: z.number().int().min(0) })
 
 export const daemonEventFrameSchema = z.object({
@@ -120,6 +134,7 @@ export const daemonFrameSchema = z.discriminatedUnion('kind', [
   resultFrameSchema,
   healthFrameSchema,
   daemonErrorFrameSchema,
+  answeredFrameSchema,
   pongFrameSchema,
   ackedFrameSchema,
   daemonEventFrameSchema,
@@ -130,6 +145,7 @@ export type HelloReplyFrame = z.infer<typeof helloReplyFrameSchema>
 export type RunFrame = z.infer<typeof runFrameSchema>
 export type AckFrame = z.infer<typeof ackFrameSchema>
 export type CancelFrame = z.infer<typeof cancelFrameSchema>
+export type AnswerFrame = z.infer<typeof answerFrameSchema>
 export type HostFrame = z.infer<typeof hostFrameSchema>
 export type OutputChunkFrame = z.infer<typeof outputChunkFrameSchema>
 export type RunReplyFrame = z.infer<typeof runReplyFrameSchema>
@@ -137,6 +153,7 @@ export type ResultFrame = z.infer<typeof resultFrameSchema>
 export type HealthFrame = z.infer<typeof healthFrameSchema>
 export type DaemonErrorFrame = z.infer<typeof daemonErrorFrameSchema>
 export type AckedFrame = z.infer<typeof ackedFrameSchema>
+export type AnsweredFrame = z.infer<typeof answeredFrameSchema>
 export type PongFrame = z.infer<typeof pongFrameSchema>
 export type DaemonEventFrame = z.infer<typeof daemonEventFrameSchema>
 export type DaemonFrame = z.infer<typeof daemonFrameSchema>

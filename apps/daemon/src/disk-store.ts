@@ -1,7 +1,25 @@
-import { type FileHandle, appendFile, mkdir, open, readFile, rename, rm } from 'node:fs/promises'
+import {
+  type FileHandle,
+  appendFile,
+  mkdir,
+  open,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  stat,
+} from 'node:fs/promises'
 import { join } from 'node:path'
 
-import type { CallJournal, CallStore } from '@dltech/atlas-protocol/engine'
+import { type CallJournal, type CallStore, parseCallJournal } from '@dltech/atlas-protocol/engine'
+
+const DEFAULT_MAX_AGE_MS = 60 * 60 * 1000
+const DEFAULT_MAX_BYTES = 256 * 1024 * 1024
+
+type CallEntry = { dir: string; name: string; mtimeMs: number; bytes: number }
+
+const isMissing = (error: unknown): boolean =>
+  error instanceof Error && 'code' in error && error.code === 'ENOENT'
 
 const writeSynced = async (args: { path: string; content: string }): Promise<void> => {
   let handle: FileHandle | undefined
@@ -33,16 +51,78 @@ export const daemonHomeFromEnv = (env: Record<string, string | undefined>): stri
   return join(home, '.atlas-daemon')
 }
 
+const statOrUndefined = async (path: string) => {
+  try {
+    return await stat(path)
+  } catch (error) {
+    if (isMissing(error)) return undefined
+    throw error
+  }
+}
+
+const entryOf = async (args: { dir: string; name: string }): Promise<CallEntry | undefined> => {
+  const files = await Promise.all([
+    statOrUndefined(join(args.dir, 'state.json')),
+    statOrUndefined(join(args.dir, 'output.bin')),
+  ])
+  const present = files.filter((file) => file !== undefined)
+  if (present.length > 0) {
+    return {
+      ...args,
+      mtimeMs: Math.max(...present.map((file) => file.mtimeMs)),
+      bytes: present.reduce((sum, file) => sum + file.size, 0),
+    }
+  }
+  const own = await statOrUndefined(args.dir)
+  return own === undefined ? undefined : { ...args, mtimeMs: own.mtimeMs, bytes: 0 }
+}
+
+const removeDir = (dir: string): Promise<void> => rm(dir, { recursive: true, force: true })
+
 export class DiskCallStore implements CallStore {
-  constructor(private readonly home: string) {}
+  constructor(
+    private readonly home: string,
+    private readonly limits: { maxAgeMs?: number; maxBytes?: number } = {},
+  ) {}
 
   private dirOf(key: string): string {
     return join(this.home, 'calls', key)
   }
 
   async prune(): Promise<void> {
-    await rm(join(this.home, 'calls'), { recursive: true, force: true })
-    await mkdir(join(this.home, 'calls'), { recursive: true })
+    const root = join(this.home, 'calls')
+    await mkdir(root, { recursive: true })
+    const cutoff = Date.now() - (this.limits.maxAgeMs ?? DEFAULT_MAX_AGE_MS)
+    const maxBytes = this.limits.maxBytes ?? DEFAULT_MAX_BYTES
+    const names = (await readdir(root, { withFileTypes: true }))
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name)
+    const found = await Promise.all(names.map((name) => entryOf({ dir: join(root, name), name })))
+    const entries = found
+      .filter((entry) => entry !== undefined)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs || (a.name < b.name ? -1 : 1))
+    let total = 0
+    let overBudget = false
+    for (const [index, entry] of entries.entries()) {
+      const keep =
+        entry.mtimeMs >= cutoff && !overBudget && (index === 0 || total + entry.bytes <= maxBytes)
+      if (keep) {
+        total += entry.bytes
+        continue
+      }
+      if (entry.mtimeMs >= cutoff) overBudget = true
+      await removeDir(entry.dir)
+    }
+  }
+
+  async readState(args: { key: string }): Promise<CallJournal | undefined> {
+    try {
+      const text = await readFile(join(this.dirOf(args.key), 'state.json'), 'utf8')
+      return parseCallJournal(JSON.parse(text))
+    } catch (error) {
+      if (isMissing(error) || error instanceof SyntaxError) return undefined
+      throw error
+    }
   }
 
   async writeState(args: { key: string; journal: CallJournal }): Promise<void> {
@@ -63,9 +143,7 @@ export class DiskCallStore implements CallStore {
       const bytes = new Uint8Array(await readFile(join(this.dirOf(args.key), 'output.bin')))
       return bytes.subarray(Math.min(args.offset, bytes.length))
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        return new Uint8Array()
-      }
+      if (isMissing(error)) return new Uint8Array()
       throw error
     }
   }

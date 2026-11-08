@@ -2,6 +2,7 @@ import {
   EDaemonErrorKind,
   daemonFrameSchema,
   hostFrameSchema,
+  type AnswerFrame,
   type DaemonFrame,
   type HostFrame,
 } from '../frames'
@@ -124,6 +125,12 @@ export class DaemonEngine {
       this.send({ peer, frame: { kind: 'pong', runs: this.ledger.runCount() } })
       return
     }
+    if (frame.kind === 'answer') {
+      void this.answer({ peer, frame }).catch((error: unknown) => {
+        this.args.onFault({ key: frame.key, error })
+      })
+      return
+    }
     if (frame.epoch !== peer.epoch) {
       this.error({
         peer,
@@ -217,9 +224,14 @@ export class DaemonEngine {
     for (const group of this.groups) group.onConnect?.({ epoch: frame.epoch })
   }
 
+  private async answer(args: { peer: Peer; frame: AnswerFrame }): Promise<void> {
+    const state = await this.ledger.answer({ key: args.frame.key })
+    this.send({ peer: args.peer, frame: { kind: 'answered', key: args.frame.key, state } })
+  }
+
   private async call(args: {
     peer: Peer
-    frame: Exclude<HostFrame, { kind: 'hello' } | { kind: 'ping' }>
+    frame: Exclude<HostFrame, { kind: 'hello' } | { kind: 'ping' } | { kind: 'answer' }>
   }): Promise<void> {
     const { peer, frame } = args
     const outcome = await this.dispatch({ peer, frame })
@@ -232,7 +244,7 @@ export class DaemonEngine {
 
   private dispatch(args: {
     peer: Peer
-    frame: Exclude<HostFrame, { kind: 'hello' } | { kind: 'ping' }>
+    frame: Exclude<HostFrame, { kind: 'hello' } | { kind: 'ping' } | { kind: 'answer' }>
   }): Promise<LedgerOutcome> {
     const { peer, frame } = args
     if (frame.kind === 'ack') return this.ledger.ack({ key: frame.key, epoch: frame.epoch })

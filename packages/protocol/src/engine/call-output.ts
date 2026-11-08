@@ -10,7 +10,7 @@ export type CallSink = {
 }
 
 export class CallOutput {
-  private assigned = 0
+  private assigned: number
   private closed = false
   private lostBytes = false
   private ended: CallResult | null = null
@@ -26,9 +26,12 @@ export class CallOutput {
       key: string
       op: OpName
       store: CallStore
+      storedBytes?: number | undefined
       onFault(args: { error: unknown }): void
     },
-  ) {}
+  ) {
+    this.assigned = args.storedBytes ?? 0
+  }
 
   bytes(): number {
     return this.assigned

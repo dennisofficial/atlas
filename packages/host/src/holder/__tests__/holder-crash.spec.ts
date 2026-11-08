@@ -125,7 +125,7 @@ describe('SessionHolder crash (F11/F13/F14)', () => {
     expect(b.runtimes.length).toBeGreaterThan(0)
 
     const settled = await flushUntil({
-      check: () => hasInterruptedResult(a, 'interrupted by a process restart'),
+      check: () => hasInterruptedResult(a, 'interrupted by a daemon restart'),
       attempts: 600,
     })
     expect(settled).toBe(true)

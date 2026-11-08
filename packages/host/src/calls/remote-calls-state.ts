@@ -7,7 +7,10 @@ import {
   FencedError,
   ProtocolViolationError,
   ReadyTimeoutError,
+  actionForAnswer,
   callLostAcrossBoot,
+  needsRun,
+  type DaemonAnswer,
 } from './errors'
 import { scopeDispatchedBootId } from './call-scope'
 import { DaemonLink } from './link'
@@ -18,7 +21,6 @@ import {
   handedOffResult,
   handleDaemonFrame,
   interruptedResult,
-  recoverRestartedCalls,
   rejectPending,
   type Pending,
   type Waiter,
@@ -28,6 +30,7 @@ import type { RemoteCallsArgs } from './remote-calls'
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
   private readonly pendingAcks = new Map<string, { key: string; resolve(found: boolean): void }>()
+  private readonly asking = new Map<string, (answer: DaemonAnswer) => void>()
   private readonly link: DaemonLink
   private readonly log: LogPort | undefined
 
@@ -82,6 +85,7 @@ export class RemoteCallsState {
 
   handoff(): void {
     this.detached = true
+    this.refuseAnswers()
     for (const call of [...this.pending.values()]) {
       if (call.done) continue
       this.settle(call, handedOffResult(call))
@@ -92,6 +96,7 @@ export class RemoteCallsState {
     if (this.closed) return
     this.closed = true
     this.link.teardown()
+    this.refuseAnswers()
     const error = new FencedError(`session ${this.args.sessionId} closed its daemon link`)
     rejectPending({ pending: this.pending, pendingAcks: this.pendingAcks, error })
     this.gate.rejectSoon(error)
@@ -130,6 +135,7 @@ export class RemoteCallsState {
       delivered: 0,
       sent: false,
       done: false,
+      awaitingAnswer: false,
     }
     if (!this.detached) call.waiters.push(waiter)
     this.pending.set(args.key, call)
@@ -148,8 +154,19 @@ export class RemoteCallsState {
         currentBootId: this.linkBootId,
       })
     ) {
-      this.settle(call, interruptedResult(args.op.op))
-      return outcome
+      const answer = await this.answerOf(call.key)
+      if (call.done || this.closed || this.fenced) return outcome
+      const action = actionForAnswer({
+        op: call.op.op,
+        dispatchedBootId,
+        currentBootId: this.linkBootId,
+        answer,
+      })
+      if (!needsRun(action)) {
+        this.settle(call, interruptedResult(args.op.op))
+        return outcome
+      }
+      if (action.type === 'rerun') call.delivered = 0
     }
     if (this.link.ready) this.sendRun(call)
     return outcome
@@ -251,18 +268,56 @@ export class RemoteCallsState {
     }
     if (restart) this.recoverAcrossRestart(previousBootId)
     for (const call of this.pending.values()) {
-      if (call.done) continue
+      if (call.done || call.awaitingAnswer) continue
       this.sendRun(call)
     }
     this.link.schedulePing()
   }
 
   private recoverAcrossRestart(previousBootId: string): void {
-    recoverRestartedCalls({
-      state: this.sink(),
-      previousBootId,
-      currentBootId: this.linkBootId ?? previousBootId,
+    for (const call of [...this.pending.values()]) {
+      if (call.done) continue
+      void this.recover({ call, previousBootId })
+    }
+  }
+
+  private async recover(args: { call: Pending; previousBootId: string }): Promise<void> {
+    const { call } = args
+    call.awaitingAnswer = true
+    const answer = await this.answerOf(call.key)
+    call.awaitingAnswer = false
+    if (call.done || this.closed || this.fenced) return
+    const action = actionForAnswer({
+      op: call.op.op,
+      dispatchedBootId: args.previousBootId,
+      currentBootId: this.linkBootId,
+      answer,
     })
+    if (!needsRun(action)) {
+      this.settle(call, interruptedResult(call.op.op))
+      return
+    }
+    if (action.type === 'rerun') call.delivered = 0
+    if (this.link.ready) this.sendRun(call)
+  }
+
+  private answerOf(key: string): Promise<DaemonAnswer> {
+    if (!this.link.ready) return Promise.resolve('unavailable')
+    return new Promise<DaemonAnswer>((resolve) => {
+      this.asking.set(key, resolve)
+      this.link.send({ kind: 'answer', key, epoch: this.epoch })
+    })
+  }
+
+  private answered(key: string, state: DaemonAnswer): void {
+    const resolve = this.asking.get(key)
+    if (resolve === undefined) return
+    this.asking.delete(key)
+    resolve(state)
+  }
+
+  private refuseAnswers(): void {
+    for (const key of [...this.asking.keys()]) this.answered(key, 'unavailable')
   }
 
   private reopenIfDown(): void {
@@ -275,6 +330,7 @@ export class RemoteCallsState {
   private failAll(error: Error): void {
     if (!(error instanceof FencedError)) this.down = error
     this.link.teardown()
+    this.refuseAnswers()
     this.gate.reject(error)
     for (const call of [...this.pending.values()]) this.settleError(call, error)
     for (const ack of [...this.pendingAcks.values()]) ack.resolve(false)
@@ -293,7 +349,7 @@ export class RemoteCallsState {
       failAll: (error: Error) => this.failAll(error),
       handleHelloReply: (frame: { bootId: string; version: string }) =>
         this.handleHelloReply(frame),
-      recoverAcrossRestart: (bootId: string) => this.recoverAcrossRestart(bootId),
+      answered: (key: string, state: DaemonAnswer) => this.answered(key, state),
       emitEvent: (frame: Extract<DaemonFrame, { kind: 'event' }>) => this.args.onEvent?.(frame),
     }
   }

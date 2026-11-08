@@ -1,8 +1,11 @@
 export { daemonToken, daemonTokenMatches } from './auth'
 export { CallOutput, type CallSink } from './call-output'
 export {
+  CALL_JOURNAL_FORMAT,
   ECallJournalState,
   MemoryCallStore,
+  callJournalSchema,
+  parseCallJournal,
   type CallJournal,
   type CallStore,
 } from './call-store'

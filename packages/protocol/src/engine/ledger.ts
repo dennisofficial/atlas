@@ -1,6 +1,8 @@
 import {
   ECallError,
   ECallState,
+  EDaemonAnswer,
+  answerCalls,
   initialCalls,
   stepCalls,
   type SteppedCalls,
@@ -9,11 +11,16 @@ import {
 import { EDaemonErrorKind, ERunState } from '../frames'
 import { ECallFailure, type CallOp, type CallResult, type DaemonEvent, type OpName } from '../ops'
 import { CallOutput, type CallSink } from './call-output'
-import { ECallJournalState, type CallStore } from './call-store'
+import {
+  CALL_JOURNAL_FORMAT,
+  ECallJournalState,
+  type CallJournal,
+  type CallStore,
+} from './call-store'
 import type { RegisteredOp } from './group'
 import { KeyLock } from './key-lock'
 import { type LedgerOutcome, refused, staleEpoch, unknownKey } from './outcomes'
-import { failedResult, invokeOp } from './results'
+import { failedResult, interruptedByRestart, invokeOp } from './results'
 
 export type { LedgerOutcome } from './outcomes'
 
@@ -74,6 +81,30 @@ export class CallLedger {
         })
         if (stepped.effects.errors.includes(ECallError.StaleEpoch)) return staleEpoch(args.epoch)
         const spawns = stepped.effects.spawned.includes(args.key)
+        if (spawns) {
+          let stored: CallJournal | undefined
+          try {
+            stored = await this.storedJournal({ key: args.key })
+          } catch {
+            return refused({
+              errorKind: EDaemonErrorKind.Internal,
+              message: `the journal of ${args.key} could not be read`,
+            })
+          }
+          if (stored !== undefined) {
+            this.protocol = stepped.state
+            return await this.adopt({
+              key: args.key,
+              epoch: args.epoch,
+              op: args.op,
+              owner: args.owner,
+              sink: args.sink,
+              fromOffset: args.fromOffset,
+              onReply: args.onReply,
+              stored,
+            })
+          }
+        }
         const handler = this.args.ops.get(args.op.op)
         if (spawns && handler === undefined) {
           return refused({
@@ -97,6 +128,19 @@ export class CallLedger {
         args.onReply(spawns || this.isRunning(args.key) ? ERunState.Running : ERunState.Done)
         call.output.attach({ owner: args.owner, sink: args.sink, fromOffset: args.fromOffset })
         return { ok: true }
+      },
+    })
+  }
+
+  answer(args: { key: string }): Promise<EDaemonAnswer> {
+    return this.lock.run({
+      key: args.key,
+      task: async () => {
+        const known = answerCalls({ state: this.protocol, key: args.key })
+        if (known !== EDaemonAnswer.NeverSeen) return known
+        const stored = await this.storedJournal({ key: args.key }).catch(() => undefined)
+        if (stored === undefined) return EDaemonAnswer.NeverSeen
+        return stored.state === ECallJournalState.Done ? EDaemonAnswer.Done : EDaemonAnswer.Running
       },
     })
   }
@@ -158,6 +202,53 @@ export class CallLedger {
     return this.protocol.calls[key] === ECallState.Running
   }
 
+  private async storedJournal(args: { key: string }): Promise<CallJournal | undefined> {
+    try {
+      return await this.args.store.readState({ key: args.key })
+    } catch (error) {
+      this.args.onFault({ key: args.key, error })
+      throw error
+    }
+  }
+
+  private async adopt(args: {
+    key: string
+    epoch: number
+    op: CallOp
+    owner: object
+    sink: CallSink
+    fromOffset: number
+    onReply(state: ERunState): void
+    stored: CallJournal
+  }): Promise<LedgerOutcome> {
+    const call: LiveCall = {
+      op: args.op,
+      epoch: args.epoch,
+      abort: new AbortController(),
+      output: new CallOutput({
+        key: args.key,
+        op: args.op.op,
+        store: this.args.store,
+        storedBytes: args.stored.outputBytes,
+        onFault: ({ error }) => this.args.onFault({ key: args.key, error }),
+      }),
+    }
+    this.calls.set(args.key, call)
+    if (args.stored.state === ECallJournalState.Done) {
+      this.protocol = stepCalls({
+        state: this.protocol,
+        input: { type: 'exit', key: args.key, result: JSON.stringify(args.stored.result) },
+      }).state
+      call.output.close()
+      call.output.end({ result: args.stored.result })
+    } else {
+      await this.finish({ key: args.key, call, result: interruptedByRestart(args.op.op) })
+    }
+    args.onReply(this.isRunning(args.key) ? ERunState.Running : ERunState.Done)
+    call.output.attach({ owner: args.owner, sink: args.sink, fromOffset: args.fromOffset })
+    return { ok: true }
+  }
+
   private async spawn(args: {
     key: string
     epoch: number
@@ -181,6 +272,7 @@ export class CallLedger {
       await this.args.store.writeState({
         key: args.key,
         journal: {
+          format: CALL_JOURNAL_FORMAT,
           state: ECallJournalState.Running,
           epoch: args.epoch,
           op: args.op,
@@ -266,6 +358,7 @@ export class CallLedger {
       await this.args.store.writeState({
         key: args.key,
         journal: {
+          format: CALL_JOURNAL_FORMAT,
           state: ECallJournalState.Done,
           epoch: call.epoch,
           op: call.op,

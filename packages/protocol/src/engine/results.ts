@@ -19,6 +19,13 @@ export const failedResult = (args: {
   error: { code: args.code, message: args.message },
 })
 
+export const interruptedByRestart = (op: OpName): CallResult =>
+  failedResult({
+    op,
+    code: ECallFailure.Interrupted,
+    message: `${op} was interrupted by a daemon restart before its result was recorded; its effects are unknown — check before repeating it`,
+  })
+
 export const invokeOp = async (args: {
   handler: RegisteredOp
   op: CallOp

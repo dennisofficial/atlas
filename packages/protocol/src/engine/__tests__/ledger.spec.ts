@@ -37,6 +37,10 @@ class ControlledStore implements CallStore {
     return this.memory.prune()
   }
 
+  readState(args: { key: string }): Promise<CallJournal | undefined> {
+    return this.memory.readState(args)
+  }
+
   async writeState(args: { key: string; journal: CallJournal }): Promise<void> {
     await this.beforeWrite(args.journal)
     await this.memory.writeState(args)
@@ -220,9 +224,9 @@ describe('CallLedger under a slow or failing store', () => {
     expect(failureCode(await rec.firstResult())).toBe(ECallFailure.OutputLost)
     const journal = store.memory.journalOf('k')
     expect(journal?.state).toBe(ECallJournalState.Done)
-    expect(journal?.result === undefined ? undefined : failureCode(journal.result)).toBe(
-      ECallFailure.OutputLost,
-    )
+    expect(
+      journal?.state === ECallJournalState.Done ? failureCode(journal.result) : undefined,
+    ).toBe(ECallFailure.OutputLost)
   })
 
   it('still answers a replay whose read fails, with output-lost', async () => {

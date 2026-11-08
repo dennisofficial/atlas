@@ -1,5 +1,7 @@
 import { expect } from 'bun:test'
 
+import { EDaemonAnswer } from '@dltech/atlas-core'
+
 import { EDaemonErrorKind, ERunState, type HelloReplyFrame } from '../../frames'
 import {
   ECallFailure,
@@ -143,6 +145,19 @@ export const ackOf = async (args: {
   if (frame.kind === 'acked') return 'acked'
   if (frame.kind === 'error') return frame.errorKind
   throw new Error('unreachable')
+}
+
+export const answerOf = async (args: {
+  session: DaemonSession
+  key: string
+}): Promise<EDaemonAnswer> => {
+  args.session.send({ kind: 'answer', key: args.key, epoch: EPOCH })
+  const frame = await args.session.until(
+    (candidate) => candidate.kind === 'answered' && candidate.key === args.key,
+    { label: `answered ${args.key}` },
+  )
+  if (frame.kind !== 'answered') throw new Error('unreachable')
+  return frame.state
 }
 
 export const runsOf = async (session: DaemonSession): Promise<number> => {
