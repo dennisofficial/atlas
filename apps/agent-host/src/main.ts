@@ -4,6 +4,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { LogPort } from '@dltech/atlas-observability'
+import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
 
 import { createHostBus } from './bus/host-bus'
 import { startPgChangeFeed } from './bus/pg-change-feed'
@@ -32,6 +33,7 @@ import { systemHostTimers } from './stream/system-timers'
 import { startStreamServer } from './stream/stream-server'
 import { createGracefulShutdown } from './shutdown/graceful-shutdown'
 import { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
+import { registeredPlugins } from './registered-plugins'
 
 class JsonLog extends LogPort {
   record(entry: Parameters<LogPort['record']>[0]): void {
@@ -46,7 +48,10 @@ const main = async (): Promise<void> => {
     process.exit(78)
   }
   const pool = createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: 10_000 })
-  const plane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
+  const plane = new ControlPlane({
+    store: new PostgresControlStore(createDb(pool)),
+    eventSchema: eventSchemaOf(registeredPlugins),
+  })
   const log = new JsonLog()
   const liveFrames = createRedisLiveFrames({ url: env.redisUrl, log })
   const wakes = startPgWakeListener({ url: databaseUrlWithTls(env.databaseDirectUrl), log })
