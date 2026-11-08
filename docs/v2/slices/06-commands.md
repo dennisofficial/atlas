@@ -366,7 +366,21 @@ The first two merge in either order; #2005 needs #2002; #2006–#2008 need #2005
 a fixture plugin; `packages/commands` with `handledIn` and one `sessions.command` mutation; the holder's
 command intake with `input-refused`; three capabilities on v2 web — rewind, summarise, rename.
 
-**Live check.** LIVE_CHECK_PLACEHOLDER
+**Live check (2026-11-08, production, one v2 session on the atlas project, claude-opus-5-5).** Two
+turns, then each capability through the real path:
+
+| Step                                                 | Result                                                                                                                                                                                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Two turns                                            | context meter 6035, one spend row                                                                                                                                                                                       |
+| `summarise` up to the second message                 | meter 6035 → 103, spend rows unchanged at 1                                                                                                                                                                             |
+| `rewind` to the second message                       | meter 103 → 6010 and the summary was **undone** — the rewind target sits before the summary event, which is the documented "a rewind to before a summary brings the messages back" (the copy says so), not a bug        |
+| `rewind` to the first message, no summary in the way | `POST /v1/trpc/sessions.command` → `{ inboxId }`; **meter 6010 → 0, spend rows unchanged at 1** — the slice-4 statement ("spend counts every call, rewound or not, while the meter drops") seen live for the first time |
+| `rename`                                             | `POST /v1/trpc/sessions.command` → `{}` (a control command posts nothing) and the title became the new name                                                                                                             |
+
+**One gap the check found.** A command posted while an agent-host deploy is rolling can be consumed by
+the old instance, which does not know the kind yet: it appends `input-consumed{discarded}` with a
+warning and the command is lost. Narrow, but real — a client should notice a discarded command rather
+than show it pending forever.
 
 **Corrections the build made to this spec.** The view does not carry commands (the status output does,
 `SESSION_VIEW_VERSION` stays 3); `CommandContext` gained `visibleEvents()` and `model`; a control command
