@@ -73,6 +73,7 @@ const ledgerOn = (
     ops: new Map<OpName, RegisteredOp>(options?.ops === false ? [] : [['exec', exec]]),
     publish: () => {},
     onFault: () => {},
+    onRunning: () => {},
   })
   return { ledger, started }
 }
@@ -220,6 +221,7 @@ describe('CallLedger across a daemon boot', () => {
       onFault: () => {
         faulted += 1
       },
+      onRunning: () => {},
     })
     expect(await runOn({ ledger, epoch: 1, rec: recorder() })).toMatchObject({
       ok: false,

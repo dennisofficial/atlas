@@ -77,8 +77,53 @@ journal, so a destructive call is still reported interrupted instead of silently
   respawned on the same home, the old host is killed, and the next holder collects the done result exactly
   once with the run count still one.
 
+## Draining instead of killing
+
+`launchDaemon` used to SIGKILL a live daemon whose bundle hash differed, which killed its in-flight calls
+with it. Now it asks the daemon to drain (`apps/agent-host/src/sandbox/daemon-launch.ts`):
+- `POST /drain` on the daemon's port, `authorization: Bearer <token>`, body `{ "deadlineMs": n }`. The
+  token is the same HMAC the host computes for the session and travels only in the command's environment,
+  never in argv. Bad or missing token → `403`; already draining → `409`; accepted → `202 draining`. Every
+  other request still answers `atlas-daemon`, so the listen probe is unaffected
+  (`apps/daemon/src/transport.ts`).
+- The daemon then waits for the calls this boot is executing (`ExecutingCalls.settled`), stops its
+  listener and its groups, and exits 0 (`apps/daemon/src/index.ts`). New runs are not refused while
+  draining: a session has one turn in flight and that turn is waiting on the call being drained; the
+  deadline is the backstop.
+- The host polls the listen probe every 250 ms until the port stops answering, with a budget of 600 s —
+  bash's own cap, which is the longest a single call can run, so a legitimate call is never cut early. The
+  turn is already blocked on that call, so the wait costs nothing the user was not already waiting for.
+- Refusal or an expired budget falls back to `KILL_SCRIPT`. An older daemon does not know `/drain` and
+  answers `200 atlas-daemon`, which is exactly the one-time transition: the first release shipping `drain`
+  still kills the previous version's daemon once.
+
+`apps/agent-host/src/__tests__/faults/f45-daemon-version-swap.fault.spec.ts` proves the whole path with
+real processes: a gated bash, `daemon.drain()`, the gate released, the daemon exits on its own with no
+signal and no orphan, a new daemon on the same home, and the done result collected exactly once with the
+run count still one.
+
+## What the live check still owes
+
+Everything above is proven with real processes on this machine: a real daemon binary, a real sandbox home,
+real Postgres and Redis, and the real agent host, through the fault rig. What is **not** proven live is a
+swap inside a real Vercel sandbox against production — the shape the earlier SIGKILL run got wrong. The
+recipe, for whoever has the window:
+1. Build the daemon from the branch (`bun run --cwd apps/daemon build`) and run a local agent host with the
+   production env, holding a real session and sandbox; start a long bash and kill the host with `SIGKILL`.
+2. Start a second host whose daemon bundle is built from a _different_ commit, so its hash differs.
+3. It wakes the sandbox, finds the mismatch, drains the old daemon (which finishes the bash), waits for the
+   port to close, boots the new one and collects the result. Expect one `tool-dispatched`, one done
+   `tool-result`, and one run of the command's marker line.
+4. Gate on Render being absent: its log printing `draining` **and** `GET /v1/services/{id}/instances`
+   staying `[]` for 30–60 s, plus host A's log showing `holder.takeover` for the session before any kill.
+   Resume production in a `finally`.
+
+It was not run in the session that landed these two changes: the driver scripts were never kept (they lived
+in a gitignored `.scratch/`), rebuilding them plus a five-minute production outage needed a window the
+operator had not opened. The unit and fault rows above are the evidence the merge rests on; a live pass
+would only add the Vercel sandbox to the same path.
+
 ## What stays interrupted
 
 A daemon crash mid-call, a sandbox stop/restore, and a host that dies before the daemon finished: there is
-no drain to wait for and the process is gone. PR 2 removes the remaining avoidable case, a version swap
-that kills a healthy daemon.
+no drain to wait for and the process is gone. A finished result survives; a running call is honestly lost.

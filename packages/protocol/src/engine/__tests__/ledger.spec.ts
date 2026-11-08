@@ -108,6 +108,7 @@ const ledgerOn = (
     ops: new Map<OpName, RegisteredOp>([['exec', exec]]),
     publish: () => {},
     onFault: () => {},
+    onRunning: () => {},
   })
   return { ledger, started }
 }
