@@ -57,6 +57,31 @@ export const seedApiKeyAccount = async (
   await db.orm.public.ActiveAccount.create({ userId: 'user-1', provider, accountId: id })
 }
 
+export const seedThread = async (db: Db, over: Record<string, unknown> = {}): Promise<void> => {
+  const existing = await db.orm.public.Session.first({ id: 's-1' })
+  if (existing === null) {
+    await db.orm.public.Session.create({
+      id: 's-1',
+      userId: 'user-1',
+      projectId: 'proj-1',
+      title: 't',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+  }
+  await db.orm.public.Thread.create({
+    id: 't-1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    sessionId: 's-1',
+    userId: 'user-1',
+    modelRef: 'anthropic/claude-haiku-4-5',
+    modelEffort: 'high',
+    modelFast: false,
+    ...over,
+  })
+}
+
 export const seedSetting = async (args: {
   db: Db
   scope: 'user' | 'project'
