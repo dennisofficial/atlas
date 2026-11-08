@@ -1,7 +1,7 @@
 import { replacedRanges, type Event } from '@dltech/atlas-core'
 import { ETurnStatus } from '../channel'
 
-import { EAuthor, EEntryKind, type TurnEndedEntry } from './transcript-model'
+import { EAuthor, EEntryKind, type TranscriptEntry, type TurnEndedEntry } from './transcript-model'
 import type { TurnSpend } from './turn-spend'
 
 const SHOWN: readonly string[] = [ETurnStatus.Completed, ETurnStatus.Interrupted]
@@ -45,6 +45,19 @@ export function turnsBySeq(args: {
   }
 
   return bySeq
+}
+
+/**
+ * The instant the last turn settled at, as the transcript kept it. Whatever a settled turn left
+ * running is being waited on from here, so a reading taken from it outlives the client that
+ * measured it.
+ */
+export function settledAtOf(entries: readonly TranscriptEntry[]): string | undefined {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]
+    if (entry?.kind === EEntryKind.TurnEnded) return entry.endedAt
+  }
+  return undefined
 }
 
 export function turnEndedEntry(turn: TurnSpend): TurnEndedEntry {

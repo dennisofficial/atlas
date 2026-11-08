@@ -2,9 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ScrollBoxRenderable } from '@opentui/core'
 
-import type { RunAttention } from '@dltech/atlas-client/transcript'
+import { settledAtOf, type RunAttention } from '@dltech/atlas-client/transcript'
 import { EEntryKind, type PendingRow, type TranscriptModel } from '../../store'
-import { NOTHING_IN_BACKGROUND, type BackgroundWork } from '@dltech/atlas-client/crew'
+import {
+  isWaiting,
+  NOTHING_IN_BACKGROUND,
+  waitStartedAt,
+  type BackgroundWork,
+} from '@dltech/atlas-client/crew'
 import { useAppearance } from '../hooks/use-appearance'
 import { useEntryWindow } from '../hooks/use-entry-window'
 import { useTranscriptFollow } from '../hooks/use-transcript-follow'
@@ -263,7 +268,14 @@ function DerivedTranscript(props: {
         ) : (
           <WaitingLine
             work={props.background ?? NOTHING_IN_BACKGROUND}
-            since={props.waitingSince ?? null}
+            since={
+              isWaiting(props.background ?? NOTHING_IN_BACKGROUND)
+                ? waitStartedAt({
+                    settledAt: settledAtOf(props.model.entries),
+                    held: props.waitingSince ?? null,
+                  })
+                : null
+            }
           />
         )}
 

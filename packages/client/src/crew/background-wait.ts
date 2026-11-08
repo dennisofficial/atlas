@@ -14,6 +14,24 @@ const tally = (args: { count: number; noun: string }): string =>
 
 const WAITED_SEPARATOR = ' · '
 
+const instantOf = (iso: string): number | null => {
+  const at = Date.parse(iso)
+  return Number.isNaN(at) ? null : at
+}
+
+/**
+ * When the wait began: the instant the settled turn ended at, which survives a reload, a reopen on
+ * another client and a restarted app. A transcript with no timestamp to read falls back to `held`,
+ * the moment this client first watched the wait.
+ */
+export function waitStartedAt(args: {
+  settledAt?: string | undefined
+  held: number | null
+}): number | null {
+  if (args.settledAt === undefined) return args.held
+  return instantOf(args.settledAt) ?? args.held
+}
+
 /**
  * The elapsed reading is how long the harness has been idle on this work, not how long the work
  * has been running: a shell started three turns ago is only being waited on from the moment the

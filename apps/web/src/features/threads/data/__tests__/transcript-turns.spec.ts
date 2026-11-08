@@ -3,7 +3,14 @@ import { describe, expect, it } from 'bun:test'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
 import { ENoticeTone, ETranscriptKind, type TranscriptItem } from '../transcript-items'
-import { ESegmentKind, ETurnKind, turnsOf, type AgentTurn, type Segment } from '../transcript-turns'
+import {
+  ESegmentKind,
+  ETurnKind,
+  lastTurnEndedAt,
+  turnsOf,
+  type AgentTurn,
+  type Segment,
+} from '../transcript-turns'
 
 const user = (id: string, at?: string): TranscriptItem => ({
   kind: ETranscriptKind.User,
@@ -299,5 +306,26 @@ describe('fast turns', () => {
     })
     const agents = turns.flatMap((turn) => (turn.kind === ETurnKind.Agent ? [turn] : []))
     expect(agents.map((turn) => turn.fast ?? false)).toEqual([true, false])
+  })
+})
+
+describe('the instant a turn settled at', () => {
+  it('reads the last thing the turn said', () => {
+    const turns = turnsOf({ items: [user('u1', 't0'), agent('a1', 't1')], working: false })
+
+    expect(lastTurnEndedAt(turns)).toBe('t1')
+  })
+
+  it('ignores what a later turn of another kind put on the transcript', () => {
+    const turns = turnsOf({
+      items: [user('u1', 't0'), agent('a1', 't1'), notice('n1', 't2')],
+      working: false,
+    })
+
+    expect(lastTurnEndedAt(turns)).toBe('t1')
+  })
+
+  it('says nothing before any agent has answered', () => {
+    expect(lastTurnEndedAt(turnsOf({ items: [user('u1', 't0')], working: false }))).toBeUndefined()
   })
 })

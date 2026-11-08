@@ -4,8 +4,8 @@ import type { TurnSpend } from '../turn-spend'
 import { describe, expect, it } from 'bun:test'
 
 import { durableEntries } from '../durable-entries'
-import { EEntryKind } from '../transcript-model'
-import { turnsBySeq } from '../turn-rows'
+import { EAuthor, EEntryKind, type TranscriptEntry } from '../transcript-model'
+import { settledAtOf, turnsBySeq } from '../turn-rows'
 
 const THREAD = toThreadId('thread-1')
 
@@ -171,5 +171,44 @@ describe('a finished turn in the transcript', () => {
       EEntryKind.OperatorSaid,
       EEntryKind.TurnEnded,
     ])
+  })
+})
+
+const turnEnded = (endedAt: string): TranscriptEntry => ({
+  kind: EEntryKind.TurnEnded,
+  author: EAuthor.Model,
+  key: `turn-${endedAt}`,
+  text: '',
+  durationMs: 1_000,
+  outputTokens: 0,
+  endedAt,
+  interrupted: false,
+})
+
+const said = (text: string): TranscriptEntry => ({
+  kind: EEntryKind.ModelSaid,
+  author: EAuthor.Model,
+  key: text,
+  text,
+  streaming: false,
+  interrupted: false,
+  muted: false,
+})
+
+describe('the instant the last turn settled at', () => {
+  it('reads the latest turn that ended, whatever was drawn after it', () => {
+    expect(
+      settledAtOf([
+        turnEnded('2026-08-28T18:32:00.000Z'),
+        said('a notice-like row'),
+        turnEnded('2026-08-28T18:40:00.000Z'),
+        said('still running somewhere else'),
+      ]),
+    ).toBe('2026-08-28T18:40:00.000Z')
+  })
+
+  it('says nothing while no turn has ended', () => {
+    expect(settledAtOf([said('half an answer')])).toBeUndefined()
+    expect(settledAtOf([])).toBeUndefined()
   })
 })
