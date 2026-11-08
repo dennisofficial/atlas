@@ -65,7 +65,7 @@ describe('a thread born in the cloud', () => {
     }
   }, 60_000)
 
-  it('renders no relocation divider once attached — a born-placed thread never moved', async () => {
+  it('renders the born-cloud arrival divider once attached', async () => {
     const app = speaking()
     const bridge = fakeBridge()
     const mounted = await mountInCloud({ app, bridge })
@@ -73,7 +73,7 @@ describe('a thread born in the cloud', () => {
     try {
       await connected(mounted, bridge)
 
-      expect(await cleared(mounted, 'cloud sandbox')).not.toContain('cloud sandbox')
+      expect(await shown(mounted, 'cloud sandbox')).toContain('cloud sandbox')
     } finally {
       await mounted.done()
     }
