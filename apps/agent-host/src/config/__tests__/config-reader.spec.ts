@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { EEffort } from '@dltech/atlas-core'
+import { EEffort, toThreadId } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { VercelReconnectRequiredError } from '../../tokens/vercel-token-refresher'
@@ -11,6 +11,7 @@ import {
   seedOwner,
   seedSetting,
   seedSkill,
+  seedThread,
   seedVercel,
 } from './config-reader.fixture'
 
@@ -152,6 +153,39 @@ describe('ConfigReader', () => {
       fast: true,
       accountId: 'acct-oa',
       credential: { kind: 'api-key', apiKey: 'sk-oa' },
+    })
+  })
+})
+
+describe('ConfigReader thread model', () => {
+  it("runs the model the thread names over the user's default", async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await seedApiKeyAccount({ db, id: 'acct-gw', provider: 'gateway', apiKey: 'gw-key' })
+    await seedSetting({ db, scope: 'user', value: 'gateway/deepseek/deepseek-v3' })
+    await seedThread(db)
+    const config = await readerOver().read({ sessionId: 's-1', threadId: toThreadId('t-1') })
+    expect(config.model).toEqual({
+      configured: true,
+      ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
+      effort: EEffort.High,
+      fast: false,
+      accountId: 'acct-1',
+      credential: { kind: 'api-key', apiKey: 'sk-test' },
+    })
+  })
+
+  it('keeps the session model when the thread names a provider the user has no account for', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await seedSetting({ db, scope: 'user', value: 'anthropic/claude-sonnet-4-5' })
+    await seedThread(db, { modelRef: 'openai/gpt-5' })
+    const config = await readerOver().read({ sessionId: 's-1', threadId: toThreadId('t-1') })
+    expect(config.model).toMatchObject({
+      configured: true,
+      ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
     })
   })
 })

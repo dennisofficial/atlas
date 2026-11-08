@@ -81,8 +81,8 @@ export const createSessionRuntimeFactory = (
   args: SessionRuntimeFactoryArgs,
 ): SessionRuntimeFactory => {
   const launchDirectory = args.launchDirectory ?? WORKSPACE_PATH
-  return async ({ sessionId, epoch, signal }) => {
-    const config = await args.config.read({ sessionId })
+  return async ({ sessionId, threadId, epoch, signal }) => {
+    const config = await args.config.read({ sessionId, threadId })
     if (config.vercel.configured === false) {
       throw new SandboxNotConfiguredError(config.vercel.gap)
     }
