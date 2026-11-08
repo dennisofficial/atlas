@@ -38,8 +38,11 @@ import {
   transcript,
   TURN_DONE,
   TURN_STOPPED,
+  turnEnded,
   WIDTHS,
 } from './transcript-fixture'
+
+const settledNinetySecondsAgo = (): string => new Date(Date.now() - 90_500).toISOString()
 
 /**
  * OpenTUI's `<text>` accepts strings, text nodes and styled text — NOT nested `<text>` elements, so
@@ -577,6 +580,28 @@ describe('the pieces around the transcript mount', () => {
       await teardown(setup)
     }
   }, 30_000)
+
+  /**
+   * The regression this guards: a client that attached long after the turn settled said nought
+   * seconds and counted up from its own arrival, so a wait of ten minutes read as ten seconds.
+   */
+  it('times the wait from the turn the transcript settled at, not from when it mounted', async () => {
+    const settled = {
+      ...SETTLED,
+      entries: [...SETTLED.entries, turnEnded('turn-1', { endedAt: settledNinetySecondsAgo() })],
+    }
+    const frame = await frameOf(
+      transcript({
+        model: settled,
+        width: 80,
+        background: { subagents: 0, shells: 1 },
+        waitingSince: Date.now(),
+      }),
+      80,
+    )
+
+    expect(frame).toContain('1 shell to finish · 1m')
+  })
 
   it('says what it is waiting on with no origin to time it against', async () => {
     const frame = await frameOf(

@@ -269,3 +269,17 @@ export function turnsOf(args: { items: readonly TranscriptRow[]; working: boolea
   closeRun(args.working && (run.length > 0 || awaitingReply))
   return turns
 }
+
+const segmentEndedAt = (segment: Segment): string | undefined =>
+  segment.kind === ESegmentKind.Message
+    ? segment.item.at
+    : segment.kind === ESegmentKind.Work
+      ? segment.endedAt
+      : segment.at
+
+/** The instant the last turn settled at, which is where a wait on what it left running began. */
+export function lastTurnEndedAt(turns: readonly Turn[]): string | undefined {
+  const turn = turns.findLast((entry): entry is AgentTurn => entry.kind === ETurnKind.Agent)
+  if (turn === undefined) return undefined
+  return latestOf([...turn.segments.map(segmentEndedAt), ...turn.spawns.map((spawn) => spawn.at)])
+}

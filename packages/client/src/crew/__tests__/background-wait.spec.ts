@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { backgroundWaitLabel, isWaiting, NOTHING_IN_BACKGROUND } from '../background-wait'
+import {
+  backgroundWaitLabel,
+  isWaiting,
+  NOTHING_IN_BACKGROUND,
+  waitStartedAt,
+} from '../background-wait'
+
+const SETTLED_AT = '2026-11-08T10:00:00.000Z'
 
 describe('what a settled session says about the work it left running', () => {
   it('says nothing when nothing is left running', () => {
@@ -49,5 +56,21 @@ describe('how long the wait itself has run', () => {
     expect(isWaiting(NOTHING_IN_BACKGROUND)).toBe(false)
     expect(isWaiting({ subagents: 0, shells: 1 })).toBe(true)
     expect(isWaiting({ subagents: 1, shells: 0 })).toBe(true)
+  })
+})
+
+describe('where a client takes the wait from', () => {
+  it('times the wait from the instant the turn settled, whatever this client watched', () => {
+    const mountedLate = Date.parse(SETTLED_AT) + 600_000
+
+    expect(waitStartedAt({ settledAt: SETTLED_AT, held: mountedLate })).toBe(Date.parse(SETTLED_AT))
+  })
+
+  it('falls back to the origin this client held when the transcript carries no timestamp', () => {
+    expect(waitStartedAt({ held: 1_000 })).toBe(1_000)
+  })
+
+  it('falls back when the stored timestamp cannot be read', () => {
+    expect(waitStartedAt({ settledAt: 'yesterday', held: 1_000 })).toBe(1_000)
   })
 })

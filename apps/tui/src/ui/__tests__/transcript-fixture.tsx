@@ -93,7 +93,7 @@ const model = (
   ...rest,
 })
 
-const turnEnded = (key: string, over: Partial<TurnEndedEntry> = {}): TranscriptEntry => ({
+export const turnEnded = (key: string, over: Partial<TurnEndedEntry> = {}): TranscriptEntry => ({
   kind: EEntryKind.TurnEnded,
   author: EAuthor.Model,
   key,

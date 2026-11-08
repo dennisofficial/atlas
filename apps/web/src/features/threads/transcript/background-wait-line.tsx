@@ -3,7 +3,12 @@
 import { useEffect, useState } from 'react'
 import { LoaderCircleIcon } from 'lucide-react'
 
-import { backgroundWaitLabel, isWaiting, type BackgroundWork } from '@dltech/atlas-client/crew'
+import {
+  backgroundWaitLabel,
+  isWaiting,
+  waitStartedAt,
+  type BackgroundWork,
+} from '@dltech/atlas-client/crew'
 
 import { useNow } from '../data/use-now'
 
@@ -17,10 +22,17 @@ function useSince(active: boolean): number | null {
   return active ? since : null
 }
 
-export function BackgroundWaitLine({ work }: { work: BackgroundWork }) {
+export function BackgroundWaitLine({
+  work,
+  settledAt,
+}: {
+  work: BackgroundWork
+  settledAt?: string | undefined
+}) {
   const running = isWaiting(work)
-  const since = useSince(running)
+  const held = useSince(running)
   const now = useNow(running)
+  const since = waitStartedAt({ settledAt, held })
   const label = backgroundWaitLabel({
     work,
     ...(since === null ? {} : { waitedMs: Math.max(0, now - since) }),

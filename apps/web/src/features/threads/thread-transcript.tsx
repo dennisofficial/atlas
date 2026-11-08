@@ -17,7 +17,7 @@ import type { BootView } from './data/boot-view'
 import { anySpawnRunning, rosterModelsOf } from './data/transcript-agents'
 import { type TranscriptRow } from './data/transcript'
 import { isLiveTurn } from './data/is-live-turn'
-import { ETurnKind, turnsOf } from './data/transcript-turns'
+import { ETurnKind, lastTurnEndedAt, turnsOf } from './data/transcript-turns'
 import { useNow, useNowEvery } from './data/use-now'
 import { useDiagramRepair } from './data/use-diagram-repair'
 import { useRoster } from './data/use-roster'
@@ -104,6 +104,7 @@ export function ThreadTranscript({
   const repairDiagram = useDiagramRepair()
   const models = useMemo(() => rosterModelsOf(roster), [roster])
   const turns = useMemo(() => turnsOf({ items, working }), [items, working])
+  const settledAt = useMemo(() => lastTurnEndedAt(turns), [turns])
   const boot = useMemo(() => bootTimelineOf({ turns, pod, now: 0 }), [turns, pod])
   const userName = user?.name
   const actions = useMemo(
@@ -146,7 +147,7 @@ export function ThreadTranscript({
       )}
       {working || !isWaiting(background) ? null : (
         <ChatItem id="background-wait">
-          <BackgroundWaitLine work={background} />
+          <BackgroundWaitLine work={background} settledAt={settledAt} />
         </ChatItem>
       )}
     </Chat>

@@ -1,6 +1,7 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 
+import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
 import { mountWith } from './transcript-mount'
 import { installVirtuaViewport } from './virtua-viewport'
 
@@ -42,4 +43,32 @@ describe('what a settled session left running', () => {
 
     expect(waitLine()).toBeNull()
   })
+
+  /**
+   * The regression this guards: the reading was pinned to the moment the row mounted, so a thread
+   * opened ten minutes after its turn settled said nought seconds and counted up from there.
+   */
+  it('counts the wait from the instant the turn settled, not from this mount', async () => {
+    await mountWith({
+      rewind: null,
+      rows: settledNinetySecondsAgo(),
+      background: { subagents: 0, shells: 1 },
+    })
+
+    expect(waitLine()).toContain('1 shell to finish · 1m')
+  })
 })
+
+const settledNinetySecondsAgo = (): TranscriptRow[] => {
+  const settledAt = new Date(Date.now() - 90_500).toISOString()
+  return [
+    { kind: ETranscriptKind.User, id: 'evt_asked', text: 'go', at: settledAt },
+    {
+      kind: ETranscriptKind.Agent,
+      id: 'evt_answered',
+      text: 'done',
+      streaming: false,
+      at: settledAt,
+    },
+  ]
+}
