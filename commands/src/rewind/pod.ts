@@ -4,6 +4,7 @@ import { rewindArgs, rewindTargetOf } from './spec'
 
 export const rewindHandler: CommandHandler<unknown> = async ({
   args,
+  inboxId,
   visibleEvents,
   append,
   log,
@@ -13,7 +14,7 @@ export const rewindHandler: CommandHandler<unknown> = async ({
   const { toSeq } = parsed.data
   const target = rewindTargetOf({ events: visibleEvents(), toSeq })
   if (!target.allowed) return { kind: 'refused', reason: target.reason }
-  await append([{ type: 'history-rewound', toSeq: toSeq - 1, draft: target.draft }])
+  await append([{ type: 'history-rewound', toSeq: toSeq - 1, draft: target.draft, inboxId }])
   log(`rewound to before seq ${toSeq}`)
   return { kind: 'done' }
 }

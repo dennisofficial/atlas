@@ -1,5 +1,6 @@
 export * from './frames'
 export * from './api'
+export * from './command-row'
 export * from './media'
 export * from './ops'
 export * from './health'

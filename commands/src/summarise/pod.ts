@@ -44,6 +44,7 @@ const summaryFrom = async ({
 
 export const summariseHandler: CommandHandler<unknown> = async ({
   args,
+  inboxId,
   model,
   visibleEvents,
   append,
@@ -69,7 +70,14 @@ export const summariseHandler: CommandHandler<unknown> = async ({
   }
   if (summary.length === 0) return { kind: 'refused', reason: REFUSAL_EMPTY_SUMMARY }
   await append([
-    { type: 'history-summarised', fromSeq, throughSeq, anchor: ECompactionAnchor.Prefix, summary },
+    {
+      type: 'history-summarised',
+      fromSeq,
+      throughSeq,
+      anchor: ECompactionAnchor.Prefix,
+      summary,
+      inboxId,
+    },
   ])
   log(`summarised seq ${fromSeq} through ${throughSeq}`)
   return { kind: 'done' }

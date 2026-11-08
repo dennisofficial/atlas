@@ -10,6 +10,7 @@ const run = async (toSeq: number) => {
   const result = await rewindHandler({
     args: { toSeq },
     sessionId: 's1',
+    inboxId: 7,
     visibleEvents: () =>
       eventsFrom([said('first'), replied('one'), said('second'), replied('two')]),
     append: async (drafts) => {
@@ -24,7 +25,7 @@ describe('rewindHandler', () => {
   it('hides the picked message onward and keeps its text as the draft', async () => {
     const { appended, result } = await run(3)
     expect(result).toEqual({ kind: 'done' })
-    expect(appended).toEqual([{ type: 'history-rewound', toSeq: 2, draft: 'second' }])
+    expect(appended).toEqual([{ type: 'history-rewound', toSeq: 2, draft: 'second', inboxId: 7 }])
   })
 
   it('refuses without appending when the target is not a message', async () => {

@@ -45,7 +45,6 @@ describe('session summarise', () => {
 
   it('posts the summarise command with the through sequence only', async () => {
     const calls: unknown[] = []
-    const events = eventsOf([said('a'), replied, said('b')])
     const pending = await requestSummarise({
       api: {
         command: (input) => {
@@ -55,14 +54,13 @@ describe('session summarise', () => {
       },
       sessionId: 's1',
       throughSeq: 2,
-      events,
     })
     expect(calls).toEqual([{ sessionId: 's1', name: 'summarise', args: { throughSeq: 2 } }])
-    expect(pending).toEqual({ inboxId: 9, afterSeq: 3 })
+    expect(pending).toEqual({ inboxId: 9 })
   })
 
   describe('summariseOutcomeOf', () => {
-    const pending = { inboxId: 9, afterSeq: 3 }
+    const pending = { inboxId: 9 }
     const base: V2Body[] = [said('a'), replied, said('b')]
 
     it('waits until the log answers', () => {
@@ -79,13 +77,28 @@ describe('session summarise', () => {
       })
     })
 
-    it('applies once a later summary lands', () => {
+    it('does not apply for a summary that answers another command', () => {
+      const other: V2Body = {
+        type: 'history-summarised',
+        fromSeq: 1,
+        throughSeq: 2,
+        anchor: ECompactionAnchor.Prefix,
+        summary: 's',
+        inboxId: 4,
+      }
+      expect(summariseOutcomeOf({ events: eventsOf([...base, other]), pending })).toEqual({
+        kind: ESummariseOutcome.Waiting,
+      })
+    })
+
+    it('applies once the summary naming the command lands', () => {
       const summary: V2Body = {
         type: 'history-summarised',
         fromSeq: 1,
         throughSeq: 2,
         anchor: ECompactionAnchor.Prefix,
         summary: 's',
+        inboxId: 9,
       }
       expect(summariseOutcomeOf({ events: eventsOf([...base, summary]), pending })).toEqual({
         kind: ESummariseOutcome.Applied,

@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 
 import type { SummariseReach, V2Event } from '@dltech/atlas-core'
 
-import { SUMMARISE_WAITS_FOR_TURN } from '@/features/threads/data/summarise'
 import type { TranscriptSummarise } from '@/features/threads/data/use-summarise'
 import { messageOf } from '@/features/threads/data/use-send'
 
@@ -33,9 +32,8 @@ export type SessionSummarise = {
 export function useSessionSummarise(args: {
   sessionId: string
   events: readonly V2Event[]
-  working: boolean
 }): SessionSummarise {
-  const { sessionId, events, working } = args
+  const { sessionId, events } = args
   const [pick, setPick] = useState<SummariseReach | null>(null)
   const [pending, setPending] = useState<PendingSummarise | undefined>(undefined)
   const points = useMemo(() => summarisePointsOf(events), [events])
@@ -47,14 +45,10 @@ export function useSessionSummarise(args: {
 
   const handleSummarise = useCallback(
     (eventId: string) => {
-      if (working) {
-        toast.warning(SUMMARISE_WAITS_FOR_TURN)
-        return
-      }
       const reach = points.get(eventId)
       if (reach !== undefined) setPick(reach)
     },
-    [points, working],
+    [points],
   )
   const transcript = useMemo(
     () => ({ points, onSummarise: handleSummarise }),
@@ -64,7 +58,7 @@ export function useSessionSummarise(args: {
   const handleConfirm = () => {
     if (pick === null) return
     setPick(null)
-    requestSummarise({ api: sessionsApi, sessionId, throughSeq: pick.throughSeq, events }).then(
+    requestSummarise({ api: sessionsApi, sessionId, throughSeq: pick.throughSeq }).then(
       setPending,
       (failure) => toast.error(messageOf(failure)),
     )

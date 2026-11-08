@@ -5,6 +5,7 @@ import {
   inboxMessageSchema,
   QUEUED_MESSAGES_LIMIT,
   type InboxMessage,
+  ECommandState,
   type SessionCommandRow,
   type SessionQueuedMessage,
 } from '@dltech/atlas-protocol'
@@ -40,6 +41,7 @@ export const commandsOf = (inbox: readonly InboxEntry[]): SessionCommandRow[] =>
       inboxId: entry.inboxId,
       name: entry.kind.slice(COMMAND_INBOX_PREFIX.length),
       postedAt: entry.postedAt,
+      state: ECommandState.Queued,
     }))
     .slice(0, QUEUED_MESSAGES_LIMIT)
 

@@ -30,6 +30,7 @@ const run = async ({
   const result = await summariseHandler({
     args: { throughSeq },
     sessionId: 's1',
+    inboxId: 7,
     model,
     visibleEvents: conversation,
     append: async (drafts) => {
@@ -52,6 +53,7 @@ describe('summariseHandler', () => {
         throughSeq: 2,
         anchor: ECompactionAnchor.Prefix,
         summary: 'the notes',
+        inboxId: 7,
       },
     ])
     const request = model.requests[0]
@@ -94,6 +96,7 @@ describe('summariseHandler', () => {
     const result = await summariseHandler({
       args: { throughSeq: 'x' },
       sessionId: 's1',
+      inboxId: 7,
       visibleEvents: conversation,
       append: async () => undefined,
       log: () => undefined,
