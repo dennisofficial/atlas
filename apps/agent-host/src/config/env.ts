@@ -14,6 +14,7 @@ export type AgentHostEnv = {
   daemonSecret: string
   secretsEncryptionKey: string
   apiOrigin: string
+  agentHostToken: string
   vercelOauth: { clientId: string; clientSecret: string } | null
   mediaBlobToken: string | null
   maxSessions: number
@@ -86,6 +87,7 @@ export const readAgentHostEnv = (
   const daemonSecret = take(env, 'DAEMON_SECRET')
   const secretsEncryptionKey = take(env, 'SECRETS_ENCRYPTION_KEY')
   const apiOrigin = take(env, 'ATLAS_API_ORIGIN')
+  const agentHostToken = take(env, 'AGENT_HOST_TOKEN')
   const required: ReadonlyArray<[string, string | undefined]> = [
     ['DATABASE_URL', databaseUrl],
     ['DATABASE_DIRECT_URL', databaseDirectUrl],
@@ -93,6 +95,7 @@ export const readAgentHostEnv = (
     ['DAEMON_SECRET', daemonSecret],
     ['SECRETS_ENCRYPTION_KEY', secretsEncryptionKey],
     ['ATLAS_API_ORIGIN', apiOrigin],
+    ['AGENT_HOST_TOKEN', agentHostToken],
   ]
   const missing = required.filter((pair) => pair[1] === undefined).map((pair) => pair[0])
   if (missing.length > 0) throw new AgentHostEnvError(missing)
@@ -103,6 +106,7 @@ export const readAgentHostEnv = (
     daemonSecret: daemonSecret as string,
     secretsEncryptionKey: secretsEncryptionKey as string,
     apiOrigin: apiOrigin as string,
+    agentHostToken: agentHostToken as string,
     vercelOauth: vercelOauthOf(env),
     mediaBlobToken: take(env, 'BLOB_READ_WRITE_TOKEN') ?? null,
     maxSessions: parseMaxSessions(take(env, 'AGENT_HOST_MAX_SESSIONS')),

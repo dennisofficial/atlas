@@ -11,8 +11,13 @@ import type {
 import type { AppendHook, ControlPlane } from '@dltech/atlas-control'
 import type { CallOp, CallResult, DaemonEventFrame } from '@dltech/atlas-protocol'
 
+export type PodControl = {
+  exposePort(args: { port: number }): Promise<{ url: string; tunnelToken: string }>
+}
+
 export type PluginPodContext = {
   sessionId: string
+  control: PodControl
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   events(): readonly V2Event[]
   call(

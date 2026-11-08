@@ -10,6 +10,7 @@ export interface ISandboxEnv {
   SANDBOX_MAX_ACTIVE_PER_USER: number
   SANDBOX_IMAGE: string
   ATLAS_TELEMETRY_PEPPER?: string
+  AGENT_HOST_TOKEN?: string
 }
 
 export const sandboxEnvSchema = {
@@ -22,4 +23,5 @@ export const sandboxEnvSchema = {
   SANDBOX_MAX_ACTIVE_PER_USER: Joi.number().integer().min(1).default(3),
   SANDBOX_IMAGE: Joi.string().default('atlas-sandbox:latest'),
   ATLAS_TELEMETRY_PEPPER: Joi.string().optional(),
+  AGENT_HOST_TOKEN: Joi.string().optional(),
 }

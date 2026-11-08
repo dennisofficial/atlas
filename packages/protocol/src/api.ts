@@ -308,3 +308,16 @@ export type SessionQueuedMessage = z.infer<typeof sessionQueuedMessageSchema>
 export type SessionWithdrawOutput = z.infer<typeof sessionWithdrawOutputSchema>
 export type SessionArchiveOutput = z.infer<typeof sessionArchiveOutputSchema>
 export type SessionStatusOutput = z.infer<typeof sessionStatusOutputSchema>
+
+export const hostExposePortInputSchema = z.strictObject({
+  threadId: z.string().min(1),
+  port: z.number().int().min(1).max(65_535),
+})
+
+export const hostExposePortOutputSchema = z.strictObject({
+  url: z.string().min(1),
+  tunnelToken: z.string().min(1),
+})
+
+export type HostExposePortInput = z.infer<typeof hostExposePortInputSchema>
+export type HostExposePortOutput = z.infer<typeof hostExposePortOutputSchema>

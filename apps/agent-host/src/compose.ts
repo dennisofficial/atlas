@@ -1,4 +1,5 @@
 import { RandomIds } from './runtime/random-ids'
+import { podControlClientOf } from './control/client'
 import { composeCommands } from '@dltech/atlas-commands'
 import { SessionHolder, type HostPresence } from '@dltech/atlas-host'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
@@ -68,6 +69,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     maxSessions: args.env.maxSessions,
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
+    control: podControlClientOf({ apiOrigin: args.env.apiOrigin, token: args.env.agentHostToken }),
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })

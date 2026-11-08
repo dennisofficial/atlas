@@ -9,6 +9,7 @@ const complete: Record<string, string> = {
   DAEMON_SECRET: 'secret',
   SECRETS_ENCRYPTION_KEY: 'k'.repeat(64),
   ATLAS_API_ORIGIN: 'https://api.byatlas.io',
+  AGENT_HOST_TOKEN: 'host-token',
 }
 
 describe('readAgentHostEnv', () => {
@@ -19,6 +20,7 @@ describe('readAgentHostEnv', () => {
     expect(env.daemonSecret).toBe('secret')
     expect(env.secretsEncryptionKey).toBe('k'.repeat(64))
     expect(env.apiOrigin).toBe('https://api.byatlas.io')
+    expect(env.agentHostToken).toBe('host-token')
     expect(env.vercelOauth).toBeNull()
     expect(env.mediaBlobToken).toBeNull()
     expect(env.maxSessions).toBe(25)
@@ -84,6 +86,7 @@ describe('readAgentHostEnv', () => {
       'DAEMON_SECRET',
       'SECRETS_ENCRYPTION_KEY',
       'ATLAS_API_ORIGIN',
+      'AGENT_HOST_TOKEN',
     ])
   })
 

@@ -35,6 +35,7 @@ export {
   DEFAULT_SANDBOX_COMMANDS,
 } from './calls/ports/process'
 export { SessionHolder, type SessionHolderArgs } from './holder/session-holder'
+export { podControlOf, type PodControlClient } from './holder/pod-control'
 export type {
   HostBus,
   HostPresence,

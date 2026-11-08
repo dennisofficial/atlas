@@ -36,6 +36,7 @@ import { ProjectsModule } from './cloud/projects/projects.module'
 import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
 import { ComposerDraftsModule } from './cloud/composer-drafts/composer-drafts.module'
 import { ComposerUploadsModule } from './cloud/composer-uploads/composer-uploads.module'
+import { HostModule } from './platform/host/host.module'
 import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
 import { SandboxCredentialsModule } from './cloud/sandbox-credentials/sandbox-credentials.module'
 import { SandboxProvisioningModule } from './cloud/sandbox-provisioning/sandbox-provisioning.module'
@@ -101,6 +102,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     ComposerDraftsModule,
     SessionsModule,
     SandboxesModule,
+    HostModule,
     GithubRealtimeModule,
     ScopedConfigModule,
     SandboxCredentialsModule,
