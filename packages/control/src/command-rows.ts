@@ -1,5 +1,5 @@
 import { COMMAND_INBOX_PREFIX } from '@dltech/atlas-commands'
-import { EInputConsumed } from '@dltech/atlas-core'
+import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
 import {
   ECommandState,
   QUEUED_MESSAGES_LIMIT,
