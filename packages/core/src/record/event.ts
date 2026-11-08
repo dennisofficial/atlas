@@ -39,13 +39,19 @@ export enum EInputConsumed {
 }
 
 export type RecordBody =
-  | { type: 'history-rewound'; toSeq: number; draft?: string | undefined }
+  | {
+      type: 'history-rewound'
+      toSeq: number
+      draft?: string | undefined
+      inboxId?: number | undefined
+    }
   | {
       type: 'history-summarised'
       fromSeq: number
       throughSeq: number
       anchor: ECompactionAnchor
       summary: string
+      inboxId?: number | undefined
     }
   | { type: 'input-consumed'; inboxId: number; consumed?: EInputConsumed | undefined }
   | { type: 'input-refused'; inboxId: number; reason: string }
@@ -96,6 +102,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     type: z.literal('history-rewound'),
     toSeq: z.number().int().min(0),
     draft: z.string().optional(),
+    inboxId: z.number().int().min(1).optional(),
   }),
   z.object({
     type: z.literal('history-summarised'),
@@ -103,6 +110,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     throughSeq: seqSchema,
     anchor: z.enum(ECompactionAnchor),
     summary: z.string(),
+    inboxId: z.number().int().min(1).optional(),
   }),
   z.object({
     type: z.literal('input-consumed'),

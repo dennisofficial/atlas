@@ -56,7 +56,7 @@ describe('SessionHolder summarise command', () => {
     const rig = await rigWithConversation({ text: 'the notes' })
     const through = (await secondMessageSeq(rig)) - 1
     const first = (await eventsOf(rig)).find((event) => event.type === 'user-said')
-    await postSummarise(rig, through)
+    const posted = await postSummarise(rig, through)
     expect(
       await flushUntil({ check: async () => (await typesOf(rig)).includes('history-summarised') }),
     ).toBe(true)
@@ -67,6 +67,7 @@ describe('SessionHolder summarise command', () => {
       throughSeq: through,
       anchor: ECompactionAnchor.Prefix,
       summary: 'the notes',
+      inboxId: posted.inboxId,
     })
     const consumed = events.findLast(
       (event) => event.type === 'input-consumed' && event.consumed === EInputConsumed.Command,

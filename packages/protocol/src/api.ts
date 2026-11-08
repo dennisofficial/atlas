@@ -6,6 +6,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { sessionCommandRowSchema } from './command-row'
 import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
 
 export const sessionCreateInputSchema = z.strictObject({
@@ -156,12 +157,6 @@ export const sessionQueuedMessageSchema = z.strictObject({
   uploads: z.array(saidUploadSchema).optional(),
 })
 
-export const sessionCommandRowSchema = z.strictObject({
-  inboxId: z.number().int().min(1),
-  name: z.string().min(1),
-  postedAt: z.string().min(1),
-})
-
 export const EWithdrawRefusal = {
   AlreadyConsumed: 'already-consumed',
   Unknown: 'unknown',
@@ -294,7 +289,6 @@ export type SessionEventsOutput = z.infer<typeof sessionEventsOutputSchema>
 export type SessionBlobOutput = z.infer<typeof sessionBlobOutputSchema>
 export type SessionLeaseView = z.infer<typeof sessionLeaseSchema>
 export type SessionQueuedMessage = z.infer<typeof sessionQueuedMessageSchema>
-export type SessionCommandRow = z.infer<typeof sessionCommandRowSchema>
 export type SessionWithdrawOutput = z.infer<typeof sessionWithdrawOutputSchema>
 export type SessionArchiveOutput = z.infer<typeof sessionArchiveOutputSchema>
 export type SessionStatusOutput = z.infer<typeof sessionStatusOutputSchema>

@@ -38,6 +38,7 @@ import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionSummarise } from './data/use-session-summarise'
 import { useSessionStream } from './data/use-session-stream'
+import { CommandRows } from './command-rows'
 import { QueuedDock } from './queued-dock'
 import { SessionContext } from './session-context'
 import { SessionHeader } from './session-header'
@@ -133,7 +134,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       ? undefined
       : rewindOutcomeOf({ events: snapshot.events, pending: pendingRewind })
 
-  const summarise = useSessionSummarise({ sessionId, events: snapshot.events, working })
+  const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
 
   const rewoundDraft = rewoundDraftOf(snapshot.events)
 
@@ -208,6 +209,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             </p>
           )}
           <SummariseDialog {...summarise.dialog} />
+          <CommandRows rows={snapshot.status?.commands} />
           <QueuedDock dock={queuedDock} />
           <ThreadComposer
             value={draft}

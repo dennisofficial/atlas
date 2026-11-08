@@ -3,6 +3,7 @@ import type { Event, EventDraft, ModelPort, RecordBody } from '@dltech/atlas-cor
 export type CommandContext<Args> = {
   args: Args
   sessionId: string
+  inboxId: number
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
   append(drafts: readonly (EventDraft | RecordBody)[]): Promise<void>

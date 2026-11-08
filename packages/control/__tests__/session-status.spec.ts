@@ -9,6 +9,8 @@ import {
   type V2Body,
 } from '@dltech/atlas-core'
 
+import { ECommandState } from '@dltech/atlas-protocol'
+
 import { ControlPlane, readSessionStatus } from '../src'
 import type { ControlTx } from '../src/port'
 import { InMemoryControlStore } from '../src/testing/memory'
@@ -131,7 +133,7 @@ describe('readSessionStatus', () => {
     expect(listed?.[1]).not.toHaveProperty('uploads')
   })
 
-  it('lists a posted command beside queued and drops it once consumed', async () => {
+  it('lists a posted command beside queued and keeps it as running once consumed', async () => {
     const { plane, append, read } = await setup()
     const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
     await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
@@ -147,7 +149,9 @@ describe('readSessionStatus', () => {
     })
 
     const listed = (await read()).value
-    expect(listed.commands).toEqual([{ inboxId: command.inboxId, name: 'rename', postedAt: NOW }])
+    expect(listed.commands).toEqual([
+      { inboxId: command.inboxId, name: 'rename', postedAt: NOW, state: ECommandState.Queued },
+    ])
     expect(listed.queued?.map((entry) => entry.inboxId)).toEqual([message.inboxId])
 
     await append({
@@ -156,7 +160,9 @@ describe('readSessionStatus', () => {
         { type: 'input-consumed', inboxId: command.inboxId, consumed: EInputConsumed.Command },
       ],
     })
-    expect((await read()).value.commands).toBeUndefined()
+    expect((await read()).value.commands).toEqual([
+      { inboxId: command.inboxId, name: 'rename', postedAt: NOW, state: ECommandState.Running },
+    ])
   })
 
   it('omits queued when nothing is pending', async () => {

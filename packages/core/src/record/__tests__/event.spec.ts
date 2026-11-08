@@ -87,6 +87,26 @@ describe('v2EventSchema', () => {
     expect(v2EventSchema.safeParse(dispatched).success).toBe(true)
   })
 
+  it('round-trips inboxId on outcomes and still decodes them without one', () => {
+    const [plain] = mint({ count: 1 })
+    const rewound = { ...plain, type: 'history-rewound', toSeq: 1 }
+    delete (rewound as { text?: string }).text
+    const summarised = {
+      ...plain,
+      type: 'history-summarised',
+      fromSeq: 1,
+      throughSeq: 2,
+      anchor: 'prefix',
+      summary: 's',
+    }
+    delete (summarised as { text?: string }).text
+    for (const body of [rewound, summarised]) {
+      expect(v2EventSchema.safeParse(body).success).toBe(true)
+      expect(v2EventSchema.parse({ ...body, inboxId: 5 })).toMatchObject({ inboxId: 5 })
+      expect(v2EventSchema.safeParse({ ...body, inboxId: 0 }).success).toBe(false)
+    }
+  })
+
   it('accepts an input-refused body, rejects a malformed one and keeps it record-only', () => {
     const [plain] = mint({ count: 1 })
     const refused = { ...plain, type: 'input-refused', inboxId: 4, reason: 'not now' }

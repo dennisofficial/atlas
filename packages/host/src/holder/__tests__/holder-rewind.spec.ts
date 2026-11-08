@@ -48,13 +48,17 @@ describe('SessionHolder rewind command', () => {
     const said = (await eventsOf(rig)).filter((event) => event.type === 'user-said')
     const target = said[1]
     if (target === undefined) throw new Error('no second message')
-    await postRewind(rig, JSON.stringify({ toSeq: target.seq }))
+    const posted = await postRewind(rig, JSON.stringify({ toSeq: target.seq }))
     expect(
       await flushUntil({ check: async () => (await typesOf(rig)).includes('history-rewound') }),
     ).toBe(true)
     const events = await eventsOf(rig)
     const rewound = events.find((event) => event.type === 'history-rewound')
-    expect(rewound).toMatchObject({ toSeq: target.seq - 1, draft: 'second' })
+    expect(rewound).toMatchObject({
+      toSeq: target.seq - 1,
+      draft: 'second',
+      inboxId: posted.inboxId,
+    })
     const consumed = events.findLast(
       (event) => event.type === 'input-consumed' && event.consumed === EInputConsumed.Command,
     )

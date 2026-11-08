@@ -9,11 +9,12 @@ import {
   type SessionViewState,
   type SessionViewValue,
 } from '@dltech/atlas-core'
-import type { SessionStatusOutput } from '@dltech/atlas-protocol'
+import type { SessionCommandRow, SessionStatusOutput } from '@dltech/atlas-protocol'
 
 import { UnknownThreadError } from './errors'
 import type { LeaseOps } from './lease-ops'
 import type { ControlStorePort, ControlTx, PrChecks, PrStateRow } from './port'
+import { runningCommandsIn } from './command-rows'
 import { commandsOf, queuedOf } from './queued-messages'
 import { readEventsIn } from './read-events'
 import { ensureSessionViewIn, usableState, VIEW_TAIL_LIMIT } from './session-view-ops'
@@ -137,10 +138,14 @@ export const pullRequestsWithState = async (args: {
   })
 }
 
-export const statusOutputOf = (live: LiveView): SessionStatusOutput => {
+export const statusOutputOf = (args: {
+  live: LiveView
+  running: readonly SessionCommandRow[]
+}): SessionStatusOutput => {
+  const { live } = args
   const { status } = live.value
   const queued = queuedOf(live.pending)
-  const commands = commandsOf(live.pending)
+  const commands = [...args.running, ...commandsOf(live.pending)]
   return {
     state: status.state,
     ...(status.reason === undefined ? {} : { reason: status.reason }),
@@ -168,7 +173,10 @@ export const readSessionViewIn = async (args: {
     at: state.at,
     value: {
       ...live.value,
-      status: statusOutputOf(live),
+      status: statusOutputOf({
+        live,
+        running: await runningCommandsIn({ tx, sessionId, threadId }),
+      }),
       pullRequests: await pullRequestsWithState({ tx, links: live.value.pullRequests }),
     },
   }

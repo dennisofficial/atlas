@@ -63,6 +63,7 @@ export class CommandIntake {
     const context: CommandContext<unknown> = {
       args: parsed.data,
       sessionId: this.args.sessionId,
+      inboxId,
       model: this.args.model,
       visibleEvents: this.args.visibleEvents,
       append: this.args.append,

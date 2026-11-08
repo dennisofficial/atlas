@@ -7,7 +7,7 @@ export type SummariseApi = {
   command(input: SessionCommandInput): Promise<SessionCommandOutput>
 }
 
-export type PendingSummarise = { inboxId: number; afterSeq: number }
+export type PendingSummarise = { inboxId: number }
 
 export enum ESummariseOutcome {
   Waiting = 'waiting',
@@ -43,7 +43,7 @@ export const summariseOutcomeOf = ({
     return { kind: ESummariseOutcome.Refused, reason: refused.reason }
   }
   const applied = events.some(
-    (event) => event.type === 'history-summarised' && event.seq > pending.afterSeq,
+    (event) => event.type === 'history-summarised' && event.inboxId === pending.inboxId,
   )
   return applied ? { kind: ESummariseOutcome.Applied } : { kind: ESummariseOutcome.Waiting }
 }
@@ -52,14 +52,12 @@ export const requestSummarise = async ({
   api,
   sessionId,
   throughSeq,
-  events,
 }: {
   api: SummariseApi
   sessionId: string
   throughSeq: number
-  events: readonly V2Event[]
 }): Promise<PendingSummarise> => {
   const { inboxId } = await api.command({ sessionId, name: 'summarise', args: { throughSeq } })
   if (inboxId === undefined) throw new Error('summarise was not queued')
-  return { inboxId, afterSeq: events.at(-1)?.seq ?? 0 }
+  return { inboxId }
 }
