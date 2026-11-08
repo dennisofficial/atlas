@@ -69,7 +69,12 @@ export const sessionViewFixture = {
 } satisfies SessionViewOutput
 
 export const streamServerFixtures = {
-  ready: { type: 'ready', v: STREAM_PROTOCOL_VERSION, connectionId: 'conn-1' },
+  ready: {
+    type: 'ready',
+    v: STREAM_PROTOCOL_VERSION,
+    connectionId: 'conn-1',
+    eventTypes: ['assistant-said', 'user-said'],
+  },
   readyV1: { type: 'ready', v: STREAM_PROTOCOL_MIN_VERSION, connectionId: 'conn-1' },
   events: {
     type: 'events',

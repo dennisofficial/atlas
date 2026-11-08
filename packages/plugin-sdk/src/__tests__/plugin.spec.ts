@@ -8,7 +8,15 @@ import {
 } from '@dltech/atlas-core'
 import type { V2Body, V2Event } from '@dltech/atlas-core'
 
-import { composePlugins, definePlugin, EMPTY_CONTROL, EMPTY_POD, MissingPluginSlotError } from '..'
+import {
+  composePlugins,
+  definePlugin,
+  EMPTY_CONTROL,
+  EMPTY_POD,
+  eventSchemaOf,
+  eventTypesOf,
+  MissingPluginSlotError,
+} from '..'
 import type { Plugin, PluginPodContext, PodSlot } from '..'
 import {
   createFixturePlugin,
@@ -71,6 +79,29 @@ describe('plugin event registry', () => {
     )
     const labels = events.reduce(probeLabelsView.fold, probeLabelsView.initial)
     expect(labels).toEqual(['first'])
+  })
+})
+
+describe('eventTypesOf', () => {
+  it('names every body type a composed decoder reads', () => {
+    const types = eventTypesOf([fixturePlugin])
+    expect(types).toContain('user-said')
+    expect(types).toContain('history-rewound')
+    expect(types).toContain('probe-observed')
+    expect([...types]).toEqual([...types].sort())
+  })
+
+  it('drops the plugin types when no plugin registers one', () => {
+    expect(eventTypesOf([])).not.toContain('probe-observed')
+    expect(eventTypesOf([])).toContain('user-said')
+  })
+
+  it('agrees with the decoder it belongs to', () => {
+    const schema = eventSchemaOf([fixturePlugin])
+    for (const wire of mintWire([observed, { type: 'user-said', text: 'x' }])) {
+      const parsed = schema.safeParse(wire)
+      expect(parsed.success).toBe(true)
+    }
   })
 })
 

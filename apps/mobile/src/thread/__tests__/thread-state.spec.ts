@@ -33,6 +33,17 @@ const wireOf = (event: Event): WireEvent => {
 const applied = (actions: readonly ThreadAction[]): ThreadState =>
   actions.reduce(threadReducer, INITIAL_THREAD_STATE)
 
+const unreadableRow: WireEvent = {
+  id: 'evt-future',
+  seq: 99,
+  threadId: 'thread-1',
+  runId: 'run-1',
+  depth: 0,
+  at: '2026-11-08T20:00:05.000Z',
+  type: 'from-the-future',
+  body: JSON.stringify({ type: 'from-the-future' }),
+}
+
 const said = log([{ type: 'user-said', text: 'hello there' }])
 
 const seedOf = (events: readonly Event[]): ThreadAction => ({
@@ -52,6 +63,35 @@ describe('threadReducer', () => {
     expect(state.failed).toBe(false)
     expect(state.title).toBe('A session')
     expect(state.events).toHaveLength(1)
+  })
+
+  it('is not stale when every row of the page is readable', () => {
+    expect(applied([seedOf(said)]).stale).toBe(false)
+  })
+
+  it('flips stale when the seed holds a row this app cannot read', () => {
+    const state = applied([
+      { type: 'seed', events: [...said.map(wireOf), unreadableRow], title: null, working: false },
+    ])
+    expect(state.stale).toBe(true)
+  })
+
+  it('flips stale on a catch-up page and stays stale after a readable one', () => {
+    const state = applied([
+      seedOf(said),
+      { type: 'events', events: [unreadableRow] },
+      { type: 'events', events: said.map(wireOf) },
+    ])
+    expect(state.stale).toBe(true)
+  })
+
+  it('recomputes stale from the full read on replace', () => {
+    const state = applied([
+      seedOf(said),
+      { type: 'events', events: [unreadableRow] },
+      { type: 'replace', events: said.map(wireOf) },
+    ])
+    expect(state.stale).toBe(false)
   })
 
   it('merges catch-up events by seq without duplicates', () => {

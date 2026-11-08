@@ -33,6 +33,7 @@ export type StreamConnectionArgs = {
   scheduler: StreamScheduler
   networkSignal?: StreamNetworkSignal | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
+  knownEventTypes?: ReadonlySet<string> | undefined
 }
 
 export type FollowedSession = SessionFollower & { close(): void }
@@ -153,6 +154,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     if (message.type === 'ready') {
       for (const list of lists.values()) sendMessage(list.subscribeMessage())
       for (const entry of followed.values()) {
+        entry.follower.setServerEventTypes(message.eventTypes)
         entry.follower.markResubscribing()
         subscribeWhenHydrated(entry)
       }
@@ -169,8 +171,10 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     const entry = followed.get(message.id)
     if (entry === undefined) return
     entry.follower.handleMessage(message)
-    if (entry.follower.getSnapshot().connection === ESessionConnection.Outdated)
+    const connection = entry.follower.getSnapshot().connection
+    if (connection === ESessionConnection.Outdated || connection === ESessionConnection.Stale) {
       stopFollowing(entry)
+    }
   }
 
   const run = (effect: ConnectionEffect): void => {
@@ -220,6 +224,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
       scheduler,
       onResnap: () => sendMessage({ type: 'resnap', id }),
       eventSchema: args.eventSchema,
+      knownEventTypes: args.knownEventTypes,
     })
     const entry: Followed = { id, sessionId, follower }
     followed.set(id, entry)

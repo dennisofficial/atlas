@@ -164,6 +164,36 @@ describe('the session follower', () => {
     }
   })
 
+  it('reads an unreadable event as stale when the host knows types this client does not', () => {
+    const { follower } = setup()
+    const warned = console.warn
+    console.warn = () => undefined
+    try {
+      follower.setServerEventTypes(['from-the-future', 'user-said'])
+      follower.setConnection(EStreamConnectionState.Open)
+      const events = mintUserEvents({ count: 2 })
+      follower.handleMessage({
+        type: 'events',
+        id: 's1',
+        events: [{ ...events[0] }, { seq: 2, type: 'from-the-future' }],
+        head: headOf(events),
+        live: true,
+      })
+      expect(follower.getSnapshot().connection).toBe(ESessionConnection.Stale)
+    } finally {
+      console.warn = warned
+    }
+  })
+
+  it('stays live when the host knows only types this client can read', () => {
+    const { follower } = setup()
+    follower.setServerEventTypes(['user-said'])
+    follower.setConnection(EStreamConnectionState.Open)
+    const events = mintUserEvents({ count: 2 })
+    follower.handleMessage(eventsMessage({ id: 's1', events, live: true }))
+    expect(follower.getSnapshot().connection).toBe(ESessionConnection.Live)
+  })
+
   it('goes back to catching up and drops the open overlay when it resubscribes', () => {
     const { follower } = setup()
     const key = { runId: 'run-1', step: 1, attempt: 0 }

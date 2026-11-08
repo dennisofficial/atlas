@@ -42,6 +42,7 @@ export const streamServerMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('ready'),
     v: z.number().int().min(STREAM_PROTOCOL_MIN_VERSION),
     connectionId: z.string().min(1),
+    eventTypes: z.array(z.string().min(1)).optional(),
   }),
   z.strictObject({
     type: z.literal('events'),

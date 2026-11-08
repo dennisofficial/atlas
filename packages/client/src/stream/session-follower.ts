@@ -1,9 +1,4 @@
-import {
-  ESessionStatus,
-  EWorkspaceStep,
-  EWorkspaceStepState,
-  type V2Event,
-} from '@dltech/atlas-core'
+import { EWorkspaceStep, EWorkspaceStepState, type V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
 import {
   isSetupOutputCallId,
@@ -29,6 +24,7 @@ import {
   type SessionCursor,
   type SessionWindow,
 } from './session-window'
+import { defaultKnownEventTypes } from './known-event-types'
 import type { StreamScheduler } from './stream-ports'
 
 const SAVE_INTERVAL_MS = 1_000
@@ -42,6 +38,7 @@ export enum ESessionConnection {
   CatchingUp = 'catching-up',
   Reconnecting = 'reconnecting',
   Offline = 'offline',
+  Stale = 'stale',
   Outdated = 'outdated',
 }
 
@@ -61,6 +58,7 @@ export type SessionFollower = {
   subscribe(listener: () => void): () => void
   handleMessage(message: StreamServerMessage): void
   setConnection(phase: EStreamConnectionState): void
+  setServerEventTypes(types: readonly string[] | undefined): void
   markResubscribing(): void
   cursor(): SessionCursor | undefined
   hydrated: Promise<void>
@@ -72,6 +70,7 @@ export type SessionFollowerArgs = {
   scheduler: StreamScheduler
   onResnap(): void
   eventSchema?: z.ZodType<V2Event> | undefined
+  knownEventTypes?: ReadonlySet<string> | undefined
 }
 
 type Inner = {
@@ -83,11 +82,16 @@ type Inner = {
   phase: EStreamConnectionState
   live: boolean
   error: EStreamErrorCode | undefined
-  outdated: boolean
+  unreadable: boolean
+  serverAhead: boolean
 }
 
-const connectionOf = (inner: Pick<Inner, 'phase' | 'live' | 'outdated'>): ESessionConnection => {
-  if (inner.outdated) return ESessionConnection.Outdated
+const connectionOf = (
+  inner: Pick<Inner, 'phase' | 'live' | 'unreadable' | 'serverAhead'>,
+): ESessionConnection => {
+  if (inner.unreadable) {
+    return inner.serverAhead ? ESessionConnection.Stale : ESessionConnection.Outdated
+  }
   if (inner.phase === EStreamConnectionState.Closed) return ESessionConnection.Offline
   if (inner.phase !== EStreamConnectionState.Open) return ESessionConnection.Reconnecting
   return inner.live ? ESessionConnection.Live : ESessionConnection.CatchingUp
@@ -117,6 +121,7 @@ const acceptsView = (args: { inner: Inner; at: number }): boolean =>
 
 export const createSessionFollower = (args: SessionFollowerArgs): SessionFollower => {
   const { sessionId, cache, scheduler } = args
+  const knownEventTypes = args.knownEventTypes ?? defaultKnownEventTypes
   let inner: Inner = {
     window: EMPTY_WINDOW,
     overlay: EMPTY_OVERLAY_STATE,
@@ -126,7 +131,8 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     phase: EStreamConnectionState.Connecting,
     live: false,
     error: undefined,
-    outdated: false,
+    unreadable: false,
+    serverAhead: false,
   }
   let snapshot = snapshotOf(inner)
   const listeners = new Set<() => void>()
@@ -166,7 +172,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       console.warn(
         `session ${sessionId}: stopping at an event this client cannot read (seq ${unreadable.seq ?? 'unknown'}): ${unreadable.issue}`,
       )
-      commit({ ...inner, window, overlay, live: false, error: undefined, outdated: true })
+      commit({ ...inner, window, overlay, live: false, error: undefined, unreadable: true })
       saveThrottled()
       return
     }
@@ -211,7 +217,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   }
 
   const handleMessage = (message: StreamServerMessage): void => {
-    if (inner.outdated) return
+    if (inner.unreadable) return
     if (message.type === 'events') handleEvents(message)
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'error') commit({ ...inner, error: message.code })
@@ -269,6 +275,11 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     setConnection: (phase) => {
       if (phase === inner.phase) return
       commit({ ...inner, phase, live: false })
+    },
+    setServerEventTypes: (types) => {
+      const serverAhead = types?.some((type) => !knownEventTypes.has(type)) ?? false
+      if (serverAhead === inner.serverAhead) return
+      commit({ ...inner, serverAhead })
     },
     markResubscribing: () => {
       commit({ ...inner, live: false, overlay: { ...inner.overlay, open: undefined } })

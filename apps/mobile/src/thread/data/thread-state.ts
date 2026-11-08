@@ -2,6 +2,7 @@ import type { StepSignal } from '@dltech/atlas-client/channel'
 import {
   deriveTranscript,
   eventsFromWire,
+  unreadableWireCount,
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
 import type { CallId } from '@dltech/atlas-core'
@@ -28,6 +29,7 @@ export type ThreadState = {
   working: boolean
   loaded: boolean
   failed: boolean
+  stale: boolean
   title: string | null
   connection: string | null
   operatorInput: OperatorInputRequestWire | null
@@ -40,6 +42,7 @@ export const INITIAL_THREAD_STATE: ThreadState = {
   working: false,
   loaded: false,
   failed: false,
+  stale: false,
   title: null,
   connection: null,
   operatorInput: null,
@@ -73,15 +76,24 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       return {
         ...withoutSignals(state),
         events: action.events,
+        stale: unreadableWireCount(action.events) > 0,
         loaded: true,
         failed: false,
         title: action.title ?? state.title,
         working: action.working,
       }
     case 'events':
-      return { ...state, events: mergeEvents({ current: state.events, incoming: action.events }) }
+      return {
+        ...state,
+        events: mergeEvents({ current: state.events, incoming: action.events }),
+        stale: state.stale || unreadableWireCount(action.events) > 0,
+      }
     case 'replace':
-      return { ...withoutSignals(state), events: action.events }
+      return {
+        ...withoutSignals(state),
+        events: action.events,
+        stale: unreadableWireCount(action.events) > 0,
+      }
     case 'signal':
       return withSignal(state, action.signal)
     case 'working':

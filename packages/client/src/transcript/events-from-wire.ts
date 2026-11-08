@@ -53,3 +53,9 @@ export function eventsFromWire(wire: readonly WireEvent[]): readonly Event[] {
   parsedArrays.set(wire, events)
   return events
 }
+
+export function unreadableWireCount(wire: readonly WireEvent[]): number {
+  return wire.filter(
+    (row) => row.type !== BOOT_STEP_EVENT_TYPE && memoizedEventOfWire(row) === null,
+  ).length
+}

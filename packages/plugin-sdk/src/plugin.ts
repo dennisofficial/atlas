@@ -1,6 +1,12 @@
 import type { Command } from '@dltech/atlas-commands'
-import { createV2EventSchema, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
-import type { z } from 'zod'
+import {
+  CORE_EVENT_TYPES,
+  createV2EventSchema,
+  RECORD_ONLY_TYPES,
+  type PluginViewFold,
+  type V2Event,
+} from '@dltech/atlas-core'
+import { z } from 'zod'
 
 import { composePod, mergeMaps, type ComposedPod } from './compose-pod'
 import type { ClientSlot, ControlSlot, PluginTransport, PodSlot } from './slots'
@@ -72,3 +78,16 @@ export const composePlugins = (plugins: readonly Plugin[]): ComposedPlugins =>
 
 export const eventSchemaOf = (plugins: readonly Plugin[]): z.ZodType<V2Event> =>
   createV2EventSchema({ pluginBodies: composePlugins(plugins).eventBodies })
+
+const declaredTypeOf = (schema: z.ZodType): readonly string[] => {
+  if (!(schema instanceof z.ZodObject)) return []
+  const type = schema.shape.type
+  return type instanceof z.ZodLiteral ? [String(type.value)] : []
+}
+
+export const eventTypesOf = (plugins: readonly Plugin[]): readonly string[] =>
+  [
+    ...CORE_EVENT_TYPES,
+    ...RECORD_ONLY_TYPES,
+    ...composePlugins(plugins).eventBodies.flatMap(declaredTypeOf),
+  ].sort()

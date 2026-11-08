@@ -19,6 +19,12 @@ export async function getDesktopUpdate(): Promise<DesktopUpdate> {
   return desktopUpdateSchema.parse(await response.json())
 }
 
+export async function checkForUpdate(): Promise<DesktopUpdate> {
+  const response = await fetch('/desktop/update/check', { method: 'POST' })
+  if (!response.ok) throw new Error(`Update check failed: ${response.status}`)
+  return desktopUpdateSchema.parse(await response.json())
+}
+
 export async function restartForUpdate(): Promise<void> {
   const response = await fetch('/desktop/update/restart', { method: 'POST' })
   if (!response.ok) throw new Error(`Restart failed: ${response.status}`)

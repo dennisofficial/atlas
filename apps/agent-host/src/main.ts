@@ -4,7 +4,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { LogPort } from '@dltech/atlas-observability'
-import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
+import { eventSchemaOf, eventTypesOf } from '@dltech/atlas-plugin-sdk'
 
 import { createHostBus } from './bus/host-bus'
 import { startPgChangeFeed } from './bus/pg-change-feed'
@@ -130,6 +130,7 @@ const main = async (): Promise<void> => {
     auth: createPgStreamAuth({ pool }),
     subscriptions: follow,
     timers: systemHostTimers,
+    eventTypes: eventTypesOf(registeredPlugins),
     trustedOrigins: env.trustedOrigins,
     log,
   })

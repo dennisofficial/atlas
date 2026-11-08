@@ -2,7 +2,7 @@ import { ESessionStatus } from '@dltech/atlas-core'
 import {
   type SessionStatusOutput,
   type SessionViewOutput,
-  STREAM_PROTOCOL_VERSION,
+  STREAM_SESSION_VIEW_VERSION,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
@@ -17,7 +17,7 @@ export const viewFrameOf = (args: {
   view: SessionViewOutput
 }): ViewFrame => {
   const { id, view } = args
-  if (args.protocolVersion >= STREAM_PROTOCOL_VERSION) {
+  if (args.protocolVersion >= STREAM_SESSION_VIEW_VERSION) {
     return { type: 'view', id, name: 'session', at: view.at, value: view }
   }
   return { type: 'view', id, name: 'status', at: view.at, value: legacyStatusOf(view.status) }
