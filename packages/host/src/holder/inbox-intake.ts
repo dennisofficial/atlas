@@ -5,6 +5,7 @@ import {
   INBOX_KIND_STOP,
   type EventDraft,
   type InboxEntry,
+  type ModelPort,
   type RecordBody,
   type RunId,
   type ThreadId,
@@ -28,6 +29,7 @@ export type InboxIntakeArgs = {
   runId: () => RunId
   commands?: CommandRegistry | undefined
   handlers?: CommandHandlers | undefined
+  model?: ModelPort | undefined
   log?: LogPort | undefined
 }
 
@@ -42,6 +44,7 @@ export class InboxIntake implements AgentIntake {
             commands: args.commands,
             handlers: args.handlers ?? new Map(),
             sessionId: args.sessionId,
+            model: args.model,
             visibleEvents: () => args.record.eventCache().visibleLoopEvents(),
             append: (drafts) => this.appendDrafts(drafts),
             log: args.log,

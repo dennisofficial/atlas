@@ -11,15 +11,16 @@ import {
   AlertDialogTitle,
 } from '@dltech/atlas-ui/components/alert-dialog'
 
-import { summariseCopyOf } from '../data/summarise'
+import { summariseCopyOf, type SummariseCopy } from '../data/summarise'
 
 export function SummariseDialog(props: {
   pick: SummariseReach | null
   onCancel: () => void
   onConfirm: () => void
+  copyOf?: (pick: SummariseReach) => SummariseCopy
 }) {
-  const { pick, onCancel, onConfirm } = props
-  const copy = pick === null ? null : summariseCopyOf(pick)
+  const { pick, onCancel, onConfirm, copyOf = summariseCopyOf } = props
+  const copy = pick === null ? null : copyOf(pick)
   const handleOpenChange = (open: boolean) => {
     if (!open) onCancel()
   }

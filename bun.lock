@@ -347,6 +347,7 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@dltech/atlas-agent": "workspace:*",
         "@types/bun": "latest",
       },
     },

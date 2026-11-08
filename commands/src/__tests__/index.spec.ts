@@ -7,6 +7,7 @@ describe('native commands', () => {
   it('compose into a registry without a duplicate', () => {
     const registry = composeCommands(nativeCommands)
     expect(registry.byName.has('rewind')).toBe(true)
+    expect(registry.byName.has('summarise')).toBe(true)
   })
 
   it('has a pod handler for every pod command and a control handler for every control command', () => {

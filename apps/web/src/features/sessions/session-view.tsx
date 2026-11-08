@@ -15,6 +15,7 @@ import {
 import { useComposerAttachments } from '@/features/threads/data/use-composer-attachments'
 import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
+import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
 
 import { postInputOf } from './data/session-media'
 import { sessionsApi } from './data/sessions-api'
@@ -35,6 +36,7 @@ import { retrySessionNow } from './data/use-retry-session'
 import { useQueuedDock } from './data/use-queued-dock'
 import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
+import { useSessionSummarise } from './data/use-session-summarise'
 import { useSessionStream } from './data/use-session-stream'
 import { QueuedDock } from './queued-dock'
 import { SessionContext } from './session-context'
@@ -131,6 +133,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       ? undefined
       : rewindOutcomeOf({ events: snapshot.events, pending: pendingRewind })
 
+  const summarise = useSessionSummarise({ sessionId, events: snapshot.events, working })
+
   const rewoundDraft = rewoundDraftOf(snapshot.events)
 
   useEffect(() => {
@@ -180,7 +184,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             working={working}
             onRetryBoot={() => void handleRetry()}
             rewind={rewind}
-            summarise={null}
+            summarise={summarise.transcript}
             boot={boot}
           />
         </div>
@@ -198,6 +202,12 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               {rewindOutcome.reason}
             </p>
           )}
+          {summarise.refusal === null ? null : (
+            <p role="alert" className="px-1 text-xs text-destructive">
+              {summarise.refusal}
+            </p>
+          )}
+          <SummariseDialog {...summarise.dialog} />
           <QueuedDock dock={queuedDock} />
           <ThreadComposer
             value={draft}
