@@ -18,6 +18,7 @@
     "@dltech/atlas-harness": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
     "@dltech/atlas-plugin-github": "workspace:*",
+    "@dltech/atlas-plugin-shells": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-ui": "workspace:*",

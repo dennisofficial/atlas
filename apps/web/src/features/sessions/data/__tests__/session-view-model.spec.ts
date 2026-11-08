@@ -157,6 +157,7 @@ describe('sessionViewModelOf', () => {
       branch: undefined,
       entries: [],
       subscriptions: [],
+      shells: { running: 0, awaitingInput: false, labels: [] },
       context: null,
       spend: null,
     })
@@ -202,5 +203,20 @@ describe('sessionViewModelOf', () => {
     expect(model.subscriptions).toEqual([
       { number: 31, label: 'owner/atlas#31', url: 'https://github.com/owner/atlas/pull/31' },
     ])
+  })
+
+  it('rosters the running shells from the plugin view', () => {
+    const shell = {
+      shellId: 'sh1',
+      name: 'dev server',
+      command: 'bun run dev',
+      status: 'running',
+      characters: 0,
+      awaitingInput: true,
+      changedAt: '2026-11-08T10:00:00.000Z',
+    }
+    const ended = { ...shell, shellId: 'sh2', name: 'build', status: 'exited' }
+    const model = sessionViewModelOf(viewOf({ pluginViews: { shells: [shell, ended] } }))
+    expect(model.shells).toEqual({ running: 1, awaitingInput: true, labels: ['dev server'] })
   })
 })
