@@ -149,6 +149,8 @@
       "version": "1.0.0",
       "dependencies": {
         "@dltech/atlas-api-router": "workspace:*",
+        "@dltech/atlas-client": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-ui": "workspace:*",
         "@dltech/atlas-ui-native": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",

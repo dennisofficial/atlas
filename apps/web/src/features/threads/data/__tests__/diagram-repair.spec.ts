@@ -4,7 +4,7 @@ import { EClientRequest } from '@dltech/atlas-client/channel'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import { requestDiagramRepair } from '../diagram-repair'
-import { eventsFromWire } from '../events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import { durableTranscriptOf, ETranscriptKind, transcriptViewOf } from '../transcript-items'
 
 const BROKEN = 'sequenceDiagram\n  A->>M: types; M-->>A: ends -'

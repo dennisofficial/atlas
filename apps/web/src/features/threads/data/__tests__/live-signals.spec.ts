@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { toCallId } from '@dltech/atlas-core'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
-import { eventsFromWire } from '../events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import {
   absorbOutput,
   EMPTY_OUTPUTS,

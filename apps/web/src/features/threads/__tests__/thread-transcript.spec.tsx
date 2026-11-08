@@ -5,7 +5,7 @@ import { act } from 'react'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
-import { eventsFromWire } from '../data/events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import {
   durableTranscriptOf,
   ETranscriptKind,

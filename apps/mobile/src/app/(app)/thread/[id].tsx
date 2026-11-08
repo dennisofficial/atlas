@@ -1,59 +1,79 @@
-import { EFontWeight, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import {
+  Button,
+  EButtonSize,
+  EButtonVariant,
+  ETextRole,
+  ETextTone,
+  Text,
+  useTheme,
+} from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import type { WireThread } from '@dltech/atlas-wire/web'
 import { Stack, useLocalSearchParams } from 'expo-router'
-import { useEffect, useState } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useAuth } from '../../../auth/auth-provider'
-import { isUnread, sessionStatusOf } from '../../../sessions/session-status'
-import { StatusIcon } from '../../../sessions/status-icon'
+import { Composer } from '../../../thread/composer/composer'
+import { OperatorInputCard } from '../../../thread/composer/operator-input-card'
+import { Transcript } from '../../../thread/components/transcript'
+import { useThread } from '../../../thread/data/use-thread'
+
+const HEADER_HEIGHT = Platform.OS === 'ios' ? 100 : 64
 
 export default function ThreadScreen() {
   const theme = useTheme()
-  const { api } = useAuth()
+  const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const [thread, setThread] = useState<WireThread | null>(null)
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    if (api === undefined || id === undefined) return
-    api.threads.get
-      .query({ threadId: id })
-      .then(setThread)
-      .catch(() => setFailed(true))
-  }, [api, id])
-
-  const title = thread?.title === undefined || thread.title.length === 0 ? 'Untitled' : thread.title
+  const thread = useThread(id)
+  const title = thread.failedToLoad ? '' : (thread.title ?? '')
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <Stack.Screen options={{ title: thread === null ? '' : title }} />
-      {thread === null && !failed ? <ActivityIndicator color={theme.primary} /> : null}
-      {failed ? (
-        <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-          This session could not be loaded.
-        </Text>
+      <Stack.Screen options={{ title }} />
+      {!thread.loaded && !thread.failedToLoad ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={theme.primary} />
+        </View>
       ) : null}
-      {thread !== null ? (
-        <View style={styles.body}>
-          <View style={styles.status}>
-            <StatusIcon status={sessionStatusOf(thread)} unread={isUnread(thread)} />
-            <Text
-              size={ETextRole.Lg}
-              weight={EFontWeight.Medium}
-              tight
-              numberOfLines={2}
-              style={styles.title}
-            >
-              {title}
-            </Text>
-          </View>
-          <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-            The transcript view is coming next. Open this session in Atlas on the web or Mac to
-            follow it for now.
+      {thread.failedToLoad ? (
+        <View style={styles.center}>
+          <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+            This session could not be loaded.
           </Text>
         </View>
+      ) : null}
+      {thread.loaded ? (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={HEADER_HEIGHT}
+          style={styles.fill}
+        >
+          <Transcript rows={thread.rows} working={thread.working} now={thread.now} />
+          {thread.failure === null ? null : (
+            <View style={styles.failure}>
+              <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.failureText}>
+                {thread.failure}
+              </Text>
+              <Button
+                label="Retry"
+                size={EButtonSize.Sm}
+                variant={EButtonVariant.Outline}
+                onPress={thread.retry}
+              />
+            </View>
+          )}
+          <View style={{ paddingBottom: insets.bottom }}>
+            {thread.operatorInput === null ? null : (
+              <View style={styles.operator}>
+                <OperatorInputCard
+                  key={thread.operatorInput.requestId}
+                  request={thread.operatorInput}
+                  onSubmit={thread.submitOperatorInput}
+                />
+              </View>
+            )}
+            <Composer working={thread.working} onSend={thread.send} onStop={thread.stop} />
+          </View>
+        </KeyboardAvoidingView>
       ) : null}
     </View>
   )
@@ -61,21 +81,29 @@ export default function ThreadScreen() {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  fill: {
+    flex: 1,
+  },
+  center: {
     alignItems: 'center',
     flex: 1,
+    gap: space(2),
     justifyContent: 'center',
-    padding: space(6),
   },
-  body: {
-    gap: space(3),
-    maxWidth: 420,
-  },
-  status: {
+  failure: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: space(2),
+    paddingBottom: space(2),
+    paddingHorizontal: space(4),
   },
-  title: {
-    flexShrink: 1,
+  failureText: {
+    flex: 1,
+  },
+  operator: {
+    paddingBottom: space(2),
+    paddingHorizontal: space(3),
   },
 })

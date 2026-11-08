@@ -1,5 +1,6 @@
 export * from './agent-ended-line'
 export * from './derive-transcript'
+export * from './events-from-wire'
 export * from './durable-entries'
 export * from './format-elapsed'
 export * from './in-flight-steps'

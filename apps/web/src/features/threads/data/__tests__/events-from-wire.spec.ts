@@ -2,7 +2,7 @@ import { describe, expect, it, spyOn } from 'bun:test'
 
 import { BOOT_STEP_EVENT_TYPE, type WireEvent } from '@dltech/atlas-wire/web'
 
-import { eventsFromWire } from '../events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 
 const wire = (args: { seq: number; type: string; body: string }): WireEvent => ({
   id: `evt_${args.seq}`,

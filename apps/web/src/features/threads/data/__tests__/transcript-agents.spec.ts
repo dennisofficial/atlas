@@ -4,7 +4,7 @@ import { EAgentStatus } from '@dltech/atlas-core'
 import { EToolKind } from '@dltech/atlas-ui/ai/tool'
 import type { RosterWire, WireEvent } from '@dltech/atlas-wire/web'
 
-import { eventsFromWire } from '../events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import {
   anySpawnRunning,
   reportItemsOf,
