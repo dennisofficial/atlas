@@ -10,13 +10,7 @@ import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
 import type { SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
-import {
-  logDriveFault,
-  logReconcileFault,
-  settleAndCheckResume,
-  startHeldTurn,
-  wireHeldLoop,
-} from './held-runner'
+import { logDriveFault, logReconcileFault, settleAndCheckResume, wireHeldLoop } from './held-runner'
 import { teardownHeld } from './held-teardown'
 import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
@@ -28,6 +22,7 @@ import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
 import { TakeOver } from './held-takeover'
+import { StallGuard } from './stall-guard'
 import { quarantineOutcome, startFailureOutcome } from './start-failure-record'
 
 export type { HeldSessionDeps }
@@ -39,6 +34,7 @@ export class HeldSession {
   private readonly pause = new PauseSignal()
   private readonly turns: HeldTurns
   private readonly prepare: HeldPrepare
+  private readonly stall: StallGuard
   private draining = false
   private drainDeadline: number | undefined
   private done: Promise<HeldOutcome> | undefined
@@ -65,16 +61,27 @@ export class HeldSession {
       deps,
       abandoned: () => this.draining || this.outcome !== undefined,
       onSettled: ({ failed }) => {
-        this.lastActivityAt = deps.timers.now()
+        this.noteActivity()
         if (failed) this.finish(EHeldOutcome.Idle)
         else this.reconciler?.request()
       },
+    })
+    this.stall = new StallGuard({
+      deps,
+      turns: this.turns,
+      record: () => this.record,
+      onActivity: this.noteActivity,
+      onStalled: () => this.reconciler?.request(),
     })
     this.idle = new IdleDeadline({
       timers: deps.timers,
       idleMinutes: deps.idleMinutes,
       onDue: () => this.reconciler?.request(),
     })
+  }
+
+  private readonly noteActivity = (): void => {
+    this.lastActivityAt = this.deps.timers.now()
   }
 
   notifyWake(): void {
@@ -205,20 +212,13 @@ export class HeldSession {
       workspace: this.record?.eventCache().bookkeeping().workspace(),
       preparing: this.prepare.running,
     })
-    if (shellsRunning) this.lastActivityAt = deps.timers.now()
+    if (shellsRunning) this.noteActivity()
     switch (action) {
       case EHeldAction.AbortTurn:
         return this.turns.abort('stop')
       case EHeldAction.ConsumeStop: {
         this.resumePending = false
-        await consumeStops({
-          deps,
-          record: this.record,
-          entries,
-          onActivity: () => {
-            this.lastActivityAt = deps.timers.now()
-          },
-        })
+        await consumeStops({ deps, record: this.record, entries, onActivity: this.noteActivity })
         this.reconciler?.request()
         return
       }
@@ -233,7 +233,7 @@ export class HeldSession {
         this.takeOver?.firstStep()
         const resume = this.resumePending
         this.resumePending = false
-        this.lastActivityAt = deps.timers.now()
+        this.noteActivity()
         this.startTurn({ runner: args.runner, threadId: args.threadId, resume })
         return
       }
@@ -250,16 +250,9 @@ export class HeldSession {
 
   private startTurn(args: { runner: LoopTurnRunner; threadId: ThreadId; resume: boolean }): void {
     this.idle.disarm()
-    startHeldTurn({
-      deps: this.deps,
-      turns: this.turns,
+    this.stall.startTurn({
+      ...args,
       pause: this.pause,
-      runner: args.runner,
-      threadId: args.threadId,
-      resume: args.resume,
-      onActivity: () => {
-        this.lastActivityAt = this.deps.timers.now()
-      },
       refreshBranches: () => {
         if (this.draining || this.outcome !== undefined) return
         void this.branches?.refresh().catch((error) => logDriveFault({ deps: this.deps, error }))
