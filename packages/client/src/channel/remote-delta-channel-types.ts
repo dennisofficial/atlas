@@ -1,4 +1,11 @@
-import type { EventDraft, SaidFile, SaidImage, SaidUpload, ThreadId } from '@dltech/atlas-core'
+import type {
+  Attachment,
+  EventDraft,
+  SaidFile,
+  SaidImage,
+  SaidUpload,
+  ThreadId,
+} from '@dltech/atlas-core'
 import type {
   CapabilitySet,
   PendingEntryWire,
@@ -54,6 +61,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
     images?: readonly SaidImage[] | undefined
     files?: readonly SaidFile[] | undefined
     uploads?: readonly SaidUpload[] | undefined
+    attachments?: readonly Attachment[] | undefined
     context?: readonly EventDraft[] | undefined
     /** The family thread the message addresses; absent addresses the served root thread. */
     threadId?: ThreadId | undefined

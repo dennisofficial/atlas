@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EMessageOrigin, saidBy, type ThreadId } from '@dltech/atlas-core'
+import {
+  attachmentsOf,
+  EMessageOrigin,
+  inlineImagesOf,
+  saidBy,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { steerDrafts } from '../child-runner'
 import { finished, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
@@ -92,7 +98,7 @@ const SHOT = {
 
 const imagesIn = async (open: OpenedSupervisor, threadId: ThreadId) =>
   (await open.harness.log.readOwn({ threadId }))
-    .flatMap((event) => (event.type === 'user-said' ? [event.images ?? []] : []))
+    .flatMap((event) => (event.type === 'user-said' ? [inlineImagesOf(attachmentsOf(event))] : []))
     .flat()
 
 describe('a picture the operator hands a child', () => {
@@ -169,8 +175,13 @@ describe('a steer queued while the child was stepping', () => {
 
 describe('steerDrafts', () => {
   it('carries a queued picture through to the draft it builds', () => {
-    expect(steerDrafts([{ text: 'this one', images: [SHOT] }])).toEqual([
-      { type: 'user-said', text: 'this one', via: EMessageOrigin.ParentAgent, images: [SHOT] },
+    const [draft] = steerDrafts([{ text: 'this one', images: [SHOT] }])
+    expect(draft).toMatchObject({
+      type: 'user-said',
+      via: EMessageOrigin.ParentAgent,
+    })
+    expect(draft && 'attachments' in draft ? inlineImagesOf(draft.attachments ?? []) : []).toEqual([
+      SHOT,
     ])
   })
 

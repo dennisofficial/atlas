@@ -156,7 +156,12 @@ export function childRunnerSource({ deps }: { deps: ChildRunnerDepsSource }): Ch
 
 export const steerDrafts = (said: readonly SteerMessage[]): readonly EventDraft[] =>
   said.map((one) => ({
-    ...saidBody({ text: one.text, images: one.images, files: one.files }),
+    ...saidBody({
+      text: one.text,
+      images: one.images,
+      files: one.files,
+      attachments: one.attachments,
+    }),
     via: one.via ?? EMessageOrigin.ParentAgent,
   }))
 

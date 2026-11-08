@@ -1,7 +1,10 @@
 import {
+  attachmentsOf,
   ENoticeTone,
   NOTICE_WARN_MS,
   inlinable,
+  inlineImagesOf,
+  type Attachment,
   type EventDraft,
   type EventLogPort,
   type NoticePort,
@@ -65,6 +68,7 @@ export class TitlingTurnRunner extends TurnRunner {
       threadId: args.threadId,
       said: args.text,
       images: args.images,
+      attachments: args.attachments,
       context: args.context,
     })
     return this.inner.say(args)
@@ -80,12 +84,16 @@ export class TitlingTurnRunner extends TurnRunner {
     threadId: ThreadId
     said: string
     images?: readonly SaidImage[] | undefined
+    attachments?: readonly Attachment[] | undefined
     context?: readonly EventDraft[] | undefined
   }): void {
     if (this.asked.has(args.threadId)) return
 
     const text = namingTextOf({ said: args.said, context: args.context })
-    const images = (args.images ?? []).filter((image) => inlinable(image))
+    const images = [
+      ...(args.images ?? []),
+      ...inlineImagesOf(attachmentsOf({ attachments: args.attachments })),
+    ].filter((image) => inlinable(image))
     if (text.trim().length === 0 && images.length === 0) return
 
     this.asked.add(args.threadId)

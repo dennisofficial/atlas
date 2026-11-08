@@ -9,8 +9,7 @@ type Attachments = ReturnType<typeof useComposerAttachments>
 type Send = (args: {
   threadId: string
   text: string
-  images: Attachments['images']
-  uploads: Attachments['uploads']
+  attachments: Attachments['attachments']
   liveSend: LiveSend
 }) => Promise<Handoff | null>
 
@@ -33,8 +32,7 @@ export function useThreadSubmit(args: {
     const sent = await args.send({
       threadId,
       text,
-      images: attachments.images,
-      uploads: attachments.uploads,
+      attachments: attachments.attachments,
       liveSend: args.sendLive,
     })
     if (sent === null) return

@@ -1,8 +1,7 @@
-import type { SaidUpload } from '@dltech/atlas-core'
-import type { SaidImageWire, ThreadMessageReply } from '@dltech/atlas-wire/web'
+import type { Attachment } from '@dltech/atlas-core'
+import type { ThreadMessageReply } from '@dltech/atlas-wire/web'
 
-import { uploadsFieldOf } from './composer-attachments'
-import { imagesFieldOf } from './composer-images'
+import { attachmentsFieldOf } from './composer-attachments'
 import type { LiveSend } from './live-thread-view'
 import { postMessage } from './threads-api'
 
@@ -10,15 +9,13 @@ export async function sendMessage(args: {
   threadId: string
   text: string
   sendId: string
-  images?: SaidImageWire[] | undefined
-  uploads?: SaidUpload[] | undefined
+  attachments?: Attachment[] | undefined
   post?: typeof postMessage | undefined
 }): Promise<ThreadMessageReply> {
-  const { images, uploads, post = postMessage, ...message } = args
+  const { attachments, post = postMessage, ...message } = args
   return post({
     ...message,
-    ...imagesFieldOf(images),
-    ...uploadsFieldOf(uploads),
+    ...attachmentsFieldOf(attachments),
   })
 }
 
@@ -26,8 +23,7 @@ export async function deliverMessage(args: {
   threadId: string
   text: string
   sendId: string
-  images?: SaidImageWire[] | undefined
-  uploads?: SaidUpload[] | undefined
+  attachments?: Attachment[] | undefined
   liveSend: LiveSend
   post?: typeof postMessage | undefined
 }): Promise<void> {
@@ -35,8 +31,7 @@ export async function deliverMessage(args: {
   const live = {
     text: message.text,
     requestId: message.sendId,
-    ...imagesFieldOf(message.images),
-    ...uploadsFieldOf(message.uploads),
+    ...attachmentsFieldOf(message.attachments),
   }
   if (liveSend(live)) return
   const reply = await sendMessage(message)

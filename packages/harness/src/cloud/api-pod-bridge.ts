@@ -137,6 +137,7 @@ export const createApiPodBridge = (options: ApiPodBridgeOptions): CloudBridge =>
         text: args.text,
         ...(args.images === undefined ? {} : { images: [...args.images] }),
         ...(args.uploads === undefined ? {} : { uploads: [...args.uploads] }),
+        ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
       }),
     )
     if (reply.error !== undefined) throw new Error(reply.error)

@@ -1,5 +1,6 @@
 import {
   eventBodySchema,
+  type Attachment,
   type EventDraft,
   type SaidFile,
   type SaidImage,
@@ -105,6 +106,7 @@ export class RemoteTurnRunner extends TurnRunner {
     requestId?: string | undefined
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
+    attachments?: readonly Attachment[]
     context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal
@@ -117,6 +119,7 @@ export class RemoteTurnRunner extends TurnRunner {
           ...(args.requestId === undefined ? {} : { requestId: args.requestId }),
           images: args.images,
           files: args.files,
+          ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
           ...(args.context === undefined ? {} : { context: args.context }),
         }),
     })
@@ -127,6 +130,7 @@ export class RemoteTurnRunner extends TurnRunner {
     text: string
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
+    attachments?: readonly Attachment[]
     context?: readonly EventDraft[]
   }): void {
     if (args.threadId !== this.channel.threadId) {
@@ -136,6 +140,7 @@ export class RemoteTurnRunner extends TurnRunner {
       text: args.text,
       images: args.images,
       files: args.files,
+      ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
       ...(args.context === undefined ? {} : { context: args.context }),
     })
   }

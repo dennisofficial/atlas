@@ -61,7 +61,19 @@ describe('SessionsService.post uploads', () => {
     const inbox = await plane.readInbox({ sessionId, afterId: 0, limit: 10 })
     expect(JSON.parse(inbox[0]?.payload ?? '')).toEqual({
       text: 'see file',
-      uploads: [{ ...upload, size: 7 }],
+      attachments: [
+        {
+          id: upload.uploadId,
+          name: 'notes.txt',
+          mediaType: 'text/plain',
+          size: 7,
+          content: {
+            store: 'upload',
+            uploadId: upload.uploadId,
+            pathname: upload.pathname,
+          },
+        },
+      ],
     })
   })
 
@@ -71,5 +83,53 @@ describe('SessionsService.post uploads', () => {
     mediaStore.put({ pathname: upload.pathname, bytes: new Uint8Array(7) })
     const posted = await service.post({ userId: 'user-a', sessionId, text: '', uploads: [upload] })
     expect(posted.inboxId).toBe(1)
+  })
+
+  it('folds a legacy picture and its upload into one attachment, once', async () => {
+    const { service, plane, mediaStore, sessionId } = await setupSession()
+    const upload = {
+      ...uploadOf({ userId: 'user-a' }),
+      name: 'shot.png',
+      mediaType: 'image/png',
+    }
+    const pathname = `composer-uploads/user-a/${UPLOAD_ID}/shot.png`
+    mediaStore.put({ pathname, bytes: new Uint8Array(7) })
+    await service.post({
+      userId: 'user-a',
+      sessionId,
+      text: 'look',
+      uploads: [{ ...upload, pathname }],
+    })
+    const inbox = await plane.readInbox({ sessionId, afterId: 0, limit: 10 })
+    const payload = JSON.parse(inbox[0]?.payload ?? '')
+    expect(payload.attachments).toHaveLength(1)
+    expect('uploads' in payload).toBe(false)
+    expect('images' in payload).toBe(false)
+  })
+
+  it('refuses an unowned upload sent as an attachment', async () => {
+    const { service, mediaStore, sessionId } = await setupSession()
+    const foreign = uploadOf({ userId: 'user-b' })
+    mediaStore.put({ pathname: foreign.pathname, bytes: new Uint8Array(7) })
+    await expect(
+      service.post({
+        userId: 'user-a',
+        sessionId,
+        text: 'hi',
+        attachments: [
+          {
+            id: foreign.uploadId,
+            name: foreign.name,
+            mediaType: foreign.mediaType,
+            size: 7,
+            content: {
+              store: 'upload',
+              uploadId: foreign.uploadId,
+              pathname: foreign.pathname,
+            },
+          },
+        ],
+      }),
+    ).rejects.toThrow(new BadRequestException('file notes.txt does not belong to this account'))
   })
 })

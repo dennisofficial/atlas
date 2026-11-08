@@ -1,5 +1,6 @@
 import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
+import { attachmentsOf } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, spyOn, vi } from 'bun:test'
@@ -64,7 +65,7 @@ describe('ThreadLaunchService', () => {
     })
   })
 
-  it('writes the first message images into the user-said event body', async () => {
+  it('writes the first message attachments into the user-said event body', async () => {
     await seedBase()
     const { service } = launchWith()
     const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
@@ -80,7 +81,7 @@ describe('ThreadLaunchService', () => {
       type: 'user-said',
       text: FIRST.text,
       requestId: FIRST.sendId,
-      images,
+      attachments: attachmentsOf({ images }),
     })
   })
 

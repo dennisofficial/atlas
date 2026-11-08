@@ -9,20 +9,18 @@ import {
   EAttachmentStatus,
   fitsInline,
   hasFailed,
-  inlineImagesOf,
+  attachmentsOf,
+  sameAttachments,
   isUploading,
   planAttach,
   restoredAttachmentsOf,
-  sameUploads,
   startedAttachment,
-  uploadsFieldOf,
   uploadsOf,
   withFailed,
   withInline,
   withProgress,
   withReady,
 } from '../composer-attachments'
-import { isRetryOf } from '../use-send'
 
 const U1 = '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a01'
 const U2 = '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a02'
@@ -108,10 +106,13 @@ describe('status transitions', () => {
 describe('inline images', () => {
   const image = (data: string) => ({ path: 'a.png', mediaType: 'image/png', data })
 
-  it('previews and collects inlined images', () => {
-    const held = withInline({ held: [started('a')], id: 'a', image: image('QUJD') })
+  it('previews an inlined image', () => {
+    const held = withInline({
+      held: [started('a')],
+      id: 'a',
+      image: image('QUJD'),
+    })
     expect(held[0]?.previewUrl).toBe('data:image/png;base64,QUJD')
-    expect(inlineImagesOf(held)).toEqual([image('QUJD')])
   })
 
   it('refuses an image over the inline budget', () => {
@@ -138,51 +139,90 @@ describe('restoredAttachmentsOf', () => {
   })
 })
 
-describe('inline image and upload pairing', () => {
-  const inlined = { path: 'photo.png', mediaType: 'image/png', data: 'QUJD' }
+describe('attachmentsOf', () => {
+  const inlined = {
+    path: 'photo.png',
+    mediaType: 'image/png',
+    data: 'QUJD',
+    width: 4,
+    height: 3,
+  }
 
-  it('sends the inline image under the upload name so restore pairs them', () => {
-    const sent = inlineImagesOf(
-      withInline({
-        held: withReady({
-          held: [started('a')],
-          id: 'a',
-          upload: upload(U1, 'photo.jpeg'),
-        }),
+  it('writes a picture that was uploaded and inlined as one attachment holding both', () => {
+    const held = withInline({
+      held: withReady({
+        held: [started('a')],
         id: 'a',
-        image: inlined,
+        upload: upload(U1, 'photo.png'),
       }),
-    )
-    expect(sent).toEqual([{ ...inlined, path: 'photo.jpeg' }])
+      id: 'a',
+      image: inlined,
+    })
+    const all = attachmentsOf(held)
+    expect(all).toHaveLength(1)
+    expect(all[0]).toMatchObject({
+      id: U1,
+      name: 'photo.png',
+      content: { store: 'upload', uploadId: U1, inline: 'QUJD' },
+      image: { width: 4, height: 3 },
+    })
+  })
+
+  it('writes a document as one upload attachment with no inline copy', () => {
+    const held = withReady({
+      held: [started('a')],
+      id: 'a',
+      upload: upload(U1),
+    })
+    const all = attachmentsOf(held)
+    expect(all).toHaveLength(1)
+    expect(all[0]?.content).toEqual({
+      store: 'upload',
+      uploadId: U1,
+      pathname: upload(U1).pathname,
+    })
+  })
+
+  it('writes an image that never uploaded as an inline attachment', () => {
+    const all = attachmentsOf(withInline({ held: [started('a')], id: 'a', image: inlined }))
+    expect(all).toHaveLength(1)
+    expect(all[0]).toMatchObject({
+      name: 'photo.png',
+      content: { store: 'inline', data: 'QUJD' },
+    })
+  })
+
+  it('skips an attachment still uploading', () => {
+    expect(attachmentsOf([started('a')])).toEqual([])
+  })
+
+  it('round-trips through restore into one held attachment', () => {
+    const held = withInline({
+      held: withReady({
+        held: [started('a')],
+        id: 'a',
+        upload: upload(U1, 'photo.png'),
+      }),
+      id: 'a',
+      image: inlined,
+    })
+    const [only] = attachmentsOf(held)
     let next = 0
     const restored = restoredAttachmentsOf({
-      uploads: [upload(U1, 'photo.jpeg')],
-      images: sent,
+      uploads: [upload(U1, 'photo.png')],
+      images: [{ ...inlined, path: only?.name ?? '' }],
       idOf: () => `id${next++}`,
     })
     expect(restored).toHaveLength(1)
     expect(restored[0]?.image?.data).toBe('QUJD')
   })
-
-  it('keeps the encoded name when no upload exists yet', () => {
-    expect(inlineImagesOf(withInline({ held: [started('a')], id: 'a', image: inlined }))).toEqual([
-      inlined,
-    ])
-  })
 })
 
-describe('upload identity', () => {
-  it('compares by uploadId and omits empty fields', () => {
-    expect(sameUploads([upload(UA)], [upload(UA)])).toBe(true)
-    expect(sameUploads([upload(UA)], [upload(UB)])).toBe(false)
-    expect(uploadsFieldOf([])).toEqual({})
-    expect(uploadsFieldOf([upload(UA)])).toEqual({ uploads: [upload(UA)] })
-  })
-
-  it('a retry needs the same uploads too', () => {
-    const previous = { text: 'hi', images: [], uploads: [upload(UA)] }
-    expect(isRetryOf({ previous, text: 'hi', images: [], uploads: [upload(UA)] })).toBe(true)
-    expect(isRetryOf({ previous, text: 'hi', images: [], uploads: [upload(UB)] })).toBe(false)
-    expect(isRetryOf({ previous, text: 'hi', images: [] })).toBe(false)
+describe('attachment identity', () => {
+  it('compares by id', () => {
+    const [one] = attachmentsOf(withReady({ held: [started('a')], id: 'a', upload: upload(UA) }))
+    const [other] = attachmentsOf(withReady({ held: [started('a')], id: 'a', upload: upload(UB) }))
+    expect(sameAttachments([one!], [one!])).toBe(true)
+    expect(sameAttachments([one!], [other!])).toBe(false)
   })
 })

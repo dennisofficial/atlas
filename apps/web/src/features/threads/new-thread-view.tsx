@@ -4,8 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import type { SaidUpload } from '@dltech/atlas-core'
-import type { Project, SaidImageWire } from '@dltech/atlas-wire/web'
+import type { Attachment } from '@dltech/atlas-core'
+import type { Project } from '@dltech/atlas-wire/web'
 
 import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-local-thread'
 import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
@@ -69,8 +69,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const [engine, setEngine] = useState(EEngine.V1)
   const attempt = useRef<{
     text: string
-    images: SaidImageWire[]
-    uploads: SaidUpload[]
+    attachments: Attachment[]
     projectId: string | null
     sendId: string
   } | null>(null)
@@ -95,14 +94,13 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       return
     }
     if (!images.checkSendable()) return
-    const held = images.images
-    const uploads = images.uploads
+    const held = images.attachments
     const sendId =
       attempt.current?.projectId === projectId &&
-      isRetryOf({ previous: attempt.current, text, images: held, uploads })
+      isRetryOf({ previous: attempt.current, text, attachments: held })
         ? attempt.current.sendId
         : crypto.randomUUID()
-    attempt.current = { text, images: held, uploads, projectId, sendId }
+    attempt.current = { text, attachments: held, projectId, sendId }
     setCreating(true)
     try {
       if (local && projectId !== null) {
@@ -112,8 +110,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
           ...createFieldsOf(selection),
           text,
           sendId,
-          images: held,
-          uploads,
+          attachments: held,
         })
         attempt.current = null
         images.clear()
@@ -126,8 +123,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
           projectId,
           text,
           sendId,
-          images: held,
-          uploads,
+          attachments: held,
           ...createFieldsOf(selection),
         }),
       )

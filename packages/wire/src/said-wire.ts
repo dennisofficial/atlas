@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { threadIdWireSchema } from './request-wire'
+import { attachmentsWireSchema } from './attachment-wire'
 import { saidUploadWireSchema } from './upload-wire'
 
 export const saidImageWireSchema = z.object({
@@ -29,6 +30,7 @@ export const takeBackPendingReplySchema = z.object({
       images: z.array(saidImageWireSchema).readonly(),
       files: z.array(saidFileWireSchema).readonly(),
       uploads: z.array(saidUploadWireSchema).readonly().optional(),
+      attachments: attachmentsWireSchema.optional(),
       context: z.array(z.unknown()).readonly().optional(),
     })
     .nullable(),

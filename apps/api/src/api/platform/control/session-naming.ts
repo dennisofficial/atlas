@@ -2,7 +2,8 @@ import type { Logger } from '@nestjs/common'
 import { fallbackTitleOf, type ControlPlane } from '@dltech/atlas-control'
 import type { MediaStore } from '@dltech/atlas-media'
 import type { SessionTitler } from '../../../_core/ports/session-titler'
-import { imagesForNaming, type AttachedMedia } from './media-attachments'
+import type { Attachment } from '@dltech/atlas-core'
+import { imagesForNaming } from './media-attachments'
 
 export async function nameSession(args: {
   store: MediaStore
@@ -13,14 +14,14 @@ export async function nameSession(args: {
   sessionId: string
   projectId: string
   text: string
-  media: readonly AttachedMedia[]
+  attachments: readonly Attachment[]
   inboxId: number
 }): Promise<void> {
   try {
     const images = await imagesForNaming({
       store: args.store,
       userId: args.userId,
-      media: args.media,
+      attachments: args.attachments,
     })
     const generated = await args.titler
       .nameOf({

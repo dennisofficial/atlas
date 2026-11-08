@@ -1,5 +1,7 @@
 import {
+  attachmentsOf,
   SUPPORTED_IMAGE_MEDIA_TYPES,
+  type Attachment,
   type SaidUpload,
   type SupportedImageMediaType,
 } from '@dltech/atlas-core'
@@ -26,6 +28,8 @@ export type HeldMedia = {
   progress: number
   previewUrl?: string | undefined
   hash?: string | undefined
+  mediaType?: string | undefined
+  size?: number | undefined
 }
 
 export type MediaUploadApi = {
@@ -107,6 +111,8 @@ export const withMediaEncoded = (args: {
   id: string
   name: string
   previewUrl: string
+  mediaType?: string | undefined
+  size?: number | undefined
 }): HeldMedia[] =>
   mapEntry({
     ...args,
@@ -114,6 +120,8 @@ export const withMediaEncoded = (args: {
       ...entry,
       name: args.name,
       previewUrl: args.previewUrl,
+      mediaType: args.mediaType,
+      size: args.size,
     }),
   })
 
@@ -155,6 +163,21 @@ export const isMediaUploading = (held: readonly HeldMedia[]): boolean =>
 export const hasMediaFailed = (held: readonly HeldMedia[]): boolean =>
   held.some((entry) => entry.status === EAttachmentStatus.Failed)
 
+export function readyAttachmentsOf(held: readonly HeldMedia[]): Attachment[] {
+  const media = readyMediaOf(held)
+  const known = new Map(held.map((entry) => [entry.hash, entry]))
+  return media.map((item) => {
+    const entry = known.get(item.hash)
+    return {
+      id: `media:${item.hash}`,
+      name: item.source ?? item.hash,
+      mediaType: entry?.mediaType ?? 'image/png',
+      size: entry?.size ?? 0,
+      content: { store: 'media', hash: item.hash },
+    }
+  })
+}
+
 export function readyMediaOf(held: readonly HeldMedia[]): SessionPostMedia[] {
   const seen = new Set<string>()
   return held.flatMap((entry) => {
@@ -168,14 +191,16 @@ export function readyMediaOf(held: readonly HeldMedia[]): SessionPostMedia[] {
 export const postInputOf = (args: {
   sessionId: string
   text: string
-  media: readonly SessionPostMedia[]
+  media: readonly Attachment[]
   uploads: readonly SaidUpload[]
-}): SessionPostInput => ({
-  sessionId: args.sessionId,
-  text: args.text,
-  ...(args.media.length === 0 ? {} : { media: [...args.media] }),
-  ...(args.uploads.length === 0 ? {} : { uploads: [...args.uploads] }),
-})
+}): SessionPostInput => {
+  const attachments = [...args.media, ...attachmentsOf({ uploads: args.uploads })]
+  return {
+    sessionId: args.sessionId,
+    text: args.text,
+    ...(attachments.length === 0 ? {} : { attachments }),
+  }
+}
 
 const CHIP_STATUS: Record<EAttachmentStatus, EPromptAttachmentStatus> = {
   [EAttachmentStatus.Uploading]: EPromptAttachmentStatus.Uploading,

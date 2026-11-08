@@ -1,35 +1,29 @@
-import type { SaidFile, SaidImage, SaidUpload } from './body'
+import { attachmentsOf, type SaidAttachments } from '../attachments/from-said'
+import type { Attachment } from '../attachments/attachment'
 
 export type SaidBody = {
   type: 'user-said'
   text: string
   requestId?: string | undefined
-  images?: readonly SaidImage[] | undefined
-  files?: readonly SaidFile[] | undefined
-  uploads?: readonly SaidUpload[] | undefined
+  attachments?: readonly Attachment[] | undefined
 }
 
 /**
- * Every producer of a user-said body omits an empty attachments list rather than stamping `[]`,
- * so the stored event stays minimal and the schema never has to read an empty array back.
+ * Every producer of a user-said body folds whatever shape it holds into `attachments` and omits an
+ * empty list rather than stamping `[]`, so the log only ever gains the one attachment field.
  */
-export function saidBody(args: {
-  text: string
-  requestId?: string | undefined
-  images?: readonly SaidImage[] | undefined
-  files?: readonly SaidFile[] | undefined
-  uploads?: readonly SaidUpload[] | undefined
-}): SaidBody {
-  const hasImages = args.images !== undefined && args.images.length > 0
-  const hasFiles = args.files !== undefined && args.files.length > 0
-  const hasUploads = args.uploads !== undefined && args.uploads.length > 0
+export function saidBody(
+  args: SaidAttachments & {
+    text: string
+    requestId?: string | undefined
+  },
+): SaidBody {
+  const attachments = attachmentsOf(args)
 
   return {
     type: 'user-said',
     text: args.text,
     ...(args.requestId === undefined ? {} : { requestId: args.requestId }),
-    ...(hasImages ? { images: args.images } : {}),
-    ...(hasFiles ? { files: args.files } : {}),
-    ...(hasUploads ? { uploads: args.uploads } : {}),
+    ...(attachments.length === 0 ? {} : { attachments }),
   }
 }

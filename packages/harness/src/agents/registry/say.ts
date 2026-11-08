@@ -8,6 +8,7 @@ import {
   type EventDraft,
   type EventLogPort,
   type IdPort,
+  type Attachment,
   type SaidFile,
   type SaidImage,
   type ThreadId,
@@ -48,6 +49,7 @@ type SaidArgs = {
   text: string
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
+  attachments?: readonly Attachment[] | undefined
 }
 
 function deliver(args: Parameters<typeof deliverAdmitted>[0]): Promise<AgentOutcome> {
@@ -82,6 +84,7 @@ async function deliverAdmitted({
         text: args.text,
         ...(args.images === undefined ? {} : { images: args.images }),
         ...(args.files === undefined ? {} : { files: args.files }),
+        ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
         via,
       })
       return { ok: true, snapshot: snapshotOf(child) }
@@ -91,6 +94,7 @@ async function deliverAdmitted({
       text: args.text,
       images: args.images,
       files: args.files,
+      attachments: args.attachments,
     }
     child.pending.push(queued)
     return { ok: true, snapshot: snapshotOf(child) }
@@ -114,6 +118,7 @@ async function deliverAdmitted({
         via,
         ...(args.images === undefined ? {} : { images: args.images }),
         ...(args.files === undefined ? {} : { files: args.files }),
+        ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
       })
       await input.commit({
         threadId: args.agentId,
@@ -126,7 +131,17 @@ async function deliverAdmitted({
       await log.append({
         threadId: args.agentId,
         runId: ids.nextRunId(),
-        drafts: [{ ...saidBody({ text: args.text, images: args.images, files: args.files }), via }],
+        drafts: [
+          {
+            ...saidBody({
+              text: args.text,
+              images: args.images,
+              files: args.files,
+              attachments: args.attachments,
+            }),
+            via,
+          },
+        ],
       })
     }
     child.projectDirectory ??= await childDirectory({ deps, threadId: child.spawnedBy })

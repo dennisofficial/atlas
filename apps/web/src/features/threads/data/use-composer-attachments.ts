@@ -8,7 +8,7 @@ import {
   chipOf,
   fitsInline,
   hasFailed,
-  inlineImagesOf,
+  attachmentsOf,
   isUploading,
   planAttach,
   restoredAttachmentsOf,
@@ -155,7 +155,7 @@ export function useComposerAttachments() {
 
   return {
     uploads: uploadsOf(held),
-    images: inlineImagesOf(held),
+    attachments: attachmentsOf(held),
     uploading,
     attach,
     remove,

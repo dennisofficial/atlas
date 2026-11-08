@@ -1,4 +1,5 @@
 import type { NestExpressApplication } from '@nestjs/platform-express'
+import { attachmentsOf } from '@dltech/atlas-core'
 import { EBootStep, EBootStepState, EThreadMessageState } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
@@ -92,13 +93,15 @@ describe('ThreadMessagesRouter', () => {
       expect(await eventsOf()).toHaveLength(1)
     })
 
-    it('stores the images of a send on the appended event', async () => {
+    it('stores the attachments of a send on the appended event', async () => {
       const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
 
       const reply = await send({ token: 'session-a', input: { ...SEND, images } })
 
       expect(reply.status).toBe(200)
-      expect(JSON.parse((await eventsOf())[0]?.body ?? '').images).toEqual(images)
+      expect(JSON.parse((await eventsOf())[0]?.body ?? '').attachments).toEqual(
+        attachmentsOf({ images }),
+      )
     })
 
     it('answers 400 for more than 10 images', async () => {

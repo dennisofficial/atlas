@@ -24,19 +24,24 @@ describe('pending uploads', () => {
     expect(queue.takeBackLast()?.uploads).toEqual([upload])
   })
 
-  it('emits uploads in the drained user-said draft and omits them when absent', () => {
+  it('emits one upload attachment in the drained user-said draft and omits it when absent', () => {
     const queue = createPendingQueue()
     queue.enqueue({ text: 'x', uploads: [upload] })
     queue.enqueue({ text: 'y' })
     const [first, second] = queue.drain()
-    expect(userSaidDraft(first!)).toMatchObject({ uploads: [upload] })
-    expect('uploads' in userSaidDraft(second!)).toBe(false)
+    expect(userSaidDraft(first!)).toMatchObject({
+      attachments: [{ id: upload.uploadId, name: 'a.txt' }],
+    })
+    expect('uploads' in userSaidDraft(first!)).toBe(false)
+    expect('attachments' in userSaidDraft(second!)).toBe(false)
   })
 
-  it('prepare carries uploads into the drafts', () => {
+  it('prepare carries uploads into the drafts as attachments', () => {
     const queue = createPendingQueue()
     queue.enqueue({ text: 'x', uploads: [upload] })
-    expect(queue.prepare().drafts[0]).toMatchObject({ uploads: [upload] })
+    expect(queue.prepare().drafts[0]).toMatchObject({
+      attachments: [{ id: upload.uploadId }],
+    })
   })
 
   it('keeps wire limits equal to core limits', () => {

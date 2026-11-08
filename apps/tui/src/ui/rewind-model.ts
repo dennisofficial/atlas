@@ -1,4 +1,4 @@
-import type { Event, SaidImage } from '@dltech/atlas-core'
+import { attachmentsOf, inlineImagesOf, type Event, type SaidImage } from '@dltech/atlas-core'
 
 export const REWIND_ROWS = 5
 
@@ -55,7 +55,12 @@ const clamped = (args: { value: number; count: number }): number =>
 const pointOf = (event: Event): RewindPoint[] => {
   if (wasSaid(event))
     return [
-      { kind: ERewindPointKind.Said, seq: event.seq, text: event.text, images: event.images ?? [] },
+      {
+        kind: ERewindPointKind.Said,
+        seq: event.seq,
+        text: event.text,
+        images: inlineImagesOf(attachmentsOf(event)),
+      },
     ]
 
   if (wasCompaction(event))

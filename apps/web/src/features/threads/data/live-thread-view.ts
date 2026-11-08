@@ -1,6 +1,6 @@
 import type { RemoteDeltaChannel, TerminalFrameChannel } from '@dltech/atlas-client/channel'
 import type { InFlightStep } from '@dltech/atlas-client/transcript'
-import type { CallId, SaidUpload } from '@dltech/atlas-core'
+import type { Attachment, CallId, SaidUpload } from '@dltech/atlas-core'
 import type {
   OperatorInputRequestWire,
   PendingEntryWire,
@@ -27,8 +27,7 @@ export type LiveThreadState = {
 export type LiveSend = (args: {
   text: string
   requestId: string
-  images?: SaidImageWire[]
-  uploads?: SaidUpload[]
+  attachments?: Attachment[]
 }) => boolean
 
 export type ThreadModelChoice = { ref: string; effort: string; fast?: boolean }

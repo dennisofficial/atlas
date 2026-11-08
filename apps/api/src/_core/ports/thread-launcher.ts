@@ -1,4 +1,9 @@
-import type { CreateThreadReply, SaidImageWire, SaidUploadWire } from '@dltech/atlas-wire'
+import type {
+  AttachmentWire,
+  CreateThreadReply,
+  SaidImageWire,
+  SaidUploadWire,
+} from '@dltech/atlas-wire'
 
 type Loose<T> = { [K in keyof T]: T[K] | undefined }
 
@@ -26,6 +31,7 @@ export type ThreadLaunch = {
     text: string
     images?: readonly SaidImageWire[] | undefined
     uploads?: readonly SaidUploadWire[] | undefined
+    attachments?: readonly AttachmentWire[] | undefined
   }
 }
 

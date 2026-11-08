@@ -1,13 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import type { SaidUpload } from '@dltech/atlas-core'
-import type { SaidImageWire } from '@dltech/atlas-wire/web'
+import type { Attachment } from '@dltech/atlas-core'
 
 import { activityOverrides } from '@/features/shell/activity-overrides'
 
-import { sameUploads } from './composer-attachments'
-import { sameImages } from './composer-images'
+import { sameAttachments } from './composer-attachments'
 import type { Handoff } from './composer-handoff'
 import { deliverMessage } from './send-message'
 import type { LiveSend } from './live-thread-view'
@@ -15,8 +13,7 @@ import { useThreadBackend } from './use-thread-backend'
 
 type Attempt = {
   text: string
-  images: SaidImageWire[]
-  uploads: SaidUpload[]
+  attachments: Attachment[]
   sendId: string
 }
 
@@ -24,19 +21,13 @@ export const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
 export const isRetryOf = (args: {
-  previous: {
-    text: string
-    images: readonly SaidImageWire[]
-    uploads?: readonly SaidUpload[] | undefined
-  } | null
+  previous: { text: string; attachments: readonly Attachment[] } | null
   text: string
-  images: readonly SaidImageWire[]
-  uploads?: readonly SaidUpload[] | undefined
+  attachments: readonly Attachment[]
 }): boolean =>
   args.previous !== null &&
   args.previous.text === args.text &&
-  sameImages(args.previous.images, args.images) &&
-  sameUploads(args.previous.uploads ?? [], args.uploads ?? [])
+  sameAttachments(args.previous.attachments, args.attachments)
 
 export function useSend() {
   const backend = useThreadBackend()
@@ -47,23 +38,20 @@ export function useSend() {
     async (args: {
       threadId: string
       text: string
-      images?: SaidImageWire[]
-      uploads?: SaidUpload[]
+      attachments?: Attachment[]
       liveSend: LiveSend
     }): Promise<Handoff | null> => {
-      const images = args.images ?? []
-      const uploads = args.uploads ?? []
+      const attachments = args.attachments ?? []
       const sendId =
         attempt.current !== null &&
         isRetryOf({
           previous: attempt.current,
           text: args.text,
-          images,
-          uploads,
+          attachments,
         })
           ? attempt.current.sendId
           : crypto.randomUUID()
-      attempt.current = { text: args.text, images, uploads, sendId }
+      attempt.current = { text: args.text, attachments, sendId }
       setSending(true)
       const optimistic = activityOverrides.markWorking(args.threadId)
       try {

@@ -1,2 +1,6 @@
 export * from './attachment'
 export * from './from-said'
+export * from './attachment-schema'
+export * from './uploads-of'
+export * from './inline-images'
+export * from './legacy-said'

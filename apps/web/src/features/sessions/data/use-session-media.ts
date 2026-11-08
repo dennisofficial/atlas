@@ -18,7 +18,7 @@ import {
   isMediaUploading,
   mediaChipOf,
   planImageAttach,
-  readyMediaOf,
+  readyAttachmentsOf,
   startedMedia,
   storeImage,
   supportedMediaTypeOf,
@@ -70,6 +70,8 @@ export function useSessionMedia() {
             id,
             name: image.path,
             previewUrl: `data:${image.mediaType};base64,${image.data}`,
+            mediaType: image.mediaType,
+            size: decodeBase64(image.data).byteLength,
           }),
         )
         const hash = await storeImage({
@@ -134,7 +136,7 @@ export function useSessionMedia() {
   }
 
   return {
-    media: readyMediaOf(held),
+    media: readyAttachmentsOf(held),
     uploading: isMediaUploading(held),
     attach,
     remove,

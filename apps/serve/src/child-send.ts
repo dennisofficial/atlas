@@ -1,6 +1,7 @@
 import {
   EMessageOrigin,
   saidBody,
+  type Attachment,
   type EventLogPort,
   type IdPort,
   type SaidFile,
@@ -35,14 +36,16 @@ export async function sayToChild(args: {
   owner: ThreadId
   agentId: ThreadId
   frame: ChildSendFrame
+  attachments?: readonly Attachment[] | undefined
 }): Promise<void> {
-  const { agents, runner, log, ids, owner, agentId, frame } = args
+  const { agents, runner, log, ids, owner, agentId, frame, attachments } = args
   const steered = await agents.say({
     threadId: owner,
     agentId,
     text: frame.text,
     ...(frame.images === undefined ? {} : { images: frame.images }),
     ...(frame.files === undefined ? {} : { files: frame.files }),
+    ...(attachments === undefined ? {} : { attachments }),
   })
   if (steered.ok) return
 
@@ -57,6 +60,7 @@ export async function sayToChild(args: {
           images: frame.images,
           files: frame.files,
           uploads: frame.uploads,
+          attachments,
         }),
         via: EMessageOrigin.Operator,
       },

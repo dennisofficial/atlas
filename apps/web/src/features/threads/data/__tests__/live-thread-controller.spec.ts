@@ -204,17 +204,29 @@ describe('createLiveThreadController', () => {
     expect(sends[0]).toMatchObject({ text: 'hello', requestId: 'r1' })
   })
 
-  it('forwards images in the send frame', async () => {
+  it('forwards attachments in the send frame', async () => {
     const test = rig()
     test.controller.start()
     await flush()
     test.ready()
-    const images = [{ path: 'a.png', mediaType: 'image/png', data: 'QUJD' }]
+    const attachments = [
+      {
+        id: 'a',
+        name: 'a.png',
+        mediaType: 'image/png',
+        size: 3,
+        content: { store: 'inline' as const, data: 'QUJD' },
+      },
+    ]
 
-    expect(test.controller.send({ text: 'look', requestId: 'r1', images })).toBe(true)
+    expect(test.controller.send({ text: 'look', requestId: 'r1', attachments })).toBe(true)
 
     const sends = test.socket().sent.filter((frame) => frame.kind === EClientFrame.Send)
-    expect(sends[0]).toMatchObject({ text: 'look', requestId: 'r1', images })
+    expect(sends[0]).toMatchObject({
+      text: 'look',
+      requestId: 'r1',
+      attachments,
+    })
   })
 
   it('opens the channel on the pod root and addresses sends at a teammate thread', async () => {

@@ -1,5 +1,5 @@
 import { EQueuedAttachmentKind, type QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
-import { EMessageOrigin } from '@dltech/atlas-core'
+import { attachmentsOf, EMessageOrigin, isImage } from '@dltech/atlas-core'
 import type { PendingEntryWire } from '@dltech/atlas-wire/web'
 
 export const TOO_LATE_NOTICE = 'Atlas already started on that message.'
@@ -15,12 +15,13 @@ export const queuedOf = (pending: readonly PendingEntryWire[]): QueuedMessageEnt
   pending.map((entry) => ({
     id: entry.id,
     text: entry.text,
-    attachments: (entry.uploads ?? []).map((upload) => ({
-      id: upload.uploadId,
-      name: upload.name,
-      kind: upload.mediaType.startsWith('image/')
-        ? EQueuedAttachmentKind.Image
-        : EQueuedAttachmentKind.File,
-      size: upload.size,
+    attachments: attachmentsOf({
+      uploads: entry.uploads,
+      attachments: entry.attachments ? [...entry.attachments] : undefined,
+    }).map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name,
+      kind: isImage(attachment) ? EQueuedAttachmentKind.Image : EQueuedAttachmentKind.File,
+      size: attachment.size,
     })),
   }))

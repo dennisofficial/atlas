@@ -1,4 +1,5 @@
 import { EBootStep, EBootStepState, EThreadMessageState } from '@dltech/atlas-wire'
+import { attachmentsOf } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
@@ -67,7 +68,7 @@ describe('ThreadMessagesService.send while the pod boots and the agent has not s
     ])
   })
 
-  it('stores the images on the queued user-said event', async () => {
+  it('stores the attachments on the queued user-said event', async () => {
     await seedBooting(SERVE_UP_CLONING)
     const { service } = messagesWith()
     const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
@@ -75,7 +76,7 @@ describe('ThreadMessagesService.send while the pod boots and the agent has not s
     await service.send({ ...ARGS, images })
 
     const [event] = await eventsOf()
-    expect(JSON.parse(event?.body ?? '').images).toEqual(images)
+    expect(JSON.parse(event?.body ?? '').attachments).toEqual(attachmentsOf({ images }))
   })
 
   it('appends a retried sendId once', async () => {

@@ -26,6 +26,7 @@ describe('operator media', () => {
         name: 'a.png',
         mediaType: 'image/png',
         size: 1,
+        source: 'a.png',
         content: { store: EAttachmentStore.Media, hash: HASH_A },
         image: { width: 1, height: 1 },
       },

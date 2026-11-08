@@ -173,54 +173,53 @@ describe('planImageAttach', () => {
 })
 
 describe('postInputOf', () => {
-  it('omits media for a text-only message', () => {
+  const media = {
+    id: `media:${HASH_A}`,
+    name: 'a.png',
+    mediaType: 'image/png',
+    size: 4,
+    content: { store: 'media' as const, hash: HASH_A },
+  }
+
+  it('omits attachments for a text-only message', () => {
     expect(postInputOf({ sessionId: 's', text: 'hi', media: [], uploads: [] })).toEqual({
       sessionId: 's',
       text: 'hi',
     })
   })
 
-  it('carries media for an image-only message', () => {
-    expect(
-      postInputOf({
-        sessionId: 's',
-        text: '',
-        media: [{ hash: HASH_A, source: 'a.png' }],
-        uploads: [],
-      }),
-    ).toEqual({
+  it('carries one media attachment for an image-only message', () => {
+    expect(postInputOf({ sessionId: 's', text: '', media: [media], uploads: [] })).toEqual({
       sessionId: 's',
       text: '',
-      media: [{ hash: HASH_A, source: 'a.png' }],
+      attachments: [media],
     })
   })
 
-  it('carries both text and media', () => {
-    expect(
-      postInputOf({ sessionId: 's', text: 'look', media: [{ hash: HASH_A }], uploads: [] }),
-    ).toEqual({
-      sessionId: 's',
-      text: 'look',
-      media: [{ hash: HASH_A }],
-    })
-  })
-
-  it('carries uploads alone', () => {
-    expect(postInputOf({ sessionId: 's', text: '', media: [], uploads: [UPLOAD] })).toEqual({
+  it('carries an upload as one upload attachment', () => {
+    const input = postInputOf({
       sessionId: 's',
       text: '',
+      media: [],
       uploads: [UPLOAD],
     })
+    expect(input.attachments).toHaveLength(1)
+    expect(input.attachments?.[0]).toMatchObject({
+      id: UPLOAD.uploadId,
+      name: UPLOAD.name,
+      content: { store: 'upload', uploadId: UPLOAD.uploadId },
+    })
+    expect('uploads' in input).toBe(false)
+    expect('media' in input).toBe(false)
   })
 
-  it('carries media and uploads together', () => {
-    expect(
-      postInputOf({
-        sessionId: 's',
-        text: 'both',
-        media: [{ hash: HASH_A }],
-        uploads: [UPLOAD],
-      }),
-    ).toEqual({ sessionId: 's', text: 'both', media: [{ hash: HASH_A }], uploads: [UPLOAD] })
+  it('carries media and uploads together, media first', () => {
+    const input = postInputOf({
+      sessionId: 's',
+      text: 'both',
+      media: [media],
+      uploads: [UPLOAD],
+    })
+    expect(input.attachments?.map((entry) => entry.id)).toEqual([media.id, UPLOAD.uploadId])
   })
 })

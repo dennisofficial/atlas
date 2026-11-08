@@ -129,7 +129,23 @@ describe('InboxIntake', () => {
     const drain = await intakeOver(async () => [withMedia]).prepare()
     expect(drain.wakesTurn).toBe(true)
     expect(drain.drafts).toEqual([
-      { type: 'user-said', text: '', media, requestId: 'inbox:5', inboxId: 5 },
+      {
+        type: 'user-said',
+        text: '',
+        attachments: [
+          {
+            id: `media:0:${'a'.repeat(64)}`,
+            name: 'shot.png',
+            mediaType: 'image/png',
+            size: 10,
+            source: 'shot.png',
+            content: { store: 'media', hash: 'a'.repeat(64) },
+            image: { width: 2, height: 3 },
+          },
+        ],
+        requestId: 'inbox:5',
+        inboxId: 5,
+      },
     ])
   })
 
@@ -150,7 +166,25 @@ describe('InboxIntake', () => {
     const drain = await intakeOver(async () => [withUploads]).prepare()
     expect(drain.wakesTurn).toBe(true)
     expect(drain.drafts).toEqual([
-      { type: 'user-said', text: 'see file', uploads, requestId: 'inbox:6', inboxId: 6 },
+      {
+        type: 'user-said',
+        text: 'see file',
+        attachments: [
+          {
+            id: uploads[0]!.uploadId,
+            name: 'notes.txt',
+            mediaType: 'text/plain',
+            size: 7,
+            content: {
+              store: 'upload',
+              uploadId: uploads[0]!.uploadId,
+              pathname: uploads[0]!.pathname,
+            },
+          },
+        ],
+        requestId: 'inbox:6',
+        inboxId: 6,
+      },
     ])
   })
 })

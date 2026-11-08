@@ -1,5 +1,12 @@
 import { EPromptAttachmentStatus, type PromptAttachment } from '@dltech/atlas-ui/ai/prompt-input'
-import { MAX_MESSAGE_UPLOADS, MAX_UPLOAD_BYTES, type SaidUpload } from '@dltech/atlas-core'
+import {
+  base64Bytes,
+  EAttachmentStore,
+  MAX_MESSAGE_UPLOADS,
+  MAX_UPLOAD_BYTES,
+  type Attachment,
+  type SaidUpload,
+} from '@dltech/atlas-core'
 import { MAX_MESSAGE_IMAGES, type SaidImageWire } from '@dltech/atlas-wire/web'
 
 import { MAX_IMAGE_DATA_CHARS } from './composer-images'
@@ -126,21 +133,54 @@ export const uploadsOf = (held: readonly HeldAttachment[]): SaidUpload[] =>
     entry.status === EAttachmentStatus.Ready && entry.upload !== undefined ? [entry.upload] : [],
   )
 
-export const inlineImagesOf = (held: readonly HeldAttachment[]): SaidImageWire[] =>
-  held.flatMap((entry) =>
-    entry.image === undefined
-      ? []
-      : [entry.upload === undefined ? entry.image : { ...entry.image, path: entry.upload.name }],
-  )
+const imageSizeOf = (image: SaidImageWire | undefined): Pick<Attachment, 'image'> =>
+  image === undefined || (image.width === undefined && image.height === undefined)
+    ? {}
+    : { image: { width: image.width, height: image.height } }
 
-export const uploadsFieldOf = (
-  uploads: readonly SaidUpload[] | undefined,
-): { uploads?: SaidUpload[] } =>
-  uploads === undefined || uploads.length === 0 ? {} : { uploads: [...uploads] }
+function attachmentOf(entry: HeldAttachment): Attachment | null {
+  const { upload, image } = entry
+  if (upload !== undefined && entry.status === EAttachmentStatus.Ready) {
+    return {
+      id: upload.uploadId,
+      name: upload.name,
+      mediaType: upload.mediaType,
+      size: upload.size,
+      content: {
+        store: EAttachmentStore.Upload,
+        uploadId: upload.uploadId,
+        pathname: upload.pathname,
+        ...(image === undefined ? {} : { inline: image.data }),
+      },
+      ...imageSizeOf(image),
+    }
+  }
+  if (image === undefined) return null
+  return {
+    id: entry.id,
+    name: image.path,
+    mediaType: image.mediaType,
+    size: base64Bytes(image.data),
+    source: image.path,
+    content: { store: EAttachmentStore.Inline, data: image.data },
+    ...imageSizeOf(image),
+  }
+}
 
-export const sameUploads = (left: readonly SaidUpload[], right: readonly SaidUpload[]): boolean =>
+export const attachmentsOf = (held: readonly HeldAttachment[]): Attachment[] =>
+  held.flatMap((entry) => attachmentOf(entry) ?? [])
+
+export const attachmentsFieldOf = (
+  attachments: readonly Attachment[] | undefined,
+): { attachments?: Attachment[] } =>
+  attachments === undefined || attachments.length === 0 ? {} : { attachments: [...attachments] }
+
+export const sameAttachments = (
+  left: readonly Attachment[],
+  right: readonly Attachment[],
+): boolean =>
   left.length === right.length &&
-  left.every((upload, index) => upload.uploadId === right[index]?.uploadId)
+  left.every((attachment, index) => attachment.id === right[index]?.id)
 
 const CHIP_STATUS: Record<EAttachmentStatus, EPromptAttachmentStatus> = {
   [EAttachmentStatus.Uploading]: EPromptAttachmentStatus.Uploading,

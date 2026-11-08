@@ -1,6 +1,7 @@
 export * from './account-lease-wire.js'
 export * from './boot-progress-wire.js'
 export * from './sandbox-self-wire.js'
+export * from './attachment-wire.js'
 export * from './thread-message-wire.js'
 export * from './upload-wire.js'
 export * from './composer-draft-wire.js'

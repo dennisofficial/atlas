@@ -1,6 +1,13 @@
 import { z } from 'zod'
 
-import type { SaidUpload } from '@dltech/atlas-core'
+import {
+  attachmentSchema,
+  attachmentsOf,
+  inlineImagesOf,
+  uploadsOf,
+  type SaidUpload,
+} from '@dltech/atlas-core'
+import type { SaidImageWire } from '@dltech/atlas-wire/web'
 import { EPodState, threadMessageRequestSchema, type WireEvent } from '@dltech/atlas-wire/web'
 
 import { CloudApiError } from '@/lib/cloud-api'
@@ -20,12 +27,14 @@ export type TakeBackTarget = {
   sendId: string
   text: string
   uploads: SaidUpload[]
+  images: SaidImageWire[]
 }
 
 const userBodySchema = z.object({
   text: z.string(),
   requestId: z.string().optional(),
   uploads: threadMessageRequestSchema.shape.uploads,
+  attachments: z.array(attachmentSchema).optional(),
 })
 
 export function userBodyOf(event: WireEvent): z.infer<typeof userBodySchema> | null {
@@ -52,10 +61,12 @@ export function takeBackTargetOf(args: {
   const last = lastCoreOf(args.events)
   const body = last === undefined ? null : userBodyOf(last)
   if (body === null || body.requestId === undefined) return null
+  const attachments = attachmentsOf(body)
   return {
     sendId: body.requestId,
     text: body.text,
-    uploads: body.uploads ?? [],
+    uploads: uploadsOf(attachments),
+    images: inlineImagesOf(attachments),
   }
 }
 

@@ -5,15 +5,25 @@ export enum EAttachmentStore {
 }
 
 export type AttachmentContent =
-  | { store: EAttachmentStore.Inline; data: string }
-  | { store: EAttachmentStore.Upload; uploadId: string; pathname: string; inline?: string }
-  | { store: EAttachmentStore.Media; hash: string; inline?: string }
+  | { store: `${EAttachmentStore.Inline}`; data: string }
+  | {
+      store: `${EAttachmentStore.Upload}`
+      uploadId: string
+      pathname: string
+      inline?: string | undefined
+    }
+  | {
+      store: `${EAttachmentStore.Media}`
+      hash: string
+      inline?: string | undefined
+    }
 
 export type Attachment = {
   id: string
   name: string
   mediaType: string
   size: number
+  source?: string | undefined
   content: AttachmentContent
   image?: { width?: number | undefined; height?: number | undefined } | undefined
 }

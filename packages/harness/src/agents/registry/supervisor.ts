@@ -4,6 +4,8 @@ import {
   type EExecutionLocation,
   type EventLogPort,
   type IdPort,
+  type Attachment,
+  type SaidFile,
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -90,6 +92,8 @@ export class AgentSupervisor extends AgentRegistryPort {
     threadId: ThreadId
     text: string
     images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
+    attachments?: readonly Attachment[] | undefined
   }): Promise<AgentOutcome> {
     return say({
       ...args,

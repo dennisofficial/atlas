@@ -67,11 +67,18 @@ describe('sameImages / isRetryOf', () => {
     expect(sameImages([image('a')], [])).toBe(false)
   })
 
-  it('reuses a sendId only when text and images both match', () => {
-    const previous = { text: 'hi', images: [image('a')] }
-    expect(isRetryOf({ previous, text: 'hi', images: [image('a')] })).toBe(true)
-    expect(isRetryOf({ previous, text: 'hi', images: [] })).toBe(false)
-    expect(isRetryOf({ previous, text: 'yo', images: [image('a')] })).toBe(false)
-    expect(isRetryOf({ previous: null, text: 'hi', images: [] })).toBe(false)
+  it('reuses a sendId only when text and attachments both match', () => {
+    const held = (id: string) => ({
+      id,
+      name: 'a.png',
+      mediaType: 'image/png',
+      size: 1,
+      content: { store: 'inline' as const, data: 'a' },
+    })
+    const previous = { text: 'hi', attachments: [held('a')] }
+    expect(isRetryOf({ previous, text: 'hi', attachments: [held('a')] })).toBe(true)
+    expect(isRetryOf({ previous, text: 'hi', attachments: [] })).toBe(false)
+    expect(isRetryOf({ previous, text: 'yo', attachments: [held('a')] })).toBe(false)
+    expect(isRetryOf({ previous: null, text: 'hi', attachments: [] })).toBe(false)
   })
 })

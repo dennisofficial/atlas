@@ -64,12 +64,21 @@ export function createRemoteDeltaChannel(
       throw new RemotePublishRefused(threadId)
     },
 
-    send: ({ text, requestId, images, files, uploads, context, threadId: addressed }) => {
+    send: ({
+      text,
+      requestId,
+      images,
+      files,
+      uploads,
+      attachments,
+      context,
+      threadId: addressed,
+    }) => {
       lifecycle.kickWake()
       upstream.send({
         kind: EClientFrame.Send,
         sendId: toSendId(crypto.randomUUID()),
-        ...saidBody({ text, requestId, images, files, uploads }),
+        ...saidBody({ text, requestId, images, files, uploads, attachments }),
         ...(addressed === undefined || addressed === args.threadId ? {} : { threadId: addressed }),
         ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
       })

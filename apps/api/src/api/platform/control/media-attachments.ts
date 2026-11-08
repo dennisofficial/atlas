@@ -1,5 +1,13 @@
 import { BadRequestException } from '@nestjs/common'
-import { mediaPathname, type MediaRef, type SaidImage } from '@dltech/atlas-core'
+import {
+  inlineData,
+  isImage,
+  mediaHashOf,
+  mediaPathname,
+  type Attachment,
+  type MediaRef,
+  type SaidImage,
+} from '@dltech/atlas-core'
 import type { MediaStore } from '@dltech/atlas-media'
 import type { SessionPostMedia } from '@dltech/atlas-protocol'
 import type { MediaRegistry } from './media-registry'
@@ -30,23 +38,42 @@ export async function attachedMedia(args: {
 export async function imagesForNaming(args: {
   store: MediaStore
   userId: string
-  media: readonly AttachedMedia[]
+  attachments: readonly Attachment[]
 }): Promise<SaidImage[]> {
   const loaded = await Promise.all(
-    args.media.map(async ({ media, source }): Promise<SaidImage[]> => {
-      const pathname = mediaPathname({ userId: args.userId, hash: media.hash })
-      const bytes = await args.store.read({ pathname }).catch(() => null)
+    args.attachments.map(async (attachment): Promise<SaidImage[]> => {
+      if (!isImage(attachment)) return []
+      const bytes = await namingBytesOf({
+        store: args.store,
+        userId: args.userId,
+        attachment,
+      })
       if (bytes === null) return []
       return [
         {
-          path: source ?? media.hash,
-          mediaType: media.mediaType,
-          data: Buffer.from(bytes).toString('base64'),
-          width: media.width,
-          height: media.height,
+          path: attachment.source ?? attachment.name,
+          mediaType: attachment.mediaType,
+          data: bytes,
+          width: attachment.image?.width,
+          height: attachment.image?.height,
         },
       ]
     }),
   )
   return loaded.flat()
+}
+
+async function namingBytesOf(args: {
+  store: MediaStore
+  userId: string
+  attachment: Attachment
+}): Promise<string | null> {
+  const inline = inlineData(args.attachment)
+  if (inline !== undefined) return inline
+  const hash = mediaHashOf(args.attachment)
+  if (hash === null) return null
+  const bytes = await args.store
+    .read({ pathname: mediaPathname({ userId: args.userId, hash }) })
+    .catch(() => null)
+  return bytes === null ? null : Buffer.from(bytes).toString('base64')
 }

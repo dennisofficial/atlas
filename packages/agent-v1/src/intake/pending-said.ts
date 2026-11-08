@@ -4,6 +4,7 @@ import type {
   SaidFile,
   SaidImage,
   SaidUpload,
+  Attachment,
 } from '@dltech/atlas-core'
 
 export type PendingSaid = {
@@ -11,6 +12,7 @@ export type PendingSaid = {
   images: readonly SaidImage[]
   files: readonly SaidFile[]
   uploads?: readonly SaidUpload[] | undefined
+  attachments?: readonly Attachment[] | undefined
   context?: readonly EventDraft[] | undefined
   via?: EMessageOrigin | undefined
   requestId?: string | undefined

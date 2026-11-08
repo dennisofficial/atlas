@@ -1,4 +1,11 @@
-import type { Event, EventLogPort, ThreadId } from '@dltech/atlas-core'
+import {
+  attachmentsOf,
+  inlineImagesOf,
+  uploadsOf,
+  type Event,
+  type EventLogPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import type { PendingSaid } from '../pending'
 import type { RewindMachineryPort } from '../store/rewind-machinery'
@@ -53,9 +60,11 @@ export async function undoTurn(args: {
     type: EUndo.Restored,
     said: {
       text: said.text,
-      images: said.images ?? [],
+      images: inlineImagesOf(attachmentsOf(said)),
       files: said.files ?? [],
-      ...(said.uploads === undefined ? {} : { uploads: said.uploads }),
+      ...(uploadsOf(attachmentsOf(said)).length === 0
+        ? {}
+        : { uploads: uploadsOf(attachmentsOf(said)) }),
     },
   }
 }

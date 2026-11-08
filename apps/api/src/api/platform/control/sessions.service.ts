@@ -9,7 +9,7 @@ import {
   STATUS_EVENT_LIMIT,
 } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
-import { INBOX_KIND_RETRY, type SaidUpload } from '@dltech/atlas-core'
+import { INBOX_KIND_RETRY, type Attachment, type SaidUpload } from '@dltech/atlas-core'
 import { MediaStore } from '@dltech/atlas-media'
 import {
   EWithdrawRefusal,
@@ -29,7 +29,6 @@ import {
 } from '@dltech/atlas-protocol'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
-import { attachedMedia } from './media-attachments'
 import { COMMAND_REGISTRY, controlCommandHandlers, postCommand } from './command-registry'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
@@ -39,7 +38,7 @@ import {
   EVENTS_DEFAULT_MAX_BYTES,
   toPageEvent,
 } from './session-events-page'
-import { attachedUploads } from './upload-attachments'
+import { postedAttachmentsOf } from './post-attachments'
 
 @Injectable()
 export class SessionsService {
@@ -101,23 +100,21 @@ export class SessionsService {
     text: string
     media?: readonly SessionPostMedia[] | undefined
     uploads?: readonly SaidUpload[] | undefined
+    attachments?: readonly Attachment[] | undefined
   }) {
     const session = await this.requireOwnedSession(args)
-    const media = await attachedMedia({
+    const attachments = await postedAttachmentsOf({
       registry: this.media,
-      userId: args.userId,
-      media: args.media ?? [],
-    })
-    const uploads = await attachedUploads({
       store: this.store,
       userId: args.userId,
-      uploads: args.uploads ?? [],
+      media: args.media,
+      uploads: args.uploads,
+      attachments: args.attachments,
     })
     const payload = JSON.stringify(
       inboxMessageSchema.parse({
         text: args.text,
-        ...(media.length === 0 ? {} : { media }),
-        ...(uploads.length === 0 ? {} : { uploads }),
+        ...(attachments.length === 0 ? {} : { attachments }),
       }),
     )
     const { inboxId } = await this.plane.post({
@@ -136,7 +133,7 @@ export class SessionsService {
           sessionId: args.sessionId,
           projectId: session.projectId,
           text: args.text,
-          media,
+          attachments,
           inboxId,
         }),
       )
