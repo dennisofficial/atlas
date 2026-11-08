@@ -394,14 +394,14 @@ subscription); per-session state is `have[block]` lengths and the closed key, no
 
 ### Backpressure and limits
 
-| Pressure                       | Mechanism                                                                                                                                                                                    |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Slow client, durable data      | No queue exists. The pump awaits `bufferedAmount < 1 MiB` before the next read; a socket above it for 30 s is closed with 4408 `slow-consumer` and resumes by cursor                         |
-| Slow client, ephemeral         | Per-subscription bounded queue (256 KiB); on overflow drop it and send one `overlay` when drained; durable pages never wait on it                                                            |
-| Many subscribers on one thread | A per-node `ThreadFeed` reads `(minCursor, head]` once per pointer and fans out from a small ring (256 events / 4 MiB); a subscriber behind the ring reads for itself                        |
-| Huge catch-up                  | Page limits above; `too-far-behind` reset                                                                                                                                                    |
-| Reconnect storm after deploy   | `going-away{reconnectAfterMs: random 0..5000}` and client jitter; each reconnect is one cheap read                                                                                           |
-| Abuse                          | Per connection: ≤ 32 session subscriptions + 1 sidebar, ≤ 20 `subscribe`/s. Per user: ≤ 20 connections. Per node: connection cap with `503` on upgrade and `/healthz` failing when saturated |
+| Pressure                       | Mechanism                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Slow client, durable data      | No queue exists. The pump awaits `bufferedAmount < 1 MiB` before the next read; a socket above it for 30 s is closed with 4408 `slow-consumer` and resumes by cursor                                                                                                                                                                 |
+| Slow client, ephemeral         | Per-subscription bounded queue (256 KiB); on overflow drop it and send one `overlay` when drained; durable pages never wait on it                                                                                                                                                                                                    |
+| Many subscribers on one thread | `sharedReads` (`apps/agent-host/src/stream/shared-reads.ts`) shares in-flight identical `readEvents` and `head` calls per node, so one append costs one pair of queries however many followers; settled results are never cached. The ring in the original design (`ThreadFeed`) was not built: §11 shows the gate passes without it |
+| Huge catch-up                  | Page limits above; `too-far-behind` reset                                                                                                                                                                                                                                                                                            |
+| Reconnect storm after deploy   | `going-away{reconnectAfterMs: random 0..5000}` and client jitter; each reconnect is one cheap read                                                                                                                                                                                                                                   |
+| Abuse                          | Per connection: ≤ 32 session subscriptions + 1 sidebar, ≤ 20 `subscribe`/s. Per user: ≤ 20 connections. Per node: connection cap with `503` on upgrade and `/healthz` failing when saturated                                                                                                                                         |
 
 ## 3. Where it runs and how it scales
 
@@ -635,3 +635,42 @@ Slices:
 
 Out of scope: the streaming burst, which has its own investigation, and the session list, which
 stays in PR 6 of section 8.
+
+## 11. Scale gate results (2026-11-07)
+
+Machine: an Atlas pod (4 vCPU, 8 GB) with Postgres 17 in Docker on the same host, the server and the
+appender in one Bun process and the 1,000 client sockets in a second Bun process. The production agent
+host is one Render `standard` instance in Virginia, so these are pod numbers. The gate is
+`apps/agent-host/src/stream/__tests__/scale-gate.spec.ts`, run with `ATLAS_SCALE_TESTS=1`.
+
+Open, a seeded 20,000-event thread (realistic `user-said` and `assistant-said` bodies of a few hundred
+bytes), client SDK to `Live` with the cursor at head, worst of three runs against the 1,000 ms target:
+
+| Open                              | Runs (ms)    | Worst (ms) |
+| --------------------------------- | ------------ | ---------- |
+| Cold, no cache                    | 145, 103, 97 | 145        |
+| Warm, cache 50 events behind head | 71, 74, 48   | 74         |
+
+Fan-out, 1,000 sockets for one user on one thread, 100 events/s for 30 s (1,500 appends of 2 events,
+one every 20 ms), latency from the append start to the arrival at the socket (an upper bound on
+commit-to-socket), target p99 ≤ 250 ms:
+
+| Measure                        | Before (no shared reads) | After (`sharedReads`)                                          |
+| ------------------------------ | ------------------------ | -------------------------------------------------------------- |
+| Socket latency p50 / p99 / max | not measured: failed     | 15.6 / 49.7 / 105.2 ms                                         |
+| Append p50 / p99               | not measured: failed     | 5.8 / 30.1 ms                                                  |
+| Server CPU (% of one core)     | not measured: failed     | 87                                                             |
+| Server peak RSS                | not measured: failed     | 277 MB                                                         |
+| Delivered                      | not measured: failed     | 3,000,000 of 3,000,000, 0 gaps, 0 duplicates, 0 closed sockets |
+
+Before the fix every live subscription read events and head on each change, about 2,000 queries per
+append against a pool of 10. The run, at 100 appends/s of 1 event, failed with `pg-pool` "timeout
+exceeded when trying to connect" after 214 s and produced no latency numbers. An earlier after-fix run at 100
+single-event appends/s (3,000 appends) also passed: p50 24.2 ms, p99 51.4 ms, max 81.9 ms, append p99
+33.0 ms, CPU 102 %, peak RSS 295 MB.
+
+What changed: `sharedReads` wraps the plane that `createFollowSubscriptions` reads through and shares
+the pending promise of identical in-flight `readEvents` (thread, `afterSeq`, limit, visibility, byte
+cap) and `head` (thread) calls, deleting the key when the call settles. `startStreamServer` takes an
+optional `maxConnectionsPerUser` (default 20) so the gate can open 1,000 sockets for one user. Encoded
+frames are not cached: serialization per socket was not the bottleneck at this scale.
