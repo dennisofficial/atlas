@@ -27,6 +27,8 @@ import {
 } from './remote-calls-frames'
 import type { RemoteCallsArgs } from './remote-calls'
 
+export const ACK_TIMEOUT_MS = 10_000
+
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
   private readonly pendingAcks = new Map<string, { key: string; resolve(found: boolean): void }>()
@@ -198,8 +200,18 @@ export class RemoteCallsState {
     }
     if (this.fenced || this.closed) return false
     return new Promise<boolean>((resolve) => {
-      this.pendingAcks.set(args.key, { key: args.key, resolve })
-      if (this.link.ready) this.link.send({ kind: 'ack', key: args.key, epoch: this.epoch })
+      const timer = this.args.timers.setTimeout(() => {
+        this.pendingAcks.delete(args.key)
+        resolve(false)
+      }, ACK_TIMEOUT_MS)
+      this.pendingAcks.set(args.key, {
+        key: args.key,
+        resolve: (found) => {
+          this.args.timers.clearTimeout(timer)
+          resolve(found)
+        },
+      })
+      this.link.send({ kind: 'ack', key: args.key, epoch: this.epoch })
     })
   }
 

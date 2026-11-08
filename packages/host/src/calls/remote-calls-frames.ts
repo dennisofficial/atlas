@@ -154,14 +154,14 @@ const handleErrorFrame = (
   frame: { key?: string | undefined; errorKind: string; message: string },
 ): void => {
   if (frame.key !== undefined) state.answered(frame.key, 'unavailable')
+  const pendingAck = frame.key === undefined ? undefined : state.pendingAcks.get(frame.key)
+  if (pendingAck !== undefined && frame.key !== undefined) {
+    pendingAck.resolve(false)
+    state.pendingAcks.delete(frame.key)
+    return
+  }
   if (frame.errorKind === 'stale-epoch') return
   if (frame.key !== undefined && frame.errorKind === 'unknown-key') {
-    const ack = state.pendingAcks.get(frame.key)
-    if (ack !== undefined) {
-      ack.resolve(false)
-      state.pendingAcks.delete(frame.key)
-      return
-    }
     const call = state.pending.get(frame.key)
     if (call === undefined || !call.sent) return
     if (call.controller.signal.aborted) {
