@@ -10,44 +10,74 @@ import {
   withAlpha,
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { ArrowUp, Square } from 'lucide-react-native'
+import type { Attachment } from '@dltech/atlas-core'
+import { ArrowUp, Paperclip, Square } from 'lucide-react-native'
 import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
+import { AttachmentChips } from './attachment-chips'
+import { AttachMenu } from './attach-menu'
+import { REMOVE_FAILED_FILES, sendableOf } from './attachment-plan'
+import type { ComposerAttachments } from './use-attachments'
+
 export const Composer = ({
   working,
+  attachments,
   onSend,
   onStop,
 }: {
   working: boolean
-  onSend: (text: string) => Promise<boolean>
+  attachments: ComposerAttachments
+  onSend: (message: { text: string; attachments: Attachment[] }) => Promise<boolean>
   onStop: () => void
 }) => {
   const theme = useTheme()
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [choosing, setChoosing] = useState(false)
 
-  const text = draft.trim()
-  const canSend = text.length > 0 && !sending
+  const canSend = sendableOf({ text: draft, held: attachments.held }) && !sending
 
   const handleSend = async () => {
     if (!canSend) return
     setSending(true)
     setFailed(false)
-    const sent = await onSend(text)
+    const sent = await onSend({ text: draft.trim(), attachments: attachments.attachments })
     setSending(false)
-    if (sent) setDraft('')
-    else setFailed(true)
+    if (!sent) {
+      setFailed(true)
+      return
+    }
+    setDraft('')
+    attachments.clear()
+  }
+
+  const notice = failed
+    ? draft.trim().length === 0
+      ? "Attachments couldn't go on their own. Add a caption to queue them for later."
+      : 'That message could not be sent.'
+    : (attachments.notice ?? (attachments.failed ? REMOVE_FAILED_FILES : null))
+
+  const handlePick = (pick: () => Promise<void>) => {
+    setChoosing(false)
+    void pick()
   }
 
   return (
     <View style={styles.dock}>
-      {failed ? (
-        <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.notice}>
-          That message could not be sent.
-        </Text>
+      {choosing ? (
+        <AttachMenu
+          onPhoto={() => handlePick(attachments.pickPhotos)}
+          onFile={() => handlePick(attachments.pickFiles)}
+        />
       ) : null}
+      <AttachmentChips held={attachments.held} onRemove={attachments.remove} />
+      {notice === null ? null : (
+        <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.notice}>
+          {notice}
+        </Text>
+      )}
       <View
         style={[
           styles.field,
@@ -57,6 +87,13 @@ export const Composer = ({
           },
         ]}
       >
+        <Button
+          label={choosing ? 'Close the attachment menu' : 'Attach'}
+          icon={Paperclip}
+          size={EButtonSize.IconSm}
+          variant={choosing ? EButtonVariant.Default : EButtonVariant.Secondary}
+          onPress={() => setChoosing((open) => !open)}
+        />
         <Input
           bare
           multiline
@@ -100,7 +137,7 @@ const styles = StyleSheet.create({
     borderRadius: radius(1.4),
     borderWidth: 1,
     flexDirection: 'row',
-    gap: space(2),
+    gap: space(1.5),
     padding: space(2),
   },
   input: {

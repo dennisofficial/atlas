@@ -1,6 +1,6 @@
 import { space } from '@dltech/atlas-ui/tokens'
 import { ETextRole, ETextTone, Text } from '@dltech/atlas-ui-native'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import {
   FlatList,
   type ListRenderItem,
@@ -33,24 +33,28 @@ const WorkingFooter = () => (
   </Text>
 )
 
-const renderRow: ListRenderItem<ThreadRow> = ({ item }) => {
-  if (item.kind === ERowKind.Message) return <MessageRowView row={item} />
-  if (item.kind === ERowKind.Work) return <WorkRowView row={item} />
-  return <NoticeRowView row={item} />
-}
-
 export const Transcript = ({
   rows,
   working,
+  threadId,
 }: {
   rows: readonly ThreadRow[]
   working: boolean
   now: number
+  threadId: string | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const isNearBottom = useRef(true)
   const tailSize = tailSizeOf(rows)
   const showWorking = working && !isStreamingMessage(rows.at(-1))
+  const renderRow = useCallback<ListRenderItem<ThreadRow>>(
+    ({ item }) => {
+      if (item.kind === ERowKind.Message) return <MessageRowView row={item} threadId={threadId} />
+      if (item.kind === ERowKind.Work) return <WorkRowView row={item} />
+      return <NoticeRowView row={item} />
+    },
+    [threadId],
+  )
 
   const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: true })
 
