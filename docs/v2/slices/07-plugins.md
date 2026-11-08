@@ -429,3 +429,5 @@ correction this spec needed.
 MCP and skills get their own row after slice 7; §7 no longer proposes them for this slice.
 
 Live check marker 2026-11-08T14:07:11Z.
+
+Wake check 2026-11-08T14:07:59Z.
