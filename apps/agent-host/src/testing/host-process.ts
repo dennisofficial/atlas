@@ -1,6 +1,8 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 
+import { composeCommands } from '@dltech/atlas-commands'
 import { ControlPlane } from '@dltech/atlas-control'
+import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 import { ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
@@ -179,6 +181,8 @@ const main = async (): Promise<void> => {
     appendRetryMs: numberEnv('APPEND_RETRY_MS', 2_500),
     idleMinutes: numberEnv('IDLE_MINUTES', 30),
     sweepMs: numberEnv('SWEEP_MS', 20_000),
+    commands: composeCommands(nativeCommands),
+    commandHandlers: nativeCommandHandlers,
     log,
     onHostIdChanged: () => watch?.recompute(),
   })

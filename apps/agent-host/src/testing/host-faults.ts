@@ -10,6 +10,7 @@ export enum EHostFault {
   SandboxStopThrowsOnce = 'sandbox-stop-throws-once',
   PostDuringRevoke = 'post-during-revoke',
   SpyWake = 'spy-wake',
+  CommandOutcomeHangs = 'command-outcome-hangs',
 }
 
 export const hostFaultOf = (raw: string | undefined): EHostFault | undefined => {
@@ -34,6 +35,24 @@ const turnThrowsOnce = (args: { plane: ControlPlane; log: LogPort }): Append => 
     thrown = true
     announce({ log: args.log, message: 'fault: turn append throws' })
     throw new RecordCorruptError('injected turn fault')
+  }
+}
+
+const COMMAND_OUTCOME_TYPES: readonly string[] = ['history-rewound', 'history-summarised']
+
+const commandOutcomeHangs = (args: { plane: ControlPlane; log: LogPort }): Append => {
+  return async (params) => {
+    const isOutcome = params.events.some(
+      (event) =>
+        typeof event === 'object' &&
+        event !== null &&
+        'type' in event &&
+        typeof event.type === 'string' &&
+        COMMAND_OUTCOME_TYPES.includes(event.type),
+    )
+    if (!isOutcome) return args.plane.append(params)
+    announce({ log: args.log, message: 'fault: command outcome hangs' })
+    return new Promise<never>(() => {})
   }
 }
 
@@ -76,6 +95,9 @@ const overridesOf = (args: {
     },
   }
   if (fault === EHostFault.TurnThrowsOnce) return { ...spyWake, append: turnThrowsOnce(args) }
+  if (fault === EHostFault.CommandOutcomeHangs) {
+    return { ...spyWake, append: commandOutcomeHangs(args) }
+  }
   if (fault === EHostFault.RevokeThrowsTwice) return { ...spyWake, revoke: revokeThrowsTwice(args) }
   if (fault === EHostFault.PostDuringRevoke) return { ...spyWake, revoke: postDuringRevoke(args) }
   return spyWake
