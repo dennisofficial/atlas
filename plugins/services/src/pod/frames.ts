@@ -52,8 +52,8 @@ export const recordServiceFrame = async (args: {
   state.endings.add(serviceId)
   try {
     await state.starting.get(serviceId)
+    if (hasEnded({ events: ctx.events(), serviceId })) return
     const started = startedOf({ events: ctx.events(), serviceId })
-    if (started === undefined || hasEnded({ events: ctx.events(), serviceId })) return
     const outcome = outcomeOf({
       info,
       stoppedByModel: state.stopping.has(serviceId),
@@ -63,8 +63,8 @@ export const recordServiceFrame = async (args: {
       {
         type: 'service-ended',
         serviceId,
-        command: started.command,
-        ...(started.description === undefined ? {} : { description: started.description }),
+        command: started?.command ?? info.command,
+        ...(started?.description === undefined ? {} : { description: started.description }),
         status: outcome.status,
         ...(outcome.killedBy === undefined ? {} : { killedBy: outcome.killedBy }),
         ...(outcome.exitCode === undefined ? {} : { exitCode: outcome.exitCode }),

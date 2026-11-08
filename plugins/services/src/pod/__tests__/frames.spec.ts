@@ -132,6 +132,14 @@ describe('recordServiceFrame', () => {
     expect(harness.log.filter((event) => event.type === 'service-ended')).toHaveLength(1)
   })
 
+  it('records an ending whose start the journal never held, from the daemon', async () => {
+    const harness = rig()
+    await record(harness, endedFrame({ serviceId: 'svc-lost', command: 'serve --port 80' }))
+    expect(harness.log).toMatchObject([
+      { type: 'service-ended', serviceId: 'svc-lost', command: 'serve --port 80' },
+    ])
+  })
+
   it('orders an ending that races its start append after the start', async () => {
     const harness = rig()
     harness.ctx.onDaemonEvent((frame) => {
