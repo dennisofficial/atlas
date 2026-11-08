@@ -247,13 +247,13 @@ Every new row should also assert the §3 invariant: within a stated bound, the r
 
 ## Closed 2026-11-08 (audit steps 4–5)
 
-| Edge / gap | Bound and outcome | PR |
-| --- | --- | --- |
-| Daemon `ready()` wait in `invoke` and `ackKey` | 60 s; `invoke` rejects `ReadyTimeoutError` and drops the call, `ack` resolves false; an abort before send settles the call interrupted | #2016 |
-| `sandbox.wake()` | 5 min combined with the caller's signal; `SandboxUnavailableError`, which the prepare path already shows | #2016 |
-| Drain | hard exit at `drainMs + 20 s` (inside Render's 300 s), logged and exit 1 | #2016 |
-| LISTEN connect and query | 5 s connect, 10 s `LISTEN`, then the existing drop-and-retry | #2016 |
-| A turn that stops progressing | 11 min with no activity aborts the turn and records `run-failed{kind:'stalled'}`; the session stays held and failed-visible, and the next message resumes it | #2019 |
+| Edge / gap                                     | Bound and outcome                                                                                                                                            | PR    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
+| Daemon `ready()` wait in `invoke` and `ackKey` | 60 s; `invoke` rejects `ReadyTimeoutError` and drops the call, `ack` resolves false; an abort before send settles the call interrupted                       | #2016 |
+| `sandbox.wake()`                               | 5 min combined with the caller's signal; `SandboxUnavailableError`, which the prepare path already shows                                                     | #2016 |
+| Drain                                          | hard exit at `drainMs + 20 s` (inside Render's 300 s), logged and exit 1                                                                                     | #2016 |
+| LISTEN connect and query                       | 5 s connect, 10 s `LISTEN`, then the existing drop-and-retry                                                                                                 | #2016 |
+| A turn that stops progressing                  | 11 min with no activity aborts the turn and records `run-failed{kind:'stalled'}`; the session stays held and failed-visible, and the next message resumes it | #2019 |
 
 The watchdog reuses `ERunFailureKind.Stalled`, so no record-union change was needed and the existing
 remedies table already offers Retry.

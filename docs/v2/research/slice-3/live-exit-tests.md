@@ -227,7 +227,10 @@ Three bash calls; sandbox stopped (Vercel SDK) 15 s into call 2 (120 s wait). Ho
 
 The API lists instances (`GET /v1/services/{id}/instances`) but has no kill or terminate action, and the
 service's SSH address refuses a keyless login, so there is no way from a pod to SIGKILL the process.
-`POST /suspend`, the most abrupt stop available, was measured during a real 60 s tool call on session
+The kill _is_ reachable one layer down, and was done: a local agent host on the production control plane
+and a real Vercel sandbox, `kill -9`, next holder claimed in ~3 s, the crashed call settled interrupted and
+the side effect counted once — see [hard-host-kill.md](hard-host-kill.md). `POST /suspend`, the most abrupt
+stop Render itself offers, was measured during a real 60 s tool call on session
 `de884fc5-8e64-484c-8f5b-4c0057e15c58`: the instance logged no `draining`, no new `agent-host started`
 followed the resume, and the lease stayed at epoch 1 with the same holder — it paused and thawed rather
 than died. What that run does prove: a 22 s total freeze during a running call loses nothing; the call
