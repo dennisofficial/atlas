@@ -519,6 +519,49 @@ the check).
 The header's rendering itself is covered by `session-header.spec.tsx` and
 `session-view-model.spec.ts`; the live run proves the view data behind it.
 
+### 8.3 `plugins/shells`
+
+Shipped: `plugins/shells` (`@dltech/atlas-plugin-shells`, `/core` `/pod` `/control` `/client`),
+registered in `apps/api` and `apps/agent-host`; the `shells` view; the tools `shell` (background
+launch), `shell_output`, `shell_input`, `shell_kill` and `shell_list` over the daemon's `shells.*`
+ops; the ending recorder that appends `background-shell-ended` from the `shells.ended` frame, deduped
+against the journal and serialised behind the in-flight launch; the running-roster `beforeStep` hook;
+the prompt fragment. `background-shell-started` gained an optional `cwd` so the roster can show it
+(v1 events still decode; v1 never sets it).
+
+What this plugin does not need, and why:
+- **No completion hook.** Core assembly already hands `background-shell-ended` to the model
+  (`packages/core/src/assembly/rules/messages-from-events.ts:293`) and `close-quiet-step.ts:33`
+  nudges a quiet model when one arrived. The plugin only appends the ending; a hook would duplicate
+  both.
+- **No `afterShell` phase.** `HookChain.afterShell` exists but nothing in the v2 loop calls it. The
+  trigger is the daemon frame.
+- **No `PodSlot.onDaemonEvent`.** It is handed a frame and no context, so the recorder is registered
+  as a listener from `hooks(ctx)` through `ctx.onDaemonEvent` (`packages/plugin-sdk/src/slots.ts:12`).
+- **No live-output stream yet.** Spec §5.2's "Transport: `stream` for `shells.output`" is declared
+  (`transport: 'stream'`) but nothing consumes `ComposedPlugins.transports`, and the pod has no
+  channel to a browser except the durable journal, which would flood. The options are written up as
+  an open question in the plugin's section file; this PR does not invent one.
+
+Not shipped here: the web roster chip (a follow-up PR reads `pluginViews.shells` in the session
+header). The transcript's ended line already renders from the core event
+(`packages/client/src/transcript/notice-entries.ts:22`).
+
+**Live check (2026-11-08, production).** Session `7850e6ff-c1be-4a0c-918f-f841caa3e7b8`, thread
+`759c2536-d748-4de1-86a0-1642c9ec0fa9`, project `cmvh6z3ls002i08jwseqmwbrv` (dennisofficial/atlas),
+agent host `a4bb01faa`, replaced mid-check by `629a89369` (which is what the restart row proves).
+
+| Step                     | Result                                                                                                                                                                                                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Start a background shell | `shell-c83ae35a`, `background-shell-started` at seq 25, `cwd: /atlas/workspaces/workspace`, description `ticker`                                                                                                                                                 |
+| Read it while it runs    | `shell_output` at seq 34 → `tick 1`, `status: running`, `remainingCharacters: 0`                                                                                                                                                                                 |
+| The roster               | `shell_list` at seq 35 → the row, `state: running`, 7 characters printed                                                                                                                                                                                         |
+| Kill it                  | `shell_kill` at seq 40 → `tick 2`; exactly one `background-shell-ended`, seq 39, `status: killed`                                                                                                                                                                |
+| The view                 | `pluginViews.shells` = `[{ shellId, name: "\"ticker\" (…) ", cwd, status: killed, characters: 7, awaitingInput: false }]`                                                                                                                                        |
+| Answer its stdin         | `shell-03f3defa` launched with `input: true`; `shell_input` wrote `hello\n` (seq 54); `shell_output` (seq 59) → `got:hello`                                                                                                                                      |
+| Restart the agent host   | keeper `shell-4e38e2b0` (`while true; do echo alive; …`) started at seq 67; the deploy of `629a89369` replaced the holder; the next turn's `shell_list` (seq 76) still returned it — running, 306 characters printed. The daemon, not the journal, is the roster |
+| Teardown                 | keeper killed (seq 83, `status: killed`), session archived, temporary `AuthSession` row deleted                                                                                                                                                                  |
+
 ## 9. Answers (2026-11-08)
 
 1. **Order and packaging.** As recommended in §3: the contract, then github (subscriptions inside one
