@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EAttachmentStore } from '@dltech/atlas-core'
 import { EQueuedAttachmentKind } from '@dltech/atlas-ui/ai/queued-messages'
 
 import { mergeWithdrawnIntoDraft, queuedMediaHashesOf, visibleQueuedOf } from '../queued-messages'
@@ -86,6 +87,58 @@ describe('visibleQueuedOf attachments', () => {
         name: 'deploy.sh',
         kind: EQueuedAttachmentKind.File,
         size: 7,
+      },
+    ])
+  })
+
+  it('shows the attachments the server stored on the queued message', () => {
+    const picture = 'b'.repeat(64)
+    const queuedWithStored = [
+      {
+        inboxId: 4,
+        text: 'What colour fills this image?',
+        postedAt: '2026-11-06T10:00:03.000Z',
+        attachments: [
+          {
+            id: 'att-1',
+            name: 'image.png',
+            mediaType: 'image/png',
+            size: 377,
+            content: { store: EAttachmentStore.Media, hash: picture },
+          },
+          {
+            id: 'att-2',
+            name: 'notes.txt',
+            mediaType: 'text/plain',
+            size: 12,
+            content: {
+              store: EAttachmentStore.Upload,
+              uploadId: '0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e41',
+              pathname: 'composer-uploads/u/notes.txt',
+            },
+          },
+        ],
+      },
+    ]
+
+    expect(queuedMediaHashesOf(queuedWithStored)).toEqual([picture])
+    const [entry] = visibleQueuedOf({
+      queued: queuedWithStored,
+      urls: new Map([[picture, 'https://blob/image']]),
+    })
+    expect(entry?.attachments).toEqual([
+      {
+        id: 'att-1',
+        name: 'image.png',
+        kind: EQueuedAttachmentKind.Image,
+        size: 377,
+        previewUrl: 'https://blob/image',
+      },
+      {
+        id: 'att-2',
+        name: 'notes.txt',
+        kind: EQueuedAttachmentKind.File,
+        size: 12,
       },
     ])
   })
