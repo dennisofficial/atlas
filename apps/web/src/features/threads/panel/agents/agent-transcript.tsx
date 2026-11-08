@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import { isLiveTurn } from '../../data/is-live-turn'
-import { eventsFromWire } from '../../data/events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import { rosterModelsOf } from '../../data/transcript-agents'
 import { durableTranscriptOf, transcriptViewOf } from '../../data/transcript-items'
 import { ESegmentKind, ETurnKind, turnsOf, type Turn } from '../../data/transcript-turns'

@@ -2,7 +2,7 @@ import type { ChannelSignal, StepSignal } from '@dltech/atlas-client/channel'
 import type { CallId, Event } from '@dltech/atlas-core'
 import type { OperatorInputRequestWire, WireEvent } from '@dltech/atlas-wire/web'
 
-import { eventsFromWire } from './events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 
 export const MAX_TAIL_CHARACTERS = 60_000
 

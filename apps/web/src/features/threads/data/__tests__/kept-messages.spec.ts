@@ -4,7 +4,7 @@ import type { AtlasStepMessage } from '@dltech/atlas-client/chat'
 import { EStepEnd } from '@dltech/atlas-client/channel'
 import { toEventId } from '@dltech/atlas-core'
 
-import { eventsFromWire } from '../events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import { keptMessages } from '../kept-messages'
 
 const message = (args: {

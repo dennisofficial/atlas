@@ -6,7 +6,7 @@ import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import { QUEUE_PLACEHOLDER, queuedOf, takeBackableIdOf, TOO_LATE_NOTICE } from './composer-queue'
 import { contextUsageOf } from './context-usage'
-import { eventsFromWire } from './events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import { removeQueuedEntry, saveQueuedEntry } from './queued-edit'
 import type { TakenBack } from './live-thread-view'
 import type { ThreadSource } from './thread-source'

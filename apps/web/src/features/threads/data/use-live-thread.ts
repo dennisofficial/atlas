@@ -3,7 +3,7 @@ import { stepsOfMessages, type AtlasStepMessage } from '@dltech/atlas-client/cha
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { eventsFromWire } from './events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import { createLiveChatSession, type LiveChatSession } from './live-chat-session'
 import {
   IDLE_LIVE_THREAD,

@@ -6,7 +6,7 @@ import { EAttachmentStore, toCallId } from '@dltech/atlas-core'
 import { EToolState } from '@dltech/atlas-ui/ai/tool'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
-import { eventsFromWire } from '../events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import {
   durableTranscriptOf,
   EToolFamily,

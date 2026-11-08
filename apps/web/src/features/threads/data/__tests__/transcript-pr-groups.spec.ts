@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
-import { eventsFromWire } from '../events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import { durableTranscriptOf, ETranscriptKind, transcriptViewOf } from '../transcript-items'
 
 const wire = (seq: number, body: Record<string, unknown>): WireEvent => ({

@@ -13,7 +13,7 @@ import { toCallId, toEventId, type CallId } from '@dltech/atlas-core'
 import type { InFlightStep } from '@dltech/atlas-client/transcript'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
-import { eventsFromWire } from '../events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import { threadSourceOf } from '../thread-source'
 import { durableTranscriptOf, ETranscriptKind, transcriptViewOf } from '../transcript-items'
 import { flush, rig } from './live-thread-fixture'

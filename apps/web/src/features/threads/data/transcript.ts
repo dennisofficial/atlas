@@ -1,6 +1,6 @@
 import { BOOT_STEP_EVENT_TYPE, type WireEvent } from '@dltech/atlas-wire/web'
 
-import { eventsFromWire } from './events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import {
   durableTranscriptOf,
   ETranscriptKind,

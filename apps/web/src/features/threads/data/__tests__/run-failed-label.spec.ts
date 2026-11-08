@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { eventsFromWire } from '../events-from-wire'
+import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import { durableTranscriptOf, transcriptViewOf } from '../transcript-items'
 import { runFailedLabelOf } from '../run-failed-label'
 import { runAttentionOf } from '@dltech/atlas-client/transcript'
