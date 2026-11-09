@@ -12,8 +12,7 @@ import { registerNative } from './native-controls'
 import { forgetNativeStats, noteNativeEvent } from './native-stats'
 import { isNativeWebview } from './webview-handle'
 
-// CEF's own default profile: the most-travelled request-context path, and one profile for the app.
-const CEF_PARTITION = 'persist:default'
+const CEF_PARTITION = 'persist:atlas-browser'
 
 // Electrobun's WKWebView only takes a named store after `persist:` when it is a UUID, and otherwise silently drops to the app's default store.
 // https://github.com/blackboardsh/electrobun/blob/v2.0.5/package/src/native/macos/nativeWrapper.mm#L743-L767
@@ -73,7 +72,7 @@ export function NativeFrame(props: {
       src={initialUrl}
       partition={partitionFor(renderer)}
       renderer={renderer}
-      masks={renderer === 'cef' ? undefined : OVERLAY_MASKS}
+      masks={OVERLAY_MASKS}
       style={FILL}
     />
   )

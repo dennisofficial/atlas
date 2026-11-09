@@ -66,6 +66,7 @@ export function NativeDiagnostics({ frameKey }: { frameKey: string | undefined }
   }, [frameKey])
 
   if (report === undefined) return null
+  if (report.ready > 0 || report.navigations > 0) return null
   return (
     <div
       aria-hidden
