@@ -28,6 +28,7 @@ import {
 import { agentEventSchemas } from './agent-schema'
 import { policyEventSchemas } from './policy-schema'
 import { prEventSchemas } from './pr-schema'
+import { runEventSchemas } from './run-schema'
 import { shellEventSchemas } from './shell-schema'
 import { runFailureSchema } from './run-failure'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
@@ -262,6 +263,7 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
   ...agentEventSchemas,
   ...shellEventSchemas,
   ...prEventSchemas,
+  ...runEventSchemas,
   diagramRepairedSchema,
   ...policyEventSchemas,
   subscriptionCreatedSchema,

@@ -14,7 +14,13 @@ export type WakePrEvent = {
   eventId?: string
 }
 
-export type WakeEventNotice = Pick<WakePrEvent, 'userId' | 'repoFullName' | 'prNumber'>
+export type WakePrNotice = Pick<WakePrEvent, 'userId' | 'repoFullName' | 'prNumber'> & {
+  kind?: 'pull-request'
+}
+
+export type WakeEventNotice =
+  | WakePrNotice
+  | { kind: 'workflow-run'; userId: string; repoFullName: string }
 
 const GITHUB_PREFIX = 'github.com/'
 

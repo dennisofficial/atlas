@@ -9,6 +9,7 @@ export const githubPollSweepTask = schedules.task({
     withGithubSweepGraph({
       run: async (graph) => {
         await graph.pollSweeper.handlePoll()
+        await graph.runSweeper.handleSweep()
         await graph.wake.retryFailedWakes()
       },
     }),

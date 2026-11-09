@@ -13,6 +13,7 @@ export const SUBSCRIPTION_EVENT_TYPES = [
 ]
 
 export const PULL_REQUEST_PROVIDER_KIND = 'github.pull-request'
+export const GITHUB_WORKFLOW_RUN_PROVIDER_KIND = 'github.workflow-run'
 
 type EventRow = { threadId: string; seq: number; type: string; body: string }
 

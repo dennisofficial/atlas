@@ -85,6 +85,9 @@ const lineOf = (event: Event): string | undefined => {
   if (event.type === 'pr-event') {
     return `PR #${event.prNumber}: ${prEventLabel(event)}`
   }
+  if (event.type === 'run-event') {
+    return `workflow run #${event.workflowRunId}: ${event.conclusion}`
+  }
   return undefined
 }
 

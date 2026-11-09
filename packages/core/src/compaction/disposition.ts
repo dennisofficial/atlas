@@ -37,6 +37,7 @@ export const COMPACTION_DISPOSITION = {
   'background-shell-awaiting-input': ECompactionDisposition.Summarise,
   'service-ended': ECompactionDisposition.Summarise,
   'pr-event': ECompactionDisposition.Summarise,
+  'run-event': ECompactionDisposition.Summarise,
   nudge: ECompactionDisposition.Summarise,
   'sandbox-setup-reported': ECompactionDisposition.Summarise,
   parked: ECompactionDisposition.Summarise,

@@ -6,6 +6,7 @@ import { reachesModel } from '../events/notice-stage'
 import { EExecutionLocation } from '../execution/location'
 import { elapsedPhrase } from '../shells/elapsed'
 import { prEventContent } from '../assembly/rules/pr-event-block'
+import { runEventContent } from '../assembly/rules/run-event-block'
 import type { SummarisedType } from './disposition'
 
 const PAYLOAD_CHARACTER_LIMIT = 600
@@ -75,6 +76,7 @@ const SUMMARISED_LINES: {
   'service-ended': ({ event, limit }) =>
     `Service "${event.command}" ${event.status}: ${clipped(event.tail, limit)}`,
   'pr-event': ({ event }) => prEventContent(event),
+  'run-event': ({ event }) => runEventContent(event),
   nudge: ({ event, limit }) => `Harness nudge: ${clipped(event.text, limit)}`,
   'sandbox-setup-reported': ({ event }) => `Atlas sandbox setup: ${event.text}`,
   parked: ({ event }) => `Atlas parked this session (${event.reason})`,

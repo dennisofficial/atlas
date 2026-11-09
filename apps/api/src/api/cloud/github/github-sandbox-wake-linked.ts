@@ -2,6 +2,8 @@ import { db, type Row } from '@dltech/atlas-db'
 import { podSessionsOf } from '../../platform/sessions/session-of-thread'
 import { wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
+import { WORKFLOW_RUN_KIND } from './github-run-selector'
+import type { WakeEventNotice } from './github-sandbox-wake-intent'
 
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
 
@@ -10,14 +12,24 @@ export type LinkedThreads = {
   sandboxes: Map<string, Row<'CloudSandbox'>>
 }
 
-export async function linkedThreadsOf(args: {
-  userId: string
-  repoFullName: string
-  prNumber: number
-}): Promise<LinkedThreads> {
-  const rows = await db.orm.public.GithubSubscription.where(args)
-    .where((subscription) => subscription.threadId.neq(''))
-    .all()
+export async function linkedThreadsOf(args: WakeEventNotice): Promise<LinkedThreads> {
+  const rows =
+    args.kind === 'workflow-run'
+      ? await db.orm.public.GithubSubscription.where({
+          userId: args.userId,
+          repoFullName: args.repoFullName,
+          kind: WORKFLOW_RUN_KIND,
+        })
+          .where((subscription) => subscription.threadId.neq(''))
+          .where((subscription) => subscription.liveUntil.gt(new Date()))
+          .all()
+      : await db.orm.public.GithubSubscription.where({
+          userId: args.userId,
+          repoFullName: args.repoFullName,
+          prNumber: args.prNumber,
+        })
+          .where((subscription) => subscription.threadId.neq(''))
+          .all()
   const subscriptions = rows.map((row) => ({ threadId: row.threadId, liveUntil: row.liveUntil }))
   const threadIds = subscriptions.map((subscription) => subscription.threadId)
   return { subscriptions, sandboxes: await sandboxesOfThreads(threadIds) }

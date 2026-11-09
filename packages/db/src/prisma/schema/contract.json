@@ -2961,6 +2961,13 @@
                   }
                 }
               },
+              "deliveredRunId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "expiresAt": {
                 "nullable": false,
                 "type": {
@@ -2972,6 +2979,13 @@
                 }
               },
               "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -3050,11 +3064,17 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "deliveredRunId": {
+                  "column": "deliveredRunId"
+                },
                 "expiresAt": {
                   "column": "expiresAt"
                 },
                 "id": {
                   "column": "id"
+                },
+                "kind": {
+                  "column": "kind"
                 },
                 "liveUntil": {
                   "column": "liveUntil"
@@ -11105,6 +11125,15 @@
                     "precision": 3
                   }
                 },
+                "deliveredRunId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
                 "expiresAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -11116,6 +11145,15 @@
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "nullable": false
+                },
+                "kind": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "pull-request"
+                  },
                   "nullable": false
                 },
                 "liveUntil": {
@@ -15430,7 +15468,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e0eb0bdf7772e30f41d90fe70ec8ee76922e5d4355f15dda7d6cb929a897005a"
+    "storageHash": "6b9d370124c540cc9199fd72746fa8fa368e613c6e21ea298f5943dfde733efc"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

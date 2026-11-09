@@ -1,4 +1,9 @@
-import { EOperatorInputOutcome, prEventContent, type Event } from '@dltech/atlas-core'
+import {
+  EOperatorInputOutcome,
+  prEventContent,
+  runEventContent,
+  type Event,
+} from '@dltech/atlas-core'
 
 import {
   agentEndedLine,
@@ -123,6 +128,18 @@ export function noticeEntriesOf(event: Event): TranscriptEntry[] | null {
         failed: prEventFailed(event),
         repo: event.repo,
         prNumber: event.prNumber,
+      },
+    ]
+  }
+
+  if (event.type === 'run-event') {
+    return [
+      {
+        kind: EEntryKind.SystemNotice,
+        author: EAuthor.Model,
+        key: event.id,
+        text: `${event.workflow} #${event.workflowRunId} ${event.conclusion}`,
+        content: runEventContent(event),
       },
     ]
   }

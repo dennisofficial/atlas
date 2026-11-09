@@ -154,6 +154,7 @@ describe('the github plugin as the loader sees it', () => {
     expect(contribution.intakeSources ?? []).toEqual([])
     expect((contribution.subscriptionProviders ?? []).map((provider) => provider.kind)).toEqual([
       'github.pull-request',
+      'github.workflow-run',
     ])
 
     await contribution.dispose?.()
@@ -182,7 +183,11 @@ describe('the github plugin as the loader sees it', () => {
     expect(text).toContain('pass `#<number>` from `gh pr create`\u2019s output')
     expect(text).toContain('`#123`, `owner/repo#123`, or its URL')
     expect(text).toContain('`gh run watch`')
-    expect(text).toContain('refused on a subscribed pull request')
+    expect(text).toContain('refused: waiting is the subscription\u2019s job')
+    expect(text).toContain('`subscribe` with provider `github.workflow-run`')
+    expect(text).toContain('blank target for this push\u2019s run')
+    expect(text).toContain('`<workflow>@<branch>`')
+    expect(text).toContain('It ends when that run finishes')
     expect(text).toContain('One-shot reads')
     expect(text).not.toContain('Pull request updates')
 

@@ -126,6 +126,16 @@ const SURVIVOR_MINIMAL = {
     headSha: 'abcdef1234567',
     settled: true,
   },
+  'run-event': {
+    type: 'run-event',
+    repo: 'github.com/dltech/atlas',
+    workflowRunId: 33522901117,
+    workflow: 'Build',
+    branch: 'dennis/subscriptions',
+    url: 'https://github.com/dltech/atlas/actions/runs/33522901117',
+    status: 'completed',
+    conclusion: 'success',
+  },
   nudge: { type: 'nudge', text: 'wrap up soon', lifetimeSteps: 2 },
   'sandbox-setup-reported': {
     type: 'sandbox-setup-reported',

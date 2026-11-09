@@ -58,4 +58,20 @@ describe('github sweep scheduler gating', () => {
     expect(intervalOf('handleHookTick')).toBe(HOOK_SWEEP_INTERVAL_MS)
     expect([POLL_SWEEP_INTERVAL_MS, HOOK_SWEEP_INTERVAL_MS]).toEqual([30_000, 60_000])
   })
+
+  it('runs the workflow-run sweep after the pull-request sweep on each poll tick', async () => {
+    const { GithubSweepSchedulerService } = await import('./github-sweep-scheduler')
+    const calls: string[] = []
+    const scheduler = new GithubSweepSchedulerService(
+      { handlePoll: async () => void calls.push('poll') } as never,
+      { handleSweep: async () => void calls.push('run-sweep') } as never,
+      { handleSweep: async () => void calls.push('hook-sweep') } as never,
+      {} as never,
+      {} as never,
+    )
+
+    await scheduler.handlePollTick()
+
+    expect(calls).toEqual(['poll', 'run-sweep'])
+  })
 })
