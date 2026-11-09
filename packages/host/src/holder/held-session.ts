@@ -182,6 +182,8 @@ export class HeldSession {
       parentThreadId: threadId,
       epoch: lease.epoch,
       signal: this.lifetimeAbort.signal,
+      onLeaseLost: (error) => this.loseLease(lostOutcome(error)),
+      drainDeadline: () => this.drainDeadline,
     })
     this.crew = crew
     const { runner, branches, recoverCommands } = wireHeldLoop({
@@ -224,6 +226,7 @@ export class HeldSession {
       runtime: this.runtime,
       workspace: this.record?.eventCache().bookkeeping().workspace(),
       preparing: this.prepare.running,
+      childrenRunning: this.crew?.runningCount() ?? 0,
     })
     if (shellsRunning) this.noteActivity()
     switch (action) {

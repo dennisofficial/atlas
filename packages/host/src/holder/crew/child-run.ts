@@ -1,37 +1,31 @@
 import {
-  agentEnding,
-  awaitsReplyOf,
   EAgentRestart,
   EAgentStart,
   EAgentStatus,
   EKilledBy,
   EReportKind,
-  saidBody,
-  type AssistantPart,
+  reportWakesParent,
   type EventDraft,
-  type V2Event,
   type ThreadId,
 } from '@dltech/atlas-core'
-import {
-  ETurnStatus,
-  HookChain,
-  HookedToolDispatcher,
-  LoopTurnRunner,
-  type AgentIntake,
-  type TurnOutcome,
-} from '@dltech/atlas-agent'
+import { ETurnStatus, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
 import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
-import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
-import { ScopedToolDispatcher } from '../../calls/call-scope'
 import type { HeldSessionDeps } from '../held-session-deps'
-import { pluginHooksOf, pluginPodContextOf, pluginToolsOf } from '../plugin-pod'
 import type { SessionRuntime } from '../ports'
-import type { SessionRecord } from '../record/record-adapter'
+import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { SessionRecord as RecordAdapter } from '../record/record-adapter'
-import { V2OnceLedger } from '../record/v2-once-ledger'
-import { retryDepsFromTimers } from '../timer-sleep'
-import { DeniedToolRegistry } from './child-tools'
+import { ChildIntake } from './child-intake'
+import { childPortOf } from './child-port'
+import { failureOf, progressOf, snapshotOf, statusOf } from './child-progress'
+import {
+  appendOnParent,
+  endingTextOf,
+  reportTextOf,
+  wakeParent,
+  type ChildParent,
+} from './child-reports'
+import { childRunnerOf } from './child-runner'
 
 export type ChildRunArgs = {
   deps: HeldSessionDeps
@@ -42,75 +36,25 @@ export type ChildRunArgs = {
   agentType: string
   intent: string
   signal: AbortSignal
+  onLeaseLost(error: LeaseLostError): void
+  drainDeadline(): number | undefined
 }
-
-type Progress = { turns: number; toolCalls: number; prose: string; lastTool: string | undefined }
-
-const spokenText = (parts: readonly AssistantPart[]): string =>
-  parts
-    .filter((part) => part.type === 'text')
-    .map((part) => part.text)
-    .join('\n')
-    .trim()
-
-const progressOf = (events: readonly V2Event[]): Progress => {
-  let turns = 0
-  let toolCalls = 0
-  let prose = ''
-  let lastTool: string | undefined
-  for (const event of events) {
-    if (event.type === 'tool-called') {
-      toolCalls += 1
-      lastTool = event.name
-      continue
-    }
-    if (event.type !== 'assistant-said') continue
-    turns += 1
-    const said = spokenText(event.parts)
-    if (said !== '') prose = said
-  }
-  return { turns, toolCalls, prose, lastTool }
-}
-
-const childIntake: AgentIntake = {
-  prepare: async () => ({ drafts: [], wakesTurn: false }),
-}
-
-const statusOf = (outcome: TurnOutcome): EAgentStatus => {
-  switch (outcome.status) {
-    case ETurnStatus.Failed:
-      return EAgentStatus.Failed
-    case ETurnStatus.Interrupted:
-      return EAgentStatus.Stopped
-    case ETurnStatus.Paused:
-      return EAgentStatus.Blocked
-    case ETurnStatus.HandoffPaused:
-      return EAgentStatus.Paused
-    case ETurnStatus.WaitingForModel:
-      return EAgentStatus.WaitingForModel
-    default:
-      return EAgentStatus.Finished
-  }
-}
-
-const failureOf = (outcome: TurnOutcome): string | undefined =>
-  outcome.status === ETurnStatus.Failed ? outcome.message : undefined
-
-const refusal = (message: string): Error => new Error(message)
 
 export class ChildRun {
   readonly agentId: ThreadId
   readonly startedAt: string
+  private readonly intake = new ChildIntake()
   private record!: SessionRecord
   private runner!: LoopTurnRunner
+  private pump: Promise<void> | undefined
   private abort: AbortController | undefined
-  private tail: Promise<void> = Promise.resolve()
-  private running = false
+  private listeners: AbortController | undefined
+  private stopping = false
+  private woke = false
   private ending: EAgentStatus | undefined
   private endedAt: string | undefined
   private killedBy: EKilledBy | undefined
   private failure: string | undefined
-  private reported = false
 
   private constructor(
     private readonly args: ChildRunArgs,
@@ -131,10 +75,14 @@ export class ChildRun {
       remoteCalls: args.runtime.remoteCalls,
       daemonTools: args.runtime.daemonTools,
       appendRetryMs: args.deps.appendRetryMs,
+      drainDeadline: args.drainDeadline,
+      onLeaseLost: (error) => {
+        args.onLeaseLost(error)
+        run.abort?.abort('lease_lost')
+      },
       nowIso: () => new Date(args.deps.timers.now()).toISOString(),
       ...(args.deps.log === undefined ? {} : { log: args.deps.log }),
     })
-    run.runner = run.buildRunner()
     await run.appendToParent([
       {
         type: 'agent-spawned',
@@ -148,169 +96,109 @@ export class ChildRun {
   }
 
   get done(): Promise<void> {
-    return this.tail
-  }
-
-  start(prompt: string): void {
-    this.running = true
-    this.abort = new AbortController()
-    this.tail = this.runTurn(prompt).catch(() => undefined)
+    return this.pump ?? Promise.resolve()
   }
 
   async say(text: string): Promise<SubagentSaid> {
-    if (this.running) {
-      await this.record.append({
-        threadId: this.agentId,
-        runId: this.args.deps.ids.nextRunId(),
-        drafts: [saidBody({ text })],
-      })
+    if (this.pump !== undefined) {
+      this.intake.push(text)
       return { queued: true, snapshot: this.snapshot() }
     }
-    const resumed = this.ending !== undefined
-    this.ending = undefined
-    this.endedAt = undefined
-    this.killedBy = undefined
-    this.failure = undefined
-    this.reported = false
-    this.running = true
-    this.abort = new AbortController()
-    this.tail = (resumed ? this.announceRestart() : Promise.resolve())
-      .then(() => this.runTurn(text))
-      .catch(() => undefined)
+    const restart = this.ending !== undefined
+    const pump = this.drive({ text, restart }).catch(() => undefined)
+    this.pump = pump
     return { queued: false, snapshot: this.snapshot() }
   }
 
   stop(by: EKilledBy): SubagentSnapshot {
+    this.stopping = true
     this.killedBy = by
     this.abort?.abort('agent_stop')
     return this.snapshot()
   }
 
+  dispose(): void {
+    this.listeners?.abort()
+  }
+
   isRunning(): boolean {
-    return this.running
+    return this.pump !== undefined
   }
 
   snapshot(): SubagentSnapshot {
-    const progress = progressOf(this.record.eventCache().eventsAfter(0))
-    return {
+    return snapshotOf({
       agentId: this.agentId,
       agentType: this.args.agentType,
       intent: this.args.intent,
-      status: this.ending ?? (this.running ? EAgentStatus.Running : EAgentStatus.Stopped),
-      turns: progress.turns,
-      toolCalls: progress.toolCalls,
       startedAt: this.startedAt,
-      ...(this.endedAt === undefined ? {} : { endedAt: this.endedAt }),
-      ...(progress.prose === '' ? {} : { prose: progress.prose }),
-      ...(progress.lastTool === undefined ? {} : { lastTool: progress.lastTool }),
-    }
+      events: this.record.eventCache().eventsAfter(0),
+      status:
+        this.ending ?? (this.pump === undefined ? EAgentStatus.Stopped : EAgentStatus.Running),
+      endedAt: this.endedAt,
+    })
   }
 
   port(): PodCrew {
+    return childPortOf({ report: (report) => this.report(report) })
+  }
+
+  private get parent(): ChildParent {
     return {
-      spawn: async () => {
-        throw refusal('a sub-agent cannot spawn sub-agents')
-      },
-      say: async () => {
-        throw refusal('a sub-agent cannot message other agents')
-      },
-      stop: async () => {
-        throw refusal('a sub-agent cannot stop other agents')
-      },
-      list: () => [],
-      report: async ({ kind, text }) => this.report({ kind, text }),
+      deps: this.args.deps,
+      record: this.args.parentRecord,
+      threadId: this.args.parentThreadId,
+      agentId: this.agentId,
+      agentType: this.args.agentType,
+      intent: this.args.intent,
     }
   }
 
-  private buildRunner(): LoopTurnRunner {
-    const { deps, runtime } = this.args
-    const ctx = pluginPodContextOf({
-      deps,
-      runtime,
-      record: this.record,
-      threadId: this.agentId,
-      signal: this.args.signal,
-      crew: this.port(),
-    })
-    const deny = runtime.plugins?.pod.childDeny ?? []
-    const registry = new DeniedToolRegistry(pluginToolsOf({ runtime, ctx }), deny)
-    const hooks: HookChain = pluginHooksOf({ runtime, ctx })
-    return new LoopTurnRunner({
-      record: this.record,
-      modelContext: this.record,
-      model: runtime.model,
-      ids: deps.ids,
-      assembly: runtime.assembly,
-      hooks,
-      tools: () => registry.declarations(),
-      dispatch: new ScopedToolDispatcher(new HookedToolDispatcher({ registry, hooks })),
-      intake: childIntake,
-      launchDirectory: runtime.launchDirectory,
-      normalizeFailure: runtime.normalizeFailure,
-      retry: retryDepsFromTimers(deps.timers),
-      onceLedger: new V2OnceLedger({
-        cache: this.record.eventCache(),
-        record: this.record,
-        threadId: this.agentId,
-        runId: () => deps.ids.nextRunId(),
-      }),
-      ...(deps.log === undefined ? {} : { logPort: deps.log }),
-      ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
-      ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
-    })
-  }
-
-  private async runTurn(text: string | undefined): Promise<void> {
-    const signal = this.abort?.signal
-    try {
-      const outcome =
-        text === undefined
-          ? await this.runner.runTurn({
-              threadId: this.agentId,
-              ...(signal === undefined ? {} : { signal }),
-            })
-          : await this.runner.say({
-              threadId: this.agentId,
-              text,
-              ...(signal === undefined ? {} : { signal }),
-            })
-      await this.drainQueued(signal)
-      await this.settle(outcome)
-    } catch (error) {
-      await this.settleFailure(error)
-    } finally {
-      this.running = false
-      this.abort = undefined
-    }
-    await this.followQueued()
-  }
-
-  private async followQueued(): Promise<void> {
-    const signal = this.args.signal
-    if (signal.aborted) return
-    const state = await this.record.loopState({ threadId: this.agentId })
-    if (!awaitsReplyOf(state)) return
+  private async drive(args: { text: string; restart: boolean }): Promise<void> {
+    const listeners = new AbortController()
+    const abort = new AbortController()
+    this.listeners = listeners
+    this.abort = abort
+    this.stopping = false
+    this.woke = false
     this.ending = undefined
     this.endedAt = undefined
     this.killedBy = undefined
     this.failure = undefined
-    this.reported = false
-    await this.announceRestart()
-    this.running = true
-    this.abort = new AbortController()
-    await this.runTurn(undefined)
+    try {
+      this.runner = childRunnerOf({
+        deps: this.args.deps,
+        runtime: this.args.runtime,
+        record: this.record,
+        agentId: this.agentId,
+        signal: listeners.signal,
+        crew: this.port(),
+        intake: this.intake,
+      })
+      if (args.restart) await this.announceRestart()
+      let outcome = await this.turn({ text: args.text, signal: abort.signal })
+      while (
+        outcome.status === ETurnStatus.Completed &&
+        !this.stopping &&
+        this.intake.pending > 0
+      ) {
+        outcome = await this.turn({ text: undefined, signal: abort.signal })
+      }
+      await this.settle(outcome)
+    } catch (error) {
+      await this.settleFailure(error)
+    } finally {
+      this.pump = undefined
+      this.abort = undefined
+      this.listeners = undefined
+      listeners.abort()
+    }
   }
 
-  private async drainQueued(signal: AbortSignal | undefined): Promise<void> {
-    for (;;) {
-      const state = await this.record.loopState({ threadId: this.agentId })
-      if (!awaitsReplyOf(state)) return
-      const outcome = await this.runner.runTurn({
-        threadId: this.agentId,
-        ...(signal === undefined ? {} : { signal }),
-      })
-      if (outcome.status !== ETurnStatus.Completed) return
-    }
+  private turn(args: { text: string | undefined; signal: AbortSignal }): Promise<TurnOutcome> {
+    const request = { threadId: this.agentId, signal: args.signal }
+    return args.text === undefined
+      ? this.runner.runTurn(request)
+      : this.runner.say({ ...request, text: args.text })
   }
 
   private async settle(outcome: TurnOutcome): Promise<void> {
@@ -350,23 +238,29 @@ export class ChildRun {
         ...(args.failure === undefined ? {} : { failureCause: args.failure }),
       },
     ])
-    if (!this.reported) {
-      if (args.status === EAgentStatus.Finished && progress.prose !== '') {
-        await this.appendToParent([
-          {
-            type: 'agent-reported',
-            agentId: this.agentId,
-            agentType: this.args.agentType,
-            intent: this.args.intent,
-            prose: progress.prose,
-            kind: EReportKind.Done,
-          },
-        ])
-      }
-      await this.wake({
-        text: this.endingText({ progress, status: args.status, failure: args.failure }),
-      })
+    if (this.woke) return
+    if (args.status === EAgentStatus.Finished && progress.prose !== '') {
+      await this.appendToParent([
+        {
+          type: 'agent-reported',
+          agentId: this.agentId,
+          agentType: this.args.agentType,
+          intent: this.args.intent,
+          prose: progress.prose,
+          kind: EReportKind.Done,
+        },
+      ])
     }
+    await wakeParent(
+      this.parent,
+      endingTextOf({
+        parent: this.parent,
+        progress,
+        status: args.status,
+        failure: args.failure,
+        killedBy: this.killedBy,
+      }),
+    )
   }
 
   private async report(args: { kind: EReportKind; text: string }): Promise<SubagentSnapshot> {
@@ -380,41 +274,11 @@ export class ChildRun {
         kind: args.kind,
       },
     ])
-    await this.wake({
-      text: [
-        `Sub-agent ${this.agentId} (${this.args.agentType}, "${this.args.intent}") reported ${args.kind}.`,
-        '',
-        args.text,
-      ].join('\n'),
-    })
-    this.reported = true
+    if (reportWakesParent(args.kind)) {
+      await wakeParent(this.parent, reportTextOf(this.parent, args.kind, args.text))
+      this.woke = true
+    }
     return this.snapshot()
-  }
-
-  private endingText(args: {
-    progress: Progress
-    status: EAgentStatus
-    failure: string | undefined
-  }): string {
-    const ending = agentEnding({
-      status: args.status,
-      turns: args.progress.turns,
-      toolCalls: args.progress.toolCalls,
-      ...(this.killedBy === undefined ? {} : { killedBy: this.killedBy }),
-      ...(args.failure === undefined ? {} : { failureCause: args.failure }),
-    })
-    return [
-      `Sub-agent ${this.agentId} (${this.args.agentType}, "${this.args.intent}") ${ending}.`,
-      ...(args.progress.prose === '' ? [] : ['', args.progress.prose]),
-    ].join('\n')
-  }
-
-  private async wake(args: { text: string }): Promise<void> {
-    await this.args.deps.plane.post({
-      sessionId: this.args.deps.sessionId,
-      kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: args.text }),
-    })
   }
 
   private async announceRestart(): Promise<void> {
@@ -430,10 +294,6 @@ export class ChildRun {
   }
 
   private async appendToParent(drafts: readonly EventDraft[]): Promise<void> {
-    await this.args.parentRecord.append({
-      threadId: this.args.parentThreadId,
-      runId: this.args.deps.ids.nextRunId(),
-      drafts,
-    })
+    await appendOnParent(this.parent, drafts)
   }
 }

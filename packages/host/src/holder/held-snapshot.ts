@@ -22,6 +22,7 @@ export const readHeldAction = async (args: {
   runtime: SessionRuntime | undefined
   workspace: WorkspaceRecord | undefined
   preparing: boolean
+  childrenRunning: number
 }): Promise<{
   entries: InboxEntry[]
   action: EHeldAction
@@ -45,7 +46,11 @@ export const readHeldAction = async (args: {
     runtime: args.runtime,
     pendingInput: messagePending,
   }
-  const quiet = idleReleaseDue({ ...idleArgs, runningShells: 0 })
+  const quiet = idleReleaseDue({
+    ...idleArgs,
+    runningShells: 0,
+    runningChildren: args.childrenRunning,
+  })
   const runningShells =
     quiet && args.runtime !== undefined
       ? await countRunningShells({ deps, runtime: args.runtime })
@@ -57,7 +62,7 @@ export const readHeldAction = async (args: {
     messagePending: messagePending || args.resumePending,
     workspace: workspace.state,
     retryPending: workspace.retryPending,
-    idleDue: quiet && runningShells === 0,
+    idleDue: quiet && runningShells === 0 && args.childrenRunning === 0,
   })
   return {
     entries,

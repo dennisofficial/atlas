@@ -21,7 +21,7 @@ export class CrewRoom {
       intent: args.intent,
     })
     this.runs.set(run.agentId, run)
-    run.start(args.prompt)
+    void run.say(args.prompt)
     return run.snapshot()
   }
 
@@ -35,6 +35,14 @@ export class CrewRoom {
 
   list(): readonly SubagentSnapshot[] {
     return [...this.runs.values()].map((run) => run.snapshot())
+  }
+
+  runningCount(): number {
+    return [...this.runs.values()].filter((run) => run.isRunning()).length
+  }
+
+  hasRunning(): boolean {
+    return this.runningCount() > 0
   }
 
   port(): PodCrew {
@@ -55,6 +63,11 @@ export class CrewRoom {
     const running = [...this.runs.values()]
     for (const run of running) run.stop(EKilledBy.SessionEnd)
     await Promise.all(running.map((run) => run.done))
+    this.disposeAll()
+  }
+
+  disposeAll(): void {
+    for (const run of this.runs.values()) run.dispose()
   }
 
   private find(agentId: string): ChildRun {
