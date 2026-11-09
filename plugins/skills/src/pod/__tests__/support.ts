@@ -95,6 +95,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
         },
         delete: async () => false,
       },
+      webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
     },
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
