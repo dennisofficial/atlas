@@ -205,16 +205,14 @@ export const createSessionRuntimeFactory = (
     })
     const repoMap = workspaceRepoMap({ launchDirectory, workspace: config.workspace })
     const repoAt = (path: string) => repoMap.find((entry) => entry.path === path)
-    const tools = [
-      ...daemonToolsOf({
-        processes,
-        files,
-        agentFiles,
-        setup: gate,
-        shellEnv: () => shellEnv.current(),
-      }),
-      new TaskWriteTool(),
-    ]
+    const daemonToolList = daemonToolsOf({
+      processes,
+      files,
+      agentFiles,
+      setup: gate,
+      shellEnv: () => shellEnv.current(),
+    })
+    const tools = [...daemonToolList, new TaskWriteTool()]
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
@@ -262,7 +260,7 @@ export const createSessionRuntimeFactory = (
       remoteCalls: calls,
       model,
       tools: registry,
-      daemonTools: new Set(byName.keys()),
+      daemonTools: new Set(daemonToolList.map((tool) => tool.name)),
       effectOf: (name) => byName.get(name)?.effect,
       assembly: defaultPipeline({
         prompt: agentHostPrompt({
