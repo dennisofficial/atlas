@@ -3,15 +3,25 @@ export enum ECiWatch {
   Reading = 'reading',
 }
 
+export type ECiWatchOf = 'pull-request' | 'workflow-run'
+
+export type CiWatchIntent = { kind: ECiWatch.Reading } | { kind: ECiWatch.Watching; of: ECiWatchOf }
+
 const CHAIN = /&&|\|\||;|\||\n/
 
 const WATCH_FLAG = '--watch'
 
-const GH_NOUNS: readonly string[] = ['pr', 'run', 'workflow']
+const WATCH_SHORT = '-w'
 
-const LOOP_OPENERS: readonly string[] = ['while', 'until']
+const PULL_REQUEST_NOUNS: readonly string[] = ['pr']
+
+const RUN_NOUNS: readonly string[] = ['run', 'workflow']
+
+const LOOP_OPENERS: readonly string[] = ['while', 'until', 'for']
 
 const QUOTED = /"[^"]*"|'[^']*'/g
+
+const ACTION_RUNS = /\/actions\/runs/
 
 const tokensOf = (segment: string): readonly string[] =>
   segment.split(/\s+/).filter((token) => token.length > 0)
@@ -34,38 +44,82 @@ const watchWraps = (tokens: readonly string[]): boolean => {
   return tokens.slice(watch + 1).includes('gh')
 }
 
-const segmentWatches = (tokens: readonly string[]): boolean => {
-  if (watchWraps(tokens)) return true
+const flavourOf = (words: readonly string[]): ECiWatchOf | null => {
+  if (words.some((word) => PULL_REQUEST_NOUNS.includes(word))) return 'pull-request'
+  if (words.some((word) => RUN_NOUNS.includes(word))) return 'workflow-run'
 
+  return null
+}
+
+const segmentWatch = (tokens: readonly string[]): ECiWatchOf | null => {
+  const rest = ghRestOf(tokens)
+  if (rest === null) return null
+
+  const words = wordsOf(rest)
+  const flavour = flavourOf(words)
+  if (flavour === null) return null
+
+  if (watchWraps(tokens)) return flavour
+  if (watchesRun(words)) return 'workflow-run'
+  if (rest.includes(WATCH_FLAG)) return flavour
+  if (flavour === 'workflow-run' && rest.includes(WATCH_SHORT)) return flavour
+
+  return null
+}
+
+const readsPullRequest = (tokens: readonly string[]): boolean => {
   const rest = ghRestOf(tokens)
   if (rest === null) return false
 
-  const words = wordsOf(rest)
-  if (watchesRun(words)) return true
-
-  return rest.includes(WATCH_FLAG) && words.some((word) => GH_NOUNS.includes(word))
+  return wordsOf(rest).some((word) => PULL_REQUEST_NOUNS.includes(word))
 }
 
-const readsPullRequestOrRun = (tokens: readonly string[]): boolean => {
+const readsRuns = (tokens: readonly string[]): boolean => {
   const rest = ghRestOf(tokens)
   if (rest === null) return false
 
-  const words = wordsOf(rest)
-  return words.includes('pr') || words.includes('run')
+  if (wordsOf(rest).some((word) => RUN_NOUNS.includes(word))) return true
+
+  return rest.some((token) => ACTION_RUNS.test(token))
 }
 
-const pollsInLoop = (links: readonly (readonly string[])[]): boolean => {
-  const loops = links.some((tokens) => LOOP_OPENERS.includes(tokens[0] ?? ''))
-  if (!loops) return false
+const readsActionsApi = (tokens: readonly string[]): boolean => {
+  const rest = ghRestOf(tokens)
+  if (rest === null || !rest.includes('api')) return false
 
-  return links.some(readsPullRequestOrRun) && links.some((tokens) => tokens.includes('sleep'))
+  return rest.some((token) => ACTION_RUNS.test(token))
 }
 
-export function ciWatchIntent({ command }: { command: string }): ECiWatch {
+const sleeps = (tokens: readonly string[]): boolean => tokens.includes('sleep')
+
+const looped = (links: readonly (readonly string[])[]): boolean =>
+  links.some((tokens) => LOOP_OPENERS.includes(tokens[0] ?? ''))
+
+const loopPoll = (links: readonly (readonly string[])[]): ECiWatchOf | null => {
+  if (!looped(links) || !links.some(sleeps)) return null
+  if (links.some(readsPullRequest)) return 'pull-request'
+  if (links.some(readsRuns)) return 'workflow-run'
+
+  return null
+}
+
+const apiPoll = (links: readonly (readonly string[])[]): ECiWatchOf | null => {
+  const api = links.findIndex(readsActionsApi)
+  if (api === -1) return null
+
+  return links.some((tokens, index) => index > api && sleeps(tokens)) ? 'workflow-run' : null
+}
+
+export function ciWatchIntent({ command }: { command: string }): CiWatchIntent {
   const links = command.replace(QUOTED, '""').split(CHAIN).map(tokensOf)
 
-  if (links.some(segmentWatches)) return ECiWatch.Watching
-  if (pollsInLoop(links)) return ECiWatch.Watching
+  for (const tokens of links) {
+    const flavour = segmentWatch(tokens)
+    if (flavour !== null) return { kind: ECiWatch.Watching, of: flavour }
+  }
 
-  return ECiWatch.Reading
+  const polled = loopPoll(links) ?? apiPoll(links)
+  if (polled !== null) return { kind: ECiWatch.Watching, of: polled }
+
+  return { kind: ECiWatch.Reading }
 }

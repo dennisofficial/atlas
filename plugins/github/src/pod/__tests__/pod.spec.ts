@@ -22,6 +22,7 @@ import {
 
 import { subscribeCommand, unsubscribeCommand } from '../../core'
 import { githubPod, CI_WATCH_DENY_REASON } from '..'
+import { PULL_REQUEST_SUBSCRIBE_REASON } from '../ci-watch-hook'
 
 type Drafts = readonly (EventDraft | RecordBody | PluginEventBody)[]
 
@@ -259,12 +260,7 @@ describe('github ci watch hook', () => {
     })
   })
 
-  it('allows a one-shot read, a watch without subscriptions, and a different pull request', async () => {
-    const none = rig({ [PR_VIEW]: exec('https://github.com/o/r/pull/2') })
-    expect((await consult({ rigged: none, command: 'gh pr checks --watch' })).decision).toBe(
-      EBeforeToolDecision.Allow,
-    )
-
+  it('allows a one-shot read and denies a watch no subscription covers', async () => {
     const rigged = rig({ [PR_VIEW]: exec('https://github.com/o/r/pull/9') })
     await invoke({
       ctx: rigged.ctx,
@@ -274,8 +270,9 @@ describe('github ci watch hook', () => {
     expect((await consult({ rigged, command: 'gh pr checks' })).decision).toBe(
       EBeforeToolDecision.Allow,
     )
-    expect((await consult({ rigged, command: 'gh pr checks --watch' })).decision).toBe(
-      EBeforeToolDecision.Allow,
-    )
+    expect(await consult({ rigged, command: 'gh pr checks --watch' })).toEqual({
+      decision: EBeforeToolDecision.Deny,
+      reason: PULL_REQUEST_SUBSCRIBE_REASON,
+    })
   })
 })

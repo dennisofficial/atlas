@@ -14,12 +14,28 @@ export type WorkflowRunSnapshot = {
   name: string
   headBranch: string
   url: string
+  failedJobs: readonly string[]
 }
 
 export type WorkflowRunRead =
   | { outcome: 'found'; run: WorkflowRunSnapshot }
   | { outcome: 'not-found' }
   | { outcome: 'unavailable' }
+
+const FAILED_JOB_LIMIT = 10
+
+const CONCLUSIONS_WITHOUT_LOGS = new Set(['cancelled', 'startup_failure', 'skipped'])
+
+interface RestJob {
+  name?: string | null
+  conclusion?: string | null
+}
+
+const failedJobNamesOf = (jobs: readonly RestJob[]): readonly string[] =>
+  jobs
+    .filter((job) => job.conclusion === 'failure' && typeof job.name === 'string')
+    .slice(0, FAILED_JOB_LIMIT)
+    .map((job) => job.name ?? '')
 
 interface RestWorkflowRun {
   id: number
@@ -37,6 +53,7 @@ const workflowRunOf = (run: RestWorkflowRun): WorkflowRunSnapshot => ({
   name: run.name ?? '',
   headBranch: run.head_branch ?? '',
   url: run.html_url ?? '',
+  failedJobs: [],
 })
 
 /**
@@ -58,6 +75,7 @@ export class GithubWorkflowRunReads {
     return this.readRun({
       source: args.source,
       token: args.token,
+      repoPath: `/repos/${args.owner}/${args.repo}`,
       path: `/repos/${args.owner}/${args.repo}/actions/runs/${args.runId}`,
     })
   }
@@ -75,6 +93,7 @@ export class GithubWorkflowRunReads {
     return this.readRun({
       source: args.source,
       token: args.token,
+      repoPath: `/repos/${args.owner}/${args.repo}`,
       path: `/repos/${args.owner}/${args.repo}/actions/runs?workflow_id=${workflow}&branch=${branch}&per_page=1`,
       newest: true,
     })
@@ -83,6 +102,7 @@ export class GithubWorkflowRunReads {
   private async readRun(args: {
     source: EGithubCallSource
     token: string
+    repoPath: string
     path: string
     newest?: boolean
   }): Promise<WorkflowRunRead> {
@@ -98,7 +118,37 @@ export class GithubWorkflowRunReads {
         ? (body as { workflow_runs?: RestWorkflowRun[] }).workflow_runs?.[0]
         : body
     if (run === undefined || !('id' in run)) return { outcome: 'not-found' }
-    return { outcome: 'found', run: workflowRunOf(run) }
+    const snapshot = workflowRunOf(run)
+    if (!this.failedRun(snapshot)) return { outcome: 'found', run: snapshot }
+
+    const failedJobs = await this.readFailedJobs({
+      source: args.source,
+      token: args.token,
+      repoPath: args.repoPath,
+      runId: snapshot.id,
+    }).catch(() => [])
+    return { outcome: 'found', run: { ...snapshot, failedJobs } }
+  }
+
+  private failedRun(run: WorkflowRunSnapshot): boolean {
+    if (run.status !== 'completed' || run.conclusion === null) return false
+    if (run.conclusion === 'success') return false
+
+    return !CONCLUSIONS_WITHOUT_LOGS.has(run.conclusion)
+  }
+
+  private async readFailedJobs(args: {
+    source: EGithubCallSource
+    token: string
+    repoPath: string
+    runId: string
+  }): Promise<readonly string[]> {
+    const body = await this.get<{ jobs?: RestJob[] }>({
+      source: args.source,
+      token: args.token,
+      path: `${args.repoPath}/actions/runs/${args.runId}/jobs?per_page=100`,
+    })
+    return failedJobNamesOf(body.jobs ?? [])
   }
 
   private async get<T>(args: {

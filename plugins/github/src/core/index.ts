@@ -3,6 +3,7 @@ import { subscriptionsView } from './subscriptions-view'
 
 export * from './ci-watch'
 export * from './commands'
+export * from './run-target'
 export * from './subscriptions-view'
 export * from './target'
 

@@ -7,7 +7,7 @@ import {
   type BlobWrite,
   type ClaimedBatch,
   type ControlTx,
-  type PrSubscriptionLease,
+  type SubscriptionLease,
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
@@ -23,7 +23,7 @@ import {
   readInboxEntriesIn,
   readInboxEntryIn,
 } from './memory-inbox'
-import { prSubscriptionLeaseKey } from './memory-state'
+import { subscriptionLeaseKey } from './memory-state'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
@@ -249,12 +249,12 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     this.pending.push({ ...change })
   }
 
-  async upsertPrSubscriptionLease(params: PrSubscriptionLease & { expiresAt: string }) {
-    this.state.prSubscriptionLeases.set(prSubscriptionLeaseKey(params), { ...params })
+  async upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }) {
+    this.state.subscriptionLeases.set(subscriptionLeaseKey(params), { ...params })
   }
 
-  async deletePrSubscriptionLease(params: PrSubscriptionLease): Promise<boolean> {
-    return this.state.prSubscriptionLeases.delete(prSubscriptionLeaseKey(params))
+  async deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean> {
+    return this.state.subscriptionLeases.delete(subscriptionLeaseKey(params))
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

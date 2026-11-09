@@ -10,7 +10,7 @@ export type {
   ControlSessionDigest,
   PrChecks,
   PrStateRow,
-  PrSubscriptionLease,
+  SubscriptionLease,
   SessionDigestRow,
   SessionPullRequestKey,
   SessionPullRequestRow,

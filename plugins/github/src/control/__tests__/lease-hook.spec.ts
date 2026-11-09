@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ControlPlane } from '@dltech/atlas-control'
+import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import {
   chainEvents,
@@ -121,12 +122,120 @@ describe('github subscription lease hook on append (postgres)', () => {
     expect(await rows()).toHaveLength(1)
   })
 
+  it('writes a workflow-run row on the selector branch with no pull request number', async () => {
+    const { append, rows } = await setup()
+    await append([
+      created({
+        id: 'r',
+        provider: 'github.workflow-run',
+        target: { kind: 'run', repo: 'github.com/Dltech/Atlas', runId: 123 },
+      }),
+    ])
+    expect(await rows()).toMatchObject([
+      {
+        repoFullName: 'dltech/atlas',
+        prNumber: null,
+        kind: 'workflow-run',
+        branch: '#run:123',
+        pollBacked: true,
+        threadId: THREAD,
+      },
+    ])
+    await append([ended('r')])
+    expect(await rows()).toHaveLength(0)
+  })
+
   it('writes no lease for another provider or an unreadable target, and ending one is harmless', async () => {
     const { append, rows } = await setup()
     await append([created({ id: 'x', provider: 'slack' })])
     await append([created({ id: 'y', target: { nope: true } })])
     await append([ended('y')])
     expect(await rows()).toHaveLength(0)
+  })
+})
+
+describe('github subscription lease on append (memory)', () => {
+  const planeWith = async () => {
+    const store = new InMemoryControlStore()
+    const plane = new ControlPlane({
+      store,
+      eventSchema: createV2EventSchema({ pluginBodies: [] }),
+      appendHooks: githubControl.hooks,
+    })
+    await plane.createSession({
+      sessionId: SESSION,
+      userId: 'usr_1',
+      projectId: 'prj_1',
+      mainThreadId: THREAD,
+    })
+    const lease = await plane.grant({ sessionId: SESSION, hostId: 9001 })
+    const append = async (bodies: V2Body[]) => {
+      const outcome = await plane.append({
+        threadId: THREAD,
+        epoch: lease.epoch,
+        events: chainEvents({
+          threadId: toThreadId(THREAD),
+          runId: toRunId('r1'),
+          epoch: lease.epoch,
+          at: AT,
+          bodies,
+          from: await plane.head({ threadId: THREAD }),
+        }),
+      })
+      if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
+    }
+    return { append, leases: () => store.subscriptionLeases() }
+  }
+
+  it('lease the pull request under the #<number> branch as before', async () => {
+    const { append, leases } = await planeWith()
+    await append([created({ id: 'p' })])
+    expect(leases()).toEqual([
+      {
+        userId: 'usr_1',
+        threadId: THREAD,
+        repo: 'github.com/dltech/atlas',
+        subject: { kind: 'pull-request', number: 7 },
+        expiresAt: new Date(Date.parse(AT) + DEFAULT_SUBSCRIPTION_TTL_MS).toISOString(),
+      },
+    ])
+    await append([ended('p')])
+    expect(leases()).toEqual([])
+  })
+
+  it('leases a pinned run and removes it when the subscription ends', async () => {
+    const { append, leases } = await planeWith()
+    await append([
+      created({
+        id: 'r',
+        provider: 'github.workflow-run',
+        target: { kind: 'run', repo: 'github.com/Dltech/Atlas', runId: 123 },
+      }),
+    ])
+    expect(leases().map((lease) => lease.subject)).toEqual([
+      { kind: 'workflow-run', selector: '#run:123' },
+    ])
+    await append([ended('r')])
+    expect(leases()).toEqual([])
+  })
+
+  it('leases a workflow selector by its #workflow:<file>@<branch> position', async () => {
+    const { append, leases } = await planeWith()
+    await append([
+      created({
+        id: 'w',
+        provider: 'github.workflow-run',
+        target: {
+          kind: 'selector',
+          repo: 'github.com/Dltech/Atlas',
+          workflow: 'deploy.yml',
+          branch: 'main',
+        },
+      }),
+    ])
+    expect(leases().map((lease) => lease.subject)).toEqual([
+      { kind: 'workflow-run', selector: '#workflow:deploy.yml@main' },
+    ])
   })
 })
 

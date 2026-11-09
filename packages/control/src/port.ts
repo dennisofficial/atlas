@@ -73,12 +73,19 @@ export type PrStateRow = SessionPullRequestKey & {
   updatedAt: string
 }
 
-export type PrSubscriptionLease = {
+export type SubscriptionSubject =
+  | { kind: 'pull-request'; number: number }
+  | { kind: 'workflow-run'; selector: string }
+
+export type SubscriptionLease = {
   userId: string
   threadId: string
   repo: string
-  number: number
+  subject: SubscriptionSubject
 }
+
+export const subscriptionSubjectKey = (subject: SubscriptionSubject): string =>
+  subject.kind === 'pull-request' ? `#${subject.number}` : subject.selector
 
 export type ThreadRow = {
   threadId: string
@@ -201,8 +208,8 @@ export interface ControlTx {
   insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void>
   sessionsLinkedTo(key: SessionPullRequestKey): Promise<string[]>
   readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]>
-  upsertPrSubscriptionLease(params: PrSubscriptionLease & { expiresAt: string }): Promise<void>
-  deletePrSubscriptionLease(params: PrSubscriptionLease): Promise<boolean>
+  upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }): Promise<void>
+  deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean>
   hostPresent(hostId: number): Promise<boolean>
 }
 
