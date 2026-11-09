@@ -876,6 +876,20 @@
         "@types/bun": "latest",
       },
     },
+    "plugins/skills": {
+      "name": "@dltech/atlas-plugin-skills",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-agent": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-plugin-sdk": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
   },
   "trustedDependencies": [
     "sharp",
@@ -1331,6 +1345,8 @@
     "@dltech/atlas-plugin-sessions": ["@dltech/atlas-plugin-sessions@workspace:plugins/sessions"],
 
     "@dltech/atlas-plugin-shells": ["@dltech/atlas-plugin-shells@workspace:plugins/shells"],
+
+    "@dltech/atlas-plugin-skills": ["@dltech/atlas-plugin-skills@workspace:plugins/skills"],
 
     "@dltech/atlas-preview-worker": ["@dltech/atlas-preview-worker@workspace:apps/preview-worker"],
 
