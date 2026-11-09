@@ -92,3 +92,9 @@ html[data-vibrancy]
   z-index: 0;
   height: var(--desktop-titlebar-height);
 }
+
+/* A native webview is a rectangle painted above the page, so it cannot follow a rounded frame. */
+html[data-native-browser] [data-slot="preview-stage-device"] {
+  border-radius: 0;
+  box-shadow: none;
+}

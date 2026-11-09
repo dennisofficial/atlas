@@ -4,9 +4,12 @@ import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
+import { useHasNativeBrowser } from '@/features/desktop/use-has-native-browser'
+
 import { useAllPreviewBrowsers } from '../../data/preview-browser/use-preview-browser'
 import { changeRegistry, slotKeyOf, useFrameRegistry, withLoading } from './frame-registry'
 import { framesOf, type FrameSpec } from './frames-of'
+import { NativeFrameLayer } from './native-frame-layer'
 import { useSlotTracking } from './placement'
 import { useAllowedFrames } from './use-allowed-frames'
 import { useFrameReports } from './use-frame-reports'
@@ -62,6 +65,11 @@ function PreviewFrame(props: {
 }
 
 export function PreviewFrameLayer() {
+  const native = useHasNativeBrowser()
+  return native ? <NativeFrameLayer /> : <IframeFrameLayer />
+}
+
+function IframeFrameLayer() {
   const registry = useFrameRegistry()
   const states = useAllPreviewBrowsers()
   const frames = useMemo(() => framesOf({ states, registry }), [states, registry])

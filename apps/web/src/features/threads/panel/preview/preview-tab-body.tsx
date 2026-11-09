@@ -9,6 +9,7 @@ import { PreviewNewTab, PreviewOffline } from '@dltech/atlas-ui/ai/preview-new-t
 import { Button } from '@dltech/atlas-ui/components/button'
 
 import { EPreviewGate } from '@/features/desktop/use-preview-origins'
+import { useHasNativeBrowser } from '@/features/desktop/use-has-native-browser'
 
 import { liveKeyOf } from '../../data/preview-browser/live-tabs'
 import { changeRegistry, hidden, shown, unloaded, useFrameRegistry } from './frame-registry'
@@ -75,6 +76,7 @@ export function PreviewTabBody(props: {
 }) {
   const { threadId, tabId, url, page, ports, onNavigate } = props
   const { gate } = useFrameRegistry()
+  const nativeBrowser = useHasNativeBrowser()
   const key = liveKeyOf({ threadId, tabId })
   const framed =
     page.kind === ETabPage.Frame || page.kind === ETabPage.Loading || page.kind === ETabPage.Held
@@ -88,10 +90,10 @@ export function PreviewTabBody(props: {
   if (page.kind === ETabPage.Loading) return null
   if (page.kind === ETabPage.External) return <ExternalNotice url={url} />
   if (page.kind === ETabPage.Offline) return <PreviewOffline port={page.port} />
-  if (gate === EPreviewGate.Failed) return <BlockedNotice />
+  if (!nativeBrowser && gate === EPreviewGate.Failed) return <BlockedNotice />
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {page.kind === ETabPage.Frame && page.port === undefined ? (
+      {page.kind === ETabPage.Frame && page.port === undefined && !nativeBrowser ? (
         <OutsideSessionBar url={url} />
       ) : null}
       <div className="min-h-0 flex-1">
