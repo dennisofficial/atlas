@@ -11,8 +11,21 @@ import type {
 import type { AppendHook, ControlPlane } from '@dltech/atlas-control'
 import type { CallOp, CallResult, DaemonEventFrame } from '@dltech/atlas-protocol'
 
+import type { PodMemory } from './memory'
+
+export type {
+  MemoryAddress,
+  MemoryEntry,
+  MemoryKind,
+  MemoryScope,
+  MemorySnapshot,
+  MemorySummary,
+  PodMemory,
+} from './memory'
+
 export type PodControl = {
   exposePort(args: { port: number }): Promise<{ url: string; tunnelToken: string }>
+  memory: PodMemory
 }
 
 export type PluginPodContext = {

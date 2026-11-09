@@ -177,8 +177,17 @@ export const createFixturePlugin = (): { plugin: Plugin; record: ProbeRecord } =
 
 export const fixturePlugin: Plugin = createFixturePlugin().plugin
 
+const noControlPlane = async () => {
+  throw new Error('this test has no control plane')
+}
+
 export const podControlStub: PodControl = {
-  exposePort: async () => {
-    throw new Error('this test has no control plane')
+  exposePort: noControlPlane,
+  memory: {
+    list: noControlPlane,
+    read: noControlPlane,
+    write: noControlPlane,
+    edit: noControlPlane,
+    delete: noControlPlane,
   },
 }

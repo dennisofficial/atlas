@@ -65,3 +65,38 @@ export const memoryEditSchema = memoryKeySchema.extend({
   revision: z.number().int().min(1),
 })
 export type MemoryEditWire = z.output<typeof memoryEditSchema>
+
+export const memoryHostThreadSchema = z.strictObject({ threadId: z.string().min(1) })
+export type MemoryHostThreadWire = z.output<typeof memoryHostThreadSchema>
+
+export const memoryHostAddressSchema = memoryHostThreadSchema.extend({
+  scope: z.enum(EMemoryScope),
+  name: z.string().regex(MEMORY_NAME_PATTERN),
+})
+export type MemoryHostAddressWire = z.output<typeof memoryHostAddressSchema>
+
+export const memoryHostWriteSchema = memoryHostAddressSchema.extend({
+  description: z.string().min(1).max(MAX_MEMORY_DESCRIPTION_CHARS),
+  type: z.enum(EMemoryType),
+  body: z.string().min(1).max(MAX_MEMORY_BODY_CHARS),
+})
+export type MemoryHostWriteWire = z.output<typeof memoryHostWriteSchema>
+
+export const memoryHostEditSchema = memoryHostAddressSchema.extend({
+  old: z.string().min(1).max(MAX_MEMORY_BODY_CHARS),
+  new: z.string().max(MAX_MEMORY_BODY_CHARS),
+  revision: z.number().int().min(1),
+})
+export type MemoryHostEditWire = z.output<typeof memoryHostEditSchema>
+
+export const memoryHostListSchema = memoryListSchema.extend({ project: z.string().nullable() })
+export type MemoryHostListWire = z.output<typeof memoryHostListSchema>
+
+export const memoryHostEntrySchema = z.object({ memory: memoryEntrySchema.nullable() })
+export type MemoryHostEntryWire = z.output<typeof memoryHostEntrySchema>
+
+export const memoryHostSummarySchema = z.object({ memory: memorySummarySchema })
+export type MemoryHostSummaryWire = z.output<typeof memoryHostSummarySchema>
+
+export const memoryHostRemovedSchema = z.object({ removed: z.boolean() })
+export type MemoryHostRemovedWire = z.output<typeof memoryHostRemovedSchema>

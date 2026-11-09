@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
+
 import { servicesPod } from '..'
 import { servicesOfEvents } from '../../core'
 import {
@@ -259,6 +261,7 @@ describe('service tools', () => {
   it('starts the service when publishing fails, and says it is sandbox-only', async () => {
     const harness = rig({
       control: {
+        ...podControlStub,
         exposePort: async () => {
           throw new Error('the control plane is down')
         },

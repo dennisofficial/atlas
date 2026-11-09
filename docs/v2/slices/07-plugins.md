@@ -673,6 +673,42 @@ Specs: `plugins/services/src/client/__tests__/client.spec.ts`,
 `apps/web/src/features/sessions/data/__tests__/session-view-model.spec.ts`,
 `apps/web/src/features/sessions/__tests__/session-header.spec.tsx`.
 
+### 8.7 `plugins/memory`
+
+Shipped: `plugins/memory` (`@dltech/atlas-plugin-memory`, `/core` `/pod` `/control` `/client`),
+registered in `apps/agent-host`; the four tools `write_memory`, `read_memory`, `edit_memory` and
+`delete_memory`; the `memory-index` `beforeStep` hook; the `MemoryFragment` prompt text (core's
+`memoryPromptText`). No events, no view, no client state, transport `none` — as §5.4 declared.
+
+**The pod has no user token, so memory reaches the CP through the host.** A v2 cloud pod holds
+`AGENT_HOST_TOKEN` and nothing else per user; a pod lease token exists only for the local pods of
+slice 9. §5.4's "the v1 API route until cutover" therefore became a host-token route:
+`hostMemory.list/get/write/edit/remove` (`apps/api/src/api/cloud/memories/host-memory.router.ts`),
+guarded by `HostTokenMiddleware`, resolving the owner and the project from the thread's
+`v2.V2Session` → `Project.repo`. It lives in `cloud/memories` because `platform` may not import
+`cloud` (the architecture spec). The seam is one `PodControl.memory` port
+(`packages/plugin-sdk/src/memory.ts`, over the SDK's own memory types so neither the host nor the
+agent host imports the v1 wire package the split guard forbids) implemented by `podControlOf` and
+the agent host's `podControlClientOf`, so at cutover the CP handlers change and the plugin does
+not.
+
+**The index is a system block, not a prompt fragment.** A plugin's `prompts` array is composed once
+per app, so it cannot carry per-session state; a volatile fragment is an `apps/agent-host` class a
+plugin may not extend. The `memory-index` hook appends `renderMemoryIndex`'s text as a system block
+on the first step, keeps it for the session, and reloads it after any write, edit or delete (the
+tools mark the state stale). A failed list appends "Memory is unavailable this session: <reason>"
+and retries on the next step.
+
+**The list carries the project key.** `memory.list` answers `{ project, memories }`, because the pod
+does not know the session's repo and the index heading needs it; it is the CP that resolves
+`Project.repo`.
+
+Specs: `plugins/memory/src/core/__tests__/index.spec.ts`,
+`.../pod/__tests__/tools.spec.ts`, `.../pod/__tests__/index-block.spec.ts`,
+`packages/host/src/holder/__tests__/pod-control.spec.ts`,
+`apps/agent-host/src/control/__tests__/client.spec.ts`,
+`apps/api/src/api/cloud/memories/host-memory.router.spec.ts`.
+
 ## 9. Answers (2026-11-08)
 
 1. **Order and packaging.** As recommended in §3: the contract, then github (subscriptions inside one
