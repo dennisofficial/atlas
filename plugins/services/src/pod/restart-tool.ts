@@ -14,6 +14,7 @@ import { declaredNames } from '../core/declared'
 import { stopService } from './daemon'
 import { readDeclared } from './declared-file'
 import { ensureDeclared } from './declared-ensure'
+import { stopPreview } from './expose'
 import { launchService } from './launch'
 import type { ServicePodState } from './state'
 
@@ -72,6 +73,7 @@ export class ServiceRestartTool extends SchemaTool<typeof inputSchema> {
         this.state.restarting.delete(serviceId)
         return { ok: false, reason: stopped.reason }
       }
+      await stopPreview({ ctx: this.ctx, port: row.port })
     }
     return launchService({
       ctx: this.ctx,
@@ -123,6 +125,7 @@ export class ServiceRestartTool extends SchemaTool<typeof inputSchema> {
         this.state.restarting.delete(running.serviceId)
         return { ok: false, reason: stopped.reason }
       }
+      await stopPreview({ ctx: this.ctx, port: running.port })
     }
     return ensureDeclared({
       ctx: this.ctx,

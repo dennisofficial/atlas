@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
 import { servicesPod } from '..'
-import { invoke, rig, serviceIdOf, settle, startsOf, textOf, writeDeclared } from './support'
+import { servicesOfEvents } from '../../core'
+import {
+  controlOf,
+  invoke,
+  rig,
+  serviceIdOf,
+  settle,
+  startsOf,
+  textOf,
+  writeDeclared,
+} from './support'
 
 const DECLARED = ['services:', '  web:', '    command: listen', '    port: 3000'].join('\n')
 
@@ -68,7 +78,10 @@ describe('service tools', () => {
     const { serviceId } = await start(harness)
     const stopped = await invoke({ ctx: harness.ctx, name: 'service_stop', input: { serviceId } })
     expect(textOf(stopped)).toContain('recorded and delivered on its own')
-    expect(harness.calls.at(-1)).toMatchObject({ op: 'services.stop', serviceId })
+    expect(harness.calls.filter((call) => call.op === 'services.stop')).toMatchObject([
+      { serviceId },
+    ])
+    expect(harness.calls.at(-1)).toMatchObject({ op: 'previews.stop', port: 3000 })
   })
 
   it('service_stop reports an unknown id', async () => {
@@ -199,6 +212,76 @@ describe('service tools', () => {
     expect(textOf(refused)).toContain('"nope" is not declared in .atlas/services.yaml')
   })
 
+  it('service_start publishes a port and records the public url', async () => {
+    const harness = rig({ control: controlOf({ url: 'https://six-words.trycloudflare.com' }) })
+    const { outcome, serviceId } = await start(harness)
+    expect(harness.log[0]).toMatchObject({
+      type: 'service-started',
+      serviceId,
+      port: 3000,
+      url: 'https://six-words.trycloudflare.com',
+    })
+    expect(harness.calls.find((call) => call.op === 'previews.expose')).toMatchObject({
+      port: 3000,
+      tunnelToken: 'tunnel-token',
+    })
+    expect(textOf(outcome)).toContain('https://six-words.trycloudflare.com')
+    expect(JSON.stringify(harness.log)).not.toContain('tunnel-token')
+    expect(JSON.stringify(outcome)).not.toContain('tunnel-token')
+  })
+
+  it('service_start without a port keeps the service in the sandbox', async () => {
+    const harness = rig({ control: controlOf({ url: 'https://six-words.trycloudflare.com' }) })
+    const outcome = await invoke({
+      ctx: harness.ctx,
+      name: 'service_start',
+      input: { description: 'job', command: 'echo hi' },
+    })
+    expect(outcome.ok).toBe(true)
+    expect(harness.log[0]).not.toHaveProperty('url')
+    expect(harness.calls.some((call) => call.op === 'previews.expose')).toBe(false)
+    expect(textOf(outcome)).toContain('only reachable inside the sandbox')
+  })
+
+  it('honours exposePort false and keeps a ported service in the sandbox', async () => {
+    const harness = rig({ control: controlOf({ url: 'https://six-words.trycloudflare.com' }) })
+    const outcome = await invoke({
+      ctx: harness.ctx,
+      name: 'service_start',
+      input: { description: 'web', command: 'listen', port: 3000, exposePort: false },
+    })
+    expect(outcome.ok).toBe(true)
+    expect(harness.log[0]).not.toHaveProperty('url')
+    expect(harness.calls.some((call) => call.op === 'previews.expose')).toBe(false)
+    expect(textOf(outcome)).toContain('only reachable inside the sandbox')
+  })
+
+  it('starts the service when publishing fails, and says it is sandbox-only', async () => {
+    const harness = rig({
+      control: {
+        exposePort: async () => {
+          throw new Error('the control plane is down')
+        },
+      },
+    })
+    const { outcome, serviceId } = await start(harness)
+    expect(outcome.ok).toBe(true)
+    expect(harness.log[0]).toMatchObject({ type: 'service-started', serviceId, port: 3000 })
+    expect(harness.log[0]).not.toHaveProperty('url')
+    expect(textOf(outcome)).toContain('only reachable inside the sandbox')
+    expect(textOf(outcome)).toContain('the control plane is down')
+  })
+
+  it('shows the public url in the view and in service_list', async () => {
+    const harness = rig({ control: controlOf({ url: 'https://six-words.trycloudflare.com' }) })
+    const { serviceId } = await start(harness)
+    expect(servicesOfEvents(harness.log)).toMatchObject([
+      { serviceId, url: 'https://six-words.trycloudflare.com' },
+    ])
+    const listed = await invoke({ ctx: harness.ctx, name: 'service_list', input: {} })
+    expect(textOf(listed)).toContain('https://six-words.trycloudflare.com')
+  })
+
   it('service_stop by name stops the running service of that name', async () => {
     const harness = rig()
     writeDeclared(harness, DECLARED)
@@ -209,9 +292,8 @@ describe('service tools', () => {
     })
     const stopped = await invoke({ ctx: harness.ctx, name: 'service_stop', input: { name: 'web' } })
     expect(textOf(stopped)).toContain('recorded and delivered on its own')
-    expect(harness.calls.at(-1)).toMatchObject({
-      op: 'services.stop',
-      serviceId: serviceIdOf(started),
-    })
+    expect(harness.calls.filter((call) => call.op === 'services.stop')).toMatchObject([
+      { serviceId: serviceIdOf(started) },
+    ])
   })
 })

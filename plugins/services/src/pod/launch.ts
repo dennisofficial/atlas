@@ -3,6 +3,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import type { ServiceInfo } from '@dltech/atlas-protocol'
 
 import { newServiceId, startService } from './daemon'
+import { exposeService } from './expose'
 import { renderStarted } from './render'
 import type { ServicePodState } from './state'
 
@@ -18,6 +19,7 @@ export type LaunchArgs = {
   port?: number | undefined
   healthPath?: string | undefined
   readyTimeoutMs?: number | undefined
+  expose?: boolean | undefined
   signal?: AbortSignal | undefined
 }
 
@@ -26,6 +28,8 @@ export type LaunchedService = {
   pid: number
   status: ServiceInfo['status']
   port: number | null
+  url?: string | undefined
+  exposeReason?: string | undefined
 }
 
 export const launchTracked = async (
@@ -54,6 +58,14 @@ export const launchTracked = async (
     })
     if (!launched.ok) return { ok: false, reason: launched.reason }
     state.cwds.set(serviceId, args.cwd)
+    const exposure =
+      args.port === undefined || args.expose === false
+        ? undefined
+        : await exposeService({ ctx, port: args.port })
+    if (exposure !== undefined && !exposure.ok) {
+      ctx.log(`services: publishing ${serviceId} failed: ${exposure.reason}`)
+    }
+    const url = exposure?.ok === true ? exposure.url : undefined
     await ctx.append([
       {
         type: 'service-started',
@@ -63,6 +75,7 @@ export const launchTracked = async (
         ...(args.name === undefined ? {} : { name: args.name }),
         ...(args.declarationHash === undefined ? {} : { declarationHash: args.declarationHash }),
         ...(args.port === undefined ? {} : { port: args.port }),
+        ...(url === undefined ? {} : { url }),
       },
     ])
     return {
@@ -72,6 +85,8 @@ export const launchTracked = async (
         pid: launched.value.pid,
         status: launched.value.status,
         port: launched.value.port,
+        ...(url === undefined ? {} : { url }),
+        ...(exposure === undefined || exposure.ok ? {} : { exposeReason: exposure.reason }),
       },
     }
   } finally {
@@ -91,11 +106,17 @@ export const launchService = async (args: LaunchArgs): Promise<ToolOutcome> => {
       status: launched.value.status,
       pid: launched.value.pid,
       port: launched.value.port,
+      ...(launched.value.url === undefined ? {} : { url: launched.value.url }),
     },
     modelText: renderStarted({
       serviceId: launched.value.serviceId,
       pid: launched.value.pid,
       description: args.description,
+      port: launched.value.port,
+      ...(launched.value.url === undefined ? {} : { url: launched.value.url }),
+      ...(launched.value.exposeReason === undefined
+        ? {}
+        : { exposeReason: launched.value.exposeReason }),
     }),
   }
 }

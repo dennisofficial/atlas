@@ -1,7 +1,7 @@
 import { EDaemonAnswer, answerCalls, type SteppedCalls } from '@dltech/atlas-core'
 
 import type { CallJournal, CallStore } from './call-store'
-import { CALL_JOURNAL_FORMAT, ECallJournalState } from './call-store'
+import { CALL_JOURNAL_FORMAT, ECallJournalState, journalOp } from './call-store'
 import { CallOutput } from './call-output'
 import type { RegisteredOp } from './group'
 import { type CallOp, type CallResult, type DaemonEvent, ECallFailure } from '../ops'
@@ -120,7 +120,7 @@ export class LiveCall {
           format: CALL_JOURNAL_FORMAT,
           state: ECallJournalState.Running,
           epoch: this.args.epoch,
-          op: this.args.op,
+          op: journalOp(this.args.op),
           outputBytes: 0,
         },
       })
@@ -155,7 +155,7 @@ export class LiveCall {
           format: CALL_JOURNAL_FORMAT,
           state: ECallJournalState.Done,
           epoch: this.args.epoch,
-          op: this.args.op,
+          op: journalOp(this.args.op),
           outputBytes: this.output.bytes(),
           result: effective,
         },

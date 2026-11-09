@@ -55,13 +55,14 @@ export const ensureDeclared = async (args: {
   projectDirectory: string
   restart?: boolean | undefined
   readyTimeoutMs?: number | undefined
+  expose?: boolean | undefined
   signal?: AbortSignal | undefined
 }): Promise<ToolOutcome> => {
   const ordered = declaredOrder({ declared: args.declared, name: args.name })
   if (!ordered.ok) return { ok: false, reason: ordered.reason }
 
   const kept: string[] = []
-  const started: { name: string; serviceId: string }[] = []
+  const started: { name: string; serviceId: string; url?: string | undefined }[] = []
   for (const name of ordered.order) {
     const declaration = args.declared.services.get(name)
     const hash = args.declared.hashes.get(name)
@@ -106,15 +107,24 @@ export const ensureDeclared = async (args: {
       port: declaration.port,
       healthPath: declaration.health,
       readyTimeoutMs: args.readyTimeoutMs,
+      expose: args.expose,
       signal: args.signal,
     })
     if (!launched.ok) return { ok: false, reason: launched.reason }
-    started.push({ name, serviceId: launched.value.serviceId })
+    started.push({
+      name,
+      serviceId: launched.value.serviceId,
+      ...(launched.value.url === undefined ? {} : { url: launched.value.url }),
+    })
   }
 
   const lines = [
     ...kept,
-    ...started.map((one) => `${one.name} is running as ${one.serviceId}.`),
+    ...started.map((one) =>
+      one.url === undefined
+        ? `${one.name} is running as ${one.serviceId}.`
+        : `${one.name} is running as ${one.serviceId} at ${one.url}.`,
+    ),
     ADVICE,
   ]
   return {

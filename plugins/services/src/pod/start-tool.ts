@@ -22,6 +22,7 @@ const inputSchema = z.strictObject({
   command: z.string().min(1).optional(),
   workdir: z.string().min(1).optional(),
   port: z.number().int().min(1).max(65_535).optional(),
+  exposePort: z.boolean().optional(),
   readyTimeoutMs: z.number().int().positive().optional(),
 })
 
@@ -35,6 +36,8 @@ const description = [
   'Its stdin is closed and it is its own process group, so nothing it forks outlives a stop.',
   'A port makes the call wait until that port answers, up to readyTimeoutMs, and the service is recorded as ready.',
   'It runs with PORT set to that port, so listen on $PORT.',
+  'A service with a port is published at a public URL and the call returns it: give the user that URL, which is what they open.',
+  'Pass exposePort false to keep it inside the sandbox instead.',
   'Its ending arrives on its own; do not poll.',
 ].join(' ')
 
@@ -88,6 +91,7 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
         name: input.name,
         projectDirectory,
         readyTimeoutMs: input.readyTimeoutMs,
+        expose: input.exposePort,
         signal,
       })
     }
@@ -99,6 +103,7 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
       cwd: input.workdir ?? projectDirectory,
       port: input.port,
       readyTimeoutMs: input.readyTimeoutMs,
+      expose: input.exposePort,
       signal,
     })
   }

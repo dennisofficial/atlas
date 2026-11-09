@@ -76,6 +76,7 @@ export const shellEventSchemas = [
     serviceId: z.string().min(1),
     name: z.string().min(1).optional(),
     port: z.number().int().optional(),
+    url: z.string().min(1).optional(),
     declarationHash: z.string().min(1).optional(),
     command: z.string(),
     description: z.string().optional(),
