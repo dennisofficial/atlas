@@ -8,10 +8,8 @@ export interface IDesktopWindowPort {
 export const TITLEBAR_DOUBLE_CLICK_PATH = '/desktop/window/titlebar-double-click'
 export const PREVIEW_ORIGINS_PATH = '/desktop/window/preview-origins'
 
-const MAX_PREVIEW_ORIGINS = 256
-
 const previewOriginsSchema = z.object({
-  origins: z.array(z.url({ protocol: /^https?$/ })).max(MAX_PREVIEW_ORIGINS),
+  origins: z.array(z.url({ protocol: /^https?$/ })),
 })
 
 const methodNotAllowed = () => new Response('Method Not Allowed', { status: 405 })
