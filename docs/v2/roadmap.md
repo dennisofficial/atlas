@@ -23,6 +23,10 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-09._
+- **`plugins/memory` live-checked on production (2026-11-09)**: write → index in the next prompt →
+  read → edit → a stale edit refused with `read it again` → delete, all through the agent; sessions
+  `8a7ed307-0e59-48a1-8637-b48e328713b8` and `cef48f40-2327-4ff6-819b-dfa015c41709` (spec §8.7). The
+  first run found the reply envelope leaking into the tools, fixed in #2071.
 - **Slice 7 PR 8, `plugins/memory`** (`dennis/memory`): the four memory tools and the index hook,
   over a new `PodControl.memory` port that the host answers on `hostMemory.*` with
   `AGENT_HOST_TOKEN` — a v2 cloud pod has no user token, so memory cannot use the v1 route (spec
