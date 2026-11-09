@@ -1,4 +1,5 @@
 import type { ESkillOrigin, SkillWarning } from '../core'
+import type { BuiltInFile } from './builtin-files'
 import type { SkillScopeName } from './port'
 
 export type RepoCatalogueSkill = {
@@ -17,10 +18,10 @@ export type RepoCatalogueSkill = {
 export type CloudCatalogueSkill = {
   name: string
   description: string
-  whenToUse: undefined
-  userInvocable: true
-  modelInvocable: true
-  argumentHint: undefined
+  whenToUse: string | undefined
+  userInvocable: boolean
+  modelInvocable: boolean
+  argumentHint: string | undefined
   origin: ESkillOrigin
   directory: null
   scope: SkillScopeName
@@ -37,6 +38,7 @@ export type BuiltInCatalogueSkill = {
   origin: ESkillOrigin
   directory: null
   text: string
+  files: readonly BuiltInFile[]
   warnings: readonly SkillWarning[]
 }
 

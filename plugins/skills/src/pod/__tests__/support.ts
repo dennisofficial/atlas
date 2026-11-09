@@ -10,7 +10,7 @@ import {
 import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
 import { skillsPodOf } from '..'
-import type { CloudSkillEntry, CloudSkillSource } from '../port'
+import type { CloudSkillEntry, CloudSkillSource, CloudSkillText } from '../port'
 
 export type FakeNode =
   | { kind: 'file'; text: string }
@@ -113,10 +113,12 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
 export const fakeCloud = (args: {
   entries: readonly CloudSkillEntry[]
   texts?: Record<string, string>
+  frontmatter?: readonly CloudSkillText[]
 }): CloudSkillSource => {
   const texts = args.texts ?? {}
   return {
     entries: () => args.entries,
+    frontmatter: async () => args.frontmatter ?? [],
     text: async (entry) => texts[`${entry.scope}:${entry.name}`] ?? null,
     file: async (entry, path) => texts[`${entry.scope}:${entry.name}:${path}`] ?? null,
   }

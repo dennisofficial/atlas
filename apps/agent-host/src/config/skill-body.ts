@@ -27,3 +27,40 @@ export const skillTextOf = async (args: {
   const found = files.find((file) => file.path.toLowerCase() === wanted)
   return found === undefined ? null : Buffer.from(found.content).toString('utf8')
 }
+
+export type CloudSkillText = { scope: SkillScopeName; name: string; text: string }
+
+const skillRowsOf = async (args: {
+  db: Db
+  owner: SkillOwner
+}): Promise<readonly { id: string; name: string; scope: SkillScopeName }[]> => {
+  const skills = args.db.orm.public.Skill
+  const [user, project] = await Promise.all([
+    skills.where({ userId: args.owner.userId }).select('id', 'name').all(),
+    skills.where({ projectId: args.owner.projectId }).select('id', 'name').all(),
+  ])
+  return [
+    ...user.map((row) => ({ id: row.id, name: row.name, scope: 'user' as const })),
+    ...project.map((row) => ({ id: row.id, name: row.name, scope: 'project' as const })),
+  ]
+}
+
+export const skillFrontmattersOf = async (args: {
+  db: Db
+  owner: SkillOwner
+}): Promise<readonly CloudSkillText[]> => {
+  const rows = await skillRowsOf(args)
+  const texts = await Promise.all(
+    rows.map(async (row): Promise<CloudSkillText | undefined> => {
+      const files = await args.db.orm.public.SkillFile.where({ skillId: row.id }).all()
+      const entry = files.find((file) => file.path.toLowerCase() === ENTRY_PATH.toLowerCase())
+      if (entry === undefined) return undefined
+      return {
+        scope: row.scope,
+        name: row.name,
+        text: Buffer.from(entry.content).toString('utf8'),
+      }
+    }),
+  )
+  return texts.filter((one): one is CloudSkillText => one !== undefined)
+}

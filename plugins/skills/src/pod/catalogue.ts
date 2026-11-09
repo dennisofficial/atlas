@@ -8,7 +8,7 @@ import {
   validateSkill,
 } from '../core'
 import { BUILT_IN_SKILLS } from './builtin.generated'
-import type { CloudSkillSource } from './port'
+import type { CloudSkillSource, CloudSkillText } from './port'
 import { discoverRepoSkills } from './repo-source'
 import type { BuiltInCatalogueSkill, CatalogueSkill, CloudCatalogueSkill } from './types'
 
@@ -36,23 +36,42 @@ const builtIns = (): readonly BuiltInCatalogueSkill[] =>
       origin: ESkillOrigin.BuiltIn,
       directory: null,
       text: builtIn.text,
+      files: builtIn.files,
       warnings: validateSkill({ frontmatter, directoryName: builtIn.name }),
     }
   })
 
-const cloudSkills = (cloud: CloudSkillSource): readonly CloudCatalogueSkill[] =>
-  cloud.entries().map((entry) => ({
-    name: entry.name.trim().toLowerCase(),
-    description: entry.description,
-    whenToUse: undefined,
-    userInvocable: true,
-    modelInvocable: true,
-    argumentHint: undefined,
-    origin: entry.scope === 'project' ? ESkillOrigin.CloudProject : ESkillOrigin.CloudUser,
-    directory: null,
-    scope: entry.scope,
-    warnings: [],
-  }))
+const frontmatterByKey = (texts: readonly CloudSkillText[]): ReadonlyMap<string, CloudSkillText> =>
+  new Map(texts.map((text) => [`${text.scope}:${text.name.trim().toLowerCase()}`, text]))
+
+const cloudSkills = async (cloud: CloudSkillSource): Promise<readonly CloudCatalogueSkill[]> => {
+  const texts = frontmatterByKey(
+    await cloud.frontmatter().catch((): readonly CloudSkillText[] => []),
+  )
+
+  return cloud.entries().map((entry) => {
+    const name = entry.name.trim().toLowerCase()
+    const text = texts.get(`${entry.scope}:${name}`)
+    const parsed =
+      text === undefined
+        ? undefined
+        : skillFrontmatterOf({ fields: frontmatterOf(text.text), fallbackName: name })
+
+    return {
+      name,
+      description: parsed?.description || entry.description,
+      whenToUse: parsed?.whenToUse,
+      userInvocable: parsed?.userInvocable ?? true,
+      modelInvocable: parsed?.modelInvocable ?? true,
+      argumentHint: parsed?.argumentHint,
+      origin: entry.scope === 'project' ? ESkillOrigin.CloudProject : ESkillOrigin.CloudUser,
+      directory: null,
+      scope: entry.scope,
+      warnings:
+        parsed === undefined ? [] : validateSkill({ frontmatter: parsed, directoryName: name }),
+    }
+  })
+}
 
 export const buildCatalogue = async (args: {
   ctx: Pick<PluginPodContext, 'call' | 'log'>
@@ -68,7 +87,7 @@ export const buildCatalogue = async (args: {
   })
   const resolved = resolveSkillShadowing<CatalogueSkill>([
     ...repo,
-    ...cloudSkills(args.cloud),
+    ...(await cloudSkills(args.cloud)),
     ...builtIns(),
   ])
   return {

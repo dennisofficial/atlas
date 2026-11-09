@@ -116,6 +116,22 @@ describe('the skill tool', () => {
     expect(textOf(outcome)).toContain('disable-model-invocation')
   })
 
+  it("reads one of a built-in bundle's reference files through the tool", async () => {
+    const { ctx } = fakeDaemon({})
+    const cloud = fakeCloud({ entries: [] })
+    const loaded = await invoke({ ctx, cloud, name: 'skill', input: { name: 'atlas' } })
+    expect(textOf(loaded)).toContain('read a file it bundles by calling this tool again with path')
+
+    const reference = await invoke({
+      ctx,
+      cloud,
+      name: 'skill',
+      input: { name: 'atlas', path: 'references/services.md' },
+    })
+    expect(reference.ok).toBe(true)
+    expect(textOf(reference)).toContain('services.yaml')
+  })
+
   it('names the closest skills for an unknown name', async () => {
     const { ctx } = fakeDaemon(repoTree())
     const outcome = await invoke({
@@ -150,6 +166,43 @@ describe('the skills listing', () => {
     expect(listing).not.toContain('cloud commit')
     expect(listing).toContain('- cloud-only: only in the cloud')
     expect(listing).toContain('- atlas:')
+  })
+
+  it('hides a cloud skill that sets disable-model-invocation and still refuses it by name', async () => {
+    const { ctx } = fakeDaemon({})
+    const cloud = fakeCloud({
+      entries: [{ name: 'hidden', description: 'row description', scope: 'user' }],
+      frontmatter: [
+        {
+          scope: 'user',
+          name: 'hidden',
+          text: '---\nname: hidden\ndescription: hidden from the listing\ndisable-model-invocation: true\n---\n\nbody',
+        },
+      ],
+    })
+
+    const listing = (await turn({ ctx, cloud })).join('\n')
+    expect(listing).not.toContain('- hidden')
+    const outcome = await invoke({ ctx, cloud, name: 'skill', input: { name: 'hidden' } })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('disable-model-invocation')
+  })
+
+  it('lists a cloud skill with its own when_to_use, not the row description alone', async () => {
+    const { ctx } = fakeDaemon({})
+    const cloud = fakeCloud({
+      entries: [{ name: 'cloudy', description: 'row description', scope: 'project' }],
+      frontmatter: [
+        {
+          scope: 'project',
+          name: 'cloudy',
+          text: '---\nname: cloudy\ndescription: from the file\nwhen_to_use: cloudy work\n---\n\nbody',
+        },
+      ],
+    })
+
+    const listing = (await turn({ ctx, cloud })).join('\n')
+    expect(listing).toContain('- cloudy: from the file Use when: cloudy work')
   })
 
   it('renders no block when there is nothing to list', async () => {

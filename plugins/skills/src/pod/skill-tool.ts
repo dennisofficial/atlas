@@ -93,12 +93,15 @@ const directoryNoteOf = (skill: CatalogueSkill): string =>
     ? ''
     : `The ${skill.name} skill is installed at ${skill.directory}. Every relative path below names a file inside that directory, so read one by joining it onto that path rather than onto the project directory.`
 
-const cloudNoteOf = (skill: CatalogueSkill): string =>
-  isCloudSkill(skill)
+const bundlesFiles = (skill: CatalogueSkill): boolean =>
+  isCloudSkill(skill) || (isBuiltInSkill(skill) && skill.files.length > 0)
+
+const bundledNoteOf = (skill: CatalogueSkill): string =>
+  bundlesFiles(skill)
     ? `The ${skill.name} skill has no directory in this session: read a file it bundles by calling this tool again with path set to that file's path.`
     : ''
 
-const noteOf = (skill: CatalogueSkill): string => directoryNoteOf(skill) || cloudNoteOf(skill)
+const noteOf = (skill: CatalogueSkill): string => directoryNoteOf(skill) || bundledNoteOf(skill)
 
 const entryPathOf = (skill: CatalogueSkill): string | null =>
   isRepoSkill(skill) ? skill.entryPath : null
@@ -178,6 +181,12 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
   private async bundledText(args: { skill: CatalogueSkill; path: string }): Promise<string | null> {
     if (isCloudSkill(args.skill))
       return await this.options.cloud.file(cloudEntryOf(args.skill), args.path)
+    if (isBuiltInSkill(args.skill)) {
+      const found = args.skill.files.find(
+        (file) => file.path.toLowerCase() === args.path.toLowerCase(),
+      )
+      return found?.text ?? null
+    }
     if (!isRepoSkill(args.skill)) return null
 
     const read = await textOf({ ctx: this.ctx, path: join(args.skill.directory, args.path) })

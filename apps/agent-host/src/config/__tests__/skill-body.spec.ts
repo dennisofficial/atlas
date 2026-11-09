@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
-import { skillTextOf } from '../skill-body'
+import { skillFrontmattersOf, skillTextOf } from '../skill-body'
 import { seedOwner, seedSkill } from './config-reader.fixture'
 
 const testDb = useTestDatabase()
@@ -55,6 +55,20 @@ describe('skillTextOf', () => {
     expect(
       await skillTextOf({ db, owner: OWNER, scope: 'user', name: 'alpha', path: 'skill.md' }),
     ).toBe('body')
+  })
+
+  it('reads the SKILL.md text of every user and project skill in one pass', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedSkill({ db, name: 'alpha', scope: 'user' })
+    await seedSkill({ db, name: 'beta', scope: 'project' })
+
+    const texts = await skillFrontmattersOf({ db, owner: OWNER })
+    expect(texts.map((one) => `${one.scope}:${one.name}`).sort()).toEqual([
+      'project:beta',
+      'user:alpha',
+    ])
+    expect(texts.every((one) => one.text === 'body')).toBe(true)
   })
 
   it('answers null for an unknown skill, an unknown file, and the other scope', async () => {
