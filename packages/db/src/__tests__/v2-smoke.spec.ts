@@ -14,6 +14,9 @@ const sessionRow = () => ({
   nextInboxId: 1,
   createdAt: NOW,
   archivedAt: null,
+  modelRef: null,
+  modelEffort: null,
+  modelFast: null,
 })
 
 describe('v2 namespace client', () => {
