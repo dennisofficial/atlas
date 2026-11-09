@@ -23,7 +23,14 @@ import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { SessionRecord as RecordAdapter } from '../record/record-adapter'
 import { ChildIntake } from './child-intake'
 import { childPortOf } from './child-port'
-import { failureOf, progressOf, snapshotOf, statusOf } from './child-progress'
+import {
+  failureOf,
+  progressOf,
+  snapshotOf,
+  statusOf,
+  activeWorktreeSnapshotOf,
+  worktreeDraftOf,
+} from './child-progress'
 import {
   appendOnParent,
   endingTextOf,
@@ -98,7 +105,7 @@ export class ChildRun {
         agentType: args.agentType,
         intent: args.intent,
         mode: EAgentStart.Fresh,
-        ...(args.worktree === undefined ? {} : { worktree: run.worktreeOf }),
+        ...(args.worktree === undefined ? {} : { worktree: worktreeDraftOf(args.worktree) }),
       },
     ])
     return run
@@ -149,8 +156,10 @@ export class ChildRun {
   }
 
   get worktreeOf(): SubagentWorktree | undefined {
-    const worktree = this.args.worktree
-    return worktree === undefined ? undefined : { path: worktree.path, branch: worktree.branch }
+    return activeWorktreeSnapshotOf({
+      events: this.record.eventCache().loopEventsAfter(0),
+      spawned: this.args.worktree,
+    })
   }
 
   private async seedWorktree(worktree: WorktreeEntryInfo): Promise<void> {

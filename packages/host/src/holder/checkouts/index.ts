@@ -60,12 +60,14 @@ export class HostWorktrees implements PodWorktrees {
     const upstream = await this.upstreamOf(args.cwd)
     const unpushed = await this.unpushedOf({ cwd: args.cwd, upstream, base: args.base })
     const behind =
-      upstream === undefined ? undefined : await this.count(args.cwd, `HEAD..${upstream}`)
+      upstream === undefined
+        ? undefined
+        : ((await this.count(args.cwd, `HEAD..${upstream}`)) ?? undefined)
     return {
-      isClean: changed.length === 0 && unpushed === 0,
+      isClean: changed.length === 0 && unpushed !== null && unpushed.count === 0,
       changedPaths: changed.slice(0, CHANGED_PATH_SAMPLE),
       changedCount: changed.length,
-      unpushedCommits: unpushed,
+      unpushed,
       upstream,
       base: args.base,
       behind,
@@ -78,24 +80,42 @@ export class HostWorktrees implements PodWorktrees {
     branch?: string | undefined
     force: boolean
   }): Promise<WorktreeRemoval> {
+    const checkedOut = await this.branchOf(args.path)
+    if (args.branch !== undefined && args.branch !== checkedOut) {
+      throw new Error(
+        `the worktree at ${args.path} is on ${checkedOut ?? 'an unknown branch'}, not ${args.branch}; nothing was removed`,
+      )
+    }
     const argv = args.force
       ? ['worktree', 'remove', '--force', args.path]
       : ['worktree', 'remove', args.path]
     const removed = await this.git(args.cwd, argv)
     if (!removed.ok) throw new Error(complaintOf(removed))
-    if (args.branch === undefined) return { branch: undefined, branchDeleted: undefined }
-    const deleted = await this.git(args.cwd, ['branch', '-D', args.branch])
-    return { branch: args.branch, branchDeleted: deleted.ok }
+    const branch = args.branch ?? checkedOut
+    if (branch === undefined) return { branch: undefined, branchDeleted: undefined }
+    const deleted = await this.git(args.cwd, ['branch', '-D', branch])
+    return { branch, branchDeleted: deleted.ok }
+  }
+
+  private async branchOf(cwd: string): Promise<string | undefined> {
+    const run = await this.git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD'])
+    const name = run.stdout.trim()
+    return run.ok && name.length > 0 && name !== 'HEAD' ? name : undefined
   }
 
   private async unpushedOf(args: {
     cwd: string
     upstream: string | undefined
     base: string | undefined
-  }): Promise<number> {
-    if (args.upstream !== undefined) return await this.count(args.cwd, `${args.upstream}..HEAD`)
-    if (args.base === undefined) return 0
-    return await this.count(args.cwd, `${args.base}..HEAD`)
+  }): Promise<WorktreeState['unpushed']> {
+    if (args.upstream !== undefined) return await this.unpushedAgainst(args.cwd, args.upstream)
+    if (args.base === undefined) return null
+    return await this.unpushedAgainst(args.cwd, args.base)
+  }
+
+  private async unpushedAgainst(cwd: string, against: string): Promise<WorktreeState['unpushed']> {
+    const count = await this.count(cwd, `${against}..HEAD`)
+    return count === null ? null : { count, against }
   }
 
   private async baseOf(cwd: string): Promise<Base> {
@@ -136,10 +156,11 @@ export class HostWorktrees implements PodWorktrees {
     return run.ok && run.stdout.trim().length > 0
   }
 
-  private async count(cwd: string, range: string): Promise<number> {
+  private async count(cwd: string, range: string): Promise<number | null> {
     const run = await this.git(cwd, ['rev-list', '--count', range])
-    const parsed = Number.parseInt(run.stdout.trim(), 10)
-    return run.ok && !Number.isNaN(parsed) ? parsed : 0
+    const text = run.stdout.trim()
+    if (!run.ok || !/^\d+$/.test(text)) return null
+    return Number.parseInt(text, 10)
   }
 
   private git(cwd: string, argv: readonly string[]) {

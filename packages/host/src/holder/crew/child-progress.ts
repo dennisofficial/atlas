@@ -1,6 +1,17 @@
-import { EAgentStatus, type AssistantPart, type ThreadId, type V2Event } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  activeWorktreeOf,
+  type AssistantPart,
+  type Event,
+  type ThreadId,
+  type V2Event,
+} from '@dltech/atlas-core'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-agent'
-import type { SubagentSnapshot, SubagentWorktree } from '@dltech/atlas-plugin-sdk'
+import type {
+  SubagentSnapshot,
+  SubagentWorktree,
+  WorktreeEntryInfo,
+} from '@dltech/atlas-plugin-sdk'
 
 export type Progress = {
   turns: number
@@ -54,6 +65,30 @@ export const statusOf = (outcome: TurnOutcome): EAgentStatus => {
 
 export const failureOf = (outcome: TurnOutcome): string | undefined =>
   outcome.status === ETurnStatus.Failed ? outcome.message : undefined
+
+export const activeWorktreeSnapshotOf = (args: {
+  events: readonly Event[]
+  spawned: WorktreeEntryInfo | undefined
+}): SubagentWorktree | undefined => {
+  const active = activeWorktreeOf(args.events)
+  if (active !== undefined) return { path: active.path, branch: active.branch }
+  if (args.spawned === undefined) return undefined
+  return { path: args.spawned.path, branch: args.spawned.branch }
+}
+
+type SpawnedWorktreeDraft = {
+  path: string
+  branch: string
+  base?: string | undefined
+  adopted?: boolean | undefined
+}
+
+export const worktreeDraftOf = (entry: WorktreeEntryInfo): SpawnedWorktreeDraft => ({
+  path: entry.path,
+  branch: entry.branch,
+  ...(entry.base === undefined ? {} : { base: entry.base }),
+  ...(entry.adopted === undefined ? {} : { adopted: entry.adopted }),
+})
 
 export const snapshotOf = (args: {
   agentId: ThreadId
