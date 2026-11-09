@@ -31,6 +31,7 @@ const recordingFiles = (args: { failWrites?: boolean } = {}) => {
 }
 
 const signal = new AbortController().signal
+const calls = { ackScope: async () => {} }
 
 describe('prepareSigning', () => {
   it('writes the key at 0600 and the allowed signers at 0644 beside the workspace', async () => {
@@ -38,6 +39,7 @@ describe('prepareSigning', () => {
     const signing = await prepareSigning({
       reader: { read: async () => KEY },
       files,
+      calls,
       userId: 'u',
       launchDirectory: '/atlas/workspaces/workspace',
       signal,
@@ -68,6 +70,7 @@ describe('prepareSigning', () => {
     const args = {
       reader: { read: async () => ({ ...KEY, privateKey: 'KEY\n' }) },
       files,
+      calls,
       userId: 'u',
       launchDirectory: '/w/workspace',
       signal,
@@ -82,9 +85,22 @@ describe('prepareSigning', () => {
     ])
   })
 
+  it('acks the signing call scope once it wrote the key, and not when there was none', async () => {
+    const acked: string[] = []
+    const recording = {
+      ackScope: async (args: { scopeKey: string }) => void acked.push(args.scopeKey),
+    }
+    const { files } = recordingFiles()
+    const base = { files, calls: recording, userId: 'u', launchDirectory: '/w/workspace', signal }
+    await prepareSigning({ ...base, reader: { read: async () => null } })
+    expect(acked).toEqual([])
+    await prepareSigning({ ...base, reader: { read: async () => KEY } })
+    expect(acked).toEqual(['setup:signing'])
+  })
+
   it('writes nothing and answers null without a key or reader', async () => {
     const { files, written } = recordingFiles()
-    const base = { files, userId: 'u', launchDirectory: '/w/workspace', signal }
+    const base = { files, calls, userId: 'u', launchDirectory: '/w/workspace', signal }
     expect(await prepareSigning({ ...base, reader: { read: async () => null } })).toBeNull()
     expect(await prepareSigning({ ...base, reader: undefined })).toBeNull()
     expect(written).toEqual([])
@@ -100,6 +116,7 @@ describe('prepareSigning', () => {
         },
       },
       files,
+      calls,
       userId: 'u',
       launchDirectory: '/w/workspace',
       signal,
@@ -117,6 +134,7 @@ describe('prepareSigning', () => {
     const signing = await prepareSigning({
       reader: { read: async () => KEY },
       files,
+      calls,
       userId: 'u',
       launchDirectory: '/w/workspace',
       signal,
@@ -137,6 +155,7 @@ describe('prepareSigning', () => {
       prepareSigning({
         reader: { read: async () => KEY },
         files,
+        calls,
         userId: 'u',
         launchDirectory: '/w/workspace',
         signal: controller.signal,

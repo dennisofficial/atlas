@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdtempSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,6 +13,16 @@ import type { SigningKey } from '../../tokens/signing-key-reader'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 
 const scratch: string[] = []
+
+const daemonJournalsHolding = (needle: string): string[] =>
+  readdirSync(tmpdir())
+    .filter((entry) => entry.startsWith('atlas-agent-host-local-'))
+    .flatMap((entry) =>
+      readdirSync(join(tmpdir(), entry), { recursive: true, withFileTypes: true })
+        .filter((file) => file.isFile() && file.name === 'state.json')
+        .map((file) => join(file.parentPath, file.name)),
+    )
+    .filter((file) => readFileSync(file, 'utf8').includes(needle))
 
 afterEach(() => {
   for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true })
@@ -46,7 +56,7 @@ const commitInShell = async (args: {
   signingKey: SigningKey | null
   token: string | null
   prepareTwice?: boolean
-}): Promise<{ output: string; keyMode: number | null }> => {
+}): Promise<{ output: string; keyMode: number | null; leftKey: string[] }> => {
   const sandbox = new LocalSandboxProvider({ daemonSecret: 'signing-secret' })
   const root = mkdtempSync(join(tmpdir(), 'atlas-signing-'))
   scratch.push(root)
@@ -72,6 +82,10 @@ const commitInShell = async (args: {
       signal: new AbortController().signal,
     })
     expect(await runtime.prepare()).toEqual({ ok: true })
+    const leftKey =
+      args.signingKey === null
+        ? []
+        : daemonJournalsHolding(args.signingKey.publicKey.split(' ')[1] ?? '')
     const outcome: ToolOutcome | undefined = await runtime.tools.find('bash')?.invoke({
       input: { description: 'Commit and verify', command: COMMIT_SCRIPT },
       signal: new AbortController().signal,
@@ -84,6 +98,7 @@ const commitInShell = async (args: {
     const keyPath = join(root, '.atlas-agent', 'signing-key')
     return {
       output: outcome.modelText ?? '',
+      leftKey,
       keyMode: args.signingKey === null ? null : statSync(keyPath).mode & 0o777,
     }
   } finally {
@@ -93,7 +108,7 @@ const commitInShell = async (args: {
 
 describe('a commit in a sandbox shell', () => {
   it('is signed and verifies with the allowed signers file, with a token', async () => {
-    const { output, keyMode } = await commitInShell({
+    const { output, keyMode, leftKey } = await commitInShell({
       signingKey: await keypairOf(),
       token: 'gho_e2e',
     })
@@ -102,6 +117,7 @@ describe('a commit in a sandbox shell', () => {
     expect(output).toContain('message=signed')
     expect(output).not.toMatch(/co-authored-by|atlas/i)
     expect(keyMode).toBe(0o600)
+    expect(leftKey).toEqual([])
   }, 60_000)
 
   it('is signed without a github token', async () => {
