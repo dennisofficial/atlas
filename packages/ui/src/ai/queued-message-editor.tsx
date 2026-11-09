@@ -7,6 +7,7 @@ import { PaperclipIcon } from 'lucide-react'
 import { Bubble, BubbleContent } from '#components/bubble'
 import { Button } from '#components/button'
 import { QueuedMessageAttachments } from './internal/queued-message-attachments'
+import { handleLiteralHyphen } from './internal/literal-hyphen'
 import { attachmentsFromFiles } from './queued-message-ops'
 import type { QueuedAttachment, QueuedMessageDraft } from './queued-message-types'
 
@@ -45,6 +46,7 @@ export function QueuedMessageEditor({ initial, onSave, onCancel }: QueuedMessage
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (handleLiteralHyphen({ event, onValue: setText })) return
     if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
