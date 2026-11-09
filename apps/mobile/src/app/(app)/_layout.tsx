@@ -86,6 +86,7 @@ const AppStack = () => {
       />
       <Stack.Screen name="new" options={{ title: 'New session' }} />
       <Stack.Screen name="thread/[id]" options={{ title: '' }} />
+      <Stack.Screen name="sessions/[id]" options={{ title: '' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
     </Stack>
   )

@@ -1,6 +1,14 @@
+import type { SessionListOutput } from '@dltech/atlas-protocol'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
-import { type ESessionStatus, isUnread, sessionStatusOf } from './session-status'
+import { ESessionStatus, isUnread, sessionStatusOf } from './session-status'
+
+export type V2SessionSummary = SessionListOutput['sessions'][number]
+
+export enum ESessionKind {
+  V1 = 'v1',
+  V2 = 'v2',
+}
 
 export const INACTIVE_AFTER_MS = 72 * 60 * 60 * 1000
 export const NO_PROJECT_KEY = '__no-project__'
@@ -30,6 +38,7 @@ export interface IProjectSummary {
 
 export interface ISessionEntry {
   id: string
+  kind: ESessionKind
   title: string
   projectName: string
   createdAt: string
@@ -113,6 +122,7 @@ export const toSessionEntry = ({
   projectName: string
 }): ISessionEntry => ({
   id: thread.id,
+  kind: ESessionKind.V1,
   title: thread.title === undefined || thread.title.length === 0 ? 'Untitled' : thread.title,
   projectName,
   createdAt: thread.createdAt,
@@ -123,6 +133,63 @@ export const toSessionEntry = ({
   work: workOf(thread),
 })
 
+const RUNNING_STATES: ReadonlySet<string> = new Set([
+  'preparing',
+  'sent',
+  'thinking',
+  'running-tool',
+  'waiting-to-retry',
+  'resuming',
+])
+
+const FAILED_STATES: ReadonlySet<string> = new Set(['failed', 'setup-failed', 'start-failed'])
+
+const statusOfV2 = (summary: V2SessionSummary): ESessionStatus => {
+  const state = summary.status?.state
+  if (state === undefined) return ESessionStatus.Idle
+  if (state === 'waiting-for-credentials') return ESessionStatus.Awaiting
+  if (FAILED_STATES.has(state)) return ESessionStatus.Failed
+  return RUNNING_STATES.has(state) ? ESessionStatus.Running : ESessionStatus.Idle
+}
+
+const workOfV2 = (summary: V2SessionSummary): SessionWork => {
+  const pullRequest = summary.pullRequest
+  if (pullRequest !== null && pullRequest !== undefined) {
+    return {
+      kind: EWorkKind.PullRequest,
+      number: pullRequest.number,
+      state: pullRequestStateOf(pullRequest.state ?? undefined),
+    }
+  }
+  return { kind: EWorkKind.Branch, branch: summary.primaryBranch ?? null }
+}
+
+const v2EntryOf = ({
+  summary,
+  projectName,
+}: {
+  summary: V2SessionSummary
+  projectName: string
+}): ISessionEntry => ({
+  id: summary.sessionId,
+  kind: ESessionKind.V2,
+  title: summary.title === null || summary.title.length === 0 ? 'Untitled' : summary.title,
+  projectName,
+  createdAt: summary.createdAt,
+  updatedAt: summary.updatedAt,
+  pinned: false,
+  status: statusOfV2(summary),
+  unread: false,
+  work: workOfV2(summary),
+})
+
+const v2BucketOf = ({ summary, now }: { summary: V2SessionSummary; now: number }): EBucket => {
+  if (isSet(summary.archivedAt)) return EBucket.Archived
+  const updatedAt = Date.parse(summary.updatedAt)
+  if (Number.isNaN(updatedAt)) return EBucket.Active
+  return now - updatedAt > INACTIVE_AFTER_MS ? EBucket.Inactive : EBucket.Active
+}
+
 export const sortSessions = (sessions: readonly ISessionEntry[]): ISessionEntry[] =>
   [...sessions].sort((left, right) => {
     const pinned = Number(right.pinned) - Number(left.pinned)
@@ -132,10 +199,12 @@ export const sortSessions = (sessions: readonly ISessionEntry[]): ISessionEntry[
 export const partitionSessions = ({
   projects,
   threads,
+  sessions,
   now,
 }: {
   projects: readonly IProjectSummary[]
   threads: readonly WireThread[]
+  sessions?: readonly V2SessionSummary[]
   now: number
 }): ISessionPartition => {
   const ordered = [...projects].sort(
@@ -154,6 +223,15 @@ export const partitionSessions = ({
     const key = projectId ?? NO_PROJECT_KEY
     const bucket = buckets[bucketOf({ thread, now })]
     bucket.set(key, [...(bucket.get(key) ?? []), toSessionEntry({ thread, projectName })])
+  }
+  for (const summary of sessions ?? []) {
+    const projectName = nameOf.get(summary.projectId)
+    if (projectName === undefined) continue
+    const bucket = buckets[v2BucketOf({ summary, now })]
+    bucket.set(summary.projectId, [
+      ...(bucket.get(summary.projectId) ?? []),
+      v2EntryOf({ summary, projectName }),
+    ])
   }
   const groupsOf = (bucket: EBucket): IProjectGroup[] => [
     ...ordered.map((project) => ({

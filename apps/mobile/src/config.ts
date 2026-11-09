@@ -19,4 +19,6 @@ export const webOrigin = (
   'https://byatlas.io'
 ).replace(/\/+$/, '')
 
+export const streamUrl = process.env.EXPO_PUBLIC_STREAM_URL ?? 'wss://agent.byatlas.io/stream'
+
 export const nativeRedirectUri = 'atlas://auth/callback'

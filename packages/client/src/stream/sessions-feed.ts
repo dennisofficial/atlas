@@ -1,19 +1,19 @@
-import type { FollowedSessionList } from '@dltech/atlas-client/stream'
+import type { StreamSessionRow } from '@dltech/atlas-protocol'
 
-import type { V2SessionSummary } from './v2-rows'
+import type { FollowedSessionList } from './sessions-list'
 
 export type SessionsFeed = { retain(): () => void }
 
 export const createSessionsFeed = (args: {
   follow: () => FollowedSessionList
-  write: (rows: readonly V2SessionSummary[]) => void
+  write: (rows: readonly StreamSessionRow[]) => void
 }): SessionsFeed => {
   let holders = 0
   let stop: (() => void) | undefined
 
   const open = (): (() => void) => {
     const list = args.follow()
-    const handleChange = () => {
+    const handleChange = (): void => {
       const rows = list.getSnapshot()
       if (rows !== undefined) args.write(rows)
     }
