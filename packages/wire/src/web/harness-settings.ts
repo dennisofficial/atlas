@@ -130,7 +130,7 @@ export const HARNESS_SETTING_ENTRIES = [
   settingEntry({
     key: 'web.searchBackend',
     schema: z.enum(EWebSearchBackendWire),
-    fallback: EWebSearchBackendWire.DuckDuckGo,
+    fallback: EWebSearchBackendWire.Bing,
     consumer: ESettingConsumer.Harness,
   }),
   ...[

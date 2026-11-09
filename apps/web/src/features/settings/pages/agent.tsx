@@ -174,7 +174,7 @@ function AgentEditor({
         <SettingsCard>
           <SettingsRow
             title="Search backend"
-            description="DuckDuckGo needs no account. The others answer better in exchange for a key of your own, and the ones that return page text save the agent a fetch per result."
+            description="Bing needs no account. The others answer better in exchange for a key of your own, and the ones that return page text save the agent a fetch per result."
             control={
               <ChoiceSelect
                 label="Search backend"

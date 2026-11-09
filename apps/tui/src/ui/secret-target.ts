@@ -49,9 +49,9 @@ export function secretTargetOf(args: {
   const chosen = choiceValueOf({
     resolution: args.resolution,
     id: ESettingId.WebSearchBackend,
-    fallback: EWebSearchBackend.DuckDuckGo,
+    fallback: EWebSearchBackend.Bing,
   })
-  const traits = BACKEND_TRAITS[backendOf(chosen) ?? EWebSearchBackend.DuckDuckGo]
+  const traits = BACKEND_TRAITS[backendOf(chosen) ?? EWebSearchBackend.Bing]
 
   return {
     name: secretNameOf(traits.backend),

@@ -17,6 +17,7 @@ const DECISIONS_TOKEN_PREFIX = 'decisions.token.'
 const SEARCH_SECRET_PREFIX = 'search.'
 
 const SEARCH_BACKEND_LABELS: Record<ESearchBackend, string> = {
+  [ESearchBackend.Bing]: 'Bing',
   [ESearchBackend.DuckDuckGo]: 'DuckDuckGo',
   [ESearchBackend.Jina]: 'Jina',
   [ESearchBackend.Tavily]: 'Tavily',
@@ -31,7 +32,7 @@ const API_KEY_DESCRIPTION =
 const SEARCH_KEY_SHAPES: Partial<Record<ESearchBackend, Omit<KeyTarget, 'name' | 'label'>>> = {
   [ESearchBackend.Jina]: {
     description:
-      'Raises Jina from 20 to 500 searches a minute. Saved encrypted to your account and never shown again.',
+      'Jina refuses an anonymous search, so the key is what makes it answer at all; it allows 500 searches a minute. Saved encrypted to your account and never shown again.',
     noun: EKeyNoun.Key,
     masked: true,
   },

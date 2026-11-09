@@ -52,6 +52,7 @@ export enum EDecisionsProviderWire {
 }
 
 export enum EWebSearchBackendWire {
+  Bing = 'bing',
   DuckDuckGo = 'duckduckgo',
   Jina = 'jina',
   Tavily = 'tavily',

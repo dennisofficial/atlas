@@ -101,9 +101,9 @@ async function openBench({
         choiceValueOf({
           resolution: settled,
           id: ESettingId.WebSearchBackend,
-          fallback: EWebSearchBackend.DuckDuckGo,
+          fallback: EWebSearchBackend.Bing,
         }),
-      ) ?? EWebSearchBackend.DuckDuckGo,
+      ) ?? EWebSearchBackend.Bing,
   })
 
   const workspace = await probeWorkspace({ cwd })

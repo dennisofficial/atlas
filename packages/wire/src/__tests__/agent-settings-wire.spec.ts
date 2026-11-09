@@ -21,7 +21,7 @@ const POD_DELIVERED_KEYS = [
 
 const CORE_CLASSIFIER_MODES = ['off', 'shadow', 'nudge']
 const CORE_DECISIONS_PROVIDERS = ['typesafe', 'vercel', 'openai', 'custom']
-const CORE_SEARCH_BACKENDS = ['duckduckgo', 'jina', 'tavily', 'exa', 'brave', 'searxng']
+const CORE_SEARCH_BACKENDS = ['bing', 'duckduckgo', 'jina', 'tavily', 'exa', 'brave', 'searxng']
 
 const verdictOf = (args: { key: string; value: unknown }) =>
   validateCloudSetting({ key: args.key, stored: encodeSettingValue(args.value) })
