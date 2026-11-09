@@ -1,7 +1,12 @@
-import { isAbsolute, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
-import type { ActiveWorktree } from '@dltech/atlas-core'
-import type { PodWorktrees, WorktreeEntryInfo, WorktreeRecord } from '@dltech/atlas-plugin-sdk'
+import type { ActiveWorktree, V2Event } from '@dltech/atlas-core'
+import type {
+  PodWorktrees,
+  WorktreeEntryInfo,
+  WorktreeRecord,
+  WorktreeState,
+} from '@dltech/atlas-plugin-sdk'
 
 export const WORKTREE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/
 
@@ -45,33 +50,52 @@ const matchedOf = (args: {
   repository: string
   path: string
 }): WorktreeRecord | undefined => {
-  const candidates = isAbsolute(args.path)
-    ? [args.path]
-    : [resolve(args.projectDirectory, args.path), resolve(args.repository, args.path)]
+  const candidates = [
+    resolve(args.projectDirectory, args.path),
+    resolve(args.repository, args.path),
+  ]
   return args.records.find((record) => candidates.includes(record.path))
 }
 
 const stateLine = (state: {
   changedCount: number
-  unpushedCommits: number
-  upstream: string | undefined
+  unpushed: WorktreeState['unpushed']
 }): string => {
-  const parts = [
+  const changes =
     state.changedCount === 0
       ? 'no uncommitted changes'
-      : `${state.changedCount} uncommitted ${state.changedCount === 1 ? 'file' : 'files'}`,
-  ]
-  if (state.upstream === undefined) {
-    parts.push('and no upstream branch, so nothing to compare against')
-    return `It holds ${parts.join(' ')}.`
+      : `${state.changedCount} uncommitted ${state.changedCount === 1 ? 'file' : 'files'}`
+  if (state.unpushed === null) {
+    return `It holds ${changes}, and no upstream branch or base branch to count unpushed commits against.`
   }
-  parts.push(`and, against ${state.upstream}, ${state.unpushedCommits} ahead`)
-  return `It holds ${parts.join(' ')}.`
+  const { count, against } = state.unpushed
+  return `It holds ${changes}, and ${count} ${count === 1 ? 'commit' : 'commits'} ahead of ${against}.`
 }
+
+export const provenanceIn =
+  (events: readonly V2Event[]) =>
+  (path: string): { created: boolean; base: string | undefined } => {
+    let created = false
+    let base: string | undefined
+    const note = (entry: {
+      path: string
+      base?: string | undefined
+      adopted?: boolean | undefined
+    }): void => {
+      if (entry.path !== path) return
+      if (entry.adopted !== true) created = true
+      base = base ?? entry.base
+    }
+    for (const event of events) {
+      if (event.type === 'worktree-entered') note(event)
+      if (event.type === 'agent-spawned' && event.worktree !== undefined) note(event.worktree)
+    }
+    return { created, base }
+  }
 
 export const adoptedTextOf = (args: {
   entry: WorktreeEntryInfo
-  state: { changedCount: number; unpushedCommits: number; upstream: string | undefined }
+  state: { changedCount: number; unpushed: WorktreeState['unpushed'] }
 }): string =>
   [
     `Moved into the existing worktree at ${args.entry.path}, on branch ${args.entry.branch}.`,
@@ -118,8 +142,10 @@ export async function enterByName(args: {
 export async function enterByPath(args: {
   worktrees: PodWorktrees
   projectDirectory: string
+  activeWorktree: ActiveWorktree | undefined
   path: string
   createdHere: (path: string) => boolean
+  baseHere: (path: string) => string | undefined
 }): Promise<Plan> {
   let repository: string
   let records: readonly WorktreeRecord[]
@@ -147,14 +173,23 @@ export async function enterByPath(args: {
   const refusal = refusalOf(matched)
   if (refusal !== undefined) return { ok: false, reason: refusal }
 
-  const ours = args.createdHere(matched.path)
+  const here =
+    args.activeWorktree !== undefined && matched.path === args.projectDirectory
+      ? args.activeWorktree
+      : undefined
+  const ours = here === undefined ? args.createdHere(matched.path) : here.adopted !== true
+  const base = args.baseHere(matched.path) ?? here?.base
   const entry: WorktreeEntryInfo = {
     path: matched.path,
     branch: matched.branch ?? '',
     adopted: !ours,
+    ...(base === undefined ? {} : { base }),
   }
   try {
-    const state = await args.worktrees.inspect({ cwd: matched.path })
+    const state = await args.worktrees.inspect({
+      cwd: matched.path,
+      ...(base === undefined ? {} : { base }),
+    })
     return {
       ok: true,
       entry,
@@ -172,6 +207,7 @@ export async function planTarget(args: {
   projectDirectory: string
   activeWorktree: ActiveWorktree | undefined
   createdHere: (path: string) => boolean
+  baseHere: (path: string) => string | undefined
   target: string
 }): Promise<Plan> {
   const listing = await args.worktrees.list({ cwd: args.projectDirectory }).catch(() => undefined)
@@ -185,7 +221,12 @@ export async function planTarget(args: {
           path: args.target,
         })
   if (matched !== undefined) {
-    return await enterByPath({ ...args, path: args.target, createdHere: args.createdHere })
+    return await enterByPath({ ...args, path: args.target })
   }
-  return await enterByName({ ...args, name: args.target })
+  return await enterByName({
+    worktrees: args.worktrees,
+    projectDirectory: args.projectDirectory,
+    activeWorktree: undefined,
+    name: args.target,
+  })
 }

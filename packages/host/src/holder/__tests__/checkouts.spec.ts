@@ -212,15 +212,76 @@ describe('the host worktrees port', () => {
       isClean: false,
       changedPaths: ['src/a.ts', 'notes.md'],
       changedCount: 2,
-      unpushedCommits: 2,
+      unpushed: { count: 2, against: 'origin/dennis/wt' },
       upstream: 'origin/dennis/wt',
       base: undefined,
       behind: 1,
     })
   })
 
-  it('removes the worktree with force and deletes the branch', async () => {
+  it('calls a checkout clean only when nothing changed and nothing is unpushed', async () => {
+    const { worktrees } = rig({
+      'git status --porcelain': { stdout: '' },
+      'git rev-parse --abbrev-ref --symbolic-full-name @{u}': { stdout: 'origin/dennis/wt\n' },
+      'git rev-list --count origin/dennis/wt..HEAD': { stdout: '0\n' },
+      'git rev-list --count HEAD..origin/dennis/wt': { stdout: '0\n' },
+    })
+
+    const state = await worktrees.inspect({ cwd: '/work/.atlas/worktrees/dennis/wt' })
+
+    expect(state.isClean).toBe(true)
+    expect(state.unpushed).toEqual({ count: 0, against: 'origin/dennis/wt' })
+  })
+
+  it('reports no unpushed count when there is neither an upstream nor a base', async () => {
+    const { worktrees } = rig({ 'git status --porcelain': { stdout: '' } })
+
+    const state = await worktrees.inspect({ cwd: '/work/.atlas/worktrees/dennis/wt' })
+
+    expect(state.unpushed).toBeNull()
+    expect(state.isClean).toBe(false)
+  })
+
+  it('reports no unpushed count when git refuses to count the commits', async () => {
+    const { worktrees } = rig({
+      'git status --porcelain': { stdout: '' },
+      'git rev-list --count origin/main..HEAD': { code: 128 },
+    })
+
+    const state = await worktrees.inspect({ cwd: '/work', base: 'origin/main' })
+
+    expect(state.unpushed).toBeNull()
+    expect(state.isClean).toBe(false)
+  })
+
+  it('reports no unpushed count when git answers with something that is not a number', async () => {
+    const { worktrees } = rig({
+      'git status --porcelain': { stdout: '' },
+      'git rev-list --count origin/main..HEAD': { stdout: 'fatal: bad revision\n' },
+    })
+
+    const state = await worktrees.inspect({ cwd: '/work', base: 'origin/main' })
+
+    expect(state.unpushed).toBeNull()
+    expect(state.isClean).toBe(false)
+  })
+
+  it('counts unpushed commits against the base when the checkout has no upstream', async () => {
+    const { worktrees } = rig({
+      'git status --porcelain': { stdout: '' },
+      'git rev-list --count origin/main..HEAD': { stdout: '3\n' },
+    })
+
+    const state = await worktrees.inspect({ cwd: '/work', base: 'origin/main' })
+
+    expect(state.unpushed).toEqual({ count: 3, against: 'origin/main' })
+    expect(state.upstream).toBeUndefined()
+    expect(state.behind).toBeUndefined()
+  })
+
+  it('removes the worktree with force and deletes the branch it is on', async () => {
     const { worktrees, processes } = rig({
+      'git rev-parse --abbrev-ref HEAD': { stdout: 'dennis/wt\n' },
       'git worktree remove --force /work/.atlas/worktrees/dennis/wt': { stdout: '' },
       'git branch -D dennis/wt': { code: 1 },
     })
@@ -234,9 +295,46 @@ describe('the host worktrees port', () => {
 
     expect(removal).toEqual({ branch: 'dennis/wt', branchDeleted: false })
     expect(processes.calls).toEqual([
+      'git rev-parse --abbrev-ref HEAD',
       'git worktree remove --force /work/.atlas/worktrees/dennis/wt',
       'git branch -D dennis/wt',
     ])
+  })
+
+  it('deletes the checked-out branch when the caller names none', async () => {
+    const { worktrees, processes } = rig({
+      'git rev-parse --abbrev-ref HEAD': { stdout: 'dennis/wt\n' },
+      'git worktree remove --force /work/.atlas/worktrees/dennis/wt': { stdout: '' },
+      'git branch -D dennis/wt': { stdout: 'Deleted branch dennis/wt\n' },
+    })
+
+    const removal = await worktrees.remove({
+      cwd: '/work',
+      path: '/work/.atlas/worktrees/dennis/wt',
+      force: true,
+    })
+
+    expect(removal).toEqual({ branch: 'dennis/wt', branchDeleted: true })
+    expect(processes.calls).toContain('git branch -D dennis/wt')
+  })
+
+  it('refuses to remove a worktree that moved to another branch, removing nothing', async () => {
+    const { worktrees, processes } = rig({
+      'git rev-parse --abbrev-ref HEAD': { stdout: 'dennis/other\n' },
+    })
+
+    await expect(
+      worktrees.remove({
+        cwd: '/work',
+        path: '/work/.atlas/worktrees/dennis/wt',
+        branch: 'dennis/wt',
+        force: true,
+      }),
+    ).rejects.toThrow(
+      'the worktree at /work/.atlas/worktrees/dennis/wt is on dennis/other, not dennis/wt; nothing was removed',
+    )
+
+    expect(processes.calls).toEqual(['git rev-parse --abbrev-ref HEAD'])
   })
 
   it('refuses to remove a worktree git will not let go of', async () => {

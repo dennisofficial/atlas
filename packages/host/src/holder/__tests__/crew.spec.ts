@@ -29,6 +29,7 @@ const WORKTREE_SPAWN_PROBE = 'crew_worktree_spawn_probe'
 const CHILD_WORKTREE = {
   path: '/work/.atlas/worktrees/dennis/probe',
   branch: 'dennis/probe',
+  adopted: false,
 }
 
 type Spawned = { agentId: string | undefined }

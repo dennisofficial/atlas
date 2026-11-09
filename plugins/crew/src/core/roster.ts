@@ -53,6 +53,7 @@ export const foldCrew = (state: CrewViewState, event: Event | V2Event): CrewView
       toolCalls: existing?.toolCalls ?? 0,
       startedAt: existing?.startedAt ?? event.at,
       ...(existing?.prose === undefined ? {} : { prose: existing.prose }),
+      ...(existing?.worktree === undefined ? {} : { worktree: existing.worktree }),
     })
   }
   if (event.type === 'agent-ended') {

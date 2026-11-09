@@ -127,6 +127,28 @@ describe('the crew view', () => {
     expect(foldCrew(state, stamp({ type: 'assistant-said', text: 'hi' }, 2))).toBe(state)
   })
 
+  it('keeps the worktree a restarted child was spawned into', () => {
+    const state = crewOfEvents([
+      spawned(1, {
+        worktree: { path: '/work/.atlas/worktrees/dennis/wt', branch: 'dennis/wt' },
+      }),
+      stamp(
+        {
+          type: 'agent-restarted',
+          agentId: 'a1',
+          agentType: 'explore',
+          intent: 'again',
+          via: 'say',
+        },
+        2,
+      ),
+    ])
+    expect(state[0]?.worktree).toEqual({
+      path: '/work/.atlas/worktrees/dennis/wt',
+      branch: 'dennis/wt',
+    })
+  })
+
   it('carries the worktree a child was spawned into', () => {
     const state = crewOfEvents([
       spawned(1, {

@@ -17,11 +17,13 @@ export type WorktreeEntryInfo = {
   staleBase?: boolean | undefined
 }
 
+export type WorktreeUnpushed = { count: number; against: string }
+
 export type WorktreeState = {
   isClean: boolean
   changedPaths: readonly string[]
   changedCount: number
-  unpushedCommits: number
+  unpushed: WorktreeUnpushed | null
   upstream: string | undefined
   base: string | undefined
   behind: number | undefined

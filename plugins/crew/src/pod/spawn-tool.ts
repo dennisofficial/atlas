@@ -10,7 +10,7 @@ import { z } from 'zod'
 
 import { CREW_AGENT_TYPES, crewAgentTypeOf } from '../core'
 import { crewRefusal } from './outcome'
-import { planTarget } from './worktree-plan'
+import { planTarget, provenanceIn } from './worktree-plan'
 
 const inputSchema = z.strictObject({
   agentType: z.string().min(1),
@@ -52,6 +52,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
         reason: `there is no agent type "${input.agentType}"; known types are ${knownTypes}`,
       }
     }
+    const provenance = provenanceIn(this.ctx.events())
     const planned =
       input.worktree === undefined
         ? undefined
@@ -60,6 +61,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
             projectDirectory,
             activeWorktree,
             createdHere: () => false,
+            baseHere: (path) => provenance(path).base,
             target: input.worktree,
           })
     if (planned !== undefined && !planned.ok) return { ok: false, reason: planned.reason }

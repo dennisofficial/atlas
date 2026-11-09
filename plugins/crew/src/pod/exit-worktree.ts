@@ -19,26 +19,29 @@ const description = [
   'keep leaves the worktree and its branch on disk to come back to; remove deletes both.',
   'remove only ever touches a worktree Atlas created with enter_worktree name or agent_spawn worktree. One the session merely entered by path, or was launched inside, already existed, so it is left on disk whichever action is asked for, and the developer removes it themselves.',
   'Call it only when the developer asks to leave, never on your own initiative, and never as tidying up after finishing a task.',
-  'A remove is refused while the worktree holds uncommitted changes, or commits that are on neither its upstream nor the ref the branch was cut from; the refusal names what would be lost.',
+  'A remove is refused while the worktree holds uncommitted changes, or commits that are on neither its upstream nor the ref the branch was cut from, or when Atlas cannot tell what is not pushed; the refusal names what would be lost.',
   'discardChanges forces that removal through, so ask the developer before setting it rather than deciding for them.',
   'When the session is not in a worktree this does nothing at all and says so, leaving every file where it is.',
 ].join(' ')
 
-const lostListOf = (state: WorktreeState): string => {
-  const parts: string[] = []
+const lostFilesOf = (state: WorktreeState): string => {
+  const more = state.changedCount - state.changedPaths.length
+  return `${state.changedCount} uncommitted ${state.changedCount === 1 ? 'file' : 'files'} (${state.changedPaths.join(', ')}${more > 0 ? `, and ${more} more` : ''})`
+}
+
+const removeRefusalOf = (args: { path: string; state: WorktreeState }): string | undefined => {
+  const { path, state } = args
   if (state.changedCount > 0) {
-    const more = state.changedCount - state.changedPaths.length
-    parts.push(
-      `${state.changedCount} uncommitted ${state.changedCount === 1 ? 'file' : 'files'} (${state.changedPaths.join(', ')}${more > 0 ? `, and ${more} more` : ''})`,
-    )
+    return `removing the worktree at ${path} would lose ${lostFilesOf(state)}. Tell the developer what is there and let them decide: they can commit and push it, exit with keep instead, or ask you to call this again with discardChanges set.`
   }
-  if (state.unpushedCommits > 0) {
-    const against = state.upstream ?? state.base ?? 'its base'
-    parts.push(
-      `${state.unpushedCommits} ${state.unpushedCommits === 1 ? 'commit' : 'commits'} not on ${against}`,
-    )
+  if (state.unpushed === null) {
+    return `removing the worktree at ${path} cannot tell what is not pushed from here, so it needs the developer's go-ahead. Tell them the worktree holds no uncommitted changes, but with no upstream branch or base branch Atlas cannot count the commits it would lose, and call again with discardChanges set if they agree it should go.`
   }
-  return parts.join(' and ')
+  const { count, against } = state.unpushed
+  if (count > 0) {
+    return `removing the worktree at ${path} would lose ${count} ${count === 1 ? 'commit that is' : 'commits that are'} not on ${against}. Tell the developer what is there and let them decide: they can push it, exit with keep instead, or ask you to call this again with discardChanges set.`
+  }
+  return undefined
 }
 
 const messageOf = (error: unknown): string =>
@@ -90,20 +93,17 @@ export class ExitWorktreeTool extends SchemaTool<typeof inputSchema> {
     }
 
     if (input.discardChanges !== true) {
+      let state: WorktreeState
       try {
-        const state = await this.ctx.worktrees.inspect({
+        state = await this.ctx.worktrees.inspect({
           cwd: path,
           ...(activeWorktree.base === undefined ? {} : { base: activeWorktree.base }),
         })
-        if (!state.isClean) {
-          return {
-            ok: false,
-            reason: `removing the worktree at ${path} would lose ${lostListOf(state)}. Tell the developer what is there and let them decide: they can commit and push it, exit with keep instead, or ask you to call this again with discardChanges set.`,
-          }
-        }
       } catch (error) {
         return { ok: false, reason: messageOf(error) }
       }
+      const refusal = removeRefusalOf({ path, state })
+      if (refusal !== undefined) return { ok: false, reason: refusal }
     }
 
     try {

@@ -24,6 +24,7 @@ export type {
   WorktreeRecord,
   WorktreeRemoval,
   WorktreeState,
+  WorktreeUnpushed,
 } from './worktrees'
 export type {
   MemoryAddress,
