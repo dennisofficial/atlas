@@ -13,7 +13,7 @@ import {
   withAlpha,
 } from '@dltech/atlas-ui-native'
 import { ArrowUp, Plus, Square } from 'lucide-react-native'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { AttachmentChips } from './attachment-chips'
@@ -28,11 +28,19 @@ export const Composer = ({
   attachments,
   onSend,
   onStop,
+  sendable = true,
+  placeholder = PLACEHOLDER,
+  autoFocus = false,
+  children,
 }: {
   working: boolean
   attachments?: ComposerAttachments | undefined
   onSend: (message: { text: string; attachments: Attachment[] }) => Promise<boolean>
-  onStop: () => void
+  onStop?: (() => void) | undefined
+  sendable?: boolean
+  placeholder?: string
+  autoFocus?: boolean
+  children?: ReactNode
 }) => {
   const theme = useTheme()
   const dark = useIsDark()
@@ -97,7 +105,8 @@ export const Composer = ({
           bare
           multiline
           accessibilityLabel="Message Atlas"
-          placeholder={PLACEHOLDER}
+          autoFocus={autoFocus}
+          placeholder={placeholder}
           value={draft}
           onChangeText={setDraft}
           style={styles.input}
@@ -113,7 +122,8 @@ export const Composer = ({
               onPress={() => setChoosing((open) => !open)}
             />
           )}
-          {working ? (
+          {children === undefined ? null : <View style={styles.slot}>{children}</View>}
+          {working && onStop !== undefined ? (
             <Button
               label="Stop"
               icon={Square}
@@ -168,6 +178,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: space(2.5),
     paddingTop: space(1),
+  },
+  slot: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: space(1),
+    minWidth: 0,
   },
   notice: {
     paddingBottom: space(1),
