@@ -101,7 +101,6 @@ export const createSessionIn = (params: {
     modelFast: params.modelFast ?? null,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     podSessionId: params.podSessionId ?? null,
-    peerMessagesSent: 0,
   })
   state.leases.set(params.sessionId, {
     sessionId: params.sessionId,

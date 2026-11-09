@@ -88,7 +88,6 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         modelFast: null,
         spawnedBySessionId: null,
         podSessionId: null,
-        peerMessagesSent: 0,
       })
       expect(await plane.head({ threadId: THREAD })).toEqual({ seq: 0, hash: expect.any(String) })
       expect(await plane.readSession({ sessionId: 'unknown' })).toBeUndefined()

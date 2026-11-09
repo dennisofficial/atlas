@@ -128,8 +128,9 @@ In flight or merged on v1 (the teammates-as-parallel-sessions slices, plan.md):
 - **Slice 4 (views)**: the session view carries `spawned-by`, archived state and the Done grouping;
   the sidebar stops reading `managedBySessionId`.
 - **Slice 7 (sessions plugin)**: settled 2026-11-09 — `spawn_session` always places the peer on the
-  spawner's pod (the teammate preset has no `into-pod` flag), `message_session` sets `sender`, and
-  the sender ACL and the 20-message budget are enforced in `packages/control/src/peer-sessions.ts`
-  behind both the pod port and the operator's `reset-peer-budget` command.
+  spawner's pod (the teammate preset has no `into-pod` flag), and `message_session` sets `sender`.
+  The only check in `packages/control/src/peer-sessions.ts` is that both sessions belong to the same
+  user; there is no message budget (the 20-message cap that shipped was removed the same day at the
+  operator's direction).
 - **Slice 3 (worker host)**: one worker may hold leases for several sessions placed on one pod;
   park/wake follows "any placed session busy or addressed", and the sandbox daemon is shared.

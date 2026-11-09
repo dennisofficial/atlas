@@ -12,7 +12,7 @@ import { RenameAction } from './rename-action'
 import { rowNamingOf, useThreadNaming } from './active-naming'
 import { ESidebarDensity, useSidebarDensity } from './shell-density'
 import { useSidebarPrObservation } from './shell-pr-observations'
-import { ResetPeerBudgetAction, RowAction } from './shell-row-action'
+import { RowAction } from './shell-row-action'
 import { useSidebarPrStates } from './shell-sidebar-pr-states'
 import { ThreadStatusIcon } from './shell-status-icon'
 import { useThreadFamily } from './shell-thread-family'
@@ -35,7 +35,6 @@ export interface ThreadRowBodyProps {
   v2?: boolean
   v2View?: V2RowView | undefined
   listedNaming?: boolean
-  spawnedBy?: string | undefined
 }
 
 export function ThreadRowBody({
@@ -49,7 +48,6 @@ export function ThreadRowBody({
   v2 = false,
   v2View,
   listedNaming = false,
-  spawnedBy,
 }: ThreadRowBodyProps) {
   const { onToggleArchive } = useThreadActions()
   const { density } = useSidebarDensity()
@@ -105,7 +103,6 @@ export function ThreadRowBody({
       actions={
         <>
           {v2 ? <RenameAction sessionId={thread.id} title={naming.title} /> : null}
-          {v2 && spawnedBy !== undefined ? <ResetPeerBudgetAction sessionId={thread.id} /> : null}
           <RowAction label={archiveLabel} onClick={handleArchive}>
             {teammate ? (
               archived ? (
