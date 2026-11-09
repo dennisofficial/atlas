@@ -2,13 +2,11 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
-import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
 
 import { fakeFetch, mutationUrl, trpcOk } from '@/features/threads/data/__tests__/trpc-fake'
 
 import { archiveThread } from '../archive-thread'
 import { searchHrefOf, searchItemsOf } from '../search-items'
-import { requestResetPeerBudget } from '../shell-row-action'
 import { ThreadRow } from '../shell-thread-row'
 import { partitionThreads, type ShellSessionNode } from '../thread-partition'
 import { ThreadActionsContext } from '../thread-actions-context'
@@ -209,25 +207,6 @@ describe('withV2Sessions nesting', () => {
     expect(rowsOf([early, late, root, newerRoot]).map((row) => row.id)).toEqual(
       rows.map((r) => r.id),
     )
-  })
-})
-
-describe('Reset peer budget', () => {
-  it('only shows on a v2 row that has a spawner', () => {
-    expect(render(v2RowOf(summary({ spawnedBy: 'root' })))).toContain('Reset peer budget')
-    expect(render(v2RowOf(summary()))).not.toContain('Reset peer budget')
-  })
-
-  it('posts the reset command for the row session', async () => {
-    const calls: SessionCommandInput[] = []
-    const api = {
-      command: async (input: SessionCommandInput): Promise<SessionCommandOutput> => {
-        calls.push(input)
-        return {}
-      },
-    }
-    await requestResetPeerBudget({ api, sessionId: 'peer' })
-    expect(calls).toEqual([{ sessionId: 'peer', name: 'reset-peer-budget', args: {} }])
   })
 })
 

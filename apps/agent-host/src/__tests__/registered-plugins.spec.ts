@@ -16,10 +16,9 @@ describe('the agent host plugin composition', () => {
     expect(composedPlugins.pod.childDeny).not.toContain('report_to_main')
   })
 
-  it('registers the peer sessions plugin with its fragment and its command', () => {
+  it('registers the peer sessions plugin with its fragment', () => {
     expect(composedPlugins.names).toContain('sessions')
     expect(composedPlugins.pod.prompts.map((fragment) => fragment.id)).toContain('sessions.peers')
-    expect([...composedPlugins.control.commands.keys()]).toContain('reset-peer-budget')
   })
 
   it('adds no event type', () => {

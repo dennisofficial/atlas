@@ -25,8 +25,7 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 _Updated at the end of every slice. Last update: 2026-11-09._
 - **`plugins/sessions` live-checked on production (2026-11-09)** (`#2095`): a session spawned a peer
   into its own sandbox — the peer saw the lead's background shell and reported back in a named peer
-  lane; the 20-message budget refused the 21st message and the operator reset it; archiving put the
-  peer in the parent's Done group. Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, agent host
+  lane; archiving put the peer in the parent's Done group. Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, agent host
   `bd4eb64b1` (spec §8.9). The live check also proved how a shared pod parks: the lead's last turn
   lost its lease before `shell_kill`, and the sandbox was left to its deadline rather than stopped
   under a peer.

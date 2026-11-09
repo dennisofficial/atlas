@@ -4,8 +4,6 @@ import { postIn } from './inbox-ops'
 import type { ControlSessionRow, ControlTx, SessionDigestRow } from './port'
 import { createSessionIn } from './session-ops'
 
-export const PEER_MESSAGE_BUDGET = 20
-
 export type PeerRefusal = { refused: string }
 
 export const spawnPeerIn = async (params: {
@@ -52,24 +50,6 @@ export const messagePeerIn = async (params: {
   const to = await tx.lockSession(params.toSessionId)
   if (to === undefined || to.userId !== from.userId) {
     return { refused: `there is no session ${params.toSessionId} in this project` }
-  }
-  const spawnerSends = to.spawnedBySessionId === from.sessionId
-  const peerReplies = from.spawnedBySessionId === to.sessionId
-  if (!spawnerSends && !peerReplies) {
-    return {
-      refused: 'you can message only a session you spawned, or the session that spawned you',
-    }
-  }
-  if (spawnerSends) {
-    const sent = await tx.claimPeerMessage({
-      sessionId: to.sessionId,
-      budget: PEER_MESSAGE_BUDGET,
-    })
-    if (sent === null) {
-      return {
-        refused: `this session has received all ${PEER_MESSAGE_BUDGET} messages the operator's budget allows; the operator can reset it`,
-      }
-    }
   }
   return postIn({
     tx,

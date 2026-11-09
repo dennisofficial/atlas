@@ -30,7 +30,7 @@ import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
 import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
 import { sessionDigestsIn } from './memory-digests'
-import { claimPeerMessageIn, podPeersPlacedIn, resetPeerMessagesIn } from './memory-peers'
+import { podPeersPlacedIn } from './memory-peers'
 import {
   clearTitleFromIn,
   createSessionIn,
@@ -82,14 +82,6 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     return readSessionIn({ state: this.state, ...params })
-  }
-
-  async claimPeerMessage(params: { sessionId: string; budget: number }): Promise<number | null> {
-    return claimPeerMessageIn({ state: this.state, ...params })
-  }
-
-  async resetPeerMessages(sessionId: string): Promise<boolean> {
-    return resetPeerMessagesIn({ state: this.state, sessionId })
   }
 
   async podPeersPlaced(params: {

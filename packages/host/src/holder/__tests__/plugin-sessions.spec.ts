@@ -9,9 +9,9 @@ import { podSessionsOf } from '../plugin-sessions'
 import type { SessionRecord } from '../record/record-adapter'
 
 const T0 = '2026-11-09T10:00:00.000Z'
-const BUDGET = 20
 const SPAWNER = { sessionId: 's1', mainThreadId: 't1', userId: 'u1', projectId: 'p1' }
 const OTHER = { sessionId: 'other', mainThreadId: 't9', userId: 'u1', projectId: 'p1' }
+const STRANGER = { sessionId: 'stranger', mainThreadId: 't8', userId: 'u2', projectId: 'p1' }
 
 const rig = async () => {
   const plane = new ControlPlane({
@@ -92,24 +92,32 @@ describe('podSessionsOf', () => {
     ])
   })
 
-  it('refuses the message after the twentieth one', async () => {
+  it('sends any number of messages, with no budget', async () => {
     const { sessions } = await rig()
     const peer = await sessions.spawn({})
-    for (let index = 0; index < BUDGET; index += 1) {
+    for (let index = 0; index < 25; index += 1) {
       expect(await sessions.message({ sessionId: peer.sessionId, text: `m${index}` })).toEqual({
         queued: true,
       })
     }
-    const refused = await sessions.message({ sessionId: peer.sessionId, text: 'one too many' })
-    expect('refused' in refused && refused.refused).toContain(String(BUDGET))
   })
 
-  it('refuses a session this one neither spawned nor was spawned by', async () => {
+  it('messages any session of the same user, spawned by this one or not', async () => {
     const { plane, sessions } = await rig()
     await plane.createSession(OTHER)
-    const refused = await sessions.message({ sessionId: OTHER.sessionId, text: 'hello' })
-    expect('refused' in refused && refused.refused).toContain('spawned')
-    expect(await inboxOf(plane, OTHER.sessionId)).toHaveLength(0)
+    expect(await sessions.message({ sessionId: OTHER.sessionId, text: 'hello' })).toEqual({
+      queued: true,
+    })
+    const inbox = await inboxOf(plane, OTHER.sessionId)
+    expect(inbox[0]?.senderSessionId).toBe(SPAWNER.sessionId)
+  })
+
+  it('refuses a session of another user and posts nothing', async () => {
+    const { plane, sessions } = await rig()
+    await plane.createSession(STRANGER)
+    const refused = await sessions.message({ sessionId: STRANGER.sessionId, text: 'hello' })
+    expect('refused' in refused && refused.refused).toContain('no session')
+    expect(await inboxOf(plane, STRANGER.sessionId)).toHaveLength(0)
   })
 
   it('lists the peers this session spawned and none above it', async () => {
