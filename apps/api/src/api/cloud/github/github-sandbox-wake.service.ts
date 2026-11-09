@@ -38,6 +38,11 @@ async function archivedThread(args: { threadId: string }): Promise<boolean> {
   return session?.archivedAt !== null && session?.archivedAt !== undefined
 }
 
+const subjectOf = (notice: WakeEventNotice): string =>
+  notice.kind === 'workflow-run'
+    ? `${notice.repoFullName} workflow run`
+    : `${notice.repoFullName}#${notice.prNumber}`
+
 type WakeTarget = {
   threadId: string
   sandbox: SandboxLifecycleColumns & {
@@ -86,7 +91,7 @@ export class GithubSandboxWakeService {
       inFlight: this.lookupsInFlight,
       work: this.wakeTargets(args, event).catch((failure: unknown) => {
         this.logger.warn(
-          `sandbox wake for ${args.repoFullName}#${args.prNumber} (user ${args.userId}) failed: ${failureText(failure)}`,
+          `sandbox wake for ${subjectOf(args)} (user ${args.userId}) failed: ${failureText(failure)}`,
         )
       }),
     })
@@ -145,10 +150,14 @@ export class GithubSandboxWakeService {
           (target.sandbox.wakeFailedAt === null ||
             target.sandbox.wakeFailedAt.getTime() < backoffCutoff),
       )
-    const subscribed = await sessionHoldsSubscription({
-      threadIds: targets.map((target) => target.threadId),
-      ...args,
-    })
+    const subscribed =
+      args.kind === 'workflow-run'
+        ? new Set(targets.map((target) => target.threadId))
+        : await sessionHoldsSubscription({
+            threadIds: targets.map((target) => target.threadId),
+            repoFullName: args.repoFullName,
+            prNumber: args.prNumber,
+          })
     const seen = new Set<string>()
     const immediateBoots: Promise<void>[] = []
     for (const target of targets) {

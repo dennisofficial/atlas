@@ -16,6 +16,7 @@ describe('rewindDisposition', () => {
       'model-wait-cleared',
       'model-waiting',
       'pr-event',
+      'run-event',
     ])
   })
 

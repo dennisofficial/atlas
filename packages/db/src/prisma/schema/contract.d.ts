@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'fb4a01e3e565fbd17d8a11d9d55a9d020162246ae2303cef78babdc52b7b84dd'>;
+  StorageHashBase<'31919bc07e05f8bd7cdba3993d5e8d4da55238cdb6046ca1a203c484218b01ab'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -561,8 +561,10 @@ export namespace Models {
   export type public_GithubSubscription = {
     branch: FieldOutputTypes['public']['GithubSubscription']['branch'];
     createdAt: FieldOutputTypes['public']['GithubSubscription']['createdAt'];
+    deliveredRunId: FieldOutputTypes['public']['GithubSubscription']['deliveredRunId'];
     expiresAt: FieldOutputTypes['public']['GithubSubscription']['expiresAt'];
     id: FieldOutputTypes['public']['GithubSubscription']['id'];
+    kind: FieldOutputTypes['public']['GithubSubscription']['kind'];
     liveUntil: FieldOutputTypes['public']['GithubSubscription']['liveUntil'];
     pollBacked: FieldOutputTypes['public']['GithubSubscription']['pollBacked'];
     prNumber: FieldOutputTypes['public']['GithubSubscription']['prNumber'];
@@ -3192,6 +3194,16 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly deliveredRunId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
                 readonly expiresAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -3203,6 +3215,16 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly kind: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'pull-request'>;
+                  };
                   readonly many: false;
                 };
                 readonly liveUntil: {
@@ -8598,6 +8620,10 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly deliveredRunId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly expiresAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -8607,6 +8633,10 @@ type ContractBase = Omit<
                 };
               };
               readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly kind: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -8656,8 +8686,10 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly branch: { readonly column: 'branch' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly deliveredRunId: { readonly column: 'deliveredRunId' };
                 readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
+                readonly kind: { readonly column: 'kind' };
                 readonly liveUntil: { readonly column: 'liveUntil' };
                 readonly pollBacked: { readonly column: 'pollBacked' };
                 readonly prNumber: { readonly column: 'prNumber' };

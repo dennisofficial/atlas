@@ -20,6 +20,7 @@ export const isTurnTaking = (event: EventDraft): boolean => {
     case 'background-shell-still-running':
     case 'service-ended':
     case 'pr-event':
+    case 'run-event':
       return true
     case 'agent-reported':
       return reportWakesParent(event.kind)
@@ -49,4 +50,5 @@ export const isTurnTakingType = (type: string): boolean =>
   type === 'background-shell-ended' ||
   type === 'service-ended' ||
   type === 'agent-ended' ||
-  type === 'pr-event'
+  type === 'pr-event' ||
+  type === 'run-event'

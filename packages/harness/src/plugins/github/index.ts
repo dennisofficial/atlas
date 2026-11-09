@@ -20,6 +20,7 @@ import { createPollDiffer } from './pr-event-diff'
 import { isMutedEdit, registeredEditPolicy } from './muted-edit'
 import { MutablePrEventSink, PrEventFrameSink } from './pr-event-sink'
 import { createPullRequestProvider, type PullRequestProvider } from './pull-request-provider'
+import { createWorkflowRunProvider, type WorkflowRunProvider } from './workflow-run-provider'
 import { CachedPullRequestPort } from './pull-request-cache-port'
 import { selectPullRequestPort } from './pull-request-port'
 import { createPullRequestService, type PullRequestService } from './pull-request-service'
@@ -69,6 +70,7 @@ export default class GithubPlugin extends NativePlugin {
     let service: PullRequestService | null = null
     let cached: CachedPullRequestPort | null = null
     let provider: PullRequestProvider | null = null
+    let runProvider: WorkflowRunProvider | null = null
     const sink = new MutablePrEventSink()
     const appInstallSink = new MutableAppInstallSink()
     const raw = selectPullRequestPort({
@@ -122,9 +124,11 @@ export default class GithubPlugin extends NativePlugin {
         watchAll()
       },
     })
+    runProvider = createWorkflowRunProvider({ tracker: tracking.tracker })
     const blockCiWatch = new BlockCiWatchBeforeToolHook({
       pullRequests: service,
       subscribed: (target) => provider?.subscribed(target) ?? false,
+      subscribedRun: (target) => runProvider?.subscribedRun(target) ?? false,
     })
 
     links.projection.subscribe(watchAll)
@@ -237,7 +241,7 @@ export default class GithubPlugin extends NativePlugin {
         },
       ],
       projections: [links.projection, cloudCheckout],
-      subscriptionProviders: [provider],
+      subscriptionProviders: [provider, ...(runProvider === null ? [] : [runProvider])],
       dispose: () => {
         if (raw instanceof FailoverPullRequestPort) raw.dispose()
         cached?.dispose()

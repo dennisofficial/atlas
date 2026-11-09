@@ -5,12 +5,26 @@ import {
   PrSubscriptionLinks,
   type PrSubscriptionLinkEventRow,
 } from '../../../_core/ports/pr-subscription-links'
-import { PULL_REQUEST_PROVIDER_KIND } from '../../platform/sessions/thread-subscriptions'
+import {
+  GITHUB_WORKFLOW_RUN_PROVIDER_KIND,
+  PULL_REQUEST_PROVIDER_KIND,
+} from '../../platform/sessions/thread-subscriptions'
 import { liveUntilOf, nextExpiry } from './github-delivery-routing'
+import {
+  PULL_REQUEST_KIND,
+  WORKFLOW_RUN_KIND,
+  runBranchOf,
+  workflowBranchOf,
+} from './github-run-selector'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { threadActivityAt } from './github-thread-activity'
 
-type PrTarget = { repoFullName: string; prNumber: number }
+type LinkTarget = {
+  repoFullName: string
+  branch: string
+  kind: string
+  prNumber: number | null
+}
 
 const failureText = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -47,21 +61,20 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
       .all()
     for (const event of subscriptionEvents) {
       if (event.type === 'subscription-created') {
-        const target = prTargetOf(event.body)
+        const target = linkTargetOf(event.body)
         if (target === null) continue
-        const branch = `#${target.prNumber}`
         const known = existing.some(
-          (row) => row.repoFullName === target.repoFullName && row.branch === branch,
+          (row) => row.repoFullName === target.repoFullName && row.branch === target.branch,
         )
-        await this.ensureLink({ userId: args.userId, threadId: args.threadId, target, branch })
-        if (!known) {
+        await this.ensureLink({ userId: args.userId, threadId: args.threadId, target })
+        if (!known && target.kind === PULL_REQUEST_KIND) {
           await db.orm.public.GithubRepoHook.where({
             repoFullName: target.repoFullName,
           }).updateAndCount({ idleSince: null })
         }
         continue
       }
-      const endedTarget = await this.endedPrTargetOf({
+      const endedTarget = await this.endedTargetOf({
         threadId: args.threadId,
         body: event.body,
       })
@@ -70,9 +83,9 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
         userId: args.userId,
         threadId: args.threadId,
         repoFullName: endedTarget.repoFullName,
-        branch: `#${endedTarget.prNumber}`,
+        branch: endedTarget.branch,
       }).deleteAndCount()
-      if (removed > 0) {
+      if (removed > 0 && endedTarget.kind === PULL_REQUEST_KIND) {
         await this.subscriptions.markIdleWhenDrained({ repoFullName: endedTarget.repoFullName })
       }
     }
@@ -94,33 +107,26 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
       )
       if (kept) continue
       await db.orm.public.GithubSubscription.where({ id: link.id }).delete()
-      repos.add(link.repoFullName)
+      if (link.kind === PULL_REQUEST_KIND) repos.add(link.repoFullName)
     }
     for (const repoFullName of repos) {
       await this.subscriptions.markIdleWhenDrained({ repoFullName })
     }
   }
 
-  private async endedPrTargetOf(args: {
+  private async endedTargetOf(args: {
     threadId: string
     body: string
-  }): Promise<PrTarget | null> {
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(args.body)
-    } catch {
-      return null
-    }
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
-    const subscriptionId = (parsed as Record<string, unknown>).subscriptionId
-    if (typeof subscriptionId !== 'string') return null
+  }): Promise<LinkTarget | null> {
+    const subscriptionId = subscriptionIdOf(args.body)
+    if (subscriptionId === undefined) return null
     const marker = `"subscriptionId":${JSON.stringify(subscriptionId)}`
     const created = await db.orm.public.Event.where({ threadId: args.threadId })
       .select('body')
       .all()
     for (const row of created) {
       if (!row.body.includes(marker)) continue
-      const target = prTargetOf(row.body)
+      const target = linkTargetOf(row.body)
       if (target !== null) return target
     }
     return null
@@ -129,8 +135,7 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
   private async ensureLink(args: {
     userId: string
     threadId: string
-    target: PrTarget
-    branch: string
+    target: LinkTarget
   }): Promise<void> {
     try {
       const expiresAt = nextExpiry()
@@ -143,14 +148,15 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
         conflictOn: {
           userId: args.userId,
           repoFullName: args.target.repoFullName,
-          branch: args.branch,
+          branch: args.target.branch,
           threadId: args.threadId,
         },
         create: {
           userId: args.userId,
           repoFullName: args.target.repoFullName,
           prNumber: args.target.prNumber,
-          branch: args.branch,
+          branch: args.target.branch,
+          kind: args.target.kind,
           pollBacked: true,
           expiresAt,
           liveUntil,
@@ -164,16 +170,29 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
       })
     } catch (failure) {
       this.logger.warn(
-        `linking ${args.target.repoFullName}#${args.target.prNumber} to thread ${args.threadId} failed: ${failureText(failure)}`,
+        `linking ${args.target.repoFullName} ${args.target.branch} to thread ${args.threadId} failed: ${failureText(failure)}`,
       )
     }
   }
 }
 
+function subscriptionIdOf(body: string): string | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return undefined
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined
+  const subscriptionId = (parsed as Record<string, unknown>).subscriptionId
+  return typeof subscriptionId === 'string' ? subscriptionId : undefined
+}
+
 const GITHUB_PREFIX = 'github.com/'
 
-/** Mirrors the harness provider's target parse: repo is `github.com/owner/name`. */
-export function prTargetOf(body: string): PrTarget | null {
+function targetFieldsOf(
+  body: string,
+): { provider: string; target: Record<string, unknown> } | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(body)
@@ -181,14 +200,57 @@ export function prTargetOf(body: string): PrTarget | null {
     return null
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
-  const target = (parsed as Record<string, unknown>).target
+  const record = parsed as Record<string, unknown>
+  const provider = record.provider
+  const target = record.target
+  if (typeof provider !== 'string') return null
   if (typeof target !== 'object' || target === null || Array.isArray(target)) return null
-  const repo = (target as Record<string, unknown>).repo
-  const number = (target as Record<string, unknown>).number
-  if (typeof repo !== 'string' || typeof number !== 'number' || !Number.isInteger(number)) {
-    return null
+  return { provider, target: target as Record<string, unknown> }
+}
+
+function repoOf(target: Record<string, unknown>): string | null {
+  const repo = target.repo
+  if (typeof repo !== 'string' || repo === '') return null
+  return repo.startsWith(GITHUB_PREFIX) ? repo.slice(GITHUB_PREFIX.length) : repo
+}
+
+/** A pull-request target is a number; the row's branch is that number's discriminator. */
+export function prTargetOf(body: string): LinkTarget | null {
+  const fields = targetFieldsOf(body)
+  if (fields === null || fields.provider !== PULL_REQUEST_PROVIDER_KIND) return null
+  const repoFullName = repoOf(fields.target)
+  const number = fields.target.number
+  if (repoFullName === null || typeof number !== 'number' || !Number.isInteger(number)) return null
+  return { repoFullName, branch: `#${number}`, kind: PULL_REQUEST_KIND, prNumber: number }
+}
+
+/** A run target is either a pinned run id or a workflow+branch selector for the next run. */
+export function runTargetOf(body: string): LinkTarget | null {
+  const fields = targetFieldsOf(body)
+  if (fields === null || fields.provider !== GITHUB_WORKFLOW_RUN_PROVIDER_KIND) return null
+  const repoFullName = repoOf(fields.target)
+  if (repoFullName === null) return null
+  const runId = fields.target.runId
+  if (typeof runId === 'number' && Number.isInteger(runId)) {
+    return {
+      repoFullName,
+      branch: runBranchOf({ runId }),
+      kind: WORKFLOW_RUN_KIND,
+      prNumber: null,
+    }
   }
-  if ((parsed as Record<string, unknown>).provider !== PULL_REQUEST_PROVIDER_KIND) return null
-  const repoFullName = repo.startsWith(GITHUB_PREFIX) ? repo.slice(GITHUB_PREFIX.length) : repo
-  return { repoFullName, prNumber: number }
+  const workflow = fields.target.workflow
+  const branch = fields.target.branch
+  if (typeof workflow !== 'string' || workflow === '') return null
+  if (typeof branch !== 'string' || branch === '') return null
+  return {
+    repoFullName,
+    branch: workflowBranchOf({ workflow, branch }),
+    kind: WORKFLOW_RUN_KIND,
+    prNumber: null,
+  }
+}
+
+export function linkTargetOf(body: string): LinkTarget | null {
+  return prTargetOf(body) ?? runTargetOf(body)
 }

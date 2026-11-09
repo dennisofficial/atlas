@@ -14,6 +14,7 @@ import type { RunFailure } from './run-failure'
 import type { AgentEventBody } from './agent-body'
 import type { PolicyEventBody } from './policy-body'
 import type { PrEventBody } from './pr-body'
+import type { RunEventBody } from './run-body'
 import type { BackgroundShellEventBody } from './shell-body'
 import type { SubscriptionEventBody } from './subscription-body'
 
@@ -222,6 +223,7 @@ export type EventBody =
   | PolicyEventBody
   | SubscriptionEventBody
   | PrEventBody
+  | RunEventBody
   | DiagramRepairedBody
   | {
       type: 'service-started'

@@ -25,6 +25,7 @@ export * from './github/pr-event-sink'
 export * from './github/pure'
 export * from './github/session'
 export { PULL_REQUEST_PROVIDER_KIND } from './github/pull-request-provider'
+export { WORKFLOW_RUN_PROVIDER_KIND } from './github/workflow-run-provider'
 export {
   targetOf as pullRequestTargetOf,
   type PullRequestTarget,
