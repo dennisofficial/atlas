@@ -111,7 +111,7 @@ export const BUILT_IN_AGENT_TYPES: readonly BuiltInAgentType[] = [
   {
     name: 'preview',
     whenToUse:
-      'Sub-agent that stands up or repairs the session’s preview stack so the operator can open the work in a browser: declares and ensures dev servers in .atlas/services.yaml, publishes portals, rewires base URLs, CORS and cookie domains for the proxied origins, seeds data and test users, verifies the public URL actually loads, and reports URLs and credentials back. Spawn it when a task ends in "produce a preview" rather than assembling the stack ad hoc.',
+      'Sub-agent that stands up or repairs the session’s preview stack so the operator can open the work in a browser: declares and ensures dev servers in .atlas/services.yaml, publishes portals, rewires base URLs, CORS and cookie domains for the proxied origins, points OAuth redirect URIs at callback.byatlas.dev so provider sign-in can return to the preview, seeds data and test users, verifies the public URL actually loads, and reports URLs and credentials back. Spawn it when a task ends in "produce a preview" rather than assembling the stack ad hoc.',
     prompt: PREVIEW_PROMPT,
   },
 ]
