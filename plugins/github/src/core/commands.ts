@@ -13,7 +13,7 @@ export const unsubscribeArgs = z.strictObject({ subscriptionId: z.string().min(1
 export const subscribeCommand = defineCommand({
   spec: {
     name: 'subscribe',
-    summary: 'subscribe this session to a pull request',
+    summary: 'subscribe this session to a pull request or a workflow run',
     group: ECommandGroup.Session,
     args: subscribeArgs,
     timing: ECommandTiming.Settled,

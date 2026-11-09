@@ -1,7 +1,12 @@
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import type { ChangeFeed } from '../../change-feed'
-import { ControlStorePort, type ControlTx, type PrStateRow } from '../../port'
+import {
+  ControlStorePort,
+  type ControlTx,
+  type PrStateRow,
+  type SubscriptionLease,
+} from '../../port'
 import { MemoryTx } from './memory-tx'
 import { MemoryTestControls } from './memory-test-controls'
 import { cloneState, emptyState, type State } from './memory-state'
@@ -64,6 +69,10 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
 
   setPrState(row: PrStateRow): void {
     this.controls.setPrState(row)
+  }
+
+  subscriptionLeases(): Array<SubscriptionLease & { expiresAt: string }> {
+    return this.controls.subscriptionLeases()
   }
 
   changesOf(sessionId: string): SessionChange[] {

@@ -5,13 +5,19 @@ import { EGithubCallSource } from './github-call-log'
 import { WORKFLOW_RUN_KIND, runSelectorOf, type RunSelector } from './github-run-selector'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { failureText } from './github-sandbox-wake-boot'
-import { GithubWorkflowRunReads, type WorkflowRunRead } from './github-workflow-run-reads'
+import {
+  GithubWorkflowRunReads,
+  type WorkflowRunRead,
+  type WorkflowRunSnapshot,
+} from './github-workflow-run-reads'
+import { postRunNoticeV2Sessions } from './github-v2-run-notice'
 import { GithubService } from './github.service'
 
 /**
- * Notices the completion of the run a thread subscribed to and boots its parked sandbox; the pod
- * provider then reads the run and delivers the notice, so the API writes no run event. The
- * deliveredRunId write is the boot lock: two ticks, or two API instances, boot a run once.
+ * Notices the completion of the run a thread subscribed to and boots its parked sandbox. A v1
+ * thread's pod provider reads the run and delivers the notice; a v2 thread has no provider, so the
+ * API posts that notice into its inbox instead. The deliveredRunId write is the boot lock: two
+ * ticks, or two API instances, boot a run once.
  */
 @Injectable()
 export class GithubRunSweeperService {
@@ -55,6 +61,7 @@ export class GithubRunSweeperService {
       deliveredRunId: '',
     }).updateAndCount({ deliveredRunId: run.id })
     if (claimed === 0) return
+    await this.postV2Notice({ row, run })
     this.logger.log(
       `waking thread ${row.threadId} for the completed run ${run.id} of ${row.repoFullName}`,
     )
@@ -63,6 +70,19 @@ export class GithubRunSweeperService {
       repoFullName: row.repoFullName,
       kind: 'workflow-run',
     })
+  }
+
+  private async postV2Notice(args: {
+    row: Row<'GithubSubscription'>
+    run: WorkflowRunSnapshot
+  }): Promise<void> {
+    await db
+      .transaction((tx) => postRunNoticeV2Sessions({ tx, subscription: args.row, run: args.run }))
+      .catch((failure: unknown) => {
+        this.logger.warn(
+          `posting the run notice to thread ${args.row.threadId} failed: ${failureText(failure)}`,
+        )
+      })
   }
 
   private readRun(args: {

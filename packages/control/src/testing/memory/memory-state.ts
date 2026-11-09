@@ -1,10 +1,11 @@
 import type { InboxEntry, Lease } from '@dltech/atlas-core'
 
+import { subscriptionSubjectKey } from '../../port'
 import type {
   BlobRow,
   ControlSessionRow,
   PrStateRow,
-  PrSubscriptionLease,
+  SubscriptionLease,
   SessionViewRow,
   StoredEvent,
   ThreadRow,
@@ -33,7 +34,7 @@ export type State = {
   views: Map<string, SessionViewRow>
   pullRequestLinks: Set<string>
   prStates: Map<string, PrStateRow>
-  prSubscriptionLeases: Map<string, PrSubscriptionLease & { expiresAt: string }>
+  subscriptionLeases: Map<string, SubscriptionLease & { expiresAt: string }>
 }
 
 const PREPARE_HISTORY_TYPES: ReadonlySet<string> = new Set([
@@ -59,7 +60,7 @@ export const emptyState = (): State => ({
   views: new Map(),
   pullRequestLinks: new Set(),
   prStates: new Map(),
-  prSubscriptionLeases: new Map(),
+  subscriptionLeases: new Map(),
 })
 
 export const cloneState = (state: State): State => ({
@@ -75,8 +76,8 @@ export const cloneState = (state: State): State => ({
   views: new Map([...state.views].map(([key, value]) => [key, { ...value }])),
   pullRequestLinks: new Set(state.pullRequestLinks),
   prStates: new Map(state.prStates),
-  prSubscriptionLeases: new Map(
-    [...state.prSubscriptionLeases].map(([key, value]) => [key, { ...value }]),
+  subscriptionLeases: new Map(
+    [...state.subscriptionLeases].map(([key, value]) => [key, { ...value }]),
   ),
 })
 
@@ -120,5 +121,5 @@ export const activeFailureOf = (log: readonly StoredEvent[]): { inboxHead: numbe
 export const prKey = (params: { repo: string; number: number }): string =>
   `${params.repo}#${params.number}`
 
-export const prSubscriptionLeaseKey = (params: PrSubscriptionLease): string =>
-  `${params.userId} ${params.threadId} ${params.repo}#${params.number}`
+export const subscriptionLeaseKey = (params: SubscriptionLease): string =>
+  `${params.userId} ${params.threadId} ${params.repo}${subscriptionSubjectKey(params.subject)}`

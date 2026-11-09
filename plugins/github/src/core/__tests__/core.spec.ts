@@ -111,12 +111,14 @@ describe('target parsing', () => {
 
 describe('ci watch intent', () => {
   it.each([
-    ['gh pr checks --watch', ECiWatch.Watching],
-    ['gh run watch 123', ECiWatch.Watching],
-    ['watch gh pr checks', ECiWatch.Watching],
-    ['gh pr checks', ECiWatch.Reading],
-    ['echo "gh run watch"', ECiWatch.Reading],
-  ])('%p is %s', (command, expected) => {
-    expect(ciWatchIntent({ command })).toBe(expected)
+    ['gh pr checks --watch', { kind: ECiWatch.Watching, of: 'pull-request' }],
+    ['gh run watch 123', { kind: ECiWatch.Watching, of: 'workflow-run' }],
+    ['watch gh pr checks', { kind: ECiWatch.Watching, of: 'pull-request' }],
+    ['gh run view 123 --watch', { kind: ECiWatch.Watching, of: 'workflow-run' }],
+    ['gh run view 123', { kind: ECiWatch.Reading }],
+    ['gh pr checks', { kind: ECiWatch.Reading }],
+    ['echo "gh run watch"', { kind: ECiWatch.Reading }],
+  ] as const)('%p is %p', (command, expected) => {
+    expect(ciWatchIntent({ command })).toEqual(expected)
   })
 })

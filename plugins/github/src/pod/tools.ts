@@ -9,8 +9,14 @@ import {
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
-import { GITHUB_PROVIDER } from '../core'
-import { githubSubscriptionsOf, listText, subscribeTo, unsubscribeFrom } from './subscribe'
+import { GITHUB_PROVIDER, GITHUB_RUN_PROVIDER } from '../core'
+import {
+  githubSubscriptionsOf,
+  isGithubProvider,
+  listText,
+  subscribeTo,
+  unsubscribeFrom,
+} from './subscribe'
 
 const subscribeInput = z.strictObject({
   provider: z.string().min(1),
@@ -21,10 +27,10 @@ const unsubscribeInput = z.strictObject({ subscriptionId: z.string().min(1) })
 const listInput = z.strictObject({})
 
 export const SUBSCRIBE_DESCRIPTION = [
-  'Subscribe this conversation to an external event source, such as a pull request.',
+  'Subscribe this conversation to an external event source, such as a pull request or a workflow run.',
   'Occurrences from a subscribed source are delivered to you as notices that wake you; nothing notifies you about a source you have not subscribed to.',
   'Call list_subscriptions to see the available providers and the target syntax each one takes.',
-  'Omit target when the provider can work it out from this conversation, such as the pull request of the current branch.',
+  'Omit target when the provider can work it out from this conversation, such as the pull request or run of the current branch.',
   'Set expiresInMinutes to end the subscription on its own after that long.',
   'Subscribing again to the same target returns the existing subscription.',
 ].join(' ')
@@ -44,8 +50,11 @@ export class SubscribeTool extends SchemaTool<typeof subscribeInput> {
     input,
     projectDirectory,
   }: ToolRun<typeof subscribeInput>): Promise<ToolOutcome> {
-    if (input.provider !== GITHUB_PROVIDER) {
-      return { ok: false, reason: `Unknown provider "${input.provider}". Use ${GITHUB_PROVIDER}.` }
+    if (!isGithubProvider(input.provider)) {
+      return {
+        ok: false,
+        reason: `Unknown provider "${input.provider}". Use ${GITHUB_PROVIDER} or ${GITHUB_RUN_PROVIDER}.`,
+      }
     }
     const expiresAt =
       input.expiresInMinutes === undefined
@@ -54,6 +63,7 @@ export class SubscribeTool extends SchemaTool<typeof subscribeInput> {
     const outcome = await subscribeTo({
       ctx: this.ctx,
       events: this.ctx.events(),
+      provider: input.provider,
       input: input.target ?? '',
       cwd: projectDirectory,
       by: ESubscriptionActor.Agent,
