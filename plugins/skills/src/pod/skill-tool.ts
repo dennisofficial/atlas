@@ -16,6 +16,7 @@ import { catalogueFor } from './catalogue-source'
 import { textOf } from './daemon'
 import type { SkillsPodOptions } from './hooks'
 import type { SkillsPodState } from './state'
+import type { BuiltInFile } from './builtin-files'
 import type {
   BuiltInCatalogueSkill,
   CatalogueSkill,
@@ -26,6 +27,9 @@ import type {
 const isRepoSkill = (skill: CatalogueSkill): skill is RepoCatalogueSkill => 'entryPath' in skill
 
 const isBuiltInSkill = (skill: CatalogueSkill): skill is BuiltInCatalogueSkill => 'text' in skill
+
+const isBinaryFile = (file: BuiltInFile): file is { path: string; binary: string } =>
+  'binary' in file
 
 const isCloudSkill = (skill: CatalogueSkill): skill is CloudCatalogueSkill =>
   skill.origin === ESkillOrigin.CloudUser || skill.origin === ESkillOrigin.CloudProject
@@ -165,6 +169,17 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
         reason: `"${args.path}" is not a path inside the ${args.skill.name} skill`,
       }
 
+    const binary = isBuiltInSkill(args.skill)
+      ? args.skill.files.find(
+          (file) => isBinaryFile(file) && file.path.toLowerCase() === args.path.toLowerCase(),
+        )
+      : undefined
+    if (binary !== undefined && isBinaryFile(binary))
+      return {
+        ok: false,
+        reason: `"${args.path}" is a ${binary.binary} file in the ${args.skill.name} skill, so it cannot be read as text`,
+      }
+
     const text = await this.bundledText({ skill: args.skill, path: args.path })
     if (text === null)
       return {
@@ -183,9 +198,9 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
       return await this.options.cloud.file(cloudEntryOf(args.skill), args.path)
     if (isBuiltInSkill(args.skill)) {
       const found = args.skill.files.find(
-        (file) => file.path.toLowerCase() === args.path.toLowerCase(),
+        (file) => !isBinaryFile(file) && file.path.toLowerCase() === args.path.toLowerCase(),
       )
-      return found?.text ?? null
+      return found === undefined || isBinaryFile(found) ? null : found.text
     }
     if (!isRepoSkill(args.skill)) return null
 

@@ -132,6 +132,19 @@ describe('the skill tool', () => {
     expect(textOf(reference)).toContain('services.yaml')
   })
 
+  it('answers that a bundled binary file cannot be read as text, naming its content type', async () => {
+    const { ctx } = fakeDaemon({})
+    const cloud = fakeCloud({ entries: [] })
+    const outcome = await invoke({
+      ctx,
+      cloud,
+      name: 'skill',
+      input: { name: 'ui-design', path: 'assets/book-page-195.jpg' },
+    })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('is a image/jpeg file in the ui-design skill')
+  })
+
   it('names the closest skills for an unknown name', async () => {
     const { ctx } = fakeDaemon(repoTree())
     const outcome = await invoke({
