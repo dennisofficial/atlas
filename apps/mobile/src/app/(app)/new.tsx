@@ -22,8 +22,9 @@ export default function NewSessionScreen() {
   const [projectId, setProjectId] = useState<string | null>(project ?? null)
   const [modelId, setModelId] = useState<string | null>(null)
   const [effort, setEffort] = useState<string | null>(null)
+  const [fast, setFast] = useState(false)
   const { models } = useModels()
-  const selection = selectionOf({ models, modelId, effort })
+  const selection = selectionOf({ models, modelId, effort, fast })
 
   useEffect(() => {
     if (api === undefined) return
@@ -40,6 +41,7 @@ export default function NewSessionScreen() {
   const handleModelSelect = (next: IModelSelection) => {
     setModelId(next.model.id)
     setEffort(next.effort)
+    setFast(next.fast)
   }
 
   const handleSend = async (message: {
@@ -54,6 +56,7 @@ export default function NewSessionScreen() {
         text: message.text,
         model: selection?.model.id,
         effort: selection?.effort,
+        fast: selection?.fast,
       })
       router.replace({ pathname: '/sessions/[id]', params: { id } })
       return true

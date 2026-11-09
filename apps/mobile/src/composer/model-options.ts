@@ -1,3 +1,4 @@
+import { outputPriceLabel } from '@dltech/atlas-core'
 import type { ModelsResponse } from '@dltech/atlas-wire/web'
 
 export const EFFORT_LADDER = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -27,8 +28,12 @@ export interface IModelOption {
   id: string
   label: string
   provider: string
+  providerId: string
+  monogram: string
   efforts: readonly string[]
   context: string
+  rate: string | null
+  fast: boolean
   disabled: boolean
   note: string | null
 }
@@ -36,6 +41,13 @@ export interface IModelOption {
 export interface IModelSelection {
   model: IModelOption
   effort: string
+  fast: boolean
+}
+
+export interface IModelGroup {
+  providerId: string
+  provider: string
+  models: readonly IModelOption[]
 }
 
 const labelOf = (label: string): string =>
@@ -43,6 +55,19 @@ const labelOf = (label: string): string =>
 
 const contextLabelOf = (tokens: number): string =>
   tokens >= 1_000_000 ? `${Math.round(tokens / 100_000) / 10}M` : `${Math.round(tokens / 1_000)}k`
+
+const rateOf = (model: {
+  inputPerMillion?: number | undefined
+  outputPerMillion?: number | undefined
+}): string | null => {
+  if (model.inputPerMillion === undefined || model.outputPerMillion === undefined) return null
+  return (
+    outputPriceLabel({
+      inputPerMillion: model.inputPerMillion,
+      outputPerMillion: model.outputPerMillion,
+    }) ?? null
+  )
+}
 
 export const modelOptionsOf = (response: ModelsResponse): IModelOption[] =>
   response.providers
@@ -54,13 +79,43 @@ export const modelOptionsOf = (response: ModelsResponse): IModelOption[] =>
           id: model.id,
           label: labelOf(model.label),
           provider: provider.label,
+          providerId: provider.id,
+          monogram: provider.label.charAt(0).toUpperCase(),
           efforts: model.efforts,
           context: contextLabelOf(model.contextWindow),
+          rate: rateOf(model),
+          fast: model.fast === true,
           disabled,
           note: disabled ? NO_KEY_NOTE : null,
         }
       }),
     )
+
+export const modelGroupsOf = (models: readonly IModelOption[]): readonly IModelGroup[] => {
+  const held = new Map<string, IModelOption[]>()
+  for (const model of models) {
+    const group = held.get(model.providerId)
+    if (group === undefined) held.set(model.providerId, [model])
+    else group.push(model)
+  }
+  return [...held].map(([providerId, group]) => ({
+    providerId,
+    provider: group[0]?.provider ?? providerId,
+    models: group,
+  }))
+}
+
+export const searchModelsOf = ({
+  models,
+  query,
+}: {
+  models: readonly IModelOption[]
+  query: string
+}): readonly IModelOption[] => {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return models
+  return models.filter((model) => `${model.label} ${model.provider}`.toLowerCase().includes(needle))
+}
 
 const RUNGS = new Map<string, number>(EFFORT_LADDER.map((rung, index) => [rung, index]))
 
@@ -84,14 +139,20 @@ export const selectionOf = ({
   models,
   modelId,
   effort,
+  fast,
 }: {
   models: readonly IModelOption[]
   modelId: string | null
   effort: string | null
+  fast: boolean
 }): IModelSelection | null => {
   const model = models.find((entry) => entry.id === modelId)
   if (model === undefined) return null
-  return { model, effort: clampedEffortOf({ offered: model.efforts, effort }) }
+  return {
+    model,
+    effort: clampedEffortOf({ offered: model.efforts, effort }),
+    fast: fast && model.fast,
+  }
 }
 
 export const modelTriggerLabelOf = ({

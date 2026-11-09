@@ -4,8 +4,10 @@ import { describe, expect, it } from 'bun:test'
 import {
   NO_MODEL_LABEL,
   effortLabelOf,
+  modelGroupsOf,
   modelOptionsOf,
   modelTriggerLabelOf,
+  searchModelsOf,
   selectionOf,
 } from '../model-options'
 
@@ -23,15 +25,20 @@ const response: ModelsResponse = {
           contextWindow: 200_000,
           efforts: ['low', 'medium', 'high'],
           fast: true,
+          inputPerMillion: 15,
+          outputPerMillion: 75,
         },
       ],
     },
     {
       id: 'openai',
       label: 'OpenAI',
-      status: EModelProviderStatus.Unavailable,
+      status: EModelProviderStatus.Connected,
       live: false,
-      models: [{ id: 'gpt-5', label: 'GPT-5', contextWindow: 1_000_000, efforts: [] }],
+      models: [
+        { id: 'gpt-5', label: 'GPT-5', contextWindow: 1_000_000, efforts: [] },
+        { id: 'gpt-5-mini', label: 'GPT-5 mini', contextWindow: 400_000, efforts: [] },
+      ],
     },
     {
       id: 'google',
@@ -40,29 +47,87 @@ const response: ModelsResponse = {
       live: false,
       models: [{ id: 'gemini-2', label: 'Gemini 2', contextWindow: 1_000_000, efforts: ['low'] }],
     },
+    {
+      id: 'openrouter',
+      label: 'OpenRouter',
+      status: EModelProviderStatus.Unavailable,
+      live: false,
+      models: [{ id: 'openrouter/x/y', label: 'Mystery', contextWindow: 128_000, efforts: [] }],
+    },
   ],
 }
 
 describe('modelOptionsOf', () => {
-  it('flattens connected providers and drops expired ones', () => {
+  it('keeps every provider that is not expired, in the order served', () => {
     const options = modelOptionsOf(response)
-    expect(options.map((option) => option.id)).toEqual(['claude-opus-4', 'gpt-5'])
+    expect(options.map((option) => option.id)).toEqual([
+      'claude-opus-4',
+      'gpt-5',
+      'gpt-5-mini',
+      'openrouter/x/y',
+    ])
   })
 
   it('strips the Claude prefix and labels the context window', () => {
     const [opus, gpt] = modelOptionsOf(response)
     expect(opus?.label).toBe('Opus 4')
     expect(opus?.provider).toBe('Anthropic')
+    expect(opus?.monogram).toBe('A')
     expect(opus?.context).toBe('200k')
     expect(gpt?.context).toBe('1M')
   })
 
-  it('disables models whose provider is not connected and notes them', () => {
+  it('carries the output rate when the provider publishes one', () => {
     const [opus, gpt] = modelOptionsOf(response)
-    expect(opus?.disabled).toBe(false)
-    expect(opus?.note).toBeNull()
-    expect(gpt?.disabled).toBe(true)
-    expect(gpt?.note).toBe('no key')
+    expect(opus?.rate).toBe('$75.00/M')
+    expect(gpt?.rate).toBeNull()
+  })
+
+  it('disables models whose provider is not connected and notes them', () => {
+    const options = modelOptionsOf(response)
+    const unavailable = options.find((option) => option.id === 'openrouter/x/y')
+    expect(options[0]?.disabled).toBe(false)
+    expect(options[0]?.note).toBeNull()
+    expect(unavailable?.disabled).toBe(true)
+    expect(unavailable?.note).toBe('no key')
+  })
+
+  it('marks the models that offer fast mode', () => {
+    const [opus, gpt] = modelOptionsOf(response)
+    expect(opus?.fast).toBe(true)
+    expect(gpt?.fast).toBe(false)
+  })
+})
+
+describe('modelGroupsOf', () => {
+  it('groups consecutive models under their provider', () => {
+    const groups = modelGroupsOf(modelOptionsOf(response))
+    expect(groups.map((group) => [group.provider, group.models.length])).toEqual([
+      ['Anthropic', 1],
+      ['OpenAI', 2],
+      ['OpenRouter', 1],
+    ])
+  })
+})
+
+describe('searchModelsOf', () => {
+  const models = modelOptionsOf(response)
+
+  it('keeps every model for an empty query', () => {
+    expect(searchModelsOf({ models, query: '  ' })).toHaveLength(models.length)
+  })
+
+  it('matches a model label, case-insensitively', () => {
+    expect(searchModelsOf({ models, query: 'MINI' }).map((model) => model.id)).toEqual([
+      'gpt-5-mini',
+    ])
+    expect(searchModelsOf({ models, query: 'nothing here' })).toHaveLength(0)
+  })
+
+  it('matches a provider name', () => {
+    expect(searchModelsOf({ models, query: 'openrouter' }).map((model) => model.id)).toEqual([
+      'openrouter/x/y',
+    ])
   })
 })
 
@@ -77,22 +142,34 @@ describe('selectionOf', () => {
   const models = modelOptionsOf(response)
 
   it('selects nothing while no model is picked', () => {
-    expect(selectionOf({ models, modelId: null, effort: null })).toBeNull()
+    expect(selectionOf({ models, modelId: null, effort: null, fast: false })).toBeNull()
   })
 
   it('clamps the asked effort to the one the model offers above it', () => {
-    const selection = selectionOf({ models, modelId: 'claude-opus-4', effort: 'xhigh' })
+    const selection = selectionOf({
+      models,
+      modelId: 'claude-opus-4',
+      effort: 'xhigh',
+      fast: false,
+    })
     expect(selection?.effort).toBe('high')
   })
 
   it('keeps an offered effort', () => {
-    const selection = selectionOf({ models, modelId: 'claude-opus-4', effort: 'low' })
+    const selection = selectionOf({ models, modelId: 'claude-opus-4', effort: 'low', fast: false })
     expect(selection?.effort).toBe('low')
   })
 
   it('falls back to medium when the model offers no efforts', () => {
-    const selection = selectionOf({ models, modelId: 'gpt-5', effort: 'high' })
+    const selection = selectionOf({ models, modelId: 'gpt-5', effort: 'high', fast: false })
     expect(selection?.effort).toBe('medium')
+  })
+
+  it('keeps fast only on a model that offers it', () => {
+    expect(selectionOf({ models, modelId: 'claude-opus-4', effort: 'low', fast: true })?.fast).toBe(
+      true,
+    )
+    expect(selectionOf({ models, modelId: 'gpt-5', effort: null, fast: true })?.fast).toBe(false)
   })
 })
 
@@ -104,7 +181,7 @@ describe('modelTriggerLabelOf', () => {
   })
 
   it('names the picked model', () => {
-    const selection = selectionOf({ models, modelId: 'claude-opus-4', effort: 'low' })
+    const selection = selectionOf({ models, modelId: 'claude-opus-4', effort: 'low', fast: false })
     expect(modelTriggerLabelOf({ models, selection })).toBe('Opus 4')
   })
 })

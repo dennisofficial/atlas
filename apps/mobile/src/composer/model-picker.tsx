@@ -1,124 +1,142 @@
-import { ETextRole, ETextTone, Icon, Text, useTheme, withAlpha } from '@dltech/atlas-ui-native'
+import {
+  ETextRole,
+  ETextTone,
+  Icon,
+  Input,
+  Text,
+  useTheme,
+  withAlpha,
+} from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { Check, ChevronDown, Sparkles } from 'lucide-react-native'
+import { ChevronDown, Search } from 'lucide-react-native'
 import { useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import {
-  effortLabelOf,
   effortChoicesOf,
   type IModelOption,
   type IModelSelection,
+  modelGroupsOf,
   modelTriggerLabelOf,
+  searchModelsOf,
   selectionOf,
 } from './model-options'
+import { EffortChip, FastRow, ModelRow, ProviderMark } from './model-picker-rows'
 
-const ModelRow = ({
-  model,
-  selected,
-  onPress,
-}: {
-  model: IModelOption
-  selected: boolean
-  onPress: () => void
-}) => {
-  const theme = useTheme()
-  const meta = model.note ?? model.context
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={model.label}
-      accessibilityState={{ disabled: model.disabled, selected }}
-      disabled={model.disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { opacity: model.disabled ? 0.5 : 1 },
-        pressed ? { backgroundColor: theme.accent } : null,
-      ]}
-    >
-      <Text size={ETextRole.Sm} numberOfLines={1} style={styles.rowLabel}>
-        {model.label}
-      </Text>
-      <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
-        {meta}
-      </Text>
-      {selected ? <Icon icon={Check} color={theme.foreground} size={16} /> : null}
-    </Pressable>
-  )
-}
-
-const EffortChip = ({
-  name,
-  active,
-  onPress,
-}: {
-  name: string
-  active: boolean
-  onPress: () => void
-}) => {
-  const theme = useTheme()
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={effortLabelOf(name)}
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
-        {
-          backgroundColor: active ? theme.accent : 'transparent',
-          borderColor: withAlpha({ color: theme.foreground, alpha: active ? 0 : 0.18 }),
-        },
-        pressed ? { backgroundColor: theme.accent } : null,
-      ]}
-    >
-      <Text size={ETextRole.Xs} {...(active ? {} : { tone: ETextTone.Muted })}>
-        {effortLabelOf(name)}
-      </Text>
-    </Pressable>
-  )
-}
-
-const groupsOf = (
-  models: readonly IModelOption[],
-): readonly { provider: string; models: readonly IModelOption[] }[] =>
-  models.reduce<{ provider: string; models: IModelOption[] }[]>((groups, model) => {
-    const last = groups.at(-1)
-    if (last !== undefined && last.provider === model.provider) {
-      last.models.push(model)
-      return groups
-    }
-    groups.push({ provider: model.provider, models: [model] })
-    return groups
-  }, [])
-
-export const ModelSelect = ({
-  models,
-  selection,
-  onSelect,
-}: {
+type Props = {
   models: readonly IModelOption[]
   selection: IModelSelection | null
   onSelect: (selection: IModelSelection) => void
-}) => {
+}
+
+const SheetBody = ({ models, selection, onSelect, onClose }: Props & { onClose: () => void }) => {
   const theme = useTheme()
-  const [open, setOpen] = useState(false)
-  const label = modelTriggerLabelOf({ models, selection })
+  const [query, setQuery] = useState('')
+  const groups = modelGroupsOf(searchModelsOf({ models, query }))
   const efforts = effortChoicesOf(selection)
-  const groups = groupsOf(models)
 
   const handleModel = (model: IModelOption) => {
-    const next = selectionOf({ models, modelId: model.id, effort: selection?.effort ?? null })
+    const next = selectionOf({
+      models,
+      modelId: model.id,
+      effort: selection?.effort ?? null,
+      fast: selection?.fast ?? false,
+    })
     if (next === null) return
     onSelect(next)
-    setOpen(false)
+    onClose()
   }
 
   const handleEffort = (name: string) => {
     if (selection === null) return
-    onSelect({ model: selection.model, effort: name })
+    onSelect({ ...selection, effort: name })
   }
+
+  const handleFast = (fast: boolean) => {
+    if (selection === null) return
+    onSelect({ ...selection, fast })
+  }
+
+  return (
+    <>
+      <View
+        style={[
+          styles.search,
+          { borderColor: withAlpha({ color: theme.foreground, alpha: 0.12 }) },
+        ]}
+      >
+        <Icon icon={Search} color={theme.mutedForeground} size={14} />
+        <Input
+          bare
+          accessibilityLabel="Search models"
+          autoCorrect={false}
+          placeholder="Search models"
+          value={query}
+          onChangeText={setQuery}
+          style={styles.searchInput}
+        />
+      </View>
+      <ScrollView keyboardShouldPersistTaps="handled">
+        {models.length === 0 ? (
+          <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
+            No models yet
+          </Text>
+        ) : null}
+        {models.length > 0 && groups.length === 0 ? (
+          <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
+            No models match
+          </Text>
+        ) : null}
+        {groups.map((group) => (
+          <View key={group.providerId}>
+            <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
+              {group.provider}
+            </Text>
+            {group.models.map((model) => (
+              <ModelRow
+                key={model.id}
+                model={model}
+                selected={model.id === selection?.model.id}
+                onPress={() => handleModel(model)}
+              />
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+      {selection === null || (efforts.length === 0 && !selection.model.fast) ? null : (
+        <View
+          style={[
+            styles.footer,
+            { borderTopColor: withAlpha({ color: theme.foreground, alpha: 0.1 }) },
+          ]}
+        >
+          {efforts.length === 0 ? null : (
+            <View style={styles.efforts}>
+              <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.effortLabel}>
+                Effort
+              </Text>
+              {efforts.map((effort) => (
+                <EffortChip
+                  key={effort}
+                  name={effort}
+                  active={effort === selection.effort}
+                  onPress={() => handleEffort(effort)}
+                />
+              ))}
+            </View>
+          )}
+          {selection.model.fast ? <FastRow selection={selection} onToggle={handleFast} /> : null}
+        </View>
+      )}
+    </>
+  )
+}
+
+export const ModelSelect = ({ models, selection, onSelect }: Props) => {
+  const theme = useTheme()
+  const [open, setOpen] = useState(false)
+  const label = modelTriggerLabelOf({ models, selection })
+  const mark = selection?.model.monogram
 
   return (
     <>
@@ -129,7 +147,7 @@ export const ModelSelect = ({
         onPress={() => setOpen(true)}
         style={({ pressed }) => [styles.trigger, pressed ? { backgroundColor: theme.muted } : null]}
       >
-        <Icon icon={Sparkles} color={theme.foreground} size={16} />
+        {mark === undefined ? null : <ProviderMark monogram={mark} />}
         <Text size={ETextRole.Sm} numberOfLines={1} style={styles.value}>
           {label}
         </Text>
@@ -157,41 +175,12 @@ export const ModelSelect = ({
               },
             ]}
           >
-            {models.length === 0 ? (
-              <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
-                No models yet
-              </Text>
-            ) : (
-              <ScrollView keyboardShouldPersistTaps="handled">
-                {groups.map((group) => (
-                  <View key={group.provider}>
-                    <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
-                      {group.provider}
-                    </Text>
-                    {group.models.map((model) => (
-                      <ModelRow
-                        key={model.id}
-                        model={model}
-                        selected={model.id === selection?.model.id}
-                        onPress={() => handleModel(model)}
-                      />
-                    ))}
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-            {efforts.length === 0 ? null : (
-              <View style={styles.efforts}>
-                {efforts.map((effort) => (
-                  <EffortChip
-                    key={effort}
-                    name={effort}
-                    active={effort === selection?.effort}
-                    onPress={() => handleEffort(effort)}
-                  />
-                ))}
-              </View>
-            )}
+            <SheetBody
+              models={models}
+              selection={selection}
+              onSelect={onSelect}
+              onClose={() => setOpen(false)}
+            />
           </View>
         </View>
       </Modal>
@@ -207,8 +196,7 @@ const styles = StyleSheet.create({
     gap: space(1.5),
     height: 28,
     maxWidth: 200,
-    paddingLeft: space(2.5),
-    paddingRight: space(2),
+    paddingHorizontal: space(2),
   },
   value: {
     flexShrink: 1,
@@ -223,7 +211,7 @@ const styles = StyleSheet.create({
     borderRadius: radius(1.2),
     borderWidth: 1,
     elevation: 8,
-    maxHeight: 420,
+    maxHeight: 460,
     maxWidth: 480,
     padding: space(1),
     shadowColor: '#000000',
@@ -232,38 +220,45 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     width: '100%',
   },
-  group: {
-    paddingHorizontal: space(2),
-    paddingTop: space(2),
-    paddingBottom: space(1),
-  },
-  row: {
+  search: {
     alignItems: 'center',
     borderRadius: radius(0.8),
-    flexDirection: 'row',
-    gap: space(2),
-    paddingHorizontal: space(2),
-    paddingVertical: space(2),
-  },
-  rowLabel: {
-    flex: 1,
-  },
-  efforts: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(127, 127, 127, 0.25)',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space(1.5),
-    padding: space(2),
-  },
-  chip: {
-    borderRadius: radius(1.2),
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: space(1.5),
+    margin: space(1),
     paddingHorizontal: space(2),
-    paddingVertical: space(1),
+    paddingVertical: space(1.5),
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    height: 20,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  group: {
+    paddingBottom: space(1),
+    paddingHorizontal: space(2),
+    paddingTop: space(2),
   },
   empty: {
     paddingHorizontal: space(2),
     paddingVertical: space(2),
+  },
+  footer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: space(1.5),
+    paddingTop: space(2),
+  },
+  efforts: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space(1.5),
+    paddingHorizontal: space(2),
+  },
+  effortLabel: {
+    marginRight: space(0.5),
   },
 })
