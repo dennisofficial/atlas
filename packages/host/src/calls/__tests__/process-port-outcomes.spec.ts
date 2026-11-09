@@ -37,6 +37,17 @@ describe('DaemonProcessPort failed calls', () => {
     })
   })
 
+  it('reports a call cancelled before it started as exit 130, like a cancelled run', async () => {
+    const handle = spawnWith(() =>
+      Promise.resolve(
+        failed({ code: ECallFailure.Cancelled, message: 'cancelled before it started' }),
+      ),
+    )
+
+    expect(await handle.outcome).toEqual({ kind: EProcessOutcome.Exited, code: 130 })
+    expect(await handle.exited).toBe(130)
+  })
+
   it('reports an interrupted call as interrupted and throws from exited', async () => {
     const handle = spawnWith(() =>
       Promise.resolve(failed({ code: ECallFailure.Interrupted, message: 'restarted' })),

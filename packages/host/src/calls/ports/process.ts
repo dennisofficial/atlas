@@ -25,11 +25,14 @@ export const DEFAULT_SANDBOX_COMMANDS: Readonly<Record<string, string>> = {
 }
 
 const OOM_KILLED_EXIT_CODE = 137
+const CANCELLED_EXIT_CODE = 130
 
 const exitedOutcomeOf = (result: ExecResult): ProcessOutcome => {
   if (result.outcome === EExecOutcome.OomKilled) return { kind: EProcessOutcome.OomKilled }
   if (result.exitCode !== null) return { kind: EProcessOutcome.Exited, code: result.exitCode }
-  if (result.outcome === EExecOutcome.Cancelled) return { kind: EProcessOutcome.Exited, code: 130 }
+  if (result.outcome === EExecOutcome.Cancelled) {
+    return { kind: EProcessOutcome.Exited, code: CANCELLED_EXIT_CODE }
+  }
   if (result.outcome === EExecOutcome.TimedOut) return { kind: EProcessOutcome.Exited, code: 124 }
   return {
     kind: EProcessOutcome.Failed,
@@ -38,10 +41,13 @@ const exitedOutcomeOf = (result: ExecResult): ProcessOutcome => {
   }
 }
 
-const failedOutcomeOf = (failure: { code: string; message: string }): ProcessOutcome =>
-  failure.code === ECallFailure.Interrupted
-    ? { kind: EProcessOutcome.Interrupted }
-    : { kind: EProcessOutcome.Failed, code: failure.code, message: failure.message }
+const failedOutcomeOf = (failure: { code: string; message: string }): ProcessOutcome => {
+  if (failure.code === ECallFailure.Interrupted) return { kind: EProcessOutcome.Interrupted }
+  if (failure.code === ECallFailure.Cancelled) {
+    return { kind: EProcessOutcome.Exited, code: CANCELLED_EXIT_CODE }
+  }
+  return { kind: EProcessOutcome.Failed, code: failure.code, message: failure.message }
+}
 
 const exitCodeOf = (outcome: ProcessOutcome): number => {
   if (outcome.kind === EProcessOutcome.Exited) return outcome.code
