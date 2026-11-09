@@ -24,6 +24,7 @@ import {
   type MarkdownLinkClick,
 } from './internal/markdown-elements'
 import { starRuleHandler } from './internal/markdown-rules'
+import { repairTableDelimiters } from './internal/markdown-tables'
 import { mermaidOptions } from './internal/mermaid-theme'
 import { useDiagramWheelDamping } from './internal/mermaid-wheel'
 
@@ -59,9 +60,11 @@ export const MessageResponse = memo(
     onLinkClick,
     onRepairDiagram,
     breaks = false,
+    children,
     ...props
   }: MessageResponseProps) {
     const merged = useMemo(() => ({ ...markdownComponents, ...components }), [components])
+    const markdown = useMemo(() => repairTableDelimiters(children ?? ''), [children])
     useDiagramWheelDamping()
 
     return (
@@ -80,7 +83,9 @@ export const MessageResponse = memo(
             remarkPlugins={breaks ? remarkPluginsWithBreaks : remarkPlugins}
             remend={remendOptions}
             {...props}
-          />
+          >
+            {markdown}
+          </Streamdown>
         </DiagramRepairContext.Provider>
       </MarkdownLinkClickContext.Provider>
     )
