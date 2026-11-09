@@ -81,6 +81,26 @@ describe('a declared service start', () => {
     expect(startsOf(harness.calls)).toHaveLength(1)
   })
 
+  it('runs setup with the declared env, so a setup sees the same variables as the service', async () => {
+    const harness = rig()
+    writeDeclared(
+      harness,
+      [
+        'services:',
+        '  web:',
+        '    command: listen',
+        '    env:',
+        '      MODE: dev',
+        '    setup:',
+        '      - echo installing',
+      ].join('\n'),
+    )
+    await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'web' } })
+    const setupCalls = harness.calls.filter((call) => call.op === 'exec')
+    expect(setupCalls).toHaveLength(1)
+    expect(setupCalls[0]).toMatchObject({ cwd: '/work', env: { MODE: 'dev' } })
+  })
+
   it('stops and reports the output tail when setup fails', async () => {
     const harness = rig()
     writeDeclared(

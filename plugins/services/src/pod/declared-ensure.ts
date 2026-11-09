@@ -20,11 +20,18 @@ const runSetup = async (args: {
   name: string
   commands: readonly string[]
   cwd: string
+  env?: Record<string, string> | undefined
   signal?: AbortSignal | undefined
 }): Promise<string | undefined> => {
   if (args.state.setupDone.has(args.name)) return undefined
   for (const command of args.commands) {
-    const ran = await runCommand({ ctx: args.ctx, command, cwd: args.cwd, signal: args.signal })
+    const ran = await runCommand({
+      ctx: args.ctx,
+      command,
+      cwd: args.cwd,
+      env: args.env,
+      signal: args.signal,
+    })
     if (!ran.ok) return `setup "${command}" could not run: ${ran.reason}`
     if (ran.value.exitCode !== 0) {
       const tail = tailOf(ran.value.output)
@@ -73,6 +80,7 @@ export const ensureDeclared = async (args: {
       name,
       commands: declaration.setup ?? [],
       cwd,
+      env: declaration.env,
       signal: args.signal,
     })
     if (setup !== undefined) return { ok: false, reason: `the setup of ${name} failed: ${setup}` }

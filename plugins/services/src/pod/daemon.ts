@@ -128,11 +128,17 @@ export const runCommand = async (args: {
   ctx: Ctx
   command: string
   cwd: string
+  env?: Record<string, string> | undefined
   signal?: AbortSignal | undefined
 }): Promise<DaemonCall<{ exitCode: number | null; output: string }>> => {
   const chunks: Buffer[] = []
   const result = await args.ctx.call(
-    { op: 'exec', argv: ['/bin/sh', '-c', args.command], cwd: args.cwd },
+    {
+      op: 'exec',
+      argv: ['/bin/sh', '-c', args.command],
+      cwd: args.cwd,
+      ...(args.env === undefined ? {} : { env: args.env }),
+    },
     {
       ...(args.signal === undefined ? {} : { signal: args.signal }),
       onOutput: (bytes) => chunks.push(Buffer.from(bytes)),
