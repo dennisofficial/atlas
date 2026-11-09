@@ -25,6 +25,12 @@ export enum ECapability {
   ReadActivity = 'read-activity',
   ModelAvailabilityControls = 'model-availability-controls',
   DiagramRepair = 'diagram-repair',
+  /**
+   * The serve reads the `attachments` field of a send frame (#2041). A serve that predates it
+   * drops the field without a word and commits a message whose pictures are gone, so a client
+   * sends the legacy `images`/`uploads` fields too until the pod says it knows better.
+   */
+  Attachments = 'attachments',
 }
 
 export const capabilitySchema = z.enum(ECapability)
@@ -55,4 +61,5 @@ export const SERVE_CAPABILITIES: readonly ECapability[] = [
   ECapability.ReadActivity,
   ECapability.ModelAvailabilityControls,
   ECapability.DiagramRepair,
+  ECapability.Attachments,
 ]

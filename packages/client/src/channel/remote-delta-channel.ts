@@ -1,4 +1,4 @@
-import { saidBody } from '@dltech/atlas-core'
+import { legacySaidFieldsOf, saidBody } from '@dltech/atlas-core'
 
 import { ECapability, EClientFrame, toSendId } from './channel-wire'
 import { EConnectionView, ESocketLiveness } from './connection-view'
@@ -75,10 +75,14 @@ export function createRemoteDeltaChannel(
       threadId: addressed,
     }) => {
       lifecycle.kickWake()
+      const said = saidBody({ text, requestId, images, files, uploads, attachments })
       upstream.send({
         kind: EClientFrame.Send,
         sendId: toSendId(crypto.randomUUID()),
-        ...saidBody({ text, requestId, images, files, uploads, attachments }),
+        ...said,
+        ...(state.capabilities.has(ECapability.Attachments)
+          ? {}
+          : legacySaidFieldsOf({ attachments: said.attachments ?? [] })),
         ...(addressed === undefined || addressed === args.threadId ? {} : { threadId: addressed }),
         ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
       })
