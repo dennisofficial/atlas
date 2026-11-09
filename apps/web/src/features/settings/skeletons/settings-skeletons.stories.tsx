@@ -5,6 +5,9 @@ import { EVercelCredentialKind, EVercelPlan } from '@dltech/atlas-wire/web'
 import { EDeviceKind } from '../fixtures/settings-security'
 import { AccountProfileCard } from '../parts/account-profile-card'
 import { AccountSignInMethodsCard } from '../parts/account-sign-in-methods-card'
+import { EMemoryType, type MemoryEntry } from '../fixtures/settings-memory'
+import { EQueryState } from '@/lib/use-cloud-query'
+import { EMemorySheetMode, MemorySheet } from '../parts/memory-sheet'
 import { EnvSecretsContent } from '../parts/env-secrets-table'
 import { DeviceRow } from '../parts/security-device-row'
 import { VercelCredentialCard } from '../parts/vercel-credential-card'
@@ -179,5 +182,42 @@ export const Notifications = {
     <div className="mx-auto flex max-w-3xl flex-col gap-8 bg-background p-10">
       <NotificationsSkeleton />
     </div>
+  ),
+}
+
+const memoryEntry: MemoryEntry = {
+  name: 'prefer-bun-over-npm',
+  description: 'Use bun for installs and scripts in every Atlas repository.',
+  type: EMemoryType.Feedback,
+  body: '# Package manager\n\nAlways run bun install and bun run. Never npm or pnpm.\n\n**Why:** the lockfile is bun.lock.',
+  revision: 3,
+  updatedAt: '2026-10-28T12:00:00Z',
+}
+
+const memorySheetProps = {
+  entry: memoryEntry,
+  mode: EMemorySheetMode.View,
+  saving: false,
+  onModeChange: noop,
+  onClose: noop,
+  onSave: async () => true,
+  onDelete: noop,
+}
+
+export const MemorySheetLoading = {
+  render: () => (
+    <MemorySheet
+      {...memorySheetProps}
+      detail={{ state: EQueryState.Loading, data: undefined, error: undefined, reload: noop }}
+    />
+  ),
+}
+
+export const MemorySheetLoaded = {
+  render: () => (
+    <MemorySheet
+      {...memorySheetProps}
+      detail={{ state: EQueryState.Ready, data: memoryEntry, error: undefined, reload: noop }}
+    />
   ),
 }

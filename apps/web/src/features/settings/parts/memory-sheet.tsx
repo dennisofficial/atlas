@@ -241,7 +241,12 @@ export function MemorySheet({
     <Sheet open={entry !== null} onOpenChange={handleOpenChange}>
       <SheetContent initialFocus={false} className="data-[side=right]:sm:max-w-xl">
         {entry ? (
-          <QueryBody query={detail} label="memory" skeleton={<MemorySheetSkeleton />}>
+          <QueryBody
+            query={detail}
+            label="memory"
+            skeleton={<MemorySheetSkeleton />}
+            className="flex min-h-0 flex-1 flex-col gap-4"
+          >
             {(full) =>
               full === null ? null : mode === EMemorySheetMode.Edit ? (
                 <MemoryEdit

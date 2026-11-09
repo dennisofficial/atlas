@@ -17,7 +17,10 @@ export function EnvSecretsSkeleton() {
   return (
     <>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">Values</h3>
+        <h3 className="flex items-center gap-2 text-sm font-medium">
+          Values
+          <Skeleton className="h-3 w-3" />
+        </h3>
         <div className="flex items-center gap-2">
           <Skeleton className="h-7 w-20 rounded-lg" />
           <Skeleton className="h-7 w-24 rounded-lg" />
