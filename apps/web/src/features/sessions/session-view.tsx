@@ -26,7 +26,7 @@ import { requestRewind, rewoundDraftOf, seqByEventIdOf } from './data/session-re
 import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionTranscriptOf } from './data/session-transcript'
-import { sessionViewModelOf } from './data/session-view-model'
+import { sessionViewModelOf, shellTailTextOf } from './data/session-view-model'
 import { retrySessionNow } from './data/use-retry-session'
 import { SessionUpdateCard } from './session-update-card'
 import { useQueuedDock } from './data/use-queued-dock'
@@ -164,6 +164,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           entries={model.entries}
           subscriptions={model.subscriptions}
           shells={model.shells}
+          shellTails={shellTailTextOf(snapshot.shells)}
           crew={model.crew}
           crewRows={model.crewRows}
           previews={model.previews}

@@ -9,7 +9,7 @@ import type {
   V2Event,
 } from '@dltech/atlas-core'
 import type { AppendHook, ControlPlane } from '@dltech/atlas-control'
-import type { CallOp, CallResult, DaemonEventFrame } from '@dltech/atlas-protocol'
+import type { CallOp, CallResult, DaemonEventFrame, LiveFrame } from '@dltech/atlas-protocol'
 
 import type { PodCrew } from './crew'
 import type { PodMemory } from './memory'
@@ -56,6 +56,7 @@ export type PluginPodContext = {
     op: CallOp,
     options?: { signal?: AbortSignal; onOutput?(bytes: Uint8Array): void },
   ): Promise<CallResult>
+  live(frame: LiveFrame): void
   onDaemonEvent(listener: (frame: DaemonEventFrame) => void): () => void
   log(message: string): void
 }

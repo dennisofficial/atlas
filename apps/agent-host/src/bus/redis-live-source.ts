@@ -1,7 +1,11 @@
 import { Redis } from 'ioredis'
 
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
-import { sessionLiveBufferKey, sessionLiveChannel } from '@dltech/atlas-protocol'
+import {
+  sessionLiveBufferKey,
+  sessionLiveChannel,
+  sessionShellBacklogKey,
+} from '@dltech/atlas-protocol'
 
 import type { LiveSource } from '../stream/live-source'
 
@@ -72,6 +76,7 @@ export const createRedisLiveSource = (args: {
       await subscriber.unsubscribe(channel)
     },
     readBuffer: (sessionId) => reader.get(sessionLiveBufferKey(sessionId)),
+    readShellBacklog: (sessionId) => reader.lrange(sessionShellBacklogKey(sessionId), 0, -1),
     onFrame(listener) {
       frameListeners.add(listener)
       return () => {

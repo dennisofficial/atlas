@@ -570,10 +570,14 @@ What this plugin does not need, and why:
   trigger is the daemon frame.
 - **No `PodSlot.onDaemonEvent`.** It is handed a frame and no context, so the recorder is registered
   as a listener from `hooks(ctx)` through `ctx.onDaemonEvent` (`packages/plugin-sdk/src/slots.ts:12`).
-- **No live-output stream yet.** Spec §5.2's "Transport: `stream` for `shells.output`" is declared
-  (`transport: 'stream'`) but nothing consumes `ComposedPlugins.transports`, and the pod has no
-  channel to a browser except the durable journal, which would flood. The options are written up as
-  an open question in the plugin's section file; this PR does not invent one.
+- **The live-output stream rides the Redis live channel, not the journal.** §5.2's transport slot is
+  now filled: the daemon's throttled `shells.output` frame (one per 100 ms,
+  `apps/daemon/src/ops/shells/state.ts:8`) drives a pod-side watcher that reads `shells.read` from its
+  own cursor and publishes a `shell-output{shellId, offset, text}` live frame through
+  `PluginPodContext.live`. Frames never become journal events, so a chatty shell cannot flood the
+  transcript; the journal still keeps one `background-shell-started` and one `background-shell-ended`.
+  Offsets are character offsets in the shell's published stream, so a replayed frame and a live one
+  cannot double-append on the client.
 
 **The client half** shipped in #2036 (`18ce62eb4`): `plugins/shells/src/client/index.ts` reads the
 view through `pluginViewOf` (`shellsOfView`, `shellRosterOf` — running rows only), the session header
@@ -582,8 +586,18 @@ running (`apps/web/src/features/sessions/session-header.tsx`), and `apps/web` re
 The transcript's ended line already renders from the core event
 (`packages/client/src/transcript/notice-entries.ts:22`).
 
-**Not built:** the live-output stream (§5.2's transport slot), and the running-shells reminder that
-v2's `defaultPipeline` cannot produce — the plugin supplies it from a `beforeStep` hook instead.
+**The running-shells reminder comes from the pipeline.** `defaultRules` always adds
+`runningShellsBlock`, which falls back to `runningShellsOf(ctx.events)` — the core shell lifecycle
+projection, so a shell that started with no ending in the journal is the running one — when no live
+source is given. The plugin's `beforeStep` hook and its journal fold are gone. v1 keeps passing its
+registry-backed source, which is the only thing that knows live `awaitingInput` and character counts;
+the journal-derived reminder prints neither rather than claiming `0 characters printed`.
+
+**A browser joining mid-shell gets the backlog.** `shell-output` frames are also pushed onto a
+per-session Redis list bounded to `SHELL_BACKLOG_FRAMES` (256) with a 600 s TTL, which the stream's
+overlay reads once on join and replays as ordinary `frame` messages before live ones. The client
+folds a 60 000-character tail per `shellId`; the web session header's shells chip opens a popover
+with each running shell's tail.
 
 **Live check (2026-11-08, production).** Session `7850e6ff-c1be-4a0c-918f-f841caa3e7b8`, thread
 `759c2536-d748-4de1-86a0-1642c9ec0fa9`, project `cmvh6z3ls002i08jwseqmwbrv` (dennisofficial/atlas),

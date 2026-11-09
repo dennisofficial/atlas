@@ -1,6 +1,7 @@
 import { systemContext } from '../../context/envelope'
 import type { ThreadId } from '../../events/ids'
 import { shellLabel } from '../../shells/label'
+import { runningShellsOf } from '../../shells/running'
 import { defineRule, type Rule } from '../rule'
 import { appendedAtTail } from './tail-block'
 
@@ -9,7 +10,7 @@ export type RunningShell = {
   command: string
   description?: string | undefined
   awaitingInput: boolean
-  totalCharacters: number
+  totalCharacters?: number | undefined
 }
 
 export type RunningShellsSource = (args: { threadId: ThreadId }) => readonly RunningShell[]
@@ -20,8 +21,14 @@ const AWAITING_INPUT =
 const printed = (characters: number): string =>
   characters === 1 ? '1 character printed' : `${characters} characters printed`
 
-const lineFor = (shell: RunningShell): string =>
-  `${shell.shellId}  ${shellLabel(shell)}  ${shell.awaitingInput ? AWAITING_INPUT : printed(shell.totalCharacters)}`
+const lineFor = (shell: RunningShell): string => {
+  const state = shell.awaitingInput
+    ? AWAITING_INPUT
+    : shell.totalCharacters === undefined
+      ? ''
+      : printed(shell.totalCharacters)
+  return [shell.shellId, shellLabel(shell), state].filter((part) => part !== '').join('  ')
+}
 
 export function runningShellsReminder(shells: readonly RunningShell[]): string {
   return systemContext({
@@ -38,12 +45,15 @@ export function runningShellsReminder(shells: readonly RunningShell[]): string {
 export function runningShellsBlock({
   runningShells,
 }: {
-  runningShells: RunningShellsSource
+  runningShells?: RunningShellsSource | undefined
 }): Rule {
   return defineRule({
     name: 'runningShellsBlock',
     apply: (input, ctx) => {
-      const shells = runningShells({ threadId: ctx.threadId })
+      const shells =
+        runningShells === undefined
+          ? runningShellsOf(ctx.events)
+          : runningShells({ threadId: ctx.threadId })
       if (shells.length === 0) return input
 
       return appendedAtTail({ input, ctx, text: runningShellsReminder(shells) })

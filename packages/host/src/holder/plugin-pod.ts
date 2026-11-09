@@ -5,6 +5,7 @@ import type { PluginPodContext, PodCrew } from '@dltech/atlas-plugin-sdk'
 import { newKey } from '../calls/remote-calls'
 import { worktreesOf } from './checkouts'
 import type { HeldSessionDeps } from './held-session-deps'
+import { fireLive } from './ports'
 import { podControlOf } from './pod-control'
 import { podSessionsOf } from './plugin-sessions'
 import type { SessionRuntime } from './ports'
@@ -63,6 +64,7 @@ export const pluginPodContextOf = (args: {
         signal: options?.signal,
         onOutput: options?.onOutput,
       }),
+    live: (frame) => fireLive({ bus: deps.bus, sessionId: deps.sessionId, frame }),
     onDaemonEvent: (listener) => {
       const off = runtime.remoteCalls.onEvent(listener)
       args.signal.addEventListener('abort', off, { once: true })

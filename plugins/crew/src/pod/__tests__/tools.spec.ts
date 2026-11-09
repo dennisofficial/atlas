@@ -79,6 +79,7 @@ const rig = (crew: PodCrew) => {
     call: async () => {
       throw new Error('this rig calls no daemon')
     },
+    live: () => undefined,
     onDaemonEvent: () => () => undefined,
     log: () => undefined,
   }

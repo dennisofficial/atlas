@@ -5,6 +5,9 @@ import {
   liveFrameSchema,
   sessionLiveBufferKey,
   sessionLiveChannel,
+  sessionShellBacklogKey,
+  SHELL_BACKLOG_FRAMES,
+  SHELL_BACKLOG_TTL_SECONDS,
   type LiveFrame,
 } from '@dltech/atlas-protocol'
 
@@ -59,6 +62,19 @@ export const createRedisLiveFrames = (args: {
     return multi.exec()
   }
 
+  const publishShellFrame = (args: { sessionId: string; frame: LiveFrame }): Promise<unknown> => {
+    const { sessionId, frame } = args
+    const json = JSON.stringify(frame)
+    const key = sessionShellBacklogKey(sessionId)
+    return publisher
+      .multi()
+      .rpush(key, json)
+      .ltrim(key, -SHELL_BACKLOG_FRAMES, -1)
+      .expire(key, SHELL_BACKLOG_TTL_SECONDS)
+      .publish(sessionLiveChannel(sessionId), json)
+      .exec()
+  }
+
   return {
     async live({ sessionId, frame }) {
       const result = liveFrameSchema.safeParse(frame)
@@ -72,9 +88,11 @@ export const createRedisLiveFrames = (args: {
       }
       const { data } = result
       const sent =
-        data.type === 'step-start' || data.type === 'delta' || data.type === 'step-end'
-          ? publishStepFrame({ sessionId, frame: data })
-          : publisher.publish(sessionLiveChannel(sessionId), JSON.stringify(data))
+        data.type === 'shell-output'
+          ? publishShellFrame({ sessionId, frame: data })
+          : data.type === 'step-start' || data.type === 'delta' || data.type === 'step-end'
+            ? publishStepFrame({ sessionId, frame: data })
+            : publisher.publish(sessionLiveChannel(sessionId), JSON.stringify(data))
       await sent.catch((error: unknown) => {
         args.log?.error({
           source: 'bus.live',

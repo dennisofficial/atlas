@@ -13,6 +13,7 @@ const NOT_FOLLOWING: SessionSnapshot = {
   cursor: undefined,
   status: undefined,
   overlay: undefined,
+  shells: {},
   connection: ESessionConnection.Reconnecting,
   error: undefined,
   skipped: 0,

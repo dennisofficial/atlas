@@ -41,7 +41,7 @@ export function defaultRules({
     corruptImagesDropped(),
     imagesInContext(),
     worktreeBlock({ launchDirectory, repoRoot }),
-    ...(runningShells === undefined ? [] : [runningShellsBlock({ runningShells })]),
+    runningShellsBlock({ runningShells }),
     ...(runningServices === undefined ? [] : [runningServicesBlock({ runningServices })]),
     ...(runningAgents === undefined ? [] : [runningAgentsBlock({ runningAgents })]),
   ]

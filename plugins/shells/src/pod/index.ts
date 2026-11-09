@@ -6,13 +6,11 @@ import { ShellInputTool } from './input-tool'
 import { ShellKillTool } from './kill-tool'
 import { ShellListTool } from './list-tool'
 import { ShellOutputTool } from './output-tool'
-import { runningRosterHook } from './roster-hook'
 import { ShellTool } from './start-tool'
 import { stateFor } from './state'
 
 export { BackgroundShellsFragment } from './fragment'
 export { looksLikePrompt } from './prompt-sniff'
-export { withRunningRoster } from './roster-message'
 
 export const SHELL_TOOLS = [
   'shell',
@@ -36,8 +34,12 @@ export const shellsPod: PodSlot = {
   },
   hooks: (ctx) => {
     const state = stateFor(ctx)
-    ctx.onDaemonEvent((frame) => void recordShellEnding({ ctx, state, frame }))
-    return { beforeStep: [runningRosterHook(ctx)] }
+    ctx.onDaemonEvent((frame) => {
+      void recordShellEnding({ ctx, state, frame })
+      if (frame.event.type === 'shells.output') void state.live.note(frame.event.shellId)
+      if (frame.event.type === 'shells.ended') state.live.forget(frame.event.shellId)
+    })
+    return {}
   },
   prompts: [new BackgroundShellsFragment()],
   commands: new Map(),

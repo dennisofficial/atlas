@@ -86,16 +86,77 @@ function HeaderSubscriptions({
   )
 }
 
-function HeaderShells({ shells }: { shells: ShellRoster }) {
+const SHELL_TAIL_LINES = 20
+
+const SHELL_TAIL_CHARACTERS = 4_000
+
+export function shellTailOf(text: string | undefined): string {
+  if (text === undefined) return ''
+  const tail = text.split('\n').slice(-SHELL_TAIL_LINES).join('\n')
+  return tail.slice(-SHELL_TAIL_CHARACTERS)
+}
+
+export function ShellTails({
+  shells,
+  tails,
+}: {
+  shells: ShellRoster
+  tails: Readonly<Record<string, string>>
+}) {
   return (
-    <span
-      data-session-shells
-      title={shells.labels.join(', ')}
-      className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
-    >
-      <Terminal className="size-3" aria-label="Running shells" role="img" />
-      <span className="font-mono">{shells.running}</span>
-    </span>
+    <ul data-shell-tails className="flex flex-col gap-2.5">
+      {shells.rows.map((row) => {
+        const tail = shellTailOf(tails[row.shellId])
+        return (
+          <li key={row.shellId} className="flex min-w-0 flex-col gap-1">
+            <span className="truncate font-mono text-xs text-muted-foreground" title={row.name}>
+              {row.name}
+            </span>
+            {tail === '' ? (
+              <span className="text-xs text-muted-foreground italic">No output yet</span>
+            ) : (
+              <pre
+                data-shell-tail={row.shellId}
+                className="max-h-40 overflow-auto rounded-md bg-muted/40 p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words"
+              >
+                {tail}
+              </pre>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function HeaderShells({
+  shells,
+  tails,
+}: {
+  shells: ShellRoster
+  tails: Readonly<Record<string, string>>
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        data-session-shells
+        aria-label={`Running shells: ${shells.running}`}
+        title={shells.labels.join(', ')}
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground tabular-nums"
+          />
+        }
+      >
+        <Terminal className="size-3" aria-hidden />
+        <span className="font-mono">{shells.running}</span>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[32rem] max-w-[calc(100vw-2rem)]">
+        <ShellTails shells={shells} tails={tails} />
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -154,6 +215,7 @@ export function SessionHeader({
   entries,
   subscriptions,
   shells,
+  shellTails,
   crew,
   crewRows,
   previews,
@@ -166,6 +228,7 @@ export function SessionHeader({
   entries: readonly PullRequestEntry[]
   subscriptions: readonly SubscribedPullRequest[]
   shells: ShellRoster
+  shellTails: Readonly<Record<string, string>>
   crew: CrewRoster
   crewRows: readonly CrewRow[]
   previews: readonly PreviewItem[]
@@ -195,7 +258,7 @@ export function SessionHeader({
         )}
         {pinned === undefined ? null : <HeaderPullRequest pinned={pinned} count={entries.length} />}
         {subscriptions.length === 0 ? null : <HeaderSubscriptions subscriptions={subscriptions} />}
-        {shells.running === 0 ? null : <HeaderShells shells={shells} />}
+        {shells.running === 0 ? null : <HeaderShells shells={shells} tails={shellTails} />}
         {crew.total === 0 ? null : <HeaderCrew roster={crew} rows={crewRows} />}
         {previews.length === 0 ? null : <HeaderPreviews previews={previews} />}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
