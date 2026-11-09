@@ -11,8 +11,9 @@ import { createFrameDriver } from '../native/frame-driver'
 import { partitionFor } from '../native/native-frame'
 import { nativeOf, registerNative } from '../native/native-controls'
 import { OVERLAY_MASKS } from '../native/masks'
+import { TITLE_MESSAGE_KIND, TITLE_PRELOAD, titleOfHostMessage } from '../native/title-preload'
 import { ENativeEvent, type NativeEvent, type NativeWebview } from '../native/webview-handle'
-import { reportedState } from '../report-navigation'
+import { reportedState, reportedTitle } from '../report-navigation'
 
 const A = 'http://localhost:3000/'
 const B = 'http://localhost:3000/b'
@@ -98,6 +99,23 @@ describe('bindWebview', () => {
     webview.fire(ENativeEvent.DidNavigate, A)
     expect(urls).toEqual([])
   })
+
+  it('reports a page title from a host message only', () => {
+    const webview = new FakeWebview()
+    const titles: string[] = []
+    const unbind = bindWebview({
+      webview,
+      onNavigated: () => undefined,
+      onReady: () => undefined,
+      onTitle: (title) => titles.push(title),
+    })
+    webview.fire(ENativeEvent.HostMessage, { kind: TITLE_MESSAGE_KIND, title: 'Inbox' })
+    webview.fire(ENativeEvent.HostMessage, { kind: 'atlas-preview:other', title: 'Nope' })
+    webview.fire(ENativeEvent.HostMessage, 'A')
+    unbind()
+    webview.fire(ENativeEvent.HostMessage, { kind: TITLE_MESSAGE_KIND, title: 'Late' })
+    expect(titles).toEqual(['Inbox'])
+  })
 })
 
 describe('createFrameDriver', () => {
@@ -157,6 +175,16 @@ describe('the native tag configuration', () => {
     expect(OVERLAY_MASKS).toContain('[data-slot=dropdown-menu-content]')
     expect(OVERLAY_MASKS).not.toContain('[data-slot=dialog-content]')
   })
+
+  it('reports the page title through the preload bridge', () => {
+    expect(TITLE_PRELOAD).toContain('__electrobunSendToHost')
+    expect(TITLE_PRELOAD).toContain(`kind: '${TITLE_MESSAGE_KIND}'`)
+    expect(titleOfHostMessage({ kind: TITLE_MESSAGE_KIND, title: 'Docs' })).toBe('Docs')
+    expect(titleOfHostMessage({ kind: TITLE_MESSAGE_KIND, title: '' })).toBe('')
+    expect(titleOfHostMessage({ kind: TITLE_MESSAGE_KIND, title: 7 })).toBeNull()
+    expect(titleOfHostMessage({ kind: 'nope', title: 'Docs' })).toBeNull()
+    expect(titleOfHostMessage(null)).toBeNull()
+  })
 })
 
 describe('native handle registry', () => {
@@ -194,5 +222,30 @@ describe('reportedState', () => {
     expect(reportedState({ state, tabId: 'tab-1', url: A, title: '' })).toBe(state)
     expect(reportedState({ state, tabId: 'tab-1', url: 'about:blank', title: '' })).toBe(state)
     expect(reportedState({ state, tabId: 'nope', url: B, title: '' })).toBe(state)
+  })
+})
+
+describe('reportedTitle', () => {
+  const stateOn = (): BrowserState =>
+    updateTab({
+      state: freshBrowser(),
+      id: 'tab-1',
+      change: (tab) => navigated({ tab, url: A }),
+    })
+
+  it('titles the tab and keeps its url', () => {
+    const state = stateOn()
+    const next = reportedTitle({ state, tabId: 'tab-1', title: '  Inbox  ' })
+    expect(next.tabs[0]!.title).toBe('Inbox')
+    expect(next.tabs[0]!.history.at(-1)).toBe(A)
+    expect(next.tabs[0]!.load).toBe(state.tabs[0]!.load)
+  })
+
+  it('keeps the state when the title repeats, is blank or the tab is gone', () => {
+    const untitled = stateOn()
+    expect(reportedTitle({ state: untitled, tabId: 'tab-1', title: '   ' })).toBe(untitled)
+    const state = reportedTitle({ state: untitled, tabId: 'tab-1', title: 'Inbox' })
+    expect(reportedTitle({ state, tabId: 'tab-1', title: 'Inbox' })).toBe(state)
+    expect(reportedTitle({ state, tabId: 'nope', title: 'Inbox' })).toBe(state)
   })
 })

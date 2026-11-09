@@ -10,6 +10,7 @@ import { createFrameDriver, type FrameDriver } from './frame-driver'
 import { OVERLAY_MASKS } from './masks'
 import { registerNative } from './native-controls'
 import { forgetNativeStats, noteNativeEvent } from './native-stats'
+import { TITLE_PRELOAD } from './title-preload'
 import { isNativeWebview } from './webview-handle'
 
 const CEF_PARTITION = 'persist:atlas-browser'
@@ -31,16 +32,17 @@ export function NativeFrame(props: {
   renderer: BrowserRenderer
   visible: boolean
   onNavigated: (args: { frame: FrameSpec; url: string }) => void
+  onTitle: (args: { frame: FrameSpec; title: string }) => void
 }) {
-  const { frame, renderer, visible, onNavigated } = props
+  const { frame, renderer, visible, onNavigated, onTitle } = props
   const [element, setElement] = useState<HTMLElement | null>(null)
   const [initialUrl] = useState(frame.load.url)
   const driver = useRef<FrameDriver | undefined>(undefined)
-  const latest = useRef({ frame, onNavigated })
+  const latest = useRef({ frame, onNavigated, onTitle })
 
   useEffect(() => {
-    latest.current = { frame, onNavigated }
-  }, [frame, onNavigated])
+    latest.current = { frame, onNavigated, onTitle }
+  }, [frame, onNavigated, onTitle])
 
   useEffect(() => {
     if (!isNativeWebview(element)) return
@@ -52,6 +54,7 @@ export function NativeFrame(props: {
       webview: element,
       onNavigated: (url) => latest.current.onNavigated({ frame: latest.current.frame, url }),
       onReady: held.reassertVisibility,
+      onTitle: (title) => latest.current.onTitle({ frame: latest.current.frame, title }),
       onEvent: (event, url) => noteNativeEvent({ key, event, url }),
     })
     return () => {
@@ -73,6 +76,7 @@ export function NativeFrame(props: {
       partition={partitionFor(renderer)}
       renderer={renderer}
       masks={OVERLAY_MASKS}
+      preload={TITLE_PRELOAD}
       style={FILL}
     />
   )

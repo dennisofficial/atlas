@@ -2,6 +2,7 @@ export enum ENativeEvent {
   DidNavigate = 'did-navigate',
   DidNavigateInPage = 'did-navigate-in-page',
   DomReady = 'dom-ready',
+  HostMessage = 'host-message',
 }
 
 export type NativeEvent = { detail?: unknown }

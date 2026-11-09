@@ -19,7 +19,7 @@ export function noteNativeEvent(args: {
 }): void {
   const entry = held(args.key)
   if (args.event === ENativeEvent.DomReady) entry.ready += 1
-  else entry.navigations += 1
+  else if (args.event !== ENativeEvent.HostMessage) entry.navigations += 1
   if (args.url !== undefined) entry.lastUrl = args.url
 }
 
