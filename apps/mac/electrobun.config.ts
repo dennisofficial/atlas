@@ -19,6 +19,11 @@ export default {
       notarize: signed,
       createDmg: false,
       icons: 'icon.iconset',
+      bundleCEF: true,
+      entitlements: {
+        'com.apple.security.cs.allow-jit': true,
+        'com.apple.security.cs.allow-unsigned-executable-memory': true,
+      },
     },
   },
   release: {

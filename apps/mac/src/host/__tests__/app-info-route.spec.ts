@@ -11,7 +11,7 @@ beforeAll(() => {
     webRoot: '/nonexistent',
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,
-    app: { version: '1.42.0', channel: 'stable' },
+    app: { version: '1.42.0', channel: 'stable', chromium: true },
   })
   bare = createDesktopHost({
     webRoot: '/nonexistent',
@@ -37,10 +37,10 @@ describe('desktop version route', () => {
     expect((await fetch(`${host.url}${APP_INFO_PATH}`)).status).toBe(403)
   })
 
-  test('reports the app version and channel', async () => {
+  test('reports the app version, channel and chromium capability', async () => {
     const headers = { cookie: await cookieFor(host) }
     const res = await fetch(`${host.url}${APP_INFO_PATH}`, { headers })
-    expect(await res.json()).toEqual({ version: '1.42.0', channel: 'stable' })
+    expect(await res.json()).toEqual({ version: '1.42.0', channel: 'stable', chromium: true })
   })
 
   test('is absent when the host has no app info', async () => {

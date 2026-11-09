@@ -6,6 +6,7 @@ declare module 'react' {
       'electrobun-webview': DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
         src?: string
         partition?: string
+        renderer?: 'cef' | 'native'
         masks?: string
       }
     }

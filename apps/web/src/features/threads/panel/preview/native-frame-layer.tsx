@@ -4,6 +4,8 @@ import { useCallback, useMemo, useRef } from 'react'
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
+import { useBrowserRenderer } from '@/features/desktop/use-browser-renderer'
+
 import {
   updatePreviewBrowser,
   useAllPreviewBrowsers,
@@ -28,6 +30,7 @@ function handleNavigated(args: { frame: FrameSpec; url: string }) {
 
 export function NativeFrameLayer() {
   const registry = useFrameRegistry()
+  const renderer = useBrowserRenderer()
   const states = useAllPreviewBrowsers()
   const frames = useMemo(() => framesOf({ states, registry }), [states, registry])
   const wrappers = useRef(new Map<string, HTMLDivElement>())
@@ -49,6 +52,8 @@ export function NativeFrameLayer() {
     nativeOf: visibleNative,
   })
 
+  if (renderer === null) return null
+
   return (
     <>
       {frames.map((frame) => (
@@ -66,6 +71,7 @@ export function NativeFrameLayer() {
         >
           <NativeFrame
             frame={frame}
+            renderer={renderer}
             visible={frame.key === visibleKey}
             onNavigated={handleNavigated}
           />
