@@ -67,13 +67,15 @@ export const spawnDaemon = async (args: {
   return { child, ...listening }
 }
 
+export const daemonTestToken = (): string => daemonToken({ secret: SECRET, sandboxName: SANDBOX })
+
 export const daemonTestEnv = (
   home: string,
   options?: { realCgroups?: boolean | undefined },
 ): Record<string, string | undefined> => ({
   PATH: process.env.PATH,
   HOME: home,
-  DAEMON_TOKEN: daemonToken({ secret: SECRET, sandboxName: SANDBOX }),
+  DAEMON_TOKEN: daemonTestToken(),
   ATLAS_SANDBOX_NAME: SANDBOX,
   ATLAS_DAEMON_HOME: join(home, 'daemon'),
   ...(options?.realCgroups === true ? {} : { ATLAS_DAEMON_CGROUP_ROOT: fakeCgroupRoot(home) }),
@@ -81,7 +83,7 @@ export const daemonTestEnv = (
   PORT: '0',
 })
 
-const connectWebSocket = async (port: number): Promise<DaemonSession> => {
+export const connectWebSocket = async (port: number): Promise<DaemonSession> => {
   const queue = new FrameQueue()
   const socket = new WebSocket(`ws://127.0.0.1:${port}`)
   const closed = new Promise<{ code: number; reason: string }>((resolve) => {
