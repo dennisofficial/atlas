@@ -136,6 +136,7 @@ export const rig = (
     sessions: EMPTY_SESSIONS,
     worktrees: args.worktrees ?? fakeWorktrees().port,
     control: {
+      webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
