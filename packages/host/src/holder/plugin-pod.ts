@@ -1,6 +1,6 @@
 import { HookChain, ToolRegistry } from '@dltech/atlas-agent'
 import type { ThreadId, ToolDeclaration, ToolDefinition } from '@dltech/atlas-core'
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import type { PluginPodContext, PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import { newKey } from '../calls/remote-calls'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -8,7 +8,7 @@ import { podControlOf } from './pod-control'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
-class ExtendedToolRegistry extends ToolRegistry {
+export class ComposedPodRegistry extends ToolRegistry {
   private readonly extras: ReadonlyMap<string, ToolDefinition>
 
   constructor(
@@ -35,17 +35,19 @@ class ExtendedToolRegistry extends ToolRegistry {
   }
 }
 
-const contextOf = (args: {
+export const pluginPodContextOf = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
   record: SessionRecord
   threadId: ThreadId
   signal: AbortSignal
+  crew: PodCrew
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
   return {
     sessionId: deps.sessionId,
     control: podControlOf({ client: deps.control, threadId }),
+    crew: args.crew,
     append: async (drafts) => {
       await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
     },
@@ -66,6 +68,23 @@ const contextOf = (args: {
   }
 }
 
+export const pluginToolsOf = (args: {
+  runtime: SessionRuntime
+  ctx: PluginPodContext
+}): ToolRegistry => {
+  const { plugins } = args.runtime
+  if (plugins === undefined) return args.runtime.tools
+  return new ComposedPodRegistry(args.runtime.tools, plugins.pod.tools(args.ctx))
+}
+
+export const pluginHooksOf = (args: {
+  runtime: SessionRuntime
+  ctx: PluginPodContext
+}): HookChain => {
+  const { plugins } = args.runtime
+  return plugins === undefined ? new HookChain({}) : new HookChain(plugins.pod.hooks(args.ctx))
+}
+
 export type PluginPod = { tools: ToolRegistry; hooks: HookChain }
 
 export const pluginPodOf = (args: {
@@ -74,13 +93,13 @@ export const pluginPodOf = (args: {
   record: SessionRecord
   threadId: ThreadId
   signal: AbortSignal
+  crew: PodCrew
 }): PluginPod => {
   const { plugins } = args.runtime
   if (plugins === undefined) return { tools: args.runtime.tools, hooks: new HookChain({}) }
-  const ctx = contextOf(args)
-  const pod = plugins.pod
-  const tools = new ExtendedToolRegistry(args.runtime.tools, pod.tools(ctx))
-  const hooks = new HookChain(pod.hooks(ctx))
-  ctx.onDaemonEvent((frame) => pod.onDaemonEvent(frame))
+  const ctx = pluginPodContextOf(args)
+  const tools = pluginToolsOf({ runtime: args.runtime, ctx })
+  const hooks = pluginHooksOf({ runtime: args.runtime, ctx })
+  ctx.onDaemonEvent((frame) => plugins.pod.onDaemonEvent(frame))
   return { tools, hooks }
 }

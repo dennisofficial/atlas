@@ -1,10 +1,11 @@
 import { toThreadId } from '@dltech/atlas-core'
-import type {
-  MemoryKind,
-  MemoryScope,
-  MemorySummary,
-  PluginPodContext,
-  PodMemory,
+import {
+  EMPTY_CREW,
+  type MemoryKind,
+  type MemoryScope,
+  type MemorySummary,
+  type PluginPodContext,
+  type PodMemory,
 } from '@dltech/atlas-plugin-sdk'
 
 import { memoryPod } from '..'
@@ -85,6 +86,7 @@ export const fakeMemory = (args: { project?: string | null } = {}) => {
 export const rig = (memory: PodMemory = fakeMemory().port) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
+    crew: EMPTY_CREW,
     control: {
       exposePort: async () => {
         throw new Error('this rig exposes no port')

@@ -6,6 +6,7 @@ import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 import type { PluginPodContext, PodSlot } from './slots'
 
 export type ComposedPod = {
+  childDeny: readonly string[]
   tools(ctx: PluginPodContext): readonly ToolDefinition[]
   hooks(ctx: PluginPodContext): HookChainArgs
   prompts: readonly PromptFragment[]
@@ -65,9 +66,11 @@ export const composePod = (pods: readonly PodSlot[]): ComposedPod => {
     }),
   )
   const commands = mergeMaps({ maps: pods.map((pod) => pod.commands), what: 'the pod command' })
+  const childDeny = Object.freeze([...new Set(pods.flatMap((pod) => pod.childDeny ?? []))])
   return Object.freeze({
     prompts,
     commands,
+    childDeny,
     tools: (ctx) =>
       uniqueBy({
         items: pods.flatMap((pod) => pod.tools?.(ctx) ?? []),

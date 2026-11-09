@@ -10,6 +10,7 @@ import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
 import type { SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
+import { CrewRoom } from './crew'
 import { logDriveFault, logReconcileFault, settleAndCheckResume, wireHeldLoop } from './held-runner'
 import { teardownHeld } from './held-teardown'
 import { HeldPrepare } from './held-prepare'
@@ -42,6 +43,7 @@ export class HeldSession {
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
   private branches: BranchObserver | undefined
+  private crew: CrewRoom | undefined
   private reconciler: Reconciler | undefined
   private finishDrive: (() => void) | undefined
   private readonly idle: IdleDeadline
@@ -135,6 +137,7 @@ export class HeldSession {
       if (this.outcome === undefined) await this.settleFault({ ...args, error })
     }
     this.branches?.stop()
+    await this.crew?.stopAll().catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
     return teardownHeld({
       deps: this.deps,
       runtime: this.runtime,
@@ -172,6 +175,15 @@ export class HeldSession {
     this.record = record
     if (this.lifetimeAbort.signal.aborted) return record.fence()
     if (this.draining) record.markDraining()
+    const crew = new CrewRoom({
+      deps,
+      runtime,
+      parentRecord: record,
+      parentThreadId: threadId,
+      epoch: lease.epoch,
+      signal: this.lifetimeAbort.signal,
+    })
+    this.crew = crew
     const { runner, branches, recoverCommands } = wireHeldLoop({
       deps,
       runtime,
@@ -180,6 +192,7 @@ export class HeldSession {
       threadId,
       signal: this.lifetimeAbort.signal,
       epoch: lease.epoch,
+      crew: crew.port(),
       isModelOnlyDrain: () => this.drainModelOnly,
     })
     this.branches = branches

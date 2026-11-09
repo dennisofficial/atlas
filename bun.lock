@@ -32,6 +32,7 @@
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-native-commands": "workspace:*",
         "@dltech/atlas-observability": "workspace:*",
+        "@dltech/atlas-plugin-crew": "workspace:*",
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-memory": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
@@ -65,6 +66,7 @@
         "@dltech/atlas-media": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-native-commands": "workspace:*",
+        "@dltech/atlas-plugin-crew": "workspace:*",
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
@@ -325,6 +327,7 @@
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-harness": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
+        "@dltech/atlas-plugin-crew": "workspace:*",
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
@@ -747,6 +750,19 @@
         "@types/bun": "latest",
         "@types/node": "^26.3.0",
         "typescript": "6.0.3",
+      },
+    },
+    "plugins/crew": {
+      "name": "@dltech/atlas-plugin-crew",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-client": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-plugin-sdk": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
       },
     },
     "plugins/github": {
@@ -1250,6 +1266,8 @@
     "@dltech/atlas-native-commands": ["@dltech/atlas-native-commands@workspace:commands"],
 
     "@dltech/atlas-observability": ["@dltech/atlas-observability@workspace:packages/observability"],
+
+    "@dltech/atlas-plugin-crew": ["@dltech/atlas-plugin-crew@workspace:plugins/crew"],
 
     "@dltech/atlas-plugin-github": ["@dltech/atlas-plugin-github@workspace:plugins/github"],
 

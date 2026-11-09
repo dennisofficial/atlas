@@ -6,7 +6,7 @@ import {
   type RecordBody,
   type V2Event,
 } from '@dltech/atlas-core'
-import type { PluginPodContext, PodControl } from '@dltech/atlas-plugin-sdk'
+import { EMPTY_CREW, type PluginPodContext, type PodControl } from '@dltech/atlas-plugin-sdk'
 import {
   CallFailureError,
   ECallStatus,
@@ -78,6 +78,7 @@ export const rig = (options: { control?: PodControl } = {}) => {
 
   const ctx: PluginPodContext = {
     control: options.control ?? podControlStub,
+    crew: EMPTY_CREW,
     sessionId: 's1',
     append,
     events: () => log,
