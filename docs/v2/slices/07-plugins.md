@@ -709,6 +709,29 @@ Specs: `plugins/memory/src/core/__tests__/index.spec.ts`,
 `apps/agent-host/src/control/__tests__/client.spec.ts`,
 `apps/api/src/api/cloud/memories/host-memory.router.spec.ts`.
 
+**Live check (2026-11-09, production).** Session `8a7ed307-0e59-48a1-8637-b48e328713b8`, agent host
+`72f85f533` (the first run, `cef48f40-2327-4ff6-819b-dfa015c41709`, found the defect below).
+
+| Step                                  | Result                                                                                                                                                    |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `write_memory` global, type feedback  | `Remembered live-check-memory-c01dae (global, revision 1).`; the `Memory` row exists                                                                      |
+| the next turn, no tool call           | the model quoted `- live-check-memory-c01dae — Live check of the memory tools live-check-memory-c01dae` under `### Global` — the index reached the prompt |
+| `read_memory`                         | `live-check-memory-c01dae (global, feedback, revision 1)`, its description and the full body                                                              |
+| `edit_memory` at revision 1           | `Edited live-check-memory-c01dae (global, revision 2).`, body now the replacement                                                                         |
+| `edit_memory` again, still revision 1 | `the control plane rejected the call (409): memory is at revision 2, not 1; read it again`                                                                |
+| `delete_memory`                       | `Forgot live-check-memory-c01dae (global).`; `memories.list` no longer holds it                                                                           |
+| Teardown                              | session archived, temporary `AuthSession` and the memory row deleted                                                                                      |
+
+**The defect the first run found, fixed in #2071 (`76c1f54b3`).** `write_memory` answered
+`Remembered undefined (project, revision undefined)` and `read_memory` threw
+`undefined is not an object (evaluating 'entry.body.split')`: the agent host's client cast the CP's
+reply **envelope** (`{ memory }`) to the port's return type, so `name`/`revision`/`scope` were
+`undefined`. `list` and `remove` were already right. The client now unwraps `memory` in `get`,
+`write` and `edit`, and its spec asserts the value each call **returns** — the old cases only checked
+what was sent and the URL, which is why nothing short of the live check caught it. Render deploys
+the tip of `main`, so the fix went out with a later merge (#2074's build) rather than a deploy of
+`76c1f54b3` itself.
+
 ## 9. Answers (2026-11-08)
 
 1. **Order and packaging.** As recommended in §3: the contract, then github (subscriptions inside one
