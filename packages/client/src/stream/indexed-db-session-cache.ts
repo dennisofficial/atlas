@@ -1,6 +1,14 @@
 import { v2EventSchema, type V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
+import {
+  defaultIndexedDbFactory,
+  type IdbDatabase,
+  type IdbFactory,
+  type IdbObjectStore,
+  type IdbRequest,
+  type IdbTransaction,
+} from './indexed-db-types'
 import type { SessionCache } from './session-cache'
 import {
   SESSION_CACHE_LIMIT,
@@ -17,20 +25,20 @@ export const SESSION_CACHE_STORE = 'windows'
 
 const DB_VERSION = 1
 
-const requestDone = <T>(request: IDBRequest<T>): Promise<T> =>
+const requestDone = <T>(request: IdbRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
   })
 
-const transactionDone = (tx: IDBTransaction): Promise<void> =>
+const transactionDone = (tx: IdbTransaction): Promise<void> =>
   new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
     tx.onabort = () => reject(tx.error)
   })
 
-const openDatabase = (factory: IDBFactory): Promise<IDBDatabase> =>
+const openDatabase = (factory: IdbFactory): Promise<IdbDatabase> =>
   new Promise((resolve, reject) => {
     const request = factory.open(SESSION_CACHE_DB, DB_VERSION)
     request.onupgradeneeded = () => {
@@ -46,7 +54,7 @@ const openDatabase = (factory: IDBFactory): Promise<IDBDatabase> =>
 const savedAtOf = (value: unknown): number =>
   typeof value === 'object' && value !== null && 'savedAt' in value ? Number(value.savedAt) : 0
 
-const evictOldest = async (store: IDBObjectStore): Promise<void> => {
+const evictOldest = async (store: IdbObjectStore): Promise<void> => {
   const [keys, values] = await Promise.all([
     requestDone(store.getAllKeys()),
     requestDone(store.getAll()),
@@ -61,7 +69,7 @@ const evictOldest = async (store: IDBObjectStore): Promise<void> => {
 }
 
 export function createIndexedDbSessionCache(args: {
-  factory: IDBFactory | undefined
+  factory: IdbFactory | undefined
   now: () => number
   eventSchema?: z.ZodType<V2Event> | undefined
 }): SessionCache {
@@ -72,7 +80,7 @@ export function createIndexedDbSessionCache(args: {
     use,
   }: {
     fallback: T
-    use: (db: IDBDatabase) => Promise<T>
+    use: (db: IdbDatabase) => Promise<T>
   }): Promise<T> => {
     if (factory === undefined) return fallback
     try {
@@ -120,12 +128,14 @@ export function createIndexedDbSessionCache(args: {
 
 export const browserSessionCache = (eventSchema?: z.ZodType<V2Event>): SessionCache =>
   createIndexedDbSessionCache({
-    factory: typeof indexedDB === 'undefined' ? undefined : indexedDB,
+    factory: defaultIndexedDbFactory(),
     now: () => Date.now(),
     eventSchema,
   })
 
-export const clearBrowserSessionCache = (factory: IDBFactory | undefined): Promise<void> =>
+export const clearBrowserSessionCache = (
+  factory: IdbFactory | undefined = defaultIndexedDbFactory(),
+): Promise<void> =>
   factory === undefined
     ? Promise.resolve()
     : new Promise((resolve) => {
