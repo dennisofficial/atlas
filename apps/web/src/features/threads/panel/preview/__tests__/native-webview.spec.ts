@@ -9,6 +9,7 @@ import {
 import { bindWebview, urlOfEvent } from '../native/bind-webview'
 import { createFrameDriver } from '../native/frame-driver'
 import { partitionFor } from '../native/native-frame'
+import { remountAllowedOf, watchFrameReady } from '../native/frame-ready'
 import { nativeOf, registerNative } from '../native/native-controls'
 import { OVERLAY_MASKS } from '../native/masks'
 import { TITLE_MESSAGE_KIND, TITLE_PRELOAD, titleOfHostMessage } from '../native/title-preload'
@@ -222,6 +223,59 @@ describe('reportedState', () => {
     expect(reportedState({ state, tabId: 'tab-1', url: A, title: '' })).toBe(state)
     expect(reportedState({ state, tabId: 'tab-1', url: 'about:blank', title: '' })).toBe(state)
     expect(reportedState({ state, tabId: 'nope', url: B, title: '' })).toBe(state)
+  })
+})
+
+describe('watchFrameReady', () => {
+  const manual = () => {
+    let pending: (() => void) | undefined
+    return {
+      schedule: (run: () => void) => {
+        pending = run
+        return () => {
+          pending = undefined
+        }
+      },
+      fire: () => pending?.(),
+      waiting: () => pending !== undefined,
+    }
+  }
+
+  it('rebuilds a view that never reported anything', () => {
+    const scheduler = manual()
+    let stalled = 0
+    watchFrameReady({ onStalled: () => (stalled += 1), schedule: scheduler.schedule })
+    expect(scheduler.waiting()).toBe(true)
+    scheduler.fire()
+    expect(stalled).toBe(1)
+  })
+
+  it('leaves alone a view that reported anything, and stops with its element', () => {
+    const reported = manual()
+    let stalled = 0
+    const watchdog = watchFrameReady({
+      onStalled: () => (stalled += 1),
+      schedule: reported.schedule,
+    })
+    watchdog.ready()
+    reported.fire()
+    expect(stalled).toBe(0)
+    expect(reported.waiting()).toBe(false)
+
+    const unmounted = manual()
+    const stopped = watchFrameReady({
+      onStalled: () => (stalled += 1),
+      schedule: unmounted.schedule,
+    })
+    stopped.stop()
+    unmounted.fire()
+    expect(stalled).toBe(0)
+  })
+
+  it('stops rebuilding after the cap, so a broken view is not recreated for ever', () => {
+    expect(remountAllowedOf({ remounts: 0 })).toBe(true)
+    expect(remountAllowedOf({ remounts: 1 })).toBe(true)
+    expect(remountAllowedOf({ remounts: 2 })).toBe(false)
   })
 })
 

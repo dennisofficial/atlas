@@ -7,6 +7,7 @@ import type { BrowserRenderer } from '@/features/desktop/use-browser-renderer'
 import type { FrameSpec } from '../frames-of'
 import { bindWebview } from './bind-webview'
 import { createFrameDriver, type FrameDriver } from './frame-driver'
+import { remountAllowedOf, watchFrameReady } from './frame-ready'
 import { OVERLAY_MASKS } from './masks'
 import { registerNative } from './native-controls'
 import { forgetNativeStats, noteNativeEvent } from './native-stats'
@@ -36,7 +37,8 @@ export function NativeFrame(props: {
 }) {
   const { frame, renderer, visible, onNavigated, onTitle } = props
   const [element, setElement] = useState<HTMLElement | null>(null)
-  const [initialUrl] = useState(frame.load.url)
+  const [mount, setMount] = useState({ generation: 0, url: frame.load.url })
+  const remounts = useRef(0)
   const driver = useRef<FrameDriver | undefined>(undefined)
   const latest = useRef({ frame, onNavigated, onTitle })
 
@@ -50,15 +52,32 @@ export function NativeFrame(props: {
     const held = createFrameDriver({ webview: element, seq: load.seq })
     driver.current = held
     const unregister = registerNative({ key, handle: { webview: element, driver: held } })
+    const watchdog = watchFrameReady({
+      onStalled: () => {
+        if (!remountAllowedOf({ remounts: remounts.current })) return
+        remounts.current += 1
+        setMount({ generation: remounts.current, url: latest.current.frame.load.url })
+      },
+    })
     const unbind = bindWebview({
       webview: element,
-      onNavigated: (url) => latest.current.onNavigated({ frame: latest.current.frame, url }),
-      onReady: held.reassertVisibility,
+      onNavigated: (url) => {
+        watchdog.ready()
+        latest.current.onNavigated({ frame: latest.current.frame, url })
+      },
+      onReady: () => {
+        watchdog.ready()
+        held.reassertVisibility()
+      },
       onTitle: (title) => latest.current.onTitle({ frame: latest.current.frame, title }),
-      onEvent: (event, url) => noteNativeEvent({ key, event, url }),
+      onEvent: (event, url) => {
+        watchdog.ready()
+        noteNativeEvent({ key, event, url })
+      },
     })
     return () => {
       unbind()
+      watchdog.stop()
       unregister()
       forgetNativeStats(key)
       driver.current = undefined
@@ -71,8 +90,9 @@ export function NativeFrame(props: {
 
   return (
     <electrobun-webview
+      key={mount.generation}
       ref={setElement}
-      src={initialUrl}
+      src={mount.url}
       partition={partitionFor(renderer)}
       renderer={renderer}
       masks={OVERLAY_MASKS}
