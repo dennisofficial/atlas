@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
 import { exposeService, stopPreview } from '../expose'
@@ -45,6 +46,7 @@ describe('exposeService', () => {
     const exposed = await exposeService({
       ctx: {
         control: {
+          ...podControlStub,
           exposePort: async () => {
             throw new Error('the control plane is down')
           },

@@ -21,6 +21,7 @@ import { servicesPod } from '..'
 export type CallOptions = { signal?: AbortSignal; onOutput?(bytes: Uint8Array): void }
 
 export const controlOf = (args: { url: string; tunnelToken?: string }): PodControl => ({
+  ...podControlStub,
   exposePort: async () => ({
     url: args.url,
     tunnelToken: args.tunnelToken ?? 'tunnel-token',
