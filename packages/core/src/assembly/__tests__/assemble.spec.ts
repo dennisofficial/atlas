@@ -103,7 +103,7 @@ describe('assemble', () => {
     expect(
       defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }).at(-1)
         ?.ruleName,
-    ).toBe('worktreeBlock')
+    ).toBe('runningShellsBlock')
     expect(assembled.system.map((block) => block.text)).toEqual([DOCTRINE])
     expect(assembled.messages).toEqual([])
     expect(trace.at(-1)).toMatchObject({

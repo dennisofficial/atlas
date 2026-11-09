@@ -46,6 +46,7 @@ describe('defaultRules', () => {
       'corruptImagesDropped',
       'imagesInContext',
       'worktreeBlock',
+      'runningShellsBlock',
     ])
   })
 
@@ -122,6 +123,7 @@ describe('defaultPipeline', () => {
       'corruptImagesDropped',
       'imagesInContext',
       'worktreeBlock',
+      'runningShellsBlock',
       'cacheBreakpoints',
       'requestCacheKey:openai',
       'requestCacheKey:inference',
