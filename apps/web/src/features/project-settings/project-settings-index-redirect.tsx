@@ -1,15 +1,15 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
-import { routeIdAfter } from '@/lib/route-id'
+import { useRouteParam } from '@/lib/route-param'
 
 import { EProjectSettingsSection, hrefOfProjectSection } from './project-settings-nav'
 
 export function ProjectSettingsIndexRedirect() {
   const router = useRouter()
-  const projectId = routeIdAfter({ pathname: usePathname(), segment: 'projects' })
+  const projectId = useRouteParam('projectId')
 
   useEffect(() => {
     router.replace(hrefOfProjectSection({ projectId, section: EProjectSettingsSection.Overview }))

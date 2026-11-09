@@ -10,9 +10,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Desktop (Mac) build
 
-- The Mac app serves `bun run build:desktop` (`output: 'export'`). Keep web static-export safe: no
-  `cookies()`/`headers()`, server actions, rewrites, or route handlers doing work.
-- New dynamic routes follow `DESKTOP.md`: prebuild the `_` placeholder and read ids from the URL. The Mac
-  host derives its route table from the export, so no Mac change is needed.
-- The `mac-app-rehearsal` CI job builds the export on every PR.
+- The Mac app runs this app's own Next server on loopback (`output: 'standalone'`), supervised by the
+  desktop host. There is no static export and no `_` placeholder route: a dynamic id is a real param.
+- Next here is a router only. No `cookies()`/`headers()`, no server actions, no async pages, no route
+  handler that reads the request — `src/app/__tests__/no-server-behaviour.spec.ts` fails otherwise. The
+  API stays in `apps/api`.
+- Read a dynamic segment in a client component with `useRouteParam` (`src/lib/route-param.ts`), never by
+  parsing `usePathname()`.
+- The `mac-app-rehearsal` CI job builds the packaged app and checks the built server answers flight
+  requests on every PR.
 - UI changes reach the Mac only on a release (PR title `fix` or `feat`).

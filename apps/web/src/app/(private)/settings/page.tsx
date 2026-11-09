@@ -1,7 +1,5 @@
-import { redirect } from 'next/navigation'
-
-import { ESettingsPage, hrefOfPage } from '@/features/settings/settings-nav'
+import { SettingsIndexRedirect } from '@/features/settings/settings-index-redirect'
 
 export default function SettingsIndexPage() {
-  redirect(hrefOfPage(ESettingsPage.Account))
+  return <SettingsIndexRedirect />
 }

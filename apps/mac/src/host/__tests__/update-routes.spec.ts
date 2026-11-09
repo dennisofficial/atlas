@@ -10,7 +10,7 @@ let checks = 0
 
 beforeAll(() => {
   host = createDesktopHost({
-    webRoot: '/nonexistent',
+    appOrigin: 'http://127.0.0.1:1',
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,
     updates: {

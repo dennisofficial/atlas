@@ -86,7 +86,7 @@ export function useDesktopHost(): void {
       },
     })
     host = createDesktopHost({
-      webRoot: '/nonexistent',
+      appOrigin: 'http://127.0.0.1:1',
       secret: SECRET,
       apiOrigin: `http://127.0.0.1:${upstream.port}`,
       auth: { home: AUTH_HOME },
