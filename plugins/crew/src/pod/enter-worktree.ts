@@ -8,6 +8,7 @@ import {
   EPathPresence,
   type DeclaredPathField,
 } from '@dltech/atlas-core'
+import type { V2Event } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
@@ -17,6 +18,11 @@ const inputSchema = z.strictObject({
   name: z.string().min(1).optional(),
   path: z.string().min(1).optional(),
 })
+
+const spawnedInto =
+  (events: readonly V2Event[]) =>
+  (path: string): boolean =>
+    events.some((event) => event.type === 'agent-spawned' && event.worktree?.path === path)
 
 const description = [
   'Create a git worktree and move the session into it.',
@@ -76,7 +82,12 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
             activeWorktree,
             name: input.name ?? '',
           })
-        : await enterByPath({ worktrees: this.ctx.worktrees, projectDirectory, path: input.path })
+        : await enterByPath({
+            worktrees: this.ctx.worktrees,
+            projectDirectory,
+            path: input.path,
+            createdHere: spawnedInto(this.ctx.events()),
+          })
 
     return plan.ok
       ? { ok: true, output: { enteredWorktree: plan.entry }, modelText: plan.text }

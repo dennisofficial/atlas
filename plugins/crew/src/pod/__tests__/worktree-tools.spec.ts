@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, EWorktreeExit, toThreadId, type ActiveWorktree } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  EWorktreeExit,
+  toThreadId,
+  type ActiveWorktree,
+  type V2Event,
+} from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
   type PluginPodContext,
@@ -112,7 +118,9 @@ const fakeWorktrees = (args: { state?: WorktreeState } = {}) => {
   return { port, calls }
 }
 
-const rig = (args: { worktrees?: PodWorktrees; crew?: PodCrew } = {}) => {
+const rig = (
+  args: { worktrees?: PodWorktrees; crew?: PodCrew; events?: readonly V2Event[] } = {},
+) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     crew: args.crew ?? fakeCrew().port,
@@ -134,7 +142,7 @@ const rig = (args: { worktrees?: PodWorktrees; crew?: PodCrew } = {}) => {
       },
     },
     append: async () => undefined,
-    events: () => [],
+    events: () => args.events ?? [],
     call: async () => {
       throw new Error('this rig calls no daemon')
     },
@@ -239,6 +247,30 @@ describe('enter_worktree', () => {
         adopted: true,
       },
     })
+  })
+
+  it('treats a worktree this session spawned a child into as one Atlas created', async () => {
+    const worktrees = fakeWorktrees()
+    const spawnedInto = {
+      type: 'agent-spawned',
+      agentId: 'a1',
+      agentType: 'general-purpose',
+      intent: 'work the branch',
+      mode: 'fresh',
+      worktree: { path: '/work/.atlas/worktrees/dennis/wt', branch: 'dennis/wt' },
+    } as unknown as V2Event
+    const { ctx } = rig({ worktrees: worktrees.port, events: [spawnedInto] })
+
+    const entered = await invoke({
+      ctx,
+      name: 'enter_worktree',
+      input: { path: '/work/.atlas/worktrees/dennis/wt' },
+    })
+
+    expect(entered.ok).toBe(true)
+    if (!entered.ok) throw new Error(entered.reason)
+    expect(entered.output).toMatchObject({ enteredWorktree: { adopted: false } })
+    expect(entered.modelText).toContain('which this session created')
   })
 
   it('refuses the main checkout, a detached HEAD and a path git does not list', async () => {

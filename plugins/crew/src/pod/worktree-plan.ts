@@ -119,6 +119,7 @@ export async function enterByPath(args: {
   worktrees: PodWorktrees
   projectDirectory: string
   path: string
+  createdHere: (path: string) => boolean
 }): Promise<Plan> {
   let repository: string
   let records: readonly WorktreeRecord[]
@@ -146,14 +147,21 @@ export async function enterByPath(args: {
   const refusal = refusalOf(matched)
   if (refusal !== undefined) return { ok: false, reason: refusal }
 
+  const ours = args.createdHere(matched.path)
   const entry: WorktreeEntryInfo = {
     path: matched.path,
     branch: matched.branch ?? '',
-    adopted: true,
+    adopted: !ours,
   }
   try {
     const state = await args.worktrees.inspect({ cwd: matched.path })
-    return { ok: true, entry, text: adoptedTextOf({ entry, state }) }
+    return {
+      ok: true,
+      entry,
+      text: ours
+        ? `Moved into the worktree at ${entry.path}, on branch ${entry.branch}, which this session created. ${stateLine(state)} That worktree is the project directory now: a path you pass to a tool resolves against it, and a bash command starts there.`
+        : adoptedTextOf({ entry, state }),
+    }
   } catch (error) {
     return { ok: false, reason: messageOf(error) }
   }
@@ -163,6 +171,7 @@ export async function planTarget(args: {
   worktrees: PodWorktrees
   projectDirectory: string
   activeWorktree: ActiveWorktree | undefined
+  createdHere: (path: string) => boolean
   target: string
 }): Promise<Plan> {
   const listing = await args.worktrees.list({ cwd: args.projectDirectory }).catch(() => undefined)
@@ -175,6 +184,8 @@ export async function planTarget(args: {
           repository: listing.repository,
           path: args.target,
         })
-  if (matched !== undefined) return await enterByPath({ ...args, path: args.target })
+  if (matched !== undefined) {
+    return await enterByPath({ ...args, path: args.target, createdHere: args.createdHere })
+  }
   return await enterByName({ ...args, name: args.target })
 }

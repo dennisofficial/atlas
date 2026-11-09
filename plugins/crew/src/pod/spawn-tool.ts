@@ -59,6 +59,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
             worktrees: this.ctx.worktrees,
             projectDirectory,
             activeWorktree,
+            createdHere: () => false,
             target: input.worktree,
           })
     if (planned !== undefined && !planned.ok) return { ok: false, reason: planned.reason }
