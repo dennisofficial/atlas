@@ -14,7 +14,8 @@ export type AgentHostEnv = {
   daemonSecret: string
   secretsEncryptionKey: string
   apiOrigin: string
-  agentHostToken: string
+  cloudflare: { apiToken: string; accountId: string; zoneId: string }
+  previewDomain: string
   vercelOauth: { clientId: string; clientSecret: string } | null
   mediaBlobToken: string | null
   maxSessions: number
@@ -28,6 +29,7 @@ export type AgentHostEnv = {
 const DEFAULT_MAX_SESSIONS = 25
 const DEFAULT_SANDBOX_IMAGE = 'atlas-sandbox:latest'
 const DEFAULT_PORT = 10_000
+const DEFAULT_PREVIEW_DOMAIN = 'byatlas.dev'
 export const DEFAULT_DRAIN_MS = 270_000
 
 const defaultDaemonBundlePath = (): string => join(import.meta.dir, '../../../daemon/bin/daemon.js')
@@ -87,7 +89,9 @@ export const readAgentHostEnv = (
   const daemonSecret = take(env, 'DAEMON_SECRET')
   const secretsEncryptionKey = take(env, 'SECRETS_ENCRYPTION_KEY')
   const apiOrigin = take(env, 'ATLAS_API_ORIGIN')
-  const agentHostToken = take(env, 'AGENT_HOST_TOKEN')
+  const cloudflareApiToken = take(env, 'CLOUDFLARE_API_TOKEN')
+  const cloudflareAccountId = take(env, 'CLOUDFLARE_ACCOUNT_ID')
+  const cloudflareZoneId = take(env, 'CLOUDFLARE_ZONE_ID')
   const required: ReadonlyArray<[string, string | undefined]> = [
     ['DATABASE_URL', databaseUrl],
     ['DATABASE_DIRECT_URL', databaseDirectUrl],
@@ -95,7 +99,9 @@ export const readAgentHostEnv = (
     ['DAEMON_SECRET', daemonSecret],
     ['SECRETS_ENCRYPTION_KEY', secretsEncryptionKey],
     ['ATLAS_API_ORIGIN', apiOrigin],
-    ['AGENT_HOST_TOKEN', agentHostToken],
+    ['CLOUDFLARE_API_TOKEN', cloudflareApiToken],
+    ['CLOUDFLARE_ACCOUNT_ID', cloudflareAccountId],
+    ['CLOUDFLARE_ZONE_ID', cloudflareZoneId],
   ]
   const missing = required.filter((pair) => pair[1] === undefined).map((pair) => pair[0])
   if (missing.length > 0) throw new AgentHostEnvError(missing)
@@ -106,7 +112,12 @@ export const readAgentHostEnv = (
     daemonSecret: daemonSecret as string,
     secretsEncryptionKey: secretsEncryptionKey as string,
     apiOrigin: apiOrigin as string,
-    agentHostToken: agentHostToken as string,
+    cloudflare: {
+      apiToken: cloudflareApiToken as string,
+      accountId: cloudflareAccountId as string,
+      zoneId: cloudflareZoneId as string,
+    },
+    previewDomain: take(env, 'PREVIEW_DOMAIN') ?? DEFAULT_PREVIEW_DOMAIN,
     vercelOauth: vercelOauthOf(env),
     mediaBlobToken: take(env, 'BLOB_READ_WRITE_TOKEN') ?? null,
     maxSessions: parseMaxSessions(take(env, 'AGENT_HOST_MAX_SESSIONS')),

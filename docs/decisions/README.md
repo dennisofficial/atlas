@@ -34,3 +34,4 @@ says what it supersedes. Tactical choices and decisions that were later reversed
 | [0024](0024-v2-realtime.md)                              | v2 real-time: a WebSocket stream fed by NOTIFY pointers and read by seq; token deltas are a separate Redis channel     |
 | [0025](0025-v2-connection-bound-leases.md)               | v2 leases are held by the host's Postgres connection; the epoch fences, nothing renews                                 |
 | [0026](0026-v2-hosts-pull-sessions.md)                   | v2 hosts pull sessions with `SKIP LOCKED`; a held session is one scope that always settles its lease                   |
+| [0027](0027-both-backends-own-their-work.md)             | The agent host calls the API for nothing: each backend does its own DB/Redis work, and both are NestJS                 |

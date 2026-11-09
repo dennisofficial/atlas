@@ -19,12 +19,20 @@ The private keys are in `.env.keys` (git-ignored, an Atlas Cloud project file mo
 | `DAEMON_SECRET`           | yes      | —                                                               |
 | `SECRETS_ENCRYPTION_KEY`  | yes      | —                                                               |
 | `ATLAS_API_ORIGIN`        | yes      | —                                                               |
+| `CLOUDFLARE_API_TOKEN`    | yes      | —                                                               |
+| `CLOUDFLARE_ACCOUNT_ID`   | yes      | —                                                               |
+| `CLOUDFLARE_ZONE_ID`      | yes      | —                                                               |
+| `PREVIEW_DOMAIN`          | no       | `byatlas.dev`                                                   |
 | `AGENT_HOST_MAX_SESSIONS` | no       | 25                                                              |
 | `AGENT_HOST_DRAIN_MS`     | no       | 270000 (shutdown handoff budget; keep below the platform grace) |
 | `ATLAS_SANDBOX_IMAGE`     | no       | `atlas-sandbox:latest`                                          |
 | `ATLAS_DAEMON_BUNDLE`     | no       | `apps/daemon/bin/daemon.js` relative to this package            |
 | `PORT`                    | no       | 10000 (Render sets it)                                          |
 | `TRUSTED_ORIGINS`         | no       | empty: any Origin; else a comma list                            |
+
+`ATLAS_API_ORIGIN` is handed to each sandbox as `ATLAS_CLOUD_URL` (the v1 serve inside it still
+calls the API); the host itself calls the API for nothing. `CLOUDFLARE_*` is what the host uses to
+mint preview tunnels and DNS routes for `exposePort`.
 
 Missing required vars exit 78 with the names on stderr.
 

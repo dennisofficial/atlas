@@ -13,7 +13,9 @@ describe('main.ts smoke', () => {
         DAEMON_SECRET: '',
         SECRETS_ENCRYPTION_KEY: '',
         ATLAS_API_ORIGIN: '',
-        AGENT_HOST_TOKEN: '',
+        CLOUDFLARE_API_TOKEN: '',
+        CLOUDFLARE_ACCOUNT_ID: '',
+        CLOUDFLARE_ZONE_ID: '',
       },
       stdout: 'pipe',
       stderr: 'pipe',
@@ -26,7 +28,7 @@ describe('main.ts smoke', () => {
     expect(stderr).toContain('DAEMON_SECRET')
     expect(stderr).toContain('SECRETS_ENCRYPTION_KEY')
     expect(stderr).toContain('ATLAS_API_ORIGIN')
-    expect(stderr).toContain('AGENT_HOST_TOKEN')
+    expect(stderr).toContain('CLOUDFLARE_API_TOKEN')
   }, 30_000)
 
   it('exits 78 with the bundle path when the daemon bundle is missing', async () => {
@@ -42,7 +44,9 @@ describe('main.ts smoke', () => {
         DAEMON_SECRET: 'secret',
         SECRETS_ENCRYPTION_KEY: 'a'.repeat(64),
         ATLAS_API_ORIGIN: 'http://127.0.0.1:3000',
-        AGENT_HOST_TOKEN: 'host-token',
+        CLOUDFLARE_API_TOKEN: 'cf-token',
+        CLOUDFLARE_ACCOUNT_ID: 'cf-account',
+        CLOUDFLARE_ZONE_ID: 'cf-zone',
         ATLAS_DAEMON_BUNDLE: missing,
       },
       stdout: 'pipe',

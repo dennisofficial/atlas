@@ -2,7 +2,7 @@ import type { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { ThreadSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/thread-sandbox-credentials.service'
 import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
-import { CloudflareTunnelClient } from '../../api/platform/sandboxes/cloudflare-tunnel.client'
+import { CloudflareTunnelClient } from '@dltech/atlas-previews'
 import { PreviewTunnelService } from '../../api/platform/sandboxes/preview-tunnel.service'
 import { SandboxesService } from '../../api/platform/sandboxes/sandboxes.service'
 import { VercelSandboxClient } from '../../api/platform/sandboxes/vercel-sandbox.client'
@@ -18,7 +18,15 @@ export function buildThreadArchiveCleanupDeps(args: { env: EnvService }): Thread
   )
   const { signals } = buildWorkerThreadSignals({ env })
   const sandboxes = new SandboxesService(vercel, cipher, signals)
-  const previews = new PreviewTunnelService(env, cipher, new CloudflareTunnelClient(env))
+  const previews = new PreviewTunnelService(
+    env,
+    cipher,
+    new CloudflareTunnelClient({
+      apiToken: env.get('CLOUDFLARE_API_TOKEN'),
+      accountId: env.get('CLOUDFLARE_ACCOUNT_ID'),
+      zoneId: env.get('CLOUDFLARE_ZONE_ID'),
+    }),
+  )
   return {
     park: (parkArgs) => sandboxes.park(parkArgs),
     teardownPreviews: (teardownArgs) => previews.teardown(teardownArgs),

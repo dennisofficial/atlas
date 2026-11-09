@@ -9,7 +9,9 @@ const complete: Record<string, string> = {
   DAEMON_SECRET: 'secret',
   SECRETS_ENCRYPTION_KEY: 'k'.repeat(64),
   ATLAS_API_ORIGIN: 'https://api.byatlas.io',
-  AGENT_HOST_TOKEN: 'host-token',
+  CLOUDFLARE_API_TOKEN: 'cf-token',
+  CLOUDFLARE_ACCOUNT_ID: 'cf-account',
+  CLOUDFLARE_ZONE_ID: 'cf-zone',
 }
 
 describe('readAgentHostEnv', () => {
@@ -20,7 +22,12 @@ describe('readAgentHostEnv', () => {
     expect(env.daemonSecret).toBe('secret')
     expect(env.secretsEncryptionKey).toBe('k'.repeat(64))
     expect(env.apiOrigin).toBe('https://api.byatlas.io')
-    expect(env.agentHostToken).toBe('host-token')
+    expect(env.cloudflare).toEqual({
+      apiToken: 'cf-token',
+      accountId: 'cf-account',
+      zoneId: 'cf-zone',
+    })
+    expect(env.previewDomain).toBe('byatlas.dev')
     expect(env.vercelOauth).toBeNull()
     expect(env.mediaBlobToken).toBeNull()
     expect(env.maxSessions).toBe(25)
@@ -86,7 +93,9 @@ describe('readAgentHostEnv', () => {
       'DAEMON_SECRET',
       'SECRETS_ENCRYPTION_KEY',
       'ATLAS_API_ORIGIN',
-      'AGENT_HOST_TOKEN',
+      'CLOUDFLARE_API_TOKEN',
+      'CLOUDFLARE_ACCOUNT_ID',
+      'CLOUDFLARE_ZONE_ID',
     ])
   })
 

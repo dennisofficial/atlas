@@ -29,6 +29,7 @@
         "@dltech/atlas-db": "workspace:*",
         "@dltech/atlas-host": "workspace:*",
         "@dltech/atlas-media": "workspace:*",
+        "@dltech/atlas-memory": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-native-commands": "workspace:*",
         "@dltech/atlas-observability": "workspace:*",
@@ -38,13 +39,17 @@
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
         "@dltech/atlas-plugin-shells": "workspace:*",
+        "@dltech/atlas-previews": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dotenvx/dotenvx": "^1.71.0",
+        "@nestjs/common": "^12.2.0",
+        "@nestjs/core": "^12.2.0",
         "@types/pg": "^8",
         "@vercel/sandbox": "^3.3.0",
         "ai": "^7.0.152",
         "ioredis": "^6.0.0",
         "pg": "8.22.0",
+        "reflect-metadata": "^0.2.2",
         "zod": "^4.4.3",
       },
       "devDependencies": {
@@ -64,6 +69,7 @@
         "@dltech/atlas-db": "workspace:*",
         "@dltech/atlas-harness": "workspace:*",
         "@dltech/atlas-media": "workspace:*",
+        "@dltech/atlas-memory": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-native-commands": "workspace:*",
         "@dltech/atlas-plugin-crew": "workspace:*",
@@ -71,6 +77,7 @@
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
         "@dltech/atlas-plugin-shells": "workspace:*",
+        "@dltech/atlas-previews": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@dotenvx/dotenvx": "^1.71.0",
@@ -596,6 +603,17 @@
         "@types/bun": "latest",
       },
     },
+    "packages/memory": {
+      "name": "@dltech/atlas-memory",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-db": "workspace:*",
+        "@dltech/atlas-wire": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/models": {
       "name": "@dltech/atlas-models",
       "version": "0.1.0",
@@ -628,6 +646,16 @@
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/previews": {
+      "name": "@dltech/atlas-previews",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-db": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -1261,6 +1289,8 @@
 
     "@dltech/atlas-media": ["@dltech/atlas-media@workspace:packages/media"],
 
+    "@dltech/atlas-memory": ["@dltech/atlas-memory@workspace:packages/memory"],
+
     "@dltech/atlas-mobile": ["@dltech/atlas-mobile@workspace:apps/mobile"],
 
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
@@ -1282,6 +1312,8 @@
     "@dltech/atlas-plugin-shells": ["@dltech/atlas-plugin-shells@workspace:plugins/shells"],
 
     "@dltech/atlas-preview-worker": ["@dltech/atlas-preview-worker@workspace:apps/preview-worker"],
+
+    "@dltech/atlas-previews": ["@dltech/atlas-previews@workspace:packages/previews"],
 
     "@dltech/atlas-protocol": ["@dltech/atlas-protocol@workspace:packages/protocol"],
 

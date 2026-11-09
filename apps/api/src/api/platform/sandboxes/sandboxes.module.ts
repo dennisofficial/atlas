@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common'
 import { NotificationsModule } from '../notifications/notifications.module'
 import { ThreadSignalsModule } from '../sessions/thread-signals.module'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { CloudflareTunnelClient } from './cloudflare-tunnel.client'
+import { CloudflareTunnelClient } from '@dltech/atlas-previews'
 import { PreviewTunnelService } from './preview-tunnel.service'
 import { SandboxCheckpointRouter } from './sandbox-checkpoint.router'
 import { SandboxSelfRouter } from './sandbox-self.router'
@@ -25,7 +25,12 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
     PreviewTunnelService,
     {
       provide: CloudflareTunnelClient,
-      useFactory: (env: EnvService) => new CloudflareTunnelClient(env),
+      useFactory: (env: EnvService) =>
+        new CloudflareTunnelClient({
+          apiToken: env.get('CLOUDFLARE_API_TOKEN'),
+          accountId: env.get('CLOUDFLARE_ACCOUNT_ID'),
+          zoneId: env.get('CLOUDFLARE_ZONE_ID'),
+        }),
       inject: [EnvService],
     },
   ],
