@@ -4,6 +4,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { CommandHandlers } from './command-intake'
+import type { PodControlClient } from './pod-control'
 import type { HostBus, HostTimers, SessionRuntimeFactory } from './ports'
 
 export type StartVerdict = { permanent: boolean; giveUp: boolean }
@@ -22,5 +23,6 @@ export type HeldSessionDeps = {
   reasonOfStartError?: ((error: unknown) => string) | undefined
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
+  control?: PodControlClient | undefined
   log?: LogPort | undefined
 }

@@ -29,6 +29,6 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
       inject: [EnvService],
     },
   ],
-  exports: [SandboxesService, SandboxEndpointService, VercelSandboxClient],
+  exports: [SandboxesService, SandboxEndpointService, VercelSandboxClient, PreviewTunnelService],
 })
 export class SandboxesModule {}

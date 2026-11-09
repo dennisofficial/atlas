@@ -4,6 +4,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { newKey } from '../calls/remote-calls'
 import type { HeldSessionDeps } from './held-session-deps'
+import { podControlOf } from './pod-control'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -44,6 +45,7 @@ const contextOf = (args: {
   const { deps, runtime, record, threadId } = args
   return {
     sessionId: deps.sessionId,
+    control: podControlOf({ client: deps.control, threadId }),
     append: async (drafts) => {
       await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
     },

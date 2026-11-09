@@ -11,6 +11,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { HostBus, HostPresence, HostTimers, SessionRuntimeFactory } from './ports'
+import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
 import type { CommandHandlers } from './command-intake'
 import { HeldSession, type HeldSessionDeps } from './held-session'
@@ -36,6 +37,7 @@ export type SessionHolderArgs = {
   reasonOfStartError?: ((error: unknown) => string) | undefined
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
+  control?: PodControlClient | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
 }
@@ -61,6 +63,7 @@ export class SessionHolder {
   private readonly reasonOfStartError: ((error: unknown) => string) | undefined
   private readonly commands: CommandRegistry | undefined
   private readonly commandHandlers: CommandHandlers | undefined
+  private readonly control: PodControlClient | undefined
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
@@ -95,6 +98,7 @@ export class SessionHolder {
     this.reasonOfStartError = args.reasonOfStartError
     this.commands = args.commands
     this.commandHandlers = args.commandHandlers
+    this.control = args.control
     this.log = args.log
     this.settler = new LeaseSettler({
       plane: args.plane,
@@ -276,6 +280,7 @@ export class SessionHolder {
       reasonOfStartError: this.reasonOfStartError,
       commands: this.commands,
       commandHandlers: this.commandHandlers,
+      control: this.control,
       log: this.log,
     }
   }

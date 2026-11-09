@@ -1,3 +1,4 @@
+import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import {
   toThreadId,
   type EventDraft,
@@ -66,6 +67,7 @@ export const rig = () => {
   }
 
   const ctx: PluginPodContext = {
+    control: podControlStub,
     sessionId: 's1',
     append,
     events: () => log,
