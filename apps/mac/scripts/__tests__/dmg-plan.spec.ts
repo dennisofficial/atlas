@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildCreateDmgArgs, dmgNameFor, readSigningEnv } from '../dmg-plan'
+import { buildCreateDmgArgs, dmgArtifactNameFor, dmgNameFor, readSigningEnv } from '../dmg-plan'
 
 const signedEnv = {
   ELECTROBUN_DEVELOPER_ID: 'Developer ID Application: X',
@@ -56,5 +56,22 @@ describe('dmgNameFor', () => {
     expect(dmgNameFor({ channelDir: 'canary-macos-x64', bundleName: 'Atlas' })).toBe(
       'canary-macos-x64-Atlas.dmg',
     )
+  })
+})
+
+describe('dmgArtifactNameFor', () => {
+  test('names the download after the version it carries', () => {
+    expect(
+      dmgArtifactNameFor({
+        channelDir: 'stable-macos-arm64',
+        bundleName: 'Atlas',
+        version: '1.286.0',
+      }),
+    ).toBe('macos-arm64-Atlas-1.286.0.dmg')
+  })
+  test('keeps the channel prefix and the arch it was built for', () => {
+    expect(
+      dmgArtifactNameFor({ channelDir: 'canary-macos-x64', bundleName: 'Atlas', version: '2.0.0' }),
+    ).toBe('canary-macos-x64-Atlas-2.0.0.dmg')
   })
 })

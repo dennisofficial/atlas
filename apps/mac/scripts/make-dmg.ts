@@ -1,7 +1,13 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { buildCreateDmgArgs, dmgNameFor, readSigningEnv, type SigningEnv } from './dmg-plan'
+import {
+  buildCreateDmgArgs,
+  dmgArtifactNameFor,
+  dmgNameFor,
+  readSigningEnv,
+  type SigningEnv,
+} from './dmg-plan'
 
 const appRoot = resolve(import.meta.dir, '..')
 const assets = join(appRoot, 'assets', 'dmg')
@@ -71,8 +77,11 @@ const signing = readSigningEnv({ env: process.env })
 const { channelDir, appName, path: sourceApp } = findApp()
 const artifacts = join(appRoot, 'artifacts')
 mkdirSync(artifacts, { recursive: true })
-const dmgName = dmgNameFor({ channelDir, bundleName: appName.replace(/\.app$/, '') })
-const outputPath = join(artifacts, dmgName)
+const bundleName = appName.replace(/\.app$/, '')
+const dmgName = dmgNameFor({ channelDir, bundleName })
+const version = process.env.ATLAS_VERSION?.trim()
+const artifactName = version ? dmgArtifactNameFor({ channelDir, bundleName, version }) : dmgName
+const outputPath = join(artifacts, artifactName)
 
 const work = mkdtempSync(join(tmpdir(), 'atlas-dmg-'))
 try {
@@ -117,4 +126,5 @@ try {
 
 if (signing) signAndNotarize({ dmg: outputPath, signing })
 else console.log('make-dmg: signing env absent or ATLAS_MAC_UNSIGNED=1; DMG left unsigned')
+if (artifactName !== dmgName) cpSync(outputPath, join(artifacts, dmgName))
 console.log(`make-dmg: wrote ${outputPath}`)
