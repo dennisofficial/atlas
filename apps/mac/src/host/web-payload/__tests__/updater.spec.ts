@@ -43,6 +43,7 @@ function updaterOf(fake: ReturnType<typeof fakePorts>) {
     home: '/home',
     manifestUrl: 'https://example.com/web-update.json',
     contract: 1,
+    appVersion: '1.0.0',
     ports: fake.ports,
   })
 }
@@ -105,6 +106,24 @@ describe('createWebUpdater', () => {
     expect(fake.payloadFs.state().failed).toBe(manifestOf().hash)
     expect(updater.pending()).toBeUndefined()
     expect(await updater.installedRoot()).toBeUndefined()
+  })
+
+  test('ignores a payload installed by a different app version', async () => {
+    const fake = fakePorts({
+      state: { current: manifestOf().hash, appVersion: '0.9.0' },
+      complete: [manifestOf().hash],
+    })
+    const updater = updaterOf(fake)
+    expect(await updater.installedRoot()).toBeUndefined()
+  })
+
+  test('serves a payload installed by this app version', async () => {
+    const fake = fakePorts({
+      state: { current: manifestOf().hash, appVersion: '1.0.0' },
+      complete: [manifestOf().hash],
+    })
+    const updater = updaterOf(fake)
+    expect(await updater.installedRoot()).toBe(manifestOf().hash)
   })
 
   test('prunes payloads the state no longer points at', async () => {

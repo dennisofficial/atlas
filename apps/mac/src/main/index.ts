@@ -82,6 +82,7 @@ const startApp = async () => {
     home,
     manifestUrl: manifestUrlOf({ env: process.env }),
     contract: DESKTOP_CONTRACT,
+    appVersion: localInfo.version,
     ports: {
       fs: bunWebPayloadFs(),
       fetchJson,
