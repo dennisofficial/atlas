@@ -9,6 +9,7 @@ import Electrobun, {
   Utils,
 } from 'electrobun/main'
 import { createDesktopHost } from '../host'
+import { bunPath, startNextServer } from '../host/next-server'
 import { startOnStablePort } from '../host/stable-port'
 import { defaultDesktopHome, podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
@@ -51,10 +52,14 @@ await runLogged(async () => {
   const windowRef: { current?: BrowserWindow } = {}
   const linksRef: { current?: IExternalLinkRouter } = {}
   const home = defaultDesktopHome()
+  const nextServer = await startNextServer({
+    root: join(PATHS.RESOURCES_FOLDER, 'app', 'web', 'apps', 'web'),
+    bunPath: bunPath(),
+  })
   const startHost = (port: number) =>
     createDesktopHost({
       port,
-      webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
+      appOrigin: nextServer.origin,
       secret,
       pods: podConfig,
       app: { version: localInfo.version, channel: localInfo.channel, chromium },
@@ -140,5 +145,6 @@ await runLogged(async () => {
 
   Electrobun.events.on('before-quit', () => {
     void host.stop()
+    void nextServer.stop()
   })
 })

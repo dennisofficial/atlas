@@ -37,7 +37,7 @@ function forwardHeaders({
   bearer,
 }: {
   incoming: Headers
-  bearer: string | undefined
+  bearer?: string | undefined
 }): Headers {
   const headers = new Headers(incoming)
   for (const name of HOP_BY_HOP) headers.delete(name)
@@ -57,6 +57,34 @@ function responseHeaders(upstream: Headers): Headers {
   }
   for (const cookie of upstream.getSetCookie()) headers.append('set-cookie', cookie)
   return headers
+}
+
+export async function proxyToApp({
+  request,
+  appOrigin,
+}: {
+  request: Request
+  appOrigin: string
+}): Promise<Response> {
+  const source = new URL(request.url)
+  const target = `${appOrigin.replace(/\/+$/, '')}${source.pathname}${source.search}`
+  const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
+  try {
+    const upstream = await fetch(target, {
+      method: request.method,
+      headers: forwardHeaders({ incoming: request.headers }),
+      body: hasBody ? request.body : null,
+      redirect: 'manual',
+      signal: request.signal,
+    })
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: responseHeaders(upstream.headers),
+    })
+  } catch {
+    return new Response('Bad Gateway', { status: 502 })
+  }
 }
 
 export async function proxyToApi({

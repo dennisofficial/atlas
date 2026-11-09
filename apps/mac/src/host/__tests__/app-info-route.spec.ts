@@ -8,13 +8,13 @@ let bare: IDesktopHost
 
 beforeAll(() => {
   host = createDesktopHost({
-    webRoot: '/nonexistent',
+    appOrigin: 'http://127.0.0.1:1',
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,
     app: { version: '1.42.0', channel: 'stable', chromium: true },
   })
   bare = createDesktopHost({
-    webRoot: '/nonexistent',
+    appOrigin: 'http://127.0.0.1:1',
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,
   })

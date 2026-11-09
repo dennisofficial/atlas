@@ -1,11 +1,11 @@
 # @dltech/atlas-mac
 
-macOS client: the apps/web static export in an Electrobun window, served by a local Desktop Host on 127.0.0.1 that also proxies `/api/*` and `/v1/*` to the Atlas API (`ATLAS_API_ORIGIN`, default `https://api.byatlas.io`). Sign-in is an RFC 8252 loopback redirect with PKCE: the host opens `${ATLAS_WEB_ORIGIN}/desktop/authorize` (default `https://byatlas.io`) in the system browser, which redirects back to `http://127.0.0.1:<port>/desktop/auth/callback`; the host exchanges the code at the API and stores the bearer.
+macOS client: the apps/web Next build (`output: 'standalone'`) run as a local server on 127.0.0.1 inside the app, fronted by a Desktop Host that proxies `/api/*` and `/v1/*` to the Atlas API (`ATLAS_API_ORIGIN`, default `https://api.byatlas.io`) and everything else to the app server. The app server runs on the app's own Bun runtime, so the packaged app ships no Node. Sign-in is an RFC 8252 loopback redirect with PKCE: the host opens `${ATLAS_WEB_ORIGIN}/desktop/authorize` (default `https://byatlas.io`) in the system browser, which redirects back to `http://127.0.0.1:<port>/desktop/auth/callback`; the host exchanges the code at the API and stores the bearer.
 
 ## Run on a Mac
 
 1. `bun install` at the repo root.
-2. `cd apps/mac && bun run dev` (release bundle: `bun run build:app`) (builds the web export, copies it to `web-out/`, launches the app).
+2. `cd apps/mac && bun run dev` (release bundle: `bun run build:app`) (builds the web app's standalone server into `web-standalone/`, launches the app).
 
 `bun run typecheck` and `bun run test` cover the host and run anywhere. `bun run typecheck:main` checks the Electrobun main process and needs the Hutch devkit.
 

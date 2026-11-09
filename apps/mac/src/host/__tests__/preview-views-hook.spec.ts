@@ -1,20 +1,24 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
 import { createDesktopHost, type IDesktopHost } from '../index'
 
 const SECRET = 'c'.repeat(64)
 const cleared: number[] = []
+let app: ReturnType<typeof Bun.serve>
 let host: IDesktopHost
-let root: string
 
 beforeAll(() => {
-  root = mkdtempSync(join(tmpdir(), 'atlas-preview-views-'))
-  writeFileSync(join(root, 'index.html'), '<!doctype html><title>atlas</title>')
+  app = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    idleTimeout: 0,
+    fetch: () =>
+      new Response('<!doctype html><title>atlas</title>', {
+        headers: { 'content-type': 'text/html' },
+      }),
+  })
   host = createDesktopHost({
-    webRoot: root,
+    appOrigin: `http://127.0.0.1:${app.port}`,
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,
     previewViews: { clear: () => cleared.push(1) },
@@ -23,7 +27,7 @@ beforeAll(() => {
 
 afterAll(async () => {
   await host.stop()
-  rmSync(root, { recursive: true, force: true })
+  await app.stop(true)
 })
 
 describe('preview views across a document load', () => {
