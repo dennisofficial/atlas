@@ -260,14 +260,20 @@ export class ChildRun {
     })
   }
 
-  private async runTurn(text: string): Promise<void> {
+  private async runTurn(text: string | undefined): Promise<void> {
     const signal = this.abort?.signal
     try {
-      const outcome = await this.runner.say({
-        threadId: this.agentId,
-        text,
-        ...(signal === undefined ? {} : { signal }),
-      })
+      const outcome =
+        text === undefined
+          ? await this.runner.runTurn({
+              threadId: this.agentId,
+              ...(signal === undefined ? {} : { signal }),
+            })
+          : await this.runner.say({
+              threadId: this.agentId,
+              text,
+              ...(signal === undefined ? {} : { signal }),
+            })
       await this.drainQueued(signal)
       await this.settle(outcome)
     } catch (error) {
@@ -276,6 +282,23 @@ export class ChildRun {
       this.running = false
       this.abort = undefined
     }
+    await this.followQueued()
+  }
+
+  private async followQueued(): Promise<void> {
+    const signal = this.args.signal
+    if (signal.aborted) return
+    const state = await this.record.loopState({ threadId: this.agentId })
+    if (!awaitsReplyOf(state)) return
+    this.ending = undefined
+    this.endedAt = undefined
+    this.killedBy = undefined
+    this.failure = undefined
+    this.reported = false
+    await this.announceRestart()
+    this.running = true
+    this.abort = new AbortController()
+    await this.runTurn(undefined)
   }
 
   private async drainQueued(signal: AbortSignal | undefined): Promise<void> {
