@@ -39,6 +39,17 @@ _Updated at the end of every slice. Last update: 2026-11-09._
   over a new `PodControl.memory` port that the host answers on `hostMemory.*` with
   `AGENT_HOST_TOKEN` — a v2 cloud pod has no user token, so memory cannot use the v1 route (spec
   §8.7). No events, no view: memory is per-user state, not session history.
+- **`plugins/crew` live-checked on production (2026-11-09)**: a v2 session spawns a sub-agent that
+  runs on its own thread, reports, and wakes the parent, and a second child proves it has no
+  `subscribe` and no memory tools (spec §8.8, session `ccdf548d-9092-49f7-8378-532f6aacf703`). The
+  seam is a local `PluginPodContext.crew` port — children run in the agent host under the parent's
+  lease, with no hop to the API — and `PodSlot.childDeny` carries ADR 0020's deny list. A reviewer
+  round found eight defects in the pump (a swallowed mid-call message, self-restarting failures, two
+  runners for one child, unfenced child records, a progress report suppressing the completion, an
+  idle release under a live child, `subscribe` reaching children, and listeners outliving a child),
+  all fixed before the merge.
+- **Slice 7 PR 9, `plugins/crew`** (`dennis/crew-plugin`, #2079): the five sub-agent tools, the
+  `crew` view and the child-run supervisor. Worktree tools and the web panel are 1b.
 - **The web preview list** (`dennis/web-previews`, #2063): a session's published previews show in web
   as a header chip opening a list of their public URLs. It reads the `services` view, not the CP's
   tunnel tables — the view is what streams and what knows whether the service is up (spec §8.6).

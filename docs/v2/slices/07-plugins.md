@@ -732,6 +732,87 @@ what was sent and the URL, which is why nothing short of the live check caught i
 the tip of `main`, so the fix went out with a later merge (#2074's build) rather than a deploy of
 `76c1f54b3` itself.
 
+### 8.8 `plugins/crew`
+
+Shipped: `plugins/crew` (`@dltech/atlas-plugin-crew`, `/core` `/pod` `/control` `/client`), registered
+in `apps/agent-host`, `apps/api` and `apps/web`; the five tools `agent_spawn`, `agent_say`,
+`agent_stop`, `agent_list`, `report_to_main`; the `crew` view (roster, standing, last report) folded
+from the foundation `agent-*` events; `transport: 'none'`.
+
+**A child is a v2 thread of the same session with its own `SessionRecord`.** One thread cannot hold
+two agents: `messagesFromEvents` renders every message of a thread, so a child sharing the parent's
+thread would put its turns in the parent's context. The child appends its turns to its own thread;
+only its lifecycle rows (`agent-spawned` / `agent-restarted` / `agent-reported` / `agent-ended`) and
+the report message go on the parent thread, which is the one `sessions.events` and the session
+stream read. Live child output is deferred: §5.5 makes the crew `stream` transport conditional on the
+panel, and the stream follows `mainThreadId` only.
+
+**The seam is a local port, not a control-plane one.** `PluginPodContext.crew`
+(`packages/plugin-sdk/src/crew.ts`: `spawn` / `say` / `stop` / `list` / `report`), implemented by
+`CrewRoom` and `ChildRun` in `packages/host/src/holder/crew/`. A child runs in the agent host under
+the parent's lease and drive — no hop to `api.byatlas.io` (the 2026-11-09 direction), and no second
+host-token route. The parent's own record writes the child's lifecycle rows, because two
+`SessionRecord`s for one thread would race the head. A report reaches the parent's **model** as an
+inbox message (`plane.post`): that is the only thing that starts a turn in v2, and it wakes the
+session through `notifyWake`.
+
+**The deny list is a slot.** New optional `PodSlot.childDeny`, unioned by `composePod`: memory
+declares its four tools, crew its four orchestration tools, github `subscribe` and `unsubscribe`
+(ADR 0020 decision 2). A child keeps `report_to_main`, `list_subscriptions` and the worktree tools,
+and the host still names no plugin. `ctx.crew`'s own port refuses spawn/say/stop inside a child as a
+second line of defence.
+
+**The agent lifecycle events stay foundation events** (like `worktree-*`): `core`'s `agentRoster` /
+`agentProgress` and `agent`'s `settle-pending` / `lostAgentEnding` record a crashed child's ending,
+which is harness machinery rather than plugin behaviour. Revisit at v1 retirement (slice 10). The
+crew plugin contributes the tools, the supervisor and the view — see the round's decisions file.
+
+**One pump owns a child.** `agent_say` appends to the child's `ChildIntake`, which the loop drains at
+each **model-step boundary** (`packages/agent/src/loop/pending-intake.ts:35`), the same hook v1
+steering uses — appending `user-said` directly would land after the assembled prompt and be
+swallowed. A failed or interrupted turn never restarts a child; an explicit `agent_say` does, and
+announces `agent-restarted` first. Child records take the parent's `onLeaseLost` (which aborts the
+child) and `drainDeadline`, and a running child counts in `serveIdleDue`'s `runningChildren`, so a
+long child cannot meet the idle deadline out from under the session.
+
+Specs: `packages/host/src/holder/__tests__/crew.spec.ts` (a real holder: spawn through a plugin tool,
+the child's own turn, the report and its wake, the denied tool absent from the child's request),
+`.../crew-pump.spec.ts` (queued message reaches the child; a failed child does not restart; a
+`progress` report neither wakes nor suppresses the completion),
+`plugins/crew/src/core/__tests__/roster.spec.ts`, `.../pod/__tests__/tools.spec.ts`,
+`apps/agent-host/src/__tests__/registered-plugins.spec.ts`.
+
+**Live check (2026-11-09, production).** Session `ccdf548d-9092-49f7-8378-532f6aacf703`, agent host on
+the tip of `main` (`c0d453d1`, whose sandbox cloned the same head).
+
+| Step                                            | Result                                                                                                                                                                                                    |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the session's declared tools                    | `agent_spawn`, `agent_say`, `agent_stop`, `agent_list`, `report_to_main` beside `read`/`write`/`edit`/`multi_edit`/`grep`/`glob`, `bash` + `shell*`, `service*`, the four memory tools and `subscribe`    |
+| `agent_spawn` general-purpose, "live check"     | `Started a sub-agent.\nbrn_9d066b72-…  general-purpose  live check\nIt runs in the background, and hands you its answer the moment it stops.`; `agent-spawned` on the main thread                         |
+| the child runs `hostname; pwd`, then reports    | `agent-reported` kind `done`: `Done. Ran \`hostname; pwd\` … 31fa73bc-d0b / /atlas/workspaces/workspace`                                                                                                  |
+| the child's own thread                          | its own rows: `user-said` 1, `assistant-said` 1, `tool-called` 2 (bash, report_to_main), `tool-result` 2, `tool-dispatched` 2                                                                             |
+| the wake                                        | the report arrived as a `user-said` on the main thread — `Sub-agent brn_9d066b72-… (general-purpose, "live check") reported done. …` — and the parent's next turn quoted the two lines back               |
+| `agent-ended`                                   | `status finished, turns 1, toolCalls 2`, prose the report                                                                                                                                                 |
+| deny check (a second child told to `subscribe`) | `Could not do it: there is no \`subscribe\` tool in this session's toolset.`It listed`list_subscriptions`(read-only) and`report_to_main`, no memory tools; `agent-ended` `finished, turns 2, toolCalls 2` |
+| teardown                                        | both sessions archived, temporary `AuthSession` deleted                                                                                                                                                   |
+
+**The trap the first run found.** The first session (`e3049556-…`) was served by a **stale
+pre-deploy agent-host instance** although the deploy carrying the slice was already `live`: its tool
+list held every other plugin's tools and no crew tool at all, so the model ran `hostname; pwd` itself.
+A second session on the same build was correct. The tell is the head the sandbox cloned
+(`30d96bf67` there, `c0d453d1` on the good run) — record it in the live check, and re-run rather than
+debugging the plugin when exactly the new plugin's tools are the missing ones.
+
+**Known limit.** A child's hook chain sees the whole session's daemon frames, so a parent shell's
+ending is also appended to the child's own (unmerged) log. The frame carries no owner, so routing it
+needs the daemon to say whose unit it is; the child's listeners are disposed when its pump ends, which
+bounds the leak.
+
+**Not built (1b).** The worktree tools (`enter_worktree`, `exit_worktree`, `worktree_list`) and
+`agent_spawn.worktree` (ADR 0020 decision 1), and the web crew panel. The rest of §5.5's proof — a
+child that enters a worktree, edits, commits and reports, and a parent that removes the worktree —
+therefore runs with 1b.
+
 ## 9. Answers (2026-11-08)
 
 1. **Order and packaging.** As recommended in §3: the contract, then github (subscriptions inside one
