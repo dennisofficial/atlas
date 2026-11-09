@@ -7,8 +7,12 @@ import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { createSession } from '../../composer/create-session'
+import { EffortSelect, FastToggle } from '../../composer/model-controls'
+import { effortChoicesOf, type IModelSelection, selectionOf } from '../../composer/model-options'
+import { ModelSelect } from '../../composer/model-picker'
 import type { IProjectOption } from '../../composer/project-options'
 import { ProjectSelect } from '../../composer/project-select'
+import { useModels } from '../../composer/use-models'
 import { Composer } from '../../thread/composer/composer'
 
 export default function NewSessionScreen() {
@@ -17,6 +21,12 @@ export default function NewSessionScreen() {
   const { project } = useLocalSearchParams<{ project?: string }>()
   const [projects, setProjects] = useState<IProjectOption[]>([])
   const [projectId, setProjectId] = useState<string | null>(project ?? null)
+  const [modelId, setModelId] = useState<string | null>(null)
+  const [effort, setEffort] = useState<string | null>(null)
+  const [fast, setFast] = useState(false)
+  const { models } = useModels()
+  const selection = selectionOf({ models, modelId, effort, fast })
+  const efforts = effortChoicesOf(selection)
 
   useEffect(() => {
     if (api === undefined) return
@@ -30,13 +40,30 @@ export default function NewSessionScreen() {
     })
   }, [api])
 
+  const handleModelSelect = (next: IModelSelection) => {
+    setModelId(next.model.id)
+    setEffort(next.effort)
+    setFast(next.fast)
+  }
+
+  const handleEffortSelect = (name: string) => setEffort(name)
+
+  const handleFastToggle = (next: boolean) => setFast(next)
+
   const handleSend = async (message: {
     text: string
     attachments: Attachment[]
   }): Promise<boolean> => {
     if (api === undefined || projectId === null) return false
     try {
-      const id = await createSession({ api, projectId, text: message.text })
+      const id = await createSession({
+        api,
+        projectId,
+        text: message.text,
+        model: selection?.model.id,
+        effort: selection?.effort,
+        fast: selection?.fast,
+      })
       router.replace({ pathname: '/sessions/[id]', params: { id } })
       return true
     } catch {
@@ -61,7 +88,15 @@ export default function NewSessionScreen() {
           placeholder="Describe a task for Atlas…"
           onSend={handleSend}
         >
-          <View style={styles.project}>
+          <View style={styles.footer}>
+            <ModelSelect models={models} selection={selection} onSelect={handleModelSelect} />
+            {selection === null || efforts.length === 0 ? null : (
+              <EffortSelect selection={selection} onChange={handleEffortSelect} />
+            )}
+            {selection?.model.fast === true ? (
+              <FastToggle selection={selection} onToggle={handleFastToggle} />
+            ) : null}
+            <View style={styles.spacer} />
             <ProjectSelect
               projects={projects}
               projectId={projectId}
@@ -87,9 +122,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: space(4),
     textAlign: 'center',
   },
-  project: {
+  footer: {
+    alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    gap: space(1.5),
+    minWidth: 0,
+  },
+  spacer: {
+    flex: 1,
   },
 })

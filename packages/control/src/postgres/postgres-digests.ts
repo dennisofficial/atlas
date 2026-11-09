@@ -15,6 +15,7 @@ export const sessionDigestsIn = async (
   const rows = await params.tx.query(
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
+        s."modelRef", s."modelEffort", s."modelFast",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
         first."text" AS "firstMessageText", first."postedAt" AS "firstMessageAt"
@@ -38,6 +39,9 @@ export const sessionDigestsIn = async (
         mainThreadId: 'pg/text@1',
         createdAt: 'pg/timestamptz-date@1',
         archivedAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
+        modelRef: { codecId: 'pg/text@1', nullable: true },
+        modelEffort: { codecId: 'pg/text@1', nullable: true },
+        modelFast: { codecId: 'pg/bool@1', nullable: true },
         lastEventAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
         firstMessageText: { codecId: 'pg/text@1', nullable: true },
         firstMessageAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
@@ -52,6 +56,9 @@ export const sessionDigestsIn = async (
     mainThreadId: row.mainThreadId,
     createdAt: iso(row.createdAt),
     archivedAt: row.archivedAt === null ? null : iso(row.archivedAt),
+    modelRef: row.modelRef,
+    modelEffort: row.modelEffort,
+    modelFast: row.modelFast,
     lastEventAt: row.lastEventAt === null ? null : iso(row.lastEventAt),
     firstMessageText: row.firstMessageText,
     firstMessageAt: row.firstMessageAt === null ? null : iso(row.firstMessageAt),

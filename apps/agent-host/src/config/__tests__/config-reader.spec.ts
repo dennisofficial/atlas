@@ -55,6 +55,29 @@ describe('ConfigReader', () => {
     })
   })
 
+  it('runs the model the session names, over the configured default', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedVercel(db)
+    await seedApiKeyAccount(db)
+    await seedApiKeyAccount({ db, id: 'acct-2', provider: 'openai', apiKey: 'sk-openai' })
+    await seedSetting({ db, scope: 'user', value: 'anthropic/claude-sonnet-4-5' })
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+      modelRef: 'openai/gpt-5',
+      modelEffort: 'low',
+      modelFast: true,
+    })
+    const config = await readerOver().read({ sessionId: 's-1' })
+    expect(config.model).toEqual({
+      configured: true,
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      effort: EEffort.Low,
+      fast: true,
+      accountId: 'acct-2',
+      credential: { kind: 'api-key', apiKey: 'sk-openai' },
+    })
+  })
+
   it('lets a project setting override the user model and falls back to the shipped default', async () => {
     const { db } = testDb()
     await seedOwner(db)

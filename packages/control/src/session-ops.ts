@@ -8,6 +8,9 @@ export const createSessionIn = async (params: {
   projectId: string
   title?: string | undefined
   mainThreadId: string
+  modelRef?: string | undefined
+  modelEffort?: string | undefined
+  modelFast?: boolean | undefined
   at: string
 }): Promise<void> => {
   const { tx, ...session } = params

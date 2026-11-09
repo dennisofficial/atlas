@@ -1,0 +1,158 @@
+[
+  {
+    "id": "column.v2.V2Session.modelEffort",
+    "label": "Add column \"modelEffort\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "modelEffort",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"modelEffort\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelEffort"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"modelEffort\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"modelEffort\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"modelEffort\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelEffort"
+        ]
+      },
+      {
+        "description": "verify column \"modelEffort\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelEffort",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.modelFast",
+    "label": "Add column \"modelFast\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "modelFast",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"modelFast\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelFast"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"modelFast\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"modelFast\" bool"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"modelFast\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelFast"
+        ]
+      },
+      {
+        "description": "verify column \"modelFast\" has type \"boolean\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelFast",
+          "boolean"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.modelRef",
+    "label": "Add column \"modelRef\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "modelRef",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"modelRef\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelRef"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"modelRef\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"modelRef\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"modelRef\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelRef"
+        ]
+      },
+      {
+        "description": "verify column \"modelRef\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelRef",
+          "text"
+        ]
+      }
+    ]
+  }
+]

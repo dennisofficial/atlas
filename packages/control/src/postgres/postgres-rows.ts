@@ -37,6 +37,9 @@ export const toSessionRow = (row: {
   mainThreadId: string
   createdAt: Date
   archivedAt: Date | null
+  modelRef: string | null
+  modelEffort: string | null
+  modelFast: boolean | null
 }): ControlSessionRow => ({
   sessionId: row.id,
   userId: row.userId,
@@ -45,6 +48,9 @@ export const toSessionRow = (row: {
   mainThreadId: row.mainThreadId,
   createdAt: iso(row.createdAt),
   archivedAt: row.archivedAt === null ? null : iso(row.archivedAt),
+  modelRef: row.modelRef,
+  modelEffort: row.modelEffort,
+  modelFast: row.modelFast,
 })
 
 export const toThreadRow = (row: {

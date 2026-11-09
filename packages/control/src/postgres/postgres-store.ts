@@ -85,6 +85,9 @@ class PostgresTx implements ControlTx {
     projectId: string
     title?: string | undefined
     mainThreadId: string
+    modelRef?: string | undefined
+    modelEffort?: string | undefined
+    modelFast?: boolean | undefined
     at: string
   }): Promise<void> {
     await createSessionIn({ tx: this.tx, ...params })

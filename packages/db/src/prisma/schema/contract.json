@@ -8423,6 +8423,27 @@
                   "kind": "scalar"
                 }
               },
+              "modelEffort": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "modelFast": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "modelRef": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "nextInboxId": {
                 "nullable": false,
                 "type": {
@@ -8551,6 +8572,15 @@
                 },
                 "mainThreadId": {
                   "column": "mainThreadId"
+                },
+                "modelEffort": {
+                  "column": "modelEffort"
+                },
+                "modelFast": {
+                  "column": "modelFast"
+                },
+                "modelRef": {
+                  "column": "modelRef"
                 },
                 "nextInboxId": {
                   "column": "nextInboxId"
@@ -15059,6 +15089,21 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "modelEffort": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "modelFast": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "nullable": true
+                },
+                "modelRef": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "nextInboxId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -15321,7 +15366,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "3cee99d03ca9d56e0df37d3506d1cbb4066c6b0fdcf1859dd5ef45b20e50cc5e"
+    "storageHash": "7d575a2f90a2bd1fc58e196fe37784b57392947281b09cba18ca680cb3714c04"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

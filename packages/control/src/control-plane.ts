@@ -80,6 +80,9 @@ export class ControlPlane {
     projectId: string
     title?: string | undefined
     mainThreadId: string
+    modelRef?: string | undefined
+    modelEffort?: string | undefined
+    modelFast?: boolean | undefined
   }): Promise<void> {
     await this.store.transact(async (tx) =>
       createSessionIn({ tx, ...params, at: await this.nowIn(tx) }),

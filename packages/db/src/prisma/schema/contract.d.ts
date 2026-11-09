@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'3cee99d03ca9d56e0df37d3506d1cbb4066c6b0fdcf1859dd5ef45b20e50cc5e'>;
+  StorageHashBase<'7d575a2f90a2bd1fc58e196fe37784b57392947281b09cba18ca680cb3714c04'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1159,6 +1159,9 @@ export namespace Models {
     createdAt: FieldOutputTypes['v2']['V2Session']['createdAt'];
     id: FieldOutputTypes['v2']['V2Session']['id'];
     mainThreadId: FieldOutputTypes['v2']['V2Session']['mainThreadId'];
+    modelEffort: FieldOutputTypes['v2']['V2Session']['modelEffort'];
+    modelFast: FieldOutputTypes['v2']['V2Session']['modelFast'];
+    modelRef: FieldOutputTypes['v2']['V2Session']['modelRef'];
     nextInboxId: FieldOutputTypes['v2']['V2Session']['nextInboxId'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
     title: FieldOutputTypes['v2']['V2Session']['title'];
@@ -6498,6 +6501,24 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly modelEffort: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly modelFast: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly modelRef: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly nextInboxId: {
@@ -12030,6 +12051,18 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly modelEffort: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly modelFast: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly modelRef: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly nextInboxId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
@@ -12112,6 +12145,9 @@ type ContractBase = Omit<
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly id: { readonly column: 'id' };
                 readonly mainThreadId: { readonly column: 'mainThreadId' };
+                readonly modelEffort: { readonly column: 'modelEffort' };
+                readonly modelFast: { readonly column: 'modelFast' };
+                readonly modelRef: { readonly column: 'modelRef' };
                 readonly nextInboxId: { readonly column: 'nextInboxId' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly title: { readonly column: 'title' };

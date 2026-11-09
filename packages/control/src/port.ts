@@ -11,6 +11,9 @@ export type ControlSessionRow = {
   mainThreadId: string
   createdAt: string
   archivedAt: string | null
+  modelRef: string | null
+  modelEffort: string | null
+  modelFast: boolean | null
 }
 
 export type SessionListParams = {
@@ -125,6 +128,9 @@ export interface ControlTx {
     projectId: string
     title?: string | undefined
     mainThreadId: string
+    modelRef?: string | undefined
+    modelEffort?: string | undefined
+    modelFast?: boolean | undefined
     at: string
   }): Promise<void>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>

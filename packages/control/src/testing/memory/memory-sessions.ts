@@ -77,6 +77,9 @@ export const createSessionIn = (params: {
   projectId: string
   title?: string | undefined
   mainThreadId: string
+  modelRef?: string | undefined
+  modelEffort?: string | undefined
+  modelFast?: boolean | undefined
   at: string
 }): void => {
   const { state } = params
@@ -91,6 +94,9 @@ export const createSessionIn = (params: {
     archivedAt: null,
     nextInboxId: 1,
     titledFromInboxId: null,
+    modelRef: params.modelRef ?? null,
+    modelEffort: params.modelEffort ?? null,
+    modelFast: params.modelFast ?? null,
   })
   state.leases.set(params.sessionId, {
     sessionId: params.sessionId,

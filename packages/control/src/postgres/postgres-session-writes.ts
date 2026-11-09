@@ -10,6 +10,9 @@ export const createSessionIn = async (params: {
   projectId: string
   title?: string | undefined
   mainThreadId: string
+  modelRef?: string | undefined
+  modelEffort?: string | undefined
+  modelFast?: boolean | undefined
   at: string
 }): Promise<void> => {
   await params.tx.orm.v2.V2Session.create({
@@ -22,6 +25,9 @@ export const createSessionIn = async (params: {
     nextInboxId: 1,
     createdAt: new Date(params.at),
     archivedAt: null,
+    modelRef: params.modelRef ?? null,
+    modelEffort: params.modelEffort ?? null,
+    modelFast: params.modelFast ?? null,
   })
   await params.tx.orm.v2.V2Lease.create({
     sessionId: params.sessionId,

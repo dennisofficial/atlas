@@ -33,6 +33,21 @@ describe('SessionsService', () => {
     expect(events.events).toEqual([])
   })
 
+  it('creates the session on the model the caller names', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      model: 'openai/gpt-5',
+      effort: 'high',
+      fast: true,
+    })
+    const row = await plane.readSession({ sessionId: created.sessionId })
+    expect(row?.modelRef).toBe('openai/gpt-5')
+    expect(row?.modelEffort).toBe('high')
+    expect(row?.modelFast).toBe(true)
+  })
+
   it('reports the last event time of a session', async () => {
     const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a', title: 'Kept' })
