@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     paddingTop: space(1),
   },
   item: {
-    paddingVertical: space(3),
+    paddingVertical: space(1.5),
   },
   empty: {
     alignItems: 'center',

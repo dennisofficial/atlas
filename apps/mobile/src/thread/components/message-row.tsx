@@ -14,18 +14,20 @@ import { clockTimeOf } from '../../lib/clock-time'
 import { EMessageAuthor, type MessageRow } from '../rows'
 import { MessageAttachments } from './message-attachments'
 
-const Timestamp = ({ at }: { at: string | undefined }) => {
+const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end' }) => {
   const clock = clockTimeOf(at)
   if (clock === undefined) return null
   return (
-    <Text
-      size={ETextRole.Xs}
-      weight={EFontWeight.Medium}
-      tone={ETextTone.Muted}
-      style={styles.timestamp}
-    >
-      {clock}
-    </Text>
+    <MessageFooter align={align ?? 'start'}>
+      <Text
+        size={ETextRole.Xs}
+        weight={EFontWeight.Medium}
+        tone={ETextTone.Muted}
+        style={styles.timestamp}
+      >
+        {clock}
+      </Text>
+    </MessageFooter>
   )
 }
 
@@ -40,9 +42,7 @@ export const MessageRowView = ({
     return (
       <View style={styles.message}>
         <Markdown value={row.text} selectable />
-        <MessageFooter>
-          <Timestamp at={row.at} />
-        </MessageFooter>
+        <SentAt at={row.at} />
       </View>
     )
   }
@@ -55,20 +55,18 @@ export const MessageRowView = ({
           <Markdown value={row.text} breaks selectable />
         </Bubble>
       ) : null}
-      <MessageFooter align="end">
-        <Timestamp at={row.at} />
-      </MessageFooter>
+      <SentAt at={row.at} align="end" />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   message: {
-    gap: space(2.5),
+    gap: space(2),
   },
   you: {
     alignItems: 'flex-end',
-    gap: space(2.5),
+    gap: space(2),
   },
   timestamp: {
     fontVariant: ['tabular-nums'],
