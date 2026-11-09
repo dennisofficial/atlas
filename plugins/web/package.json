@@ -1,0 +1,29 @@
+{
+  "name": "@dltech/atlas-plugin-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./core": "./src/core/index.ts",
+    "./pod": "./src/pod/index.ts",
+    "./control": "./src/control/index.ts",
+    "./client": "./src/client/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-plugin-sdk": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
+    "htmlparser2": "^12.0.0",
+    "pdfjs-dist": "^6.5.438",
+    "turndown": "^7.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/turndown": "^5.0.6"
+  }
+}

@@ -21,6 +21,10 @@ import { shellsPod } from '@dltech/atlas-plugin-shells/pod'
 import { sessionsControl } from '@dltech/atlas-plugin-sessions/control'
 import { sessionsCoreSlots } from '@dltech/atlas-plugin-sessions/core'
 import { sessionsPod } from '@dltech/atlas-plugin-sessions/pod'
+import { webClient } from '@dltech/atlas-plugin-web/client'
+import { webControl } from '@dltech/atlas-plugin-web/control'
+import { webCoreSlots } from '@dltech/atlas-plugin-web/core'
+import { webPod } from '@dltech/atlas-plugin-web/pod'
 
 export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
@@ -69,6 +73,14 @@ export const registeredPlugins: readonly Plugin[] = [
     pod: sessionsPod,
     control: sessionsControl,
     client: { hooks: [] },
+    transport: 'none',
+  }),
+  definePlugin({
+    name: 'web',
+    ...webCoreSlots,
+    pod: webPod,
+    control: webControl,
+    client: webClient,
     transport: 'none',
   }),
 ]
