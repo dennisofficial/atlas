@@ -27,6 +27,9 @@ _Updated at the end of every slice. Last update: 2026-11-09._
   over a new `PodControl.memory` port that the host answers on `hostMemory.*` with
   `AGENT_HOST_TOKEN` — a v2 cloud pod has no user token, so memory cannot use the v1 route (spec
   §8.7). No events, no view: memory is per-user state, not session history.
+- **The web preview list** (`dennis/web-previews`, #2063): a session's published previews show in web
+  as a header chip opening a list of their public URLs. It reads the `services` view, not the CP's
+  tunnel tables — the view is what streams and what knows whether the service is up (spec §8.6).
 - **Slice 7 PR 6, services part 2 — previews** (`dennis/service-previews`, #2058): the host publishes a
   service through `ctx.control.exposePort`, the daemon runs cloudflared with the returned token,
   `service-started` carries the `url`, and a stop takes it down. Live-checked on production

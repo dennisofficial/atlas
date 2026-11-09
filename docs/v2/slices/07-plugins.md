@@ -650,9 +650,28 @@ Two things the first runs found, both fixed:
   few seconds later answered `200`. Do not read the first non-200 as a failure — retry before
   concluding the tunnel is down (and `530` is the shape of "it really is down").
 
-Not in this slice: the web preview list, portal pages, custom domains, and streaming the tunnel's
-logs. The `portals`/`portal` declaration fields are accepted but only their presence is used, since a
+Not in this slice: portal pages, custom domains, and streaming the tunnel's logs. The
+`portals`/`portal` declaration fields are accepted but only their presence is used, since a
 tunnel needs a port to point at.
+
+### 8.6 the web preview list
+
+The previews a session publishes are now visible in web, and the list reads the **session view**,
+not the CP's tunnel tables: the `services` view streams to the browser and moves with
+`service-started`/`service-ended`, where a `PreviewRoute` row says a tunnel exists but not that a
+service is up, so a list built on it would need a poll, a new router procedure and a second auth
+path anyway. `PreviewTunnel`/`PreviewRoute` stay infrastructure.
+- `plugins/services/src/client/index.ts`: `servicesOfView`, `PreviewItem` and `previewsOfView` — the
+  running rows that carry a `url`, labelled `name ?? command` (28 chars, `…`), sorted by port and
+  deduped per port (a restart gets a new `serviceId`).
+- `apps/web`: `SessionViewModel.previews`, a header chip (`data-session-previews`) whose title lists
+  `label:port`, opening a popover of `PreviewLinks` — one link per preview to its public URL. A
+  row shows the label and `:port`; the link's `title` is the URL. A stopped service leaves the list
+  even though its URL survives (and answers `530`).
+
+Specs: `plugins/services/src/client/__tests__/client.spec.ts`,
+`apps/web/src/features/sessions/data/__tests__/session-view-model.spec.ts`,
+`apps/web/src/features/sessions/__tests__/session-header.spec.tsx`.
 
 ### 8.7 `plugins/memory`
 
@@ -668,8 +687,10 @@ slice 9. §5.4's "the v1 API route until cutover" therefore became a host-token 
 guarded by `HostTokenMiddleware`, resolving the owner and the project from the thread's
 `v2.V2Session` → `Project.repo`. It lives in `cloud/memories` because `platform` may not import
 `cloud` (the architecture spec). The seam is one `PodControl.memory` port
-(`packages/plugin-sdk/src/slots.ts`) implemented by `podControlOf` and the agent host's
-`podControlClientOf`, so at cutover the CP handlers change and the plugin does not.
+(`packages/plugin-sdk/src/memory.ts`, over the SDK's own memory types so neither the host nor the
+agent host imports the v1 wire package the split guard forbids) implemented by `podControlOf` and
+the agent host's `podControlClientOf`, so at cutover the CP handlers change and the plugin does
+not.
 
 **The index is a system block, not a prompt fragment.** A plugin's `prompts` array is composed once
 per app, so it cannot carry per-session state; a volatile fragment is an `apps/agent-host` class a

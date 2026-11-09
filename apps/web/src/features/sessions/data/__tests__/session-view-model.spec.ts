@@ -158,6 +158,7 @@ describe('sessionViewModelOf', () => {
       entries: [],
       subscriptions: [],
       shells: { running: 0, awaitingInput: false, labels: [] },
+      previews: [],
       context: null,
       spend: null,
     })
@@ -218,5 +219,23 @@ describe('sessionViewModelOf', () => {
     const ended = { ...shell, shellId: 'sh2', name: 'build', status: 'exited' }
     const model = sessionViewModelOf(viewOf({ pluginViews: { shells: [shell, ended] } }))
     expect(model.shells).toEqual({ running: 1, awaitingInput: true, labels: ['dev server'] })
+  })
+
+  it('lists the published services from the plugin view as previews', () => {
+    const live = {
+      serviceId: 'svc1',
+      name: 'web',
+      command: 'bun run dev',
+      port: 4321,
+      url: 'https://4321-abc.byatlas.dev',
+      status: 'running',
+      ready: true,
+      changedAt: '2026-11-09T10:00:00.000Z',
+    }
+    const stopped = { ...live, serviceId: 'svc2', port: 4322, status: 'killed' }
+    const model = sessionViewModelOf(viewOf({ pluginViews: { services: [live, stopped] } }))
+    expect(model.previews).toEqual([
+      { serviceId: 'svc1', label: 'web', port: 4321, url: 'https://4321-abc.byatlas.dev' },
+    ])
   })
 })

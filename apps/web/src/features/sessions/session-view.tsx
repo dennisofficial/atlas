@@ -164,6 +164,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           entries={model.entries}
           subscriptions={model.subscriptions}
           shells={model.shells}
+          previews={model.previews}
         />
         <div className="min-h-0 flex-1">
           <ThreadTranscript
