@@ -21,7 +21,12 @@ import type { CallContext, DaemonGroup, RegisteredOp } from '@dltech/atlas-proto
 
 import { previewsGroup } from '..'
 
-const SCRIPT = ['#!/bin/sh', 'printf "%s\\n" "$@" > "$ARGV_PATH"', 'sleep 60'].join('\n')
+const SCRIPT = [
+  '#!/bin/sh',
+  'printf "%s\\n" "$@" > "$ARGV_PATH"',
+  'printf "%s" "$TUNNEL_TOKEN" > "$TOKEN_PATH"',
+  'sleep 60',
+].join('\n')
 
 const CTX: CallContext = {
   key: 'k',
@@ -56,16 +61,18 @@ const alive = (pid: number): boolean => {
 describe('previews ops', () => {
   let dir: string
   let argvPath: string
+  let tokenPath: string
   let group: DaemonGroup
 
   const groupWith = (path: string): DaemonGroup =>
-    previewsGroup({ env: { PATH: path, ARGV_PATH: argvPath }, home: dir })({
+    previewsGroup({ env: { PATH: path, ARGV_PATH: argvPath, TOKEN_PATH: tokenPath }, home: dir })({
       publish: () => undefined,
     })
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'atlas-previews-'))
     argvPath = join(dir, 'argv.txt')
+    tokenPath = join(dir, 'token.txt')
     const bin = join(dir, 'bin')
     mkdirSync(bin)
     const script = join(bin, 'cloudflared')
@@ -82,7 +89,7 @@ describe('previews ops', () => {
   const exposed = async (port: number, tunnelToken: string): Promise<PreviewInfo> =>
     (await runOp(group, { op: 'previews.expose', port, tunnelToken })) as PreviewInfo
 
-  it('starts cloudflared with the token only in its argv', async () => {
+  it('starts cloudflared with the token only in its environment', async () => {
     const info = await exposed(3000, 'secret-token')
     expect(info.port).toBe(3000)
     expect(info.pid).toBeGreaterThan(0)
@@ -92,11 +99,11 @@ describe('previews ops', () => {
       'tunnel',
       '--no-autoupdate',
       'run',
-      '--token',
-      'secret-token',
       '--url',
       'http://127.0.0.1:3000',
     ])
+    expect(argv).not.toContain('secret-token')
+    expect(await waitForFile(tokenPath)).toBe('secret-token')
   })
 
   it('replaces a running preview for the same port', async () => {

@@ -49,17 +49,8 @@ export const previewsGroup =
       let child: ManagedProcess
       try {
         child = ManagedProcess.spawn({
-          cmd: [
-            binary,
-            'tunnel',
-            '--no-autoupdate',
-            'run',
-            '--token',
-            op.tunnelToken,
-            '--url',
-            `http://127.0.0.1:${op.port}`,
-          ],
-          env: deps.env,
+          cmd: [binary, 'tunnel', '--no-autoupdate', 'run', '--url', `http://127.0.0.1:${op.port}`],
+          env: { ...deps.env, TUNNEL_TOKEN: op.tunnelToken },
           onStdout: () => undefined,
           onStderr: () => undefined,
         })
