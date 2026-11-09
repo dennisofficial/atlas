@@ -15,6 +15,7 @@ type FakeServer = {
   serverId: string
   pid: number
   lines: BufferedLine[]
+  stderr: string[]
   seq: number
   ended: Exit | null
   closed: Promise<Exit>
@@ -54,6 +55,7 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
         serverId,
         pid: nextPid++,
         lines: [],
+        stderr: [],
         seq: 0,
         ended: null,
         closed: new Promise<Exit>((resolve) => {
@@ -62,9 +64,11 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
         respond(line) {
           server.seq += 1
           server.lines.push({ seq: server.seq, line })
-          if (line.length <= EVENT_LINE_BYTES) {
-            ctx.publish({ type: 'mcp.message', serverId, seq: server.seq, line })
+          if (line.length > EVENT_LINE_BYTES) {
+            ctx.publish({ type: 'mcp.dropped', serverId, seq: server.seq })
+            return
           }
+          ctx.publish({ type: 'mcp.message', serverId, seq: server.seq, line })
         },
         close() {
           if (server.ended !== null) return
@@ -120,6 +124,7 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
             const server = serverOf(servers, op.serverId)
             return {
               lines: server.lines.filter((entry) => entry.seq > op.afterSeq),
+              stderr: server.stderr,
               ended: server.ended,
             }
           },

@@ -74,6 +74,32 @@ export const describeMcpConformance = (target: DaemonConformanceTarget): void =>
         },
       }))
 
+    it('keeps the first 40 stderr lines of a server that exits, and reports them on mcp.read (real only)', async () => {
+      const handle = await target.start()
+      try {
+        if (!handle.realProcesses) return
+        const session = await connectAt({ handle })
+        const script = [
+          'for (let i = 1; i <= 60; i += 1) console.error(`stderr line ${i}`)',
+          'process.exit(1)',
+        ].join('; ')
+        const waiting = exitedEventOf({ session, serverId: 'srv-stderr' })
+        await spawnEcho({ session, serverId: 'srv-stderr', script })
+        await waiting
+        const result = await runToEnd({
+          session,
+          key: 'read-stderr',
+          op: { op: 'mcp.read', serverId: 'srv-stderr', afterSeq: 0 },
+        })
+        const value = okValue({ result, op: 'mcp.read' })
+        expect(value.stderr.length).toBe(40)
+        expect(value.stderr[0]).toBe('stderr line 1')
+        expect(value.stderr[39]).toBe('stderr line 40')
+      } finally {
+        await handle.stop()
+      }
+    })
+
     it('closes the server on mcp.close, reports the exit, and publishes mcp.exited', () =>
       withDaemon({
         target,
