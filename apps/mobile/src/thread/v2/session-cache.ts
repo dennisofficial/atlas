@@ -1,18 +1,18 @@
 import { memorySessionCache, type SessionCache } from '@dltech/atlas-client/stream'
 
-import { fileJsonStore } from '../../storage/file-json-store'
+import { kvJsonStore } from '../../storage/kv-json-store'
 import type { JsonStore } from '../../storage/json-store'
 import { v2EventSchema } from './registered-plugins'
 import { queuedSessionCache, type QueuedSessionCache } from './session-cache-queue'
 import { createStoredSessionCache } from './session-cache-store'
 
-export const SESSION_CACHE_PATH = ['atlas', 'sessions'] as const
+export const SESSION_CACHE_DATABASE = 'atlas-sessions'
 
 let store: JsonStore | undefined
 let cache: QueuedSessionCache | undefined
 
 const storeOf = (): JsonStore => {
-  store ??= fileJsonStore({ path: SESSION_CACHE_PATH })
+  store ??= kvJsonStore({ database: SESSION_CACHE_DATABASE })
   return store
 }
 

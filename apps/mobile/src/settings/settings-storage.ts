@@ -1,15 +1,12 @@
-import { fileJsonStore } from '../storage/file-json-store'
+import { kvJsonStore } from '../storage/kv-json-store'
 import { jsonSettingsStorage, type SettingsStorage } from './settings-store'
 
-const SETTINGS_PATH = ['atlas'] as const
-
-const store = (): SettingsStorage =>
-  jsonSettingsStorage({ store: fileJsonStore({ path: SETTINGS_PATH }) })
+const SETTINGS_DATABASE = 'atlas-settings'
 
 let storage: SettingsStorage | undefined
 
 export const settingsStorage = (): SettingsStorage => {
-  storage ??= store()
+  storage ??= jsonSettingsStorage({ store: kvJsonStore({ database: SETTINGS_DATABASE }) })
   return storage
 }
 

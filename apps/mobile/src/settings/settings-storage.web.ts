@@ -1,4 +1,4 @@
-import type { JsonEntry, JsonStore } from '../storage/json-store'
+import type { JsonStore } from '../storage/json-store'
 import { jsonSettingsStorage, type SettingsStorage } from './settings-store'
 
 const PREFIX = 'atlas.settings'
@@ -28,7 +28,7 @@ const localJsonStore = (): JsonStore => ({
       return undefined
     }
   },
-  list: async (): Promise<readonly JsonEntry[]> => [],
+  keys: async () => [],
   clear: async () => {
     try {
       window.localStorage.removeItem(keyOf('settings.json'))

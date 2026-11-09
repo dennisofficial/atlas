@@ -58,7 +58,7 @@ describe('the stored session cache', () => {
   })
 
   it('keeps the newest windows up to the limit', async () => {
-    const { cache } = setup()
+    const { cache, store } = setup()
     for (let index = 0; index < SESSION_CACHE_LIMIT; index += 1) {
       await cache.save({ sessionId: `s${index}`, window: windowAt(index) })
     }
@@ -68,6 +68,9 @@ describe('the stored session cache', () => {
     expect(await cache.load('fresh')).toEqual(windowAt(200))
     expect(await cache.load('s0')).toBeUndefined()
     expect(await cache.load('s1')).toEqual(windowAt(1))
+    const windows = (await store.keys()).filter((name) => name !== 'index')
+    expect(windows).toHaveLength(SESSION_CACHE_LIMIT)
+    expect(windows).not.toContain('s0.json')
   })
 
   it('never throws when the store fails', async () => {

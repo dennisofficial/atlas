@@ -73,7 +73,7 @@ describe('the queued session cache', () => {
     await settle()
 
     expect(await cache.load('s1')).toBeUndefined()
-    expect(await store.list()).toEqual([])
+    expect(await store.keys()).toEqual([])
   })
 
   it('drains a save that was already scheduled when it was stopped', async () => {
@@ -84,6 +84,6 @@ describe('the queued session cache', () => {
     await Promise.all([saving, cache.drain()])
     await store.clear()
 
-    expect(await store.list()).toEqual([])
+    expect(await store.keys()).toEqual([])
   })
 })
