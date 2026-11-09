@@ -18,7 +18,7 @@ import { NativeDiagnostics } from './native/native-diagnostics'
 import { NativeFrame } from './native/native-frame'
 import { useNativeOverlaySync } from './native/overlay-sync'
 import { useSlotTracking } from './placement'
-import { reportedState } from './report-navigation'
+import { reportedState, reportedTitle } from './report-navigation'
 import { usePreviewCallback } from './use-preview-callback'
 
 function handleNavigated(args: { frame: FrameSpec; url: string }) {
@@ -26,6 +26,14 @@ function handleNavigated(args: { frame: FrameSpec; url: string }) {
   updatePreviewBrowser({
     threadId: frame.threadId,
     change: ({ state }) => reportedState({ state, tabId: frame.tabId, url, title: '' }),
+  })
+}
+
+function handleTitle(args: { frame: FrameSpec; title: string }) {
+  const { frame, title } = args
+  updatePreviewBrowser({
+    threadId: frame.threadId,
+    change: ({ state }) => reportedTitle({ state, tabId: frame.tabId, title }),
   })
 }
 
@@ -75,6 +83,7 @@ export function NativeFrameLayer() {
             renderer={renderer}
             visible={frame.key === visibleKey}
             onNavigated={handleNavigated}
+            onTitle={handleTitle}
           />
         </div>
       ))}

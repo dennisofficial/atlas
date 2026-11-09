@@ -8,6 +8,7 @@ declare module 'react' {
         partition?: string
         renderer?: 'cef' | 'native'
         masks?: string
+        preload?: string
       }
     }
   }
