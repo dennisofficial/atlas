@@ -101,6 +101,21 @@ describe('bindWebview', () => {
     expect(urls).toEqual([])
   })
 
+  it('reports a committed navigation as an event, without pushing history', () => {
+    const webview = new FakeWebview()
+    const events: string[] = []
+    const urls: string[] = []
+    bindWebview({
+      webview,
+      onNavigated: (url) => urls.push(url),
+      onReady: () => undefined,
+      onEvent: (event) => events.push(event),
+    })
+    webview.fire(ENativeEvent.DidCommitNavigation, A)
+    expect(events).toEqual([ENativeEvent.DidCommitNavigation])
+    expect(urls).toEqual([])
+  })
+
   it('reports a page title from a host message only', () => {
     const webview = new FakeWebview()
     const titles: string[] = []
