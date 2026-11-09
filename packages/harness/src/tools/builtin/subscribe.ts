@@ -18,10 +18,10 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Subscribe this conversation to an external event source, such as a pull request.',
+  'Subscribe this conversation to an external event source, such as a pull request or a workflow run.',
   'Occurrences from a subscribed source are delivered to you as notices that wake you; nothing notifies you about a source you have not subscribed to.',
   'Call subscription_list to see the available providers and the target syntax each one takes.',
-  'Omit target when the provider can work it out from this conversation, such as the pull request of the current branch.',
+  'Omit target when the provider can work it out from this conversation, such as the pull request or the run for the current branch.',
   'Set expiresInMinutes to end the subscription on its own after that long.',
   'Subscribing again to the same target returns the existing subscription.',
 ].join(' ')
