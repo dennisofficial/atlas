@@ -1,6 +1,6 @@
 # Slice 7b spec: MCP and skills
 
-Status: **spec, 2026-11-09.** Awaiting the operator's answers in §9; nothing is built yet.
+Status: **spec, 2026-11-09.** The operator's answers are in §9; PR 1, the live tool source, is built.
 Anchors are `path:line` at `790898b53`; re-check before relying on one. Prior slice:
 [07-plugins.md](07-plugins.md) — its §9.4 and its closing line hand these two features here.
 
@@ -20,7 +20,8 @@ Two v1 capabilities no v2 session has, each as its own plugin on the slice-6 con
 
 **Exit criterion:**
 1. One live v2 cloud session's prompt lists the operator's cloud skills and its repo's `.atlas/skills`;
-   `skill` loads each kind and returns the body (recorded in §8).
+   `skill` loads each kind and returns the body, and `skill_install` / `skill_edit` / `skill_delete`
+   create, change and remove one in the cloud and one in the repo (recorded in §8).
 2. One live v2 cloud session starts a stdio MCP server from the operator's cloud rows, its tools
    appear as `mcp__<server>__<tool>`, a call succeeds, the server's `instructions` arrive in an
    `mcp-instructions` context block, and killing the server flips the `mcp` view to failed with the
@@ -171,13 +172,13 @@ v1 has two homes for both features and they do not meet: on the operator's machi
 cloud, database rows pushed into the pod as files. v2 has one writer per piece of state
 (architecture §4), so each source needs one owner.
 
-| Feature                     | Source                                                | v2 owner                  | Read by                                                   | Recommended |
-| --------------------------- | ----------------------------------------------------- | ------------------------- | --------------------------------------------------------- | ----------- |
-| MCP, user + project rows    | `public.McpServer` (`sealedSpec`, `source = 'cloud'`) | CP (rows), host (unseal)  | the agent host at claim, refreshed at each turn boundary  | yes         |
-| MCP, repo files             | `.mcp.json`, `.atlas/mcp.json` in the clone           | the pod's workspace (git) | the pod through the daemon's file port                    | yes         |
-| Skills, user + project rows | `public.Skill` / `public.SkillFile`                   | CP (rows), host (read)    | the agent host (`skill-index.ts` already reads the names) | yes         |
-| Skills, repo dirs           | `<repo>/.atlas/skills/*/SKILL.md`                     | the pod's workspace (git) | the pod through the daemon                                | yes         |
-| Skills, built-ins           | compiled `SKILL.md` text                              | the plugin package        | the plugin, no IO                                         | yes         |
+| Feature                     | Source                                                                                  | v2 owner                                 | Read by                                                  | Recommended |
+| --------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------- | ----------- |
+| MCP, user + project rows    | `public.McpServer` (`sealedSpec`, `source = 'cloud'`)                                   | CP (rows), host (unseal)                 | the agent host at claim, refreshed at each turn boundary | yes         |
+| MCP, repo files             | `.mcp.json`, `.atlas/mcp.json` in the clone                                             | the pod's workspace (git)                | the pod through the daemon's file port                   | yes         |
+| Skills, user + project rows | `public.Skill` / `public.SkillFile`                                                     | CP (rows); the host reads **and writes** | the agent host, at claim and again per turn              | yes         |
+| Skills, repo dirs           | `<repo>/.atlas/skills`, `<repo>/.agents/skills` (symlinks followed, `.claude` not read) | the pod's workspace (git)                | the pod through the daemon                               | yes         |
+| Skills, built-ins           | compiled `SKILL.md` text                                                                | the plugin package                       | the plugin, no IO                                        | yes         |
 
 The consequences, and what §9 asks the operator to confirm:
 1. **Cloud rows are read by the host over its own Postgres, unsealed with the host's cipher** — no
@@ -188,8 +189,13 @@ The consequences, and what §9 asks the operator to confirm:
    skills by committing them, exactly as in v1.
 3. **Precedence stays v1's**: repo > cloud project > cloud user > built-in, and a disabled entry
    hides the name it repeats.
+4. **A cloud skill is never copied into a pod.** The rows are the only copy: the body and every
+   bundled file are served on demand (§5.2), so an edit in Settings reaches the running session and
+   there is nothing to watch, sweep or sync. This is the one place the slice deliberately leaves v1,
+   which mounts rows into the pod as files and deletes whatever the last mount did not write
+   (`apps/serve/src/file-mounts.ts:110-133`).
 
-## 3. The one contract change: a live tool source (PR 1)
+## 3. The one contract change: a live tool source (PR 1, built)
 
 Today `ComposedPodRegistry` snapshots a plugin's tools at claim
 (`packages/host/src/holder/plugin-pod.ts:13-38`). MCP tool sets are discovered and change when a
@@ -275,36 +281,44 @@ throws, later duplicate is dropped and logged).
   `packages/harness/scripts/generate-skills.ts:40-46` compiles v1's — a generated manifest inside the
   plugin, no runtime IO for the text. The four v1 built-ins ship as-is; the skill files are copied
   into the plugin, not imported across the split.
-- **Cloud rows**: `public.Skill` for `userId` and `projectId` plus `SkillFile` bodies, read by the
+- **Cloud rows**: `public.Skill` for `userId` and `projectId` plus `SkillFile` rows, read by the
   host's `ConfigReader` in the same call that already reads names
   (`apps/agent-host/src/config/skill-index.ts:14`). The index stops being dead: it becomes the listing.
-- **Repo dirs**: `<repo>/.atlas/skills/*/SKILL.md` and flat `.md` files, discovered through the
-  daemon's file port, any casing, symlinks followed, one level — v1's `filesystem-source` rules.
+- **Repo dirs**: `<repo>/.atlas/skills` and `<repo>/.agents/skills`, discovered through the daemon's
+  file port — a directory holding `SKILL.md` (any casing) or a flat `<name>.md`, one level, symlinks
+  followed (v1's rules, `packages/harness/src/skills/filesystem-source.ts:83-113`). `.claude/skills`
+  is not a v2 root.
 - Precedence: repo > cloud project > cloud user > built-in. Name is lowercased with a directory
   fallback; validation warns and never rejects (a rejected skill is a skill the operator already
   wrote, silently disappearing).
 
-### 5.2 The listing and the tool (PR 4)
+### 5.2 The listing and the load (PR 4)
 
 - A `prompts` entry rendering one line per model-invocable skill, with v1's arithmetic: 1536-char
   per-description cap, budget = context window × 4 × 0.03, binary-search shrink, then drop
   descriptions, then names only. The fragment is Volatile and renders nothing when empty.
-- `skill` (load): `{name, arguments?}`, case-insensitive, refuses `disable-model-invocation`,
-  expands `$ARGUMENTS` / `$1..$9`, returns the body and prepends the directory note when the skill
-  has files on disk. Cloud skills without bundled files return the body with no directory note;
-  repo and built-in skills return the real directory.
-- No `skill_install` and no write path in this slice (§8): a v2 session reads skills, it does not
-  author them.
+- `skill` (load): `{name, arguments?, path?}`. Without a `path` it returns the body, case-insensitive,
+  refusing `disable-model-invocation`, expanding `$ARGUMENTS` / `$1..$9`. With a `path` it returns one
+  bundled file of that skill — for a cloud skill the row's `SkillFile`, for a repo or built-in skill
+  the file under its directory.
+- The directory note that tells the model "every relative path below names a file inside that
+  directory" is printed only for a skill with a real directory; a cloud skill's note says its files
+  are read through the same tool with a `path`.
 
-### 5.3 Bundled cloud files (PR 5)
+### 5.3 CRUD — install, edit and delete from a session (PR 5)
 
-- A cloud skill with `SkillFile` rows is materialised into the pod at
-  `{ATLAS_HOME}/skills/<name>/<path>` (user) and `{ATLAS_HOME}/project-skills/<name>/<path>`
-  (project) through the daemon, keyed by the skill's revision hash so an unchanged skill writes
-  nothing and a deleted file is swept — the job v1 gives to control-plane mounts
-  (`scoped-config.layers.ts:24-42`), now done by the pod that owns the disk.
-- The directory note then applies to cloud skills too, and the model can read the references a
-  bundle ships (v1's `ui-library.spec.ts:101` proves that contract matters).
+- `skill_install({layer, name, body})`, `skill_edit({name, layer, path?, body})` and
+  `skill_delete({name, layer})`, with `layer` = `user` | `project` | `repo`.
+- **Cloud writes go from the host to its own Postgres** (0027), with the semantics the API already
+  enforces on the same rows (`apps/api/src/api/cloud/skills/skills.service.ts:98`): the description is
+  derived from the `SKILL.md` just written, an edit carries the revision it was based on so a
+  concurrent write is refused instead of lost, and a built-in cannot be overwritten.
+- **Repo writes go through the daemon** into `<repo>/.atlas/skills/<name>/SKILL.md`; the file tools
+  could do the same, and the tool exists so the frontmatter and the directory shape stay right.
+- **The operator's surfaces do not change**: the Settings skills pages write the same rows, so a skill
+  the model installs appears there and an edit made there is visible to the next turn. The one
+  addition is a folder upload on that page (PR 6): drop a directory, each file becomes a `SkillFile`.
+  v1 has no upload — the page creates and edits one file at a time.
 
 ## 6. Order, packaging and the PR sequence
 
@@ -313,14 +327,14 @@ Two plugin packages, no imports between them, both registered in
 compose the same plugin list; `mcp` is `transport: 'stream'` for its view, `skills` is
 `transport: 'none'`).
 
-| PR  | Contents                                                                                       | Proves                                                                                                           |
-| --- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 1   | the live tool source (§3)                                                                      | a plugin's tools change between steps; duplicates throw at claim, drop later                                     |
-| 2   | `plugins/mcp` `/core` + `/pod`: config, precedence, lifecycle, bridge tools                    | config from rows and repo files, a stdio server answers a call in a live-ish rig, precedence and a disabled stub |
-| 3   | `plugins/mcp` `/control` + `/client`: the `mcp` view, the instructions hook, the `mcp` command | status rows, instructions offered once, tombstone on drop, the command's report                                  |
-| 4   | `plugins/skills` `/core` + `/pod`: sources, listing, `skill`                                   | precedence, listing budget, load with and without a directory                                                    |
-| 5   | bundled cloud files materialised into the pod                                                  | a bundle's references are readable through the loaded directory                                                  |
-| 6   | docs + live check (§8)                                                                         | the exit criterion, on production                                                                                |
+| PR  | Contents                                                                                       | Proves                                                                                                                                                         |
+| --- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | the live tool source (§3) — **built**                                                          | a plugin's tools change between steps; duplicates throw at claim, drop later                                                                                   |
+| 2   | `plugins/mcp` `/core` + `/pod`: config, precedence, lifecycle, bridge tools                    | config from rows and repo files, a stdio server answers a call in a live-ish rig, precedence and a disabled stub                                               |
+| 3   | `plugins/mcp` `/control` + `/client`: the `mcp` view, the instructions hook, the `mcp` command | status rows, instructions offered once, tombstone on drop, the command's report                                                                                |
+| 4   | `plugins/skills` `/core` + `/pod`: sources, listing, `skill`                                   | precedence, listing budget, load with and without a directory                                                                                                  |
+| 5   | `plugins/skills` CRUD: `skill_install` / `skill_edit` / `skill_delete` over rows and the clone | a cloud skill is created, edited and deleted from a session and Settings agrees; a concurrent edit is refused, not lost; a repo skill lands in `.atlas/skills` |
+| 6   | folder upload on the Settings skills page, docs, and the live check (§8)                       | a dropped folder becomes a loadable cloud skill; the exit criterion, on production                                                                             |
 
 The operator's live checks follow slice 7's practice: a fresh session (never one created during a
 deploy — the stale-instance trap in `07-plugins.md` §8), recorded in §8 with the session id.
@@ -346,27 +360,30 @@ deploy — the stale-instance trap in `07-plugins.md` §8), recorded in §8 with
 - **`mcp-edit` and any MCP write path from v2.** Settings edits the rows; the session reads them.
 - **An MCP http server reachable only inside the pod** (a `localhost` URL). It needs a daemon-side
   http op, which this slice does not add.
-- **`skill_install`, skill editing, and the skills settings UI on v2.**
+- **A pod copy of a cloud skill, and any file watcher or sync to keep one in step.** Cloud skills
+  are read from their rows on demand; nothing is installed into the pod.
+- **`.claude/skills` as a repo root.** v2 reads `.atlas/skills` and `.agents/skills`; the Claude
+  flavour stays v1 only.
 - **Tools changing mid-turn without a turn boundary** for http servers: the reconcile runs at
   `beforeTurn`, so a server that mutates its own list mid-turn is seen on the next turn (v1 behaves
   the same way, `stdin`-level `tools/list_changed` being dropped).
-- **Web UI beyond the plugin view**: no settings pages, no header chips for either plugin.
+- **Web UI beyond the plugin view and the one upload control**: no header chips, no new settings
+  pages for MCP.
 
-## 9. Open questions for the operator
+## 9. Answers (2026-11-09)
 
-1. **Are cloud rows in scope at all in the first pass, or is the repo the only source?** The
-   recommendation is cloud rows first (that is where Settings writes, and `McpServer`/`Skill` already
-   exist), repo second, both in this slice. If you would rather ship repo-only first, `plugins/mcp`
-   PR 2 shrinks by the unsealing work and the live check becomes "commit a server, start a session".
-2. **Skills: read-only is the whole slice — confirm.** No `skill_install`, no editing, no upload.
-   Authoring from v2 would need the skill write path (rows are CP-owned) and is the natural
-   follow-up; say if you want it here instead.
-3. **MCP servers a repo commits are started without asking.** That is v1's behaviour and the clone is
-   your own repo, so the recommendation is to keep it. Say if a v2 session should instead require an
-   explicit enable for a repo-declared server (that is a new approval surface, and it would have to
-   work for skills-only repos too).
-4. **Nothing else changes for you?** Both plugins are additive: unregistered, every app behaves as
-   today; a v1 session is untouched.
+1. **Both sources, the way v1 does it.** Cloud rows plus the json files: the rows are what Settings
+   writes, the clone's files are what a repo commits, and `.mcp.json` / `.atlas/mcp.json` are read in
+   the pod. §2 has the owner of each.
+2. **Skills ship whole, not half: full CRUD.** Install, edit and delete from a session, cloud and
+   repo; the listing and the load; **no pod copy of a cloud skill** — the rows are the only copy and
+   their files are served on demand (§5.2), so there is no sync, no file watcher and nothing to
+   sweep. Repo roots narrow to `.atlas/skills` and `.agents/skills` with symlinks followed; the
+   Settings pages stay the operator's surface and gain a folder upload (§5.1-§5.3, PRs 4-6).
+3. **A repo's MCP servers start without asking.** The clone is the operator's own repo; no approval
+   surface is added, and `disabled: true` stays the only way to switch one off.
+4. **The §2 table** is the source-owner split these answers confirm. Two things in it differ from
+   v1 on purpose: a cloud skill never lands in a pod, and `.claude` is not a v2 repo root.
 
 ## Next
 
