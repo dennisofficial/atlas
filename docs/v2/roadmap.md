@@ -28,8 +28,10 @@ _Updated at the end of every slice. Last update: 2026-11-09._
   one. Three are ported: `plugins/web` carries `web_fetch` (host-side, v1's formats, patterns and
   cache) and `browser` (the image's baked `agent-browser` over the daemon's `exec`), and `task_write`
   becomes a host core tool — the prompt has advertised it since slice 3 with no tool behind it, so
-  every v2 session is told to keep a checklist it cannot write. `web_search` follows with one narrow
-  `PodControl.webSearch` read of the operator's backend and `search.<backend>` secret. Three are
+  every v2 session is told to keep a checklist it cannot write. `web_search`, `web_fetch` and
+  `browser` shipped together as `plugins/web` (#2116), with one narrow `PodControl.webSearch` read of
+  the operator's backend and `search.<backend>` secret — no general secret read, so a pod tool cannot
+  open the operator's account. Three are
   **not ported with the reason on the record**: `operator_input`/`operator_shell_input` need a human
   answer inside a running tool call, which v2 has no path for; `cloud_config` would give a session
   write authority over the operator's account that 0027 removed, and every row it manages has an
