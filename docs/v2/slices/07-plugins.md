@@ -974,4 +974,5 @@ than debugging the plugin when exactly the new plugin's tools are missing.
 
 ## Next
 
-MCP and skills get their own row after slice 7; §7 no longer proposes them for this slice.
+MCP and skills are slice 7b, row 7b of the [roadmap](../roadmap.md), with their own spec:
+[07b-mcp-skills.md](07b-mcp-skills.md); §7 no longer proposes them for this slice.
