@@ -17,7 +17,6 @@
     "@dltech/atlas-control": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
-    "@dltech/atlas-wire": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {

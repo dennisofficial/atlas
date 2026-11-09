@@ -15,6 +15,7 @@ import {
 } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
+import { addressOf, kindOf } from './address'
 import { memoryRefusal, scopeLabelOf } from './outcome'
 import { markStale, type MemoryPodState } from './state'
 
@@ -51,7 +52,12 @@ export class WriteMemoryTool extends SchemaTool<typeof inputSchema> {
 
   protected override async run({ input }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     try {
-      const saved = await this.ctx.control.memory.write(input)
+      const saved = await this.ctx.control.memory.write({
+        ...addressOf(input),
+        description: input.description,
+        type: kindOf(input.type),
+        body: input.body,
+      })
       markStale(this.state)
       return {
         ok: true,

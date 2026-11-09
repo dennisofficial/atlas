@@ -9,6 +9,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { EMemoryScope, MAX_MEMORY_BODY_CHARS, MEMORY_NAME_PATTERN } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
+import { addressOf } from './address'
 import { memoryRefusal, scopeLabelOf } from './outcome'
 import { markStale, type MemoryPodState } from './state'
 
@@ -42,7 +43,12 @@ export class EditMemoryTool extends SchemaTool<typeof inputSchema> {
 
   protected override async run({ input }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     try {
-      const saved = await this.ctx.control.memory.edit(input)
+      const saved = await this.ctx.control.memory.edit({
+        ...addressOf(input),
+        old: input.old,
+        new: input.new,
+        revision: input.revision,
+      })
       markStale(this.state)
       return {
         ok: true,

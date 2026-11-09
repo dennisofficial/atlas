@@ -9,6 +9,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { EMemoryScope, MEMORY_NAME_PATTERN } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
+import { addressOf } from './address'
 import { addressLabelOf, memoryRefusal, scopeLabelOf } from './outcome'
 import { markStale, type MemoryPodState } from './state'
 
@@ -38,8 +39,8 @@ export class DeleteMemoryTool extends SchemaTool<typeof inputSchema> {
 
   protected override async run({ input }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     try {
-      const deleted = await this.ctx.control.memory.delete(input)
-      if (!deleted) return { ok: false, reason: `there is no ${addressLabelOf(input)}` }
+      const deleted = await this.ctx.control.memory.delete(addressOf(input))
+      if (!deleted) return { ok: false, reason: `there is no ${addressLabelOf(addressOf(input))}` }
       markStale(this.state)
       return {
         ok: true,

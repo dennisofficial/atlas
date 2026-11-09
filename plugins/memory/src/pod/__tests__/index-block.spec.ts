@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 
 import type { Assembled } from '@dltech/atlas-core'
 import type { PluginPodContext, PodMemory } from '@dltech/atlas-plugin-sdk'
-import { EMemoryScope, EMemoryType } from '@dltech/atlas-wire'
 
 import { withMemoryIndex } from '../index-block'
 import { markStale, type MemoryPodState } from '../state'
@@ -24,10 +23,10 @@ const ctxWith = (memory: PodMemory): Pick<PluginPodContext, 'control'> => ({
 const memoryWith = (args: { project?: string | null } = {}) => {
   const memory = fakeMemory(args)
   const row = {
-    scope: EMemoryScope.Global,
+    scope: 'global' as const,
     name: 'dennis-prefers-bun',
     description: 'The workspace runs on Bun',
-    type: EMemoryType.User,
+    type: 'user' as const,
     body: 'Bun.',
   }
   return { memory, row }

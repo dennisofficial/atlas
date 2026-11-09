@@ -9,6 +9,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { EMemoryScope, MEMORY_NAME_PATTERN } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
+import { addressOf } from './address'
 import { addressLabelOf, memoryRefusal, scopeLabelOf } from './outcome'
 
 const inputSchema = z.strictObject({
@@ -36,8 +37,9 @@ export class ReadMemoryTool extends SchemaTool<typeof inputSchema> {
 
   protected override async run({ input }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     try {
-      const entry = await this.ctx.control.memory.read(input)
-      if (entry === null) return { ok: false, reason: `there is no ${addressLabelOf(input)}` }
+      const entry = await this.ctx.control.memory.read(addressOf(input))
+      if (entry === null)
+        return { ok: false, reason: `there is no ${addressLabelOf(addressOf(input))}` }
       return {
         ok: true,
         output: {

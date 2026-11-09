@@ -1,19 +1,24 @@
 import { toThreadId } from '@dltech/atlas-core'
-import type { PluginPodContext, PodMemory } from '@dltech/atlas-plugin-sdk'
-import type { EMemoryScope, EMemoryType, MemorySummary } from '@dltech/atlas-wire'
+import type {
+  MemoryKind,
+  MemoryScope,
+  MemorySummary,
+  PluginPodContext,
+  PodMemory,
+} from '@dltech/atlas-plugin-sdk'
 
 import { memoryPod } from '..'
 
 type Stored = {
-  scope: EMemoryScope
+  scope: MemoryScope
   name: string
   description: string
-  type: EMemoryType
+  type: MemoryKind
   body: string
   revision: number
 }
 
-const keyOf = (address: { scope: EMemoryScope; name: string }): string =>
+const keyOf = (address: { scope: MemoryScope; name: string }): string =>
   `${address.scope}:${address.name}`
 
 const summaryOf = (row: Stored): MemorySummary => ({
@@ -30,7 +35,7 @@ export const fakeMemory = (args: { project?: string | null } = {}) => {
   const rows = new Map<string, Stored>()
   const calls: string[] = []
   const project = args.project === undefined ? 'dennisofficial/atlas' : args.project
-  const find = (address: { scope: EMemoryScope; name: string }): Stored => {
+  const find = (address: { scope: MemoryScope; name: string }): Stored => {
     const row = rows.get(keyOf(address))
     if (row === undefined) throw new Error(`no such memory: ${address.name}`)
     return row

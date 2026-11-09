@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMemoryScope, EMemoryType, type MemorySummary } from '@dltech/atlas-wire'
+import type { MemorySummary } from '@dltech/atlas-plugin-sdk'
 
 import { memoryIndexOf, unavailableIndexOf } from '..'
 
 const summary = (overrides: Partial<MemorySummary> = {}): MemorySummary => ({
-  scope: EMemoryScope.Global,
+  scope: 'global',
   project: null,
   name: 'dennis-prefers-bun',
   description: 'The workspace runs on Bun',
-  type: EMemoryType.User,
+  type: 'user',
   revision: 1,
   updatedAt: '2026-11-09T10:00:00.000Z',
   ...overrides,
@@ -25,7 +25,7 @@ describe('memoryIndexOf', () => {
 
   it('renders project entries under the project they belong to', () => {
     const project = summary({
-      scope: EMemoryScope.Project,
+      scope: 'project',
       project: 'dennisofficial/atlas',
       name: 'v2-needs-no-v1-imports',
     })

@@ -1,6 +1,5 @@
 import type { ToolOutcome } from '@dltech/atlas-core'
-import { EMemoryScope } from '@dltech/atlas-wire'
-import type { MemoryAddress } from '@dltech/atlas-plugin-sdk'
+import type { MemoryAddress, MemoryScope } from '@dltech/atlas-plugin-sdk'
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -10,8 +9,8 @@ export const memoryRefusal = (error: unknown): ToolOutcome => ({
   reason: messageOf(error),
 })
 
-export const scopeLabelOf = (scope: EMemoryScope): string =>
-  scope === EMemoryScope.Global ? 'global' : 'project'
+export const scopeLabelOf = (scope: MemoryScope): string =>
+  scope === 'global' ? 'global' : 'project'
 
 export const addressLabelOf = (address: MemoryAddress): string =>
   `${scopeLabelOf(address.scope)} memory "${address.name}"`

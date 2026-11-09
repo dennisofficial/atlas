@@ -1,6 +1,12 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { MemoryAddress, MemorySnapshot, PodControl } from '@dltech/atlas-plugin-sdk'
-import type { EMemoryType, MemoryEntry, MemorySummary } from '@dltech/atlas-wire'
+import type {
+  MemoryAddress,
+  MemoryEntry,
+  MemoryKind,
+  MemorySnapshot,
+  MemorySummary,
+  PodControl,
+} from '@dltech/atlas-plugin-sdk'
 
 type Called = { threadId: string; signal?: AbortSignal | undefined }
 
@@ -14,7 +20,7 @@ export type PodControlClient = {
     list(args: Called): Promise<MemorySnapshot>
     read(args: Called & MemoryAddress): Promise<MemoryEntry | null>
     write(
-      args: Called & MemoryAddress & { description: string; type: EMemoryType; body: string },
+      args: Called & MemoryAddress & { description: string; type: MemoryKind; body: string },
     ): Promise<MemorySummary>
     edit(
       args: Called & MemoryAddress & { old: string; new: string; revision: number },

@@ -1,5 +1,5 @@
 import { renderMemoryIndex, type MemoryIndexLine } from '@dltech/atlas-core'
-import { EMemoryScope, type MemorySummary } from '@dltech/atlas-wire'
+import type { MemoryScope, MemorySummary } from '@dltech/atlas-plugin-sdk'
 
 export const UNAVAILABLE_PREFIX = 'Memory is unavailable this session'
 
@@ -10,7 +10,7 @@ export const unavailableIndexOf = (reason: string): string =>
 
 const linesOf = (
   summaries: readonly MemorySummary[],
-  scope: EMemoryScope,
+  scope: MemoryScope,
 ): readonly MemoryIndexLine[] =>
   summaries
     .filter((summary) => summary.scope === scope)
@@ -21,11 +21,11 @@ export const memoryIndexOf = (args: {
   memories: readonly MemorySummary[]
 }): string =>
   renderMemoryIndex({
-    global: linesOf(args.memories, EMemoryScope.Global),
+    global: linesOf(args.memories, 'global'),
     project:
       args.project === null
         ? null
-        : { key: args.project, entries: linesOf(args.memories, EMemoryScope.Project) },
+        : { key: args.project, entries: linesOf(args.memories, 'project') },
   })
 
 export const memoryCoreSlots = {
