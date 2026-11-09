@@ -19,7 +19,6 @@ const digest = (patch: Partial<ControlSessionDigest> = {}): ControlSessionDigest
   modelFast: null,
   spawnedBySessionId: null,
   podSessionId: null,
-  peerMessagesSent: 0,
   lastEventAt: null,
   firstMessageText: 'Make the sidebar push session titles instead of polling them',
   firstMessageAt: POSTED,

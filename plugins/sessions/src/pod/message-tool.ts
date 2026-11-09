@@ -18,7 +18,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Send a peer session a message. A peer is a full session in the same sandbox and workspace,',
   'not a sub-agent: it keeps its own conversation, its answer arrives as a message from it, and',
-  'the spawner may send it 20 messages before the operator has to reset that budget.',
+  'a session may message any other session of the operator’s, spawned by it or not.',
 ].join(' ')
 
 export class MessageSessionTool extends SchemaTool<typeof inputSchema> {

@@ -15,7 +15,6 @@ namespace v2 {
     modelFast    Boolean?
     spawnedBySessionId String?
     podSessionId       String?
-    peerMessagesSent   Int      @default(0)
     threads      V2Thread[]
     inbox        V2InboxEntry[]
     lease        V2Lease?
