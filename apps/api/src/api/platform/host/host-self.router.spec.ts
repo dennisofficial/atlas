@@ -1,6 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { Test } from '@nestjs/testing'
 import { ThrottlerModule } from '@nestjs/throttler'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { TRPCModule } from 'nestjs-trpc'
 import request from 'supertest'
@@ -15,7 +16,7 @@ import {
   fakeEnvModule,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
-import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import { seedUsers } from '../../../../test/session-seed'
 import { PreviewTunnelService } from '../sandboxes/preview-tunnel.service'
 import { HostSelfRouter } from './host-self.router'
 import { HostTokenMiddleware } from './host-token.middleware'
@@ -81,7 +82,14 @@ describe('HostSelfRouter', () => {
   beforeEach(async () => {
     previews.expose.mockClear()
     await seedUsers('usr-1')
-    await seedThreadRow({ id: 'thr_host', userId: 'usr-1' })
+    await db.orm.v2.V2Session.create({
+      id: 'ses_host',
+      userId: 'usr-1',
+      projectId: 'prj_host',
+      mainThreadId: 'thr_host',
+      nextInboxId: 1,
+      createdAt: new Date(),
+    })
   })
 
   it('exposes a port for the thread the host names', async () => {
