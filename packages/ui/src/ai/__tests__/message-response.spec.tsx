@@ -20,6 +20,24 @@ describe('MessageResponse', () => {
     expect(html).toContain('data-slot="table-cell"')
   })
 
+  it('renders a table whose delimiter row uses em dashes', () => {
+    const html = render('| Fact | Value |\n| --- | — |\n| label | null |')
+
+    expect(html).toContain('data-slot="table"')
+    expect(html).not.toContain('| --- | — |')
+  })
+
+  it('renders a table in a user message with line breaks', () => {
+    const html = renderToStaticMarkup(
+      <MessageResponse breaks mode="static">
+        {'**Where things stand**\n\n| Fact | Value |\n| --- | — |\n| Companies | 643 |'}
+      </MessageResponse>,
+    )
+
+    expect(html).toContain('data-slot="table"')
+    expect(html).toContain('643')
+  })
+
   it('renders a ts fence through our code block', () => {
     const html = render('```ts\nconst a = 1\n```')
 

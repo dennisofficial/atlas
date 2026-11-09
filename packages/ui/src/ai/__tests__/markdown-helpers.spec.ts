@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { rewriteStarRules } from '../internal/markdown-rules'
+import { repairTableDelimiters } from '../internal/markdown-tables'
 import { EDiagramWheel, routeDiagramWheel, wheelPixels } from '../internal/mermaid-wheel'
 import { loadHighlighter } from '../../lib/highlighter'
 
@@ -14,6 +15,38 @@ describe('rewriteStarRules', () => {
     const text = '***bold italic***\n* item\n```py\n***\n```\n~~~\n* * *\n~~~'
 
     expect(rewriteStarRules(text)).toBe(text)
+  })
+})
+
+describe('repairTableDelimiters', () => {
+  it('turns a dash in the delimiter row into a hyphen', () => {
+    const table = '| Fact | Value |\n| --- | — |\n| a | b |'
+
+    expect(repairTableDelimiters(table)).toBe('| Fact | Value |\n| --- | - |\n| a | b |')
+  })
+
+  it('keeps alignment colons', () => {
+    expect(repairTableDelimiters('| a | b |\n| :— | —: |\n| 1 | 2 |')).toBe(
+      '| a | b |\n| :- | -: |\n| 1 | 2 |',
+    )
+  })
+
+  it('leaves a valid table, body dashes and prose alone', () => {
+    const text = ['a — b', '', '| a | b |', '| --- | --- |', '| x — y | 1 |'].join('\n')
+
+    expect(repairTableDelimiters(text)).toBe(text)
+  })
+
+  it('leaves fenced code alone', () => {
+    const text = '```md\n| a | b |\n| --- | — |\n| 1 | 2 |\n```'
+
+    expect(repairTableDelimiters(text)).toBe(text)
+  })
+
+  it('leaves a pipe line that is not a delimiter row alone', () => {
+    const text = '| a | b |\n| — the value | — |'
+
+    expect(repairTableDelimiters(text)).toBe(text)
   })
 })
 
