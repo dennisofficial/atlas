@@ -11,19 +11,11 @@ on one.
 
 ## The decision
 
-**A teammate is a parallel session placed in the spawning session's pod.** It is not a thread of
-the lead session and nothing nests under the lead's log or lease. Concretely:
-- **Placement**: the teammate's session shares the lead's sandbox — the same workspace, the same
-  `ATLAS_CONTEXT_DIR` content (plans, decisions, coordination notes), the same declared services.
-  It is nested under the lead in the sidebar. Shared context files carry **no ownership rule**:
-  several agents on one repo is the model, and any two sessions may write the same file, exactly
-  as two agents on one checkout do today (decisions.md, 2026-11-02).
-- **Ownership**: the **operator** owns the teammate. The operator talks to it directly in its own
-  thread, and when it is done the operator archives it; an archived teammate moves to a **Done**
-  group under its parent in the sidebar.
-- **Conversation**: the operator and the lead's main agent may both message a teammate. The main
-  agent is a **peer**, not a manager: it can spawn and message a teammate, and it receives the
-  teammate's reports, but it does not archive, stop or own it.
+> **Clarified 2026-11-09.** Placement as described below is the **teammate** mode: `spawn_session`
+> with `intoPod: true` shares the spawner's sandbox, workspace and context. Without it,
+> `spawn_session` creates an ordinary session — its own sandbox and a fresh clone — which is what a
+> handoff or an off-scope task wants. A teammate cannot create another teammate. The live check and
+> the current answers are in [07-plugins.md](07-plugins.md) §5.6 and §8.9.
 
 ## Three relations v1 conflates
 

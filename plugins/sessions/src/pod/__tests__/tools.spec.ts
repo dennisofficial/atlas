@@ -1,29 +1,36 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toThreadId } from '@dltech/atlas-core'
+import { toThreadId, type PromptContext } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
   EMPTY_WORKTREES,
-  type PeerRoster,
-  type PeerSessionSummary,
   type PluginPodContext,
   type PodSessions,
+  type SessionBrief,
 } from '@dltech/atlas-plugin-sdk'
 
 import { sessionsPod } from '..'
 
 type Call = { method: string; args: unknown }
 
-const summaryOf = (overrides: Partial<PeerSessionSummary> = {}): PeerSessionSummary => ({
+const promptCtx: PromptContext = {
+  groups: [],
+  provider: { id: 'anthropic', modelId: 'claude-sonnet-4-5' },
+  model: { contextWindow: 200_000 },
+  projectDirectory: '/work',
+}
+
+const briefOf = (overrides: Partial<SessionBrief> = {}): SessionBrief => ({
   sessionId: 'p1',
-  title: 'the peer',
+  title: 'one',
   spawnedBy: 's1',
   archivedAt: null,
+  current: false,
   ...overrides,
 })
 
 const fakeSessions = (
-  args: { refused?: string | undefined; roster?: PeerRoster | undefined } = {},
+  args: { refused?: string | undefined; briefs?: readonly SessionBrief[] | undefined } = {},
 ) => {
   const calls: Call[] = []
   const port: PodSessions = {
@@ -37,7 +44,7 @@ const fakeSessions = (
     },
     list: async () => {
       calls.push({ method: 'list', args: {} })
-      return args.roster ?? { spawner: null, peers: [] }
+      return args.briefs ?? []
     },
   }
   return { port, calls }
@@ -113,17 +120,22 @@ describe('the sessions pod', () => {
     ])
   })
 
-  it('says peers are sessions in this sandbox, not sub-agents', () => {
+  it('describes every session as the operator’s own, with no lead or peer', () => {
     const { ctx } = rig(fakeSessions().port)
     for (const tool of sessionsPod.tools?.(ctx) ?? []) {
-      expect(tool.description).toContain('sandbox')
-      expect(tool.description).toContain('not a sub-agent')
+      expect(tool.description).toContain('operator')
+      expect(tool.description).not.toContain('peer')
+      expect(tool.description).not.toContain('sub-agent')
     }
+    const text = sessionsPod.prompts[0]?.text(promptCtx) ?? ''
+    expect(text).not.toContain('peer')
+    expect(text).toContain('teammate')
+    expect(text).toContain('provenance')
   })
 })
 
 describe('spawn_session', () => {
-  it('spawns with the brief and names the peer and its thread', async () => {
+  it('spawns with the brief and names the session and its thread', async () => {
     const sessions = fakeSessions()
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({
@@ -132,7 +144,10 @@ describe('spawn_session', () => {
       input: { title: 'trace the port', brief: 'read the port and report' },
     })
     expect(sessions.calls).toEqual([
-      { method: 'spawn', args: { title: 'trace the port', brief: 'read the port and report' } },
+      {
+        method: 'spawn',
+        args: { title: 'trace the port', brief: 'read the port and report', intoPod: undefined },
+      },
     ])
     expect(outcome.ok).toBe(true)
     expect(outcome.ok && outcome.output).toEqual({ sessionId: 'p1', mainThreadId: 't1' })
@@ -145,9 +160,26 @@ describe('spawn_session', () => {
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({ ctx, name: 'spawn_session', input: {} })
     expect(sessions.calls).toEqual([
-      { method: 'spawn', args: { title: undefined, brief: undefined } },
+      { method: 'spawn', args: { title: undefined, brief: undefined, intoPod: undefined } },
     ])
     expect(textOf(outcome)).toContain('no brief')
+    expect(textOf(outcome)).not.toContain('teammate')
+  })
+
+  it('asks for a teammate in the calling sandbox when intoPod is true', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({
+      ctx,
+      name: 'spawn_session',
+      input: { brief: 'pair with me', intoPod: true },
+    })
+    expect(sessions.calls).toEqual([
+      { method: 'spawn', args: { title: undefined, brief: 'pair with me', intoPod: true } },
+    ])
+    expect(textOf(outcome)).toBe(
+      'Started teammate p1 in your sandbox; your brief is its first message.',
+    )
   })
 })
 
@@ -180,35 +212,27 @@ describe('message_session', () => {
 })
 
 describe('list_sessions', () => {
-  it('names the spawner and every peer with its title and archived state', async () => {
-    const sessions = fakeSessions({
-      roster: {
-        spawner: summaryOf({ sessionId: 's0', title: 'the main one', spawnedBy: null }),
-        peers: [
-          summaryOf({ sessionId: 'p1', title: 'one' }),
-          summaryOf({ sessionId: 'p2', title: null, archivedAt: '2026-11-09T10:00:00.000Z' }),
-        ],
-      },
-    })
+  it('lists every session with its title, archived state and the current one marked', async () => {
+    const briefs = [
+      briefOf({ sessionId: 's0', title: 'the main one', spawnedBy: null, current: true }),
+      briefOf({ sessionId: 'p1', title: 'one' }),
+      briefOf({ sessionId: 'p2', title: null, archivedAt: '2026-11-09T10:00:00.000Z' }),
+    ]
+    const sessions = fakeSessions({ briefs })
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({ ctx, name: 'list_sessions', input: {} })
     expect(outcome.ok).toBe(true)
-    expect(outcome.ok && outcome.output).toEqual({
-      spawner: summaryOf({ sessionId: 's0', title: 'the main one', spawnedBy: null }),
-      peers: [
-        summaryOf({ sessionId: 'p1', title: 'one' }),
-        summaryOf({ sessionId: 'p2', title: null, archivedAt: '2026-11-09T10:00:00.000Z' }),
-      ],
-    })
+    expect(outcome.ok && outcome.output).toEqual({ sessions: briefs })
     const text = textOf(outcome)
-    expect(text).toContain('spawner: s0  the main one  open')
-    expect(text).toContain('- p1  one  open')
-    expect(text).toContain('- p2  untitled  archived 2026-11-09T10:00:00.000Z')
+    expect(text).toContain('s0  the main one  open  current')
+    expect(text).toContain('p1  one  open')
+    expect(text).toContain('p2  untitled  archived 2026-11-09T10:00:00.000Z')
+    expect(text).not.toContain('p1  one  open  current')
   })
 
-  it('says so when this session has spawned no peers', async () => {
+  it('says so when the operator has no sessions', async () => {
     const { ctx } = rig(fakeSessions().port)
     const outcome = await invoke({ ctx, name: 'list_sessions', input: {} })
-    expect(textOf(outcome)).toBe('You have spawned no peer sessions.')
+    expect(textOf(outcome)).toBe('The operator has no sessions.')
   })
 })

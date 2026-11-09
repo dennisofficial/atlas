@@ -399,30 +399,33 @@ messages it and the peer replies; the sidebar nests it under the parent; the ope
 it moves to Done; the budget refuses a message past the limit.
 
 **Settled 2026-11-09 (the open questions above).**
-- **`intoPod` is default-on, so there is no flag.** The teammate preset _is_ "placement = the
-  spawner's pod" (03-teammates, "The decision"), so `spawn_session` always places the peer there.
-  The pod is resolved as `spawner.podSessionId ?? spawner.sessionId`, so a peer of a peer stays on
-  the root pod. The column is `V2Session.podSessionId`; the sandbox name stays
-  `sandboxNameOf(podSessionId)`.
+- **`spawn_session` creates an ordinary session by default, and a teammate only when asked.** The
+  operator's correction of 2026-11-09: `spawn_session{title?, brief?, intoPod?}` with `intoPod`
+  absent or false is the same as creating a session in the UI — its **own sandbox and a fresh
+  clone**, the spawner's project, its own lifecycle, no tie beyond the provenance link. It exists so
+  a session can hand off or send off-scope work ("create a new session") and keep going. `intoPod:
+  true` is the **teammate** this slice's design described: `podSessionId = spawner.podSessionId ??
+  spawner.sessionId`, so it shares the lead's sandbox, workspace and context. **A teammate cannot
+  create another teammate**: `intoPod: true` from a session whose own `podSessionId` is set is
+  refused, though it may still create an ordinary session.
 - **The sidebar nests by `spawned-by` alone.** v1 nests teammates with no family label
   (`apps/web/src/features/shell/live-list.ts:139-150`); v2 reuses the shape, and the existing
-  `TeammateList` gives the Done group for archived children. A label would describe a `managedBy`
-  pointer that meant three things; v2's link means one.
+  `TeammateList` gives the Done group for archived children. The nesting is a display convenience
+  over the provenance link; it is not what makes a session a teammate.
 - **Tools, not commands, are the session's command surface.** `spawn_session`, `message_session`
   and `list_sessions` are pod tools over a host port (`PluginPodContext.sessions`, implemented in
   `packages/host` over `HeldSessionDeps.plane`, ADR 0027) rather than control-handled commands: the
   API's command route returns no result, so a control `spawn_session` could not tell the model the
   new session id, and nothing else would call it, so the plugin contributes no control command.
-  The ACL lives in `packages/control` (`peer-sessions.ts`), so both paths enforce it in one place.
-- **Peer messages are unlimited and the sender ACL is same-user only.** Any session of one user
-  may message any other session of that user, spawned by it or not; the 20-message budget the
-  feature first shipped was removed on 2026-11-09 at the operator's direction.
-- **A shared pod parks by its sandbox deadline, not by a release stop.** The idle release stops the
-  sandbox only when no other session is placed on the pod (`podPeersPlaced`, which counts a root
-  session whose `podSessionId` is null as itself). Any other placed session blocks the stop, so no
-  release can stop a sandbox under a peer that is working or about to wake; a working session keeps
-  renewing the deadline, and when none does the sandbox expires and snapshots. A single-session pod
-  still stops on release, exactly as before.
+  The same-user check lives in `packages/control` (`peer-sessions.ts`), so every path uses it.
+- **`list_sessions` lists the operator's sessions**, newest first, with the current one marked —
+  the same rows the sidebar shows. `message_session` accepts any session of the same user; messages
+  are unlimited (the 20-message budget the feature first shipped was removed on 2026-11-09 at the
+  operator's direction).
+- **A shared pod parks by its sandbox deadline, not by a release stop.** For a teammate, the idle
+  release stops the sandbox only when no other session is placed on the pod (`podPeersPlaced`, which
+  counts a root session whose `podSessionId` is null as itself). Any other placed session blocks the
+  stop, so no release can stop a sandbox under a teammate that is working or about to wake.
 - **The sender is an inbox column, not payload JSON.** `V2InboxEntry.senderSessionId` carries it, so
   a host that predates this slice still parses the message (it renders it in the operator lane
   rather than dropping it) during the deploy that introduces it, and the payload stays the shape
@@ -905,41 +908,40 @@ cloned head with the deploy that served it before debugging the plugin.
 Shipped: `plugins/sessions` (`@dltech/atlas-plugin-sessions`, `/core` `/pod` `/control` `/client`),
 registered in `apps/api` and `apps/agent-host`; the tools `spawn_session`, `message_session` and
 `list_sessions` over a new `PluginPodContext.sessions` port implemented in `packages/host` over the
-control plane; the peers prompt fragment; the pure `nestPeers` fold the web sidebar uses. The
+control plane; the sessions prompt fragment; the pure `nestPeers` fold the web sidebar uses. The
 settled answers are in §5.6 above.
 
-**Placement.** `V2Session.spawnedBySessionId` is the spawn link and `podSessionId` the sandbox the
-session runs against (`spawner.podSessionId ?? spawner.sessionId`, so a peer of a peer stays on the
-root pod). The agent host names the sandbox `atlas-v2-<podSessionId>` and hands the resolved id to
-wake, the daemon bearer, workspace setup, keep-alive and stop. The idle release stops a sandbox only
-when no other session is placed on the pod (`podPeersPlaced`, with `COALESCE("podSessionId","id")`),
-so a shared pod parks by its sandbox deadline instead of racing a peer's wake.
+**A spawned session is an ordinary session unless asked for a teammate.** `spawn_session` with
+`intoPod` absent or false is the same as creating a session in the UI — its own sandbox and a fresh
+clone, no lifecycle tie. `intoPod: true` makes a **teammate**: `podSessionId = spawner.podSessionId ??
+spawner.sessionId`, so it shares the lead's sandbox, workspace and context, and a teammate cannot
+create another teammate (`intoPod: true` from a session whose own `podSessionId` is set is refused).
+`spawnedBySessionId` is provenance that feeds the sidebar nesting and grants or restricts nothing.
+The live check below ran when placement was the default; it is now the teammate mode.
 
 **Sender.** `V2InboxEntry.senderSessionId` carries who posted; the payload stays `{text}`, so a host
 that predates the change still parses the message. The intake stamps `sender: {session}` plus
 `via: PeerAgent` on `user-said`, and assembly renders `<agent-said from="session ses_…">` — the
-operator lane is untouched, and old logs decode.
-
-**Budget removed (2026-11-09).** The 20-message budget this slice shipped was removed the same day
-at the operator's direction: peer messages are unlimited and the sender ACL is same-user only.
+operator lane is untouched, and old logs decode. Messages are unlimited and any session of the same
+user may message any other; the 20-message budget the feature first shipped was removed the same day.
 
 **Live check (2026-11-09, production).** Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, thread
 `914374a5-3dab-4713-a50a-6f3a968ff5c5`, project `cmvh6z3ls002i08jwseqmwbrv`, agent host on
-`bd4eb64b1` (its sandbox cloned the same head).
+`bd4eb64b1` (its sandbox cloned the same head). It ran when every spawn was placed on the spawner's
+pod — today that is `intoPod: true`; the rows marked † describe the teammate mode.
 
-| Step                           | Result                                                                                                                                                                                               |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| the session's declared tools   | 32, including `spawn_session`, `message_session` and `list_sessions`                                                                                                                                 |
-| a background shell in the lead | `shell-5f32d5db`, running, `while true; do echo tick; sleep 2; done`                                                                                                                                 |
-| `spawn_session` (title, brief) | `Started peer session 28d8d332-4635-4f73-bd69-fadd03a26e8c; your brief is its first message.`                                                                                                        |
-| the spawn link                 | `sessions.list` row for the peer: `spawnedBy` = the lead, title `Peer live check`, not archived                                                                                                      |
-| the peer's own thread          | the brief is a `user-said` with `sender: { session: <lead> }` and `via: peer-agent`; `list_sessions` shows the spawner and "You have spawned no peer sessions"; `branches-observed` head `bd4eb64b1` |
-| the shared pod                 | the peer's `shell_list` returned the lead's `shell-5f32d5db`, running, 60 characters printed                                                                                                         |
-| the peer's own sandbox view    | `hostname; pwd` → `1b74732b-2d3` (the lead's `atlas-v2-b6cdbfe7-…`) and `/atlas/workspaces/workspace`                                                                                                |
-| the reply lane                 | the peer's `message_session` woke the lead with a `user-said` carrying `sender: { session: <peer> }` and `via: peer-agent`                                                                           |
-| archive to Done                | the peer's `archivedAt` set, `spawnedBy` intact — the data the sidebar's Done group folds                                                                                                            |
-| the ticker kill                | not completed: the lead's next turn opened with "session … lost its lease", so `shell_kill` could not run; the sandbox parks by its deadline, which is the rule this slice introduced                |
-| teardown                       | both sessions archived, temporary `AuthSession` deleted                                                                                                                                              |
+| Step                           | Result                                                                                                                                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the session's declared tools   | 32, including `spawn_session`, `message_session` and `list_sessions`                                                                                                                                        |
+| `spawn_session` (title, brief) | `Started peer session 28d8d332-4635-4f73-bd69-fadd03a26e8c; your brief is its first message.`                                                                                                               |
+| the spawn link                 | `sessions.list` row for the new session: `spawnedBy` = the spawner, title `Peer live check`, not archived                                                                                                   |
+| the new session's own thread   | the brief is a `user-said` with `sender: { session: <spawner> }` and `via: peer-agent`; `branches-observed` head `bd4eb64b1`                                                                                |
+| the reply lane                 | its `message_session` woke the spawner with a `user-said` carrying `sender: { session: <it> }` and `via: peer-agent`                                                                                        |
+| a background shell †           | the spawner's `shell-5f32d5db` was visible to the spawned session's `shell_list` (60 characters printed), and its `hostname` was the spawner's sandbox `1b74732b-2d3` — the teammate mode, then the default |
+| the roster                     | at the time, `list_sessions` showed the spawner and "You have spawned no peer sessions"; it now lists the operator's sessions, newest first, with the current one marked                                    |
+| archive to Done                | the new session's `archivedAt` set, `spawnedBy` intact — the data the sidebar's Done group folds                                                                                                            |
+| the ticker kill †              | not completed: the spawner's next turn opened with "session … lost its lease", so `shell_kill` could not run; the shared sandbox parked by its deadline                                                     |
+| teardown                       | both sessions archived, temporary `AuthSession` deleted                                                                                                                                                     |
 
 **The stale-instance trap recurred.** The first session (`5bc1c266-…`), created while the deploy of
 `bd4eb64b1` was going live, listed every other plugin's tools and none of the three new ones; its

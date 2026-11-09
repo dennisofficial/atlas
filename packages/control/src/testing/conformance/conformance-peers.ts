@@ -5,14 +5,18 @@ import type { ConformanceParams } from './conformance'
 import { freshHosts } from './conformance-fresh-hosts'
 import { createSessionParams, PROJECT, SESSION, THREAD, T0, USER } from './support'
 
+const LATER = '2026-11-09T11:00:00.000Z'
+
 export function describeControlPlanePeers(params: ConformanceParams): void {
   describe(`ControlPlane peer sessions (${params.name})`, () => {
     let plane: ControlPlane
+    let now: string
     const hosts = freshHosts(params)
 
     beforeEach(async () => {
       await params.reset()
-      plane = new ControlPlane({ store: params.makeStore(), clock: () => T0 })
+      now = T0
+      plane = new ControlPlane({ store: params.makeStore(), clock: () => now })
     })
 
     afterEach(() => hosts.releaseAll())
@@ -22,6 +26,7 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       mainThreadId: string
       brief?: string | undefined
       spawner?: string | undefined
+      intoPod?: boolean | undefined
     }) =>
       plane.spawnPeer({
         spawnerSessionId: args.spawner ?? SESSION,
@@ -29,9 +34,10 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
         mainThreadId: args.mainThreadId,
         title: 'Peer session',
         ...(args.brief === undefined ? {} : { brief: args.brief }),
+        ...(args.intoPod === undefined ? {} : { intoPod: args.intoPod }),
       })
 
-    it('links a spawned session to its spawner and places it on the spawner’s pod', async () => {
+    it('links a spawned session to its spawner with no pod of its own', async () => {
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
       const { inboxId } = await spawn({
         sessionId: 'peer-1',
@@ -42,7 +48,7 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       const peer = await plane.readSession({ sessionId: 'peer-1' })
       expect(peer).toMatchObject({
         spawnedBySessionId: SESSION,
-        podSessionId: SESSION,
+        podSessionId: null,
         projectId: PROJECT,
         userId: USER,
         title: 'Peer session',
@@ -53,11 +59,37 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({ text: 'Take the parser.' })
     })
 
-    it('keeps a peer of a peer on the root pod', async () => {
+    it('places a teammate on the spawner’s pod', async () => {
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
-      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1' })
+      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1', intoPod: true })
+      expect((await plane.readSession({ sessionId: 'peer-1' }))?.podSessionId).toBe(SESSION)
+      expect(
+        await plane.podPeersPlaced({ podSessionId: SESSION, excludeSessionId: 'peer-1' }),
+      ).toBe(1)
+    })
+
+    it('refuses a teammate that asks for a teammate of its own', async () => {
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1', intoPod: true })
+      await expect(
+        spawn({
+          sessionId: 'peer-2',
+          mainThreadId: 'peer-thread-2',
+          spawner: 'peer-1',
+          intoPod: true,
+        }),
+      ).rejects.toThrow('a teammate cannot create another teammate')
+      expect(await plane.readSession({ sessionId: 'peer-2' })).toBeUndefined()
+    })
+
+    it('lets a teammate spawn an ordinary session with no pod', async () => {
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1', intoPod: true })
       await spawn({ sessionId: 'peer-2', mainThreadId: 'peer-thread-2', spawner: 'peer-1' })
-      expect((await plane.readSession({ sessionId: 'peer-2' }))?.podSessionId).toBe(SESSION)
+      expect(await plane.readSession({ sessionId: 'peer-2' })).toMatchObject({
+        spawnedBySessionId: 'peer-1',
+        podSessionId: null,
+      })
     })
 
     it('posts a message with the sender named', async () => {
@@ -108,23 +140,38 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       expect(await plane.readInbox({ sessionId: 'foreign', afterId: 0, limit: 10 })).toEqual([])
     })
 
-    it('lists the peers a session spawned and the spawner it came from', async () => {
+    it('lists every session of the user, the current one included', async () => {
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      now = '2026-11-09T10:00:01.000Z'
       await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1' })
+      now = '2026-11-09T10:00:02.000Z'
       await plane.createSession(
         createSessionParams({ sessionId: 'other', mainThreadId: 'other-thread' }),
       )
-      const fromSpawner = await plane.peersOf({ sessionId: SESSION })
-      expect(fromSpawner.spawner).toBeNull()
-      expect(fromSpawner.peers.map((row) => row.sessionId)).toEqual(['peer-1'])
-      const fromPeer = await plane.peersOf({ sessionId: 'peer-1' })
-      expect(fromPeer.spawner?.sessionId).toBe(SESSION)
-      expect(fromPeer.peers).toEqual([])
+      await plane.createSession({
+        sessionId: 'foreign',
+        userId: 'another-user',
+        projectId: PROJECT,
+        mainThreadId: 'foreign-thread',
+      })
+      const roster = await plane.sessionsOf({ sessionId: 'peer-1' })
+      expect(roster.sessions.map((row) => row.sessionId)).toEqual(['other', 'peer-1', SESSION])
+      expect(roster.sessions.find((row) => row.sessionId === 'peer-1')?.spawnedBySessionId).toBe(
+        SESSION,
+      )
+    })
+
+    it('archives a spawned session without touching its spawner', async () => {
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1', intoPod: true })
+      await plane.setSessionArchived({ sessionId: 'peer-1', archivedAt: LATER })
+      expect((await plane.readSession({ sessionId: 'peer-1' }))?.archivedAt).toBe(LATER)
+      expect((await plane.readSession({ sessionId: SESSION }))?.archivedAt).toBeNull()
     })
 
     it('counts every other session placed on a pod, a root session’s own id included', async () => {
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
-      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1' })
+      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1', intoPod: true })
       const placed = (podSessionId: string, excludeSessionId: string) =>
         plane.podPeersPlaced({ podSessionId, excludeSessionId })
       expect((await plane.readSession({ sessionId: SESSION }))?.podSessionId).toBeNull()
@@ -133,7 +180,7 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       expect(await placed('another-pod', SESSION)).toBe(0)
       await plane.setSessionArchived({ sessionId: 'peer-1', archivedAt: T0 })
       expect(await placed(SESSION, SESSION)).toBe(1)
-      await spawn({ sessionId: 'peer-2', mainThreadId: 'peer-thread-2', spawner: 'peer-1' })
+      await spawn({ sessionId: 'peer-2', mainThreadId: 'peer-thread-2', intoPod: true })
       expect(await placed(SESSION, SESSION)).toBe(2)
     })
   })

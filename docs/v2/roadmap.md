@@ -23,19 +23,15 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-09._
-- **`plugins/sessions` live-checked on production (2026-11-09)** (`#2095`): a session spawned a peer
-  into its own sandbox — the peer saw the lead's background shell and reported back in a named peer
-  lane; archiving put the peer in the parent's Done group. Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, agent host
-  `bd4eb64b1` (spec §8.9). The live check also proved how a shared pod parks: the lead's last turn
-  lost its lease before `shell_kill`, and the sandbox was left to its deadline rather than stopped
-  under a peer.
-- **`plugins/crew` worktree tools live-checked on production (2026-11-09)** (`#2084`, `#2086`,
-  `#2087`): `enter_worktree`, `exit_worktree`, `worktree_list` and `agent_spawn.worktree`, plus the
-  web crew chip and panel. A child spawned into a new worktree ran, committed and reported from it;
-  the parent listed it, entered it as one this session created, was refused removal for the child's
-  unpushed commit, and removed it with approval — session `188f95e6-ffdf-4ee1-afd9-485520a5756e`,
-  agent host `313c7f417` (spec §8.8). The review round found the first cut could delete an adopted
-  worktree and failed open on unpushed commits; both are closed in `#2087`.
+- **`plugins/sessions` live-checked on production (2026-11-09)** (`#2095`, `#2097`, `#2099`): a
+  session can create another session with a brief — an ordinary one by default (its own sandbox and
+  a fresh clone) or, with `intoPod: true`, a teammate sharing its sandbox and context, and a
+  teammate cannot make a teammate. It can message any session of the operator's and list them; the
+  sidebar nests a spawned session under its spawner and folds an archived one into that row's Done
+  group, and the brief and the reply cross in a named agent lane. The 20-message budget the feature
+  first shipped was removed the same day. Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, agent host
+  `bd4eb64b1` (spec §8.9).
+
 - **The agent host calls the API for nothing, and both backends are NestJS (2026-11-09)**
   (`dennis/agent-host-owns-its-work`, [0027](../decisions/0027-both-backends-own-their-work.md)):
   `hostSelf.*` and `hostMemory.*` are gone; memory is `@dltech/atlas-memory` and previews are
