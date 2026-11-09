@@ -1,9 +1,7 @@
 import type { InboxEntry, Lease } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
-import type { ChangeFeed } from '../../change-feed'
 import {
-  ControlStorePort,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
@@ -42,8 +40,7 @@ import {
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
 } from './memory-sessions'
-import { MemoryTestControls } from './memory-test-controls'
-import { cloneState, emptyState, refKey, type State } from './memory-state'
+import { refKey, type State } from './memory-state'
 import { MemoryTxViews } from './memory-tx-views'
 
 export class MemoryTx extends MemoryTxViews implements ControlTx {
