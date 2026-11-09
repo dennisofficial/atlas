@@ -12,6 +12,7 @@ import { AnalyticsProvider } from '../analytics/analytics-provider'
 import { AuthProvider, useAuth } from '../auth/auth-provider'
 import { EAuthState } from '../auth/auth-reducer'
 import { destinationOfUrl, type TDestination } from '../navigation/destination'
+import { installBackgroundNotifications } from '../push/background-notifications'
 import {
   installNotificationHandler,
   subscribeToNotificationResponses,
@@ -24,6 +25,7 @@ import { installWebReset } from '../theme/web-reset'
 import { UpdateCard } from '../updates/update-card'
 
 installNotificationHandler()
+installBackgroundNotifications()
 installWebReset()
 void SplashScreen.preventAutoHideAsync()
 

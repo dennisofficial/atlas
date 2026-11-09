@@ -199,6 +199,7 @@
         "expo-status-bar": "~58.0.4",
         "expo-symbols": "~58.0.4",
         "expo-system-ui": "~58.0.7",
+        "expo-task-manager": "~58.0.13",
         "expo-updates": "~58.0.21",
         "expo-web-browser": "~58.0.7",
         "lucide-react-native": "^1.67.0",
@@ -3281,6 +3282,8 @@
 
     "expo-system-ui": ["expo-system-ui@58.0.7", "", { "dependencies": { "@react-native/normalize-colors": "0.88.1", "debug": "^4.3.2" }, "peerDependencies": { "expo": "*", "react-native": "*", "react-native-web": "*" }, "optionalPeers": ["react-native-web"] }, "sha512-XxrMY93bT8MpZUlc6uRKzkeUoXhBi/Eq8j3qx2pjk0ARCV+0Ed1eqzmgxuAoKZ+10cyOZVSke5Hhi78NVFReuQ=="],
 
+    "expo-task-manager": ["expo-task-manager@58.0.13", "", { "dependencies": { "unimodules-app-loader": "~58.0.2" }, "peerDependencies": { "expo": "*", "react-native": "*" } }, "sha512-wMDmVmbCV6aKvORmVHr8qu+oQfA5+EWe9EhYvLgQj5Qd2IPXEBM9OjOieylk0/tdXaF8ZfGany5Oqkr3/KzCAA=="],
+
     "expo-updates": ["expo-updates@58.0.21", "", { "dependencies": { "@expo/code-signing-certificates": "^0.0.7", "@expo/env": "^2.5.4", "@expo/plist": "^0.10.1", "@expo/spawn-async": "^1.8.0", "@react-native/asset-utils": "0.88.1", "arg": "^4.1.0", "chalk": "^4.1.2", "debug": "^4.3.4", "expo-eas-client": "~58.0.2", "expo-manifests": "~58.0.1", "expo-structured-headers": "~58.0.1", "expo-updates-interface": "~58.0.1", "getenv": "^2.0.0", "ignore": "^5.3.1", "nullthrows": "^1.1.1", "resolve-from": "^5.0.0" }, "peerDependencies": { "expo": "*", "expo-dev-client": "*", "react": "*", "react-native": "*" }, "optionalPeers": ["expo-dev-client"], "bin": { "expo-updates": "bin/cli.js" } }, "sha512-shc/i52aoFcvweKoOVjTZMo+WSokHeJjVdzpOkpiPkzJP642exytEBQQPG5cO1QBgfGHzaPN+yzVm6CRao4LzQ=="],
 
     "expo-updates-interface": ["expo-updates-interface@58.0.1", "", { "peerDependencies": { "expo": "*" } }, "sha512-OF+3BtMXtUsXWDfpHVNus9yHpx7WjMwjxDfeeN9LQBYSq/UtYmNNHBSfzChYTuqljWFSOAHRfsDykV9EB73Wlg=="],
@@ -4752,6 +4755,8 @@
     "unified": ["unified@11.0.5", "", { "dependencies": { "@types/unist": "^3.0.0", "bail": "^2.0.0", "devlop": "^1.0.0", "extend": "^3.0.0", "is-plain-obj": "^4.0.0", "trough": "^2.0.0", "vfile": "^6.0.0" } }, "sha512-xKvGhPWw3k84Qjh8bI3ZeJjqnyadK+GEFtazSfZv/rKeTkTjOJho6mFqh2SM96iIcZokxiOpg78GazTSg8+KHA=="],
 
     "uniku": ["uniku@0.5.0", "", { "dependencies": { "@noble/hashes": "^2.2.0" } }, "sha512-giSrg7xqM5YWkSlyheulHgTTInhYh/m0cFZOOuChi/TO87hKlxmZLllETlvDw/lPB54NIs1iW/x2rr0y2yFXHg=="],
+
+    "unimodules-app-loader": ["unimodules-app-loader@58.0.2", "", {}, "sha512-d7vZN9/awIwPCqzfw1qR/geJEzv3ElW0VdwXFnPw29QZYoAZI0jqXGKPZVG1vQCfhEiWJtBX/nVm1XI8wshrDg=="],
 
     "unist-util-find-after": ["unist-util-find-after@5.0.0", "", { "dependencies": { "@types/unist": "^3.0.0", "unist-util-is": "^6.0.0" } }, "sha512-amQa0Ep2m6hE2g72AugUItjbuM8X8cGQnFoHk0pGfrFeT9GZhzN5SW8nRsiGKK7Aif4CrACPENkA6P/Lw6fHGQ=="],
 

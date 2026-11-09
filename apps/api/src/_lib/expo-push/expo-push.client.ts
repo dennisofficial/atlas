@@ -34,9 +34,13 @@ export type ExpoPushReceipt = z.infer<typeof receiptSchema>
 
 export type ExpoPushMessage = {
   to: string
-  title: string
-  body: string
+  title?: string | undefined
+  body?: string | undefined
   data?: Record<string, string> | undefined
+  collapseId?: string | undefined
+  threadId?: string | undefined
+  contentAvailable?: true | undefined
+  priority?: 'default' | 'normal' | 'high' | undefined
 }
 
 export interface ExpoPush {

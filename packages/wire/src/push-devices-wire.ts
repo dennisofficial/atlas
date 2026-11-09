@@ -31,3 +31,5 @@ export const sendTestPushReplySchema = z.strictObject({
   devices: z.number().int(),
 })
 export type SendTestPushReply = z.infer<typeof sendTestPushReplySchema>
+
+export const DISMISS_THREAD_DATA_KEY = 'dismissThreadId'

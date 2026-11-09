@@ -3,7 +3,9 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
 import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import { PresenceService } from '../presence/presence.service'
 import { NotificationsService } from './notifications.service'
+import { PushLedger } from './push-ledger'
 
 const TOKEN = 'ExponentPushToken[abc123]'
 
@@ -20,11 +22,22 @@ describe('NotificationsService', () => {
   useTestDatabase()
   let dispatcher: { dispatch: ReturnType<typeof vi.fn> }
   let service: NotificationsService
+  let watching: boolean
+  let sentAt: number | undefined
 
   beforeEach(async () => {
     await seedUsers('usr-1')
+    watching = false
+    sentAt = undefined
     dispatcher = { dispatch: vi.fn(async () => ({ runId: 'run_1' })) }
-    service = new NotificationsService(dispatcher as unknown as JobDispatcher)
+    service = new NotificationsService(
+      dispatcher as unknown as JobDispatcher,
+      { isWatching: async () => watching } as unknown as PresenceService,
+      {
+        noteSent: async () => undefined,
+        takeSent: async () => sentAt,
+      } as unknown as PushLedger,
+    )
   })
 
   it('dispatches one message per registered device', async () => {
@@ -79,11 +92,57 @@ describe('NotificationsService', () => {
             title: 'Fix the login bug',
             body: 'Finished',
             data: { threadId: 'thr-1', sessionId: 'ses_thr-1' },
+            collapseId: 'thr-1',
+            threadId: 'ses_thr-1',
           },
         ],
       },
       idempotencyKey: 'turn-ended:thr-1:2026-11-03T01:02:03.000Z',
     })
+  })
+
+  it('stays quiet while the thread is on screen in a desktop client', async () => {
+    await registerDevice('usr-1', TOKEN)
+    await seedThreadRow({ id: 'thr-1', userId: 'usr-1', title: 'Fix the login bug' })
+    watching = true
+
+    await service.notifyTurnEnded({
+      threadId: 'thr-1',
+      outcome: 'completed',
+      activityAt: '2026-11-03T01:02:03.000Z',
+    })
+
+    expect(dispatcher.dispatch).not.toHaveBeenCalled()
+  })
+
+  it('asks iOS devices to drop the thread notification once it is read', async () => {
+    await registerDevice('usr-1', TOKEN)
+    sentAt = 1_760_000_000_000
+
+    await service.dismissThread({ userId: 'usr-1', threadId: 'thr-1' })
+
+    expect(dispatcher.dispatch).toHaveBeenCalledTimes(1)
+    expect(dispatcher.dispatch.mock.calls[0]?.[0]).toMatchObject({
+      payload: {
+        messages: [
+          {
+            to: TOKEN,
+            contentAvailable: true,
+            priority: 'normal',
+            data: { dismissThreadId: 'thr-1' },
+          },
+        ],
+      },
+      idempotencyKey: 'push-dismiss:thr-1:1760000000000',
+    })
+  })
+
+  it('dismisses nothing when no notification went out for the thread', async () => {
+    await registerDevice('usr-1', TOKEN)
+
+    await service.dismissThread({ userId: 'usr-1', threadId: 'thr-1' })
+
+    expect(dispatcher.dispatch).not.toHaveBeenCalled()
   })
 
   it('falls back to Atlas as the title and names failures', async () => {
