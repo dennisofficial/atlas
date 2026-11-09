@@ -19,13 +19,15 @@ export enum EButtonSize {
   IconLg = 'icon-lg',
 }
 
+export const MIN_TOUCH_TARGET = 44
+
 const HEIGHT: Record<EButtonSize, number> = {
-  [EButtonSize.Sm]: 28,
-  [EButtonSize.Default]: 32,
-  [EButtonSize.Lg]: 36,
-  [EButtonSize.IconSm]: 28,
-  [EButtonSize.Icon]: 32,
-  [EButtonSize.IconLg]: 36,
+  [EButtonSize.Sm]: 32,
+  [EButtonSize.Default]: 36,
+  [EButtonSize.Lg]: MIN_TOUCH_TARGET,
+  [EButtonSize.IconSm]: 32,
+  [EButtonSize.Icon]: 36,
+  [EButtonSize.IconLg]: MIN_TOUCH_TARGET,
 }
 
 export const isIconSize = (size: EButtonSize): boolean =>
@@ -37,11 +39,13 @@ export const buttonBoxOf = (size: EButtonSize) => {
     return { height, width: height, borderRadius: radius(size === EButtonSize.IconSm ? 0.8 : 1) }
   return {
     height,
-    paddingHorizontal: space(2.5),
+    paddingHorizontal: size === EButtonSize.Lg ? space(4) : space(3),
     gap: space(size === EButtonSize.Sm ? 1 : 1.5),
     borderRadius: radius(size === EButtonSize.Sm ? 0.8 : 1),
   }
 }
+
+export const touchSlopOf = (size: EButtonSize) => Math.max(0, (MIN_TOUCH_TARGET - HEIGHT[size]) / 2)
 
 export const buttonColorsOf = ({
   variant,

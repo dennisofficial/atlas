@@ -41,6 +41,18 @@ describe('textStyleOf', () => {
     })
   })
 
+  test('a relaxed leading scales the line box to the web value', () => {
+    const style = textStyleOf({
+      role: ETextRole.Sm,
+      family: EFontFamily.Sans,
+      weight: EFontWeight.Regular,
+      tight: false,
+      leading: 1.625,
+    })
+    expect(style.fontSize).toBe(14)
+    expect(style.lineHeight).toBeCloseTo(22.75)
+  })
+
   test('tight tracking is -0.025em, as Tailwind tracking-tight', () => {
     const style = textStyleOf({
       role: ETextRole.Xl,

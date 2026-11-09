@@ -1,3 +1,5 @@
+import type { Attachment } from '@dltech/atlas-core'
+import { radius, space } from '@dltech/atlas-ui/tokens'
 import {
   Button,
   EButtonSize,
@@ -6,12 +8,11 @@ import {
   ETextTone,
   Input,
   Text,
+  useIsDark,
   useTheme,
   withAlpha,
 } from '@dltech/atlas-ui-native'
-import { radius, space } from '@dltech/atlas-ui/tokens'
-import type { Attachment } from '@dltech/atlas-core'
-import { ArrowUp, Paperclip, Square } from 'lucide-react-native'
+import { ArrowUp, Plus, Square } from 'lucide-react-native'
 import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -19,6 +20,8 @@ import { AttachmentChips } from './attachment-chips'
 import { AttachMenu } from './attach-menu'
 import { REMOVE_FAILED_FILES, sendableOf } from './attachment-plan'
 import type { ComposerAttachments } from './use-attachments'
+
+const PLACEHOLDER = 'Ask the agent to change your code...'
 
 export const Composer = ({
   working,
@@ -32,6 +35,7 @@ export const Composer = ({
   onStop: () => void
 }) => {
   const theme = useTheme()
+  const dark = useIsDark()
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -82,45 +86,50 @@ export const Composer = ({
         style={[
           styles.field,
           {
-            backgroundColor: theme.card,
-            borderColor: withAlpha({ color: theme.foreground, alpha: 0.1 }),
+            backgroundColor: dark ? withAlpha({ color: theme.input, alpha: 0.3 }) : 'transparent',
+            borderColor: theme.input,
           },
         ]}
       >
-        <Button
-          label={choosing ? 'Close the attachment menu' : 'Attach'}
-          icon={Paperclip}
-          size={EButtonSize.IconSm}
-          variant={choosing ? EButtonVariant.Default : EButtonVariant.Secondary}
-          onPress={() => setChoosing((open) => !open)}
-        />
         <Input
           bare
           multiline
           accessibilityLabel="Message Atlas"
-          placeholder="Message Atlas…"
+          placeholder={PLACEHOLDER}
           value={draft}
           onChangeText={setDraft}
           style={styles.input}
         />
-        {working ? (
+        <View style={styles.bar}>
           <Button
-            label="Stop"
-            icon={Square}
-            size={EButtonSize.IconSm}
-            variant={EButtonVariant.Secondary}
-            onPress={onStop}
+            label={choosing ? 'Close the attachment menu' : 'Attach a file'}
+            icon={Plus}
+            size={EButtonSize.Icon}
+            variant={EButtonVariant.Outline}
+            round
+            onPress={() => setChoosing((open) => !open)}
           />
-        ) : (
-          <Button
-            label="Send"
-            icon={ArrowUp}
-            size={EButtonSize.IconSm}
-            disabled={!canSend}
-            loading={sending}
-            onPress={() => void handleSend()}
-          />
-        )}
+          {working ? (
+            <Button
+              label="Stop"
+              icon={Square}
+              size={EButtonSize.Icon}
+              variant={EButtonVariant.Secondary}
+              round
+              onPress={onStop}
+            />
+          ) : (
+            <Button
+              label="Send"
+              icon={ArrowUp}
+              size={EButtonSize.Icon}
+              round
+              disabled={!canSend}
+              loading={sending}
+              onPress={() => void handleSend()}
+            />
+          )}
+        </View>
       </View>
     </View>
   )
@@ -128,24 +137,33 @@ export const Composer = ({
 
 const styles = StyleSheet.create({
   dock: {
-    paddingBottom: space(2),
-    paddingHorizontal: space(3),
+    paddingBottom: space(3),
+    paddingHorizontal: space(4),
     paddingTop: space(2),
   },
   field: {
-    alignItems: 'flex-end',
-    borderRadius: radius(1.4),
+    borderRadius: radius(1),
     borderWidth: 1,
-    flexDirection: 'row',
-    gap: space(1.5),
-    padding: space(2),
+    paddingHorizontal: space(2.5),
+    paddingTop: space(2.5),
   },
   input: {
-    flex: 1,
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
     maxHeight: 160,
-    minHeight: 36,
-    paddingHorizontal: space(1),
-    paddingVertical: space(1),
+    minHeight: 40,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    textAlignVertical: 'top',
+  },
+  bar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space(2),
+    justifyContent: 'space-between',
+    paddingBottom: space(2.5),
+    paddingTop: space(1),
   },
   notice: {
     paddingBottom: space(1),

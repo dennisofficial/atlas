@@ -16,6 +16,7 @@ export interface ITextProps extends TextProps {
   family?: EFontFamily
   weight?: EFontWeight
   tight?: boolean
+  leading?: number
   color?: string | undefined
 }
 
@@ -25,6 +26,7 @@ export const Text = ({
   family = EFontFamily.Sans,
   weight = EFontWeight.Regular,
   tight = false,
+  leading,
   color,
   style,
   ...props
@@ -34,7 +36,13 @@ export const Text = ({
     <NativeText
       {...props}
       style={[
-        textStyleOf({ role: size, family, weight, tight }),
+        textStyleOf({
+          role: size,
+          family,
+          weight,
+          tight,
+          ...(leading === undefined ? {} : { leading }),
+        }),
         { color: color ?? toneColorOf({ tone, theme }) },
         style,
       ]}

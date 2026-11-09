@@ -28,12 +28,12 @@ export type MessageRow = {
   kind: ERowKind.Message
   id: string
   author: EMessageAuthor
+  at: string | undefined
   text: string
   streaming: boolean
   steer: boolean
   attachments: readonly Attachment[]
 }
-
 export type ThoughtItem = {
   kind: EEntryKind.ModelThought
   id: string
@@ -64,6 +64,7 @@ export type WorkRow = {
 export type NoticeRow = {
   kind: ERowKind.Notice
   id: string
+  at: string | undefined
   title: string
   body: string
   tone: ENoticeTone
@@ -102,12 +103,14 @@ type Building = {
 
 const noticeOf = (args: {
   id: string
+  at: string | undefined
   title: string
   body?: string
   tone: ENoticeTone
 }): NoticeRow => ({
   kind: ERowKind.Notice,
   id: args.id,
+  at: args.at,
   title: args.title,
   body: args.body ?? '',
   tone: args.tone,
@@ -187,7 +190,9 @@ export function rowsOf(args: {
   entries: readonly TranscriptEntry[]
   working: boolean
   now: number
+  atOf?: (id: string) => string | undefined
 }): ThreadRow[] {
+  const atOf = args.atOf ?? (() => undefined)
   const rows: ThreadRow[] = []
   let building: Building | null = null
 
@@ -226,6 +231,7 @@ export function rowsOf(args: {
         rows.push({
           kind: ERowKind.Message,
           id: entry.key,
+          at: atOf(entry.key),
           author: EMessageAuthor.You,
           text: entry.text,
           streaming: false,
@@ -239,6 +245,7 @@ export function rowsOf(args: {
         rows.push({
           kind: ERowKind.Message,
           id: entry.key,
+          at: atOf(entry.key),
           author: EMessageAuthor.Atlas,
           text: entry.text,
           streaming: entry.streaming,
@@ -278,7 +285,7 @@ export function rowsOf(args: {
         const fields = noticeFieldsOf(entry)
         if (fields === null) continue
         flush()
-        rows.push(noticeOf({ id: entry.key, ...fields }))
+        rows.push(noticeOf({ id: entry.key, at: atOf(entry.key), ...fields }))
         continue
       }
     }
