@@ -1,7 +1,9 @@
 import type { EDefinitionOrigin, ToolDefinition } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
+import type { McpServerChanged, McpServerRemoved } from '../core'
 import type { LoadedMcpEntry, McpCloudRow, McpRejection } from '../core'
+import { EMcpViewStatus, sameMcpRow, type McpServerRow } from '../core'
 import { McpBridgeTool } from './bridge-tool'
 import { fileReaderOf, loadMcpConfig } from './config'
 import { HttpClient } from './http'
@@ -78,6 +80,12 @@ const withBudget = async (args: { ms: number; run: () => Promise<unknown> }): Pr
   }
 }
 
+const viewStatusOf = (status: EMcpServerStatus): EMcpViewStatus => {
+  if (status === EMcpServerStatus.Connected) return EMcpViewStatus.Connected
+  if (status === EMcpServerStatus.NeedsAuth) return EMcpViewStatus.NeedsAuth
+  return EMcpViewStatus.Failed
+}
+
 const sameSpec = (left: LoadedMcpEntry, right: LoadedMcpEntry): boolean =>
   JSON.stringify([left.transport, left.disabled]) ===
   JSON.stringify([right.transport, right.disabled])
@@ -85,6 +93,7 @@ const sameSpec = (left: LoadedMcpEntry, right: LoadedMcpEntry): boolean =>
 export class McpStore {
   private readonly held = new Map<string, Held>()
   private rejections: readonly McpRejection[] = []
+  private published = new Map<string, McpServerRow>()
   private started = false
 
   constructor(
@@ -106,6 +115,7 @@ export class McpStore {
     const merged = await this.load()
     this.rejections = merged.rejections
     await Promise.allSettled(merged.servers.map(async (spec) => await this.ensure(spec)))
+    await this.publish()
   }
 
   async reconcile(): Promise<void> {
@@ -125,6 +135,7 @@ export class McpStore {
         await Promise.allSettled(merged.servers.map(async (spec) => await this.ensure(spec)))
       },
     })
+    await this.publish()
   }
 
   tools(): readonly ToolDefinition[] {
@@ -157,6 +168,27 @@ export class McpStore {
     return this.rejections
   }
 
+  rows(): readonly McpServerRow[] {
+    return this.servers().map((server) => ({
+      name: server.name,
+      transport: server.transport,
+      status: viewStatusOf(server.status),
+      toolCount: server.tools,
+      ...(server.reason === undefined ? {} : { reason: server.reason }),
+      layer: server.origin,
+    }))
+  }
+
+  instructionsByServer(): Map<string, string> {
+    const live = new Map<string, string>()
+    for (const [name, held] of this.held) {
+      if (held.status !== EMcpServerStatus.Connected) continue
+      if (held.instructions === undefined || held.instructions.length === 0) continue
+      live.set(name, held.instructions)
+    }
+    return live
+  }
+
   instructionsOf(name: string): string | undefined {
     return this.held.get(name)?.instructions
   }
@@ -165,6 +197,28 @@ export class McpStore {
     const held = [...this.held.values()]
     this.held.clear()
     await Promise.allSettled(held.map(async (entry) => await entry.client.close()))
+  }
+
+  private async publish(): Promise<void> {
+    const rows = this.rows()
+    const next = new Map(rows.map((row) => [row.name, row]))
+    const drafts: (McpServerChanged | McpServerRemoved)[] = []
+    for (const row of rows) {
+      const kept = this.published.get(row.name)
+      if (kept !== undefined && sameMcpRow(kept, row)) continue
+      drafts.push({ type: 'mcp-server-changed', row })
+    }
+    for (const name of this.published.keys()) {
+      if (next.has(name)) continue
+      drafts.push({ type: 'mcp-server-removed', name })
+    }
+    this.published = next
+    if (drafts.length === 0) return
+    try {
+      await this.args.ctx.append(drafts)
+    } catch (error) {
+      this.args.ctx.log(`mcp: recording the server roster failed: ${messageOf(error)}`)
+    }
   }
 
   private async load() {
@@ -263,6 +317,7 @@ export class McpStore {
 
 export class McpStores {
   private readonly stores = new WeakMap<PluginPodContext, McpStore>()
+  private readonly bySession = new Map<string, McpStore>()
 
   constructor(
     private readonly args: {
@@ -272,6 +327,10 @@ export class McpStores {
       reconcileBudgetMs?: number
     },
   ) {}
+
+  forSession(sessionId: string): McpStore | undefined {
+    return this.bySession.get(sessionId)
+  }
 
   of(ctx: PluginPodContext): McpStore {
     const kept = this.stores.get(ctx)
@@ -284,6 +343,7 @@ export class McpStores {
       reconcileBudgetMs: this.args.reconcileBudgetMs ?? RECONCILE_BUDGET_MS,
     })
     this.stores.set(ctx, store)
+    this.bySession.set(ctx.sessionId, store)
     return store
   }
 }
