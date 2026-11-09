@@ -5,6 +5,6 @@ const CLAIM_ESCAPE =
   "window.addEventListener('keydown', (event) => { if (event.key === 'Escape') event.preventDefault() })"
 
 export const DESKTOP_PRELOAD = [
-  'window.atlasDesktop = Object.freeze({ vibrancy: false })',
+  'window.atlasDesktop = Object.freeze({ vibrancy: false, nativeBrowser: true })',
   CLAIM_ESCAPE,
 ].join(';\n')
