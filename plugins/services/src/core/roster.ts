@@ -10,6 +10,7 @@ export const serviceRowSchema = z.object({
   name: z.string().optional(),
   command: z.string(),
   port: z.number().int().optional(),
+  declarationHash: z.string().optional(),
   status: z.enum(EServiceStatus),
   ready: z.boolean(),
   changedAt: z.string(),
@@ -25,8 +26,19 @@ const upsert = (state: ServicesViewState, row: ServiceRow): ServicesViewState =>
     ? state.map((kept) => (kept.serviceId === row.serviceId ? row : kept))
     : [...state, row]
 
-const nameOf = (description: string | undefined): { name?: string } =>
-  description === undefined || description.trim() === '' ? {} : { name: description }
+const nameOf = (event: {
+  name?: string | undefined
+  description?: string | undefined
+}): {
+  name?: string
+} => {
+  if (event.name !== undefined && event.name.trim() !== '') return { name: event.name }
+  if (event.description === undefined || event.description.trim() === '') return {}
+  return { name: event.description }
+}
+
+const hashOf = (event: { declarationHash?: string | undefined }): { declarationHash?: string } =>
+  event.declarationHash === undefined ? {} : { declarationHash: event.declarationHash }
 
 export const foldServices = (
   state: ServicesViewState,
@@ -35,9 +47,10 @@ export const foldServices = (
   if (event.type === 'service-started') {
     return upsert(state, {
       serviceId: event.serviceId,
-      ...nameOf(event.description),
+      ...nameOf(event),
       command: event.command,
       ...(event.port === undefined ? {} : { port: event.port }),
+      ...hashOf(event),
       status: EServiceStatus.Running,
       ready: false,
       changedAt: event.at,
@@ -60,7 +73,7 @@ export const foldServices = (
     return upsert(state, {
       ...(existing ?? {
         serviceId: event.serviceId,
-        ...nameOf(event.description),
+        ...nameOf(event),
         command: event.command,
       }),
       status: event.status,

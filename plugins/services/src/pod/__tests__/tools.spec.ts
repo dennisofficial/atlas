@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import { servicesPod } from '..'
-import { invoke, rig, serviceIdOf, settle, textOf } from './support'
+import { invoke, rig, serviceIdOf, settle, startsOf, textOf, writeDeclared } from './support'
+
+const DECLARED = ['services:', '  web:', '    command: listen', '    port: 3000'].join('\n')
 
 const start = async (
   harness: ReturnType<typeof rig>,
@@ -138,5 +140,78 @@ describe('service tools', () => {
       input: { runningOnly: true },
     })
     expect(textOf(running)).toBe(`${web}  "web" (\`listen\`)  running  port 3000`)
+  })
+
+  it('takes a declared name or a command, and refuses both or neither', async () => {
+    const harness = rig()
+    writeDeclared(harness, DECLARED)
+    const both = await invoke({
+      ctx: harness.ctx,
+      name: 'service_start',
+      input: { name: 'web', command: 'listen' },
+    })
+    expect(both.ok).toBe(false)
+    expect(textOf(both)).toContain('not both')
+    const neither = await invoke({ ctx: harness.ctx, name: 'service_start', input: {} })
+    expect(neither.ok).toBe(false)
+    expect(textOf(neither)).toContain('needs a name')
+    expect(harness.calls).toHaveLength(0)
+  })
+
+  it('service_list marks a running service whose declaration changed as stale', async () => {
+    const harness = rig()
+    writeDeclared(harness, DECLARED)
+    await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'web' } })
+    const fresh = await invoke({ ctx: harness.ctx, name: 'service_list', input: {} })
+    expect(textOf(fresh)).not.toContain('stale')
+    writeDeclared(harness, DECLARED.replace('listen', 'listen --watch'))
+    const listed = await invoke({ ctx: harness.ctx, name: 'service_list', input: {} })
+    expect(textOf(listed)).toContain('(stale: services.yaml changed; restart to apply)')
+  })
+
+  it('service_restart by name picks up a changed command', async () => {
+    const harness = rig()
+    writeDeclared(harness, DECLARED)
+    await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'web' } })
+    writeDeclared(harness, DECLARED.replace('listen', 'listen --watch'))
+    const restarted = await invoke({
+      ctx: harness.ctx,
+      name: 'service_restart',
+      input: { name: 'web' },
+    })
+    expect(textOf(restarted)).toContain('web is running as svc-')
+    expect(startsOf(harness.calls).map((call) => call.command)).toEqual([
+      'listen',
+      'listen --watch',
+    ])
+    expect(harness.calls.some((call) => call.op === 'services.stop')).toBe(true)
+  })
+
+  it('service_restart refuses a name that is not declared', async () => {
+    const harness = rig()
+    writeDeclared(harness, DECLARED)
+    const refused = await invoke({
+      ctx: harness.ctx,
+      name: 'service_restart',
+      input: { name: 'nope' },
+    })
+    expect(refused.ok).toBe(false)
+    expect(textOf(refused)).toContain('"nope" is not declared in .atlas/services.yaml')
+  })
+
+  it('service_stop by name stops the running service of that name', async () => {
+    const harness = rig()
+    writeDeclared(harness, DECLARED)
+    const started = await invoke({
+      ctx: harness.ctx,
+      name: 'service_start',
+      input: { name: 'web' },
+    })
+    const stopped = await invoke({ ctx: harness.ctx, name: 'service_stop', input: { name: 'web' } })
+    expect(textOf(stopped)).toContain('recorded and delivered on its own')
+    expect(harness.calls.at(-1)).toMatchObject({
+      op: 'services.stop',
+      serviceId: serviceIdOf(started),
+    })
   })
 })

@@ -18,6 +18,8 @@ import { fakeDaemonGroups, MemoryFileSystem } from '@dltech/atlas-protocol/testi
 
 import { servicesPod } from '..'
 
+export type CallOptions = { signal?: AbortSignal; onOutput?(bytes: Uint8Array): void }
+
 export const rig = () => {
   const log: V2Event[] = []
   const listeners = new Set<(frame: DaemonEventFrame) => void>()
@@ -45,7 +47,7 @@ export const rig = () => {
     }
   }
 
-  const call = async (op: CallOp): Promise<CallResult> => {
+  const call = async (op: CallOp, options?: CallOptions): Promise<CallResult> => {
     calls.push(op)
     const registered = groups.flatMap((group) => group.ops).find((one) => one.op === op.op)
     if (registered === undefined) throw new Error(`no op ${op.op}`)
@@ -54,8 +56,8 @@ export const rig = () => {
         op,
         ctx: {
           key: 'k',
-          signal: new AbortController().signal,
-          output: () => undefined,
+          signal: options?.signal ?? new AbortController().signal,
+          output: (bytes) => options?.onOutput?.(bytes),
           publish: () => undefined,
         },
       })
@@ -79,7 +81,15 @@ export const rig = () => {
     log: () => undefined,
   }
 
-  return { ctx, log, calls, listeners }
+  return { ctx, log, calls, listeners, fs }
+}
+
+export const writeDeclared = (harness: { fs: MemoryFileSystem }, content: string): void => {
+  harness.fs.mkdir({ path: '/work/.atlas' })
+  harness.fs.writeFile({
+    path: '/work/.atlas/services.yaml',
+    content: new TextEncoder().encode(content),
+  })
 }
 
 export const invoke = async (args: {
@@ -107,6 +117,9 @@ export const serviceIdOf = (outcome: Awaited<ReturnType<typeof invoke>>): string
   if (output.serviceId === undefined) throw new Error('no serviceId in the outcome')
   return output.serviceId
 }
+
+export const startsOf = (calls: readonly CallOp[]) =>
+  calls.flatMap((call) => (call.op === 'services.start' ? [call] : []))
 
 export const settle = async (): Promise<void> => {
   for (let turn = 0; turn < 50; turn += 1) await Promise.resolve()

@@ -9,7 +9,7 @@ import { type DaemonGroupFactory, type GroupContext, defineOp } from '@dltech/at
 
 import type { DaemonOpsDeps } from '../deps'
 import { readLog } from './log-file'
-import { waitForPort } from './port-probe'
+import { waitForHealth, waitForPort } from './port-probe'
 import { type EndedService, type RunningService, isRunning, spawnService } from './records'
 
 const READY_TIMEOUT_DEFAULT_MS = 60_000
@@ -87,6 +87,7 @@ export const servicesGroup =
       }
       if (port !== undefined) {
         const timeoutMs = op.readyTimeoutMs ?? READY_TIMEOUT_DEFAULT_MS
+        const deadline = Date.now() + timeoutMs
         const ready = await waitForPort({
           port,
           timeoutMs,
@@ -109,6 +110,22 @@ export const servicesGroup =
             code: ECallFailure.Internal,
             message: `service ${op.serviceId} not ready within ${timeoutMs} ms`,
           })
+        }
+        if (op.healthPath !== undefined) {
+          const healthy = await waitForHealth({
+            port,
+            path: op.healthPath,
+            timeoutMs: Math.max(1, deadline - Date.now()),
+            cancelled: () => !isRunning(record),
+          })
+          if (!healthy) {
+            record.child.kill()
+            await record.child.exit().catch(() => undefined)
+            throw new CallFailureError({
+              code: ECallFailure.Internal,
+              message: `service ${op.serviceId} did not answer GET ${op.healthPath} within ${timeoutMs} ms`,
+            })
+          }
         }
         record.info.status = EServiceRunStatus.Ready
         groupCtx.publish({ type: 'services.ready', serviceId: op.serviceId })

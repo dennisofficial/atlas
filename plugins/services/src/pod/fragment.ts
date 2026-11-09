@@ -9,8 +9,9 @@ export class ServicesFragment extends PromptFragment {
       'running until it is stopped and outlives the turn. A service\u2019s ending arrives automatically,',
       'even after your turn ends, so never poll, sleep or loop to wait for one. After you edit what a',
       'service runs, `service_restart` it. `service_stop` stops one, and `service_list` shows every',
-      'service this conversation has started. Services declared in `.atlas/services.yaml` are not',
-      'started by name yet: pass `service_start` the command yourself.',
+      'service this conversation has started. A `name` comes from the project\u2019s `.atlas/services.yaml`:',
+      'it starts what that service needs first and uses its command, working directory, env and port.',
+      'A service whose declaration changed since it started is listed as stale until you restart it.',
     ].join('\n')
   }
 }

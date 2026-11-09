@@ -1,6 +1,7 @@
 import { serviceReadySchema } from './ready-event'
 import { servicesView } from './roster'
 
+export * from './declared'
 export * from './ready-event'
 export * from './roster'
 

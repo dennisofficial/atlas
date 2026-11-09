@@ -25,6 +25,7 @@ export const servicesStartOpSchema = z
     cwd: z.string().min(1),
     env: envSchema.optional(),
     port: z.number().int().min(1).max(65535).optional(),
+    healthPath: z.string().startsWith('/').optional(),
     readyTimeoutMs: z.number().int().min(1).optional(),
   })
   .strict()
