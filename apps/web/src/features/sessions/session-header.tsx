@@ -129,7 +129,7 @@ function HeaderPreviews({ previews }: { previews: readonly PreviewItem[] }) {
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1 text-xs text-muted-foreground tabular-nums"
+            className="text-xs text-muted-foreground tabular-nums"
           />
         }
       >
