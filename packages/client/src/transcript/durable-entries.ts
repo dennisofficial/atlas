@@ -1,6 +1,7 @@
 import {
   attachmentsOf as attachmentsOfSaid,
   currentContextEvents,
+  EKilledBy,
   isNoticeArrival,
   latestTldrPerAnchor,
   type Event,
@@ -38,7 +39,53 @@ export function durableEntries(args: {
   const turns = turnsBySeq({ events, turns: args.turns ?? [] })
   const footers = new Map(latestTldrPerAnchor(events).map((footer) => [footer.throughSeq, footer]))
 
+  const shellKey = (args: { shellId: string; command: string }): string =>
+    `${args.shellId}${args.command}`
+
+  /**
+   * Teardown once re-recorded an ending for every shell a turn had already settled, appending a
+   * second background-shell-ended behind the real one with killedBy session-end and empty output.
+   * Those duplicates sit in old logs permanently, so a session-end ending that follows a clean
+   * ending for the same shell and command is dropped — keyed on the command too, because a shell id
+   * is reused across restarts and a fresh shell under it must still announce.
+   */
+  const settledShells = new Set<string>()
+
+  /**
+   * The same teardown re-recorded shells the model had already killed through shell_kill, whose
+   * ending was delivered as the tool result: the synthesized copy carries no output. An ending with
+   * real output is always kept, because output means it was the telling rather than a dupe.
+   */
+  const claimedShells = new Set<string>()
+
+  const isRedundantEnding = (event: Event & { type: 'background-shell-ended' }): boolean => {
+    const key = shellKey(event)
+    if (event.killedBy === EKilledBy.SessionEnd) return settledShells.has(key)
+    return event.killedBy === EKilledBy.Model && event.output === '' && claimedShells.has(key)
+  }
+
+  const noteShellKill = (event: Event): void => {
+    if (event.type !== 'tool-result' || event.name !== 'shell_kill') return
+    const output = event.output
+    if (typeof output !== 'object' || output === null) return
+    const record: { shellId?: unknown; command?: unknown } = output
+    if (typeof record.shellId !== 'string') return
+    claimedShells.add(
+      shellKey({
+        shellId: record.shellId,
+        command: typeof record.command === 'string' ? record.command : '',
+      }),
+    )
+  }
+
   const entriesOfEvent = (event: Event): TranscriptEntry[] => {
+    noteShellKill(event)
+
+    if (event.type === 'background-shell-ended') {
+      if (isRedundantEnding(event)) return []
+      if (event.killedBy !== EKilledBy.SessionEnd) settledShells.add(shellKey(event))
+    }
+
     if (event.type === 'user-said') {
       return [
         {
