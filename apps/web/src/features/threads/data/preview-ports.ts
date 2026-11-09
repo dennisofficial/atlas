@@ -73,25 +73,3 @@ export function previewPortForUrl(args: { url: string; ports: PreviewPort[] }): 
     ) ?? null
   )
 }
-
-export type LinkClickModifiers = {
-  button: number
-  metaKey: boolean
-  ctrlKey: boolean
-  shiftKey: boolean
-  altKey: boolean
-}
-
-export type PreviewLinkRoute = { portId: string; url: string }
-
-export function previewLinkRouteOf(args: {
-  href: string
-  ports: PreviewPort[]
-  click: LinkClickModifiers
-}): PreviewLinkRoute | null {
-  const { href, ports, click } = args
-  if (click.button !== 0) return null
-  if (click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return null
-  const port = previewPortForUrl({ url: href, ports })
-  return port === null ? null : { portId: port.id, url: href }
-}

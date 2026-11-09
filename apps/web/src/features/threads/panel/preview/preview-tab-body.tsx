@@ -29,20 +29,29 @@ function ExternalNotice({ url }: { url: string }) {
   return (
     <Notice
       icon={<GlobeIcon />}
-      title="This page opens outside Atlas"
-      description="The preview only loads this session's exposed ports. Open the page in your browser instead."
-      action={
-        <Button
-          variant="outline"
-          size="sm"
-          nativeButton={false}
-          render={<a href={url} target="_blank" rel="noreferrer noopener" />}
-        >
-          <ExternalLinkIcon data-icon="inline-start" />
-          Open in your browser
-        </Button>
-      }
+      title="This address can't open in the preview"
+      description={`${url} is not a web page. The preview browser loads http and https addresses.`}
     />
+  )
+}
+
+function OutsideSessionBar({ url }: { url: string }) {
+  return (
+    <div className="flex h-8 shrink-0 items-center gap-2 border-b bg-muted/40 px-2 text-xs text-muted-foreground">
+      <GlobeIcon aria-hidden className="size-3.5 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">
+        Outside this session. If the page stays blank, the site blocks being embedded.
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        nativeButton={false}
+        render={<a href={url} target="_blank" rel="noreferrer noopener" />}
+      >
+        <ExternalLinkIcon data-icon="inline-start" />
+        Open in your browser
+      </Button>
+    </div>
   )
 }
 
@@ -80,5 +89,14 @@ export function PreviewTabBody(props: {
   if (page.kind === ETabPage.External) return <ExternalNotice url={url} />
   if (page.kind === ETabPage.Offline) return <PreviewOffline port={page.port} />
   if (gate === EPreviewGate.Failed) return <BlockedNotice />
-  return <PreviewSlot threadId={threadId} tabId={tabId} />
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {page.kind === ETabPage.Frame && page.port === undefined ? (
+        <OutsideSessionBar url={url} />
+      ) : null}
+      <div className="min-h-0 flex-1">
+        <PreviewSlot threadId={threadId} tabId={tabId} />
+      </div>
+    </div>
+  )
 }

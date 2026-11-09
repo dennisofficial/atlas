@@ -2,7 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
-import { previewLinkRouteOf, previewPortForUrl, type LinkClickModifiers } from '../preview-ports'
+import { ELinkClickTarget, previewLinkRouteOf, type LinkClickModifiers } from '../preview-link'
+import { previewPortForUrl } from '../preview-ports'
 
 const ports: PreviewPort[] = [
   {
@@ -59,18 +60,31 @@ describe('previewPortForUrl', () => {
 describe('previewLinkRouteOf', () => {
   const href = 'https://3100-abc.byatlas.dev/docs?q=1'
 
-  it('routes a matching plain click to the port with the full url', () => {
+  it('routes a plain click on a session port to the preview', () => {
     expect(previewLinkRouteOf({ href, ports, click: plain })).toEqual({
-      portId: 'service:web',
+      target: ELinkClickTarget.Preview,
       url: href,
     })
   })
 
-  it('leaves non-matching links alone', () => {
-    expect(previewLinkRouteOf({ href: 'https://example.com', ports, click: plain })).toBeNull()
+  it('routes a plain click on any other web page to the preview', () => {
+    expect(previewLinkRouteOf({ href: 'https://example.com/a', ports, click: plain })).toEqual({
+      target: ELinkClickTarget.Preview,
+      url: 'https://example.com/a',
+    })
   })
 
-  it('leaves modifier and non-primary clicks to the browser', () => {
+  it('maps a localhost link to the session port it stands for', () => {
+    expect(
+      previewLinkRouteOf({ href: 'http://localhost:3100/docs?q=1', ports, click: plain }),
+    ).toEqual({ target: ELinkClickTarget.Preview, url: 'https://3100-abc.byatlas.dev/docs?q=1' })
+    expect(previewLinkRouteOf({ href: 'http://127.0.0.1:4000', ports, click: plain })).toEqual({
+      target: ELinkClickTarget.Preview,
+      url: 'https://4000-abc.byatlas.dev/',
+    })
+  })
+
+  it('leaves modified clicks on a session url to the browser', () => {
     for (const click of [
       { ...plain, metaKey: true },
       { ...plain, ctrlKey: true },
@@ -80,5 +94,34 @@ describe('previewLinkRouteOf', () => {
     ]) {
       expect(previewLinkRouteOf({ href, ports, click })).toBeNull()
     }
+  })
+
+  it('sends a modified click on a localhost link to the session url in a new tab', () => {
+    expect(
+      previewLinkRouteOf({
+        href: 'http://localhost:3100/docs',
+        ports,
+        click: { ...plain, metaKey: true },
+      }),
+    ).toEqual({ target: ELinkClickTarget.Browser, url: 'https://3100-abc.byatlas.dev/docs' })
+  })
+
+  it('leaves modified clicks on other pages and non-web links to the browser', () => {
+    expect(
+      previewLinkRouteOf({
+        href: 'https://example.com/a',
+        ports,
+        click: { ...plain, metaKey: true },
+      }),
+    ).toBeNull()
+    expect(previewLinkRouteOf({ href: 'mailto:me@example.com', ports, click: plain })).toBeNull()
+    expect(previewLinkRouteOf({ href: '#section', ports, click: plain })).toBeNull()
+  })
+
+  it('shows a port this session does not expose as it stands', () => {
+    expect(previewLinkRouteOf({ href: 'http://localhost:9999/x', ports, click: plain })).toEqual({
+      target: ELinkClickTarget.Preview,
+      url: 'http://localhost:9999/x',
+    })
   })
 })
