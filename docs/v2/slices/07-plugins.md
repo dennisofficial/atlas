@@ -650,9 +650,28 @@ Two things the first runs found, both fixed:
   few seconds later answered `200`. Do not read the first non-200 as a failure — retry before
   concluding the tunnel is down (and `530` is the shape of "it really is down").
 
-Not in this slice: the web preview list, portal pages, custom domains, and streaming the tunnel's
-logs. The `portals`/`portal` declaration fields are accepted but only their presence is used, since a
+Not in this slice: portal pages, custom domains, and streaming the tunnel's logs. The
+`portals`/`portal` declaration fields are accepted but only their presence is used, since a
 tunnel needs a port to point at.
+
+### 8.6 the web preview list
+
+The previews a session publishes are now visible in web, and the list reads the **session view**,
+not the CP's tunnel tables: the `services` view streams to the browser and moves with
+`service-started`/`service-ended`, where a `PreviewRoute` row says a tunnel exists but not that a
+service is up, so a list built on it would need a poll, a new router procedure and a second auth
+path anyway. `PreviewTunnel`/`PreviewRoute` stay infrastructure.
+- `plugins/services/src/client/index.ts`: `servicesOfView`, `PreviewItem` and `previewsOfView` — the
+  running rows that carry a `url`, labelled `name ?? command` (28 chars, `…`), sorted by port and
+  deduped per port (a restart gets a new `serviceId`).
+- `apps/web`: `SessionViewModel.previews`, a header chip (`data-session-previews`) whose title lists
+  `label:port`, opening a popover of `PreviewLinks` — one link per preview to its public URL. A
+  row shows the label and `:port`; the link's `title` is the URL. A stopped service leaves the list
+  even though its URL survives (and answers `530`).
+
+Specs: `plugins/services/src/client/__tests__/client.spec.ts`,
+`apps/web/src/features/sessions/data/__tests__/session-view-model.spec.ts`,
+`apps/web/src/features/sessions/__tests__/session-header.spec.tsx`.
 
 ## 9. Answers (2026-11-08)
 

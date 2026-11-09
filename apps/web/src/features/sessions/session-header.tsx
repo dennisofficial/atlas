@@ -1,12 +1,15 @@
 'use client'
 
-import { Bell, GitBranch, Terminal } from 'lucide-react'
+import { Bell, GitBranch, Globe, Terminal } from 'lucide-react'
 
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
+import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@dltech/atlas-ui/components/popover'
 import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
 
 import {
@@ -94,6 +97,52 @@ function HeaderShells({ shells }: { shells: ShellRoster }) {
   )
 }
 
+export function PreviewLinks({ previews }: { previews: readonly PreviewItem[] }) {
+  return (
+    <ul data-preview-links className="flex flex-col gap-1.5">
+      {previews.map((preview) => (
+        <li key={preview.serviceId} className="flex min-w-0 items-baseline gap-2">
+          <a
+            href={preview.url}
+            target="_blank"
+            rel="noreferrer"
+            title={preview.url}
+            className="min-w-0 flex-1 truncate underline-offset-2 hover:underline"
+          >
+            {preview.label}
+          </a>
+          <span className="shrink-0 font-mono text-xs text-muted-foreground">:{preview.port}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function HeaderPreviews({ previews }: { previews: readonly PreviewItem[] }) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        data-session-previews
+        aria-label="Previews"
+        title={previews.map((preview) => `${preview.label}:${preview.port}`).join(', ')}
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 text-xs text-muted-foreground tabular-nums"
+          />
+        }
+      >
+        <Globe className="size-3" aria-hidden />
+        <span className="font-mono">{previews.length}</span>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80">
+        <PreviewLinks previews={previews} />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function SessionHeader({
   sessionId,
   state,
@@ -103,6 +152,7 @@ export function SessionHeader({
   entries,
   subscriptions,
   shells,
+  previews,
 }: {
   sessionId: string
   state: EHeaderState
@@ -112,6 +162,7 @@ export function SessionHeader({
   entries: readonly PullRequestEntry[]
   subscriptions: readonly SubscribedPullRequest[]
   shells: ShellRoster
+  previews: readonly PreviewItem[]
 }) {
   const observationRef = useSessionPrObservation(entries)
   const pinned = pinnedPullRequestOf(entries)
@@ -139,6 +190,7 @@ export function SessionHeader({
         {pinned === undefined ? null : <HeaderPullRequest pinned={pinned} count={entries.length} />}
         {subscriptions.length === 0 ? null : <HeaderSubscriptions subscriptions={subscriptions} />}
         {shells.running === 0 ? null : <HeaderShells shells={shells} />}
+        {previews.length === 0 ? null : <HeaderPreviews previews={previews} />}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
       </div>
     </header>
