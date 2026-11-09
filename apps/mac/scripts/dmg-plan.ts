@@ -64,6 +64,13 @@ export function buildCreateDmgArgs(params: {
   ]
 }
 
+function dmgPartsOf({ channelDir, bundleName }: { channelDir: string; bundleName: string }) {
+  const [channel, ...platform] = channelDir.split('-')
+  const prefix = channel === 'stable' ? '' : `${channel}-`
+  return { prefix, platform: platform.join('-') }
+}
+
+// The unversioned name is what the app's download button links to, and GitHub's /releases/latest/download/ needs it to be stable.
 export function dmgNameFor({
   channelDir,
   bundleName,
@@ -71,7 +78,19 @@ export function dmgNameFor({
   channelDir: string
   bundleName: string
 }): string {
-  const [channel, ...platform] = channelDir.split('-')
-  const prefix = channel === 'stable' ? '' : `${channel}-`
-  return `${prefix}${platform.join('-')}-${bundleName}.dmg`
+  const { prefix, platform } = dmgPartsOf({ channelDir, bundleName })
+  return `${prefix}${platform}-${bundleName}.dmg`
+}
+
+export function dmgArtifactNameFor({
+  channelDir,
+  bundleName,
+  version,
+}: {
+  channelDir: string
+  bundleName: string
+  version: string
+}): string {
+  const { prefix, platform } = dmgPartsOf({ channelDir, bundleName })
+  return `${prefix}${platform}-${bundleName}-${version}.dmg`
 }
