@@ -22,8 +22,27 @@ export type CallJournal =
 
 const REDACTED = '[redacted]'
 
-export const journalOp = (op: CallOp): CallOp =>
-  op.op === 'previews.expose' ? { ...op, tunnelToken: REDACTED } : op
+const redactedEnv = (env: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(Object.keys(env).map((name) => [name, REDACTED]))
+
+export const journalOp = (op: CallOp): CallOp => {
+  switch (op.op) {
+    case 'previews.expose':
+      return { ...op, tunnelToken: REDACTED }
+    case 'writeFile':
+      return { ...op, content: REDACTED }
+    case 'exec':
+      return op.env === undefined ? op : { ...op, env: redactedEnv(op.env) }
+    case 'mcp.spawn':
+      return op.env === undefined ? op : { ...op, env: redactedEnv(op.env) }
+    case 'services.start':
+      return op.env === undefined ? op : { ...op, env: redactedEnv(op.env) }
+    case 'shells.launch':
+      return op.env === undefined ? op : { ...op, env: redactedEnv(op.env) }
+    default:
+      return op
+  }
+}
 
 const journalFields = {
   format: z.literal(CALL_JOURNAL_FORMAT),
