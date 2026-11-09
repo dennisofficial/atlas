@@ -41,6 +41,13 @@ import {
 } from './session-events-page'
 import { postedAttachmentsOf } from './post-attachments'
 
+type MessageDraftInput = {
+  text: string
+  media?: readonly SessionPostMedia[] | undefined
+  uploads?: readonly SaidUpload[] | undefined
+  attachments?: readonly Attachment[] | undefined
+}
+
 @Injectable()
 export class SessionsService {
   private readonly logger = new Logger(SessionsService.name)
@@ -153,7 +160,7 @@ export class SessionsService {
 
   private async messageOf(args: {
     userId: string
-    draft: SessionMessageDraft
+    draft: MessageDraftInput
   }): Promise<{ payload: string; attachments: readonly Attachment[] }> {
     const attachments = await postedAttachmentsOf({
       registry: this.media,
