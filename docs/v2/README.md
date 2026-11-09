@@ -4,8 +4,9 @@
 local and in the cloud: client ⇄ control plane ⇄ pod. The business logic (loop, tools, providers,
 assembly, compaction, prompts, hooks, skills, sub-agents) carries over; who owns what changes.
 
-**Status: slices 0 to 2 are done (design, record core, the `agent` package); slice 3, the agent host and
-sandbox daemon, is built and running, with its live exit tests in progress.** Decisions
+**Status: slices 0 to 7 are done (design, record core, the `agent` package, the agent host and sandbox
+daemon, views, the client SDK with web and Mac, `plugin-sdk` and commands, and the six plugins); slice
+7b, MCP and skills, is specified and next.** Decisions
 [0018](../decisions/0018-v2-pod-first-architecture.md) and
 [0019](../decisions/0019-v2-package-map.md) (proposed) are the design, except D2 (the local control plane),
 which is still open. Each slice in the [roadmap](roadmap.md) gets a spec in [slices/](slices/)
