@@ -87,3 +87,6 @@ export const resizePod = (args: { threadId: string; vcpus: number }) =>
 
 export const markThreadRead = (args: { threadId: string; seq: number }) =>
   cloudCall(api.threads.markRead.mutate(args))
+
+export const reportPresence = (args: { clientId: string; threadId: string | null }) =>
+  cloudCall(api.presence.report.mutate(args))

@@ -1,14 +1,35 @@
 import * as Notifications from 'expo-notifications'
+import { AppState } from 'react-native'
 
 export const installNotificationHandler = (): void => {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
+    handleNotification: async () => {
+      const onScreen = AppState.currentState === 'active'
+      return {
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: !onScreen,
+        shouldShowList: !onScreen,
+      }
+    },
   })
+}
+
+const threadIdOfNotification = (request: Notifications.NotificationRequest): string | undefined => {
+  const value = request.content.data?.threadId
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+export const dismissPresentedForThread = async (threadId: string): Promise<void> => {
+  const presented = await Notifications.getPresentedNotificationsAsync()
+  const matching = presented.filter(
+    (notification) => threadIdOfNotification(notification.request) === threadId,
+  )
+  await Promise.all(
+    matching.map((notification) =>
+      Notifications.dismissNotificationAsync(notification.request.identifier),
+    ),
+  )
 }
 
 export const subscribeToNotificationResponses = ({

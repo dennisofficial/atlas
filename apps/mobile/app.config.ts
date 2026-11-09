@@ -26,7 +26,7 @@ export default (): ExpoConfig => ({
   plugins: [
     'expo-router',
     'expo-secure-store',
-    'expo-notifications',
+    ['expo-notifications', { enableBackgroundRemoteNotifications: true }],
     'expo-apple-authentication',
     'expo-web-browser',
     'expo-document-picker',

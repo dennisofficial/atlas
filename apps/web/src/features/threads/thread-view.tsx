@@ -35,6 +35,7 @@ import { useRewind } from './data/use-rewind'
 import { composerPlaceholderOf } from './data/composer-placeholder'
 import { useSummarise } from './data/use-summarise'
 import { useMarkRead } from './data/use-mark-read'
+import { useThreadPresence } from './data/use-thread-presence'
 import { useThreadMetadata } from './data/use-thread-metadata'
 import { useThreadSignals } from './data/use-thread-signals'
 import { useSend } from './data/use-send'
@@ -70,6 +71,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const signals = useThreadSignals(threadId)
   useThreadMetadata({ threadId, signals })
   useMarkRead({ threadId, signals, head: thread.data?.head })
+  useThreadPresence({ threadId, enabled: !backend.local })
   const source = useThreadSource({
     threadId,
     signals,

@@ -32,6 +32,7 @@ import { OauthConnectionsModule } from './platform/oauth-connections/oauth-conne
 import { ProviderSignInModule } from './platform/provider-sign-in/provider-sign-in.module'
 import { DesktopAuthModule } from './platform/desktop-auth/desktop-auth.module'
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
+import { PresenceModule } from './platform/presence/presence.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
 import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
 import { ComposerDraftsModule } from './cloud/composer-drafts/composer-drafts.module'
@@ -82,6 +83,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     ProviderSignInModule,
     ModelsModule,
     NotificationsModule,
+    PresenceModule,
     PodLeasesModule,
     SecretsModule,
     HarnessSecretsModule,

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import { NotificationsService } from '../notifications/notifications.service'
 import { ownedThread } from './ownership'
 import { ThreadSignalsService } from './thread-signals.service'
 
@@ -16,7 +17,10 @@ export const nextReadSeq = (args: {
 
 @Injectable()
 export class ThreadReadService {
-  constructor(private readonly signals: ThreadSignalsService) {}
+  constructor(
+    private readonly signals: ThreadSignalsService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async markRead(args: { userId: string; threadId: string; seq: number }): Promise<void> {
     const { userId, threadId } = args
@@ -31,6 +35,8 @@ export class ThreadReadService {
       })
       return seq !== existing?.seq
     })
-    if (changed) this.signals.threadChanged({ threadId })
+    if (!changed) return
+    this.signals.threadChanged({ threadId })
+    await this.notifications.dismissThread({ userId, threadId }).catch(() => undefined)
   }
 }
