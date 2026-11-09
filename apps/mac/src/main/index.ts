@@ -37,7 +37,23 @@ Electrobun.events.on('open-url', (event: unknown) => {
   else earlyLinks.push(link)
 })
 
-await runLogged(async () => {
+async function showStartupFailure({
+  error,
+  path,
+}: {
+  error: unknown
+  path: string
+}): Promise<void> {
+  await Utils.showMessageBox({
+    type: 'error',
+    title: 'Atlas could not start',
+    message: 'Atlas could not start.',
+    detail: `${error instanceof Error ? error.message : String(error)}\n\nDetails are in ${path}`,
+    buttons: ['Quit'],
+  })
+}
+
+const startApp = async () => {
   const localInfo = await Updater.getLocalInfo()
   const chromium = BuildConfig.getSync().availableRenderers.includes('cef')
   const serveVersion = resolveServeVersion({
@@ -147,4 +163,6 @@ await runLogged(async () => {
     void host.stop()
     void nextServer.stop()
   })
-})
+}
+
+await runLogged({ start: startApp, notify: showStartupFailure })
