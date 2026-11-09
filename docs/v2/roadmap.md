@@ -23,6 +23,13 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-09._
+- **`plugins/crew` worktree tools live-checked on production (2026-11-09)** (`#2084`, `#2086`,
+  `#2087`): `enter_worktree`, `exit_worktree`, `worktree_list` and `agent_spawn.worktree`, plus the
+  web crew chip and panel. A child spawned into a new worktree ran, committed and reported from it;
+  the parent listed it, entered it as one this session created, was refused removal for the child's
+  unpushed commit, and removed it with approval — session `188f95e6-ffdf-4ee1-afd9-485520a5756e`,
+  agent host `313c7f417` (spec §8.8). The review round found the first cut could delete an adopted
+  worktree and failed open on unpushed commits; both are closed in `#2087`.
 - **The agent host calls the API for nothing, and both backends are NestJS (2026-11-09)**
   (`dennis/agent-host-owns-its-work`, [0027](../decisions/0027-both-backends-own-their-work.md)):
   `hostSelf.*` and `hostMemory.*` are gone; memory is `@dltech/atlas-memory` and previews are
