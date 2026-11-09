@@ -13,7 +13,6 @@ import { useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import {
-  effortChoicesOf,
   type IModelOption,
   type IModelSelection,
   modelGroupsOf,
@@ -21,7 +20,7 @@ import {
   searchModelsOf,
   selectionOf,
 } from './model-options'
-import { EffortChip, FastRow, ModelRow, ProviderMark } from './model-picker-rows'
+import { ModelRow, ProviderMark } from './model-picker-rows'
 
 type Props = {
   models: readonly IModelOption[]
@@ -33,7 +32,6 @@ const SheetBody = ({ models, selection, onSelect, onClose }: Props & { onClose: 
   const theme = useTheme()
   const [query, setQuery] = useState('')
   const groups = modelGroupsOf(searchModelsOf({ models, query }))
-  const efforts = effortChoicesOf(selection)
 
   const handleModel = (model: IModelOption) => {
     const next = selectionOf({
@@ -45,16 +43,6 @@ const SheetBody = ({ models, selection, onSelect, onClose }: Props & { onClose: 
     if (next === null) return
     onSelect(next)
     onClose()
-  }
-
-  const handleEffort = (name: string) => {
-    if (selection === null) return
-    onSelect({ ...selection, effort: name })
-  }
-
-  const handleFast = (fast: boolean) => {
-    if (selection === null) return
-    onSelect({ ...selection, fast })
   }
 
   return (
@@ -103,31 +91,6 @@ const SheetBody = ({ models, selection, onSelect, onClose }: Props & { onClose: 
           </View>
         ))}
       </ScrollView>
-      {selection === null || (efforts.length === 0 && !selection.model.fast) ? null : (
-        <View
-          style={[
-            styles.footer,
-            { borderTopColor: withAlpha({ color: theme.foreground, alpha: 0.1 }) },
-          ]}
-        >
-          {efforts.length === 0 ? null : (
-            <View style={styles.efforts}>
-              <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.effortLabel}>
-                Effort
-              </Text>
-              {efforts.map((effort) => (
-                <EffortChip
-                  key={effort}
-                  name={effort}
-                  active={effort === selection.effort}
-                  onPress={() => handleEffort(effort)}
-                />
-              ))}
-            </View>
-          )}
-          {selection.model.fast ? <FastRow selection={selection} onToggle={handleFast} /> : null}
-        </View>
-      )}
     </>
   )
 }
@@ -245,20 +208,5 @@ const styles = StyleSheet.create({
   empty: {
     paddingHorizontal: space(2),
     paddingVertical: space(2),
-  },
-  footer: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: space(1.5),
-    paddingTop: space(2),
-  },
-  efforts: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space(1.5),
-    paddingHorizontal: space(2),
-  },
-  effortLabel: {
-    marginRight: space(0.5),
   },
 })

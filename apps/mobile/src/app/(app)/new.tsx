@@ -7,7 +7,8 @@ import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { createSession } from '../../composer/create-session'
-import { type IModelSelection, selectionOf } from '../../composer/model-options'
+import { EffortSelect, FastToggle } from '../../composer/model-controls'
+import { effortChoicesOf, type IModelSelection, selectionOf } from '../../composer/model-options'
 import { ModelSelect } from '../../composer/model-picker'
 import type { IProjectOption } from '../../composer/project-options'
 import { ProjectSelect } from '../../composer/project-select'
@@ -25,6 +26,7 @@ export default function NewSessionScreen() {
   const [fast, setFast] = useState(false)
   const { models } = useModels()
   const selection = selectionOf({ models, modelId, effort, fast })
+  const efforts = effortChoicesOf(selection)
 
   useEffect(() => {
     if (api === undefined) return
@@ -43,6 +45,10 @@ export default function NewSessionScreen() {
     setEffort(next.effort)
     setFast(next.fast)
   }
+
+  const handleEffortSelect = (name: string) => setEffort(name)
+
+  const handleFastToggle = (next: boolean) => setFast(next)
 
   const handleSend = async (message: {
     text: string
@@ -84,6 +90,13 @@ export default function NewSessionScreen() {
         >
           <View style={styles.footer}>
             <ModelSelect models={models} selection={selection} onSelect={handleModelSelect} />
+            {selection === null || efforts.length === 0 ? null : (
+              <EffortSelect selection={selection} onChange={handleEffortSelect} />
+            )}
+            {selection?.model.fast === true ? (
+              <FastToggle selection={selection} onToggle={handleFastToggle} />
+            ) : null}
+            <View style={styles.spacer} />
             <ProjectSelect
               projects={projects}
               projectId={projectId}
@@ -110,10 +123,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   footer: {
+    alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    gap: space(1),
-    justifyContent: 'flex-end',
+    gap: space(1.5),
     minWidth: 0,
+  },
+  spacer: {
+    flex: 1,
   },
 })
