@@ -1,5 +1,5 @@
 import { EEntryKind } from '@dltech/atlas-client/transcript'
-import { radius, space } from '@dltech/atlas-ui/tokens'
+import { space } from '@dltech/atlas-ui/tokens'
 import { Reasoning, Step, Trace, useTheme } from '@dltech/atlas-ui-native'
 import { CircleCheck } from 'lucide-react-native'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
