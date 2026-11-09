@@ -1,23 +1,15 @@
-import {
-  Button,
-  EButtonSize,
-  EFontWeight,
-  ETextRole,
-  ETextTone,
-  Input,
-  Text,
-  useTheme,
-  withAlpha,
-} from '@dltech/atlas-ui-native'
-import { radius, space } from '@dltech/atlas-ui/tokens'
+import type { Attachment } from '@dltech/atlas-core'
+import { EFontWeight, ETextRole, Text, useTheme } from '@dltech/atlas-ui-native'
+import { space } from '@dltech/atlas-ui/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
-import { ArrowUp } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { createSession } from '../../composer/create-session'
-import { type IProjectOption, ProjectChips } from '../../composer/project-chips'
+import type { IProjectOption } from '../../composer/project-options'
+import { ProjectSelect } from '../../composer/project-select'
+import { Composer } from '../../thread/composer/composer'
 
 export default function NewSessionScreen() {
   const theme = useTheme()
@@ -25,9 +17,6 @@ export default function NewSessionScreen() {
   const { project } = useLocalSearchParams<{ project?: string }>()
   const [projects, setProjects] = useState<IProjectOption[]>([])
   const [projectId, setProjectId] = useState<string | null>(project ?? null)
-  const [draft, setDraft] = useState('')
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (api === undefined) return
@@ -41,19 +30,17 @@ export default function NewSessionScreen() {
     })
   }, [api])
 
-  const text = draft.trim()
-  const canSend = api !== undefined && projectId !== null && text.length > 0 && !sending
-
-  const handleSend = async () => {
-    if (!canSend) return
-    setSending(true)
-    setError(null)
+  const handleSend = async (message: {
+    text: string
+    attachments: Attachment[]
+  }): Promise<boolean> => {
+    if (api === undefined || projectId === null) return false
     try {
-      const id = await createSession({ api, projectId, text })
+      const id = await createSession({ api, projectId, text: message.text })
       router.replace({ pathname: '/sessions/[id]', params: { id } })
+      return true
     } catch {
-      setError('The session could not be started. Try again.')
-      setSending(false)
+      return false
     }
   }
 
@@ -67,44 +54,21 @@ export default function NewSessionScreen() {
         <Text size={ETextRole.Xl} weight={EFontWeight.Medium} tight style={styles.heading}>
           What should Atlas work on?
         </Text>
-        <View
-          style={[
-            styles.composer,
-            {
-              backgroundColor: theme.card,
-              borderColor: withAlpha({ color: theme.foreground, alpha: 0.1 }),
-            },
-          ]}
+        <Composer
+          autoFocus
+          working={false}
+          sendable={projectId !== null}
+          placeholder="Describe a task for Atlas…"
+          onSend={handleSend}
         >
-          <Input
-            bare
-            accessibilityLabel="Describe a task"
-            autoFocus
-            multiline
-            placeholder="Describe a task for Atlas…"
-            value={draft}
-            onChangeText={setDraft}
-            style={styles.input}
-          />
-          <View style={styles.footer}>
-            <View style={styles.chips}>
-              <ProjectChips projects={projects} selectedId={projectId} onSelect={setProjectId} />
-            </View>
-            <Button
-              label="Start session"
-              icon={ArrowUp}
-              size={EButtonSize.IconSm}
-              disabled={!canSend}
-              loading={sending}
-              onPress={() => void handleSend()}
+          <View style={styles.project}>
+            <ProjectSelect
+              projects={projects}
+              projectId={projectId}
+              onProjectChange={setProjectId}
             />
           </View>
-        </View>
-        {error !== null ? (
-          <Text size={ETextRole.Sm} tone={ETextTone.Destructive} style={styles.heading}>
-            {error}
-          </Text>
-        ) : null}
+        </Composer>
       </View>
     </KeyboardAvoidingView>
   )
@@ -113,33 +77,19 @@ export default function NewSessionScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    paddingHorizontal: space(4),
   },
   center: {
     flex: 1,
-    gap: space(5),
     justifyContent: 'center',
   },
   heading: {
+    marginBottom: space(3),
+    paddingHorizontal: space(4),
     textAlign: 'center',
   },
-  composer: {
-    borderRadius: radius(1.4),
-    borderWidth: 1,
-    gap: space(2),
-    padding: space(2.5),
-  },
-  input: {
-    maxHeight: 200,
-    minHeight: 56,
-    paddingHorizontal: space(0.5),
-  },
-  footer: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space(2),
-  },
-  chips: {
+  project: {
     flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
 })
