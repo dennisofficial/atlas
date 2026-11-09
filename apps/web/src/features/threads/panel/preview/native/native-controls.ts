@@ -1,7 +1,7 @@
 import type { FrameDriver } from './frame-driver'
 import type { NativeWebview } from './webview-handle'
 
-export type NativeHandle = { webview: NativeWebview; driver: FrameDriver }
+export type NativeHandle = { webview: HTMLElement & NativeWebview; driver: FrameDriver }
 
 const handles = new Map<string, NativeHandle>()
 

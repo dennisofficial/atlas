@@ -15,11 +15,13 @@ export function createFrameDriver(args: { webview: NativeWebview; seq: number })
   let obscured = false
   let hidden = false
 
-  const syncVisibility = () => {
+  const syncVisibility = (force = false) => {
     const next = !visible || obscured
-    if (next === hidden) return
+    if (!force && next === hidden) return
     webview.toggleHidden(next)
     hidden = next
+    // A view shown again after being hidden can keep a blank surface until it is told its geometry anew.
+    if (!next) webview.syncDimensions(true)
   }
 
   return {
@@ -32,14 +34,12 @@ export function createFrameDriver(args: { webview: NativeWebview; seq: number })
       syncVisibility()
     },
     setObscured: (next) => {
+      const shown = obscured && !next
       obscured = next
-      syncVisibility()
+      syncVisibility(shown)
     },
     // toggleHidden is dropped until the native view exists, so a tab hidden before dom-ready needs it again
     // https://github.com/blackboardsh/electrobun/blob/v2.0.5/package/src/preload/webviewTag.ts#L337
-    reassertVisibility: () => {
-      hidden = false
-      syncVisibility()
-    },
+    reassertVisibility: () => syncVisibility(true),
   }
 }
