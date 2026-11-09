@@ -1,6 +1,13 @@
 import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
-import Electrobun, { ApplicationMenu, BrowserWindow, PATHS, Updater, Utils } from 'electrobun/main'
+import Electrobun, {
+  ApplicationMenu,
+  BrowserWindow,
+  BuildConfig,
+  PATHS,
+  Updater,
+  Utils,
+} from 'electrobun/main'
 import { createDesktopHost } from '../host'
 import { startOnStablePort } from '../host/stable-port'
 import { defaultDesktopHome, podConfigFromEnv } from '../host/pods/config'
@@ -30,6 +37,7 @@ Electrobun.events.on('open-url', (event: unknown) => {
 
 await runLogged(async () => {
   const localInfo = await Updater.getLocalInfo()
+  const chromium = BuildConfig.getSync().availableRenderers.includes('cef')
   const serveVersion = resolveServeVersion({
     envVersion: process.env.ATLAS_SERVE_VERSION,
     channel: localInfo.channel,
@@ -48,7 +56,7 @@ await runLogged(async () => {
       webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
       secret,
       pods: podConfig,
-      app: { version: localInfo.version, channel: localInfo.channel },
+      app: { version: localInfo.version, channel: localInfo.channel, chromium },
       auth: { home, openExternal: (url) => Utils.openExternal(url) },
       updates: {
         status: updateState.status,

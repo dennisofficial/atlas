@@ -25,6 +25,20 @@ Hutch is Electrobun 2.x's build tool: it downloads the pinned Electrobun core an
 - `ATLAS_MAC_UNSIGNED=1` disables codesign and notarization.
 - Icon: `icon.iconset/` generated from `apps/web/public/brand/atlas-icon.png`: the trimmed glyph (about 62% of the tile) on a cream rounded square with an 824/1024 body. The source is 512px, so the larger sizes are upscaled and slightly soft.
 
+## Chromium in the browser pane
+
+The app ships Chromium (`build.mac.bundleCEF` in `electrobun.config.ts`, plus the JIT and executable-memory
+entitlements a hardened-runtime Chromium needs) for the right-hand **Browser** pane, while the window and
+every other view stay on WKWebView: only the pane's `<electrobun-webview>` is created with `renderer="cef"`.
+`BuildConfig.getSync().availableRenderers` decides at launch whether the build can paint Chromium, and that
+answer travels to the page as `chromium` on `/desktop/version`; a dev build without CEF reports false and the
+pane falls back to WKWebView. The pane keeps one persistent profile (`persist:atlas-browser` under Chromium),
+so a site login survives restarts and every session.
+
+Electrobun's CEF artifact is roughly 150 MB compressed and several hundred MB installed. The first release
+that carries it is therefore a full download — there is nothing to delta against — and releases after it
+patch as usual, because the pinned Chromium is byte-identical between them.
+
 ## Auto-update
 
 `src/main/auto-update.ts` checks on launch and every 5 minutes via Electrobun's `Updater` against `https://github.com/dennisofficial/atlas/releases/latest/download` (`<channel>-<os>-<arch>-update.json`, patches and `.tar.zst` artifacts must be uploaded as release assets). Downloads in the background, then prompts "Restart to update". **Atlas → Check for Updates…** runs the same check immediately and offers to restart when an update is ready.

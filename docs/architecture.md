@@ -455,9 +455,18 @@ rejections, and the `atlas` skill carries the procedure.
 iframes for the session's preview ports and any URL that allows framing, routed through the preview
 worker (`apps/preview-worker`), with the desktop preview-origin gate deciding which origins the Mac
 window's own webview may frame. On Mac it is **Browser**: one Electrobun `<electrobun-webview>` per open
-tab, a real WKWebView with a persistent profile (`persist:atlas-browser`), so any site loads and logins
-stick. The capability flag `window.atlasDesktop.nativeBrowser` (set by the Mac preload, read through
-`hasNativeBrowser`) picks the layer; nothing sniffs the platform or user agent.
+tab, painted by the Chromium the app bundles (`renderer="cef"`, `build.mac.bundleCEF`) while the app shell
+stays on WKWebView. Chromium is not a preference: a WKWebView child view sends a user agent sites answer
+with their legacy pages, and it can only run WebAuthn for domains the app itself is entitled to, so
+passkeys and modern sites are unreachable there. The capability flag `window.atlasDesktop.nativeBrowser`
+(set by the Mac preload, read through `hasNativeBrowser`) picks the layer; nothing sniffs the platform or
+user agent, and the build reports its own engines through `availableRenderers` → `chromium` on
+`/desktop/version`, which is what chooses the renderer and its partition.
+
+**One browser profile for the app.** The pane keeps a single persistent profile — `persist:atlas-browser`
+under Chromium, `persist:<uuid>` on the WKWebView fallback, which only accepts a UUID there — so signing
+into a site once outlives sessions, projects and app restarts. There is no per-project or per-session
+cookie jar, and none of it is shared with the agent's browser.
 
 **A tab's page outlives the tab you are looking at.** Every opened tab in every session keeps its view
 mounted, hidden rather than destroyed (`toggleHidden`), so switching tabs or sessions returns to the page

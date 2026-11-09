@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const desktopVersionSchema = z.object({
   version: z.string(),
   channel: z.string(),
+  chromium: z.boolean().optional(),
 })
 export type DesktopVersion = z.infer<typeof desktopVersionSchema>
 
