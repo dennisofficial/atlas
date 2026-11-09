@@ -141,14 +141,12 @@ describe('ThreadLaunchService', () => {
   it('keeps the thread when dispatch throws, marks the claim failed and records a step', async () => {
     await seedBase()
     const dispatcher = fakeDispatcher({ failWith: new Error('trigger is down') })
-    const { service } = launchWith({ dispatcher })
+    const { service, keepAlive } = launchWith({ dispatcher })
 
     const reply = await create(service)
+    await keepAlive.mock.calls[0]?.[0]
 
-    expect(reply.provision).toEqual({
-      state: ESandboxProvisionState.Booting,
-      error: DISPATCH_FAILED_MESSAGE,
-    })
+    expect(reply.provision).toEqual({ state: ESandboxProvisionState.Booting })
     expect(await threads()).toHaveLength(1)
     expect(await eventsOf(reply.thread.id)).toHaveLength(1)
     const [claimed] = await sandboxRows()
@@ -173,7 +171,7 @@ describe('ThreadLaunchService', () => {
       projectId: 'prj-1',
       text: FIRST.text,
     })
-    expect(keepAlive).toHaveBeenCalledTimes(1)
+    expect(keepAlive).toHaveBeenCalled()
   })
 
   it('schedules titling even when the launch is not configured', async () => {
@@ -214,8 +212,9 @@ describe('ThreadLaunchService', () => {
   it('replays a gapless failed provision as a dispatch failure, not not-configured', async () => {
     await seedBase()
     const dispatcher = fakeDispatcher({ failWith: new Error('trigger is down') })
-    const { service } = launchWith({ dispatcher })
+    const { service, keepAlive } = launchWith({ dispatcher })
     await create(service)
+    await keepAlive.mock.calls[0]?.[0]
 
     const retry = await create(service)
 

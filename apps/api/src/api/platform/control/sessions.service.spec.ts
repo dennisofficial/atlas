@@ -33,6 +33,21 @@ describe('SessionsService', () => {
     expect(events.events).toEqual([])
   })
 
+  it('creates the session and its first message together, so the message exists when create returns', async () => {
+    const { plane, service } = setup()
+
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      firstMessage: { text: 'build me a thing' },
+    })
+
+    const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })
+    expect(inbox).toHaveLength(1)
+    expect(inbox[0]?.kind).toBe('message')
+    expect(JSON.parse(inbox[0]?.payload ?? '')).toEqual({ text: 'build me a thing' })
+  })
+
   it('creates the session on the model the caller names', async () => {
     const { plane, service } = setup()
     const created = await service.create({

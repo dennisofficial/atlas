@@ -2,16 +2,16 @@ import { describe, expect, it } from 'bun:test'
 
 import { createSessionWithMessage, type SessionsApi } from '../create-session'
 
-const fakeApi = (params: { postFails?: boolean } = {}) => {
+const fakeApi = (params: { createFails?: boolean } = {}) => {
   const calls: unknown[][] = []
   const api: SessionsApi = {
     create: async (input) => {
       calls.push(['create', input])
+      if (params.createFails === true) throw new Error('create refused')
       return { sessionId: 'sess-1', mainThreadId: 'thread-1' }
     },
     post: async (input) => {
       calls.push(['post', input])
-      if (params.postFails === true) throw new Error('post refused')
       return { inboxId: 1 }
     },
   }
@@ -37,7 +37,7 @@ const UPLOAD = {
 }
 
 describe('createSessionWithMessage', () => {
-  it('creates the session, then posts the first message to it', async () => {
+  it('creates the session with its first message in one call', async () => {
     const { api, calls } = fakeApi()
 
     const sessionId = await createSessionWithMessage({
@@ -49,10 +49,7 @@ describe('createSessionWithMessage', () => {
     })
 
     expect(sessionId).toBe('sess-1')
-    expect(calls).toEqual([
-      ['create', { projectId: 'proj-1' }],
-      ['post', { sessionId: 'sess-1', text: 'hello' }],
-    ])
+    expect(calls).toEqual([['create', { projectId: 'proj-1', firstMessage: { text: 'hello' } }]])
   })
 
   it('posts the images with the first message, text or not', async () => {
@@ -66,7 +63,10 @@ describe('createSessionWithMessage', () => {
       uploads: [],
     })
 
-    expect(calls[1]).toEqual(['post', { sessionId: 'sess-1', text: '', attachments: [MEDIA] }])
+    expect(calls[0]).toEqual([
+      'create',
+      { projectId: 'proj-1', firstMessage: { text: '', attachments: [MEDIA] } },
+    ])
   })
 
   it('posts the uploads with the first message', async () => {
@@ -80,16 +80,16 @@ describe('createSessionWithMessage', () => {
       uploads: [UPLOAD],
     })
 
-    const [post] = calls.slice(1)
-    const body = post?.[1] as {
-      attachments: { id: string; content: { store: string } }[]
-    }
-    expect(body.attachments).toHaveLength(1)
-    expect(body.attachments[0]).toMatchObject({
+    const [, body] = calls[0] ?? []
+    const message = (
+      body as { firstMessage: { attachments: { id: string; content: { store: string } }[] } }
+    ).firstMessage
+    expect(message.attachments).toHaveLength(1)
+    expect(message.attachments[0]).toMatchObject({
       id: UPLOAD.uploadId,
       content: { store: 'upload' },
     })
-    expect('uploads' in body).toBe(false)
+    expect('uploads' in message).toBe(false)
   })
 
   it('names the model the session starts on when one is picked', async () => {
@@ -108,15 +108,21 @@ describe('createSessionWithMessage', () => {
 
     expect(calls[0]).toEqual([
       'create',
-      { projectId: 'proj-1', model: 'openai/gpt-5', effort: 'high', fast: true },
+      {
+        projectId: 'proj-1',
+        model: 'openai/gpt-5',
+        effort: 'high',
+        fast: true,
+        firstMessage: { text: 'hello' },
+      },
     ])
   })
 
-  it('fails when the first message cannot be posted', async () => {
-    const { api } = fakeApi({ postFails: true })
+  it('fails when the create is refused', async () => {
+    const { api } = fakeApi({ createFails: true })
 
     await expect(
       createSessionWithMessage({ api, projectId: 'proj-1', text: 'hello', media: [], uploads: [] }),
-    ).rejects.toThrow('post refused')
+    ).rejects.toThrow('create refused')
   })
 })

@@ -11,14 +11,6 @@ import { z } from 'zod'
 import { sessionCommandRowSchema } from './command-row'
 import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
 
-export const sessionCreateInputSchema = z.strictObject({
-  projectId: z.string().min(1),
-  title: z.string().optional(),
-  model: z.string().min(1).optional(),
-  effort: z.string().min(1).optional(),
-  fast: z.boolean().optional(),
-})
-
 export const sessionListInputSchema = z.strictObject({
   projectId: z.string().min(1).optional(),
   limit: z.number().int().min(1).max(100).optional(),
@@ -29,30 +21,48 @@ const storedAttachmentSchema = attachmentSchema.refine(
   'a posted attachment is an upload or stored media',
 )
 
+const messageDraftFields = {
+  text: z.string().max(1_000_000),
+  media: sessionPostMediaListSchema.optional(),
+  uploads: z.array(saidUploadSchema).max(MAX_MESSAGE_UPLOADS).optional(),
+  attachments: z.array(storedAttachmentSchema).max(MAX_MESSAGE_UPLOADS).optional(),
+}
+
+type MessageDraftShape = {
+  text: string
+  media?: readonly unknown[] | undefined
+  uploads?: readonly unknown[] | undefined
+  attachments?: readonly unknown[] | undefined
+}
+
+const hasMessageContent = (input: MessageDraftShape): boolean =>
+  input.text.trim().length > 0 ||
+  (input.media?.length ?? 0) > 0 ||
+  (input.uploads?.length ?? 0) > 0 ||
+  (input.attachments?.length ?? 0) > 0
+
+const withinAttachmentLimit = (input: MessageDraftShape): boolean =>
+  (input.media?.length ?? 0) + (input.uploads?.length ?? 0) + (input.attachments?.length ?? 0) <=
+  MAX_MESSAGE_UPLOADS
+
+export const messageDraftSchema = z
+  .strictObject(messageDraftFields)
+  .refine(hasMessageContent, 'a message needs text or an attachment')
+  .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
+
 export const sessionPostInputSchema = z
-  .strictObject({
-    sessionId: z.string().min(1),
-    text: z.string().max(1_000_000),
-    media: sessionPostMediaListSchema.optional(),
-    uploads: z.array(saidUploadSchema).max(MAX_MESSAGE_UPLOADS).optional(),
-    attachments: z.array(storedAttachmentSchema).max(MAX_MESSAGE_UPLOADS).optional(),
-  })
-  .refine(
-    (input) =>
-      input.text.trim().length > 0 ||
-      (input.media?.length ?? 0) > 0 ||
-      (input.uploads?.length ?? 0) > 0 ||
-      (input.attachments?.length ?? 0) > 0,
-    'a message needs text or an attachment',
-  )
-  .refine(
-    (input) =>
-      (input.media?.length ?? 0) +
-        (input.uploads?.length ?? 0) +
-        (input.attachments?.length ?? 0) <=
-      MAX_MESSAGE_UPLOADS,
-    `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`,
-  )
+  .strictObject({ sessionId: z.string().min(1), ...messageDraftFields })
+  .refine(hasMessageContent, 'a message needs text or an attachment')
+  .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
+
+export const sessionCreateInputSchema = z.strictObject({
+  projectId: z.string().min(1),
+  title: z.string().optional(),
+  model: z.string().min(1).optional(),
+  effort: z.string().min(1).optional(),
+  fast: z.boolean().optional(),
+  firstMessage: messageDraftSchema.optional(),
+})
 
 export const sessionEventsInputSchema = z.strictObject({
   sessionId: z.string().min(1),
@@ -83,6 +93,7 @@ export const sessionStatusInputSchema = z.strictObject({
 })
 
 export type SessionCreateInput = z.infer<typeof sessionCreateInputSchema>
+export type SessionMessageDraft = z.infer<typeof messageDraftSchema>
 export type SessionListInput = z.infer<typeof sessionListInputSchema>
 export type SessionPostInput = z.infer<typeof sessionPostInputSchema>
 export type SessionEventsInput = z.infer<typeof sessionEventsInputSchema>
