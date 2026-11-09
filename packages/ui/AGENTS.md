@@ -80,6 +80,18 @@ expected.
 - `input.tsx`: `size: 'default' | 'lg'` (lg = `h-9`, matching Button `lg`).
 - `input-group.tsx`: `InputGroupButton` `sm` is an explicit `h-7` (it inherited Button's `h-8`); `shape: 'default' | 'round'`; `InputGroupInput` accepts Input's `size`; the group's disabled dimming keys on a disabled `input-group-control`, not any disabled descendant, so a disabled addon button (an empty composer's Send) doesn't grey out the whole field.
 - `input-otp.tsx`: `size: 'default' | 'lg'` on `InputOTP`, read by every slot.
+- `slider.tsx`: a scalar `value`/`defaultValue` renders one thumb. The upstream thumb count treats a
+  non-array value as unknown and falls back to `[min, max]`, so `<Slider value={2} />` rendered two
+  focusable thumbs on top of each other; it now counts from the scalar itself. `aria-label` on the
+  slider names the range input, where upstream puts it on the wrapper `div` and leaves the input
+  unnamed. `size: 'default' | 'lg'` (lg = `h-1.5` track, `size-4.5` thumb) for a slider that has to
+  carry a short track, such as the composer's effort dial. Control and thumb take `cursor-pointer`,
+  since the track is press-to-set but showed a plain arrow. Thumb and fill ease to a new value
+  (`transition-[inset-inline-start]` / `width`, 200ms) but only once the slider has been pressed or
+  focused: Base UI paints the thumb at 0% and moves it when it has measured the track, so an
+  unconditional transition animates the wrong way on mount. The transition cannot be suppressed
+  while dragging instead — Base UI counts a track press as dragging from pointerdown, which would
+  kill the animation on the click it exists for.
 - `table.tsx`: header rows never take the body hover; `Table` `variant: 'default' | 'framed'` (bordered card container, `pl-4`/`pr-4` edge cells).
 - `empty.tsx`: `variant: 'default' | 'outline'`.
 - `avatar.tsx`: `size="xs"`; `AvatarFallback` text follows the avatar size.
