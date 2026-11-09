@@ -23,6 +23,7 @@ import {
 import { Spinner } from '#components/spinner'
 import { useIsMobile } from '#hooks/use-mobile'
 import { cn } from '#lib/utils'
+import { handleLiteralHyphen } from './internal/literal-hyphen'
 
 import {
   EPromptAttachmentStatus,
@@ -135,10 +136,12 @@ export function PromptInput({
   const hasDraft = attached || text.trim().length > 0
   const showsStop = busy && !sending && !(queueWhileBusy && hasDraft)
 
-  const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setDraft(event.target.value)
-    onValueChange?.(event.target.value)
+  const acceptValue = (next: string) => {
+    setDraft(next)
+    onValueChange?.(next)
   }
+
+  const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => acceptValue(event.target.value)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -177,6 +180,7 @@ export function PromptInput({
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     onTextareaKeyDown?.(event)
     if (event.defaultPrevented || event.nativeEvent.isComposing) return
+    if (handleLiteralHyphen({ event, onValue: acceptValue })) return
     if (event.key !== 'Enter' || event.shiftKey) return
     event.preventDefault()
     formRef.current?.requestSubmit()
