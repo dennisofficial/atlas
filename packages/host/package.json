@@ -19,6 +19,7 @@
     "@dltech/atlas-observability": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
+    "@dltech/atlas-wire": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {

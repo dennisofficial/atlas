@@ -59,6 +59,61 @@ describe('podControlClientOf', () => {
     await expect(client().exposePort({ threadId: 'thr_1', port: 4317 })).rejects.toThrow('500')
   })
 
+  it('posts a memory list and returns the snapshot the control plane sent', async () => {
+    const snapshot = { project: 'o/r', memories: [] }
+    stubFetch(() => reply({ result: { data: snapshot } }))
+    const listed = await client().memory.list({ threadId: 'thr_1' })
+    expect(listed).toEqual(snapshot)
+    expect(seen[0]?.url).toBe(`${ORIGIN}/v1/trpc/hostMemory.list`)
+    expect(seen[0]?.init?.body).toBe(JSON.stringify({ threadId: 'thr_1' }))
+  })
+
+  it('posts a memory write with its scope, name and body', async () => {
+    stubFetch(() => reply({ result: { data: { memory: { name: 'm', revision: 1 } } } }))
+    await client().memory.write({
+      threadId: 'thr_1',
+      scope: 'global',
+      name: 'm',
+      description: 'd',
+      type: 'user',
+      body: 'b',
+    })
+    expect(seen[0]?.url).toBe(`${ORIGIN}/v1/trpc/hostMemory.write`)
+    expect(JSON.parse(String(seen[0]?.init?.body))).toEqual({
+      threadId: 'thr_1',
+      scope: 'global',
+      name: 'm',
+      description: 'd',
+      type: 'user',
+      body: 'b',
+    })
+  })
+
+  it('turns a memory delete into its removed flag', async () => {
+    stubFetch(() => reply({ result: { data: { removed: false } } }))
+    const removed = await client().memory.remove({
+      threadId: 'thr_1',
+      scope: 'global',
+      name: 'gone',
+    })
+    expect(removed).toBe(false)
+    expect(seen[0]?.url).toBe(`${ORIGIN}/v1/trpc/hostMemory.remove`)
+  })
+
+  it('throws the message of a refused memory call', async () => {
+    stubFetch(() => reply({ error: { json: { message: 'memory is at revision 2, not 1' } } }))
+    await expect(
+      client().memory.edit({
+        threadId: 'thr_1',
+        scope: 'global',
+        name: 'm',
+        old: 'a',
+        new: 'b',
+        revision: 1,
+      }),
+    ).rejects.toThrow('memory is at revision 2, not 1')
+  })
+
   it('composes the caller signal with its own timeout', async () => {
     stubFetch(() => reply({ result: { data: { url: 'https://x.test', tunnelToken: 't' } } }))
     const controller = new AbortController()

@@ -34,16 +34,16 @@ const isReply = (value: unknown): value is ExposePortReply =>
 export const podControlClientOf = (args: {
   apiOrigin: string
   token: string
-}): PodControlClient => ({
-  exposePort: async ({ threadId, port, signal }) => {
+}): PodControlClient => {
+  const call = async (procedure: string, body: unknown, signal?: AbortSignal): Promise<unknown> => {
     const timeout = AbortSignal.timeout(TIMEOUT_MS)
-    const response = await fetch(`${args.apiOrigin}/v1/trpc/hostSelf.exposePort`, {
+    const response = await fetch(`${args.apiOrigin}/v1/trpc/${procedure}`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${args.token}`,
       },
-      body: JSON.stringify({ threadId, port }),
+      body: JSON.stringify(body),
       signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
     })
     const envelope = parseJson(await response.text(), response.status)
@@ -52,9 +52,44 @@ export const podControlClientOf = (args: {
       throw new Error(`the control plane rejected the call (${response.status}): ${message}`)
     }
     if (message !== undefined) throw new Error(message)
-    if (!isReply(envelope.result?.data)) {
-      throw new Error('the control plane answered without a url and a tunnel token')
-    }
-    return envelope.result.data
-  },
-})
+    return envelope.result?.data
+  }
+
+  return {
+    exposePort: async ({ threadId, port, signal }) => {
+      const reply = await call('hostSelf.exposePort', { threadId, port }, signal)
+      if (!isReply(reply)) {
+        throw new Error('the control plane answered without a url and a tunnel token')
+      }
+      return reply
+    },
+    memory: {
+      list: async ({ threadId, signal }) =>
+        (await call('hostMemory.list', { threadId }, signal)) as Awaited<
+          ReturnType<PodControlClient['memory']['list']>
+        >,
+      read: async ({ threadId, scope, name, signal }) =>
+        (await call('hostMemory.get', { threadId, scope, name }, signal)) as Awaited<
+          ReturnType<PodControlClient['memory']['read']>
+        >,
+      write: async ({ threadId, scope, name, description, type, body, signal }) =>
+        (await call(
+          'hostMemory.write',
+          { threadId, scope, name, description, type, body },
+          signal,
+        )) as Awaited<ReturnType<PodControlClient['memory']['write']>>,
+      edit: async ({ threadId, scope, name, old, new: replacement, revision, signal }) =>
+        (await call(
+          'hostMemory.edit',
+          { threadId, scope, name, old, new: replacement, revision },
+          signal,
+        )) as Awaited<ReturnType<PodControlClient['memory']['edit']>>,
+      remove: async ({ threadId, scope, name, signal }) => {
+        const reply = (await call('hostMemory.remove', { threadId, scope, name }, signal)) as {
+          removed: boolean
+        }
+        return reply.removed
+      },
+    },
+  }
+}

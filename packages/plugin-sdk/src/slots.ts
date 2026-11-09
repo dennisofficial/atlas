@@ -10,9 +10,25 @@ import type {
 } from '@dltech/atlas-core'
 import type { AppendHook, ControlPlane } from '@dltech/atlas-control'
 import type { CallOp, CallResult, DaemonEventFrame } from '@dltech/atlas-protocol'
+import type { EMemoryScope, EMemoryType, MemoryEntry, MemorySummary } from '@dltech/atlas-wire'
+
+export type MemoryAddress = { scope: EMemoryScope; name: string }
+
+export type MemorySnapshot = { project: string | null; memories: readonly MemorySummary[] }
+
+export type PodMemory = {
+  list(): Promise<MemorySnapshot>
+  read(args: MemoryAddress): Promise<MemoryEntry | null>
+  write(
+    args: MemoryAddress & { description: string; type: EMemoryType; body: string },
+  ): Promise<MemorySummary>
+  edit(args: MemoryAddress & { old: string; new: string; revision: number }): Promise<MemorySummary>
+  delete(args: MemoryAddress): Promise<boolean>
+}
 
 export type PodControl = {
   exposePort(args: { port: number }): Promise<{ url: string; tunnelToken: string }>
+  memory: PodMemory
 }
 
 export type PluginPodContext = {

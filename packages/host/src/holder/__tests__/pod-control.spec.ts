@@ -63,6 +63,18 @@ const probePlugin = definePlugin({
   transport: 'none',
 })
 
+const memoryStub: PodControlClient['memory'] = {
+  list: async () => ({ project: null, memories: [] }),
+  read: async () => null,
+  write: async () => {
+    throw new Error('this test writes no memory')
+  },
+  edit: async () => {
+    throw new Error('this test edits no memory')
+  },
+  remove: async () => false,
+}
+
 const recordingClient = (): PodControlClient & { calls: { threadId: string; port: number }[] } => {
   const calls: { threadId: string; port: number }[] = []
   return {
@@ -71,6 +83,7 @@ const recordingClient = (): PodControlClient & { calls: { threadId: string; port
       calls.push({ threadId: args.threadId, port: args.port })
       return { url: `https://${args.port}-abc.byatlas.dev`, tunnelToken: 'tunnel-token' }
     },
+    memory: memoryStub,
   }
 }
 
@@ -93,6 +106,7 @@ describe('podControlOf', () => {
   it('wraps a client rejection with the port', async () => {
     const control = podControlOf({
       client: {
+        memory: memoryStub,
         exposePort: async () => {
           throw new Error('the control plane said no')
         },
@@ -134,6 +148,7 @@ describe('a plugin tool reaching ctx.control', () => {
       ],
       plugins: composePlugins([probePlugin]),
       control: {
+        memory: memoryStub,
         exposePort: async () => {
           throw new Error('the control plane rejected the call (500): boom')
         },
@@ -151,7 +166,10 @@ describe('a plugin tool reaching ctx.control', () => {
 
 describe('podControlOf wiring', () => {
   it('does not read a thread id from the tool input', async () => {
-    const client = { exposePort: vi.fn(async () => ({ url: 'u', tunnelToken: 't' })) }
+    const client = {
+      memory: memoryStub,
+      exposePort: vi.fn(async () => ({ url: 'u', tunnelToken: 't' })),
+    }
     const control = podControlOf({ client, threadId: toThreadId('thr_holder') })
     await control.exposePort({ port: 1 })
     expect(client.exposePort).toHaveBeenCalledWith({ threadId: 'thr_holder', port: 1 })

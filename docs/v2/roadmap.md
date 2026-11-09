@@ -22,7 +22,11 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 ## Current state
 
-_Updated at the end of every slice. Last update: 2026-11-08._
+_Updated at the end of every slice. Last update: 2026-11-09._
+- **Slice 7 PR 8, `plugins/memory`** (`dennis/memory`): the four memory tools and the index hook,
+  over a new `PodControl.memory` port that the host answers on `hostMemory.*` with
+  `AGENT_HOST_TOKEN` — a v2 cloud pod has no user token, so memory cannot use the v1 route (spec
+  §8.7). No events, no view: memory is per-user state, not session history.
 - **Slice 7 PR 6, services part 2 — previews** (`dennis/service-previews`, #2058): the host publishes a
   service through `ctx.control.exposePort`, the daemon runs cloudflared with the returned token,
   `service-started` carries the `url`, and a stop takes it down. Live-checked on production

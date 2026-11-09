@@ -2,6 +2,10 @@ import { composePlugins, definePlugin, type Plugin } from '@dltech/atlas-plugin-
 import { githubControl } from '@dltech/atlas-plugin-github/control'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { githubPod } from '@dltech/atlas-plugin-github/pod'
+import { memoryClient } from '@dltech/atlas-plugin-memory/client'
+import { memoryControl } from '@dltech/atlas-plugin-memory/control'
+import { memoryCoreSlots } from '@dltech/atlas-plugin-memory/core'
+import { memoryPod } from '@dltech/atlas-plugin-memory/pod'
 import { servicesClient } from '@dltech/atlas-plugin-services/client'
 import { servicesControl } from '@dltech/atlas-plugin-services/control'
 import { servicesCoreSlots } from '@dltech/atlas-plugin-services/core'
@@ -27,6 +31,14 @@ export const registeredPlugins: readonly Plugin[] = [
     control: shellsControl,
     client: shellsClient,
     transport: 'stream',
+  }),
+  definePlugin({
+    name: 'memory',
+    ...memoryCoreSlots,
+    pod: memoryPod,
+    control: memoryControl,
+    client: memoryClient,
+    transport: 'none',
   }),
   definePlugin({
     name: 'services',
