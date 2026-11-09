@@ -4,6 +4,8 @@ import { dirname, join } from 'node:path'
 
 export const MAIN_LOG_PATH = join(homedir(), 'Library', 'Logs', 'Atlas', 'main.log')
 
+export type StartupNotice = (args: { error: unknown; path: string }) => void | Promise<void>
+
 export function formatLogEntry({
   label,
   error,
@@ -39,14 +41,28 @@ export function installCrashLogging(): void {
   process.on('unhandledRejection', (error) => writeLog({ label: 'unhandledRejection', error }))
 }
 
-export async function runLogged(start: () => Promise<void>): Promise<void> {
+// A packaged app that dies before its window exists shows the user nothing at all, so a startup failure is a dialog, not only a log line.
+export async function runLogged({
+  start,
+  notify,
+  path = MAIN_LOG_PATH,
+}: {
+  start: () => Promise<void>
+  notify?: StartupNotice | undefined
+  path?: string
+}): Promise<void> {
   installCrashLogging()
-  writeLog({ label: 'startup', error: `pid ${process.pid} ${process.platform}/${process.arch}` })
+  writeLog({
+    label: 'startup',
+    error: `pid ${process.pid} ${process.platform}/${process.arch}`,
+    path,
+  })
   try {
     await start()
-    writeLog({ label: 'started' })
+    writeLog({ label: 'started', path })
   } catch (error) {
-    writeLog({ label: 'startup failed', error })
+    writeLog({ label: 'startup failed', error, path })
+    await notify?.({ error, path })
     throw error
   }
 }
