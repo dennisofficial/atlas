@@ -1,12 +1,18 @@
 import { toThreadId } from '@dltech/atlas-core'
-import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import {
   EMPTY_CREW,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
 } from '@dltech/atlas-plugin-sdk'
-import { ECallFailure, ECallStatus, type CallResult } from '@dltech/atlas-protocol'
+import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
+import {
+  type CallResult,
+  type DaemonEvent,
+  type DaemonEventFrame,
+  ECallFailure,
+  ECallStatus,
+} from '@dltech/atlas-protocol'
 
 import type { McpCallResult, McpToolInfo } from '../types'
 
@@ -16,12 +22,17 @@ export type FakeBehaviour = {
   answer?: (args: { name: string; arguments?: unknown }) => McpCallResult
   exit?: { exitCode: number | null; signal: string | null }
   stderr?: readonly string[]
-  unauthorized?: boolean
 }
 
 type Line = { seq: number; line: string }
 
-export const fakeDaemon = (behaviours: Readonly<Record<string, FakeBehaviour>> = {}) => {
+const DEFAULT_EVENT_LINE_BYTES = 1_048_576
+
+export const fakeDaemon = (
+  behaviours: Readonly<Record<string, FakeBehaviour>> = {},
+  options: { eventLineBytes?: number } = {},
+) => {
+  const eventLineBytes = options.eventLineBytes ?? DEFAULT_EVENT_LINE_BYTES
   const lines = new Map<string, Line[]>()
   const ended = new Map<string, { exitCode: number | null; signal: string | null }>()
   const files = new Map<string, string>()
@@ -32,11 +43,24 @@ export const fakeDaemon = (behaviours: Readonly<Record<string, FakeBehaviour>> =
     env?: Record<string, string>
   }[] = []
   const closed: string[] = []
+  const listeners: ((frame: DaemonEventFrame) => void)[] = []
+  let reads = 0
+
+  const publish = (event: DaemonEvent): void => {
+    for (const listener of listeners) listener({ kind: 'event', event })
+  }
 
   const push = (serverId: string, value: unknown): void => {
     const held = lines.get(serverId) ?? []
-    held.push({ seq: held.length + 1, line: JSON.stringify(value) })
+    const seq = held.length + 1
+    const line = JSON.stringify(value)
+    held.push({ seq, line })
     lines.set(serverId, held)
+    if (line.length > eventLineBytes) {
+      publish({ type: 'mcp.dropped', serverId, seq })
+      return
+    }
+    publish({ type: 'mcp.message', serverId, seq, line })
   }
 
   const answer = (serverId: string, message: Record<string, unknown>): void => {
@@ -61,16 +85,10 @@ export const fakeDaemon = (behaviours: Readonly<Record<string, FakeBehaviour>> =
     }
     if (message['method'] === 'tools/call') {
       const params = (message['params'] ?? {}) as { name?: string; arguments?: unknown }
-      if (behaviour.unauthorized === true) {
-        push(serverId, { jsonrpc: '2.0', id, error: { code: -32_000, message: 'unauthorized' } })
-        return
-      }
       const result = behaviour.answer?.({
         name: params.name ?? '',
         arguments: params.arguments,
-      }) ?? {
-        content: [{ type: 'text', text: 'ok' }],
-      }
+      }) ?? { content: [{ type: 'text', text: 'ok' }] }
       push(serverId, { jsonrpc: '2.0', id, result })
     }
   }
@@ -85,19 +103,22 @@ export const fakeDaemon = (behaviours: Readonly<Record<string, FakeBehaviour>> =
         ...(op['env'] === undefined ? {} : { env: op['env'] as Record<string, string> }),
       })
       const behaviour = behaviours[serverId] ?? {}
-      const env = op['env'] as Record<string, string> | undefined
-      const path = env?.['ATLAS_MCP_STDERR']
-      if (behaviour.stderr !== undefined && path !== undefined)
-        files.set(path, behaviour.stderr.join('\n'))
-      if (behaviour.exit !== undefined) ended.set(serverId, behaviour.exit)
+      if (behaviour.exit !== undefined) {
+        const exit = behaviour.exit
+        queueMicrotask(() => {
+          ended.set(serverId, exit)
+          publish({ type: 'mcp.exited', serverId, ...exit })
+        })
+      }
       return { status: ECallStatus.Ok, op: 'mcp.spawn', value: { serverId, pid: 1 } }
     }
     if (op.op === 'mcp.send') {
       const serverId = String(op['serverId'])
-      answer(serverId, JSON.parse(String(op['line'])))
+      if (behaviours[serverId]?.exit === undefined) answer(serverId, JSON.parse(String(op['line'])))
       return { status: ECallStatus.Ok, op: 'mcp.send', value: null }
     }
     if (op.op === 'mcp.read') {
+      reads += 1
       const serverId = String(op['serverId'])
       const after = Number(op['afterSeq'])
       return {
@@ -105,6 +126,7 @@ export const fakeDaemon = (behaviours: Readonly<Record<string, FakeBehaviour>> =
         op: 'mcp.read',
         value: {
           lines: (lines.get(serverId) ?? []).filter((entry) => entry.seq > after),
+          stderr: behaviours[serverId]?.stderr ?? [],
           ended: ended.get(serverId) ?? null,
         },
       }
@@ -129,14 +151,26 @@ export const fakeDaemon = (behaviours: Readonly<Record<string, FakeBehaviour>> =
         }
       return { status: ECallStatus.Ok, op: 'readFile', value: text }
     }
-    if (op.op === 'remove') {
-      files.delete(String(op['path']))
-      return { status: ECallStatus.Ok, op: 'remove', value: null }
-    }
     throw new Error(`the fake daemon does not answer ${op.op}`)
   }
 
-  return { call, spawns, closed, files, lines }
+  const onDaemonEvent = (listener: (frame: DaemonEventFrame) => void): (() => void) => {
+    listeners.push(listener)
+    return () => {
+      const at = listeners.indexOf(listener)
+      if (at !== -1) listeners.splice(at, 1)
+    }
+  }
+
+  return {
+    call,
+    onDaemonEvent,
+    spawns,
+    closed,
+    files,
+    lines,
+    reads: () => reads,
+  }
 }
 
 export const rig = (daemon: ReturnType<typeof fakeDaemon>): PluginPodContext => ({
@@ -149,16 +183,9 @@ export const rig = (daemon: ReturnType<typeof fakeDaemon>): PluginPodContext => 
   events: () => [],
   call: (op) => daemon.call(op),
   live: () => undefined,
-  onDaemonEvent: () => () => undefined,
+  onDaemonEvent: daemon.onDaemonEvent,
   log: () => undefined,
 })
-
-export const turn = async (args: {
-  ctx: PluginPodContext
-  run: () => Promise<unknown>
-}): Promise<void> => {
-  await args.run()
-}
 
 export const invocation = (input: unknown) => ({
   input,

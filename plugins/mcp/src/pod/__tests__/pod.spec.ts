@@ -17,8 +17,12 @@ const start = async (args: {
   behaviours?: Readonly<Record<string, FakeBehaviour>>
   rows?: readonly McpCloudRow[]
   repoFiles?: Readonly<Record<string, string>>
+  eventLineBytes?: number
 }) => {
-  const daemon = fakeDaemon(args.behaviours ?? {})
+  const daemon = fakeDaemon(
+    args.behaviours ?? {},
+    args.eventLineBytes === undefined ? {} : { eventLineBytes: args.eventLineBytes },
+  )
   for (const [path, text] of Object.entries(args.repoFiles ?? {})) daemon.files.set(path, text)
   const config = { rows: async () => args.rows ?? rowsOf() }
   const ctx = rig(daemon)
@@ -57,9 +61,24 @@ describe('lifecycle', () => {
     ])
     expect(store.instructionsOf('docs')).toBe('Docs first.')
     expect(daemon.spawns).toHaveLength(1)
-    expect(daemon.spawns[0]?.command).toBe('sh')
-    expect(daemon.spawns[0]?.args[2]).toBe('bun')
-    expect(daemon.spawns[0]?.env?.['ATLAS_MCP_STDERR']).toBe('/tmp/atlas-mcp-s1-docs.log')
+    expect(daemon.spawns[0]?.command).toBe('bun')
+    expect(daemon.spawns[0]?.args).toEqual(['run', 'server'])
+    expect(daemon.spawns[0]?.env).toBeUndefined()
+  })
+
+  it('resolves responses from daemon frames without reading the line buffer', async () => {
+    const { daemon } = await start({ behaviours: { docs: { tools: [searchTool] } } })
+    expect(daemon.reads()).toBe(0)
+  })
+
+  it('recovers a line the daemon refused to publish through mcp.read', async () => {
+    const { daemon, store } = await start({
+      behaviours: { docs: { tools: [searchTool] } },
+      eventLineBytes: 80,
+    })
+    expect(store.servers()[0]?.status).toBe(EMcpServerStatus.Connected)
+    expect(store.tools().map((tool) => tool.name)).toEqual(['mcp__docs__search'])
+    expect(daemon.reads()).toBeGreaterThan(0)
   })
 
   it('reports a failed server with the first lines of its stderr', async () => {
@@ -116,7 +135,7 @@ describe('config through the pod', () => {
         }),
       },
     })
-    expect(daemon.spawns[0]?.args[2]).toBe('repo-server')
+    expect(daemon.spawns[0]?.command).toBe('repo-server')
   })
 
   it('lets a repo disabled stub hide the cloud row it names', async () => {
@@ -136,7 +155,7 @@ describe('config through the pod', () => {
         '/repo/.mcp.json': JSON.stringify({ docs: { command: 'compat-server' } }),
       },
     })
-    expect(daemon.spawns[0]?.args[2]).toBe('compat-server')
+    expect(daemon.spawns[0]?.command).toBe('compat-server')
   })
 })
 

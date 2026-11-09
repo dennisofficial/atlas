@@ -43,7 +43,11 @@ export const mcpReadOpSchema = z
 export const mcpLineSchema = z.object({ seq: z.number().int().min(1), line: z.string() }).strict()
 
 export const mcpReadResultSchema = z
-  .object({ lines: z.array(mcpLineSchema).readonly(), ended: exitSchema.nullable() })
+  .object({
+    lines: z.array(mcpLineSchema).readonly(),
+    stderr: z.array(z.string()).readonly(),
+    ended: exitSchema.nullable(),
+  })
   .strict()
 
 export const mcpCloseOpSchema = z
@@ -85,11 +89,23 @@ export const mcpMessageEventSchema = z
   })
   .strict()
 
+export const mcpDroppedEventSchema = z
+  .object({
+    type: z.literal('mcp.dropped'),
+    serverId: serverIdSchema,
+    seq: z.number().int().min(1),
+  })
+  .strict()
+
 export const mcpExitedEventSchema = z
   .object({ type: z.literal('mcp.exited'), serverId: serverIdSchema, ...exitSchema.shape })
   .strict()
 
-export const mcpEventSchemas = [mcpMessageEventSchema, mcpExitedEventSchema] as const
+export const mcpEventSchemas = [
+  mcpMessageEventSchema,
+  mcpDroppedEventSchema,
+  mcpExitedEventSchema,
+] as const
 
 export type McpSpawnOp = z.infer<typeof mcpSpawnOpSchema>
 export type McpSendOp = z.infer<typeof mcpSendOpSchema>
@@ -100,4 +116,5 @@ export type McpLine = z.infer<typeof mcpLineSchema>
 export type McpReadResult = z.infer<typeof mcpReadResultSchema>
 export type McpListEntry = z.infer<typeof mcpListEntrySchema>
 export type McpMessageEvent = z.infer<typeof mcpMessageEventSchema>
+export type McpDroppedEvent = z.infer<typeof mcpDroppedEventSchema>
 export type McpExitedEvent = z.infer<typeof mcpExitedEventSchema>
