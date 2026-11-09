@@ -254,16 +254,16 @@ and slice 9's local pod is a different placement, not a switch inside a session.
 
 ## 8. Order, packaging and the PR sequence
 
-| PR  | Contents                                                            | Proves                                                                                                                          |
-| --- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | this spec, the roadmap row and the Current state bullet             | the verdicts are written down before anything is built                                                                          |
-| 2   | `plugins/web`: `web_fetch` + `browser`, package shape, registration | a page reads as markdown, a pattern narrows it, an image reports instead of saving, the baked Chrome answers two calls in a row |
-| 3   | `web_search` + the `PodControl.webSearch` read                      | the operator's backend and key are honoured; a keyless backend works with no row; a bad key fails loudly                        |
-| 4   | `task_write` in the host's core tools + the mirror hook             | a checklist round-trips into the next prompt and the plan folds out of the log                                                  |
+| PR  | Contents                                                                                                                                     | Proves                                                                                                                                                                           |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | this spec, the roadmap row and the Current state bullet                                                                                      | the verdicts are written down before anything is built                                                                                                                           |
+| 2   | `plugins/web`: `web_search`, `web_fetch`, `browser`, the package shape, registration, and the `PodControl.webSearch` read — **built**, #2116 | a page reads as markdown, a pattern narrows it, an image reports instead of saving, the operator's backend and key are honoured, and the baked Chrome answers two calls in a row |
+| 3   | `task_write` in the host's core tools + the mirror hook                                                                                      | a checklist round-trips into the next prompt and the plan folds out of the log                                                                                                   |
 
-PR 2 comes first because it needs no host change at all; PR 3 adds the one port; PR 4 is independent
-of both. Live checks follow slice 7's practice: a fresh session, never one created during a deploy,
-recorded here with its session id.
+The three web tools shipped as one package and one PR: they share the untrusted envelope and the
+operator's configuration, and a package per tool would have been ceremony. `task_write` is
+independent of them. Live checks follow slice 7's practice: a fresh session, never one created
+during a deploy, recorded here with its session id.
 
 **Live check (fill in as each PR merges):**
 - [ ] `plugins/web` fetch + browser —

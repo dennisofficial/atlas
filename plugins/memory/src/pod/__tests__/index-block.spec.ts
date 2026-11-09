@@ -13,6 +13,7 @@ const state = (): MemoryPodState => ({ text: null, loading: null, failed: false,
 
 const ctxWith = (memory: PodMemory): Pick<PluginPodContext, 'control'> => ({
   control: {
+    webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
     exposePort: async () => {
       throw new Error('no port')
     },

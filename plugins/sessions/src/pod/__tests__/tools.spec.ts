@@ -60,6 +60,7 @@ const rig = (sessions: PodSessions) => {
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
+      webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       memory: {
         list: async () => ({ project: null, memories: [] }),
         read: async () => null,

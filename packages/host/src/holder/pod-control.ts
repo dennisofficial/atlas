@@ -6,6 +6,7 @@ import type {
   MemorySnapshot,
   MemorySummary,
   PodControl,
+  WebSearchConfig,
 } from '@dltech/atlas-plugin-sdk'
 
 type Called = { threadId: string; signal?: AbortSignal | undefined }
@@ -16,6 +17,9 @@ export type PodControlClient = {
     port: number
     signal?: AbortSignal | undefined
   }): Promise<{ url: string; tunnelToken: string }>
+  webSearch: {
+    config(args: Called): Promise<WebSearchConfig>
+  }
   memory: {
     list(args: Called): Promise<MemorySnapshot>
     read(args: Called & MemoryAddress): Promise<MemoryEntry | null>
@@ -43,6 +47,12 @@ export const podControlOf = (args: {
       const message = failure instanceof Error ? failure.message : String(failure)
       throw new Error(`could not expose port ${port}: ${message}`)
     }
+  },
+  webSearch: {
+    config: async () => {
+      if (args.client === undefined) throw unreachable()
+      return await args.client.webSearch.config({ threadId: args.threadId })
+    },
   },
   memory: {
     list: async () => {
