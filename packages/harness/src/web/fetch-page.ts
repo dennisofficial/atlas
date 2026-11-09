@@ -1,12 +1,13 @@
 import {
-  acceptContentType,
+  absoluteLinks,
   acceptUrl,
-  EContentVerdict,
-  sameHost,
+  contentKindOf,
+  EContentKind,
   type FetchedPage,
 } from '@dltech/atlas-core'
 
 import { htmlToMarkdown, htmlToText, titleOf } from './extract'
+import { pdfToText } from './pdf'
 
 export enum EPageFormat {
   Markdown = 'markdown',
@@ -14,9 +15,11 @@ export enum EPageFormat {
   Html = 'html',
 }
 
-const MAX_BYTES = 5 * 1024 * 1024
+const MAX_BYTES = 25 * 1024 * 1024
 
 const MAX_CHARACTERS = 120_000
+
+const MAX_REDIRECTS = 10
 
 export const DEFAULT_TIMEOUT_SECONDS = 30
 
@@ -41,7 +44,7 @@ const ACCEPT: Record<EPageFormat, string> = {
 
 export type PageFailure = { ok: false; reason: string }
 
-export type PageSuccess = { ok: true; page: FetchedPage }
+export type PageSuccess = { ok: true; page: FetchedPage; bytes: Uint8Array }
 
 export type PageOutcome = PageSuccess | PageFailure
 
@@ -51,31 +54,51 @@ const headersFor = (args: { format: EPageFormat; agent: string }): Record<string
   'user-agent': args.agent,
 })
 
-function convert(args: { body: string; html: boolean; format: EPageFormat }): string {
-  if (!args.html) return args.body.trim()
-  if (args.format === EPageFormat.Html) return args.body.trim()
-  if (args.format === EPageFormat.Text) return htmlToText(args.body)
-  return htmlToMarkdown(args.body)
+const hostOf = (url: string): string => {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return url
+  }
 }
 
-async function readCapped(response: Response): Promise<string | PageFailure> {
+const proseOf = async (args: {
+  bytes: Uint8Array
+  kind: EContentKind
+  format: EPageFormat
+  finalUrl: string
+  signal: AbortSignal
+}): Promise<string> => {
+  if (args.kind === EContentKind.Pdf)
+    return await pdfToText({ bytes: args.bytes, signal: args.signal })
+
+  const decoded = new TextDecoder().decode(args.bytes)
+  if (args.kind !== EContentKind.Html) return decoded.trim()
+  if (args.format === EPageFormat.Html) return decoded.trim()
+  if (args.format === EPageFormat.Text) return htmlToText(decoded)
+  return absoluteLinks({ markdown: htmlToMarkdown(decoded), base: args.finalUrl })
+}
+
+async function readBody(
+  response: Response,
+): Promise<{ ok: true; bytes: Uint8Array } | PageFailure> {
   const declared = Number(response.headers.get('content-length') ?? '0')
   if (Number.isFinite(declared) && declared > MAX_BYTES) {
     return {
       ok: false,
-      reason: `the page declares ${declared} bytes, above the ${MAX_BYTES} limit`,
+      reason: `the body declares ${declared} bytes, above the ${MAX_BYTES} limit`,
     }
   }
 
-  const buffer = await response.arrayBuffer()
-  if (buffer.byteLength > MAX_BYTES) {
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  if (bytes.byteLength > MAX_BYTES) {
     return {
       ok: false,
-      reason: `the page is ${buffer.byteLength} bytes, above the ${MAX_BYTES} limit`,
+      reason: `the body is ${bytes.byteLength} bytes, above the ${MAX_BYTES} limit`,
     }
   }
 
-  return new TextDecoder().decode(buffer)
+  return { ok: true, bytes }
 }
 
 export async function fetchPage(args: {
@@ -95,67 +118,99 @@ export async function fetchPage(args: {
   const timer = AbortSignal.timeout(seconds * 1000)
   const signal = AbortSignal.any([args.signal, timer])
 
-  const request = async (agent: string): Promise<Response> =>
-    await fetch(verdict.url, {
-      headers: headersFor({ format: args.format, agent }),
-      redirect: 'manual',
-      signal,
-    })
+  const send = async (url: string): Promise<Response> => {
+    const request = async (agent: string): Promise<Response> =>
+      await fetch(url, {
+        headers: headersFor({ format: args.format, agent }),
+        redirect: 'manual',
+        signal,
+      })
 
-  let response: Response
-  try {
-    response = await request(BROWSER_AGENT)
-    if (response.status === 403 && response.headers.has(CHALLENGE_HEADER)) {
-      response = await request(HARNESS_AGENT)
-    }
-  } catch (error) {
-    if (timer.aborted)
-      return { ok: false, reason: `${verdict.host} did not answer within ${seconds}s` }
-    if (args.signal.aborted)
-      return { ok: false, reason: 'the developer interrupted the turn while fetching' }
-    return {
-      ok: false,
-      reason: `could not reach ${verdict.host}: ${error instanceof Error ? error.message : String(error)}`,
-    }
+    const response = await request(BROWSER_AGENT)
+    if (response.status === 403 && response.headers.has(CHALLENGE_HEADER))
+      return await request(HARNESS_AGENT)
+    return response
   }
 
-  const location = response.headers.get('location')
-  if (response.status >= 300 && response.status < 400 && location !== null) {
-    const target = new URL(location, verdict.url).toString()
-    if (!sameHost(target, verdict.url)) {
+  let current = verdict.url
+  const redirects: string[] = []
+
+  for (;;) {
+    let response: Response
+    try {
+      response = await send(current)
+    } catch (error) {
+      if (timer.aborted)
+        return { ok: false, reason: `${hostOf(current)} did not answer within ${seconds}s` }
+      if (args.signal.aborted)
+        return { ok: false, reason: 'the developer interrupted the turn while fetching' }
       return {
         ok: false,
-        reason: `${verdict.url} redirects to another host, ${target}. Fetch that url directly if you want it.`,
+        reason: `could not reach ${hostOf(current)}: ${error instanceof Error ? error.message : String(error)}`,
       }
     }
-    return await fetchPage({ ...args, url: target, requested })
-  }
 
-  if (!response.ok) {
-    return {
-      ok: false,
-      reason: `${verdict.host} answered ${response.status} ${response.statusText}`.trim(),
+    const location = response.headers.get('location')
+    if (response.status >= 300 && response.status < 400 && location !== null) {
+      const hop = new URL(location, current).toString()
+      const allowed = acceptUrl(hop)
+      if (!allowed.ok)
+        return { ok: false, reason: `${current} redirects to ${hop}: ${allowed.reason}` }
+      if (redirects.length >= MAX_REDIRECTS) {
+        return {
+          ok: false,
+          reason: `${requested} redirected more than ${MAX_REDIRECTS} times: ${[...redirects, hop].join(' → ')}`,
+        }
+      }
+      redirects.push(allowed.url)
+      current = allowed.url
+      continue
     }
-  }
 
-  const accepted = acceptContentType(response.headers.get('content-type') ?? '')
-  if (accepted.verdict !== EContentVerdict.Text) return { ok: false, reason: accepted.reason }
+    if (!response.ok) {
+      return {
+        ok: false,
+        reason: `${hostOf(current)} answered ${response.status} ${response.statusText}`.trim(),
+      }
+    }
 
-  const read = await readCapped(response)
-  if (typeof read !== 'string') return read
+    const read = await readBody(response)
+    if (!read.ok) return read
 
-  const converted = convert({ body: read, html: accepted.html, format: args.format })
-  const truncated = converted.length > MAX_CHARACTERS
+    const contentType = response.headers.get('content-type') ?? ''
+    const kind = contentKindOf({ contentType, bytes: read.bytes })
 
-  return {
-    ok: true,
-    page: {
-      url: requested,
-      finalUrl: verdict.url,
-      ...(accepted.html ? { title: titleOf(read) } : {}),
-      bytes: read.length,
-      body: truncated ? converted.slice(0, MAX_CHARACTERS) : converted,
+    const pageOf = (body: string, truncated: boolean, title?: string): PageSuccess => ({
+      ok: true,
+      bytes: read.bytes,
+      page: {
+        url: requested,
+        finalUrl: current,
+        ...(title === undefined ? {} : { title }),
+        bytes: read.bytes.byteLength,
+        body,
+        truncated,
+        contentType,
+        kind,
+        ...(redirects.length === 0 ? {} : { redirects }),
+      },
+    })
+
+    if (kind === EContentKind.Image || kind === EContentKind.Binary) return pageOf('', false)
+
+    const prose = await proseOf({
+      bytes: read.bytes,
+      kind,
+      format: args.format,
+      finalUrl: current,
+      signal,
+    })
+    const truncated = prose.length > MAX_CHARACTERS
+
+    return pageOf(
+      truncated ? prose.slice(0, MAX_CHARACTERS) : prose,
       truncated,
-    },
+      kind === EContentKind.Html ? titleOf(new TextDecoder().decode(read.bytes)) : undefined,
+    )
   }
 }

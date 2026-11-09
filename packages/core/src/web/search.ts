@@ -1,4 +1,5 @@
 export enum EWebSearchBackend {
+  Bing = 'bing',
   DuckDuckGo = 'duckduckgo',
   Jina = 'jina',
   Tavily = 'tavily',
@@ -34,6 +35,13 @@ export type BackendTraits = {
 }
 
 export const BACKEND_TRAITS: Record<EWebSearchBackend, BackendTraits> = {
+  [EWebSearchBackend.Bing]: {
+    backend: EWebSearchBackend.Bing,
+    label: 'Bing',
+    keyRequired: false,
+    masked: true,
+    returnsContent: false,
+  },
   [EWebSearchBackend.DuckDuckGo]: {
     backend: EWebSearchBackend.DuckDuckGo,
     label: 'DuckDuckGo',
@@ -45,7 +53,7 @@ export const BACKEND_TRAITS: Record<EWebSearchBackend, BackendTraits> = {
     backend: EWebSearchBackend.Jina,
     label: 'Jina',
     keyLabel: 'API key',
-    keyRequired: false,
+    keyRequired: true,
     masked: true,
     returnsContent: true,
   },

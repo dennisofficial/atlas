@@ -257,7 +257,9 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   })
   registerSubscriptionTools({ container })
   container.register(portToken(ToolDefinition), { useClass: WorktreeListTool })
-  container.register(portToken(ToolDefinition), { useClass: WebFetchTool })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new WebFetchTool({ sessionDirFor: sessionDirFor(resolver) }),
+  })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new WebSearchTool(
