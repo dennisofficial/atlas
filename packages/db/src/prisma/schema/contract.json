@@ -13821,7 +13821,7 @@
                 },
                 {
                   "index": {
-                    "name": "Thread_userId_updatedAt_idx"
+                    "name": "Thread_userId_idx_a489d58a"
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -13905,10 +13905,10 @@
                 },
                 {
                   "columns": [
-                    "userId",
-                    "updatedAt"
+                    "userId"
                   ],
-                  "name": "Thread_userId_updatedAt_idx",
+                  "name": "Thread_userId_idx_a489d58a",
+                  "prefix": "Thread_userId_idx",
                   "unique": false
                 }
               ],
@@ -15366,7 +15366,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "7d575a2f90a2bd1fc58e196fe37784b57392947281b09cba18ca680cb3714c04"
+    "storageHash": "7bfd5c78c7eb576e3dba9c50b3e878422997fad5425fb8443f0964ee6bc7e638"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

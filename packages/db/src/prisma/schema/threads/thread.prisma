@@ -27,13 +27,12 @@ model Thread {
   contextFiles      ContextFile[]
   session           Session              @relation(name: "Session_threads", fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   mainOfSession     Session?             @relation(name: "Session_mainThread")
-  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Thread_userId_updatedAt_idx")
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   parent            Thread?              @relation(name: "Thread_parent", fields: [parentThreadId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   spawner           Thread?              @relation(name: "Thread_spawner", fields: [spawnerThreadId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   forks             Thread[]             @relation(name: "Thread_parent")
   spawned           Thread[]             @relation(name: "Thread_spawner")
 
-  @@index([userId, updatedAt], map: "Thread_userId_updatedAt_idx")
   @@index([sessionId], map: "Thread_sessionId_idx")
   @@index([parentThreadId], map: "Thread_parentThreadId_idx")
   @@index([spawnerThreadId], map: "Thread_spawnerThreadId_idx")
