@@ -13,9 +13,14 @@ export const spawnPeerIn = async (params: {
   mainThreadId: string
   title?: string | undefined
   brief?: string | undefined
+  intoPod?: boolean | undefined
   at: string
 }): Promise<{ inboxId: number | null }> => {
   const { tx, spawner } = params
+  const intoPod = params.intoPod === true
+  if (intoPod && spawner.podSessionId !== null) {
+    throw new Error('a teammate cannot create another teammate')
+  }
   await createSessionIn({
     tx,
     sessionId: params.sessionId,
@@ -24,7 +29,7 @@ export const spawnPeerIn = async (params: {
     ...(params.title === undefined ? {} : { title: params.title }),
     mainThreadId: params.mainThreadId,
     spawnedBySessionId: spawner.sessionId,
-    podSessionId: spawner.podSessionId ?? spawner.sessionId,
+    ...(intoPod ? { podSessionId: spawner.podSessionId ?? spawner.sessionId } : {}),
     at: params.at,
   })
   if (params.brief === undefined || params.brief.trim() === '') return { inboxId: null }
@@ -61,18 +66,12 @@ export const messagePeerIn = async (params: {
   })
 }
 
-export const peersOfIn = async (params: {
+export const sessionsOfIn = async (params: {
   tx: ControlTx
   session: ControlSessionRow
-}): Promise<{ spawner: ControlSessionRow | null; peers: SessionDigestRow[] }> => {
-  const spawner =
-    params.session.spawnedBySessionId === null
-      ? null
-      : ((await params.tx.readSession({ sessionId: params.session.spawnedBySessionId })) ?? null)
-  const peers = await params.tx.listSessionDigests({
+}): Promise<{ sessions: readonly SessionDigestRow[] }> => ({
+  sessions: await params.tx.listSessionDigests({
     userId: params.session.userId,
-    spawnedBySessionId: params.session.sessionId,
     limit: 100,
-  })
-  return { spawner, peers }
-}
+  }),
+})

@@ -17,13 +17,7 @@ import type { PodSessions } from './sessions'
 import type { PodWorktrees } from './worktrees'
 
 export type { PodCrew, SubagentSaid, SubagentSnapshot, SubagentWorktree } from './crew'
-export type {
-  PeerMessage,
-  PeerRoster,
-  PeerSessionSummary,
-  PeerSpawned,
-  PodSessions,
-} from './sessions'
+export type { PodSessions, SessionBrief, SessionMessage, SpawnedSession } from './sessions'
 export { EMPTY_SESSIONS } from './sessions'
 export { EMPTY_WORKTREES } from './worktrees'
 export type {

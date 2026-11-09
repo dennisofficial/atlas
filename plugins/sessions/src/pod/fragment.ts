@@ -5,14 +5,14 @@ export class PeerSessionsFragment extends PromptFragment {
 
   text(): string {
     return [
-      'Peer sessions are full sessions the operator owns, not sub-agents: each one keeps its own',
-      'conversation, appears in the operator sidebar and runs on its own. Start one with',
-      '`spawn_session`, whose `brief` is the whole of what it knows — it sees nothing of this',
-      'conversation. Peers share this sandbox and this workspace, so a file you write is there for',
-      'them and a port they expose is one you can reach. `message_session` sends one a message and',
-      'reaches any session of the operator’s, spawned by you or not; `list_sessions` shows the',
-      'session that spawned you and the ones you spawned, and never archive or stop a peer: they',
-      'are the operator to close.',
+      'The operator’s sessions are their own by default: each has its own sandbox, its own clone and',
+      'its own conversation. `spawn_session` creates one the same as creating it in the UI, and its',
+      '`brief` is its first message — it knows nothing else of this conversation. `intoPod: true`',
+      'makes it a teammate instead, sharing your sandbox, workspace and context; a teammate cannot',
+      'create another teammate. `spawnedBy` records which session created which, as provenance',
+      'only: nothing owns, nests or stops anything. `message_session` reaches any session of the',
+      'operator’s and `list_sessions` lists them all, the current one marked; archiving and',
+      'stopping belong to the operator.',
     ].join('\n')
   }
 }

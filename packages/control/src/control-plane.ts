@@ -13,7 +13,7 @@ import { appendIn } from './append-ops'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
 import { postIn, takeBackIn, type TakeBackResult } from './inbox-ops'
-import { messagePeerIn, peersOfIn, spawnPeerIn } from './peer-sessions'
+import { messagePeerIn, sessionsOfIn, spawnPeerIn } from './peer-sessions'
 import { LeaseOps } from './lease-ops'
 import {
   ControlStorePort,
@@ -122,6 +122,7 @@ export class ControlPlane {
     mainThreadId: string
     title?: string | undefined
     brief?: string | undefined
+    intoPod?: boolean | undefined
   }): Promise<{ inboxId: number | null }> {
     return this.store.transact(async (tx) => {
       const spawner = await tx.readSession({ sessionId: params.spawnerSessionId })
@@ -142,14 +143,13 @@ export class ControlPlane {
     })
   }
 
-  async peersOf(params: { sessionId: string }): Promise<{
-    spawner: ControlSessionRow | null
-    peers: readonly SessionDigestRow[]
+  async sessionsOf(params: { sessionId: string }): Promise<{
+    sessions: readonly SessionDigestRow[]
   }> {
     return this.store.transact(async (tx) => {
       const session = await tx.readSession({ sessionId: params.sessionId })
       if (session === undefined) throw new Error(`unknown session ${params.sessionId}`)
-      return peersOfIn({ tx, session })
+      return sessionsOfIn({ tx, session })
     })
   }
 

@@ -26,7 +26,7 @@ const inboxOf = (plane: ControlPlane, sessionId: string) =>
   plane.readInbox({ sessionId, afterId: 0, limit: 50 })
 
 describe('podSessionsOf', () => {
-  it('spawns a session linked to the spawner, in its pod, with a fresh thread', async () => {
+  it('spawns a session linked to the spawner, with a fresh thread and no pod', async () => {
     const { plane, sessions } = await rig()
     const spawned = await sessions.spawn({ title: 'the peer', brief: 'read the port' })
     const row = await plane.readSession({ sessionId: spawned.sessionId })
@@ -36,7 +36,7 @@ describe('podSessionsOf', () => {
       mainThreadId: spawned.mainThreadId,
       title: 'the peer',
       spawnedBySessionId: SPAWNER.sessionId,
-      podSessionId: SPAWNER.sessionId,
+      podSessionId: null,
       userId: SPAWNER.userId,
       projectId: SPAWNER.projectId,
     })
@@ -120,27 +120,60 @@ describe('podSessionsOf', () => {
     expect(await inboxOf(plane, STRANGER.sessionId)).toHaveLength(0)
   })
 
-  it('lists the peers this session spawned and none above it', async () => {
-    const { sessions } = await rig()
-    await sessions.spawn({ title: 'one' })
-    await sessions.spawn({ title: 'two' })
-    const roster = await sessions.list()
-    expect(roster.spawner).toBeNull()
-    expect(roster.peers.map((peer) => peer.title)).toEqual(['one', 'two'])
-    expect(roster.peers.every((peer) => peer.spawnedBy === SPAWNER.sessionId)).toBe(true)
-    expect(roster.peers.every((peer) => peer.archivedAt === null)).toBe(true)
+  it('spawns a teammate into the spawner’s pod when asked', async () => {
+    const { plane, sessions } = await rig()
+    const spawned = await sessions.spawn({ title: 'the teammate', intoPod: true })
+    const row = await plane.readSession({ sessionId: spawned.sessionId })
+    expect(row).toMatchObject({
+      spawnedBySessionId: SPAWNER.sessionId,
+      podSessionId: SPAWNER.sessionId,
+    })
   })
 
-  it('names the spawner from a peer', async () => {
+  it('refuses a teammate asking for a teammate of its own', async () => {
     const { plane, sessions } = await rig()
-    const peer = await sessions.spawn({})
-    const roster = await podSessionsOf({ plane, sessionId: peer.sessionId }).list()
-    expect(roster.spawner).toEqual({
+    const teammate = await sessions.spawn({ intoPod: true })
+    const nested = await podSessionsOf({ plane, sessionId: teammate.sessionId })
+    await expect(nested.spawn({ intoPod: true })).rejects.toThrow(
+      'a teammate cannot create another teammate',
+    )
+  })
+
+  it('lists every session of the user with the current one marked', async () => {
+    const { plane, sessions } = await rig()
+    await plane.createSession(OTHER)
+    const spawned = await sessions.spawn({ title: 'one' })
+    const roster = await sessions.list()
+    expect(roster.map((brief) => brief.sessionId).sort()).toEqual(
+      [SPAWNER.sessionId, OTHER.sessionId, spawned.sessionId].sort(),
+    )
+    expect(roster.find((brief) => brief.sessionId === SPAWNER.sessionId)).toEqual({
       sessionId: SPAWNER.sessionId,
       title: null,
       spawnedBy: null,
       archivedAt: null,
+      current: true,
     })
-    expect(roster.peers).toEqual([])
+    expect(roster.find((brief) => brief.sessionId === OTHER.sessionId)?.current).toBe(false)
+    expect(roster.find((brief) => brief.sessionId === spawned.sessionId)).toMatchObject({
+      title: 'one',
+      spawnedBy: SPAWNER.sessionId,
+      archivedAt: null,
+      current: false,
+    })
+  })
+
+  it('lists the same roster from a spawned session, with its spawner as provenance', async () => {
+    const { plane, sessions } = await rig()
+    const peer = await sessions.spawn({})
+    const roster = await podSessionsOf({ plane, sessionId: peer.sessionId }).list()
+    expect(roster.map((brief) => brief.sessionId)).toContain(SPAWNER.sessionId)
+    expect(roster.find((brief) => brief.sessionId === peer.sessionId)).toEqual({
+      sessionId: peer.sessionId,
+      title: null,
+      spawnedBy: SPAWNER.sessionId,
+      archivedAt: null,
+      current: true,
+    })
   })
 })

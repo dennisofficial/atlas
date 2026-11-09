@@ -5,7 +5,7 @@ import {
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
-import type { PeerSessionSummary, PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import type { PluginPodContext, SessionBrief } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
 import { sessionsRefusal } from './outcome'
@@ -13,25 +13,20 @@ import { sessionsRefusal } from './outcome'
 const inputSchema = z.strictObject({})
 
 const description = [
-  'List the peer sessions around this one: the session that spawned it, if any, and the peer',
-  'sessions it has spawned. Each peer is a full session in the same sandbox and workspace, not a',
-  'sub-agent, and each line names its id, its title and whether it is archived.',
+  'List the operator’s sessions, newest first, with the current one marked. Each one is an',
+  'independent session with its own sandbox and conversation, and each line names its id, its',
+  'title, whether it is archived and whether it is this session.',
 ].join(' ')
 
-const lineOf = (summary: PeerSessionSummary): string => {
-  const title = summary.title ?? 'untitled'
-  const state = summary.archivedAt === null ? 'open' : `archived ${summary.archivedAt}`
-  return `${summary.sessionId}  ${title}  ${state}`
+const lineOf = (brief: SessionBrief): string => {
+  const title = brief.title ?? 'untitled'
+  const state = brief.archivedAt === null ? 'open' : `archived ${brief.archivedAt}`
+  const current = brief.current ? '  current' : ''
+  return `${brief.sessionId}  ${title}  ${state}${current}`
 }
 
-const linesOf = (roster: {
-  spawner: PeerSessionSummary | null
-  peers: readonly PeerSessionSummary[]
-}): string[] => {
-  const lines = roster.spawner === null ? [] : [`spawner: ${lineOf(roster.spawner)}`]
-  if (roster.peers.length === 0) return [...lines, 'You have spawned no peer sessions.']
-  return [...lines, 'peers:', ...roster.peers.map((peer) => `- ${lineOf(peer)}`)]
-}
+const linesOf = (sessions: readonly SessionBrief[]): string[] =>
+  sessions.length === 0 ? ['The operator has no sessions.'] : sessions.map(lineOf)
 
 export class ListSessionsTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'list_sessions'
@@ -47,11 +42,11 @@ export class ListSessionsTool extends SchemaTool<typeof inputSchema> {
 
   protected override async run(_args: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     try {
-      const roster = await this.ctx.sessions.list()
+      const sessions = await this.ctx.sessions.list()
       return {
         ok: true,
-        output: { spawner: roster.spawner, peers: roster.peers },
-        modelText: linesOf(roster).join('\n'),
+        output: { sessions },
+        modelText: linesOf(sessions).join('\n'),
       }
     } catch (error) {
       return sessionsRefusal(error)
