@@ -42,25 +42,40 @@ describe('applyPage', () => {
     expect(second.cursor).toEqual(headOf(events))
   })
 
-  it('stops at the first event it cannot parse and keeps the cursor on the last good one', () => {
+  it('skips an event it cannot parse and reads the ones after it', () => {
     const events = mintUserEvents({ count: 3 })
     const raw = [{ ...events[0] }, { seq: 2, type: 'from-the-future' }, { ...events[2] }]
     const outcome = applyPageOutcome({
       window: EMPTY_WINDOW,
       page: { events: raw, head: headOf(events) },
     })
-    expect(seqsOf(outcome.window)).toEqual([1])
-    expect(outcome.window.cursor).toEqual(headOf(events.slice(0, 1)))
-    expect(outcome.unreadable?.seq).toBe(2)
-    expect(outcome.unreadable?.issue).toBeString()
+    expect(seqsOf(outcome.window)).toEqual([1, 3])
+    expect(outcome.window.cursor).toEqual(headOf(events))
+    expect(outcome.skipped).toBe(1)
+    expect(outcome.issue).toBeString()
   })
 
-  it('reports nothing unreadable for a clean page', () => {
+  it('moves the cursor past a skipped event so the next page starts after it', () => {
+    const events = mintUserEvents({ count: 3 })
+    const first = applyPageOutcome({
+      window: EMPTY_WINDOW,
+      page: {
+        events: [{ ...events[0] }, { seq: 2, type: 'from-the-future' }],
+        head: headOf(events),
+      },
+    })
+    expect(first.window.cursor?.seq).toBe(2)
+    const second = applyPage({ window: first.window, page: page(events) })
+    expect(seqsOf(second)).toEqual([1, 3])
+  })
+
+  it('reports nothing skipped for a clean page', () => {
     const outcome = applyPageOutcome({
       window: EMPTY_WINDOW,
       page: page(mintUserEvents({ count: 2 })),
     })
-    expect(outcome.unreadable).toBeUndefined()
+    expect(outcome.skipped).toBe(0)
+    expect(outcome.issue).toBeUndefined()
   })
 
   it('keeps the cursor on an empty page', () => {

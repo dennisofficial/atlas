@@ -141,6 +141,12 @@ contract. §7 gives the package shape.
   normal case, not an error path.
 - Version negotiation carries over from [0017](../decisions/0017-wire-protocol-skew.md). The skew
   check is extended to cover schema structure, not only versions and three enums.
+- A log reader never stops at an event body it cannot parse. It skips that event, advances its
+  cursor past it, keeps the rest of the page, and reports how many parts it skipped — so a pod that
+  has just deployed a new event type costs an older client a few rows, never the session. The agent
+  host announces the body types it can write on the ready frame, which lets a client tell "written
+  by a newer Atlas" from "corrupt". A surface that registers fewer plugins than the writer builds is
+  the bug to fix; the skip is what keeps a rollout from being one.
 - v2 endpoints live in their own namespace, separate from the v1 routes (D6).
 - Cursor spaces stay distinct: the durable `(epoch, seq)`, and any transport replay cursor. v1
   conflates three (see [wire-surface](research/wire-surface.md)); v2 does not.

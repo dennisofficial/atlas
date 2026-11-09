@@ -126,12 +126,13 @@ describe('the session follower', () => {
     expect(seen()).toBe(ESessionConnection.CatchingUp)
   })
 
-  it('goes outdated on an unreadable event and ignores every message after it', () => {
+  it('skips an event it cannot read and keeps the rest of the page', () => {
     const { follower, resnaps } = setup()
     const warned: unknown[][] = []
     const original = console.warn
     console.warn = (...args: unknown[]) => void warned.push(args)
     try {
+      follower.setServerEventTypes(['from-the-future', 'user-said'])
       follower.setConnection(EStreamConnectionState.Open)
       const events = mintUserEvents({ count: 3 })
       const raw = [{ ...events[0] }, { seq: 2, type: 'from-the-future' }, { ...events[2] }]
@@ -142,22 +143,14 @@ describe('the session follower', () => {
         head: headOf(events),
         live: true,
       })
-      follower.handleMessage({
-        type: 'events',
-        id: 's1',
-        events: [{ seq: 9, type: 'also-unknown' }],
-        head: headOf(events),
-        live: true,
-      })
-      follower.handleMessage(eventsMessage({ id: 's1', events: events.slice(0, 1), live: true }))
-      follower.setConnection(EStreamConnectionState.Backoff)
-      follower.setConnection(EStreamConnectionState.Open)
       const snapshot = follower.getSnapshot()
-      expect(snapshot.connection).toBe(ESessionConnection.Outdated)
-      expect(snapshot.events.map((event) => event.seq)).toEqual([1])
-      expect(snapshot.cursor?.seq).toBe(1)
+      expect(snapshot.connection).toBe(ESessionConnection.Live)
+      expect(snapshot.events.map((event) => event.seq)).toEqual([1, 3])
+      expect(snapshot.cursor).toEqual(headOf(events))
+      expect(snapshot.skipped).toBe(1)
+      expect(snapshot.writerAhead).toBe(true)
       expect(warned).toHaveLength(1)
-      expect(String(warned[0]?.[0])).toContain('2')
+      expect(String(warned[0]?.[0])).toContain('1')
       expect(resnaps).toEqual([])
     } finally {
       console.warn = original

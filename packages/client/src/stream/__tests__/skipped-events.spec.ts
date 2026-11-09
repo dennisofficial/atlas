@@ -41,20 +41,28 @@ const pageWithUnknownEvent = (): StreamServerMessage => {
 }
 
 describe('a client whose schema is behind the host', () => {
-  it('reads an unreadable event as stale when the host knows types this client does not', () => {
+  it('reads past an event it cannot read and counts it', () => {
     const { follower } = setup()
     follower.setServerEventTypes(['from-the-future', 'user-said'])
     follower.setConnection(EStreamConnectionState.Open)
     follower.handleMessage(pageWithUnknownEvent())
-    expect(follower.getSnapshot().connection).toBe(ESessionConnection.Stale)
+    const snapshot = follower.getSnapshot()
+    expect(snapshot.connection).toBe(ESessionConnection.Live)
+    expect(snapshot.events.map((event) => event.seq)).toEqual([1])
+    expect(snapshot.cursor).toEqual(headOf(mintUserEvents({ count: 2 })))
+    expect(snapshot.skipped).toBe(1)
+    expect(snapshot.writerAhead).toBe(true)
   })
 
-  it('falls back to outdated when the host writes only types this client knows', () => {
+  it('keeps the count when a later page is clean', () => {
     const { follower } = setup()
-    follower.setServerEventTypes(['user-said'])
+    follower.setServerEventTypes(['from-the-future', 'user-said'])
     follower.setConnection(EStreamConnectionState.Open)
     follower.handleMessage(pageWithUnknownEvent())
-    expect(follower.getSnapshot().connection).toBe(ESessionConnection.Outdated)
+    follower.handleMessage(
+      eventsMessage({ id: 's1', events: mintUserEvents({ count: 3 }).slice(2), live: true }),
+    )
+    expect(follower.getSnapshot().skipped).toBe(1)
   })
 
   it('stays live on a readable page whatever the host can write', () => {
@@ -65,6 +73,7 @@ describe('a client whose schema is behind the host', () => {
       eventsMessage({ id: 's1', events: mintUserEvents({ count: 2 }), live: true }),
     )
     expect(follower.getSnapshot().connection).toBe(ESessionConnection.Live)
+    expect(follower.getSnapshot().skipped).toBe(0)
   })
 
   it('takes a host that announces no types as nothing to compare against', () => {
@@ -72,6 +81,7 @@ describe('a client whose schema is behind the host', () => {
     follower.setServerEventTypes(undefined)
     follower.setConnection(EStreamConnectionState.Open)
     follower.handleMessage(pageWithUnknownEvent())
-    expect(follower.getSnapshot().connection).toBe(ESessionConnection.Outdated)
+    expect(follower.getSnapshot().writerAhead).toBe(false)
+    expect(follower.getSnapshot().skipped).toBe(1)
   })
 })

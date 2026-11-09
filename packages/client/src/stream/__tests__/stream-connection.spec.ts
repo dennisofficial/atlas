@@ -110,7 +110,7 @@ describe('the stream connection', () => {
     expect(follower.getSnapshot().connection).toBe(ESessionConnection.CatchingUp)
   })
 
-  it('stops following a session whose page holds an event this client cannot read', async () => {
+  it('keeps following a session whose page holds an event this client cannot read', async () => {
     const { connection, clock, sockets } = setup()
     const follower = connection.follow({ sessionId: 'session-1' })
     const first = await bringUp({ sockets, index: 0 })
@@ -118,16 +118,23 @@ describe('the stream connection', () => {
     const raw = [{ ...events[0] }, { seq: 2, type: 'from-the-future' }, { ...events[2] }]
     first.receive({ type: 'events', id: 's1', events: raw, head: headOf(events), live: true })
     const snapshot = follower.getSnapshot()
-    expect(snapshot.connection).toBe(ESessionConnection.Outdated)
-    expect(snapshot.events.map((event) => event.seq)).toEqual([1])
-    expect(snapshot.cursor).toEqual(headOf(events.slice(0, 1)))
-    expect(first.sent.at(-1)).toEqual({ type: 'unsubscribe', id: 's1' })
+    expect(snapshot.connection).toBe(ESessionConnection.Live)
+    expect(snapshot.events.map((event) => event.seq)).toEqual([1, 3])
+    expect(snapshot.cursor).toEqual(headOf(events))
+    expect(first.sent.at(-1)).not.toEqual({ type: 'unsubscribe', id: 's1' })
 
     first.drop(1006)
     clock.advance(500)
     const second = await bringUp({ sockets, index: 1 })
-    expect(second.sent.map((message) => message.type)).toEqual(['hello'])
-    expect(follower.getSnapshot().connection).toBe(ESessionConnection.Outdated)
+    expect(second.sent[1]).toEqual({
+      type: 'subscribe',
+      id: 's1',
+      kind: EStreamSubscribeKind.Session,
+      sessionId: 'session-1',
+      afterSeq: 3,
+      afterHash: headOf(events).hash,
+    })
+    expect(follower.getSnapshot().connection).toBe(ESessionConnection.CatchingUp)
   })
 
   it('does not reconnect after a closing 4401 even when the socket closes with 1005', async () => {

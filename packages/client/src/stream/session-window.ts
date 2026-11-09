@@ -33,9 +33,9 @@ const wireHashOf = (raw: unknown): string => chainHash(raw as V2Event)
 
 type Parsed = { event: V2Event; raw: unknown }
 
-export type UnreadableEvent = { seq: number | undefined; issue: string }
+type Seen = { seq: number; raw: unknown }
 
-export type PageOutcome = { window: SessionWindow; unreadable: UnreadableEvent | undefined }
+export type PageOutcome = { window: SessionWindow; skipped: number; issue: string | undefined }
 
 const seqOfRaw = (raw: unknown): number | undefined => {
   if (typeof raw !== 'object' || raw === null || !('seq' in raw)) return undefined
@@ -48,29 +48,35 @@ const issueOf = (error: ZodError): string => {
   return `${issue.path.join('.') || '(root)'}: ${issue.message}`
 }
 
-const freshEventsOf = (args: {
+const readPage = (args: {
   raw: readonly unknown[]
   after: number
   eventSchema: z.ZodType<V2Event>
-}): { fresh: Parsed[]; unreadable: UnreadableEvent | undefined } => {
+}): { fresh: Parsed[]; last: Seen | undefined; skipped: number; issue: string | undefined } => {
   const fresh: Parsed[] = []
+  let last: Seen | undefined
+  let skipped = 0
+  let issue: string | undefined
+  let floor = args.after
   for (const raw of args.raw) {
     const parsed = args.eventSchema.safeParse(raw)
-    if (!parsed.success) {
-      return { fresh, unreadable: { seq: seqOfRaw(raw), issue: issueOf(parsed.error) } }
+    const seq = parsed.success ? parsed.data.seq : seqOfRaw(raw)
+    if (seq === undefined || seq <= floor) continue
+    floor = seq
+    last = { seq, raw }
+    if (parsed.success) fresh.push({ event: parsed.data, raw })
+    else {
+      skipped += 1
+      issue ??= issueOf(parsed.error)
     }
-    const last = fresh[fresh.length - 1]
-    const floor = last === undefined ? args.after : last.event.seq
-    if (parsed.data.seq > floor) fresh.push({ event: parsed.data, raw })
   }
-  return { fresh, unreadable: undefined }
+  return { fresh, last, skipped, issue }
 }
 
-const cursorAfter = (args: { page: EventsPage; last: Parsed }): SessionCursor => {
-  const { page, last } = args
-  if (last.event.seq === page.head.seq) return page.head
-  return { seq: last.event.seq, hash: wireHashOf(last.raw) }
-}
+const cursorAfter = (args: { page: EventsPage; last: Seen }): SessionCursor =>
+  args.last.seq === args.page.head.seq
+    ? args.page.head
+    : { seq: args.last.seq, hash: wireHashOf(args.last.raw) }
 
 export const applyPageOutcome = (args: {
   window: SessionWindow
@@ -78,13 +84,12 @@ export const applyPageOutcome = (args: {
   eventSchema?: z.ZodType<V2Event> | undefined
 }): PageOutcome => {
   const { window, page } = args
-  const { fresh, unreadable } = freshEventsOf({
+  const { fresh, last, skipped, issue } = readPage({
     raw: page.events,
     after: window.cursor?.seq ?? 0,
     eventSchema: args.eventSchema ?? v2EventSchema,
   })
-  const last = fresh[fresh.length - 1]
-  if (last === undefined) return { window, unreadable }
+  if (last === undefined) return { window, skipped, issue }
   const visibility = fresh.reduce(
     (state, { event }) => stepVisibility(state, event),
     window.visibility,
@@ -92,7 +97,7 @@ export const applyPageOutcome = (args: {
   const events = [...window.events, ...fresh.map(({ event }) => event)]
     .filter((event) => isVisible(visibility, event))
     .slice(-WINDOW_LIMIT)
-  return { window: { events, visibility, cursor: cursorAfter({ page, last }) }, unreadable }
+  return { window: { events, visibility, cursor: cursorAfter({ page, last }) }, skipped, issue }
 }
 
 export const applyPage = (args: {
