@@ -47,7 +47,8 @@
     "tsyringe": "4.10.0",
     "turndown": "^7.2.4",
     "typescript": "6.0.3",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "pdfjs-dist": "^6.5.438"
   },
   "devDependencies": {
     "@dltech/bun-test-shims": "workspace:*",

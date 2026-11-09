@@ -33,11 +33,11 @@ const frameOf = async (value: string): Promise<string> => {
 
 describe('the pane beside the search backend setting', () => {
   test('explains what the chosen backend costs, not only what the setting is', async () => {
-    const frame = await frameOf(EWebSearchBackend.DuckDuckGo)
+    const frame = await frameOf(EWebSearchBackend.Bing)
 
-    expect(frame).toContain('DUCKDUCKGO')
+    expect(frame).toContain('BING')
     expect(frame).toContain('Nothing to set up')
-    expect(frame).toContain('rate limit')
+    expect(frame).toContain('snippet')
   })
 
   test('changes with the choice rather than describing them all at once', async () => {

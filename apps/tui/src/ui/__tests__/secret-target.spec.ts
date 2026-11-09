@@ -65,13 +65,13 @@ describe('secretTargetOf', () => {
     expect(shipped?.required).toBe(false)
   })
 
-  it('knows Jina answers without the key it accepts', () => {
+  it('knows Jina will not answer without the key it takes', () => {
     const jina = secretTargetOf({
       id: ESettingId.WebSearchKey,
       resolution: resolutionOn(EWebSearchBackend.Jina),
     })
     expect(jina?.takesOne).toBe(true)
-    expect(jina?.required).toBe(false)
+    expect(jina?.required).toBe(true)
   })
 
   it('has nothing to say about a row that is not a secret', () => {

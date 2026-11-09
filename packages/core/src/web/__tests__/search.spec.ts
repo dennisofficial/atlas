@@ -13,9 +13,11 @@ describe('what a backend needs before it can be asked', () => {
     expect(new Set(names).size).toBe(names.length)
   })
 
-  it('leaves the one backend that needs nothing without a field to fill in', () => {
-    expect(BACKEND_TRAITS[EWebSearchBackend.DuckDuckGo].keyLabel).toBeUndefined()
-    expect(BACKEND_TRAITS[EWebSearchBackend.DuckDuckGo].keyRequired).toBe(false)
+  it('leaves the backends that need nothing without a field to fill in', () => {
+    for (const backend of [EWebSearchBackend.Bing, EWebSearchBackend.DuckDuckGo]) {
+      expect(BACKEND_TRAITS[backend].keyLabel).toBeUndefined()
+      expect(BACKEND_TRAITS[backend].keyRequired).toBe(false)
+    }
   })
 
   it('asks for a key on every backend that takes one', () => {
@@ -35,9 +37,10 @@ describe('what a backend needs before it can be asked', () => {
     expect(BACKEND_TRAITS[EWebSearchBackend.SearXNG].masked).toBe(false)
   })
 
-  it('records that only Jina works without the key it can take', () => {
-    expect(BACKEND_TRAITS[EWebSearchBackend.Jina].keyRequired).toBe(false)
+  it('records that a backend which takes a key will not answer without one', () => {
+    expect(BACKEND_TRAITS[EWebSearchBackend.Jina].keyRequired).toBe(true)
     expect(BACKEND_TRAITS[EWebSearchBackend.Tavily].keyRequired).toBe(true)
+    expect(BACKEND_TRAITS[EWebSearchBackend.Brave].keyRequired).toBe(true)
   })
 
   it('mentions no environment variable anywhere, because none is read', () => {

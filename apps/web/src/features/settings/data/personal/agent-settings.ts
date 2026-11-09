@@ -47,7 +47,7 @@ export function agentSettingsFrom(values: SettingValues): AgentSettings {
     searchBackend: oneOf({
       values: ESearchBackend,
       value: read(AGENT_SETTING_KEYS.searchBackend),
-      fallback: ESearchBackend.DuckDuckGo,
+      fallback: ESearchBackend.Bing,
     }),
   }
 }

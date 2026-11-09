@@ -1,3 +1,4 @@
+import type { EContentKind } from './content-type'
 import type { WebSearchFindings } from './search'
 import { untrustedEnvelope } from '../context/envelope'
 
@@ -13,6 +14,9 @@ export type FetchedPage = {
   bytes: number
   body: string
   truncated: boolean
+  contentType?: string | undefined
+  kind?: EContentKind | undefined
+  redirects?: readonly string[] | undefined
 }
 
 export function renderFetchedPage(page: FetchedPage): string {

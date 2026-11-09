@@ -6,12 +6,14 @@ import {
   type WebSearchFindings,
 } from '@dltech/atlas-core'
 
+import { bing } from './backends/bing'
 import type { SearchBackend, SearchOutcome } from './backends/contract'
 import { duckDuckGo } from './backends/duckduckgo'
 import { jina } from './backends/jina'
 import { brave, exa, searxng, tavily } from './backends/keyed'
 
 const BACKENDS: Record<EWebSearchBackend, SearchBackend> = {
+  [EWebSearchBackend.Bing]: bing,
   [EWebSearchBackend.DuckDuckGo]: duckDuckGo,
   [EWebSearchBackend.Jina]: jina,
   [EWebSearchBackend.Tavily]: tavily,

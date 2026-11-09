@@ -41,6 +41,7 @@ export const CLASSIFIER_MODE_ITEMS: ChoiceItem<EClassifierChoice>[] = [
 ]
 
 export const SEARCH_BACKEND_ITEMS: ChoiceItem<ESearchBackend>[] = [
+  { value: ESearchBackend.Bing, label: 'Bing' },
   { value: ESearchBackend.DuckDuckGo, label: 'DuckDuckGo' },
   { value: ESearchBackend.Jina, label: 'Jina' },
   { value: ESearchBackend.Tavily, label: 'Tavily' },

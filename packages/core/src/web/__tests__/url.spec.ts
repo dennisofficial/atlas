@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { acceptUrl, EUrlRefusal, isPrivateHost, sameHost } from '../url'
+import { acceptUrl, EUrlRefusal } from '../url'
 
 describe('acceptUrl', () => {
-  it('upgrades http to https', () => {
+  it('fetches http as it was asked rather than upgrading it', () => {
     const verdict = acceptUrl('http://example.com/docs')
     expect(verdict.ok).toBe(true)
-    if (verdict.ok) expect(verdict.url).toBe('https://example.com/docs')
+    if (verdict.ok) expect(verdict.url).toBe('http://example.com/docs')
   })
 
   it('refuses a scheme that is not the web', () => {
@@ -17,8 +17,8 @@ describe('acceptUrl', () => {
     }
   })
 
-  it('refuses the developer own network before a socket opens', () => {
-    const refused = [
+  it('reaches the sandbox own network, since the shell beside it already can', () => {
+    const accepted = [
       'http://localhost:3000',
       'http://127.0.0.1/admin',
       'http://192.168.1.1',
@@ -29,11 +29,7 @@ describe('acceptUrl', () => {
       'http://[::1]/',
     ]
 
-    for (const candidate of refused) {
-      const verdict = acceptUrl(candidate)
-      expect(verdict.ok).toBe(false)
-      if (!verdict.ok) expect(verdict.refusal).toBe(EUrlRefusal.PrivateHost)
-    }
+    for (const candidate of accepted) expect(acceptUrl(candidate).ok).toBe(true)
   })
 
   it('accepts an ordinary public url', () => {
@@ -43,7 +39,7 @@ describe('acceptUrl', () => {
   })
 
   it('refuses a url longer than the cap', () => {
-    const verdict = acceptUrl(`https://example.com/${'a'.repeat(4000)}`)
+    const verdict = acceptUrl(`https://example.com/${'a'.repeat(9000)}`)
     expect(verdict.ok).toBe(false)
     if (!verdict.ok) expect(verdict.refusal).toBe(EUrlRefusal.TooLong)
   })
@@ -52,20 +48,5 @@ describe('acceptUrl', () => {
     const verdict = acceptUrl('not a url')
     expect(verdict.ok).toBe(false)
     if (!verdict.ok) expect(verdict.refusal).toBe(EUrlRefusal.Malformed)
-  })
-})
-
-describe('isPrivateHost', () => {
-  it('leaves a public host alone', () => {
-    expect(isPrivateHost('example.com')).toBe(false)
-    expect(isPrivateHost('172.15.0.1')).toBe(false)
-    expect(isPrivateHost('11.0.0.1')).toBe(false)
-  })
-})
-
-describe('sameHost', () => {
-  it('compares hostnames rather than urls', () => {
-    expect(sameHost('https://a.com/one', 'https://a.com/two')).toBe(true)
-    expect(sameHost('https://a.com', 'https://b.com')).toBe(false)
   })
 })

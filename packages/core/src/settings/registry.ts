@@ -466,22 +466,28 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Web',
     label: 'Search backend',
     description:
-      'Which search service web_search asks. Every one of them is somebody else\u2019s, so Atlas picks none for you: DuckDuckGo works with no account at all and is the fallback, and the rest are better in exchange for a key you get yourself. The ones that return the text of each page rather than a one-line snippet are worth the setup, because a result carrying its own text saves the model a fetch per link.',
+      'Which search service web_search asks. Every one of them is somebody else\u2019s, so Atlas picks none for you: Bing answers with no account at all and is the fallback, and the rest are better in exchange for a key you get yourself. The ones that return the text of each page rather than a one-line snippet are worth the setup, because a result carrying its own text saves the model a fetch per link.',
     environmentVariable: 'ATLAS_SEARCH_BACKEND',
     kind: ESettingKind.Choice,
-    fallback: EWebSearchBackend.DuckDuckGo,
+    fallback: EWebSearchBackend.Bing,
     options: [
+      {
+        value: EWebSearchBackend.Bing,
+        label: 'Bing',
+        detail: 'no key',
+        note: 'Nothing to set up, and nothing to sign up for. Returns a title and a snippet per result, so reading anything means a web_fetch after it. It throttles a burst of queries from one address, so a long research turn may meet a challenge page.',
+      },
       {
         value: EWebSearchBackend.DuckDuckGo,
         label: 'DuckDuckGo',
         detail: 'no key',
-        note: 'Nothing to set up, and nothing to sign up for. Returns a title and a snippet per result, so reading anything means a web_fetch after it, and it throttles unauthenticated searches \u2014 a busy session will meet a rate limit and have to wait.',
+        note: 'Nothing to set up either, but it now answers an automated search with a throttle more often than with results, which is why it is no longer the fallback. Kept for the case where its own address does answer.',
       },
       {
         value: EWebSearchBackend.Jina,
         label: 'Jina',
-        detail: 'key optional',
-        note: 'Returns the extracted text of each page, not just a snippet. Works anonymously at 20 searches a minute, which a single session rarely exceeds; a free key raises that to 500.',
+        detail: 'key needed',
+        note: 'Returns the extracted text of each page, not just a snippet. Its free key allows 500 searches a minute; an anonymous search is refused now, so the key is not optional.',
       },
       {
         value: EWebSearchBackend.Tavily,
@@ -499,7 +505,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
         value: EWebSearchBackend.Brave,
         label: 'Brave',
         detail: 'key needed',
-        note: 'An index of its own rather than a wrapper over somebody else\u2019s, with clean, fast results. Snippets only, so reading still costs a fetch, and every plan now wants a card on file \u2014 including the free credits.',
+        note: 'An index of its own rather than a wrapper over somebody else\u2019s, with clean, fast results. Every key starts with $5 of free calls a month, about a thousand searches, and results also carry the page text for the top hits, which saves the fetch that a snippet-only backend costs.',
       },
       {
         value: EWebSearchBackend.SearXNG,

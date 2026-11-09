@@ -13,6 +13,7 @@ export enum EClassifierChoice {
 }
 
 export enum ESearchBackend {
+  Bing = 'bing',
   DuckDuckGo = 'duckduckgo',
   Jina = 'jina',
   Tavily = 'tavily',
@@ -51,7 +52,7 @@ export const AGENT_DEFAULTS: AgentSettings = {
   url: '',
   model: '',
   classifierMode: EClassifierChoice.Default,
-  searchBackend: ESearchBackend.DuckDuckGo,
+  searchBackend: ESearchBackend.Bing,
 }
 
 export const SAVED_KEY_NAMES: ReadonlySet<string> = new Set(['decisions.token.typesafe'])
@@ -71,6 +72,7 @@ export const CLASSIFIER_MODE_ITEMS: ChoiceItem<EClassifierChoice>[] = [
 ]
 
 export const SEARCH_BACKEND_ITEMS: ChoiceItem<ESearchBackend>[] = [
+  { value: ESearchBackend.Bing, label: 'Bing' },
   { value: ESearchBackend.DuckDuckGo, label: 'DuckDuckGo' },
   { value: ESearchBackend.Jina, label: 'Jina' },
   { value: ESearchBackend.Tavily, label: 'Tavily' },
@@ -87,7 +89,7 @@ const SEARCH_KEY_TARGETS: Partial<Record<ESearchBackend, KeyTarget>> = {
     name: 'search.jina',
     label: 'Jina API key',
     description:
-      'Raises Jina from 20 to 500 searches a minute. Saved encrypted to your account and never shown again.',
+      'Jina refuses an anonymous search, so the key is what makes it answer at all; it allows 500 searches a minute. Saved encrypted to your account and never shown again.',
     noun: EKeyNoun.Key,
     masked: true,
   },

@@ -1,52 +1,64 @@
 import { describe, expect, it } from 'bun:test'
 
-import { acceptContentType, EContentVerdict, looksBinary } from '../content-type'
+import { contentKindOf, EContentKind, looksBinary } from '../content-type'
 
-describe('acceptContentType', () => {
-  it('names a PDF rather than handing back its bytes as prose', () => {
-    const verdict = acceptContentType('application/pdf')
-    expect(verdict.verdict).toBe(EContentVerdict.Document)
-    if (verdict.verdict === EContentVerdict.Text) return
-    expect(verdict.reason).toContain('a PDF')
+const text = (body: string): Uint8Array => new TextEncoder().encode(body)
+
+const kindOf = (args: { contentType: string; body: Uint8Array | string }): EContentKind =>
+  contentKindOf({
+    contentType: args.contentType,
+    bytes: typeof args.body === 'string' ? text(args.body) : args.body,
   })
 
-  it('refuses pictures, video and audio', () => {
-    for (const type of ['image/png', 'image/jpeg', 'video/mp4', 'audio/mpeg', 'font/woff2']) {
-      expect(acceptContentType(type).verdict).toBe(EContentVerdict.Binary)
-    }
+describe('contentKindOf', () => {
+  it('reads a pdf by what it says it is', () => {
+    expect(kindOf({ contentType: 'application/pdf', body: '%PDF-1.7' })).toBe(EContentKind.Pdf)
   })
 
-  it('refuses an unknown binary rather than guessing', () => {
-    expect(acceptContentType('application/octet-stream').verdict).toBe(EContentVerdict.Binary)
-    expect(acceptContentType('application/zip').verdict).toBe(EContentVerdict.Binary)
+  it('reads a pdf the server did not label', () => {
+    expect(kindOf({ contentType: '', body: '%PDF-1.7\nprose' })).toBe(EContentKind.Pdf)
   })
 
-  it('accepts the textual families and marks which are html', () => {
-    const html = acceptContentType('text/html; charset=utf-8')
-    expect(html.verdict).toBe(EContentVerdict.Text)
-    if (html.verdict !== EContentVerdict.Text) return
-    expect(html.html).toBe(true)
+  it('recognises html the server did not label', () => {
+    expect(kindOf({ contentType: '', body: '<!doctype html><p>hi' })).toBe(EContentKind.Html)
+    expect(kindOf({ contentType: '', body: '  <html><body>hi' })).toBe(EContentKind.Html)
+  })
 
-    for (const type of [
+  it('tells an image from a document', () => {
+    expect(kindOf({ contentType: 'image/png', body: new Uint8Array([0x89, 0x50]) })).toBe(
+      EContentKind.Image,
+    )
+    expect(kindOf({ contentType: 'application/zip', body: new Uint8Array([0x50, 0x4b]) })).toBe(
+      EContentKind.Binary,
+    )
+  })
+
+  it('treats the textual families as text', () => {
+    for (const contentType of [
       'text/plain',
       'text/markdown',
       'application/json',
       'application/ld+json',
       'image/svg+xml',
     ]) {
-      const verdict = acceptContentType(type)
-      expect(verdict.verdict).toBe(EContentVerdict.Text)
-      if (verdict.verdict !== EContentVerdict.Text) continue
-      expect(verdict.html).toBe(false)
+      expect(kindOf({ contentType, body: 'prose' })).toBe(EContentKind.Text)
     }
   })
 
-  it('reads through the charset parameter rather than tripping on it', () => {
-    expect(acceptContentType('TEXT/HTML;charset=ISO-8859-1').verdict).toBe(EContentVerdict.Text)
+  it('reads through a charset parameter rather than tripping on it', () => {
+    expect(kindOf({ contentType: 'TEXT/HTML;charset=ISO-8859-1', body: '<html>' })).toBe(
+      EContentKind.Html,
+    )
   })
 
-  it('lets a server that declared nothing through, since many serve pages that way', () => {
-    expect(acceptContentType('').verdict).toBe(EContentVerdict.Text)
+  it('hands an unlabelled body back as text when it is prose', () => {
+    expect(kindOf({ contentType: '', body: 'just some words' })).toBe(EContentKind.Text)
+  })
+
+  it('catches a binary that claimed to be text', () => {
+    expect(kindOf({ contentType: 'text/plain', body: new Uint8Array([0x61, 0x00, 0x62]) })).toBe(
+      EContentKind.Binary,
+    )
   })
 })
 
@@ -56,7 +68,7 @@ describe('looksBinary', () => {
   })
 
   it('leaves ordinary text alone', () => {
-    expect(looksBinary(new TextEncoder().encode('# A page\n\nwith prose in it'))).toBe(false)
+    expect(looksBinary(text('# A page\n\nwith prose in it'))).toBe(false)
   })
 
   it('only reads the opening, so a NUL far into a large file is not searched for', () => {

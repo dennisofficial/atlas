@@ -13,6 +13,7 @@ export const THREAD_META_FILE_SUFFIX = '.meta.json'
 export const THREAD_READ_FILE_SUFFIX = '.read.json'
 export const CONTEXT_DIRECTORY_NAME = 'context'
 export const IMAGES_DIRECTORY_NAME = 'images'
+export const DOWNLOADS_DIRECTORY_NAME = 'downloads'
 
 export function sessionsDirectory({ home }: { home: string }): string {
   return join(home, SESSIONS_DIRECTORY_NAME)
@@ -48,6 +49,10 @@ export function contextDirectory({ sessionDir }: { sessionDir: string }): string
 
 export function imagesDirectory({ sessionDir }: { sessionDir: string }): string {
   return join(sessionDir, IMAGES_DIRECTORY_NAME)
+}
+
+export function downloadsDirectory({ sessionDir }: { sessionDir: string }): string {
+  return join(sessionDir, DOWNLOADS_DIRECTORY_NAME)
 }
 
 export function eventLogFile({

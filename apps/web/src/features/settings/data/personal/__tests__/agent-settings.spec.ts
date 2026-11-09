@@ -23,7 +23,7 @@ describe('agent settings mapper', () => {
       url: '',
       model: 'jev-latest',
       classifierMode: EClassifierChoice.Default,
-      searchBackend: ESearchBackend.DuckDuckGo,
+      searchBackend: ESearchBackend.Bing,
     })
   })
 
@@ -84,7 +84,7 @@ describe('agent settings mapper', () => {
       ]),
     )
     expect(settings.classifierMode).toBe(EClassifierChoice.Shadow)
-    expect(settings.searchBackend).toBe(ESearchBackend.DuckDuckGo)
+    expect(settings.searchBackend).toBe(ESearchBackend.Bing)
   })
 
   it('rejects a non-URL decisions endpoint', () => {
