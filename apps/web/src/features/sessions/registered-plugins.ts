@@ -6,6 +6,7 @@ import {
   EMPTY_POD,
   type Plugin,
 } from '@dltech/atlas-plugin-sdk'
+import { crewClient, crewCoreSlots } from '@dltech/atlas-plugin-crew/client'
 import { githubClient } from '@dltech/atlas-plugin-github/client'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { servicesClient } from '@dltech/atlas-plugin-services/client'
@@ -20,6 +21,14 @@ const registeredPlugins: readonly Plugin[] = [
     control: EMPTY_CONTROL,
     client: githubClient,
     transport: 'stream',
+  }),
+  definePlugin({
+    name: 'crew',
+    ...crewCoreSlots,
+    pod: EMPTY_POD,
+    control: EMPTY_CONTROL,
+    client: crewClient,
+    transport: 'none',
   }),
   definePlugin({
     name: 'shells',

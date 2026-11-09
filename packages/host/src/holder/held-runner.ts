@@ -15,6 +15,8 @@ import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
 import { InboxIntake } from './inbox-intake'
+import type { PodCrew } from '@dltech/atlas-plugin-sdk'
+
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 import { V2OnceLedger } from './record/v2-once-ledger'
@@ -155,10 +157,18 @@ export const createLoopRunner = (args: {
   threadId: ThreadId
   epoch: number
   signal: AbortSignal
+  crew: PodCrew
   isModelOnlyDrain(): boolean
 }): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
-  const pod = pluginPodOf({ deps, runtime, record, threadId, signal: args.signal })
+  const pod = pluginPodOf({
+    deps,
+    runtime,
+    record,
+    threadId,
+    signal: args.signal,
+    crew: args.crew,
+  })
   const intake = new InboxIntake({
     plane: deps.plane,
     sessionId: deps.sessionId,
@@ -214,6 +224,7 @@ export const wireHeldLoop = (args: {
   threadId: ThreadId
   signal: AbortSignal
   epoch: number
+  crew: PodCrew
   isModelOnlyDrain(): boolean
 }): { runner: LoopTurnRunner; branches: BranchObserver; recoverCommands(): Promise<void> } => {
   const { runner, intake } = createLoopRunner(args)

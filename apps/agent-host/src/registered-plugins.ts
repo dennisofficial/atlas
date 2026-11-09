@@ -10,6 +10,10 @@ import { servicesClient } from '@dltech/atlas-plugin-services/client'
 import { servicesControl } from '@dltech/atlas-plugin-services/control'
 import { servicesCoreSlots } from '@dltech/atlas-plugin-services/core'
 import { servicesPod } from '@dltech/atlas-plugin-services/pod'
+import { crewClient } from '@dltech/atlas-plugin-crew/client'
+import { crewControl } from '@dltech/atlas-plugin-crew/control'
+import { crewCoreSlots } from '@dltech/atlas-plugin-crew/core'
+import { crewPod } from '@dltech/atlas-plugin-crew/pod'
 import { shellsClient } from '@dltech/atlas-plugin-shells/client'
 import { shellsControl } from '@dltech/atlas-plugin-shells/control'
 import { shellsCoreSlots } from '@dltech/atlas-plugin-shells/core'
@@ -38,6 +42,14 @@ export const registeredPlugins: readonly Plugin[] = [
     pod: memoryPod,
     control: memoryControl,
     client: memoryClient,
+    transport: 'none',
+  }),
+  definePlugin({
+    name: 'crew',
+    ...crewCoreSlots,
+    pod: crewPod,
+    control: crewControl,
+    client: crewClient,
     transport: 'none',
   }),
   definePlugin({

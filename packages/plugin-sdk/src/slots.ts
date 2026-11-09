@@ -11,8 +11,10 @@ import type {
 import type { AppendHook, ControlPlane } from '@dltech/atlas-control'
 import type { CallOp, CallResult, DaemonEventFrame } from '@dltech/atlas-protocol'
 
+import type { PodCrew } from './crew'
 import type { PodMemory } from './memory'
 
+export type { PodCrew, SubagentSaid, SubagentSnapshot } from './crew'
 export type {
   MemoryAddress,
   MemoryEntry,
@@ -31,6 +33,7 @@ export type PodControl = {
 export type PluginPodContext = {
   sessionId: string
   control: PodControl
+  crew: PodCrew
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   events(): readonly V2Event[]
   call(
@@ -42,6 +45,7 @@ export type PluginPodContext = {
 }
 
 export type PodSlot = {
+  childDeny?: readonly string[] | undefined
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
   hooks?(ctx: PluginPodContext): HookChainArgs
   prompts: readonly PromptFragment[]
@@ -64,6 +68,20 @@ export type ClientHook = {
 export type ClientSlot = { hooks: readonly ClientHook[] }
 
 export type PluginTransport = 'none' | 'stream'
+
+const noCrew =
+  (what: string): (() => never) =>
+  () => {
+    throw new Error(`this pod has no ${what}`)
+  }
+
+export const EMPTY_CREW: PodCrew = Object.freeze({
+  spawn: async () => noCrew('sub-agents')(),
+  say: async () => noCrew('sub-agents')(),
+  stop: async () => noCrew('sub-agents')(),
+  list: () => [],
+  report: async () => noCrew('parent to report to')(),
+})
 
 export const EMPTY_POD: PodSlot = Object.freeze({ prompts: [], commands: new Map() })
 

@@ -16,6 +16,7 @@ export const MEMORY_TOOLS = ['write_memory', 'read_memory', 'edit_memory', 'dele
 
 export const memoryPod: PodSlot = {
   ...EMPTY_POD,
+  childDeny: MEMORY_TOOLS,
   tools: (ctx) => {
     const state = stateFor(ctx)
     return [

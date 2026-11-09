@@ -17,6 +17,7 @@
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-harness": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
+    "@dltech/atlas-plugin-crew": "workspace:*",
     "@dltech/atlas-plugin-github": "workspace:*",
     "@dltech/atlas-plugin-services": "workspace:*",
     "@dltech/atlas-plugin-shells": "workspace:*",
