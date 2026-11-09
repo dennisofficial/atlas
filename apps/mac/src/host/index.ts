@@ -15,7 +15,7 @@ import type { IDesktopWindowPort } from './window-routes'
 export { resolveApiOrigin, resolveWebOrigin }
 
 export interface ICreateDesktopHostOptions {
-  appOrigin: string
+  appOrigin: string | (() => string)
   secret: string
   apiOrigin?: string
   pods?: IPodHostConfig
@@ -46,6 +46,7 @@ export function createDesktopHost({
   previewViews,
 }: ICreateDesktopHostOptions): IDesktopHost {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
+  const appOriginOf = typeof appOrigin === 'function' ? appOrigin : () => appOrigin
   const authService = createAuthService({
     config: { ...auth, home: auth?.home ?? defaultDesktopHome() },
     apiOrigin: origin,
@@ -95,7 +96,7 @@ export function createDesktopHost({
       if (request.method === 'GET' && request.headers.get('sec-fetch-dest') === 'document') {
         previewViews?.clear()
       }
-      return proxyToApp({ request, appOrigin })
+      return proxyToApp({ request, appOrigin: appOriginOf() })
     },
   })
 

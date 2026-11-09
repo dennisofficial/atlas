@@ -15,6 +15,9 @@ import {
 import type { PreviewTunnels } from '@dltech/atlas-previews'
 import type { MemoryScope } from '@dltech/atlas-plugin-sdk'
 
+import type { SecretCipher } from '../config/secret-cipher'
+import { webSearchConfigOf } from './web-search-config'
+
 const refused = (failure: unknown): never => {
   if (
     failure instanceof MemoryInvalidError ||
@@ -39,7 +42,11 @@ const projectFor = (args: {
   return args.project
 }
 
-export const localPodControlOf = (args: { db: Db; previews: PreviewTunnels }): PodControlClient => {
+export const localPodControlOf = (args: {
+  db: Db
+  previews: PreviewTunnels
+  cipher: SecretCipher
+}): PodControlClient => {
   const ownerOf = (threadId: string) => threadOwnerOf({ handle: args.db, threadId })
 
   const addressOf = async (call: {
@@ -69,6 +76,22 @@ export const localPodControlOf = (args: { db: Db; previews: PreviewTunnels }): P
     exposePort: async ({ threadId, port }) => {
       const owner = await ownerOf(threadId)
       return await args.previews.expose({ threadId, userId: owner.userId, port })
+    },
+    webSearch: {
+      config: async ({ threadId }) => {
+        const owner = await ownerOf(threadId)
+        return await webSearchConfigOf({
+          rows: {
+            userSetting: (lookup) => args.db.orm.public.UserSetting.first(lookup),
+            projectSetting: (lookup) => args.db.orm.public.ProjectSetting.first(lookup),
+            userSecret: (lookup) => args.db.orm.public.UserSecret.first(lookup),
+            projectSecret: (lookup) => args.db.orm.public.ProjectSecret.first(lookup),
+          },
+          cipher: args.cipher,
+          userId: owner.userId,
+          projectId: owner.projectId,
+        })
+      },
     },
     memory: {
       list: async ({ threadId }) => {

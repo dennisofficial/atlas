@@ -1,3 +1,5 @@
+import { EWebPayloadState, type IWebPayloadStatus } from './web-payload/updater'
+
 export enum EDesktopUpdateState {
   Idle = 'idle',
   Ready = 'ready',
@@ -8,6 +10,7 @@ export interface IDesktopUpdateStatus {
   state: EDesktopUpdateState
   version?: string
   error?: string
+  web?: IWebPayloadStatus
 }
 
 export interface IDesktopUpdatesPort {
@@ -36,7 +39,10 @@ export function createUpdateHandler({
       )
     }
     if (pathname === UPDATE_RESTART_PATH && request.method === 'POST') {
-      if (updates.status().state !== EDesktopUpdateState.Ready) {
+      const status = updates.status()
+      const ready =
+        status.state === EDesktopUpdateState.Ready || status.web?.state === EWebPayloadState.Ready
+      if (!ready) {
         return Response.json({ message: 'No update is ready' }, { status: 409 })
       }
       void updates.restart().catch(() => undefined)

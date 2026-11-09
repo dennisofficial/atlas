@@ -69,9 +69,9 @@ const previewsProvider: Provider = {
 
 const podControlProvider: Provider = {
   provide: POD_CONTROL,
-  useFactory: (db: Db, previews: PreviewTunnels): PodControlClient =>
-    localPodControlOf({ db, previews }),
-  inject: [DB, PREVIEWS],
+  useFactory: (db: Db, previews: PreviewTunnels, cipher: SecretCipher): PodControlClient =>
+    localPodControlOf({ db, previews, cipher }),
+  inject: [DB, PREVIEWS, CIPHER],
 }
 
 const configProvider: Provider = {

@@ -2,6 +2,10 @@ import { composePlugins, definePlugin, type Plugin } from '@dltech/atlas-plugin-
 import { githubControl } from '@dltech/atlas-plugin-github/control'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { githubPod } from '@dltech/atlas-plugin-github/pod'
+import { mcpClient } from '@dltech/atlas-plugin-mcp/client'
+import { mcpControl } from '@dltech/atlas-plugin-mcp/control'
+import { mcpCoreSlots } from '@dltech/atlas-plugin-mcp/core'
+import { mcpPod } from '@dltech/atlas-plugin-mcp/pod'
 import { memoryClient } from '@dltech/atlas-plugin-memory/client'
 import { memoryControl } from '@dltech/atlas-plugin-memory/control'
 import { memoryCoreSlots } from '@dltech/atlas-plugin-memory/core'
@@ -21,6 +25,10 @@ import { shellsPod } from '@dltech/atlas-plugin-shells/pod'
 import { sessionsControl } from '@dltech/atlas-plugin-sessions/control'
 import { sessionsCoreSlots } from '@dltech/atlas-plugin-sessions/core'
 import { sessionsPod } from '@dltech/atlas-plugin-sessions/pod'
+import { webClient } from '@dltech/atlas-plugin-web/client'
+import { webControl } from '@dltech/atlas-plugin-web/control'
+import { webCoreSlots } from '@dltech/atlas-plugin-web/core'
+import { webPod } from '@dltech/atlas-plugin-web/pod'
 
 export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
@@ -64,11 +72,30 @@ export const registeredPlugins: readonly Plugin[] = [
     transport: 'stream',
   }),
   definePlugin({
+    name: 'mcp',
+    ...mcpCoreSlots,
+    pod: mcpPod({
+      repoDirectory: null,
+      config: { rows: async () => [] },
+    }),
+    control: mcpControl,
+    client: mcpClient,
+    transport: 'stream',
+  }),
+  definePlugin({
     name: 'sessions',
     ...sessionsCoreSlots,
     pod: sessionsPod,
     control: sessionsControl,
     client: { hooks: [] },
+    transport: 'none',
+  }),
+  definePlugin({
+    name: 'web',
+    ...webCoreSlots,
+    pod: webPod,
+    control: webControl,
+    client: webClient,
     transport: 'none',
   }),
 ]

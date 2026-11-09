@@ -39,9 +39,14 @@ export type {
   PodMemory,
 } from './memory'
 
+export type WebSearchConfig = { backend: string | undefined; key: string | undefined }
+
+export type PodWebSearch = { config(): Promise<WebSearchConfig> }
+
 export type PodControl = {
   exposePort(args: { port: number }): Promise<{ url: string; tunnelToken: string }>
   memory: PodMemory
+  webSearch: PodWebSearch
 }
 
 export type PluginPodContext = {

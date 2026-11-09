@@ -11,6 +11,8 @@ import type { DaemonOpsDeps } from '../deps'
 
 const BUFFER_LINES = 10_000
 const EVENT_LINE_BYTES = 1024 * 1024
+const STDERR_LINES = 40
+const STDERR_BYTES = 8 * 1024
 
 type BufferedLine = { seq: number; line: string }
 type Exit = { exitCode: number | null; signal: string | null }
@@ -20,6 +22,9 @@ type RunningServer = {
   child: ManagedProcess
   lines: BufferedLine[]
   partial: string
+  stderr: string[]
+  stderrBytes: number
+  stderrPartial: string
   seq: number
   ended: Exit | null
   closed: Promise<Exit>
@@ -54,8 +59,25 @@ export const mcpGroup =
       server.seq += 1
       server.lines.push({ seq: server.seq, line })
       if (server.lines.length > BUFFER_LINES) server.lines.shift()
-      if (line.length > EVENT_LINE_BYTES) return
+      if (line.length > EVENT_LINE_BYTES) {
+        ctx.publish({ type: 'mcp.dropped', serverId: server.serverId, seq: server.seq })
+        return
+      }
       ctx.publish({ type: 'mcp.message', serverId: server.serverId, seq: server.seq, line })
+    }
+
+    const recordStderr = (server: RunningServer, line: string): void => {
+      if (server.stderr.length >= STDERR_LINES) return
+      if (server.stderrBytes + line.length + 1 > STDERR_BYTES) return
+      server.stderr.push(line)
+      server.stderrBytes += line.length + 1
+    }
+
+    const drainStderr = (server: RunningServer, bytes: Uint8Array): void => {
+      const text = server.stderrPartial + new TextDecoder().decode(bytes)
+      const parts = text.split('\n')
+      server.stderrPartial = parts.pop() ?? ''
+      for (const part of parts) recordStderr(server, part)
     }
 
     const drain = (server: RunningServer, bytes: Uint8Array): void => {
@@ -98,16 +120,23 @@ export const mcpGroup =
               onStdout: (bytes) => {
                 if (holder.current !== null) drain(holder.current, bytes)
               },
-              onStderr: () => {},
+              onStderr: (bytes) => {
+                if (holder.current !== null) drainStderr(holder.current, bytes)
+              },
             })
             const server: RunningServer = {
               serverId: op.serverId,
               child,
               lines: [],
               partial: '',
+              stderr: [],
+              stderrBytes: 0,
+              stderrPartial: '',
               seq: 0,
               ended: null,
               closed: child.exit().then((exit) => {
+                if (server.stderrPartial !== '') recordStderr(server, server.stderrPartial)
+                server.stderrPartial = ''
                 const ended = { exitCode: exit.exitCode, signal: exit.signal }
                 server.ended = ended
                 ctx.publish({ type: 'mcp.exited', serverId: op.serverId, ...ended })
@@ -151,6 +180,7 @@ export const mcpGroup =
             const server = serverOf(servers, op.serverId)
             return {
               lines: server.lines.filter((entry) => entry.seq > op.afterSeq),
+              stderr: server.stderr,
               ended: server.ended,
             }
           },

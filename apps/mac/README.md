@@ -39,9 +39,17 @@ Electrobun's CEF artifact is roughly 150 MB compressed and several hundred MB in
 that carries it is therefore a full download — there is nothing to delta against — and releases after it
 patch as usual, because the pinned Chromium is byte-identical between them.
 
-## Auto-update
+## Updates
 
-`src/main/auto-update.ts` checks on launch and every 5 minutes via Electrobun's `Updater` against `https://github.com/dennisofficial/atlas/releases/latest/download` (`<channel>-<os>-<arch>-update.json`, patches and `.tar.zst` artifacts must be uploaded as release assets). Downloads in the background, then prompts "Restart to update". **Atlas → Check for Updates…** runs the same check immediately and offers to restart when an update is ready.
+Two paths, so a change to the interface never waits on a signed app build.
+
+**App updates** — `src/main/auto-update.ts` checks on launch and every 5 minutes via Electrobun's `Updater` against `https://github.com/dennisofficial/atlas/releases/latest/download` (`<channel>-<os>-<arch>-update.json`, patches and `.tar.zst` artifacts must be uploaded as release assets). Downloads in the background, then prompts "Restart to update". **Atlas → Check for Updates…** runs the same check immediately and offers to restart when an update is ready. This path covers the shell: `src/main`, `src/host`, `electrobun.config.ts`.
+
+**Web payload updates** — the interface (`apps/web`, copied in at `app/web`) also ships on its own. `.github/workflows/web-ota.yml` builds it on every push to `main` on ubuntu with no signing, notarization, CEF or DMG, and uploads `web-update.json` and `web-<hash>.tar.gz` to the `web-ota` release tag. `src/host/web-payload/` reads that manifest on launch and every five minutes, checks the size and sha256, unpacks the payload into `~/Library/Application Support/Atlas/web/<hash>` and keeps the current and previous ones. On launch the app runs the newest complete payload and starts the bundled copy if it will not answer; a payload that fails is recorded as `failed` and never selected again. **Check for Updates…** installs one and reloads the window — no app restart.
+- A payload declares `requiresShell`, read from `src/host/contract.ts`. Raise `DESKTOP_CONTRACT` whenever a `/desktop/*` route changes shape, so an installed app never runs an interface that speaks a newer contract; the app then updates itself instead.
+- `ATLAS_WEB_PAYLOAD_URL` points the check at another manifest, and `ATLAS_WEB_ROOT` runs the window against an arbitrary build directory (`web-standalone/apps/web` after `bun run build:web`).
+- `bun run pack:web-payload` writes a manifest and tarball into `artifacts/` from the local `web-standalone`.
+- Install and apply failures land in `~/Library/Logs/Atlas/main.log` as `web-payload` and `web-payload-restart`.
 
 ## Serve version pin
 
@@ -49,4 +57,4 @@ Pods boot serve at the app's own version (`Updater.getLocalInfo().version`). Onl
 
 ## Branded DMG
 
-Electrobun's own DMG is off (`createDmg: false`); `build:app` ends with `scripts/make-dmg.ts`, which builds `artifacts/macos-arm64-Atlas.dmg` from `build/stable-macos-*/Atlas.app` with `create-dmg` (`brew install create-dmg`) using the background in `assets/dmg/` (`background.svg` is the source; `background.png` and `background@2x.png` are rendered from it with `bunx sharp-cli --density`). With the `ELECTROBUN_DEVELOPER_ID`, `ELECTROBUN_APPLEAPIKEY`, `ELECTROBUN_APPLEAPIISSUER` and `ELECTROBUN_APPLEAPIKEYPATH` env it also signs, notarizes and staples the DMG; under `ATLAS_MAC_UNSIGNED=1` it leaves it unsigned. macOS only.
+Electrobun's own DMG is off (`createDmg: false`); `build:app` ends with `scripts/make-dmg.ts`, which builds `artifacts/macos-arm64-Atlas-<version>.dmg` (when `ATLAS_VERSION` is set, as the release job does) and copies it to the stable `artifacts/macos-arm64-Atlas.dmg` that the app's download button links to, from `build/stable-macos-*/Atlas.app` with `create-dmg` (`brew install create-dmg`) using the background in `assets/dmg/` (`background.svg` is the source; `background.png` and `background@2x.png` are rendered from it with `bunx sharp-cli --density`). With the `ELECTROBUN_DEVELOPER_ID`, `ELECTROBUN_APPLEAPIKEY`, `ELECTROBUN_APPLEAPIISSUER` and `ELECTROBUN_APPLEAPIKEYPATH` env it also signs, notarizes and staples the DMG; under `ATLAS_MAC_UNSIGNED=1` it leaves it unsigned. macOS only.

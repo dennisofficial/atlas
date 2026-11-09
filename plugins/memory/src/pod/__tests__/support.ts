@@ -92,6 +92,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {
+      webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },

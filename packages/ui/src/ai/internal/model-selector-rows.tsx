@@ -1,25 +1,15 @@
 import type { KeyboardEvent, MouseEvent } from 'react'
-import { ChevronDownIcon, PinIcon, TriangleAlertIcon, ZapIcon } from 'lucide-react'
+import { PinIcon, TriangleAlertIcon, ZapIcon } from 'lucide-react'
 import { cn } from 'cn'
 
 import { BrandMark } from '#components/brand-mark'
 import { Button } from '#components/button'
 import { CommandItem } from '#components/command'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '#components/dropdown-menu'
 import { InputGroupButton } from '#components/input-group'
 import { Toggle } from '#components/toggle'
 
 import {
-  EFFORT_LABELS,
-  EFFORT_LADDER,
   MODEL_FILTER_LABELS,
-  type EEffort,
   reconnectItemValue,
   showAllItemValue,
   type EModelFilter,
@@ -233,46 +223,6 @@ export function NoProvidersState({
         </Button>
       ) : null}
     </div>
-  )
-}
-
-export function EffortMenu({
-  efforts,
-  value,
-  onChange,
-}: {
-  efforts: readonly EEffort[]
-  value: EEffort
-  onChange?: (effort: EEffort) => void
-}) {
-  const handleValueChange = (next: string) => {
-    const match = EFFORT_LADDER.find((effort) => effort === next)
-    if (match) onChange?.(match)
-  }
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <InputGroupButton
-            size="sm"
-            data-slot="model-effort"
-            aria-label={`Effort: ${EFFORT_LABELS[value]}`}
-          />
-        }
-      >
-        {EFFORT_LABELS[value]}
-        <ChevronDownIcon className="max-md:hidden" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuRadioGroup value={value} onValueChange={handleValueChange}>
-          {efforts.map((option) => (
-            <DropdownMenuRadioItem key={option} value={option} closeOnClick>
-              {EFFORT_LABELS[option]}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
   )
 }
 
