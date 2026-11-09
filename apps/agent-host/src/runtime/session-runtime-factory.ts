@@ -49,6 +49,7 @@ import { GithubPullRequestFinder, githubIdentityLookup } from '@dltech/atlas-plu
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
+import { TaskWriteTool } from '../agent-tools/task-write'
 import { daemonToolsOf } from './tools'
 import { ShellEnvCell } from './shell-env'
 import { prepareSigning } from './signing-setup'
@@ -204,13 +205,14 @@ export const createSessionRuntimeFactory = (
     })
     const repoMap = workspaceRepoMap({ launchDirectory, workspace: config.workspace })
     const repoAt = (path: string) => repoMap.find((entry) => entry.path === path)
-    const tools = daemonToolsOf({
+    const daemonToolList = daemonToolsOf({
       processes,
       files,
       agentFiles,
       setup: gate,
       shellEnv: () => shellEnv.current(),
     })
+    const tools = [...daemonToolList, new TaskWriteTool()]
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
@@ -258,7 +260,7 @@ export const createSessionRuntimeFactory = (
       remoteCalls: calls,
       model,
       tools: registry,
-      daemonTools: new Set(byName.keys()),
+      daemonTools: new Set(daemonToolList.map((tool) => tool.name)),
       effectOf: (name) => byName.get(name)?.effect,
       assembly: defaultPipeline({
         prompt: agentHostPrompt({

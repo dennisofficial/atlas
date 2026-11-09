@@ -178,6 +178,8 @@ describe('createSessionRuntimeFactory', () => {
     expect(runtime.effectOf('nope')).toBeUndefined()
     expect(runtime.launchDirectory).toBe(WORKSPACE_PATH)
     expect(runtime.tools.find('bash')).toBeDefined()
+    expect(runtime.tools.find('task_write')).toBeDefined()
+    expect(runtime.daemonTools.has('task_write')).toBe(false)
     await runtime.stop()
   })
 

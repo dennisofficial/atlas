@@ -1,4 +1,4 @@
-import { HookChain, ToolRegistry } from '@dltech/atlas-agent'
+import { HookChain, ToolRegistry, type HookChainArgs } from '@dltech/atlas-agent'
 import type { ThreadId, ToolDeclaration, ToolDefinition } from '@dltech/atlas-core'
 import type { PluginPodContext, PodCrew } from '@dltech/atlas-plugin-sdk'
 
@@ -6,6 +6,7 @@ import { newKey } from '../calls/remote-calls'
 import { worktreesOf } from './checkouts'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive } from './ports'
+import { MirrorPlanHook } from './plan-mirror'
 import { podControlOf } from './pod-control'
 import { podSessionsOf } from './plugin-sessions'
 import type { SessionRuntime } from './ports'
@@ -97,12 +98,22 @@ export const pluginToolsOf = (args: {
   )
 }
 
+export const hostHooksOf = (): HookChainArgs => ({ afterTool: [new MirrorPlanHook()] })
+
 export const pluginHooksOf = (args: {
   runtime: SessionRuntime
   ctx: PluginPodContext
 }): HookChain => {
   const { plugins } = args.runtime
-  return plugins === undefined ? new HookChain({}) : new HookChain(plugins.pod.hooks(args.ctx))
+  const host = hostHooksOf()
+  if (plugins === undefined) return new HookChain(host)
+
+  const plugin = plugins.pod.hooks(args.ctx)
+  return new HookChain({
+    ...host,
+    ...plugin,
+    afterTool: [...(host.afterTool ?? []), ...(plugin.afterTool ?? [])],
+  })
 }
 
 export type PluginPod = { tools: ToolRegistry; hooks: HookChain }
@@ -116,7 +127,9 @@ export const pluginPodOf = (args: {
   crew: PodCrew
 }): PluginPod => {
   const { plugins } = args.runtime
-  if (plugins === undefined) return { tools: args.runtime.tools, hooks: new HookChain({}) }
+  if (plugins === undefined) {
+    return { tools: args.runtime.tools, hooks: new HookChain(hostHooksOf()) }
+  }
   const ctx = pluginPodContextOf(args)
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })
   const hooks = pluginHooksOf({ runtime: args.runtime, ctx })
