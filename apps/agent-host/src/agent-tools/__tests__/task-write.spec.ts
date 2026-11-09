@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { PLAN_TASK_LIMIT, toThreadId, type PlanTask } from '@dltech/atlas-core'
+import { EPlanStatus, PLAN_TASK_LIMIT, toThreadId, type PlanTask } from '@dltech/atlas-core'
 
 import { TaskWriteTool } from '../task-write'
 
@@ -36,7 +36,7 @@ describe('TaskWriteTool', () => {
     expect(outcome.ok).toBe(true)
     const tasks = (outcome.output as { tasks: readonly PlanTask[] }).tasks
     expect(tasks.map((task) => task.ordinal)).toEqual([1, 2, 3])
-    expect(tasks[2]?.status).toBe('pending')
+    expect(tasks[2]?.status).toBe(EPlanStatus.Pending)
     expect(String(outcome.modelText)).toContain(
       '#2 [in_progress] Build the tool (active: Building the tool)',
     )
