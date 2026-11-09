@@ -8,7 +8,7 @@ import {
   withAlpha,
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { Check, Zap } from 'lucide-react-native'
+import { Check, Star, Zap } from 'lucide-react-native'
 import { Pressable, StyleSheet, Switch, View } from 'react-native'
 
 import { effortLabelOf, type IModelOption, type IModelSelection } from './model-options'
@@ -27,10 +27,14 @@ export const ProviderMark = ({ monogram }: { monogram: string }) => {
 export const ModelRow = ({
   model,
   selected,
+  pinned = false,
+  onTogglePin,
   onPress,
 }: {
   model: IModelOption
   selected: boolean
+  pinned?: boolean | undefined
+  onTogglePin?: (() => void) | undefined
   onPress: () => void
 }) => {
   const theme = useTheme()
@@ -57,6 +61,53 @@ export const ModelRow = ({
       {model.note === null && model.rate === null ? null : (
         <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.rate}>
           {model.note ?? model.rate}
+        </Text>
+      )}
+      {onTogglePin === undefined || model.disabled ? null : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={pinned ? `Unpin ${model.label}` : `Pin ${model.label}`}
+          accessibilityState={{ selected: pinned }}
+          onPress={onTogglePin}
+          style={styles.pin}
+        >
+          <Icon icon={Star} color={pinned ? theme.foreground : theme.mutedForeground} size={16} />
+        </Pressable>
+      )}
+      {selected ? <Icon icon={Check} color={theme.foreground} size={16} /> : null}
+    </Pressable>
+  )
+}
+
+export const DefaultRow = ({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string | null
+  selected: boolean
+  onPress: () => void
+}) => {
+  const theme = useTheme()
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label === null ? 'Default model' : `Default model, ${label}`}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed ? { backgroundColor: theme.accent } : null]}
+    >
+      <Text size={ETextRole.Sm} style={styles.rowLabel}>
+        Default
+      </Text>
+      {label === null ? null : (
+        <Text
+          size={ETextRole.Xs}
+          tone={ETextTone.Muted}
+          numberOfLines={1}
+          style={styles.defaultNote}
+        >
+          {label}
         </Text>
       )}
       {selected ? <Icon icon={Check} color={theme.foreground} size={16} /> : null}
@@ -139,6 +190,14 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     flex: 1,
+  },
+  pin: {
+    padding: space(0.5),
+  },
+  defaultNote: {
+    flexShrink: 1,
+    maxWidth: 160,
+    textAlign: 'right',
   },
   context: {
     fontVariant: ['tabular-nums'],

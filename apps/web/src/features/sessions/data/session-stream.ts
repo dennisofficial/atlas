@@ -1,4 +1,5 @@
 import {
+  browserSessionCache,
   browserStreamSocket,
   createStreamConnection,
   systemStreamScheduler,
@@ -10,7 +11,6 @@ import { AuthApiError } from '@/lib/auth-api'
 import { sharedQueryClient } from '@/lib/query-client'
 import { SESSION_QUERY_KEY } from '@/lib/use-session-query'
 
-import { browserSessionCache } from './indexed-db-session-cache'
 import { sessionEventSchema, sessionEventTypes } from '../registered-plugins'
 import { fetchStreamToken, SIGNED_OUT_CODE } from './stream-token'
 

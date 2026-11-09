@@ -1,9 +1,7 @@
 import {
   browserStreamSocket,
   createStreamConnection,
-  memorySessionCache,
   systemStreamScheduler,
-  type SessionCache,
   type StreamConnection,
 } from '@dltech/atlas-client/stream'
 
@@ -11,13 +9,9 @@ import { streamUrl } from '../../config'
 import { v2EventSchema, v2EventTypes } from './registered-plugins'
 import { getStreamToken } from './stream-token'
 
-let connection: StreamConnection | undefined
-let cache: SessionCache | undefined
+export { clearSessionCache, sessionCache } from './session-cache'
 
-export const sessionCache = (): SessionCache => {
-  cache ??= memorySessionCache()
-  return cache
-}
+let connection: StreamConnection | undefined
 
 export const sessionStream = (): StreamConnection => {
   connection ??= createStreamConnection({

@@ -28,6 +28,7 @@ const snapshotOf = (raw: readonly unknown[]): SessionSnapshot => ({
   error: undefined,
   skipped: 0,
   writerAhead: false,
+  fromCache: false,
 })
 
 const said = { ...envelope(1), type: 'user-said', text: 'hello there' }

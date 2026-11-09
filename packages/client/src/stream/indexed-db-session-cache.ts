@@ -1,59 +1,44 @@
 import { v2EventSchema, type V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
-import type { SessionCache, SessionWindow } from '@dltech/atlas-client/stream'
+
+import {
+  defaultIndexedDbFactory,
+  type IdbDatabase,
+  type IdbFactory,
+  type IdbObjectStore,
+  type IdbRequest,
+  type IdbTransaction,
+} from './indexed-db-types'
+import type { SessionCache } from './session-cache'
+import {
+  SESSION_CACHE_LIMIT,
+  SESSION_CACHE_RECORD_VERSION,
+  windowFromRecord,
+  type CachedWindow,
+} from './session-cache-record'
+import type { SessionWindow } from './session-window'
+
+export { SESSION_CACHE_LIMIT }
 
 export const SESSION_CACHE_DB = 'atlas-stream'
 export const SESSION_CACHE_STORE = 'windows'
-export const SESSION_CACHE_LIMIT = 20
 
 const DB_VERSION = 1
-const RECORD_VERSION = 1
 
-type CachedWindow = { version: number; savedAt: number; window: SessionWindow }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
-
-const isCursor = (value: unknown): boolean =>
-  value === undefined ||
-  (isRecord(value) && typeof value.seq === 'number' && typeof value.hash === 'string')
-
-const isSpan = (value: unknown): boolean =>
-  isRecord(value) &&
-  typeof value.createdAt === 'number' &&
-  typeof value.fromSeq === 'number' &&
-  typeof value.throughSeq === 'number' &&
-  typeof value.keepSurvivors === 'boolean'
-
-const isWindow = (value: unknown, eventSchema: z.ZodType<V2Event>): value is SessionWindow =>
-  isRecord(value) &&
-  Array.isArray(value.events) &&
-  value.events.every((event) => eventSchema.safeParse(event).success) &&
-  isRecord(value.visibility) &&
-  Array.isArray(value.visibility.spans) &&
-  value.visibility.spans.every(isSpan) &&
-  isCursor(value.cursor)
-
-const isCachedWindow = (value: unknown, eventSchema: z.ZodType<V2Event>): value is CachedWindow =>
-  isRecord(value) &&
-  value.version === RECORD_VERSION &&
-  typeof value.savedAt === 'number' &&
-  isWindow(value.window, eventSchema)
-
-const requestDone = <T>(request: IDBRequest<T>): Promise<T> =>
+const requestDone = <T>(request: IdbRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
   })
 
-const transactionDone = (tx: IDBTransaction): Promise<void> =>
+const transactionDone = (tx: IdbTransaction): Promise<void> =>
   new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
     tx.onabort = () => reject(tx.error)
   })
 
-const openDatabase = (factory: IDBFactory): Promise<IDBDatabase> =>
+const openDatabase = (factory: IdbFactory): Promise<IdbDatabase> =>
   new Promise((resolve, reject) => {
     const request = factory.open(SESSION_CACHE_DB, DB_VERSION)
     request.onupgradeneeded = () => {
@@ -67,9 +52,9 @@ const openDatabase = (factory: IDBFactory): Promise<IDBDatabase> =>
   })
 
 const savedAtOf = (value: unknown): number =>
-  isRecord(value) && typeof value.savedAt === 'number' ? value.savedAt : 0
+  typeof value === 'object' && value !== null && 'savedAt' in value ? Number(value.savedAt) : 0
 
-const evictOldest = async (store: IDBObjectStore): Promise<void> => {
+const evictOldest = async (store: IdbObjectStore): Promise<void> => {
   const [keys, values] = await Promise.all([
     requestDone(store.getAllKeys()),
     requestDone(store.getAll()),
@@ -77,14 +62,14 @@ const evictOldest = async (store: IDBObjectStore): Promise<void> => {
   const excess = keys.length - SESSION_CACHE_LIMIT
   if (excess <= 0) return
   const oldest = keys
-    .map((key, index) => ({ key, savedAt: savedAtOf(values[index]) }))
+    .map((key, index) => ({ key: String(key), savedAt: savedAtOf(values[index]) }))
     .sort((a, b) => a.savedAt - b.savedAt)
     .slice(0, excess)
   for (const { key } of oldest) store.delete(key)
 }
 
 export function createIndexedDbSessionCache(args: {
-  factory: IDBFactory | undefined
+  factory: IdbFactory | undefined
   now: () => number
   eventSchema?: z.ZodType<V2Event> | undefined
 }): SessionCache {
@@ -95,7 +80,7 @@ export function createIndexedDbSessionCache(args: {
     use,
   }: {
     fallback: T
-    use: (db: IDBDatabase) => Promise<T>
+    use: (db: IdbDatabase) => Promise<T>
   }): Promise<T> => {
     if (factory === undefined) return fallback
     try {
@@ -117,7 +102,7 @@ export function createIndexedDbSessionCache(args: {
         use: async (db) => {
           const tx = db.transaction(SESSION_CACHE_STORE, 'readonly')
           const value = await requestDone(tx.objectStore(SESSION_CACHE_STORE).get(sessionId))
-          return isCachedWindow(value, eventSchema) ? value.window : undefined
+          return windowFromRecord({ value, eventSchema })
         },
       }),
     save: ({ sessionId, window }) =>
@@ -128,7 +113,11 @@ export function createIndexedDbSessionCache(args: {
           const done = transactionDone(tx)
           done.catch(() => undefined)
           const store = tx.objectStore(SESSION_CACHE_STORE)
-          const record: CachedWindow = { version: RECORD_VERSION, savedAt: now(), window }
+          const record: CachedWindow = {
+            version: SESSION_CACHE_RECORD_VERSION,
+            savedAt: now(),
+            window,
+          }
           await requestDone(store.put(record, sessionId))
           await evictOldest(store)
           await done
@@ -139,7 +128,36 @@ export function createIndexedDbSessionCache(args: {
 
 export const browserSessionCache = (eventSchema?: z.ZodType<V2Event>): SessionCache =>
   createIndexedDbSessionCache({
-    factory: typeof indexedDB === 'undefined' ? undefined : indexedDB,
+    factory: defaultIndexedDbFactory(),
     now: () => Date.now(),
     eventSchema,
   })
+
+export const clearBrowserSessionCache = (
+  factory: IdbFactory | undefined = defaultIndexedDbFactory(),
+): Promise<void> =>
+  factory === undefined
+    ? Promise.resolve()
+    : new Promise((resolve) => {
+        const request = factory.open(SESSION_CACHE_DB, DB_VERSION)
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains(SESSION_CACHE_STORE)) {
+            request.result.createObjectStore(SESSION_CACHE_STORE)
+          }
+        }
+        request.onerror = () => resolve()
+        request.onblocked = () => resolve()
+        request.onsuccess = () => {
+          const db = request.result
+          const tx = db.transaction(SESSION_CACHE_STORE, 'readwrite')
+          tx.objectStore(SESSION_CACHE_STORE).clear()
+          tx.oncomplete = () => {
+            db.close()
+            resolve()
+          }
+          tx.onerror = () => {
+            db.close()
+            resolve()
+          }
+        }
+      })

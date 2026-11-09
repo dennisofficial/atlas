@@ -19,6 +19,8 @@ import { retryPendingRevokes, revokeOrPersist } from './revoke-queue'
 import { fetchSession, revokeSession, signInWithPassword } from './session'
 import { EHandoffResult, runHandoffSignIn } from './sign-in-flow'
 import { createPendingRevokeStorage, createTokenStore } from './token-store'
+import { clearSettingsCache } from '../settings/settings-storage'
+import { clearSessionCache } from '../thread/v2/session-cache'
 import { setStreamToken } from '../thread/v2/stream-token'
 
 export interface IAuthContextValue extends IAuthSnapshot {
@@ -200,6 +202,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     pushTokenRef.current = undefined
     dispatch({ type: EAuthEvent.SignOut })
     await store.clear()
+    await Promise.all([clearSessionCache(), clearSettingsCache()])
     if (bearer === undefined) return
     if (pushToken !== undefined) {
       const client = createApiClient({ baseUrl: apiOrigin, token: bearer })

@@ -7,8 +7,12 @@ import {
   modelGroupsOf,
   modelOptionsOf,
   modelTriggerLabelOf,
+  personalModelLabelOf,
+  pinnedModelsOf,
   searchModelsOf,
   selectionOf,
+  togglePinnedModel,
+  withoutPinned,
 } from '../model-options'
 
 const response: ModelsResponse = {
@@ -183,5 +187,40 @@ describe('modelTriggerLabelOf', () => {
   it('names the picked model', () => {
     const selection = selectionOf({ models, modelId: 'claude-opus-4', effort: 'low', fast: false })
     expect(modelTriggerLabelOf({ models, selection })).toBe('Opus 4')
+  })
+})
+
+describe('pinned models', () => {
+  const models = modelOptionsOf(response)
+
+  it('keeps the stored order and drops ids the account no longer offers', () => {
+    const pinned = pinnedModelsOf({ models, pinned: ['gpt-5', 'gone/model', 'claude-opus-4'] })
+
+    expect(pinned.map((model) => model.id)).toEqual(['gpt-5', 'claude-opus-4'])
+  })
+
+  it('leaves pinned models out of the provider groups', () => {
+    const rest = withoutPinned({ models, pinned: ['gpt-5'] })
+
+    expect(rest.map((model) => model.id)).not.toContain('gpt-5')
+    expect(rest.map((model) => model.id)).toContain('gpt-5-mini')
+  })
+
+  it('toggles a pin on and off', () => {
+    expect(togglePinnedModel({ pinned: ['a'], id: 'b' })).toEqual(['a', 'b'])
+    expect(togglePinnedModel({ pinned: ['a', 'b'], id: 'a' })).toEqual(['b'])
+  })
+})
+
+describe('personalModelLabelOf', () => {
+  const models = modelOptionsOf(response)
+
+  it('names the default model from the settings', () => {
+    expect(personalModelLabelOf({ models, personalId: 'claude-opus-4' })).toBe('Opus 4')
+  })
+
+  it('has no label when the default is unset or unknown', () => {
+    expect(personalModelLabelOf({ models, personalId: '' })).toBeNull()
+    expect(personalModelLabelOf({ models, personalId: 'gone/model' })).toBeNull()
   })
 })
