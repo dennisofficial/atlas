@@ -77,6 +77,7 @@ export class CallOutput {
         stored = await this.args.store.readOutput({ key: this.args.key, offset: from })
       } catch (error) {
         this.args.onFault({ error })
+        if (this.detached.has(args.owner)) return
         if (this.ended !== null) {
           args.sink.result({ result: this.lostResult() })
           return
@@ -85,6 +86,7 @@ export class CallOutput {
         this.unreadable.set(args.owner, { sink: args.sink, owed })
         return
       }
+      if (this.detached.has(args.owner)) return
       this.deliver({ owner: args.owner, sink: args.sink, offset: from, bytes: stored })
       if (this.ended !== null) {
         args.sink.result({ result: this.ended })

@@ -16,6 +16,7 @@ import { KeyLock } from './key-lock'
 import { LiveCall, answerFor, discardJournal, readJournal } from './live-call'
 import { type LedgerOutcome, refused, staleEpoch, unknownKey } from './outcomes'
 import { interruptedByRestart } from './results'
+import { RunArrivals } from './run-arrivals'
 
 export type { LedgerOutcome } from './outcomes'
 
@@ -43,8 +44,7 @@ export class CallLedger {
   private runs = 0
   private readonly lock = new KeyLock()
   private readonly calls = new Map<string, LiveCall>()
-  private arrivals = 0
-  private readonly cancelledThrough = new Map<string, number>()
+  private readonly arrivals = new RunArrivals()
 
   constructor(private readonly args: CallLedgerArgs) {
     this.protocol = initialCalls({ bootId: args.bootId })
@@ -66,9 +66,8 @@ export class CallLedger {
   }
 
   run(args: CallRunArgs): Promise<LedgerOutcome> {
-    this.arrivals += 1
-    const arrival = this.arrivals
-    return this.lock.run({
+    const arrival = this.arrivals.arrive(args.key)
+    const outcome = this.lock.run<LedgerOutcome>({
       key: args.key,
       task: async () => {
         const stepRun = () =>
@@ -115,6 +114,7 @@ export class CallLedger {
         return { ok: true }
       },
     })
+    return outcome.finally(() => this.arrivals.leave(args.key))
   }
 
   answer(args: { key: string }): Promise<EDaemonAnswer> {
@@ -149,7 +149,7 @@ export class CallLedger {
         const call = this.calls.get(args.key)
         this.protocol = stepped.state
         this.calls.delete(args.key)
-        this.cancelledThrough.delete(args.key)
+        this.arrivals.forget(args.key)
         await call?.output.drain()
         await this.discard(args.key)
         return { ok: true }
@@ -164,9 +164,13 @@ export class CallLedger {
     })
     if (stepped.effects.errors.includes(ECallError.StaleEpoch)) return staleEpoch(args.epoch)
     const call = this.calls.get(args.key)
-    if (call === undefined) return unknownKey(args.key)
+    if (call === undefined) {
+      if (!this.arrivals.isWaiting(args.key)) return unknownKey(args.key)
+      this.arrivals.cancel(args.key)
+      return { ok: true }
+    }
     if (!stepped.effects.cancelled.includes(args.key)) return { ok: true }
-    this.cancelledThrough.set(args.key, this.arrivals)
+    this.arrivals.cancel(args.key)
     call.abort.abort()
     return { ok: true }
   }
@@ -223,7 +227,7 @@ export class CallLedger {
       op: args.op,
       epoch: args.epoch,
       store: this.args.store,
-      abort: this.controllerFor({ key: args.key, arrival: args.arrival }),
+      abort: this.arrivals.controllerFor({ key: args.key, arrival: args.arrival }),
       onFault: this.args.onFault,
     })
     this.calls.set(args.key, call)
@@ -257,12 +261,6 @@ export class CallLedger {
     return { ok: true }
   }
 
-  private controllerFor(args: { key: string; arrival: number }): AbortController {
-    const controller = new AbortController()
-    if (args.arrival <= (this.cancelledThrough.get(args.key) ?? 0)) controller.abort()
-    return controller
-  }
-
   private async abandon(args: { key: string }): Promise<void> {
     this.protocol = stepCalls({
       state: this.protocol,
@@ -291,7 +289,7 @@ export class CallLedger {
       state: this.protocol,
       input: { type: 'exit', key: args.key, result: JSON.stringify(args.result) },
     }).state
-    this.cancelledThrough.delete(args.key)
+    this.arrivals.forget(args.key)
     args.call.output.end({ result: args.result })
   }
 }
