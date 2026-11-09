@@ -22,8 +22,13 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-const waitLine = (): string | null =>
-  document.body.querySelector('[data-chat-item-id="background-wait"]')?.textContent ?? null
+const waitRow = (): Element | null =>
+  document.body.querySelector('[data-chat-item-id="background-wait"]')
+
+const waitLine = (): string | null => waitRow()?.textContent ?? null
+
+const elapsedText = (): string | null =>
+  waitRow()?.querySelector('[data-slot="trace-description"]')?.textContent ?? null
 
 describe('what a settled session left running', () => {
   it('counts the agents and shells a turn left running', async () => {
@@ -55,7 +60,19 @@ describe('what a settled session left running', () => {
       background: { subagents: 0, shells: 1 },
     })
 
-    expect(waitLine()).toContain('1 shell to finish · 1m')
+    expect(waitLine()).toContain('1 shell to finish')
+
+    expect(elapsedText()).toMatch(/^1m (3\d|4\d)s$/)
+  })
+
+  it('reads as a running tool line, so the wait shimmers with the tools above it', async () => {
+    await mountWith({ rewind: null, background: { subagents: 0, shells: 1 } })
+
+    const line = waitRow()?.querySelector('[data-slot="trace-line"]')
+    expect(line?.getAttribute('data-status')).toBe('running')
+    expect(line?.querySelector('[data-slot="trace-title"]')?.textContent).toBe(
+      'Waiting for 1 shell to finish',
+    )
   })
 })
 
