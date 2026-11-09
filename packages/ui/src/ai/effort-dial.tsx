@@ -39,10 +39,7 @@ const gaugePoint = ({
   radius?: number
 }): readonly [number, number] => {
   const radians = ((GAUGE_START_DEGREES + GAUGE_SWEEP_DEGREES * fraction) * Math.PI) / 180
-  return [
-    GAUGE_CENTER_X + radius * Math.cos(radians),
-    GAUGE_CENTER_Y + radius * Math.sin(radians),
-  ]
+  return [GAUGE_CENTER_X + radius * Math.cos(radians), GAUGE_CENTER_Y + radius * Math.sin(radians)]
 }
 
 export function effortArc({ fraction }: { fraction: number }): string {
@@ -97,13 +94,7 @@ export const effortTickLeft = ({ index, last }: { index: number; last: number })
     ? `${THUMB_INSET_PX}px`
     : `calc(${THUMB_INSET_PX}px + (100% - ${THUMB_INSET_PX * 2}px) * ${index / last})`
 
-function EffortTicks({
-  efforts,
-  index,
-}: {
-  efforts: readonly EEffort[]
-  index: number
-}) {
+function EffortTicks({ efforts, index }: { efforts: readonly EEffort[]; index: number }) {
   const last = efforts.length - 1
   return (
     <span aria-hidden className="pointer-events-none absolute inset-0">
