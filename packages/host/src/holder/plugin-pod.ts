@@ -12,29 +12,39 @@ import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
 export class ComposedPodRegistry extends ToolRegistry {
-  private readonly extras: ReadonlyMap<string, ToolDefinition>
+  private readonly taken: ReadonlySet<string>
+  private settled = false
 
   constructor(
     private readonly base: ToolRegistry,
-    extras: readonly ToolDefinition[],
+    private readonly toolsOf: () => readonly ToolDefinition[],
+    private readonly log: (message: string) => void = () => {},
   ) {
     super()
-    const byName = new Map<string, ToolDefinition>()
-    for (const tool of extras) {
-      if (byName.has(tool.name) || base.find(tool.name) !== undefined) {
-        throw new Error(`two tools are registered as "${tool.name}"`)
-      }
-      byName.set(tool.name, tool)
-    }
-    this.extras = byName
+    this.taken = new Set(base.declarations().map((declaration) => declaration.name))
+    this.extras()
   }
 
   declarations(): readonly ToolDeclaration[] {
-    return [...this.base.declarations(), ...this.extras.values()]
+    return [...this.base.declarations(), ...this.extras().values()]
   }
 
   find(name: string): ToolDefinition | undefined {
-    return this.extras.get(name) ?? this.base.find(name)
+    return this.extras().get(name) ?? this.base.find(name)
+  }
+
+  private extras(): ReadonlyMap<string, ToolDefinition> {
+    const byName = new Map<string, ToolDefinition>()
+    for (const tool of this.toolsOf()) {
+      if (!byName.has(tool.name) && !this.taken.has(tool.name)) {
+        byName.set(tool.name, tool)
+        continue
+      }
+      if (!this.settled) throw new Error(`two tools are registered as "${tool.name}"`)
+      this.log(`dropped a duplicate tool "${tool.name}"`)
+    }
+    this.settled = true
+    return byName
   }
 }
 
@@ -80,7 +90,11 @@ export const pluginToolsOf = (args: {
 }): ToolRegistry => {
   const { plugins } = args.runtime
   if (plugins === undefined) return args.runtime.tools
-  return new ComposedPodRegistry(args.runtime.tools, plugins.pod.tools(args.ctx))
+  return new ComposedPodRegistry(
+    args.runtime.tools,
+    () => plugins.pod.tools(args.ctx),
+    args.ctx.log,
+  )
 }
 
 export const pluginHooksOf = (args: {

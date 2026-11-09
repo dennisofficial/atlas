@@ -23,7 +23,10 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-09._
-- **Spec written 2026-11-09: slice 7b, MCP and skills** ([spec](slices/07b-mcp-skills.md); open questions in its §9). Slice 7 closed all six plugins and handed these two here. The one contract change is a live tool source: `ComposedPodRegistry` takes a supplier so a plugin's tools are re-read every step, which is what an MCP server whose tool list changes needs. `plugins/mcp` reads cloud rows (`public.McpServer`, unsealed with the host's `SecretCipher` as GitHub tokens already are) and the clone's `.mcp.json` / `.atlas/mcp.json`, spawns stdio servers through the daemon's existing `mcp.*` ops, and keeps v1's tool naming, effect mapping and instructions hook. `plugins/skills` turns the dead `skill-index.ts` read into the listing and adds the `skill` load tool over repo dirs, cloud rows and compiled built-ins. Read-only on both counts: no MCP sign-in, no `mcp-edit`, no `skill_install`.
+- **Spec written 2026-11-09: slice 7b, MCP and skills** ([spec](slices/07b-mcp-skills.md); open questions in its §9). Slice 7 closed all six plugins and handed these two here. The one contract change is a live tool source: `ComposedPodRegistry` takes a supplier so a plugin's tools are re-read every step, which is what an MCP server whose tool list changes needs. `plugins/mcp` reads cloud rows (`public.McpServer`, unsealed with the host's `SecretCipher` as GitHub tokens already are) and the clone's `.mcp.json` / `.atlas/mcp.json`, spawns stdio servers through the daemon's existing `mcp.*` ops, and keeps v1's tool naming, effect mapping and instructions hook. `plugins/skills` turns the dead `skill-index.ts` read into the listing and adds `skill` over repo dirs
+  (`.atlas/skills`, `.agents/skills`, symlinks followed), cloud rows and compiled built-ins, plus full
+  CRUD from a session — install, edit and delete — with no pod copy of a cloud skill: the rows are the
+  only copy and their files are served on demand. MCP stays read-only: no sign-in, no `mcp-edit`.
 
 - **`plugins/sessions` live-checked on production (2026-11-09)** (`#2095`, `#2097`, `#2099`): a
   session can create another session with a brief — an ordinary one by default (its own sandbox and
